@@ -1,76 +1,72 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-interface TabIconProps {
-  icon: string;
-  focused: boolean;
-}
-
-function TabIcon({ icon, focused }: TabIconProps) {
-  return (
-    <View style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-      <Text style={[styles.tabIconText, focused && styles.tabIconTextFocused]}>
-        {icon}
-      </Text>
-    </View>
-  );
-}
+import { View, Text, StyleSheet } from 'react-native';
 
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();
-
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#3A2818',
-          borderTopColor: '#DAA520',
-          borderTopWidth: 2,
-          height: 60 + insets.bottom,
-          paddingBottom: insets.bottom,
-          paddingTop: 8,
-        },
-        tabBarShowLabel: false,
+        tabBarStyle: styles.tabBar,
+        tabBarShowLabel: true,
         tabBarActiveTintColor: '#FFD700',
         tabBarInactiveTintColor: '#8B6F47',
+        tabBarLabelStyle: styles.tabLabel,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Accueil',
-          tabBarIcon: ({ focused }) => <TabIcon icon="⭐" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.tabIcon, focused ? styles.tabIconFocused : null]}>
+              <Text style={styles.tabIconText}>⭐</Text>
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="profiles"
         options={{
           title: 'Profils',
-          tabBarIcon: ({ focused }) => <TabIcon icon="🔍" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.tabIcon, focused ? styles.tabIconFocused : null]}>
+              <Text style={styles.tabIconText}>🔍</Text>
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="salons"
         options={{
           title: 'Salons',
-          tabBarIcon: ({ focused }) => <TabIcon icon="👥" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.tabIcon, focused ? styles.tabIconFocused : null]}>
+              <Text style={styles.tabIconText}>👥</Text>
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="letters"
         options={{
           title: 'Lettres',
-          tabBarIcon: ({ focused }) => <TabIcon icon="💌" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.tabIcon, focused ? styles.tabIconFocused : null]}>
+              <Text style={styles.tabIconText}>💌</Text>
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Plus',
-          tabBarIcon: ({ focused }) => <TabIcon icon="⚙️" focused={focused} />,
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.tabIcon, focused ? styles.tabIconFocused : null]}>
+              <Text style={styles.tabIconText}>⚙️</Text>
+            </View>
+          ),
         }}
       />
     </Tabs>
@@ -78,10 +74,22 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: '#3A2818',
+    borderTopColor: '#DAA520',
+    borderTopWidth: 2,
+    height: 70,
+    paddingBottom: 10,
+    paddingTop: 5,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
   tabIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -89,9 +97,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#DAA520',
   },
   tabIconText: {
-    fontSize: 24,
-  },
-  tabIconTextFocused: {
-    fontSize: 26,
+    fontSize: 20,
   },
 });
