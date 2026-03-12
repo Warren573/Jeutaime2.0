@@ -6,22 +6,17 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import {
-  User,
-  Profile,
+import type {
   AvatarConfig,
-  AvatarState,
   Match,
   Letter,
-  LetterThread,
   PetOwnership,
-  PetStats,
   Wallet,
   UserProgression,
   UserStats,
-  ReceivedOffering,
-  ActiveEffect,
-  SalonParticipant,
+  Transaction,
+  TransactionCategory,
+  Title,
 } from '../shared/types';
 
 import * as EconomyEngine from '../engine/EconomyEngine';
