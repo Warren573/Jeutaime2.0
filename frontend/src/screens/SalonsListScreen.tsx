@@ -10,7 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { salons } from '../data/appData';
+import { salonsData } from '../data/salonsData';
 
 const { width } = Dimensions.get('window');
 
@@ -18,8 +18,12 @@ export default function SalonsListScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const handleSalonPress = (salonId: number) => {
-    router.push(`/salon/${salonId}`);
+  const handleSalonPress = (salon: typeof salonsData[0]) => {
+    if (salon.type === 'cafe_paris') {
+      router.push('/salon/cafe-paris');
+    } else {
+      router.push(`/salon/${salon.id}`);
+    }
   };
 
   return (
@@ -36,11 +40,11 @@ export default function SalonsListScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {salons.map((salon) => (
+        {salonsData.map((salon) => (
           <TouchableOpacity
             key={salon.id}
             style={styles.salonCard}
-            onPress={() => handleSalonPress(salon.id)}
+            onPress={() => handleSalonPress(salon)}
             activeOpacity={0.8}
           >
             <LinearGradient
@@ -54,6 +58,11 @@ export default function SalonsListScreen() {
                 <View style={styles.salonInfo}>
                   <Text style={styles.salonName}>{salon.name}</Text>
                   <Text style={styles.salonDesc}>{salon.desc}</Text>
+                  {salon.type === 'cafe_paris' && (
+                    <View style={styles.specialBadge}>
+                      <Text style={styles.specialBadgeText}>⭐ Spécial</Text>
+                    </View>
+                  )}
                 </View>
                 <View style={styles.salonStats}>
                   <View style={styles.participantsBadge}>
@@ -137,6 +146,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.9)',
     marginTop: 4,
+  },
+  specialBadge: {
+    backgroundColor: 'rgba(255,215,0,0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  specialBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#3A2818',
   },
   salonStats: {
     alignItems: 'center',
