@@ -41,22 +41,135 @@ export const badges: Badge[] = [
   { id: 'veteran', name: 'Vétéran', emoji: '🏆', description: '30 jours sur l\'app', condition: 'daysActive >= 30' },
 ];
 
+export type AnimalRarity = 'commun' | 'peu_commun' | 'rare' | 'legendaire';
+
 export interface Animal {
   id: string;
   name: string;
   emoji: string;
   cost: number;
+  rarity: AnimalRarity;
+  personality: string;
+  favoriteFood: string;
+  favoriteEmoji: string;
   stages: string[];
 }
 
 export const animals: Animal[] = [
-  { id: 'cat', name: 'Chat', emoji: '🐱', cost: 200, stages: ['🐱', '😺', '😸'] },
-  { id: 'dog', name: 'Chien', emoji: '🐶', cost: 200, stages: ['🐶', '🐕', '🦮'] },
-  { id: 'rabbit', name: 'Lapin', emoji: '🐰', cost: 150, stages: ['🐰', '🐇', '🐇'] },
-  { id: 'hamster', name: 'Hamster', emoji: '🐹', cost: 100, stages: ['🐹', '🐹', '🐹'] },
-  { id: 'bird', name: 'Oiseau', emoji: '🐦', cost: 150, stages: ['🐦', '🐤', '🦜'] },
-  { id: 'fox', name: 'Renard', emoji: '🦊', cost: 300, stages: ['🦊', '🦊', '🦊'] },
+  { 
+    id: 'dog', 
+    name: 'Chien', 
+    emoji: '🐕', 
+    cost: 500, 
+    rarity: 'commun',
+    personality: 'Toujours joyeux et adore jouer',
+    favoriteFood: 'Os',
+    favoriteEmoji: '🦴',
+    stages: ['🐶', '🐕', '🐕‍🦺'] 
+  },
+  { 
+    id: 'rabbit', 
+    name: 'Lapin', 
+    emoji: '🐰', 
+    cost: 400, 
+    rarity: 'commun',
+    personality: 'Doux et timide',
+    favoriteFood: 'Carotte',
+    favoriteEmoji: '🥕',
+    stages: ['🐰', '🐇', '🐇'] 
+  },
+  { 
+    id: 'hamster', 
+    name: 'Hamster', 
+    emoji: '🐹', 
+    cost: 300, 
+    rarity: 'commun',
+    personality: 'Mignon et actif, court dans sa roue toute la nuit',
+    favoriteFood: 'Graines',
+    favoriteEmoji: '🌰',
+    stages: ['🐹', '🐹', '🐹'] 
+  },
+  { 
+    id: 'panda', 
+    name: 'Panda', 
+    emoji: '🐼', 
+    cost: 1500, 
+    rarity: 'rare',
+    personality: 'Rare et adorable, mange du bambou et fait des acrobaties',
+    favoriteFood: 'Bambou',
+    favoriteEmoji: '🎋',
+    stages: ['🐼', '🐼', '🐼'] 
+  },
+  { 
+    id: 'unicorn', 
+    name: 'Licorne', 
+    emoji: '🦄', 
+    cost: 3000, 
+    rarity: 'legendaire',
+    personality: 'Légendaire et magique, répand des paillettes et fait des arcs-en-ciel',
+    favoriteFood: 'Étoiles',
+    favoriteEmoji: '⭐',
+    stages: ['🦄', '🦄', '🦄'] 
+  },
+  { 
+    id: 'iguana', 
+    name: 'Iguane', 
+    emoji: '🦎', 
+    cost: 800, 
+    rarity: 'peu_commun',
+    personality: 'Exotique et calme, aime bronzer au soleil et grimper',
+    favoriteFood: 'Salade',
+    favoriteEmoji: '🥗',
+    stages: ['🦎', '🦎', '🦎'] 
+  },
+  { 
+    id: 'penguin', 
+    name: 'Pingouin', 
+    emoji: '🐧', 
+    cost: 700, 
+    rarity: 'peu_commun',
+    personality: 'Élégant et joueur, adore nager et glisser sur la glace',
+    favoriteFood: 'Poisson',
+    favoriteEmoji: '🐟',
+    stages: ['🐧', '🐧', '🐧'] 
+  },
+  { 
+    id: 'fox', 
+    name: 'Renard', 
+    emoji: '🦊', 
+    cost: 600, 
+    rarity: 'peu_commun',
+    personality: 'Rusé et agile, curieux et aime explorer',
+    favoriteFood: 'Baies',
+    favoriteEmoji: '🍇',
+    stages: ['🦊', '🦊', '🦊'] 
+  },
+  { 
+    id: 'dragon', 
+    name: 'Dragon', 
+    emoji: '🐉', 
+    cost: 5000, 
+    rarity: 'legendaire',
+    personality: 'Mythique et puissant, crache du feu et vole dans le ciel',
+    favoriteFood: 'Flammes',
+    favoriteEmoji: '🔥',
+    stages: ['🐲', '🐉', '🐉'] 
+  },
 ];
+
+export const rarityColors = {
+  commun: '#4CAF50',
+  peu_commun: '#2196F3',
+  rare: '#9C27B0',
+  legendaire: '#FFD700',
+};
+
+export const rarityNames = {
+  commun: 'Commun',
+  peu_commun: 'Peu Commun',
+  rare: 'Rare',
+  legendaire: 'Légendaire',
+};
 
 export const pointsConfig = {
   sendLetter: 10,
@@ -68,3 +181,23 @@ export const pointsConfig = {
   winGame: 15,
   dailyLogin: 10,
 };
+
+// Mini-jeux disponibles
+export interface MiniGame {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  reward: number;
+  difficulty: 'facile' | 'moyen' | 'difficile';
+}
+
+export const miniGames: MiniGame[] = [
+  { id: 'tictactoe', name: 'Morpion', emoji: '✖️', description: 'Alignez 3 symboles', reward: 30, difficulty: 'facile' },
+  { id: 'whack', name: 'Tape-Taupe', emoji: '🔨', description: 'Tapez les taupes!', reward: 50, difficulty: 'moyen' },
+  { id: 'memory', name: 'Memory', emoji: '🃏', description: 'Trouvez les paires', reward: 40, difficulty: 'facile' },
+  { id: 'pong', name: 'Pong', emoji: '🏓', description: 'Le classique!', reward: 60, difficulty: 'moyen' },
+  { id: 'brickbreaker', name: 'Casse-Brique', emoji: '🧱', description: 'Détruisez tous les blocs', reward: 70, difficulty: 'difficile' },
+  { id: 'cards', name: 'Jeu de Cartes', emoji: '🎴', description: 'Révélez et gagnez!', reward: 100, difficulty: 'moyen' },
+  { id: 'story', name: 'Continue l\'Histoire', emoji: '📖', description: 'Créez une histoire ensemble', reward: 50, difficulty: 'facile' },
+];
