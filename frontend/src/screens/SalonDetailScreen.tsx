@@ -202,9 +202,14 @@ export default function SalonDetailScreen() {
     // Message système
     const sysMsg: Message = {
       id: Date.now().toString(),
+      salonId: salonId,
+      userId: 'system',
+      userName: 'Système',
       username: 'Système',
+      content: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} ${item.name} à ${selectedPlayer.name}!`,
       text: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} ${item.name} à ${selectedPlayer.name}!`,
       timestamp: Date.now(),
+      type: 'offering',
       isSystem: true,
       giftData: item,
     };
