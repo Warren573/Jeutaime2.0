@@ -59,6 +59,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="journal"
+        options={{
+          title: 'Journal',
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.tabIcon, focused ? styles.tabIconFocused : null]}>
+              <Text style={styles.tabIconText}>📰</Text>
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: 'Plus',
