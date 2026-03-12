@@ -94,11 +94,11 @@ export default function HomeScreen() {
         {/* Animal virtuel */}
         {pet && (
           <TouchableOpacity style={styles.petCard} onPress={() => router.push('/pet')}>
-            <Text style={styles.petEmoji}>{pet.emoji}</Text>
+            <Text style={styles.petEmoji}>{pet.petEmoji}</Text>
             <View style={styles.petInfo}>
-              <Text style={styles.petName}>{pet.name}</Text>
+              <Text style={styles.petName}>{pet.petName}</Text>
               <Text style={styles.petStatus}>
-                🍖 {pet.hunger}% | 😄 {pet.happiness}%
+                🍖 {Math.round(pet.stats.hunger)}% | 😄 {Math.round(pet.stats.happiness)}%
               </Text>
             </View>
             <Text style={styles.petArrow}>→</Text>
