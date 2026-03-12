@@ -149,18 +149,19 @@ export default function LettersScreen() {
               <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
                 <Text style={styles.listCount}>{matches.length} conversations</Text>
                 {matches.map((match) => {
-                  const conv = getConversation(match.odId);
+                  const otherName = getOtherUserName(match);
+                  const conv = getConversation(match);
                   const lastMsg = conv[conv.length - 1];
-                  const unread = conv.filter(l => l.toId === currentUser?.id && !l.read).length;
+                  const unread = conv.filter(l => l.toUserId === (currentUser?.id || 'me') && !l.readAt).length;
                   
                   return (
                     <TouchableOpacity
-                      key={match.odId}
+                      key={match.id}
                       style={styles.convCard}
                       onPress={() => { setSelectedMatch(match); setShowCompose(true); }}
                     >
                       <View style={styles.avatarContainer}>
-                        <Avatar name={match.odName} size={55} />
+                        <Avatar name={otherName} size={55} />
                         {unread > 0 && (
                           <View style={styles.unreadBadge}>
                             <Text style={styles.unreadText}>{unread}</Text>
@@ -168,12 +169,12 @@ export default function LettersScreen() {
                         )}
                       </View>
                       <View style={styles.convInfo}>
-                        <Text style={styles.convName}>{match.odName}</Text>
+                        <Text style={styles.convName}>{otherName}</Text>
                         <Text style={styles.convMsg} numberOfLines={1}>
                           {lastMsg ? lastMsg.content : '✨ Nouveau match! Envoyez la première lettre'}
                         </Text>
                       </View>
-                      <Text style={styles.convTime}>{lastMsg ? formatTime(lastMsg.timestamp) : 'Nouveau'}</Text>
+                      <Text style={styles.convTime}>{lastMsg ? formatTime(lastMsg.createdAt) : 'Nouveau'}</Text>
                     </TouchableOpacity>
                   );
                 })}
