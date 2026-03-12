@@ -26,6 +26,8 @@ export default function RootLayout() {
         <Stack.Screen name="games" options={{ presentation: 'card' }} />
         <Stack.Screen name="pet" options={{ presentation: 'card' }} />
         <Stack.Screen name="badges" options={{ presentation: 'card' }} />
+        <Stack.Screen name="bottle" options={{ presentation: 'card' }} />
+        <Stack.Screen name="weekly-profile" options={{ presentation: 'card' }} />
       </Stack>
     </SafeAreaProvider>
   );
