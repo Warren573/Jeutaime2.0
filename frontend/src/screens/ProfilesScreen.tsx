@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
+import type { Match } from '../shared/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
