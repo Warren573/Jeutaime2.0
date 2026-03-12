@@ -3,8 +3,8 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      // Transform import.meta for web compatibility
-      ['transform-import-meta', { module: 'ES6' }],
-    ].filter(Boolean),
+      // Syntax support for import.meta
+      '@babel/plugin-syntax-import-meta',
+    ],
   };
 };
