@@ -267,13 +267,13 @@ const MemoryGame = ({ onEnd }: { onEnd: (pairs: number) => void }) => {
 };
 
 const memStyles = StyleSheet.create({
-  container: { alignItems: 'center', padding: 20 },
-  title: { fontSize: 24, fontWeight: '700', color: '#3A2818', marginBottom: 10 },
-  info: { fontSize: 16, color: '#8B6F47', marginBottom: 20 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', width: 280, justifyContent: 'center' },
-  card: { width: 60, height: 60, backgroundColor: '#8D6E63', borderRadius: 10, margin: 5, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  title: { fontSize: 32, fontWeight: '700', color: '#3A2818', marginBottom: 12 },
+  info: { fontSize: 18, color: '#8B6F47', marginBottom: 24 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', width: SCREEN_WIDTH - 40, justifyContent: 'center', maxWidth: 360 },
+  card: { width: (SCREEN_WIDTH - 80) / 4, height: (SCREEN_WIDTH - 80) / 4, backgroundColor: '#8D6E63', borderRadius: 14, margin: 6, alignItems: 'center', justifyContent: 'center', maxWidth: 75, maxHeight: 75 },
   cardFlipped: { backgroundColor: '#FFF8E7' },
-  cardEmoji: { fontSize: 28 },
+  cardEmoji: { fontSize: 36 },
 });
 
 // ============= ÉCRAN PRINCIPAL =============
