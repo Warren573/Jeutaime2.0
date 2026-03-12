@@ -5,6 +5,8 @@ module.exports = function (api) {
     plugins: [
       // Syntax support for import.meta
       '@babel/plugin-syntax-import-meta',
+      // Transform import.meta to process.env for web compatibility
+      'babel-plugin-transform-import-meta',
     ],
   };
 };
