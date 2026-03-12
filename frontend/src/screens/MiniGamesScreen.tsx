@@ -98,15 +98,15 @@ const TicTacToe = ({ onWin, onLose }: { onWin: () => void; onLose: () => void })
 };
 
 const tttStyles = StyleSheet.create({
-  container: { alignItems: 'center', padding: 20 },
-  title: { fontSize: 24, fontWeight: '700', color: '#3A2818', marginBottom: 20 },
-  board: { flexDirection: 'row', flexWrap: 'wrap', width: 240, height: 240 },
-  cell: { width: 80, height: 80, backgroundColor: '#FFF', borderWidth: 2, borderColor: '#8B6F47', alignItems: 'center', justifyContent: 'center' },
-  cellText: { fontSize: 40, fontWeight: '700' },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  title: { fontSize: 32, fontWeight: '700', color: '#3A2818', marginBottom: 24 },
+  board: { flexDirection: 'row', flexWrap: 'wrap', width: SCREEN_WIDTH - 60, height: SCREEN_WIDTH - 60, maxWidth: 320, maxHeight: 320 },
+  cell: { width: '33.33%', height: '33.33%', backgroundColor: '#FFF', borderWidth: 3, borderColor: '#8B6F47', alignItems: 'center', justifyContent: 'center' },
+  cellText: { fontSize: 56, fontWeight: '700' },
   x: { color: '#E91E63' },
   o: { color: '#2196F3' },
-  resetBtn: { marginTop: 20, backgroundColor: '#4CAF50', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 20 },
-  resetText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
+  resetBtn: { marginTop: 30, backgroundColor: '#4CAF50', paddingHorizontal: 50, paddingVertical: 18, borderRadius: 25 },
+  resetText: { color: '#FFF', fontWeight: '700', fontSize: 18 },
 });
 
 // ============= WHACK-A-MOLE (Tape-Taupe) =============
