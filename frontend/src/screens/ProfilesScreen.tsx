@@ -53,7 +53,15 @@ export default function ProfilesScreen() {
     
     // 50% de chance de match
     if (Math.random() > 0.5) {
-      addMatch({ odId: currentProfile.id, odName: currentProfile.name, timestamp: Date.now(), revealed: false });
+      addMatch({
+        id: `match_${Date.now()}`,
+        userAId: currentUser?.id || 'me',
+        userBId: currentProfile.id,
+        createdAt: Date.now(),
+        questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true },
+        status: 'active',
+        letterCount: 0,
+      });
       setShowMatch(currentProfile.name);
       setTimeout(() => setShowMatch(null), 2000);
     }
