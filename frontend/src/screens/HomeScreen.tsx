@@ -7,26 +7,48 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
-import Avatar from '../components/Avatar';
+
+const Avatar = ({ name, size = 50 }: { name: string; size?: number }) => {
+  const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  const bgColor = colors[Math.abs(hash) % colors.length];
+  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+  return (
+    <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: bgColor, alignItems: 'center', justifyContent: 'center' }]}>
+      <Text style={{ color: '#FFF', fontWeight: '700', fontSize: size * 0.35 }}>{initials}</Text>
+    </View>
+  );
+};
 
 export default function HomeScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser, coins } = useStore();
+  const { currentUser, coins, points, getCurrentTitle, matches, pet } = useStore();
+  const title = getCurrentTitle();
+
+  const quickActions = [
+    { emoji: '🎮', label: 'Jeux', route: '/games' },
+    { emoji: '🐾', label: 'Animal', route: '/pet' },
+    { emoji: '🌟', label: 'Badges', route: '/badges' },
+  ];
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.userSection}>
-          <Avatar
-            name={currentUser?.name || 'Utilisateur'}
-            size={50}
-            online={true}
-          />
+          <Avatar name={currentUser?.name || 'Joueur'} size={50} />
           <View style={styles.userInfo}>
             <Text style={styles.greeting}>Bonjour,</Text>
-            <Text style={styles.userName}>{currentUser?.name || 'Utilisateur'} 👋</Text>
+            <Text style={styles.userName}>{currentUser?.name || 'Joueur'} 👋</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.titleEmoji}>{title.emoji}</Text>
+              <Text style={styles.titleName}>{title.name}</Text>
+            </View>
           </View>
         </View>
         <View style={styles.coinsContainer}>
@@ -34,34 +56,54 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Stats rapides */}
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>💌</Text>
-            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statEmoji}>⭐</Text>
+            <Text style={styles.statValue}>{points}</Text>
+            <Text style={styles.statLabel}>Points</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statEmoji}>💕</Text>
+            <Text style={styles.statValue}>{matches.length}</Text>
+            <Text style={styles.statLabel}>Matchs</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statEmoji}>💬</Text>
+            <Text style={styles.statValue}>{currentUser?.stats?.lettersSent || 0}</Text>
             <Text style={styles.statLabel}>Lettres</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statEmoji}>🎮</Text>
-            <Text style={styles.statValue}>28</Text>
-            <Text style={styles.statLabel}>Parties</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>👥</Text>
-            <Text style={styles.statValue}>5</Text>
-            <Text style={styles.statLabel}>Salons</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>🏆</Text>
-            <Text style={styles.statValue}>3</Text>
-            <Text style={styles.statLabel}>Badges</Text>
+            <Text style={styles.statValue}>{currentUser?.stats?.gamesWon || 0}</Text>
+            <Text style={styles.statLabel}>Victoires</Text>
           </View>
         </View>
+
+        {/* Actions rapides */}
+        <View style={styles.quickActionsRow}>
+          {quickActions.map((action, i) => (
+            <TouchableOpacity key={i} style={styles.quickAction} onPress={() => router.push(action.route as any)}>
+              <Text style={styles.quickEmoji}>{action.emoji}</Text>
+              <Text style={styles.quickLabel}>{action.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Animal virtuel */}
+        {pet && (
+          <TouchableOpacity style={styles.petCard} onPress={() => router.push('/pet')}>
+            <Text style={styles.petEmoji}>{pet.emoji}</Text>
+            <View style={styles.petInfo}>
+              <Text style={styles.petName}>{pet.name}</Text>
+              <Text style={styles.petStatus}>
+                🍖 {pet.hunger}% | 😄 {pet.happiness}%
+              </Text>
+            </View>
+            <Text style={styles.petArrow}>→</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Activité récente */}
         <View style={styles.section}>
@@ -70,45 +112,18 @@ export default function HomeScreen() {
           <View style={styles.activityCard}>
             <Text style={styles.activityEmoji}>🔥</Text>
             <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>CLASH EN DIRECT!</Text>
-              <Text style={styles.activityDesc}>MaxiCoeur et LoveParis se battent pour Sophie!</Text>
+              <Text style={styles.activityTitle}>Nouveau salon!</Text>
+              <Text style={styles.activityDesc}>Le Café de Paris vous attend</Text>
             </View>
-            <Text style={styles.activityTime}>5 min</Text>
           </View>
 
           <View style={styles.activityCard}>
-            <Text style={styles.activityEmoji}>🏆</Text>
+            <Text style={styles.activityEmoji}>🎮</Text>
             <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Champion du jour!</Text>
-              <Text style={styles.activityDesc}>LaurenStyle a reçu 47 offrandes! 🎁</Text>
+              <Text style={styles.activityTitle}>Mini-jeux disponibles</Text>
+              <Text style={styles.activityDesc}>Morpion, Memory, Whack-a-Mole</Text>
             </View>
-            <Text style={styles.activityTime}>12 min</Text>
           </View>
-
-          <View style={styles.activityCard}>
-            <Text style={styles.activityEmoji}>💘</Text>
-            <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Love Story!</Text>
-              <Text style={styles.activityDesc}>Alex et Emma se sont écrit 15 lettres!</Text>
-            </View>
-            <Text style={styles.activityTime}>30 min</Text>
-          </View>
-        </View>
-
-        {/* Offrandes reçues */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎁 Offrandes reçues</Text>
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.offeringsRow}>
-              {['🌹', '🧪', '🌹', '💐', '🍫'].map((emoji, i) => (
-                <View key={i} style={styles.offeringItem}>
-                  <Text style={styles.offeringEmoji}>{emoji}</Text>
-                  <Text style={styles.offeringFrom}>Sophie</Text>
-                </View>
-              ))}
-            </View>
-          </ScrollView>
         </View>
       </ScrollView>
     </View>
@@ -116,150 +131,39 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFF8E7',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8D5B7',
-  },
-  userSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  userInfo: {
-    marginLeft: 12,
-  },
-  greeting: {
-    fontSize: 14,
-    color: '#8B6F47',
-  },
-  userName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#3A2818',
-  },
-  coinsContainer: {
-    backgroundColor: '#FFD700',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  coinsText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#3A2818',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 12,
-    marginHorizontal: 4,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statEmoji: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#3A2818',
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#8B6F47',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#3A2818',
-    marginBottom: 12,
-  },
-  activityCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  activityEmoji: {
-    fontSize: 28,
-    marginRight: 12,
-  },
-  activityContent: {
-    flex: 1,
-  },
-  activityTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#3A2818',
-  },
-  activityDesc: {
-    fontSize: 12,
-    color: '#8B6F47',
-    marginTop: 2,
-  },
-  activityTime: {
-    fontSize: 11,
-    color: '#B8860B',
-  },
-  offeringsRow: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-  },
-  offeringItem: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 12,
-    marginRight: 10,
-    alignItems: 'center',
-    minWidth: 70,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  offeringEmoji: {
-    fontSize: 28,
-    marginBottom: 4,
-  },
-  offeringFrom: {
-    fontSize: 11,
-    color: '#8B6F47',
-  },
+  container: { flex: 1, backgroundColor: '#FFF8E7' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
+  userSection: { flexDirection: 'row', alignItems: 'center' },
+  userInfo: { marginLeft: 12 },
+  greeting: { fontSize: 12, color: '#8B6F47' },
+  userName: { fontSize: 18, fontWeight: '700', color: '#3A2818' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  titleEmoji: { fontSize: 12 },
+  titleName: { fontSize: 11, color: '#DAA520', fontWeight: '600', marginLeft: 4 },
+  coinsContainer: { backgroundColor: '#FFD700', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  coinsText: { fontSize: 14, fontWeight: '700', color: '#3A2818' },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 100 },
+  statsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  statCard: { flex: 1, backgroundColor: '#FFF', borderRadius: 12, padding: 12, marginHorizontal: 3, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  statEmoji: { fontSize: 20, marginBottom: 4 },
+  statValue: { fontSize: 18, fontWeight: '700', color: '#3A2818' },
+  statLabel: { fontSize: 10, color: '#8B6F47', marginTop: 2 },
+  quickActionsRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 },
+  quickAction: { alignItems: 'center', backgroundColor: '#FFF', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  quickEmoji: { fontSize: 28 },
+  quickLabel: { fontSize: 12, fontWeight: '600', color: '#5D4037', marginTop: 4 },
+  petCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', borderRadius: 16, padding: 16, marginBottom: 16 },
+  petEmoji: { fontSize: 40 },
+  petInfo: { flex: 1, marginLeft: 12 },
+  petName: { fontSize: 16, fontWeight: '700', color: '#2E7D32' },
+  petStatus: { fontSize: 12, color: '#558B2F', marginTop: 4 },
+  petArrow: { fontSize: 20, color: '#4CAF50' },
+  section: { marginTop: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#3A2818', marginBottom: 12 },
+  activityCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 12, padding: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 },
+  activityEmoji: { fontSize: 28, marginRight: 12 },
+  activityContent: { flex: 1 },
+  activityTitle: { fontSize: 14, fontWeight: '700', color: '#3A2818' },
+  activityDesc: { fontSize: 12, color: '#8B6F47', marginTop: 2 },
 });
