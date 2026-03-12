@@ -149,9 +149,14 @@ export default function CafeParisScreen() {
 
     const sysMsg: Message = {
       id: Date.now().toString(),
+      salonId: 'cafe_paris',
+      userId: 'system',
+      userName: 'Système',
       username: 'Système',
+      content: `${currentUser?.name || 'Vous'} → ${item.emoji} → ${selectedPlayer.name}`,
       text: `${currentUser?.name || 'Vous'} → ${item.emoji} → ${selectedPlayer.name}`,
       timestamp: Date.now(),
+      type: 'offering',
       isSystem: true,
       giftData: item,
     };
