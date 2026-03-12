@@ -138,7 +138,7 @@ export default function PetScreen() {
   }
 
   // Écran avec animal adopté
-  const currentAnimal = animals.find(a => a.id === pet.type);
+  const currentAnimal = animals.find(a => a.id === pet.petId);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -146,7 +146,7 @@ export default function PetScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.backText}>← Retour</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>🐾 {pet.name}</Text>
+        <Text style={styles.title}>🐾 {pet.petName}</Text>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -157,8 +157,8 @@ export default function PetScreen() {
         ) : null}
 
         <View style={styles.petDisplay}>
-          <Text style={styles.petEmoji}>{pet.emoji}</Text>
-          <Text style={styles.petName}>{pet.name}</Text>
+          <Text style={styles.petEmoji}>{pet.petEmoji}</Text>
+          <Text style={styles.petName}>{pet.petName}</Text>
           {currentAnimal && (
             <View style={[styles.rarityBadgePet, { backgroundColor: rarityColors[currentAnimal.rarity] }]}>
               <Text style={styles.rarityTextPet}>{rarityNames[currentAnimal.rarity]}</Text>
@@ -170,10 +170,10 @@ export default function PetScreen() {
         </View>
 
         <View style={styles.statsContainer}>
-          <StatBar label="Faim" value={pet.hunger} emoji="🍖" />
-          <StatBar label="Bonheur" value={pet.happiness} emoji="😄" />
-          <StatBar label="Propreté" value={pet.cleanliness} emoji="🚿" />
-          <StatBar label="Énergie" value={pet.energy} emoji="⚡" />
+          <StatBar label="Faim" value={Math.round(pet.stats.hunger)} emoji="🍖" />
+          <StatBar label="Bonheur" value={Math.round(pet.stats.happiness)} emoji="😄" />
+          <StatBar label="Propreté" value={Math.round(pet.stats.cleanliness)} emoji="🚿" />
+          <StatBar label="Énergie" value={Math.round(pet.stats.energy)} emoji="⚡" />
         </View>
 
         <View style={styles.actionsRow}>
