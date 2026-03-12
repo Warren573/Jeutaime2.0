@@ -16,9 +16,15 @@ config.transformer = {
   ...config.transformer,
   minifierConfig: {
     ...config.transformer?.minifierConfig,
-    // Preserve import.meta during minification
     ecma: 2020,
   },
+  // Add a polyfill for import.meta
+  getTransformOptions: async () => ({
+    transform: {
+      experimentalImportSupport: false,
+      inlineRequires: true,
+    },
+  }),
 };
 
 // Add resolver for import.meta
@@ -26,6 +32,19 @@ config.resolver = {
   ...config.resolver,
   resolverMainFields: ['react-native', 'browser', 'main'],
   platforms: ['ios', 'android', 'web'],
+};
+
+// Add serializer to inject polyfill
+config.serializer = {
+  ...config.serializer,
+  getPolyfills: () => {
+    const polyfills = config.serializer?.getPolyfills ? config.serializer.getPolyfills() : [];
+    return [
+      // Polyfill for import.meta.env
+      require.resolve('./src/polyfills/import-meta-polyfill.js'),
+      ...polyfills,
+    ];
+  },
 };
 
 // Reduce the number of workers to decrease resource usage
