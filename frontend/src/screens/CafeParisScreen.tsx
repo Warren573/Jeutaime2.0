@@ -24,7 +24,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 interface Player {
   id: string;
   name: string;
-  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   isMe?: boolean;
   online: boolean;
   transformation?: string;
@@ -50,48 +49,18 @@ const Avatar = ({ name, size = 50, transformation }: { name: string; size?: numb
   );
 };
 
-// Grille d'offrandes 2x3
-const OfferingsGrid = ({ offerings, side }: { offerings: { emoji: string }[]; side: 'left' | 'right' }) => {
+// Grille d'offrandes 2x3 (2 colonnes, 3 lignes)
+const OfferingsGrid = ({ offerings }: { offerings: { emoji: string }[] }) => {
   const slots = Array(6).fill(null).map((_, i) => offerings[i] || null);
   
   return (
-    <View style={[styles.offeringsGrid, side === 'left' ? styles.offeringsGridLeft : styles.offeringsGridRight]}>
+    <View style={styles.offeringsGrid}>
       {slots.map((item, idx) => (
         <View key={idx} style={styles.offeringSlot}>
           {item && <Text style={styles.offeringEmoji}>{item.emoji}</Text>}
         </View>
       ))}
     </View>
-  );
-};
-
-// Joueur avec avatar et grille d'offrandes
-const PlayerSlot = ({ 
-  player, 
-  onPress,
-  offeringsPosition 
-}: { 
-  player: Player; 
-  onPress: () => void;
-  offeringsPosition: 'left' | 'right';
-}) => {
-  const isRight = offeringsPosition === 'right';
-  
-  return (
-    <TouchableOpacity style={styles.playerSlot} onPress={onPress} disabled={player.isMe}>
-      {/* Si offrandes à gauche, les mettre avant l'avatar */}
-      {!isRight && <OfferingsGrid offerings={player.offerings} side="left" />}
-      
-      <View style={styles.avatarContainer}>
-        <Avatar name={player.name} size={50} transformation={player.transformation} />
-        <Text style={styles.playerName}>{player.name}</Text>
-        {player.isMe && <Text style={styles.meBadge}>👑</Text>}
-        {player.online && <View style={styles.onlineDot} />}
-      </View>
-      
-      {/* Si offrandes à droite, les mettre après l'avatar */}
-      {isRight && <OfferingsGrid offerings={player.offerings} side="right" />}
-    </TouchableOpacity>
   );
 };
 
@@ -109,13 +78,18 @@ export default function CafeParisScreen() {
   const [showMagicModal, setShowMagicModal] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
 
-  // 4 joueurs dans les positions fixes
+  // 4 joueurs
   const [players, setPlayers] = useState<Player[]>([
-    { id: 'p1', name: 'Sophie', position: 'top-left', online: true, offerings: [] },
-    { id: 'p2', name: 'Emma', position: 'top-right', online: true, offerings: [] },
-    { id: 'p3', name: 'Alex', position: 'bottom-left', online: true, offerings: [] },
-    { id: 'me', name: currentUser?.name || 'Vous', position: 'bottom-right', online: true, isMe: true, offerings: [] },
+    { id: 'p1', name: 'Sophie', online: true, offerings: [] },
+    { id: 'p2', name: 'Emma', online: true, offerings: [] },
+    { id: 'p3', name: 'Alex', online: true, offerings: [] },
+    { id: 'me', name: currentUser?.name || 'Vous', online: true, isMe: true, offerings: [] },
   ]);
+
+  const sophie = players[0];
+  const emma = players[1];
+  const alex = players[2];
+  const vous = players[3];
 
   const messages = messagesBySalon['cafe_paris'] || [];
 
@@ -171,7 +145,7 @@ export default function CafeParisScreen() {
     const sysMsg: Message = {
       id: Date.now().toString(),
       username: 'Système',
-      text: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} ${item.name} à ${selectedPlayer.name}!`,
+      text: `${currentUser?.name || 'Vous'} → ${item.emoji} → ${selectedPlayer.name}`,
       timestamp: Date.now(),
       isSystem: true,
       giftData: item,
@@ -199,7 +173,7 @@ export default function CafeParisScreen() {
     const sysMsg: Message = {
       id: Date.now().toString(),
       username: 'Système',
-      text: `${currentUser?.name || 'Vous'} a utilisé ${item.emoji} ${item.name} sur ${selectedPlayer.name}!`,
+      text: `${currentUser?.name || 'Vous'} a lancé ${item.emoji} sur ${selectedPlayer.name}!`,
       timestamp: Date.now(),
       isSystem: true,
       giftData: item,
@@ -217,35 +191,26 @@ export default function CafeParisScreen() {
 
     if (isSystem) {
       return (
-        <View style={styles.systemMessageContainer}>
-          <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.giftMessage}>
-            {item.giftData && <Text style={styles.giftEmoji}>{item.giftData.emoji}</Text>}
-            <Text style={styles.giftText}>{item.text}</Text>
-          </LinearGradient>
+        <View style={styles.systemMsg}>
+          <Text style={styles.systemMsgText}>{item.text}</Text>
         </View>
       );
     }
 
     return (
-      <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
-        <Text style={styles.messageUsername}>{item.username} • {formatTime(item.timestamp)}</Text>
-        <View style={[styles.messageBubble, isOwn && styles.messageBubbleOwn]}>
-          <Text style={[styles.messageText, isOwn && styles.messageTextOwn]}>{item.text}</Text>
+      <View style={[styles.msgRow, isOwn && styles.msgRowOwn]}>
+        <View style={[styles.msgBubble, isOwn && styles.msgBubbleOwn]}>
+          <Text style={styles.msgAuthor}>{item.username}</Text>
+          <Text style={[styles.msgText, isOwn && styles.msgTextOwn]}>{item.text}</Text>
         </View>
       </View>
     );
   };
 
-  // Récupérer les joueurs par position
-  const topLeft = players.find(p => p.position === 'top-left')!;
-  const topRight = players.find(p => p.position === 'top-right')!;
-  const bottomLeft = players.find(p => p.position === 'bottom-left')!;
-  const bottomRight = players.find(p => p.position === 'bottom-right')!;
-
-  const openPlayerModal = (player: Player, modalType: 'offerings' | 'magic') => {
+  const openModal = (player: Player, type: 'offerings' | 'magic') => {
     if (player.isMe) return;
     setSelectedPlayer(player);
-    if (modalType === 'offerings') setShowOfferingsModal(true);
+    if (type === 'offerings') setShowOfferingsModal(true);
     else setShowMagicModal(true);
   };
 
@@ -256,90 +221,107 @@ export default function CafeParisScreen() {
     >
       {/* Header */}
       <LinearGradient colors={['#8D6E63', '#5D4037']} style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>←</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.title}>☕ Café de Paris</Text>
-        <View style={styles.coinsContainer}>
+        <View style={styles.coinsBadge}>
           <Text style={styles.coinsText}>💰 {coins}</Text>
         </View>
       </LinearGradient>
 
-      {/* Zone de jeu - Cachée quand clavier visible */}
-      {!isKeyboardVisible && (
-        <View style={styles.gameZone}>
-          {/* LIGNE 1 : Sophie (gauche) et Emma (droite) */}
-          <View style={styles.playersRowTop}>
-            {/* Sophie : avatar + offrandes à droite */}
-            <PlayerSlot 
-              player={topLeft} 
-              onPress={() => openPlayerModal(topLeft, 'offerings')}
-              offeringsPosition="right"
-            />
-            {/* Emma : offrandes à gauche + avatar */}
-            <PlayerSlot 
-              player={topRight} 
-              onPress={() => openPlayerModal(topRight, 'offerings')}
-              offeringsPosition="left"
-            />
+      {/* Zone de jeu */}
+      {!isKeyboardVisible ? (
+        <View style={styles.gameArea}>
+          {/* LIGNE 1 : Sophie (gauche) ----------- Emma (droite) */}
+          <View style={styles.topRow}>
+            {/* Sophie : avatar + grille à DROITE */}
+            <TouchableOpacity style={styles.playerLeft} onPress={() => openModal(sophie, 'offerings')}>
+              <View style={styles.avatarBox}>
+                <Avatar name={sophie.name} size={48} transformation={sophie.transformation} />
+                {sophie.online && <View style={styles.onlineDot} />}
+              </View>
+              <Text style={styles.playerName}>{sophie.name}</Text>
+              <OfferingsGrid offerings={sophie.offerings} />
+            </TouchableOpacity>
+
+            {/* Emma : grille à GAUCHE + avatar */}
+            <TouchableOpacity style={styles.playerRight} onPress={() => openModal(emma, 'offerings')}>
+              <OfferingsGrid offerings={emma.offerings} />
+              <View style={styles.avatarBox}>
+                <Avatar name={emma.name} size={48} transformation={emma.transformation} />
+                {emma.online && <View style={styles.onlineDot} />}
+              </View>
+              <Text style={styles.playerName}>{emma.name}</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* LIGNE 2 : Discussion horizontale */}
-          <View style={styles.chatZone}>
+          {/* LIGNE 2 : DISCUSSION HORIZONTALE */}
+          <View style={styles.chatArea}>
             <FlatList
               ref={flatListRef}
               data={messages}
               renderItem={renderMessage}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.messagesList}
+              contentContainerStyle={styles.chatContent}
               onContentSizeChange={scrollToEnd}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
-                <View style={styles.emptyChat}>
-                  <Text style={styles.emptyChatText}>Bienvenue au Café! ☕</Text>
-                </View>
+                <Text style={styles.emptyText}>Commencez la discussion! ☕</Text>
               }
             />
           </View>
 
-          {/* LIGNE 3 : Alex (gauche) et Vous (droite) */}
-          <View style={styles.playersRowBottom}>
-            {/* Alex : avatar + offrandes à droite */}
-            <PlayerSlot 
-              player={bottomLeft} 
-              onPress={() => openPlayerModal(bottomLeft, 'offerings')}
-              offeringsPosition="right"
-            />
-            {/* Vous : offrandes à gauche + avatar */}
-            <PlayerSlot 
-              player={bottomRight} 
-              onPress={() => {}}
-              offeringsPosition="left"
-            />
+          {/* LIGNE 3 : Alex (gauche) ----------- Vous (droite) */}
+          <View style={styles.bottomRow}>
+            {/* Alex : avatar + grille à DROITE */}
+            <TouchableOpacity style={styles.playerLeft} onPress={() => openModal(alex, 'offerings')}>
+              <View style={styles.avatarBox}>
+                <Avatar name={alex.name} size={48} transformation={alex.transformation} />
+                {alex.online && <View style={styles.onlineDot} />}
+              </View>
+              <Text style={styles.playerName}>{alex.name}</Text>
+              <OfferingsGrid offerings={alex.offerings} />
+            </TouchableOpacity>
+
+            {/* Vous : grille à GAUCHE + avatar */}
+            <View style={styles.playerRight}>
+              <OfferingsGrid offerings={vous.offerings} />
+              <View style={styles.avatarBox}>
+                <Avatar name={vous.name} size={48} />
+                <Text style={styles.meBadge}>👑</Text>
+              </View>
+              <Text style={styles.playerName}>{vous.name}</Text>
+            </View>
+          </View>
+
+          {/* Boutons Offrandes / Magie */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.offeringsBtn} onPress={() => setShowOfferingsModal(true)}>
+              <Text style={styles.btnText}>🎁 Offrandes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.magicBtn} onPress={() => setShowMagicModal(true)}>
+              <Text style={styles.btnTextWhite}>✨ Magie</Text>
+            </TouchableOpacity>
           </View>
         </View>
-      )}
-
-      {/* Boutons Offrandes et Magie */}
-      {!isKeyboardVisible && (
-        <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={styles.actionButton} 
-            onPress={() => setShowOfferingsModal(true)}
-          >
-            <Text style={styles.actionButtonText}>🎁 Offrandes</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.magicButton]} 
-            onPress={() => setShowMagicModal(true)}
-          >
-            <Text style={styles.actionButtonText}>✨ Magie</Text>
-          </TouchableOpacity>
+      ) : (
+        /* Quand clavier visible : juste le chat */
+        <View style={styles.chatOnly}>
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.chatContent}
+            onContentSizeChange={scrollToEnd}
+            showsVerticalScrollIndicator={false}
+          />
         </View>
       )}
 
       {/* Zone de saisie */}
-      <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <TextInput
           ref={inputRef}
           style={styles.input}
@@ -350,84 +332,80 @@ export default function CafeParisScreen() {
           onSubmitEditing={sendMessage}
           returnKeyType="send"
         />
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-          <Text style={styles.sendButtonText}>➤</Text>
+        <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
+          <Text style={styles.sendBtnText}>➤</Text>
         </TouchableOpacity>
       </View>
 
       {/* Modal Offrandes */}
       <Modal visible={showOfferingsModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
+        <View style={styles.modalBg}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>
-                {selectedPlayer ? `🎁 Envoyer à ${selectedPlayer.name}` : '🎁 Offrandes'}
+                {selectedPlayer ? `🎁 → ${selectedPlayer.name}` : '🎁 Offrandes'}
               </Text>
               <TouchableOpacity onPress={() => { setShowOfferingsModal(false); setSelectedPlayer(null); }}>
-                <Text style={styles.closeBtn}>✕</Text>
+                <Text style={styles.closeX}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            {!selectedPlayer && (
-              <View style={styles.playerSelector}>
-                <Text style={styles.sectionTitle}>Choisir un joueur</Text>
-                <View style={styles.playerSelectorRow}>
+            {!selectedPlayer ? (
+              <View style={styles.selectPlayer}>
+                <Text style={styles.selectLabel}>Choisir un joueur</Text>
+                <View style={styles.selectRow}>
                   {players.filter(p => !p.isMe).map(p => (
-                    <TouchableOpacity key={p.id} style={styles.playerSelectorItem} onPress={() => setSelectedPlayer(p)}>
-                      <Avatar name={p.name} size={50} />
-                      <Text style={styles.playerSelectorName}>{p.name}</Text>
+                    <TouchableOpacity key={p.id} style={styles.selectItem} onPress={() => setSelectedPlayer(p)}>
+                      <Avatar name={p.name} size={45} transformation={p.transformation} />
+                      <Text style={styles.selectName}>{p.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
-            )}
-
-            {selectedPlayer && (
-              <ScrollView style={styles.itemsList}>
-                <Text style={styles.sectionTitle}>🍹 Boissons</Text>
-                <View style={styles.itemsGrid}>
+            ) : (
+              <ScrollView style={styles.itemsScroll}>
+                <Text style={styles.catTitle}>🍹 Boissons</Text>
+                <View style={styles.itemsWrap}>
                   {allOfferings.filter(o => o.category === 'boisson').map(o => (
                     <TouchableOpacity
                       key={o.id}
-                      style={[styles.itemCard, coins < o.cost && styles.itemDisabled]}
+                      style={[styles.itemBox, coins < o.cost && styles.itemOff]}
                       onPress={() => handleSendOffering(o)}
                       disabled={coins < o.cost}
                     >
-                      <Text style={styles.itemEmoji}>{o.emoji}</Text>
-                      <Text style={styles.itemName}>{o.name}</Text>
-                      <Text style={styles.itemCost}>{o.cost} 💰</Text>
+                      <Text style={styles.itemIcon}>{o.emoji}</Text>
+                      <Text style={styles.itemLabel}>{o.name}</Text>
+                      <Text style={styles.itemPrice}>{o.cost}💰</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-
-                <Text style={styles.sectionTitle}>🍔 Nourriture</Text>
-                <View style={styles.itemsGrid}>
+                <Text style={styles.catTitle}>🍔 Nourriture</Text>
+                <View style={styles.itemsWrap}>
                   {allOfferings.filter(o => o.category === 'nourriture').map(o => (
                     <TouchableOpacity
                       key={o.id}
-                      style={[styles.itemCard, coins < o.cost && styles.itemDisabled]}
+                      style={[styles.itemBox, coins < o.cost && styles.itemOff]}
                       onPress={() => handleSendOffering(o)}
                       disabled={coins < o.cost}
                     >
-                      <Text style={styles.itemEmoji}>{o.emoji}</Text>
-                      <Text style={styles.itemName}>{o.name}</Text>
-                      <Text style={styles.itemCost}>{o.cost} 💰</Text>
+                      <Text style={styles.itemIcon}>{o.emoji}</Text>
+                      <Text style={styles.itemLabel}>{o.name}</Text>
+                      <Text style={styles.itemPrice}>{o.cost}💰</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-
-                <Text style={styles.sectionTitle}>💌 Symbolique</Text>
-                <View style={styles.itemsGrid}>
+                <Text style={styles.catTitle}>💌 Symbolique</Text>
+                <View style={styles.itemsWrap}>
                   {allOfferings.filter(o => o.category === 'symbolique').map(o => (
                     <TouchableOpacity
                       key={o.id}
-                      style={[styles.itemCard, coins < o.cost && styles.itemDisabled]}
+                      style={[styles.itemBox, coins < o.cost && styles.itemOff]}
                       onPress={() => handleSendOffering(o)}
                       disabled={coins < o.cost}
                     >
-                      <Text style={styles.itemEmoji}>{o.emoji}</Text>
-                      <Text style={styles.itemName}>{o.name}</Text>
-                      <Text style={styles.itemCost}>{o.cost} 💰</Text>
+                      <Text style={styles.itemIcon}>{o.emoji}</Text>
+                      <Text style={styles.itemLabel}>{o.name}</Text>
+                      <Text style={styles.itemPrice}>{o.cost}💰</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -439,61 +417,58 @@ export default function CafeParisScreen() {
 
       {/* Modal Magie */}
       <Modal visible={showMagicModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
+        <View style={styles.modalBg}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalHead}>
               <Text style={styles.modalTitle}>
-                {selectedPlayer ? `✨ Magie sur ${selectedPlayer.name}` : '✨ Pouvoirs Magiques'}
+                {selectedPlayer ? `✨ → ${selectedPlayer.name}` : '✨ Magie'}
               </Text>
               <TouchableOpacity onPress={() => { setShowMagicModal(false); setSelectedPlayer(null); }}>
-                <Text style={styles.closeBtn}>✕</Text>
+                <Text style={styles.closeX}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            {!selectedPlayer && (
-              <View style={styles.playerSelector}>
-                <Text style={styles.sectionTitle}>Choisir une cible</Text>
-                <View style={styles.playerSelectorRow}>
+            {!selectedPlayer ? (
+              <View style={styles.selectPlayer}>
+                <Text style={styles.selectLabel}>Choisir une cible</Text>
+                <View style={styles.selectRow}>
                   {players.filter(p => !p.isMe).map(p => (
-                    <TouchableOpacity key={p.id} style={styles.playerSelectorItem} onPress={() => setSelectedPlayer(p)}>
-                      <Avatar name={p.name} size={50} transformation={p.transformation} />
-                      <Text style={styles.playerSelectorName}>{p.name}</Text>
+                    <TouchableOpacity key={p.id} style={styles.selectItem} onPress={() => setSelectedPlayer(p)}>
+                      <Avatar name={p.name} size={45} transformation={p.transformation} />
+                      <Text style={styles.selectName}>{p.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
-            )}
-
-            {selectedPlayer && (
-              <ScrollView style={styles.itemsList}>
-                <Text style={styles.sectionTitle}>🐸 Transformations</Text>
-                <View style={styles.itemsGrid}>
+            ) : (
+              <ScrollView style={styles.itemsScroll}>
+                <Text style={styles.catTitle}>🐸 Transformations</Text>
+                <View style={styles.itemsWrap}>
                   {allPowers.filter(p => p.type === 'transformation').map(p => (
                     <TouchableOpacity
                       key={p.id}
-                      style={[styles.itemCard, styles.magicCard, coins < p.cost && styles.itemDisabled]}
+                      style={[styles.itemBox, styles.magicBox, coins < p.cost && styles.itemOff]}
                       onPress={() => handleUseMagic(p)}
                       disabled={coins < p.cost}
                     >
-                      <Text style={styles.itemEmoji}>{p.emoji}</Text>
-                      <Text style={styles.itemName}>{p.name}</Text>
-                      <Text style={styles.itemCost}>{p.cost} 💰</Text>
+                      <Text style={styles.itemIcon}>{p.emoji}</Text>
+                      <Text style={styles.itemLabel}>{p.name}</Text>
+                      <Text style={styles.itemPrice}>{p.cost}💰</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-
-                <Text style={styles.sectionTitle}>✨ Effets</Text>
-                <View style={styles.itemsGrid}>
+                <Text style={styles.catTitle}>✨ Effets</Text>
+                <View style={styles.itemsWrap}>
                   {allPowers.filter(p => p.type === 'effect' || p.type === 'weather').map(p => (
                     <TouchableOpacity
                       key={p.id}
-                      style={[styles.itemCard, styles.magicCard, coins < p.cost && styles.itemDisabled]}
+                      style={[styles.itemBox, styles.magicBox, coins < p.cost && styles.itemOff]}
                       onPress={() => handleUseMagic(p)}
                       disabled={coins < p.cost}
                     >
-                      <Text style={styles.itemEmoji}>{p.emoji}</Text>
-                      <Text style={styles.itemName}>{p.name}</Text>
-                      <Text style={styles.itemCost}>{p.cost} 💰</Text>
+                      <Text style={styles.itemIcon}>{p.emoji}</Text>
+                      <Text style={styles.itemLabel}>{p.name}</Text>
+                      <Text style={styles.itemPrice}>{p.cost}💰</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -507,357 +482,89 @@ export default function CafeParisScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#5D4037',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  backButton: {
-    position: 'absolute',
-    left: 12,
-    top: 48,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  backButtonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#5D4037',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFF',
-    marginTop: 8,
-  },
-  coinsContainer: {
-    position: 'absolute',
-    right: 12,
-    top: 48,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  coinsText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#DAA520',
-  },
+  container: { flex: 1, backgroundColor: '#4E342E' },
+  
+  // Header
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingBottom: 10 },
+  backBtn: { position: 'absolute', left: 12, top: 48, width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', zIndex: 10 },
+  backBtnText: { fontSize: 18, fontWeight: '700', color: '#5D4037' },
+  title: { fontSize: 18, fontWeight: '700', color: '#FFF', marginTop: 6 },
+  coinsBadge: { position: 'absolute', right: 12, top: 48, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  coinsText: { fontSize: 13, fontWeight: '700', color: '#DAA520' },
 
-  // Zone de jeu principale
-  gameZone: {
-    flex: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-  },
-
-  // Rangées de joueurs
-  playersRowTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  playersRowBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-
-  // Slot joueur
-  playerSlot: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarContainer: {
-    alignItems: 'center',
-  },
-  avatar: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: '#FFF',
-    fontWeight: '700',
-  },
-  playerName: {
-    color: '#FFF',
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  meBadge: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  onlineDot: {
-    position: 'absolute',
-    top: 0,
-    right: -2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#4CAF50',
-    borderWidth: 2,
-    borderColor: '#5D4037',
-  },
+  // Zone de jeu
+  gameArea: { flex: 1, padding: 8 },
+  
+  // Rangées joueurs
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  bottomRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  
+  // Joueur gauche : avatar + nom puis grille
+  playerLeft: { flexDirection: 'row', alignItems: 'center' },
+  // Joueur droite : grille puis avatar + nom
+  playerRight: { flexDirection: 'row', alignItems: 'center' },
+  
+  avatarBox: { alignItems: 'center', marginHorizontal: 4 },
+  avatar: { alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#FFF', fontWeight: '700' },
+  playerName: { color: '#FFF', fontSize: 10, fontWeight: '600', marginTop: 2 },
+  meBadge: { fontSize: 10, marginTop: 1 },
+  onlineDot: { position: 'absolute', top: 0, right: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: '#4CAF50', borderWidth: 2, borderColor: '#4E342E' },
 
   // Grille d'offrandes 2x3
-  offeringsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: 60,
-    height: 60,
-  },
-  offeringsGridLeft: {
-    marginRight: 6,
-  },
-  offeringsGridRight: {
-    marginLeft: 6,
-  },
-  offeringSlot: {
-    width: 28,
-    height: 28,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 6,
-    margin: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  offeringEmoji: {
-    fontSize: 16,
-  },
+  offeringsGrid: { flexDirection: 'row', flexWrap: 'wrap', width: 56, height: 78 },
+  offeringSlot: { width: 26, height: 24, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4, margin: 1, alignItems: 'center', justifyContent: 'center' },
+  offeringEmoji: { fontSize: 14 },
 
-  // Zone de discussion
-  chatZone: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    marginVertical: 8,
-    overflow: 'hidden',
-  },
-  messagesList: {
-    padding: 10,
-  },
-  emptyChat: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  emptyChatText: {
-    fontSize: 14,
-    color: '#8B6F47',
-    fontStyle: 'italic',
-  },
-  messageRow: {
-    marginBottom: 8,
-    alignItems: 'flex-start',
-  },
-  messageRowOwn: {
-    alignItems: 'flex-end',
-  },
-  messageUsername: {
-    fontSize: 10,
-    color: '#8B6F47',
-    marginBottom: 2,
-    marginHorizontal: 6,
-  },
-  messageBubble: {
-    backgroundColor: '#F0F0F0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderBottomLeftRadius: 4,
-    maxWidth: '85%',
-  },
-  messageBubbleOwn: {
-    backgroundColor: '#8D6E63',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 4,
-  },
-  messageText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  messageTextOwn: {
-    color: '#FFF',
-  },
-  systemMessageContainer: {
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  giftMessage: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  giftEmoji: {
-    fontSize: 20,
-  },
-  giftText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#3A2818',
-    textAlign: 'center',
-  },
+  // Zone de chat
+  chatArea: { flex: 1, backgroundColor: '#FFF', borderRadius: 10, marginVertical: 6, overflow: 'hidden' },
+  chatOnly: { flex: 1, backgroundColor: '#FFF', marginHorizontal: 8, borderRadius: 10, overflow: 'hidden' },
+  chatContent: { padding: 8 },
+  emptyText: { textAlign: 'center', color: '#8B6F47', fontStyle: 'italic', paddingVertical: 16 },
+  
+  msgRow: { marginBottom: 6, alignItems: 'flex-start' },
+  msgRowOwn: { alignItems: 'flex-end' },
+  msgBubble: { backgroundColor: '#F0F0F0', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, maxWidth: '85%' },
+  msgBubbleOwn: { backgroundColor: '#8D6E63' },
+  msgAuthor: { fontSize: 9, color: '#888', marginBottom: 2 },
+  msgText: { fontSize: 13, color: '#333' },
+  msgTextOwn: { color: '#FFF' },
+  systemMsg: { alignItems: 'center', marginVertical: 6 },
+  systemMsgText: { fontSize: 11, color: '#DAA520', fontWeight: '600', backgroundColor: 'rgba(255,215,0,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
 
-  // Boutons d'action
-  actionButtons: {
-    flexDirection: 'row',
-    paddingHorizontal: 8,
-    gap: 8,
-    marginBottom: 8,
-  },
-  actionButton: {
-    flex: 1,
-    backgroundColor: '#FFD700',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  magicButton: {
-    backgroundColor: '#9C27B0',
-  },
-  actionButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#3A2818',
-  },
+  // Boutons action
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  offeringsBtn: { flex: 1, backgroundColor: '#FFD700', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  magicBtn: { flex: 1, backgroundColor: '#7B1FA2', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  btnText: { fontSize: 14, fontWeight: '700', color: '#3A2818' },
+  btnTextWhite: { fontSize: 14, fontWeight: '700', color: '#FFF' },
 
-  // Zone de saisie
-  inputContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 8,
-    paddingTop: 8,
-    backgroundColor: '#4E342E',
-    gap: 8,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#3A2818',
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#8D6E63',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButtonText: {
-    fontSize: 18,
-    color: '#FFF',
-  },
+  // Input
+  inputRow: { flexDirection: 'row', paddingHorizontal: 8, paddingTop: 8, backgroundColor: '#3E2723', gap: 8 },
+  input: { flex: 1, backgroundColor: '#FFF', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#333' },
+  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#8D6E63', alignItems: 'center', justifyContent: 'center' },
+  sendBtnText: { fontSize: 18, color: '#FFF' },
 
   // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  modalContainer: {
-    backgroundColor: '#FFF8E7',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '80%',
-    paddingBottom: 30,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8D5B7',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#3A2818',
-  },
-  closeBtn: {
-    fontSize: 22,
-    color: '#8B6F47',
-    fontWeight: '600',
-  },
-  playerSelector: {
-    padding: 16,
-  },
-  playerSelectorRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 12,
-  },
-  playerSelectorItem: {
-    alignItems: 'center',
-    padding: 8,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-  },
-  playerSelectorName: {
-    marginTop: 6,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#3A2818',
-  },
-  itemsList: {
-    paddingHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#5D4037',
-    marginTop: 16,
-    marginBottom: 12,
-  },
-  itemsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  itemCard: {
-    width: (SCREEN_WIDTH - 62) / 3,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 10,
-    alignItems: 'center',
-  },
-  magicCard: {
-    backgroundColor: '#F3E5F5',
-  },
-  itemDisabled: {
-    opacity: 0.5,
-  },
-  itemEmoji: {
-    fontSize: 28,
-    marginBottom: 4,
-  },
-  itemName: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#3A2818',
-    textAlign: 'center',
-  },
-  itemCost: {
-    fontSize: 10,
-    color: '#DAA520',
-    fontWeight: '700',
-    marginTop: 2,
-  },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalBox: { backgroundColor: '#FFF8E7', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '75%', paddingBottom: 24 },
+  modalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: '#3A2818' },
+  closeX: { fontSize: 20, color: '#8B6F47', fontWeight: '600' },
+  
+  selectPlayer: { padding: 14 },
+  selectLabel: { fontSize: 14, fontWeight: '600', color: '#5D4037', marginBottom: 10 },
+  selectRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  selectItem: { alignItems: 'center', padding: 8, backgroundColor: '#FFF', borderRadius: 10 },
+  selectName: { marginTop: 4, fontSize: 11, fontWeight: '600', color: '#3A2818' },
+  
+  itemsScroll: { paddingHorizontal: 14 },
+  catTitle: { fontSize: 14, fontWeight: '700', color: '#5D4037', marginTop: 14, marginBottom: 8 },
+  itemsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  itemBox: { width: (SCREEN_WIDTH - 56) / 3, backgroundColor: '#FFF', borderRadius: 10, padding: 8, alignItems: 'center' },
+  magicBox: { backgroundColor: '#F3E5F5' },
+  itemOff: { opacity: 0.4 },
+  itemIcon: { fontSize: 24, marginBottom: 2 },
+  itemLabel: { fontSize: 9, fontWeight: '600', color: '#3A2818', textAlign: 'center' },
+  itemPrice: { fontSize: 9, color: '#DAA520', fontWeight: '700', marginTop: 2 },
 });
