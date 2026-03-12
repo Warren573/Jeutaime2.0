@@ -394,13 +394,13 @@ export const useStore = create<StoreState>()(
       },
       
       // ===== Message Actions =====
-      addMessage: (message) => {
+      addMessage: (salonId, message) => {
         set((state) => ({
           messagesBySalon: {
             ...state.messagesBySalon,
-            [message.salonId]: [
-              ...(state.messagesBySalon[message.salonId] || []),
-              message,
+            [salonId]: [
+              ...(state.messagesBySalon[salonId] || []),
+              { ...message, salonId },
             ],
           },
         }));
