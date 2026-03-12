@@ -1,349 +1,376 @@
+// ============================================
+// STORE PRINCIPAL JEUTAIME - Zustand
+// ============================================
+
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { titles, badges, Badge } from '../data/gameData';
 
-export interface User {
+import {
+  User,
+  Profile,
+  AvatarConfig,
+  AvatarState,
+  Match,
+  Letter,
+  LetterThread,
+  PetOwnership,
+  PetStats,
+  Wallet,
+  UserProgression,
+  UserStats,
+  ReceivedOffering,
+  ActiveEffect,
+  SalonParticipant,
+} from '../shared/types';
+
+import * as EconomyEngine from '../engine/EconomyEngine';
+import * as ProgressionEngine from '../engine/ProgressionEngine';
+import * as PetEngine from '../engine/PetEngine';
+
+// ==================== TYPES DU STORE ====================
+
+interface CurrentUser {
   id: string;
   name: string;
-  email: string;
-  gender: 'M' | 'F';
-  age: number;
-  coins: number;
-  points: number;
-  premium: boolean;
-  avatar?: any;
+  email?: string;
+  isPremium: boolean;
+  avatarConfig: AvatarConfig;
+  stats: UserStats;
   unlockedBadges: string[];
-  stats: {
-    matches: number;
-    lettersSent: number;
-    lettersReceived: number;
-    offeringsSent: number;
-    magicUsed: number;
-    storiesParticipated: number;
-    storiesCompleted: number;
-    gamesWon: number;
-    salonsVisited: string[];
-    daysActive: number;
-  };
 }
 
-export interface Message {
-  id: string;
-  username: string;
-  text: string;
-  timestamp: number;
-  isSystem?: boolean;
-  giftData?: any;
-}
-
-export interface Letter {
-  id: string;
-  fromId: string;
-  fromName: string;
-  toId: string;
-  toName: string;
-  content: string;
-  timestamp: number;
-  read: boolean;
-}
-
-export interface Match {
-  odId: string;
-  odName: string;
-  timestamp: number;
-  revealed: boolean;
-}
-
-export interface Pet {
-  id: string;
-  type: string;
-  name: string;
-  emoji: string;
-  hunger: number;
-  happiness: number;
-  cleanliness: number;
-  energy: number;
-  stage: number;
-  lastCare: number;
-}
-
-interface AppState {
-  currentUser: User | null;
-  setCurrentUser: (user: User | null) => void;
+interface StoreState {
+  // ===== User & Profile =====
+  currentUser: CurrentUser | null;
+  isAuthenticated: boolean;
   
+  // ===== Economy =====
   coins: number;
+  transactions: EconomyEngine.Transaction[];
+  lastDailyBonus: number;
+  
+  // ===== Progression =====
   points: number;
-  addCoins: (amount: number) => void;
-  removeCoins: (amount: number) => boolean;
-  addPoints: (amount: number) => void;
+  level: number;
+  title: string;
+  titleEmoji: string;
   
-  // Titre actuel
-  getCurrentTitle: () => { name: string; emoji: string; level: number };
+  // ===== Pets =====
+  pet: PetOwnership | null;
   
-  // Messages par salon
-  messagesBySalon: Record<string, Message[]>;
-  addMessage: (salonId: string, message: Message) => void;
-  loadMessages: (salonId: string) => void;
-  
-  // Lettres
+  // ===== Matches & Letters =====
+  matches: Match[];
   letters: Letter[];
+  
+  // ===== Stats =====
+  stats: UserStats;
+  unlockedBadges: string[];
+  
+  // ===== Actions - User =====
+  setCurrentUser: (user: CurrentUser | null) => void;
+  loadUserData: () => void;
+  
+  // ===== Actions - Economy =====
+  addCoins: (amount: number, reason?: string, category?: EconomyEngine.TransactionCategory) => void;
+  removeCoins: (amount: number, reason?: string, category?: EconomyEngine.TransactionCategory) => boolean;
+  canAfford: (amount: number) => boolean;
+  claimDailyBonus: () => boolean;
+  
+  // ===== Actions - Progression =====
+  addPoints: (amount: number, reason?: string) => void;
+  getCurrentTitle: () => { level: number; name: string; emoji: string };
+  getNextLevel: () => { nextTitle: ProgressionEngine.Title | null; progress: number; remaining: number };
+  
+  // ===== Actions - Stats & Badges =====
+  incrementStat: (stat: keyof UserStats, amount?: number) => void;
+  checkAndUnlockBadges: () => string[];
+  
+  // ===== Actions - Pets =====
+  adoptPet: (petId: string, name: string, emoji: string) => void;
+  feedPet: () => { xp: number; coins: number } | null;
+  playWithPet: () => { xp: number; coins: number } | null;
+  cleanPet: () => { xp: number; coins: number } | null;
+  sleepPet: () => { xp: number; coins: number } | null;
+  updatePetStats: () => void;
+  
+  // ===== Actions - Matches =====
+  addMatch: (match: Match) => void;
   addLetter: (letter: Letter) => void;
   markLetterRead: (letterId: string) => void;
-  
-  // Matchs
-  matches: Match[];
-  addMatch: (match: Match) => void;
-  
-  // Likes (pour le matching)
-  likedProfiles: string[];
-  dislikedProfiles: string[];
-  addLike: (profileId: string) => void;
-  addDislike: (profileId: string) => void;
-  
-  // Pet
-  pet: Pet | null;
-  adoptPet: (type: string, name: string, emoji: string) => void;
-  feedPet: () => void;
-  playWithPet: () => void;
-  cleanPet: () => void;
-  
-  // Stats
-  incrementStat: (stat: keyof User['stats'], value?: number) => void;
-  checkBadges: () => string[];
-  
-  // Persistence
-  loadUserData: () => Promise<void>;
-  saveUserData: () => Promise<void>;
 }
 
-const defaultUser: User = {
-  id: 'user_1',
-  name: 'Joueur',
-  email: 'joueur@jeutaime.com',
-  gender: 'M',
-  age: 25,
-  coins: 500,
-  points: 0,
-  premium: false,
-  unlockedBadges: [],
-  stats: {
-    matches: 0,
-    lettersSent: 0,
-    lettersReceived: 0,
-    offeringsSent: 0,
-    magicUsed: 0,
-    storiesParticipated: 0,
-    storiesCompleted: 0,
-    gamesWon: 0,
-    salonsVisited: [],
-    daysActive: 1,
-  },
-};
+// ==================== STORE ====================
 
-export const useStore = create<AppState>((set, get) => ({
-  currentUser: defaultUser,
-  coins: 500,
-  points: 0,
-  
-  setCurrentUser: (user) => {
-    set({ currentUser: user, coins: user?.coins || 500, points: user?.points || 0 });
-    get().saveUserData();
-  },
-  
-  addCoins: (amount) => {
-    set((state) => ({ coins: state.coins + amount }));
-    get().saveUserData();
-  },
-  
-  removeCoins: (amount) => {
-    const state = get();
-    if (state.coins >= amount) {
-      set({ coins: state.coins - amount });
-      get().saveUserData();
-      return true;
-    }
-    return false;
-  },
-  
-  addPoints: (amount) => {
-    set((state) => ({ points: state.points + amount }));
-    get().saveUserData();
-  },
-  
-  getCurrentTitle: () => {
-    const points = get().points;
-    let currentTitle = titles[0];
-    for (const title of titles) {
-      if (points >= title.minPoints) currentTitle = title;
-    }
-    return { name: currentTitle.name, emoji: currentTitle.emoji, level: currentTitle.level };
-  },
-  
-  // Messages
-  messagesBySalon: {},
-  addMessage: (salonId, message) => {
-    set((state) => ({
-      messagesBySalon: {
-        ...state.messagesBySalon,
-        [salonId]: [...(state.messagesBySalon[salonId] || []), message].slice(-100)
-      }
-    }));
-    AsyncStorage.setItem(`jeutaime_messages_${salonId}`, JSON.stringify(get().messagesBySalon[salonId]));
-  },
-  loadMessages: async (salonId) => {
-    try {
-      const messages = await AsyncStorage.getItem(`jeutaime_messages_${salonId}`);
-      if (messages) {
-        set((state) => ({ messagesBySalon: { ...state.messagesBySalon, [salonId]: JSON.parse(messages) } }));
-      }
-    } catch (e) { console.log('Error loading messages:', e); }
-  },
-  
-  // Lettres
-  letters: [],
-  addLetter: (letter) => {
-    set((state) => ({ letters: [letter, ...state.letters] }));
-    get().incrementStat('lettersSent');
-    get().addPoints(10);
-    AsyncStorage.setItem('jeutaime_letters', JSON.stringify(get().letters));
-  },
-  markLetterRead: (letterId) => {
-    set((state) => ({
-      letters: state.letters.map(l => l.id === letterId ? { ...l, read: true } : l)
-    }));
-    AsyncStorage.setItem('jeutaime_letters', JSON.stringify(get().letters));
-  },
-  
-  // Matchs
-  matches: [],
-  addMatch: (match) => {
-    set((state) => ({ matches: [...state.matches, match] }));
-    get().incrementStat('matches');
-    get().addPoints(25);
-    get().addCoins(50);
-    AsyncStorage.setItem('jeutaime_matches', JSON.stringify(get().matches));
-  },
-  
-  // Likes
-  likedProfiles: [],
-  dislikedProfiles: [],
-  addLike: (profileId) => {
-    set((state) => ({ likedProfiles: [...state.likedProfiles, profileId] }));
-    AsyncStorage.setItem('jeutaime_likes', JSON.stringify(get().likedProfiles));
-  },
-  addDislike: (profileId) => {
-    set((state) => ({ dislikedProfiles: [...state.dislikedProfiles, profileId] }));
-    AsyncStorage.setItem('jeutaime_dislikes', JSON.stringify(get().dislikedProfiles));
-  },
-  
-  // Pet
-  pet: null,
-  adoptPet: (type, name, emoji) => {
-    const newPet: Pet = {
-      id: Date.now().toString(),
-      type, name, emoji,
-      hunger: 100, happiness: 100, cleanliness: 100, energy: 100,
-      stage: 0, lastCare: Date.now(),
-    };
-    set({ pet: newPet });
-    AsyncStorage.setItem('jeutaime_pet', JSON.stringify(newPet));
-  },
-  feedPet: () => {
-    set((state) => ({
-      pet: state.pet ? { ...state.pet, hunger: Math.min(100, state.pet.hunger + 30), lastCare: Date.now() } : null
-    }));
-    AsyncStorage.setItem('jeutaime_pet', JSON.stringify(get().pet));
-  },
-  playWithPet: () => {
-    set((state) => ({
-      pet: state.pet ? { ...state.pet, happiness: Math.min(100, state.pet.happiness + 25), energy: Math.max(0, state.pet.energy - 15), lastCare: Date.now() } : null
-    }));
-    AsyncStorage.setItem('jeutaime_pet', JSON.stringify(get().pet));
-  },
-  cleanPet: () => {
-    set((state) => ({
-      pet: state.pet ? { ...state.pet, cleanliness: Math.min(100, state.pet.cleanliness + 40), lastCare: Date.now() } : null
-    }));
-    AsyncStorage.setItem('jeutaime_pet', JSON.stringify(get().pet));
-  },
-  
-  // Stats
-  incrementStat: (stat, value = 1) => {
-    set((state) => {
-      if (!state.currentUser) return state;
-      const newStats = { ...state.currentUser.stats };
-      if (typeof newStats[stat] === 'number') {
-        (newStats[stat] as number) += value;
-      }
-      return { currentUser: { ...state.currentUser, stats: newStats } };
-    });
-    get().checkBadges();
-    get().saveUserData();
-  },
-  
-  checkBadges: () => {
-    const user = get().currentUser;
-    if (!user) return [];
-    const newBadges: string[] = [];
-    
-    badges.forEach(badge => {
-      if (user.unlockedBadges.includes(badge.id)) return;
-      let unlocked = false;
-      const s = user.stats;
+export const useStore = create<StoreState>()(
+  persist(
+    (set, get) => ({
+      // ===== Initial State =====
+      currentUser: null,
+      isAuthenticated: false,
       
-      switch (badge.id) {
-        case 'first_match': unlocked = s.matches >= 1; break;
-        case 'popular': unlocked = s.matches >= 10; break;
-        case 'letter_writer': unlocked = s.lettersSent >= 10; break;
-        case 'story_teller': unlocked = s.storiesParticipated >= 1; break;
-        case 'story_master': unlocked = s.storiesCompleted >= 5; break;
-        case 'generous': unlocked = s.offeringsSent >= 20; break;
-        case 'wizard': unlocked = s.magicUsed >= 10; break;
-        case 'gamer': unlocked = s.gamesWon >= 5; break;
-        case 'social': unlocked = s.salonsVisited.length >= 7; break;
-        case 'veteran': unlocked = s.daysActive >= 30; break;
-      }
+      coins: 500,
+      transactions: [],
+      lastDailyBonus: 0,
       
-      if (unlocked) {
-        newBadges.push(badge.id);
-        set((state) => ({
-          currentUser: state.currentUser ? {
-            ...state.currentUser,
-            unlockedBadges: [...state.currentUser.unlockedBadges, badge.id]
-          } : null
+      points: 0,
+      level: 1,
+      title: 'Curieux',
+      titleEmoji: '🐣',
+      
+      pet: null,
+      
+      matches: [
+        // Matchs de démo
+        { id: 'm1', userAId: 'me', userBId: 'sophie', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, status: 'active', letterCount: 5 },
+        { id: 'm2', userAId: 'me', userBId: 'alex', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, status: 'active', letterCount: 12 },
+      ],
+      letters: [],
+      
+      stats: {
+        matchesCount: 2,
+        lettersSent: 0,
+        lettersReceived: 0,
+        offeringsSent: 0,
+        powerUsed: 0,
+        gamesWon: 0,
+        salonsVisited: 0,
+        daysActive: 1,
+        storiesParticipated: 0,
+        storiesCompleted: 0,
+      },
+      unlockedBadges: [],
+
+      // ===== User Actions =====
+      setCurrentUser: (user) => set({ currentUser: user, isAuthenticated: !!user }),
+      
+      loadUserData: () => {
+        // Charger les données utilisateur au démarrage
+        const { coins, points, pet, stats } = get();
+        
+        // Mettre à jour les stats de l'animal si nécessaire
+        if (pet) {
+          const hoursPassed = (Date.now() - pet.stats.lastUpdated) / (1000 * 60 * 60);
+          if (hoursPassed > 0.1) {
+            const newStats = PetEngine.degradeStats(pet.stats, hoursPassed);
+            set({ pet: { ...pet, stats: newStats } });
+          }
+        }
+        
+        // Recalculer le niveau
+        const { level, title, emoji } = ProgressionEngine.calculateLevel(points);
+        set({ level, title, titleEmoji: emoji });
+      },
+
+      // ===== Economy Actions =====
+      addCoins: (amount, reason = 'Récompense', category = 'daily_bonus') => {
+        const { coins, transactions } = get();
+        const wallet: Wallet = { userId: 'me', coins, lastDailyBonus: get().lastDailyBonus, transactions };
+        const updated = EconomyEngine.addCoins(wallet, amount, reason, category);
+        set({ 
+          coins: updated.coins, 
+          transactions: updated.transactions.slice(0, 50) 
+        });
+      },
+      
+      removeCoins: (amount, reason = 'Achat', category = 'offering_sent') => {
+        const { coins, transactions, lastDailyBonus } = get();
+        const wallet: Wallet = { odId: 'me', coins, lastDailyBonus, transactions };
+        const updated = EconomyEngine.removeCoins(wallet, amount, reason, category);
+        if (updated) {
+          set({ 
+            coins: updated.coins, 
+            transactions: updated.transactions.slice(0, 50) 
+          });
+          return true;
+        }
+        return false;
+      },
+      
+      canAfford: (amount) => get().coins >= amount,
+      
+      claimDailyBonus: () => {
+        const { coins, transactions, lastDailyBonus, currentUser } = get();
+        const wallet: Wallet = { odId: 'me', coins, lastDailyBonus, transactions };
+        
+        if (!EconomyEngine.canClaimDailyBonus(wallet)) {
+          return false;
+        }
+        
+        const isPremium = currentUser?.isPremium ?? false;
+        const updated = EconomyEngine.applyDailyBonus(wallet, isPremium);
+        set({ 
+          coins: updated.coins, 
+          transactions: updated.transactions.slice(0, 50),
+          lastDailyBonus: updated.lastDailyBonus,
+        });
+        
+        // Ajouter des points pour la connexion
+        get().addPoints(ProgressionEngine.POINTS.dailyLogin, 'Connexion quotidienne');
+        
+        return true;
+      },
+
+      // ===== Progression Actions =====
+      addPoints: (amount, reason = 'Action') => {
+        const { points } = get();
+        const newPoints = points + amount;
+        const { level, title, emoji } = ProgressionEngine.calculateLevel(newPoints);
+        set({ 
+          points: newPoints, 
+          level, 
+          title, 
+          titleEmoji: emoji 
+        });
+        
+        // Vérifier les badges
+        get().checkAndUnlockBadges();
+      },
+      
+      getCurrentTitle: () => {
+        const { points } = get();
+        return ProgressionEngine.calculateLevel(points);
+      },
+      
+      getNextLevel: () => {
+        const { points } = get();
+        const { nextTitle, progress, remaining } = ProgressionEngine.getNextLevelRequirement(points);
+        return { nextTitle, progress, remaining };
+      },
+
+      // ===== Stats & Badges Actions =====
+      incrementStat: (stat, amount = 1) => {
+        const { stats } = get();
+        const newStats = ProgressionEngine.updateStats(stats, stat, amount);
+        set({ stats: newStats });
+        get().checkAndUnlockBadges();
+      },
+      
+      checkAndUnlockBadges: () => {
+        const { stats, unlockedBadges, points, level, title, titleEmoji } = get();
+        const progression: UserProgression = {
+          odId: 'me',
+          points,
+          level,
+          title,
+          titleEmoji,
+          unlockedBadges,
+          stats,
+        };
+        
+        const newBadges = ProgressionEngine.checkBadgeUnlock(progression, stats);
+        if (newBadges.length > 0) {
+          const newBadgeIds = newBadges.map(b => b.id);
+          set({ unlockedBadges: [...unlockedBadges, ...newBadgeIds] });
+          return newBadgeIds;
+        }
+        return [];
+      },
+
+      // ===== Pet Actions =====
+      adoptPet: (petId, name, emoji) => {
+        const pet = PetEngine.getPetById(petId);
+        if (!pet) return;
+        
+        const ownership = PetEngine.createPetOwnership('me', pet);
+        set({ pet: ownership });
+        get().addPoints(ProgressionEngine.POINTS.adoptPet, 'Adoption d\'un animal');
+      },
+      
+      feedPet: () => {
+        const { pet } = get();
+        if (!pet) return null;
+        
+        const result = PetEngine.feed(pet);
+        set({ pet: result.ownership });
+        get().addCoins(result.rewards.coins, 'Soin animal', 'pet_care');
+        return result.rewards;
+      },
+      
+      playWithPet: () => {
+        const { pet } = get();
+        if (!pet) return null;
+        
+        const result = PetEngine.play(pet);
+        set({ pet: result.ownership });
+        get().addCoins(result.rewards.coins, 'Jeu avec animal', 'pet_care');
+        return result.rewards;
+      },
+      
+      cleanPet: () => {
+        const { pet } = get();
+        if (!pet) return null;
+        
+        const result = PetEngine.clean(pet);
+        set({ pet: result.ownership });
+        get().addCoins(result.rewards.coins, 'Nettoyage animal', 'pet_care');
+        return result.rewards;
+      },
+      
+      sleepPet: () => {
+        const { pet } = get();
+        if (!pet) return null;
+        
+        const result = PetEngine.sleep(pet);
+        set({ pet: result.ownership });
+        get().addCoins(result.rewards.coins, 'Repos animal', 'pet_care');
+        return result.rewards;
+      },
+      
+      updatePetStats: () => {
+        const { pet } = get();
+        if (!pet) return;
+        
+        const hoursPassed = (Date.now() - pet.stats.lastUpdated) / (1000 * 60 * 60);
+        if (hoursPassed > 0.1) {
+          const newStats = PetEngine.degradeStats(pet.stats, hoursPassed);
+          set({ pet: { ...pet, stats: newStats } });
+        }
+      },
+
+      // ===== Match & Letter Actions =====
+      addMatch: (match) => {
+        set((state) => ({ 
+          matches: [...state.matches, match],
         }));
-      }
-    });
-    
-    return newBadges;
-  },
-  
-  loadUserData: async () => {
-    try {
-      const userData = await AsyncStorage.getItem('jeutaime_current_user');
-      const letters = await AsyncStorage.getItem('jeutaime_letters');
-      const matches = await AsyncStorage.getItem('jeutaime_matches');
-      const likes = await AsyncStorage.getItem('jeutaime_likes');
-      const pet = await AsyncStorage.getItem('jeutaime_pet');
+        get().incrementStat('matchesCount');
+        get().addPoints(ProgressionEngine.POINTS.getMatch, 'Nouveau match');
+      },
       
-      if (userData) {
-        const user = JSON.parse(userData);
-        set({ currentUser: user, coins: user.coins || 500, points: user.points || 0 });
-      }
-      if (letters) set({ letters: JSON.parse(letters) });
-      if (matches) set({ matches: JSON.parse(matches) });
-      if (likes) set({ likedProfiles: JSON.parse(likes) });
-      if (pet) set({ pet: JSON.parse(pet) });
-    } catch (e) { console.log('Error loading user:', e); }
-  },
-  
-  saveUserData: async () => {
-    try {
-      const state = get();
-      if (state.currentUser) {
-        const userData = { ...state.currentUser, coins: state.coins, points: state.points };
-        await AsyncStorage.setItem('jeutaime_current_user', JSON.stringify(userData));
-      }
-    } catch (e) { console.log('Error saving user:', e); }
-  },
-}));
+      addLetter: (letter) => {
+        set((state) => ({ 
+          letters: [...state.letters, letter],
+        }));
+        get().incrementStat('lettersSent');
+        get().addPoints(ProgressionEngine.POINTS.sendLetter, 'Lettre envoyée');
+      },
+      
+      markLetterRead: (letterId) => {
+        set((state) => ({
+          letters: state.letters.map(l => 
+            l.id === letterId ? { ...l, readAt: Date.now() } : l
+          ),
+        }));
+      },
+    }),
+    {
+      name: 'jeutaime-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        coins: state.coins,
+        points: state.points,
+        level: state.level,
+        title: state.title,
+        titleEmoji: state.titleEmoji,
+        pet: state.pet,
+        stats: state.stats,
+        unlockedBadges: state.unlockedBadges,
+        lastDailyBonus: state.lastDailyBonus,
+        currentUser: state.currentUser,
+      }),
+    }
+  )
+);
+
+// Export par défaut pour compatibilité
+export default useStore;
