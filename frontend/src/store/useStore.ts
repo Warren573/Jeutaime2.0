@@ -45,6 +45,8 @@ interface CurrentUser {
   avatarConfig: AvatarConfig;
   stats: UserStats;
   unlockedBadges: string[];
+  gender?: GenderType;
+  age?: number;
 }
 
 interface StoreState {
@@ -54,7 +56,7 @@ interface StoreState {
   
   // ===== Economy =====
   coins: number;
-  transactions: EconomyEngine.Transaction[];
+  transactions: Transaction[];
   lastDailyBonus: number;
   
   // ===== Progression =====
@@ -69,6 +71,11 @@ interface StoreState {
   // ===== Matches & Letters =====
   matches: Match[];
   letters: Letter[];
+  likedProfiles: string[];
+  dislikedProfiles: string[];
+  
+  // ===== Salon Messages =====
+  messagesBySalon: Record<string, Message[]>;
   
   // ===== Stats =====
   stats: UserStats;
@@ -79,8 +86,8 @@ interface StoreState {
   loadUserData: () => void;
   
   // ===== Actions - Economy =====
-  addCoins: (amount: number, reason?: string, category?: EconomyEngine.TransactionCategory) => void;
-  removeCoins: (amount: number, reason?: string, category?: EconomyEngine.TransactionCategory) => boolean;
+  addCoins: (amount: number, reason?: string, category?: TransactionCategory) => void;
+  removeCoins: (amount: number, reason?: string, category?: TransactionCategory) => boolean;
   canAfford: (amount: number) => boolean;
   claimDailyBonus: () => boolean;
   
@@ -105,6 +112,12 @@ interface StoreState {
   addMatch: (match: Match) => void;
   addLetter: (letter: Letter) => void;
   markLetterRead: (letterId: string) => void;
+  addLike: (profileId: string) => void;
+  addDislike: (profileId: string) => void;
+  
+  // ===== Actions - Messages =====
+  addMessage: (message: Message) => void;
+  loadMessages: (salonId: string) => Message[];
 }
 
 // ==================== STORE ====================
