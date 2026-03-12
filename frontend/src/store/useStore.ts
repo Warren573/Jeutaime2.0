@@ -375,6 +375,36 @@ export const useStore = create<StoreState>()(
           ),
         }));
       },
+      
+      // ===== Like/Dislike Actions =====
+      addLike: (profileId) => {
+        set((state) => ({
+          likedProfiles: [...state.likedProfiles, profileId],
+        }));
+      },
+      
+      addDislike: (profileId) => {
+        set((state) => ({
+          dislikedProfiles: [...state.dislikedProfiles, profileId],
+        }));
+      },
+      
+      // ===== Message Actions =====
+      addMessage: (message) => {
+        set((state) => ({
+          messagesBySalon: {
+            ...state.messagesBySalon,
+            [message.salonId]: [
+              ...(state.messagesBySalon[message.salonId] || []),
+              message,
+            ],
+          },
+        }));
+      },
+      
+      loadMessages: (salonId) => {
+        return get().messagesBySalon[salonId] || [];
+      },
     }),
     {
       name: 'jeutaime-storage',
