@@ -138,7 +138,7 @@ export default function JournalScreen() {
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{title.emoji}</Text>
-              <Text style={styles.statLabel}>{title.name}</Text>
+              <Text style={styles.statLabel}>{title.title}</Text>
             </View>
           </View>
         </View>
