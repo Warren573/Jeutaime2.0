@@ -77,8 +77,14 @@ export default function LettersScreen() {
     { id: '2', type: 'match', title: 'Premier Match', description: 'Tu as eu ton premier match!', date: '2025-03-12', emoji: '💕' },
   ]);
 
-  const getConversation = (matchId: string) => {
-    return letters.filter(l => l.fromUserId === matchId || l.toUserId === matchId).sort((a, b) => a.createdAt - b.createdAt);
+  // Helper pour obtenir le nom de l'autre utilisateur dans un match
+  const getOtherUserName = (match: Match) => {
+    return match.userAId === 'me' ? match.userBId : match.userAId;
+  };
+
+  const getConversation = (match: Match) => {
+    const otherId = getOtherUserName(match);
+    return letters.filter(l => l.fromUserId === otherId || l.toUserId === otherId).sort((a, b) => a.createdAt - b.createdAt);
   };
 
   const handleSend = () => {
