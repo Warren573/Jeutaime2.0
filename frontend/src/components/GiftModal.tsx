@@ -174,10 +174,10 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 10,
   },
   giftItem: {
-    width: (width - 48) / 3,
+    width: (width - 62) / 3,
     backgroundColor: '#FFF',
     borderRadius: 12,
     padding: 12,
