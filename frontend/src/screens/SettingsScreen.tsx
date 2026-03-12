@@ -107,7 +107,7 @@ export default function SettingsScreen() {
             {/* Titre et niveau */}
             <View style={styles.titleBadge}>
               <Text style={styles.titleEmoji}>{title.emoji}</Text>
-              <Text style={styles.titleName}>{title.name}</Text>
+              <Text style={styles.titleName}>{title.title}</Text>
               <Text style={styles.titleLevel}>Niv. {title.level}</Text>
             </View>
           </View>
