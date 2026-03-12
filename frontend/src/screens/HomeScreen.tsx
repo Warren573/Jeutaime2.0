@@ -47,7 +47,7 @@ export default function HomeScreen() {
             <Text style={styles.userName}>{currentUser?.name || 'Joueur'} 👋</Text>
             <View style={styles.titleRow}>
               <Text style={styles.titleEmoji}>{title.emoji}</Text>
-              <Text style={styles.titleName}>{title.name}</Text>
+              <Text style={styles.titleName}>{title.title}</Text>
             </View>
           </View>
         </View>
