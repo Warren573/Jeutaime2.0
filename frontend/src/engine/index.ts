@@ -2,10 +2,11 @@
 // ENGINES - Export centralisé
 // ============================================
 
-export * from './EconomyEngine';
-export * from './ProgressionEngine';
-export * from './RevealEngine';
-export * from './PetEngine';
+// Export avec alias pour éviter les conflits de noms
+export * as EconomyEngine from './EconomyEngine';
+export * as ProgressionEngine from './ProgressionEngine';
+export * as RevealEngine from './RevealEngine';
+export * as PetEngine from './PetEngine';
 
 // Ré-export des types depuis shared
 export type {
