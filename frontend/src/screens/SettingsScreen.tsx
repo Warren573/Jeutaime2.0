@@ -129,7 +129,7 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statEmoji}>💕</Text>
-            <Text style={styles.statValue}>{currentUser?.stats?.matches || 0}</Text>
+            <Text style={styles.statValue}>{currentUser?.stats?.matchesCount || 0}</Text>
             <Text style={styles.statLabel}>Matchs</Text>
           </View>
         </View>
