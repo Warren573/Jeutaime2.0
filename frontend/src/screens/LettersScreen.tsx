@@ -287,23 +287,23 @@ export default function LettersScreen() {
             <TouchableOpacity onPress={() => setShowCompose(false)}>
               <Text style={styles.closeText}>← Retour</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>{selectedMatch?.odName}</Text>
+            <Text style={styles.modalTitle}>{selectedMatch ? getOtherUserName(selectedMatch) : ''}</Text>
             <View style={{ width: 60 }} />
           </View>
 
           <ScrollView style={styles.messagesContainer}>
-            {selectedMatch && getConversation(selectedMatch.odId).map((letter) => {
-              const isOwn = letter.fromId === currentUser?.id || letter.fromId === 'me';
+            {selectedMatch && getConversation(selectedMatch).map((letter) => {
+              const isOwn = letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
               return (
                 <View key={letter.id} style={[styles.letterRow, isOwn && styles.letterRowOwn]}>
                   <View style={[styles.letterBubble, isOwn && styles.letterBubbleOwn]}>
                     <Text style={[styles.letterText, isOwn && styles.letterTextOwn]}>{letter.content}</Text>
-                    <Text style={styles.letterTime}>{formatTime(letter.timestamp)}</Text>
+                    <Text style={styles.letterTime}>{formatTime(letter.createdAt)}</Text>
                   </View>
                 </View>
               );
             })}
-            {selectedMatch && getConversation(selectedMatch.odId).length === 0 && (
+            {selectedMatch && getConversation(selectedMatch).length === 0 && (
               <View style={styles.startConv}>
                 <Text style={styles.startEmoji}>✨</Text>
                 <Text style={styles.startText}>Commencez la conversation!</Text>
