@@ -5,24 +5,10 @@ import { StatusBar } from 'expo-status-bar';
 import { useStore } from '../src/store/useStore';
 
 export default function RootLayout() {
-  const { loadUserData, setCurrentUser, currentUser } = useStore();
+  const { loadUserData, currentUser, setCurrentUser } = useStore();
 
   useEffect(() => {
-    // Charger les données utilisateur
     loadUserData();
-    
-    // Créer un utilisateur par défaut si aucun n'existe
-    if (!currentUser) {
-      setCurrentUser({
-        id: 'user_1',
-        name: 'Joueur',
-        email: 'joueur@jeutaime.com',
-        gender: 'M',
-        age: 25,
-        coins: 500,
-        premium: false,
-      });
-    }
   }, []);
 
   return (
@@ -35,13 +21,11 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen 
-          name="salon/[id]" 
-          options={{ 
-            headerShown: false,
-            presentation: 'card',
-          }} 
-        />
+        <Stack.Screen name="salon/[id]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="salon/cafe-paris" options={{ presentation: 'card' }} />
+        <Stack.Screen name="games" options={{ presentation: 'card' }} />
+        <Stack.Screen name="pet" options={{ presentation: 'card' }} />
+        <Stack.Screen name="badges" options={{ presentation: 'card' }} />
       </Stack>
     </SafeAreaProvider>
   );
