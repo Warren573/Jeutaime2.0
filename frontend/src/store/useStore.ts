@@ -120,7 +120,7 @@ interface StoreState {
   addDislike: (profileId: string) => void;
   
   // ===== Actions - Messages =====
-  addMessage: (message: Message) => void;
+  addMessage: (salonId: string, message: Message) => void;
   loadMessages: (salonId: string) => Message[];
 }
 
