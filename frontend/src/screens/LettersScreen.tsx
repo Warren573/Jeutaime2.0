@@ -78,7 +78,7 @@ export default function LettersScreen() {
   ]);
 
   const getConversation = (matchId: string) => {
-    return letters.filter(l => l.fromId === matchId || l.toId === matchId).sort((a, b) => a.timestamp - b.timestamp);
+    return letters.filter(l => l.fromUserId === matchId || l.toUserId === matchId).sort((a, b) => a.createdAt - b.createdAt);
   };
 
   const handleSend = () => {
@@ -86,13 +86,11 @@ export default function LettersScreen() {
     
     const letter: Letter = {
       id: Date.now().toString(),
-      fromId: currentUser?.id || 'me',
-      fromName: currentUser?.name || 'Vous',
-      toId: selectedMatch.odId,
-      toName: selectedMatch.odName,
+      threadId: selectedMatch.id,
+      fromUserId: currentUser?.id || 'me',
+      toUserId: selectedMatch.userBId === 'me' ? selectedMatch.userAId : selectedMatch.userBId,
       content: newMessage.trim(),
-      timestamp: Date.now(),
-      read: false,
+      createdAt: Date.now(),
     };
     
     addLetter(letter);
