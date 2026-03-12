@@ -188,7 +188,7 @@ export const useStore = create<StoreState>()(
       // ===== Economy Actions =====
       addCoins: (amount, reason = 'Récompense', category = 'daily_bonus') => {
         const { coins, transactions } = get();
-        const wallet: Wallet = { userId: 'me', coins, lastDailyBonus: get().lastDailyBonus, transactions };
+        const wallet: Wallet = { odId: 'me', coins, lastDailyBonus: get().lastDailyBonus, transactions };
         const updated = EconomyEngine.addCoins(wallet, amount, reason, category);
         set({ 
           coins: updated.coins, 
