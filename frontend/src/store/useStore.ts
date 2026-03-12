@@ -30,9 +30,13 @@ export interface Message {
   salonId: string;
   userId: string;
   userName: string;
+  username?: string; // alias pour compatibilité
   content: string;
+  text?: string; // alias pour compatibilité
   timestamp: number;
   type: 'message' | 'offering' | 'power' | 'system';
+  isSystem?: boolean;
+  giftData?: { emoji: string; from: string };
 }
 
 // ==================== TYPES DU STORE ====================
