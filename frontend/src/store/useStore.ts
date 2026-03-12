@@ -17,11 +17,23 @@ import type {
   Transaction,
   TransactionCategory,
   Title,
+  GenderType,
 } from '../shared/types';
 
 import * as EconomyEngine from '../engine/EconomyEngine';
 import * as ProgressionEngine from '../engine/ProgressionEngine';
 import * as PetEngine from '../engine/PetEngine';
+
+// Type pour les messages de salon (temporaire, sera déplacé vers les types)
+export interface Message {
+  id: string;
+  salonId: string;
+  userId: string;
+  userName: string;
+  content: string;
+  timestamp: number;
+  type: 'message' | 'offering' | 'power' | 'system';
+}
 
 // ==================== TYPES DU STORE ====================
 
