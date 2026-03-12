@@ -146,6 +146,9 @@ export const useStore = create<StoreState>()(
         { id: 'm2', userAId: 'me', userBId: 'alex', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, status: 'active', letterCount: 12 },
       ],
       letters: [],
+      likedProfiles: [],
+      dislikedProfiles: [],
+      messagesBySalon: {},
       
       stats: {
         matchesCount: 2,
