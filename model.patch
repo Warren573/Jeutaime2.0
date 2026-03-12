@@ -1,51 +1,62 @@
-diff --git a/frontend/app/(tabs)/_layout.tsx b/frontend/app/(tabs)/_layout.tsx
-index 4567b2f..4cbae2f 100644
---- a/frontend/app/(tabs)/_layout.tsx
-+++ b/frontend/app/(tabs)/_layout.tsx
-@@ -89,25 +89,32 @@ const styles = StyleSheet.create({
-     backgroundColor: '#3A2818',
-     borderTopColor: '#DAA520',
-     borderTopWidth: 2,
--    height: 70,
--    paddingBottom: 10,
--    paddingTop: 5,
-+    height: 85,
-+    paddingBottom: 20,
-+    paddingTop: 12,
-+    shadowColor: '#000',
-+    shadowOffset: { width: 0, height: -4 },
-+    shadowOpacity: 0.15,
-+    shadowRadius: 8,
-+    elevation: 10,
-   },
-   tabLabel: {
--    fontSize: 10,
-+    fontSize: 11,
-     fontWeight: '600',
-+    marginTop: 4,
-   },
-   tabIcon: {
--    width: 36,
--    height: 36,
--    borderRadius: 18,
-+    width: 44,
-+    height: 44,
-+    borderRadius: 22,
-     alignItems: 'center',
-     justifyContent: 'center',
-   },
-   tabIconFocused: {
-     backgroundColor: '#DAA520',
-+    transform: [{ scale: 1.1 }],
-   },
-   tabIconText: {
--    fontSize: 20,
-+    fontSize: 26,
-   },
- });
 diff --git a/jeutaime_src b/jeutaime_src
 --- a/jeutaime_src
 +++ b/jeutaime_src
 @@ -1 +1 @@
 -Subproject commit 3a30da0ec739fbfa5ab83e5b544f76db7c94a533
 +Subproject commit 3a30da0ec739fbfa5ab83e5b544f76db7c94a533-dirty
+diff --git a/model.patch b/model.patch
+index 2e8e816..e69de29 100644
+--- a/model.patch
++++ b/model.patch
+@@ -1,51 +0,0 @@
+-diff --git a/frontend/app/(tabs)/_layout.tsx b/frontend/app/(tabs)/_layout.tsx
+-index 4567b2f..4cbae2f 100644
+---- a/frontend/app/(tabs)/_layout.tsx
+-+++ b/frontend/app/(tabs)/_layout.tsx
+-@@ -89,25 +89,32 @@ const styles = StyleSheet.create({
+-     backgroundColor: '#3A2818',
+-     borderTopColor: '#DAA520',
+-     borderTopWidth: 2,
+--    height: 70,
+--    paddingBottom: 10,
+--    paddingTop: 5,
+-+    height: 85,
+-+    paddingBottom: 20,
+-+    paddingTop: 12,
+-+    shadowColor: '#000',
+-+    shadowOffset: { width: 0, height: -4 },
+-+    shadowOpacity: 0.15,
+-+    shadowRadius: 8,
+-+    elevation: 10,
+-   },
+-   tabLabel: {
+--    fontSize: 10,
+-+    fontSize: 11,
+-     fontWeight: '600',
+-+    marginTop: 4,
+-   },
+-   tabIcon: {
+--    width: 36,
+--    height: 36,
+--    borderRadius: 18,
+-+    width: 44,
+-+    height: 44,
+-+    borderRadius: 22,
+-     alignItems: 'center',
+-     justifyContent: 'center',
+-   },
+-   tabIconFocused: {
+-     backgroundColor: '#DAA520',
+-+    transform: [{ scale: 1.1 }],
+-   },
+-   tabIconText: {
+--    fontSize: 20,
+-+    fontSize: 26,
+-   },
+- });
+-diff --git a/jeutaime_src b/jeutaime_src
+---- a/jeutaime_src
+-+++ b/jeutaime_src
+-@@ -1 +1 @@
+--Subproject commit 3a30da0ec739fbfa5ab83e5b544f76db7c94a533
+-+Subproject commit 3a30da0ec739fbfa5ab83e5b544f76db7c94a533-dirty
