@@ -136,9 +136,14 @@ export default function SalonDetailScreen() {
     if (!messageInput.trim()) return;
     const newMessage: Message = {
       id: Date.now().toString(),
+      salonId: salonId,
+      userId: currentUser?.id || 'me',
+      userName: currentUser?.name || 'Vous',
       username: currentUser?.name || 'Vous',
+      content: messageInput.trim(),
       text: messageInput.trim(),
       timestamp: Date.now(),
+      type: 'message',
     };
     addMessage(salonId, newMessage);
     setMessageInput('');
