@@ -5,15 +5,22 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  Animated,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { miniGames } from '../data/gameData';
+
+// Import des jeux
+import PongGame from './games/PongGame';
+import BrickBreakerGame from './games/BrickBreakerGame';
+import CardGame from './games/CardGame';
+import StoryGame from './games/StoryGame';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// MORPION
+// ============= MORPION =============
 const TicTacToe = ({ onWin, onLose }: { onWin: () => void; onLose: () => void }) => {
   const [board, setBoard] = useState<(string | null)[]>(Array(9).fill(null));
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
@@ -102,7 +109,7 @@ const tttStyles = StyleSheet.create({
   resetText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
 });
 
-// WHACK-A-MOLE
+// ============= WHACK-A-MOLE (Tape-Taupe) =============
 const WhackAMole = ({ onEnd }: { onEnd: (score: number) => void }) => {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
@@ -125,8 +132,8 @@ const WhackAMole = ({ onEnd }: { onEnd: (score: number) => void }) => {
     
     const moleTimer = setInterval(() => {
       setActiveMole(Math.floor(Math.random() * 9));
-      setTimeout(() => setActiveMole(null), 800);
-    }, 1000);
+      setTimeout(() => setActiveMole(null), 700);
+    }, 900);
     
     return () => { clearInterval(timer); clearInterval(moleTimer); };
   }, [gameStarted, score]);
@@ -141,7 +148,8 @@ const WhackAMole = ({ onEnd }: { onEnd: (score: number) => void }) => {
   if (!gameStarted) {
     return (
       <View style={wamStyles.container}>
-        <Text style={wamStyles.title}>🔨 Whack-a-Mole</Text>
+        <Text style={wamStyles.title}>🔨 Tape-Taupe</Text>
+        <Text style={wamStyles.rules}>Tapez les taupes le plus vite possible!</Text>
         <TouchableOpacity style={wamStyles.startBtn} onPress={() => setGameStarted(true)}>
           <Text style={wamStyles.startText}>Commencer!</Text>
         </TouchableOpacity>
@@ -172,7 +180,8 @@ const WhackAMole = ({ onEnd }: { onEnd: (score: number) => void }) => {
 
 const wamStyles = StyleSheet.create({
   container: { alignItems: 'center', padding: 20 },
-  title: { fontSize: 24, fontWeight: '700', color: '#3A2818', marginBottom: 20 },
+  title: { fontSize: 24, fontWeight: '700', color: '#3A2818', marginBottom: 10 },
+  rules: { fontSize: 14, color: '#8B6F47', marginBottom: 20 },
   startBtn: { backgroundColor: '#FF9800', paddingHorizontal: 40, paddingVertical: 16, borderRadius: 25 },
   startText: { color: '#FFF', fontWeight: '700', fontSize: 18 },
   header: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 20 },
@@ -184,7 +193,7 @@ const wamStyles = StyleSheet.create({
   moleEmoji: { fontSize: 40 },
 });
 
-// MEMORY CARDS
+// ============= MEMORY CARDS =============
 const MemoryGame = ({ onEnd }: { onEnd: (pairs: number) => void }) => {
   const emojis = ['🌹', '💎', '🎁', '✨', '🍾', '💌', '🌟', '🎭'];
   const [cards, setCards] = useState<{ emoji: string; flipped: boolean; matched: boolean }[]>([]);
@@ -267,7 +276,7 @@ const memStyles = StyleSheet.create({
   cardEmoji: { fontSize: 28 },
 });
 
-// ÉCRAN PRINCIPAL
+// ============= ÉCRAN PRINCIPAL =============
 export default function MiniGamesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -287,11 +296,11 @@ export default function MiniGamesScreen() {
     setResult({ won: false, reward: 0 });
   };
 
-  const games = [
-    { id: 'tictactoe', name: 'Morpion', emoji: '✖️', reward: 30 },
-    { id: 'whack', name: 'Whack-a-Mole', emoji: '🔨', reward: 50 },
-    { id: 'memory', name: 'Memory', emoji: '🃏', reward: 40 },
-  ];
+  const difficultyColors = {
+    facile: '#4CAF50',
+    moyen: '#FF9800',
+    difficile: '#F44336',
+  };
 
   if (result) {
     return (
@@ -318,15 +327,29 @@ export default function MiniGamesScreen() {
           <Text style={styles.backBtnText}>← Retour</Text>
         </TouchableOpacity>
         
-        {currentGame === 'tictactoe' && (
-          <TicTacToe onWin={() => handleWin('tictactoe', 30)} onLose={handleLose} />
-        )}
-        {currentGame === 'whack' && (
-          <WhackAMole onEnd={(score) => score >= 50 ? handleWin('whack', score) : handleLose()} />
-        )}
-        {currentGame === 'memory' && (
-          <MemoryGame onEnd={() => handleWin('memory', 40)} />
-        )}
+        <ScrollView contentContainerStyle={styles.gameContent}>
+          {currentGame === 'tictactoe' && (
+            <TicTacToe onWin={() => handleWin('tictactoe', 30)} onLose={handleLose} />
+          )}
+          {currentGame === 'whack' && (
+            <WhackAMole onEnd={(score) => score >= 50 ? handleWin('whack', score) : handleLose()} />
+          )}
+          {currentGame === 'memory' && (
+            <MemoryGame onEnd={() => handleWin('memory', 40)} />
+          )}
+          {currentGame === 'pong' && (
+            <PongGame onEnd={(won, score) => won ? handleWin('pong', 60) : handleLose()} />
+          )}
+          {currentGame === 'brickbreaker' && (
+            <BrickBreakerGame onEnd={(won, score) => won ? handleWin('brickbreaker', 70) : handleLose()} />
+          )}
+          {currentGame === 'cards' && (
+            <CardGame onEnd={(won, coins) => won ? handleWin('cards', coins) : handleLose()} />
+          )}
+          {currentGame === 'story' && (
+            <StoryGame onEnd={(won, score) => won ? handleWin('story', 50) : handleLose()} />
+          )}
+        </ScrollView>
       </View>
     );
   }
@@ -338,21 +361,31 @@ export default function MiniGamesScreen() {
           <Text style={styles.backText}>← Retour</Text>
         </TouchableOpacity>
         <Text style={styles.title}>🎮 Mini-Jeux</Text>
+        <Text style={styles.subtitle}>Gagnez des pièces en jouant!</Text>
       </View>
       
-      <View style={styles.gamesList}>
-        {games.map(game => (
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {miniGames.map(game => (
           <TouchableOpacity
             key={game.id}
             style={styles.gameCard}
             onPress={() => setCurrentGame(game.id)}
           >
             <Text style={styles.gameEmoji}>{game.emoji}</Text>
-            <Text style={styles.gameName}>{game.name}</Text>
-            <Text style={styles.gameReward}>Récompense: {game.reward} 💰</Text>
+            <View style={styles.gameInfo}>
+              <Text style={styles.gameName}>{game.name}</Text>
+              <Text style={styles.gameDesc}>{game.description}</Text>
+              <View style={styles.gameFooter}>
+                <Text style={styles.gameReward}>🪙 {game.reward}</Text>
+                <View style={[styles.diffBadge, { backgroundColor: difficultyColors[game.difficulty] }]}>
+                  <Text style={styles.diffText}>{game.difficulty}</Text>
+                </View>
+              </View>
+            </View>
+            <Text style={styles.playArrow}>▶</Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -362,13 +395,34 @@ const styles = StyleSheet.create({
   header: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
   backText: { fontSize: 16, color: '#8B6F47', marginBottom: 8 },
   title: { fontSize: 28, fontWeight: '700', color: '#3A2818' },
-  gamesList: { padding: 16 },
-  gameCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 20, marginBottom: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  gameEmoji: { fontSize: 50, marginBottom: 10 },
-  gameName: { fontSize: 20, fontWeight: '700', color: '#3A2818' },
-  gameReward: { fontSize: 14, color: '#DAA520', marginTop: 8 },
+  subtitle: { fontSize: 14, color: '#8B6F47', marginTop: 4 },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 100 },
+  gameCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#FFF', 
+    borderRadius: 16, 
+    padding: 16, 
+    marginBottom: 12, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.1, 
+    shadowRadius: 4, 
+    elevation: 3 
+  },
+  gameEmoji: { fontSize: 40, marginRight: 14 },
+  gameInfo: { flex: 1 },
+  gameName: { fontSize: 18, fontWeight: '700', color: '#3A2818' },
+  gameDesc: { fontSize: 13, color: '#8B6F47', marginTop: 2 },
+  gameFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 10 },
+  gameReward: { fontSize: 14, color: '#DAA520', fontWeight: '600' },
+  diffBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  diffText: { fontSize: 10, color: '#FFF', fontWeight: '600', textTransform: 'capitalize' },
+  playArrow: { fontSize: 18, color: '#8B6F47' },
   backBtn: { padding: 16 },
   backBtnText: { fontSize: 16, color: '#8B6F47' },
+  gameContent: { flexGrow: 1 },
   resultBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   resultEmoji: { fontSize: 80, marginBottom: 20 },
   resultTitle: { fontSize: 32, fontWeight: '700', color: '#3A2818' },
