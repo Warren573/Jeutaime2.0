@@ -179,18 +179,18 @@ const WhackAMole = ({ onEnd }: { onEnd: (score: number) => void }) => {
 };
 
 const wamStyles = StyleSheet.create({
-  container: { alignItems: 'center', padding: 20 },
-  title: { fontSize: 24, fontWeight: '700', color: '#3A2818', marginBottom: 10 },
-  rules: { fontSize: 14, color: '#8B6F47', marginBottom: 20 },
-  startBtn: { backgroundColor: '#FF9800', paddingHorizontal: 40, paddingVertical: 16, borderRadius: 25 },
-  startText: { color: '#FFF', fontWeight: '700', fontSize: 18 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 20 },
-  score: { fontSize: 20, fontWeight: '700', color: '#4CAF50' },
-  timer: { fontSize: 20, fontWeight: '700', color: '#F44336' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', width: 240, height: 240 },
-  hole: { width: 80, height: 80, backgroundColor: '#8D6E63', borderRadius: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#5D4037' },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  title: { fontSize: 32, fontWeight: '700', color: '#3A2818', marginBottom: 12 },
+  rules: { fontSize: 16, color: '#8B6F47', marginBottom: 24 },
+  startBtn: { backgroundColor: '#FF9800', paddingHorizontal: 60, paddingVertical: 20, borderRadius: 30 },
+  startText: { color: '#FFF', fontWeight: '700', fontSize: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', width: SCREEN_WIDTH - 60, marginBottom: 24 },
+  score: { fontSize: 24, fontWeight: '700', color: '#4CAF50' },
+  timer: { fontSize: 24, fontWeight: '700', color: '#F44336' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', width: SCREEN_WIDTH - 60, height: SCREEN_WIDTH - 60, maxWidth: 320, maxHeight: 320 },
+  hole: { width: '33.33%', height: '33.33%', backgroundColor: '#8D6E63', borderRadius: 50, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: '#5D4037' },
   activeMole: { backgroundColor: '#A1887F' },
-  moleEmoji: { fontSize: 40 },
+  moleEmoji: { fontSize: 50 },
 });
 
 // ============= MEMORY CARDS =============
