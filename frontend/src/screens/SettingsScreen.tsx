@@ -83,7 +83,7 @@ export default function SettingsScreen() {
     { icon: '✏️', label: 'Modifier mon profil', action: () => setShowEditProfile(true) },
     { icon: '🎨', label: 'Personnaliser mon avatar', action: () => setShowAvatarEditor(true) },
     { icon: '🎮', label: 'Mini-Jeux', route: '/games' },
-    { icon: '🐾', label: 'Mon Animal', route: '/pet', badge: pet ? pet.emoji : null },
+    { icon: '🐾', label: 'Mon Animal', route: '/pet', badge: pet ? pet.petEmoji : null },
     { icon: '🌟', label: 'Badges', route: '/badges' },
     { icon: '🍾', label: 'Bouteille à la mer', route: '/bottle' },
     { icon: '🏆', label: 'Profil de la semaine', route: '/weekly-profile' },
