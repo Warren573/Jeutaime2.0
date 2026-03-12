@@ -11,7 +11,8 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useStore, Letter, Match } from '../store/useStore';
+import { useStore } from '../store/useStore';
+import type { Letter, Match } from '../shared/types';
 
 const Avatar = ({ name, size = 55 }: { name: string; size?: number }) => {
   const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
