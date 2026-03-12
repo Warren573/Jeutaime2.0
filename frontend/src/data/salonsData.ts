@@ -20,7 +20,22 @@ export interface Salon {
   gradient: [string, string];
   maxParticipants: number;
   participants: SalonParticipant[];
+  background?: string;
 }
+
+// Arrière-plans disponibles pour les salons
+export const salonBackgrounds = [
+  { id: 'cafe', name: 'Café cosy', emoji: '☕', colors: ['#8D6E63', '#5D4037'] },
+  { id: 'beach', name: 'Plage paradisiaque', emoji: '🏖️', colors: ['#FFA726', '#42A5F5'] },
+  { id: 'forest', name: 'Forêt enchantée', emoji: '🌲', colors: ['#66BB6A', '#2E7D32'] },
+  { id: 'space', name: 'Galaxie', emoji: '🌌', colors: ['#3F51B5', '#1A237E'] },
+  { id: 'garden', name: 'Jardin fleuri', emoji: '🌸', colors: ['#F48FB1', '#7B1FA2'] },
+  { id: 'mountain', name: 'Montagne', emoji: '🏔️', colors: ['#78909C', '#455A64'] },
+  { id: 'sunset', name: 'Coucher de soleil', emoji: '🌅', colors: ['#FF7043', '#FFB74D'] },
+  { id: 'ocean', name: 'Océan profond', emoji: '🐠', colors: ['#00BCD4', '#006064'] },
+  { id: 'castle', name: 'Château romantique', emoji: '🏰', colors: ['#9575CD', '#512DA8'] },
+  { id: 'winter', name: 'Hiver magique', emoji: '❄️', colors: ['#B3E5FC', '#0277BD'] },
+];
 
 export const salonsData: Salon[] = [
   {
