@@ -93,8 +93,8 @@ interface StoreState {
   
   // ===== Actions - Progression =====
   addPoints: (amount: number, reason?: string) => void;
-  getCurrentTitle: () => { level: number; name: string; emoji: string };
-  getNextLevel: () => { nextTitle: ProgressionEngine.Title | null; progress: number; remaining: number };
+  getCurrentTitle: () => { level: number; title: string; emoji: string };
+  getNextLevel: () => { nextTitle: Title | null; progress: number; remaining: number };
   
   // ===== Actions - Stats & Badges =====
   incrementStat: (stat: keyof UserStats, amount?: number) => void;
