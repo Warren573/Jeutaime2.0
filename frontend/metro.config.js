@@ -11,17 +11,17 @@ config.cacheStores = [
   new FileStore({ root: path.join(root, 'cache') }),
 ];
 
-// Disable hot reload in CI mode for web
-config.server = {
-  ...config.server,
-  enhanceMiddleware: (middleware) => {
-    return (req, res, next) => {
-      // Inject React Refresh polyfill for web
-      if (req.url && req.url.includes('platform=web')) {
-        res.setHeader('X-React-Refresh-Disabled', 'true');
-      }
-      return middleware(req, res, next);
-    };
+// Inject React Refresh shim as a polyfill for web
+const originalGetPolyfills = config.serializer?.getPolyfills || (() => []);
+config.serializer = {
+  ...config.serializer,
+  getPolyfills: () => {
+    const polyfills = originalGetPolyfills();
+    return [
+      // Add our React Refresh shim at the beginning
+      path.resolve(__dirname, 'src/polyfills/react-refresh-shim.js'),
+      ...polyfills,
+    ];
   },
 };
 
