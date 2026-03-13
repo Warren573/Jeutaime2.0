@@ -8,8 +8,15 @@ module.exports = function (api) {
         {
           // Transform import.meta for web compatibility
           unstable_transformImportMeta: true,
+          // Disable React Refresh for web
+          jsxRuntime: 'automatic',
         },
       ],
     ],
+    env: {
+      production: {
+        plugins: ['transform-remove-console'],
+      },
+    },
   };
 };
