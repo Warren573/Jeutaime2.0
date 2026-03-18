@@ -1,4 +1,18 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+/**
+ * SalonDetailScreen
+ *
+ * Deux expériences produit distinctes :
+ *  - VERTICAL  → chat social avec fil de messages
+ *  - HORIZONTAL → présence + interactions (offrandes/magie), zéro chat
+ */
+
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from 'react';
 import {
   View,
   Text,
@@ -12,6 +26,7 @@ import {
   ScrollView,
   Modal,
   Easing,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,150 +35,175 @@ import { allOfferings, allPowers, metalOfferings, metalPowers } from '../data/of
 import { salonsData } from '../data/salonsData';
 import { useStore, Message } from '../store/useStore';
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const { width: SCREEN_W } = Dimensions.get('window');
+
+const COLORS = {
+  bg: '#F7F7F8',
+  white: '#FFFFFF',
+  border: '#E5E5EA',
+  text: '#111111',
+  textSecondary: '#8E8E93',
+  online: '#34C759',
+  offline: '#C7C7CC',
+  bubble: '#F0F0F0',
+  ownBubble: '#007AFF',
+};
+
+const AVATAR_PALETTE = [
+  '#5AC8FA', '#34C759', '#FF9500', '#FF3B30',
+  '#AF52DE', '#FF2D55', '#5856D6', '#007AFF',
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function nameColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
+}
+
+function initials(name: string): string {
+  return name.split(' ').map(w => w[0] ?? '').join('').toUpperCase().slice(0, 2);
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Interaction {
-  id: string;
-  emoji: string;
-  from: string;
-  timestamp: number;
-}
-
-interface ActiveEffect {
-  id: string;
-  emoji: string;
-}
 
 interface Participant {
   id: string;
   name: string;
   isOnline: boolean;
   isMe?: boolean;
-  recentInteractions: Interaction[];
-  activeEffects: ActiveEffect[];
+  badges: { id: string; emoji: string }[];   // gifts / effects received
 }
 
 interface GiftFlight {
   id: string;
   emoji: string;
   anim: Animated.Value;
-  fromIndex: number;
-  toIndex: number;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
 }
 
-type MessageGroup =
-  | { kind: 'system'; message: Message }
-  | { kind: 'chat'; sender: string; senderId: string; isOwn: boolean; messages: Message[] };
+// ══════════════════════════════════════════════════════════════════════════════
+// SHARED COMPONENTS
+// ══════════════════════════════════════════════════════════════════════════════
 
-// ─── Color utils ──────────────────────────────────────────────────────────────
+// ── HeaderBar ─────────────────────────────────────────────────────────────────
 
-const PALETTE = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#DDA0DD', '#98D8C8', '#BB8FCE', '#85C1E9'];
-
-function nameToColor(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return PALETTE[Math.abs(h) % PALETTE.length];
-}
-
-function nameToInitials(name: string): string {
-  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-}
-
-// ─── Group messages by consecutive sender ────────────────────────────────────
-
-function buildMessageGroups(messages: Message[], myName: string): MessageGroup[] {
-  const groups: MessageGroup[] = [];
-
-  for (const msg of messages) {
-    if (msg.isSystem) {
-      groups.push({ kind: 'system', message: msg });
-      continue;
-    }
-
-    const senderName = msg.username ?? msg.userName ?? '';
-    const isOwn = msg.userId === 'me' || senderName === myName;
-
-    const last = groups[groups.length - 1];
-    if (last && last.kind === 'chat' && last.sender === senderName) {
-      last.messages.push(msg);
-    } else {
-      groups.push({ kind: 'chat', sender: senderName, senderId: msg.userId ?? '', isOwn, messages: [msg] });
-    }
-  }
-
-  return groups;
-}
-
-// ─── Shared: Avatar ───────────────────────────────────────────────────────────
-
-function Avatar({
-  name,
-  size = 48,
-  isOnline = true,
-  effects = [],
+function HeaderBar({
+  title,
+  icon,
+  coins,
+  gradient,
+  paddingTop,
+  onBack,
 }: {
-  name: string;
-  size?: number;
-  isOnline?: boolean;
-  effects?: ActiveEffect[];
+  title: string;
+  icon: string;
+  coins: number;
+  gradient: [string, string];
+  paddingTop: number;
+  onBack?: () => void;
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scale, { toValue: 1.055, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(scale, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    anim.start();
-    return () => anim.stop();
-  }, []);
-
-  const bg = nameToColor(name);
-  const dotSize = size * 0.24;
-
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: bg,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: isOnline ? 2.5 : 1.5,
-          borderColor: isOnline ? '#4CAF50' : 'rgba(255,255,255,0.25)',
-        }}
-      >
-        <Text style={{ fontSize: size * 0.36, fontWeight: '700', color: '#FFF' }}>
-          {nameToInitials(name)}
+    <LinearGradient
+      colors={gradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 0 }}
+      style={{ paddingTop: paddingTop + 4, paddingBottom: 12, paddingHorizontal: 16 }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <TouchableOpacity
+          onPress={onBack}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={s.backBtn}
+        >
+          <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '400' }}>‹</Text>
+        </TouchableOpacity>
+
+        <Text style={s.headerTitle} numberOfLines={1}>
+          {icon} {title}
         </Text>
-        {effects[0] && (
-          <Text style={{ position: 'absolute', fontSize: size * 0.28, bottom: -(size * 0.16) }}>
-            {effects[0].emoji}
-          </Text>
-        )}
+
+        <View style={s.coinsBadge}>
+          <Text style={s.coinsText}>💰 {coins}</Text>
+        </View>
       </View>
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 1,
-          right: 1,
-          width: dotSize,
-          height: dotSize,
-          borderRadius: dotSize / 2,
-          backgroundColor: isOnline ? '#4CAF50' : '#888',
-          borderWidth: 1.5,
-          borderColor: '#FFF',
-        }}
-      />
-    </Animated.View>
+    </LinearGradient>
   );
 }
 
-// ─── Shared: InputBar ────────────────────────────────────────────────────────
+// ── ParticipantAvatar ─────────────────────────────────────────────────────────
+
+function ParticipantAvatar({
+  participant,
+  size = 44,
+  showName = true,
+  onPress,
+}: {
+  participant: Participant;
+  size?: number;
+  showName?: boolean;
+  onPress?: () => void;
+}) {
+  const bg = nameColor(participant.name);
+  const dotSize = Math.max(size * 0.22, 8);
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+      disabled={!onPress}
+      style={{ alignItems: 'center', gap: 5 }}
+    >
+      <View style={{ position: 'relative' }}>
+        <View
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: bg,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontSize: size * 0.35, fontWeight: '600', color: '#FFF' }}>
+            {initials(participant.name)}
+          </Text>
+        </View>
+        {/* Online dot */}
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: dotSize,
+            height: dotSize,
+            borderRadius: dotSize / 2,
+            backgroundColor: participant.isOnline ? COLORS.online : COLORS.offline,
+            borderWidth: 2,
+            borderColor: '#FFF',
+          }}
+        />
+        {participant.isMe && (
+          <View style={[s.meBadge, { top: -(dotSize / 2), left: -(dotSize / 2) }]}>
+            <Text style={{ fontSize: 9, color: '#FFF', fontWeight: '700' }}>Moi</Text>
+          </View>
+        )}
+      </View>
+
+      {showName && (
+        <Text style={[s.avatarName, { maxWidth: size + 20 }]} numberOfLines={1}>
+          {participant.name}
+        </Text>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+// ── InputBar ──────────────────────────────────────────────────────────────────
 
 function InputBar({
   value,
@@ -172,7 +212,6 @@ function InputBar({
   onOffrandes,
   onMagie,
   paddingBottom,
-  accentColor,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -180,103 +219,62 @@ function InputBar({
   onOffrandes: () => void;
   onMagie: () => void;
   paddingBottom: number;
-  accentColor?: string;
 }) {
-  const accent = accentColor ?? '#E91E63';
   return (
-    <View
-      style={{
-        backgroundColor: '#FFF',
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: '#E8E8E8',
-        paddingTop: 10,
-        paddingBottom: Math.max(paddingBottom, 10),
-        paddingHorizontal: 12,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <TouchableOpacity onPress={onOffrandes} style={styles.actionBtn}>
-          <Text style={{ fontSize: 17 }}>🎁</Text>
-        </TouchableOpacity>
+    <View style={[s.inputBar, { paddingBottom: Math.max(paddingBottom, 10) }]}>
+      {/* Action buttons — small, non-dominant */}
+      <TouchableOpacity onPress={onOffrandes} style={s.actionIconBtn}>
+        <Text style={{ fontSize: 16 }}>🎁</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onMagie} style={s.actionIconBtn}>
+        <Text style={{ fontSize: 16 }}>✨</Text>
+      </TouchableOpacity>
 
-        <TouchableOpacity onPress={onMagie} style={[styles.actionBtn, { backgroundColor: '#F3E5F5' }]}>
-          <Text style={{ fontSize: 17 }}>✨</Text>
-        </TouchableOpacity>
+      {/* Text field */}
+      <TextInput
+        style={s.textInput}
+        placeholder="Message…"
+        placeholderTextColor={COLORS.textSecondary}
+        value={value}
+        onChangeText={onChange}
+        onSubmitEditing={onSend}
+        returnKeyType="send"
+        multiline={false}
+      />
 
-        <TextInput
-          style={{
-            flex: 1,
-            height: 40,
-            backgroundColor: '#F8F8F8',
-            borderRadius: 20,
-            paddingHorizontal: 14,
-            fontSize: 15,
-            color: '#222',
-            borderWidth: 1,
-            borderColor: '#EEE',
-          }}
-          placeholder="Message..."
-          placeholderTextColor="#CCC"
-          value={value}
-          onChangeText={onChange}
-          onSubmitEditing={onSend}
-          returnKeyType="send"
-        />
-
-        <TouchableOpacity
-          onPress={onSend}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: value.trim() ? accent : '#DDD',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ fontSize: 18, color: '#FFF' }}>➤</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Send button */}
+      <TouchableOpacity
+        onPress={onSend}
+        disabled={!value.trim()}
+        style={[s.sendBtn, { backgroundColor: value.trim() ? COLORS.ownBubble : COLORS.border }]}
+      >
+        <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>↑</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
-// ─── Shared: GiftFlightOverlay ───────────────────────────────────────────────
+// ── InteractionBadge ──────────────────────────────────────────────────────────
 
-function GiftFlightOverlay({
-  flights,
-  positions,
-}: {
-  flights: GiftFlight[];
-  positions: { x: number; y: number }[];
-}) {
-  if (flights.length === 0) return null;
+function InteractionBadge({ emoji }: { emoji: string }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.6)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 12 }),
+    ]).start();
+  }, []);
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {flights.map(f => {
-        const from = positions[f.fromIndex] ?? { x: 150, y: 300 };
-        const to = positions[f.toIndex] ?? { x: 150, y: 100 };
-
-        const left = f.anim.interpolate({ inputRange: [0, 1], outputRange: [from.x - 14, to.x - 14] });
-        const top = f.anim.interpolate({ inputRange: [0, 1], outputRange: [from.y - 14, to.y - 14] });
-        const opacity = f.anim.interpolate({ inputRange: [0, 0.1, 0.85, 1], outputRange: [0, 1, 1, 0] });
-        const emojiScale = f.anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.8, 1.4, 0.9] });
-
-        return (
-          <Animated.View
-            key={f.id}
-            style={{ position: 'absolute', left, top, opacity, transform: [{ scale: emojiScale }] }}
-          >
-            <Text style={{ fontSize: 26 }}>{f.emoji}</Text>
-          </Animated.View>
-        );
-      })}
-    </View>
+    <Animated.View style={{ opacity, transform: [{ scale }] }}>
+      <Text style={{ fontSize: 18 }}>{emoji}</Text>
+    </Animated.View>
   );
 }
 
-// ─── Shared: OfferingsModal ───────────────────────────────────────────────────
+// ── OfferingsModal ────────────────────────────────────────────────────────────
 
 function OfferingsModal({
   visible,
@@ -307,17 +305,15 @@ function OfferingsModal({
     }
   }, [visible, defaultRecipient]);
 
+  const others = participants.filter(p => !p.isMe);
   const offerings = isMetal ? [...allOfferings, ...metalOfferings] : allOfferings;
   const powers = isMetal ? [...allPowers, ...metalPowers] : allPowers;
-  const others = participants.filter(p => !p.isMe);
 
-  const renderRow = (label: string, items: any[]) => {
-    if (items.length === 0) return null;
+  const ItemRow = ({ items, label }: { items: any[]; label: string }) => {
+    if (!items.length) return null;
     return (
-      <View style={{ marginBottom: 18 }}>
-        <Text style={{ fontSize: 11, fontWeight: '700', color: '#999', marginBottom: 10, paddingHorizontal: 20, letterSpacing: 0.8 }}>
-          {label}
-        </Text>
+      <View style={{ marginBottom: 20 }}>
+        <Text style={s.modalSection}>{label}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
           {items.map((item: any) => {
             const disabled = !recipient || coins < item.cost;
@@ -326,25 +322,11 @@ function OfferingsModal({
                 key={item.id}
                 onPress={() => recipient && onSend(recipient, item)}
                 disabled={disabled}
-                style={{
-                  alignItems: 'center',
-                  width: 76,
-                  backgroundColor: '#FFF',
-                  borderRadius: 16,
-                  paddingVertical: 12,
-                  paddingHorizontal: 8,
-                  borderWidth: 1,
-                  borderColor: '#EAEAEA',
-                  opacity: disabled ? 0.45 : 1,
-                }}
+                style={[s.modalItem, { opacity: disabled ? 0.4 : 1 }]}
               >
-                <Text style={{ fontSize: 24, marginBottom: 5 }}>{item.emoji}</Text>
-                <Text style={{ fontSize: 10, fontWeight: '600', color: '#555', textAlign: 'center' }} numberOfLines={2}>
-                  {item.name}
-                </Text>
-                <Text style={{ fontSize: 10, color: '#DAA520', fontWeight: '700', marginTop: 4 }}>
-                  {item.cost}💰
-                </Text>
+                <Text style={{ fontSize: 22 }}>{item.emoji}</Text>
+                <Text style={s.modalItemName} numberOfLines={2}>{item.name}</Text>
+                <Text style={s.modalItemCost}>{item.cost}💰</Text>
               </TouchableOpacity>
             );
           })}
@@ -355,64 +337,60 @@ function OfferingsModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}>
-        <View style={{ backgroundColor: '#FAFAFA', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' }}>
-          <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 4 }}>
-            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#DDD' }} />
-          </View>
+      <View style={s.modalOverlay}>
+        <View style={s.modalSheet}>
+          {/* Handle */}
+          <View style={s.modalHandle} />
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 }}>
-            <Text style={{ fontSize: 17, fontWeight: '700', color: '#222' }}>
-              {recipient ? `Pour ${recipient.name}` : 'Choisir un destinataire'}
+          {/* Title */}
+          <View style={s.modalHeader}>
+            <Text style={s.modalTitle}>
+              {recipient ? `Envoyer à ${recipient.name}` : 'Choisir un destinataire'}
             </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={{ fontSize: 22, color: '#BBB' }}>✕</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: 22, color: COLORS.textSecondary }}>✕</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 16, marginBottom: 16 }}>
+          {/* Recipients */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 16, paddingBottom: 4 }}>
             {others.map(p => (
-              <TouchableOpacity key={p.id} onPress={() => setRecipient(p)} style={{ alignItems: 'center' }}>
-                <View
-                  style={{
-                    borderWidth: 2.5,
-                    borderColor: recipient?.id === p.id ? '#E91E63' : 'transparent',
-                    borderRadius: 28,
-                    padding: 2,
-                    opacity: recipient?.id === p.id ? 1 : 0.5,
-                  }}
-                >
-                  <Avatar name={p.name} size={44} isOnline={p.isOnline} />
+              <TouchableOpacity key={p.id} onPress={() => setRecipient(p)} style={{ alignItems: 'center', gap: 4 }}>
+                <View style={[
+                  s.recipientRing,
+                  { borderColor: recipient?.id === p.id ? COLORS.ownBubble : 'transparent' },
+                ]}>
+                  <ParticipantAvatar participant={p} size={42} showName={false} />
                 </View>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: '#555', marginTop: 4 }}>{p.name}</Text>
+                <Text style={[s.avatarName, { color: recipient?.id === p.id ? COLORS.ownBubble : COLORS.textSecondary }]}>
+                  {p.name}
+                </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
 
-          <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 8, marginBottom: 16 }}>
+          {/* Tabs */}
+          <View style={s.tabRow}>
             {(['offrandes', 'magie'] as const).map(t => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => setTab(t)}
-                style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: tab === t ? '#E91E63' : '#EFEFEF' }}
-              >
-                <Text style={{ fontWeight: '700', fontSize: 13, color: tab === t ? '#FFF' : '#777' }}>
+              <TouchableOpacity key={t} onPress={() => setTab(t)} style={[s.tabBtn, tab === t && s.tabBtnActive]}>
+                <Text style={[s.tabLabel, tab === t && s.tabLabelActive]}>
                   {t === 'offrandes' ? '🎁 Offrandes' : '✨ Magie'}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Items */}
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
             {tab === 'offrandes' ? (
               <>
-                {renderRow('🍹 BOISSONS', offerings.filter(o => o.category === 'boisson'))}
-                {renderRow('🍔 NOURRITURE', offerings.filter(o => o.category === 'nourriture'))}
-                {renderRow('💌 SYMBOLIQUE', offerings.filter(o => o.category === 'symbolique'))}
-                {renderRow('😄 HUMOUR', offerings.filter(o => o.category === 'humour'))}
+                <ItemRow items={offerings.filter(o => o.category === 'boisson')} label="🥂 Boissons" />
+                <ItemRow items={offerings.filter(o => o.category === 'nourriture')} label="🍽 Nourriture" />
+                <ItemRow items={offerings.filter(o => o.category === 'symbolique')} label="💌 Symbolique" />
+                <ItemRow items={offerings.filter(o => o.category === 'humour')} label="😄 Humour" />
               </>
             ) : (
-              renderRow('🪄 POUVOIRS', powers)
+              <ItemRow items={powers} label="🪄 Pouvoirs" />
             )}
             <View style={{ height: 32 }} />
           </ScrollView>
@@ -422,212 +400,152 @@ function OfferingsModal({
   );
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// SALON VERTICAL ──────────────────────────────────────────────────────────────
-// Discussion première. Les avatars vivent dans le flux des messages.
-// Pas de rangée d'avatars fixe en haut.
-// ══════════════════════════════════════════════════════════════════════════════
+// ── GiftAnimation ─────────────────────────────────────────────────────────────
 
-// Pill système (offrande/magie) — centrée dans le fil
-function VerticalSystemPill({ message }: { message: Message }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(6)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 280, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 280, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-    ]).start();
-  }, []);
-
+function GiftAnimation({ flights }: { flights: GiftFlight[] }) {
   return (
-    <Animated.View style={{ opacity, transform: [{ translateY }], alignItems: 'center', marginVertical: 10, paddingHorizontal: 24 }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
-          backgroundColor: 'rgba(218,165,32,0.10)',
-          borderWidth: 1,
-          borderColor: 'rgba(218,165,32,0.25)',
-          paddingHorizontal: 16,
-          paddingVertical: 7,
-          borderRadius: 20,
-        }}
-      >
-        {message.giftData && <Text style={{ fontSize: 16 }}>{message.giftData.emoji}</Text>}
-        <Text style={{ fontSize: 12, color: '#B8860B', fontWeight: '600', flexShrink: 1, textAlign: 'center' }}>
-          {message.text ?? message.content}
-        </Text>
-      </View>
-    </Animated.View>
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {flights.map(f => {
+        const left = f.anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [f.from.x, f.to.x],
+        });
+        const top = f.anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [f.from.y, f.to.y],
+        });
+        const opacity = f.anim.interpolate({
+          inputRange: [0, 0.1, 0.85, 1],
+          outputRange: [0, 1, 1, 0],
+        });
+        const scale = f.anim.interpolate({
+          inputRange: [0, 0.4, 1],
+          outputRange: [0.8, 1.3, 0.9],
+        });
+        return (
+          <Animated.View
+            key={f.id}
+            style={{ position: 'absolute', left, top, opacity, transform: [{ scale }] }}
+          >
+            <Text style={{ fontSize: 24 }}>{f.emoji}</Text>
+          </Animated.View>
+        );
+      })}
+    </View>
   );
 }
 
-// Groupe de messages d'un même auteur, avec son avatar intégré
-function VerticalMessageGroup({
-  group,
-  participant,
-  onAvatarPress,
+// ══════════════════════════════════════════════════════════════════════════════
+// VERTICAL SALON — chat social avec fil de messages
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Rangée de participants — toujours visible sous le header
+function ParticipantStrip({
+  participants,
+  onPress,
 }: {
-  group: Extract<MessageGroup, { kind: 'chat' }>;
-  participant?: Participant;
-  onAvatarPress?: () => void;
+  participants: Participant[];
+  onPress: (p: Participant) => void;
+}) {
+  return (
+    <View style={s.strip}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.stripContent}
+        bounces={false}
+      >
+        {participants.map(p => (
+          <ParticipantAvatar
+            key={p.id}
+            participant={p}
+            size={40}
+            showName
+            onPress={!p.isMe ? () => onPress(p) : undefined}
+          />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+// Bulle de message dans le salon vertical
+function ChatMessage({
+  message,
+  isOwn,
+  sender,
+}: {
+  message: Message;
+  isOwn: boolean;
+  sender: Participant | undefined;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(8)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-    ]).start();
+    Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }).start();
   }, []);
 
-  const avatarColor = nameToColor(group.sender);
-  const isOnline = participant?.isOnline ?? true;
-  const effects = participant?.activeEffects ?? [];
+  if (message.isSystem) {
+    return (
+      <Animated.View style={[s.systemRow, { opacity }]}>
+        <Text style={s.systemText}>
+          {message.giftData?.emoji ? `${message.giftData.emoji}  ` : ''}
+          {message.text ?? message.content}
+        </Text>
+      </Animated.View>
+    );
+  }
 
-  const timeStr = new Date(group.messages[group.messages.length - 1].timestamp).toLocaleTimeString('fr-FR', {
+  const timeStr = new Date(message.timestamp).toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
   });
 
-  if (group.isOwn) {
+  if (isOwn) {
     return (
-      <Animated.View style={{ opacity, transform: [{ translateY }], marginBottom: 14, marginHorizontal: 14, alignItems: 'flex-end' }}>
-        {/* Bulles */}
-        <View style={{ alignItems: 'flex-end', marginRight: 44 }}>
-          {group.messages.map((msg, i) => (
-            <View
-              key={msg.id}
-              style={{
-                backgroundColor: '#E91E63',
-                paddingHorizontal: 14,
-                paddingVertical: 9,
-                borderRadius: 18,
-                borderBottomRightRadius: i === group.messages.length - 1 ? 4 : 18,
-                maxWidth: '80%',
-                marginBottom: i < group.messages.length - 1 ? 3 : 0,
-                alignSelf: 'flex-end',
-              }}
-            >
-              <Text style={{ fontSize: 15, color: '#FFF', lineHeight: 21 }}>
-                {msg.text ?? msg.content}
-              </Text>
-            </View>
-          ))}
+      <Animated.View style={[s.ownRow, { opacity }]}>
+        <View style={s.ownBubble}>
+          <Text style={s.ownBubbleText}>{message.text ?? message.content}</Text>
         </View>
-
-        {/* Avatar + heure en bas à droite */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 }}>
-          <Text style={{ fontSize: 10, color: '#BBB' }}>{timeStr}</Text>
-          <TouchableOpacity activeOpacity={1}>
-            <Avatar name={group.sender} size={34} isOnline />
-          </TouchableOpacity>
-        </View>
+        <Text style={s.timeLabel}>{timeStr}</Text>
       </Animated.View>
     );
   }
 
   return (
-    <Animated.View style={{ opacity, transform: [{ translateY }], marginBottom: 14, marginHorizontal: 14 }}>
-      {/* Ligne : avatar + nom */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-        <TouchableOpacity onPress={onAvatarPress} activeOpacity={onAvatarPress ? 0.75 : 1}>
-          <Avatar name={group.sender} size={36} isOnline={isOnline} effects={effects} />
-        </TouchableOpacity>
-        <Text style={{ fontSize: 12, fontWeight: '600', color: '#888' }}>{group.sender}</Text>
+    <Animated.View style={[s.otherRow, { opacity }]}>
+      {/* Avatar du sender */}
+      <View style={s.msgAvatarWrap}>
+        {sender ? (
+          <View
+            style={[
+              s.msgAvatar,
+              { backgroundColor: nameColor(sender.name) },
+            ]}
+          >
+            <Text style={s.msgAvatarText}>{initials(sender.name)}</Text>
+          </View>
+        ) : (
+          <View style={s.msgAvatar} />
+        )}
       </View>
 
-      {/* Bulles en retrait (sous l'avatar) */}
-      <View style={{ marginLeft: 46, alignItems: 'flex-start' }}>
-        {group.messages.map((msg, i) => (
-          <View
-            key={msg.id}
-            style={{
-              backgroundColor: '#F2F2F2',
-              paddingHorizontal: 14,
-              paddingVertical: 9,
-              borderRadius: 18,
-              borderBottomLeftRadius: i === group.messages.length - 1 ? 4 : 18,
-              maxWidth: '82%',
-              marginBottom: i < group.messages.length - 1 ? 3 : 0,
-            }}
-          >
-            <Text style={{ fontSize: 15, color: '#222', lineHeight: 21 }}>
-              {msg.text ?? msg.content}
-            </Text>
-          </View>
-        ))}
-
-        {/* Heure sous la dernière bulle */}
-        <Text style={{ fontSize: 10, color: '#CCC', marginTop: 4 }}>{timeStr}</Text>
+      <View style={{ flexShrink: 1 }}>
+        {sender && (
+          <Text style={s.senderName}>{sender.name}</Text>
+        )}
+        <View style={s.otherBubble}>
+          <Text style={s.otherBubbleText}>{message.text ?? message.content}</Text>
+        </View>
+        <Text style={s.timeLabel}>{timeStr}</Text>
       </View>
     </Animated.View>
   );
 }
 
-// Fil de discussion vertical
-function VerticalChatFeed({
-  messages,
-  myName,
-  participants,
-  onAvatarPress,
-}: {
-  messages: Message[];
-  myName: string;
-  participants: Participant[];
-  onAvatarPress: (p: Participant) => void;
-}) {
-  const listRef = useRef<FlatList>(null);
-  const groups = useMemo(() => buildMessageGroups(messages, myName), [messages, myName]);
+// ── SalonVerticalScreen ───────────────────────────────────────────────────────
 
-  const scrollToEnd = useCallback(() => {
-    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
-  }, []);
-
-  useEffect(() => { scrollToEnd(); }, [messages.length]);
-
-  const findParticipant = (name: string) => participants.find(p => p.name === name);
-
-  return (
-    <FlatList
-      ref={listRef}
-      data={groups}
-      keyExtractor={(_, i) => String(i)}
-      style={{ flex: 1 }}
-      renderItem={({ item }) => {
-        if (item.kind === 'system') {
-          return <VerticalSystemPill message={item.message} />;
-        }
-        const p = findParticipant(item.sender);
-        return (
-          <VerticalMessageGroup
-            group={item}
-            participant={p}
-            onAvatarPress={p && !p.isMe ? () => onAvatarPress(p) : undefined}
-          />
-        );
-      }}
-      contentContainerStyle={{ paddingVertical: 16, flexGrow: 1 }}
-      showsVerticalScrollIndicator={false}
-      onContentSizeChange={scrollToEnd}
-      ListEmptyComponent={
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
-          <Text style={{ fontSize: 32, marginBottom: 12 }}>💬</Text>
-          <Text style={{ color: '#CCC', fontSize: 15, fontStyle: 'italic' }}>Commencez la discussion…</Text>
-          <Text style={{ color: '#DDD', fontSize: 12, marginTop: 8 }}>
-            {participants.filter(p => !p.isMe).map(p => p.name).join(', ')} sont là
-          </Text>
-        </View>
-      }
-    />
-  );
-}
-
-// Layout Vertical complet
-function VerticalLayout({
+function SalonVerticalScreen({
   salon,
   participants,
   messages,
@@ -638,71 +556,67 @@ function VerticalLayout({
   sendMessage,
   openOffrandes,
   giftFlights,
-  giftPositions,
   showOfferings,
   setShowOfferings,
   defaultRecipient,
   handleSendOffering,
   insets,
-}: LayoutProps) {
-  const gradient = salon.gradient as [string, string];
-  const isMetal = salon.type === 'metal';
+}: SharedProps) {
+  const listRef = useRef<FlatList>(null);
+  const router = useRouter();
 
-  // Petits indicateurs de présence (points colorés) en haut
-  const others = participants.filter(p => !p.isMe);
+  const scrollToEnd = useCallback(() => {
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
+  }, []);
+
+  useEffect(() => { scrollToEnd(); }, [messages.length]);
+
+  const findSender = (msg: Message): Participant | undefined =>
+    participants.find(p => p.name === (msg.username ?? msg.userName));
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#FFF' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {/* Header gradient compact */}
-      <LinearGradient
-        colors={gradient}
-        style={{
-          paddingTop: insets.top + 6,
-          paddingBottom: 12,
-          paddingHorizontal: 16,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 12,
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => {}}
-          style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>←</Text>
-        </TouchableOpacity>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: COLORS.bg }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <HeaderBar
+        title={salon.name}
+        icon={salon.icon}
+        coins={coins}
+        gradient={salon.gradient as [string, string]}
+        paddingTop={insets.top}
+        onBack={() => router.back()}
+      />
 
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>
-            {salon.icon} {salon.name}
-          </Text>
-          {/* Indicateurs de présence : petits cercles colorés + nom court */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-            {others.map(p => (
-              <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.isOnline ? '#4CAF50' : '#888' }} />
-                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '500' }} numberOfLines={1}>
-                  {p.name.split(' ')[0]}
-                </Text>
-              </View>
-            ))}
+      {/* Rangée participants — toujours visible */}
+      <ParticipantStrip
+        participants={participants}
+        onPress={p => openOffrandes(p)}
+      />
+
+      {/* Fil de messages */}
+      <FlatList
+        ref={listRef}
+        data={messages}
+        keyExtractor={m => m.id}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingVertical: 12, flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+        onContentSizeChange={scrollToEnd}
+        renderItem={({ item }) => (
+          <ChatMessage
+            message={item}
+            isOwn={item.userId === 'me' || (item.username ?? item.userName) === myName}
+            sender={findSender(item)}
+          />
+        )}
+        ListEmptyComponent={
+          <View style={s.emptyChat}>
+            <Text style={s.emptyChatEmoji}>💬</Text>
+            <Text style={s.emptyChatText}>Commencez la discussion</Text>
           </View>
-        </View>
-
-        <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-          <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 13 }}>💰 {coins}</Text>
-        </View>
-      </LinearGradient>
-
-      {/* Fil de messages avec avatars intégrés */}
-      <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
-        <VerticalChatFeed
-          messages={messages}
-          myName={myName}
-          participants={participants}
-          onAvatarPress={p => openOffrandes(p)}
-        />
-      </View>
+        }
+      />
 
       {/* Barre de saisie */}
       <InputBar
@@ -712,10 +626,9 @@ function VerticalLayout({
         onOffrandes={() => openOffrandes()}
         onMagie={() => openOffrandes()}
         paddingBottom={insets.bottom}
-        accentColor={gradient[1]}
       />
 
-      <GiftFlightOverlay flights={giftFlights} positions={giftPositions} />
+      <GiftAnimation flights={giftFlights} />
 
       <OfferingsModal
         visible={showOfferings}
@@ -723,7 +636,7 @@ function VerticalLayout({
         participants={participants}
         myName={myName}
         coins={coins}
-        isMetal={isMetal}
+        isMetal={salon.type === 'metal'}
         onSend={handleSendOffering}
         defaultRecipient={defaultRecipient}
       />
@@ -732,301 +645,255 @@ function VerticalLayout({
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SALON HORIZONTAL ────────────────────────────────────────────────────────────
-// Présence pure. Avatars + offrandes/magie. Pas de discussion texte.
-// On voit qui est là, on interagit directement.
+// HORIZONTAL SALON — présence + interactions, zéro chat
 // ══════════════════════════════════════════════════════════════════════════════
 
-// Carte de participant — grande, respirante, offrandes visibles
-function HorizontalParticipantCard({
+// Carte d'avatar dans le layout horizontal
+function AvatarCard({
   participant,
+  size = 68,
   onPress,
-  isMe,
-  accentBg,
 }: {
   participant: Participant;
+  size?: number;
   onPress?: () => void;
-  isMe?: boolean;
-  accentBg?: string;
 }) {
-  const recentGifts = participant.recentInteractions.slice(-5);
-  const scale = useRef(new Animated.Value(1)).current;
+  const bg = nameColor(participant.name);
+  const dotSize = size * 0.22;
 
-  const handlePressIn = () => {
-    if (!onPress) return;
-    Animated.timing(scale, { toValue: 0.94, duration: 100, useNativeDriver: true }).start();
-  };
-  const handlePressOut = () => {
-    Animated.timing(scale, { toValue: 1, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
-  };
+  const scale = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scale, {
+          toValue: 1.04,
+          duration: 2600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(scale, {
+          toValue: 1,
+          duration: 2600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const badges = participant.badges.slice(-3);
 
   return (
     <TouchableOpacity
       onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      activeOpacity={1}
       disabled={!onPress}
-      style={{ alignItems: 'center', paddingHorizontal: 12, paddingVertical: 20, minWidth: 88 }}
+      activeOpacity={0.75}
+      style={{ alignItems: 'center', gap: 8 }}
     >
-      <Animated.View style={{ transform: [{ scale }], alignItems: 'center' }}>
-        {/* Badge "moi" */}
-        {isMe && (
-          <Text style={{ fontSize: 14, marginBottom: 4 }}>👑</Text>
-        )}
-        {!isMe && onPress && (
-          /* Indicateur "appuyez pour offrir" */
-          <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginBottom: 4, fontStyle: 'italic' }}>
-            offrir
-          </Text>
-        )}
-        {!isMe && !onPress && <View style={{ height: 18 }} />}
-
-        {/* Avatar principal */}
-        <Avatar
-          name={participant.name}
-          size={68}
-          isOnline={participant.isOnline}
-          effects={participant.activeEffects}
-        />
-
-        {/* Nom */}
-        <Text
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <View
           style={{
-            fontSize: 13,
-            fontWeight: '700',
-            color: '#FFF',
-            marginTop: 10,
-            textShadowColor: 'rgba(0,0,0,0.5)',
-            textShadowOffset: { width: 0, height: 1 },
-            textShadowRadius: 4,
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: bg,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: bg,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.28,
+            shadowRadius: 8,
+            elevation: 4,
           }}
-          numberOfLines={1}
         >
-          {participant.name}
-        </Text>
-
-        {/* Statut */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
-          <View
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: participant.isOnline ? '#4CAF50' : '#888',
-            }}
-          />
-          <Text style={{ fontSize: 10, color: participant.isOnline ? 'rgba(144,238,144,0.9)' : 'rgba(255,255,255,0.4)' }}>
-            {participant.isOnline ? 'En ligne' : 'Absent'}
+          <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: '#FFF' }}>
+            {initials(participant.name)}
           </Text>
         </View>
-
-        {/* Offrandes reçues — emojis lisibles, attachés visuellement */}
-        <View style={{ height: 26, marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-          {recentGifts.map(g => (
-            <Text key={g.id} style={{ fontSize: 15 }}>{g.emoji}</Text>
-          ))}
-        </View>
+        {/* Online dot */}
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 2,
+            right: 2,
+            width: dotSize,
+            height: dotSize,
+            borderRadius: dotSize / 2,
+            backgroundColor: participant.isOnline ? COLORS.online : COLORS.offline,
+            borderWidth: 2.5,
+            borderColor: COLORS.white,
+          }}
+        />
       </Animated.View>
+
+      {/* Name */}
+      <Text style={s.cardName} numberOfLines={1}>
+        {participant.isMe ? `${participant.name} (moi)` : participant.name}
+      </Text>
+
+      {/* Badges — gifts / effects reçus, collés visuellement à l'avatar */}
+      <View style={s.badgeRow}>
+        {badges.map(b => (
+          <InteractionBadge key={b.id} emoji={b.emoji} />
+        ))}
+        {badges.length === 0 && (
+          <View style={{ height: 22 }} />
+        )}
+      </View>
+
+      {/* Hint tap */}
+      {onPress && (
+        <Text style={s.tapHint}>appuyer pour offrir</Text>
+      )}
     </TouchableOpacity>
   );
 }
 
-// Ligne d'événement dans le log d'interactions
-function InteractionLogItem({ message }: { message: Message }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateX = useRef(new Animated.Value(-12)).current;
+// ── SalonHorizontalScreen ─────────────────────────────────────────────────────
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.timing(translateX, { toValue: 0, duration: 300, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-    ]).start();
-  }, []);
-
-  const timeStr = new Date(message.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-
-  return (
-    <Animated.View
-      style={{
-        opacity,
-        transform: [{ translateX }],
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#F0F0F0',
-        gap: 10,
-      }}
-    >
-      <Text style={{ fontSize: 20 }}>{message.giftData?.emoji ?? '✨'}</Text>
-      <Text style={{ flex: 1, fontSize: 13, color: '#555', lineHeight: 18 }}>
-        {message.text ?? message.content}
-      </Text>
-      <Text style={{ fontSize: 10, color: '#CCC' }}>{timeStr}</Text>
-    </Animated.View>
-  );
-}
-
-// Layout Horizontal complet — présence et interactions uniquement
-function HorizontalLayout({
+function SalonHorizontalScreen({
   salon,
   participants,
   messages,
+  myName,
   coins,
   openOffrandes,
   giftFlights,
-  giftPositions,
   showOfferings,
   setShowOfferings,
   defaultRecipient,
   handleSendOffering,
   insets,
-  myName,
-}: LayoutProps) {
-  const gradient = salon.gradient as [string, string];
-  const isMetal = salon.type === 'metal';
+}: SharedProps) {
+  const router = useRouter();
 
-  // Seulement les événements d'offrandes/magie — pas de texte
+  // Interactions récentes (offrandes/magie uniquement)
   const interactions = useMemo(
-    () => messages.filter(m => m.isSystem).slice(-20).reverse(),
+    () => messages.filter(m => m.isSystem).slice(-12).reverse(),
     [messages]
   );
 
+  const others = participants.filter(p => !p.isMe);
+  const me = participants.find(p => p.isMe);
+
+  // Layout : 1 haut + 2 milieu + 1 bas (diamant), adapté au nombre de participants
+  const [top, left, right, bottom] = useMemo(() => {
+    if (others.length >= 3) {
+      return [others[0], others[1], others[2], me];
+    }
+    if (others.length === 2) {
+      return [others[0], null, others[1], me];
+    }
+    return [others[0] ?? null, null, null, me];
+  }, [others, me]);
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#111' }}>
-      {/* Header */}
-      <LinearGradient
-        colors={gradient}
-        style={{
-          paddingTop: insets.top + 6,
-          paddingBottom: 14,
-          paddingHorizontal: 16,
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}
-      >
-        <TouchableOpacity
-          style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>←</Text>
-        </TouchableOpacity>
+    <View style={{ flex: 1, backgroundColor: COLORS.white }}>
+      <HeaderBar
+        title={salon.name}
+        icon={salon.icon}
+        coins={coins}
+        gradient={salon.gradient as [string, string]}
+        paddingTop={insets.top}
+        onBack={() => router.back()}
+      />
 
-        <Text style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#FFF' }}>
-          {salon.icon} {salon.name}
-        </Text>
+      {/* Zone de présence — structure principale */}
+      <View style={s.presenceArea}>
 
-        <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-          <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 13 }}>💰 {coins}</Text>
-        </View>
-      </LinearGradient>
-
-      {/* Zone de présence — les avatars sont la structure principale */}
-      <LinearGradient
-        colors={[gradient[0], gradient[1], 'rgba(0,0,0,0.85)']}
-        locations={[0, 0.55, 1]}
-        style={{ paddingBottom: 6 }}
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 8 }}
-          bounces={false}
-        >
-          {participants.map(p => (
-            <HorizontalParticipantCard
-              key={p.id}
-              participant={p}
-              isMe={p.isMe}
-              onPress={!p.isMe ? () => openOffrandes(p) : undefined}
-              accentBg={gradient[0]}
+        {/* Ligne haute — avatar seul, centré */}
+        {top && (
+          <View style={s.presenceRowCenter}>
+            <AvatarCard
+              participant={top}
+              size={72}
+              onPress={() => openOffrandes(top)}
             />
-          ))}
-        </ScrollView>
-      </LinearGradient>
+          </View>
+        )}
 
-      {/* Log des interactions — zone lisible, légère */}
-      <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
-        <View style={{ paddingHorizontal: 20, paddingVertical: 12 }}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: '#BBB', letterSpacing: 0.8 }}>
-            INTERACTIONS RÉCENTES
-          </Text>
+        {/* Ligne milieu — deux avatars gauche / droite */}
+        <View style={s.presenceRowSides}>
+          {left ? (
+            <AvatarCard participant={left} size={68} onPress={() => openOffrandes(left)} />
+          ) : <View style={{ width: 90 }} />}
+          {right ? (
+            <AvatarCard participant={right} size={68} onPress={() => openOffrandes(right)} />
+          ) : <View style={{ width: 90 }} />}
         </View>
 
+        {/* Ligne basse — moi, centré */}
+        {bottom && (
+          <View style={s.presenceRowCenter}>
+            <AvatarCard participant={bottom} size={60} />
+          </View>
+        )}
+      </View>
+
+      {/* Séparateur */}
+      <View style={s.separator} />
+
+      {/* Log des interactions — lecture seule, léger */}
+      <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
         {interactions.length === 0 ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 40 }}>
-            <Text style={{ fontSize: 36, marginBottom: 12 }}>🎁</Text>
-            <Text style={{ fontSize: 15, color: '#CCC', fontStyle: 'italic', textAlign: 'center' }}>
-              Offrez quelque chose pour commencer…
+          <View style={s.emptyInteractions}>
+            <Text style={{ fontSize: 32, marginBottom: 10 }}>🎁</Text>
+            <Text style={s.emptyInteractionsText}>
+              Aucune interaction pour l'instant
             </Text>
-            <Text style={{ fontSize: 12, color: '#DDD', marginTop: 8, textAlign: 'center' }}>
+            <Text style={s.emptyInteractionsHint}>
               Appuyez sur un avatar pour envoyer une offrande
             </Text>
           </View>
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 8 }}
+          >
             {interactions.map(m => (
-              <InteractionLogItem key={m.id} message={m} />
+              <View key={m.id} style={s.interactionRow}>
+                <Text style={s.interactionEmoji}>
+                  {m.giftData?.emoji ?? '✨'}
+                </Text>
+                <Text style={s.interactionText} numberOfLines={2}>
+                  {m.text ?? m.content}
+                </Text>
+                <Text style={s.interactionTime}>
+                  {new Date(m.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
             ))}
-            <View style={{ height: 24 }} />
           </ScrollView>
         )}
       </View>
 
-      {/* Boutons d'action — en bas, sans InputBar texte */}
+      {/* Barre d'actions — deux boutons, centrés, clean */}
       <View
-        style={{
-          backgroundColor: '#FFF',
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: '#E8E8E8',
-          paddingTop: 12,
-          paddingBottom: Math.max(insets.bottom, 14),
-          paddingHorizontal: 20,
-          flexDirection: 'row',
-          gap: 12,
-        }}
+        style={[
+          s.actionBar,
+          { paddingBottom: Math.max(insets.bottom, 16) },
+        ]}
       >
         <TouchableOpacity
           onPress={() => openOffrandes()}
-          style={{
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            backgroundColor: '#FFF3E0',
-            paddingVertical: 14,
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: '#FFD54F',
-          }}
+          style={[s.actionBarBtn, { borderColor: COLORS.border }]}
         >
-          <Text style={{ fontSize: 20 }}>🎁</Text>
-          <Text style={{ fontSize: 15, fontWeight: '700', color: '#E65100' }}>Offrir</Text>
+          <Text style={{ fontSize: 18 }}>🎁</Text>
+          <Text style={s.actionBarBtnText}>Offrir</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => openOffrandes()}
-          style={{
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            backgroundColor: '#F3E5F5',
-            paddingVertical: 14,
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: '#CE93D8',
-          }}
+          style={[s.actionBarBtn, { borderColor: COLORS.border }]}
         >
-          <Text style={{ fontSize: 20 }}>✨</Text>
-          <Text style={{ fontSize: 15, fontWeight: '700', color: '#6A1B9A' }}>Magie</Text>
+          <Text style={{ fontSize: 18 }}>✨</Text>
+          <Text style={s.actionBarBtnText}>Magie</Text>
         </TouchableOpacity>
       </View>
 
-      <GiftFlightOverlay flights={giftFlights} positions={giftPositions} />
+      <GiftAnimation flights={giftFlights} />
 
       <OfferingsModal
         visible={showOfferings}
@@ -1034,7 +901,7 @@ function HorizontalLayout({
         participants={participants}
         myName={myName}
         coins={coins}
-        isMetal={isMetal}
+        isMetal={salon.type === 'metal'}
         onSend={handleSendOffering}
         defaultRecipient={defaultRecipient}
       />
@@ -1042,9 +909,9 @@ function HorizontalLayout({
   );
 }
 
-// ── Type partagé des props de layout ─────────────────────────────────────────
+// ── SharedProps ───────────────────────────────────────────────────────────────
 
-interface LayoutProps {
+interface SharedProps {
   salon: (typeof salonsData)[number];
   participants: Participant[];
   messages: Message[];
@@ -1055,7 +922,6 @@ interface LayoutProps {
   sendMessage: () => void;
   openOffrandes: (p?: Participant) => void;
   giftFlights: GiftFlight[];
-  giftPositions: { x: number; y: number }[];
   showOfferings: boolean;
   setShowOfferings: (v: boolean) => void;
   defaultRecipient: Participant | null;
@@ -1064,38 +930,33 @@ interface LayoutProps {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ÉCRAN PRINCIPAL ─ dispatch selon salon.layout
+// ÉCRAN PRINCIPAL — dispatch selon salon.layout
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function SalonDetailScreen() {
-  const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
-
   const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages } = useStore();
 
   const salonId = params.id as string;
   const salon = salonsData.find(s => s.id === salonId);
+  const myName = currentUser?.name ?? 'Vous';
 
   const [messageInput, setMessageInput] = useState('');
   const [showOfferings, setShowOfferings] = useState(false);
   const [defaultRecipient, setDefaultRecipient] = useState<Participant | null>(null);
   const [giftFlights, setGiftFlights] = useState<GiftFlight[]>([]);
-  const [giftPositions, setGiftPositions] = useState<{ x: number; y: number }[]>([]);
-
-  const myName = currentUser?.name ?? 'Vous';
 
   const [participants, setParticipants] = useState<Participant[]>(() => {
     if (!salon) return [];
-    const base: Participant[] = salon.participants.slice(0, 3).map(p => ({
+    const others: Participant[] = salon.participants.slice(0, 3).map(p => ({
       id: p.id,
       name: p.name,
       isOnline: p.online,
-      recentInteractions: [],
-      activeEffects: [],
+      badges: [],
     }));
-    base.push({ id: 'me', name: myName, isOnline: true, isMe: true, recentInteractions: [], activeEffects: [] });
-    return base;
+    const me: Participant = { id: 'me', name: myName, isOnline: true, isMe: true, badges: [] };
+    return [...others, me];
   });
 
   const messages = messagesBySalon[salonId] ?? [];
@@ -1121,30 +982,20 @@ export default function SalonDetailScreen() {
     setMessageInput('');
   }, [messageInput, myName, salonId, addMessage]);
 
-  const launchGiftFlight = useCallback((fromIndex: number, toIndex: number, emoji: string) => {
-    const id = `${Date.now()}-${Math.random()}`;
-    const anim = new Animated.Value(0);
-    setGiftFlights(prev => [...prev, { id, emoji, anim, fromIndex, toIndex }]);
-    Animated.timing(anim, {
-      toValue: 1,
-      duration: 900,
-      easing: Easing.inOut(Easing.quad),
-      useNativeDriver: false,
-    }).start(() => {
-      setGiftFlights(prev => prev.filter(f => f.id !== id));
-    });
-  }, []);
-
   const handleSendOffering = useCallback(
     (recipient: Participant, item: any) => {
       if (!removeCoins(item.cost)) return;
 
-      const interaction: Interaction = { id: Date.now().toString(), emoji: item.emoji, from: myName, timestamp: Date.now() };
-
       setParticipants(prev =>
         prev.map(p =>
           p.id === recipient.id
-            ? { ...p, recentInteractions: [...p.recentInteractions, interaction].slice(-6) }
+            ? {
+                ...p,
+                badges: [
+                  ...p.badges,
+                  { id: Date.now().toString(), emoji: item.emoji },
+                ].slice(-5),
+              }
             : p
         )
       );
@@ -1155,40 +1006,49 @@ export default function SalonDetailScreen() {
         userId: 'system',
         userName: 'Système',
         username: 'Système',
-        content: `${myName} a envoyé ${item.emoji} ${item.name} à ${recipient.name}!`,
-        text: `${myName} a envoyé ${item.emoji} ${item.name} à ${recipient.name}!`,
+        content: `${myName} a envoyé ${item.emoji} ${item.name} à ${recipient.name}`,
+        text: `${myName} a envoyé ${item.emoji} ${item.name} à ${recipient.name}`,
         timestamp: Date.now(),
         type: 'offering',
         isSystem: true,
         giftData: { emoji: item.emoji, from: myName },
       });
 
-      const fromIdx = participants.findIndex(p => p.isMe);
-      const toIdx = participants.findIndex(p => p.id === recipient.id);
-      if (fromIdx >= 0 && toIdx >= 0) launchGiftFlight(fromIdx, toIdx, item.emoji);
+      // Animation de vol (positions approximatives depuis le bas vers la cible)
+      const id = `${Date.now()}-${Math.random()}`;
+      const anim = new Animated.Value(0);
+      const fromY = insets.top + 500;
+      const toY = 200;
+      setGiftFlights(prev => [
+        ...prev,
+        { id, emoji: item.emoji, anim, from: { x: SCREEN_W / 2 - 12, y: fromY }, to: { x: SCREEN_W / 2 - 12, y: toY } },
+      ]);
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false,
+      }).start(() => setGiftFlights(prev => prev.filter(f => f.id !== id)));
 
       setShowOfferings(false);
     },
-    [myName, salonId, participants, removeCoins, addMessage, launchGiftFlight]
+    [myName, salonId, participants, removeCoins, addMessage, insets.top]
   );
 
-  const openOffrandes = useCallback((recipient?: Participant) => {
-    setDefaultRecipient(recipient ?? null);
+  const openOffrandes = useCallback((p?: Participant) => {
+    setDefaultRecipient(p ?? null);
     setShowOfferings(true);
   }, []);
 
   if (!salon) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8F8F8' }}>
-        <Text style={{ fontSize: 18, color: '#888' }}>Salon introuvable</Text>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16 }}>
-          <Text style={{ color: '#E91E63', fontSize: 16, fontWeight: '600' }}>← Retour</Text>
-        </TouchableOpacity>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg }}>
+        <Text style={{ color: COLORS.textSecondary, fontSize: 16 }}>Salon introuvable</Text>
       </View>
     );
   }
 
-  const layoutProps: LayoutProps = {
+  const props: SharedProps = {
     salon,
     participants,
     messages,
@@ -1199,7 +1059,6 @@ export default function SalonDetailScreen() {
     sendMessage,
     openOffrandes,
     giftFlights,
-    giftPositions,
     showOfferings,
     setShowOfferings,
     defaultRecipient,
@@ -1208,19 +1067,392 @@ export default function SalonDetailScreen() {
   };
 
   return salon.layout === 'vertical'
-    ? <VerticalLayout {...layoutProps} />
-    : <HorizontalLayout {...layoutProps} />;
+    ? <SalonVerticalScreen {...props} />
+    : <SalonHorizontalScreen {...props} />;
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// STYLES
+// ══════════════════════════════════════════════════════════════════════════════
 
-const styles = StyleSheet.create({
-  actionBtn: {
+const s = StyleSheet.create({
+  // Header
+  backBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  coinsBadge: {
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  coinsText: {
+    color: '#FFD700',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // Avatar
+  avatarName: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  meBadge: {
+    position: 'absolute',
+    backgroundColor: COLORS.ownBubble,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+
+  // Strip (vertical)
+  strip: {
+    backgroundColor: COLORS.white,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+  },
+  stripContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 20,
+  },
+
+  // InputBar
+  inputBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+    paddingTop: 8,
+    paddingHorizontal: 10,
+    gap: 6,
+  },
+  actionIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textInput: {
+    flex: 1,
+    height: 38,
+    backgroundColor: COLORS.bg,
+    borderRadius: 19,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: COLORS.text,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border,
+  },
+  sendBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFF3E0',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // Chat messages (vertical)
+  systemRow: {
+    alignItems: 'center',
+    marginVertical: 10,
+    paddingHorizontal: 24,
+  },
+  systemText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  ownRow: {
+    alignItems: 'flex-end',
+    marginBottom: 10,
+    marginHorizontal: 14,
+  },
+  ownBubble: {
+    backgroundColor: COLORS.ownBubble,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
+    borderBottomRightRadius: 4,
+    maxWidth: SCREEN_W * 0.72,
+  },
+  ownBubbleText: {
+    fontSize: 15,
+    color: '#FFF',
+    lineHeight: 21,
+  },
+  otherRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 10,
+    marginHorizontal: 14,
+    gap: 8,
+  },
+  msgAvatarWrap: {
+    width: 30,
+    alignItems: 'center',
+  },
+  msgAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.border,
+  },
+  msgAvatarText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  senderName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: 3,
+    marginLeft: 2,
+  },
+  otherBubble: {
+    backgroundColor: COLORS.bubble,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    maxWidth: SCREEN_W * 0.66,
+  },
+  otherBubbleText: {
+    fontSize: 15,
+    color: COLORS.text,
+    lineHeight: 21,
+  },
+  timeLabel: {
+    fontSize: 10,
+    color: COLORS.offline,
+    marginTop: 3,
+    marginHorizontal: 4,
+  },
+  emptyChat: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyChatEmoji: { fontSize: 36, marginBottom: 12 },
+  emptyChatText: { fontSize: 15, color: COLORS.textSecondary },
+
+  // Horizontal presence layout
+  presenceArea: {
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    gap: 24,
+    backgroundColor: COLORS.white,
+  },
+  presenceRowCenter: {
+    alignItems: 'center',
+  },
+  presenceRowSides: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  cardName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.text,
+    maxWidth: 90,
+    textAlign: 'center',
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 4,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 60,
+  },
+  tapHint: {
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    marginTop: -2,
+  },
+
+  // Separator
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.border,
+  },
+
+  // Interactions log
+  emptyInteractions: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 20,
+  },
+  emptyInteractionsText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  emptyInteractionsHint: {
+    fontSize: 12,
+    color: COLORS.offline,
+    marginTop: 6,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  interactionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+    gap: 12,
+  },
+  interactionEmoji: { fontSize: 20 },
+  interactionText: {
+    flex: 1,
+    fontSize: 13,
+    color: COLORS.text,
+    lineHeight: 18,
+  },
+  interactionTime: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+
+  // Action bar (horizontal)
+  actionBar: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    backgroundColor: COLORS.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+  },
+  actionBarBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: COLORS.bg,
+  },
+  actionBarBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  modalSheet: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '82%',
+    paddingTop: 12,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.border,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  modalSection: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    letterSpacing: 0.6,
+    marginBottom: 10,
+    paddingHorizontal: 20,
+  },
+  modalItem: {
+    alignItems: 'center',
+    width: 74,
+    backgroundColor: COLORS.bg,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+  },
+  modalItemName: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  modalItemCost: {
+    fontSize: 10,
+    color: '#B8860B',
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  tabBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: COLORS.bg,
+  },
+  tabBtnActive: {
+    backgroundColor: COLORS.ownBubble,
+  },
+  tabLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  tabLabelActive: {
+    color: '#FFF',
+  },
+  recipientRing: {
+    borderWidth: 2.5,
+    borderRadius: 28,
+    padding: 2,
   },
 });
