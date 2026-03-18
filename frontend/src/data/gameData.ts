@@ -193,11 +193,9 @@ export interface MiniGame {
 }
 
 export const miniGames: MiniGame[] = [
-  { id: 'tictactoe', name: 'Morpion', emoji: '✖️', description: 'Alignez 3 symboles', reward: 30, difficulty: 'facile' },
-  { id: 'whack', name: 'Tape-Taupe', emoji: '🔨', description: 'Tapez les taupes!', reward: 50, difficulty: 'moyen' },
-  { id: 'memory', name: 'Memory', emoji: '🃏', description: 'Trouvez les paires', reward: 40, difficulty: 'facile' },
-  { id: 'pong', name: 'Pong', emoji: '🏓', description: 'Le classique!', reward: 60, difficulty: 'moyen' },
-  { id: 'brickbreaker', name: 'Casse-Brique', emoji: '🧱', description: 'Détruisez tous les blocs', reward: 70, difficulty: 'difficile' },
-  { id: 'cards', name: 'Jeu de Cartes', emoji: '🎴', description: 'Révélez et gagnez!', reward: 100, difficulty: 'moyen' },
-  { id: 'story', name: 'Continue l\'Histoire', emoji: '📖', description: 'Créez une histoire ensemble', reward: 50, difficulty: 'facile' },
+  { id: 'story',     name: "Continue l'Histoire", emoji: '📖', description: 'Créez une histoire à plusieurs', reward: 50,  difficulty: 'facile' },
+  { id: 'cards',     name: 'Jeu de Cartes',        emoji: '🎴', description: 'Révélez et gagnez!',             reward: 100, difficulty: 'moyen' },
+  { id: 'bottle',    name: 'Bouteille à la Mer',   emoji: '🍾', description: 'Envoyez un message à l\'inconnu', reward: 30,  difficulty: 'facile' },
+  { id: 'adoption',  name: 'Adoption',             emoji: '🐾', description: 'Adoptez et prenez soin d\'un animal', reward: 60, difficulty: 'moyen' },
+  { id: 'classement',name: 'Classement',           emoji: '🏆', description: 'Découvrez votre rang',           reward: 20,  difficulty: 'facile' },
 ];
