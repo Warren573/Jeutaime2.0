@@ -19,11 +19,8 @@ export default function SalonsListScreen() {
   const insets = useSafeAreaInsets();
 
   const handleSalonPress = (salon: typeof salonsData[0]) => {
-    if (salon.type === 'cafe_paris') {
-      router.push('/salon/cafe-paris');
-    } else {
-      router.push(`/salon/${salon.id}`);
-    }
+    // Tous les salons utilisent maintenant la même route dynamique
+    router.push(`/salon/${salon.id}`);
   };
 
   return (
