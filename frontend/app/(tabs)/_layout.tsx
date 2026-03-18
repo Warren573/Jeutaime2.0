@@ -37,12 +37,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="salons"
+        name="social"
         options={{
-          title: 'Salons',
+          title: 'Social',
           tabBarIcon: ({ focused }) => (
             <View style={[styles.tabIcon, focused ? styles.tabIconFocused : null]}>
-              <Text style={styles.tabIconText}>👥</Text>
+              <Text style={styles.tabIconText}>🌐</Text>
             </View>
           ),
         }}
