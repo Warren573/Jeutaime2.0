@@ -8,6 +8,7 @@ import {
   Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import type { Match } from '../shared/types';
 
@@ -38,6 +39,7 @@ const Avatar = ({ name, size = 120 }: { name: string; size?: number }) => {
 
 export default function ProfilesScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { likedProfiles, dislikedProfiles, addLike, addDislike, addMatch, currentUser } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showMatch, setShowMatch] = useState<string | null>(null);
@@ -128,6 +130,14 @@ export default function ProfilesScreen() {
               </View>
             ))}
           </View>
+
+          <TouchableOpacity
+            style={styles.viewProfileBtn}
+            onPress={() => router.push(`/profile/${currentProfile.id}`)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.viewProfileText}>Voir le profil complet →</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -169,6 +179,8 @@ const styles = StyleSheet.create({
   interests: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 16, gap: 8 },
   interestTag: { backgroundColor: '#E8D5B7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   interestText: { fontSize: 12, color: '#5D4037', fontWeight: '600' },
+  viewProfileBtn: { marginTop: 18, borderWidth: 1.5, borderColor: '#E91E63', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 20 },
+  viewProfileText: { fontSize: 13, fontWeight: '600', color: '#E91E63' },
   actions: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 20, paddingHorizontal: 16, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#E8D5B7' },
   grimaceBtn: { alignItems: 'center', backgroundColor: '#FFCDD2', width: 80, height: 80, borderRadius: 40, justifyContent: 'center' },
   smileBtn: { alignItems: 'center', backgroundColor: '#C8E6C9', width: 80, height: 80, borderRadius: 40, justifyContent: 'center' },
