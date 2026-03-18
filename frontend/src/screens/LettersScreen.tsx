@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 import type { Letter, Match } from '../shared/types';
 
+
 const Avatar = ({ name, size = 55 }: { name: string; size?: number }) => {
   const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
   let hash = 0;
@@ -57,6 +58,7 @@ interface Souvenir {
 export default function LettersScreen() {
   const insets = useSafeAreaInsets();
   const { matches, letters, addLetter, markLetterRead, currentUser, addPoints } = useStore();
+  const screenBg = useStore(s => s.screenBackgrounds?.['letters'] ?? '#FFF8E7');
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [showCompose, setShowCompose] = useState(false);
@@ -239,7 +241,7 @@ export default function LettersScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>💌 LETTRES</Text>
         <Text style={styles.headerSubtitle}>Vos conversations et messages privés</Text>

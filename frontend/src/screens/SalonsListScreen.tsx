@@ -11,19 +11,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { salonsData } from '../data/salonsData';
+import { useStore } from '../store/useStore';
 
 const { width } = Dimensions.get('window');
 
 export default function SalonsListScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const screenBg = useStore(s => s.screenBackgrounds?.['salons'] ?? '#FFF8E7');
 
   const handleSalonPress = (salon: typeof salonsData[0]) => {
     router.push(`/salon/${salon.id}`);
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>👥 Salons</Text>

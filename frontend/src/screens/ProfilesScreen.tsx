@@ -335,6 +335,7 @@ function RevealCard({ letters }: { letters: DiscoveryProfile['letters'] }) {
 export default function ProfilesScreen() {
   const insets = useSafeAreaInsets();
   const { likedProfiles, dislikedProfiles, addLike, addDislike, addMatch, currentUser } = useStore();
+  const screenBg = useStore(s => s.screenBackgrounds?.['profiles'] ?? '#FFF8E7');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showMatch, setShowMatch] = useState<string | null>(null);
 
@@ -382,7 +383,7 @@ export default function ProfilesScreen() {
   // ── Empty state
   if (!profile || availableProfiles.length === 0) {
     return (
-      <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
         <View style={styles.topBar}>
           <Text style={styles.topBarTitle}>🔍 Découverte</Text>
         </View>
@@ -397,7 +398,7 @@ export default function ProfilesScreen() {
 
   // ── Full profile discovery view
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       {/* Header */}
       <View style={styles.topBar}>
         <Text style={styles.topBarTitle}>🔍 Découverte</Text>

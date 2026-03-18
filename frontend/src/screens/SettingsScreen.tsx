@@ -49,6 +49,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { currentUser, setCurrentUser, coins, points, getCurrentTitle, pet } = useStore();
+  const screenBg = useStore(s => s.screenBackgrounds?.['settings'] ?? '#FFF8E7');
   const title = getCurrentTitle();
   
   // États pour l'édition de profil
@@ -82,6 +83,7 @@ export default function SettingsScreen() {
   const menuItems = [
     { icon: '✏️', label: 'Modifier mon profil', action: () => setShowEditProfile(true) },
     { icon: '🎨', label: 'Personnaliser mon avatar', action: () => setShowAvatarEditor(true) },
+    { icon: '🖼️', label: 'Arrière-plans des écrans', route: '/background-picker' },
     { icon: '🎮', label: 'Mini-Jeux', route: '/games' },
     { icon: '🐾', label: 'Mon Animal', route: '/pet', badge: pet ? pet.petEmoji : null },
     { icon: '🌟', label: 'Badges', route: '/badges' },
@@ -94,7 +96,7 @@ export default function SettingsScreen() {
   ];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profil card */}
         <TouchableOpacity style={styles.profileCard} onPress={() => setShowEditProfile(true)}>

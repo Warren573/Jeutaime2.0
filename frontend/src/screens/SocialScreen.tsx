@@ -27,6 +27,7 @@ export default function SocialScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { addCoins, addPoints, incrementStat } = useStore();
+  const screenBg = useStore(s => s.screenBackgrounds?.['social'] ?? '#FFF8E7');
   const [currentView, setCurrentView] = useState<'cards' | 'story' | null>(null);
   const [result, setResult] = useState<{ won: boolean; reward: number } | null>(null);
 
@@ -53,7 +54,7 @@ export default function SocialScreen() {
 
   if (result) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
         <View style={styles.resultBox}>
           <Text style={styles.resultEmoji}>{result.won ? '🎉' : '😢'}</Text>
           <Text style={styles.resultTitle}>{result.won ? 'Victoire!' : 'Perdu!'}</Text>
@@ -68,7 +69,7 @@ export default function SocialScreen() {
 
   if (currentView) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
         <TouchableOpacity style={styles.topBack} onPress={() => setCurrentView(null)}>
           <Text style={styles.topBackText}>← Retour</Text>
         </TouchableOpacity>

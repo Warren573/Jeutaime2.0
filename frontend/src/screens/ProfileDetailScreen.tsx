@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useStore } from '../store/useStore';
 
 const { width } = Dimensions.get('window');
 
@@ -408,10 +409,11 @@ export default function ProfileDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [showLetterModal, setShowLetterModal] = useState(false);
+  const screenBg = useStore(s => s.screenBackgrounds?.['profile_detail'] ?? '#FFF8E7');
   const profile = mockProfile; // In production: fetch by id from route params
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       {/* Back bar */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>

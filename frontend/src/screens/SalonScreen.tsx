@@ -141,6 +141,7 @@ export default function SalonScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
+  const screenBg = useStore(s => s.screenBackgrounds?.['salon'] ?? '#FFF8E7');
   const { width, height } = useWindowDimensions();
 
   // Détection de l'orientation - plus fiable
@@ -306,7 +307,7 @@ export default function SalonScreen() {
 
   if (!salon) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
         <Text style={styles.errorText}>Salon introuvable</Text>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.backLink}>← Retour</Text>
