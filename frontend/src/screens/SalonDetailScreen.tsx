@@ -1,4 +1,18 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+/**
+ * SalonDetailScreen
+ *
+ * Deux expériences produit distinctes :
+ *  - VERTICAL  → chat social avec fil de messages
+ *  - HORIZONTAL → présence + interactions (offrandes/magie), zéro chat
+ */
+
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from 'react';
 import {
   View,
   Text,
@@ -8,633 +22,1437 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
-  Dimensions,
-  Modal,
+  Animated,
   ScrollView,
+  Modal,
+  Easing,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import AvatarWithEffects from '../components/AvatarWithEffects';
 import { allOfferings, allPowers, metalOfferings, metalPowers } from '../data/offerings';
-import { salonsData, SalonParticipant } from '../data/salonsData';
+import { salonsData } from '../data/salonsData';
 import { useStore, Message } from '../store/useStore';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-interface StoryEntry {
-  id: string;
-  author: string;
-  text: string;
-  timestamp: number;
+const { width: SCREEN_W } = Dimensions.get('window');
+
+const COLORS = {
+  bg: '#F7F7F8',
+  white: '#FFFFFF',
+  border: '#E5E5EA',
+  text: '#111111',
+  textSecondary: '#8E8E93',
+  online: '#34C759',
+  offline: '#C7C7CC',
+  bubble: '#F0F0F0',
+  ownBubble: '#007AFF',
+};
+
+const AVATAR_PALETTE = [
+  '#5AC8FA', '#34C759', '#FF9500', '#FF3B30',
+  '#AF52DE', '#FF2D55', '#5856D6', '#007AFF',
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function nameColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
 }
 
-export default function SalonDetailScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams();
-  const insets = useSafeAreaInsets();
-  const flatListRef = useRef<FlatList>(null);
-  const storyListRef = useRef<FlatList>(null);
-  const inputRef = useRef<TextInput>(null);
+function initials(name: string): string {
+  return name.split(' ').map(w => w[0] ?? '').join('').toUpperCase().slice(0, 2);
+}
 
-  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages } = useStore();
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-  // Récupérer le salon
-  const salonId = params.id as string;
-  const salon = salonsData.find(s => s.id === salonId);
+interface Participant {
+  id: string;
+  name: string;
+  isOnline: boolean;
+  isMe?: boolean;
+  badges: { id: string; emoji: string }[];   // gifts / effects received
+}
 
-  // États
-  const [messageInput, setMessageInput] = useState('');
-  const [storyInput, setStoryInput] = useState('');
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const [showOfferingsModal, setShowOfferingsModal] = useState(false);
-  const [selectedPlayer, setSelectedPlayer] = useState<SalonParticipant | null>(null);
-  const [activeTab, setActiveTab] = useState<'discuss' | 'story'>('discuss');
+interface GiftFlight {
+  id: string;
+  emoji: string;
+  anim: Animated.Value;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+}
 
-  // Histoire collaborative
-  const [story, setStory] = useState<StoryEntry[]>([]);
-  const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
-  const [timeRemaining, setTimeRemaining] = useState(24 * 60 * 60); // 24h en secondes
+// ══════════════════════════════════════════════════════════════════════════════
+// SHARED COMPONENTS
+// ══════════════════════════════════════════════════════════════════════════════
 
-  // Participants (avec l'utilisateur actuel)
-  const [participants, setParticipants] = useState<(SalonParticipant & { isMe?: boolean })[]>(() => {
-    if (!salon) return [];
-    return [
-      ...salon.participants,
-      {
-        id: 'me',
-        name: currentUser?.name || 'Vous',
-        gender: currentUser?.gender || 'M',
-        age: currentUser?.age || 25,
-        online: true,
-        offerings: [],
-        isMe: true,
-      } as SalonParticipant & { isMe: boolean },
-    ];
-  });
+// ── HeaderBar ─────────────────────────────────────────────────────────────────
 
-  const messages = messagesBySalon[salonId] || [];
-  const currentPlayer = participants[currentTurnIndex];
-  const isMyTurn = currentPlayer?.id === 'me';
-  const isMetal = salon?.type === 'metal';
+function HeaderBar({
+  title,
+  icon,
+  coins,
+  gradient,
+  paddingTop,
+  onBack,
+}: {
+  title: string;
+  icon: string;
+  coins: number;
+  gradient: [string, string];
+  paddingTop: number;
+  onBack?: () => void;
+}) {
+  return (
+    <LinearGradient
+      colors={gradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 0 }}
+      style={{ paddingTop: paddingTop + 4, paddingBottom: 12, paddingHorizontal: 16 }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <TouchableOpacity
+          onPress={onBack}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={s.backBtn}
+        >
+          <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '400' }}>‹</Text>
+        </TouchableOpacity>
 
-  // Charger les messages
+        <Text style={s.headerTitle} numberOfLines={1}>
+          {icon} {title}
+        </Text>
+
+        <View style={s.coinsBadge}>
+          <Text style={s.coinsText}>💰 {coins}</Text>
+        </View>
+      </View>
+    </LinearGradient>
+  );
+}
+
+// ── ParticipantAvatar ─────────────────────────────────────────────────────────
+
+function ParticipantAvatar({
+  participant,
+  size = 44,
+  showName = true,
+  onPress,
+}: {
+  participant: Participant;
+  size?: number;
+  showName?: boolean;
+  onPress?: () => void;
+}) {
+  const bg = nameColor(participant.name);
+  const dotSize = Math.max(size * 0.22, 8);
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+      disabled={!onPress}
+      style={{ alignItems: 'center', gap: 5 }}
+    >
+      <View style={{ position: 'relative' }}>
+        <View
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: bg,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontSize: size * 0.35, fontWeight: '600', color: '#FFF' }}>
+            {initials(participant.name)}
+          </Text>
+        </View>
+        {/* Online dot */}
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: dotSize,
+            height: dotSize,
+            borderRadius: dotSize / 2,
+            backgroundColor: participant.isOnline ? COLORS.online : COLORS.offline,
+            borderWidth: 2,
+            borderColor: '#FFF',
+          }}
+        />
+        {participant.isMe && (
+          <View style={[s.meBadge, { top: -(dotSize / 2), left: -(dotSize / 2) }]}>
+            <Text style={{ fontSize: 9, color: '#FFF', fontWeight: '700' }}>Moi</Text>
+          </View>
+        )}
+      </View>
+
+      {showName && (
+        <Text style={[s.avatarName, { maxWidth: size + 20 }]} numberOfLines={1}>
+          {participant.name}
+        </Text>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+// ── InputBar ──────────────────────────────────────────────────────────────────
+
+function InputBar({
+  value,
+  onChange,
+  onSend,
+  onOffrandes,
+  onMagie,
+  paddingBottom,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSend: () => void;
+  onOffrandes: () => void;
+  onMagie: () => void;
+  paddingBottom: number;
+}) {
+  return (
+    <View style={[s.inputBar, { paddingBottom: Math.max(paddingBottom, 10) }]}>
+      {/* Action buttons — small, non-dominant */}
+      <TouchableOpacity onPress={onOffrandes} style={s.actionIconBtn}>
+        <Text style={{ fontSize: 16 }}>🎁</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onMagie} style={s.actionIconBtn}>
+        <Text style={{ fontSize: 16 }}>✨</Text>
+      </TouchableOpacity>
+
+      {/* Text field */}
+      <TextInput
+        style={s.textInput}
+        placeholder="Message…"
+        placeholderTextColor={COLORS.textSecondary}
+        value={value}
+        onChangeText={onChange}
+        onSubmitEditing={onSend}
+        returnKeyType="send"
+        multiline={false}
+      />
+
+      {/* Send button */}
+      <TouchableOpacity
+        onPress={onSend}
+        disabled={!value.trim()}
+        style={[s.sendBtn, { backgroundColor: value.trim() ? COLORS.ownBubble : COLORS.border }]}
+      >
+        <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>↑</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ── InteractionBadge ──────────────────────────────────────────────────────────
+
+function InteractionBadge({ emoji }: { emoji: string }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.6)).current;
+
   useEffect(() => {
-    if (salonId) loadMessages(salonId);
-  }, [salonId]);
-
-  // Timer pour l'histoire
-  useEffect(() => {
-    if (activeTab !== 'story') return;
-    const interval = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 0) {
-          handleSkipTurn();
-          return 24 * 60 * 60;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [activeTab, currentTurnIndex]);
-
-  // Gestion du clavier
-  useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', () => {
-      setIsKeyboardVisible(true);
-      scrollToEnd();
-    });
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
-      setIsKeyboardVisible(false);
-    });
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 12 }),
+    ]).start();
   }, []);
 
-  const scrollToEnd = useCallback(() => {
-    setTimeout(() => {
-      if (activeTab === 'discuss') {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      } else {
-        storyListRef.current?.scrollToEnd({ animated: true });
-      }
-    }, 100);
-  }, [activeTab]);
+  return (
+    <Animated.View style={{ opacity, transform: [{ scale }] }}>
+      <Text style={{ fontSize: 18 }}>{emoji}</Text>
+    </Animated.View>
+  );
+}
 
-  // Passer le tour
-  const handleSkipTurn = () => {
-    const nextIndex = (currentTurnIndex + 1) % participants.length;
-    setCurrentTurnIndex(nextIndex);
-    // TODO: gérer l'expulsion après 2 tours ratés
-  };
+// ── OfferingsModal ────────────────────────────────────────────────────────────
 
-  // Envoyer un message
-  const sendMessage = () => {
-    if (!messageInput.trim()) return;
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      salonId: salonId,
-      userId: currentUser?.id || 'me',
-      userName: currentUser?.name || 'Vous',
-      username: currentUser?.name || 'Vous',
-      content: messageInput.trim(),
-      text: messageInput.trim(),
-      timestamp: Date.now(),
-      type: 'message',
-    };
-    addMessage(salonId, newMessage);
-    setMessageInput('');
-    scrollToEnd();
-  };
+function OfferingsModal({
+  visible,
+  onClose,
+  participants,
+  myName,
+  coins,
+  isMetal,
+  onSend,
+  defaultRecipient,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  participants: Participant[];
+  myName: string;
+  coins: number;
+  isMetal: boolean;
+  onSend: (recipient: Participant, item: any) => void;
+  defaultRecipient?: Participant | null;
+}) {
+  const [recipient, setRecipient] = useState<Participant | null>(null);
+  const [tab, setTab] = useState<'offrandes' | 'magie'>('offrandes');
 
-  // Soumettre une phrase de l'histoire
-  const submitStoryEntry = () => {
-    if (!storyInput.trim() || storyInput.length < 10) {
-      alert('⚠️ La phrase doit faire au moins 10 caractères!');
-      return;
+  useEffect(() => {
+    if (visible) {
+      setRecipient(defaultRecipient ?? null);
+      setTab('offrandes');
     }
+  }, [visible, defaultRecipient]);
 
-    const newEntry: StoryEntry = {
-      id: Date.now().toString(),
-      author: currentUser?.name || 'Vous',
-      text: storyInput.trim(),
-      timestamp: Date.now(),
-    };
-
-    setStory(prev => [...prev, newEntry]);
-    setStoryInput('');
-    setTimeRemaining(24 * 60 * 60);
-    
-    // Passer au joueur suivant
-    const nextIndex = (currentTurnIndex + 1) % participants.length;
-    setCurrentTurnIndex(nextIndex);
-
-    // Bonus si histoire complète (15 phrases)
-    if (story.length + 1 >= 15) {
-      alert('🎉 Histoire complétée! +50 points +100 💰');
-    }
-  };
-
-  // Envoyer une offrande
-  const handleSendOffering = (item: any) => {
-    if (!selectedPlayer) return;
-    if (!removeCoins(item.cost)) {
-      alert('Pas assez de pièces!');
-      return;
-    }
-
-    // Ajouter l'offrande au joueur
-    setParticipants(prev => prev.map(p => {
-      if (p.id === selectedPlayer.id) {
-        return {
-          ...p,
-          offerings: [...(p.offerings || []), { emoji: item.emoji, from: currentUser?.name || 'Vous', timestamp: Date.now() }].slice(-6),
-          transformation: item.type === 'transformation' ? item.emoji : p.transformation,
-          effects: item.type === 'effect' ? [...(p.effects || []), item.emoji] : p.effects,
-        };
-      }
-      return p;
-    }));
-
-    // Message système
-    const sysMsg: Message = {
-      id: Date.now().toString(),
-      salonId: salonId,
-      userId: 'system',
-      userName: 'Système',
-      username: 'Système',
-      content: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} ${item.name} à ${selectedPlayer.name}!`,
-      text: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} ${item.name} à ${selectedPlayer.name}!`,
-      timestamp: Date.now(),
-      type: 'offering',
-      isSystem: true,
-      giftData: item,
-    };
-    addMessage(salonId, sysMsg);
-    setShowOfferingsModal(false);
-    setSelectedPlayer(null);
-  };
-
-  const formatTime = (ts: number) => new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  
-  const formatCountdown = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    return `${h}h ${m}m`;
-  };
-
-  if (!salon) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Salon non trouvé</Text>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.errorLink}>← Retour</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
+  const others = participants.filter(p => !p.isMe);
   const offerings = isMetal ? [...allOfferings, ...metalOfferings] : allOfferings;
   const powers = isMetal ? [...allPowers, ...metalPowers] : allPowers;
 
-  const renderMessage = ({ item }: { item: Message }) => {
-    const isOwn = item.username === (currentUser?.name || 'Vous');
-    const isSystem = item.isSystem;
-
-    if (isSystem) {
-      return (
-        <View style={styles.systemMessageContainer}>
-          <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.giftMessage}>
-            {item.giftData && <Text style={styles.giftEmoji}>{item.giftData.emoji}</Text>}
-            <Text style={styles.giftText}>{item.text}</Text>
-          </LinearGradient>
-        </View>
-      );
-    }
-
+  const ItemRow = ({ items, label }: { items: any[]; label: string }) => {
+    if (!items.length) return null;
     return (
-      <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
-        <Text style={styles.messageUsername}>{item.username} • {formatTime(item.timestamp)}</Text>
-        <View style={[styles.messageBubble, isOwn && styles.messageBubbleOwn]}>
-          <Text style={[styles.messageText, isOwn && styles.messageTextOwn]}>{item.text}</Text>
-        </View>
+      <View style={{ marginBottom: 20 }}>
+        <Text style={s.modalSection}>{label}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+          {items.map((item: any) => {
+            const disabled = !recipient || coins < item.cost;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                onPress={() => recipient && onSend(recipient, item)}
+                disabled={disabled}
+                style={[s.modalItem, { opacity: disabled ? 0.4 : 1 }]}
+              >
+                <Text style={{ fontSize: 22 }}>{item.emoji}</Text>
+                <Text style={s.modalItemName} numberOfLines={2}>{item.name}</Text>
+                <Text style={s.modalItemCost}>{item.cost}💰</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
     );
   };
 
-  const renderStoryEntry = ({ item }: { item: StoryEntry }) => (
-    <View style={styles.storyEntry}>
-      <Text style={styles.storyAuthor}>{item.author}</Text>
-      <Text style={styles.storyText}>{item.text}</Text>
-    </View>
-  );
-
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      {/* Header */}
-      <LinearGradient
-        colors={salon.gradient}
-        style={[styles.header, { paddingTop: insets.top + 8 }, isKeyboardVisible && styles.headerCompact]}
-      >
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <Text style={[styles.title, isKeyboardVisible && styles.titleCompact]}>
-          {salon.icon} {salon.name}
-        </Text>
-        <View style={styles.coinsContainer}>
-          <Text style={styles.coinsText}>💰 {coins}</Text>
-        </View>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={s.modalOverlay}>
+        <View style={s.modalSheet}>
+          {/* Handle */}
+          <View style={s.modalHandle} />
 
-        {/* Timer histoire */}
-        {activeTab === 'story' && !isKeyboardVisible && (
-          <View style={styles.timerBadge}>
-            <Text style={styles.timerText}>⏱️ {formatCountdown(timeRemaining)}</Text>
+          {/* Title */}
+          <View style={s.modalHeader}>
+            <Text style={s.modalTitle}>
+              {recipient ? `Envoyer à ${recipient.name}` : 'Choisir un destinataire'}
+            </Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: 22, color: COLORS.textSecondary }}>✕</Text>
+            </TouchableOpacity>
           </View>
-        )}
 
-        {/* Membres */}
-        {!isKeyboardVisible && (
-          <View style={styles.membersRow}>
-            {participants.slice(0, 5).map((p) => (
-              <TouchableOpacity
-                key={p.id}
-                style={styles.memberSlot}
-                onPress={() => {
-                  if (!p.isMe) {
-                    setSelectedPlayer(p);
-                    setShowOfferingsModal(true);
-                  }
-                }}
-              >
-                <AvatarWithEffects
-                  name={p.name}
-                  size={50}
-                  online={p.online}
-                  transformation={p.transformation}
-                  effects={p.effects}
-                  offerings={p.offerings}
-                />
-                {p.isMe && <Text style={styles.meBadge}>👑</Text>}
-                {activeTab === 'story' && p.id === currentPlayer?.id && (
-                  <View style={styles.turnIndicator} />
-                )}
+          {/* Recipients */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 16, paddingBottom: 4 }}>
+            {others.map(p => (
+              <TouchableOpacity key={p.id} onPress={() => setRecipient(p)} style={{ alignItems: 'center', gap: 4 }}>
+                <View style={[
+                  s.recipientRing,
+                  { borderColor: recipient?.id === p.id ? COLORS.ownBubble : 'transparent' },
+                ]}>
+                  <ParticipantAvatar participant={p} size={42} showName={false} />
+                </View>
+                <Text style={[s.avatarName, { color: recipient?.id === p.id ? COLORS.ownBubble : COLORS.textSecondary }]}>
+                  {p.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Tabs */}
+          <View style={s.tabRow}>
+            {(['offrandes', 'magie'] as const).map(t => (
+              <TouchableOpacity key={t} onPress={() => setTab(t)} style={[s.tabBtn, tab === t && s.tabBtnActive]}>
+                <Text style={[s.tabLabel, tab === t && s.tabLabelActive]}>
+                  {t === 'offrandes' ? '🎁 Offrandes' : '✨ Magie'}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
-        )}
 
-        {/* Tabs */}
-        <View style={styles.tabs}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'discuss' && styles.tabActive]}
-            onPress={() => setActiveTab('discuss')}
-          >
-            <Text style={styles.tabText}>💬 {isKeyboardVisible ? '' : 'Discussion'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'story' && styles.tabActive]}
-            onPress={() => setActiveTab('story')}
-          >
-            <Text style={styles.tabText}>📖 {isKeyboardVisible ? '' : 'Histoire'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Bouton Magie */}
-        {!isKeyboardVisible && (
-          <TouchableOpacity style={styles.magicButton} onPress={() => setShowOfferingsModal(true)}>
-            <Text style={styles.magicButtonText}>✨ Offrandes & Pouvoirs</Text>
-          </TouchableOpacity>
-        )}
-      </LinearGradient>
-
-      {/* Contenu */}
-      {activeTab === 'discuss' ? (
-        <>
-          <View style={styles.chatContainer}>
-            <FlatList
-              ref={flatListRef}
-              data={messages}
-              renderItem={renderMessage}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.messagesList}
-              onContentSizeChange={scrollToEnd}
-              showsVerticalScrollIndicator={false}
-              ListEmptyComponent={
-                <View style={styles.emptyChat}>
-                  <Text style={styles.emptyChatText}>Commencez la discussion! 💬</Text>
-                </View>
-              }
-            />
-          </View>
-          <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              placeholder="Écrire un message..."
-              placeholderTextColor="#8B6F47"
-              value={messageInput}
-              onChangeText={setMessageInput}
-              onSubmitEditing={sendMessage}
-              returnKeyType="send"
-            />
-            <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-              <Text style={styles.sendButtonText}>➤</Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      ) : (
-        <>
-          {/* Mode Histoire */}
-          <View style={styles.storyContainer}>
-            {/* Indicateur de tour */}
-            <View style={[styles.turnBanner, isMyTurn && styles.turnBannerMyTurn]}>
-              <Text style={styles.turnBannerText}>
-                {isMyTurn ? '✍️ À toi de jouer!' : `Tour de ${currentPlayer?.name}`}
-              </Text>
-            </View>
-
-            <FlatList
-              ref={storyListRef}
-              data={story}
-              renderItem={renderStoryEntry}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.storyList}
-              showsVerticalScrollIndicator={false}
-              ListEmptyComponent={
-                <View style={styles.emptyStory}>
-                  <Text style={styles.emptyStoryText}>L'histoire n'a pas encore commencé...</Text>
-                  <Text style={styles.emptyStoryHint}>Écrivez la première phrase!</Text>
-                </View>
-              }
-            />
-
-            {/* Progression */}
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${(story.length / 15) * 100}%` }]} />
-              <Text style={styles.progressText}>{story.length}/15 phrases</Text>
-            </View>
-          </View>
-
-          {/* Input histoire (seulement si c'est mon tour) */}
-          {isMyTurn && (
-            <View style={[styles.storyInputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-              <TextInput
-                style={styles.storyInput}
-                placeholder="Écrivez votre phrase (min. 10 car.)..."
-                placeholderTextColor="#8B6F47"
-                value={storyInput}
-                onChangeText={setStoryInput}
-                multiline
-                maxLength={200}
-              />
-              <View style={styles.storyInputFooter}>
-                <Text style={styles.charCount}>{storyInput.length}/200</Text>
-                <TouchableOpacity
-                  style={[styles.submitButton, storyInput.length < 10 && styles.submitButtonDisabled]}
-                  onPress={submitStoryEntry}
-                  disabled={storyInput.length < 10}
-                >
-                  <Text style={styles.submitButtonText}>Envoyer ✨</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        </>
-      )}
-
-      {/* Modal Offrandes */}
-      <Modal visible={showOfferingsModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {selectedPlayer ? `Envoyer à ${selectedPlayer.name}` : '✨ Offrandes & Pouvoirs'}
-              </Text>
-              <TouchableOpacity onPress={() => { setShowOfferingsModal(false); setSelectedPlayer(null); }}>
-                <Text style={styles.closeBtn}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {!selectedPlayer && (
-              <View style={styles.playerSelector}>
-                <Text style={styles.sectionTitle}>Choisir un joueur</Text>
-                <View style={styles.playerSelectorRow}>
-                  {participants.filter(p => !p.isMe).map(p => (
-                    <TouchableOpacity
-                      key={p.id}
-                      style={styles.playerSelectorItem}
-                      onPress={() => setSelectedPlayer(p)}
-                    >
-                      <AvatarWithEffects name={p.name} size={45} online={p.online} />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
+          {/* Items */}
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+            {tab === 'offrandes' ? (
+              <>
+                <ItemRow items={offerings.filter(o => o.category === 'boisson')} label="🥂 Boissons" />
+                <ItemRow items={offerings.filter(o => o.category === 'nourriture')} label="🍽 Nourriture" />
+                <ItemRow items={offerings.filter(o => o.category === 'symbolique')} label="💌 Symbolique" />
+                <ItemRow items={offerings.filter(o => o.category === 'humour')} label="😄 Humour" />
+              </>
+            ) : (
+              <ItemRow items={powers} label="🪄 Pouvoirs" />
             )}
-
-            {selectedPlayer && (
-              <ScrollView style={styles.offeringsList}>
-                <Text style={styles.sectionTitle}>🍹 Boissons</Text>
-                <View style={styles.offeringsGrid}>
-                  {offerings.filter(o => o.category === 'boisson').map(o => (
-                    <TouchableOpacity
-                      key={o.id}
-                      style={[styles.offeringItem, coins < o.cost && styles.offeringDisabled]}
-                      onPress={() => handleSendOffering(o)}
-                      disabled={coins < o.cost}
-                    >
-                      <Text style={styles.offeringEmoji}>{o.emoji}</Text>
-                      <Text style={styles.offeringName}>{o.name}</Text>
-                      <Text style={styles.offeringCost}>{o.cost} 💰</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <Text style={styles.sectionTitle}>🍔 Nourriture</Text>
-                <View style={styles.offeringsGrid}>
-                  {offerings.filter(o => o.category === 'nourriture').map(o => (
-                    <TouchableOpacity
-                      key={o.id}
-                      style={[styles.offeringItem, coins < o.cost && styles.offeringDisabled]}
-                      onPress={() => handleSendOffering(o)}
-                      disabled={coins < o.cost}
-                    >
-                      <Text style={styles.offeringEmoji}>{o.emoji}</Text>
-                      <Text style={styles.offeringName}>{o.name}</Text>
-                      <Text style={styles.offeringCost}>{o.cost} 💰</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <Text style={styles.sectionTitle}>💌 Symbolique</Text>
-                <View style={styles.offeringsGrid}>
-                  {offerings.filter(o => o.category === 'symbolique').map(o => (
-                    <TouchableOpacity
-                      key={o.id}
-                      style={[styles.offeringItem, coins < o.cost && styles.offeringDisabled]}
-                      onPress={() => handleSendOffering(o)}
-                      disabled={coins < o.cost}
-                    >
-                      <Text style={styles.offeringEmoji}>{o.emoji}</Text>
-                      <Text style={styles.offeringName}>{o.name}</Text>
-                      <Text style={styles.offeringCost}>{o.cost} 💰</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <Text style={styles.sectionTitle}>🪄 Pouvoirs</Text>
-                <View style={styles.offeringsGrid}>
-                  {powers.map(p => (
-                    <TouchableOpacity
-                      key={p.id}
-                      style={[styles.offeringItem, styles.powerItem, coins < p.cost && styles.offeringDisabled]}
-                      onPress={() => handleSendOffering(p)}
-                      disabled={coins < p.cost}
-                    >
-                      <Text style={styles.offeringEmoji}>{p.emoji}</Text>
-                      <Text style={styles.offeringName}>{p.name}</Text>
-                      <Text style={styles.offeringCost}>{p.cost} 💰</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            )}
-          </View>
+            <View style={{ height: 32 }} />
+          </ScrollView>
         </View>
-      </Modal>
+      </View>
+    </Modal>
+  );
+}
+
+// ── GiftAnimation ─────────────────────────────────────────────────────────────
+
+function GiftAnimation({ flights }: { flights: GiftFlight[] }) {
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {flights.map(f => {
+        const left = f.anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [f.from.x, f.to.x],
+        });
+        const top = f.anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [f.from.y, f.to.y],
+        });
+        const opacity = f.anim.interpolate({
+          inputRange: [0, 0.1, 0.85, 1],
+          outputRange: [0, 1, 1, 0],
+        });
+        const scale = f.anim.interpolate({
+          inputRange: [0, 0.4, 1],
+          outputRange: [0.8, 1.3, 0.9],
+        });
+        return (
+          <Animated.View
+            key={f.id}
+            style={{ position: 'absolute', left, top, opacity, transform: [{ scale }] }}
+          >
+            <Text style={{ fontSize: 24 }}>{f.emoji}</Text>
+          </Animated.View>
+        );
+      })}
+    </View>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// VERTICAL SALON — chat social avec fil de messages
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Rangée de participants — toujours visible sous le header
+function ParticipantStrip({
+  participants,
+  onPress,
+}: {
+  participants: Participant[];
+  onPress: (p: Participant) => void;
+}) {
+  return (
+    <View style={s.strip}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.stripContent}
+        bounces={false}
+      >
+        {participants.map(p => (
+          <ParticipantAvatar
+            key={p.id}
+            participant={p}
+            size={40}
+            showName
+            onPress={!p.isMe ? () => onPress(p) : undefined}
+          />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+// Bulle de message dans le salon vertical
+function ChatMessage({
+  message,
+  isOwn,
+  sender,
+}: {
+  message: Message;
+  isOwn: boolean;
+  sender: Participant | undefined;
+}) {
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+  }, []);
+
+  if (message.isSystem) {
+    return (
+      <Animated.View style={[s.systemRow, { opacity }]}>
+        <Text style={s.systemText}>
+          {message.giftData?.emoji ? `${message.giftData.emoji}  ` : ''}
+          {message.text ?? message.content}
+        </Text>
+      </Animated.View>
+    );
+  }
+
+  const timeStr = new Date(message.timestamp).toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  if (isOwn) {
+    return (
+      <Animated.View style={[s.ownRow, { opacity }]}>
+        <View style={s.ownBubble}>
+          <Text style={s.ownBubbleText}>{message.text ?? message.content}</Text>
+        </View>
+        <Text style={s.timeLabel}>{timeStr}</Text>
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View style={[s.otherRow, { opacity }]}>
+      {/* Avatar du sender */}
+      <View style={s.msgAvatarWrap}>
+        {sender ? (
+          <View
+            style={[
+              s.msgAvatar,
+              { backgroundColor: nameColor(sender.name) },
+            ]}
+          >
+            <Text style={s.msgAvatarText}>{initials(sender.name)}</Text>
+          </View>
+        ) : (
+          <View style={s.msgAvatar} />
+        )}
+      </View>
+
+      <View style={{ flexShrink: 1 }}>
+        {sender && (
+          <Text style={s.senderName}>{sender.name}</Text>
+        )}
+        <View style={s.otherBubble}>
+          <Text style={s.otherBubbleText}>{message.text ?? message.content}</Text>
+        </View>
+        <Text style={s.timeLabel}>{timeStr}</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+// ── SalonVerticalScreen ───────────────────────────────────────────────────────
+
+function SalonVerticalScreen({
+  salon,
+  participants,
+  messages,
+  myName,
+  coins,
+  messageInput,
+  setMessageInput,
+  sendMessage,
+  openOffrandes,
+  giftFlights,
+  showOfferings,
+  setShowOfferings,
+  defaultRecipient,
+  handleSendOffering,
+  insets,
+}: SharedProps) {
+  const listRef = useRef<FlatList>(null);
+  const router = useRouter();
+
+  const scrollToEnd = useCallback(() => {
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
+  }, []);
+
+  useEffect(() => { scrollToEnd(); }, [messages.length]);
+
+  const findSender = (msg: Message): Participant | undefined =>
+    participants.find(p => p.name === (msg.username ?? msg.userName));
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: COLORS.bg }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <HeaderBar
+        title={salon.name}
+        icon={salon.icon}
+        coins={coins}
+        gradient={salon.gradient as [string, string]}
+        paddingTop={insets.top}
+        onBack={() => router.back()}
+      />
+
+      {/* Rangée participants — toujours visible */}
+      <ParticipantStrip
+        participants={participants}
+        onPress={p => openOffrandes(p)}
+      />
+
+      {/* Fil de messages */}
+      <FlatList
+        ref={listRef}
+        data={messages}
+        keyExtractor={m => m.id}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingVertical: 12, flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+        onContentSizeChange={scrollToEnd}
+        renderItem={({ item }) => (
+          <ChatMessage
+            message={item}
+            isOwn={item.userId === 'me' || (item.username ?? item.userName) === myName}
+            sender={findSender(item)}
+          />
+        )}
+        ListEmptyComponent={
+          <View style={s.emptyChat}>
+            <Text style={s.emptyChatEmoji}>💬</Text>
+            <Text style={s.emptyChatText}>Commencez la discussion</Text>
+          </View>
+        }
+      />
+
+      {/* Barre de saisie */}
+      <InputBar
+        value={messageInput}
+        onChange={setMessageInput}
+        onSend={sendMessage}
+        onOffrandes={() => openOffrandes()}
+        onMagie={() => openOffrandes()}
+        paddingBottom={insets.bottom}
+      />
+
+      <GiftAnimation flights={giftFlights} />
+
+      <OfferingsModal
+        visible={showOfferings}
+        onClose={() => setShowOfferings(false)}
+        participants={participants}
+        myName={myName}
+        coins={coins}
+        isMetal={salon.type === 'metal'}
+        onSend={handleSendOffering}
+        defaultRecipient={defaultRecipient}
+      />
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF8E7' },
-  errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  errorText: { fontSize: 18, color: '#654321', marginBottom: 16 },
-  errorLink: { fontSize: 16, color: '#667EEA' },
-  header: { paddingHorizontal: 16, paddingBottom: 12 },
-  headerCompact: { paddingBottom: 8 },
-  backButton: { position: 'absolute', left: 12, top: 48, width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', zIndex: 10 },
-  backButtonText: { fontSize: 20, fontWeight: '700', color: '#654321' },
-  title: { fontSize: 20, fontWeight: '700', color: '#FFF', textAlign: 'center', marginTop: 8 },
-  titleCompact: { fontSize: 16 },
-  coinsContainer: { position: 'absolute', right: 12, top: 48, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  coinsText: { fontSize: 14, fontWeight: '700', color: '#DAA520' },
-  timerBadge: { position: 'absolute', right: 12, top: 80, backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  timerText: { fontSize: 12, color: '#FFF', fontWeight: '600' },
-  membersRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 12, marginBottom: 8 },
-  memberSlot: { alignItems: 'center', position: 'relative' },
-  meBadge: { position: 'absolute', top: -5, right: 5, fontSize: 12 },
-  turnIndicator: { position: 'absolute', bottom: 15, left: '50%', marginLeft: -8, width: 16, height: 4, borderRadius: 2, backgroundColor: '#FFD700' },
-  tabs: { flexDirection: 'row', marginTop: 8, gap: 8 },
-  tab: { flex: 1, paddingVertical: 8, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center' },
-  tabActive: { backgroundColor: 'rgba(255,255,255,0.35)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' },
-  tabText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
-  magicButton: { marginTop: 10, backgroundColor: '#FFD700', paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  magicButtonText: { fontSize: 16, fontWeight: '700', color: '#3A2818' },
-  chatContainer: { flex: 1, backgroundColor: '#FFF' },
-  messagesList: { padding: 12, paddingBottom: 20 },
-  emptyChat: { alignItems: 'center', paddingVertical: 60 },
-  emptyChatText: { fontSize: 16, color: '#8B6F47', fontStyle: 'italic' },
-  messageRow: { marginBottom: 12, alignItems: 'flex-start' },
-  messageRowOwn: { alignItems: 'flex-end' },
-  messageUsername: { fontSize: 11, color: '#8B6F47', marginBottom: 4, marginHorizontal: 8 },
-  messageBubble: { backgroundColor: '#F0F0F0', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, borderBottomLeftRadius: 4, maxWidth: '80%' },
-  messageBubbleOwn: { backgroundColor: '#667EEA', borderBottomLeftRadius: 18, borderBottomRightRadius: 4 },
-  messageText: { fontSize: 15, color: '#333' },
-  messageTextOwn: { color: '#FFF' },
-  systemMessageContainer: { alignItems: 'center', marginVertical: 12 },
-  giftMessage: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 20, alignItems: 'center' },
-  giftEmoji: { fontSize: 24, marginBottom: 4 },
-  giftText: { fontSize: 13, fontWeight: '600', color: '#3A2818', textAlign: 'center' },
-  inputContainer: { flexDirection: 'row', paddingHorizontal: 12, paddingTop: 8, backgroundColor: '#FFF8E7', borderTopWidth: 1, borderTopColor: '#E8D5B7', gap: 8 },
-  input: { flex: 1, backgroundColor: '#FFF', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, borderWidth: 2, borderColor: '#8B6F47', color: '#3A2818' },
-  sendButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#667EEA', alignItems: 'center', justifyContent: 'center' },
-  sendButtonText: { fontSize: 20, color: '#FFF' },
-  // Histoire
-  storyContainer: { flex: 1, backgroundColor: '#FFF' },
-  turnBanner: { backgroundColor: '#E8D5B7', paddingVertical: 10, alignItems: 'center' },
-  turnBannerMyTurn: { backgroundColor: '#4CAF50' },
-  turnBannerText: { fontSize: 14, fontWeight: '700', color: '#3A2818' },
-  storyList: { padding: 16 },
-  emptyStory: { alignItems: 'center', paddingVertical: 60 },
-  emptyStoryText: { fontSize: 16, color: '#8B6F47', fontStyle: 'italic' },
-  emptyStoryHint: { fontSize: 14, color: '#B8860B', marginTop: 8 },
-  storyEntry: { backgroundColor: '#FFF8E7', padding: 12, borderRadius: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#FFD700' },
-  storyAuthor: { fontSize: 11, fontWeight: '700', color: '#8B6F47', marginBottom: 4 },
-  storyText: { fontSize: 15, color: '#3A2818', lineHeight: 22 },
-  progressBar: { height: 24, backgroundColor: '#E8D5B7', marginHorizontal: 16, borderRadius: 12, overflow: 'hidden', marginBottom: 8 },
-  progressFill: { height: '100%', backgroundColor: '#4CAF50' },
-  progressText: { position: 'absolute', width: '100%', textAlign: 'center', lineHeight: 24, fontSize: 12, fontWeight: '700', color: '#3A2818' },
-  storyInputContainer: { padding: 12, backgroundColor: '#FFF8E7', borderTopWidth: 2, borderTopColor: '#FFD700' },
-  storyInput: { backgroundColor: '#FFF', borderRadius: 12, padding: 12, fontSize: 15, borderWidth: 2, borderColor: '#8B6F47', minHeight: 60, textAlignVertical: 'top' },
-  storyInputFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  charCount: { fontSize: 12, color: '#8B6F47' },
-  submitButton: { backgroundColor: '#4CAF50', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
-  submitButtonDisabled: { backgroundColor: '#CCC' },
-  submitButtonText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
+// ══════════════════════════════════════════════════════════════════════════════
+// HORIZONTAL SALON — présence + interactions, zéro chat
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Carte d'avatar dans le layout horizontal
+function AvatarCard({
+  participant,
+  size = 68,
+  onPress,
+}: {
+  participant: Participant;
+  size?: number;
+  onPress?: () => void;
+}) {
+  const bg = nameColor(participant.name);
+  const dotSize = size * 0.22;
+
+  const scale = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scale, {
+          toValue: 1.04,
+          duration: 2600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(scale, {
+          toValue: 1,
+          duration: 2600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const badges = participant.badges.slice(-3);
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={0.75}
+      style={{ alignItems: 'center', gap: 8 }}
+    >
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <View
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: bg,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: bg,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.28,
+            shadowRadius: 8,
+            elevation: 4,
+          }}
+        >
+          <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: '#FFF' }}>
+            {initials(participant.name)}
+          </Text>
+        </View>
+        {/* Online dot */}
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 2,
+            right: 2,
+            width: dotSize,
+            height: dotSize,
+            borderRadius: dotSize / 2,
+            backgroundColor: participant.isOnline ? COLORS.online : COLORS.offline,
+            borderWidth: 2.5,
+            borderColor: COLORS.white,
+          }}
+        />
+      </Animated.View>
+
+      {/* Name */}
+      <Text style={s.cardName} numberOfLines={1}>
+        {participant.isMe ? `${participant.name} (moi)` : participant.name}
+      </Text>
+
+      {/* Badges — gifts / effects reçus, collés visuellement à l'avatar */}
+      <View style={s.badgeRow}>
+        {badges.map(b => (
+          <InteractionBadge key={b.id} emoji={b.emoji} />
+        ))}
+        {badges.length === 0 && (
+          <View style={{ height: 22 }} />
+        )}
+      </View>
+
+      {/* Hint tap */}
+      {onPress && (
+        <Text style={s.tapHint}>appuyer pour offrir</Text>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+// ── SalonHorizontalScreen ─────────────────────────────────────────────────────
+
+function SalonHorizontalScreen({
+  salon,
+  participants,
+  messages,
+  myName,
+  coins,
+  openOffrandes,
+  giftFlights,
+  showOfferings,
+  setShowOfferings,
+  defaultRecipient,
+  handleSendOffering,
+  insets,
+}: SharedProps) {
+  const router = useRouter();
+
+  // Interactions récentes (offrandes/magie uniquement)
+  const interactions = useMemo(
+    () => messages.filter(m => m.isSystem).slice(-12).reverse(),
+    [messages]
+  );
+
+  const others = participants.filter(p => !p.isMe);
+  const me = participants.find(p => p.isMe);
+
+  // Layout : 1 haut + 2 milieu + 1 bas (diamant), adapté au nombre de participants
+  const [top, left, right, bottom] = useMemo(() => {
+    if (others.length >= 3) {
+      return [others[0], others[1], others[2], me];
+    }
+    if (others.length === 2) {
+      return [others[0], null, others[1], me];
+    }
+    return [others[0] ?? null, null, null, me];
+  }, [others, me]);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: COLORS.white }}>
+      <HeaderBar
+        title={salon.name}
+        icon={salon.icon}
+        coins={coins}
+        gradient={salon.gradient as [string, string]}
+        paddingTop={insets.top}
+        onBack={() => router.back()}
+      />
+
+      {/* Zone de présence — structure principale */}
+      <View style={s.presenceArea}>
+
+        {/* Ligne haute — avatar seul, centré */}
+        {top && (
+          <View style={s.presenceRowCenter}>
+            <AvatarCard
+              participant={top}
+              size={72}
+              onPress={() => openOffrandes(top)}
+            />
+          </View>
+        )}
+
+        {/* Ligne milieu — deux avatars gauche / droite */}
+        <View style={s.presenceRowSides}>
+          {left ? (
+            <AvatarCard participant={left} size={68} onPress={() => openOffrandes(left)} />
+          ) : <View style={{ width: 90 }} />}
+          {right ? (
+            <AvatarCard participant={right} size={68} onPress={() => openOffrandes(right)} />
+          ) : <View style={{ width: 90 }} />}
+        </View>
+
+        {/* Ligne basse — moi, centré */}
+        {bottom && (
+          <View style={s.presenceRowCenter}>
+            <AvatarCard participant={bottom} size={60} />
+          </View>
+        )}
+      </View>
+
+      {/* Séparateur */}
+      <View style={s.separator} />
+
+      {/* Log des interactions — lecture seule, léger */}
+      <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+        {interactions.length === 0 ? (
+          <View style={s.emptyInteractions}>
+            <Text style={{ fontSize: 32, marginBottom: 10 }}>🎁</Text>
+            <Text style={s.emptyInteractionsText}>
+              Aucune interaction pour l'instant
+            </Text>
+            <Text style={s.emptyInteractionsHint}>
+              Appuyez sur un avatar pour envoyer une offrande
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 8 }}
+          >
+            {interactions.map(m => (
+              <View key={m.id} style={s.interactionRow}>
+                <Text style={s.interactionEmoji}>
+                  {m.giftData?.emoji ?? '✨'}
+                </Text>
+                <Text style={s.interactionText} numberOfLines={2}>
+                  {m.text ?? m.content}
+                </Text>
+                <Text style={s.interactionTime}>
+                  {new Date(m.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+
+      {/* Barre d'actions — deux boutons, centrés, clean */}
+      <View
+        style={[
+          s.actionBar,
+          { paddingBottom: Math.max(insets.bottom, 16) },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => openOffrandes()}
+          style={[s.actionBarBtn, { borderColor: COLORS.border }]}
+        >
+          <Text style={{ fontSize: 18 }}>🎁</Text>
+          <Text style={s.actionBarBtnText}>Offrir</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => openOffrandes()}
+          style={[s.actionBarBtn, { borderColor: COLORS.border }]}
+        >
+          <Text style={{ fontSize: 18 }}>✨</Text>
+          <Text style={s.actionBarBtnText}>Magie</Text>
+        </TouchableOpacity>
+      </View>
+
+      <GiftAnimation flights={giftFlights} />
+
+      <OfferingsModal
+        visible={showOfferings}
+        onClose={() => setShowOfferings(false)}
+        participants={participants}
+        myName={myName}
+        coins={coins}
+        isMetal={salon.type === 'metal'}
+        onSend={handleSendOffering}
+        defaultRecipient={defaultRecipient}
+      />
+    </View>
+  );
+}
+
+// ── SharedProps ───────────────────────────────────────────────────────────────
+
+interface SharedProps {
+  salon: (typeof salonsData)[number];
+  participants: Participant[];
+  messages: Message[];
+  myName: string;
+  coins: number;
+  messageInput: string;
+  setMessageInput: (v: string) => void;
+  sendMessage: () => void;
+  openOffrandes: (p?: Participant) => void;
+  giftFlights: GiftFlight[];
+  showOfferings: boolean;
+  setShowOfferings: (v: boolean) => void;
+  defaultRecipient: Participant | null;
+  handleSendOffering: (recipient: Participant, item: any) => void;
+  insets: ReturnType<typeof useSafeAreaInsets>;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ÉCRAN PRINCIPAL — dispatch selon salon.layout
+// ══════════════════════════════════════════════════════════════════════════════
+
+export default function SalonDetailScreen() {
+  const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
+  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages } = useStore();
+
+  const salonId = params.id as string;
+  const salon = salonsData.find(s => s.id === salonId);
+  const myName = currentUser?.name ?? 'Vous';
+
+  const [messageInput, setMessageInput] = useState('');
+  const [showOfferings, setShowOfferings] = useState(false);
+  const [defaultRecipient, setDefaultRecipient] = useState<Participant | null>(null);
+  const [giftFlights, setGiftFlights] = useState<GiftFlight[]>([]);
+
+  const [participants, setParticipants] = useState<Participant[]>(() => {
+    if (!salon) return [];
+    const others: Participant[] = salon.participants.slice(0, 3).map(p => ({
+      id: p.id,
+      name: p.name,
+      isOnline: p.online,
+      badges: [],
+    }));
+    const me: Participant = { id: 'me', name: myName, isOnline: true, isMe: true, badges: [] };
+    return [...others, me];
+  });
+
+  const messages = messagesBySalon[salonId] ?? [];
+
+  useEffect(() => {
+    if (salonId) loadMessages(salonId);
+  }, [salonId]);
+
+  const sendMessage = useCallback(() => {
+    const text = messageInput.trim();
+    if (!text) return;
+    addMessage(salonId, {
+      id: Date.now().toString(),
+      salonId,
+      userId: 'me',
+      userName: myName,
+      username: myName,
+      content: text,
+      text,
+      timestamp: Date.now(),
+      type: 'message',
+    });
+    setMessageInput('');
+  }, [messageInput, myName, salonId, addMessage]);
+
+  const handleSendOffering = useCallback(
+    (recipient: Participant, item: any) => {
+      if (!removeCoins(item.cost)) return;
+
+      setParticipants(prev =>
+        prev.map(p =>
+          p.id === recipient.id
+            ? {
+                ...p,
+                badges: [
+                  ...p.badges,
+                  { id: Date.now().toString(), emoji: item.emoji },
+                ].slice(-5),
+              }
+            : p
+        )
+      );
+
+      addMessage(salonId, {
+        id: Date.now().toString(),
+        salonId,
+        userId: 'system',
+        userName: 'Système',
+        username: 'Système',
+        content: `${myName} a envoyé ${item.emoji} ${item.name} à ${recipient.name}`,
+        text: `${myName} a envoyé ${item.emoji} ${item.name} à ${recipient.name}`,
+        timestamp: Date.now(),
+        type: 'offering',
+        isSystem: true,
+        giftData: { emoji: item.emoji, from: myName },
+      });
+
+      // Animation de vol (positions approximatives depuis le bas vers la cible)
+      const id = `${Date.now()}-${Math.random()}`;
+      const anim = new Animated.Value(0);
+      const fromY = insets.top + 500;
+      const toY = 200;
+      setGiftFlights(prev => [
+        ...prev,
+        { id, emoji: item.emoji, anim, from: { x: SCREEN_W / 2 - 12, y: fromY }, to: { x: SCREEN_W / 2 - 12, y: toY } },
+      ]);
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false,
+      }).start(() => setGiftFlights(prev => prev.filter(f => f.id !== id)));
+
+      setShowOfferings(false);
+    },
+    [myName, salonId, participants, removeCoins, addMessage, insets.top]
+  );
+
+  const openOffrandes = useCallback((p?: Participant) => {
+    setDefaultRecipient(p ?? null);
+    setShowOfferings(true);
+  }, []);
+
+  if (!salon) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg }}>
+        <Text style={{ color: COLORS.textSecondary, fontSize: 16 }}>Salon introuvable</Text>
+      </View>
+    );
+  }
+
+  const props: SharedProps = {
+    salon,
+    participants,
+    messages,
+    myName,
+    coins,
+    messageInput,
+    setMessageInput,
+    sendMessage,
+    openOffrandes,
+    giftFlights,
+    showOfferings,
+    setShowOfferings,
+    defaultRecipient,
+    handleSendOffering,
+    insets,
+  };
+
+  return salon.layout === 'vertical'
+    ? <SalonVerticalScreen {...props} />
+    : <SalonHorizontalScreen {...props} />;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STYLES
+// ══════════════════════════════════════════════════════════════════════════════
+
+const s = StyleSheet.create({
+  // Header
+  backBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  coinsBadge: {
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  coinsText: {
+    color: '#FFD700',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // Avatar
+  avatarName: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  meBadge: {
+    position: 'absolute',
+    backgroundColor: COLORS.ownBubble,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+
+  // Strip (vertical)
+  strip: {
+    backgroundColor: COLORS.white,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+  },
+  stripContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 20,
+  },
+
+  // InputBar
+  inputBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+    paddingTop: 8,
+    paddingHorizontal: 10,
+    gap: 6,
+  },
+  actionIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textInput: {
+    flex: 1,
+    height: 38,
+    backgroundColor: COLORS.bg,
+    borderRadius: 19,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: COLORS.text,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border,
+  },
+  sendBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Chat messages (vertical)
+  systemRow: {
+    alignItems: 'center',
+    marginVertical: 10,
+    paddingHorizontal: 24,
+  },
+  systemText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  ownRow: {
+    alignItems: 'flex-end',
+    marginBottom: 10,
+    marginHorizontal: 14,
+  },
+  ownBubble: {
+    backgroundColor: COLORS.ownBubble,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
+    borderBottomRightRadius: 4,
+    maxWidth: SCREEN_W * 0.72,
+  },
+  ownBubbleText: {
+    fontSize: 15,
+    color: '#FFF',
+    lineHeight: 21,
+  },
+  otherRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 10,
+    marginHorizontal: 14,
+    gap: 8,
+  },
+  msgAvatarWrap: {
+    width: 30,
+    alignItems: 'center',
+  },
+  msgAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.border,
+  },
+  msgAvatarText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  senderName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: 3,
+    marginLeft: 2,
+  },
+  otherBubble: {
+    backgroundColor: COLORS.bubble,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    maxWidth: SCREEN_W * 0.66,
+  },
+  otherBubbleText: {
+    fontSize: 15,
+    color: COLORS.text,
+    lineHeight: 21,
+  },
+  timeLabel: {
+    fontSize: 10,
+    color: COLORS.offline,
+    marginTop: 3,
+    marginHorizontal: 4,
+  },
+  emptyChat: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyChatEmoji: { fontSize: 36, marginBottom: 12 },
+  emptyChatText: { fontSize: 15, color: COLORS.textSecondary },
+
+  // Horizontal presence layout
+  presenceArea: {
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    gap: 24,
+    backgroundColor: COLORS.white,
+  },
+  presenceRowCenter: {
+    alignItems: 'center',
+  },
+  presenceRowSides: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  cardName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.text,
+    maxWidth: 90,
+    textAlign: 'center',
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 4,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 60,
+  },
+  tapHint: {
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    marginTop: -2,
+  },
+
+  // Separator
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.border,
+  },
+
+  // Interactions log
+  emptyInteractions: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 20,
+  },
+  emptyInteractionsText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  emptyInteractionsHint: {
+    fontSize: 12,
+    color: COLORS.offline,
+    marginTop: 6,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  interactionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+    gap: 12,
+  },
+  interactionEmoji: { fontSize: 20 },
+  interactionText: {
+    flex: 1,
+    fontSize: 13,
+    color: COLORS.text,
+    lineHeight: 18,
+  },
+  interactionTime: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+
+  // Action bar (horizontal)
+  actionBar: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    backgroundColor: COLORS.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+  },
+  actionBarBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: COLORS.bg,
+  },
+  actionBarBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalContainer: { backgroundColor: '#FFF8E7', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '85%', paddingBottom: 30 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#3A2818' },
-  closeBtn: { fontSize: 22, color: '#8B6F47', fontWeight: '600' },
-  playerSelector: { padding: 16 },
-  playerSelectorRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 12 },
-  playerSelectorItem: { padding: 8, backgroundColor: '#FFF', borderRadius: 12 },
-  offeringsList: { paddingHorizontal: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#654321', marginTop: 16, marginBottom: 12 },
-  offeringsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  offeringItem: { width: (SCREEN_WIDTH - 62) / 3, backgroundColor: '#FFF', borderRadius: 12, padding: 10, alignItems: 'center' },
-  powerItem: { backgroundColor: '#F3E5F5' },
-  offeringDisabled: { opacity: 0.5 },
-  offeringEmoji: { fontSize: 28, marginBottom: 4 },
-  offeringName: { fontSize: 11, fontWeight: '600', color: '#3A2818', textAlign: 'center' },
-  offeringCost: { fontSize: 10, color: '#DAA520', fontWeight: '700', marginTop: 2 },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  modalSheet: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '82%',
+    paddingTop: 12,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.border,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  modalSection: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    letterSpacing: 0.6,
+    marginBottom: 10,
+    paddingHorizontal: 20,
+  },
+  modalItem: {
+    alignItems: 'center',
+    width: 74,
+    backgroundColor: COLORS.bg,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+  },
+  modalItemName: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  modalItemCost: {
+    fontSize: 10,
+    color: '#B8860B',
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  tabBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: COLORS.bg,
+  },
+  tabBtnActive: {
+    backgroundColor: COLORS.ownBubble,
+  },
+  tabLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  tabLabelActive: {
+    color: '#FFF',
+  },
+  recipientRing: {
+    borderWidth: 2.5,
+    borderRadius: 28,
+    padding: 2,
+  },
 });
