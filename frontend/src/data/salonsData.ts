@@ -17,6 +17,10 @@ export interface Salon {
   name: string;
   desc: string;
   type: 'standard' | 'cafe_paris' | 'metal';
+  /** Style architectural du salon :
+   *  vertical   → la discussion est centrale, les avatars s'intègrent dans les messages
+   *  horizontal → les avatars sont regroupés en haut, la discussion est secondaire */
+  layout: 'vertical' | 'horizontal';
   gradient: [string, string];
   maxParticipants: number;
   participants: SalonParticipant[];
@@ -44,6 +48,7 @@ export const salonsData: Salon[] = [
     name: 'Piscine',
     desc: 'Ambiance aquatique et détente',
     type: 'standard',
+    layout: 'vertical',
     gradient: ['#4FC3F7', '#0288D1'],
     maxParticipants: 8,
     participants: [
@@ -58,6 +63,7 @@ export const salonsData: Salon[] = [
     name: 'Café de Paris',
     desc: '4 joueurs face à face',
     type: 'cafe_paris',
+    layout: 'horizontal',
     gradient: ['#8D6E63', '#5D4037'],
     maxParticipants: 4,
     participants: [
@@ -72,6 +78,7 @@ export const salonsData: Salon[] = [
     name: 'Île des pirates',
     desc: 'Aventures maritimes et trésors',
     type: 'standard',
+    layout: 'horizontal',
     gradient: ['#FFD54F', '#5D4037'],
     maxParticipants: 8,
     participants: [
@@ -86,6 +93,7 @@ export const salonsData: Salon[] = [
     name: 'Théâtre improvisé',
     desc: 'Spectacles, rires et impro',
     type: 'standard',
+    layout: 'vertical',
     gradient: ['#CE93D8', '#7B1FA2'],
     maxParticipants: 8,
     participants: [
@@ -100,6 +108,7 @@ export const salonsData: Salon[] = [
     name: 'Bar à cocktails',
     desc: 'Mixologie & saveurs',
     type: 'standard',
+    layout: 'horizontal',
     gradient: ['#F48FB1', '#C2185B'],
     maxParticipants: 8,
     participants: [
@@ -114,6 +123,7 @@ export const salonsData: Salon[] = [
     name: 'Métal',
     desc: 'Rock & Metal attitude',
     type: 'metal',
+    layout: 'horizontal',
     gradient: ['#424242', '#212121'],
     maxParticipants: 8,
     participants: [
@@ -128,6 +138,7 @@ export const salonsData: Salon[] = [
     name: 'Cabinet du Psy',
     desc: 'Discussions profondes',
     type: 'standard',
+    layout: 'vertical',
     gradient: ['#00BCD4', '#0097A7'],
     maxParticipants: 8,
     participants: [
