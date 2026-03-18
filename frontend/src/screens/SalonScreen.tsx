@@ -117,8 +117,9 @@ export default function SalonScreen() {
   const flatListRef = useRef<FlatList>(null);
   const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages, addCoins } = useStore();
 
-  // Récupérer le salon
-  const salonId = params.id as string;
+  // Récupérer le salon - gestion de "cafe-paris" vs "cafe_paris"
+  const rawSalonId = params.id as string;
+  const salonId = rawSalonId === 'cafe-paris' ? 'cafe_paris' : (rawSalonId || 'cafe_paris');
   const salon = salonsData.find(s => s.id === salonId);
 
   // États
