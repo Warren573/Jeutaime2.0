@@ -19,11 +19,7 @@ export default function SalonsListScreen() {
   const insets = useSafeAreaInsets();
 
   const handleSalonPress = (salon: typeof salonsData[0]) => {
-    if (salon.type === 'cafe_paris') {
-      router.push('/salon/cafe-paris');
-    } else {
-      router.push(`/salon/${salon.id}`);
-    }
+    router.push(`/salon/${salon.id}`);
   };
 
   return (
@@ -59,11 +55,6 @@ export default function SalonsListScreen() {
                   <Text style={styles.salonName}>{salon.name}</Text>
                   <Text style={styles.salonDesc}>{salon.desc}</Text>
                   <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                    {salon.type === 'cafe_paris' && (
-                      <View style={styles.specialBadge}>
-                        <Text style={styles.specialBadgeText}>⭐ Spécial</Text>
-                      </View>
-                    )}
                     <View style={[styles.specialBadge, { backgroundColor: salon.layout === 'vertical' ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)' }]}>
                       <Text style={[styles.specialBadgeText, { color: '#FFF' }]}>
                         {salon.layout === 'vertical' ? '💬 Conversation' : '👥 Groupe'}

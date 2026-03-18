@@ -17,7 +17,7 @@ export interface Salon {
   icon: string;
   name: string;
   desc: string;
-  type: 'standard' | 'cafe_paris' | 'metal';
+  type: 'standard' | 'metal';
   /** Style architectural du salon :
    *  vertical   → la discussion est centrale, les avatars s'intègrent dans les messages
    *  horizontal → les avatars sont regroupés en haut, la discussion est secondaire */
@@ -62,8 +62,8 @@ export const salonsData: Salon[] = [
     id: 'cafe_paris',
     icon: '☕',
     name: 'Café de Paris',
-    desc: '4 joueurs face à face',
-    type: 'cafe_paris',
+    desc: 'Rencontres autour d\'un café',
+    type: 'standard',
     layout: 'horizontal',
     gradient: ['#8D6E63', '#5D4037'],
     maxParticipants: 4,

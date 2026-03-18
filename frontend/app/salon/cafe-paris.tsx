@@ -1,2 +1,2 @@
-import CafeParisScreen from '../../src/screens/CafeParisScreen';
-export default CafeParisScreen;
+import SalonScreen from '../../src/screens/SalonScreen';
+export default SalonScreen;
