@@ -3,7 +3,7 @@
     "name": "JeuTaime",
     "slug": "jeutaime",
     "version": "2.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "jeutaime",
     "userInterfaceStyle": "light",
