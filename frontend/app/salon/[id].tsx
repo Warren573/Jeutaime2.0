@@ -1,2 +1,2 @@
-import SalonDetailScreen from '../../src/screens/SalonDetailScreen';
-export default SalonDetailScreen;
+import SalonScreen from '../../src/screens/SalonScreen';
+export default SalonScreen;
