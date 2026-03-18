@@ -27,6 +27,7 @@ import {
   Modal,
   Easing,
   Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -76,6 +77,7 @@ interface Participant {
   isOnline: boolean;
   isMe?: boolean;
   badges: { id: string; emoji: string }[];   // gifts / effects received
+  avatarConfig?: { skinColor: string; expression: string; accessory?: string };
 }
 
 interface GiftFlight {
@@ -164,14 +166,25 @@ function ParticipantAvatar({
             width: size,
             height: size,
             borderRadius: size / 2,
-            backgroundColor: bg,
+            backgroundColor: participant.avatarConfig?.skinColor ?? bg,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Text style={{ fontSize: size * 0.35, fontWeight: '600', color: '#FFF' }}>
-            {initials(participant.name)}
-          </Text>
+          {participant.avatarConfig ? (
+            <>
+              <Text style={{ fontSize: size * 0.5 }}>{participant.avatarConfig.expression}</Text>
+              {!!participant.avatarConfig.accessory && (
+                <Text style={{ position: 'absolute', fontSize: size * 0.28, top: 0, right: 0 }}>
+                  {participant.avatarConfig.accessory}
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text style={{ fontSize: size * 0.35, fontWeight: '600', color: '#FFF' }}>
+              {initials(participant.name)}
+            </Text>
+          )}
         </View>
         {/* Online dot */}
         <View
@@ -698,19 +711,30 @@ function AvatarCard({
             width: size,
             height: size,
             borderRadius: size / 2,
-            backgroundColor: bg,
+            backgroundColor: participant.avatarConfig?.skinColor ?? bg,
             alignItems: 'center',
             justifyContent: 'center',
-            shadowColor: bg,
+            shadowColor: participant.avatarConfig?.skinColor ?? bg,
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.28,
             shadowRadius: 8,
             elevation: 4,
           }}
         >
-          <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: '#FFF' }}>
-            {initials(participant.name)}
-          </Text>
+          {participant.avatarConfig ? (
+            <>
+              <Text style={{ fontSize: size * 0.5 }}>{participant.avatarConfig.expression}</Text>
+              {!!participant.avatarConfig.accessory && (
+                <Text style={{ position: 'absolute', fontSize: size * 0.28, top: 0, right: 0 }}>
+                  {participant.avatarConfig.accessory}
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: '#FFF' }}>
+              {initials(participant.name)}
+            </Text>
+          )}
         </View>
         {/* Online dot */}
         <View
@@ -936,7 +960,10 @@ interface SharedProps {
 export default function SalonDetailScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
-  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages } = useStore();
+  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarConfig: myAvatarConfig } = useStore();
+
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
 
   const salonId = params.id as string;
   const salon = salonsData.find(s => s.id === salonId);
@@ -954,8 +981,12 @@ export default function SalonDetailScreen() {
       name: p.name,
       isOnline: p.online,
       badges: [],
+      avatarConfig: p.avatarConfig,
     }));
-    const me: Participant = { id: 'me', name: myName, isOnline: true, isMe: true, badges: [] };
+    const meAvatar = myAvatarConfig
+      ? { skinColor: myAvatarConfig.skinColor, expression: myAvatarConfig.expression, accessory: myAvatarConfig.accessory }
+      : { skinColor: '#5AC8FA', expression: '😊' };
+    const me: Participant = { id: 'me', name: myName, isOnline: true, isMe: true, badges: [], avatarConfig: meAvatar };
     return [...others, me];
   });
 
@@ -1066,7 +1097,8 @@ export default function SalonDetailScreen() {
     insets,
   };
 
-  return salon.layout === 'vertical'
+  // Paysage → toujours présence/interactions (horizontal), portrait → selon salon.layout
+  return (!isLandscape && salon.layout === 'vertical')
     ? <SalonVerticalScreen {...props} />
     : <SalonHorizontalScreen {...props} />;
 }
