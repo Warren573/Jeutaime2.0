@@ -732,235 +732,148 @@ function VerticalLayout({
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SALON HORIZONTAL ────────────────────────────────────────────────────────────
-// Présence d'abord. Les avatars groupés en haut avec leurs offrandes visibles.
-// La discussion est en dessous, secondaire visuellement.
+// Présence pure. Avatars + offrandes/magie. Pas de discussion texte.
+// On voit qui est là, on interagit directement.
 // ══════════════════════════════════════════════════════════════════════════════
 
-// Carte de participant pour le salon horizontal
+// Carte de participant — grande, respirante, offrandes visibles
 function HorizontalParticipantCard({
   participant,
   onPress,
   isMe,
+  accentBg,
 }: {
   participant: Participant;
   onPress?: () => void;
   isMe?: boolean;
+  accentBg?: string;
 }) {
-  const recentGifts = participant.recentInteractions.slice(-4);
+  const recentGifts = participant.recentInteractions.slice(-5);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    if (!onPress) return;
+    Animated.timing(scale, { toValue: 0.94, duration: 100, useNativeDriver: true }).start();
+  };
+  const handlePressOut = () => {
+    Animated.timing(scale, { toValue: 1, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  };
 
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={onPress ? 0.75 : 1}
-      style={{
-        alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 14,
-        minWidth: 70,
-      }}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={1}
+      disabled={!onPress}
+      style={{ alignItems: 'center', paddingHorizontal: 12, paddingVertical: 20, minWidth: 88 }}
     >
-      {/* Avatar avec couronne si c'est moi */}
-      <View style={{ position: 'relative' }}>
+      <Animated.View style={{ transform: [{ scale }], alignItems: 'center' }}>
+        {/* Badge "moi" */}
+        {isMe && (
+          <Text style={{ fontSize: 14, marginBottom: 4 }}>👑</Text>
+        )}
+        {!isMe && onPress && (
+          /* Indicateur "appuyez pour offrir" */
+          <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginBottom: 4, fontStyle: 'italic' }}>
+            offrir
+          </Text>
+        )}
+        {!isMe && !onPress && <View style={{ height: 18 }} />}
+
+        {/* Avatar principal */}
         <Avatar
           name={participant.name}
-          size={54}
+          size={68}
           isOnline={participant.isOnline}
           effects={participant.activeEffects}
         />
-        {isMe && (
-          <Text style={{ position: 'absolute', top: -8, right: -6, fontSize: 14 }}>👑</Text>
-        )}
-      </View>
 
-      {/* Nom */}
-      <Text
-        style={{ fontSize: 12, fontWeight: '600', color: '#FFF', marginTop: 7, textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}
-        numberOfLines={1}
-      >
-        {participant.name}
-      </Text>
+        {/* Nom */}
+        <Text
+          style={{
+            fontSize: 13,
+            fontWeight: '700',
+            color: '#FFF',
+            marginTop: 10,
+            textShadowColor: 'rgba(0,0,0,0.5)',
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 4,
+          }}
+          numberOfLines={1}
+        >
+          {participant.name}
+        </Text>
 
-      {/* Statut texte */}
-      <Text style={{ fontSize: 10, color: participant.isOnline ? 'rgba(144,238,144,0.9)' : 'rgba(255,255,255,0.45)', marginTop: 1 }}>
-        {participant.isOnline ? 'En ligne' : 'Absent'}
-      </Text>
+        {/* Statut */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+          <View
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: participant.isOnline ? '#4CAF50' : '#888',
+            }}
+          />
+          <Text style={{ fontSize: 10, color: participant.isOnline ? 'rgba(144,238,144,0.9)' : 'rgba(255,255,255,0.4)' }}>
+            {participant.isOnline ? 'En ligne' : 'Absent'}
+          </Text>
+        </View>
 
-      {/* Offrandes reçues — petits emojis sous la carte */}
-      {recentGifts.length > 0 && (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 2, marginTop: 6, minHeight: 18 }}>
+        {/* Offrandes reçues — emojis lisibles, attachés visuellement */}
+        <View style={{ height: 26, marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
           {recentGifts.map(g => (
-            <Text key={g.id} style={{ fontSize: 13 }}>{g.emoji}</Text>
+            <Text key={g.id} style={{ fontSize: 15 }}>{g.emoji}</Text>
           ))}
         </View>
-      )}
-      {recentGifts.length === 0 && (
-        // Espace réservé pour aligner les cartes
-        <View style={{ height: 18, marginTop: 6 }} />
-      )}
+      </Animated.View>
     </TouchableOpacity>
   );
 }
 
-// Rangée horizontale des participants
-function HorizontalParticipantRow({
-  participants,
-  onPress,
-  gradient,
-}: {
-  participants: Participant[];
-  onPress: (p: Participant) => void;
-  gradient: [string, string];
-}) {
-  return (
-    <LinearGradient colors={gradient} style={{ paddingBottom: 8 }}>
-      {/* Séparateur visuel */}
-      <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.12)', marginHorizontal: 16, marginBottom: 0 }} />
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 4 }}
-        bounces={false}
-      >
-        {participants.map(p => (
-          <HorizontalParticipantCard
-            key={p.id}
-            participant={p}
-            isMe={p.isMe}
-            onPress={!p.isMe ? () => onPress(p) : undefined}
-          />
-        ))}
-      </ScrollView>
-
-      {/* Séparateur bas */}
-      <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.08)', marginHorizontal: 0 }} />
-    </LinearGradient>
-  );
-}
-
-// Bulle de message simple pour le salon horizontal (sans avatar dans le fil)
-function HorizontalMessageBubble({ message, isOwn, isSystem, senderColor }: {
-  message: Message;
-  isOwn: boolean;
-  isSystem: boolean;
-  senderColor: string;
-}) {
+// Ligne d'événement dans le log d'interactions
+function InteractionLogItem({ message }: { message: Message }) {
   const opacity = useRef(new Animated.Value(0)).current;
+  const translateX = useRef(new Animated.Value(-12)).current;
 
   useEffect(() => {
-    Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(translateX, { toValue: 0, duration: 300, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]).start();
   }, []);
 
   const timeStr = new Date(message.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-  if (isSystem) {
-    return (
-      <Animated.View style={{ opacity, alignItems: 'center', marginVertical: 8, paddingHorizontal: 20 }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-            backgroundColor: 'rgba(218,165,32,0.10)',
-            paddingHorizontal: 14,
-            paddingVertical: 7,
-            borderRadius: 18,
-          }}
-        >
-          {message.giftData && <Text style={{ fontSize: 16 }}>{message.giftData.emoji}</Text>}
-          <Text style={{ fontSize: 12, color: '#B8860B', fontWeight: '600', flexShrink: 1 }}>
-            {message.text ?? message.content}
-          </Text>
-        </View>
-      </Animated.View>
-    );
-  }
-
   return (
-    <Animated.View style={{ opacity, alignItems: isOwn ? 'flex-end' : 'flex-start', marginBottom: 8, marginHorizontal: 14 }}>
-      {!isOwn && (
-        <Text style={{ fontSize: 10, color: senderColor, fontWeight: '700', marginBottom: 3, marginLeft: 4 }}>
-          {message.username ?? message.userName}
-        </Text>
-      )}
-      <View
-        style={{
-          backgroundColor: isOwn ? '#E91E63' : '#F0F0F0',
-          paddingHorizontal: 14,
-          paddingVertical: 9,
-          borderRadius: 18,
-          borderBottomRightRadius: isOwn ? 4 : 18,
-          borderBottomLeftRadius: isOwn ? 18 : 4,
-          maxWidth: '78%',
-        }}
-      >
-        <Text style={{ fontSize: 15, color: isOwn ? '#FFF' : '#222', lineHeight: 21 }}>
-          {message.text ?? message.content}
-        </Text>
-      </View>
-      {isOwn && (
-        <Text style={{ fontSize: 10, color: '#CCC', marginTop: 2, marginRight: 4 }}>{timeStr}</Text>
-      )}
+    <Animated.View
+      style={{
+        opacity,
+        transform: [{ translateX }],
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: '#F0F0F0',
+        gap: 10,
+      }}
+    >
+      <Text style={{ fontSize: 20 }}>{message.giftData?.emoji ?? '✨'}</Text>
+      <Text style={{ flex: 1, fontSize: 13, color: '#555', lineHeight: 18 }}>
+        {message.text ?? message.content}
+      </Text>
+      <Text style={{ fontSize: 10, color: '#CCC' }}>{timeStr}</Text>
     </Animated.View>
   );
 }
 
-// Fil de discussion horizontal (simplifié, avatars absents)
-function HorizontalChatFeed({
-  messages,
-  myName,
-  participants,
-}: {
-  messages: Message[];
-  myName: string;
-  participants: Participant[];
-}) {
-  const listRef = useRef<FlatList>(null);
-
-  const scrollToEnd = useCallback(() => {
-    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
-  }, []);
-
-  useEffect(() => { scrollToEnd(); }, [messages.length]);
-
-  const senderColor = (name: string) => nameToColor(name);
-
-  return (
-    <FlatList
-      ref={listRef}
-      data={messages}
-      keyExtractor={m => m.id}
-      renderItem={({ item }) => (
-        <HorizontalMessageBubble
-          message={item}
-          isOwn={item.userId === 'me' || (item.username ?? item.userName) === myName}
-          isSystem={!!item.isSystem}
-          senderColor={senderColor(item.username ?? item.userName ?? '')}
-        />
-      )}
-      contentContainerStyle={{ paddingVertical: 12, flexGrow: 1 }}
-      showsVerticalScrollIndicator={false}
-      onContentSizeChange={scrollToEnd}
-      ListEmptyComponent={
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
-          <Text style={{ fontSize: 28, marginBottom: 10 }}>💬</Text>
-          <Text style={{ color: '#CCC', fontSize: 14, fontStyle: 'italic' }}>Commencez la discussion…</Text>
-        </View>
-      }
-    />
-  );
-}
-
-// Layout Horizontal complet
+// Layout Horizontal complet — présence et interactions uniquement
 function HorizontalLayout({
   salon,
   participants,
   messages,
-  myName,
   coins,
-  messageInput,
-  setMessageInput,
-  sendMessage,
   openOffrandes,
   giftFlights,
   giftPositions,
@@ -969,18 +882,25 @@ function HorizontalLayout({
   defaultRecipient,
   handleSendOffering,
   insets,
+  myName,
 }: LayoutProps) {
   const gradient = salon.gradient as [string, string];
   const isMetal = salon.type === 'metal';
 
+  // Seulement les événements d'offrandes/magie — pas de texte
+  const interactions = useMemo(
+    () => messages.filter(m => m.isSystem).slice(-20).reverse(),
+    [messages]
+  );
+
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#FFF' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {/* Header gradient */}
+    <View style={{ flex: 1, backgroundColor: '#111' }}>
+      {/* Header */}
       <LinearGradient
         colors={gradient}
         style={{
           paddingTop: insets.top + 6,
-          paddingBottom: 10,
+          paddingBottom: 14,
           paddingHorizontal: 16,
           flexDirection: 'row',
           alignItems: 'center',
@@ -1001,31 +921,109 @@ function HorizontalLayout({
         </View>
       </LinearGradient>
 
-      {/* Zone de présence : avatars groupés avec offrandes visibles */}
-      <HorizontalParticipantRow
-        participants={participants}
-        onPress={p => openOffrandes(p)}
-        gradient={gradient}
-      />
+      {/* Zone de présence — les avatars sont la structure principale */}
+      <LinearGradient
+        colors={[gradient[0], gradient[1], 'rgba(0,0,0,0.85)']}
+        locations={[0, 0.55, 1]}
+        style={{ paddingBottom: 6 }}
+      >
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 8 }}
+          bounces={false}
+        >
+          {participants.map(p => (
+            <HorizontalParticipantCard
+              key={p.id}
+              participant={p}
+              isMe={p.isMe}
+              onPress={!p.isMe ? () => openOffrandes(p) : undefined}
+              accentBg={gradient[0]}
+            />
+          ))}
+        </ScrollView>
+      </LinearGradient>
 
-      {/* Discussion — zone secondaire */}
+      {/* Log des interactions — zone lisible, légère */}
       <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
-        <HorizontalChatFeed
-          messages={messages}
-          myName={myName}
-          participants={participants}
-        />
+        <View style={{ paddingHorizontal: 20, paddingVertical: 12 }}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#BBB', letterSpacing: 0.8 }}>
+            INTERACTIONS RÉCENTES
+          </Text>
+        </View>
+
+        {interactions.length === 0 ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 40 }}>
+            <Text style={{ fontSize: 36, marginBottom: 12 }}>🎁</Text>
+            <Text style={{ fontSize: 15, color: '#CCC', fontStyle: 'italic', textAlign: 'center' }}>
+              Offrez quelque chose pour commencer…
+            </Text>
+            <Text style={{ fontSize: 12, color: '#DDD', marginTop: 8, textAlign: 'center' }}>
+              Appuyez sur un avatar pour envoyer une offrande
+            </Text>
+          </View>
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {interactions.map(m => (
+              <InteractionLogItem key={m.id} message={m} />
+            ))}
+            <View style={{ height: 24 }} />
+          </ScrollView>
+        )}
       </View>
 
-      <InputBar
-        value={messageInput}
-        onChange={setMessageInput}
-        onSend={sendMessage}
-        onOffrandes={() => openOffrandes()}
-        onMagie={() => openOffrandes()}
-        paddingBottom={insets.bottom}
-        accentColor={gradient[1]}
-      />
+      {/* Boutons d'action — en bas, sans InputBar texte */}
+      <View
+        style={{
+          backgroundColor: '#FFF',
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: '#E8E8E8',
+          paddingTop: 12,
+          paddingBottom: Math.max(insets.bottom, 14),
+          paddingHorizontal: 20,
+          flexDirection: 'row',
+          gap: 12,
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => openOffrandes()}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            backgroundColor: '#FFF3E0',
+            paddingVertical: 14,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: '#FFD54F',
+          }}
+        >
+          <Text style={{ fontSize: 20 }}>🎁</Text>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: '#E65100' }}>Offrir</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => openOffrandes()}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            backgroundColor: '#F3E5F5',
+            paddingVertical: 14,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: '#CE93D8',
+          }}
+        >
+          <Text style={{ fontSize: 20 }}>✨</Text>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: '#6A1B9A' }}>Magie</Text>
+        </TouchableOpacity>
+      </View>
 
       <GiftFlightOverlay flights={giftFlights} positions={giftPositions} />
 
@@ -1039,7 +1037,7 @@ function HorizontalLayout({
         onSend={handleSendOffering}
         defaultRecipient={defaultRecipient}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
