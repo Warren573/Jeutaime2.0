@@ -14,6 +14,7 @@ import {
   ScrollView,
   Animated,
   Image,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,7 +34,12 @@ const AVATAR_IMAGES: Record<string, string> = {
   'sophie': 'https://api.dicebear.com/7.x/adventurer/png?seed=Sophie&backgroundColor=ffe8b8',
   'lucas': 'https://api.dicebear.com/7.x/adventurer/png?seed=Lucas&backgroundColor=b8d4ff',
   'emma': 'https://api.dicebear.com/7.x/adventurer/png?seed=Emma&backgroundColor=ffb8d4',
+  'julie': 'https://api.dicebear.com/7.x/adventurer/png?seed=Julie&backgroundColor=ffc8e8',
+  'thomas': 'https://api.dicebear.com/7.x/adventurer/png?seed=Thomas&backgroundColor=c8ffc8',
+  'clara': 'https://api.dicebear.com/7.x/adventurer/png?seed=Clara&backgroundColor=fff0b8',
   'default': 'https://api.dicebear.com/7.x/adventurer/png?seed=Default&backgroundColor=e8e8e8',
+  'vous': 'https://api.dicebear.com/7.x/adventurer/png?seed=Me&backgroundColor=667eea',
+  'moi': 'https://api.dicebear.com/7.x/adventurer/png?seed=Me&backgroundColor=667eea',
 };
 
 // ============================================
@@ -45,9 +51,17 @@ interface AvatarProps {
   showBadges?: boolean;
   onPress?: () => void;
   isSelected?: boolean;
+  showName?: boolean;
 }
 
-const AnimatedAvatar: React.FC<AvatarProps> = ({ participant, size, showBadges, onPress, isSelected }) => {
+const AnimatedAvatar: React.FC<AvatarProps> = ({ 
+  participant, 
+  size, 
+  showBadges = true, 
+  onPress, 
+  isSelected,
+  showName = true 
+}) => {
   const breathAnim = useRef(new Animated.Value(1)).current;
   
   useEffect(() => {
@@ -71,28 +85,44 @@ const AnimatedAvatar: React.FC<AvatarProps> = ({ participant, size, showBadges, 
 
   const avatarKey = participant.name.toLowerCase().replace(/[^a-z]/g, '');
   const imageUrl = AVATAR_IMAGES[avatarKey] || AVATAR_IMAGES['default'];
-  const initial = participant.name.charAt(0).toUpperCase();
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.avatarWrapper}>
       <Animated.View style={[
         styles.avatarContainer,
-        { width: size, height: size, transform: [{ scale: breathAnim }] },
+        { 
+          width: size, 
+          height: size, 
+          borderRadius: size / 2,
+          transform: [{ scale: breathAnim }] 
+        },
         isSelected && styles.avatarSelected,
       ]}>
         <Image
           source={{ uri: `${imageUrl}&size=${size * 2}` }}
-          style={[styles.avatarImage, { width: size - 8, height: size - 8, borderRadius: (size - 8) / 2 }]}
-          defaultSource={{ uri: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' }}
+          style={[
+            styles.avatarImage, 
+            { 
+              width: size - 8, 
+              height: size - 8, 
+              borderRadius: (size - 8) / 2 
+            }
+          ]}
         />
-        {participant.online && <View style={styles.onlineDot} />}
+        {participant.online && (
+          <View style={[styles.onlineDot, { width: size * 0.2, height: size * 0.2, borderRadius: size * 0.1 }]} />
+        )}
         {participant.isMe && (
           <View style={styles.meBadge}>
             <Text style={styles.meBadgeText}>Moi</Text>
           </View>
         )}
       </Animated.View>
-      <Text style={styles.avatarName} numberOfLines={1}>{participant.name}</Text>
+      {showName && (
+        <Text style={[styles.avatarName, { maxWidth: size + 20 }]} numberOfLines={1}>
+          {participant.name}
+        </Text>
+      )}
       {showBadges && participant.offerings && participant.offerings.length > 0 && (
         <View style={styles.badgesRow}>
           {participant.offerings.slice(-3).map((o, idx) => (
@@ -112,12 +142,17 @@ export default function SalonScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
+  
+  // Détection de l'orientation - plus fiable
   const isLandscape = width > height;
+  
+  // Debug orientation
+  console.log(`📱 Orientation: ${isLandscape ? 'PAYSAGE' : 'PORTRAIT'} (${width}x${height})`);
 
   const flatListRef = useRef<FlatList>(null);
-  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages, addCoins } = useStore();
+  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages } = useStore();
 
-  // Récupérer le salon - gestion de "cafe-paris" vs "cafe_paris"
+  // Récupérer le salon
   const rawSalonId = params.id as string;
   const salonId = rawSalonId === 'cafe-paris' ? 'cafe_paris' : (rawSalonId || 'cafe_paris');
   const salon = salonsData.find(s => s.id === salonId);
@@ -137,21 +172,24 @@ export default function SalonScreen() {
   }>>([]);
 
   // Participants
-  const [participants, setParticipants] = useState<(SalonParticipant & { isMe?: boolean })[]>(() => {
-    if (!salon) return [];
-    return [
-      ...salon.participants,
-      {
-        id: 'me',
-        name: currentUser?.name || 'Vous',
-        gender: currentUser?.gender || 'M',
-        age: currentUser?.age || 25,
-        online: true,
-        offerings: [],
-        isMe: true,
-      } as SalonParticipant & { isMe: boolean },
-    ];
-  });
+  const [participants, setParticipants] = useState<(SalonParticipant & { isMe?: boolean })[]>([]);
+
+  useEffect(() => {
+    if (salon) {
+      setParticipants([
+        ...salon.participants,
+        {
+          id: 'me',
+          name: currentUser?.name || 'Vous',
+          gender: currentUser?.gender || 'M',
+          age: currentUser?.age || 25,
+          online: true,
+          offerings: [],
+          isMe: true,
+        } as SalonParticipant & { isMe: boolean },
+      ]);
+    }
+  }, [salon, currentUser]);
 
   const messages = messagesBySalon[salonId] || [];
 
@@ -192,7 +230,6 @@ export default function SalonScreen() {
       return;
     }
 
-    // Ajouter l'offrande au joueur
     setParticipants(prev => prev.map(p => {
       if (p.id === selectedPlayer.id) {
         return {
@@ -203,7 +240,6 @@ export default function SalonScreen() {
       return p;
     }));
 
-    // Ajouter à l'historique des interactions
     setRecentInteractions(prev => [{
       id: Date.now().toString(),
       from: currentUser?.name || 'Vous',
@@ -213,15 +249,14 @@ export default function SalonScreen() {
       timestamp: Date.now(),
     }, ...prev].slice(0, 10));
 
-    // Message système
     const sysMsg: Message = {
       id: Date.now().toString(),
       salonId: salonId,
       userId: 'system',
       userName: 'Système',
       username: 'Système',
-      content: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} ${item.name} à ${selectedPlayer.name}!`,
-      text: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} ${item.name} à ${selectedPlayer.name}!`,
+      content: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} à ${selectedPlayer.name}!`,
+      text: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} à ${selectedPlayer.name}!`,
       timestamp: Date.now(),
       type: 'offering',
       isSystem: true,
@@ -233,7 +268,7 @@ export default function SalonScreen() {
     setSelectedPlayer(null);
   };
 
-  // Envoyer un pouvoir magique
+  // Envoyer un pouvoir
   const handleSendPower = (item: any) => {
     if (!selectedPlayer) return;
     if (!removeCoins(item.cost)) {
@@ -280,6 +315,10 @@ export default function SalonScreen() {
     );
   }
 
+  // Calcul de la taille des avatars en fonction de l'écran
+  const avatarSizePortrait = Math.min((width - 40) / participants.length, 70);
+  const avatarSizeLandscape = Math.min(100, (height - 150) / 2.5);
+
   // ============================================
   // RENDU MODE PORTRAIT (DISCUSSION)
   // ============================================
@@ -293,37 +332,44 @@ export default function SalonScreen() {
         colors={salon.gradient || ['#667eea', '#764ba2']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={[styles.header, { paddingTop: insets.top + 10 }]}
+        style={[styles.header, { paddingTop: insets.top + 8 }]}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerEmoji}>{salon.emoji}</Text>
-          <Text style={styles.headerTitle}>{salon.name}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{salon.name}</Text>
         </View>
         <View style={styles.coinsDisplay}>
           <Text style={styles.coinsText}>💰 {coins}</Text>
         </View>
       </LinearGradient>
 
-      {/* Barre des participants */}
+      {/* Barre des participants - GRANDE sur toute la largeur */}
       <View style={styles.participantStrip}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={styles.participantsRow}>
           {participants.map((p) => (
             <TouchableOpacity
               key={p.id}
-              style={styles.participantItem}
-              onPress={() => {
-                if (!p.isMe) {
-                  setSelectedPlayer(p);
-                }
-              }}
+              style={[
+                styles.participantItem,
+                selectedPlayer?.id === p.id && styles.participantSelected
+              ]}
+              onPress={() => !p.isMe && setSelectedPlayer(selectedPlayer?.id === p.id ? null : p)}
             >
-              <AnimatedAvatar participant={p} size={44} />
+              <AnimatedAvatar 
+                participant={p} 
+                size={avatarSizePortrait} 
+                isSelected={selectedPlayer?.id === p.id}
+                showBadges={true}
+              />
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
+        {selectedPlayer && (
+          <Text style={styles.selectedHint}>✓ {selectedPlayer.name} sélectionné(e)</Text>
+        )}
       </View>
 
       {/* Zone de messages */}
@@ -366,28 +412,16 @@ export default function SalonScreen() {
       />
 
       {/* Barre d'input */}
-      <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+      <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => {
-            if (selectedPlayer) {
-              setShowOfferingsModal(true);
-            } else {
-              alert('Sélectionnez d\'abord un participant!');
-            }
-          }}
+          style={[styles.actionButton, !selectedPlayer && styles.actionButtonDisabled]}
+          onPress={() => selectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')}
         >
           <Text style={styles.actionEmoji}>🎁</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => {
-            if (selectedPlayer) {
-              setShowPowersModal(true);
-            } else {
-              alert('Sélectionnez d\'abord un participant!');
-            }
-          }}
+          style={[styles.actionButton, !selectedPlayer && styles.actionButtonDisabled]}
+          onPress={() => selectedPlayer ? setShowPowersModal(true) : alert('Sélectionnez d\'abord un participant!')}
         >
           <Text style={styles.actionEmoji}>✨</Text>
         </TouchableOpacity>
@@ -411,7 +445,7 @@ export default function SalonScreen() {
   // RENDU MODE PAYSAGE (INTERACTIONS)
   // ============================================
   const renderLandscapeMode = () => (
-    <View style={[styles.landscapeContainer, { paddingTop: insets.top }]}>
+    <View style={[styles.landscapeContainer, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
       {/* Header compact */}
       <LinearGradient
         colors={salon.gradient || ['#667eea', '#764ba2']}
@@ -427,16 +461,16 @@ export default function SalonScreen() {
       </LinearGradient>
 
       <View style={styles.landscapeContent}>
-        {/* Zone des avatars (gauche) */}
+        {/* Zone des avatars (gauche) - GRANDE */}
         <View style={styles.avatarsZone}>
           <View style={styles.avatarsGrid}>
-            {participants.map((p, index) => (
+            {participants.map((p) => (
               <View key={p.id} style={styles.avatarGridItem}>
                 <AnimatedAvatar
                   participant={p}
-                  size={70}
+                  size={avatarSizeLandscape}
                   showBadges={true}
-                  onPress={() => !p.isMe && setSelectedPlayer(p)}
+                  onPress={() => !p.isMe && setSelectedPlayer(selectedPlayer?.id === p.id ? null : p)}
                   isSelected={selectedPlayer?.id === p.id}
                 />
               </View>
@@ -446,57 +480,48 @@ export default function SalonScreen() {
 
         {/* Zone des interactions (droite) */}
         <View style={styles.interactionsZone}>
-          <Text style={styles.interactionsTitle}>INTERACTIONS RÉCENTES</Text>
-          <ScrollView style={styles.interactionsList}>
+          <Text style={styles.interactionsTitle}>📜 INTERACTIONS RÉCENTES</Text>
+          
+          <ScrollView style={styles.interactionsList} showsVerticalScrollIndicator={false}>
             {recentInteractions.length === 0 ? (
-              <Text style={styles.noInteractions}>Aucune interaction récente</Text>
+              <Text style={styles.noInteractions}>Aucune interaction récente{'\n'}Sélectionnez un participant et offrez-lui quelque chose!</Text>
             ) : (
               recentInteractions.map((interaction) => (
                 <View key={interaction.id} style={styles.interactionItem}>
                   <Text style={styles.interactionEmoji}>{interaction.emoji}</Text>
                   <Text style={styles.interactionText}>
-                    {interaction.from} → {interaction.to}
+                    <Text style={styles.interactionFrom}>{interaction.from}</Text>
+                    {' → '}
+                    <Text style={styles.interactionTo}>{interaction.to}</Text>
                   </Text>
                 </View>
               ))
             )}
           </ScrollView>
 
+          {selectedPlayer && (
+            <View style={styles.selectedBanner}>
+              <Text style={styles.selectedBannerText}>🎯 {selectedPlayer.name}</Text>
+            </View>
+          )}
+
           {/* Boutons d'action */}
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
-              style={[styles.bigActionButton, styles.giftButton]}
-              onPress={() => {
-                if (selectedPlayer) {
-                  setShowOfferingsModal(true);
-                } else {
-                  alert('Sélectionnez d\'abord un participant!');
-                }
-              }}
+              style={[styles.bigActionButton, styles.giftButton, !selectedPlayer && styles.bigActionButtonDisabled]}
+              onPress={() => selectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')}
             >
               <Text style={styles.bigActionEmoji}>🎁</Text>
               <Text style={styles.bigActionText}>Offrir</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.bigActionButton, styles.magicButton]}
-              onPress={() => {
-                if (selectedPlayer) {
-                  setShowPowersModal(true);
-                } else {
-                  alert('Sélectionnez d\'abord un participant!');
-                }
-              }}
+              style={[styles.bigActionButton, styles.magicButton, !selectedPlayer && styles.bigActionButtonDisabled]}
+              onPress={() => selectedPlayer ? setShowPowersModal(true) : alert('Sélectionnez d\'abord un participant!')}
             >
               <Text style={styles.bigActionEmoji}>✨</Text>
               <Text style={styles.bigActionText}>Magie</Text>
             </TouchableOpacity>
           </View>
-
-          {selectedPlayer && (
-            <View style={styles.selectedInfo}>
-              <Text style={styles.selectedText}>Sélectionné: {selectedPlayer.name}</Text>
-            </View>
-          )}
         </View>
       </View>
     </View>
@@ -508,14 +533,14 @@ export default function SalonScreen() {
   const renderOfferingsModal = () => (
     <Modal visible={showOfferingsModal} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>🎁 Offrir à {selectedPlayer?.name}</Text>
             <TouchableOpacity onPress={() => setShowOfferingsModal(false)}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.offeringsGrid}>
+          <ScrollView style={styles.offeringsGrid} contentContainerStyle={styles.offeringsGridContent}>
             {allOfferings.map((item) => (
               <TouchableOpacity
                 key={item.id}
@@ -523,8 +548,10 @@ export default function SalonScreen() {
                 onPress={() => handleSendOffering(item)}
               >
                 <Text style={styles.offeringEmoji}>{item.emoji}</Text>
-                <Text style={styles.offeringName}>{item.name}</Text>
-                <Text style={styles.offeringCost}>💰 {item.cost}</Text>
+                <View style={styles.offeringInfo}>
+                  <Text style={styles.offeringName}>{item.name}</Text>
+                  <Text style={styles.offeringCost}>💰 {item.cost}</Text>
+                </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -536,14 +563,14 @@ export default function SalonScreen() {
   const renderPowersModal = () => (
     <Modal visible={showPowersModal} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>✨ Magie sur {selectedPlayer?.name}</Text>
             <TouchableOpacity onPress={() => setShowPowersModal(false)}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.offeringsGrid}>
+          <ScrollView style={styles.offeringsGrid} contentContainerStyle={styles.offeringsGridContent}>
             {allPowers.map((item) => (
               <TouchableOpacity
                 key={item.id}
@@ -551,8 +578,10 @@ export default function SalonScreen() {
                 onPress={() => handleSendPower(item)}
               >
                 <Text style={styles.offeringEmoji}>{item.emoji}</Text>
-                <Text style={styles.offeringName}>{item.name}</Text>
-                <Text style={styles.offeringCost}>💰 {item.cost}</Text>
+                <View style={styles.offeringInfo}>
+                  <Text style={styles.offeringName}>{item.name}</Text>
+                  <Text style={styles.offeringCost}>💰 {item.cost}</Text>
+                </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -562,11 +591,11 @@ export default function SalonScreen() {
   );
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
-    </>
+    </View>
   );
 }
 
@@ -613,13 +642,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerEmoji: {
-    fontSize: 24,
+    fontSize: 22,
     marginRight: 8,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: '#FFF',
+    maxWidth: 150,
   },
   coinsDisplay: {
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -633,35 +663,56 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
 
-  // Participant Strip
+  // Participant Strip - GRAND
   participantStrip: {
     backgroundColor: '#FFF',
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E8D5B7',
   },
+  participantsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'flex-start',
+    paddingHorizontal: 10,
+  },
   participantItem: {
     alignItems: 'center',
-    marginHorizontal: 8,
+    padding: 4,
+    borderRadius: 12,
+  },
+  participantSelected: {
+    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+  },
+  selectedHint: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#667eea',
+    fontWeight: '600',
+    marginTop: 8,
   },
 
   // Avatar
+  avatarWrapper: {
+    alignItems: 'center',
+  },
   avatarContainer: {
     backgroundColor: '#F0F0F0',
-    borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: '#FFF',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 4,
   },
   avatarSelected: {
     borderColor: '#FFD700',
     borderWidth: 4,
+    shadowColor: '#FFD700',
+    shadowOpacity: 0.4,
   },
   avatarImage: {
     backgroundColor: '#E8E8E8',
@@ -670,41 +721,37 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
     backgroundColor: '#4CAF50',
     borderWidth: 2,
     borderColor: '#FFF',
   },
   meBadge: {
     position: 'absolute',
-    bottom: -4,
+    bottom: -6,
     backgroundColor: '#667eea',
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   meBadgeText: {
-    fontSize: 9,
+    fontSize: 10,
     color: '#FFF',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   avatarName: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#5D4037',
-    fontWeight: '500',
+    fontWeight: '600',
     textAlign: 'center',
-    marginTop: 4,
-    maxWidth: 60,
+    marginTop: 6,
   },
   badgesRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: 4,
   },
   badgeEmoji: {
-    fontSize: 12,
+    fontSize: 14,
     marginHorizontal: 1,
   },
 
@@ -767,6 +814,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#667eea',
     fontStyle: 'italic',
+    textAlign: 'center',
   },
   emptyMessages: {
     alignItems: 'center',
@@ -792,42 +840,47 @@ const styles = StyleSheet.create({
     borderTopColor: '#E8D5B7',
   },
   actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#F5F0E6',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
   },
+  actionButtonDisabled: {
+    opacity: 0.5,
+  },
   actionEmoji: {
-    fontSize: 20,
+    fontSize: 22,
   },
   textInput: {
     flex: 1,
-    height: 40,
+    height: 44,
     backgroundColor: '#F5F0E6',
-    borderRadius: 20,
+    borderRadius: 22,
     paddingHorizontal: 16,
     fontSize: 15,
     color: '#3A2818',
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#667eea',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
   },
   sendText: {
-    fontSize: 20,
+    fontSize: 22,
     color: '#FFF',
     fontWeight: '600',
   },
 
-  // Landscape Mode
+  // ============================================
+  // LANDSCAPE MODE
+  // ============================================
   landscapeContainer: {
     flex: 1,
     backgroundColor: '#FFF8E7',
@@ -837,10 +890,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   landscapeTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#FFF',
   },
@@ -848,75 +901,107 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
   },
+  
+  // Zone avatars (gauche) - GRANDE
   avatarsZone: {
-    flex: 1.2,
+    flex: 1.5,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFF8E7',
   },
   avatarsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     alignItems: 'center',
-    maxWidth: 320,
   },
   avatarGridItem: {
-    margin: 12,
+    margin: 10,
     alignItems: 'center',
   },
+
+  // Zone interactions (droite)
   interactionsZone: {
     flex: 1,
     backgroundColor: '#FFF',
-    borderLeftWidth: 1,
+    borderLeftWidth: 2,
     borderLeftColor: '#E8D5B7',
-    padding: 16,
+    padding: 12,
   },
   interactionsTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#8B6F47',
-    marginBottom: 12,
-    letterSpacing: 1,
+    marginBottom: 10,
+    letterSpacing: 0.5,
   },
   interactionsList: {
     flex: 1,
   },
   noInteractions: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#999',
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 20,
+    lineHeight: 18,
   },
   interactionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F5F0E6',
   },
   interactionEmoji: {
-    fontSize: 20,
+    fontSize: 18,
     marginRight: 10,
   },
   interactionText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#5D4037',
+    flex: 1,
   },
+  interactionFrom: {
+    fontWeight: '700',
+    color: '#667eea',
+  },
+  interactionTo: {
+    fontWeight: '700',
+    color: '#E91E63',
+  },
+  
+  selectedBanner: {
+    backgroundColor: '#667eea',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginVertical: 8,
+    alignItems: 'center',
+  },
+  selectedBannerText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
   actionButtonsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E8D5B7',
+    justifyContent: 'space-between',
+    paddingTop: 10,
   },
   bigActionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: 12,
+    marginHorizontal: 4,
+  },
+  bigActionButtonDisabled: {
+    opacity: 0.5,
   },
   giftButton: {
     backgroundColor: '#FF6B6B',
@@ -925,25 +1010,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#9C27B0',
   },
   bigActionEmoji: {
-    fontSize: 20,
-    marginRight: 8,
+    fontSize: 18,
+    marginRight: 6,
   },
   bigActionText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#FFF',
   },
-  selectedInfo: {
-    marginTop: 12,
-    alignItems: 'center',
-  },
-  selectedText: {
-    fontSize: 13,
-    color: '#667eea',
-    fontWeight: '500',
-  },
 
-  // Modals
+  // ============================================
+  // MODALS
+  // ============================================
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -953,7 +1031,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '70%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -971,30 +1048,40 @@ const styles = StyleSheet.create({
   modalClose: {
     fontSize: 24,
     color: '#999',
+    padding: 4,
   },
   offeringsGrid: {
-    padding: 16,
+    padding: 12,
+  },
+  offeringsGridContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   offeringItem: {
+    width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F5F0E6',
     padding: 12,
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   offeringEmoji: {
     fontSize: 28,
-    marginRight: 12,
+    marginRight: 10,
+  },
+  offeringInfo: {
+    flex: 1,
   },
   offeringName: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
     color: '#3A2818',
+    marginBottom: 2,
   },
   offeringCost: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#DAA520',
   },
