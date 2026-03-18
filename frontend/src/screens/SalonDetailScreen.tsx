@@ -596,6 +596,7 @@ function VerticalChatFeed({
       ref={listRef}
       data={groups}
       keyExtractor={(_, i) => String(i)}
+      style={{ flex: 1 }}
       renderItem={({ item }) => {
         if (item.kind === 'system') {
           return <VerticalSystemPill message={item.message} />;
