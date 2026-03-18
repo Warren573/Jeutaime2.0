@@ -1,5 +1,7 @@
-// Le Café de Paris utilise maintenant le nouveau SalonScreen avec mode portrait/paysage
+// Le Café de Paris - redirige vers le nouveau SalonScreen avec l'ID correct
 import React from 'react';
-import SalonScreen from '../../src/screens/SalonScreen';
+import { Redirect } from 'expo-router';
 
-export default SalonScreen;
+export default function CafeParisRoute() {
+  return <Redirect href="/salon/cafe_paris" />;
+}
