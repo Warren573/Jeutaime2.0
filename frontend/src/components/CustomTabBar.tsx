@@ -73,9 +73,10 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         {/* Fond de la capsule (positionné en bas du floatingBar) */}
         <View style={styles.barCapsule} />
 
-        {/* Rangée des onglets */}
+        {/* Rangée des onglets — seules les routes déclarées dans ROUTE_META sont affichées */}
         <View style={styles.tabsRow}>
           {state.routes.map((route, index) => {
+            if (!(route.name in ROUTE_META)) return null;
             const focused = state.index === index;
             const meta = ROUTE_META[route.name] ?? { icon: '●', label: route.name };
 
