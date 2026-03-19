@@ -43,13 +43,13 @@ function clamp(value: number, min: number, max: number) {
 type Direction = 'up' | 'down' | 'left' | 'right';
 
 function getBestDirection(anchorX: number, anchorY: number): Direction {
-  const bottomSpace = SCREEN_HEIGHT - anchorY;
   const topSpace = anchorY;
+  const bottomSpace = SCREEN_HEIGHT - anchorY;
   const rightSpace = SCREEN_WIDTH - anchorX;
   const leftSpace = anchorX;
 
-  if (bottomSpace > 200) return 'down';
   if (topSpace > 200) return 'up';
+  if (bottomSpace > 200) return 'down';
   if (rightSpace > leftSpace) return 'right';
   return 'left';
 }
