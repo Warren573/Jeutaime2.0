@@ -182,12 +182,20 @@ export default function SalonScreen() {
   const closeMenu = () =>
     setMenuState({ visible: false, anchor: null, user: null });
 
-  // Actions disponibles dans le menu radial
+  // Actions disponibles dans le menu radial (ordre = position fixe)
+  // index 0 → gauche (Profil), index 1 → haut (Magie), index 2 → droite (Offrir)
   const SALON_ACTIONS: RadialAction[] = [
-    { id: 'gift',    icon: '🎁', label: 'Offrir'  },
-    { id: 'magic',   icon: '✨', label: 'Magie'   },
     { id: 'profile', icon: '👀', label: 'Profil'  },
+    { id: 'magic',   icon: '✨', label: 'Magie'   },
+    { id: 'gift',    icon: '🎁', label: 'Offrir'  },
   ];
+
+  // URL de l'avatar sélectionné pour l'afficher au centre du menu
+  const selectedAvatarUrl = React.useMemo(() => {
+    if (!menuState.user) return undefined;
+    const key = menuState.user.name.toLowerCase().replace(/[^a-z]/g, '');
+    return (AVATAR_IMAGES[key] ?? AVATAR_IMAGES['default']) + '&size=132';
+  }, [menuState.user]);
 
   const handleRadialAction = (action: RadialAction) => {
     const user = menuState.user;
@@ -410,7 +418,7 @@ export default function SalonScreen() {
                 size={AVATAR_STRIP_SIZE}
                 isSelected={menuState.user?.id === p.id}
                 showBadges={false}
-                onMeasuredPress={!p.isMe ? openRadialMenu : undefined}
+                onMeasuredPress={undefined}
               />
             </View>
           ))}
@@ -496,7 +504,7 @@ export default function SalonScreen() {
       <View style={styles.landscapeContent}>
         {/* Zone des avatars (gauche) - GRANDE */}
         <View style={styles.avatarsZone}>
-          <Text style={styles.tapHintLandscape}>Appuie sur un avatar 👇</Text>
+          <Text style={styles.tapHintLandscape}>Appuie sur un avatar 👆</Text>
           {/* Grille 2×2 en paysage */}
           <View style={styles.avatarsGrid}>
             {participantRows.map((row, ri) => (
@@ -611,11 +619,12 @@ export default function SalonScreen() {
       {renderOfferingsModal()}
       {renderPowersModal()}
       <AvatarRadialMenu
-        visible={menuState.visible}
+        visible={menuState.visible && isLandscape}
         anchor={menuState.anchor}
         actions={SALON_ACTIONS}
         onClose={closeMenu}
         onActionPress={handleRadialAction}
+        avatarUrl={selectedAvatarUrl}
       />
     </View>
   );
@@ -693,10 +702,11 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E8D5B7',
   },
   participantsRow: {
+    flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    gap: 16,
+    justifyContent: 'space-evenly',
+    paddingHorizontal: 8,
   },
   participantItem: {
     alignItems: 'center',

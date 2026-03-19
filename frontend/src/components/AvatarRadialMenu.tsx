@@ -1,12 +1,16 @@
 /**
  * AvatarRadialMenu
- * Menu radial animé qui s'ouvre autour d'un avatar.
- * S'adapte automatiquement selon la position sur l'écran (haut/bas/gauche/droite).
+ * Menu radial avec l'avatar sélectionné au centre et 3 actions fixes :
+ *   - index 0 → gauche  (180°)
+ *   - index 1 → haut    (270°)
+ *   - index 2 → droite  (  0°)
+ * Uniquement utilisé en mode paysage.
  */
 import React, { useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
+  Image,
   Pressable,
   StyleSheet,
   Dimensions,
@@ -17,8 +21,11 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const MENU_RADIUS = 82;
 const ACTION_SIZE = 54;
-const CENTER_SIZE = 62;
+const CENTER_SIZE = 66;
 const SAFE_MARGIN = 18;
+
+// Angles fixes : Profil gauche / Magie haut / Offrir droite
+const FIXED_ANGLES = [180, 270, 0];
 
 export interface RadialAction {
   id: string;
@@ -32,40 +39,14 @@ interface Props {
   actions: RadialAction[];
   onClose: () => void;
   onActionPress: (action: RadialAction) => void;
+  /** URL de l'avatar à afficher au centre du menu */
+  avatarUrl?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
-}
-
-type Direction = 'up' | 'down' | 'left' | 'right';
-
-function getBestDirection(anchorX: number, anchorY: number): Direction {
-  const topSpace = anchorY;
-  const bottomSpace = SCREEN_HEIGHT - anchorY;
-  const rightSpace = SCREEN_WIDTH - anchorX;
-  const leftSpace = anchorX;
-
-  if (topSpace > 200) return 'up';
-  if (bottomSpace > 200) return 'down';
-  if (rightSpace > leftSpace) return 'right';
-  return 'left';
-}
-
-function spreadAngles(startDeg: number, endDeg: number, count: number): number[] {
-  if (count === 1) return [(startDeg + endDeg) / 2];
-  const step = (endDeg - startDeg) / (count - 1);
-  return Array.from({ length: count }, (_, i) => startDeg + i * step);
-}
-
-function getAngles(direction: Direction, count: number): number[] {
-  // Arc de 160° centré selon la direction
-  if (direction === 'up')    return spreadAngles(200, 340, count);
-  if (direction === 'down')  return spreadAngles(20,  160, count);
-  if (direction === 'left')  return spreadAngles(110, 250, count);
-  return                            spreadAngles(-70,  70,  count); // right
 }
 
 // ─── Composant ───────────────────────────────────────────────────────────────
@@ -76,6 +57,7 @@ export default function AvatarRadialMenu({
   actions,
   onClose,
   onActionPress,
+  avatarUrl,
 }: Props) {
   const progress = useRef(new Animated.Value(0)).current;
 
@@ -88,46 +70,51 @@ export default function AvatarRadialMenu({
     }).start();
   }, [visible]);
 
-  // Clampe l'ancre pour éviter les débordements
+  // Ancre clampée pour que le menu reste dans l'écran
   const center = useMemo(() => {
     if (!anchor) return null;
     return {
-      x: clamp(anchor.x, SAFE_MARGIN + MENU_RADIUS, SCREEN_WIDTH  - SAFE_MARGIN - MENU_RADIUS),
-      y: clamp(anchor.y, SAFE_MARGIN + MENU_RADIUS, SCREEN_HEIGHT - SAFE_MARGIN - MENU_RADIUS),
+      x: clamp(anchor.x, SAFE_MARGIN + MENU_RADIUS, SCREEN_WIDTH - SAFE_MARGIN - MENU_RADIUS),
+      // Laisser assez de place en haut pour le bouton Magie + label
+      y: clamp(
+        anchor.y,
+        SAFE_MARGIN + MENU_RADIUS + ACTION_SIZE,
+        SCREEN_HEIGHT - SAFE_MARGIN - MENU_RADIUS,
+      ),
     };
   }, [anchor]);
 
   if (!visible || !center) return null;
 
-  const direction = getBestDirection(center.x, center.y);
-  const angles    = getAngles(direction, actions.length);
+  const centerScale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {/* Backdrop semi-transparent */}
+      {/* Fond semi-transparent — ferme le menu */}
       <Pressable style={styles.backdrop} onPress={onClose} />
 
-      {/* Racine du menu — positionnée sur le centre de l'avatar */}
+      {/* Racine positionnée sur le centre de l'avatar */}
       <View
         pointerEvents="box-none"
         style={[
           styles.menuRoot,
           {
             left: center.x - CENTER_SIZE / 2,
-            top:  center.y - CENTER_SIZE / 2,
+            top: center.y - CENTER_SIZE / 2,
           },
         ]}
       >
-        {/* Boutons d'action — se déployent en arc */}
+        {/* Boutons d'action — positions fixes */}
         {actions.map((action, index) => {
-          const rad = angles[index] * (Math.PI / 180);
+          const angleDeg = FIXED_ANGLES[index] ?? index * 120;
+          const rad = angleDeg * (Math.PI / 180);
           const dx = Math.cos(rad) * MENU_RADIUS;
           const dy = Math.sin(rad) * MENU_RADIUS;
 
           const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [0, dx] });
           const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [0, dy] });
-          const scale      = progress.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] });
-          const opacity    = progress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 1] });
+          const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] });
+          const opacity = progress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 1] });
 
           return (
             <Animated.View
@@ -150,23 +137,16 @@ export default function AvatarRadialMenu({
           );
         })}
 
-        {/* Bouton central — ferme le menu, tourne à l'ouverture */}
+        {/* Centre — avatar sélectionné avec anneau doré */}
         <Animated.View
-          style={[
-            styles.centerWrap,
-            {
-              transform: [{
-                rotate: progress.interpolate({
-                  inputRange:  [0, 1],
-                  outputRange: ['0deg', '135deg'],
-                }),
-              }],
-            },
-          ]}
+          pointerEvents="none"
+          style={[styles.centerWrap, { transform: [{ scale: centerScale }] }]}
         >
-          <Pressable style={styles.centerButton} onPress={onClose}>
-            <Text style={styles.centerText}>✕</Text>
-          </Pressable>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.centerAvatar} />
+          ) : (
+            <View style={styles.centerFallback} />
+          )}
         </Animated.View>
       </View>
     </View>
@@ -189,33 +169,32 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
 
-  // Bouton central (fermer)
+  // Avatar au centre avec halo doré
   centerWrap: {
     position: 'absolute',
     width: CENTER_SIZE,
     height: CENTER_SIZE,
+    borderRadius: CENTER_SIZE / 2,
+    borderWidth: 3,
+    borderColor: '#FFD700',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFF',
+    shadowColor: '#FFD700',
+    shadowOpacity: 0.7,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 12,
+    overflow: 'hidden',
   },
-  centerButton: {
+  centerAvatar: {
     width: CENTER_SIZE,
     height: CENTER_SIZE,
-    borderRadius: CENTER_SIZE / 2,
-    backgroundColor: '#F5F0FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.7)',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 10,
   },
-  centerText: {
-    fontSize: 26,
-    color: '#3A285A',
-    fontWeight: '700',
+  centerFallback: {
+    width: CENTER_SIZE,
+    height: CENTER_SIZE,
+    backgroundColor: '#F0F0F0',
   },
 
   // Boutons d'action
