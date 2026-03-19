@@ -184,11 +184,9 @@ export default function SalonScreen() {
 
   // Actions disponibles dans le menu radial
   const SALON_ACTIONS: RadialAction[] = [
-    { id: 'letter',  icon: '💌', label: 'Lettre'  },
     { id: 'gift',    icon: '🎁', label: 'Offrir'  },
     { id: 'magic',   icon: '✨', label: 'Magie'   },
     { id: 'profile', icon: '👀', label: 'Profil'  },
-    { id: 'duel',    icon: '🪨', label: 'Défi'    },
   ];
 
   const handleRadialAction = (action: RadialAction) => {
@@ -196,9 +194,6 @@ export default function SalonScreen() {
     closeMenu();
     if (!user) return;
     switch (action.id) {
-      case 'letter':
-        router.push('/letters');
-        break;
       case 'gift':
         setSelectedPlayer(user);
         setShowOfferingsModal(true);
@@ -209,9 +204,6 @@ export default function SalonScreen() {
         break;
       case 'profile':
         router.push(`/profile/${user.id}` as any);
-        break;
-      case 'duel':
-        Alert.alert('Défi', `Lancer un défi à ${user.name} ?`);
         break;
     }
   };
