@@ -162,6 +162,7 @@ export default function SalonScreen() {
   const [messageInput, setMessageInput] = useState('');
   const [showOfferingsModal, setShowOfferingsModal] = useState(false);
   const [showPowersModal, setShowPowersModal] = useState(false);
+  const [showActionMenu, setShowActionMenu] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<SalonParticipant | null>(null);
   const [recentInteractions, setRecentInteractions] = useState<Array<{
     id: string;
@@ -349,6 +350,7 @@ export default function SalonScreen() {
 
       {/* Barre des participants - GRANDE sur toute la largeur */}
       <View style={styles.participantStrip}>
+        <Text style={styles.participantHint}>Appuie sur un avatar pour interagir 👇</Text>
         <View style={styles.participantsRow}>
           {participants.map((p) => (
             <TouchableOpacity
@@ -357,7 +359,12 @@ export default function SalonScreen() {
                 styles.participantItem,
                 selectedPlayer?.id === p.id && styles.participantSelected
               ]}
-              onPress={() => !p.isMe && setSelectedPlayer(selectedPlayer?.id === p.id ? null : p)}
+              onPress={() => {
+                if (!p.isMe) {
+                  setSelectedPlayer(p);
+                  setShowActionMenu(true);
+                }
+              }}
             >
               <AnimatedAvatar
                 participant={p}
@@ -368,9 +375,6 @@ export default function SalonScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        {selectedPlayer && (
-          <Text style={styles.selectedHint}>✓ {selectedPlayer.name} sélectionné(e)</Text>
-        )}
       </View>
 
       {/* Zone de messages */}
@@ -414,18 +418,6 @@ export default function SalonScreen() {
 
       {/* Barre d'input */}
       <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <TouchableOpacity
-          style={[styles.actionButton, !selectedPlayer && styles.actionButtonDisabled]}
-          onPress={() => selectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')}
-        >
-          <Text style={styles.actionEmoji}>🎁</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, !selectedPlayer && styles.actionButtonDisabled]}
-          onPress={() => selectedPlayer ? setShowPowersModal(true) : alert('Sélectionnez d\'abord un participant!')}
-        >
-          <Text style={styles.actionEmoji}>✨</Text>
-        </TouchableOpacity>
         <TextInput
           style={styles.textInput}
           placeholder="Message..."
@@ -464,6 +456,7 @@ export default function SalonScreen() {
       <View style={styles.landscapeContent}>
         {/* Zone des avatars (gauche) - GRANDE */}
         <View style={styles.avatarsZone}>
+          <Text style={styles.tapHintLandscape}>Appuie sur un avatar 👇</Text>
           <View style={styles.avatarsGrid}>
             {participants.map((p) => (
               <View key={p.id} style={styles.avatarGridItem}>
@@ -471,7 +464,12 @@ export default function SalonScreen() {
                   participant={p}
                   size={avatarSizeLandscape}
                   showBadges={true}
-                  onPress={() => !p.isMe && setSelectedPlayer(selectedPlayer?.id === p.id ? null : p)}
+                  onPress={() => {
+                    if (!p.isMe) {
+                      setSelectedPlayer(p);
+                      setShowActionMenu(true);
+                    }
+                  }}
                   isSelected={selectedPlayer?.id === p.id}
                 />
               </View>
@@ -485,7 +483,7 @@ export default function SalonScreen() {
 
           <ScrollView style={styles.interactionsList} showsVerticalScrollIndicator={false}>
             {recentInteractions.length === 0 ? (
-              <Text style={styles.noInteractions}>Aucune interaction récente{'\n'}Sélectionnez un participant et offrez-lui quelque chose!</Text>
+              <Text style={styles.noInteractions}>Aucune interaction récente{'\n'}Appuie sur un avatar pour offrir ou lancer de la magie!</Text>
             ) : (
               recentInteractions.map((interaction) => (
                 <View key={interaction.id} style={styles.interactionItem}>
@@ -499,30 +497,6 @@ export default function SalonScreen() {
               ))
             )}
           </ScrollView>
-
-          {selectedPlayer && (
-            <View style={styles.selectedBanner}>
-              <Text style={styles.selectedBannerText}>🎯 {selectedPlayer.name}</Text>
-            </View>
-          )}
-
-          {/* Boutons d'action */}
-          <View style={styles.actionButtonsRow}>
-            <TouchableOpacity
-              style={[styles.bigActionButton, styles.giftButton, !selectedPlayer && styles.bigActionButtonDisabled]}
-              onPress={() => selectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')}
-            >
-              <Text style={styles.bigActionEmoji}>🎁</Text>
-              <Text style={styles.bigActionText}>Offrir</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.bigActionButton, styles.magicButton, !selectedPlayer && styles.bigActionButtonDisabled]}
-              onPress={() => selectedPlayer ? setShowPowersModal(true) : alert('Sélectionnez d\'abord un participant!')}
-            >
-              <Text style={styles.bigActionEmoji}>✨</Text>
-              <Text style={styles.bigActionText}>Magie</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
     </View>
@@ -561,6 +535,49 @@ export default function SalonScreen() {
     </Modal>
   );
 
+  const renderActionMenu = () => (
+    <Modal visible={showActionMenu} animationType="slide" transparent>
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setShowActionMenu(false)}
+      >
+        <View style={styles.actionMenuContent}>
+          <View style={styles.actionMenuHandle} />
+          <Text style={styles.actionMenuTitle}>
+            Que veux-tu faire avec {selectedPlayer?.name} ?
+          </Text>
+          <TouchableOpacity
+            style={styles.actionMenuButton}
+            onPress={() => { setShowActionMenu(false); setShowOfferingsModal(true); }}
+          >
+            <Text style={styles.actionMenuEmoji}>🎁</Text>
+            <View>
+              <Text style={styles.actionMenuLabel}>Offrir quelque chose</Text>
+              <Text style={styles.actionMenuSub}>Boissons, nourriture, cadeaux...</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionMenuButton, styles.actionMenuButtonMagic]}
+            onPress={() => { setShowActionMenu(false); setShowPowersModal(true); }}
+          >
+            <Text style={styles.actionMenuEmoji}>✨</Text>
+            <View>
+              <Text style={styles.actionMenuLabel}>Lancer de la magie</Text>
+              <Text style={styles.actionMenuSub}>Transformations, effets, sorts...</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionMenuCancel}
+            onPress={() => setShowActionMenu(false)}
+          >
+            <Text style={styles.actionMenuCancelText}>Annuler</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+
   const renderPowersModal = () => (
     <Modal visible={showPowersModal} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
@@ -594,6 +611,7 @@ export default function SalonScreen() {
   return (
     <View style={{ flex: 1 }}>
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
+      {renderActionMenu()}
       {renderOfferingsModal()}
       {renderPowersModal()}
     </View>
@@ -1071,6 +1089,84 @@ const styles = StyleSheet.create({
   offeringEmoji: {
     fontSize: 28,
     marginRight: 10,
+  },
+
+  // Hint tap
+  participantHint: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#AAA',
+    marginBottom: 6,
+    fontStyle: 'italic',
+  },
+  tapHintLandscape: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#AAA',
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+
+  // Menu d'action (bottom sheet)
+  actionMenuContent: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  actionMenuHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#DDD',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  actionMenuTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#3A2818',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  actionMenuButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5E6',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: '#FFD899',
+  },
+  actionMenuButtonMagic: {
+    backgroundColor: '#F3E8FF',
+    borderColor: '#D4AAFF',
+  },
+  actionMenuEmoji: {
+    fontSize: 32,
+    marginRight: 14,
+  },
+  actionMenuLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#3A2818',
+    marginBottom: 2,
+  },
+  actionMenuSub: {
+    fontSize: 12,
+    color: '#999',
+  },
+  actionMenuCancel: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  actionMenuCancelText: {
+    fontSize: 15,
+    color: '#999',
+    fontWeight: '600',
   },
   offeringInfo: {
     flex: 1,
