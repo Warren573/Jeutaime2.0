@@ -172,6 +172,7 @@ export default function SalonScreen() {
     anchor: { x: number; y: number } | null;
     user: (SalonParticipant & { isMe?: boolean }) | null;
   }>({ visible: false, anchor: null, user: null });
+  const [avatarsZoneWidth, setAvatarsZoneWidth] = useState<number | undefined>(undefined);
 
   const openRadialMenu = (
     p: SalonParticipant & { isMe?: boolean },
@@ -496,7 +497,7 @@ export default function SalonScreen() {
 
       <View style={styles.landscapeContent}>
         {/* Zone des avatars (gauche) - GRANDE */}
-        <View style={styles.avatarsZone}>
+        <View style={styles.avatarsZone} onLayout={e => setAvatarsZoneWidth(e.nativeEvent.layout.width)}>
           <Text style={styles.tapHintLandscape}>Appuie sur un avatar 👆</Text>
           {/* Grille 2×2 en paysage */}
           <View style={styles.avatarsGrid}>
@@ -617,6 +618,7 @@ export default function SalonScreen() {
         actions={SALON_ACTIONS}
         onClose={closeMenu}
         onActionPress={handleRadialAction}
+        maxX={avatarsZoneWidth}
       />
     </View>
   );

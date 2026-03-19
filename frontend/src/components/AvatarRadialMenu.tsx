@@ -39,6 +39,8 @@ interface Props {
   actions: RadialAction[];
   onClose: () => void;
   onActionPress: (action: RadialAction) => void;
+  /** Limite droite de la zone cliquable (ex : largeur de la zone avatars) */
+  maxX?: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -55,6 +57,7 @@ export default function AvatarRadialMenu({
   actions,
   onClose,
   onActionPress,
+  maxX,
 }: Props) {
   const progress = useRef(new Animated.Value(0)).current;
 
@@ -70,15 +73,16 @@ export default function AvatarRadialMenu({
   // Ancre clampée — laisser assez de place en haut pour Magie + label
   const center = useMemo(() => {
     if (!anchor) return null;
+    const rightBound = (maxX ?? SCREEN_WIDTH) - SAFE_MARGIN - MENU_RADIUS;
     return {
-      x: clamp(anchor.x, SAFE_MARGIN + MENU_RADIUS, SCREEN_WIDTH - SAFE_MARGIN - MENU_RADIUS),
+      x: clamp(anchor.x, SAFE_MARGIN + MENU_RADIUS, rightBound),
       y: clamp(
         anchor.y,
         SAFE_MARGIN + MENU_RADIUS + ACTION_SIZE,
         SCREEN_HEIGHT - SAFE_MARGIN - MENU_RADIUS,
       ),
     };
-  }, [anchor]);
+  }, [anchor, maxX]);
 
   if (!visible || !center) return null;
 
