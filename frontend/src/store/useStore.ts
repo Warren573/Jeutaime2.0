@@ -123,6 +123,10 @@ interface StoreState {
   addMessage: (salonId: string, message: Message) => void;
   loadMessages: (salonId: string) => Message[];
 
+  // ===== Duels =====
+  duelEntries: Array<{ id: string; text: string; createdAt: number; players: string[] }>;
+  addDuelEntry: (entry: { text: string; players: string[] }) => void;
+
   // ===== Backgrounds =====
   screenBackgrounds: Record<string, string>;
   setScreenBackground: (screenId: string, color: string) => void;
@@ -158,6 +162,7 @@ export const useStore = create<StoreState>()(
       dislikedProfiles: [],
       messagesBySalon: {},
       screenBackgrounds: {},
+      duelEntries: [],
 
       stats: {
         matchesCount: 2,
@@ -415,6 +420,15 @@ export const useStore = create<StoreState>()(
         return get().messagesBySalon[salonId] || [];
       },
 
+      addDuelEntry: (entry) => {
+        set((state) => ({
+          duelEntries: [
+            { id: Date.now().toString(), createdAt: Date.now(), ...entry },
+            ...state.duelEntries.slice(0, 49),
+          ],
+        }));
+      },
+
       setScreenBackground: (screenId, color) => {
         set((state) => ({
           screenBackgrounds: { ...state.screenBackgrounds, [screenId]: color },
@@ -436,6 +450,7 @@ export const useStore = create<StoreState>()(
         lastDailyBonus: state.lastDailyBonus,
         currentUser: state.currentUser,
         screenBackgrounds: state.screenBackgrounds,
+        duelEntries: state.duelEntries,
       }),
     }
   )

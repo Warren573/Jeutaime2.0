@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import type { Letter, Match } from '../shared/types';
 
@@ -56,8 +57,9 @@ interface Souvenir {
 }
 
 export default function LettersScreen() {
-  const insets = useSafeAreaInsets();
-  const { matches, letters, addLetter, markLetterRead, currentUser, addPoints } = useStore();
+  const insets  = useSafeAreaInsets();
+  const router  = useRouter();
+  const { matches, letters, addLetter, markLetterRead, currentUser, addPoints, duelEntries } = useStore();
   const screenBg = useStore(s => s.screenBackgrounds?.['letters'] ?? '#FFF8E7');
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [newMessage, setNewMessage] = useState('');
@@ -141,6 +143,16 @@ export default function LettersScreen() {
       case 'lettres':
         return (
           <>
+            {/* Bouton duel */}
+            <TouchableOpacity style={styles.duelBtn} onPress={() => router.push('/duel/create')}>
+              <Text style={styles.duelBtnEmoji}>🎮</Text>
+              <View style={styles.duelBtnTextWrap}>
+                <Text style={styles.duelBtnTitle}>Lancer un duel</Text>
+                <Text style={styles.duelBtnSubtitle}>Défiez un contact en Pierre • Papier • Ciseaux</Text>
+              </View>
+              <Text style={styles.duelBtnArrow}>▶</Text>
+            </TouchableOpacity>
+
             {matches.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyEmoji}>💌</Text>
@@ -192,8 +204,24 @@ export default function LettersScreen() {
               <Text style={styles.addBtnEmoji}>✏️</Text>
               <Text style={styles.addBtnText}>Nouvelle entrée</Text>
             </TouchableOpacity>
-            
-            {journalEntries.length === 0 ? (
+
+            {/* Entrées de duel */}
+            {duelEntries.length > 0 && (
+              <>
+                <Text style={styles.journalSectionTitle}>⚔️ Duels récents</Text>
+                {duelEntries.slice(0, 5).map(entry => (
+                  <View key={entry.id} style={[styles.journalCard, styles.duelJournalCard]}>
+                    <View style={styles.journalHeader}>
+                      <Text style={styles.journalMood}>🎮</Text>
+                      <Text style={styles.journalDate}>{new Date(entry.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</Text>
+                    </View>
+                    <Text style={styles.journalContent}>{entry.text}</Text>
+                  </View>
+                ))}
+              </>
+            )}
+
+            {journalEntries.length === 0 && duelEntries.length === 0 ? (
               <View style={styles.emptyJournal}>
                 <Text style={styles.emptyJournalEmoji}>📔</Text>
                 <Text style={styles.emptyJournalText}>Ton journal est vide</Text>
@@ -441,6 +469,18 @@ const styles = StyleSheet.create({
   souvenirDesc: { fontSize: 13, color: '#5D4037', marginTop: 2 },
   souvenirDate: { fontSize: 11, color: '#8B6F47', marginTop: 4 },
   
+  // Duel button
+  duelBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1A1B2E', borderRadius: 16, padding: 16, marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderWidth: 1, borderColor: 'rgba(180,124,255,0.3)' },
+  duelBtnEmoji: { fontSize: 26, marginRight: 12 },
+  duelBtnTextWrap: { flex: 1, minWidth: 0 },
+  duelBtnTitle: { color: '#F8F6FF', fontSize: 16, fontWeight: '800' },
+  duelBtnSubtitle: { color: 'rgba(255,255,255,0.55)', fontSize: 12, marginTop: 3 },
+  duelBtnArrow: { fontSize: 14, color: '#B47CFF', marginLeft: 8 },
+
+  // Journal duel cards
+  journalSectionTitle: { fontSize: 13, fontWeight: '700', color: '#8B6F47', marginBottom: 8, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  duelJournalCard: { borderLeftColor: '#B47CFF' },
+
   // Magic button
   magicBtn: { position: 'absolute', bottom: 100, left: 16, right: 16, backgroundColor: '#DAA520', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center' },
   magicBtnEmoji: { fontSize: 24, marginRight: 12 },
