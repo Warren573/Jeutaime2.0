@@ -28,6 +28,9 @@ export default function SalonsListScreen() {
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
+          <Text style={styles.backText}>← Retour</Text>
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>👥 Salons</Text>
         <Text style={styles.headerSubtitle}>Rejoignez une discussion</Text>
       </View>
@@ -92,6 +95,15 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E8D5B7',
+  },
+  backButton: {
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    fontSize: 15,
+    color: '#667eea',
+    fontWeight: '600',
   },
   headerTitle: {
     fontSize: 28,
