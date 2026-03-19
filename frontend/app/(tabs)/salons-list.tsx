@@ -1,2 +1,2 @@
-import SalonsListScreen from '../src/screens/SalonsListScreen';
+import SalonsListScreen from '../../src/screens/SalonsListScreen';
 export default SalonsListScreen;
