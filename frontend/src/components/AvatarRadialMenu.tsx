@@ -15,7 +15,7 @@ import {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const MENU_RADIUS = 108;
+const MENU_RADIUS = 82;
 const ACTION_SIZE = 54;
 const CENTER_SIZE = 62;
 const SAFE_MARGIN = 18;
