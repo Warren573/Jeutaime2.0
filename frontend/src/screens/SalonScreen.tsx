@@ -317,9 +317,10 @@ export default function SalonScreen() {
     );
   }
 
-  // Taille avatar pour grille 2 colonnes
-  const avatarSizePortrait  = Math.min((width - 80) / 2, 90);
-  const avatarSizeLandscape = Math.min(90, (height - 200) / 2.5);
+  // Portrait : petits avatars fixes dans le strip
+  const AVATAR_STRIP_SIZE = 54;
+  // Paysage : 2 colonnes dans la zone gauche
+  const avatarSizeLandscape = Math.min(88, (height - 180) / 2.5);
 
   // Participants découpés en rangées de 2
   const participantRows = [participants.slice(0, 2), participants.slice(2, 4)].filter(r => r.length > 0);
@@ -351,35 +352,38 @@ export default function SalonScreen() {
         </View>
       </LinearGradient>
 
-      {/* Grille 2×2 des participants */}
+      {/* Strip compact — une seule ligne d'avatars, tous alignés */}
       <View style={styles.participantStrip}>
-        <Text style={styles.participantHint}>Appuie sur un avatar pour interagir 👇</Text>
-        {participantRows.map((row, ri) => (
-          <View key={ri} style={styles.participantsRow}>
-            {row.map((p) => (
-              <TouchableOpacity
-                key={p.id}
-                style={[
-                  styles.participantItem,
-                  selectedPlayer?.id === p.id && styles.participantSelected,
-                ]}
-                onPress={() => {
-                  if (!p.isMe) {
-                    setSelectedPlayer(p);
-                    setShowActionMenu(true);
-                  }
-                }}
-              >
-                <AnimatedAvatar
-                  participant={p}
-                  size={avatarSizePortrait}
-                  isSelected={selectedPlayer?.id === p.id}
-                  showBadges={true}
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-        ))}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.participantsRow}
+          bounces={false}
+        >
+          {participants.map((p) => (
+            <TouchableOpacity
+              key={p.id}
+              style={[
+                styles.participantItem,
+                selectedPlayer?.id === p.id && styles.participantSelected,
+              ]}
+              onPress={() => {
+                if (!p.isMe) {
+                  setSelectedPlayer(p);
+                  setShowActionMenu(true);
+                }
+              }}
+              activeOpacity={p.isMe ? 1 : 0.75}
+            >
+              <AnimatedAvatar
+                participant={p}
+                size={AVATAR_STRIP_SIZE}
+                isSelected={selectedPlayer?.id === p.id}
+                showBadges={false}
+              />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Zone de messages */}
@@ -692,19 +696,18 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
 
-  // Participant Strip - GRAND
+  // Portrait strip — ligne compacte, avatars petits et uniformes
   participantStrip: {
     backgroundColor: '#FFF',
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#E8D5B7',
   },
   participantsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    alignItems: 'flex-start',
-    paddingHorizontal: 10,
-    marginBottom: 4,
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    gap: 16,
   },
   participantItem: {
     alignItems: 'center',
@@ -932,22 +935,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
 
-  // Zone avatars (gauche) - GRANDE
+  // Zone avatars (gauche) — grille 2×2
   avatarsZone: {
     flex: 1.5,
     padding: 16,
-    alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFF8E7',
   },
   avatarsGrid: {
-    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
     gap: 8,
   },
   avatarsGridRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
   },
   avatarGridItem: {
     alignItems: 'center',
