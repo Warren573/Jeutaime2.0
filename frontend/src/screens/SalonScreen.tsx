@@ -190,13 +190,6 @@ export default function SalonScreen() {
     { id: 'gift',    icon: '🎁', label: 'Offrir'  },
   ];
 
-  // URL de l'avatar sélectionné pour l'afficher au centre du menu
-  const selectedAvatarUrl = React.useMemo(() => {
-    if (!menuState.user) return undefined;
-    const key = menuState.user.name.toLowerCase().replace(/[^a-z]/g, '');
-    return (AVATAR_IMAGES[key] ?? AVATAR_IMAGES['default']) + '&size=132';
-  }, [menuState.user]);
-
   const handleRadialAction = (action: RadialAction) => {
     const user = menuState.user;
     closeMenu();
@@ -624,7 +617,6 @@ export default function SalonScreen() {
         actions={SALON_ACTIONS}
         onClose={closeMenu}
         onActionPress={handleRadialAction}
-        avatarUrl={selectedAvatarUrl}
       />
     </View>
   );
