@@ -22,6 +22,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { salonsData, SalonParticipant } from '../data/salonsData';
 import { useStore, Message } from '../store/useStore';
 import { allOfferings, allPowers } from '../data/offerings';
+import SalonAvatar from '../components/SalonAvatar';
+import AvatarRadialMenu, { RadialAction } from '../components/AvatarRadialMenu';
 
 // ============================================
 // AVATARS CARTOON - URLs d'images
@@ -162,8 +164,57 @@ export default function SalonScreen() {
   const [messageInput, setMessageInput] = useState('');
   const [showOfferingsModal, setShowOfferingsModal] = useState(false);
   const [showPowersModal, setShowPowersModal] = useState(false);
-  const [showActionMenu, setShowActionMenu] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<SalonParticipant | null>(null);
+
+  // Menu radial
+  const [menuState, setMenuState] = useState<{
+    visible: boolean;
+    anchor: { x: number; y: number } | null;
+    user: (SalonParticipant & { isMe?: boolean }) | null;
+  }>({ visible: false, anchor: null, user: null });
+
+  const openRadialMenu = (
+    p: SalonParticipant & { isMe?: boolean },
+    cx: number,
+    cy: number
+  ) => setMenuState({ visible: true, anchor: { x: cx, y: cy }, user: p });
+
+  const closeMenu = () =>
+    setMenuState({ visible: false, anchor: null, user: null });
+
+  // Actions disponibles dans le menu radial
+  const SALON_ACTIONS: RadialAction[] = [
+    { id: 'letter',  icon: '💌', label: 'Lettre'  },
+    { id: 'gift',    icon: '🎁', label: 'Offrir'  },
+    { id: 'magic',   icon: '✨', label: 'Magie'   },
+    { id: 'profile', icon: '👀', label: 'Profil'  },
+    { id: 'duel',    icon: '🪨', label: 'Défi'    },
+  ];
+
+  const handleRadialAction = (action: RadialAction) => {
+    const user = menuState.user;
+    closeMenu();
+    if (!user) return;
+    switch (action.id) {
+      case 'letter':
+        router.push('/letters');
+        break;
+      case 'gift':
+        setSelectedPlayer(user);
+        setShowOfferingsModal(true);
+        break;
+      case 'magic':
+        setSelectedPlayer(user);
+        setShowPowersModal(true);
+        break;
+      case 'profile':
+        router.push(`/profile/${user.id}` as any);
+        break;
+      case 'duel':
+        Alert.alert('Défi', `Lancer un défi à ${user.name} ?`);
+        break;
+    }
+  };
   const [recentInteractions, setRecentInteractions] = useState<Array<{
     id: string;
     from: string;
@@ -361,27 +412,15 @@ export default function SalonScreen() {
           bounces={false}
         >
           {participants.map((p) => (
-            <TouchableOpacity
-              key={p.id}
-              style={[
-                styles.participantItem,
-                selectedPlayer?.id === p.id && styles.participantSelected,
-              ]}
-              onPress={() => {
-                if (!p.isMe) {
-                  setSelectedPlayer(p);
-                  setShowActionMenu(true);
-                }
-              }}
-              activeOpacity={p.isMe ? 1 : 0.75}
-            >
-              <AnimatedAvatar
+            <View key={p.id} style={styles.participantItem}>
+              <SalonAvatar
                 participant={p}
                 size={AVATAR_STRIP_SIZE}
-                isSelected={selectedPlayer?.id === p.id}
+                isSelected={menuState.user?.id === p.id}
                 showBadges={false}
+                onMeasuredPress={!p.isMe ? openRadialMenu : undefined}
               />
-            </TouchableOpacity>
+            </View>
           ))}
         </ScrollView>
       </View>
@@ -472,17 +511,12 @@ export default function SalonScreen() {
               <View key={ri} style={styles.avatarsGridRow}>
                 {row.map((p) => (
                   <View key={p.id} style={styles.avatarGridItem}>
-                    <AnimatedAvatar
+                    <SalonAvatar
                       participant={p}
                       size={avatarSizeLandscape}
+                      isSelected={menuState.user?.id === p.id}
                       showBadges={true}
-                      onPress={() => {
-                        if (!p.isMe) {
-                          setSelectedPlayer(p);
-                          setShowActionMenu(true);
-                        }
-                      }}
-                      isSelected={selectedPlayer?.id === p.id}
+                      onMeasuredPress={!p.isMe ? openRadialMenu : undefined}
                     />
                   </View>
                 ))}
@@ -549,49 +583,6 @@ export default function SalonScreen() {
     </Modal>
   );
 
-  const renderActionMenu = () => (
-    <Modal visible={showActionMenu} animationType="slide" transparent>
-      <TouchableOpacity
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={() => setShowActionMenu(false)}
-      >
-        <View style={styles.actionMenuContent}>
-          <View style={styles.actionMenuHandle} />
-          <Text style={styles.actionMenuTitle}>
-            Que veux-tu faire avec {selectedPlayer?.name} ?
-          </Text>
-          <TouchableOpacity
-            style={styles.actionMenuButton}
-            onPress={() => { setShowActionMenu(false); setShowOfferingsModal(true); }}
-          >
-            <Text style={styles.actionMenuEmoji}>🎁</Text>
-            <View>
-              <Text style={styles.actionMenuLabel}>Offrir quelque chose</Text>
-              <Text style={styles.actionMenuSub}>Boissons, nourriture, cadeaux...</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionMenuButton, styles.actionMenuButtonMagic]}
-            onPress={() => { setShowActionMenu(false); setShowPowersModal(true); }}
-          >
-            <Text style={styles.actionMenuEmoji}>✨</Text>
-            <View>
-              <Text style={styles.actionMenuLabel}>Lancer de la magie</Text>
-              <Text style={styles.actionMenuSub}>Transformations, effets, sorts...</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionMenuCancel}
-            onPress={() => setShowActionMenu(false)}
-          >
-            <Text style={styles.actionMenuCancelText}>Annuler</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  );
-
   const renderPowersModal = () => (
     <Modal visible={showPowersModal} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
@@ -625,9 +616,15 @@ export default function SalonScreen() {
   return (
     <View style={{ flex: 1 }}>
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
-      {renderActionMenu()}
       {renderOfferingsModal()}
       {renderPowersModal()}
+      <AvatarRadialMenu
+        visible={menuState.visible}
+        anchor={menuState.anchor}
+        actions={SALON_ACTIONS}
+        onClose={closeMenu}
+        onActionPress={handleRadialAction}
+      />
     </View>
   );
 }
