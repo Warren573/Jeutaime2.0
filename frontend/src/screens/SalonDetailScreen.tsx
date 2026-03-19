@@ -677,7 +677,7 @@ function AvatarCard({
 }) {
   const bg = nameColor(participant.name);
   const dotSize = size * 0.22;
-  const touchRef = useRef<TouchableOpacity>(null);
+  const cardRef = useRef<View>(null);
 
   const scale = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -703,9 +703,9 @@ function AvatarCard({
 
   const handlePress = () => {
     if (onMeasuredPress) {
-      (touchRef.current as any)?.measure(
-        (_: number, __: number, w: number, h: number, px: number, py: number) => {
-          onMeasuredPress(participant, px + w / 2, py + h / 2);
+      cardRef.current?.measureInWindow(
+        (x: number, y: number, w: number, h: number) => {
+          onMeasuredPress(participant, x + w / 2, y + h / 2);
         }
       );
     } else {
@@ -716,8 +716,8 @@ function AvatarCard({
   const badges = participant.badges.slice(-3);
 
   return (
+    <View ref={cardRef}>
     <TouchableOpacity
-      ref={touchRef}
       onPress={handlePress}
       disabled={!onPress && !onMeasuredPress}
       activeOpacity={0.75}
@@ -786,10 +786,11 @@ function AvatarCard({
       </View>
 
       {/* Hint tap */}
-      {onPress && (
-        <Text style={s.tapHint}>appuyer pour offrir</Text>
+      {(onPress || onMeasuredPress) && !participant.isMe && (
+        <Text style={s.tapHint}>appuyer pour interagir</Text>
       )}
     </TouchableOpacity>
+    </View>
   );
 }
 
@@ -845,19 +846,21 @@ function AvatarContextMenu({
 
   return (
     <Modal transparent animationType="none" onRequestClose={() => dismiss()}>
-      {/* Fond semi-transparent — tap pour fermer */}
-      <TouchableOpacity
-        style={StyleSheet.absoluteFill}
-        activeOpacity={1}
-        onPress={() => dismiss()}
-      >
-        <Animated.View
-          style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.28)', opacity: bgOpacity }]}
-        />
-      </TouchableOpacity>
+      {/* Conteneur plein écran — nécessaire pour que position:absolute s'ancre correctement */}
+      <View style={StyleSheet.absoluteFill}>
+        {/* Fond semi-transparent — tap pour fermer */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={() => dismiss()}
+        >
+          <Animated.View
+            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.28)', opacity: bgOpacity }]}
+          />
+        </TouchableOpacity>
 
-      {/* Menu flottant */}
-      <View style={[s.ctxMenu, { left, top }]}>
+        {/* Menu flottant */}
+        <View style={[s.ctxMenu, { left, top }]}>
         {/* Label du destinataire */}
         <View style={s.ctxLabel}>
           <Text style={s.ctxLabelText} numberOfLines={1}>{state.participant.name}</Text>
@@ -889,7 +892,11 @@ function AvatarContextMenu({
             </TouchableOpacity>
           </Animated.View>
         </View>
+        {/* Fin ctxBtnRow */}
+        </View>
+        {/* Fin ctxMenu */}
       </View>
+      {/* Fin conteneur absoluteFill */}
     </Modal>
   );
 }
