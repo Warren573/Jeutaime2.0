@@ -26,7 +26,7 @@ const ROUTE_META: Record<string, { icon: string; label: string }> = {
   index:    { icon: '⭐', label: 'Accueil' },
   profiles: { icon: '🔍', label: 'Profils' },
   social:   { icon: '🌐', label: 'Social' },
-  letters:  { icon: '💌', label: 'Lettres' },
+  letters:  { icon: '💌', label: 'Boîte aux lettres' },
   journal:  { icon: '📰', label: 'Journal' },
   settings: { icon: '⚙️', label: 'Plus' },
 };

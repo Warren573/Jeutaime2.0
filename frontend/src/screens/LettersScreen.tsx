@@ -271,8 +271,8 @@ export default function LettersScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>💌 LETTRES</Text>
-        <Text style={styles.headerSubtitle}>Vos conversations et messages privés</Text>
+        <Text style={styles.headerTitle}>📬 BOÎTE AUX LETTRES</Text>
+        <Text style={styles.headerSubtitle}>Vos lettres et correspondances privées</Text>
       </View>
 
       {/* Tabs */}

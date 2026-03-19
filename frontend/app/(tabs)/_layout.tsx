@@ -13,7 +13,7 @@ export default function TabLayout() {
       <Tabs.Screen name="index"       options={{ title: 'Accueil' }} />
       <Tabs.Screen name="profiles"    options={{ title: 'Profils' }} />
       <Tabs.Screen name="social"      options={{ title: 'Social' }} />
-      <Tabs.Screen name="letters"     options={{ title: 'Lettres' }} />
+      <Tabs.Screen name="letters"     options={{ title: 'Boîte aux lettres' }} />
       <Tabs.Screen name="journal"     options={{ title: 'Journal' }} />
       <Tabs.Screen name="settings"    options={{ title: 'Plus' }} />
       <Tabs.Screen name="salons-list" options={{ href: null }} />
