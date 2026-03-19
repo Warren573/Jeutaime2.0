@@ -317,9 +317,12 @@ export default function SalonScreen() {
     );
   }
 
-  // Calcul de la taille des avatars en fonction de l'écran
-  const avatarSizePortrait = Math.min((width - 40) / participants.length, 70);
-  const avatarSizeLandscape = Math.min(100, (height - 150) / 2.5);
+  // Taille avatar pour grille 2 colonnes
+  const avatarSizePortrait  = Math.min((width - 80) / 2, 90);
+  const avatarSizeLandscape = Math.min(90, (height - 200) / 2.5);
+
+  // Participants découpés en rangées de 2
+  const participantRows = [participants.slice(0, 2), participants.slice(2, 4)].filter(r => r.length > 0);
 
   // ============================================
   // RENDU MODE PORTRAIT (DISCUSSION)
@@ -348,33 +351,35 @@ export default function SalonScreen() {
         </View>
       </LinearGradient>
 
-      {/* Barre des participants - GRANDE sur toute la largeur */}
+      {/* Grille 2×2 des participants */}
       <View style={styles.participantStrip}>
         <Text style={styles.participantHint}>Appuie sur un avatar pour interagir 👇</Text>
-        <View style={styles.participantsRow}>
-          {participants.map((p) => (
-            <TouchableOpacity
-              key={p.id}
-              style={[
-                styles.participantItem,
-                selectedPlayer?.id === p.id && styles.participantSelected
-              ]}
-              onPress={() => {
-                if (!p.isMe) {
-                  setSelectedPlayer(p);
-                  setShowActionMenu(true);
-                }
-              }}
-            >
-              <AnimatedAvatar
-                participant={p}
-                size={avatarSizePortrait}
-                isSelected={selectedPlayer?.id === p.id}
-                showBadges={true}
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
+        {participantRows.map((row, ri) => (
+          <View key={ri} style={styles.participantsRow}>
+            {row.map((p) => (
+              <TouchableOpacity
+                key={p.id}
+                style={[
+                  styles.participantItem,
+                  selectedPlayer?.id === p.id && styles.participantSelected,
+                ]}
+                onPress={() => {
+                  if (!p.isMe) {
+                    setSelectedPlayer(p);
+                    setShowActionMenu(true);
+                  }
+                }}
+              >
+                <AnimatedAvatar
+                  participant={p}
+                  size={avatarSizePortrait}
+                  isSelected={selectedPlayer?.id === p.id}
+                  showBadges={true}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))}
       </View>
 
       {/* Zone de messages */}
@@ -457,21 +462,26 @@ export default function SalonScreen() {
         {/* Zone des avatars (gauche) - GRANDE */}
         <View style={styles.avatarsZone}>
           <Text style={styles.tapHintLandscape}>Appuie sur un avatar 👇</Text>
+          {/* Grille 2×2 en paysage */}
           <View style={styles.avatarsGrid}>
-            {participants.map((p) => (
-              <View key={p.id} style={styles.avatarGridItem}>
-                <AnimatedAvatar
-                  participant={p}
-                  size={avatarSizeLandscape}
-                  showBadges={true}
-                  onPress={() => {
-                    if (!p.isMe) {
-                      setSelectedPlayer(p);
-                      setShowActionMenu(true);
-                    }
-                  }}
-                  isSelected={selectedPlayer?.id === p.id}
-                />
+            {participantRows.map((row, ri) => (
+              <View key={ri} style={styles.avatarsGridRow}>
+                {row.map((p) => (
+                  <View key={p.id} style={styles.avatarGridItem}>
+                    <AnimatedAvatar
+                      participant={p}
+                      size={avatarSizeLandscape}
+                      showBadges={true}
+                      onPress={() => {
+                        if (!p.isMe) {
+                          setSelectedPlayer(p);
+                          setShowActionMenu(true);
+                        }
+                      }}
+                      isSelected={selectedPlayer?.id === p.id}
+                    />
+                  </View>
+                ))}
               </View>
             ))}
           </View>
@@ -694,6 +704,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-evenly',
     alignItems: 'flex-start',
     paddingHorizontal: 10,
+    marginBottom: 4,
   },
   participantItem: {
     alignItems: 'center',
@@ -930,14 +941,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF8E7',
   },
   avatarsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
     alignItems: 'center',
+    gap: 8,
+  },
+  avatarsGridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
   },
   avatarGridItem: {
-    margin: 10,
     alignItems: 'center',
+    flex: 1,
   },
 
   // Zone interactions (droite)
