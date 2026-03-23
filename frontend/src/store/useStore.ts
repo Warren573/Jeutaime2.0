@@ -157,7 +157,26 @@ export const useStore = create<StoreState>()(
         { id: 'm1', userAId: 'me', userBId: 'sophie', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, status: 'active', letterCount: 5 },
         { id: 'm2', userAId: 'me', userBId: 'alex', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, status: 'active', letterCount: 12 },
       ],
-      letters: [],
+      letters: [
+        // Démo : j'ai envoyé une lettre à Sophie → elle n'a pas encore répondu
+        {
+          id: 'demo_l1',
+          threadId: 'm1',
+          fromUserId: 'me',
+          toUserId: 'sophie',
+          content: 'Bonjour Sophie ! Je suis enchanté de vous écrire cette première lettre… Il y a quelque chose de magique dans l\'idée de vous envoyer ces mots, comme autrefois.',
+          createdAt: Date.now() - 7200000,
+        },
+        // Démo : Alex m'a écrit → c'est mon tour de répondre
+        {
+          id: 'demo_l2',
+          threadId: 'm2',
+          fromUserId: 'alex',
+          toUserId: 'me',
+          content: 'Bonsoir ! Je me demandais ce que vous faisiez ce soir… Vos réponses aux questions m\'ont vraiment intrigué·e. J\'espère que vous allez bien.',
+          createdAt: Date.now() - 1800000,
+        },
+      ],
       likedProfiles: [],
       dislikedProfiles: [],
       messagesBySalon: {},
