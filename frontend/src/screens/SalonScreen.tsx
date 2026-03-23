@@ -346,8 +346,8 @@ export default function SalonScreen() {
     );
   }
 
-  // Portrait : petits avatars fixes dans le strip
-  const AVATAR_STRIP_SIZE = 54;
+  // Portrait : avatars dans le strip — taille augmentée pour voir les animations
+  const AVATAR_STRIP_SIZE = 64;
   // Paysage : 2 colonnes dans la zone gauche
   const avatarSizeLandscape = Math.min(88, (height - 180) / 2.5);
 
@@ -680,12 +680,13 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
 
-  // Portrait strip — ligne compacte, avatars petits et uniformes
+  // Portrait strip — ligne d'avatars avec espace pour les animations de réaction
   participantStrip: {
     backgroundColor: '#FFF',
-    paddingVertical: 10,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#E8D5B7',
+    overflow: 'visible',
   },
   participantsRow: {
     flexGrow: 1,

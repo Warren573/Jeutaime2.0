@@ -9,7 +9,7 @@
  *  z:5 badges          ← offrandes reçues + badge "Moi"
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
 import { SalonParticipant } from '../data/salonsData';
 import { AvatarEffectLayer, VisualEffectId } from './avatar/AvatarEffectLayer';
 import { AvatarTransformationLayer } from './avatar/AvatarTransformationLayer';
+import { PowerReactionOverlay } from './avatar/PowerReactionOverlay';
 import type { ActiveEffect } from '../hooks/useAvatarEffects';
 
 // ─── URLs DiceBear ────────────────────────────────────────────────────────────
@@ -78,8 +79,20 @@ export default function SalonAvatar({
   onMeasuredPress,
   onBreakAttempt,
 }: Props) {
-  const pressRef   = useRef<View>(null);
-  const breathAnim = useRef(new Animated.Value(1)).current;
+  const pressRef         = useRef<View>(null);
+  const breathAnim       = useRef(new Animated.Value(1)).current;
+  const prevEffectIdsRef = useRef<Set<string>>(new Set());
+  const [activeReaction, setActiveReaction] = useState<{ emoji: string; category: string } | null>(null);
+
+  // ── Détection d'un nouvel effet → déclenche l'animation de réaction ───────
+  useEffect(() => {
+    const prev    = prevEffectIdsRef.current;
+    const newEff  = activeEffects.find(e => !prev.has(e.id));
+    prevEffectIdsRef.current = new Set(activeEffects.map(e => e.id));
+    if (newEff && !activeReaction) {
+      setActiveReaction({ emoji: newEff.emoji, category: newEff.category });
+    }
+  }, [activeEffects]);
 
   // ── Breathing doux ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -196,6 +209,16 @@ export default function SalonAvatar({
           <View style={styles.meBadge}>
             <Text style={styles.meBadgeText}>Moi</Text>
           </View>
+        )}
+
+        {/* ── z:6 — réaction animée (boire / manger / etc.) ─────────────── */}
+        {activeReaction && (
+          <PowerReactionOverlay
+            emoji={activeReaction.emoji}
+            category={activeReaction.category}
+            size={size}
+            onComplete={() => setActiveReaction(null)}
+          />
         )}
       </Pressable>
 
