@@ -276,14 +276,17 @@ function FrontPage({ profile }: { profile: DiscoveryProfile }) {
           <Text style={np.portraitCaption}>Portrait</Text>
         </View>
 
-        {/* Headline */}
+        {/* Headline + Description */}
         <View style={np.frontHeadlines}>
           <Text style={np.headline}>{profile.name.toUpperCase()}</Text>
           <Rule thick />
           <Text style={np.dateline}>
             {profile.city.toUpperCase()} · {profile.age} ans
           </Text>
-          <Text style={np.subheadline}>« {profile.mainVibe} »</Text>
+          {/* Description (min 50 caractères) à droite de l'avatar */}
+          <Text style={np.descriptionText}>
+            « {profile.quote} »
+          </Text>
           <View style={np.descriptorsRow}>
             {profile.descriptors.map((d) => (
               <Text key={d} style={np.descriptor}>
@@ -644,7 +647,7 @@ const np = StyleSheet.create({
   // Portrait encadré
   portrait: {
     width: 90,
-    height: 110,
+    height: 130,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -675,7 +678,15 @@ const np = StyleSheet.create({
     letterSpacing: 2,
     fontWeight: '700',
     marginTop: 2,
-    marginBottom: 2,
+    marginBottom: 4,
+  },
+  // Description min 50 chars — à droite de l'avatar
+  descriptionText: {
+    fontSize: 12,
+    color: INK2,
+    fontStyle: 'italic',
+    lineHeight: 17,
+    marginBottom: 4,
   },
   subheadline: {
     fontSize: 13,

@@ -545,8 +545,9 @@ export default function LettersScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>📬 BOÎTE AUX LETTRES</Text>
-        <Text style={styles.headerSubtitle}>Vos lettres et correspondances privées</Text>
+        <Text style={styles.headerKicker}>JEUTAIME</Text>
+        <Text style={styles.headerTitle}>Boîte aux lettres</Text>
+        <Text style={styles.headerSubtitle}>Correspondances privées</Text>
       </View>
 
       {/* Tabs */}
@@ -598,11 +599,15 @@ export default function LettersScreen() {
           <ScrollView style={styles.messagesContainer}>
             {selectedMatch && getConversation(selectedMatch).map((letter) => {
               const isOwn = letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
+              const otherName = getOtherUserName(selectedMatch);
               return (
-                <View key={letter.id} style={[styles.letterRow, isOwn && styles.letterRowOwn]}>
-                  <View style={[styles.letterBubble, isOwn && styles.letterBubbleOwn]}>
-                    <Text style={[styles.letterText, isOwn && styles.letterTextOwn]}>{letter.content}</Text>
-                    <Text style={styles.letterTime}>{formatTime(letter.createdAt)}</Text>
+                <View key={letter.id} style={styles.letterWrapper}>
+                  <Text style={styles.letterCardHeader}>
+                    {isOwn ? 'Ta lettre' : `Lettre de ${otherName}`}
+                  </Text>
+                  <View style={[styles.letterCard, isOwn && styles.letterCardOwn]}>
+                    <Text style={styles.letterCardText}>{letter.content}</Text>
+                    <Text style={styles.letterCardTime}>{formatTime(letter.createdAt)}</Text>
                   </View>
                 </View>
               );
@@ -691,15 +696,16 @@ export default function LettersScreen() {
 // ─── Styles écran ─────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF8E7' },
-  header: { padding: 16, borderBottomWidth: 2, borderBottomColor: '#E8D5B7', alignItems: 'center' },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: '#3A2818' },
-  headerSubtitle: { fontSize: 13, color: '#8B6F47', marginTop: 4, fontStyle: 'italic' },
+  container: { flex: 1, backgroundColor: '#F5F1E8' },
+  header: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#D8D2C4', backgroundColor: '#FFFFFF' },
+  headerKicker: { fontSize: 10, letterSpacing: 2.5, color: '#8B2E3C', fontWeight: '700', marginBottom: 3 },
+  headerTitle: { fontSize: 26, fontWeight: '800', color: '#2B2B2B' },
+  headerSubtitle: { fontSize: 12, color: '#6B6B6B', marginTop: 3, fontStyle: 'italic' },
 
-  tabsContainer: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8, marginHorizontal: 4 },
-  tabActive: { backgroundColor: '#8B6F47' },
-  tabText: { fontSize: 12, fontWeight: '600', color: '#8B6F47' },
+  tabsContainer: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#D8D2C4', backgroundColor: '#FFFFFF' },
+  tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10, marginHorizontal: 3 },
+  tabActive: { backgroundColor: '#8B2E3C' },
+  tabText: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
   tabTextActive: { color: '#FFF' },
 
   scrollView: { flex: 1 },
@@ -752,25 +758,38 @@ const styles = StyleSheet.create({
   magicBtnSubtext: { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginLeft: 8, flex: 1 },
   magicArrow: { fontSize: 16, color: '#FFF' },
 
-  // Modal conversation
-  modalContainer: { flex: 1, backgroundColor: '#FFF8E7' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
-  closeText: { fontSize: 16, color: '#8B6F47' },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#3A2818' },
-  messagesContainer: { flex: 1, padding: 16 },
-  letterRow: { marginBottom: 12, alignItems: 'flex-start' },
-  letterRowOwn: { alignItems: 'flex-end' },
-  letterBubble: { backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 18, maxWidth: '80%', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
-  letterBubbleOwn: { backgroundColor: '#E91E63' },
-  letterText: { fontSize: 15, color: '#3A2818', lineHeight: 22 },
-  letterTextOwn: { color: '#FFF' },
-  letterTime: { fontSize: 10, color: '#8B6F47', marginTop: 6, alignSelf: 'flex-end' },
+  // Modal conversation — Journal Moderne Romantique
+  modalContainer: { flex: 1, backgroundColor: '#F5F1E8' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#D8D2C4', backgroundColor: '#FFFFFF' },
+  closeText: { fontSize: 15, color: '#8B2E3C', fontWeight: '600' },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: '#2B2B2B', letterSpacing: 0.3 },
+  messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
+
+  // Carte lettre (remplace bulles)
+  letterWrapper: { marginBottom: 22 },
+  letterCardHeader: { fontSize: 11, letterSpacing: 1.5, color: '#6B6B6B', fontWeight: '600', textTransform: 'uppercase', marginBottom: 6 },
+  letterCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#D8D2C4',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  letterCardOwn: { backgroundColor: '#FDF7F7', borderColor: '#E8CFCF' },
+  letterCardText: { fontSize: 15, color: '#2B2B2B', lineHeight: 23, fontStyle: 'italic' },
+  letterCardTime: { fontSize: 10, color: '#6B6B6B', marginTop: 10, textAlign: 'right', letterSpacing: 0.3 },
+
   startConv: { alignItems: 'center', paddingVertical: 60 },
   startEmoji: { fontSize: 50, marginBottom: 12 },
-  startText: { fontSize: 16, color: '#8B6F47' },
-  inputContainer: { flexDirection: 'row', padding: 12, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#E8D5B7', gap: 8 },
-  input: { flex: 1, backgroundColor: '#FFF8E7', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, borderWidth: 1, borderColor: '#E8D5B7', maxHeight: 100 },
-  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E91E63', alignItems: 'center', justifyContent: 'center' },
+  startText: { fontSize: 16, color: '#6B6B6B' },
+  inputContainer: { flexDirection: 'row', padding: 12, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#D8D2C4', gap: 8 },
+  input: { flex: 1, backgroundColor: '#F5F1E8', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, borderWidth: 1, borderColor: '#D8D2C4', maxHeight: 100, color: '#2B2B2B' },
+  sendBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#8B2E3C', alignItems: 'center', justifyContent: 'center' },
   sendBtnText: { fontSize: 18, color: '#FFF' },
 
   // Journal Modal
