@@ -154,12 +154,12 @@ export const SKIN_COLORS: Record<SkinTone, SkinColors> = {
 export const HAIR_COLOR_PALETTE: Record<HairColor, {
   base: string; shadow: string; highlight: string;
 }> = {
-  black:     { base: '#171312', shadow: '#0A0808', highlight: '#2A2425' },
-  darkBrown: { base: '#3B2618', shadow: '#231408', highlight: '#4E3525' },
-  brown:     { base: '#6A4430', shadow: '#4A2E1A', highlight: '#8A6248' },
-  blonde:    { base: '#CFA75A', shadow: '#A88030', highlight: '#E0C880' },
-  auburn:    { base: '#8D4A35', shadow: '#682A1C', highlight: '#A86848' },
-  silver:    { base: '#A2A7AF', shadow: '#78808A', highlight: '#C8CDD5' },
+  black:     { base: '#1C1618', shadow: '#0E0A0A', highlight: '#7C7080' },
+  darkBrown: { base: '#3B2618', shadow: '#1E1008', highlight: '#7E5835' },
+  brown:     { base: '#6A4430', shadow: '#3E2414', highlight: '#AC7A50' },
+  blonde:    { base: '#CFA75A', shadow: '#907028', highlight: '#EDD898' },
+  auburn:    { base: '#8D4A35', shadow: '#562518', highlight: '#C47850' },
+  silver:    { base: '#9AA0A8', shadow: '#60686E', highlight: '#DCE2E8' },
 };
 
 // ─── Palette de couleurs des iris ─────────────────────────────────────────────

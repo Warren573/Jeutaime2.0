@@ -1,13 +1,13 @@
 /**
- * AvatarFaceLayer — forme du visage + teint + volumes subtils
+ * AvatarFaceLayer — forme du visage + teint + volumes + éclats
  * ─────────────────────────────────────────────────────────────────────────────
  * Gère 4 formes de visage : round, oval, square, heart
- * Applique des ombres et reflets en shapes SVG (pas de filtres lourds).
+ * Ombres et reflets renforcés pour un portrait illustré premium.
  */
 
 import React from 'react';
 import {
-  G, Path, Ellipse, Defs, LinearGradient, Stop, ClipPath, Rect,
+  G, Path, Ellipse, Defs, LinearGradient, Stop, ClipPath,
 } from 'react-native-svg';
 import { FaceShape, SkinColors } from '../../../types/avatar';
 
@@ -15,9 +15,6 @@ interface Props {
   faceShape: FaceShape;
   skin:      SkinColors;
 }
-
-// ─── Paths SVG par forme de visage ────────────────────────────────────────────
-// Coordonnées dans un espace 240×300
 
 const FACE_PATHS: Record<FaceShape, string> = {
   oval:
@@ -30,7 +27,6 @@ const FACE_PATHS: Record<FaceShape, string> = {
     'M 120 68 C 172 68, 196 100, 196 140 C 196 185, 194 218, 168 234 C 152 242, 88 242, 72 234 C 46 218, 44 185, 44 140 C 44 100, 68 68, 120 68 Z',
 
   heart:
-    // Large en haut, se rétrécit vers un menton pointu
     'M 120 68 C 172 68, 200 105, 196 146 C 192 182, 172 214, 152 230 C 140 242, 100 242, 88 230 C 68 214, 48 182, 44 146 C 40 105, 68 68, 120 68 Z',
 };
 
@@ -40,10 +36,11 @@ export function AvatarFaceLayer({ faceShape, skin }: Props) {
   return (
     <G>
       <Defs>
-        {/* Dégradé vertical du visage : front clair → menton moins lumineux */}
+        {/* Dégradé principal : front lumineux → tempes → menton ombré */}
         <LinearGradient id="faceGrad" x1="0.5" y1="0" x2="0.5" y2="1">
           <Stop offset="0"    stopColor={skin.highlight} stopOpacity="1" />
-          <Stop offset="0.35" stopColor={skin.base}      stopOpacity="1" />
+          <Stop offset="0.28" stopColor={skin.base}      stopOpacity="1" />
+          <Stop offset="0.72" stopColor={skin.base}      stopOpacity="1" />
           <Stop offset="1"    stopColor={skin.mid}       stopOpacity="1" />
         </LinearGradient>
 
@@ -53,72 +50,52 @@ export function AvatarFaceLayer({ faceShape, skin }: Props) {
         </ClipPath>
       </Defs>
 
-      {/* ── Forme principale du visage ──────────────────────────────────────── */}
+      {/* ── Oreilles (derrière le visage) ────────────────────────────────────── */}
+      <Path
+        d="M 44 148 C 38 146, 31 150, 29 159 C 27 168, 31 176, 40 177 C 44 177, 47 174, 47 169"
+        fill={skin.base}
+      />
+      <Path
+        d="M 37 154 C 33 157, 31 163, 33 169 C 35 174, 40 175, 42 171"
+        fill="none" stroke={skin.shadow} strokeWidth={0.9} strokeOpacity={0.45} strokeLinecap="round"
+      />
+      <Path
+        d="M 196 148 C 202 146, 209 150, 211 159 C 213 168, 209 176, 200 177 C 196 177, 193 174, 193 169"
+        fill={skin.base}
+      />
+      <Path
+        d="M 203 154 C 207 157, 209 163, 207 169 C 205 174, 200 175, 198 171"
+        fill="none" stroke={skin.shadow} strokeWidth={0.9} strokeOpacity={0.45} strokeLinecap="round"
+      />
+
+      {/* ── Forme principale du visage ────────────────────────────────────────── */}
       <Path d={facePath} fill="url(#faceGrad)" />
 
-      {/* ── Ombres internes (volumes du visage) ─────────────────────────────── */}
-      {/* Ombre temporale gauche */}
-      <Ellipse
-        cx={60} cy={155} rx={22} ry={45}
-        fill={skin.shadow}
-        opacity={0.1}
-        clipPath="url(#faceClip)"
-      />
-      {/* Ombre temporale droite */}
-      <Ellipse
-        cx={180} cy={155} rx={22} ry={45}
-        fill={skin.shadow}
-        opacity={0.1}
-        clipPath="url(#faceClip)"
-      />
-      {/* Ombre sous les pommettes */}
-      <Ellipse
-        cx={72}  cy={185} rx={16} ry={10}
-        fill={skin.shadow}
-        opacity={0.1}
-        clipPath="url(#faceClip)"
-      />
-      <Ellipse
-        cx={168} cy={185} rx={16} ry={10}
-        fill={skin.shadow}
-        opacity={0.1}
-        clipPath="url(#faceClip)"
-      />
-      {/* Reflet central du front */}
-      <Ellipse
-        cx={120} cy={95} rx={28} ry={18}
-        fill={skin.highlight}
-        opacity={0.35}
-        clipPath="url(#faceClip)"
-      />
+      {/* ── Volumes (ombres internes) ──────────────────────────────────────────── */}
+      {/* Ombres temporales */}
+      <Ellipse cx={58}  cy={155} rx={24} ry={48} fill={skin.shadow} opacity={0.16} clipPath="url(#faceClip)" />
+      <Ellipse cx={182} cy={155} rx={24} ry={48} fill={skin.shadow} opacity={0.16} clipPath="url(#faceClip)" />
 
-      {/* ── Oreilles ────────────────────────────────────────────────────────── */}
-      {/* Oreille gauche */}
-      <Path
-        d="M 44 148 C 38 146, 32 150, 30 158 C 28 166, 32 174, 40 175 C 44 175, 47 172, 47 168"
-        fill={skin.base}
-      />
-      <Path
-        d="M 38 154 C 34 156, 32 162, 34 168 C 36 172, 40 173, 42 170"
-        fill="none"
-        stroke={skin.shadow}
-        strokeWidth={0.8}
-        strokeOpacity={0.5}
-        strokeLinecap="round"
-      />
-      {/* Oreille droite */}
-      <Path
-        d="M 196 148 C 202 146, 208 150, 210 158 C 212 166, 208 174, 200 175 C 196 175, 193 172, 193 168"
-        fill={skin.base}
-      />
-      <Path
-        d="M 202 154 C 206 156, 208 162, 206 168 C 204 172, 200 173, 198 170"
-        fill="none"
-        stroke={skin.shadow}
-        strokeWidth={0.8}
-        strokeOpacity={0.5}
-        strokeLinecap="round"
-      />
+      {/* Ombres sous les pommettes */}
+      <Ellipse cx={70}  cy={188} rx={18} ry={11} fill={skin.shadow} opacity={0.14} clipPath="url(#faceClip)" />
+      <Ellipse cx={170} cy={188} rx={18} ry={11} fill={skin.shadow} opacity={0.14} clipPath="url(#faceClip)" />
+
+      {/* Reflet central du front */}
+      <Ellipse cx={120} cy={92} rx={30} ry={20} fill={skin.highlight} opacity={0.42} clipPath="url(#faceClip)" />
+
+      {/* Éclat des pommettes (catch-light) */}
+      <Ellipse cx={80}  cy={175} rx={14} ry={8} fill={skin.highlight} opacity={0.22} clipPath="url(#faceClip)" />
+      <Ellipse cx={160} cy={175} rx={14} ry={8} fill={skin.highlight} opacity={0.22} clipPath="url(#faceClip)" />
+
+      {/* Rougeur des joues — très subtile */}
+      <Ellipse cx={76}  cy={178} rx={20} ry={13} fill={skin.lips} opacity={0.07} clipPath="url(#faceClip)" />
+      <Ellipse cx={164} cy={178} rx={20} ry={13} fill={skin.lips} opacity={0.07} clipPath="url(#faceClip)" />
+
+      {/* Ombre sous le menton / structure du bas du visage */}
+      <Ellipse cx={120} cy={228} rx={26} ry={9} fill={skin.shadow} opacity={0.13} clipPath="url(#faceClip)" />
+
+      {/* Reflet du nez (arête) — ponctuel, très discret */}
+      <Ellipse cx={120} cy={168} rx={4} ry={8} fill={skin.highlight} opacity={0.18} clipPath="url(#faceClip)" />
     </G>
   );
 }

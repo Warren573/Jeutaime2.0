@@ -6,7 +6,7 @@
  *
  * Positions :
  *  Sourcil gauche  : au-dessus de (93, 146) → zone y ≈ 124–133
- *  Sourcil droit   : miroir de gauche
+ *  Sourcil droit   : miroir de gauche (symétrie autour de x=120)
  */
 
 import React from 'react';
@@ -18,82 +18,87 @@ interface Props {
   color:     string;  // couleur dérivée des cheveux
 }
 
-// ─── Paths sourcils (espace relatif, gauche) ──────────────────────────────────
-// Tracés dans l'espace de l'œil gauche centré à (93, 146).
-// Y sourcil ≈ y_œil - 18
+// ─── Paths sourcils (coordonnées absolues dans le SVG 240×300) ───────────────
+// Conçus pour le sourcil GAUCHE (x ≈ 75–112, y ≈ 122–131)
+// Le sourcil DROIT est obtenu par symétrie : x' = 240 - x (via transform)
 
 const BROW_PATHS: Record<BrowStyle, {
-  outer: string;   // tracé principal (trait ou contour)
-  inner?: string;  // remplissage si style bold
+  outer:       string;
   strokeWidth: number;
-  filled: boolean;
+  filled:      boolean;
 }> = {
 
   // ── Doux — légèrement arqué, fin et naturel
   soft: {
-    outer:       'M 75 128 C 83 122, 95 121, 112 126',
-    strokeWidth: 1.8,
+    outer:       'M 75 129 C 84 122, 97 121, 113 126',
+    strokeWidth: 2.2,
     filled:      false,
   },
 
-  // ── Arqués — courbe plus prononcée, canthus interne plus bas
+  // ── Arqués — courbe prononcée, canthus interne plus bas
   arched: {
-    outer:       'M 75 130 C 82 120, 97 118, 112 126',
-    strokeWidth: 2,
+    outer:       'M 75 131 C 83 120, 98 118, 113 126',
+    strokeWidth: 2.4,
     filled:      false,
   },
 
-  // ── Droits — quasiment horizontaux, expression neutre/froide
+  // ── Droits — quasiment horizontaux, expression neutre
   straight: {
-    outer:       'M 75 127 C 86 125, 100 125, 112 126',
-    strokeWidth: 1.9,
+    outer:       'M 75 128 C 87 125, 101 125, 113 127',
+    strokeWidth: 2.3,
     filled:      false,
   },
 
   // ── Épais — forme pleine, expression forte
   bold: {
-    outer:       'M 74 131 C 82 122, 97 120, 112 127 C 110 131, 94 124, 76 134 Z',
-    inner:       'M 75 130 C 83 121, 98 119, 112 126',
+    outer:  'M 74 132 C 83 122, 98 120, 113 127 C 111 132, 95 125, 76 135 Z',
     strokeWidth: 0,
-    filled:      true,
+    filled: true,
   },
 };
 
-// ─── Un sourcil positionné à (cx, cy) ────────────────────────────────────────
+// ─── Un sourcil positionné à sa place absolue ─────────────────────────────────
 
 function SingleBrow({
-  cx, cy, browStyle, color, flipX = false,
+  browStyle, color, flipX = false,
 }: {
-  cx: number; cy: number;
   browStyle: BrowStyle;
   color:     string;
   flipX?:    boolean;
 }) {
-  const brow  = BROW_PATHS[browStyle];
-  const trans = flipX
-    ? `translate(${cx + 93},${cy}) scale(-1,1) translate(-93,0)`
-    : `translate(${cx - 93},${cy - 146})`;
+  const brow = BROW_PATHS[browStyle];
+
+  // Sourcil gauche : pas de transformation (paths déjà en coordonnées absolues)
+  // Sourcil droit  : symétrie horizontale autour de x=120 → x' = 240 - x
+  const trans = flipX ? 'translate(240, 0) scale(-1, 1)' : undefined;
 
   return (
     <G transform={trans}>
       {brow.filled ? (
-        // Style bold — forme pleine
-        <Path
-          d={brow.outer}
-          fill={color}
-          opacity={0.88}
-        />
+        <Path d={brow.outer} fill={color} opacity={0.9} />
       ) : (
-        // Style trait — strokeLinecap arrondi pour aspect naturel
-        <Path
-          d={brow.outer}
-          fill="none"
-          stroke={color}
-          strokeWidth={brow.strokeWidth}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={0.85}
-        />
+        <>
+          {/* Ombre douce en dessous (volume) */}
+          <Path
+            d={brow.outer}
+            fill="none"
+            stroke={color}
+            strokeWidth={brow.strokeWidth + 2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.18}
+          />
+          {/* Trait principal */}
+          <Path
+            d={brow.outer}
+            fill="none"
+            stroke={color}
+            strokeWidth={brow.strokeWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.88}
+          />
+        </>
       )}
     </G>
   );
@@ -104,10 +109,8 @@ function SingleBrow({
 export function AvatarBrowsLayer({ browStyle, color }: Props) {
   return (
     <G>
-      {/* Sourcil gauche */}
-      <SingleBrow cx={93} cy={146} browStyle={browStyle} color={color} />
-      {/* Sourcil droit — miroir */}
-      <SingleBrow cx={147} cy={146} browStyle={browStyle} color={color} flipX />
+      <SingleBrow browStyle={browStyle} color={color} />
+      <SingleBrow browStyle={browStyle} color={color} flipX />
     </G>
   );
 }
