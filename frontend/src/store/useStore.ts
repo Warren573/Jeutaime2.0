@@ -157,7 +157,36 @@ export const useStore = create<StoreState>()(
         { id: 'm1', userAId: 'me', userBId: 'sophie', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, status: 'active', letterCount: 5 },
         { id: 'm2', userAId: 'me', userBId: 'alex', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, status: 'active', letterCount: 12 },
       ],
-      letters: [],
+      letters: [
+        // Lettres de démo — SANS readAt → déclenchent PremiumLetterAnimation à l'ouverture
+        {
+          id: 'l1',
+          threadId: 'm1',
+          fromUserId: 'sophie',
+          toUserId: 'me',
+          content: "Bonsoir... Je ne sais pas trop comment commencer, mais je voulais te dire que tes réponses m'ont vraiment touché(e). Il y a quelque chose dans ta façon d'être qui me donne envie d'en savoir plus. À bientôt, peut-être ? 🌿",
+          createdAt: Date.now() - 7200000,
+          // readAt absent → lettre non lue → animation jouée
+        },
+        {
+          id: 'l2',
+          threadId: 'm1',
+          fromUserId: 'me',
+          toUserId: 'sophie',
+          content: "Bonsoir Sophie. Tes mots m'ont mis le sourire aux lèvres. Écrire comme ça, c'est un art que peu maîtrisent — toi, tu sembles y exceller naturellement.",
+          createdAt: Date.now() - 3600000,
+          readAt: Date.now() - 3500000,
+        },
+        {
+          id: 'l3',
+          threadId: 'm2',
+          fromUserId: 'alex',
+          toUserId: 'me',
+          content: "Salut ! Je suis tombé(e) sur ton profil et j'ai adoré ta question sur les étoiles. Moi aussi je me perds parfois à regarder le ciel. On a peut-être plus en commun qu'il n'y paraît ✨",
+          createdAt: Date.now() - 1800000,
+          // readAt absent → lettre non lue → animation jouée
+        },
+      ],
       likedProfiles: [],
       dislikedProfiles: [],
       messagesBySalon: {},
