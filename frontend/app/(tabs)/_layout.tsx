@@ -50,7 +50,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="letters"
         options={{
-          title: 'Lettres',
+          title: 'Boîte aux lettres',
           tabBarIcon: ({ focused }) => (
             <View style={[styles.tabIcon, focused ? styles.tabIconFocused : null]}>
               <Text style={styles.tabIconText}>💌</Text>
