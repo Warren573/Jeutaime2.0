@@ -21,8 +21,11 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="salon/[id]" options={{ presentation: 'card' }} />
-        <Stack.Screen name="salon/cafe-paris" options={{ presentation: 'card' }} />
+        <Stack.Screen name="salon/[id]"  options={{ presentation: 'card' }} />
+        <Stack.Screen name="duel/create" options={{ presentation: 'card' }} />
+        <Stack.Screen name="duel/play"   options={{ presentation: 'card' }} />
+        <Stack.Screen name="profile/[id]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="background-picker" options={{ presentation: 'card' }} />
         <Stack.Screen name="games" options={{ presentation: 'card' }} />
         <Stack.Screen name="pet" options={{ presentation: 'card' }} />
         <Stack.Screen name="badges" options={{ presentation: 'card' }} />

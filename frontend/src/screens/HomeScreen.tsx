@@ -28,6 +28,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { currentUser, coins, points, getCurrentTitle, matches, pet } = useStore();
+  const screenBg = useStore(s => s.screenBackgrounds?.['home'] ?? '#FFF8E7');
   const title = getCurrentTitle();
 
   const quickActions = [
@@ -37,7 +38,7 @@ export default function HomeScreen() {
   ];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.userSection}>

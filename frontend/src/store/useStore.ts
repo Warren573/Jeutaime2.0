@@ -122,6 +122,14 @@ interface StoreState {
   // ===== Actions - Messages =====
   addMessage: (salonId: string, message: Message) => void;
   loadMessages: (salonId: string) => Message[];
+
+  // ===== Duels =====
+  duelEntries: Array<{ id: string; text: string; createdAt: number; players: string[] }>;
+  addDuelEntry: (entry: { text: string; players: string[] }) => void;
+
+  // ===== Backgrounds =====
+  screenBackgrounds: Record<string, string>;
+  setScreenBackground: (screenId: string, color: string) => void;
 }
 
 // ==================== STORE ====================
@@ -153,7 +161,9 @@ export const useStore = create<StoreState>()(
       likedProfiles: [],
       dislikedProfiles: [],
       messagesBySalon: {},
-      
+      screenBackgrounds: {},
+      duelEntries: [],
+
       stats: {
         matchesCount: 2,
         lettersSent: 0,
@@ -409,6 +419,21 @@ export const useStore = create<StoreState>()(
       loadMessages: (salonId) => {
         return get().messagesBySalon[salonId] || [];
       },
+
+      addDuelEntry: (entry) => {
+        set((state) => ({
+          duelEntries: [
+            { id: Date.now().toString(), createdAt: Date.now(), ...entry },
+            ...state.duelEntries.slice(0, 49),
+          ],
+        }));
+      },
+
+      setScreenBackground: (screenId, color) => {
+        set((state) => ({
+          screenBackgrounds: { ...state.screenBackgrounds, [screenId]: color },
+        }));
+      },
     }),
     {
       name: 'jeutaime-storage',
@@ -424,6 +449,8 @@ export const useStore = create<StoreState>()(
         unlockedBadges: state.unlockedBadges,
         lastDailyBonus: state.lastDailyBonus,
         currentUser: state.currentUser,
+        screenBackgrounds: state.screenBackgrounds,
+        duelEntries: state.duelEntries,
       }),
     }
   )

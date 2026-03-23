@@ -27,6 +27,7 @@ import {
   Modal,
   Easing,
   Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -76,6 +77,7 @@ interface Participant {
   isOnline: boolean;
   isMe?: boolean;
   badges: { id: string; emoji: string }[];   // gifts / effects received
+  avatarConfig?: { skinColor: string; expression: string; accessory?: string };
 }
 
 interface GiftFlight {
@@ -164,14 +166,25 @@ function ParticipantAvatar({
             width: size,
             height: size,
             borderRadius: size / 2,
-            backgroundColor: bg,
+            backgroundColor: participant.avatarConfig?.skinColor ?? bg,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Text style={{ fontSize: size * 0.35, fontWeight: '600', color: '#FFF' }}>
-            {initials(participant.name)}
-          </Text>
+          {participant.avatarConfig ? (
+            <>
+              <Text style={{ fontSize: size * 0.5 }}>{participant.avatarConfig.expression}</Text>
+              {!!participant.avatarConfig.accessory && (
+                <Text style={{ position: 'absolute', fontSize: size * 0.28, top: 0, right: 0 }}>
+                  {participant.avatarConfig.accessory}
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text style={{ fontSize: size * 0.35, fontWeight: '600', color: '#FFF' }}>
+              {initials(participant.name)}
+            </Text>
+          )}
         </View>
         {/* Online dot */}
         <View
@@ -285,6 +298,7 @@ function OfferingsModal({
   isMetal,
   onSend,
   defaultRecipient,
+  defaultTab = 'offrandes',
 }: {
   visible: boolean;
   onClose: () => void;
@@ -294,6 +308,7 @@ function OfferingsModal({
   isMetal: boolean;
   onSend: (recipient: Participant, item: any) => void;
   defaultRecipient?: Participant | null;
+  defaultTab?: 'offrandes' | 'magie';
 }) {
   const [recipient, setRecipient] = useState<Participant | null>(null);
   const [tab, setTab] = useState<'offrandes' | 'magie'>('offrandes');
@@ -301,9 +316,9 @@ function OfferingsModal({
   useEffect(() => {
     if (visible) {
       setRecipient(defaultRecipient ?? null);
-      setTab('offrandes');
+      setTab(defaultTab);
     }
-  }, [visible, defaultRecipient]);
+  }, [visible, defaultRecipient, defaultTab]);
 
   const others = participants.filter(p => !p.isMe);
   const offerings = isMetal ? [...allOfferings, ...metalOfferings] : allOfferings;
@@ -653,13 +668,16 @@ function AvatarCard({
   participant,
   size = 68,
   onPress,
+  onMeasuredPress,
 }: {
   participant: Participant;
   size?: number;
   onPress?: () => void;
+  onMeasuredPress?: (p: Participant, cx: number, cy: number) => void;
 }) {
   const bg = nameColor(participant.name);
   const dotSize = size * 0.22;
+  const cardRef = useRef<View>(null);
 
   const scale = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -683,12 +701,25 @@ function AvatarCard({
     return () => loop.stop();
   }, []);
 
+  const handlePress = () => {
+    if (onMeasuredPress) {
+      cardRef.current?.measureInWindow(
+        (x: number, y: number, w: number, h: number) => {
+          onMeasuredPress(participant, x + w / 2, y + h / 2);
+        }
+      );
+    } else {
+      onPress?.();
+    }
+  };
+
   const badges = participant.badges.slice(-3);
 
   return (
+    <View ref={cardRef}>
     <TouchableOpacity
-      onPress={onPress}
-      disabled={!onPress}
+      onPress={handlePress}
+      disabled={!onPress && !onMeasuredPress}
       activeOpacity={0.75}
       style={{ alignItems: 'center', gap: 8 }}
     >
@@ -698,19 +729,30 @@ function AvatarCard({
             width: size,
             height: size,
             borderRadius: size / 2,
-            backgroundColor: bg,
+            backgroundColor: participant.avatarConfig?.skinColor ?? bg,
             alignItems: 'center',
             justifyContent: 'center',
-            shadowColor: bg,
+            shadowColor: participant.avatarConfig?.skinColor ?? bg,
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.28,
             shadowRadius: 8,
             elevation: 4,
           }}
         >
-          <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: '#FFF' }}>
-            {initials(participant.name)}
-          </Text>
+          {participant.avatarConfig ? (
+            <>
+              <Text style={{ fontSize: size * 0.5 }}>{participant.avatarConfig.expression}</Text>
+              {!!participant.avatarConfig.accessory && (
+                <Text style={{ position: 'absolute', fontSize: size * 0.28, top: 0, right: 0 }}>
+                  {participant.avatarConfig.accessory}
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: '#FFF' }}>
+              {initials(participant.name)}
+            </Text>
+          )}
         </View>
         {/* Online dot */}
         <View
@@ -744,10 +786,118 @@ function AvatarCard({
       </View>
 
       {/* Hint tap */}
-      {onPress && (
-        <Text style={s.tapHint}>appuyer pour offrir</Text>
+      {(onPress || onMeasuredPress) && !participant.isMe && (
+        <Text style={s.tapHint}>appuyer pour interagir</Text>
       )}
     </TouchableOpacity>
+    </View>
+  );
+}
+
+// ── AvatarContextMenu ─────────────────────────────────────────────────────────
+
+interface MenuState {
+  participant: Participant;
+  cx: number; // centre X de l'avatar (coordonnées page)
+  cy: number; // centre Y de l'avatar (coordonnées page)
+}
+
+const MENU_BTN_SIZE = 68;
+const MENU_WIDTH = MENU_BTN_SIZE * 2 + 20; // largeur totale du menu (2 boutons + gap)
+
+function AvatarContextMenu({
+  state,
+  onClose,
+  onOffrandes,
+  onMagie,
+}: {
+  state: MenuState;
+  onClose: () => void;
+  onOffrandes: () => void;
+  onMagie: () => void;
+}) {
+  const bgOpacity = useRef(new Animated.Value(0)).current;
+  const scaleO    = useRef(new Animated.Value(0)).current;
+  const scaleM    = useRef(new Animated.Value(0)).current;
+  const translateO = useRef(new Animated.Value(20)).current;
+  const translateM = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(bgOpacity, { toValue: 1, duration: 160, useNativeDriver: true }),
+      Animated.spring(scaleO, { toValue: 1, tension: 220, friction: 10, useNativeDriver: true }),
+      Animated.spring(translateO, { toValue: 0, tension: 220, friction: 10, useNativeDriver: true }),
+      Animated.spring(scaleM, { toValue: 1, tension: 220, friction: 10, delay: 70, useNativeDriver: true }),
+      Animated.spring(translateM, { toValue: 0, tension: 220, friction: 10, delay: 70, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const dismiss = (cb?: () => void) => {
+    Animated.parallel([
+      Animated.timing(bgOpacity, { toValue: 0, duration: 110, useNativeDriver: true }),
+      Animated.timing(scaleO, { toValue: 0, duration: 110, useNativeDriver: true }),
+      Animated.timing(scaleM, { toValue: 0, duration: 110, useNativeDriver: true }),
+    ]).start(() => { onClose(); cb?.(); });
+  };
+
+  // Ancre le menu au-dessus de l'avatar, centré sur son axe X
+  const left = Math.max(12, Math.min(state.cx - MENU_WIDTH / 2, SCREEN_W - MENU_WIDTH - 12));
+  const top  = Math.max(80, state.cy - MENU_BTN_SIZE - 56);
+
+  return (
+    <Modal transparent animationType="none" onRequestClose={() => dismiss()}>
+      {/* Conteneur plein écran — nécessaire pour que position:absolute s'ancre correctement */}
+      <View style={StyleSheet.absoluteFill}>
+        {/* Fond semi-transparent — tap pour fermer */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={() => dismiss()}
+        >
+          <Animated.View
+            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.28)', opacity: bgOpacity }]}
+          />
+        </TouchableOpacity>
+
+        {/* Menu flottant */}
+        <View style={[s.ctxMenu, { left, top }]}>
+        {/* Label du destinataire */}
+        <View style={s.ctxLabel}>
+          <Text style={s.ctxLabelText} numberOfLines={1}>{state.participant.name}</Text>
+        </View>
+
+        {/* Deux boutons */}
+        <View style={s.ctxBtnRow}>
+          {/* Offrandes */}
+          <Animated.View style={{ transform: [{ scale: scaleO }, { translateY: translateO }] }}>
+            <TouchableOpacity
+              style={[s.ctxBtn, { backgroundColor: '#FF9500' }]}
+              onPress={() => dismiss(onOffrandes)}
+              activeOpacity={0.82}
+            >
+              <Text style={{ fontSize: 28 }}>🎁</Text>
+              <Text style={s.ctxBtnLabel}>Offrandes</Text>
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Magie */}
+          <Animated.View style={{ transform: [{ scale: scaleM }, { translateY: translateM }] }}>
+            <TouchableOpacity
+              style={[s.ctxBtn, { backgroundColor: '#5856D6' }]}
+              onPress={() => dismiss(onMagie)}
+              activeOpacity={0.82}
+            >
+              <Text style={{ fontSize: 28 }}>✨</Text>
+              <Text style={s.ctxBtnLabel}>Magie</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+        {/* Fin ctxBtnRow */}
+        </View>
+        {/* Fin ctxMenu */}
+      </View>
+      {/* Fin conteneur absoluteFill */}
+    </Modal>
   );
 }
 
@@ -769,6 +919,10 @@ function SalonHorizontalScreen({
 }: SharedProps) {
   const router = useRouter();
 
+  // Menu contextuel au tap d'un avatar
+  const [menuState, setMenuState] = useState<MenuState | null>(null);
+  const [offeringsTab, setOfferingsTab] = useState<'offrandes' | 'magie'>('offrandes');
+
   // Interactions récentes (offrandes/magie uniquement)
   const interactions = useMemo(
     () => messages.filter(m => m.isSystem).slice(-12).reverse(),
@@ -778,16 +932,26 @@ function SalonHorizontalScreen({
   const others = participants.filter(p => !p.isMe);
   const me = participants.find(p => p.isMe);
 
-  // Layout : 1 haut + 2 milieu + 1 bas (diamant), adapté au nombre de participants
-  const [top, left, right, bottom] = useMemo(() => {
-    if (others.length >= 3) {
-      return [others[0], others[1], others[2], me];
-    }
-    if (others.length === 2) {
-      return [others[0], null, others[1], me];
-    }
-    return [others[0] ?? null, null, null, me];
+  // Grille 2×2 : [other0, other1] / [other2, me]
+  const gridRows = useMemo((): (Participant | null)[][] => {
+    const slots: (Participant | null)[] = [
+      others[0] ?? null,
+      others[1] ?? null,
+      others[2] ?? null,
+      me ?? null,
+    ];
+    return [slots.slice(0, 2), slots.slice(2, 4)];
   }, [others, me]);
+
+  const openAvatarMenu = (p: Participant, cx: number, cy: number) => {
+    setMenuState({ participant: p, cx, cy });
+  };
+
+  const openFromMenu = (tab: 'offrandes' | 'magie') => {
+    if (!menuState) return;
+    setOfferingsTab(tab);
+    openOffrandes(menuState.participant);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.white }}>
@@ -800,36 +964,25 @@ function SalonHorizontalScreen({
         onBack={() => router.back()}
       />
 
-      {/* Zone de présence — structure principale */}
+      {/* Zone de présence — grille 2×2 uniforme */}
       <View style={s.presenceArea}>
-
-        {/* Ligne haute — avatar seul, centré */}
-        {top && (
-          <View style={s.presenceRowCenter}>
-            <AvatarCard
-              participant={top}
-              size={72}
-              onPress={() => openOffrandes(top)}
-            />
+        {gridRows.map((row, rowIdx) => (
+          <View key={rowIdx} style={s.gridRow}>
+            {row.map((p, colIdx) => (
+              <View key={`${rowIdx}-${colIdx}`} style={s.gridCell}>
+                {p ? (
+                  <AvatarCard
+                    participant={p}
+                    size={72}
+                    onMeasuredPress={!p.isMe ? openAvatarMenu : undefined}
+                  />
+                ) : (
+                  <View style={{ width: 72, height: 72 }} />
+                )}
+              </View>
+            ))}
           </View>
-        )}
-
-        {/* Ligne milieu — deux avatars gauche / droite */}
-        <View style={s.presenceRowSides}>
-          {left ? (
-            <AvatarCard participant={left} size={68} onPress={() => openOffrandes(left)} />
-          ) : <View style={{ width: 90 }} />}
-          {right ? (
-            <AvatarCard participant={right} size={68} onPress={() => openOffrandes(right)} />
-          ) : <View style={{ width: 90 }} />}
-        </View>
-
-        {/* Ligne basse — moi, centré */}
-        {bottom && (
-          <View style={s.presenceRowCenter}>
-            <AvatarCard participant={bottom} size={60} />
-          </View>
-        )}
+        ))}
       </View>
 
       {/* Séparateur */}
@@ -844,7 +997,7 @@ function SalonHorizontalScreen({
               Aucune interaction pour l'instant
             </Text>
             <Text style={s.emptyInteractionsHint}>
-              Appuyez sur un avatar pour envoyer une offrande
+              Appuyez sur un avatar pour offrir ou lancer un sort
             </Text>
           </View>
         ) : (
@@ -870,14 +1023,9 @@ function SalonHorizontalScreen({
       </View>
 
       {/* Barre d'actions — deux boutons, centrés, clean */}
-      <View
-        style={[
-          s.actionBar,
-          { paddingBottom: Math.max(insets.bottom, 16) },
-        ]}
-      >
+      <View style={[s.actionBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <TouchableOpacity
-          onPress={() => openOffrandes()}
+          onPress={() => { setOfferingsTab('offrandes'); openOffrandes(); }}
           style={[s.actionBarBtn, { borderColor: COLORS.border }]}
         >
           <Text style={{ fontSize: 18 }}>🎁</Text>
@@ -885,7 +1033,7 @@ function SalonHorizontalScreen({
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => openOffrandes()}
+          onPress={() => { setOfferingsTab('magie'); openOffrandes(); }}
           style={[s.actionBarBtn, { borderColor: COLORS.border }]}
         >
           <Text style={{ fontSize: 18 }}>✨</Text>
@@ -894,6 +1042,16 @@ function SalonHorizontalScreen({
       </View>
 
       <GiftAnimation flights={giftFlights} />
+
+      {/* Menu contextuel avatar */}
+      {menuState && (
+        <AvatarContextMenu
+          state={menuState}
+          onClose={() => setMenuState(null)}
+          onOffrandes={() => openFromMenu('offrandes')}
+          onMagie={() => openFromMenu('magie')}
+        />
+      )}
 
       <OfferingsModal
         visible={showOfferings}
@@ -904,6 +1062,7 @@ function SalonHorizontalScreen({
         isMetal={salon.type === 'metal'}
         onSend={handleSendOffering}
         defaultRecipient={defaultRecipient}
+        defaultTab={offeringsTab}
       />
     </View>
   );
@@ -936,7 +1095,10 @@ interface SharedProps {
 export default function SalonDetailScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
-  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages } = useStore();
+  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarConfig: myAvatarConfig } = useStore();
+
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
 
   const salonId = params.id as string;
   const salon = salonsData.find(s => s.id === salonId);
@@ -954,8 +1116,12 @@ export default function SalonDetailScreen() {
       name: p.name,
       isOnline: p.online,
       badges: [],
+      avatarConfig: p.avatarConfig,
     }));
-    const me: Participant = { id: 'me', name: myName, isOnline: true, isMe: true, badges: [] };
+    const meAvatar = myAvatarConfig
+      ? { skinColor: myAvatarConfig.skinColor, expression: myAvatarConfig.expression, accessory: myAvatarConfig.accessory }
+      : { skinColor: '#5AC8FA', expression: '😊' };
+    const me: Participant = { id: 'me', name: myName, isOnline: true, isMe: true, badges: [], avatarConfig: meAvatar };
     return [...others, me];
   });
 
@@ -1066,7 +1232,8 @@ export default function SalonDetailScreen() {
     insets,
   };
 
-  return salon.layout === 'vertical'
+  // Paysage → toujours présence/interactions (horizontal), portrait → selon salon.layout
+  return (!isLandscape && salon.layout === 'vertical')
     ? <SalonVerticalScreen {...props} />
     : <SalonHorizontalScreen {...props} />;
 }
@@ -1256,19 +1423,73 @@ const s = StyleSheet.create({
   emptyChatEmoji: { fontSize: 36, marginBottom: 12 },
   emptyChatText: { fontSize: 15, color: COLORS.textSecondary },
 
-  // Horizontal presence layout
+  // Horizontal presence layout — grille 2×2
   presenceArea: {
-    paddingVertical: 24,
-    paddingHorizontal: 24,
-    gap: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    gap: 12,
     backgroundColor: COLORS.white,
   },
+  gridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  gridCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  // Anciens styles conservés pour compatibilité
   presenceRowCenter: {
     alignItems: 'center',
   },
   presenceRowSides: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+  },
+
+  // Context menu (AvatarContextMenu)
+  ctxMenu: {
+    position: 'absolute',
+    width: MENU_BTN_SIZE * 2 + 20,
+    alignItems: 'center',
+    gap: 8,
+  },
+  ctxLabel: {
+    backgroundColor: 'rgba(30,30,30,0.82)',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 20,
+    maxWidth: MENU_BTN_SIZE * 2 + 20,
+  },
+  ctxLabelText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  ctxBtnRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  ctxBtn: {
+    width: MENU_BTN_SIZE,
+    height: MENU_BTN_SIZE,
+    borderRadius: MENU_BTN_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  ctxBtnLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFF',
+    letterSpacing: 0.3,
   },
   cardName: {
     fontSize: 13,

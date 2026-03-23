@@ -3,186 +3,962 @@ import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
-  Dimensions,
-  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 import type { Match } from '../shared/types';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+// ─── TYPES ────────────────────────────────────────────────────────────────────
 
-const profiles = [
-  { id: 'p1', name: 'Sophie', age: 28, city: 'Paris', bio: 'Amoureuse de la vie et des voyages ✈️', interests: ['Voyages', 'Cinéma', 'Cuisine'], compatibility: 89 },
-  { id: 'p2', name: 'Emma', age: 26, city: 'Lyon', bio: 'Artiste dans l\'âme 🎨', interests: ['Art', 'Musique', 'Lecture'], compatibility: 76 },
-  { id: 'p3', name: 'Chloé', age: 29, city: 'Marseille', bio: 'Sportive et gourmande 🏊', interests: ['Sport', 'Cuisine', 'Nature'], compatibility: 92 },
-  { id: 'p4', name: 'Léa', age: 25, city: 'Bordeaux', bio: 'Passionnée de musique 🎵', interests: ['Musique', 'Concerts', 'Danse'], compatibility: 84 },
-  { id: 'p5', name: 'Camille', age: 27, city: 'Toulouse', bio: 'Bookworm assumée 📚', interests: ['Lecture', 'Théâtre', 'Poésie'], compatibility: 71 },
-  { id: 'p6', name: 'Julie', age: 30, city: 'Nantes', bio: 'Nature lover 🌿', interests: ['Rando', 'Photo', 'Yoga'], compatibility: 88 },
+interface DiscoveryProfile {
+  id: string;
+  name: string;
+  age: number;
+  city: string;
+  avatarEmoji: string;
+  avatarBg: string;
+  mainVibe: string;
+  descriptors: string[];
+  tags: { emoji: string; label: string }[];
+  quote: string;
+  sections: { title: string; icon: string; items: string[] }[];
+  game: { level: number; badges: string[]; pet: string; petEmoji: string };
+  letters: { exchanged: number; total: number; lastLetterDaysAgo: number; nextReveal: number };
+  compatibility: number;
+}
+
+// ─── MOCK DATA ─────────────────────────────────────────────────────────────────
+
+const profiles: DiscoveryProfile[] = [
+  {
+    id: 'p1',
+    name: 'Sophie',
+    age: 28,
+    city: 'Paris',
+    avatarEmoji: '🌸',
+    avatarBg: '#FCE4EC',
+    mainVibe: 'Romantique curieuse',
+    descriptors: ['Douce', 'Rêveuse'],
+    tags: [
+      { emoji: '✈️', label: 'Voyageuse' },
+      { emoji: '🎬', label: 'Cinéphile' },
+      { emoji: '🍳', label: 'Cuisinière' },
+      { emoji: '🌙', label: 'Nocturne' },
+      { emoji: '📖', label: 'Lectrice' },
+    ],
+    quote: 'Je crois qu\'on se comprend mieux autour d\'un plat qu\'on a cuisiné ensemble.',
+    sections: [
+      { title: 'Mon univers', icon: '✦', items: ['Voyages lointains', 'Cinéma d\'auteur', 'Cuisine du monde'] },
+      { title: 'Ma manière d\'aimer', icon: '✦', items: ['Avec présence', 'En douceur', 'Par les détails'] },
+      { title: 'Ma présence dans les salons', icon: '✦', items: ['Je ris facilement', 'J\'écoute vraiment', 'Je me souviens de tout'] },
+    ],
+    game: { level: 8, badges: ['Romantique', 'Curieuse'], pet: 'Lapin', petEmoji: '🐰' },
+    letters: { exchanged: 0, total: 10, lastLetterDaysAgo: 0, nextReveal: 3 },
+    compatibility: 89,
+  },
+  {
+    id: 'p2',
+    name: 'Emma',
+    age: 26,
+    city: 'Lyon',
+    avatarEmoji: '🎨',
+    avatarBg: '#EDE7F6',
+    mainVibe: 'Artiste libre',
+    descriptors: ['Intense', 'Créative'],
+    tags: [
+      { emoji: '🎨', label: 'Artiste' },
+      { emoji: '🎵', label: 'Musicienne' },
+      { emoji: '📚', label: 'Lectrice' },
+      { emoji: '🔥', label: 'Passionnée' },
+      { emoji: '🌿', label: 'Zen' },
+    ],
+    quote: 'L\'art m\'a appris à regarder les gens comme des œuvres inachevées.',
+    sections: [
+      { title: 'Mon univers', icon: '✦', items: ['Peinture', 'Jazz & soul', 'Littérature contemporaine'] },
+      { title: 'Ma manière d\'aimer', icon: '✦', items: ['Avec intensité', 'De façon créative', 'Sans retenue'] },
+      { title: 'Ma présence dans les salons', icon: '✦', items: ['Je provoque doucement', 'Je crée des ambiances', 'Je reste mystérieuse'] },
+    ],
+    game: { level: 5, badges: ['Artiste', 'Mystérieuse'], pet: 'Chat', petEmoji: '🐱' },
+    letters: { exchanged: 0, total: 10, lastLetterDaysAgo: 0, nextReveal: 3 },
+    compatibility: 76,
+  },
+  {
+    id: 'p3',
+    name: 'Chloé',
+    age: 29,
+    city: 'Marseille',
+    avatarEmoji: '🏊',
+    avatarBg: '#E0F7FA',
+    mainVibe: 'Sportive gourmande',
+    descriptors: ['Directe', 'Solaire'],
+    tags: [
+      { emoji: '🏊', label: 'Nageuse' },
+      { emoji: '🍕', label: 'Gourmande' },
+      { emoji: '🌞', label: 'Solaire' },
+      { emoji: '🤸', label: 'Active' },
+      { emoji: '🌊', label: 'La mer' },
+    ],
+    quote: 'Je veux vivre des histoires qui me donnent faim — de tout.',
+    sections: [
+      { title: 'Mon univers', icon: '✦', items: ['Sport & mer', 'Gastronomie locale', 'Voyages spontanés'] },
+      { title: 'Ma manière d\'aimer', icon: '✦', items: ['Avec énergie', 'Franchement', 'En riant beaucoup'] },
+      { title: 'Ma présence dans les salons', icon: '✦', items: ['Je lance les défis', 'Je mets l\'ambiance', 'Je ne triche pas'] },
+    ],
+    game: { level: 14, badges: ['Solaire', 'Compétitive'], pet: 'Dauphin', petEmoji: '🐬' },
+    letters: { exchanged: 0, total: 10, lastLetterDaysAgo: 0, nextReveal: 3 },
+    compatibility: 92,
+  },
+  {
+    id: 'p4',
+    name: 'Léa',
+    age: 25,
+    city: 'Bordeaux',
+    avatarEmoji: '🎵',
+    avatarBg: '#FFF8E1',
+    mainVibe: 'Âme musicale',
+    descriptors: ['Sensible', 'Taquine'],
+    tags: [
+      { emoji: '🎸', label: 'Guitariste' },
+      { emoji: '🎤', label: 'Chanteuse' },
+      { emoji: '💃', label: 'Danseuse' },
+      { emoji: '🍷', label: 'Œnophile' },
+      { emoji: '🌸', label: 'Romantique' },
+    ],
+    quote: 'Je tombe amoureuse des gens qui ont une playlist secrète.',
+    sections: [
+      { title: 'Mon univers', icon: '✦', items: ['Concerts & scènes', 'Vins du Sud-Ouest', 'Danse improvisée'] },
+      { title: 'Ma manière d\'aimer', icon: '✦', items: ['Avec des chansons', 'Lentement', 'Avec des surprises'] },
+      { title: 'Ma présence dans les salons', icon: '✦', items: ['Je chante parfois', 'Je teste les gens', 'Je garde un secret'] },
+    ],
+    game: { level: 7, badges: ['Musicale', 'Romantique'], pet: 'Renard', petEmoji: '🦊' },
+    letters: { exchanged: 0, total: 10, lastLetterDaysAgo: 0, nextReveal: 3 },
+    compatibility: 84,
+  },
+  {
+    id: 'p5',
+    name: 'Camille',
+    age: 27,
+    city: 'Toulouse',
+    avatarEmoji: '📚',
+    avatarBg: '#F3E5F5',
+    mainVibe: 'Intellectuelle discrète',
+    descriptors: ['Profonde', 'Drôle'],
+    tags: [
+      { emoji: '📚', label: 'Lectrice' },
+      { emoji: '🎭', label: 'Théâtre' },
+      { emoji: '✍️', label: 'Écrivaine' },
+      { emoji: '🧩', label: 'Analytique' },
+      { emoji: '☕', label: 'Café addict' },
+    ],
+    quote: 'J\'ai plus de personnages fictifs dans ma tête que d\'amis — et j\'assume.',
+    sections: [
+      { title: 'Mon univers', icon: '✦', items: ['Romans & essais', 'Théâtre amateur', 'Débats de fond'] },
+      { title: 'Ma manière d\'aimer', icon: '✦', items: ['Par les mots', 'Avec profondeur', 'En observant d\'abord'] },
+      { title: 'Ma présence dans les salons', icon: '✦', items: ['Je pose les vraies questions', 'Je décrypte les sous-textes', 'Je ris en dernier mais plus fort'] },
+    ],
+    game: { level: 10, badges: ['Intellectuelle', 'Mystérieuse'], pet: 'Hibou', petEmoji: '🦉' },
+    letters: { exchanged: 0, total: 10, lastLetterDaysAgo: 0, nextReveal: 3 },
+    compatibility: 71,
+  },
+  {
+    id: 'p6',
+    name: 'Julie',
+    age: 30,
+    city: 'Nantes',
+    avatarEmoji: '🌿',
+    avatarBg: '#E8F5E9',
+    mainVibe: 'Nature & sérénité',
+    descriptors: ['Apaisante', 'Curieuse'],
+    tags: [
+      { emoji: '🥾', label: 'Randonneuse' },
+      { emoji: '📸', label: 'Photographe' },
+      { emoji: '🧘', label: 'Yoga' },
+      { emoji: '🌱', label: 'Écolo' },
+      { emoji: '☁️', label: 'Contemplative' },
+    ],
+    quote: 'La meilleure conversation que j\'ai eue, c\'était face à l\'océan à 6h du matin.',
+    sections: [
+      { title: 'Mon univers', icon: '✦', items: ['Randonnées & nature', 'Photographie argentique', 'Yoga & silence'] },
+      { title: 'Ma manière d\'aimer', icon: '✦', items: ['Avec calme', 'En pleine nature', 'Par la présence'] },
+      { title: 'Ma présence dans les salons', icon: '✦', items: ['J\'observe les dynamiques', 'Je parle peu mais juste', 'Je rends le calme contagieux'] },
+    ],
+    game: { level: 9, badges: ['Apaisante', 'Contemplative'], pet: 'Panda', petEmoji: '🐼' },
+    letters: { exchanged: 0, total: 10, lastLetterDaysAgo: 0, nextReveal: 3 },
+    compatibility: 88,
+  },
 ];
 
-const Avatar = ({ name, size = 120 }: { name: string; size?: number }) => {
-  const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  const bgColor = colors[Math.abs(hash) % colors.length];
-  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+// ─── REVEAL HELPERS ────────────────────────────────────────────────────────────
 
+const REVEAL_MILESTONES = [
+  { threshold: 0,  label: 'Inconnu',    color: '#9E9E9E' },
+  { threshold: 3,  label: 'Mystérieux', color: '#9C27B0' },
+  { threshold: 6,  label: 'Familier',   color: '#2196F3' },
+  { threshold: 10, label: 'Révélé',     color: '#8B1A1A' },
+];
+
+function getRevealState(exchanged: number) {
+  let current = REVEAL_MILESTONES[0];
+  for (const m of REVEAL_MILESTONES) {
+    if (exchanged >= m.threshold) current = m;
+  }
+  const idx = REVEAL_MILESTONES.indexOf(current);
+  const next = idx < REVEAL_MILESTONES.length - 1 ? REVEAL_MILESTONES[idx + 1] : null;
+  return { current, next };
+}
+
+// ─── NEWSPAPER RULE ──────────────────────────────────────────────────────────
+
+function Rule({ thick = false, style }: { thick?: boolean; style?: object }) {
   return (
-    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: bgColor }]}>
-      <Text style={[styles.avatarText, { fontSize: size * 0.35 }]}>{initials}</Text>
+    <View
+      style={[
+        { height: thick ? 2 : 1, backgroundColor: thick ? INK : RULE_COLOR },
+        style,
+      ]}
+    />
+  );
+}
+
+function DoubleRule({ style }: { style?: object }) {
+  return (
+    <View style={[{ gap: 3 }, style]}>
+      <View style={{ height: 2, backgroundColor: INK }} />
+      <View style={{ height: 1, backgroundColor: INK }} />
     </View>
   );
-};
+}
 
-export default function ProfilesScreen() {
-  const insets = useSafeAreaInsets();
-  const { likedProfiles, dislikedProfiles, addLike, addDislike, addMatch, currentUser } = useStore();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [showMatch, setShowMatch] = useState<string | null>(null);
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-  const availableProfiles = profiles.filter(
-    p => !likedProfiles.includes(p.id) && !dislikedProfiles.includes(p.id)
-  );
+const PAPER    = '#FDFAF0';   // papier blanc-crème
+const OLD_BG   = '#EDE3C8';   // fond parchemin
+const INK      = '#1A0A00';   // encre sombre
+const INK2     = '#4A2C18';   // encre secondaire
+const INK3     = '#8B6F47';   // encre tertiaire
+const RULE_COLOR = '#C4A882'; // trait de séparation
+const RED_INK  = '#8B1A1A';   // accent rouge journal
 
-  const currentProfile = availableProfiles[currentIndex % availableProfiles.length];
+// ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
 
-  const handleSmile = () => {
-    if (!currentProfile) return;
-    addLike(currentProfile.id);
-    
-    // 50% de chance de match
-    if (Math.random() > 0.5) {
-      addMatch({
-        id: `match_${Date.now()}`,
-        userAId: currentUser?.id || 'me',
-        userBId: currentProfile.id,
-        createdAt: Date.now(),
-        questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true },
-        status: 'active',
-        letterCount: 0,
-      });
-      setShowMatch(currentProfile.name);
-      setTimeout(() => setShowMatch(null), 2000);
-    }
-    
-    setCurrentIndex(prev => prev + 1);
-  };
-
-  const handleGrimace = () => {
-    if (!currentProfile) return;
-    addDislike(currentProfile.id);
-    setCurrentIndex(prev => prev + 1);
-  };
-
-  if (showMatch) {
-    return (
-      <View style={[styles.container, styles.matchScreen, { paddingTop: insets.top }]}>
-        <Text style={styles.matchEmoji}>💕</Text>
-        <Text style={styles.matchTitle}>C'est un Match!</Text>
-        <Text style={styles.matchName}>Vous et {showMatch}</Text>
-      </View>
-    );
-  }
-
-  if (!currentProfile || availableProfiles.length === 0) {
-    return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>🔍 Découverte</Text>
-        </View>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyEmoji}>😢</Text>
-          <Text style={styles.emptyText}>Plus de profils disponibles</Text>
-          <Text style={styles.emptySubtext}>Revenez plus tard!</Text>
-        </View>
-      </View>
-    );
-  }
-
+/** Manchette — en-tête de journal */
+function Masthead({
+  index,
+  total,
+}: {
+  index: number;
+  total: number;
+}) {
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>🔍 Découverte</Text>
-        <Text style={styles.headerSubtitle}>{availableProfiles.length} profils restants</Text>
+    <View style={np.masthead}>
+      <Text style={np.mastheadSub}>❧ Édition du jour ❧</Text>
+      <Text style={np.mastheadTitle}>LE PROFIL</Text>
+      <DoubleRule />
+      <View style={np.mastheadMeta}>
+        <Text style={np.mastheadMetaText}>Découverte</Text>
+        <Text style={np.mastheadMetaText}>No. {index + 1}/{total}</Text>
       </View>
+    </View>
+  );
+}
 
-      <View style={styles.cardContainer}>
-        <View style={styles.profileCard}>
-          <Avatar name={currentProfile.name} size={140} />
-          
-          <Text style={styles.profileName}>{currentProfile.name}, {currentProfile.age}</Text>
-          <Text style={styles.profileCity}>📍 {currentProfile.city}</Text>
-          
-          <View style={styles.compatBadge}>
-            <Text style={styles.compatText}>💕 {currentProfile.compatibility}% compatible</Text>
-          </View>
-          
-          <Text style={styles.profileBio}>{currentProfile.bio}</Text>
-          
-          <View style={styles.interests}>
-            {currentProfile.interests.map((interest, i) => (
-              <View key={i} style={styles.interestTag}>
-                <Text style={styles.interestText}>{interest}</Text>
-              </View>
+/** À la une — bloc titre du profil */
+function FrontPage({ profile }: { profile: DiscoveryProfile }) {
+  return (
+    <View style={np.frontPage}>
+      {/* Photo + Headline */}
+      <View style={np.frontRow}>
+        {/* Portrait encadré */}
+        <View style={[np.portrait, { backgroundColor: profile.avatarBg }]}>
+          <Text style={np.portraitEmoji}>{profile.avatarEmoji}</Text>
+          <Text style={np.portraitCaption}>Portrait</Text>
+        </View>
+
+        {/* Headline */}
+        <View style={np.frontHeadlines}>
+          <Text style={np.headline}>{profile.name.toUpperCase()}</Text>
+          <Rule thick />
+          <Text style={np.dateline}>
+            {profile.city.toUpperCase()} · {profile.age} ans
+          </Text>
+          <Text style={np.subheadline}>« {profile.mainVibe} »</Text>
+          <View style={np.descriptorsRow}>
+            {profile.descriptors.map((d) => (
+              <Text key={d} style={np.descriptor}>
+                {d}
+              </Text>
             ))}
           </View>
         </View>
       </View>
 
-      {/* Boutons Sourire / Grimace */}
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.grimaceBtn} onPress={handleGrimace}>
-          <Text style={styles.actionEmoji}>😬</Text>
-          <Text style={styles.actionLabel}>Passer</Text>
+      {/* Compatibilité — en encadré */}
+      <View style={np.compatBox}>
+        <Text style={np.compatLabel}>AFFINITÉ</Text>
+        <Text style={np.compatValue}>{profile.compatibility}%</Text>
+        <Text style={np.compatSub}>
+          {profile.compatibility >= 85
+            ? 'Excellente correspondance'
+            : profile.compatibility >= 70
+            ? 'Bonne correspondance'
+            : 'Correspondance à explorer'}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/** Tags — tampons style cachet */
+function Stamps({ tags }: { tags: DiscoveryProfile['tags'] }) {
+  return (
+    <View style={np.section}>
+      <Text style={np.sectionLabel}>— Caractéristiques —</Text>
+      <View style={np.stampsWrap}>
+        {tags.map((t) => (
+          <View key={t.label} style={np.stamp}>
+            <Text style={np.stampEmoji}>{t.emoji}</Text>
+            <Text style={np.stampText}>{t.label.toUpperCase()}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** Citation — encadré à la une */
+function PullQuote({ quote }: { quote: string }) {
+  return (
+    <View style={np.pullQuoteWrap}>
+      <Rule />
+      <Text style={np.pullQuoteGuillemet}>«</Text>
+      <Text style={np.pullQuoteText}>{quote}</Text>
+      <Text style={[np.pullQuoteGuillemet, np.pullQuoteGuillemetsClose]}>»</Text>
+      <Rule />
+    </View>
+  );
+}
+
+/** Section — colonne de journal */
+function Column({ section }: { section: DiscoveryProfile['sections'][0] }) {
+  return (
+    <View style={np.column}>
+      <DoubleRule />
+      <Text style={np.columnTitle}>
+        {section.icon}  {section.title.toUpperCase()}
+      </Text>
+      <Rule />
+      <View style={np.columnItems}>
+        {section.items.map((item, i) => (
+          <Text key={i} style={np.columnItem}>
+            — {item}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** Progression — encadré jeu */
+function ProgressBox({ game }: { game: DiscoveryProfile['game'] }) {
+  return (
+    <View style={np.infoBox}>
+      <DoubleRule />
+      <Text style={np.infoBoxTitle}>◆ FICHE DE JEU</Text>
+      <Rule />
+      <View style={np.infoBoxRow}>
+        <View style={np.infoBoxCell}>
+          <Text style={np.infoBoxLabel}>NIVEAU</Text>
+          <Text style={np.infoBoxValue}>{game.level}</Text>
+        </View>
+        <View style={np.infoBoxDivider} />
+        <View style={[np.infoBoxCell, { flex: 2 }]}>
+          <Text style={np.infoBoxLabel}>DISTINCTIONS</Text>
+          <Text style={np.infoBoxValue} numberOfLines={2}>
+            {game.badges.join(' · ')}
+          </Text>
+        </View>
+        <View style={np.infoBoxDivider} />
+        <View style={np.infoBoxCell}>
+          <Text style={np.infoBoxLabel}>ANIMAL</Text>
+          <Text style={np.infoBoxValue}>
+            {game.petEmoji} {game.pet}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** Courrier — état des lettres */
+function MailSection({ letters }: { letters: DiscoveryProfile['letters'] }) {
+  const { current, next } = getRevealState(letters.exchanged);
+  const progress = Math.min(letters.exchanged / letters.total, 1);
+  const remaining = next ? next.threshold - letters.exchanged : 0;
+  return (
+    <View style={np.infoBox}>
+      <DoubleRule />
+      <View style={np.mailHeader}>
+        <Text style={np.infoBoxTitle}>◆ COURRIER CONFIDENTIEL</Text>
+        <View
+          style={[
+            np.statusStamp,
+            { borderColor: current.color },
+          ]}
+        >
+          <Text style={[np.statusStampText, { color: current.color }]}>
+            {current.label.toUpperCase()}
+          </Text>
+        </View>
+      </View>
+      <Rule />
+      <View style={np.progressRail}>
+        <View
+          style={[
+            np.progressFill,
+            { width: `${progress * 100}%` as any, backgroundColor: current.color },
+          ]}
+        />
+      </View>
+      <View style={np.progressLabels}>
+        <Text style={np.progressCount}>
+          {letters.exchanged} / {letters.total} lettres échangées
+        </Text>
+        {next && (
+          <Text style={np.progressNext}>
+            {remaining} lettre{remaining > 1 ? 's' : ''} → {next.label}
+          </Text>
+        )}
+      </View>
+      <View style={np.milestonesRow}>
+        {REVEAL_MILESTONES.map((m) => {
+          const reached = letters.exchanged >= m.threshold;
+          return (
+            <View key={m.label} style={np.milestone}>
+              <View
+                style={[
+                  np.milestoneDot,
+                  { backgroundColor: reached ? m.color : '#C4A882' },
+                ]}
+              />
+              <Text
+                style={[
+                  np.milestoneLabel,
+                  reached && { color: m.color, fontWeight: '700' },
+                ]}
+              >
+                {m.label.toUpperCase()}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
+
+export default function ProfilesScreen() {
+  const insets = useSafeAreaInsets();
+  const { likedProfiles, dislikedProfiles, addLike, addDislike, addMatch, currentUser } = useStore();
+  const screenBg = useStore(s => s.screenBackgrounds?.['profiles'] ?? OLD_BG);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showMatch, setShowMatch] = useState<string | null>(null);
+
+  const availableProfiles = profiles.filter(
+    (p) => !likedProfiles.includes(p.id) && !dislikedProfiles.includes(p.id)
+  );
+  const profile = availableProfiles[currentIndex % Math.max(availableProfiles.length, 1)];
+  const profilePos = profiles.findIndex(p => p.id === profile?.id);
+
+  const handleSmile = () => {
+    if (!profile) return;
+    addLike(profile.id);
+    if (Math.random() > 0.5) {
+      addMatch({
+        id: `match_${Date.now()}`,
+        userAId: currentUser?.id || 'me',
+        userBId: profile.id,
+        createdAt: Date.now(),
+        questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true },
+        status: 'active',
+        letterCount: 0,
+      });
+      setShowMatch(profile.name);
+      setTimeout(() => setShowMatch(null), 2500);
+    }
+    setCurrentIndex((prev) => prev + 1);
+  };
+
+  const handlePass = () => {
+    if (!profile) return;
+    addDislike(profile.id);
+    setCurrentIndex((prev) => prev + 1);
+  };
+
+  // ── Match overlay
+  if (showMatch) {
+    return (
+      <View style={[np.matchScreen, { paddingTop: insets.top }]}>
+        <Text style={np.matchEmoji}>💕</Text>
+        <Text style={np.matchTitle}>C'EST UN MATCH !</Text>
+        <Text style={np.matchName}>Vous et {showMatch}</Text>
+      </View>
+    );
+  }
+
+  // ── Empty state
+  if (!profile || availableProfiles.length === 0) {
+    return (
+      <View style={[np.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
+        <Masthead index={0} total={0} />
+        <View style={np.emptyState}>
+          <Text style={np.emptyEmoji}>○</Text>
+          <Text style={np.emptyTitle}>AUCUN PROFIL</Text>
+          <Text style={np.emptyText}>Revenez dans la prochaine édition.</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[np.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
+      <ScrollView
+        style={np.scroll}
+        contentContainerStyle={[np.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Manchette */}
+        <Masthead index={profilePos >= 0 ? profilePos : currentIndex} total={profiles.length} />
+
+        {/* À la une */}
+        <FrontPage profile={profile} />
+
+        {/* Tampons / tags */}
+        <Stamps tags={profile.tags} />
+
+        {/* Citation */}
+        <PullQuote quote={profile.quote} />
+
+        {/* Colonnes */}
+        {profile.sections.map((s) => (
+          <Column key={s.title} section={s} />
+        ))}
+
+        {/* Jeu */}
+        <ProgressBox game={profile.game} />
+
+        {/* Courrier */}
+        <MailSection letters={profile.letters} />
+
+        {/* Pied de page */}
+        <View style={np.footer}>
+          <Rule thick />
+          <Text style={np.footerText}>
+            ❧ jeutaime · rencontres par correspondance ❧
+          </Text>
+        </View>
+      </ScrollView>
+
+      {/* Barre d'actions */}
+      <View style={[np.actionBar, { paddingBottom: insets.bottom + 6 }]}>
+        <TouchableOpacity style={np.passBtn} onPress={handlePass} activeOpacity={0.8}>
+          <Text style={np.actionEmoji}>😬</Text>
+          <Text style={[np.actionLabel, { color: RED_INK }]}>PASSER</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.giftBtn}>
-          <Text style={styles.actionEmoji}>🎁</Text>
-          <Text style={styles.actionLabel}>Cadeau</Text>
+
+        <TouchableOpacity style={np.giftBtn} activeOpacity={0.8}>
+          <Text style={np.actionEmoji}>🎁</Text>
+          <Text style={[np.actionLabel, { color: INK2 }]}>CADEAU</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.smileBtn} onPress={handleSmile}>
-          <Text style={styles.actionEmoji}>😊</Text>
-          <Text style={styles.actionLabel}>Sourire</Text>
+
+        <TouchableOpacity style={np.smileBtn} onPress={handleSmile} activeOpacity={0.8}>
+          <Text style={np.actionEmoji}>😊</Text>
+          <Text style={[np.actionLabel, { color: '#2E5D2A' }]}>SOURIRE</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF8E7' },
-  header: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: '#3A2818' },
-  headerSubtitle: { fontSize: 14, color: '#8B6F47', marginTop: 4 },
-  cardContainer: { flex: 1, padding: 16, justifyContent: 'center' },
-  profileCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
-  avatar: { alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  avatarText: { color: '#FFF', fontWeight: '700' },
-  profileName: { fontSize: 26, fontWeight: '700', color: '#3A2818' },
-  profileCity: { fontSize: 16, color: '#8B6F47', marginTop: 4 },
-  compatBadge: { backgroundColor: '#FFE4EC', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, marginTop: 12 },
-  compatText: { fontSize: 14, fontWeight: '600', color: '#E91E63' },
-  profileBio: { fontSize: 16, color: '#5D4037', textAlign: 'center', marginTop: 16, lineHeight: 22 },
-  interests: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 16, gap: 8 },
-  interestTag: { backgroundColor: '#E8D5B7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
-  interestText: { fontSize: 12, color: '#5D4037', fontWeight: '600' },
-  actions: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 20, paddingHorizontal: 16, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#E8D5B7' },
-  grimaceBtn: { alignItems: 'center', backgroundColor: '#FFCDD2', width: 80, height: 80, borderRadius: 40, justifyContent: 'center' },
-  smileBtn: { alignItems: 'center', backgroundColor: '#C8E6C9', width: 80, height: 80, borderRadius: 40, justifyContent: 'center' },
-  giftBtn: { alignItems: 'center', backgroundColor: '#FFE082', width: 70, height: 70, borderRadius: 35, justifyContent: 'center' },
-  actionEmoji: { fontSize: 32 },
-  actionLabel: { fontSize: 11, fontWeight: '600', color: '#5D4037', marginTop: 4 },
-  // Match screen
-  matchScreen: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#E91E63' },
+// ─── STYLES JOURNAL PAPIER ────────────────────────────────────────────────────
+
+const np = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: OLD_BG },
+  scroll: { flex: 1 },
+  scrollContent: { padding: 12, gap: 0 },
+
+  // ── Manchette ──────────────────────────────────────────────────────────────
+  masthead: {
+    backgroundColor: PAPER,
+    borderWidth: 1,
+    borderColor: RULE_COLOR,
+    padding: 14,
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 10,
+  },
+  mastheadSub: {
+    fontSize: 10,
+    color: INK3,
+    letterSpacing: 2,
+    fontStyle: 'italic',
+  },
+  mastheadTitle: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: INK,
+    letterSpacing: 8,
+    textTransform: 'uppercase',
+  },
+  mastheadMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 4,
+  },
+  mastheadMetaText: {
+    fontSize: 9,
+    color: INK3,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+
+  // ── À la une ───────────────────────────────────────────────────────────────
+  frontPage: {
+    backgroundColor: PAPER,
+    borderWidth: 1,
+    borderColor: RULE_COLOR,
+    padding: 14,
+    gap: 12,
+    marginBottom: 10,
+  },
+  frontRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+
+  // Portrait encadré
+  portrait: {
+    width: 90,
+    height: 110,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: RULE_COLOR,
+    gap: 4,
+  },
+  portraitEmoji: { fontSize: 46 },
+  portraitCaption: {
+    fontSize: 8,
+    color: INK3,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    fontStyle: 'italic',
+  },
+
+  // Headline
+  frontHeadlines: { flex: 1, gap: 5 },
+  headline: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: INK,
+    letterSpacing: 2,
+    lineHeight: 28,
+  },
+  dateline: {
+    fontSize: 10,
+    color: RED_INK,
+    letterSpacing: 2,
+    fontWeight: '700',
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  subheadline: {
+    fontSize: 13,
+    color: INK2,
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  descriptorsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 4,
+  },
+  descriptor: {
+    fontSize: 9,
+    color: INK,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    borderWidth: 1,
+    borderColor: INK,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+
+  // Compatibilité
+  compatBox: {
+    borderTopWidth: 1,
+    borderTopColor: RULE_COLOR,
+    paddingTop: 10,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  compatLabel: {
+    fontSize: 8,
+    color: INK3,
+    letterSpacing: 2,
+    fontWeight: '700',
+  },
+  compatValue: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: RED_INK,
+    letterSpacing: -1,
+  },
+  compatSub: {
+    fontSize: 11,
+    color: INK2,
+    fontStyle: 'italic',
+    flex: 1,
+  },
+
+  // ── Tampons ────────────────────────────────────────────────────────────────
+  section: {
+    backgroundColor: PAPER,
+    borderWidth: 1,
+    borderColor: RULE_COLOR,
+    padding: 14,
+    marginBottom: 10,
+  },
+  sectionLabel: {
+    fontSize: 9,
+    color: INK3,
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+  stampsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    justifyContent: 'center',
+  },
+  stamp: {
+    borderWidth: 1.5,
+    borderColor: INK,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignItems: 'center',
+    gap: 2,
+  },
+  stampEmoji: { fontSize: 16 },
+  stampText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: INK,
+    letterSpacing: 1.5,
+  },
+
+  // ── Citation ───────────────────────────────────────────────────────────────
+  pullQuoteWrap: {
+    backgroundColor: PAPER,
+    borderWidth: 1,
+    borderColor: RULE_COLOR,
+    padding: 16,
+    marginBottom: 10,
+    alignItems: 'center',
+    gap: 4,
+  },
+  pullQuoteGuillemet: {
+    fontSize: 40,
+    color: RED_INK,
+    fontWeight: '900',
+    lineHeight: 40,
+    marginBottom: -4,
+  },
+  pullQuoteGuillemetsClose: {
+    alignSelf: 'flex-end',
+    marginTop: -4,
+  },
+  pullQuoteText: {
+    fontSize: 15,
+    color: INK,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 23,
+    paddingHorizontal: 8,
+  },
+
+  // ── Colonnes ───────────────────────────────────────────────────────────────
+  column: {
+    backgroundColor: PAPER,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: RULE_COLOR,
+    padding: 14,
+    marginBottom: 8,
+    gap: 6,
+  },
+  columnTitle: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: INK,
+    letterSpacing: 2,
+    marginVertical: 6,
+  },
+  columnItems: { gap: 5 },
+  columnItem: {
+    fontSize: 13,
+    color: INK2,
+    lineHeight: 20,
+  },
+
+  // ── Encadré infos ──────────────────────────────────────────────────────────
+  infoBox: {
+    backgroundColor: PAPER,
+    borderWidth: 1,
+    borderColor: RULE_COLOR,
+    padding: 14,
+    marginBottom: 10,
+    gap: 8,
+  },
+  infoBoxTitle: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: INK,
+    letterSpacing: 2,
+  },
+  infoBoxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoBoxCell: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  infoBoxDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: RULE_COLOR,
+  },
+  infoBoxLabel: {
+    fontSize: 7,
+    color: INK3,
+    letterSpacing: 1.5,
+    fontWeight: '700',
+  },
+  infoBoxValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: INK,
+    textAlign: 'center',
+  },
+
+  // ── Courrier ───────────────────────────────────────────────────────────────
+  mailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusStamp: {
+    borderWidth: 1.5,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  statusStampText: {
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  progressRail: {
+    height: 5,
+    backgroundColor: '#DDD0B8',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+  },
+  progressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  progressCount: { fontSize: 10, color: INK2, fontWeight: '600' },
+  progressNext: { fontSize: 10, color: INK3, fontStyle: 'italic' },
+  milestonesRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  milestone: { alignItems: 'center', gap: 3 },
+  milestoneDot: { width: 8, height: 8, borderRadius: 4 },
+  milestoneLabel: { fontSize: 7, color: INK3, letterSpacing: 1 },
+
+  // ── Pied de page ──────────────────────────────────────────────────────────
+  footer: {
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  footerText: {
+    fontSize: 9,
+    color: INK3,
+    fontStyle: 'italic',
+    letterSpacing: 1,
+  },
+
+  // ── Barre d'actions ────────────────────────────────────────────────────────
+  actionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: PAPER,
+    paddingTop: 12,
+    borderTopWidth: 2,
+    borderTopColor: INK,
+  },
+  passBtn: {
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: RED_INK,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    gap: 3,
+  },
+  smileBtn: {
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#2E5D2A',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    gap: 3,
+  },
+  giftBtn: {
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: INK2,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    gap: 3,
+  },
+  actionEmoji: { fontSize: 26 },
+  actionLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
+
+  // ── Match overlay ──────────────────────────────────────────────────────────
+  matchScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: RED_INK },
   matchEmoji: { fontSize: 80 },
-  matchTitle: { fontSize: 36, fontWeight: '700', color: '#FFF', marginTop: 20 },
-  matchName: { fontSize: 20, color: '#FFF', marginTop: 10 },
-  // Empty
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyEmoji: { fontSize: 60, marginBottom: 16 },
-  emptyText: { fontSize: 20, fontWeight: '700', color: '#3A2818' },
-  emptySubtext: { fontSize: 14, color: '#8B6F47', marginTop: 8 },
+  matchTitle: { fontSize: 28, fontWeight: '900', color: PAPER, marginTop: 20, letterSpacing: 3 },
+  matchName: { fontSize: 16, color: PAPER, marginTop: 10, opacity: 0.9, fontStyle: 'italic' },
+
+  // ── État vide ──────────────────────────────────────────────────────────────
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 10 },
+  emptyEmoji: { fontSize: 48, color: INK3 },
+  emptyTitle: { fontSize: 18, fontWeight: '900', color: INK, letterSpacing: 3 },
+  emptyText: { fontSize: 13, color: INK3, fontStyle: 'italic', textAlign: 'center' },
 });
