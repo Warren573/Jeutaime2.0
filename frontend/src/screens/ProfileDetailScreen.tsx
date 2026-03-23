@@ -12,6 +12,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { AvatarCircle } from '../components/avatar/AvatarCircle';
+import { AvatarConfig } from '../types/avatar';
 
 const { width } = Dimensions.get('window');
 
@@ -32,6 +34,7 @@ interface ProfileData {
   descriptors: string[];
   avatarEmoji: string;
   avatarBg: string;
+  avatarConfig?: AvatarConfig;
   tags: { emoji: string; label: string }[];
   quote: string;
   sections: JournalSection[];
@@ -60,6 +63,11 @@ const mockProfile: ProfileData = {
   descriptors: ['Taquine', 'Mystérieuse'],
   avatarEmoji: '🦊',
   avatarBg: '#F3E5F5',
+  avatarConfig: {
+    faceShape: 'heart', skinTone: 'light', eyeStyle: 'almondSharp', eyeColor: 'hazel',
+    browStyle: 'arched', noseStyle: 'small', mouthStyle: 'smirk',
+    hairStyle: 'bun', hairColor: 'black', beardStyle: 'none', accessoryStyle: 'none',
+  },
   tags: [
     { emoji: '🎭', label: 'Improvisatrice' },
     { emoji: '🔥', label: 'Passionnée' },
@@ -120,29 +128,19 @@ function getRevealState(exchanged: number) {
   return { current, next };
 }
 
-// ─── AVATAR ────────────────────────────────────────────────────────────────────
-
-function ProfileAvatar({ emoji, bg, size = 80 }: { emoji: string; bg: string; size?: number }) {
-  return (
-    <View
-      style={[
-        styles.avatarContainer,
-        { width: size, height: size, borderRadius: size * 0.28, backgroundColor: bg },
-      ]}
-    >
-      <Text style={{ fontSize: size * 0.48 }}>{emoji}</Text>
-    </View>
-  );
-}
-
 // ─── HEADER ────────────────────────────────────────────────────────────────────
 
 function ProfileHeader({ profile }: { profile: ProfileData }) {
   return (
     <View style={styles.headerCard}>
       <View style={styles.headerRow}>
-        {/* LEFT: avatar */}
-        <ProfileAvatar emoji={profile.avatarEmoji} bg={profile.avatarBg} size={88} />
+        {/* LEFT: avatar SVG */}
+        <AvatarCircle
+          config={profile.avatarConfig}
+          size={88}
+          borderColor="#E8D5B7"
+          borderWidth={2.5}
+        />
 
         {/* RIGHT: identity block */}
         <View style={styles.headerInfo}>

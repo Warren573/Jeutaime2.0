@@ -9,6 +9,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 import type { Match } from '../shared/types';
+import { AvatarCircle } from '../components/avatar/AvatarCircle';
+import { AvatarConfig } from '../types/avatar';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +21,7 @@ interface DiscoveryProfile {
   city: string;
   avatarEmoji: string;
   avatarBg: string;
+  avatarConfig?: AvatarConfig;
   mainVibe: string;
   descriptors: string[];
   tags: { emoji: string; label: string }[];
@@ -39,6 +42,7 @@ const profiles: DiscoveryProfile[] = [
     city: 'Paris',
     avatarEmoji: '🌸',
     avatarBg: '#FCE4EC',
+    avatarConfig: { faceShape: 'oval', skinTone: 'fair', eyeStyle: 'almondSoft', eyeColor: 'blue', browStyle: 'soft', noseStyle: 'small', mouthStyle: 'softSmile', hairStyle: 'long', hairColor: 'brown', beardStyle: 'none', accessoryStyle: 'none' },
     mainVibe: 'Romantique curieuse',
     descriptors: ['Douce', 'Rêveuse'],
     tags: [
@@ -65,6 +69,7 @@ const profiles: DiscoveryProfile[] = [
     city: 'Lyon',
     avatarEmoji: '🎨',
     avatarBg: '#EDE7F6',
+    avatarConfig: { faceShape: 'heart', skinTone: 'light', eyeStyle: 'almondSharp', eyeColor: 'green', browStyle: 'arched', noseStyle: 'medium', mouthStyle: 'smirk', hairStyle: 'curly', hairColor: 'auburn', beardStyle: 'none', accessoryStyle: 'none' },
     mainVibe: 'Artiste libre',
     descriptors: ['Intense', 'Créative'],
     tags: [
@@ -91,6 +96,7 @@ const profiles: DiscoveryProfile[] = [
     city: 'Marseille',
     avatarEmoji: '🏊',
     avatarBg: '#E0F7FA',
+    avatarConfig: { faceShape: 'round', skinTone: 'tan', eyeStyle: 'relaxed', eyeColor: 'brown', browStyle: 'straight', noseStyle: 'softRound', mouthStyle: 'softSmile', hairStyle: 'bun', hairColor: 'darkBrown', beardStyle: 'none', accessoryStyle: 'none' },
     mainVibe: 'Sportive gourmande',
     descriptors: ['Directe', 'Solaire'],
     tags: [
@@ -117,6 +123,7 @@ const profiles: DiscoveryProfile[] = [
     city: 'Bordeaux',
     avatarEmoji: '🎵',
     avatarBg: '#FFF8E1',
+    avatarConfig: { faceShape: 'oval', skinTone: 'light', eyeStyle: 'sleepy', eyeColor: 'blue', browStyle: 'soft', noseStyle: 'small', mouthStyle: 'softSmile', hairStyle: 'long', hairColor: 'black', beardStyle: 'none', accessoryStyle: 'earring' },
     mainVibe: 'Âme musicale',
     descriptors: ['Sensible', 'Taquine'],
     tags: [
@@ -143,6 +150,7 @@ const profiles: DiscoveryProfile[] = [
     city: 'Toulouse',
     avatarEmoji: '📚',
     avatarBg: '#F3E5F5',
+    avatarConfig: { faceShape: 'square', skinTone: 'fair', eyeStyle: 'intense', eyeColor: 'gray', browStyle: 'bold', noseStyle: 'straight', mouthStyle: 'neutral', hairStyle: 'bun', hairColor: 'darkBrown', beardStyle: 'none', accessoryStyle: 'roundGlasses' },
     mainVibe: 'Intellectuelle discrète',
     descriptors: ['Profonde', 'Drôle'],
     tags: [
@@ -169,6 +177,7 @@ const profiles: DiscoveryProfile[] = [
     city: 'Nantes',
     avatarEmoji: '🌿',
     avatarBg: '#E8F5E9',
+    avatarConfig: { faceShape: 'oval', skinTone: 'medium', eyeStyle: 'almondSoft', eyeColor: 'hazel', browStyle: 'arched', noseStyle: 'medium', mouthStyle: 'softSmile', hairStyle: 'sidePart', hairColor: 'brown', beardStyle: 'none', accessoryStyle: 'none' },
     mainVibe: 'Nature & sérénité',
     descriptors: ['Apaisante', 'Curieuse'],
     tags: [
@@ -270,9 +279,14 @@ function FrontPage({ profile }: { profile: DiscoveryProfile }) {
     <View style={np.frontPage}>
       {/* Photo + Headline */}
       <View style={np.frontRow}>
-        {/* Portrait encadré */}
-        <View style={[np.portrait, { backgroundColor: profile.avatarBg }]}>
-          <Text style={np.portraitEmoji}>{profile.avatarEmoji}</Text>
+        {/* Portrait encadré — avatar SVG */}
+        <View style={np.portraitWrapper}>
+          <AvatarCircle
+            config={profile.avatarConfig}
+            size={96}
+            borderColor="#C4A882"
+            borderWidth={2}
+          />
           <Text style={np.portraitCaption}>Portrait</Text>
         </View>
 
@@ -644,17 +658,12 @@ const np = StyleSheet.create({
     gap: 14,
   },
 
-  // Portrait encadré
-  portrait: {
-    width: 90,
-    height: 130,
+  // Portrait encadré (avatar SVG)
+  portraitWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: RULE_COLOR,
     gap: 4,
   },
-  portraitEmoji: { fontSize: 46 },
   portraitCaption: {
     fontSize: 8,
     color: INK3,
