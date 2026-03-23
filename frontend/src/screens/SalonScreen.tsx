@@ -21,120 +21,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { salonsData, SalonParticipant } from '../data/salonsData';
 import { useStore, Message } from '../store/useStore';
-import { allOfferings, allPowers } from '../data/offerings';
+import { allOfferings, allPowers, getPowerDurationMs, type Offering, type Power } from '../data/offerings';
 import SalonAvatar from '../components/SalonAvatar';
 import AvatarRadialMenu, { RadialAction } from '../components/AvatarRadialMenu';
-
-// ============================================
-// AVATARS CARTOON - URLs d'images
-// ============================================
-const AVATAR_IMAGES: Record<string, string> = {
-  'zoe': 'https://api.dicebear.com/7.x/adventurer/png?seed=Zoe&backgroundColor=b6e3f4',
-  'valerie': 'https://api.dicebear.com/7.x/adventurer/png?seed=Valerie&backgroundColor=ffd5dc',
-  'kevin': 'https://api.dicebear.com/7.x/adventurer/png?seed=Kevin&backgroundColor=c0aede',
-  'marc': 'https://api.dicebear.com/7.x/adventurer/png?seed=Marc&backgroundColor=d1f4d1',
-  'sophie': 'https://api.dicebear.com/7.x/adventurer/png?seed=Sophie&backgroundColor=ffe8b8',
-  'lucas': 'https://api.dicebear.com/7.x/adventurer/png?seed=Lucas&backgroundColor=b8d4ff',
-  'emma': 'https://api.dicebear.com/7.x/adventurer/png?seed=Emma&backgroundColor=ffb8d4',
-  'julie': 'https://api.dicebear.com/7.x/adventurer/png?seed=Julie&backgroundColor=ffc8e8',
-  'thomas': 'https://api.dicebear.com/7.x/adventurer/png?seed=Thomas&backgroundColor=c8ffc8',
-  'clara': 'https://api.dicebear.com/7.x/adventurer/png?seed=Clara&backgroundColor=fff0b8',
-  'default': 'https://api.dicebear.com/7.x/adventurer/png?seed=Default&backgroundColor=e8e8e8',
-  'vous': 'https://api.dicebear.com/7.x/adventurer/png?seed=Me&backgroundColor=667eea',
-  'moi': 'https://api.dicebear.com/7.x/adventurer/png?seed=Me&backgroundColor=667eea',
-};
-
-// ============================================
-// COMPOSANT AVATAR AVEC ANIMATION BREATHING
-// ============================================
-interface AvatarProps {
-  participant: SalonParticipant & { isMe?: boolean };
-  size: number;
-  showBadges?: boolean;
-  onPress?: () => void;
-  isSelected?: boolean;
-  showName?: boolean;
-}
-
-const AnimatedAvatar: React.FC<AvatarProps> = ({
-  participant,
-  size,
-  showBadges = true,
-  onPress,
-  isSelected,
-  showName = true
-}) => {
-  const breathAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    const breathing = Animated.loop(
-      Animated.sequence([
-        Animated.timing(breathAnim, {
-          toValue: 1.05,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(breathAnim, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    breathing.start();
-    return () => breathing.stop();
-  }, []);
-
-  const avatarKey = participant.name.toLowerCase().replace(/[^a-z]/g, '');
-  const imageUrl = AVATAR_IMAGES[avatarKey] || AVATAR_IMAGES['default'];
-
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.avatarWrapper}>
-      <Animated.View style={[
-        styles.avatarContainer,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          transform: [{ scale: breathAnim }]
-        },
-        isSelected && styles.avatarSelected,
-      ]}>
-        <Image
-          source={{ uri: `${imageUrl}&size=${size * 2}` }}
-          style={[
-            styles.avatarImage,
-            {
-              width: size - 8,
-              height: size - 8,
-              borderRadius: (size - 8) / 2
-            }
-          ]}
-        />
-        {participant.online && (
-          <View style={[styles.onlineDot, { width: size * 0.2, height: size * 0.2, borderRadius: size * 0.1 }]} />
-        )}
-        {participant.isMe && (
-          <View style={styles.meBadge}>
-            <Text style={styles.meBadgeText}>Moi</Text>
-          </View>
-        )}
-      </Animated.View>
-      {showName && (
-        <Text style={[styles.avatarName, { maxWidth: size + 20 }]} numberOfLines={1}>
-          {participant.name}
-        </Text>
-      )}
-      {showBadges && participant.offerings && participant.offerings.length > 0 && (
-        <View style={styles.badgesRow}>
-          {participant.offerings.slice(-3).map((o, idx) => (
-            <Text key={idx} style={styles.badgeEmoji}>{o.emoji}</Text>
-          ))}
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-};
+import ProjectileAnimationLayer, { type ProjectileLayerHandle } from '../components/effects/ProjectileAnimationLayer';
+import { useAvatarEffects } from '../hooks/useAvatarEffects';
 
 // ============================================
 // COMPOSANT PRINCIPAL SALON
@@ -160,6 +51,15 @@ export default function SalonScreen() {
   const salonId = rawSalonId === 'cafe-paris' ? 'cafe_paris' : (rawSalonId || 'cafe_paris');
   const salon = salonsData.find(s => s.id === salonId);
 
+  // ── Système d'effets avatar ─────────────────────────────────────────────────
+  const { applyEffect, breakEffect, getParticipantEffects } = useAvatarEffects();
+
+  // Ref vers la couche de projectiles (overlay plein-écran)
+  const projectileRef = useRef<ProjectileLayerHandle>(null);
+
+  // Position écran de l'avatar sélectionné (pour viser les projectiles)
+  const selectedAvatarPos = useRef<{ x: number; y: number } | null>(null);
+
   // États
   const [messageInput, setMessageInput] = useState('');
   const [showOfferingsModal, setShowOfferingsModal] = useState(false);
@@ -178,7 +78,10 @@ export default function SalonScreen() {
     p: SalonParticipant & { isMe?: boolean },
     cx: number,
     cy: number
-  ) => setMenuState({ visible: true, anchor: { x: cx, y: cy }, user: p });
+  ) => {
+    selectedAvatarPos.current = { x: cx, y: cy };
+    setMenuState({ visible: true, anchor: { x: cx, y: cy }, user: p });
+  };
 
   const closeMenu = () =>
     setMenuState({ visible: false, anchor: null, user: null });
@@ -270,85 +173,166 @@ export default function SalonScreen() {
   };
 
   // Envoyer une offrande
-  const handleSendOffering = (item: any) => {
+  const handleSendOffering = (item: Offering) => {
     if (!selectedPlayer) return;
     if (!removeCoins(item.cost)) {
       alert('Pas assez de pièces!');
       return;
     }
 
-    setParticipants(prev => prev.map(p => {
-      if (p.id === selectedPlayer.id) {
-        return {
-          ...p,
-          offerings: [...(p.offerings || []), { emoji: item.emoji, from: currentUser?.name || 'Vous', timestamp: Date.now() }].slice(-6),
-        };
-      }
-      return p;
-    }));
+    const targetPos = selectedAvatarPos.current;
+
+    // ── Projectile + effet ────────────────────────────────────────────────────
+    const fireAndApply = () => {
+      applyEffect({
+        participantId: selectedPlayer.id,
+        category:      'offering',
+        powerId:       item.id,
+        emoji:         item.emoji,
+        label:         item.name,
+        expiresAt:     Date.now() + item.durationMs,
+        stackPriority: item.stackPriority,
+      });
+    };
+
+    if (projectileRef.current && targetPos) {
+      projectileRef.current.fire({
+        emoji:   item.emoji,
+        fromPos: { x: width / 2, y: height - 100 },
+        toPos:   targetPos,
+        onLand:  fireAndApply,
+      });
+    } else {
+      fireAndApply();
+    }
+
+    // Legacy offerings sur le participant (pour compatibilité)
+    setParticipants(prev => prev.map(p =>
+      p.id === selectedPlayer.id
+        ? { ...p, offerings: [...(p.offerings || []), { emoji: item.emoji, from: currentUser?.name || 'Vous', timestamp: Date.now() }].slice(-6) }
+        : p
+    ));
 
     setRecentInteractions(prev => [{
-      id: Date.now().toString(),
-      from: currentUser?.name || 'Vous',
-      to: selectedPlayer.name,
-      emoji: item.emoji,
-      name: item.name,
+      id:        Date.now().toString(),
+      from:      currentUser?.name || 'Vous',
+      to:        selectedPlayer.name,
+      emoji:     item.emoji,
+      name:      item.name,
       timestamp: Date.now(),
     }, ...prev].slice(0, 10));
 
-    const sysMsg: Message = {
-      id: Date.now().toString(),
-      salonId: salonId,
-      userId: 'system',
+    addMessage(salonId, {
+      id:       Date.now().toString(),
+      salonId,
+      userId:   'system',
       userName: 'Système',
       username: 'Système',
-      content: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} à ${selectedPlayer.name}!`,
-      text: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} à ${selectedPlayer.name}!`,
+      content:  `${currentUser?.name || 'Vous'} a offert ${item.emoji} à ${selectedPlayer.name}!`,
+      text:     `${currentUser?.name || 'Vous'} a offert ${item.emoji} à ${selectedPlayer.name}!`,
       timestamp: Date.now(),
-      type: 'offering',
+      type:     'offering',
       isSystem: true,
       giftData: item,
-    };
-    addMessage(salonId, sysMsg);
+    } as Message);
 
     setShowOfferingsModal(false);
     setSelectedPlayer(null);
   };
 
-  // Envoyer un pouvoir
-  const handleSendPower = (item: any) => {
+  // Envoyer un pouvoir (transformation, effet visuel, ou annulateur)
+  const handleSendPower = (item: Power) => {
     if (!selectedPlayer) return;
     if (!removeCoins(item.cost)) {
       alert('Pas assez de pièces!');
       return;
     }
 
+    const targetPos = selectedAvatarPos.current;
+    const durationMs = getPowerDurationMs(item);
+
+    // Détermine la catégorie d'effet
+    const category = item.type === 'transformation' ? 'transformation' : 'visual_effect';
+
+    const fireAndApply = () => {
+      // Si c'est un annulateur, briser les effets correspondants
+      if (item.cancels?.length) {
+        item.cancels.forEach(cancelledId => {
+          breakEffect(selectedPlayer.id, cancelledId);
+        });
+      }
+
+      // Si c'est un pouvoir actif (pas juste un annulateur)
+      if (durationMs > 0) {
+        applyEffect({
+          participantId:    selectedPlayer.id,
+          category,
+          powerId:          item.id,
+          emoji:            item.emoji,
+          label:            item.name,
+          expiresAt:        Date.now() + durationMs,
+          breakConditionId: item.breakConditionId,
+          breakHint:        item.breakHint,
+          stackPriority:    item.stackPriority ?? 5,
+        });
+      }
+    };
+
+    if (projectileRef.current && targetPos) {
+      projectileRef.current.fire({
+        emoji:   item.emoji,
+        fromPos: { x: width / 2, y: height - 100 },
+        toPos:   targetPos,
+        onLand:  fireAndApply,
+      });
+    } else {
+      fireAndApply();
+    }
+
     setRecentInteractions(prev => [{
-      id: Date.now().toString(),
-      from: currentUser?.name || 'Vous',
-      to: selectedPlayer.name,
-      emoji: item.emoji,
-      name: item.name,
+      id:        Date.now().toString(),
+      from:      currentUser?.name || 'Vous',
+      to:        selectedPlayer.name,
+      emoji:     item.emoji,
+      name:      item.name,
       timestamp: Date.now(),
     }, ...prev].slice(0, 10));
 
-    const sysMsg: Message = {
-      id: Date.now().toString(),
-      salonId: salonId,
-      userId: 'system',
+    addMessage(salonId, {
+      id:       Date.now().toString(),
+      salonId,
+      userId:   'system',
       userName: 'Système',
       username: 'Système',
-      content: `${currentUser?.name || 'Vous'} a lancé ${item.emoji} sur ${selectedPlayer.name}!`,
-      text: `${currentUser?.name || 'Vous'} a lancé ${item.emoji} sur ${selectedPlayer.name}!`,
+      content:  `${currentUser?.name || 'Vous'} a lancé ${item.emoji} sur ${selectedPlayer.name}!`,
+      text:     `${currentUser?.name || 'Vous'} a lancé ${item.emoji} sur ${selectedPlayer.name}!`,
       timestamp: Date.now(),
-      type: 'power',
+      type:     'power',
       isSystem: true,
       giftData: item,
-    };
-    addMessage(salonId, sysMsg);
+    } as Message);
 
     setShowPowersModal(false);
     setSelectedPlayer(null);
+  };
+
+  // Tentative de rupture d'une transformation (tap sur le hint)
+  const handleBreakAttempt = (participantId: string, transformationId: string) => {
+    // Pour la démo locale : on brise immédiatement.
+    // En production, ce serait conditionnel (compteur de bisous, etc.)
+    breakEffect(participantId, transformationId);
+    addMessage(salonId, {
+      id:       Date.now().toString(),
+      salonId,
+      userId:   'system',
+      userName: 'Système',
+      username: 'Système',
+      content:  `✨ La transformation a été brisée!`,
+      text:     `✨ La transformation a été brisée!`,
+      timestamp: Date.now(),
+      type:     'system',
+      isSystem: true,
+    } as Message);
   };
 
   if (!salon) {
@@ -411,8 +395,10 @@ export default function SalonScreen() {
                 participant={p}
                 size={AVATAR_STRIP_SIZE}
                 isSelected={menuState.user?.id === p.id}
-                showBadges={false}
-                onMeasuredPress={undefined}
+                showBadges={true}
+                activeEffects={getParticipantEffects(p.id)}
+                onMeasuredPress={!p.isMe ? openRadialMenu : undefined}
+                onBreakAttempt={handleBreakAttempt}
               />
             </View>
           ))}
@@ -510,7 +496,9 @@ export default function SalonScreen() {
                       size={avatarSizeLandscape}
                       isSelected={menuState.user?.id === p.id}
                       showBadges={true}
+                      activeEffects={getParticipantEffects(p.id)}
                       onMeasuredPress={!p.isMe ? openRadialMenu : undefined}
+                      onBreakAttempt={handleBreakAttempt}
                     />
                   </View>
                 ))}
@@ -612,6 +600,10 @@ export default function SalonScreen() {
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
+
+      {/* Overlay projectiles — doit être EN DEHORS de tout ScrollView */}
+      <ProjectileAnimationLayer ref={projectileRef} />
+
       <AvatarRadialMenu
         visible={menuState.visible && isLandscape}
         anchor={menuState.anchor}
