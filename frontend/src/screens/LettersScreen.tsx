@@ -34,11 +34,13 @@ const EnvelopeCard = ({
   otherName,
   lastMsg,
   unread,
+  myTurn,
   onOpen,
 }: {
   otherName: string;
   lastMsg?: Letter;
   unread: number;
+  myTurn: boolean;
   onOpen: () => void;
 }) => {
   const flapScale = useRef(new Animated.Value(1)).current;
@@ -89,12 +91,18 @@ const EnvelopeCard = ({
           <View style={envS.bodyText}>
             <Text style={envS.senderName}>{otherName}</Text>
             <Text style={envS.preview} numberOfLines={1}>
-              {lastMsg ? lastMsg.content : 'Nouvelle correspondance...'}
+              {!lastMsg
+                ? '✨ Écrivez la première lettre...'
+                : myTurn
+                  ? unread > 0 ? '📨 Nouvelle lettre reçue !' : '✍️ À vous d\'écrire...'
+                  : '⏳ En attente de réponse...'}
             </Text>
           </View>
           {/* Cachet de cire */}
-          <View style={[envS.wax, unread > 0 && envS.waxUnread]}>
-            <Text style={envS.waxEmoji}>{unread > 0 ? '💌' : '✉️'}</Text>
+          <View style={[envS.wax, unread > 0 && envS.waxUnread, !myTurn && lastMsg && envS.waxWaiting]}>
+            <Text style={envS.waxEmoji}>
+              {unread > 0 ? '💌' : !myTurn && lastMsg ? '⏳' : '✉️'}
+            </Text>
             {unread > 0 && (
               <View style={envS.waxBadge}>
                 <Text style={envS.waxBadgeText}>{unread}</Text>
@@ -103,10 +111,11 @@ const EnvelopeCard = ({
           </View>
         </View>
 
-        {/* Lignes d'adresse */}
-        <View style={envS.addressArea}>
-          <View style={envS.addressLine} />
-          <View style={[envS.addressLine, { width: '55%' }]} />
+        {/* Statut tour */}
+        <View style={[envS.statusBar, myTurn ? envS.statusBarMyTurn : envS.statusBarWaiting]}>
+          <Text style={envS.statusText}>
+            {!lastMsg ? '✍️  Premier à écrire' : myTurn ? '📬  Votre tour' : '⏳  En attente de réponse'}
+          </Text>
         </View>
 
       </TouchableOpacity>
@@ -251,9 +260,13 @@ const envS = StyleSheet.create({
     paddingHorizontal: 3,
   },
   waxBadgeText: { color: '#FFF', fontSize: 10, fontWeight: '700' },
+  waxWaiting: {
+    backgroundColor: '#5D4A1E',
+    borderColor: '#8B6F47',
+  },
   addressArea: {
     paddingHorizontal: 14,
-    paddingBottom: 14,
+    paddingBottom: 0,
     gap: 5,
   },
   addressLine: {
@@ -262,6 +275,14 @@ const envS = StyleSheet.create({
     opacity: 0.3,
     width: '78%',
   },
+  statusBar: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    alignItems: 'center',
+  },
+  statusBarMyTurn: { backgroundColor: '#E8F5E9' },
+  statusBarWaiting: { backgroundColor: '#FFF8E1' },
+  statusText: { fontSize: 12, fontWeight: '600', color: '#5D4037' },
 });
 
 // ─── Écran principal ─────────────────────────────────────────────────────────
@@ -295,7 +316,9 @@ export default function LettersScreen() {
     { id: '2', title: 'Premier Match', description: 'Tu as eu ton premier match!', date: '2025-03-12', emoji: '💕' },
   ];
 
-  const getOtherName = (match: Match) => (match.userAId === 'me' ? match.userBId : match.userAId);
+  const myId = currentUser?.id || 'me';
+
+  const getOtherName = (match: Match) => (match.userAId === myId ? match.userBId : match.userAId);
 
   const getConversation = (match: Match) => {
     const otherId = getOtherName(match);
@@ -304,25 +327,31 @@ export default function LettersScreen() {
       .sort((a, b) => a.createdAt - b.createdAt);
   };
 
+  // Tour par tour : c'est mon tour si la dernière lettre vient de l'autre, ou s'il n'y a pas encore de lettre
+  const isMyTurn = (match: Match): boolean => {
+    const conv = getConversation(match);
+    if (conv.length === 0) return true;
+    return conv[conv.length - 1].fromUserId !== myId;
+  };
+
   const openConversation = (match: Match) => {
     setSelectedMatch(match);
     setShowConversation(true);
-    // Marquer les messages comme lus
     const conv = getConversation(match);
     conv.forEach(l => {
-      if (l.toUserId === (currentUser?.id || 'me') && !l.readAt) {
-        markLetterRead(l.id);
-      }
+      if (l.toUserId === myId && !l.readAt) markLetterRead(l.id);
     });
   };
 
   const handleSend = () => {
     if (!newMessage.trim() || !selectedMatch) return;
+    // Bloquer si ce n'est pas mon tour
+    if (!isMyTurn(selectedMatch)) return;
     const letter: Letter = {
       id: Date.now().toString(),
       threadId: selectedMatch.id,
-      fromUserId: currentUser?.id || 'me',
-      toUserId: selectedMatch.userBId === 'me' ? selectedMatch.userAId : selectedMatch.userBId,
+      fromUserId: myId,
+      toUserId: selectedMatch.userBId === myId ? selectedMatch.userAId : selectedMatch.userBId,
       content: newMessage.trim(),
       createdAt: Date.now(),
     };
@@ -381,13 +410,14 @@ export default function LettersScreen() {
               const otherName = getOtherName(match);
               const conv = getConversation(match);
               const lastMsg = conv[conv.length - 1];
-              const unread = conv.filter(l => l.toUserId === (currentUser?.id || 'me') && !l.readAt).length;
+              const unread = conv.filter(l => l.toUserId === myId && !l.readAt).length;
               return (
                 <EnvelopeCard
                   key={match.id}
                   otherName={otherName}
                   lastMsg={lastMsg}
                   unread={unread}
+                  myTurn={isMyTurn(match)}
                   onOpen={() => openConversation(match)}
                 />
               );
@@ -441,7 +471,7 @@ export default function LettersScreen() {
         <Text style={s.magicArrow}>▶</Text>
       </TouchableOpacity>
 
-      {/* ── MODAL CONVERSATION (style papier à lettre) ── */}
+      {/* ── MODAL CONVERSATION — TOUR PAR TOUR ── */}
       <Modal visible={showConversation} animationType="slide">
         <KeyboardAvoidingView
           style={[s.letterModal, { paddingTop: insets.top }]}
@@ -449,7 +479,7 @@ export default function LettersScreen() {
         >
           {/* En-tête */}
           <View style={s.letterHead}>
-            <TouchableOpacity onPress={() => setShowConversation(false)}>
+            <TouchableOpacity onPress={() => { setShowConversation(false); setNewMessage(''); }}>
               <Text style={s.backBtn}>← Retour</Text>
             </TouchableOpacity>
             {selectedMatch && <Avatar name={getOtherName(selectedMatch)} size={34} />}
@@ -459,9 +489,24 @@ export default function LettersScreen() {
             <View style={{ flex: 1 }} />
           </View>
 
-          {/* Papier avec lignes */}
+          {/* Bandeau de statut tour */}
+          {selectedMatch && (
+            <View style={[
+              s.turnBanner,
+              isMyTurn(selectedMatch) ? s.turnBannerMine : s.turnBannerWait,
+            ]}>
+              <Text style={s.turnBannerText}>
+                {getConversation(selectedMatch).length === 0
+                  ? '🪶  Écrivez la première lettre'
+                  : isMyTurn(selectedMatch)
+                    ? '📬  C\'est votre tour — répondez à la lettre reçue'
+                    : '⏳  Lettre envoyée — en attente de réponse'}
+              </Text>
+            </View>
+          )}
+
+          {/* Fil des lettres (papier ligné) */}
           <ScrollView style={s.paper} contentContainerStyle={s.paperPad}>
-            {/* Marge rouge (style papier ligné) */}
             <View style={s.margin} />
 
             {selectedMatch && getConversation(selectedMatch).length === 0 && (
@@ -471,34 +516,58 @@ export default function LettersScreen() {
               </View>
             )}
 
-            {selectedMatch && getConversation(selectedMatch).map(letter => {
-              const isOwn = letter.fromUserId === (currentUser?.id || 'me');
+            {selectedMatch && getConversation(selectedMatch).map((letter, idx, arr) => {
+              const isOwn = letter.fromUserId === myId;
+              const isLast = idx === arr.length - 1;
               return (
                 <View key={letter.id} style={[s.msgRow, isOwn && s.msgRowOwn]}>
-                  <View style={[s.msgPaper, isOwn && s.msgPaperOwn]}>
+                  {/* Étiquette Lettre N */}
+                  <Text style={[s.letterLabel, isOwn && s.letterLabelOwn]}>
+                    {isOwn ? 'Ma lettre' : `Lettre de ${getOtherName(selectedMatch!)}`}  ·  {formatTime(letter.createdAt)}
+                  </Text>
+                  <View style={[s.msgPaper, isOwn && s.msgPaperOwn, isLast && !isMyTurn(selectedMatch!) && isOwn && s.msgPaperSent]}>
                     <Text style={[s.msgText, isOwn && s.msgTextOwn]}>{letter.content}</Text>
-                    <Text style={s.msgTime}>{formatTime(letter.createdAt)}</Text>
+                    {isLast && !isMyTurn(selectedMatch!) && isOwn && (
+                      <View style={s.waitingStamp}>
+                        <Text style={s.waitingStampText}>⏳ En attente</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               );
             })}
           </ScrollView>
 
-          {/* Zone d'écriture */}
-          <View style={[s.writeArea, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-            <Text style={s.quill}>🪶</Text>
-            <TextInput
-              style={s.writeInput}
-              placeholder="Écrire votre lettre..."
-              placeholderTextColor="#B8A090"
-              value={newMessage}
-              onChangeText={setNewMessage}
-              multiline
-            />
-            <TouchableOpacity style={s.sendBtn} onPress={handleSend}>
-              <Text style={s.sendBtnText}>📮</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Zone d'écriture — visible uniquement si c'est mon tour */}
+          {selectedMatch && isMyTurn(selectedMatch) ? (
+            <View style={[s.writeArea, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+              <Text style={s.quill}>🪶</Text>
+              <TextInput
+                style={s.writeInput}
+                placeholder={
+                  getConversation(selectedMatch).length === 0
+                    ? 'Écrivez votre première lettre...'
+                    : 'Répondez à sa lettre...'
+                }
+                placeholderTextColor="#B8A090"
+                value={newMessage}
+                onChangeText={setNewMessage}
+                multiline
+              />
+              <TouchableOpacity
+                style={[s.sendBtn, !newMessage.trim() && s.sendBtnDisabled]}
+                onPress={handleSend}
+                disabled={!newMessage.trim()}
+              >
+                <Text style={s.sendBtnText}>📮</Text>
+              </TouchableOpacity>
+            </View>
+          ) : selectedMatch ? (
+            <View style={[s.waitingArea, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+              <Text style={s.waitingIcon}>⏳</Text>
+              <Text style={s.waitingText}>Vous pouvez écrire dès que {getOtherName(selectedMatch)} vous répond</Text>
+            </View>
+          ) : null}
         </KeyboardAvoidingView>
       </Modal>
 
@@ -739,6 +808,35 @@ const s = StyleSheet.create({
     borderTopRightRadius: 4,
     borderTopLeftRadius: 14,
   },
+  msgPaperSent: {
+    borderColor: '#B8860B',
+    borderStyle: 'dashed',
+    opacity: 0.85,
+  },
+  letterLabel: {
+    fontSize: 10,
+    color: '#8B6F47',
+    fontStyle: 'italic',
+    marginBottom: 4,
+    marginLeft: 2,
+  },
+  letterLabelOwn: {
+    textAlign: 'right',
+    marginRight: 2,
+    marginLeft: 0,
+  },
+  waitingStamp: {
+    marginTop: 10,
+    alignSelf: 'flex-end',
+    backgroundColor: '#FFF8E1',
+    borderWidth: 1,
+    borderColor: '#DAA520',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  waitingStampText: { fontSize: 11, color: '#8B6F47', fontWeight: '600' },
+
   msgText: {
     fontSize: 15,
     color: '#3A2818',
@@ -746,7 +844,34 @@ const s = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   msgTextOwn: { color: '#5D3A1A' },
-  msgTime: { fontSize: 10, color: '#B8A090', marginTop: 8, alignSelf: 'flex-end' },
+
+  // Bandeau de statut tour par tour
+  turnBanner: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8D5B7',
+  },
+  turnBannerMine: { backgroundColor: '#E8F5E9' },
+  turnBannerWait: { backgroundColor: '#FFF8E1' },
+  turnBannerText: { fontSize: 13, fontWeight: '600', color: '#5D4037' },
+
+  // Zone d'attente (quand ce n'est pas mon tour)
+  waitingArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    backgroundColor: '#FFF8E1',
+    borderTopWidth: 1.5,
+    borderTopColor: '#E8D5B7',
+    gap: 10,
+  },
+  waitingIcon: { fontSize: 24 },
+  waitingText: { flex: 1, fontSize: 13, color: '#8B6F47', fontStyle: 'italic', lineHeight: 18 },
+
+  sendBtnDisabled: { backgroundColor: '#C8B89A', shadowOpacity: 0 },
 
   writeArea: {
     flexDirection: 'row',
