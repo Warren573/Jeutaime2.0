@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import type { Letter, Match } from '../shared/types';
+import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 32;
@@ -327,6 +328,98 @@ const envStyles = StyleSheet.create({
   sealLargeEmoji: { fontSize: 30 },
 });
 
+// ─── LetterCard — carte lettre avec animation si nouvelle ─────────────────────
+
+interface LetterCardProps {
+  letter: Letter;
+  isOwn: boolean;
+  isNew: boolean;
+  otherName: string;
+  formatTime: (ts: number) => string;
+  onSeen: () => void;
+}
+
+function LetterCard({ letter, isOwn, isNew, otherName, formatTime, onSeen }: LetterCardProps) {
+  const [animPlayed, setAnimPlayed] = useState(false);
+
+  useEffect(() => {
+    if (isNew && !animPlayed) {
+      // Marquer comme lu après que l'animation démarre
+      const t = setTimeout(() => {
+        onSeen();
+        setAnimPlayed(true);
+      }, 1600);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  return (
+    <View style={lcStyles.wrapper}>
+      <Text style={lcStyles.header}>
+        {isOwn ? 'Ta lettre' : `Lettre de ${otherName}`}
+      </Text>
+
+      {/* Animation d'enveloppe uniquement sur la première nouvelle lettre */}
+      {isNew && !animPlayed && (
+        <View style={lcStyles.animContainer}>
+          <PremiumLetterAnimation senderName={otherName} />
+        </View>
+      )}
+
+      {/* Carte lettre — toujours visible */}
+      <View style={[lcStyles.card, isOwn && lcStyles.cardOwn]}>
+        <Text style={lcStyles.text}>{letter.content}</Text>
+        <Text style={lcStyles.time}>{formatTime(letter.createdAt)}</Text>
+      </View>
+    </View>
+  );
+}
+
+const lcStyles = StyleSheet.create({
+  wrapper: { marginBottom: 24 },
+  header: {
+    fontSize: 11,
+    letterSpacing: 1.5,
+    color: '#6B6B6B',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  animContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#D8D2C4',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cardOwn: {
+    backgroundColor: '#FDF7F7',
+    borderColor: '#E8CFCF',
+  },
+  text: {
+    fontSize: 15,
+    color: '#2B2B2B',
+    lineHeight: 23,
+    fontStyle: 'italic',
+  },
+  time: {
+    fontSize: 10,
+    color: '#6B6B6B',
+    marginTop: 10,
+    textAlign: 'right',
+    letterSpacing: 0.3,
+  },
+});
+
 // ─── Types internes ───────────────────────────────────────────────────────────
 
 type TabType = 'lettres' | 'journal' | 'souvenirs';
@@ -598,18 +691,19 @@ export default function LettersScreen() {
 
           <ScrollView style={styles.messagesContainer}>
             {selectedMatch && getConversation(selectedMatch).map((letter) => {
-              const isOwn = letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
+              const isOwn    = letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
               const otherName = getOtherUserName(selectedMatch);
+              const isNew    = !isOwn && !letter.readAt;
               return (
-                <View key={letter.id} style={styles.letterWrapper}>
-                  <Text style={styles.letterCardHeader}>
-                    {isOwn ? 'Ta lettre' : `Lettre de ${otherName}`}
-                  </Text>
-                  <View style={[styles.letterCard, isOwn && styles.letterCardOwn]}>
-                    <Text style={styles.letterCardText}>{letter.content}</Text>
-                    <Text style={styles.letterCardTime}>{formatTime(letter.createdAt)}</Text>
-                  </View>
-                </View>
+                <LetterCard
+                  key={letter.id}
+                  letter={letter}
+                  isOwn={isOwn}
+                  isNew={isNew}
+                  otherName={otherName}
+                  formatTime={formatTime}
+                  onSeen={() => markLetterRead(letter.id)}
+                />
               );
             })}
             {selectedMatch && getConversation(selectedMatch).length === 0 && (
@@ -765,24 +859,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 17, fontWeight: '700', color: '#2B2B2B', letterSpacing: 0.3 },
   messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
 
-  // Carte lettre (remplace bulles)
-  letterWrapper: { marginBottom: 22 },
-  letterCardHeader: { fontSize: 11, letterSpacing: 1.5, color: '#6B6B6B', fontWeight: '600', textTransform: 'uppercase', marginBottom: 6 },
-  letterCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#D8D2C4',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  letterCardOwn: { backgroundColor: '#FDF7F7', borderColor: '#E8CFCF' },
-  letterCardText: { fontSize: 15, color: '#2B2B2B', lineHeight: 23, fontStyle: 'italic' },
-  letterCardTime: { fontSize: 10, color: '#6B6B6B', marginTop: 10, textAlign: 'right', letterSpacing: 0.3 },
+  // (letter cards → voir lcStyles)
 
   startConv: { alignItems: 'center', paddingVertical: 60 },
   startEmoji: { fontSize: 50, marginBottom: 12 },
