@@ -10,15 +10,16 @@
  *   OfferProjectileLayer            — (zIndex 102, toujours visible)
  *   OfferReactionLayer              — (zIndex 110, toujours au-dessus)
  *
+ * Source de vérité des expirations :
+ *   Calculées ici, une seule fois, via deux useState + setTimeout.
+ *   Les layers ne gèrent pas leur propre expiration.
+ *   Un seul timer par effet → pas de fuite, pas de divergence.
+ *
  * Règles de coexistence :
  *   - Une seule transformation active à la fois (prop scalaire)
- *   - Si transformation.mutesMagic = true → magic supprimé (statue, frog)
+ *   - mutesMagic=true (statue, frog) → magic + animations offrandes désactivés
+ *     Le projectile vole quand même (impact visuel cohérent sur statue/grenouille)
  *   - Magies compatibles entre elles : voir magicRegistry.coexistsWith
- *   - Réactions et projectiles toujours visibles (z-index supérieur)
- *
- * Expirations :
- *   - transformationExpiresAt / magicExpiresAt : timestamp ms epoch
- *   - Les layers se désactivent et nettoient leurs animations à l'heure exacte
  *
  * Flux d'une offrande :
  *  1. handleOffer(type)       → push dans la file (useAvatarActionQueue)
@@ -43,16 +44,18 @@ import { AvatarTransformationLayer } from './AvatarTransformationLayer';
 import { AvatarEffectLayer } from './AvatarEffectLayer';
 
 interface Props {
-  avatar:                  AvatarDefinition;
-  name:                    string;
-  isOnline?:               boolean;
-  transformation?:         TransformationType | null;
+  avatar:                   AvatarDefinition;
+  name:                     string;
+  isOnline?:                boolean;
+  transformation?:          TransformationType | null;
+  /** Timestamp ms epoch. Si dépassé, la transformation est masquée. */
   transformationExpiresAt?: number;
-  magic?:                  MagicType | null;
-  magicExpiresAt?:         number;
-  size?:                   number;
-  availableOffers?:        OfferType[];
-  onSendOffer?:            (event: OfferEvent) => void;
+  magic?:                   MagicType | null;
+  /** Timestamp ms epoch. Si dépassé, la magie est masquée. */
+  magicExpiresAt?:          number;
+  size?:                    number;
+  availableOffers?:         OfferType[];
+  onSendOffer?:             (event: OfferEvent) => void;
 }
 
 let _eventSeq = 0;
@@ -60,29 +63,63 @@ let _eventSeq = 0;
 export function SalonAvatarCard({
   avatar,
   name,
-  isOnline             = false,
-  transformation       = null,
+  isOnline              = false,
+  transformation        = null,
   transformationExpiresAt,
-  magic                = null,
+  magic                 = null,
   magicExpiresAt,
-  size                 = 96,
-  availableOffers      = V1_OFFERS,
+  size                  = 96,
+  availableOffers       = V1_OFFERS,
   onSendOffer,
 }: Props) {
   const { currentEvent, push, markDone } = useAvatarActionQueue();
   const { phase, config } = useOfferAnimation(currentEvent);
 
-  // Libérer la file quand l'animation est terminée
+  // ── Source de vérité des expirations ──────────────────────────────────────
+  // Un seul timer par effet. Dépendance stricte sur expiresAt → pas de fuite.
+  const [isMagicActive, setIsMagicActive] = React.useState(
+    () => !magicExpiresAt || Date.now() < magicExpiresAt,
+  );
+  const [isTransformationActive, setIsTransformationActive] = React.useState(
+    () => !transformationExpiresAt || Date.now() < transformationExpiresAt,
+  );
+
+  React.useEffect(() => {
+    if (!magicExpiresAt) { setIsMagicActive(true); return; }
+    const remaining = magicExpiresAt - Date.now();
+    if (remaining <= 0) { setIsMagicActive(false); return; }
+    setIsMagicActive(true);
+    const t = setTimeout(() => setIsMagicActive(false), remaining);
+    return () => clearTimeout(t);
+  }, [magicExpiresAt]);
+
+  React.useEffect(() => {
+    if (!transformationExpiresAt) { setIsTransformationActive(true); return; }
+    const remaining = transformationExpiresAt - Date.now();
+    if (remaining <= 0) { setIsTransformationActive(false); return; }
+    setIsTransformationActive(true);
+    const t = setTimeout(() => setIsTransformationActive(false), remaining);
+    return () => clearTimeout(t);
+  }, [transformationExpiresAt]);
+
+  // ── Coexistence ───────────────────────────────────────────────────────────
+  // mutesMagic = true : statue / frog gèlent la magie ET les animations d'offrandes
+  const activeTransDef = (transformation && isTransformationActive)
+    ? transformationRegistry[transformation]
+    : null;
+  const mutesMagic = activeTransDef?.mutesMagic ?? false;
+
+  // Magie effective : null si expirée ou si la transformation la coupe
+  const effectiveMagic: MagicType | null = (isMagicActive && !mutesMagic) ? magic : null;
+
+  // Transformation effective : null si expirée
+  const effectiveTransformation: TransformationType | null =
+    isTransformationActive ? transformation : null;
+
+  // ── File d'attente ────────────────────────────────────────────────────────
   React.useEffect(() => {
     if (phase === 'done') markDone();
   }, [phase, markDone]);
-
-  // Règle de coexistence : transformation muteAvatar supprime la magie
-  const effectiveMagic: MagicType | null = React.useMemo(() => {
-    if (!magic || !transformation) return magic;
-    const transDef = transformationRegistry[transformation];
-    return transDef?.mutesMagic ? null : magic;
-  }, [magic, transformation]);
 
   function handleOffer(type: OfferType) {
     const event: OfferEvent = {
@@ -103,36 +140,38 @@ export function SalonAvatarCard({
       {/* Avatar + effets */}
       <View style={[styles.avatarWrapper, { width: size, height: size }]}>
 
-        {/* Magie derrière l'avatar (ex : halo) — zIndex 0 */}
+        {/* Magie derrière l'avatar (halo) — zIndex 0 */}
         <AvatarEffectLayer
           magic={effectiveMagic}
           avatarSize={size}
           zLayerFilter="behind"
-          expiresAt={magicExpiresAt}
         />
 
+        {/*
+          Animation du corps suspendue si mutesMagic :
+          une statue/grenouille ne peut pas boire ni se pencher.
+          Le projectile vole quand même (cf. OfferProjectileLayer ci-dessous).
+        */}
         <AvatarOfferMotion
-          animationKey={phase === 'reaction' ? config?.animationKey : null}
+          animationKey={phase === 'reaction' && !mutesMagic ? config?.animationKey : null}
         >
           <AvatarRenderer avatar={avatar} size={size} />
         </AvatarOfferMotion>
 
         {/* Transformation (pirate, ghost, statue, frog) — zIndex 100 */}
         <AvatarTransformationLayer
-          transformation={transformation}
+          transformation={effectiveTransformation}
           avatarSize={size}
-          expiresAt={transformationExpiresAt}
         />
 
-        {/* Magie devant l'avatar (rain, ghost magic…) — zIndex 100, DOM après transfo */}
+        {/* Magie devant l'avatar (rain, ghost magic) — zIndex 100, DOM après transfo */}
         <AvatarEffectLayer
           magic={effectiveMagic}
           avatarSize={size}
           zLayerFilter="front"
-          expiresAt={magicExpiresAt}
         />
 
-        {/* Projectile — zIndex 102, toujours au-dessus des overlays */}
+        {/* Projectile — zIndex 102, toujours visible (même sur statue) */}
         {config && (
           <OfferProjectileLayer
             visible={phase === 'projectile'}
@@ -141,9 +180,12 @@ export function SalonAvatarCard({
           />
         )}
 
-        {/* Réaction — zIndex 110, toujours au-dessus */}
+        {/*
+          Réaction — zIndex 110, toujours au-dessus.
+          Masquée si mutesMagic : pas d'expression sur une statue ou une grenouille.
+        */}
         <OfferReactionLayer
-          reaction={phase === 'reaction' ? config?.reactionKey : null}
+          reaction={phase === 'reaction' && !mutesMagic ? config?.reactionKey : null}
           avatarSize={size}
         />
 

@@ -7,58 +7,31 @@
  *   rainFall   (rain)  → oscillation verticale des gouttes
  *   ghostFloat (ghost) → fondu cyclique d'opacité
  *
- * Expiration :
- *   Si expiresAt est fourni et que Date.now() > expiresAt, l'effet disparaît.
- *   Un timer interne déclenche le cleanup à l'heure exacte.
+ * L'expiration est gérée par SalonAvatarCard (source unique de vérité).
+ * Ce composant reçoit magic=null quand l'effet est expiré ou supprimé.
  *
  * Pour remplacer un effet : changer le SVG dans assets/avatar/magic/.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Animated, View } from 'react-native';
 import type { MagicType } from '../types/avatarTypes';
 import { magicRegistry } from '../config/magicRegistry';
 import { AvatarLayer } from './AvatarLayer';
 
 interface Props {
-  magic:          MagicType | null | undefined;
-  avatarSize:     number;
+  magic:         MagicType | null | undefined;
+  avatarSize:    number;
   /** Filtre de couche : ne rend que si l'effet correspond à ce zLayer */
-  zLayerFilter?:  'behind' | 'front';
-  /**
-   * Timestamp d'expiration (ms epoch).
-   * Si fourni et dépassé, l'effet est masqué et les animations nettoyées.
-   */
-  expiresAt?:     number;
+  zLayerFilter?: 'behind' | 'front';
 }
 
-export function AvatarEffectLayer({ magic, avatarSize, zLayerFilter, expiresAt }: Props) {
+export function AvatarEffectLayer({ magic, avatarSize, zLayerFilter }: Props) {
   const opacity    = useRef(new Animated.Value(1)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const scale      = useRef(new Animated.Value(1)).current;
   const loopRef    = useRef<Animated.CompositeAnimation | null>(null);
 
-  const [isExpired, setIsExpired] = useState<boolean>(
-    () => expiresAt != null && Date.now() >= expiresAt,
-  );
-
-  // Timer d'expiration — se déclenche à l'heure exacte
-  useEffect(() => {
-    if (expiresAt == null) {
-      setIsExpired(false);
-      return;
-    }
-    const remaining = expiresAt - Date.now();
-    if (remaining <= 0) {
-      setIsExpired(true);
-      return;
-    }
-    setIsExpired(false);
-    const timer = setTimeout(() => setIsExpired(true), remaining);
-    return () => clearTimeout(timer);
-  }, [expiresAt]);
-
-  // Animation loop — s'arrête proprement si expiré ou si magic change
   useEffect(() => {
     loopRef.current?.stop();
     loopRef.current = null;
@@ -69,7 +42,7 @@ export function AvatarEffectLayer({ magic, avatarSize, zLayerFilter, expiresAt }
     translateY.setValue(0);
     scale.setValue(1);
 
-    if (!magic || isExpired) return;
+    if (!magic) return;
 
     const def = magicRegistry[magic];
     if (!def) return;
@@ -106,9 +79,9 @@ export function AvatarEffectLayer({ magic, avatarSize, zLayerFilter, expiresAt }
       loopRef.current?.stop();
       loopRef.current = null;
     };
-  }, [magic, isExpired, opacity, translateY, scale]);
+  }, [magic, opacity, translateY, scale]);
 
-  if (!magic || isExpired) return null;
+  if (!magic) return null;
 
   const def = magicRegistry[magic];
   if (!def) return null;

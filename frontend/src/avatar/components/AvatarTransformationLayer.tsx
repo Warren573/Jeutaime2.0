@@ -5,19 +5,24 @@
  * Supporte plusieurs assets superposés (ex: future transformation multi-couche).
  *
  * Animations par animationKey :
- *   popOnHead    (pirate) → spring scale 0→1 + fade in rapide
- *   fadeOverlay  (ghost)  → fade in + boucle douce d'opacité
- *   stoneFade    (statue) → fade in lent (effet de pétrification)
- *   poofTransform (frog)  → spring overshoot + fade in
+ *   popOnHead     (pirate) → spring scale 0→1 + fade in rapide
+ *   fadeOverlay   (ghost)  → fade in + boucle douce d'opacité
+ *   stoneFade     (statue) → fade in lent (effet de pétrification)
+ *   poofTransform (frog)   → spring overshoot + fade in
  *
- * Expiration :
- *   Si expiresAt est fourni et que Date.now() > expiresAt, la transformation
- *   est masquée et les animations nettoyées proprement.
+ * L'expiration est gérée par SalonAvatarCard (source unique de vérité).
+ * Ce composant reçoit transformation=null quand l'effet est expiré.
+ * L'unmount React nettoie les animations via le return du useEffect.
+ *
+ * Fix race condition fadeOverlay :
+ *   result.finished est vérifié dans le callback du fade-in initial.
+ *   Si l'animation est interrompue (changement de transformation, unmount),
+ *   finished=false → la boucle ghost ne démarre pas → pas de fuite.
  *
  * Pour remplacer un visuel : changer le SVG dans assets/avatar/transformations/.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Animated, View } from 'react-native';
 import type { TransformationType } from '../types/avatarTypes';
 import { transformationRegistry } from '../config/transformationRegistry';
@@ -26,40 +31,15 @@ import { AvatarLayer } from './AvatarLayer';
 interface Props {
   transformation: TransformationType | null | undefined;
   avatarSize:     number;
-  /**
-   * Timestamp d'expiration (ms epoch).
-   * Si fourni et dépassé, la transformation est masquée et les animations nettoyées.
-   */
-  expiresAt?:     number;
 }
 
-export function AvatarTransformationLayer({ transformation, avatarSize, expiresAt }: Props) {
+export function AvatarTransformationLayer({ transformation, avatarSize }: Props) {
   const scaleVal   = useRef(new Animated.Value(0)).current;
   const opacityVal = useRef(new Animated.Value(0)).current;
   const loopRef    = useRef<Animated.CompositeAnimation | null>(null);
 
-  const [isExpired, setIsExpired] = useState<boolean>(
-    () => expiresAt != null && Date.now() >= expiresAt,
-  );
-
-  // Timer d'expiration — se déclenche à l'heure exacte
   useEffect(() => {
-    if (expiresAt == null) {
-      setIsExpired(false);
-      return;
-    }
-    const remaining = expiresAt - Date.now();
-    if (remaining <= 0) {
-      setIsExpired(true);
-      return;
-    }
-    setIsExpired(false);
-    const timer = setTimeout(() => setIsExpired(true), remaining);
-    return () => clearTimeout(timer);
-  }, [expiresAt]);
-
-  // Animation — reset + relance à chaque changement de transformation ou d'expiration
-  useEffect(() => {
+    // Reset complet — arrête toute animation en cours, y compris la boucle ghost
     loopRef.current?.stop();
     loopRef.current = null;
     scaleVal.stopAnimation();
@@ -67,12 +47,13 @@ export function AvatarTransformationLayer({ transformation, avatarSize, expiresA
     scaleVal.setValue(0);
     opacityVal.setValue(0);
 
-    if (!transformation || isExpired) return;
+    if (!transformation) return;
 
     const def = transformationRegistry[transformation];
     if (!def) return;
 
     if (def.animationKey === 'popOnHead') {
+      // Chapeau qui "pop" sur la tête
       Animated.parallel([
         Animated.spring(scaleVal, {
           toValue:         1,
@@ -88,12 +69,17 @@ export function AvatarTransformationLayer({ transformation, avatarSize, expiresA
       ]).start();
 
     } else if (def.animationKey === 'fadeOverlay') {
+      // Fade in initial → boucle de respiration fantomatique
+      // result.finished protège contre la race condition :
+      // si stopAnimation() est appelé pendant le fade-in (changement de
+      // transformation, unmount), finished=false → la boucle ne démarre pas.
       scaleVal.setValue(1);
       Animated.timing(opacityVal, {
         toValue:         0.86,
         duration:        450,
         useNativeDriver: true,
-      }).start(() => {
+      }).start((result) => {
+        if (!result.finished) return;
         const loop = Animated.loop(
           Animated.sequence([
             Animated.timing(opacityVal, { toValue: 0.62, duration: 1200, useNativeDriver: true }),
@@ -105,6 +91,7 @@ export function AvatarTransformationLayer({ transformation, avatarSize, expiresA
       });
 
     } else if (def.animationKey === 'stoneFade') {
+      // Pétrification progressive
       scaleVal.setValue(1);
       Animated.timing(opacityVal, {
         toValue:         0.88,
@@ -113,7 +100,7 @@ export function AvatarTransformationLayer({ transformation, avatarSize, expiresA
       }).start();
 
     } else {
-      // poofTransform (frog)
+      // poofTransform (frog) — apparition avec overshoot
       Animated.parallel([
         Animated.sequence([
           Animated.spring(scaleVal, {
@@ -138,12 +125,16 @@ export function AvatarTransformationLayer({ transformation, avatarSize, expiresA
     }
 
     return () => {
+      // Arrête toutes les animations (dont la boucle ghost si active)
+      // — appelé par React sur unmount ou quand transformation change
       loopRef.current?.stop();
       loopRef.current = null;
+      scaleVal.stopAnimation();
+      opacityVal.stopAnimation();
     };
-  }, [transformation, isExpired, scaleVal, opacityVal]);
+  }, [transformation, scaleVal, opacityVal]);
 
-  if (!transformation || isExpired) return null;
+  if (!transformation) return null;
 
   const def = transformationRegistry[transformation];
   if (!def) return null;
