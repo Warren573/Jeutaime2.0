@@ -18,9 +18,8 @@
 
 import React from 'react';
 import { View } from 'react-native';
-import { AvatarDefinition, MagicType, ReactionType, TransformationType } from '../types/avatarTypes';
+import { AvatarDefinition, MagicType, TransformationType } from '../types/avatarTypes';
 import { AvatarLayer } from './AvatarLayer';
-import { AvatarReactionLayer } from './AvatarReactionLayer';
 import { AvatarTransformationLayer } from './AvatarTransformationLayer';
 
 interface Props {
@@ -28,7 +27,6 @@ interface Props {
   size?:           number;
   transformation?: TransformationType | null;
   magic?:          MagicType | null;
-  reaction?:       ReactionType | null;
 }
 
 export function AvatarRenderer({
@@ -36,7 +34,6 @@ export function AvatarRenderer({
   size = 220,
   transformation = null,
   magic = null,
-  reaction = null,
 }: Props) {
   const { layers } = avatar;
 
@@ -61,9 +58,6 @@ export function AvatarRenderer({
         />
       )}
 
-      {reaction && (
-        <AvatarReactionLayer reaction={reaction} size={size} />
-      )}
     </View>
   );
 }
