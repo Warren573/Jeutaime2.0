@@ -20,6 +20,7 @@ import type {
   GenderType,
 } from '../shared/types';
 
+import type { AvatarDefinition } from '../avatar/types/avatarTypes';
 import * as EconomyEngine from '../engine/EconomyEngine';
 import * as ProgressionEngine from '../engine/ProgressionEngine';
 import * as PetEngine from '../engine/PetEngine';
@@ -47,6 +48,7 @@ interface CurrentUser {
   email?: string;
   isPremium: boolean;
   avatarConfig: AvatarConfig;
+  avatarDef?: AvatarDefinition;
   stats: UserStats;
   unlockedBadges: string[];
   gender?: GenderType;

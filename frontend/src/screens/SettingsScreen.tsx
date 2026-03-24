@@ -12,8 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { titles, badges } from '../data/gameData';
-import { AvatarCircle } from '../components/avatar/AvatarCircle';
-import { DEFAULT_AVATAR } from '../types/avatar';
+import { AvatarRenderer } from '../avatar/components/AvatarRenderer';
+import { MOCK_AVATAR_DEFAULT } from '../avatar/data/mockAvatars';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -22,8 +22,8 @@ export default function SettingsScreen() {
   const screenBg = useStore(s => s.screenBackgrounds?.['settings'] ?? '#FFF8E7');
   const title = getCurrentTitle();
 
-  // Avatar SVG — utilise svgAvatar du store si disponible, sinon défaut
-  const svgAvatar = (currentUser as any)?.svgAvatar ?? DEFAULT_AVATAR;
+  // Avatar — utilise avatarDef du store si disponible, sinon défaut
+  const avatarDef = (currentUser as any)?.avatarDef ?? MOCK_AVATAR_DEFAULT;
 
   // États pour l'édition de profil
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -66,11 +66,9 @@ export default function SettingsScreen() {
 
         {/* ── Profil card ────────────────────────────────────────────────────── */}
         <TouchableOpacity style={styles.profileCard} onPress={() => setShowEditProfile(true)}>
-          <AvatarCircle
-            config={svgAvatar}
+          <AvatarRenderer
+            avatar={avatarDef}
             size={92}
-            borderColor="#FFF"
-            borderWidth={2.5}
           />
 
           <View style={styles.profileInfo}>
@@ -180,7 +178,7 @@ export default function SettingsScreen() {
                   router.push('/avatar-builder');
                 }}
               >
-                <AvatarCircle config={svgAvatar} size={110} borderColor="#C9A96E" borderWidth={3} />
+                <AvatarRenderer avatar={avatarDef} size={110} />
                 <Text style={styles.changeAvatarText}>🎨 Modifier mon avatar</Text>
               </TouchableOpacity>
 
