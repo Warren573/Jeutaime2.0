@@ -1,8 +1,16 @@
 /**
  * SalonAvatarCard — Carte avatar salon branchée sur le moteur d'offrandes
  * ─────────────────────────────────────────────────────────────────────────────
+ * Ordre de rendu (bas → haut) :
+ *   AvatarEffectLayer [behind]  — halo, etc.
+ *   AvatarOfferMotion
+ *     AvatarRenderer            — couches avatar + transformation
+ *   AvatarEffectLayer [front]   — rain, ghost, etc.
+ *   OfferProjectileLayer
+ *   OfferReactionLayer
+ *
  * Flux d'une offrande :
- *  1. handleOffer(type)       → crée un OfferEvent + notifie le parent
+ *  1. handleOffer(type)       → push dans la file (useAvatarActionQueue)
  *  2. useOfferAnimation       → phase: idle → projectile → reaction → done
  *  3. OfferProjectileLayer    → anime l'objet selon trajectory
  *  4. AvatarOfferMotion       → anime le corps selon animationKey
@@ -20,6 +28,7 @@ import { AvatarOfferMotion } from './AvatarOfferMotion';
 import { OfferProjectileLayer } from './OfferProjectileLayer';
 import { OfferReactionLayer } from './OfferReactionLayer';
 import { AvatarTransformationLayer } from './AvatarTransformationLayer';
+import { AvatarEffectLayer } from './AvatarEffectLayer';
 
 interface Props {
   avatar:          AvatarDefinition;
@@ -71,6 +80,9 @@ export function SalonAvatarCard({
       {/* Avatar + effets */}
       <View style={[styles.avatarWrapper, { width: size, height: size }]}>
 
+        {/* Magie derrière l'avatar (ex : halo) */}
+        <AvatarEffectLayer magic={magic} avatarSize={size} zLayerFilter="behind" />
+
         <AvatarOfferMotion
           animationKey={phase === 'reaction' ? config?.animationKey : null}
         >
@@ -78,9 +90,11 @@ export function SalonAvatarCard({
             avatar={avatar}
             size={size}
             transformation={transformation}
-            magic={magic}
           />
         </AvatarOfferMotion>
+
+        {/* Magie devant l'avatar (ex : rain, ghost) */}
+        <AvatarEffectLayer magic={magic} avatarSize={size} zLayerFilter="front" />
 
         {/* Projectile */}
         {config && (

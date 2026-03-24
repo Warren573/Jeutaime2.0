@@ -110,6 +110,28 @@ export const avatarRegistry: Record<string, AvatarAssetRef> = {
     source: require('../../../assets/avatar/hair-front/hair_front_bun_dark_01.svg'),
   },
 
+  // ── Effets magiques ───────────────────────────────────────────────────────
+  magic_halo_soft_01: {
+    id: 'magic_halo_soft_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/magic/halo_soft_01.svg'),
+  },
+  magic_rain_cloud_01: {
+    id: 'magic_rain_cloud_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/magic/rain_cloud_01.svg'),
+  },
+  magic_rain_drops_01: {
+    id: 'magic_rain_drops_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/magic/rain_drops_01.svg'),
+  },
+  magic_ghost_glow_01: {
+    id: 'magic_ghost_glow_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/magic/ghost_glow_01.svg'),
+  },
+
   // ── Réactions d'offrandes ─────────────────────────────────────────────────
   reaction_wellbeing_smile_01: {
     id: 'reaction_wellbeing_smile_01',
