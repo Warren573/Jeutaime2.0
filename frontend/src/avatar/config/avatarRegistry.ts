@@ -110,6 +110,28 @@ export const avatarRegistry: Record<string, AvatarAssetRef> = {
     source: require('../../../assets/avatar/hair-front/hair_front_bun_dark_01.svg'),
   },
 
+  // ── Réactions d'offrandes ─────────────────────────────────────────────────
+  reaction_wellbeing_smile_01: {
+    id: 'reaction_wellbeing_smile_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/reactions/wellbeing_smile_01.svg'),
+  },
+  reaction_slurp_01: {
+    id: 'reaction_slurp_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/reactions/slurp_01.svg'),
+  },
+  reaction_romantic_receive_01: {
+    id: 'reaction_romantic_receive_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/reactions/romantic_receive_01.svg'),
+  },
+  reaction_read_letter_01: {
+    id: 'reaction_read_letter_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/reactions/read_letter_01.svg'),
+  },
+
   // ── Accessoires ───────────────────────────────────────────────────────────
   accessory_none: {
     id: 'accessory_none',

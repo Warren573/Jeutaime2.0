@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Halo rose -->
+  <circle cx="32" cy="36" r="24" fill="#FCE4EC" opacity="0.75"/>
+  <!-- Cœur principal -->
+  <path d="M 32 50
+           C 16 40 6 28 10 18
+           C 12 10 22 8 32 18
+           C 42 8 52 10 54 18
+           C 58 28 48 40 32 50 Z"
+        fill="#EF5350"/>
+  <!-- Reflet -->
+  <ellipse cx="23" cy="22" rx="5" ry="3.5" fill="white" opacity="0.3" transform="rotate(-35 23 22)"/>
+  <!-- Petit cœur flottant -->
+  <path d="M 48 10
+           C 46 7 41 9 44 13
+           C 47 9 52 7 48 10 Z"
+        fill="#EC407A" opacity="0.75"/>
+  <!-- Étoile scintillante -->
+  <path d="M 16 16 L 17.2 19.2 L 20.5 19.5 L 18 21.8 L 18.8 25 L 16 23.2 L 13.2 25 L 14 21.8 L 11.5 19.5 L 14.8 19.2 Z"
+        fill="#FFD54F" opacity="0.8" transform="scale(0.6) translate(8 4)"/>
+</svg>

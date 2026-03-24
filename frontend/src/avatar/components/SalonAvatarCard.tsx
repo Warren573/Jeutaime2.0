@@ -94,6 +94,7 @@ export function SalonAvatarCard({
         {/* Réaction */}
         <OfferReactionLayer
           reaction={phase === 'reaction' ? config?.reactionKey : null}
+          avatarSize={size}
         />
 
         {/* Transformation overlay */}
