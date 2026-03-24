@@ -110,6 +110,28 @@ export const avatarRegistry: Record<string, AvatarAssetRef> = {
     source: require('../../../assets/avatar/hair-front/hair_front_bun_dark_01.svg'),
   },
 
+  // ── Transformations ───────────────────────────────────────────────────────
+  transfo_pirate_hat_01: {
+    id: 'transfo_pirate_hat_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/transformations/pirate_hat_01.svg'),
+  },
+  transfo_ghost_overlay_01: {
+    id: 'transfo_ghost_overlay_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/transformations/ghost_overlay_01.svg'),
+  },
+  transfo_statue_overlay_01: {
+    id: 'transfo_statue_overlay_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/transformations/statue_overlay_01.svg'),
+  },
+  transfo_frog_overlay_01: {
+    id: 'transfo_frog_overlay_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/transformations/frog_overlay_01.svg'),
+  },
+
   // ── Effets magiques ───────────────────────────────────────────────────────
   magic_halo_soft_01: {
     id: 'magic_halo_soft_01',

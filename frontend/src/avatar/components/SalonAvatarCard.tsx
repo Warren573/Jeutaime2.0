@@ -2,10 +2,11 @@
  * SalonAvatarCard — Carte avatar salon branchée sur le moteur d'offrandes
  * ─────────────────────────────────────────────────────────────────────────────
  * Ordre de rendu (bas → haut) :
- *   AvatarEffectLayer [behind]  — halo, etc.
+ *   AvatarEffectLayer [behind]      — halo, etc.
  *   AvatarOfferMotion
- *     AvatarRenderer            — couches avatar + transformation
- *   AvatarEffectLayer [front]   — rain, ghost, etc.
+ *     AvatarRenderer                — couches avatar pures
+ *   AvatarTransformationLayer       — pirate, ghost, statue, frog
+ *   AvatarEffectLayer [front]       — rain, ghost magic, etc.
  *   OfferProjectileLayer
  *   OfferReactionLayer
  *
@@ -86,14 +87,13 @@ export function SalonAvatarCard({
         <AvatarOfferMotion
           animationKey={phase === 'reaction' ? config?.animationKey : null}
         >
-          <AvatarRenderer
-            avatar={avatar}
-            size={size}
-            transformation={transformation}
-          />
+          <AvatarRenderer avatar={avatar} size={size} />
         </AvatarOfferMotion>
 
-        {/* Magie devant l'avatar (ex : rain, ghost) */}
+        {/* Transformation (pirate, ghost, statue, frog) */}
+        <AvatarTransformationLayer transformation={transformation} avatarSize={size} />
+
+        {/* Magie devant l'avatar (rain, ghost magic…) */}
         <AvatarEffectLayer magic={magic} avatarSize={size} zLayerFilter="front" />
 
         {/* Projectile */}
@@ -110,11 +110,6 @@ export function SalonAvatarCard({
           reaction={phase === 'reaction' ? config?.reactionKey : null}
           avatarSize={size}
         />
-
-        {/* Transformation overlay */}
-        {transformation && (
-          <AvatarTransformationLayer transformation={transformation} size={size} />
-        )}
 
         {/* Point en ligne */}
         {isOnline && <View style={styles.onlineDot} />}

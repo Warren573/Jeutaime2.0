@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300">
+  <defs>
+    <radialGradient id="stoneTone" cx="50%" cy="42%" r="52%">
+      <stop offset="0%"   stop-color="#C8BFB0" stop-opacity="0.82"/>
+      <stop offset="55%"  stop-color="#A89880" stop-opacity="0.68"/>
+      <stop offset="85%"  stop-color="#8A7A68" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#7A6A58" stop-opacity="0.00"/>
+    </radialGradient>
+  </defs>
+  <!-- Lavis pierre -->
+  <rect width="240" height="300" fill="url(#stoneTone)"/>
+  <!-- Craquelures principales -->
+  <path d="M 98 52 L 103 78 L 96 108" fill="none" stroke="#6A5A48" stroke-width="1.2" opacity="0.42"/>
+  <path d="M 142 44 L 137 72 L 144 98" fill="none" stroke="#6A5A48" stroke-width="1.2" opacity="0.38"/>
+  <path d="M 68 135 L 82 145 L 76 168" fill="none" stroke="#6A5A48" stroke-width="1.0" opacity="0.32"/>
+  <path d="M 170 118 L 158 130 L 164 152" fill="none" stroke="#6A5A48" stroke-width="1.0" opacity="0.30"/>
+  <!-- Micro-craquelures -->
+  <path d="M 115 88 L 110 98 L 118 94" fill="none" stroke="#7A6A58" stroke-width="0.7" opacity="0.28"/>
+  <path d="M 148 138 L 143 148 L 150 144" fill="none" stroke="#7A6A58" stroke-width="0.7" opacity="0.25"/>
+  <!-- Texture de surface -->
+  <circle cx="90"  cy="75"  r="2.5" fill="#A08870" opacity="0.18"/>
+  <circle cx="152" cy="92"  r="2"   fill="#A08870" opacity="0.15"/>
+  <circle cx="120" cy="160" r="2.5" fill="#A08870" opacity="0.18"/>
+  <circle cx="78"  cy="188" r="2"   fill="#A08870" opacity="0.15"/>
+</svg>

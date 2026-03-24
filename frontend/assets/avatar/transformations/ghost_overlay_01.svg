@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300">
+  <defs>
+    <radialGradient id="ghostVeil" cx="50%" cy="40%" r="52%">
+      <stop offset="0%"   stop-color="white" stop-opacity="0.78"/>
+      <stop offset="55%"  stop-color="white" stop-opacity="0.52"/>
+      <stop offset="88%"  stop-color="white" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0.00"/>
+    </radialGradient>
+  </defs>
+  <!-- Voile principal -->
+  <ellipse cx="120" cy="148" rx="108" ry="145" fill="url(#ghostVeil)"/>
+  <!-- Yeux fantôme -->
+  <ellipse cx="96"  cy="112" rx="15" ry="20" fill="#18102A" opacity="0.78"/>
+  <ellipse cx="144" cy="112" rx="15" ry="20" fill="#18102A" opacity="0.78"/>
+  <!-- Reflets dans les yeux -->
+  <circle cx="101" cy="105" r="5" fill="white" opacity="0.72"/>
+  <circle cx="149" cy="105" r="5" fill="white" opacity="0.72"/>
+  <!-- Bouche arrondie -->
+  <ellipse cx="120" cy="158" rx="18" ry="12" fill="#18102A" opacity="0.55"/>
+  <!-- Bord bas drapé -->
+  <path d="M 18 280 Q 36 258 54 278 Q 72 298 90 275 Q 108 252 120 276 Q 132 298 150 275 Q 168 252 186 278 Q 204 298 222 278 L 222 300 L 18 300 Z"
+        fill="white" opacity="0.22"/>
+</svg>

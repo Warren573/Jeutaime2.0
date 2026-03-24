@@ -1,67 +1,151 @@
 /**
- * AvatarTransformationLayer — Overlay de transformation
+ * AvatarTransformationLayer — Overlay de transformation avatar
  * ─────────────────────────────────────────────────────────────────────────────
- * Affiche un overlay visuel par-dessus l'avatar (pirate, fantôme, statue…).
- * Remplacé par asset SVG/PNG quand les illustrations sont disponibles.
- * En attendant : affiche un émoji + badge de durée si défini.
+ * Lit transformationRegistry pour positionner et animer les assets.
+ * Supporte plusieurs assets superposés (ex: future transformation multi-couche).
+ *
+ * Animations par animationKey :
+ *   popOnHead    (pirate) → spring scale 0→1 + fade in rapide
+ *   fadeOverlay  (ghost)  → fade in + boucle douce d'opacité
+ *   stoneFade    (statue) → fade in lent (effet de pétrification)
+ *   poofTransform (frog)  → spring overshoot + fade in
+ *
+ * Pour remplacer un visuel : changer le SVG dans assets/avatar/transformations/.
  */
 
 import React, { useEffect, useRef } from 'react';
-import { Animated, Text, View } from 'react-native';
-import { TransformationType } from '../types/avatarTypes';
+import { Animated, View } from 'react-native';
+import type { TransformationType } from '../types/avatarTypes';
+import { transformationRegistry } from '../config/transformationRegistry';
+import { AvatarLayer } from './AvatarLayer';
 
 interface Props {
-  transformation: TransformationType;
-  size:           number;
-  /** Texte de durée restante à afficher (ex: "2h restantes") */
-  durationLabel?: string;
+  transformation: TransformationType | null | undefined;
+  avatarSize:     number;
 }
 
-const TRANSFORMATION_DISPLAY: Record<TransformationType, { emoji: string; label: string }> = {
-  pirate: { emoji: '🏴‍☠️', label: 'Pirate'    },
-  ghost:  { emoji: '👻',   label: 'Fantôme'   },
-  statue: { emoji: '🗿',   label: 'Statue'    },
-  frog:   { emoji: '🐸',   label: 'Grenouille' },
-};
-
-export function AvatarTransformationLayer({ transformation, size, durationLabel }: Props) {
-  const opacity = useRef(new Animated.Value(0)).current;
+export function AvatarTransformationLayer({ transformation, avatarSize }: Props) {
+  const scaleVal   = useRef(new Animated.Value(0)).current;
+  const opacityVal = useRef(new Animated.Value(0)).current;
+  const loopRef    = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
-    Animated.timing(opacity, {
-      toValue:         0.82,
-      duration:        400,
-      useNativeDriver: true,
-    }).start();
-  }, [transformation, opacity]);
+    // Arrêt et reset
+    loopRef.current?.stop();
+    loopRef.current = null;
+    scaleVal.stopAnimation();
+    opacityVal.stopAnimation();
+    scaleVal.setValue(0);
+    opacityVal.setValue(0);
 
-  const { emoji } = TRANSFORMATION_DISPLAY[transformation];
+    if (!transformation) return;
+
+    const def = transformationRegistry[transformation];
+    if (!def) return;
+
+    if (def.animationKey === 'popOnHead') {
+      // Chapeau qui "pop" sur la tête
+      Animated.parallel([
+        Animated.spring(scaleVal, {
+          toValue:         1,
+          tension:         180,
+          friction:        7,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityVal, {
+          toValue:         1,
+          duration:        200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+    } else if (def.animationKey === 'fadeOverlay') {
+      // Fade in → loop de respiration fantomatique
+      scaleVal.setValue(1);
+      Animated.timing(opacityVal, {
+        toValue:         0.86,
+        duration:        450,
+        useNativeDriver: true,
+      }).start(() => {
+        const loop = Animated.loop(
+          Animated.sequence([
+            Animated.timing(opacityVal, { toValue: 0.62, duration: 1200, useNativeDriver: true }),
+            Animated.timing(opacityVal, { toValue: 0.88, duration: 1200, useNativeDriver: true }),
+          ]),
+        );
+        loopRef.current = loop;
+        loop.start();
+      });
+
+    } else if (def.animationKey === 'stoneFade') {
+      // Pétrification progressive
+      scaleVal.setValue(1);
+      Animated.timing(opacityVal, {
+        toValue:         0.88,
+        duration:        900,
+        useNativeDriver: true,
+      }).start();
+
+    } else {
+      // poofTransform (frog) — apparition avec overshoot
+      Animated.parallel([
+        Animated.sequence([
+          Animated.spring(scaleVal, {
+            toValue:         1.10,
+            tension:         320,
+            friction:        6,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scaleVal, {
+            toValue:         1.00,
+            tension:         200,
+            friction:        8,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(opacityVal, {
+          toValue:         0.90,
+          duration:        300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+
+    return () => {
+      loopRef.current?.stop();
+      loopRef.current = null;
+    };
+  }, [transformation, scaleVal, opacityVal]);
+
+  if (!transformation) return null;
+
+  const def = transformationRegistry[transformation];
+  if (!def) return null;
+
+  const layerSize = avatarSize * def.position.sizeRatio;
 
   return (
     <Animated.View
+      pointerEvents="none"
       style={{
-        ...require('react-native').StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(20,12,30,0.55)',
-        borderRadius:    size / 2,
-        alignItems:      'center',
-        justifyContent:  'center',
-        opacity,
+        position:  'absolute',
+        width:     layerSize,
+        height:    layerSize,
+        top:       `${def.position.topOffsetPercent}%`,
+        left:      `${def.position.leftOffsetPercent}%`,
+        zIndex:    def.zLayer === 'behind' ? 0 : 100,
+        opacity:   opacityVal,
+        transform: [{ scale: scaleVal }],
       }}
     >
-      <Text style={{ fontSize: size * 0.38 }}>{emoji}</Text>
-      {durationLabel && (
-        <View style={{
-          marginTop:       size * 0.04,
-          backgroundColor: 'rgba(255,255,255,0.18)',
-          borderRadius:    20,
-          paddingHorizontal: 8,
-          paddingVertical:   2,
-        }}>
-          <Text style={{ color: '#fff', fontSize: size * 0.1, fontWeight: '600' }}>
-            {durationLabel}
-          </Text>
+      {def.assetIds.map((assetId) => (
+        <View
+          key={assetId}
+          style={{ position: 'absolute', width: layerSize, height: layerSize }}
+        >
+          <AvatarLayer assetId={assetId} size={layerSize} />
         </View>
-      )}
+      ))}
     </Animated.View>
   );
 }
