@@ -5,13 +5,13 @@ const { FileStore } = require('metro-cache');
 
 const config = getDefaultConfig(__dirname);
 
-// ── SVG transformer (react-native-svg-transformer) ─────────────────────────
-// Permet d'importer les fichiers .svg comme des composants React Native SVG.
-// Pour remplacer un asset : modifie simplement le fichier .svg, rien d'autre.
+// ── SVG transformer (plateforme-aware) ─────────────────────────────────────
+// mobile → react-native-svg-transformer → composant React
+// web    → base64 data URI string → compatible SvgUri
 const { transformer, resolver } = config;
 config.transformer = {
   ...transformer,
-  babelTransformerPath: require.resolve('react-native-svg-transformer'),
+  babelTransformerPath: require.resolve('./svg-platform-transformer'),
 };
 config.resolver = {
   ...resolver,
