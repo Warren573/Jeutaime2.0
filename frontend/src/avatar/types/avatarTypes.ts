@@ -77,7 +77,41 @@ export type AvatarDefinition = {
 
 // ─── Offrandes ────────────────────────────────────────────────────────────────
 
-export type OfferType = 'coffee' | 'beer' | 'rose' | 'letter';
+/** V1 : coffee, beer, rose, letter. Prêt pour les extensions futures. */
+export type OfferType =
+  | 'coffee' | 'tea' | 'hotChocolate'         // boissons chaudes
+  | 'beer' | 'cocktail' | 'wine' | 'champagne' // alcools
+  | 'rose' | 'flower' | 'heart' | 'letter';    // symboliques
+
+export type OfferFamily = 'hotDrink' | 'alcohol' | 'symbolic';
+
+export type OfferAnimationKey =
+  | 'drinkHot'
+  | 'drinkAlcohol'
+  | 'receiveRose'
+  | 'openLetter';
+
+export type OfferTrajectoryKey =
+  | 'arcToMouth'
+  | 'softFloatToTorso'
+  | 'glideToTorso';
+
+export type OfferReactionKey =
+  | 'wellbeingSmile'
+  | 'slurp'
+  | 'romanticReceive'
+  | 'readLetter';
+
+/** Événement offrande autonome (status pour la file d'attente) */
+export type OfferEvent = {
+  id:         string;
+  category:   'offer';
+  type:       OfferType;
+  fromUserId: string;
+  toUserId:   string;
+  createdAt:  number;
+  status?:    'queued' | 'running' | 'done';
+};
 
 // ─── Réactions ────────────────────────────────────────────────────────────────
 

@@ -7,7 +7,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { AvatarEvent, OfferType, ReactionType, TransformationType, MagicType } from '../types/avatarTypes';
-import { actionRegistry } from '../config/actionRegistry';
+import { offerRegistry } from '../config/offerRegistry';
 import { transformationRegistry } from '../config/transformationRegistry';
 import { magicRegistry } from '../config/magicRegistry';
 
@@ -40,7 +40,7 @@ export function useAvatarActionQueue() {
     busy.current = true;
 
     if (event.category === 'offer') {
-      const def = actionRegistry[event.type];
+      const def = offerRegistry[event.type];
       if (!def) { busy.current = false; processNext(); return; }
 
       // Lance le projectile
@@ -51,7 +51,7 @@ export function useAvatarActionQueue() {
         setState((s) => ({
           ...s,
           projectile: { ...s.projectile!, visible: false },
-          reaction:   def.reaction,
+          reaction:   def.reactionKey as ReactionType,
         }));
 
         // Efface la réaction après durée
@@ -59,7 +59,7 @@ export function useAvatarActionQueue() {
           setState((s) => ({ ...s, reaction: null }));
           busy.current = false;
           processNext();
-        }, def.reactionDurationMs);
+        }, def.durationMs);
       }, 900); // durée animation projectile
 
     } else if (event.category === 'transformation') {

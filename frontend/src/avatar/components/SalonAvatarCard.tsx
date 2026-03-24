@@ -1,15 +1,24 @@
 /**
- * SalonAvatarCard — Carte avatar pour les salons (petit format)
+ * SalonAvatarCard — Carte avatar salon branchée sur le moteur d'offrandes
  * ─────────────────────────────────────────────────────────────────────────────
- * Affiche l'avatar avec son nom, état actif et boutons d'offrandes.
+ * Flux d'une offrande :
+ *  1. handleOffer(type)       → crée un OfferEvent + notifie le parent
+ *  2. useOfferAnimation       → phase: idle → projectile → reaction → done
+ *  3. OfferProjectileLayer    → anime l'objet selon trajectory
+ *  4. AvatarOfferMotion       → anime le corps selon animationKey
+ *  5. OfferReactionLayer      → affiche la réaction selon reactionKey
  */
 
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { AvatarDefinition, MagicType, OfferType, ReactionType, TransformationType } from '../types/avatarTypes';
-import { actionRegistry } from '../config/actionRegistry';
+import { AvatarDefinition, MagicType, OfferType, TransformationType, OfferEvent } from '../types/avatarTypes';
+import { offerRegistry, V1_OFFERS } from '../config/offerRegistry';
+import { useOfferAnimation } from '../hooks/useOfferAnimation';
 import { AvatarRenderer } from './AvatarRenderer';
-import { ProjectileAnimationLayer } from './ProjectileAnimationLayer';
+import { AvatarOfferMotion } from './AvatarOfferMotion';
+import { OfferProjectileLayer } from './OfferProjectileLayer';
+import { OfferReactionLayer } from './OfferReactionLayer';
+import { AvatarTransformationLayer } from './AvatarTransformationLayer';
 
 interface Props {
   avatar:          AvatarDefinition;
@@ -18,69 +27,82 @@ interface Props {
   transformation?: TransformationType | null;
   magic?:          MagicType | null;
   size?:           number;
-  /** Offrandes disponibles à envoyer */
   availableOffers?: OfferType[];
-  onSendOffer?:    (type: OfferType) => void;
+  onSendOffer?:    (event: OfferEvent) => void;
 }
+
+let _eventSeq = 0;
 
 export function SalonAvatarCard({
   avatar,
   name,
-  isOnline = false,
+  isOnline    = false,
   transformation = null,
-  magic = null,
-  size = 96,
-  availableOffers = ['coffee', 'beer', 'rose', 'letter'],
+  magic       = null,
+  size        = 96,
+  availableOffers = V1_OFFERS,
   onSendOffer,
 }: Props) {
-  const [activeReaction, setActiveReaction] = useState<ReactionType | null>(null);
-  const [projectile, setProjectile] = useState<{ visible: boolean; type: OfferType }>({
-    visible: false,
-    type:    'coffee',
-  });
+  const [activeEvent, setActiveEvent] = useState<OfferEvent | null>(null);
+  const { phase, config } = useOfferAnimation(activeEvent);
+
+  // Nettoyer quand l'animation est finie
+  React.useEffect(() => {
+    if (phase === 'done') setActiveEvent(null);
+  }, [phase]);
 
   function handleOffer(type: OfferType) {
-    const def = actionRegistry[type];
-    if (!def) return;
-
-    // Lance le projectile
-    setProjectile({ visible: true, type });
-    onSendOffer?.(type);
+    if (phase !== 'idle') return; // une offrande à la fois
+    const event: OfferEvent = {
+      id:         `offer_${++_eventSeq}`,
+      category:   'offer',
+      type,
+      fromUserId: 'me',
+      toUserId:   avatar.id,
+      createdAt:  Date.now(),
+      status:     'queued',
+    };
+    setActiveEvent(event);
+    onSendOffer?.(event);
   }
-
-  function handleProjectileComplete() {
-    const def = actionRegistry[projectile.type];
-    if (!def) return;
-
-    setProjectile((p) => ({ ...p, visible: false }));
-    setActiveReaction(def.reaction);
-
-    setTimeout(() => setActiveReaction(null), def.reactionDurationMs);
-  }
-
-  const circleSize = size;
 
   return (
     <View style={styles.card}>
-      {/* Avatar + projectile */}
-      <View style={[styles.avatarWrapper, { width: circleSize, height: circleSize }]}>
-        <AvatarRenderer
-          avatar={avatar}
-          size={circleSize}
-          transformation={transformation}
-          magic={magic}
-          reaction={activeReaction}
-        />
-        <ProjectileAnimationLayer
-          visible={projectile.visible}
-          actionType={projectile.type}
-          onComplete={handleProjectileComplete}
+      {/* Avatar + effets */}
+      <View style={[styles.avatarWrapper, { width: size, height: size }]}>
+
+        <AvatarOfferMotion
+          animationKey={phase === 'reaction' ? config?.animationKey : null}
+        >
+          <AvatarRenderer
+            avatar={avatar}
+            size={size}
+            transformation={transformation}
+            magic={magic}
+          />
+        </AvatarOfferMotion>
+
+        {/* Projectile */}
+        {config && (
+          <OfferProjectileLayer
+            visible={phase === 'projectile'}
+            emoji={config.emoji}
+            trajectory={config.trajectory}
+          />
+        )}
+
+        {/* Réaction */}
+        <OfferReactionLayer
+          reaction={phase === 'reaction' ? config?.reactionKey : null}
         />
 
-        {/* Indicateur en ligne */}
-        {isOnline && (
-          <View style={[styles.onlineDot, { bottom: 3, right: 3 }]} />
+        {/* Transformation overlay */}
+        {transformation && (
+          <AvatarTransformationLayer transformation={transformation} size={size} />
         )}
+
+        {/* Point en ligne */}
+        {isOnline && <View style={styles.onlineDot} />}
       </View>
 
       {/* Nom */}
@@ -89,17 +111,24 @@ export function SalonAvatarCard({
       {/* Boutons d'offrandes */}
       {availableOffers.length > 0 && (
         <View style={styles.offerRow}>
-          {availableOffers.map((type) => (
-            <Pressable
-              key={type}
-              style={({ pressed }) => [styles.offerBtn, pressed && styles.offerBtnPressed]}
-              onPress={() => handleOffer(type)}
-            >
-              <Text style={styles.offerEmoji}>
-                {{ coffee: '☕', beer: '🍺', rose: '🌹', letter: '💌' }[type]}
-              </Text>
-            </Pressable>
-          ))}
+          {availableOffers.map((type) => {
+            const def = offerRegistry[type];
+            if (!def) return null;
+            return (
+              <Pressable
+                key={type}
+                style={({ pressed }) => [
+                  styles.offerBtn,
+                  pressed && styles.offerBtnPressed,
+                  phase !== 'idle' && styles.offerBtnDisabled,
+                ]}
+                onPress={() => handleOffer(type)}
+                disabled={phase !== 'idle'}
+              >
+                <Text style={styles.offerEmoji}>{def.emoji}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       )}
     </View>
@@ -120,6 +149,8 @@ const styles = StyleSheet.create({
   },
   onlineDot: {
     position:        'absolute',
+    bottom:          3,
+    right:           3,
     width:           11,
     height:          11,
     borderRadius:    6,
@@ -148,6 +179,9 @@ const styles = StyleSheet.create({
   offerBtnPressed: {
     backgroundColor: 'rgba(212,168,122,0.45)',
     transform:       [{ scale: 0.9 }],
+  },
+  offerBtnDisabled: {
+    opacity: 0.4,
   },
   offerEmoji: {
     fontSize: 14,
