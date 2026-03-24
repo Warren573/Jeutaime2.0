@@ -9,10 +9,11 @@
  *  5. OfferReactionLayer      → affiche la réaction selon reactionKey
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AvatarDefinition, MagicType, OfferType, TransformationType, OfferEvent } from '../types/avatarTypes';
 import { offerRegistry, V1_OFFERS } from '../config/offerRegistry';
+import { useAvatarActionQueue } from '../hooks/useAvatarActionQueue';
 import { useOfferAnimation } from '../hooks/useOfferAnimation';
 import { AvatarRenderer } from './AvatarRenderer';
 import { AvatarOfferMotion } from './AvatarOfferMotion';
@@ -43,16 +44,15 @@ export function SalonAvatarCard({
   availableOffers = V1_OFFERS,
   onSendOffer,
 }: Props) {
-  const [activeEvent, setActiveEvent] = useState<OfferEvent | null>(null);
-  const { phase, config } = useOfferAnimation(activeEvent);
+  const { currentEvent, push, markDone } = useAvatarActionQueue();
+  const { phase, config } = useOfferAnimation(currentEvent);
 
-  // Nettoyer quand l'animation est finie
+  // Libérer la file quand l'animation est terminée
   React.useEffect(() => {
-    if (phase === 'done') setActiveEvent(null);
-  }, [phase]);
+    if (phase === 'done') markDone();
+  }, [phase, markDone]);
 
   function handleOffer(type: OfferType) {
-    if (phase !== 'idle') return; // une offrande à la fois
     const event: OfferEvent = {
       id:         `offer_${++_eventSeq}`,
       category:   'offer',
@@ -62,7 +62,7 @@ export function SalonAvatarCard({
       createdAt:  Date.now(),
       status:     'queued',
     };
-    setActiveEvent(event);
+    push(event);
     onSendOffer?.(event);
   }
 
@@ -120,10 +120,8 @@ export function SalonAvatarCard({
                 style={({ pressed }) => [
                   styles.offerBtn,
                   pressed && styles.offerBtnPressed,
-                  phase !== 'idle' && styles.offerBtnDisabled,
                 ]}
                 onPress={() => handleOffer(type)}
-                disabled={phase !== 'idle'}
               >
                 <Text style={styles.offerEmoji}>{def.emoji}</Text>
               </Pressable>
@@ -179,9 +177,6 @@ const styles = StyleSheet.create({
   offerBtnPressed: {
     backgroundColor: 'rgba(212,168,122,0.45)',
     transform:       [{ scale: 0.9 }],
-  },
-  offerBtnDisabled: {
-    opacity: 0.4,
   },
   offerEmoji: {
     fontSize: 14,

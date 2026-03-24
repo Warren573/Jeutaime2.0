@@ -1,92 +1,50 @@
 /**
- * useAvatarActionQueue — File d'attente des événements avatar
+ * useAvatarActionQueue — File d'attente d'offrandes par avatar
  * ─────────────────────────────────────────────────────────────────────────────
- * Gère la séquence : offrande reçue → animation projectile → réaction.
- * Supporte plusieurs événements simultanés (file FIFO).
+ * Chaque avatar possède SA file. L'appelant push() des événements ; le hook
+ * les joue séquentiellement. SalonAvatarCard appelle markDone() quand
+ * useOfferAnimation passe en phase 'done'.
+ *
+ * Garanties :
+ *  - une seule offrande active à la fois (runningRef empêche la ré-entrance)
+ *  - zéro perte : push() pendant une animation → mis en file, jamais droppé
+ *  - ordre FIFO
  */
 
-import { useCallback, useRef, useState } from 'react';
-import { AvatarEvent, OfferType, ReactionType, TransformationType, MagicType } from '../types/avatarTypes';
-import { offerRegistry } from '../config/offerRegistry';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { OfferEvent } from '../types/avatarTypes';
 
-interface AvatarState {
-  reaction?:       ReactionType | null;
-  transformation?: TransformationType | null;
-  magic?:          MagicType | null;
-  projectile?: {
-    visible: boolean;
-    type:    OfferType;
-  };
-}
+export function useAvatarActionQueue(): {
+  currentEvent: OfferEvent | null;
+  push:         (event: OfferEvent) => void;
+  markDone:     () => void;
+  hasQueue:     boolean;
+} {
+  const queueRef   = useRef<OfferEvent[]>([]);
+  const runningRef = useRef(false);
+  const [current, setCurrent] = useState<OfferEvent | null>(null);
 
-export function useAvatarActionQueue() {
-  const [state, setState] = useState<AvatarState>({
-    reaction:       null,
-    transformation: null,
-    magic:          null,
-    projectile:     { visible: false, type: 'coffee' },
-  });
-
-  const queue   = useRef<AvatarEvent[]>([]);
-  const busy    = useRef(false);
-
-  /** Traite le prochain événement de la file */
   const processNext = useCallback(() => {
-    if (busy.current || queue.current.length === 0) return;
-
-    const event = queue.current.shift()!;
-    busy.current = true;
-
-    if (event.category === 'offer') {
-      const def = offerRegistry[event.type];
-      if (!def) { busy.current = false; processNext(); return; }
-
-      // Lance le projectile
-      setState((s) => ({ ...s, projectile: { visible: true, type: event.type } }));
-
-      // Après animation → réaction
-      setTimeout(() => {
-        setState((s) => ({
-          ...s,
-          projectile: { ...s.projectile!, visible: false },
-          reaction:   def.reactionKey as ReactionType,
-        }));
-
-        // Efface la réaction après durée
-        setTimeout(() => {
-          setState((s) => ({ ...s, reaction: null }));
-          busy.current = false;
-          processNext();
-        }, def.durationMs);
-      }, 900); // durée animation projectile
-
-    } else if (event.category === 'transformation') {
-      setState((s) => ({ ...s, transformation: event.type }));
-      busy.current = false;
-      processNext();
-
-    } else if (event.category === 'magic') {
-      setState((s) => ({ ...s, magic: event.type }));
-      busy.current = false;
-      processNext();
-    }
+    if (runningRef.current) return;
+    if (queueRef.current.length === 0) return;
+    runningRef.current = true;
+    setCurrent(queueRef.current.shift()!);
   }, []);
 
-  /** Ajoute un événement à la file */
-  const enqueue = useCallback((event: AvatarEvent) => {
-    queue.current.push(event);
+  const push = useCallback((event: OfferEvent) => {
+    queueRef.current.push(event);
     processNext();
   }, [processNext]);
 
-  /** Efface une transformation active */
-  const clearTransformation = useCallback(() => {
-    setState((s) => ({ ...s, transformation: null }));
+  const markDone = useCallback(() => {
+    runningRef.current = false;
+    setCurrent(null);
   }, []);
 
-  /** Efface un effet magique actif */
-  const clearMagic = useCallback(() => {
-    setState((s) => ({ ...s, magic: null }));
-  }, []);
+  // Quand current revient à null, démarrer l'item suivant s'il y en a un
+  useEffect(() => {
+    if (current === null) processNext();
+  }, [current, processNext]);
 
-  return { state, enqueue, clearTransformation, clearMagic };
+  return { currentEvent: current, push, markDone, hasQueue: queueRef.current.length > 0 };
 }
