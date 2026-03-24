@@ -13,35 +13,14 @@ import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
-  Image,
   Pressable,
   Animated,
   StyleSheet,
 } from 'react-native';
 import { SalonParticipant } from '../data/salonsData';
 import type { ActiveEffect } from '../hooks/useAvatarEffects';
-
-// ─── URLs DiceBear ────────────────────────────────────────────────────────────
-
-const AVATAR_IMAGES: Record<string, string> = {
-  zoe:       'https://api.dicebear.com/7.x/adventurer/png?seed=Zoe&backgroundColor=b6e3f4',
-  valerie:   'https://api.dicebear.com/7.x/adventurer/png?seed=Valerie&backgroundColor=ffd5dc',
-  kevin:     'https://api.dicebear.com/7.x/adventurer/png?seed=Kevin&backgroundColor=c0aede',
-  marc:      'https://api.dicebear.com/7.x/adventurer/png?seed=Marc&backgroundColor=d1f4d1',
-  sophie:    'https://api.dicebear.com/7.x/adventurer/png?seed=Sophie&backgroundColor=ffe8b8',
-  lucas:     'https://api.dicebear.com/7.x/adventurer/png?seed=Lucas&backgroundColor=b8d4ff',
-  emma:      'https://api.dicebear.com/7.x/adventurer/png?seed=Emma&backgroundColor=ffb8d4',
-  julie:     'https://api.dicebear.com/7.x/adventurer/png?seed=Julie&backgroundColor=ffc8e8',
-  thomas:    'https://api.dicebear.com/7.x/adventurer/png?seed=Thomas&backgroundColor=c8ffc8',
-  clara:     'https://api.dicebear.com/7.x/adventurer/png?seed=Clara&backgroundColor=fff0b8',
-  alexandre: 'https://api.dicebear.com/7.x/adventurer/png?seed=Alexandre&backgroundColor=fde8c8',
-  léa:       'https://api.dicebear.com/7.x/adventurer/png?seed=Lea&backgroundColor=ffd5dc',
-  lea:       'https://api.dicebear.com/7.x/adventurer/png?seed=Lea&backgroundColor=ffd5dc',
-  jules:     'https://api.dicebear.com/7.x/adventurer/png?seed=Jules&backgroundColor=c8ffc8',
-  default:   'https://api.dicebear.com/7.x/adventurer/png?seed=Default&backgroundColor=e8e8e8',
-  vous:      'https://api.dicebear.com/7.x/adventurer/png?seed=Me&backgroundColor=667eea',
-  moi:       'https://api.dicebear.com/7.x/adventurer/png?seed=Me&backgroundColor=667eea',
-};
+import { AvatarRenderer } from '../avatar/components/AvatarRenderer';
+import { MOCK_PROFILE_AVATARS, MOCK_AVATAR_DEFAULT } from '../avatar/data/mockAvatars';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -103,9 +82,8 @@ export default function SalonAvatar({
     return () => loop.stop();
   }, []);
 
-  // ── Image ─────────────────────────────────────────────────────────────────
-  const avatarKey = participant.name.toLowerCase().replace(/[^a-zéèêëàâùûîïôæœ]/g, '').replace(/[éèêë]/g, 'e').replace(/[àâ]/g, 'a');
-  const imageUrl  = AVATAR_IMAGES[avatarKey] ?? AVATAR_IMAGES.default;
+  // ── Avatar def ────────────────────────────────────────────────────────────
+  const avatarDef = MOCK_PROFILE_AVATARS[participant.id] ?? MOCK_AVATAR_DEFAULT;
 
   const handlePress = () => {
     if (!onMeasuredPress || !pressRef.current) return;
@@ -146,14 +124,12 @@ export default function SalonAvatar({
               width: size, height: size,
               borderRadius: size / 2,
               transform: [{ scale: breathAnim }],
+              overflow: 'hidden',
             },
             isSelected && styles.circleSelected,
           ]}
         >
-          <Image
-            source={{ uri: `${imageUrl}&size=${size * 2}` }}
-            style={{ width: size - 8, height: size - 8, borderRadius: (size - 8) / 2 }}
-          />
+          <AvatarRenderer avatar={avatarDef} size={size} />
 
           {/* Point en ligne */}
           {participant.online !== false && (

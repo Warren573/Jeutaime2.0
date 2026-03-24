@@ -21,13 +21,24 @@ export function AvatarLayer({ assetId, size }: Props) {
   if (!asset) return null;
 
   if (asset.type === 'svg') {
-    // SVG importé par react-native-svg-transformer → composant React
-    const SvgComponent = asset.source as React.FC<{ width: number; height: number; style?: any }>;
+    // Native: react-native-svg-transformer retourne un composant React (fonction)
+    // Web: require() retourne un URI/number → on passe par Image (les navigateurs gèrent SVG dans <img>)
+    if (typeof asset.source === 'function') {
+      const SvgComponent = asset.source as React.FC<{ width: number; height: number; style?: any }>;
+      return (
+        <SvgComponent
+          width={size}
+          height={size}
+          style={StyleSheet.absoluteFillObject}
+        />
+      );
+    }
+    // Fallback web
     return (
-      <SvgComponent
-        width={size}
-        height={size}
-        style={StyleSheet.absoluteFillObject}
+      <Image
+        source={asset.source as number | { uri: string }}
+        style={[StyleSheet.absoluteFillObject, { width: size, height: size }]}
+        resizeMode="contain"
       />
     );
   }
