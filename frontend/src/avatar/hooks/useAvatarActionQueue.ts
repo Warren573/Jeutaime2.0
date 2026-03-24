@@ -8,8 +8,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { AvatarEvent, OfferType, ReactionType, TransformationType, MagicType } from '../types/avatarTypes';
 import { offerRegistry } from '../config/offerRegistry';
-import { transformationRegistry } from '../config/transformationRegistry';
-import { magicRegistry } from '../config/magicRegistry';
 
 interface AvatarState {
   reaction?:       ReactionType | null;

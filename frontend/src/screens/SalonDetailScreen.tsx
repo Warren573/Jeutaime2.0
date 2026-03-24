@@ -1095,7 +1095,8 @@ interface SharedProps {
 export default function SalonDetailScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
-  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarConfig: myAvatarConfig } = useStore();
+  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages } = useStore();
+  const myAvatarConfig = currentUser?.avatarConfig;
 
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
