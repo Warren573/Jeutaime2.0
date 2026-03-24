@@ -3,28 +3,44 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Trajectoires pilotées par offerRegistry.trajectory :
  *  arcToMouth       → arc parabolique vers la bouche (boissons)
- *  softFloatToTorso → flottement doux vers le torse (rose, fleur)
+ *  softFloatToTorso → flottement doux vers le torse (rose, fleur, cœur)
  *  glideToTorso     → glissement avec légère rotation (lettre)
+ *
+ * Impact visuel (à l'arrivée) :
+ *  Chaque trajectoire déclenche un glow coloré selon la famille d'offrande :
+ *  hotDrink → orange chaud   🟠
+ *  alcohol  → doré pétillant 🟡
+ *  symbolic → rose romantique 🌸
  *
  * Rendu : emoji placeholder → remplacé par Image(assetId) quand l'asset existe.
  */
 
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import type { OfferTrajectoryKey } from '../types/avatarTypes';
+import type { OfferFamily, OfferTrajectoryKey } from '../types/avatarTypes';
+
+/** Couleur du halo d'impact selon la famille */
+const IMPACT_GLOW: Record<OfferFamily, string> = {
+  hotDrink: 'rgba(255, 148, 40,  0.50)',
+  alcohol:  'rgba(255, 210, 55,  0.45)',
+  symbolic: 'rgba(255, 120, 175, 0.45)',
+};
 
 interface Props {
   visible:    boolean;
   emoji:      string;
   trajectory: OfferTrajectoryKey;
+  /** Famille d'offrande — détermine la couleur du glow d'impact */
+  family:     OfferFamily;
 }
 
-export function OfferProjectileLayer({ visible, emoji, trajectory }: Props) {
-  const tx      = useRef(new Animated.Value(-60)).current;
-  const ty      = useRef(new Animated.Value(60)).current;
-  const scale   = useRef(new Animated.Value(0.7)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  const rotate  = useRef(new Animated.Value(0)).current;
+export function OfferProjectileLayer({ visible, emoji, trajectory, family }: Props) {
+  const tx          = useRef(new Animated.Value(-60)).current;
+  const ty          = useRef(new Animated.Value(60)).current;
+  const scale       = useRef(new Animated.Value(0.7)).current;
+  const opacity     = useRef(new Animated.Value(0)).current;
+  const rotate      = useRef(new Animated.Value(0)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!visible) return;
@@ -35,6 +51,7 @@ export function OfferProjectileLayer({ visible, emoji, trajectory }: Props) {
     scale.setValue(0.7);
     opacity.setValue(0);
     rotate.setValue(0);
+    glowOpacity.setValue(0);
 
     const fadeIn = Animated.timing(opacity, {
       toValue: 1, duration: 130, useNativeDriver: true,
@@ -42,6 +59,18 @@ export function OfferProjectileLayer({ visible, emoji, trajectory }: Props) {
     const fadeOut = Animated.timing(opacity, {
       toValue: 0, duration: 180, useNativeDriver: true,
     });
+
+    // Flash de glow à l'impact — identique pour toutes les trajectoires
+    const impactGlow = Animated.sequence([
+      Animated.timing(glowOpacity, { toValue: 1, duration: 70,  useNativeDriver: true }),
+      Animated.timing(glowOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
+    ]);
+
+    // Impact : scale spring + glow simultanés
+    const impactEffect = Animated.parallel([
+      Animated.spring(scale, { toValue: 1.4, tension: 320, friction: 4, useNativeDriver: true }),
+      impactGlow,
+    ]);
 
     const trajectories: Record<OfferTrajectoryKey, Animated.CompositeAnimation> = {
 
@@ -55,8 +84,7 @@ export function OfferProjectileLayer({ visible, emoji, trajectory }: Props) {
           ]),
           Animated.timing(scale, { toValue: 1.1, duration: 650, useNativeDriver: true }),
         ]),
-        // Impact
-        Animated.spring(scale, { toValue: 1.4, tension: 320, friction: 4, useNativeDriver: true }),
+        impactEffect,
         fadeOut,
       ]),
 
@@ -67,7 +95,7 @@ export function OfferProjectileLayer({ visible, emoji, trajectory }: Props) {
           Animated.timing(ty,    { toValue: 10,  duration: 850, useNativeDriver: true }),
           Animated.timing(scale, { toValue: 1,   duration: 850, useNativeDriver: true }),
         ]),
-        Animated.spring(scale, { toValue: 1.2, tension: 200, friction: 5, useNativeDriver: true }),
+        impactEffect,
         fadeOut,
       ]),
 
@@ -79,13 +107,13 @@ export function OfferProjectileLayer({ visible, emoji, trajectory }: Props) {
           Animated.timing(scale,  { toValue: 1,   duration: 720, useNativeDriver: true }),
           Animated.timing(rotate, { toValue: 1,   duration: 720, useNativeDriver: true }),
         ]),
-        Animated.spring(scale, { toValue: 1.2, tension: 200, friction: 5, useNativeDriver: true }),
+        impactEffect,
         fadeOut,
       ]),
     };
 
     trajectories[trajectory].start();
-  }, [visible, trajectory, tx, ty, scale, opacity, rotate]);
+  }, [visible, trajectory, family, tx, ty, scale, opacity, rotate, glowOpacity]);
 
   if (!visible) return null;
 
@@ -96,6 +124,14 @@ export function OfferProjectileLayer({ visible, emoji, trajectory }: Props) {
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+      {/* Halo d'impact — flash coloré selon la famille */}
+      <Animated.View
+        style={[
+          styles.impactGlow,
+          { backgroundColor: IMPACT_GLOW[family], opacity: glowOpacity },
+        ]}
+      />
+      {/* Projectile */}
       <Animated.View style={[
         styles.projectile,
         { opacity, transform: [{ translateX: tx }, { translateY: ty }, { scale }, { rotate: rotateDeg }] },
@@ -107,6 +143,17 @@ export function OfferProjectileLayer({ visible, emoji, trajectory }: Props) {
 }
 
 const styles = StyleSheet.create({
+  impactGlow: {
+    position:     'absolute',
+    left:         '45%',
+    top:          '52%',
+    width:        56,
+    height:       56,
+    marginLeft:   -28,
+    marginTop:    -28,
+    borderRadius: 28,
+    zIndex:       101,
+  },
   projectile: {
     position:   'absolute',
     left:       '45%',

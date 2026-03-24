@@ -7,6 +7,12 @@
  *  projectile : l'objet vole vers l'avatar (~700 ms)
  *  reaction   : l'avatar réagit (durationMs - 700 ms)
  *  done       : séquence terminée (le parent peut nettoyer)
+ *
+ * Timing :
+ *  PROJECTILE_DURATION_MS : durée du vol (700ms)
+ *  REACTION_DELAY_MS      : pause émotionnelle avant la réaction (180ms)
+ *    → le projectile « atterrit », micro-pause, puis l'avatar réagit
+ *    → les deux timers (reaction + done) sont décalés du même montant
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -16,6 +22,7 @@ import type { OfferEvent } from '../types/avatarTypes';
 export type OfferPhase = 'idle' | 'projectile' | 'reaction' | 'done';
 
 const PROJECTILE_DURATION_MS = 700;
+const REACTION_DELAY_MS      = 180;
 
 export function useOfferAnimation(event?: OfferEvent | null) {
   const [phase, setPhase] = useState<OfferPhase>('idle');
@@ -42,12 +49,13 @@ export function useOfferAnimation(event?: OfferEvent | null) {
 
     setPhase('projectile');
 
+    // Pause émotionnelle : le projectile arrive → micro-délai → l'avatar réagit
     timers.current.push(
-      setTimeout(() => setPhase('reaction'), PROJECTILE_DURATION_MS),
+      setTimeout(() => setPhase('reaction'), PROJECTILE_DURATION_MS + REACTION_DELAY_MS),
     );
 
     timers.current.push(
-      setTimeout(() => setPhase('done'), config.durationMs),
+      setTimeout(() => setPhase('done'), config.durationMs + REACTION_DELAY_MS),
     );
 
     return () => clearTimers();

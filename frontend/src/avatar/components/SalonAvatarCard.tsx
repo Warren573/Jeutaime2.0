@@ -177,6 +177,7 @@ export function SalonAvatarCard({
             visible={phase === 'projectile'}
             emoji={config.emoji}
             trajectory={config.trajectory}
+            family={config.family}
           />
         )}
 
