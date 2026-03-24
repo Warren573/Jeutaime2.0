@@ -19,9 +19,6 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SalonParticipant } from '../data/salonsData';
-import { AvatarEffectLayer, VisualEffectId } from './avatar/AvatarEffectLayer';
-import { AvatarTransformationLayer } from './avatar/AvatarTransformationLayer';
-import { PowerReactionOverlay } from './avatar/PowerReactionOverlay';
 import type { ActiveEffect } from '../hooks/useAvatarEffects';
 
 // ─── URLs DiceBear ────────────────────────────────────────────────────────────
@@ -140,14 +137,6 @@ export default function SalonAvatar({
         ]}
       >
         {/* ── z:1 — fond / halo (behind) ─────────────────────────────────── */}
-        {visualEffects.map(e => (
-          <AvatarEffectLayer
-            key={e.id}
-            effectId={e.powerId as VisualEffectId}
-            layer="behind"
-            size={size}
-          />
-        ))}
 
         {/* ── z:2 — avatar base (breathing) ──────────────────────────────── */}
         <Animated.View
@@ -173,27 +162,8 @@ export default function SalonAvatar({
         </Animated.View>
 
         {/* ── z:3 — transformation overlay ───────────────────────────────── */}
-        {transformation && (
-          <AvatarTransformationLayer
-            transformationId={transformation.powerId}
-            size={size}
-            onBreakAttempt={
-              onBreakAttempt
-                ? () => onBreakAttempt(participant.id, transformation.powerId)
-                : undefined
-            }
-          />
-        )}
 
         {/* ── z:4 — particules / météo (over) ────────────────────────────── */}
-        {visualEffects.map(e => (
-          <AvatarEffectLayer
-            key={`over_${e.id}`}
-            effectId={e.powerId as VisualEffectId}
-            layer="over"
-            size={size}
-          />
-        ))}
 
         {/* ── z:5 — badges offrandes (ring) ──────────────────────────────── */}
         {showBadges && offeringBadges.length > 0 && (
@@ -212,14 +182,6 @@ export default function SalonAvatar({
         )}
 
         {/* ── z:6 — réaction animée (boire / manger / etc.) ─────────────── */}
-        {activeReaction && (
-          <PowerReactionOverlay
-            emoji={activeReaction.emoji}
-            category={activeReaction.category}
-            size={size}
-            onComplete={() => setActiveReaction(null)}
-          />
-        )}
       </Pressable>
 
       {/* Nom */}
