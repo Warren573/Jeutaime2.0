@@ -27,6 +27,7 @@ export type OfferDefinition = {
   family:       OfferFamily;
   emoji:        string;          // placeholder tant que l'asset n'est pas dispo
   assetId:      string;          // clé dans avatarRegistry (futur PNG/SVG)
+  cost:         number;          // coût en pièces
   targetAnchor: AnchorPointName;
   trajectory:   OfferTrajectoryKey;
   animationKey: OfferAnimationKey;
@@ -42,6 +43,7 @@ export const offerRegistry: Record<OfferType, OfferDefinition> = {
     family:       'hotDrink',
     emoji:        '☕',
     assetId:      'offer_coffee_01',
+    cost:         20,
     targetAnchor: 'mouth',
     trajectory:   'arcToMouth',
     animationKey: 'drinkHot',
@@ -53,6 +55,7 @@ export const offerRegistry: Record<OfferType, OfferDefinition> = {
     family:       'hotDrink',
     emoji:        '🍵',
     assetId:      'offer_tea_01',
+    cost:         20,
     targetAnchor: 'mouth',
     trajectory:   'arcToMouth',
     animationKey: 'drinkHot',
@@ -64,6 +67,7 @@ export const offerRegistry: Record<OfferType, OfferDefinition> = {
     family:       'hotDrink',
     emoji:        '🫖',
     assetId:      'offer_hot_chocolate_01',
+    cost:         25,
     targetAnchor: 'mouth',
     trajectory:   'arcToMouth',
     animationKey: 'drinkHot',
@@ -77,6 +81,7 @@ export const offerRegistry: Record<OfferType, OfferDefinition> = {
     family:       'alcohol',
     emoji:        '🍺',
     assetId:      'offer_beer_01',
+    cost:         30,
     targetAnchor: 'mouth',
     trajectory:   'arcToMouth',
     animationKey: 'drinkAlcohol',
@@ -88,6 +93,7 @@ export const offerRegistry: Record<OfferType, OfferDefinition> = {
     family:       'alcohol',
     emoji:        '🍹',
     assetId:      'offer_cocktail_01',
+    cost:         50,
     targetAnchor: 'mouth',
     trajectory:   'arcToMouth',
     animationKey: 'drinkAlcohol',
@@ -99,6 +105,7 @@ export const offerRegistry: Record<OfferType, OfferDefinition> = {
     family:       'alcohol',
     emoji:        '🍷',
     assetId:      'offer_wine_01',
+    cost:         40,
     targetAnchor: 'mouth',
     trajectory:   'arcToMouth',
     animationKey: 'drinkAlcohol',
@@ -110,6 +117,7 @@ export const offerRegistry: Record<OfferType, OfferDefinition> = {
     family:       'alcohol',
     emoji:        '🥂',
     assetId:      'offer_champagne_01',
+    cost:         80,
     targetAnchor: 'mouth',
     trajectory:   'arcToMouth',
     animationKey: 'drinkAlcohol',
@@ -123,6 +131,7 @@ export const offerRegistry: Record<OfferType, OfferDefinition> = {
     family:       'symbolic',
     emoji:        '🌹',
     assetId:      'offer_rose_01',
+    cost:         35,
     targetAnchor: 'torso',
     trajectory:   'softFloatToTorso',
     animationKey: 'receiveRose',
@@ -134,6 +143,7 @@ export const offerRegistry: Record<OfferType, OfferDefinition> = {
     family:       'symbolic',
     emoji:        '🌸',
     assetId:      'offer_flower_01',
+    cost:         25,
     targetAnchor: 'torso',
     trajectory:   'softFloatToTorso',
     animationKey: 'receiveRose',
@@ -145,6 +155,7 @@ export const offerRegistry: Record<OfferType, OfferDefinition> = {
     family:       'symbolic',
     emoji:        '💖',
     assetId:      'offer_heart_01',
+    cost:         30,
     targetAnchor: 'faceCenter',
     trajectory:   'softFloatToTorso',
     animationKey: 'receiveRose',
@@ -156,6 +167,7 @@ export const offerRegistry: Record<OfferType, OfferDefinition> = {
     family:       'symbolic',
     emoji:        '💌',
     assetId:      'offer_letter_01',
+    cost:         45,
     targetAnchor: 'torso',
     trajectory:   'glideToTorso',
     animationKey: 'openLetter',

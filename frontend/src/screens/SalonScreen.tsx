@@ -21,7 +21,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { salonsData, SalonParticipant } from '../data/salonsData';
 import { useStore, Message } from '../store/useStore';
-import { allOfferings, allPowers, getPowerDurationMs, type Offering, type Power } from '../data/offerings';
+import { allPowers, getPowerDurationMs, type Power } from '../data/offerings';
+import { offerRegistry, V1_OFFERS, type OfferDefinition } from '../avatar/config/offerRegistry';
+import type { OfferType } from '../avatar/types/avatarTypes';
 import SalonAvatar from '../components/SalonAvatar';
 import AvatarRadialMenu, { RadialAction } from '../components/AvatarRadialMenu';
 import ProjectileAnimationLayer, { type ProjectileLayerHandle } from '../components/effects/ProjectileAnimationLayer';
@@ -173,8 +175,10 @@ export default function SalonScreen() {
   };
 
   // Envoyer une offrande
-  const handleSendOffering = (item: Offering) => {
+  const handleSendOffering = (type: OfferType) => {
     if (!selectedPlayer) return;
+    const item: OfferDefinition = offerRegistry[type];
+    if (!item) return;
     if (!removeCoins(item.cost)) {
       alert('Pas assez de pièces!');
       return;
@@ -187,11 +191,11 @@ export default function SalonScreen() {
       applyEffect({
         participantId: selectedPlayer.id,
         category:      'offering',
-        powerId:       item.id,
+        powerId:       type,
         emoji:         item.emoji,
-        label:         item.name,
+        label:         item.label,
         expiresAt:     Date.now() + item.durationMs,
-        stackPriority: item.stackPriority,
+        stackPriority: 2,
       });
     };
 
@@ -206,7 +210,6 @@ export default function SalonScreen() {
       fireAndApply();
     }
 
-    // Legacy offerings sur le participant (pour compatibilité)
     setParticipants(prev => prev.map(p =>
       p.id === selectedPlayer.id
         ? { ...p, offerings: [...(p.offerings || []), { emoji: item.emoji, from: currentUser?.name || 'Vous', timestamp: Date.now() }].slice(-6) }
@@ -218,7 +221,7 @@ export default function SalonScreen() {
       from:      currentUser?.name || 'Vous',
       to:        selectedPlayer.name,
       emoji:     item.emoji,
-      name:      item.name,
+      name:      item.label,
       timestamp: Date.now(),
     }, ...prev].slice(0, 10));
 
@@ -233,7 +236,7 @@ export default function SalonScreen() {
       timestamp: Date.now(),
       type:     'offering',
       isSystem: true,
-      giftData: item,
+      giftData: { emoji: item.emoji, from: currentUser?.name || 'Vous' },
     } as Message);
 
     setShowOfferingsModal(false);
@@ -546,19 +549,22 @@ export default function SalonScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.offeringsGrid} contentContainerStyle={styles.offeringsGridContent}>
-            {allOfferings.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.offeringItem}
-                onPress={() => handleSendOffering(item)}
-              >
-                <Text style={styles.offeringEmoji}>{item.emoji}</Text>
-                <View style={styles.offeringInfo}>
-                  <Text style={styles.offeringName}>{item.name}</Text>
-                  <Text style={styles.offeringCost}>💰 {item.cost}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {V1_OFFERS.map((type) => {
+              const item = offerRegistry[type];
+              return (
+                <TouchableOpacity
+                  key={type}
+                  style={styles.offeringItem}
+                  onPress={() => handleSendOffering(type)}
+                >
+                  <Text style={styles.offeringEmoji}>{item.emoji}</Text>
+                  <View style={styles.offeringInfo}>
+                    <Text style={styles.offeringName}>{item.label}</Text>
+                    <Text style={styles.offeringCost}>💰 {item.cost}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       </View>
