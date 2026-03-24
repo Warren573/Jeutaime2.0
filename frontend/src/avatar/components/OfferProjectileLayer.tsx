@@ -113,7 +113,9 @@ const styles = StyleSheet.create({
     top:        '52%',
     marginLeft: -18,
     marginTop:  -18,
-    zIndex:     100,
+    // zIndex 102 : au-dessus des overlays de transformation/magie (100),
+    // sous les réactions (110) — toujours visible pendant le vol
+    zIndex:     102,
   },
   emoji: {
     fontSize: 36,

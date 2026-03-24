@@ -27,6 +27,17 @@ export type MagicDefinition = {
     topOffsetPercent:  number;
     leftOffsetPercent: number;
   };
+  /**
+   * Coexistence : liste des MagicType compatibles en simultané.
+   * Si un effet actif n'est pas dans cette liste, il ne peut coexister.
+   * (Information destinée au consommateur — logique dans SalonAvatarCard.)
+   */
+  coexistsWith: MagicType[];
+  /**
+   * Priorité visuelle (plus haut = s'affiche par-dessus en cas de conflit).
+   * Les effets "behind" ont priorité basse, les effets "front" haute.
+   */
+  priority: number;
 };
 
 export const magicRegistry: Record<MagicType, MagicDefinition> = {
@@ -43,6 +54,9 @@ export const magicRegistry: Record<MagicType, MagicDefinition> = {
       topOffsetPercent:  -2,
       leftOffsetPercent: 0,
     },
+    // Halo (derrière) ne perturbe aucun effet frontal
+    coexistsWith: ['rain', 'ghost'],
+    priority:     1,
   },
 
   rain: {
@@ -57,10 +71,13 @@ export const magicRegistry: Record<MagicType, MagicDefinition> = {
       topOffsetPercent:  0,
       leftOffsetPercent: 0,
     },
+    // Rain + ghost (front) = conflit visuel → incompatibles entre eux
+    coexistsWith: ['halo'],
+    priority:     2,
   },
 
   ghost: {
-    label:        'Fantôme',
+    label:        'Fantôme magique',
     assetIds:     ['magic_ghost_glow_01'],
     targetAnchor: 'faceCenter',
     animationKey: 'ghostFloat',
@@ -71,6 +88,9 @@ export const magicRegistry: Record<MagicType, MagicDefinition> = {
       topOffsetPercent:  0,
       leftOffsetPercent: 0,
     },
+    // Ghost magic + rain (front) = conflit visuel → incompatibles entre eux
+    coexistsWith: ['halo'],
+    priority:     2,
   },
 
 };

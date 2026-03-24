@@ -10,10 +10,14 @@
  *   stoneFade    (statue) → fade in lent (effet de pétrification)
  *   poofTransform (frog)  → spring overshoot + fade in
  *
+ * Expiration :
+ *   Si expiresAt est fourni et que Date.now() > expiresAt, la transformation
+ *   est masquée et les animations nettoyées proprement.
+ *
  * Pour remplacer un visuel : changer le SVG dans assets/avatar/transformations/.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, View } from 'react-native';
 import type { TransformationType } from '../types/avatarTypes';
 import { transformationRegistry } from '../config/transformationRegistry';
@@ -22,15 +26,40 @@ import { AvatarLayer } from './AvatarLayer';
 interface Props {
   transformation: TransformationType | null | undefined;
   avatarSize:     number;
+  /**
+   * Timestamp d'expiration (ms epoch).
+   * Si fourni et dépassé, la transformation est masquée et les animations nettoyées.
+   */
+  expiresAt?:     number;
 }
 
-export function AvatarTransformationLayer({ transformation, avatarSize }: Props) {
+export function AvatarTransformationLayer({ transformation, avatarSize, expiresAt }: Props) {
   const scaleVal   = useRef(new Animated.Value(0)).current;
   const opacityVal = useRef(new Animated.Value(0)).current;
   const loopRef    = useRef<Animated.CompositeAnimation | null>(null);
 
+  const [isExpired, setIsExpired] = useState<boolean>(
+    () => expiresAt != null && Date.now() >= expiresAt,
+  );
+
+  // Timer d'expiration — se déclenche à l'heure exacte
   useEffect(() => {
-    // Arrêt et reset
+    if (expiresAt == null) {
+      setIsExpired(false);
+      return;
+    }
+    const remaining = expiresAt - Date.now();
+    if (remaining <= 0) {
+      setIsExpired(true);
+      return;
+    }
+    setIsExpired(false);
+    const timer = setTimeout(() => setIsExpired(true), remaining);
+    return () => clearTimeout(timer);
+  }, [expiresAt]);
+
+  // Animation — reset + relance à chaque changement de transformation ou d'expiration
+  useEffect(() => {
     loopRef.current?.stop();
     loopRef.current = null;
     scaleVal.stopAnimation();
@@ -38,13 +67,12 @@ export function AvatarTransformationLayer({ transformation, avatarSize }: Props)
     scaleVal.setValue(0);
     opacityVal.setValue(0);
 
-    if (!transformation) return;
+    if (!transformation || isExpired) return;
 
     const def = transformationRegistry[transformation];
     if (!def) return;
 
     if (def.animationKey === 'popOnHead') {
-      // Chapeau qui "pop" sur la tête
       Animated.parallel([
         Animated.spring(scaleVal, {
           toValue:         1,
@@ -60,7 +88,6 @@ export function AvatarTransformationLayer({ transformation, avatarSize }: Props)
       ]).start();
 
     } else if (def.animationKey === 'fadeOverlay') {
-      // Fade in → loop de respiration fantomatique
       scaleVal.setValue(1);
       Animated.timing(opacityVal, {
         toValue:         0.86,
@@ -78,7 +105,6 @@ export function AvatarTransformationLayer({ transformation, avatarSize }: Props)
       });
 
     } else if (def.animationKey === 'stoneFade') {
-      // Pétrification progressive
       scaleVal.setValue(1);
       Animated.timing(opacityVal, {
         toValue:         0.88,
@@ -87,7 +113,7 @@ export function AvatarTransformationLayer({ transformation, avatarSize }: Props)
       }).start();
 
     } else {
-      // poofTransform (frog) — apparition avec overshoot
+      // poofTransform (frog)
       Animated.parallel([
         Animated.sequence([
           Animated.spring(scaleVal, {
@@ -115,9 +141,9 @@ export function AvatarTransformationLayer({ transformation, avatarSize }: Props)
       loopRef.current?.stop();
       loopRef.current = null;
     };
-  }, [transformation, scaleVal, opacityVal]);
+  }, [transformation, isExpired, scaleVal, opacityVal]);
 
-  if (!transformation) return null;
+  if (!transformation || isExpired) return null;
 
   const def = transformationRegistry[transformation];
   if (!def) return null;

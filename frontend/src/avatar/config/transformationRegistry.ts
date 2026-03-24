@@ -39,6 +39,17 @@ export type TransformationDefinition = {
     topOffsetPercent:  number;
     leftOffsetPercent: number;
   };
+  /**
+   * Si true, les effets magiques actifs sont supprimés pendant la transformation.
+   * (ex: statue = pas de pluie, pas de halo — l'avatar est figé dans la pierre)
+   * Logique de suppression gérée dans SalonAvatarCard.
+   */
+  mutesMagic: boolean;
+  /**
+   * Priorité visuelle (plus haut = s'affiche par-dessus en cas de conflit futur).
+   * Une seule transformation est active à la fois — sert de référence pour le tri.
+   */
+  priority: number;
 };
 
 export const transformationRegistry: Record<TransformationType, TransformationDefinition> = {
@@ -56,6 +67,9 @@ export const transformationRegistry: Record<TransformationType, TransformationDe
       topOffsetPercent:  0,
       leftOffsetPercent: 0,
     },
+    // Chapeau discret → magie coexiste normalement
+    mutesMagic: false,
+    priority:   1,
   },
 
   ghost: {
@@ -71,6 +85,9 @@ export const transformationRegistry: Record<TransformationType, TransformationDe
       topOffsetPercent:  0,
       leftOffsetPercent: 0,
     },
+    // Voile translucide → la magie reste visible en dessous
+    mutesMagic: false,
+    priority:   2,
   },
 
   statue: {
@@ -86,6 +103,9 @@ export const transformationRegistry: Record<TransformationType, TransformationDe
       topOffsetPercent:  0,
       leftOffsetPercent: 0,
     },
+    // Recouvrement total → pluie/halo incohérents sur une statue de pierre
+    mutesMagic: true,
+    priority:   3,
   },
 
   frog: {
@@ -101,6 +121,9 @@ export const transformationRegistry: Record<TransformationType, TransformationDe
       topOffsetPercent:  0,
       leftOffsetPercent: 0,
     },
+    // Recouvrement total → magie visuellement incohérente sur une grenouille
+    mutesMagic: true,
+    priority:   3,
   },
 
 };
