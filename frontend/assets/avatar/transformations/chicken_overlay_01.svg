@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300">
+  <!-- Recouvrement poule : teinte jaune-orange + crête + bec -->
+
+  <!-- Wash global jaune-orangé (mode muteAvatar) -->
+  <rect x="0" y="0" width="240" height="300" fill="#E8A824" opacity="0.65" rx="120"/>
+
+  <!-- Crête (3 lobes rouges sur le haut de la tête) -->
+  <ellipse cx="96"  cy="40" rx="16" ry="26" fill="#CC2200" opacity="0.9"/>
+  <ellipse cx="120" cy="28" rx="18" ry="30" fill="#DD2800" opacity="0.95"/>
+  <ellipse cx="144" cy="40" rx="16" ry="26" fill="#CC2200" opacity="0.9"/>
+
+  <!-- Barbillon sous le bec (rouge) -->
+  <ellipse cx="120" cy="228" rx="16" ry="20" fill="#CC2200" opacity="0.85"/>
+
+  <!-- Plumes de joues (deux touffes jaunes plus claires) -->
+  <ellipse cx="74"  cy="158" rx="26" ry="20" fill="#F4C840" opacity="0.7"/>
+  <ellipse cx="166" cy="158" rx="26" ry="20" fill="#F4C840" opacity="0.7"/>
+
+  <!-- Yeux ronds de poule (orange doré) -->
+  <!-- Œil gauche -->
+  <circle cx="90" cy="148" r="16" fill="#E85000" opacity="0.9"/>
+  <circle cx="90" cy="148" r="8"  fill="#1A0A00"/>
+  <circle cx="86" cy="144" r="3"  fill="#FFF" opacity="0.7"/>
+
+  <!-- Œil droit -->
+  <circle cx="150" cy="148" r="16" fill="#E85000" opacity="0.9"/>
+  <circle cx="150" cy="148" r="8"  fill="#1A0A00"/>
+  <circle cx="146" cy="144" r="3"  fill="#FFF" opacity="0.7"/>
+
+  <!-- Bec (triangle orange pointu) -->
+  <polygon points="106,188 134,188 120,218" fill="#E06000" opacity="0.92"/>
+  <!-- Trait bec supérieur -->
+  <line x1="106" y1="188" x2="134" y2="188"
+    stroke="#A03800" stroke-width="3" stroke-linecap="round"/>
+</svg>

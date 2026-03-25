@@ -127,7 +127,15 @@ export type MagicType = 'halo' | 'rain' | 'ghost';
 
 // ─── Transformations ─────────────────────────────────────────────────────────
 
-export type TransformationType = 'pirate' | 'ghost' | 'statue' | 'frog';
+export type TransformationType =
+  | 'pirate'      // chapeau pirate
+  | 'ghost'       // voile fantôme translucide
+  | 'statue'      // recouvrement pierre (mute magie)
+  | 'frog'        // recouvrement grenouille (mute magie)
+  | 'donkey'      // recouvrement âne
+  | 'chicken'     // recouvrement poule
+  | 'invisible'   // semi-transparence extrême
+  | 'rockstar';   // lunettes rock + bandana
 
 // ─── Durée d'effet ────────────────────────────────────────────────────────────
 

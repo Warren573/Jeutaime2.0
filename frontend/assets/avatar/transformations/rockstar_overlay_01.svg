@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300">
+  <!-- Recouvrement rockstar : lunettes de soleil dark + bandana rouge -->
+
+  <!-- Wash sombre léger (ton rock) -->
+  <rect x="0" y="0" width="240" height="300" fill="#1A0A2A" opacity="0.38" rx="120"/>
+
+  <!-- === Bandana rouge (noué en haut) === -->
+  <!-- Tissu principal du bandana -->
+  <path d="M44 100 Q120 70 196 100 L196 132 Q120 108 44 132 Z"
+    fill="#CC1122" opacity="0.92"/>
+  <!-- Pli central du bandana -->
+  <path d="M44 100 Q120 82 196 100" stroke="#AA0010" stroke-width="2"
+    fill="none" opacity="0.7"/>
+  <!-- Nœud du bandana (côté gauche) -->
+  <path d="M44 116 Q20 108 30 96 Q38 84 52 98 Z"
+    fill="#DD1122" opacity="0.88"/>
+  <path d="M44 116 Q22 124 28 136 Q36 148 52 134 Z"
+    fill="#DD1122" opacity="0.88"/>
+  <!-- Queue du bandana -->
+  <path d="M30 98 Q10 80 18 62 Q22 54 28 62 Q30 80 44 90 Z"
+    fill="#CC1122" opacity="0.80"/>
+
+  <!-- === Lunettes de soleil (forme aviateur) === -->
+  <!-- Monture (métal doré) -->
+  <path d="M54 152 Q88 140 120 152 Q152 140 186 152"
+    stroke="#B8920A" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+  <!-- Verre gauche (forme aviateur) -->
+  <ellipse cx="86" cy="160" rx="34" ry="22"
+    fill="#080818" opacity="0.90"
+    stroke="#B8920A" stroke-width="3"/>
+  <!-- Reflet verre gauche -->
+  <ellipse cx="76" cy="153" rx="10" ry="6"
+    fill="#FFFFFF" opacity="0.18"
+    transform="rotate(-20 76 153)"/>
+
+  <!-- Verre droit (forme aviateur) -->
+  <ellipse cx="154" cy="160" rx="34" ry="22"
+    fill="#080818" opacity="0.90"
+    stroke="#B8920A" stroke-width="3"/>
+  <!-- Reflet verre droit -->
+  <ellipse cx="144" cy="153" rx="10" ry="6"
+    fill="#FFFFFF" opacity="0.18"
+    transform="rotate(-20 144 153)"/>
+
+  <!-- Branche gauche -->
+  <line x1="52" y1="157" x2="24" y2="150"
+    stroke="#B8920A" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Branche droite -->
+  <line x1="188" y1="157" x2="216" y2="150"
+    stroke="#B8920A" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Petite étoile rock (décorative) -->
+  <path d="M186 232 L190 244 L202 244 L193 252 L196 264
+           L186 257 L176 264 L179 252 L170 244 L182 244 Z"
+    fill="#F4C810" opacity="0.85"/>
+</svg>

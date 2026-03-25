@@ -8,33 +8,41 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
   useWindowDimensions,
   Modal,
   ScrollView,
-  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { salonsData, SalonParticipant } from '../data/salonsData';
 import { useStore, Message } from '../store/useStore';
-import { allPowers, getPowerDurationMs, type Power } from '../data/offerings';
-import { offerRegistry, V1_OFFERS, type OfferDefinition } from '../avatar/config/offerRegistry';
-import type { OfferType } from '../avatar/types/avatarTypes';
-import SalonAvatar from '../components/SalonAvatar';
+import { offerRegistry, V1_OFFERS } from '../avatar/config/offerRegistry';
+import { magicRegistry } from '../avatar/config/magicRegistry';
+import { transformationRegistry } from '../avatar/config/transformationRegistry';
+import { durationToMs } from '../avatar/config/magicRegistry';
+import type { MagicType, OfferType, TransformationType, OfferEvent } from '../avatar/types/avatarTypes';
+import { SalonAvatarCard } from '../avatar/components/SalonAvatarCard';
 import AvatarRadialMenu, { RadialAction } from '../components/AvatarRadialMenu';
-import ProjectileAnimationLayer, { type ProjectileLayerHandle } from '../components/effects/ProjectileAnimationLayer';
-import { useAvatarEffects } from '../hooks/useAvatarEffects';
+import { MOCK_PROFILE_AVATARS, MOCK_AVATAR_DEFAULT } from '../avatar/data/mockAvatars';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type ParticipantEffect = {
+  magic?:                  MagicType | null;
+  magicExpiresAt?:         number;
+  transformation?:         TransformationType | null;
+  transformationExpiresAt?: number;
+};
 
 // ============================================
 // COMPOSANT PRINCIPAL SALON
 // ============================================
 export default function SalonScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams();
-  const insets = useSafeAreaInsets();
-  const screenBg = useStore(s => s.screenBackgrounds?.['salon'] ?? '#FFF8E7');
+  const router    = useRouter();
+  const params    = useLocalSearchParams();
+  const insets    = useSafeAreaInsets();
+  const screenBg  = useStore(s => s.screenBackgrounds?.['salon'] ?? '#FFF8E7');
   const { width, height } = useWindowDimensions();
 
   const isLandscape = width > height;
@@ -44,50 +52,67 @@ export default function SalonScreen() {
 
   // Récupérer le salon
   const rawSalonId = params.id as string;
-  const salonId = rawSalonId === 'cafe-paris' ? 'cafe_paris' : (rawSalonId || 'cafe_paris');
-  const salon = salonsData.find(s => s.id === salonId);
+  const salonId    = rawSalonId === 'cafe-paris' ? 'cafe_paris' : (rawSalonId || 'cafe_paris');
+  const salon      = salonsData.find(s => s.id === salonId);
 
-  // ── Système d'effets avatar ─────────────────────────────────────────────────
-  const { applyEffect, breakEffect, getParticipantEffects } = useAvatarEffects();
+  // ── Effets par participant ─────────────────────────────────────────────────
+  const [participantEffects, setParticipantEffects] =
+    useState<Record<string, ParticipantEffect>>({});
 
-  // Ref vers la couche de projectiles (overlay plein-écran)
-  const projectileRef = useRef<ProjectileLayerHandle>(null);
+  const applyMagic = useCallback((participantId: string, type: MagicType) => {
+    const def = magicRegistry[type];
+    setParticipantEffects(prev => ({
+      ...prev,
+      [participantId]: {
+        ...prev[participantId],
+        magic:          type,
+        magicExpiresAt: Date.now() + durationToMs(def.duration),
+      },
+    }));
+  }, []);
 
-  // Position écran de l'avatar sélectionné (pour viser les projectiles)
-  const selectedAvatarPos = useRef<{ x: number; y: number } | null>(null);
+  const applyTransformation = useCallback((participantId: string, type: TransformationType) => {
+    const def = transformationRegistry[type];
+    setParticipantEffects(prev => ({
+      ...prev,
+      [participantId]: {
+        ...prev[participantId],
+        transformation:          type,
+        transformationExpiresAt: Date.now() + durationToMs(def.duration),
+      },
+    }));
+  }, []);
 
-  // États
-  const [messageInput, setMessageInput] = useState('');
-  const [showOfferingsModal, setShowOfferingsModal] = useState(false);
-  const [showPowersModal, setShowPowersModal] = useState(false);
-  const [selectedPlayer, setSelectedPlayer] = useState<SalonParticipant | null>(null);
+  // États UI
+  const [messageInput,    setMessageInput]    = useState('');
+  const [showMagicModal,  setShowMagicModal]  = useState(false);
+  const [selectedPlayer,  setSelectedPlayer]  = useState<SalonParticipant | null>(null);
+  const [magicTab,        setMagicTab]        = useState<'magic' | 'transformation'>('magic');
 
   // Menu radial
   const [menuState, setMenuState] = useState<{
     visible: boolean;
-    anchor: { x: number; y: number } | null;
-    user: (SalonParticipant & { isMe?: boolean }) | null;
+    anchor:  { x: number; y: number } | null;
+    user:    (SalonParticipant & { isMe?: boolean }) | null;
   }>({ visible: false, anchor: null, user: null });
+
   const [avatarsZoneWidth, setAvatarsZoneWidth] = useState<number | undefined>(undefined);
 
   const openRadialMenu = (
     p: SalonParticipant & { isMe?: boolean },
     cx: number,
-    cy: number
+    cy: number,
   ) => {
-    selectedAvatarPos.current = { x: cx, y: cy };
     setMenuState({ visible: true, anchor: { x: cx, y: cy }, user: p });
   };
 
   const closeMenu = () =>
     setMenuState({ visible: false, anchor: null, user: null });
 
-  // Actions disponibles dans le menu radial (ordre = position fixe)
-  // index 0 → gauche (Profil), index 1 → haut (Magie), index 2 → droite (Offrir)
+  // Radial : Profil + Magie uniquement (offrandes inline dans SalonAvatarCard)
   const SALON_ACTIONS: RadialAction[] = [
-    { id: 'profile', icon: '👀', label: 'Profil'  },
-    { id: 'magic',   icon: '✨', label: 'Magie'   },
-    { id: 'gift',    icon: '🎁', label: 'Offrir'  },
+    { id: 'profile', icon: '👀', label: 'Profil' },
+    { id: 'magic',   icon: '✨', label: 'Magie'  },
   ];
 
   const handleRadialAction = (action: RadialAction) => {
@@ -95,42 +120,41 @@ export default function SalonScreen() {
     closeMenu();
     if (!user) return;
     switch (action.id) {
-      case 'gift':
-        setSelectedPlayer(user);
-        setShowOfferingsModal(true);
-        break;
       case 'magic':
         setSelectedPlayer(user);
-        setShowPowersModal(true);
+        setMagicTab('magic');
+        setShowMagicModal(true);
         break;
       case 'profile':
         router.push(`/profile/${user.id}` as any);
         break;
     }
   };
+
   const [recentInteractions, setRecentInteractions] = useState<Array<{
-    id: string;
-    from: string;
-    to: string;
-    emoji: string;
-    name: string;
+    id:        string;
+    from:      string;
+    to:        string;
+    emoji:     string;
+    name:      string;
     timestamp: number;
   }>>([]);
 
   // Participants
-  const [participants, setParticipants] = useState<(SalonParticipant & { isMe?: boolean })[]>([]);
+  const [participants, setParticipants] =
+    useState<(SalonParticipant & { isMe?: boolean })[]>([]);
 
   useEffect(() => {
     if (salon) {
       setParticipants([
         ...salon.participants,
         {
-          id: 'me',
-          name: currentUser?.name || 'Vous',
+          id:     'me',
+          name:   currentUser?.name || 'Vous',
           gender: currentUser?.gender || 'M',
-          age: currentUser?.age || 25,
+          age:    currentUser?.age || 25,
           online: true,
-          isMe: true,
+          isMe:   true,
         } as SalonParticipant & { isMe: boolean },
       ]);
     }
@@ -152,177 +176,110 @@ export default function SalonScreen() {
   const sendMessage = () => {
     if (!messageInput.trim()) return;
     const newMessage: Message = {
-      id: Date.now().toString(),
-      salonId: salonId,
-      userId: currentUser?.id || 'me',
-      userName: currentUser?.name || 'Vous',
-      username: currentUser?.name || 'Vous',
-      content: messageInput.trim(),
-      text: messageInput.trim(),
+      id:        Date.now().toString(),
+      salonId,
+      userId:    currentUser?.id || 'me',
+      userName:  currentUser?.name || 'Vous',
+      username:  currentUser?.name || 'Vous',
+      content:   messageInput.trim(),
+      text:      messageInput.trim(),
       timestamp: Date.now(),
-      type: 'message',
+      type:      'message',
     };
     addMessage(salonId, newMessage);
     setMessageInput('');
     scrollToEnd();
   };
 
-  // Envoyer une offrande
-  const handleSendOffering = (type: OfferType) => {
-    if (!selectedPlayer) return;
-    const item: OfferDefinition = offerRegistry[type];
+  // Callback offrande depuis SalonAvatarCard
+  const handleSendOffer = useCallback((
+    participantId: string,
+    participantName: string,
+    event: OfferEvent,
+  ) => {
+    const item = offerRegistry[event.type];
     if (!item) return;
     if (!removeCoins(item.cost)) {
       alert('Pas assez de pièces!');
       return;
     }
 
-    const targetPos = selectedAvatarPos.current;
-
-    // ── Projectile + effet ────────────────────────────────────────────────────
-    const fireAndApply = () => {
-      applyEffect({
-        participantId: selectedPlayer.id,
-        category:      'offering',
-        powerId:       type,
-        emoji:         item.emoji,
-        label:         item.label,
-        expiresAt:     Date.now() + item.durationMs,
-        stackPriority: 2,
-      });
-    };
-
-    if (projectileRef.current && targetPos) {
-      projectileRef.current.fire({
-        emoji:   item.emoji,
-        fromPos: { x: width / 2, y: height - 100 },
-        toPos:   targetPos,
-        onLand:  fireAndApply,
-      });
-    } else {
-      fireAndApply();
-    }
-
     setRecentInteractions(prev => [{
-      id:        Date.now().toString(),
+      id:        event.id,
       from:      currentUser?.name || 'Vous',
-      to:        selectedPlayer.name,
+      to:        participantName,
       emoji:     item.emoji,
       name:      item.label,
       timestamp: Date.now(),
     }, ...prev].slice(0, 10));
 
     addMessage(salonId, {
-      id:       Date.now().toString(),
+      id:        event.id + '_msg',
       salonId,
-      userId:   'system',
-      userName: 'Système',
-      username: 'Système',
-      content:  `${currentUser?.name || 'Vous'} a offert ${item.emoji} à ${selectedPlayer.name}!`,
-      text:     `${currentUser?.name || 'Vous'} a offert ${item.emoji} à ${selectedPlayer.name}!`,
+      userId:    'system',
+      userName:  'Système',
+      username:  'Système',
+      content:   `${currentUser?.name || 'Vous'} a offert ${item.emoji} à ${participantName}!`,
+      text:      `${currentUser?.name || 'Vous'} a offert ${item.emoji} à ${participantName}!`,
       timestamp: Date.now(),
-      type:     'offering',
-      isSystem: true,
-      giftData: { emoji: item.emoji, from: currentUser?.name || 'Vous' },
+      type:      'offering',
+      isSystem:  true,
+      giftData:  { emoji: item.emoji, from: currentUser?.name || 'Vous' },
     } as Message);
+  }, [currentUser, removeCoins, addMessage, salonId]);
 
-    setShowOfferingsModal(false);
-    setSelectedPlayer(null);
-  };
-
-  // Envoyer un pouvoir (transformation, effet visuel, ou annulateur)
-  const handleSendPower = (item: Power) => {
+  // Appliquer magie depuis la modale
+  const handleApplyMagic = (type: MagicType) => {
     if (!selectedPlayer) return;
-    if (!removeCoins(item.cost)) {
+    const def = magicRegistry[type];
+    if (!removeCoins(def.cost)) {
       alert('Pas assez de pièces!');
       return;
     }
-
-    const targetPos = selectedAvatarPos.current;
-    const durationMs = getPowerDurationMs(item);
-
-    // Détermine la catégorie d'effet
-    const category = item.type === 'transformation' ? 'transformation' : 'visual_effect';
-
-    const fireAndApply = () => {
-      // Si c'est un annulateur, briser les effets correspondants
-      if (item.cancels?.length) {
-        item.cancels.forEach(cancelledId => {
-          breakEffect(selectedPlayer.id, cancelledId);
-        });
-      }
-
-      // Si c'est un pouvoir actif (pas juste un annulateur)
-      if (durationMs > 0) {
-        applyEffect({
-          participantId:    selectedPlayer.id,
-          category,
-          powerId:          item.id,
-          emoji:            item.emoji,
-          label:            item.name,
-          expiresAt:        Date.now() + durationMs,
-          breakConditionId: item.breakConditionId,
-          breakHint:        item.breakHint,
-          stackPriority:    item.stackPriority ?? 5,
-        });
-      }
-    };
-
-    if (projectileRef.current && targetPos) {
-      projectileRef.current.fire({
-        emoji:   item.emoji,
-        fromPos: { x: width / 2, y: height - 100 },
-        toPos:   targetPos,
-        onLand:  fireAndApply,
-      });
-    } else {
-      fireAndApply();
-    }
-
-    setRecentInteractions(prev => [{
-      id:        Date.now().toString(),
-      from:      currentUser?.name || 'Vous',
-      to:        selectedPlayer.name,
-      emoji:     item.emoji,
-      name:      item.name,
-      timestamp: Date.now(),
-    }, ...prev].slice(0, 10));
+    applyMagic(selectedPlayer.id, type);
 
     addMessage(salonId, {
-      id:       Date.now().toString(),
+      id:        Date.now().toString(),
       salonId,
-      userId:   'system',
-      userName: 'Système',
-      username: 'Système',
-      content:  `${currentUser?.name || 'Vous'} a lancé ${item.emoji} sur ${selectedPlayer.name}!`,
-      text:     `${currentUser?.name || 'Vous'} a lancé ${item.emoji} sur ${selectedPlayer.name}!`,
+      userId:    'system',
+      userName:  'Système',
+      username:  'Système',
+      content:   `${currentUser?.name || 'Vous'} a lancé ${def.emoji} sur ${selectedPlayer.name}!`,
+      text:      `${currentUser?.name || 'Vous'} a lancé ${def.emoji} sur ${selectedPlayer.name}!`,
       timestamp: Date.now(),
-      type:     'power',
-      isSystem: true,
-      giftData: item,
+      type:      'power',
+      isSystem:  true,
     } as Message);
 
-    setShowPowersModal(false);
+    setShowMagicModal(false);
     setSelectedPlayer(null);
   };
 
-  // Tentative de rupture d'une transformation (tap sur le hint)
-  const handleBreakAttempt = (participantId: string, transformationId: string) => {
-    // Pour la démo locale : on brise immédiatement.
-    // En production, ce serait conditionnel (compteur de bisous, etc.)
-    breakEffect(participantId, transformationId);
+  // Appliquer transformation depuis la modale
+  const handleApplyTransformation = (type: TransformationType) => {
+    if (!selectedPlayer) return;
+    const def = transformationRegistry[type];
+    if (!removeCoins(def.cost)) {
+      alert('Pas assez de pièces!');
+      return;
+    }
+    applyTransformation(selectedPlayer.id, type);
+
     addMessage(salonId, {
-      id:       Date.now().toString(),
+      id:        Date.now().toString(),
       salonId,
-      userId:   'system',
-      userName: 'Système',
-      username: 'Système',
-      content:  `✨ La transformation a été brisée!`,
-      text:     `✨ La transformation a été brisée!`,
+      userId:    'system',
+      userName:  'Système',
+      username:  'Système',
+      content:   `${currentUser?.name || 'Vous'} a transformé ${selectedPlayer.name} en ${def.label}!`,
+      text:      `${currentUser?.name || 'Vous'} a transformé ${selectedPlayer.name} en ${def.label}!`,
       timestamp: Date.now(),
-      type:     'system',
-      isSystem: true,
+      type:      'power',
+      isSystem:  true,
     } as Message);
+
+    setShowMagicModal(false);
+    setSelectedPlayer(null);
   };
 
   if (!salon) {
@@ -336,12 +293,12 @@ export default function SalonScreen() {
     );
   }
 
-  // Portrait : avatars dans le strip — taille augmentée pour voir les animations
-  const AVATAR_STRIP_SIZE = 64;
-  // Paysage : 2 colonnes dans la zone gauche
+  // Portrait : avatars dans le strip
+  const AVATAR_STRIP_SIZE = 72;
+  // Paysage : grille 2×2
   const avatarSizeLandscape = Math.min(88, (height - 180) / 2.5);
 
-  // Participants découpés en rangées de 2
+  // Participants découpés en rangées de 2 (mode paysage)
   const participantRows = [participants.slice(0, 2), participants.slice(2, 4)].filter(r => r.length > 0);
 
   // ============================================
@@ -371,7 +328,7 @@ export default function SalonScreen() {
         </View>
       </LinearGradient>
 
-      {/* Strip compact — une seule ligne d'avatars, tous alignés */}
+      {/* Strip compact — une seule ligne d'avatars */}
       <View style={styles.participantStrip}>
         <ScrollView
           horizontal
@@ -379,19 +336,33 @@ export default function SalonScreen() {
           contentContainerStyle={styles.participantsRow}
           bounces={false}
         >
-          {participants.map((p) => (
-            <View key={p.id} style={styles.participantItem}>
-              <SalonAvatar
-                participant={p}
-                size={AVATAR_STRIP_SIZE}
-                isSelected={menuState.user?.id === p.id}
-                showBadges={true}
-                activeEffects={getParticipantEffects(p.id)}
-                onMeasuredPress={!p.isMe ? openRadialMenu : undefined}
-                onBreakAttempt={handleBreakAttempt}
-              />
-            </View>
-          ))}
+          {participants.map((p) => {
+            const effects = participantEffects[p.id] ?? {};
+            return (
+              <View key={p.id} style={styles.participantItem}>
+                <SalonAvatarCard
+                  avatar={MOCK_PROFILE_AVATARS[p.id] ?? MOCK_AVATAR_DEFAULT}
+                  name={p.name}
+                  isOnline={p.online}
+                  transformation={effects.transformation ?? null}
+                  transformationExpiresAt={effects.transformationExpiresAt}
+                  magic={effects.magic ?? null}
+                  magicExpiresAt={effects.magicExpiresAt}
+                  size={AVATAR_STRIP_SIZE}
+                  availableOffers={p.isMe ? [] : V1_OFFERS.filter(t => (offerRegistry[t]?.cost ?? 0) <= coins)}
+                  onSendOffer={p.isMe ? undefined : (event) => handleSendOffer(p.id, p.name, event)}
+                />
+                {!p.isMe && (
+                  <TouchableOpacity
+                    style={styles.magicChip}
+                    onPress={() => openRadialMenu(p, 0, 0)}
+                  >
+                    <Text style={styles.magicChipText}>✨</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })}
         </ScrollView>
       </View>
 
@@ -404,7 +375,7 @@ export default function SalonScreen() {
         contentContainerStyle={styles.messagesContent}
         onContentSizeChange={scrollToEnd}
         renderItem={({ item }) => {
-          const isOwn = item.userId === 'me' || item.userId === currentUser?.id;
+          const isOwn   = item.userId === 'me' || item.userId === currentUser?.id;
           const isSystem = item.type !== 'message';
 
           if (isSystem) {
@@ -472,26 +443,39 @@ export default function SalonScreen() {
       </LinearGradient>
 
       <View style={styles.landscapeContent}>
-        {/* Zone des avatars (gauche) - GRANDE */}
+        {/* Zone des avatars (gauche) - grille 2×2 */}
         <View style={styles.avatarsZone} onLayout={e => setAvatarsZoneWidth(e.nativeEvent.layout.width)}>
           <Text style={styles.tapHintLandscape}>Appuie sur un avatar 👆</Text>
-          {/* Grille 2×2 en paysage */}
           <View style={styles.avatarsGrid}>
             {participantRows.map((row, ri) => (
               <View key={ri} style={styles.avatarsGridRow}>
-                {row.map((p) => (
-                  <View key={p.id} style={styles.avatarGridItem}>
-                    <SalonAvatar
-                      participant={p}
-                      size={avatarSizeLandscape}
-                      isSelected={menuState.user?.id === p.id}
-                      showBadges={true}
-                      activeEffects={getParticipantEffects(p.id)}
-                      onMeasuredPress={!p.isMe ? openRadialMenu : undefined}
-                      onBreakAttempt={handleBreakAttempt}
-                    />
-                  </View>
-                ))}
+                {row.map((p) => {
+                  const effects = participantEffects[p.id] ?? {};
+                  return (
+                    <View key={p.id} style={styles.avatarGridItem}>
+                      <SalonAvatarCard
+                        avatar={MOCK_PROFILE_AVATARS[p.id] ?? MOCK_AVATAR_DEFAULT}
+                        name={p.name}
+                        isOnline={p.online}
+                        transformation={effects.transformation ?? null}
+                        transformationExpiresAt={effects.transformationExpiresAt}
+                        magic={effects.magic ?? null}
+                        magicExpiresAt={effects.magicExpiresAt}
+                        size={avatarSizeLandscape}
+                        availableOffers={p.isMe ? [] : V1_OFFERS.filter(t => (offerRegistry[t]?.cost ?? 0) <= coins)}
+                        onSendOffer={p.isMe ? undefined : (event) => handleSendOffer(p.id, p.name, event)}
+                      />
+                      {!p.isMe && (
+                        <TouchableOpacity
+                          style={styles.magicChip}
+                          onPress={() => openRadialMenu(p, 0, 0)}
+                        >
+                          <Text style={styles.magicChipText}>✨</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
             ))}
           </View>
@@ -503,7 +487,7 @@ export default function SalonScreen() {
 
           <ScrollView style={styles.interactionsList} showsVerticalScrollIndicator={false}>
             {recentInteractions.length === 0 ? (
-              <Text style={styles.noInteractions}>Aucune interaction récente{'\n'}Appuie sur un avatar pour offrir ou lancer de la magie!</Text>
+              <Text style={styles.noInteractions}>Aucune interaction récente{'\n'}Appuie sur un avatar!</Text>
             ) : (
               recentInteractions.map((interaction) => (
                 <View key={interaction.id} style={styles.interactionItem}>
@@ -523,65 +507,68 @@ export default function SalonScreen() {
   );
 
   // ============================================
-  // MODALS
+  // MODAL MAGIE + TRANSFORMATIONS (2 onglets)
   // ============================================
-  const renderOfferingsModal = () => (
-    <Modal visible={showOfferingsModal} animationType="slide" transparent>
+  const renderMagicModal = () => (
+    <Modal visible={showMagicModal} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>🎁 Offrir à {selectedPlayer?.name}</Text>
-            <TouchableOpacity onPress={() => setShowOfferingsModal(false)}>
-              <Text style={styles.modalClose}>✕</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.offeringsGrid} contentContainerStyle={styles.offeringsGridContent}>
-            {V1_OFFERS.map((type) => {
-              const item = offerRegistry[type];
-              return (
-                <TouchableOpacity
-                  key={type}
-                  style={styles.offeringItem}
-                  onPress={() => handleSendOffering(type)}
-                >
-                  <Text style={styles.offeringEmoji}>{item.emoji}</Text>
-                  <View style={styles.offeringInfo}>
-                    <Text style={styles.offeringName}>{item.label}</Text>
-                    <Text style={styles.offeringCost}>💰 {item.cost}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const renderPowersModal = () => (
-    <Modal visible={showPowersModal} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
+        <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '75%' }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>✨ Magie sur {selectedPlayer?.name}</Text>
-            <TouchableOpacity onPress={() => setShowPowersModal(false)}>
+            <TouchableOpacity onPress={() => { setShowMagicModal(false); setSelectedPlayer(null); }}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Onglets */}
+          <View style={styles.tabBar}>
+            <TouchableOpacity
+              style={[styles.tabBtn, magicTab === 'magic' && styles.tabBtnActive]}
+              onPress={() => setMagicTab('magic')}
+            >
+              <Text style={[styles.tabBtnText, magicTab === 'magic' && styles.tabBtnTextActive]}>
+                ✨ Magie
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tabBtn, magicTab === 'transformation' && styles.tabBtnActive]}
+              onPress={() => setMagicTab('transformation')}
+            >
+              <Text style={[styles.tabBtnText, magicTab === 'transformation' && styles.tabBtnTextActive]}>
+                🎭 Transformations
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <ScrollView style={styles.offeringsGrid} contentContainerStyle={styles.offeringsGridContent}>
-            {allPowers.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.offeringItem}
-                onPress={() => handleSendPower(item)}
-              >
-                <Text style={styles.offeringEmoji}>{item.emoji}</Text>
-                <View style={styles.offeringInfo}>
-                  <Text style={styles.offeringName}>{item.name}</Text>
-                  <Text style={styles.offeringCost}>💰 {item.cost}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {magicTab === 'magic'
+              ? (Object.entries(magicRegistry) as [MagicType, typeof magicRegistry[MagicType]][]).map(([type, def]) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={styles.offeringItem}
+                    onPress={() => handleApplyMagic(type)}
+                  >
+                    <Text style={styles.offeringEmoji}>{def.emoji}</Text>
+                    <View style={styles.offeringInfo}>
+                      <Text style={styles.offeringName}>{def.label}</Text>
+                      <Text style={styles.offeringCost}>💰 {def.cost}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              : (Object.entries(transformationRegistry) as [TransformationType, typeof transformationRegistry[TransformationType]][]).map(([type, def]) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={styles.offeringItem}
+                    onPress={() => handleApplyTransformation(type)}
+                  >
+                    <Text style={styles.offeringEmoji}>{def.emoji}</Text>
+                    <View style={styles.offeringInfo}>
+                      <Text style={styles.offeringName}>{def.label}</Text>
+                      <Text style={styles.offeringCost}>💰 {def.cost}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+            }
           </ScrollView>
         </View>
       </View>
@@ -591,14 +578,10 @@ export default function SalonScreen() {
   return (
     <View style={{ flex: 1 }}>
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
-      {renderOfferingsModal()}
-      {renderPowersModal()}
-
-      {/* Overlay projectiles — doit être EN DEHORS de tout ScrollView */}
-      <ProjectileAnimationLayer ref={projectileRef} />
+      {renderMagicModal()}
 
       <AvatarRadialMenu
-        visible={menuState.visible && isLandscape}
+        visible={menuState.visible}
         anchor={menuState.anchor}
         actions={SALON_ACTIONS}
         onClose={closeMenu}
@@ -673,7 +656,7 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
 
-  // Portrait strip — ligne d'avatars avec espace pour les animations de réaction
+  // Portrait strip
   participantStrip: {
     backgroundColor: '#FFF',
     paddingVertical: 14,
@@ -693,78 +676,15 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 12,
   },
-  participantSelected: {
-    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-  },
-  selectedHint: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#667eea',
-    fontWeight: '600',
-    marginTop: 8,
-  },
-
-  // Avatar
-  avatarWrapper: {
-    alignItems: 'center',
-  },
-  avatarContainer: {
-    backgroundColor: '#F0F0F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#FFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  avatarSelected: {
-    borderColor: '#FFD700',
-    borderWidth: 4,
-    shadowColor: '#FFD700',
-    shadowOpacity: 0.4,
-  },
-  avatarImage: {
-    backgroundColor: '#E8E8E8',
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    backgroundColor: '#4CAF50',
-    borderWidth: 2,
-    borderColor: '#FFF',
-  },
-  meBadge: {
-    position: 'absolute',
-    bottom: -6,
-    backgroundColor: '#667eea',
+  magicChip: {
+    marginTop: 4,
     paddingHorizontal: 8,
     paddingVertical: 2,
+    backgroundColor: 'rgba(156,39,176,0.12)',
     borderRadius: 10,
   },
-  meBadgeText: {
-    fontSize: 10,
-    color: '#FFF',
-    fontWeight: '700',
-  },
-  avatarName: {
+  magicChipText: {
     fontSize: 12,
-    color: '#5D4037',
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: 6,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  badgeEmoji: {
-    fontSize: 14,
-    marginHorizontal: 1,
   },
 
   // Messages
@@ -851,21 +771,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E8D5B7',
   },
-  actionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F5F0E6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  actionButtonDisabled: {
-    opacity: 0.5,
-  },
-  actionEmoji: {
-    fontSize: 22,
-  },
   textInput: {
     flex: 1,
     height: 44,
@@ -920,6 +825,13 @@ const styles = StyleSheet.create({
     padding: 16,
     justifyContent: 'center',
     backgroundColor: '#FFF8E7',
+  },
+  tapHintLandscape: {
+    fontSize: 12,
+    color: '#8B6F47',
+    textAlign: 'center',
+    marginBottom: 8,
+    fontStyle: 'italic',
   },
   avatarsGrid: {
     flex: 1,
@@ -987,53 +899,6 @@ const styles = StyleSheet.create({
     color: '#E91E63',
   },
 
-  selectedBanner: {
-    backgroundColor: '#667eea',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginVertical: 8,
-    alignItems: 'center',
-  },
-  selectedBannerText: {
-    color: '#FFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-
-  actionButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 10,
-  },
-  bigActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginHorizontal: 4,
-  },
-  bigActionButtonDisabled: {
-    opacity: 0.5,
-  },
-  giftButton: {
-    backgroundColor: '#FF6B6B',
-  },
-  magicButton: {
-    backgroundColor: '#9C27B0',
-  },
-  bigActionEmoji: {
-    fontSize: 18,
-    marginRight: 6,
-  },
-  bigActionText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFF',
-  },
-
   // ============================================
   // MODALS
   // ============================================
@@ -1046,136 +911,88 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    paddingBottom: 20,
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8D5B7',
+    borderBottomColor: '#F0E8D8',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#3A2818',
+    color: '#2A1A0E',
   },
   modalClose: {
-    fontSize: 24,
-    color: '#999',
+    fontSize: 20,
+    color: '#8B6F47',
     padding: 4,
   },
+
+  // Onglets
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0E8D8',
+    marginHorizontal: 16,
+    marginTop: 8,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  tabBtnActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#9C27B0',
+  },
+  tabBtnText: {
+    fontSize: 14,
+    color: '#8B6F47',
+    fontWeight: '500',
+  },
+  tabBtnTextActive: {
+    color: '#9C27B0',
+    fontWeight: '700',
+  },
+
   offeringsGrid: {
-    padding: 12,
+    marginTop: 4,
   },
   offeringsGridContent: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+    gap: 8,
   },
   offeringItem: {
-    width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F0E6',
     padding: 12,
+    backgroundColor: '#FFF8F0',
     borderRadius: 12,
-    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#F0E8D8',
   },
   offeringEmoji: {
     fontSize: 28,
-    marginRight: 10,
-  },
-
-  // Hint tap
-  participantHint: {
-    textAlign: 'center',
-    fontSize: 11,
-    color: '#AAA',
-    marginBottom: 6,
-    fontStyle: 'italic',
-  },
-  tapHintLandscape: {
-    textAlign: 'center',
-    fontSize: 11,
-    color: '#AAA',
-    marginBottom: 8,
-    fontStyle: 'italic',
-  },
-
-  // Menu d'action (bottom sheet)
-  actionMenuContent: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingBottom: 36,
-  },
-  actionMenuHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#DDD',
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  actionMenuTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#3A2818',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  actionMenuButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF5E6',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1.5,
-    borderColor: '#FFD899',
-  },
-  actionMenuButtonMagic: {
-    backgroundColor: '#F3E8FF',
-    borderColor: '#D4AAFF',
-  },
-  actionMenuEmoji: {
-    fontSize: 32,
     marginRight: 14,
-  },
-  actionMenuLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#3A2818',
-    marginBottom: 2,
-  },
-  actionMenuSub: {
-    fontSize: 12,
-    color: '#999',
-  },
-  actionMenuCancel: {
-    alignItems: 'center',
-    paddingVertical: 14,
-    marginTop: 4,
-  },
-  actionMenuCancelText: {
-    fontSize: 15,
-    color: '#999',
-    fontWeight: '600',
   },
   offeringInfo: {
     flex: 1,
   },
   offeringName: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#3A2818',
+    color: '#2A1A0E',
     marginBottom: 2,
   },
   offeringCost: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#DAA520',
+    fontSize: 13,
+    color: '#8B6F47',
   },
 });

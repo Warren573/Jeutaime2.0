@@ -131,6 +131,26 @@ export const avatarRegistry: Record<string, AvatarAssetRef> = {
     type: 'svg',
     source: require('../../../assets/avatar/transformations/frog_overlay_01.svg'),
   },
+  transfo_donkey_overlay_01: {
+    id: 'transfo_donkey_overlay_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/transformations/donkey_overlay_01.svg'),
+  },
+  transfo_chicken_overlay_01: {
+    id: 'transfo_chicken_overlay_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/transformations/chicken_overlay_01.svg'),
+  },
+  transfo_invisible_overlay_01: {
+    id: 'transfo_invisible_overlay_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/transformations/invisible_overlay_01.svg'),
+  },
+  transfo_rockstar_overlay_01: {
+    id: 'transfo_rockstar_overlay_01',
+    type: 'svg',
+    source: require('../../../assets/avatar/transformations/rockstar_overlay_01.svg'),
+  },
 
   // ── Effets magiques ───────────────────────────────────────────────────────
   magic_halo_soft_01: {

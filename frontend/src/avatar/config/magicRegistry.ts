@@ -17,6 +17,8 @@ import type { AnchorPointName, MagicType, OverlayAnimationKey, TimedEffectDurati
 
 export type MagicDefinition = {
   label:        string;
+  emoji:        string;  // affiché dans les modales / UI de sélection
+  cost:         number;  // coût en pièces du salon
   assetIds:     string[];
   targetAnchor: AnchorPointName;
   animationKey: OverlayAnimationKey;
@@ -44,6 +46,8 @@ export const magicRegistry: Record<MagicType, MagicDefinition> = {
 
   halo: {
     label:        'Halo lumineux',
+    emoji:        '✨',
+    cost:         60,
     assetIds:     ['magic_halo_soft_01'],
     targetAnchor: 'auraCenter',
     animationKey: 'pulseGlow',
@@ -61,6 +65,8 @@ export const magicRegistry: Record<MagicType, MagicDefinition> = {
 
   rain: {
     label:        'Pluie',
+    emoji:        '🌧️',
+    cost:         50,
     assetIds:     ['magic_rain_cloud_01', 'magic_rain_drops_01'],
     targetAnchor: 'rainTop',
     animationKey: 'rainFall',
@@ -77,7 +83,9 @@ export const magicRegistry: Record<MagicType, MagicDefinition> = {
   },
 
   ghost: {
-    label:        'Fantôme magique',
+    label:        'Aura fantôme',
+    emoji:        '👁️',
+    cost:         80,
     assetIds:     ['magic_ghost_glow_01'],
     targetAnchor: 'faceCenter',
     animationKey: 'ghostFloat',

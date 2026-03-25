@@ -28,6 +28,8 @@ export type TransformationMode = 'overlay' | 'replace' | 'muteAvatar';
 
 export type TransformationDefinition = {
   label:        string;
+  emoji:        string;  // affiché dans les modales / UI de sélection
+  cost:         number;  // coût en pièces du salon
   assetIds:     string[];
   targetAnchor: AnchorPointName;
   animationKey: OverlayAnimationKey;
@@ -56,6 +58,8 @@ export const transformationRegistry: Record<TransformationType, TransformationDe
 
   pirate: {
     label:        'Pirate',
+    emoji:        '🏴‍☠️',
+    cost:         90,
     assetIds:     ['transfo_pirate_hat_01'],
     targetAnchor: 'headTop',
     animationKey: 'popOnHead',
@@ -74,6 +78,8 @@ export const transformationRegistry: Record<TransformationType, TransformationDe
 
   ghost: {
     label:        'Fantôme',
+    emoji:        '👻',
+    cost:         120,
     assetIds:     ['transfo_ghost_overlay_01'],
     targetAnchor: 'faceCenter',
     animationKey: 'fadeOverlay',
@@ -92,6 +98,8 @@ export const transformationRegistry: Record<TransformationType, TransformationDe
 
   statue: {
     label:        'Statue',
+    emoji:        '🗿',
+    cost:         110,
     assetIds:     ['transfo_statue_overlay_01'],
     targetAnchor: 'faceCenter',
     animationKey: 'stoneFade',
@@ -110,6 +118,8 @@ export const transformationRegistry: Record<TransformationType, TransformationDe
 
   frog: {
     label:        'Grenouille',
+    emoji:        '🐸',
+    cost:         100,
     assetIds:     ['transfo_frog_overlay_01'],
     targetAnchor: 'faceCenter',
     animationKey: 'poofTransform',
@@ -124,6 +134,85 @@ export const transformationRegistry: Record<TransformationType, TransformationDe
     // Recouvrement total → magie visuellement incohérente sur une grenouille
     mutesMagic: true,
     priority:   3,
+  },
+
+  donkey: {
+    label:        'Âne',
+    emoji:        '🫏',
+    cost:         80,
+    assetIds:     ['transfo_donkey_overlay_01'],
+    targetAnchor: 'faceCenter',
+    animationKey: 'poofTransform',
+    mode:         'muteAvatar',
+    zLayer:       'front',
+    duration:     { unit: 'minutes', value: 60 },
+    position: {
+      sizeRatio:         1.0,
+      topOffsetPercent:  0,
+      leftOffsetPercent: 0,
+    },
+    mutesMagic: true,
+    priority:   3,
+  },
+
+  chicken: {
+    label:        'Poule',
+    emoji:        '🐔',
+    cost:         70,
+    assetIds:     ['transfo_chicken_overlay_01'],
+    targetAnchor: 'faceCenter',
+    animationKey: 'poofTransform',
+    mode:         'muteAvatar',
+    zLayer:       'front',
+    duration:     { unit: 'minutes', value: 60 },
+    position: {
+      sizeRatio:         1.0,
+      topOffsetPercent:  0,
+      leftOffsetPercent: 0,
+    },
+    mutesMagic: true,
+    priority:   3,
+  },
+
+  invisible: {
+    label:        'Invisibilité',
+    emoji:        '🫥',
+    cost:         150,
+    assetIds:     ['transfo_invisible_overlay_01'],
+    targetAnchor: 'faceCenter',
+    // stoneFade = apparition progressive, idéale pour une transparence qui s'installe
+    animationKey: 'stoneFade',
+    mode:         'muteAvatar',
+    zLayer:       'front',
+    duration:     { unit: 'minutes', value: 30 },
+    position: {
+      sizeRatio:         1.0,
+      topOffsetPercent:  0,
+      leftOffsetPercent: 0,
+    },
+    // Transparent → magie reste lisible en dessous
+    mutesMagic: false,
+    priority:   4,
+  },
+
+  rockstar: {
+    label:        'Rockstar',
+    emoji:        '🎸',
+    cost:         130,
+    assetIds:     ['transfo_rockstar_overlay_01'],
+    targetAnchor: 'faceCenter',
+    animationKey: 'popOnHead',
+    mode:         'overlay',
+    zLayer:       'front',
+    duration:     { unit: 'minutes', value: 45 },
+    position: {
+      sizeRatio:         1.0,
+      topOffsetPercent:  0,
+      leftOffsetPercent: 0,
+    },
+    // Overlay partiel → magie coexiste
+    mutesMagic: false,
+    priority:   2,
   },
 
 };
