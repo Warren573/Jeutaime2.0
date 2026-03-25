@@ -9,7 +9,7 @@
  *  z:5 badges          ← offrandes reçues + badge "Moi"
  */
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -55,20 +55,8 @@ export default function SalonAvatar({
   onMeasuredPress,
   onBreakAttempt,
 }: Props) {
-  const pressRef         = useRef<View>(null);
-  const breathAnim       = useRef(new Animated.Value(1)).current;
-  const prevEffectIdsRef = useRef<Set<string>>(new Set());
-  const [activeReaction, setActiveReaction] = useState<{ emoji: string; category: string } | null>(null);
-
-  // ── Détection d'un nouvel effet → déclenche l'animation de réaction ───────
-  useEffect(() => {
-    const prev    = prevEffectIdsRef.current;
-    const newEff  = activeEffects.find(e => !prev.has(e.id));
-    prevEffectIdsRef.current = new Set(activeEffects.map(e => e.id));
-    if (newEff && !activeReaction) {
-      setActiveReaction({ emoji: newEff.emoji, category: newEff.category });
-    }
-  }, [activeEffects]);
+  const pressRef   = useRef<View>(null);
+  const breathAnim = useRef(new Animated.Value(1)).current;
 
   // ── Breathing doux ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -94,10 +82,8 @@ export default function SalonAvatar({
 
   const interactive = !!onMeasuredPress && !participant.isMe;
 
-  // ── Couches d'effets ──────────────────────────────────────────────────────
-  const visualEffects   = activeEffects.filter(e => e.category === 'visual_effect');
-  const transformation  = activeEffects.find(e => e.category === 'transformation');
-  const offeringBadges  = activeEffects.filter(e => e.category === 'offering').slice(-6);
+  // ── Badges offrandes (anneau) ─────────────────────────────────────────────
+  const offeringBadges = activeEffects.filter(e => e.category === 'offering').slice(-6);
 
   // ── Rendu ─────────────────────────────────────────────────────────────────
   const containerSize = size + 40; // espace pour halo + particules
@@ -164,15 +150,6 @@ export default function SalonAvatar({
       <Text style={[styles.name, { maxWidth: containerSize }]} numberOfLines={1}>
         {participant.name}
       </Text>
-
-      {/* Offrandes persistantes (legacy — affichées si pas de activeEffects) */}
-      {showBadges && offeringBadges.length === 0 && !!participant.offerings?.length && (
-        <View style={styles.legacyBadges}>
-          {participant.offerings.slice(-4).map((o, i) => (
-            <Text key={i} style={styles.legacyBadge}>{o.emoji}</Text>
-          ))}
-        </View>
-      )}
     </View>
   );
 }
@@ -282,15 +259,5 @@ const styles = StyleSheet.create({
   },
   offeringBadgeEmoji: {
     fontSize: 16,
-  },
-  legacyBadges: {
-    flexDirection:  'row',
-    justifyContent: 'center',
-    marginTop:      4,
-    flexWrap:       'wrap',
-  },
-  legacyBadge: {
-    fontSize:       13,
-    marginHorizontal: 1,
   },
 });

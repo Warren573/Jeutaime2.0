@@ -12,8 +12,6 @@ import {
   useWindowDimensions,
   Modal,
   ScrollView,
-  Animated,
-  Image,
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,11 +37,7 @@ export default function SalonScreen() {
   const screenBg = useStore(s => s.screenBackgrounds?.['salon'] ?? '#FFF8E7');
   const { width, height } = useWindowDimensions();
 
-  // Détection de l'orientation - plus fiable
   const isLandscape = width > height;
-
-  // Debug orientation
-  console.log(`📱 Orientation: ${isLandscape ? 'PAYSAGE' : 'PORTRAIT'} (${width}x${height})`);
 
   const flatListRef = useRef<FlatList>(null);
   const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages } = useStore();
@@ -136,7 +130,6 @@ export default function SalonScreen() {
           gender: currentUser?.gender || 'M',
           age: currentUser?.age || 25,
           online: true,
-          offerings: [],
           isMe: true,
         } as SalonParticipant & { isMe: boolean },
       ]);
@@ -209,12 +202,6 @@ export default function SalonScreen() {
     } else {
       fireAndApply();
     }
-
-    setParticipants(prev => prev.map(p =>
-      p.id === selectedPlayer.id
-        ? { ...p, offerings: [...(p.offerings || []), { emoji: item.emoji, from: currentUser?.name || 'Vous', timestamp: Date.now() }].slice(-6) }
-        : p
-    ));
 
     setRecentInteractions(prev => [{
       id:        Date.now().toString(),
