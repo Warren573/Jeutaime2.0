@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { offerRegistry, type OfferDefinition } from '../config/offerRegistry';
 import type { OfferEvent } from '../types/avatarTypes';
+import { triggerOfferImpact, triggerOfferSend } from '../utils/haptics';
 
 export type OfferPhase = 'idle' | 'projectile' | 'reaction' | 'done';
 
@@ -48,10 +49,14 @@ export function useOfferAnimation(event?: OfferEvent | null) {
     }
 
     setPhase('projectile');
+    triggerOfferSend(config.family);
 
     // Pause émotionnelle : le projectile arrive → micro-délai → l'avatar réagit
     timers.current.push(
-      setTimeout(() => setPhase('reaction'), PROJECTILE_DURATION_MS + REACTION_DELAY_MS),
+      setTimeout(() => {
+        triggerOfferImpact(config.family);
+        setPhase('reaction');
+      }, PROJECTILE_DURATION_MS + REACTION_DELAY_MS),
     );
 
     timers.current.push(
