@@ -87,7 +87,7 @@ export default function MiniGamesScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.backText}>← Retour</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>🎮 Mini-Jeux</Text>
+        <Text style={styles.title}>🎯 Activités</Text>
         <Text style={styles.subtitle}>Gagnez des pièces en jouant!</Text>
       </View>
       

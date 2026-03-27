@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300">
+  <path d="M 0 300 L 0 252 C 24 240 58 230 84 226 C 96 224 106 222 112 222 L 128 222 C 134 222 144 224 156 226 C 182 230 216 240 240 252 L 240 300 Z" fill="#B87040"/>
+  <path d="M 108 222 L 108 244 L 132 244 L 132 222 Z" fill="#9C5A2C"/>
+  <path d="M 108 222 L 110 244 L 108 244 Z" fill="#7C4018" opacity="0.22"/>
+  <path d="M 132 222 L 130 244 L 132 244 Z" fill="#7C4018" opacity="0.22"/>
+  <ellipse cx="120" cy="244" rx="26" ry="7" fill="#7C4018" opacity="0.2"/>
+  <path d="M 44 148 C 38 146 31 150 29 159 C 27 168 31 176 40 177 C 44 177 47 174 47 169" fill="#B87040"/>
+  <path d="M 37 154 C 33 157 31 163 33 169 C 35 174 40 175 42 171" fill="none" stroke="#7C4018" stroke-width="0.9" stroke-linecap="round" opacity="0.45"/>
+  <path d="M 196 148 C 202 146 209 150 211 159 C 213 168 209 176 200 177 C 196 177 193 174 193 169" fill="#B87040"/>
+  <path d="M 203 154 C 207 157 209 163 207 169 C 205 174 200 175 198 171" fill="none" stroke="#7C4018" stroke-width="0.9" stroke-linecap="round" opacity="0.45"/>
+  <path d="M 120 67 C 182 67 202 108 198 150 C 194 192 168 238 120 240 C 72 238 46 192 42 150 C 38 108 58 67 120 67 Z" fill="#B87040"/>
+  <ellipse cx="120" cy="92" rx="50" ry="26" fill="#C88858" opacity="0.45"/>
+  <ellipse cx="58" cy="155" rx="20" ry="44" fill="#7C4018" opacity="0.18"/>
+  <ellipse cx="182" cy="155" rx="20" ry="44" fill="#7C4018" opacity="0.18"/>
+  <ellipse cx="70" cy="188" rx="18" ry="11" fill="#7C4018" opacity="0.16"/>
+  <ellipse cx="170" cy="188" rx="18" ry="11" fill="#7C4018" opacity="0.16"/>
+  <ellipse cx="80" cy="175" rx="14" ry="8" fill="#C88858" opacity="0.22"/>
+  <ellipse cx="160" cy="175" rx="14" ry="8" fill="#C88858" opacity="0.22"/>
+  <ellipse cx="76" cy="178" rx="20" ry="13" fill="#A05848" opacity="0.07"/>
+  <ellipse cx="164" cy="178" rx="20" ry="13" fill="#A05848" opacity="0.07"/>
+  <ellipse cx="120" cy="228" rx="26" ry="9" fill="#7C4018" opacity="0.13"/>
+  <path d="M 84 236 C 98 232 112 230 120 230 C 128 230 142 232 156 236" fill="none" stroke="#7C4018" stroke-width="1.0" stroke-linecap="round" opacity="0.28"/>
+</svg>

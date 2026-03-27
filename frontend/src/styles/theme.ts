@@ -168,3 +168,18 @@ export const theme = {
 
 export type Theme = typeof theme;
 export default theme;
+
+// ============================================
+// JOURNAL MODERNE ROMANTIQUE — palette officielle
+// ============================================
+export const journal = {
+  bgMain:          '#F5F1E8',   // fond papier chaud
+  bgCard:          '#FFFFFF',   // cartes
+  bgSoft:          '#EAE4D8',   // zones secondaires
+  textMain:        '#2B2B2B',
+  textSecondary:   '#6B6B6B',
+  accentPrimary:   '#8B2E3C',   // bordeaux
+  accentSecondary: '#C9A96E',   // doré doux
+  accentLight:     '#E8CFCF',
+  borderSoft:      '#D8D2C4',
+};

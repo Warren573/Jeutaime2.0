@@ -20,6 +20,9 @@ import type {
   GenderType,
 } from '../shared/types';
 
+import type { AvatarDefinition } from '../avatar/types/avatarTypes';
+import type { AvatarConfig as PngAvatarConfig } from '../avatar/png/defaults';
+import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import * as EconomyEngine from '../engine/EconomyEngine';
 import * as ProgressionEngine from '../engine/ProgressionEngine';
 import * as PetEngine from '../engine/PetEngine';
@@ -47,6 +50,7 @@ interface CurrentUser {
   email?: string;
   isPremium: boolean;
   avatarConfig: AvatarConfig;
+  avatarDef?: AvatarDefinition;
   stats: UserStats;
   unlockedBadges: string[];
   gender?: GenderType;
@@ -122,6 +126,18 @@ interface StoreState {
   // ===== Actions - Messages =====
   addMessage: (salonId: string, message: Message) => void;
   loadMessages: (salonId: string) => Message[];
+
+  // ===== Duels =====
+  duelEntries: Array<{ id: string; text: string; createdAt: number; players: string[] }>;
+  addDuelEntry: (entry: { text: string; players: string[] }) => void;
+
+  // ===== Backgrounds =====
+  screenBackgrounds: Record<string, string>;
+  setScreenBackground: (screenId: string, color: string) => void;
+
+  // ===== Avatar PNG =====
+  avatarPngConfig: PngAvatarConfig;
+  updateAvatarPngConfig: (config: PngAvatarConfig) => void;
 }
 
 // ==================== STORE ====================
@@ -149,11 +165,43 @@ export const useStore = create<StoreState>()(
         { id: 'm1', userAId: 'me', userBId: 'sophie', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, status: 'active', letterCount: 5 },
         { id: 'm2', userAId: 'me', userBId: 'alex', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, status: 'active', letterCount: 12 },
       ],
-      letters: [],
+      letters: [
+        // Lettres de démo — SANS readAt → déclenchent PremiumLetterAnimation à l'ouverture
+        {
+          id: 'l1',
+          threadId: 'm1',
+          fromUserId: 'sophie',
+          toUserId: 'me',
+          content: "Bonsoir... Je ne sais pas trop comment commencer, mais je voulais te dire que tes réponses m'ont vraiment touché(e). Il y a quelque chose dans ta façon d'être qui me donne envie d'en savoir plus. À bientôt, peut-être ? 🌿",
+          createdAt: Date.now() - 7200000,
+          // readAt absent → lettre non lue → animation jouée
+        },
+        {
+          id: 'l2',
+          threadId: 'm1',
+          fromUserId: 'me',
+          toUserId: 'sophie',
+          content: "Bonsoir Sophie. Tes mots m'ont mis le sourire aux lèvres. Écrire comme ça, c'est un art que peu maîtrisent — toi, tu sembles y exceller naturellement.",
+          createdAt: Date.now() - 3600000,
+          readAt: Date.now() - 3500000,
+        },
+        {
+          id: 'l3',
+          threadId: 'm2',
+          fromUserId: 'alex',
+          toUserId: 'me',
+          content: "Salut ! Je suis tombé(e) sur ton profil et j'ai adoré ta question sur les étoiles. Moi aussi je me perds parfois à regarder le ciel. On a peut-être plus en commun qu'il n'y paraît ✨",
+          createdAt: Date.now() - 1800000,
+          // readAt absent → lettre non lue → animation jouée
+        },
+      ],
       likedProfiles: [],
       dislikedProfiles: [],
       messagesBySalon: {},
-      
+      screenBackgrounds: {},
+      duelEntries: [],
+      avatarPngConfig: DEFAULT_AVATAR,
+
       stats: {
         matchesCount: 2,
         lettersSent: 0,
@@ -409,6 +457,23 @@ export const useStore = create<StoreState>()(
       loadMessages: (salonId) => {
         return get().messagesBySalon[salonId] || [];
       },
+
+      addDuelEntry: (entry) => {
+        set((state) => ({
+          duelEntries: [
+            { id: Date.now().toString(), createdAt: Date.now(), ...entry },
+            ...state.duelEntries.slice(0, 49),
+          ],
+        }));
+      },
+
+      setScreenBackground: (screenId, color) => {
+        set((state) => ({
+          screenBackgrounds: { ...state.screenBackgrounds, [screenId]: color },
+        }));
+      },
+
+      updateAvatarPngConfig: (config) => set({ avatarPngConfig: config }),
     }),
     {
       name: 'jeutaime-storage',
@@ -424,6 +489,9 @@ export const useStore = create<StoreState>()(
         unlockedBadges: state.unlockedBadges,
         lastDailyBonus: state.lastDailyBonus,
         currentUser: state.currentUser,
+        screenBackgrounds: state.screenBackgrounds,
+        duelEntries: state.duelEntries,
+        avatarPngConfig: state.avatarPngConfig,
       }),
     }
   )

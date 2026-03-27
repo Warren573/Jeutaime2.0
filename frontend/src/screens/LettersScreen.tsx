@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,33 +9,403 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import type { Letter, Match } from '../shared/types';
+import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
+import { Avatar } from '../avatar/png/Avatar';
+import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 
-const Avatar = ({ name, size = 55 }: { name: string; size?: number }) => {
-  const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  const bgColor = colors[Math.abs(hash) % colors.length];
-  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+const { width: SCREEN_W } = Dimensions.get('window');
+const CARD_W = SCREEN_W - 32;
+const MINI_FLAP_H = 54;
+const LARGE_FLAP_H = 92;
+
+// ─── EnvelopeCard ─────────────────────────────────────────────────────────────
+
+interface EnvelopeCardProps {
+  otherName: string;
+  lastMsg?: Letter;
+  unread: number;
+  onOpen: () => void;
+  formatTime: (ts: number) => string;
+}
+
+const EnvelopeCard = ({ otherName, lastMsg, unread, onOpen, formatTime }: EnvelopeCardProps) => {
+  const [opening, setOpening] = useState(false);
+  const flapY  = useRef(new Animated.Value(0)).current;
+  const flapOp = useRef(new Animated.Value(1)).current;
+  const bgOp   = useRef(new Animated.Value(0)).current;
+
+  const handlePress = () => {
+    setOpening(true);
+    Animated.sequence([
+      Animated.timing(bgOp, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.parallel([
+        Animated.timing(flapY,  { toValue: -(LARGE_FLAP_H + 60), duration: 520, useNativeDriver: true }),
+        Animated.timing(flapOp, { toValue: 0,                     duration: 400, useNativeDriver: true }),
+      ]),
+    ]).start(() => {
+      setTimeout(() => {
+        setOpening(false);
+        flapY.setValue(0);
+        flapOp.setValue(1);
+        bgOp.setValue(0);
+        onOpen();
+      }, 120);
+    });
+  };
 
   return (
-    <View style={[avatarStyles.container, { width: size, height: size, borderRadius: size / 2, backgroundColor: bgColor }]}>
-      <Text style={[avatarStyles.text, { fontSize: size * 0.35 }]}>{initials}</Text>
-    </View>
+    <>
+      {/* ── Carte dans la liste ── */}
+      <TouchableOpacity style={envStyles.card} onPress={handlePress} activeOpacity={0.85}>
+        {/* Zone rabat */}
+        <View style={envStyles.flapMini}>
+          <View style={envStyles.foldLinesWrap}>
+            <View style={[envStyles.foldLine, envStyles.foldLineLL]} />
+            <View style={[envStyles.foldLine, envStyles.foldLineLR]} />
+          </View>
+          {unread > 0
+            ? <View style={envStyles.sealMini}><Text style={envStyles.sealEmoji}>💌</Text></View>
+            : <Text style={envStyles.sealEmpty}>✉️</Text>
+          }
+        </View>
+        <View style={envStyles.divider} />
+        {/* Infos */}
+        <View style={envStyles.infoRow}>
+          <Avatar size={42} {...DEFAULT_AVATAR} />
+          <View style={envStyles.texts}>
+            <View style={envStyles.nameRow}>
+              <Text style={envStyles.name}>{otherName}</Text>
+              {unread > 0 && (
+                <View style={envStyles.badge}>
+                  <Text style={envStyles.badgeTxt}>{unread}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={envStyles.preview} numberOfLines={1}>
+              {lastMsg ? lastMsg.content : '✨ Envoyez la première lettre!'}
+            </Text>
+          </View>
+          <Text style={envStyles.time}>{lastMsg ? formatTime(lastMsg.createdAt) : 'Nouveau'}</Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* ── Overlay d'ouverture ── */}
+      <Modal visible={opening} transparent animationType="none">
+        <Animated.View style={[envStyles.overlay, { opacity: bgOp }]}>
+          {/* Enveloppe agrandie */}
+          <View style={envStyles.largeWrapper}>
+            {/* Corps révélé sous le rabat */}
+            <View style={envStyles.largeBody}>
+              <View style={envStyles.largeContent}>
+                <Avatar size={68} {...DEFAULT_AVATAR} />
+                <Text style={envStyles.largeName}>{otherName}</Text>
+                <Text style={envStyles.largePreview} numberOfLines={3}>
+                  {lastMsg ? lastMsg.content : '✨ Commencez la conversation!'}
+                </Text>
+                <Text style={envStyles.largeTap}>Ouverture…</Text>
+              </View>
+            </View>
+
+            {/* Rabat animé (se lève vers le haut) */}
+            <Animated.View
+              style={[
+                envStyles.largeFlap,
+                { transform: [{ translateY: flapY }], opacity: flapOp },
+              ]}
+            >
+              <View style={envStyles.foldLinesWrap}>
+                <View style={[envStyles.foldLine, envStyles.foldLineLLLarge]} />
+                <View style={[envStyles.foldLine, envStyles.foldLineLRLarge]} />
+              </View>
+              <View style={envStyles.sealLarge}>
+                <Text style={envStyles.sealLargeEmoji}>💌</Text>
+              </View>
+            </Animated.View>
+          </View>
+        </Animated.View>
+      </Modal>
+    </>
   );
 };
 
-const avatarStyles = StyleSheet.create({
-  container: { alignItems: 'center', justifyContent: 'center' },
-  text: { color: '#FFF', fontWeight: '700' },
+// ─── Styles enveloppe ─────────────────────────────────────────────────────────
+
+const envStyles = StyleSheet.create({
+  // Carte liste
+  card: {
+    backgroundColor: '#FDF5E6',
+    borderRadius: 14,
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: '#C8A96E',
+    shadowColor: '#8B6F47',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  flapMini: {
+    height: MINI_FLAP_H,
+    backgroundColor: '#EEC97A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  foldLinesWrap: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+  },
+  foldLine: {
+    position: 'absolute',
+    height: 1.5,
+    backgroundColor: '#A07030',
+    opacity: 0.45,
+  },
+  foldLineLL: {
+    width: CARD_W * 0.75,
+    top: MINI_FLAP_H * 0.28,
+    left: -CARD_W * 0.12,
+    transform: [{ rotate: '22deg' }],
+  },
+  foldLineLR: {
+    width: CARD_W * 0.75,
+    top: MINI_FLAP_H * 0.28,
+    right: -CARD_W * 0.12,
+    transform: [{ rotate: '-22deg' }],
+  },
+  sealMini: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#8B1A1A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  sealEmoji: { fontSize: 20 },
+  sealEmpty: { fontSize: 20, opacity: 0.4 },
+  divider: { height: 1.5, backgroundColor: '#C8A96E' },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 10,
+  },
+  texts: { flex: 1, minWidth: 0 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  name: { fontSize: 16, fontWeight: '700', color: '#3A2818' },
+  badge: {
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#E91E63',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  badgeTxt: { color: '#FFF', fontSize: 11, fontWeight: '700' },
+  preview: { fontSize: 13, color: '#8B6F47', marginTop: 2 },
+  time: { fontSize: 11, color: '#B8860B' },
+
+  // Overlay d'ouverture
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(20, 12, 3, 0.80)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  largeWrapper: {
+    width: SCREEN_W - 32,
+  },
+  largeBody: {
+    backgroundColor: '#FDF5E6',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#C8A96E',
+    paddingTop: LARGE_FLAP_H + 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  largeContent: {
+    padding: 24,
+    alignItems: 'center',
+    gap: 10,
+  },
+  largeName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#3A2818',
+    marginTop: 4,
+  },
+  largePreview: {
+    fontSize: 15,
+    color: '#5D4037',
+    textAlign: 'center',
+    lineHeight: 22,
+    fontStyle: 'italic',
+    paddingHorizontal: 8,
+  },
+  largeTap: {
+    fontSize: 12,
+    color: '#B8860B',
+    marginTop: 8,
+    letterSpacing: 1,
+  },
+
+  // Rabat animé
+  largeFlap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: LARGE_FLAP_H + 4,
+    backgroundColor: '#EEC97A',
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    borderWidth: 2,
+    borderColor: '#C8A96E',
+    borderBottomWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    zIndex: 10,
+  },
+  foldLineLLLarge: {
+    width: (SCREEN_W - 32) * 0.75,
+    top: LARGE_FLAP_H * 0.3,
+    left: -(SCREEN_W - 32) * 0.12,
+    transform: [{ rotate: '18deg' }],
+  },
+  foldLineLRLarge: {
+    width: (SCREEN_W - 32) * 0.75,
+    top: LARGE_FLAP_H * 0.3,
+    right: -(SCREEN_W - 32) * 0.12,
+    transform: [{ rotate: '-18deg' }],
+  },
+  sealLarge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#7B1515',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  sealLargeEmoji: { fontSize: 30 },
 });
+
+// ─── LetterCard — carte lettre avec animation si nouvelle ─────────────────────
+
+interface LetterCardProps {
+  letter: Letter;
+  isOwn: boolean;
+  isNew: boolean;
+  otherName: string;
+  formatTime: (ts: number) => string;
+  onSeen: () => void;
+}
+
+function LetterCard({ letter, isOwn, isNew, otherName, formatTime, onSeen }: LetterCardProps) {
+  const [animPlayed, setAnimPlayed] = useState(false);
+
+  useEffect(() => {
+    if (isNew && !animPlayed) {
+      // Marquer comme lu après que l'animation démarre
+      const t = setTimeout(() => {
+        onSeen();
+        setAnimPlayed(true);
+      }, 1600);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  return (
+    <View style={lcStyles.wrapper}>
+      <Text style={lcStyles.header}>
+        {isOwn ? 'Ta lettre' : `Lettre de ${otherName}`}
+      </Text>
+
+      {/* Animation d'enveloppe uniquement sur la première nouvelle lettre */}
+      {isNew && !animPlayed && (
+        <View style={lcStyles.animContainer}>
+          <PremiumLetterAnimation senderName={otherName} />
+        </View>
+      )}
+
+      {/* Carte lettre — toujours visible */}
+      <View style={[lcStyles.card, isOwn && lcStyles.cardOwn]}>
+        <Text style={lcStyles.text}>{letter.content}</Text>
+        <Text style={lcStyles.time}>{formatTime(letter.createdAt)}</Text>
+      </View>
+    </View>
+  );
+}
+
+const lcStyles = StyleSheet.create({
+  wrapper: { marginBottom: 24 },
+  header: {
+    fontSize: 11,
+    letterSpacing: 1.5,
+    color: '#6B6B6B',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  animContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#D8D2C4',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cardOwn: {
+    backgroundColor: '#FDF7F7',
+    borderColor: '#E8CFCF',
+  },
+  text: {
+    fontSize: 15,
+    color: '#2B2B2B',
+    lineHeight: 23,
+    fontStyle: 'italic',
+  },
+  time: {
+    fontSize: 10,
+    color: '#6B6B6B',
+    marginTop: 10,
+    textAlign: 'right',
+    letterSpacing: 0.3,
+  },
+});
+
+// ─── Types internes ───────────────────────────────────────────────────────────
 
 type TabType = 'lettres' | 'journal' | 'souvenirs';
 
-// Journal entries mock data
 interface JournalEntry {
   id: string;
   date: string;
@@ -44,7 +414,6 @@ interface JournalEntry {
   mood: string;
 }
 
-// Souvenirs mock data
 interface Souvenir {
   id: string;
   type: 'match' | 'letter' | 'gift' | 'milestone';
@@ -54,14 +423,18 @@ interface Souvenir {
   emoji: string;
 }
 
+// ─── Écran principal ──────────────────────────────────────────────────────────
+
 export default function LettersScreen() {
-  const insets = useSafeAreaInsets();
-  const { matches, letters, addLetter, markLetterRead, currentUser, addPoints } = useStore();
+  const insets  = useSafeAreaInsets();
+  const router  = useRouter();
+  const { matches, letters, addLetter, markLetterRead, currentUser, addPoints, duelEntries } = useStore();
+  const screenBg = useStore(s => s.screenBackgrounds?.['letters'] ?? '#FFF8E7');
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [showCompose, setShowCompose] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('lettres');
-  
+
   // Journal state
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([
     { id: '1', date: '2025-03-12', title: 'Premier jour sur JeuTaime', content: 'Aujourd\'hui j\'ai découvert cette application incroyable...', mood: '😊' },
@@ -70,26 +443,25 @@ export default function LettersScreen() {
   const [journalTitle, setJournalTitle] = useState('');
   const [journalContent, setJournalContent] = useState('');
   const [journalMood, setJournalMood] = useState('😊');
-  
+
   // Souvenirs state
   const [souvenirs] = useState<Souvenir[]>([
     { id: '1', type: 'milestone', title: 'Inscription', description: 'Tu as rejoint JeuTaime!', date: '2025-03-12', emoji: '🎉' },
     { id: '2', type: 'match', title: 'Premier Match', description: 'Tu as eu ton premier match!', date: '2025-03-12', emoji: '💕' },
   ]);
 
-  // Helper pour obtenir le nom de l'autre utilisateur dans un match
-  const getOtherUserName = (match: Match) => {
-    return match.userAId === 'me' ? match.userBId : match.userAId;
-  };
+  const getOtherUserName = (match: Match) =>
+    match.userAId === 'me' ? match.userBId : match.userAId;
 
   const getConversation = (match: Match) => {
     const otherId = getOtherUserName(match);
-    return letters.filter(l => l.fromUserId === otherId || l.toUserId === otherId).sort((a, b) => a.createdAt - b.createdAt);
+    return letters
+      .filter(l => l.fromUserId === otherId || l.toUserId === otherId)
+      .sort((a, b) => a.createdAt - b.createdAt);
   };
 
   const handleSend = () => {
     if (!newMessage.trim() || !selectedMatch) return;
-    
     const letter: Letter = {
       id: Date.now().toString(),
       threadId: selectedMatch.id,
@@ -98,14 +470,12 @@ export default function LettersScreen() {
       content: newMessage.trim(),
       createdAt: Date.now(),
     };
-    
     addLetter(letter);
     setNewMessage('');
   };
 
   const handleAddJournal = () => {
     if (!journalTitle.trim() || !journalContent.trim()) return;
-    
     const entry: JournalEntry = {
       id: Date.now().toString(),
       date: new Date().toISOString().split('T')[0],
@@ -113,7 +483,6 @@ export default function LettersScreen() {
       content: journalContent.trim(),
       mood: journalMood,
     };
-    
     setJournalEntries(prev => [entry, ...prev]);
     addPoints(5);
     setJournalTitle('');
@@ -123,12 +492,11 @@ export default function LettersScreen() {
 
   const formatTime = (ts: number) => {
     const date = new Date(ts);
-    const now = new Date();
+    const now  = new Date();
     const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
     if (diffDays === 0) return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     if (diffDays === 1) return 'Hier';
-    if (diffDays < 7) return `${diffDays}j`;
+    if (diffDays < 7)  return `${diffDays}j`;
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
 
@@ -139,50 +507,46 @@ export default function LettersScreen() {
       case 'lettres':
         return (
           <>
+            {/* Bouton duel */}
+            <TouchableOpacity style={styles.duelBtn} onPress={() => router.push('/duel/create')}>
+              <Text style={styles.duelBtnEmoji}>🎮</Text>
+              <View style={styles.duelBtnTextWrap}>
+                <Text style={styles.duelBtnTitle}>Lancer un duel</Text>
+                <Text style={styles.duelBtnSubtitle}>Défiez un contact en Pierre • Papier • Ciseaux</Text>
+              </View>
+              <Text style={styles.duelBtnArrow}>▶</Text>
+            </TouchableOpacity>
+
             {matches.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyEmoji}>💌</Text>
-                <Text style={styles.emptyText}>Aucune conversation</Text>
-                <Text style={styles.emptySubtext}>Envoyez des sourires et réussissez des matchs pour commencer des conversations!</Text>
+                <Text style={styles.emptyText}>Aucune lettre</Text>
+                <Text style={styles.emptySubtext}>Réussissez des matchs pour recevoir vos premières enveloppes!</Text>
               </View>
             ) : (
               <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-                <Text style={styles.listCount}>{matches.length} conversations</Text>
+                <Text style={styles.listCount}>{matches.length} enveloppe{matches.length > 1 ? 's' : ''}</Text>
                 {matches.map((match) => {
                   const otherName = getOtherUserName(match);
-                  const conv = getConversation(match);
-                  const lastMsg = conv[conv.length - 1];
-                  const unread = conv.filter(l => l.toUserId === (currentUser?.id || 'me') && !l.readAt).length;
-                  
+                  const conv      = getConversation(match);
+                  const lastMsg   = conv[conv.length - 1];
+                  const unread    = conv.filter(l => l.toUserId === (currentUser?.id || 'me') && !l.readAt).length;
                   return (
-                    <TouchableOpacity
+                    <EnvelopeCard
                       key={match.id}
-                      style={styles.convCard}
-                      onPress={() => { setSelectedMatch(match); setShowCompose(true); }}
-                    >
-                      <View style={styles.avatarContainer}>
-                        <Avatar name={otherName} size={55} />
-                        {unread > 0 && (
-                          <View style={styles.unreadBadge}>
-                            <Text style={styles.unreadText}>{unread}</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.convInfo}>
-                        <Text style={styles.convName}>{otherName}</Text>
-                        <Text style={styles.convMsg} numberOfLines={1}>
-                          {lastMsg ? lastMsg.content : '✨ Nouveau match! Envoyez la première lettre'}
-                        </Text>
-                      </View>
-                      <Text style={styles.convTime}>{lastMsg ? formatTime(lastMsg.createdAt) : 'Nouveau'}</Text>
-                    </TouchableOpacity>
+                      otherName={otherName}
+                      lastMsg={lastMsg}
+                      unread={unread}
+                      onOpen={() => { setSelectedMatch(match); setShowCompose(true); }}
+                      formatTime={formatTime}
+                    />
                   );
                 })}
               </ScrollView>
             )}
           </>
         );
-        
+
       case 'journal':
         return (
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -190,8 +554,23 @@ export default function LettersScreen() {
               <Text style={styles.addBtnEmoji}>✏️</Text>
               <Text style={styles.addBtnText}>Nouvelle entrée</Text>
             </TouchableOpacity>
-            
-            {journalEntries.length === 0 ? (
+
+            {duelEntries.length > 0 && (
+              <>
+                <Text style={styles.journalSectionTitle}>⚔️ Duels récents</Text>
+                {duelEntries.slice(0, 5).map(entry => (
+                  <View key={entry.id} style={[styles.journalCard, styles.duelJournalCard]}>
+                    <View style={styles.journalHeader}>
+                      <Text style={styles.journalMood}>🎮</Text>
+                      <Text style={styles.journalDate}>{new Date(entry.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</Text>
+                    </View>
+                    <Text style={styles.journalContent}>{entry.text}</Text>
+                  </View>
+                ))}
+              </>
+            )}
+
+            {journalEntries.length === 0 && duelEntries.length === 0 ? (
               <View style={styles.emptyJournal}>
                 <Text style={styles.emptyJournalEmoji}>📔</Text>
                 <Text style={styles.emptyJournalText}>Ton journal est vide</Text>
@@ -211,7 +590,7 @@ export default function LettersScreen() {
             )}
           </ScrollView>
         );
-        
+
       case 'souvenirs':
         return (
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -239,28 +618,29 @@ export default function LettersScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>💌 LETTRES</Text>
-        <Text style={styles.headerSubtitle}>Vos conversations et messages privés</Text>
+        <Text style={styles.headerKicker}>JEUTAIME</Text>
+        <Text style={styles.headerTitle}>Boîte aux lettres</Text>
+        <Text style={styles.headerSubtitle}>Correspondances privées</Text>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'lettres' && styles.tabActive]} 
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'lettres' && styles.tabActive]}
           onPress={() => setActiveTab('lettres')}
         >
           <Text style={[styles.tabText, activeTab === 'lettres' && styles.tabTextActive]}>📬 Lettres</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'journal' && styles.tabActive]} 
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'journal' && styles.tabActive]}
           onPress={() => setActiveTab('journal')}
         >
           <Text style={[styles.tabText, activeTab === 'journal' && styles.tabTextActive]}>📔 Journal</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'souvenirs' && styles.tabActive]} 
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'souvenirs' && styles.tabActive]}
           onPress={() => setActiveTab('souvenirs')}
         >
           <Text style={[styles.tabText, activeTab === 'souvenirs' && styles.tabTextActive]}>🎁 Souvenirs</Text>
@@ -293,14 +673,19 @@ export default function LettersScreen() {
 
           <ScrollView style={styles.messagesContainer}>
             {selectedMatch && getConversation(selectedMatch).map((letter) => {
-              const isOwn = letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
+              const isOwn    = letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
+              const otherName = getOtherUserName(selectedMatch);
+              const isNew    = !isOwn && !letter.readAt;
               return (
-                <View key={letter.id} style={[styles.letterRow, isOwn && styles.letterRowOwn]}>
-                  <View style={[styles.letterBubble, isOwn && styles.letterBubbleOwn]}>
-                    <Text style={[styles.letterText, isOwn && styles.letterTextOwn]}>{letter.content}</Text>
-                    <Text style={styles.letterTime}>{formatTime(letter.createdAt)}</Text>
-                  </View>
-                </View>
+                <LetterCard
+                  key={letter.id}
+                  letter={letter}
+                  isOwn={isOwn}
+                  isNew={isNew}
+                  otherName={otherName}
+                  formatTime={formatTime}
+                  onSeen={() => markLetterRead(letter.id)}
+                />
               );
             })}
             {selectedMatch && getConversation(selectedMatch).length === 0 && (
@@ -340,12 +725,12 @@ export default function LettersScreen() {
                 <Text style={styles.closeX}>✕</Text>
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.moodSelector}>
               <Text style={styles.moodLabel}>Comment te sens-tu?</Text>
               <View style={styles.moodsRow}>
                 {moods.map(mood => (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     key={mood}
                     style={[styles.moodBtn, journalMood === mood && styles.moodBtnActive]}
                     onPress={() => setJournalMood(mood)}
@@ -355,7 +740,7 @@ export default function LettersScreen() {
                 ))}
               </View>
             </View>
-            
+
             <TextInput
               style={styles.journalInput}
               placeholder="Titre de ton entrée..."
@@ -363,7 +748,7 @@ export default function LettersScreen() {
               value={journalTitle}
               onChangeText={setJournalTitle}
             />
-            
+
             <TextInput
               style={[styles.journalInput, styles.journalTextarea]}
               placeholder="Qu'as-tu envie de raconter aujourd'hui?"
@@ -373,7 +758,7 @@ export default function LettersScreen() {
               multiline
               numberOfLines={6}
             />
-            
+
             <TouchableOpacity style={styles.saveJournalBtn} onPress={handleAddJournal}>
               <Text style={styles.saveJournalText}>💾 Sauvegarder</Text>
             </TouchableOpacity>
@@ -384,38 +769,30 @@ export default function LettersScreen() {
   );
 }
 
+// ─── Styles écran ─────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF8E7' },
-  header: { padding: 16, borderBottomWidth: 2, borderBottomColor: '#E8D5B7', alignItems: 'center' },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: '#3A2818' },
-  headerSubtitle: { fontSize: 13, color: '#8B6F47', marginTop: 4, fontStyle: 'italic' },
-  
-  // Tabs
-  tabsContainer: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8, marginHorizontal: 4 },
-  tabActive: { backgroundColor: '#8B6F47' },
-  tabText: { fontSize: 12, fontWeight: '600', color: '#8B6F47' },
+  container: { flex: 1, backgroundColor: '#F5F1E8' },
+  header: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#D8D2C4', backgroundColor: '#FFFFFF' },
+  headerKicker: { fontSize: 10, letterSpacing: 2.5, color: '#8B2E3C', fontWeight: '700', marginBottom: 3 },
+  headerTitle: { fontSize: 26, fontWeight: '800', color: '#2B2B2B' },
+  headerSubtitle: { fontSize: 12, color: '#6B6B6B', marginTop: 3, fontStyle: 'italic' },
+
+  tabsContainer: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#D8D2C4', backgroundColor: '#FFFFFF' },
+  tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10, marginHorizontal: 3 },
+  tabActive: { backgroundColor: '#8B2E3C' },
+  tabText: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
   tabTextActive: { color: '#FFF' },
-  
+
   scrollView: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 160 },
   listCount: { fontSize: 12, color: '#8B6F47', marginBottom: 12, textAlign: 'center' },
-  
-  convCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 14, padding: 14, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
-  avatarContainer: { position: 'relative' },
-  unreadBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#E91E63', width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  unreadText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
-  convInfo: { flex: 1, marginLeft: 14 },
-  convName: { fontSize: 17, fontWeight: '700', color: '#3A2818' },
-  convMsg: { fontSize: 14, color: '#8B6F47', marginTop: 4 },
-  convTime: { fontSize: 12, color: '#B8860B' },
-  
-  // Empty
+
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   emptyEmoji: { fontSize: 60, marginBottom: 16 },
   emptyText: { fontSize: 20, fontWeight: '700', color: '#3A2818' },
   emptySubtext: { fontSize: 14, color: '#8B6F47', marginTop: 8, textAlign: 'center', paddingHorizontal: 32 },
-  
+
   // Journal
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#4CAF50', borderRadius: 12, padding: 14, marginBottom: 16 },
   addBtnEmoji: { fontSize: 20, marginRight: 8 },
@@ -430,7 +807,7 @@ const styles = StyleSheet.create({
   journalDate: { fontSize: 12, color: '#8B6F47' },
   journalTitle: { fontSize: 16, fontWeight: '700', color: '#3A2818', marginBottom: 6 },
   journalContent: { fontSize: 14, color: '#5D4037', lineHeight: 20 },
-  
+
   // Souvenirs
   souvenirCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 12, padding: 16, marginBottom: 12 },
   souvenirEmoji: { fontSize: 40, marginRight: 14 },
@@ -438,35 +815,42 @@ const styles = StyleSheet.create({
   souvenirTitle: { fontSize: 16, fontWeight: '700', color: '#3A2818' },
   souvenirDesc: { fontSize: 13, color: '#5D4037', marginTop: 2 },
   souvenirDate: { fontSize: 11, color: '#8B6F47', marginTop: 4 },
-  
+
+  // Duel button
+  duelBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1A1B2E', borderRadius: 16, padding: 16, marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderWidth: 1, borderColor: 'rgba(180,124,255,0.3)' },
+  duelBtnEmoji: { fontSize: 26, marginRight: 12 },
+  duelBtnTextWrap: { flex: 1, minWidth: 0 },
+  duelBtnTitle: { color: '#F8F6FF', fontSize: 16, fontWeight: '800' },
+  duelBtnSubtitle: { color: 'rgba(255,255,255,0.55)', fontSize: 12, marginTop: 3 },
+  duelBtnArrow: { fontSize: 14, color: '#B47CFF', marginLeft: 8 },
+
+  journalSectionTitle: { fontSize: 13, fontWeight: '700', color: '#8B6F47', marginBottom: 8, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  duelJournalCard: { borderLeftColor: '#B47CFF' },
+
   // Magic button
   magicBtn: { position: 'absolute', bottom: 100, left: 16, right: 16, backgroundColor: '#DAA520', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center' },
   magicBtnEmoji: { fontSize: 24, marginRight: 12 },
   magicBtnText: { fontSize: 16, fontWeight: '700', color: '#FFF' },
   magicBtnSubtext: { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginLeft: 8, flex: 1 },
   magicArrow: { fontSize: 16, color: '#FFF' },
-  
-  // Modal conversation
-  modalContainer: { flex: 1, backgroundColor: '#FFF8E7' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
-  closeText: { fontSize: 16, color: '#8B6F47' },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#3A2818' },
-  messagesContainer: { flex: 1, padding: 16 },
-  letterRow: { marginBottom: 12, alignItems: 'flex-start' },
-  letterRowOwn: { alignItems: 'flex-end' },
-  letterBubble: { backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 18, maxWidth: '80%', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
-  letterBubbleOwn: { backgroundColor: '#E91E63' },
-  letterText: { fontSize: 15, color: '#3A2818', lineHeight: 22 },
-  letterTextOwn: { color: '#FFF' },
-  letterTime: { fontSize: 10, color: '#8B6F47', marginTop: 6, alignSelf: 'flex-end' },
+
+  // Modal conversation — Journal Moderne Romantique
+  modalContainer: { flex: 1, backgroundColor: '#F5F1E8' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#D8D2C4', backgroundColor: '#FFFFFF' },
+  closeText: { fontSize: 15, color: '#8B2E3C', fontWeight: '600' },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: '#2B2B2B', letterSpacing: 0.3 },
+  messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
+
+  // (letter cards → voir lcStyles)
+
   startConv: { alignItems: 'center', paddingVertical: 60 },
   startEmoji: { fontSize: 50, marginBottom: 12 },
-  startText: { fontSize: 16, color: '#8B6F47' },
-  inputContainer: { flexDirection: 'row', padding: 12, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#E8D5B7', gap: 8 },
-  input: { flex: 1, backgroundColor: '#FFF8E7', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, borderWidth: 1, borderColor: '#E8D5B7', maxHeight: 100 },
-  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E91E63', alignItems: 'center', justifyContent: 'center' },
+  startText: { fontSize: 16, color: '#6B6B6B' },
+  inputContainer: { flexDirection: 'row', padding: 12, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#D8D2C4', gap: 8 },
+  input: { flex: 1, backgroundColor: '#F5F1E8', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, borderWidth: 1, borderColor: '#D8D2C4', maxHeight: 100, color: '#2B2B2B' },
+  sendBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#8B2E3C', alignItems: 'center', justifyContent: 'center' },
   sendBtnText: { fontSize: 18, color: '#FFF' },
-  
+
   // Journal Modal
   journalModalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   journalModalBox: { backgroundColor: '#FFF8E7', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '80%' },

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300">
+  <defs>
+    <radialGradient id="frogTone" cx="50%" cy="42%" r="52%">
+      <stop offset="0%"   stop-color="#6DB840" stop-opacity="0.60"/>
+      <stop offset="58%"  stop-color="#4A9020" stop-opacity="0.42"/>
+      <stop offset="88%"  stop-color="#307010" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#205008" stop-opacity="0.00"/>
+    </radialGradient>
+  </defs>
+  <!-- Lavis vert -->
+  <rect width="240" height="300" fill="url(#frogTone)"/>
+  <!-- Yeux proéminents gauche -->
+  <circle cx="88"  cy="40" r="22" fill="#52A028" opacity="0.88"/>
+  <circle cx="88"  cy="40" r="14" fill="#141408" opacity="0.88"/>
+  <circle cx="93"  cy="34" r="5.5" fill="white"  opacity="0.72"/>
+  <!-- Yeux proéminents droite -->
+  <circle cx="152" cy="40" r="22" fill="#52A028" opacity="0.88"/>
+  <circle cx="152" cy="40" r="14" fill="#141408" opacity="0.88"/>
+  <circle cx="157" cy="34" r="5.5" fill="white"  opacity="0.72"/>
+  <!-- Narines -->
+  <ellipse cx="112" cy="86" rx="5.5" ry="4" fill="#3A8018" opacity="0.58"/>
+  <ellipse cx="128" cy="86" rx="5.5" ry="4" fill="#3A8018" opacity="0.58"/>
+  <!-- Sourire grenouille -->
+  <path d="M 80 108 Q 120 122 160 108" fill="none" stroke="#2A6810" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+</svg>

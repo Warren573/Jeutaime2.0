@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 
+
 interface NewsItem {
   id: string;
   type: 'news' | 'event' | 'tip' | 'update';
@@ -57,7 +58,7 @@ const mockNews: NewsItem[] = [
   {
     id: '4',
     type: 'update',
-    title: '🎮 Nouveaux mini-jeux disponibles!',
+    title: '🎯 Nouvelles activités disponibles!',
     content: 'Pong, Casse-Brique et le Jeu de Cartes sont maintenant disponibles! Gagnez des pièces en jouant.',
     emoji: '🎮',
     date: 'Il y a 3 jours',
@@ -93,6 +94,7 @@ const typeLabels = {
 export default function JournalScreen() {
   const insets = useSafeAreaInsets();
   const { currentUser, coins, points, getCurrentTitle } = useStore();
+  const screenBg = useStore(s => s.screenBackgrounds?.['journal'] ?? '#FFF8E7');
   const [refreshing, setRefreshing] = useState(false);
   const [likedItems, setLikedItems] = useState<string[]>([]);
   const title = getCurrentTitle();
@@ -111,7 +113,7 @@ export default function JournalScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>📰 Journal</Text>

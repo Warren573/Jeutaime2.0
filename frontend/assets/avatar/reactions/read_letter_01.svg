@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Enveloppe corps -->
+  <rect x="7" y="22" width="50" height="36" rx="4" fill="#FFF8E1" stroke="#C9A84C" stroke-width="2"/>
+  <!-- Rabat ouvert -->
+  <path d="M 7 22 L 32 10 L 57 22" fill="#FFF3CD" stroke="#C9A84C" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Papier lettre dépassant -->
+  <rect x="17" y="28" width="30" height="24" rx="2" fill="white" stroke="#E8D090" stroke-width="1.2"/>
+  <!-- Lignes texte -->
+  <line x1="21" y1="34" x2="43" y2="34" stroke="#D4B896" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="21" y1="40" x2="43" y2="40" stroke="#D4B896" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="21" y1="46" x2="36" y2="46" stroke="#D4B896" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Petit cœur sur la lettre -->
+  <path d="M 32 32
+           C 30 29 26 30 28 33
+           C 30 30 36 29 32 32 Z"
+        fill="#EF5350" opacity="0.75"/>
+</svg>

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300">
+  <!-- Oeil gauche -->
+  <g transform="translate(93,146)">
+    <ellipse cx="1" cy="-2" rx="22" ry="15" fill="#D49E88" opacity="0.1"/>
+    <path d="M -16 2 C -12 -9 4 -14 18 -3 C 14 7 -4 10 -16 2 Z" fill="#F8F5F0"/>
+    <circle cx="1" cy="-2" r="7.5" fill="#8B5E3C"/>
+    <circle cx="1" cy="-2" r="4.2" fill="#1A0C0A"/>
+    <ellipse cx="-2" cy="-5.5" rx="2.3" ry="1.6" fill="white" opacity="0.95"/>
+    <circle cx="3" cy="-0.5" r="0.9" fill="white" opacity="0.55"/>
+    <path d="M -16 2 C -12 -9 4 -14 18 -3" fill="none" stroke="#150C0F" stroke-width="6" stroke-linecap="round" opacity="0.09"/>
+    <path d="M -16 2 C -12 -9 4 -14 18 -3" fill="none" stroke="#150C0F" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M 18 -3 L 23 -9" stroke="#150C0F" stroke-width="1.3" stroke-linecap="round" opacity="0.88"/>
+    <path d="M 19 0 L 24 -5" stroke="#150C0F" stroke-width="1.0" stroke-linecap="round" opacity="0.65"/>
+    <path d="M 15 -6 L 19 -11" stroke="#150C0F" stroke-width="0.9" stroke-linecap="round" opacity="0.5"/>
+    <path d="M -16 2 C -8 9 8 10 18 -3" fill="none" stroke="#2A1820" stroke-width="0.55" stroke-linecap="round" opacity="0.28"/>
+    <ellipse cx="-14" cy="1" rx="3" ry="2" fill="#D4897A" opacity="0.42"/>
+  </g>
+  <!-- Oeil droit (miroir) -->
+  <g transform="translate(147,146) scale(-1,1)">
+    <ellipse cx="1" cy="-2" rx="22" ry="15" fill="#D49E88" opacity="0.1"/>
+    <path d="M -16 2 C -12 -9 4 -14 18 -3 C 14 7 -4 10 -16 2 Z" fill="#F8F5F0"/>
+    <circle cx="1" cy="-2" r="7.5" fill="#8B5E3C"/>
+    <circle cx="1" cy="-2" r="4.2" fill="#1A0C0A"/>
+    <ellipse cx="-2" cy="-5.5" rx="2.3" ry="1.6" fill="white" opacity="0.95"/>
+    <circle cx="3" cy="-0.5" r="0.9" fill="white" opacity="0.55"/>
+    <path d="M -16 2 C -12 -9 4 -14 18 -3" fill="none" stroke="#150C0F" stroke-width="6" stroke-linecap="round" opacity="0.09"/>
+    <path d="M -16 2 C -12 -9 4 -14 18 -3" fill="none" stroke="#150C0F" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M 18 -3 L 23 -9" stroke="#150C0F" stroke-width="1.3" stroke-linecap="round" opacity="0.88"/>
+    <path d="M 19 0 L 24 -5" stroke="#150C0F" stroke-width="1.0" stroke-linecap="round" opacity="0.65"/>
+    <path d="M 15 -6 L 19 -11" stroke="#150C0F" stroke-width="0.9" stroke-linecap="round" opacity="0.5"/>
+    <path d="M -16 2 C -8 9 8 10 18 -3" fill="none" stroke="#2A1820" stroke-width="0.55" stroke-linecap="round" opacity="0.28"/>
+    <ellipse cx="-14" cy="1" rx="3" ry="2" fill="#D4897A" opacity="0.42"/>
+  </g>
+</svg>

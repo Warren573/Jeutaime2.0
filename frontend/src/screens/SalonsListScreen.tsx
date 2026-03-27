@@ -11,12 +11,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { salonsData } from '../data/salonsData';
+import { useStore } from '../store/useStore';
 
 const { width } = Dimensions.get('window');
 
 export default function SalonsListScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const screenBg = useStore(s => s.screenBackgrounds?.['salons'] ?? '#FFF8E7');
 
   const handleSalonPress = (salon: typeof salonsData[0]) => {
     // Tous les salons utilisent maintenant la même route dynamique
@@ -24,9 +26,12 @@ export default function SalonsListScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
+          <Text style={styles.backText}>← Retour</Text>
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>👥 Salons</Text>
         <Text style={styles.headerSubtitle}>Rejoignez une discussion</Text>
       </View>
@@ -56,11 +61,6 @@ export default function SalonsListScreen() {
                   <Text style={styles.salonName}>{salon.name}</Text>
                   <Text style={styles.salonDesc}>{salon.desc}</Text>
                   <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                    {salon.type === 'cafe_paris' && (
-                      <View style={styles.specialBadge}>
-                        <Text style={styles.specialBadgeText}>⭐ Spécial</Text>
-                      </View>
-                    )}
                     <View style={[styles.specialBadge, { backgroundColor: salon.layout === 'vertical' ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)' }]}>
                       <Text style={[styles.specialBadgeText, { color: '#FFF' }]}>
                         {salon.layout === 'vertical' ? '💬 Conversation' : '👥 Groupe'}
@@ -96,6 +96,15 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E8D5B7',
+  },
+  backButton: {
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    fontSize: 15,
+    color: '#667eea',
+    fontWeight: '600',
   },
   headerTitle: {
     fontSize: 28,
