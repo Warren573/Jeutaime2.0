@@ -12,6 +12,8 @@ import type { Match } from '../shared/types';
 import { AvatarRenderer } from '../avatar/components/AvatarRenderer';
 import { AvatarDefinition } from '../avatar/types/avatarTypes';
 import { MOCK_PROFILE_AVATARS, MOCK_AVATAR_DEFAULT } from '../avatar/data/mockAvatars';
+import { Avatar } from '../avatar/png/Avatar';
+import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -282,7 +284,7 @@ function FrontPage({ profile }: { profile: DiscoveryProfile }) {
       <View style={np.frontRow}>
         {/* Portrait encadré — avatar SVG */}
         <View style={np.portraitWrapper}>
-          <AvatarRenderer avatar={profile.avatarDef ?? MOCK_AVATAR_DEFAULT} size={96} />
+          <Avatar size={96} {...DEFAULT_AVATAR} />
           <Text style={np.portraitCaption}>Portrait</Text>
         </View>
 

@@ -9,6 +9,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { Avatar } from '../avatar/png/Avatar';
+import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 
 export default function DuelCreateScreen() {
   const router  = useRouter();
@@ -26,15 +28,6 @@ export default function DuelCreateScreen() {
       pathname: '/duel/play',
       params: { opponentId: contact.id, opponentName: contact.name },
     });
-  };
-
-  const getInitial = (name: string) => name.charAt(0).toUpperCase();
-
-  const getAvatarColor = (name: string) => {
-    const palette = ['#B47CFF', '#FF7CA0', '#7CB9FF', '#7CFFB2', '#FFD47C'];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    return palette[Math.abs(hash) % palette.length];
   };
 
   return (
@@ -61,9 +54,7 @@ export default function DuelCreateScreen() {
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <Pressable style={styles.row} onPress={() => handleSelect(item)}>
-              <View style={[styles.avatar, { backgroundColor: getAvatarColor(item.name) }]}>
-                <Text style={styles.avatarText}>{getInitial(item.name)}</Text>
-              </View>
+              <Avatar size={50} {...DEFAULT_AVATAR} />
               <Text style={styles.name}>{item.name}</Text>
               <View style={styles.challengeBtn}>
                 <Text style={styles.challengeText}>Défier</Text>

@@ -13,6 +13,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { Avatar } from '../avatar/png/Avatar';
+import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 
 const J = {
   bgMain:          '#F5F1E8',
@@ -26,19 +28,6 @@ const J = {
   borderSoft:      '#D8D2C4',
 };
 
-// Petit avatar initiales, coins arrondis (style journal)
-const Avatar = ({ name, size = 42 }: { name: string; size?: number }) => {
-  const palette = ['#C9A96E', '#8B2E3C', '#6B8B5E', '#4A6B8B', '#8B6B4A'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  const bg       = palette[Math.abs(hash) % palette.length];
-  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  return (
-    <View style={{ width: size, height: size, borderRadius: 10, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: '#FFF', fontWeight: '700', fontSize: size * 0.36 }}>{initials}</Text>
-    </View>
-  );
-};
 
 export default function HomeScreen() {
   const router   = useRouter();
@@ -213,7 +202,7 @@ export default function HomeScreen() {
                   onPress={() => router.push('/(tabs)/letters' as any)}
                   activeOpacity={0.8}
                 >
-                  <Avatar name={otherId} size={40} />
+                  <Avatar size={40} {...DEFAULT_AVATAR} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.mailName}>{otherId}</Text>
                     <Text style={styles.mailSub}>Correspondance privée</Text>

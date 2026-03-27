@@ -17,31 +17,13 @@ import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
+import { Avatar } from '../avatar/png/Avatar';
+import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 32;
 const MINI_FLAP_H = 54;
 const LARGE_FLAP_H = 92;
-
-// ─── Avatar ──────────────────────────────────────────────────────────────────
-
-const Avatar = ({ name, size = 55 }: { name: string; size?: number }) => {
-  const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  const bgColor = colors[Math.abs(hash) % colors.length];
-  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  return (
-    <View style={[avatarStyles.container, { width: size, height: size, borderRadius: size / 2, backgroundColor: bgColor }]}>
-      <Text style={[avatarStyles.text, { fontSize: size * 0.35 }]}>{initials}</Text>
-    </View>
-  );
-};
-
-const avatarStyles = StyleSheet.create({
-  container: { alignItems: 'center', justifyContent: 'center' },
-  text: { color: '#FFF', fontWeight: '700' },
-});
 
 // ─── EnvelopeCard ─────────────────────────────────────────────────────────────
 
@@ -96,7 +78,7 @@ const EnvelopeCard = ({ otherName, lastMsg, unread, onOpen, formatTime }: Envelo
         <View style={envStyles.divider} />
         {/* Infos */}
         <View style={envStyles.infoRow}>
-          <Avatar name={otherName} size={42} />
+          <Avatar size={42} {...DEFAULT_AVATAR} />
           <View style={envStyles.texts}>
             <View style={envStyles.nameRow}>
               <Text style={envStyles.name}>{otherName}</Text>
@@ -122,7 +104,7 @@ const EnvelopeCard = ({ otherName, lastMsg, unread, onOpen, formatTime }: Envelo
             {/* Corps révélé sous le rabat */}
             <View style={envStyles.largeBody}>
               <View style={envStyles.largeContent}>
-                <Avatar name={otherName} size={68} />
+                <Avatar size={68} {...DEFAULT_AVATAR} />
                 <Text style={envStyles.largeName}>{otherName}</Text>
                 <Text style={envStyles.largePreview} numberOfLines={3}>
                   {lastMsg ? lastMsg.content : '✨ Commencez la conversation!'}

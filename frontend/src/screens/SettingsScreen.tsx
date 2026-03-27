@@ -14,6 +14,8 @@ import { useStore } from '../store/useStore';
 import { titles, badges } from '../data/gameData';
 import { AvatarRenderer } from '../avatar/components/AvatarRenderer';
 import { MOCK_AVATAR_DEFAULT } from '../avatar/data/mockAvatars';
+import { Avatar } from '../avatar/png/Avatar';
+import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -66,10 +68,7 @@ export default function SettingsScreen() {
 
         {/* ── Profil card ────────────────────────────────────────────────────── */}
         <TouchableOpacity style={styles.profileCard} onPress={() => setShowEditProfile(true)}>
-          <AvatarRenderer
-            avatar={avatarDef}
-            size={92}
-          />
+          <Avatar size={92} {...DEFAULT_AVATAR} />
 
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{currentUser?.name || 'Joueur'}</Text>
@@ -178,7 +177,7 @@ export default function SettingsScreen() {
                   router.push('/avatar-builder');
                 }}
               >
-                <AvatarRenderer avatar={avatarDef} size={110} />
+                <Avatar size={110} {...DEFAULT_AVATAR} />
                 <Text style={styles.changeAvatarText}>🎨 Modifier mon avatar</Text>
               </TouchableOpacity>
 

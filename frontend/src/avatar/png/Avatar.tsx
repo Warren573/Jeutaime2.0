@@ -15,8 +15,8 @@
  *   7. hair           Cheveux
  *   8. earrings       Boucles d'oreilles
  *   9. accessory      Lunettes, chapeau, bijoux…
- *  10. effect         Effets visuels (glow, sparkles, halo…)
- *  11. transformation Transformations (fantôme, pirate, grenouille…)
+ *  10. effects[]      Effets visuels (glow, sparkles, halo…) — PLUSIEURS simultanés
+ *  11. transformation Transformation (fantôme, pirate, grenouille…) — une seule
  *
  * ─── UTILISATION ─────────────────────────────────────────────────────────────
  *   <Avatar
@@ -28,13 +28,14 @@
  *     hair="hair_01"
  *     earrings="earrings_01"
  *     accessory="glasses_01"
- *     effect="glow_01"
+ *     effects={["glow_01", "sparkles_01"]}
  *     transformation={null}
  *   />
  *
  * ─── NOTES ───────────────────────────────────────────────────────────────────
  * - `body` et `head` ont des valeurs par défaut ('body_default' / 'head_default').
  * - Toutes les autres couches sont optionnelles. null ou absent = couche invisible.
+ * - `effects` est un tableau : plusieurs effets peuvent coexister.
  * - Un ID non enregistré dans le registre = couche silencieusement ignorée.
  * - Pour ajouter un asset : voir registry.ts.
  */
@@ -43,9 +44,9 @@ import React, { memo } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { getAsset } from './registry';
 
-// ─── Ordre de rendu ───────────────────────────────────────────────────────────
+// ─── Couches de base (ordre fixe) ────────────────────────────────────────────
 
-const LAYER_ORDER = [
+const BASE_LAYERS = [
   'body',
   'clothes',
   'head',
@@ -55,11 +56,9 @@ const LAYER_ORDER = [
   'hair',
   'earrings',
   'accessory',
-  'effect',
-  'transformation',
 ] as const;
 
-type LayerKey = (typeof LAYER_ORDER)[number];
+type BaseLayer = (typeof BASE_LAYERS)[number];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -88,8 +87,13 @@ export interface AvatarProps {
   earrings?: string | null;
   /** Accessoire (lunettes, chapeau…). */
   accessory?: string | null;
-  /** Effet visuel temporaire (glow, sparkles, halo…). */
-  effect?: string | null;
+
+  /**
+   * Effets visuels simultanés (glow, sparkles, halo…).
+   * Tableau vide = aucun effet. Plusieurs effets coexistent par empilement.
+   */
+  effects?: string[];
+
   /** Transformation (fantôme, pirate, grenouille…). null = aucune. */
   transformation?: string | null;
 }
@@ -107,41 +111,59 @@ export const Avatar = memo(function Avatar({
   hair,
   earrings,
   accessory,
-  effect,
+  effects        = [],
   transformation,
 }: AvatarProps) {
 
-  // Map slot → ID pour itération dans l'ordre garanti
-  const layers: Record<LayerKey, string | null | undefined> = {
-    body,
-    clothes,
-    head,
-    nose,
-    mouth,
-    pilosite,
-    hair,
-    earrings,
-    accessory,
-    effect,
-    transformation,
+  const baseLayers: Record<BaseLayer, string | null | undefined> = {
+    body, clothes, head, nose, mouth, pilosite, hair, earrings, accessory,
   };
+
+  const transformationSource = getAsset(transformation);
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
-      {LAYER_ORDER.map(slot => {
-        const source = getAsset(layers[slot]);
-        if (!source) return null;               // couche absente ou non enregistrée
 
+      {/* ① Couches de base (1–9) ─────────────────────────────────────────── */}
+      {BASE_LAYERS.map(slot => {
+        const source = getAsset(baseLayers[slot]);
+        if (!source) return null;
         return (
           <Image
             key={slot}
             source={source}
             style={styles.layer}
             resizeMode="contain"
-            fadeDuration={0}                    // pas de fondu parasitaire au chargement
+            fadeDuration={0}
           />
         );
       })}
+
+      {/* ② Effets simultanés (10) ─────────────────────────────────────────── */}
+      {effects.map(effectId => {
+        const source = getAsset(effectId);
+        if (!source) return null;
+        return (
+          <Image
+            key={effectId}
+            source={source}
+            style={styles.layer}
+            resizeMode="contain"
+            fadeDuration={0}
+          />
+        );
+      })}
+
+      {/* ③ Transformation (11) ────────────────────────────────────────────── */}
+      {transformationSource && (
+        <Image
+          source={transformationSource}
+          style={styles.layer}
+          resizeMode="contain"
+          fadeDuration={0}
+        />
+      )}
+
     </View>
   );
 });

@@ -15,6 +15,8 @@ import { useStore } from '../store/useStore';
 import { AvatarRenderer } from '../avatar/components/AvatarRenderer';
 import { AvatarDefinition } from '../avatar/types/avatarTypes';
 import { MOCK_AVATAR_BUN, MOCK_AVATAR_DEFAULT } from '../avatar/data/mockAvatars';
+import { Avatar } from '../avatar/png/Avatar';
+import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 
 const { width } = Dimensions.get('window');
 
@@ -131,11 +133,8 @@ function ProfileHeader({ profile }: { profile: ProfileData }) {
   return (
     <View style={styles.headerCard}>
       <View style={styles.headerRow}>
-        {/* LEFT: avatar SVG */}
-        <AvatarRenderer
-          avatar={profile.avatarDef ?? MOCK_AVATAR_DEFAULT}
-          size={88}
-        />
+        {/* LEFT: avatar */}
+        <Avatar size={88} {...DEFAULT_AVATAR} />
 
         {/* RIGHT: identity block */}
         <View style={styles.headerInfo}>

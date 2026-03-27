@@ -9,6 +9,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { Avatar } from '../avatar/png/Avatar';
+import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 
 interface WeeklyWinner {
   id: string;
@@ -90,9 +92,7 @@ export default function WeeklyProfileScreen() {
           <Text style={styles.crownText}>GAGNANT{profile.gender === 'F' ? 'E' : ''}</Text>
         </View>
       )}
-      <View style={styles.avatarLarge}>
-        <Text style={styles.avatarEmoji}>{profile.emoji}</Text>
-      </View>
+      <Avatar size={80} {...DEFAULT_AVATAR} />
       <Text style={styles.profileName}>{profile.name}, {profile.age}</Text>
       <Text style={styles.profileCity}>📍 {profile.city}</Text>
       <View style={styles.bioBox}>
