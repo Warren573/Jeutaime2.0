@@ -75,7 +75,7 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>Lettres</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>🎮</Text>
+            <Text style={styles.statEmoji}>🎯</Text>
             <Text style={styles.statValue}>{currentUser?.stats?.gamesWon || 0}</Text>
             <Text style={styles.statLabel}>Victoires</Text>
           </View>
@@ -118,10 +118,10 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.activityCard}>
-            <Text style={styles.activityEmoji}>🎮</Text>
+            <Text style={styles.activityEmoji}>🎯</Text>
             <View style={styles.activityContent}>
               <Text style={styles.activityTitle}>Activités disponibles</Text>
-              <Text style={styles.activityDesc}>Morpion, Memory, Whack-a-Mole</Text>
+              <Text style={styles.activityDesc}>Jeu de Cartes, Histoire, Bouteille à la Mer...</Text>
             </View>
           </View>
         </View>
