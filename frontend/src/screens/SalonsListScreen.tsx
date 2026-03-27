@@ -21,6 +21,7 @@ export default function SalonsListScreen() {
   const screenBg = useStore(s => s.screenBackgrounds?.['salons'] ?? '#FFF8E7');
 
   const handleSalonPress = (salon: typeof salonsData[0]) => {
+    // Tous les salons utilisent maintenant la même route dynamique
     router.push(`/salon/${salon.id}`);
   };
 

@@ -10,7 +10,8 @@
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jeutaime.app"
+      "bundleIdentifier": "com.jeutaime.app",
+      "requiresFullScreen": false
     },
     "android": {
       "adaptiveIcon": {
