@@ -49,7 +49,7 @@ export default function SettingsScreen() {
 
   const menuItems = [
     { icon: '✏️', label: 'Modifier mon profil',        action: () => setShowEditProfile(true)  },
-    { icon: '🎨', label: 'Personnaliser mon avatar',   route:  '/avatar-builder'               },
+    { icon: '🎨', label: 'Personnaliser mon avatar',   action: () => { console.log('CLICK AVATAR'); router.push({ pathname: '/avatar-builder' }); } },
     { icon: '🖼️', label: 'Arrière-plans des écrans',   route:  '/background-picker'            },
     { icon: '🎯', label: 'Activités',                  route:  '/games'                        },
     { icon: '🐾', label: 'Mon Animal',                 route:  '/pet',  badge: pet ? pet.petEmoji : null },
@@ -174,7 +174,8 @@ export default function SettingsScreen() {
                 style={styles.avatarEditSection}
                 onPress={() => {
                   setShowEditProfile(false);
-                  router.push('/avatar-builder');
+                  console.log('CLICK AVATAR (modal)');
+                  router.push({ pathname: '/avatar-builder' });
                 }}
               >
                 <Avatar size={110} {...DEFAULT_AVATAR} />
