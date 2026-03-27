@@ -31,7 +31,7 @@ export default function HomeScreen() {
   const title = getCurrentTitle();
 
   const quickActions = [
-    { emoji: '🎮', label: 'Jeux', route: '/games' },
+    { emoji: '🎯', label: 'Activités', route: '/games' },
     { emoji: '🐾', label: 'Animal', route: '/pet' },
     { emoji: '🌟', label: 'Badges', route: '/badges' },
   ];
