@@ -46,35 +46,66 @@ const assets: AssetMap = {
   'head_default':   require('../../../assets/avatar/base/head.png'),
 
   // ── Cheveux ────────────────────────────────────────────────────────────────
-  'hair_01':        require('../../../assets/avatar/hair/hair_01.png'),   // Courts
-  'hair_02':        require('../../../assets/avatar/hair/hair_02.png'),   // Mi-longs
-  'hair_03':        require('../../../assets/avatar/hair/hair_03.png'),   // Longs
-  'hair_04':        require('../../../assets/avatar/hair/hair_04.png'),   // Bouclés
-  'hair_05':        require('../../../assets/avatar/hair/hair_05.png'),   // Chignon
-  'hair_06':        require('../../../assets/avatar/hair/hair_06.png'),   // Tressés
+  'hair_01':        require('../../../assets/avatar/hair/hair_01.png'),
+  'hair_02':        require('../../../assets/avatar/hair/hair_02.png'),
+  'hair_03':        require('../../../assets/avatar/hair/hair_03.png'),
+  'hair_04':        require('../../../assets/avatar/hair/hair_04.png'),
+  'hair_05':        require('../../../assets/avatar/hair/hair_05.png'),
+  'hair_06':        require('../../../assets/avatar/hair/hair_06.png'),
+  'hair_07':        require('../../../assets/avatar/hair/hair_07.png'),
+  'hair_08':        require('../../../assets/avatar/hair/hair_08.png'),
+  'hair_09':        require('../../../assets/avatar/hair/hair_09.png'),
+  'hair_10':        require('../../../assets/avatar/hair/hair_10.png'),
+  'hair_11':        require('../../../assets/avatar/hair/hair_11.png'),
+  'hair_12':        require('../../../assets/avatar/hair/hair_12.png'),
+  'hair_13':        require('../../../assets/avatar/hair/hair_13.png'),
+  'hair_14':        require('../../../assets/avatar/hair/hair_14.png'),
 
   // ── Nez ────────────────────────────────────────────────────────────────────
-  'nose_01':        require('../../../assets/avatar/nose/nose_01.png'),   // Délicat
-  'nose_02':        require('../../../assets/avatar/nose/nose_02.png'),   // Droit
-  'nose_03':        require('../../../assets/avatar/nose/nose_03.png'),   // Retroussé
-  'nose_04':        require('../../../assets/avatar/nose/nose_04.png'),   // Épaté
+  'nose_01':        require('../../../assets/avatar/nose/nose_01.png'),
+  'nose_02':        require('../../../assets/avatar/nose/nose_02.png'),
+  'nose_03':        require('../../../assets/avatar/nose/nose_03.png'),
+  'nose_04':        require('../../../assets/avatar/nose/nose_04.png'),
+  'nose_05':        require('../../../assets/avatar/nose/nose_05.png'),
+  'nose_06':        require('../../../assets/avatar/nose/nose_06.png'),
 
   // ── Bouche ─────────────────────────────────────────────────────────────────
-  'mouth_01':       require('../../../assets/avatar/mouth/mouth_01.png'), // Sourire
-  'mouth_02':       require('../../../assets/avatar/mouth/mouth_02.png'), // Neutre
-  'mouth_03':       require('../../../assets/avatar/mouth/mouth_03.png'), // Malicieux
-  'mouth_04':       require('../../../assets/avatar/mouth/mouth_04.png'), // Doux
+  'mouth_01':       require('../../../assets/avatar/mouth/mouth_01.png'),
+  'mouth_02':       require('../../../assets/avatar/mouth/mouth_02.png'),
+  'mouth_03':       require('../../../assets/avatar/mouth/mouth_03.png'),
+  'mouth_04':       require('../../../assets/avatar/mouth/mouth_04.png'),
+  'mouth_05':       require('../../../assets/avatar/mouth/mouth_05.png'),
+  'mouth_06':       require('../../../assets/avatar/mouth/mouth_06.png'),
+  'mouth_07':       require('../../../assets/avatar/mouth/mouth_07.png'),
 
   // ── Pilosité ───────────────────────────────────────────────────────────────
-  'beard_01':       require('../../../assets/avatar/pilosite/beard_01.png'),    // Barbe courte
-  'beard_02':       require('../../../assets/avatar/pilosite/beard_02.png'),    // Barbe longue
-  'mustache_01':    require('../../../assets/avatar/pilosite/mustache_01.png'), // Moustache
+  'beard_01':       require('../../../assets/avatar/pilosite/beard_01.png'),
+  'beard_02':       require('../../../assets/avatar/pilosite/beard_02.png'),
+  'beard_03':       require('../../../assets/avatar/pilosite/beard_03.png'),
+  'beard_04':       require('../../../assets/avatar/pilosite/beard_04.png'),
+  'mustache_01':    require('../../../assets/avatar/pilosite/mustache_01.png'),
 
   // ── Vêtements ──────────────────────────────────────────────────────────────
-  'clothes_01':     require('../../../assets/avatar/clothes/clothes_01.png'),   // Casual
-  'clothes_02':     require('../../../assets/avatar/clothes/clothes_02.png'),   // Élégant
-  'clothes_03':     require('../../../assets/avatar/clothes/clothes_03.png'),   // Sport
-  'clothes_04':     require('../../../assets/avatar/clothes/clothes_04.png'),   // Romantique
+  'clothes_01':     require('../../../assets/avatar/clothes/clothes_01.png'),
+  'clothes_02':     require('../../../assets/avatar/clothes/clothes_02.png'),
+  'clothes_03':     require('../../../assets/avatar/clothes/clothes_03.png'),
+  'clothes_04':     require('../../../assets/avatar/clothes/clothes_04.png'),
+  'clothes_05':     require('../../../assets/avatar/clothes/clothes_05.png'),
+  'clothes_06':     require('../../../assets/avatar/clothes/clothes_06.png'),
+  'clothes_07':     require('../../../assets/avatar/clothes/clothes_07.png'),
+  'clothes_08':     require('../../../assets/avatar/clothes/clothes_08.png'),
+  'clothes_09':     require('../../../assets/avatar/clothes/clothes_09.png'),
+  'clothes_10':     require('../../../assets/avatar/clothes/clothes_10.png'),
+  'clothes_11':     require('../../../assets/avatar/clothes/clothes_11.png'),
+  'clothes_12':     require('../../../assets/avatar/clothes/clothes_12.png'),
+  'clothes_13':     require('../../../assets/avatar/clothes/clothes_13.png'),
+  'clothes_14':     require('../../../assets/avatar/clothes/clothes_14.png'),
+  'clothes_15':     require('../../../assets/avatar/clothes/clothes_15.png'),
+  'clothes_16':     require('../../../assets/avatar/clothes/clothes_16.png'),
+  'clothes_17':     require('../../../assets/avatar/clothes/clothes_17.png'),
+  'clothes_18':     require('../../../assets/avatar/clothes/clothes_18.png'),
+  'clothes_19':     require('../../../assets/avatar/clothes/clothes_19.png'),
+  'clothes_20':     require('../../../assets/avatar/clothes/clothes_20.png'),
 
   // ── Boucles d'oreilles ─────────────────────────────────────────────────────
   'earrings_01':    require('../../../assets/avatar/earrings/earrings_01.png'), // Dorées
