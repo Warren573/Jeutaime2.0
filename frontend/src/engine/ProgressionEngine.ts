@@ -45,8 +45,8 @@ export const BADGES: Badge[] = [
   { id: 'archmage', name: 'Archimage', emoji: '🔮', description: 'Utiliser 50 pouvoirs', condition: 'powerUsed >= 50', rarity: 'silver' },
   
   // Jeux
-  { id: 'gamer', name: 'Joueur', emoji: '🎮', description: 'Gagner 5 mini-jeux', condition: 'gamesWon >= 5', rarity: 'bronze' },
-  { id: 'champion', name: 'Champion', emoji: '🏆', description: 'Gagner 50 mini-jeux', condition: 'gamesWon >= 50', rarity: 'gold' },
+  { id: 'gamer', name: 'Joueur', emoji: '🎮', description: 'Gagner 5 activités', condition: 'gamesWon >= 5', rarity: 'bronze' },
+  { id: 'champion', name: 'Champion', emoji: '🏆', description: 'Gagner 50 activités', condition: 'gamesWon >= 50', rarity: 'gold' },
   
   // Social
   { id: 'social', name: 'Social', emoji: '🗣️', description: 'Visiter tous les salons', condition: 'salonsVisited >= 7', rarity: 'silver' },

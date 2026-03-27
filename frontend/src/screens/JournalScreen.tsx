@@ -58,7 +58,7 @@ const mockNews: NewsItem[] = [
   {
     id: '4',
     type: 'update',
-    title: '🎮 Nouveaux mini-jeux disponibles!',
+    title: '🎯 Nouvelles activités disponibles!',
     content: 'Pong, Casse-Brique et le Jeu de Cartes sont maintenant disponibles! Gagnez des pièces en jouant.',
     emoji: '🎮',
     date: 'Il y a 3 jours',

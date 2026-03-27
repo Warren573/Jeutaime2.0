@@ -73,7 +73,7 @@ export default function HomeScreen() {
     matches.length > 0
       ? `${matches.length} correspondance${matches.length > 1 ? 's' : ''} active${matches.length > 1 ? 's' : ''} dans ta boîte.`
       : 'Aucune correspondance pour l\'instant — explorez les profils.',
-    'Mini-jeux disponibles : Morpion, Memory, Whack-a-Mole.',
+    'Activités disponibles : Jeu de Cartes, Histoire, Bouteille à la Mer.',
   ];
 
   return (
@@ -164,7 +164,7 @@ export default function HomeScreen() {
         {/* ── Actions rapides ───────────────────────────────────── */}
         <View style={styles.quickRow}>
           {[
-            { emoji: '🎮', label: 'Jeux',   route: '/games'   },
+            { emoji: '🎯', label: 'Activités', route: '/games'   },
             { emoji: '🐾', label: 'Animal', route: '/pet'     },
             { emoji: '🌟', label: 'Badges', route: '/badges'  },
           ].map(a => (
