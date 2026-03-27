@@ -43,32 +43,47 @@ const assets: AssetMap = {
   // 'body_default':   require('../../../assets/avatar/base/body.png'),
   // 'head_default':   require('../../../assets/avatar/base/head.png'),
 
-  // ── Vêtements ──────────────────────────────────────────────────────────────
-  // 'clothes_01':     require('../../../assets/avatar/clothes/clothes_01.png'),
-  // 'clothes_02':     require('../../../assets/avatar/clothes/clothes_02.png'),
+  // ── Cheveux ────────────────────────────────────────────────────────────────
+  // 'hair_01':        require('../../../assets/avatar/hair/hair_01.png'),   // Courts
+  // 'hair_02':        require('../../../assets/avatar/hair/hair_02.png'),   // Mi-longs
+  // 'hair_03':        require('../../../assets/avatar/hair/hair_03.png'),   // Longs
+  // 'hair_04':        require('../../../assets/avatar/hair/hair_04.png'),   // Bouclés
+  // 'hair_05':        require('../../../assets/avatar/hair/hair_05.png'),   // Chignon
+  // 'hair_06':        require('../../../assets/avatar/hair/hair_06.png'),   // Tressés
 
   // ── Nez ────────────────────────────────────────────────────────────────────
-  // 'nose_01':        require('../../../assets/avatar/nose/nose_01.png'),
-  // 'nose_02':        require('../../../assets/avatar/nose/nose_02.png'),
+  // 'nose_01':        require('../../../assets/avatar/nose/nose_01.png'),   // Délicat
+  // 'nose_02':        require('../../../assets/avatar/nose/nose_02.png'),   // Droit
+  // 'nose_03':        require('../../../assets/avatar/nose/nose_03.png'),   // Retroussé
+  // 'nose_04':        require('../../../assets/avatar/nose/nose_04.png'),   // Épaté
 
   // ── Bouche ─────────────────────────────────────────────────────────────────
-  // 'mouth_01':       require('../../../assets/avatar/mouth/mouth_01.png'),
-  // 'mouth_02':       require('../../../assets/avatar/mouth/mouth_02.png'),
+  // 'mouth_01':       require('../../../assets/avatar/mouth/mouth_01.png'), // Sourire
+  // 'mouth_02':       require('../../../assets/avatar/mouth/mouth_02.png'), // Neutre
+  // 'mouth_03':       require('../../../assets/avatar/mouth/mouth_03.png'), // Malicieux
+  // 'mouth_04':       require('../../../assets/avatar/mouth/mouth_04.png'), // Doux
 
   // ── Pilosité (barbe, moustache…) ───────────────────────────────────────────
-  // 'beard_01':       require('../../../assets/avatar/pilosite/beard_01.png'),
-  // 'mustache_01':    require('../../../assets/avatar/pilosite/mustache_01.png'),
+  // 'beard_01':       require('../../../assets/avatar/pilosite/beard_01.png'),    // Barbe courte
+  // 'beard_02':       require('../../../assets/avatar/pilosite/beard_02.png'),    // Barbe longue
+  // 'mustache_01':    require('../../../assets/avatar/pilosite/mustache_01.png'), // Moustache
 
-  // ── Cheveux ────────────────────────────────────────────────────────────────
-  // 'hair_01':        require('../../../assets/avatar/hair/hair_01.png'),
-  // 'hair_02':        require('../../../assets/avatar/hair/hair_02.png'),
+  // ── Vêtements ──────────────────────────────────────────────────────────────
+  // 'clothes_01':     require('../../../assets/avatar/clothes/clothes_01.png'),   // Casual
+  // 'clothes_02':     require('../../../assets/avatar/clothes/clothes_02.png'),   // Élégant
+  // 'clothes_03':     require('../../../assets/avatar/clothes/clothes_03.png'),   // Sport
+  // 'clothes_04':     require('../../../assets/avatar/clothes/clothes_04.png'),   // Romantique
 
   // ── Boucles d'oreilles ─────────────────────────────────────────────────────
-  // 'earrings_01':    require('../../../assets/avatar/earrings/earrings_01.png'),
+  // 'earrings_01':    require('../../../assets/avatar/earrings/earrings_01.png'), // Dorées
+  // 'earrings_02':    require('../../../assets/avatar/earrings/earrings_02.png'), // Argentées
+  // 'earrings_03':    require('../../../assets/avatar/earrings/earrings_03.png'), // Perles
 
   // ── Accessoires ────────────────────────────────────────────────────────────
-  // 'glasses_01':     require('../../../assets/avatar/accessories/glasses_01.png'),
-  // 'hat_01':         require('../../../assets/avatar/accessories/hat_01.png'),
+  // 'glasses_01':     require('../../../assets/avatar/accessories/glasses_01.png'), // Lunettes
+  // 'glasses_02':     require('../../../assets/avatar/accessories/glasses_02.png'), // Lunettes soleil
+  // 'hat_01':         require('../../../assets/avatar/accessories/hat_01.png'),     // Chapeau
+  // 'crown_01':       require('../../../assets/avatar/accessories/crown_01.png'),   // Couronne
 
   // ── Effets ─────────────────────────────────────────────────────────────────
   // 'glow_01':        require('../../../assets/avatar/effects/glow_01.png'),

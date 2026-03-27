@@ -21,6 +21,8 @@ import type {
 } from '../shared/types';
 
 import type { AvatarDefinition } from '../avatar/types/avatarTypes';
+import type { AvatarConfig as PngAvatarConfig } from '../avatar/png/defaults';
+import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import * as EconomyEngine from '../engine/EconomyEngine';
 import * as ProgressionEngine from '../engine/ProgressionEngine';
 import * as PetEngine from '../engine/PetEngine';
@@ -132,6 +134,10 @@ interface StoreState {
   // ===== Backgrounds =====
   screenBackgrounds: Record<string, string>;
   setScreenBackground: (screenId: string, color: string) => void;
+
+  // ===== Avatar PNG =====
+  avatarPngConfig: PngAvatarConfig;
+  updateAvatarPngConfig: (config: PngAvatarConfig) => void;
 }
 
 // ==================== STORE ====================
@@ -194,6 +200,7 @@ export const useStore = create<StoreState>()(
       messagesBySalon: {},
       screenBackgrounds: {},
       duelEntries: [],
+      avatarPngConfig: DEFAULT_AVATAR,
 
       stats: {
         matchesCount: 2,
@@ -465,6 +472,8 @@ export const useStore = create<StoreState>()(
           screenBackgrounds: { ...state.screenBackgrounds, [screenId]: color },
         }));
       },
+
+      updateAvatarPngConfig: (config) => set({ avatarPngConfig: config }),
     }),
     {
       name: 'jeutaime-storage',
@@ -482,6 +491,7 @@ export const useStore = create<StoreState>()(
         currentUser: state.currentUser,
         screenBackgrounds: state.screenBackgrounds,
         duelEntries: state.duelEntries,
+        avatarPngConfig: state.avatarPngConfig,
       }),
     }
   )

@@ -12,7 +12,7 @@
  * ─── EXTENSIBILITÉ ───────────────────────────────────────────────────────────
  *   - Ajouter une catégorie : ajouter une entrée dans CATEGORIES[]
  *   - Ajouter des options : ajouter dans la liste `options` de la catégorie
- *   - Connecter au store : implémenter handleSave (commentaire TODO)
+ *   - Connecter bio → store / API : voir TODO dans handleSave
  *   - Effets / transformations : ajouter des AvatarSelectorRow dédiées
  */
 
@@ -31,7 +31,7 @@ import {
 import { router } from 'expo-router';
 
 import { Avatar } from '../avatar/png/Avatar';
-import { AvatarConfig, DEFAULT_AVATAR } from '../avatar/png/defaults';
+import { AvatarConfig } from '../avatar/png/defaults';
 import { AvatarSelectorRow } from '../avatar/png/editor/AvatarSelectorRow';
 import type {
   AvatarLayerKey,
@@ -137,11 +137,11 @@ const CATEGORIES: CategoryConfig[] = [
 // ─── Écran ────────────────────────────────────────────────────────────────────
 
 export function AvatarEditorScreen() {
-  const { currentUser } = useStore();
+  const { currentUser, avatarPngConfig, updateAvatarPngConfig } = useStore();
 
-  // Config avatar locale — à connecter au store/API lors de la sauvegarde
-  const [config, setConfig] = useState<AvatarConfig>(DEFAULT_AVATAR);
-  const [bio, setBio]       = useState<string>((currentUser as any)?.bio ?? '');
+  // Initialisation depuis le store (config sauvegardée ou DEFAULT_AVATAR)
+  const [config, setConfig] = useState<AvatarConfig>(() => avatarPngConfig);
+  const [bio, setBio]       = useState('');
   const [saved, setSaved]   = useState(false);
 
   const handleSelect = useCallback((layer: AvatarLayerKey, id: string | null) => {
@@ -150,13 +150,13 @@ export function AvatarEditorScreen() {
   }, []);
 
   const handleSave = useCallback(() => {
-    // TODO: persister config + bio → store.updateAvatarConfig(config) / API
+    updateAvatarPngConfig(config);
+    // TODO: persister bio → store / API
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  }, [config, bio]);
+  }, [config, updateAvatarPngConfig]);
 
   const displayName = currentUser?.name ?? 'Mon avatar';
-  const displayCity = (currentUser as any)?.city as string | undefined;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -211,9 +211,6 @@ export function AvatarEditorScreen() {
               {/* Légende dans le style polaroid */}
               <View style={styles.polaroidCaption}>
                 <Text style={styles.polaroidName}>{displayName}</Text>
-                {displayCity ? (
-                  <Text style={styles.polaroidCity}>📍 {displayCity}</Text>
-                ) : null}
               </View>
             </View>
           </View>
@@ -368,12 +365,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     fontStyle: 'italic',
   },
-  polaroidCity: {
-    fontSize: theme.fontSize.sm,
-    color: theme.journal.textSecondary,
-    letterSpacing: 0.3,
-  },
-
   // ── Divider ────────────────────────────────────────────────────────────────
 
   divider: {
