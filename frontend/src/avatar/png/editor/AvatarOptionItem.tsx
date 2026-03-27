@@ -11,7 +11,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import type { AvatarProps } from '../Avatar';
 import { Avatar } from '../Avatar';
-import { theme } from '../../../styles/theme';
+import { theme, journal } from '../../../styles/theme';
 
 // ─── Types exportés ───────────────────────────────────────────────────────────
 
@@ -91,17 +91,17 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     paddingVertical: 8,
     paddingHorizontal: 4,
-    backgroundColor: theme.journal.bgCard,
+    backgroundColor: journal.bgCard,
   },
   itemSelected: {
-    borderColor: theme.journal.accentPrimary,
+    borderColor: journal.accentPrimary,
     backgroundColor: '#FDF5F5',
   },
 
   preview: {
     width: 62,
     height: 62,
-    backgroundColor: theme.journal.bgSoft,
+    backgroundColor: journal.bgSoft,
     borderRadius: theme.borderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
@@ -114,12 +114,12 @@ const styles = StyleSheet.create({
   label: {
     marginTop: 6,
     fontSize: theme.fontSize.xs,
-    color: theme.journal.textSecondary,
+    color: journal.textSecondary,
     textAlign: 'center',
     fontWeight: theme.fontWeight.medium as '500',
   },
   labelSelected: {
-    color: theme.journal.accentPrimary,
+    color: journal.accentPrimary,
     fontWeight: theme.fontWeight.bold as '700',
   },
 });

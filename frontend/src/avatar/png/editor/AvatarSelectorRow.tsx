@@ -8,7 +8,7 @@
 import React, { memo, useRef } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 
-import { theme } from '../../../styles/theme';
+import { theme, journal } from '../../../styles/theme';
 import {
   AvatarLayerKey,
   AvatarOption,
@@ -87,13 +87,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.semibold as '600',
-    color: theme.journal.textMain,
+    color: journal.textMain,
     letterSpacing: 0.4,
   },
   titleUnderline: {
     flex: 1,
     height: 1,
-    backgroundColor: theme.journal.borderSoft,
+    backgroundColor: journal.borderSoft,
     marginLeft: 4,
   },
 

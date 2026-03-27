@@ -37,7 +37,7 @@ import type {
   AvatarLayerKey,
   AvatarOption,
 } from '../avatar/png/editor/AvatarOptionItem';
-import { theme } from '../styles/theme';
+import { theme, journal } from '../styles/theme';
 import { useStore } from '../store/useStore';
 
 // ─── Données des catégories ───────────────────────────────────────────────────
@@ -240,7 +240,7 @@ export function AvatarEditorScreen() {
               value={bio}
               onChangeText={setBio}
               placeholder="Écris quelque chose sur toi…"
-              placeholderTextColor={theme.journal.textSecondary}
+              placeholderTextColor={journal.textSecondary}
               maxLength={300}
               textAlignVertical="top"
               scrollEnabled={false}
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
 
   safe: {
     flex: 1,
-    backgroundColor: theme.journal.bgMain,
+    backgroundColor: journal.bgMain,
   },
   flex: { flex: 1 },
 
@@ -287,8 +287,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.journal.borderSoft,
-    backgroundColor: theme.journal.bgMain,
+    borderBottomColor: journal.borderSoft,
+    backgroundColor: journal.bgMain,
   },
   headerSide: {
     minWidth: 64,
@@ -299,25 +299,25 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.bold as '700',
-    color: theme.journal.textMain,
+    color: journal.textMain,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   headerSub: {
     fontSize: theme.fontSize.xs,
-    color: theme.journal.accentSecondary,
+    color: journal.accentSecondary,
     letterSpacing: 0.8,
     marginTop: 1,
   },
   backArrow: {
     fontSize: 22,
-    color: theme.journal.textMain,
+    color: journal.textMain,
     lineHeight: 26,
   },
   saveLabel: {
     fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.semibold as '600',
-    color: theme.journal.accentPrimary,
+    color: journal.accentPrimary,
     textAlign: 'right',
   },
   saveLabelDone: {
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   polaroidFrame: {
     width: 218,
     height: 218,
-    backgroundColor: theme.journal.bgSoft,
+    backgroundColor: journal.bgSoft,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   polaroidName: {
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.semibold as '600',
-    color: theme.journal.textMain,
+    color: journal.textMain,
     letterSpacing: 0.6,
     fontStyle: 'italic',
   },
@@ -377,13 +377,13 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.journal.accentSecondary,
+    backgroundColor: journal.accentSecondary,
     opacity: 0.5,
   },
   dividerLabel: {
     fontSize: theme.fontSize.xs,
     fontWeight: theme.fontWeight.semibold as '600',
-    color: theme.journal.accentSecondary,
+    color: journal.accentSecondary,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
@@ -395,18 +395,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   bioInput: {
-    backgroundColor: theme.journal.bgCard,
+    backgroundColor: journal.bgCard,
     borderRadius: theme.borderRadius.md,
     borderWidth: 1,
-    borderColor: theme.journal.borderSoft,
+    borderColor: journal.borderSoft,
     borderLeftWidth: 3,
-    borderLeftColor: theme.journal.accentSecondary,
+    borderLeftColor: journal.accentSecondary,
     paddingTop: 14,
     paddingBottom: 14,
     paddingHorizontal: 16,
     minHeight: 130,
     fontSize: theme.fontSize.md,
-    color: theme.journal.textMain,
+    color: journal.textMain,
     lineHeight: 24,
     fontStyle: 'italic',
   },
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: 6,
     fontSize: theme.fontSize.xs,
-    color: theme.journal.textSecondary,
+    color: journal.textSecondary,
     letterSpacing: 0.3,
   },
 });
