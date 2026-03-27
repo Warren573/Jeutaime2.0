@@ -120,7 +120,7 @@ export default function HomeScreen() {
           <View style={styles.activityCard}>
             <Text style={styles.activityEmoji}>🎮</Text>
             <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Mini-jeux disponibles</Text>
+              <Text style={styles.activityTitle}>Activités disponibles</Text>
               <Text style={styles.activityDesc}>Morpion, Memory, Whack-a-Mole</Text>
             </View>
           </View>

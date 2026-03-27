@@ -36,7 +36,7 @@ export const badges: Badge[] = [
   { id: 'story_master', name: 'Maître Conteur', emoji: '📚', description: 'Compléter 5 histoires', condition: 'storiesCompleted >= 5' },
   { id: 'generous', name: 'Généreux', emoji: '🎁', description: 'Envoyer 20 offrandes', condition: 'offeringsSent >= 20' },
   { id: 'wizard', name: 'Sorcier', emoji: '🧙', description: 'Utiliser 10 pouvoirs magiques', condition: 'magicUsed >= 10' },
-  { id: 'gamer', name: 'Joueur', emoji: '🎮', description: 'Gagner 5 mini-jeux', condition: 'gamesWon >= 5' },
+  { id: 'gamer', name: 'Joueur', emoji: '🎮', description: 'Gagner 5 activités', condition: 'gamesWon >= 5' },
   { id: 'social', name: 'Social', emoji: '🗣️', description: 'Visiter tous les salons', condition: 'salonsVisited >= 7' },
   { id: 'veteran', name: 'Vétéran', emoji: '🏆', description: '30 jours sur l\'app', condition: 'daysActive >= 30' },
 ];
@@ -182,7 +182,7 @@ export const pointsConfig = {
   dailyLogin: 10,
 };
 
-// Mini-jeux disponibles
+// Activités disponibles
 export interface MiniGame {
   id: string;
   name: string;
