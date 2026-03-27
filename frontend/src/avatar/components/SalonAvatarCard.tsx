@@ -36,7 +36,8 @@ import { offerRegistry, V1_OFFERS } from '../config/offerRegistry';
 import { transformationRegistry } from '../config/transformationRegistry';
 import { useAvatarActionQueue } from '../hooks/useAvatarActionQueue';
 import { useOfferAnimation } from '../hooks/useOfferAnimation';
-import { AvatarRenderer } from './AvatarRenderer';
+import { Avatar } from '../png/Avatar';
+import { DEFAULT_AVATAR } from '../png/defaults';
 import { AvatarOfferMotion } from './AvatarOfferMotion';
 import { OfferProjectileLayer } from './OfferProjectileLayer';
 import { OfferReactionLayer } from './OfferReactionLayer';
@@ -155,7 +156,7 @@ export function SalonAvatarCard({
         <AvatarOfferMotion
           animationKey={phase === 'reaction' && !mutesMagic ? config?.animationKey : null}
         >
-          <AvatarRenderer avatar={avatar} size={size} />
+          <Avatar size={size} {...DEFAULT_AVATAR} />
         </AvatarOfferMotion>
 
         {/* Transformation (pirate, ghost, statue, frog) — zIndex 100 */}
