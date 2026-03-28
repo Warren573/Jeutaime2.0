@@ -6,11 +6,13 @@ export interface SalonParticipant {
   gender: 'M' | 'F';
   age: number;
   online: boolean;
+  offerings?: { emoji: string; from: string; timestamp: number }[];
 }
 
 export interface Salon {
   id: string;
   icon: string;
+  emoji?: string;
   name: string;
   desc: string;
   type: 'standard' | 'metal';
