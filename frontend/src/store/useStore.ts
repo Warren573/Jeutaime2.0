@@ -55,6 +55,14 @@ interface CurrentUser {
   unlockedBadges: string[];
   gender?: GenderType;
   age?: number;
+  // Profile fields
+  bio?: string;
+  city?: string;
+  physicalDesc?: string;
+  questions?: { text: string; options: [string, string, string]; correctAnswer: 0 | 1 | 2 }[];
+  lookingFor?: string[];
+  interestedIn?: string[];
+  interests?: string[];
 }
 
 interface StoreState {

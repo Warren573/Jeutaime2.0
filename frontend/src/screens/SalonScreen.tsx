@@ -13,7 +13,6 @@ import {
   Modal,
   ScrollView,
   Animated,
-  Image,
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,31 +21,14 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { salonsData, SalonParticipant } from '../data/salonsData';
 import { useStore, Message } from '../store/useStore';
 import { allOfferings, allPowers } from '../data/offerings';
-
-// ============================================
-// AVATARS CARTOON - URLs d'images
-// ============================================
-const AVATAR_IMAGES: Record<string, string> = {
-  'zoe': 'https://api.dicebear.com/7.x/adventurer/png?seed=Zoe&backgroundColor=b6e3f4',
-  'valerie': 'https://api.dicebear.com/7.x/adventurer/png?seed=Valerie&backgroundColor=ffd5dc',
-  'kevin': 'https://api.dicebear.com/7.x/adventurer/png?seed=Kevin&backgroundColor=c0aede',
-  'marc': 'https://api.dicebear.com/7.x/adventurer/png?seed=Marc&backgroundColor=d1f4d1',
-  'sophie': 'https://api.dicebear.com/7.x/adventurer/png?seed=Sophie&backgroundColor=ffe8b8',
-  'lucas': 'https://api.dicebear.com/7.x/adventurer/png?seed=Lucas&backgroundColor=b8d4ff',
-  'emma': 'https://api.dicebear.com/7.x/adventurer/png?seed=Emma&backgroundColor=ffb8d4',
-  'julie': 'https://api.dicebear.com/7.x/adventurer/png?seed=Julie&backgroundColor=ffc8e8',
-  'thomas': 'https://api.dicebear.com/7.x/adventurer/png?seed=Thomas&backgroundColor=c8ffc8',
-  'clara': 'https://api.dicebear.com/7.x/adventurer/png?seed=Clara&backgroundColor=fff0b8',
-  'default': 'https://api.dicebear.com/7.x/adventurer/png?seed=Default&backgroundColor=e8e8e8',
-  'vous': 'https://api.dicebear.com/7.x/adventurer/png?seed=Me&backgroundColor=667eea',
-  'moi': 'https://api.dicebear.com/7.x/adventurer/png?seed=Me&backgroundColor=667eea',
-};
+import { Avatar } from '../avatar/png/Avatar';
+import { DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE } from '../avatar/png/defaults';
 
 // ============================================
 // COMPOSANT AVATAR AVEC ANIMATION BREATHING
 // ============================================
-interface AvatarProps {
-  participant: SalonParticipant & { isMe?: boolean };
+interface SalonAvatarProps {
+  participant: SalonParticipant & { isMe?: boolean; avatarConfig?: object };
   size: number;
   showBadges?: boolean;
   onPress?: () => void;
@@ -54,16 +36,16 @@ interface AvatarProps {
   showName?: boolean;
 }
 
-const AnimatedAvatar: React.FC<AvatarProps> = ({ 
-  participant, 
-  size, 
-  showBadges = true, 
-  onPress, 
+const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
+  participant,
+  size,
+  showBadges = true,
+  onPress,
   isSelected,
-  showName = true 
+  showName = true
 }) => {
   const breathAnim = useRef(new Animated.Value(1)).current;
-  
+
   useEffect(() => {
     const breathing = Animated.loop(
       Animated.sequence([
@@ -83,32 +65,22 @@ const AnimatedAvatar: React.FC<AvatarProps> = ({
     return () => breathing.stop();
   }, []);
 
-  const avatarKey = participant.name.toLowerCase().replace(/[^a-z]/g, '');
-  const imageUrl = AVATAR_IMAGES[avatarKey] || AVATAR_IMAGES['default'];
+  const avatarConfig = participant.avatarConfig
+    ?? (participant.gender === 'F' ? DEFAULT_AVATAR_FEMALE : DEFAULT_AVATAR_MALE);
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.avatarWrapper}>
       <Animated.View style={[
         styles.avatarContainer,
-        { 
-          width: size, 
-          height: size, 
+        {
+          width: size,
+          height: size,
           borderRadius: size / 2,
-          transform: [{ scale: breathAnim }] 
+          transform: [{ scale: breathAnim }]
         },
         isSelected && styles.avatarSelected,
       ]}>
-        <Image
-          source={{ uri: `${imageUrl}&size=${size * 2}` }}
-          style={[
-            styles.avatarImage, 
-            { 
-              width: size - 8, 
-              height: size - 8, 
-              borderRadius: (size - 8) / 2 
-            }
-          ]}
-        />
+        <Avatar size={size - 8} {...(avatarConfig as any)} />
         {participant.online && (
           <View style={[styles.onlineDot, { width: size * 0.2, height: size * 0.2, borderRadius: size * 0.1 }]} />
         )}
@@ -150,7 +122,7 @@ export default function SalonScreen() {
   console.log(`📱 Orientation: ${isLandscape ? 'PAYSAGE' : 'PORTRAIT'} (${width}x${height})`);
 
   const flatListRef = useRef<FlatList>(null);
-  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages } = useStore();
+  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig } = useStore();
 
   // Récupérer le salon
   const rawSalonId = params.id as string;
@@ -186,7 +158,8 @@ export default function SalonScreen() {
           online: true,
           offerings: [],
           isMe: true,
-        } as SalonParticipant & { isMe: boolean },
+          avatarConfig: avatarPngConfig,
+        } as SalonParticipant & { isMe: boolean; avatarConfig: object },
       ]);
     }
   }, [salon, currentUser]);

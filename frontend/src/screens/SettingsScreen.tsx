@@ -1,37 +1,23 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Modal,
-  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { titles, badges } from '../data/gameData';
-import { AvatarRenderer } from '../avatar/components/AvatarRenderer';
-import { MOCK_AVATAR_DEFAULT } from '../avatar/data/mockAvatars';
 import { Avatar } from '../avatar/png/Avatar';
-import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser, setCurrentUser, coins, points, getCurrentTitle, pet } = useStore();
+  const { currentUser, coins, points, getCurrentTitle, pet, avatarPngConfig } = useStore();
   const screenBg = useStore(s => s.screenBackgrounds?.['settings'] ?? '#FFF8E7');
   const title = getCurrentTitle();
-
-  // Avatar — utilise avatarDef du store si disponible, sinon défaut
-  const avatarDef = (currentUser as any)?.avatarDef ?? MOCK_AVATAR_DEFAULT;
-
-  // États pour l'édition de profil
-  const [showEditProfile, setShowEditProfile] = useState(false);
-  const [editName, setEditName]   = useState(currentUser?.name || 'Joueur');
-  const [editBio, setEditBio]     = useState('');
-  const [editCity, setEditCity]   = useState('Paris');
 
   // Calcul progression vers prochain titre
   const currentTitleData = titles.find(t => t.level === title.level);
@@ -40,15 +26,8 @@ export default function SettingsScreen() {
     ? Math.min(100, ((points - (currentTitleData?.minPoints || 0)) / ((nextTitle.minPoints - (currentTitleData?.minPoints || 0)) || 1)) * 100)
     : 100;
 
-  const handleSaveProfile = () => {
-    if (currentUser) {
-      setCurrentUser({ ...currentUser, name: editName });
-    }
-    setShowEditProfile(false);
-  };
-
   const menuItems = [
-    { icon: '✏️', label: 'Modifier mon profil',        action: () => setShowEditProfile(true)  },
+    { icon: '✏️', label: 'Modifier mon profil',        action: () => router.push({ pathname: '/edit-profile' }) },
     { icon: '🎨', label: 'Personnaliser mon avatar',   action: () => { console.log('CLICK AVATAR'); router.push({ pathname: '/avatar-builder' }); } },
     { icon: '🖼️', label: 'Arrière-plans des écrans',   route:  '/background-picker'            },
     { icon: '🎯', label: 'Activités',                  route:  '/games'                        },
@@ -67,12 +46,12 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
 
         {/* ── Profil card ────────────────────────────────────────────────────── */}
-        <TouchableOpacity style={styles.profileCard} onPress={() => setShowEditProfile(true)}>
-          <Avatar size={92} {...DEFAULT_AVATAR} />
+        <TouchableOpacity style={styles.profileCard} onPress={() => router.push({ pathname: '/edit-profile' })}>
+          <Avatar size={92} {...avatarPngConfig} />
 
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{currentUser?.name || 'Joueur'}</Text>
-            <Text style={styles.profileCity}>📍 {editCity}</Text>
+            <Text style={styles.profileCity}>📍 {(currentUser as any)?.city || 'Paris'}</Text>
 
             <View style={styles.titleBadge}>
               <Text style={styles.titleEmoji}>{title.emoji}</Text>
@@ -156,72 +135,6 @@ export default function SettingsScreen() {
 
         <Text style={styles.version}>JeuTaime v2.0.0 - Expo Edition</Text>
       </ScrollView>
-
-      {/* ── Modal Édition de Profil ────────────────────────────────────────── */}
-      <Modal visible={showEditProfile} animationType="slide" transparent>
-        <View style={styles.modalBg}>
-          <View style={styles.modalBox}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>✏️ Modifier mon profil</Text>
-              <TouchableOpacity onPress={() => setShowEditProfile(false)}>
-                <Text style={styles.closeX}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalScroll}>
-              {/* Avatar — tap → éditeur complet */}
-              <TouchableOpacity
-                style={styles.avatarEditSection}
-                onPress={() => {
-                  setShowEditProfile(false);
-                  console.log('CLICK AVATAR (modal)');
-                  router.push({ pathname: '/avatar-builder' });
-                }}
-              >
-                <Avatar size={110} {...DEFAULT_AVATAR} />
-                <Text style={styles.changeAvatarText}>🎨 Modifier mon avatar</Text>
-              </TouchableOpacity>
-
-              {/* Pseudo */}
-              <Text style={styles.inputLabel}>Pseudo</Text>
-              <TextInput
-                style={styles.input}
-                value={editName}
-                onChangeText={setEditName}
-                placeholder="Votre pseudo"
-                placeholderTextColor="#8B6F47"
-              />
-
-              {/* Ville */}
-              <Text style={styles.inputLabel}>Ville</Text>
-              <TextInput
-                style={styles.input}
-                value={editCity}
-                onChangeText={setEditCity}
-                placeholder="Votre ville"
-                placeholderTextColor="#8B6F47"
-              />
-
-              {/* Bio */}
-              <Text style={styles.inputLabel}>Bio (min 50 caractères)</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={editBio}
-                onChangeText={setEditBio}
-                placeholder="Parlez de vous..."
-                placeholderTextColor="#8B6F47"
-                multiline
-                numberOfLines={4}
-              />
-              <Text style={styles.charCount}>{editBio.length}/50 min</Text>
-
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveProfile}>
-                <Text style={styles.saveBtnText}>💾 Sauvegarder</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -271,20 +184,4 @@ const styles = StyleSheet.create({
   menuBadge:      { fontSize: 20, marginRight: 8 },
   menuArrow:      { fontSize: 24, color: '#C4A77D', fontWeight: '300' },
   version:        { textAlign: 'center', fontSize: 13, color: '#B8A082', marginTop: 12 },
-
-  modalBg:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalBox:       { backgroundColor: '#FFF8E7', borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '85%' },
-  modalHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
-  modalTitle:     { fontSize: 20, fontWeight: '700', color: '#3A2818' },
-  closeX:         { fontSize: 26, color: '#8B6F47' },
-  modalScroll:    { padding: 20 },
-
-  avatarEditSection:  { alignItems: 'center', marginBottom: 24 },
-  changeAvatarText:   { fontSize: 14, color: '#DAA520', fontWeight: '600', marginTop: 10 },
-  inputLabel:         { fontSize: 14, fontWeight: '600', color: '#5D4037', marginBottom: 8, marginTop: 12 },
-  input:              { backgroundColor: '#FFF', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, borderWidth: 1, borderColor: '#E8D5B7' },
-  textArea:           { height: 100, textAlignVertical: 'top' },
-  charCount:          { fontSize: 12, color: '#8B6F47', textAlign: 'right', marginTop: 4 },
-  saveBtn:            { backgroundColor: '#4CAF50', borderRadius: 16, padding: 18, alignItems: 'center', marginTop: 24, marginBottom: 30 },
-  saveBtnText:        { color: '#FFF', fontWeight: '700', fontSize: 17 },
 });
