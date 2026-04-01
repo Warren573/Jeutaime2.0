@@ -230,17 +230,17 @@ penguin: {
 iguana: {
   bgColor: '#050510',
   glowColor: 'rgba(80,200,120,0.25)',
-  palette: {
-    1: '#f4ebd0',
-    2: '#ad9b95',
-    3: '#65585a',
-    4: '#ddc9b6',
-    5: '#cab1a5',
-    6: '#906c6f',
-    7: '#5d3546',
-    8: '#493139',
-    9: '#322d46',
-  },
+palette: {
+  1: '#7ED957',  // vert clair
+  2: '#4CAF50',  // vert moyen
+  3: '#2E7D32',  // vert foncé
+  4: '#1B5E20',  // ombre profonde
+  5: '#A5D66F',  // highlights verts
+  6: '#FF8F3A',  // orange pics
+  7: '#CC6E2E',  // orange foncé
+  8: '#0D2B1E',  // contour sombre
+  9: '#081C15',  // quasi noir vert
+},
   grid: [
     [0,0,0,0,0,0,0,0,0,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     [0,0,0,0,0,0,0,0,7,9,0,0,9,0,0,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
