@@ -31,11 +31,12 @@ interface EnvelopeCardProps {
   otherName: string;
   lastMsg?: Letter;
   unread: number;
+  myTurn: boolean;
   onOpen: () => void;
   formatTime: (ts: number) => string;
 }
 
-const EnvelopeCard = ({ otherName, lastMsg, unread, onOpen, formatTime }: EnvelopeCardProps) => {
+const EnvelopeCard = ({ otherName, lastMsg, unread, myTurn, onOpen, formatTime }: EnvelopeCardProps) => {
   const [opening, setOpening] = useState(false);
   const flapY  = useRef(new Animated.Value(0)).current;
   const flapOp = useRef(new Animated.Value(1)).current;
@@ -89,10 +90,16 @@ const EnvelopeCard = ({ otherName, lastMsg, unread, onOpen, formatTime }: Envelo
               )}
             </View>
             <Text style={envStyles.preview} numberOfLines={1}>
-              {lastMsg ? lastMsg.content : '✨ Envoyez la première lettre!'}
+              {!lastMsg
+                ? '✨ Envoyez la première lettre!'
+                : myTurn
+                  ? (unread > 0 ? '📨 Nouvelle lettre reçue!' : '✍️ À vous d\'écrire...')
+                  : '⏳ En attente de réponse...'}
             </Text>
           </View>
-          <Text style={envStyles.time}>{lastMsg ? formatTime(lastMsg.createdAt) : 'Nouveau'}</Text>
+          <Text style={envStyles.time}>
+            {!lastMsg ? 'Nouveau' : myTurn ? (unread > 0 ? 'Non lu' : formatTime(lastMsg.createdAt)) : 'Envoyé'}
+          </Text>
         </View>
       </TouchableOpacity>
 
@@ -460,8 +467,18 @@ export default function LettersScreen() {
       .sort((a, b) => a.createdAt - b.createdAt);
   };
 
+  // Tour par tour : c'est mon tour si aucune lettre n'a été échangée,
+  // ou si la dernière lettre reçue vient de l'autre personne.
+  const isMyTurn = (match: Match): boolean => {
+    const myId = currentUser?.id || 'me';
+    const conv = getConversation(match);
+    if (conv.length === 0) return true;
+    return conv[conv.length - 1].fromUserId !== myId;
+  };
+
   const handleSend = () => {
     if (!newMessage.trim() || !selectedMatch) return;
+    if (!isMyTurn(selectedMatch)) return; // bloqué si pas mon tour
     const letter: Letter = {
       id: Date.now().toString(),
       threadId: selectedMatch.id,
@@ -537,6 +554,7 @@ export default function LettersScreen() {
                       otherName={otherName}
                       lastMsg={lastMsg}
                       unread={unread}
+                      myTurn={isMyTurn(match)}
                       onOpen={() => { setSelectedMatch(match); setShowCompose(true); }}
                       formatTime={formatTime}
                     />
@@ -670,6 +688,22 @@ export default function LettersScreen() {
             <Text style={styles.modalTitle}>{selectedMatch ? getOtherUserName(selectedMatch) : ''}</Text>
             <View style={{ width: 60 }} />
           </View>
+
+          {/* Bandeau de statut tour */}
+          {selectedMatch && (
+            <View style={[
+              styles.turnBanner,
+              isMyTurn(selectedMatch) ? styles.turnBannerMine : styles.turnBannerWait,
+            ]}>
+              <Text style={styles.turnBannerText}>
+                {getConversation(selectedMatch).length === 0
+                  ? '🪶  Écrivez la première lettre'
+                  : isMyTurn(selectedMatch)
+                    ? '📬  C\'est votre tour — répondez à la lettre reçue'
+                    : '⏳  Lettre envoyée — en attente de réponse'}
+              </Text>
+            </View>
+          )}
 
           <ScrollView style={styles.messagesContainer}>
             {selectedMatch && getConversation(selectedMatch).map((letter) => {
@@ -850,6 +884,12 @@ const styles = StyleSheet.create({
   input: { flex: 1, backgroundColor: '#F5F1E8', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, borderWidth: 1, borderColor: '#D8D2C4', maxHeight: 100, color: '#2B2B2B' },
   sendBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#8B2E3C', alignItems: 'center', justifyContent: 'center' },
   sendBtnText: { fontSize: 18, color: '#FFF' },
+
+  // Tour par tour
+  turnBanner: { paddingHorizontal: 16, paddingVertical: 9, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
+  turnBannerMine: { backgroundColor: '#E8F5E9' },
+  turnBannerWait: { backgroundColor: '#FFF8E1' },
+  turnBannerText: { fontSize: 13, fontWeight: '600', color: '#5D4037' },
 
   // Journal Modal
   journalModalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
