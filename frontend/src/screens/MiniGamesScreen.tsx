@@ -55,7 +55,7 @@ export default function MiniGamesScreen() {
             style={styles.playAgainBtn}
             onPress={() => { setResult(null); setCurrentGame(null); }}
           >
-            <Text style={styles.playAgainText}>Retour aux jeux</Text>
+            <Text style={styles.playAgainText}>Retour aux activités</Text>
           </TouchableOpacity>
         </View>
       </View>
