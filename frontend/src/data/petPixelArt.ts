@@ -6,6 +6,9 @@ export interface PixelArtDef {
   palette: Record<number, string>;
   bgColor: string;
   glowColor: string;
+  eatFrames?: number[][][];
+  washFrames?: number[][][];
+  cuddleFrames?: number[][][];
 }
 
 export const PET_PIXEL_ART: Record<string, PixelArtDef> = {
@@ -233,6 +236,8 @@ iguana: {
     7: '#0d1314',
     8: '#0b0b0c',
     9: '#0b1312',
+    10: '#7fdc5b',
+    11: '#4fbf43',
   },
   grid: [
     [0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
