@@ -722,13 +722,6 @@ export default function LettersScreen() {
 
       {renderTabContent()}
 
-      {/* Magic button */}
-      <TouchableOpacity style={styles.magicBtn}>
-        <Text style={styles.magicBtnEmoji}>✨</Text>
-        <Text style={styles.magicBtnText}>Envoyer de la Magie</Text>
-        <Text style={styles.magicBtnSubtext}>Envoie des cadeaux magiques!</Text>
-        <Text style={styles.magicArrow}>▶</Text>
-      </TouchableOpacity>
 
       {/* Modal conversation */}
       <Modal visible={showCompose} animationType="slide">
@@ -916,12 +909,6 @@ const styles = StyleSheet.create({
   journalSectionTitle: { fontSize: 13, fontWeight: '700', color: '#8B6F47', marginBottom: 8, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   duelJournalCard: { borderLeftColor: '#B47CFF' },
 
-  // Magic button
-  magicBtn: { position: 'absolute', bottom: 100, left: 16, right: 16, backgroundColor: '#DAA520', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center' },
-  magicBtnEmoji: { fontSize: 24, marginRight: 12 },
-  magicBtnText: { fontSize: 16, fontWeight: '700', color: '#FFF' },
-  magicBtnSubtext: { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginLeft: 8, flex: 1 },
-  magicArrow: { fontSize: 16, color: '#FFF' },
 
   // Modal conversation
   modalContainer: { flex: 1, backgroundColor: '#F4ECD8' },
