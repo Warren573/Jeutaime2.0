@@ -26,9 +26,8 @@ const MINI_FLAP_H = 54;
 const LARGE_FLAP_H = 92;
 
 const PARTICLE_PROPS = [
-  { x: -34, emoji: '💕' },
-  { x:   0, emoji: '✨' },
-  { x:  34, emoji: '💌' },
+  { x: -20, emoji: '✨' },
+  { x:  20, emoji: '💌' },
 ];
 
 // ─── EnvelopeCard ─────────────────────────────────────────────────────────────
@@ -52,7 +51,6 @@ const EnvelopeCard = ({ otherName, lastMsg, unread, myTurn, onOpen, formatTime }
   const particleAnims = useRef([
     { y: new Animated.Value(0), op: new Animated.Value(0) },
     { y: new Animated.Value(0), op: new Animated.Value(0) },
-    { y: new Animated.Value(0), op: new Animated.Value(0) },
   ]).current;
 
   const handlePress = () => {
@@ -60,22 +58,22 @@ const EnvelopeCard = ({ otherName, lastMsg, unread, myTurn, onOpen, formatTime }
     particleAnims.forEach(p => { p.y.setValue(0); p.op.setValue(0); });
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(bgOp,     { toValue: 1,    duration: 220, useNativeDriver: true }),
-        Animated.timing(envScale, { toValue: 1.05, duration: 180, useNativeDriver: true }),
+        Animated.timing(bgOp,     { toValue: 1,    duration: 300, useNativeDriver: true }),
+        Animated.timing(envScale, { toValue: 1.03, duration: 280, useNativeDriver: true }),
       ]),
       Animated.parallel([
-        Animated.timing(flapY,      { toValue: -(LARGE_FLAP_H + 80), duration: 560, useNativeDriver: true }),
-        Animated.timing(flapScaleY, { toValue: 0,                     duration: 400, useNativeDriver: true }),
-        Animated.timing(flapOp,     { toValue: 0,                     duration: 340, useNativeDriver: true }),
-        Animated.timing(envScale,   { toValue: 1,                     duration: 560, useNativeDriver: true }),
+        Animated.timing(flapY,      { toValue: -(LARGE_FLAP_H + 80), duration: 820, useNativeDriver: true }),
+        Animated.timing(flapScaleY, { toValue: 0,                     duration: 620, useNativeDriver: true }),
+        Animated.timing(flapOp,     { toValue: 0,                     duration: 520, useNativeDriver: true }),
+        Animated.timing(envScale,   { toValue: 1,                     duration: 820, useNativeDriver: true }),
         ...particleAnims.map((p, i) =>
           Animated.sequence([
-            Animated.delay(i * 100),
+            Animated.delay(i * 140),
             Animated.parallel([
-              Animated.timing(p.op, { toValue: 1,          duration: 130, useNativeDriver: true }),
-              Animated.timing(p.y,  { toValue: -60 - i*14, duration: 580, useNativeDriver: true }),
+              Animated.timing(p.op, { toValue: 1,          duration: 180, useNativeDriver: true }),
+              Animated.timing(p.y,  { toValue: -55 - i*12, duration: 700, useNativeDriver: true }),
             ]),
-            Animated.timing(p.op, { toValue: 0, duration: 200, useNativeDriver: true }),
+            Animated.timing(p.op, { toValue: 0, duration: 280, useNativeDriver: true }),
           ])
         ),
       ]),
