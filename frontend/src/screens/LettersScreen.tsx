@@ -27,7 +27,7 @@ const LARGE_FLAP_H = 92;
 
 const PARTICLE_PROPS = [
   { x: -20, emoji: '✨' },
-  { x:  20, emoji: '💌' },
+  { x:  20, emoji: '⭐' },
 ];
 
 // ─── EnvelopeCard ─────────────────────────────────────────────────────────────
