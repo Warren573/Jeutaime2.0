@@ -25,6 +25,12 @@ const CARD_W = SCREEN_W - 32;
 const MINI_FLAP_H = 54;
 const LARGE_FLAP_H = 92;
 
+const PARTICLE_PROPS = [
+  { x: -34, emoji: '💕' },
+  { x:   0, emoji: '✨' },
+  { x:  34, emoji: '💌' },
+];
+
 // ─── EnvelopeCard ─────────────────────────────────────────────────────────────
 
 interface EnvelopeCardProps {
@@ -38,24 +44,49 @@ interface EnvelopeCardProps {
 
 const EnvelopeCard = ({ otherName, lastMsg, unread, myTurn, onOpen, formatTime }: EnvelopeCardProps) => {
   const [opening, setOpening] = useState(false);
-  const flapY  = useRef(new Animated.Value(0)).current;
-  const flapOp = useRef(new Animated.Value(1)).current;
-  const bgOp   = useRef(new Animated.Value(0)).current;
+  const flapY      = useRef(new Animated.Value(0)).current;
+  const flapScaleY = useRef(new Animated.Value(1)).current;
+  const flapOp     = useRef(new Animated.Value(1)).current;
+  const bgOp       = useRef(new Animated.Value(0)).current;
+  const envScale   = useRef(new Animated.Value(1)).current;
+  const particleAnims = useRef([
+    { y: new Animated.Value(0), op: new Animated.Value(0) },
+    { y: new Animated.Value(0), op: new Animated.Value(0) },
+    { y: new Animated.Value(0), op: new Animated.Value(0) },
+  ]).current;
 
   const handlePress = () => {
     setOpening(true);
+    particleAnims.forEach(p => { p.y.setValue(0); p.op.setValue(0); });
     Animated.sequence([
-      Animated.timing(bgOp, { toValue: 1, duration: 200, useNativeDriver: true }),
       Animated.parallel([
-        Animated.timing(flapY,  { toValue: -(LARGE_FLAP_H + 60), duration: 520, useNativeDriver: true }),
-        Animated.timing(flapOp, { toValue: 0,                     duration: 400, useNativeDriver: true }),
+        Animated.timing(bgOp,     { toValue: 1,    duration: 220, useNativeDriver: true }),
+        Animated.timing(envScale, { toValue: 1.05, duration: 180, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(flapY,      { toValue: -(LARGE_FLAP_H + 80), duration: 560, useNativeDriver: true }),
+        Animated.timing(flapScaleY, { toValue: 0,                     duration: 400, useNativeDriver: true }),
+        Animated.timing(flapOp,     { toValue: 0,                     duration: 340, useNativeDriver: true }),
+        Animated.timing(envScale,   { toValue: 1,                     duration: 560, useNativeDriver: true }),
+        ...particleAnims.map((p, i) =>
+          Animated.sequence([
+            Animated.delay(i * 100),
+            Animated.parallel([
+              Animated.timing(p.op, { toValue: 1,          duration: 130, useNativeDriver: true }),
+              Animated.timing(p.y,  { toValue: -60 - i*14, duration: 580, useNativeDriver: true }),
+            ]),
+            Animated.timing(p.op, { toValue: 0, duration: 200, useNativeDriver: true }),
+          ])
+        ),
       ]),
     ]).start(() => {
       setTimeout(() => {
         setOpening(false);
         flapY.setValue(0);
+        flapScaleY.setValue(1);
         flapOp.setValue(1);
         bgOp.setValue(0);
+        envScale.setValue(1);
         onOpen();
       }, 120);
     });
@@ -107,7 +138,7 @@ const EnvelopeCard = ({ otherName, lastMsg, unread, myTurn, onOpen, formatTime }
       <Modal visible={opening} transparent animationType="none">
         <Animated.View style={[envStyles.overlay, { opacity: bgOp }]}>
           {/* Enveloppe agrandie */}
-          <View style={envStyles.largeWrapper}>
+          <Animated.View style={[envStyles.largeWrapper, { transform: [{ scale: envScale }] }]}>
             {/* Corps révélé sous le rabat */}
             <View style={envStyles.largeBody}>
               <View style={envStyles.largeContent}>
@@ -124,7 +155,7 @@ const EnvelopeCard = ({ otherName, lastMsg, unread, myTurn, onOpen, formatTime }
             <Animated.View
               style={[
                 envStyles.largeFlap,
-                { transform: [{ translateY: flapY }], opacity: flapOp },
+                { transform: [{ translateY: flapY }, { scaleY: flapScaleY }], opacity: flapOp },
               ]}
             >
               <View style={envStyles.foldLinesWrap}>
@@ -135,7 +166,26 @@ const EnvelopeCard = ({ otherName, lastMsg, unread, myTurn, onOpen, formatTime }
                 <Text style={envStyles.sealLargeEmoji}>💌</Text>
               </View>
             </Animated.View>
-          </View>
+          </Animated.View>
+
+          {/* Particules d'ouverture */}
+          {PARTICLE_PROPS.map((pp, i) => (
+            <Animated.Text
+              key={i}
+              style={[
+                envStyles.particle,
+                {
+                  opacity: particleAnims[i].op,
+                  transform: [
+                    { translateY: particleAnims[i].y },
+                    { translateX: pp.x },
+                  ],
+                },
+              ]}
+            >
+              {pp.emoji}
+            </Animated.Text>
+          ))}
         </Animated.View>
       </Modal>
     </>
@@ -147,21 +197,21 @@ const EnvelopeCard = ({ otherName, lastMsg, unread, myTurn, onOpen, formatTime }
 const envStyles = StyleSheet.create({
   // Carte liste
   card: {
-    backgroundColor: '#FDF5E6',
+    backgroundColor: '#FEFAF0',
     borderRadius: 14,
     marginBottom: 14,
     borderWidth: 1.5,
-    borderColor: '#C8A96E',
-    shadowColor: '#8B6F47',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 4,
+    borderColor: '#B8956A',
+    shadowColor: '#5A3A1A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 5,
     overflow: 'hidden',
   },
   flapMini: {
     height: MINI_FLAP_H,
-    backgroundColor: '#EEC97A',
+    backgroundColor: '#C4924A',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -173,8 +223,8 @@ const envStyles = StyleSheet.create({
   foldLine: {
     position: 'absolute',
     height: 1.5,
-    backgroundColor: '#A07030',
-    opacity: 0.45,
+    backgroundColor: '#7A4A18',
+    opacity: 0.35,
   },
   foldLineLL: {
     width: CARD_W * 0.75,
@@ -192,18 +242,18 @@ const envStyles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#8B1A1A',
+    backgroundColor: '#7A1A1A',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: '#7A1A1A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.55,
+    shadowRadius: 5,
+    elevation: 5,
   },
   sealEmoji: { fontSize: 20 },
-  sealEmpty: { fontSize: 20, opacity: 0.4 },
-  divider: { height: 1.5, backgroundColor: '#C8A96E' },
+  sealEmpty: { fontSize: 20, opacity: 0.35 },
+  divider: { height: 1.5, backgroundColor: '#C4A882' },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -212,20 +262,20 @@ const envStyles = StyleSheet.create({
   },
   texts: { flex: 1, minWidth: 0 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { fontSize: 16, fontWeight: '700', color: '#3A2818' },
+  name: { fontSize: 16, fontWeight: '700', color: '#2C1A0E' },
   badge: {
     width: 20, height: 20, borderRadius: 10,
-    backgroundColor: '#E91E63',
+    backgroundColor: '#8B2E3C',
     alignItems: 'center', justifyContent: 'center',
   },
   badgeTxt: { color: '#FFF', fontSize: 11, fontWeight: '700' },
-  preview: { fontSize: 13, color: '#8B6F47', marginTop: 2 },
-  time: { fontSize: 11, color: '#B8860B' },
+  preview: { fontSize: 13, color: '#7A5C3A', marginTop: 2 },
+  time: { fontSize: 11, color: '#9A7040' },
 
   // Overlay d'ouverture
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(20, 12, 3, 0.80)',
+    backgroundColor: 'rgba(10, 5, 2, 0.92)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
@@ -234,16 +284,16 @@ const envStyles = StyleSheet.create({
     width: SCREEN_W - 32,
   },
   largeBody: {
-    backgroundColor: '#FDF5E6',
+    backgroundColor: '#FEFAF0',
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#C8A96E',
+    borderColor: '#B8956A',
     paddingTop: LARGE_FLAP_H + 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 16,
   },
   largeContent: {
     padding: 24,
@@ -253,22 +303,22 @@ const envStyles = StyleSheet.create({
   largeName: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#3A2818',
+    color: '#2C1A0E',
     marginTop: 4,
   },
   largePreview: {
     fontSize: 15,
-    color: '#5D4037',
+    color: '#5A3A1A',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 23,
     fontStyle: 'italic',
     paddingHorizontal: 8,
   },
   largeTap: {
     fontSize: 12,
-    color: '#B8860B',
+    color: '#9A7040',
     marginTop: 8,
-    letterSpacing: 1,
+    letterSpacing: 1.5,
   },
 
   // Rabat animé
@@ -278,11 +328,11 @@ const envStyles = StyleSheet.create({
     left: 0,
     right: 0,
     height: LARGE_FLAP_H + 4,
-    backgroundColor: '#EEC97A',
+    backgroundColor: '#C4924A',
     borderTopLeftRadius: 14,
     borderTopRightRadius: 14,
     borderWidth: 2,
-    borderColor: '#C8A96E',
+    borderColor: '#B8956A',
     borderBottomWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
@@ -302,19 +352,26 @@ const envStyles = StyleSheet.create({
     transform: [{ rotate: '-18deg' }],
   },
   sealLarge: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#7B1515',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#7A1A1A',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: '#7A1A1A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
+    elevation: 10,
   },
   sealLargeEmoji: { fontSize: 30 },
+
+  // Particules
+  particle: {
+    position: 'absolute',
+    fontSize: 22,
+    bottom: '45%',
+  },
 });
 
 // ─── LetterCard — carte lettre avec animation si nouvelle ─────────────────────
@@ -379,33 +436,33 @@ const lcStyles = StyleSheet.create({
     marginBottom: 12,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FEFAF0',
     borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#D8D2C4',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    padding: 18,
+    borderWidth: 1.5,
+    borderColor: '#D4B896',
+    shadowColor: '#5A3A1A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   cardOwn: {
-    backgroundColor: '#FDF7F7',
-    borderColor: '#E8CFCF',
+    backgroundColor: '#FFF5F0',
+    borderColor: '#E8C8B8',
   },
   text: {
     fontSize: 15,
-    color: '#2B2B2B',
-    lineHeight: 23,
+    color: '#2C1A0E',
+    lineHeight: 25,
     fontStyle: 'italic',
   },
   time: {
     fontSize: 10,
-    color: '#6B6B6B',
-    marginTop: 10,
+    color: '#9A7040',
+    marginTop: 12,
     textAlign: 'right',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
 });
 
@@ -806,16 +863,16 @@ export default function LettersScreen() {
 // ─── Styles écran ─────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F1E8' },
-  header: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#D8D2C4', backgroundColor: '#FFFFFF' },
-  headerKicker: { fontSize: 10, letterSpacing: 2.5, color: '#8B2E3C', fontWeight: '700', marginBottom: 3 },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: '#2B2B2B' },
-  headerSubtitle: { fontSize: 12, color: '#6B6B6B', marginTop: 3, fontStyle: 'italic' },
+  container: { flex: 1, backgroundColor: '#F4ECD8' },
+  header: { paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 0, backgroundColor: '#2C1A0E' },
+  headerKicker: { fontSize: 10, letterSpacing: 3, color: '#B87333', fontWeight: '700', marginBottom: 4 },
+  headerTitle: { fontSize: 26, fontWeight: '800', color: '#F0D98C' },
+  headerSubtitle: { fontSize: 12, color: '#A08870', marginTop: 4, fontStyle: 'italic' },
 
-  tabsContainer: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#D8D2C4', backgroundColor: '#FFFFFF' },
+  tabsContainer: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#C4A882', backgroundColor: '#2C1A0E' },
   tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10, marginHorizontal: 3 },
   tabActive: { backgroundColor: '#8B2E3C' },
-  tabText: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
+  tabText: { fontSize: 12, fontWeight: '600', color: '#A08870' },
   tabTextActive: { color: '#FFF' },
 
   scrollView: { flex: 1 },
@@ -868,28 +925,28 @@ const styles = StyleSheet.create({
   magicBtnSubtext: { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginLeft: 8, flex: 1 },
   magicArrow: { fontSize: 16, color: '#FFF' },
 
-  // Modal conversation — Journal Moderne Romantique
-  modalContainer: { flex: 1, backgroundColor: '#F5F1E8' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#D8D2C4', backgroundColor: '#FFFFFF' },
-  closeText: { fontSize: 15, color: '#8B2E3C', fontWeight: '600' },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: '#2B2B2B', letterSpacing: 0.3 },
+  // Modal conversation
+  modalContainer: { flex: 1, backgroundColor: '#F4ECD8' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#C4A882', backgroundColor: '#2C1A0E' },
+  closeText: { fontSize: 15, color: '#F0D98C', fontWeight: '600' },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: '#F0D98C', letterSpacing: 0.3 },
   messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
 
   // (letter cards → voir lcStyles)
 
   startConv: { alignItems: 'center', paddingVertical: 60 },
   startEmoji: { fontSize: 50, marginBottom: 12 },
-  startText: { fontSize: 16, color: '#6B6B6B' },
-  inputContainer: { flexDirection: 'row', padding: 12, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#D8D2C4', gap: 8 },
-  input: { flex: 1, backgroundColor: '#F5F1E8', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, borderWidth: 1, borderColor: '#D8D2C4', maxHeight: 100, color: '#2B2B2B' },
+  startText: { fontSize: 16, color: '#9A7040' },
+  inputContainer: { flexDirection: 'row', padding: 12, backgroundColor: '#2C1A0E', borderTopWidth: 1, borderTopColor: '#5A3A1A', gap: 8 },
+  input: { flex: 1, backgroundColor: '#FEFAF0', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, borderWidth: 1.5, borderColor: '#B8956A', maxHeight: 100, color: '#2C1A0E' },
   sendBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#8B2E3C', alignItems: 'center', justifyContent: 'center' },
   sendBtnText: { fontSize: 18, color: '#FFF' },
 
   // Tour par tour
-  turnBanner: { paddingHorizontal: 16, paddingVertical: 9, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
-  turnBannerMine: { backgroundColor: '#E8F5E9' },
-  turnBannerWait: { backgroundColor: '#FFF8E1' },
-  turnBannerText: { fontSize: 13, fontWeight: '600', color: '#5D4037' },
+  turnBanner: { paddingHorizontal: 16, paddingVertical: 9, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#5A3A1A' },
+  turnBannerMine: { backgroundColor: '#1A2E1A' },
+  turnBannerWait: { backgroundColor: '#2A1A0A' },
+  turnBannerText: { fontSize: 13, fontWeight: '600', color: '#C4A882' },
 
   // Journal Modal
   journalModalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
