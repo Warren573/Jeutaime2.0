@@ -8,16 +8,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 import { PETS_CATALOG, RARITY_COLORS, RARITY_NAMES } from '../engine/PetEngine';
 import { PET_PIXEL_ART } from '../data/petPixelArt';
+import { getPetFrames, PetAction } from '../data/petAnimationHelper';
 
 const { width: SW } = Dimensions.get('window');
 const CARD_SIZE = (SW - 48) / 2;
 
 // ─── Pixel art renderer ────────────────────────────────────────────────────────
 
-function PixelArt({ petId, size }: { petId: string; size: number }) {
+function PixelArt({ petId, size, grid: gridProp }: { petId: string; size: number; grid?: number[][] }) {
   const art = PET_PIXEL_ART[petId];
   if (!art) return null;
-  const { grid, palette } = art;
+  const { palette } = art;
+  const grid = gridProp ?? art.grid;
   const rows = grid.length;
   const cols = grid[0].length;
   const ps = size / Math.max(rows, cols);
@@ -49,10 +51,12 @@ function PixelArt({ petId, size }: { petId: string; size: number }) {
 
 // ─── Animated floating pet ────────────────────────────────────────────────────
 
-function FloatingPet({ petId, size }: { petId: string; size: number }) {
+function FloatingPet({ petId, size, action }: { petId: string; size: number; action: PetAction }) {
   const floatAnim = useRef(new Animated.Value(0)).current;
   const art = PET_PIXEL_ART[petId];
+  const [frameIdx, setFrameIdx] = useState(0);
 
+  // Floating loop
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -62,6 +66,21 @@ function FloatingPet({ petId, size }: { petId: string; size: number }) {
     ).start();
   }, []);
 
+  // Frame cycling when action is active
+  useEffect(() => {
+    if (!art) return;
+    const frames = getPetFrames(art, action);
+    if (action === 'idle' || frames.length <= 1) { setFrameIdx(0); return; }
+    setFrameIdx(0);
+    const interval = setInterval(() => {
+      setFrameIdx(i => (i + 1) % frames.length);
+    }, 420);
+    return () => clearInterval(interval);
+  }, [action, petId]);
+
+  const frames = art ? getPetFrames(art, action) : null;
+  const currentGrid = frames ? frames[frameIdx] : art?.grid;
+
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
       {/* Glow */}
@@ -70,7 +89,7 @@ function FloatingPet({ petId, size }: { petId: string; size: number }) {
         shadowColor: art?.glowColor ?? '#fff',
       }]} />
       <Animated.View style={{ transform: [{ translateY: floatAnim }] }}>
-        <PixelArt petId={petId} size={size} />
+        <PixelArt petId={petId} size={size} grid={currentGrid} />
       </Animated.View>
     </View>
   );
@@ -100,6 +119,7 @@ export default function PetScreen() {
   const { pet, coins, adoptPet, feedPet, playWithPet, cleanPet, removeCoins, addPoints } = useStore();
   const [view, setView] = useState<ScreenView>(pet ? 'pet' : 'refuge');
   const [feedback, setFeedback] = useState('');
+  const [activeAction, setActiveAction] = useState<PetAction>('idle');
   const feedbackAnim = useRef(new Animated.Value(0)).current;
 
   const showFeedback = useCallback((msg: string) => {
@@ -130,10 +150,16 @@ export default function PetScreen() {
       clean: ['🚿 Tout propre !', '✨ Nickel !'],
       sleep: ['💤 Bonne sieste !', '⚡ Reposé !'],
     };
-    const actions = { feed: feedPet, play: playWithPet, clean: cleanPet, sleep: () => null };
-    actions[type]();
+    const petActionMap: Record<string, PetAction> = {
+      feed: 'eat', play: 'cuddle', clean: 'wash', sleep: 'idle',
+    };
+    const storeActions = { feed: feedPet, play: playWithPet, clean: cleanPet, sleep: () => null };
+    storeActions[type]();
     const list = msgs[type];
     showFeedback(list[Math.floor(Math.random() * list.length)]);
+    const pa = petActionMap[type];
+    setActiveAction(pa);
+    setTimeout(() => setActiveAction('idle'), 2600);
   };
 
   const currentPetDef = pet ? PETS_CATALOG.find(p => p.id === pet.petId) : null;
@@ -259,7 +285,7 @@ export default function PetScreen() {
 
         {/* Floating sprite */}
         <View style={styles.spriteArea}>
-          <FloatingPet petId={pet.petId} size={160} />
+          <FloatingPet petId={pet.petId} size={160} action={activeAction} />
         </View>
 
         {/* Stats */}
