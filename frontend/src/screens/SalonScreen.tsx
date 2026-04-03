@@ -76,6 +76,7 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
           width: size,
           height: size,
           borderRadius: size / 2,
+          overflow: 'hidden',
           transform: [{ scale: breathAnim }]
         },
         isSelected && styles.avatarSelected,
@@ -84,12 +85,12 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
         {participant.online && (
           <View style={[styles.onlineDot, { width: size * 0.2, height: size * 0.2, borderRadius: size * 0.1 }]} />
         )}
-        {participant.isMe && (
-          <View style={styles.meBadge}>
-            <Text style={styles.meBadgeText}>Moi</Text>
-          </View>
-        )}
       </Animated.View>
+      {participant.isMe && (
+        <View style={styles.meBadge}>
+          <Text style={styles.meBadgeText}>Moi</Text>
+        </View>
+      )}
       {showName && (
         <Text style={[styles.avatarName, { maxWidth: size + 20 }]} numberOfLines={1}>
           {participant.name}
@@ -699,12 +700,12 @@ const styles = StyleSheet.create({
     borderColor: '#FFF',
   },
   meBadge: {
-    position: 'absolute',
-    bottom: -6,
     backgroundColor: '#667eea',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
+    marginTop: -8,
+    alignSelf: 'center',
   },
   meBadgeText: {
     fontSize: 10,
