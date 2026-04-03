@@ -581,7 +581,7 @@ export default function LettersScreen() {
           <>
             {/* Bouton duel */}
             <TouchableOpacity style={styles.duelBtn} onPress={() => router.push('/duel/create')}>
-              <Text style={styles.duelBtnEmoji}>🎮</Text>
+              <Text style={styles.duelBtnEmoji}>⚔️</Text>
               <View style={styles.duelBtnTextWrap}>
                 <Text style={styles.duelBtnTitle}>Lancer un duel</Text>
                 <Text style={styles.duelBtnSubtitle}>Défiez un contact en Pierre • Papier • Ciseaux</Text>
@@ -634,7 +634,7 @@ export default function LettersScreen() {
                 {duelEntries.slice(0, 5).map(entry => (
                   <View key={entry.id} style={[styles.journalCard, styles.duelJournalCard]}>
                     <View style={styles.journalHeader}>
-                      <Text style={styles.journalMood}>🎮</Text>
+                      <Text style={styles.journalMood}>⚔️</Text>
                       <Text style={styles.journalDate}>{new Date(entry.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</Text>
                     </View>
                     <Text style={styles.journalContent}>{entry.text}</Text>
@@ -906,12 +906,12 @@ const styles = StyleSheet.create({
   souvenirDate: { fontSize: 11, color: '#8B6F47', marginTop: 4 },
 
   // Duel button
-  duelBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1A1B2E', borderRadius: 16, padding: 16, marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderWidth: 1, borderColor: 'rgba(180,124,255,0.3)' },
+  duelBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEFAF0', borderRadius: 16, padding: 16, marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderWidth: 1.5, borderColor: '#B8956A', shadowColor: '#5A3A1A', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 8, elevation: 4 },
   duelBtnEmoji: { fontSize: 26, marginRight: 12 },
   duelBtnTextWrap: { flex: 1, minWidth: 0 },
-  duelBtnTitle: { color: '#F8F6FF', fontSize: 16, fontWeight: '800' },
-  duelBtnSubtitle: { color: 'rgba(255,255,255,0.55)', fontSize: 12, marginTop: 3 },
-  duelBtnArrow: { fontSize: 14, color: '#B47CFF', marginLeft: 8 },
+  duelBtnTitle: { color: '#2C1A0E', fontSize: 16, fontWeight: '800' },
+  duelBtnSubtitle: { color: '#9A7040', fontSize: 12, marginTop: 3 },
+  duelBtnArrow: { fontSize: 14, color: '#7A1A1A', marginLeft: 8 },
 
   journalSectionTitle: { fontSize: 13, fontWeight: '700', color: '#8B6F47', marginBottom: 8, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   duelJournalCard: { borderLeftColor: '#B47CFF' },

@@ -20,10 +20,10 @@ const RESULT_LABELS: Record<DuelResult, string> = {
 };
 
 const RESULT_COLORS: Record<DuelResult, string> = {
-  pending: 'rgba(255,255,255,0.55)',
-  win:     '#7DFFB3',
-  lose:    '#FF7D7D',
-  draw:    '#FFD97D',
+  pending: '#9A7040',
+  win:     '#2A6B3A',
+  lose:    '#7A1A1A',
+  draw:    '#7A4A18',
 };
 
 export default function DuelCard({
@@ -85,32 +85,33 @@ export default function DuelCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1A1B2E',
-    borderRadius: 28,
+    backgroundColor: '#FEFAF0',
+    borderRadius: 20,
     padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
-    shadowColor: '#000',
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
+    borderWidth: 1.5,
+    borderColor: '#B8956A',
+    shadowColor: '#5A3A1A',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
   title: {
-    color: '#F8F6FF',
+    color: '#2C1A0E',
     fontSize: 18,
     fontWeight: '800',
     textAlign: 'center',
     letterSpacing: 0.5,
   },
   subtitle: {
-    color: 'rgba(255,255,255,0.45)',
+    color: '#9A7040',
     fontSize: 12,
     textAlign: 'center',
     marginTop: 4,
     marginBottom: 18,
-    letterSpacing: 1,
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
+    fontStyle: 'italic',
   },
 
   battleRow: {
@@ -123,13 +124,11 @@ const styles = StyleSheet.create({
     flex: 2,
     alignItems: 'center',
   },
-  fighterRight: {
-    // miroir visuel
-  },
+  fighterRight: {},
   fighterName: {
     fontSize: 13,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.65)',
+    color: '#7A5C3A',
     marginBottom: 10,
     textAlign: 'center',
   },
@@ -137,17 +136,19 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#F8F6FF',
+    backgroundColor: '#F4ECD8',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#B47CFF',
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    borderWidth: 1.5,
+    borderColor: '#C4924A',
+    shadowColor: '#5A3A1A',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
   fighterEmojiBgRight: {
-    backgroundColor: '#F4EEFF',
+    backgroundColor: '#FFF0E8',
   },
   fighterEmoji: {
     fontSize: 36,
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
   fighterChoice: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#F8F6FF',
+    color: '#2C1A0E',
     marginTop: 10,
     textAlign: 'center',
   },
@@ -166,8 +167,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   vsText: {
-    color: '#B47CFF',
-    fontSize: 16,
+    color: '#7A1A1A',
+    fontSize: 18,
     fontWeight: '900',
     letterSpacing: 2,
   },
@@ -176,6 +177,9 @@ const styles = StyleSheet.create({
     marginTop: 18,
     alignItems: 'center',
     minHeight: 30,
+    borderTopWidth: 1,
+    borderTopColor: '#D4B896',
+    paddingTop: 14,
   },
   resultText: {
     fontSize: 18,

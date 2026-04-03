@@ -37,13 +37,13 @@ export default function DuelCreateScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={styles.back}>← Retour</Text>
         </Pressable>
-        <Text style={styles.title}>🎮 Lancer un duel</Text>
+        <Text style={styles.title}>⚔️ Lancer un duel</Text>
         <Text style={styles.subtitle}>Choisis un contact à défier</Text>
       </View>
 
       {contacts.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>💌</Text>
+          <Text style={styles.emptyEmoji}>⚔️</Text>
           <Text style={styles.emptyText}>Aucun contact disponible</Text>
           <Text style={styles.emptySubtext}>Fais des matchs d'abord pour pouvoir défier quelqu'un</Text>
         </View>
@@ -70,30 +70,32 @@ export default function DuelCreateScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#141625',
+    backgroundColor: '#F4ECD8',
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.07)',
+    borderBottomColor: '#C4A882',
+    backgroundColor: '#2C1A0E',
   },
   back: {
-    color: '#B47CFF',
+    color: '#F0D98C',
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 14,
   },
   title: {
-    color: '#F8F6FF',
+    color: '#F0D98C',
     fontSize: 26,
     fontWeight: '800',
   },
   subtitle: {
-    color: 'rgba(255,255,255,0.50)',
+    color: '#A08870',
     fontSize: 14,
     marginTop: 6,
+    fontStyle: 'italic',
   },
 
   list: {
@@ -103,11 +105,16 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E2032',
-    borderRadius: 20,
+    backgroundColor: '#FEFAF0',
+    borderRadius: 16,
     padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1.5,
+    borderColor: '#B8956A',
+    shadowColor: '#5A3A1A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatar: {
     width: 50,
@@ -117,22 +124,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: {
-    color: '#FFF',
+    color: '#2C1A0E',
     fontSize: 20,
     fontWeight: '800',
   },
   name: {
     flex: 1,
-    color: '#F8F6FF',
+    color: '#2C1A0E',
     fontSize: 17,
     fontWeight: '700',
     marginLeft: 14,
   },
   challengeBtn: {
-    backgroundColor: '#B47CFF',
+    backgroundColor: '#7A1A1A',
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 999,
+    shadowColor: '#7A1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
   },
   challengeText: {
     color: '#FFF',
@@ -151,13 +163,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyText: {
-    color: '#F8F6FF',
+    color: '#2C1A0E',
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
   },
   emptySubtext: {
-    color: 'rgba(255,255,255,0.50)',
+    color: '#7A5C3A',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
