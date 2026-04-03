@@ -101,7 +101,7 @@ const EnvelopeCard = ({ otherName, lastMsg, unread, myTurn, onOpen, formatTime }
             <View style={[envStyles.foldLine, envStyles.foldLineLR]} />
           </View>
           {unread > 0
-            ? <View style={envStyles.sealMini}><Text style={envStyles.sealEmoji}>💌</Text></View>
+            ? <View style={envStyles.sealMini}><Text style={envStyles.sealEmoji}>⚜️</Text></View>
             : <Text style={envStyles.sealEmpty}>✉️</Text>
           }
         </View>
@@ -161,7 +161,7 @@ const EnvelopeCard = ({ otherName, lastMsg, unread, myTurn, onOpen, formatTime }
                 <View style={[envStyles.foldLine, envStyles.foldLineLRLarge]} />
               </View>
               <View style={envStyles.sealLarge}>
-                <Text style={envStyles.sealLargeEmoji}>💌</Text>
+                <Text style={envStyles.sealLargeEmoji}>⚜️</Text>
               </View>
             </Animated.View>
           </Animated.View>
@@ -509,7 +509,7 @@ export default function LettersScreen() {
   // Souvenirs state
   const [souvenirs] = useState<Souvenir[]>([
     { id: '1', type: 'milestone', title: 'Inscription', description: 'Tu as rejoint JeuTaime!', date: '2025-03-12', emoji: '🎉' },
-    { id: '2', type: 'match', title: 'Premier Match', description: 'Tu as eu ton premier match!', date: '2025-03-12', emoji: '💕' },
+    { id: '2', type: 'match', title: 'Premier Match', description: 'Tu as eu ton premier match!', date: '2025-03-12', emoji: '🌟' },
   ]);
 
   const getOtherUserName = (match: Match) =>
@@ -591,7 +591,7 @@ export default function LettersScreen() {
 
             {matches.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyEmoji}>💌</Text>
+                <Text style={styles.emptyEmoji}>✉️</Text>
                 <Text style={styles.emptyText}>Aucune lettre</Text>
                 <Text style={styles.emptySubtext}>Réussissez des matchs pour recevoir vos premières enveloppes!</Text>
               </View>
