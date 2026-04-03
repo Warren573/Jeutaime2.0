@@ -1,25 +1,23 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Animated, Dimensions, Modal,
+  Animated, Dimensions,
 } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 import { PETS_CATALOG, RARITY_COLORS, RARITY_NAMES } from '../engine/PetEngine';
 import { PET_PIXEL_ART } from '../data/petPixelArt';
-import { getPetFrames, PetAction } from '../data/petAnimationHelper';
 
 const { width: SW } = Dimensions.get('window');
 const CARD_SIZE = (SW - 48) / 2;
 
 // ─── Pixel art renderer ────────────────────────────────────────────────────────
 
-function PixelArt({ petId, size, grid: gridProp }: { petId: string; size: number; grid?: number[][] }) {
+function PixelArt({ petId, size }: { petId: string; size: number }) {
   const art = PET_PIXEL_ART[petId];
   if (!art) return null;
-  const { palette } = art;
-  const grid = gridProp ?? art.grid;
+  const { grid, palette } = art;
   const rows = grid.length;
   const cols = grid[0].length;
   const ps = size / Math.max(rows, cols);
@@ -51,12 +49,10 @@ function PixelArt({ petId, size, grid: gridProp }: { petId: string; size: number
 
 // ─── Animated floating pet ────────────────────────────────────────────────────
 
-function FloatingPet({ petId, size, action }: { petId: string; size: number; action: PetAction }) {
+function FloatingPet({ petId, size }: { petId: string; size: number }) {
   const floatAnim = useRef(new Animated.Value(0)).current;
   const art = PET_PIXEL_ART[petId];
-  const [frameIdx, setFrameIdx] = useState(0);
 
-  // Floating loop
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -66,31 +62,80 @@ function FloatingPet({ petId, size, action }: { petId: string; size: number; act
     ).start();
   }, []);
 
-  // Frame cycling when action is active
-  useEffect(() => {
-    if (!art) return;
-    const frames = getPetFrames(art, action);
-    if (action === 'idle' || frames.length <= 1) { setFrameIdx(0); return; }
-    setFrameIdx(0);
-    const interval = setInterval(() => {
-      setFrameIdx(i => (i + 1) % frames.length);
-    }, 420);
-    return () => clearInterval(interval);
-  }, [action, petId]);
-
-  const frames = art ? getPetFrames(art, action) : null;
-  const currentGrid = frames ? frames[frameIdx] : art?.grid;
-
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-      {/* Glow */}
       <View style={[styles.glow, {
         width: size + 40, height: size + 40,
         shadowColor: art?.glowColor ?? '#fff',
       }]} />
       <Animated.View style={{ transform: [{ translateY: floatAnim }] }}>
-        <PixelArt petId={petId} size={size} grid={currentGrid} />
+        <PixelArt petId={petId} size={size} />
       </Animated.View>
+    </View>
+  );
+}
+
+// ─── Pet mood overlay ─────────────────────────────────────────────────────────
+
+type OverlayMood = 'hungry' | 'unhappy' | 'happy' | 'neutral';
+
+function getPetOverlayMood(stats: {
+  hunger: number; happiness: number; cleanliness: number; energy: number;
+}): OverlayMood {
+  if (stats.hunger < 30) return 'hungry';
+  if (stats.happiness < 40 || stats.cleanliness < 40 || stats.energy < 40) return 'unhappy';
+  if (stats.hunger > 75 && stats.happiness > 75 && stats.cleanliness > 75 && stats.energy > 75) return 'happy';
+  return 'neutral';
+}
+
+const OVERLAY_ICONS: Record<Exclude<OverlayMood, 'neutral'>, [string, string]> = {
+  hungry:  ['🍽️', '💭'],
+  unhappy: ['☁️',  '🌧️'],
+  happy:   ['💕',  '💕'],
+};
+
+function PetMoodOverlay({ mood }: { mood: OverlayMood }) {
+  const a1 = useRef(new Animated.Value(0)).current;
+  const a2 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    a1.setValue(0);
+    a2.setValue(0);
+    if (mood === 'neutral') return;
+
+    const makeLoop = (val: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(val, { toValue: 1, duration: 500, useNativeDriver: true }),
+          Animated.timing(val, { toValue: 0, duration: 700, useNativeDriver: true }),
+          Animated.delay(500),
+        ])
+      );
+
+    const l1 = makeLoop(a1, 0);
+    const l2 = makeLoop(a2, 450);
+    l1.start();
+    l2.start();
+    return () => { l1.stop(); l2.stop(); };
+  }, [mood]);
+
+  if (mood === 'neutral') return null;
+
+  const icons = OVERLAY_ICONS[mood];
+  const makeStyle = (val: Animated.Value) => ({
+    opacity: val,
+    transform: [{ translateY: val.interpolate({ inputRange: [0, 1], outputRange: [0, -28] }) }],
+  });
+
+  return (
+    <View style={styles.overlayWrap} pointerEvents="none">
+      <Animated.Text style={[styles.overlayIcon, { left: '18%', top: '20%' }, makeStyle(a1)]}>
+        {icons[0]}
+      </Animated.Text>
+      <Animated.Text style={[styles.overlayIcon, { right: '18%', top: '35%' }, makeStyle(a2)]}>
+        {icons[1]}
+      </Animated.Text>
     </View>
   );
 }
@@ -119,7 +164,6 @@ export default function PetScreen() {
   const { pet, coins, adoptPet, feedPet, playWithPet, cleanPet, removeCoins, addPoints } = useStore();
   const [view, setView] = useState<ScreenView>(pet ? 'pet' : 'refuge');
   const [feedback, setFeedback] = useState('');
-  const [activeAction, setActiveAction] = useState<PetAction>('idle');
   const feedbackAnim = useRef(new Animated.Value(0)).current;
 
   const showFeedback = useCallback((msg: string) => {
@@ -150,16 +194,10 @@ export default function PetScreen() {
       clean: ['🚿 Tout propre !', '✨ Nickel !'],
       sleep: ['💤 Bonne sieste !', '⚡ Reposé !'],
     };
-    const petActionMap: Record<string, PetAction> = {
-      feed: 'eat', play: 'cuddle', clean: 'wash', sleep: 'idle',
-    };
-    const storeActions = { feed: feedPet, play: playWithPet, clean: cleanPet, sleep: () => null };
-    storeActions[type]();
+    const actions = { feed: feedPet, play: playWithPet, clean: cleanPet, sleep: () => null };
+    actions[type]();
     const list = msgs[type];
     showFeedback(list[Math.floor(Math.random() * list.length)]);
-    const pa = petActionMap[type];
-    setActiveAction(pa);
-    setTimeout(() => setActiveAction('idle'), 2600);
   };
 
   const currentPetDef = pet ? PETS_CATALOG.find(p => p.id === pet.petId) : null;
@@ -261,6 +299,7 @@ export default function PetScreen() {
 
   const avg = (pet.stats.hunger + pet.stats.happiness + pet.stats.cleanliness + pet.stats.energy) / 4;
   const mood = avg > 80 ? '😍' : avg > 60 ? '😊' : avg > 40 ? '😐' : '😢';
+  const overlayMood = getPetOverlayMood(pet.stats);
 
   return (
     <View style={[styles.petContainer, { paddingTop: insets.top }]}>
@@ -283,9 +322,10 @@ export default function PetScreen() {
           </Animated.View>
         ) : null}
 
-        {/* Floating sprite */}
+        {/* Floating sprite + mood overlay */}
         <View style={styles.spriteArea}>
-          <FloatingPet petId={pet.petId} size={160} action={activeAction} />
+          <FloatingPet petId={pet.petId} size={160} />
+          <PetMoodOverlay mood={overlayMood} />
         </View>
 
         {/* Stats */}
@@ -418,6 +458,8 @@ const styles = StyleSheet.create({
     position: 'absolute', borderRadius: 999,
     shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 30, elevation: 0,
   },
+  overlayWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  overlayIcon: { position: 'absolute', fontSize: 22 },
   statsPanel: {
     backgroundColor: '#161616', marginHorizontal: 16, borderRadius: 16, padding: 16, marginBottom: 12,
     borderWidth: 1, borderColor: '#2a2a2a',
