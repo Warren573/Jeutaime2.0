@@ -70,22 +70,25 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.avatarWrapper}>
-      <Animated.View style={[
-        styles.avatarContainer,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          overflow: 'hidden',
-          transform: [{ scale: breathAnim }]
-        },
-        isSelected && styles.avatarSelected,
-      ]}>
-        <Avatar size={size - 8} {...(avatarConfig as any)} />
+      {/* Wrapper relatif = ancre pour le point en ligne (non clippé) */}
+      <View style={{ width: size, height: size }}>
+        <Animated.View style={[
+          styles.avatarContainer,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            overflow: 'hidden',
+            transform: [{ scale: breathAnim }]
+          },
+          isSelected && styles.avatarSelected,
+        ]}>
+          <Avatar size={size - 8} {...(avatarConfig as any)} />
+        </Animated.View>
         {participant.online && (
           <View style={[styles.onlineDot, { width: size * 0.2, height: size * 0.2, borderRadius: size * 0.1 }]} />
         )}
-      </Animated.View>
+      </View>
       {participant.isMe && (
         <View style={styles.meBadge}>
           <Text style={styles.meBadgeText}>Moi</Text>
