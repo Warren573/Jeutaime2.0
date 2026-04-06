@@ -124,7 +124,6 @@ export default function SettingsScreen() {
       items: [
         { icon: '✏️', label: 'Modifier mon profil',       route: '/edit-profile' },
         { icon: '📸', label: 'Mes photos',                route: '/my-photos' },
-        { icon: '📖', label: 'Mon livre privé',           route: '/private-book' },
         { icon: '🎯', label: 'Préférences de rencontre',  route: '/matching-preferences' },
         { icon: '📍', label: 'Localisation',              route: '/location' },
         { icon: '✅', label: 'Vérification du profil',    route: '/profile-verification' },
