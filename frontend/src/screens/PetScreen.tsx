@@ -209,7 +209,10 @@ export default function PetScreen() {
       <View style={[styles.refugeContainer, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.refugeHeader}>
-          <Text style={styles.refugeTitle}>🐾 Refuge d'Animaux</Text>
+          <TouchableOpacity onPress={() => setView('pet')} hitSlop={12}>
+            <Text style={styles.refugeBack}>← Retour</Text>
+          </TouchableOpacity>
+          <Text style={styles.refugeTitle}>🐾 Refuge</Text>
           <View style={styles.coinsChip}>
             <Text style={styles.coinsChipText}>🌕 {coins}</Text>
           </View>
@@ -383,6 +386,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)',
   },
+  refugeBack: { fontSize: 15, fontWeight: '600', color: '#E85C8A' },
   refugeTitle: { fontSize: 20, fontWeight: '900', color: '#2D1F0E' },
   coinsChip: {
     backgroundColor: 'rgba(245,200,66,0.15)', borderWidth: 1.5, borderColor: '#F5C842',
