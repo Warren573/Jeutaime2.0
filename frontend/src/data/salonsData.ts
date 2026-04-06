@@ -7,6 +7,10 @@ export interface SalonParticipant {
   age: number;
   online: boolean;
   offerings?: { emoji: string; from: string; timestamp: number }[];
+  /** ID du pouvoir de transformation actif (ex: 'grenouille', 'ane'…) */
+  transformation?: string | null;
+  /** Timestamp ms — quand la transformation expire */
+  transformationExpiresAt?: number;
 }
 
 export interface Salon {
