@@ -18,7 +18,7 @@
  *   LettersScreen unmount : 5100ms > 4900ms ✓
  */
 import React, { useEffect, useState } from 'react';
-import { Platform, Dimensions, StyleSheet } from 'react-native';
+import { Platform, Dimensions, StyleSheet, Image as RNImage } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -28,10 +28,15 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 
-// ─── Asset sources ────────────────────────────────────────────────────────────
-const ENV_BACK_SRC   = require('../../assets/envelope/envelope-open-back.png');
-const LETTER_SRC     = require('../../assets/envelope/letter.png');
-const ENV_CLOSED_SRC = require('../../assets/envelope/envelope-closed.png');
+// ─── Asset sources (require = asset ID pour RN, URI string pour web via resolveAssetSource) ──
+const ENV_BACK_MOD   = require('../../assets/envelope/envelope-open-back.png');
+const LETTER_MOD     = require('../../assets/envelope/letter.png');
+const ENV_CLOSED_MOD = require('../../assets/envelope/envelope-closed.png');
+
+// URI strings pour les <img> HTML (web uniquement)
+const ENV_BACK_URI   = RNImage.resolveAssetSource(ENV_BACK_MOD).uri;
+const LETTER_URI     = RNImage.resolveAssetSource(LETTER_MOD).uri;
+const ENV_CLOSED_URI = RNImage.resolveAssetSource(ENV_CLOSED_MOD).uri;
 
 // ─── CSS injection (web only) ─────────────────────────────────────────────────
 const CSS_ID = 'pla-envelope-styles';
@@ -128,13 +133,13 @@ function WebEnvelope() {
   return (
     <div className={cls}>
       {/* z=1 — dos enveloppe ouverte */}
-      <img className="env-layer env-back"   src={ENV_BACK_SRC}   alt="" draggable={false} />
+      <img className="env-layer env-back"   src={ENV_BACK_URI}   alt="" draggable={false} />
       {/* z=2 — lettre (monte entre back et front) */}
-      <img className="env-layer env-letter" src={LETTER_SRC}     alt="" draggable={false} />
+      <img className="env-layer env-letter" src={LETTER_URI}     alt="" draggable={false} />
       {/* z=3 — même image que back, clip-path = poche seulement */}
-      <img className="env-layer env-front"  src={ENV_BACK_SRC}   alt="" draggable={false} />
+      <img className="env-layer env-front"  src={ENV_BACK_URI}   alt="" draggable={false} />
       {/* z=4 — enveloppe fermée (disparaît en premier) */}
-      <img className="env-layer env-closed" src={ENV_CLOSED_SRC} alt="" draggable={false} />
+      <img className="env-layer env-closed" src={ENV_CLOSED_URI} alt="" draggable={false} />
     </div>
   );
 }
@@ -175,16 +180,16 @@ function NativeEnvelope() {
   return (
     <Animated.View style={[nStyles.scene, sceneStyle]}>
       <Animated.View style={[nStyles.layer, { zIndex: 1 }, backStyle]}>
-        <Image source={ENV_BACK_SRC} style={nStyles.img} contentFit="contain" />
+        <Image source={ENV_BACK_MOD} style={nStyles.img} contentFit="contain" />
       </Animated.View>
       <Animated.View style={[nStyles.layer, { zIndex: 2 }, letterStyle]}>
-        <Image source={LETTER_SRC} style={nStyles.img} contentFit="contain" />
+        <Image source={LETTER_MOD} style={nStyles.img} contentFit="contain" />
       </Animated.View>
       <Animated.View style={[nStyles.layer, { zIndex: 3 }, frontStyle]}>
-        <Image source={ENV_BACK_SRC} style={nStyles.img} contentFit="contain" />
+        <Image source={ENV_BACK_MOD} style={nStyles.img} contentFit="contain" />
       </Animated.View>
       <Animated.View style={[nStyles.layer, { zIndex: 4 }, closedStyle]}>
-        <Image source={ENV_CLOSED_SRC} style={nStyles.img} contentFit="contain" />
+        <Image source={ENV_CLOSED_MOD} style={nStyles.img} contentFit="contain" />
       </Animated.View>
     </Animated.View>
   );
