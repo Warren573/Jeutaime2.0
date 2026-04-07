@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { PETS_CATALOG, RARITY_COLORS, RARITY_NAMES } from '../engine/PetEngine';
 import { PET_PIXEL_ART } from '../data/petPixelArt';
@@ -161,6 +162,7 @@ type ScreenView = 'refuge' | 'pet';
 
 export default function PetScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { pet, coins, adoptPet, feedPet, playWithPet, cleanPet, removeCoins, addPoints } = useStore();
   const [view, setView] = useState<ScreenView>(pet ? 'pet' : 'refuge');
   const [feedback, setFeedback] = useState('');
@@ -202,6 +204,13 @@ export default function PetScreen() {
 
   const currentPetDef = pet ? PETS_CATALOG.find(p => p.id === pet.petId) : null;
 
+  // If we somehow land on pet view without a pet, go back to refuge
+  useEffect(() => {
+    if (view === 'pet' && (!pet || !currentPetDef)) {
+      setView('refuge');
+    }
+  }, [view, pet, currentPetDef]);
+
   // ── REFUGE VIEW ──────────────────────────────────────────────────────────────
   if (view === 'refuge') {
     const sorted = [...PETS_CATALOG].sort((a, b) => a.cost - b.cost);
@@ -209,7 +218,7 @@ export default function PetScreen() {
       <View style={[styles.refugeContainer, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.refugeHeader}>
-          <TouchableOpacity onPress={() => setView('pet')} hitSlop={12}>
+          <TouchableOpacity onPress={() => pet ? setView('pet') : router.back()} hitSlop={12}>
             <Text style={styles.refugeBack}>← Retour</Text>
           </TouchableOpacity>
           <Text style={styles.refugeTitle}>🐾 Refuge</Text>
@@ -296,7 +305,6 @@ export default function PetScreen() {
 
   // ── PET DETAIL VIEW ──────────────────────────────────────────────────────────
   if (!pet || !currentPetDef) {
-    setView('refuge');
     return null;
   }
 
