@@ -44,7 +44,7 @@ interface Props { senderName?: string }
 
 export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
   const sceneOp  = useSharedValue(0);
-  const flapY    = useSharedValue(0);          // translateY : 0 → sort vers le haut
+  const flapRX   = useSharedValue(0);   // rotateX : 0° (fermé) → -90° (ouvert, bord-sur)
   const flapOp   = useSharedValue(1);
   const letterY   = useSharedValue(FLAP_H);
   const letterOp  = useSharedValue(0);
@@ -54,13 +54,14 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
     // Apparition — enveloppe fermée visible pendant 600ms avant d'animer
     sceneOp.value = withTiming(1, { duration: 250 });
 
-    // Phase 1 — rabat glisse vers le haut et sort du container (overflow:hidden le clippe)
-    flapY.value = withDelay(800, withTiming(-(LETTER_PEEK + FLAP_H + 8), {
-      duration: 480,
+    // Phase 1 — rabat pivote vers l'arrière autour de la charnière supérieure (rotateX 3D)
+    // 0° = fermé, -90° = bord sur (visuellement disparu) — pivot au bord haut via translateY trick
+    flapRX.value = withDelay(800, withTiming(-90, {
+      duration: 500,
       easing: Easing.inOut(Easing.ease),
     }));
-    // Fondu léger quand le rabat passe le bord supérieur
-    flapOp.value = withDelay(1050, withTiming(0, { duration: 180 }));
+    // Fondu quand le rabat passe 70° (presque bord sur)
+    flapOp.value = withDelay(1050, withTiming(0, { duration: 200 }));
 
     // Phase 2 — lettre sort à t=1440ms
     letterOp.value = withDelay(1440, withTiming(1, { duration: 180 }));
@@ -83,10 +84,22 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
     transform: [{ translateY: letterY.value }],
   }));
 
-  // Rabat glisse vers le haut → clippé par overflow:hidden du container
+  /**
+   * Rabat : rotateX autour du bord supérieur (charnière).
+   * Pivot via translateY trick (identique au scaleY mais avec rotateX) :
+   *   translateY(+h/2)  → déplace le centre vers le bas = bord haut devient centre de rotation
+   *   rotateX(angle)    → rotation 3D autour du nouveau centre
+   *   translateY(-h/2)  → restaure la position
+   * perspective(600) = profondeur de l'effet 3D
+   */
   const flapStyle = useAnimatedStyle(() => ({
     opacity: flapOp.value,
-    transform: [{ translateY: flapY.value }],
+    transform: [
+      { perspective: 600 },
+      { translateY:  FLAP_H / 2 },
+      { rotateX: `${flapRX.value}deg` },
+      { translateY: -FLAP_H / 2 },
+    ],
   }));
 
   return (
