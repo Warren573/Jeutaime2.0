@@ -18,7 +18,7 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
-import Svg, { Polygon, Line } from 'react-native-svg';
+import Svg, { Line } from 'react-native-svg';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -34,8 +34,7 @@ const LETTER_H    = POCKET_H + LETTER_PEEK;
 // Lettre sort partiellement
 const LETTER_FINAL_Y = -Math.round(LETTER_PEEK * 0.72);
 
-// SVG
-const FLAP_PTS = `0,0 ${ENV_W},0 ${ENV_W / 2},${FLAP_H}`;
+// SVG — plis diagonaux
 const CX = ENV_W / 2;
 const CY = POCKET_H / 2;
 
@@ -134,16 +133,23 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
             <View style={styles.foldLine} />
           </View>
 
-          {/* z=4 — rabat triangulaire */}
+          {/* z=4 — rabat (fond kraft plein + lignes de pli diagonales) */}
+          {/*
+            IMPORTANT : la View a backgroundColor kraft pour couvrir les coins.
+            Le SVG polygon ne couvrirait que le triangle, laissant les coins
+            transparents et révélant le backPanel (crème) par derrière.
+            Avec un fond plein, toute la zone du rabat est kraft = enveloppe fermée propre.
+          */}
           <Animated.View
             style={[styles.flap, { top: LETTER_PEEK, width: ENV_W, height: FLAP_H }, flapStyle]}
           >
+            {/* Lignes de pli du rabat (diagonal V vers le bas = joint avec le corps) */}
             <Svg width={ENV_W} height={FLAP_H} style={StyleSheet.absoluteFill}>
-              <Polygon points={FLAP_PTS} fill="#C4955C" />
-              <Polygon points={FLAP_PTS} fill="none" stroke="rgba(80,45,5,0.30)" strokeWidth="1" />
+              <Line x1={0} y1={0} x2={CX} y2={FLAP_H} stroke="rgba(70,38,5,0.22)" strokeWidth="0.9" />
+              <Line x1={ENV_W} y1={0} x2={CX} y2={FLAP_H} stroke="rgba(70,38,5,0.22)" strokeWidth="0.9" />
             </Svg>
             {/* Cachet de cire */}
-            <View style={[styles.seal, { bottom: Math.round(FLAP_H * 0.20), left: ENV_W / 2 - 13 }]} />
+            <View style={[styles.seal, { bottom: Math.round(FLAP_H * 0.22), left: ENV_W / 2 - 13 }]} />
           </Animated.View>
 
           {/* Bordure de l'enveloppe */}
@@ -218,11 +224,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(70,38,5,0.25)',
   },
 
-  // z=4 — rabat
+  // z=4 — rabat (fond plein kraft pour couvrir les coins du rectangle)
   flap: {
     position: 'absolute',
     left: 0,
     zIndex: 4,
+    backgroundColor: '#C4955C',   // MÊME couleur que frontPocket = enveloppe fermée uniforme
+    overflow: 'hidden',
   },
 
   // Cachet de cire
