@@ -35,9 +35,10 @@ const FOLD_LEFT  = `0,0 0,${ENV_H} ${ENV_W / 2},${ENV_H / 2}`;
 const FOLD_RIGHT = `${ENV_W},0 ${ENV_W},${ENV_H} ${ENV_W / 2},${ENV_H / 2}`;
 const FOLD_BTM   = `0,${ENV_H} ${ENV_W},${ENV_H} ${ENV_W / 2},${ENV_H / 2}`;
 
-// Lettre : plus haute que l'enveloppe pour dépasser au-dessus
+// Lettre : dépasse de PEEK_H au-dessus du bord de l'enveloppe, reste dedans pour le reste
+const PEEK_H   = Math.round(ENV_H * 0.42);  // hauteur visible au-dessus de l'enveloppe
 const LETTER_W = ENV_W - 20;
-const LETTER_H = ENV_H + 30;
+const LETTER_H = PEEK_H + ENV_H;             // total : peek + partie dans l'enveloppe
 
 interface Props {
   senderName?: string;
@@ -58,7 +59,9 @@ export function PremiumLetterAnimation({ senderName = 'Sophie' }: Props) {
   const flapOpacity = useSharedValue(1);
 
   // ── Lettre ──────────────────────────────────────────────────────────────────
-  const letterY       = useSharedValue(LETTER_H * 0.7);  // commence cachée dans l'enveloppe
+  // Commence cachée dans l'enveloppe (translateY = ENV_H * 0.5 depuis top:0)
+  // Finit à translateY = -PEEK_H (dépasse de PEEK_H au-dessus)
+  const letterY       = useSharedValue(ENV_H * 0.55);
   const letterOpacity = useSharedValue(0);
   const letterShadow  = useSharedValue(0);
 
@@ -90,9 +93,9 @@ export function PremiumLetterAnimation({ senderName = 'Sophie' }: Props) {
       duration: 300, easing: Easing.out(Easing.quad),
     }));
 
-    // 5 — Lettre sort de l'enveloppe
+    // 5 — Lettre sort de l'enveloppe (s'arrête à -PEEK_H = juste au-dessus du bord)
     letterOpacity.value = withDelay(880, withTiming(1, { duration: 300 }));
-    letterY.value       = withDelay(880, withSpring(-FLAP_H * 0.55, {
+    letterY.value       = withDelay(880, withSpring(-PEEK_H, {
       damping: 13, stiffness: 80,
     }));
     letterShadow.value  = withDelay(1100, withTiming(1, { duration: 400 }));
@@ -132,15 +135,16 @@ export function PremiumLetterAnimation({ senderName = 'Sophie' }: Props) {
   }));
 
   // ── Rendu ─────────────────────────────────────────────────────────────────────
+  // Outer : espace PEEK_H en haut pour la lettre qui dépasse + ENV_H pour l'enveloppe
   return (
-    <View style={[styles.outer, { height: ENV_H + FLAP_H + 24 }]}>
+    <View style={[styles.outer, { height: ENV_H + PEEK_H + 20 }]}>
       <Animated.View style={[styles.scene, { width: ENV_W, height: ENV_H }, wrapStyle]}>
 
-        {/* ① LETTRE (derrière, sort par le dessus) */}
+        {/* ① LETTRE (derrière, sort par le dessus — top:0, translateY négatif pour sortir) */}
         <Animated.View
           style={[
             styles.letter,
-            { width: LETTER_W, height: LETTER_H, top: -(LETTER_H - ENV_H * 0.5), left: 10 },
+            { width: LETTER_W, height: LETTER_H, top: 0, left: 10 },
             letterStyle,
           ]}
         >
@@ -150,33 +154,48 @@ export function PremiumLetterAnimation({ senderName = 'Sophie' }: Props) {
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
           />
-          {/* Bord gauche décoratif */}
+          {/* Bords décoratifs gauche + droite (finesse papier lettre) */}
           <View style={styles.letterBorderLeft} />
-          {/* En-tête de la lettre */}
-          <View style={styles.letterHeader}>
-            <Text style={styles.letterOrnament}>✦</Text>
-            <View style={styles.letterHeaderLine} />
-            <Text style={styles.letterOrnament}>✦</Text>
+          <View style={styles.letterBorderRight} />
+
+          {/* ── Zone visible PEEK (haut de la lettre qui dépasse de l'enveloppe) ── */}
+          {/* Bandeau décoratif haut */}
+          <View style={styles.letterTopBand}>
+            <View style={styles.letterTopBandLine} />
+            <Text style={styles.letterTopBandText}>✦  Lettre privée  ✦</Text>
+            <View style={styles.letterTopBandLine} />
           </View>
-          {/* Corps */}
+
+          {/* Nom de l'expéditeur (visible dans le peek) */}
           <Text style={styles.letterFrom}>De la part de</Text>
           <Text style={styles.letterName}>{senderName}</Text>
+
+          {/* Séparateur ornemental */}
+          <View style={styles.letterDividerRow}>
+            <View style={styles.letterDividerLine} />
+            <Text style={styles.letterDividerOrnament}>❧</Text>
+            <View style={styles.letterDividerLine} />
+          </View>
+
+          {/* ── Zone dans l'enveloppe (non visible jusqu'au tap) ── */}
           {/* Lignes de texte simulées */}
           <View style={styles.ruledLines}>
-            {[0, 1, 2].map(i => (
-              <View key={i} style={[styles.ruleLine, { opacity: 0.4 + i * 0.06 }]} />
+            {[0, 1, 2, 3].map(i => (
+              <View key={i} style={[styles.ruleLine, { opacity: 0.35 + i * 0.04, width: i === 3 ? '55%' : '100%' }]} />
             ))}
           </View>
-          {/* Pied de lettre */}
+
+          {/* Invite à lire */}
           <View style={styles.letterFooter}>
             <View style={styles.letterFooterLine} />
-            <Text style={styles.letterHint}>Toucher pour lire →</Text>
+            <Text style={styles.letterHint}>✉  Toucher pour lire</Text>
           </View>
-          {/* Texture de papier (lignes très fines) */}
-          {Array.from({ length: 8 }).map((_, i) => (
+
+          {/* Grain de papier */}
+          {Array.from({ length: 10 }).map((_, i) => (
             <View
               key={`grain-${i}`}
-              style={[styles.paperGrain, { top: 28 + i * 14, opacity: 0.06 + (i % 2) * 0.03 }]}
+              style={[styles.paperGrain, { top: 20 + i * 16, opacity: 0.05 + (i % 2) * 0.025 }]}
             />
           ))}
         </Animated.View>
@@ -215,6 +234,8 @@ export function PremiumLetterAnimation({ senderName = 'Sophie' }: Props) {
           </Svg>
           {/* Bordure intérieure décorative */}
           <View style={styles.envInnerBorder} />
+          {/* Ombre intérieure en haut = effet "poche ouverte" */}
+          <View style={styles.envTopPocket} />
         </View>
 
         {/* ③ RABAT TRIANGULAIRE (au-dessus du corps, s'ouvre en rotateX) */}
@@ -271,11 +292,12 @@ export function PremiumLetterAnimation({ senderName = 'Sophie' }: Props) {
 const styles = StyleSheet.create({
   outer: {
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',  // enveloppe collée en bas, espace libre en haut pour le peek
     overflow: 'visible',
   },
   scene: {
     position: 'relative',
+    overflow: 'visible',          // permet à la lettre de sortir vers le haut
   },
 
   // ── Lettre ──────────────────────────────────────────────────────────────────
@@ -295,54 +317,85 @@ const styles = StyleSheet.create({
   },
   letterBorderLeft: {
     position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
+    left: 0, top: 0, bottom: 0,
+    width: 2.5,
     backgroundColor: '#C8962A',
-    opacity: 0.6,
+    opacity: 0.5,
   },
-  letterHeader: {
+  letterBorderRight: {
+    position: 'absolute',
+    right: 0, top: 0, bottom: 0,
+    width: 2.5,
+    backgroundColor: '#C8962A',
+    opacity: 0.3,
+  },
+  // Bandeau décoratif haut (visible dans le peek)
+  letterTopBand: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 6,
     gap: 8,
+    backgroundColor: 'rgba(200,160,60,0.12)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(180,130,50,0.25)',
   },
-  letterOrnament: {
-    fontSize: 10,
-    color: '#9A6A20',
-  },
-  letterHeaderLine: {
+  letterTopBandLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#C8A870',
-    opacity: 0.7,
+    backgroundColor: '#B8902A',
+    opacity: 0.5,
+  },
+  letterTopBandText: {
+    fontSize: 9,
+    color: '#7A5210',
+    letterSpacing: 1.2,
+    fontStyle: 'italic',
   },
   letterFrom: {
     fontSize: 9,
     color: '#8A6A30',
-    letterSpacing: 1.5,
+    letterSpacing: 1.8,
     textTransform: 'uppercase',
     marginTop: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
   },
   letterName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
-    color: '#5A2E08',
-    paddingHorizontal: 16,
-    marginTop: 2,
+    color: '#4A2208',
+    paddingHorizontal: 14,
+    marginTop: 1,
     fontStyle: 'italic',
   },
+  letterDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    marginTop: 8,
+    marginBottom: 4,
+    gap: 8,
+  },
+  letterDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#C8A870',
+    opacity: 0.55,
+  },
+  letterDividerOrnament: {
+    fontSize: 14,
+    color: '#9A6A20',
+  },
   ruledLines: {
-    paddingHorizontal: 16,
-    marginTop: 10,
-    gap: 10,
+    paddingHorizontal: 14,
+    marginTop: 8,
+    gap: 12,
   },
   ruleLine: {
     height: 1,
     backgroundColor: '#A08040',
+    alignSelf: 'stretch',
   },
   paperGrain: {
     position: 'absolute',
@@ -353,13 +406,13 @@ const styles = StyleSheet.create({
   },
   letterFooter: {
     position: 'absolute',
-    bottom: 12,
-    left: 16,
-    right: 16,
+    bottom: 14,
+    left: 14,
+    right: 14,
     alignItems: 'center',
   },
   letterFooterLine: {
-    width: '70%',
+    width: '65%',
     height: 1,
     backgroundColor: '#C8A870',
     opacity: 0.5,
@@ -367,9 +420,9 @@ const styles = StyleSheet.create({
   },
   letterHint: {
     fontSize: 11,
-    color: '#8A5A1A',
+    color: '#7A4A10',
     fontStyle: 'italic',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
 
   // ── Corps enveloppe ──────────────────────────────────────────────────────────
@@ -389,6 +442,16 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     borderWidth: 1,
     borderColor: 'rgba(200,160,60,0.35)',
+  },
+  envTopPocket: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 18,
+    backgroundColor: 'rgba(80,40,0,0.10)',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
   },
 
   // ── Rabat ────────────────────────────────────────────────────────────────────
