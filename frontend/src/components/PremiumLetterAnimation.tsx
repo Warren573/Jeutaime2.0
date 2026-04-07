@@ -18,7 +18,7 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
-import Svg, { Line } from 'react-native-svg';
+import Svg, { Polygon, Line } from 'react-native-svg';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -31,12 +31,14 @@ const LETTER_PEEK = Math.round(ENV_H * 0.35);
 const CONTAINER_H = ENV_H + LETTER_PEEK;
 const LETTER_H    = POCKET_H + LETTER_PEEK;
 
-// Lettre sort partiellement
-const LETTER_FINAL_Y = -Math.round(LETTER_PEEK * 0.72);
+// Lettre sort partiellement (50% de LETTER_PEEK = sort moins = plus réaliste)
+const LETTER_FINAL_Y = -Math.round(LETTER_PEEK * 0.50);
 
-// SVG — plis diagonaux
+// SVG
 const CX = ENV_W / 2;
 const CY = POCKET_H / 2;
+// Triangle du rabat : hinge en haut, pointe vers le bas
+const FLAP_TRI = `0,0 ${ENV_W},0 ${ENV_W / 2},${FLAP_H}`;
 
 interface Props { senderName?: string }
 
@@ -49,24 +51,25 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
   const exitOp    = useSharedValue(1);
 
   useEffect(() => {
-    sceneOp.value = withTiming(1, { duration: 220 });
+    // Apparition — enveloppe fermée visible pendant 600ms avant d'animer
+    sceneOp.value = withTiming(1, { duration: 250 });
 
-    // Phase 1 — rabat s'ouvre : scaleY 1→0, pivot en haut
-    flapScale.value = withDelay(300, withTiming(0, {
+    // Phase 1 — rabat s'ouvre à t=800ms
+    flapScale.value = withDelay(800, withTiming(0, {
       duration: 520,
       easing: Easing.inOut(Easing.ease),
     }));
-    flapOp.value = withDelay(580, withTiming(0, { duration: 200 }));
+    flapOp.value = withDelay(1080, withTiming(0, { duration: 200 }));
 
-    // Phase 2 — lettre sort
-    letterOp.value = withDelay(940, withTiming(1, { duration: 180 }));
-    letterY.value  = withDelay(940, withTiming(LETTER_FINAL_Y, {
+    // Phase 2 — lettre sort à t=1440ms
+    letterOp.value = withDelay(1440, withTiming(1, { duration: 180 }));
+    letterY.value  = withDelay(1440, withTiming(LETTER_FINAL_Y, {
       duration: 420,
       easing: Easing.out(Easing.ease),
     }));
 
-    // Sortie
-    exitOp.value = withDelay(1700, withTiming(0, {
+    // Sortie à t=2200ms
+    exitOp.value = withDelay(2200, withTiming(0, {
       duration: 350,
       easing: Easing.in(Easing.ease),
     }));
@@ -143,10 +146,12 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
           <Animated.View
             style={[styles.flap, { top: LETTER_PEEK, width: ENV_W, height: FLAP_H }, flapStyle]}
           >
-            {/* Lignes de pli du rabat (diagonal V vers le bas = joint avec le corps) */}
+            {/* Triangle clairement visible : fill légèrement + sombre que le fond kraft */}
             <Svg width={ENV_W} height={FLAP_H} style={StyleSheet.absoluteFill}>
-              <Line x1={0} y1={0} x2={CX} y2={FLAP_H} stroke="rgba(70,38,5,0.22)" strokeWidth="0.9" />
-              <Line x1={ENV_W} y1={0} x2={CX} y2={FLAP_H} stroke="rgba(70,38,5,0.22)" strokeWidth="0.9" />
+              {/* Ombre du triangle = forme V visible */}
+              <Polygon points={FLAP_TRI} fill="rgba(60,28,0,0.14)" />
+              {/* Contour du triangle = crease de pli */}
+              <Polygon points={FLAP_TRI} fill="none" stroke="rgba(70,35,3,0.35)" strokeWidth="1" />
             </Svg>
             {/* Cachet de cire */}
             <View style={[styles.seal, { bottom: Math.round(FLAP_H * 0.22), left: ENV_W / 2 - 13 }]} />
