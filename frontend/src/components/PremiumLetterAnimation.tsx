@@ -43,9 +43,9 @@ const FLAP_TRI = `0,0 ${ENV_W},0 ${ENV_W / 2},${FLAP_H}`;
 interface Props { senderName?: string }
 
 export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
-  const sceneOp   = useSharedValue(0);
-  const flapScale = useSharedValue(1);
-  const flapOp    = useSharedValue(1);
+  const sceneOp  = useSharedValue(0);
+  const flapY    = useSharedValue(0);          // translateY : 0 → sort vers le haut
+  const flapOp   = useSharedValue(1);
   const letterY   = useSharedValue(FLAP_H);
   const letterOp  = useSharedValue(0);
   const exitOp    = useSharedValue(1);
@@ -54,12 +54,13 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
     // Apparition — enveloppe fermée visible pendant 600ms avant d'animer
     sceneOp.value = withTiming(1, { duration: 250 });
 
-    // Phase 1 — rabat s'ouvre à t=800ms
-    flapScale.value = withDelay(800, withTiming(0, {
-      duration: 520,
+    // Phase 1 — rabat glisse vers le haut et sort du container (overflow:hidden le clippe)
+    flapY.value = withDelay(800, withTiming(-(LETTER_PEEK + FLAP_H + 8), {
+      duration: 480,
       easing: Easing.inOut(Easing.ease),
     }));
-    flapOp.value = withDelay(1080, withTiming(0, { duration: 200 }));
+    // Fondu léger quand le rabat passe le bord supérieur
+    flapOp.value = withDelay(1050, withTiming(0, { duration: 180 }));
 
     // Phase 2 — lettre sort à t=1440ms
     letterOp.value = withDelay(1440, withTiming(1, { duration: 180 }));
@@ -82,18 +83,10 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
     transform: [{ translateY: letterY.value }],
   }));
 
-  /**
-   * Pivot au bord SUPÉRIEUR du rabat (hinge) :
-   * [translateY(+h/2), scaleY, translateY(-h/2)]
-   * → bord haut fixe, pointe remonte vers lui
-   */
+  // Rabat glisse vers le haut → clippé par overflow:hidden du container
   const flapStyle = useAnimatedStyle(() => ({
     opacity: flapOp.value,
-    transform: [
-      { translateY:  FLAP_H / 2 },
-      { scaleY: flapScale.value },
-      { translateY: -FLAP_H / 2 },
-    ],
+    transform: [{ translateY: flapY.value }],
   }));
 
   return (
