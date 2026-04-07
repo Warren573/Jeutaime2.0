@@ -21,155 +21,280 @@ function injectCSS() {
   const style = document.createElement('style');
   style.id = CSS_ID;
   style.textContent = `
-    .pla-scene {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .real-envelope, .real-envelope * { box-sizing: border-box; }
+
+    /* ── Container ── */
+    .real-envelope {
+      --env-base: #c89a5f;
+      --env-light: #d9b07a;
+      --env-dark: #b88549;
+      --paper: #f5ecd9;
+      --paper-line: rgba(120, 92, 55, 0.18);
+      --seal-red: #9f201f;
+      --seal-dark: #6f1212;
+
+      position: relative;
+      width: min(84vw, 360px);
+      aspect-ratio: 1.45 / 1;
+      margin: 0 auto;
+      perspective: 1600px;
       transition: opacity 1000ms ease;
     }
-    .pla-scene.out {
-      opacity: 0;
-    }
-    .pla-shell {
-      position: relative;
-      width: min(78vw, 320px);
-      aspect-ratio: 1.54 / 1;
-      perspective: 1200px;
-      border-radius: 6px;
-      box-shadow: 0 8px 28px rgba(60,30,5,0.28), 0 2px 6px rgba(60,30,5,0.14);
-    }
-    .pla-back {
+    .real-envelope.is-out { opacity: 0; }
+
+    /* grain texture overlay */
+    .real-envelope::before {
+      content: "";
       position: absolute;
       inset: 0;
-      background: #A07030;
-      border-radius: 6px;
+      border-radius: 14px;
+      pointer-events: none;
+      z-index: 20;
+      opacity: 0.14;
+      background-image:
+        radial-gradient(circle at 12% 18%, rgba(255,255,255,0.22) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 78% 36%, rgba(0,0,0,0.10) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 42% 74%, rgba(255,255,255,0.14) 0 1px, transparent 1.4px),
+        radial-gradient(circle at 64% 82%, rgba(0,0,0,0.08) 0 1px, transparent 1.6px),
+        radial-gradient(circle at 28% 56%, rgba(0,0,0,0.05) 0 0.8px, transparent 1.3px);
+    }
+
+    /* ── Back panel ── */
+    .real-envelope__back {
+      position: absolute;
+      inset: 0;
       z-index: 1;
-    }
-    .pla-back-inner {
-      position: absolute;
-      inset: 0;
-      /* parchment center + two crossing fold lines */
+      border-radius: 14px;
       background:
-        linear-gradient(to bottom right,
-          transparent calc(50% - 0.8px), rgba(100,55,5,0.13) 50%, transparent calc(50% + 0.8px)),
-        linear-gradient(to bottom left,
-          transparent calc(50% - 0.8px), rgba(100,55,5,0.13) 50%, transparent calc(50% + 0.8px)),
-        #F0DDAC;
-      border-radius: 6px;
-      z-index: 1;
-    }
-    .pla-letter {
-      position: absolute;
-      left: 50%;
-      top: 10%;
-      width: 82%;
-      height: 72%;
-      background: #FFFFFF;
-      border-radius: 3px;
-      box-shadow: 0 2px 8px rgba(42,21,0,0.18);
-      transform: translateX(-50%) translateY(15%);
-      opacity: 0;
-      transition: transform 1000ms cubic-bezier(0.22,1,0.36,1), opacity 600ms ease;
-      z-index: 2;
+        linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0) 20%),
+        linear-gradient(135deg, #d7b07c 0%, var(--env-base) 45%, #bf8f56 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.18),
+        inset 0 -2px 10px rgba(96, 58, 18, 0.08),
+        0 1px 0 rgba(120, 78, 31, 0.15),
+        0 10px 32px rgba(60,30,5,0.26),
+        0 2px 8px rgba(60,30,5,0.14);
       overflow: hidden;
     }
-    .pla-scene.open .pla-letter {
-      transform: translateX(-50%) translateY(-65%);
+
+    /* ── Letter ── */
+    .real-envelope__letter {
+      position: absolute;
+      left: 50%;
+      top: 8%;
+      width: 82%;
+      height: 92%;
+      transform: translateX(-50%) translateY(42%);
+      opacity: 0;
+      transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1), opacity 500ms ease;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .real-envelope.is-open .real-envelope__letter {
+      transform: translateX(-50%) translateY(-35%);
       opacity: 1;
       transition-delay: 700ms;
     }
-    .pla-letter-line {
-      position: absolute;
-      left: 12px;
-      height: 1px;
-      background: #707070;
-      opacity: 0.3;
-      border-radius: 1px;
-    }
-    .pla-side {
-      position: absolute;
-      top: 0;
-      width: 50%;
+    .real-envelope__letter-paper {
+      width: 100%;
       height: 100%;
-      z-index: 3;
+      border-radius: 8px 8px 4px 4px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.46), rgba(255,255,255,0.08) 12%, transparent 18%),
+        linear-gradient(135deg, #f8f0df 0%, var(--paper) 48%, #eadfc8 100%);
+      box-shadow:
+        0 8px 18px rgba(0,0,0,0.10),
+        inset 0 1px 0 rgba(255,255,255,0.65),
+        inset 0 -1px 0 rgba(125, 92, 52, 0.10);
+      position: relative;
+      overflow: hidden;
     }
-    .pla-side-left {
-      left: 0;
-      clip-path: polygon(0 0, 100% 50%, 0 100%);
-      /* darker at outer edge, lighter toward fold — paper folding inward */
-      background: linear-gradient(to right, #7A5020, #C09058);
-    }
-    .pla-side-right {
-      right: 0;
-      clip-path: polygon(100% 0, 0 50%, 100% 100%);
-      background: linear-gradient(to left, #7A5020, #C09058);
-    }
-    .pla-pocket {
+    .real-envelope__letter-paper::before {
+      content: "";
       position: absolute;
       inset: 0;
-      background: #B87840;
-      clip-path: polygon(0 0, 50% 68%, 100% 0, 100% 100%, 0 100%);
+      opacity: 0.08;
+      background-image:
+        radial-gradient(circle at 14% 20%, rgba(0,0,0,0.18) 0 0.8px, transparent 1.3px),
+        radial-gradient(circle at 78% 36%, rgba(0,0,0,0.12) 0 0.8px, transparent 1.2px),
+        radial-gradient(circle at 44% 82%, rgba(255,255,255,0.26) 0 1px, transparent 1.4px);
+    }
+    .real-envelope__letter-lines {
+      padding: 18px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .real-envelope__letter-lines span {
+      display: block;
+      height: 2px;
+      border-radius: 999px;
+      background: var(--paper-line);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.18);
+    }
+    .real-envelope__letter-lines span:nth-child(1) { width: 64%; }
+    .real-envelope__letter-lines span:nth-child(2) { width: 88%; }
+    .real-envelope__letter-lines span:nth-child(3) { width: 82%; }
+    .real-envelope__letter-lines span:nth-child(4) { width: 74%; }
+    .real-envelope__letter-lines span:nth-child(5) { width: 86%; }
+    .real-envelope__letter-lines span:nth-child(6) { width: 52%; }
+
+    /* ── Side flaps ── */
+    .real-envelope__side {
+      position: absolute;
+      bottom: 0;
+      width: 50%;
+      height: 78%;
       z-index: 4;
+      overflow: hidden;
     }
-    /* fold crease line at pocket junction */
-    .pla-pocket::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 1.5px;
-      background: rgba(60,30,5,0.22);
-    }
-    /* flap-group: carries the rotation; children are NOT clipped by parent clip-path */
-    .pla-flap-group {
+    .real-envelope__side::before {
+      content: "";
       position: absolute;
       inset: 0;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.10), transparent 24%),
+        linear-gradient(135deg, #d3aa73 0%, #c39258 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.12),
+        inset 0 -1px 0 rgba(120, 74, 24, 0.10);
+    }
+    .real-envelope__side--left {
+      left: 0;
+      clip-path: polygon(0 0, 100% 52%, 0 100%);
+    }
+    .real-envelope__side--left::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      clip-path: polygon(0 0, 100% 52%, 0 100%);
+      background: linear-gradient(135deg, transparent 55%, rgba(108, 70, 28, 0.18) 100%);
+    }
+    .real-envelope__side--right {
+      right: 0;
+      clip-path: polygon(100% 0, 0 52%, 100% 100%);
+    }
+    .real-envelope__side--right::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      clip-path: polygon(100% 0, 0 52%, 100% 100%);
+      background: linear-gradient(225deg, transparent 55%, rgba(108, 70, 28, 0.18) 100%);
+    }
+
+    /* ── Bottom pocket — always in front of letter ── */
+    .real-envelope__bottom {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 58%;
+      z-index: 5;
+      border-bottom-left-radius: 14px;
+      border-bottom-right-radius: 14px;
+      clip-path: polygon(0 0, 50% 69%, 100% 0, 100% 100%, 0 100%);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.08), transparent 20%),
+        linear-gradient(135deg, #ddb671 0%, #c99658 45%, #bc8648 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.18),
+        inset 0 -2px 6px rgba(103, 63, 22, 0.12);
+    }
+    .real-envelope__bottom::before {
+      content: "";
+      position: absolute;
+      top: 0; bottom: 0; left: 0;
+      width: 52%;
+      pointer-events: none;
+      background: linear-gradient(41deg, transparent 49.2%, rgba(102,66,28,0.32) 49.8%, rgba(255,255,255,0.10) 50.2%, transparent 51%);
+    }
+    .real-envelope__bottom::after {
+      content: "";
+      position: absolute;
+      top: 0; bottom: 0; right: 0;
+      width: 52%;
+      pointer-events: none;
+      background: linear-gradient(-41deg, transparent 49.2%, rgba(102,66,28,0.32) 49.8%, rgba(255,255,255,0.10) 50.2%, transparent 51%);
+    }
+
+    /* ── Top flap (rotation GROUP — no clip-path so seal is never clipped) ── */
+    .real-envelope__top-flap {
+      position: absolute;
+      left: 0; right: 0; top: 0;
+      height: 58%;
+      z-index: 8;
       transform-origin: top center;
       transform: rotateX(0deg);
-      transition: transform 1100ms cubic-bezier(0.4, 0, 0.2, 1);
-      z-index: 5;
+      transition: transform 1100ms cubic-bezier(0.2, 0.8, 0.2, 1);
     }
-    .pla-scene.open .pla-flap-group {
+    .real-envelope.is-open .real-envelope__top-flap {
       transform: rotateX(180deg);
-      z-index: 1;
+      z-index: 3;
     }
-    /* triangle shape — clipped, no children */
-    .pla-flap-shape {
+
+    /* triangle SHAPE child — carries clip-path + visual */
+    .real-envelope__top-flap-shape {
       position: absolute;
       inset: 0;
-      /* lighter at top (receives light), darker at fold tip */
-      background: linear-gradient(to bottom, #E0B878, #C49050);
-      clip-path: polygon(0 0, 100% 0, 50% 78%);
+      clip-path: polygon(0 0, 100% 0, 50% 76%);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.10), transparent 22%),
+        linear-gradient(135deg, #d6ae78 0%, #c39258 60%, #b88146 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.18),
+        inset 0 -2px 10px rgba(92, 58, 21, 0.12);
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
     }
-    /* seal: sibling of flap-shape → NOT clipped by triangle, rotates with group */
-    .pla-seal {
-      position: absolute;
-      top: calc(78% - 18px);
-      left: 50%;
-      transform: translateX(-50%);
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: #7A1A1A;
-      box-shadow: 0 2px 8px rgba(122,26,26,0.65), 0 0 0 2px rgba(180,80,80,0.25);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      line-height: 36px;
-      text-align: center;
-      z-index: 1;
-      backface-visibility: hidden;
-      -webkit-backface-visibility: hidden;
-    }
-    .pla-border {
+    /* fold crease lines on triangle */
+    .real-envelope__top-flap-shape::before {
+      content: "";
       position: absolute;
       inset: 0;
-      border: 1.5px solid rgba(70,35,5,0.40);
-      border-radius: 6px;
+      background:
+        linear-gradient(139deg, transparent 49.3%, rgba(86,55,20,0.34) 49.8%, rgba(255,255,255,0.14) 50.2%, transparent 50.8%),
+        linear-gradient(221deg, transparent 49.3%, rgba(86,55,20,0.34) 49.8%, rgba(255,255,255,0.14) 50.2%, transparent 50.8%);
       pointer-events: none;
-      z-index: 10;
+    }
+
+    /* seal — sibling of shape, NOT clipped, rotates with flap group
+       bottom:5% places seal CENTER at the triangle tip (76% of flap height) */
+    .real-envelope__seal {
+      position: absolute;
+      left: 50%;
+      bottom: 5%;
+      width: 54px;
+      height: 54px;
+      transform: translateX(-50%);
+      z-index: 9;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 34% 28%, rgba(255,255,255,0.32) 0 10%, transparent 28%),
+        radial-gradient(circle at 50% 52%, #b82c28 0 42%, var(--seal-red) 58%, var(--seal-dark) 100%);
+      box-shadow:
+        0 5px 8px rgba(70,10,10,0.24),
+        inset 0 -3px 5px rgba(91,8,8,0.30),
+        inset 0 2px 3px rgba(255,255,255,0.16);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .real-envelope__seal::before {
+      content: "";
+      position: absolute;
+      inset: 7px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 30%, rgba(255,255,255,0.22) 0 8%, transparent 24%),
+        linear-gradient(135deg, #b12522 0%, #941817 100%);
+      box-shadow:
+        inset 0 1px 1px rgba(255,255,255,0.14),
+        inset 0 -2px 2px rgba(87,10,10,0.22);
+    }
+    .real-envelope__seal::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      border-radius: 44% 56% 48% 52% / 52% 48% 56% 44%;
+      box-shadow: inset 0 0 0 1px rgba(124,18,18,0.08);
+      pointer-events: none;
     }
   `;
   document.head.appendChild(style);
@@ -198,46 +323,37 @@ function WebEnvelope() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  const sceneClass = ['pla-scene', phase === 'open' || phase === 'out' ? 'open' : '', phase === 'out' ? 'out' : '']
-    .filter(Boolean).join(' ');
+  const envClass = [
+    'real-envelope',
+    (phase === 'open' || phase === 'out') ? 'is-open' : '',
+    phase === 'out' ? 'is-out' : '',
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className={sceneClass}>
-      <div className="pla-shell">
-        {/* z=1 — dos kraft */}
-        <div className="pla-back">
-          <div className="pla-back-inner" />
+    <div className={envClass}>
+      {/* z=1 — dos kraft */}
+      <div className="real-envelope__back" />
+
+      {/* z=2 — lettre, masquée par la pocket en bas */}
+      <div className="real-envelope__letter">
+        <div className="real-envelope__letter-paper">
+          <div className="real-envelope__letter-lines">
+            <span /><span /><span /><span /><span /><span />
+          </div>
         </div>
+      </div>
 
-        {/* z=2 — lettre blanche */}
-        <div className="pla-letter">
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="pla-letter-line"
-              style={{
-                top: 14 + i * 16,
-                width: ['70%', '85%', '80%', '45%'][i],
-              }}
-            />
-          ))}
-        </div>
+      {/* z=4 — rabats latéraux */}
+      <div className="real-envelope__side real-envelope__side--left" />
+      <div className="real-envelope__side real-envelope__side--right" />
 
-        {/* z=3 — triangles latéraux */}
-        <div className="pla-side pla-side-left" />
-        <div className="pla-side pla-side-right" />
+      {/* z=5 — poche basse, toujours devant la lettre */}
+      <div className="real-envelope__bottom" />
 
-        {/* z=4 — poche basse, toujours devant la lettre */}
-        <div className="pla-pocket" />
-
-        {/* z=5 — rabat supérieur : groupe qui porte la rotation */}
-        <div className="pla-flap-group">
-          <div className="pla-flap-shape" />
-          <div className="pla-seal">⚜️</div>
-        </div>
-
-        {/* bordure */}
-        <div className="pla-border" />
+      {/* z=8 — groupe rotation du rabat (NO clip-path → seal non clippé) */}
+      <div className="real-envelope__top-flap">
+        <div className="real-envelope__top-flap-shape" />
+        <div className="real-envelope__seal" />
       </div>
     </div>
   );
