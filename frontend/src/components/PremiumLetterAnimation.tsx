@@ -59,14 +59,14 @@ function injectCSS() {
       background: #FFFFFF;
       border-radius: 3px;
       box-shadow: 0 2px 8px rgba(42,21,0,0.18);
-      transform: translateX(-50%) translateY(38%);
+      transform: translateX(-50%) translateY(15%);
       opacity: 0;
       transition: transform 1000ms cubic-bezier(0.22,1,0.36,1), opacity 600ms ease;
       z-index: 2;
       overflow: hidden;
     }
     .pla-scene.open .pla-letter {
-      transform: translateX(-50%) translateY(-55%);
+      transform: translateX(-50%) translateY(-65%);
       opacity: 1;
       transition-delay: 700ms;
     }
@@ -108,28 +108,32 @@ function injectCSS() {
       height: 1px;
       background: rgba(70,38,5,0.25);
     }
-    .pla-flap {
+    /* flap-group: carries the rotation; children are NOT clipped by parent clip-path */
+    .pla-flap-group {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: #C4955C;
-      clip-path: polygon(0 0, 100% 0, 50% 78%);
+      inset: 0;
       transform-origin: top center;
       transform: rotateX(0deg);
       transition: transform 1100ms cubic-bezier(0.4, 0, 0.2, 1);
       z-index: 5;
-      backface-visibility: hidden;
-      -webkit-backface-visibility: hidden;
     }
-    .pla-scene.open .pla-flap {
+    .pla-scene.open .pla-flap-group {
       transform: rotateX(180deg);
       z-index: 1;
     }
+    /* triangle shape — clipped, no children */
+    .pla-flap-shape {
+      position: absolute;
+      inset: 0;
+      background: #C4955C;
+      clip-path: polygon(0 0, 100% 0, 50% 78%);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    /* seal: sibling of flap-shape, not clipped, rotates with group */
     .pla-seal {
       position: absolute;
-      bottom: 18%;
+      top: calc(78% - 18px);
       left: 50%;
       transform: translateX(-50%);
       width: 36px;
@@ -140,15 +144,11 @@ function injectCSS() {
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 6;
-      transition: opacity 300ms ease;
       font-size: 18px;
       line-height: 36px;
       text-align: center;
-    }
-    .pla-scene.open .pla-seal {
-      opacity: 0;
-      transition-delay: 200ms;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
     }
     .pla-border {
       position: absolute;
@@ -217,8 +217,9 @@ function WebEnvelope() {
         {/* z=4 — poche basse, toujours devant la lettre */}
         <div className="pla-pocket" />
 
-        {/* z=5 — rabat supérieur */}
-        <div className="pla-flap">
+        {/* z=5 — rabat supérieur : groupe qui porte la rotation */}
+        <div className="pla-flap-group">
+          <div className="pla-flap-shape" />
           <div className="pla-seal">⚜️</div>
         </div>
 
