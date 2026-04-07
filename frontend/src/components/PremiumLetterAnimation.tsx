@@ -60,14 +60,14 @@ function injectCSS() {
       box-shadow: 0 2px 8px rgba(42,21,0,0.18);
       transform: translateX(-50%) translateY(38%);
       opacity: 0;
-      transition: transform 900ms cubic-bezier(0.22,1,0.36,1), opacity 500ms ease;
+      transition: transform 1200ms cubic-bezier(0.22,1,0.36,1), opacity 600ms ease;
       z-index: 2;
       overflow: hidden;
     }
     .pla-scene.open .pla-letter {
       transform: translateX(-50%) translateY(-18%);
       opacity: 1;
-      transition-delay: 400ms;
+      transition-delay: 800ms;
     }
     .pla-letter-line {
       position: absolute;
@@ -117,7 +117,7 @@ function injectCSS() {
       clip-path: polygon(0 0, 100% 0, 50% 78%);
       transform-origin: top center;
       transform: rotateX(0deg);
-      transition: transform 800ms cubic-bezier(0.34, 1.2, 0.64, 1);
+      transition: transform 1300ms cubic-bezier(0.34, 1.2, 0.64, 1);
       z-index: 5;
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
@@ -170,8 +170,8 @@ function WebEnvelope() {
 
   useEffect(() => {
     injectCSS();
-    const t1 = setTimeout(() => setPhase('open'), 800);
-    const t2 = setTimeout(() => setPhase('out'), 4200);
+    const t1 = setTimeout(() => setPhase('open'), 1000);
+    const t2 = setTimeout(() => setPhase('out'), 6000);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
