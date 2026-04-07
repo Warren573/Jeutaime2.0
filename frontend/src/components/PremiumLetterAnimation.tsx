@@ -4,21 +4,17 @@
  * Structure (z-order) :
  *   z=1  env-back   → envelope-open-back.png  (full image)
  *   z=2  env-letter → letter.png              (rises from inside)
- *   z=3  env-front  → envelope-open-back.png  (même image, clippée : poche seulement)
+ *   z=3  env-front  → envelope-open-back.png  (même image, clip-path poche)
  *   z=4  env-closed → envelope-closed.png     (fades out en premier)
- *
- * La poche (env-front) masque le bas de la lettre → illusion de sortie.
  *
  * Timeline :
  *   t=  0 ms  env-closed visible, resto invisible
- *   t=600 ms  is-open → closed fade-out (320ms), back fade-in (360ms),
- *                        front fade-in (360ms, delay 120ms),
- *                        letter rise (800ms, delay 480ms)
+ *   t=600 ms  is-open → closed fade-out, back/front fade-in, letter rise
  *   t=4200ms  is-out  → scène fade-out (700ms)
- *   LettersScreen unmount : 5100ms > 4900ms ✓
+ *   LettersScreen unmount : 5100ms ✓
  */
 import React, { useEffect, useState } from 'react';
-import { Platform, Dimensions, StyleSheet, Image as RNImage } from 'react-native';
+import { Platform, Dimensions, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -28,15 +24,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 
-// ─── Asset sources (require = asset ID pour RN, URI string pour web via resolveAssetSource) ──
+// ─── Asset modules (require = asset ID, jamais appelé comme URL directement) ──
 const ENV_BACK_MOD   = require('../../assets/envelope/envelope-open-back.png');
 const LETTER_MOD     = require('../../assets/envelope/letter.png');
 const ENV_CLOSED_MOD = require('../../assets/envelope/envelope-closed.png');
-
-// URI strings pour les <img> HTML (web uniquement)
-const ENV_BACK_URI   = RNImage.resolveAssetSource(ENV_BACK_MOD).uri;
-const LETTER_URI     = RNImage.resolveAssetSource(LETTER_MOD).uri;
-const ENV_CLOSED_URI = RNImage.resolveAssetSource(ENV_CLOSED_MOD).uri;
 
 // ─── CSS injection (web only) ─────────────────────────────────────────────────
 const CSS_ID = 'pla-envelope-styles';
@@ -66,7 +57,6 @@ function injectCSS() {
       display: block;
     }
 
-    /* ── État initial ── */
     .env-back {
       z-index: 1;
       opacity: 0;
@@ -84,7 +74,6 @@ function injectCSS() {
       z-index: 3;
       opacity: 0;
       transition: opacity 360ms ease 120ms;
-      /* Seule la poche (partie basse) reste visible */
       clip-path: polygon(0% 45%, 100% 45%, 100% 100%, 0% 100%);
     }
     .env-closed {
@@ -93,7 +82,6 @@ function injectCSS() {
       transition: opacity 320ms ease;
     }
 
-    /* ── État ouvert ── */
     .env-scene.is-open .env-back   { opacity: 1; }
     .env-scene.is-open .env-closed { opacity: 0; }
     .env-scene.is-open .env-front  { opacity: 1; }
@@ -113,9 +101,24 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
   return <NativeEnvelope />;
 }
 
-// ─── Web version (CSS injection + HTML img) ───────────────────────────────────
+// ─── Web version ──────────────────────────────────────────────────────────────
 function WebEnvelope() {
   const [phase, setPhase] = useState<'idle' | 'open' | 'out'>('idle');
+
+  // Résolution des URIs dans l'initialiseur de useState → safe (RN est prêt au premier render)
+  const [uris] = useState<{ back: string; letter: string; closed: string }>(() => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { Image: RNImg } = require('react-native');
+      return {
+        back:   RNImg.resolveAssetSource(ENV_BACK_MOD).uri,
+        letter: RNImg.resolveAssetSource(LETTER_MOD).uri,
+        closed: RNImg.resolveAssetSource(ENV_CLOSED_MOD).uri,
+      };
+    } catch {
+      return { back: '', letter: '', closed: '' };
+    }
+  });
 
   useEffect(() => {
     injectCSS();
@@ -132,14 +135,10 @@ function WebEnvelope() {
 
   return (
     <div className={cls}>
-      {/* z=1 — dos enveloppe ouverte */}
-      <img className="env-layer env-back"   src={ENV_BACK_URI}   alt="" draggable={false} />
-      {/* z=2 — lettre (monte entre back et front) */}
-      <img className="env-layer env-letter" src={LETTER_URI}     alt="" draggable={false} />
-      {/* z=3 — même image que back, clip-path = poche seulement */}
-      <img className="env-layer env-front"  src={ENV_BACK_URI}   alt="" draggable={false} />
-      {/* z=4 — enveloppe fermée (disparaît en premier) */}
-      <img className="env-layer env-closed" src={ENV_CLOSED_URI} alt="" draggable={false} />
+      <img className="env-layer env-back"   src={uris.back}   alt="" draggable={false} />
+      <img className="env-layer env-letter" src={uris.letter} alt="" draggable={false} />
+      <img className="env-layer env-front"  src={uris.back}   alt="" draggable={false} />
+      <img className="env-layer env-closed" src={uris.closed} alt="" draggable={false} />
     </div>
   );
 }
