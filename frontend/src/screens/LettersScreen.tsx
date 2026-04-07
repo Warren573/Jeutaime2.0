@@ -25,10 +25,6 @@ const CARD_W = SCREEN_W - 32;
 const MINI_FLAP_H = 54;
 const LARGE_FLAP_H = 92;
 
-const PARTICLE_PROPS = [
-  { x: -20, emoji: '✨' },
-  { x:  20, emoji: '⭐' },
-];
 
 // ─── EnvelopeCard ─────────────────────────────────────────────────────────────
 
@@ -42,58 +38,10 @@ interface EnvelopeCardProps {
 }
 
 const EnvelopeCard = ({ otherName, lastMsg, unread, myTurn, onOpen, formatTime }: EnvelopeCardProps) => {
-  const [opening, setOpening] = useState(false);
-  const flapY      = useRef(new Animated.Value(0)).current;
-  const flapScaleY = useRef(new Animated.Value(1)).current;
-  const flapOp     = useRef(new Animated.Value(1)).current;
-  const bgOp       = useRef(new Animated.Value(0)).current;
-  const envScale   = useRef(new Animated.Value(1)).current;
-  const particleAnims = useRef([
-    { y: new Animated.Value(0), op: new Animated.Value(0) },
-    { y: new Animated.Value(0), op: new Animated.Value(0) },
-  ]).current;
-
-  const handlePress = () => {
-    setOpening(true);
-    particleAnims.forEach(p => { p.y.setValue(0); p.op.setValue(0); });
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(bgOp,     { toValue: 1,    duration: 300, useNativeDriver: true }),
-        Animated.timing(envScale, { toValue: 1.03, duration: 280, useNativeDriver: true }),
-      ]),
-      Animated.parallel([
-        Animated.timing(flapY,      { toValue: -(LARGE_FLAP_H + 80), duration: 820, useNativeDriver: true }),
-        Animated.timing(flapScaleY, { toValue: 0,                     duration: 620, useNativeDriver: true }),
-        Animated.timing(flapOp,     { toValue: 0,                     duration: 520, useNativeDriver: true }),
-        Animated.timing(envScale,   { toValue: 1,                     duration: 820, useNativeDriver: true }),
-        ...particleAnims.map((p, i) =>
-          Animated.sequence([
-            Animated.delay(i * 140),
-            Animated.parallel([
-              Animated.timing(p.op, { toValue: 1,          duration: 180, useNativeDriver: true }),
-              Animated.timing(p.y,  { toValue: -55 - i*12, duration: 700, useNativeDriver: true }),
-            ]),
-            Animated.timing(p.op, { toValue: 0, duration: 280, useNativeDriver: true }),
-          ])
-        ),
-      ]),
-    ]).start(() => {
-      setTimeout(() => {
-        setOpening(false);
-        flapY.setValue(0);
-        flapScaleY.setValue(1);
-        flapOp.setValue(1);
-        bgOp.setValue(0);
-        envScale.setValue(1);
-        onOpen();
-      }, 120);
-    });
-  };
-
   return (
     <>
       {/* ── Carte dans la liste ── */}
-      <TouchableOpacity style={envStyles.card} onPress={handlePress} activeOpacity={0.85}>
+      <TouchableOpacity style={envStyles.card} onPress={onOpen} activeOpacity={0.82}>
         {/* Zone rabat */}
         <View style={envStyles.flapMini}>
           <View style={envStyles.foldLinesWrap}>
@@ -132,60 +80,6 @@ const EnvelopeCard = ({ otherName, lastMsg, unread, myTurn, onOpen, formatTime }
         </View>
       </TouchableOpacity>
 
-      {/* ── Overlay d'ouverture ── */}
-      <Modal visible={opening} transparent animationType="none">
-        <Animated.View style={[envStyles.overlay, { opacity: bgOp }]}>
-          {/* Enveloppe agrandie */}
-          <Animated.View style={[envStyles.largeWrapper, { transform: [{ scale: envScale }] }]}>
-            {/* Corps révélé sous le rabat */}
-            <View style={envStyles.largeBody}>
-              <View style={envStyles.largeContent}>
-                <Avatar size={68} {...DEFAULT_AVATAR} />
-                <Text style={envStyles.largeName}>{otherName}</Text>
-                <Text style={envStyles.largePreview} numberOfLines={3}>
-                  {lastMsg ? lastMsg.content : '✨ Commencez la conversation!'}
-                </Text>
-                <Text style={envStyles.largeTap}>Ouverture…</Text>
-              </View>
-            </View>
-
-            {/* Rabat animé (se lève vers le haut) */}
-            <Animated.View
-              style={[
-                envStyles.largeFlap,
-                { transform: [{ translateY: flapY }, { scaleY: flapScaleY }], opacity: flapOp },
-              ]}
-            >
-              <View style={envStyles.foldLinesWrap}>
-                <View style={[envStyles.foldLine, envStyles.foldLineLLLarge]} />
-                <View style={[envStyles.foldLine, envStyles.foldLineLRLarge]} />
-              </View>
-              <View style={envStyles.sealLarge}>
-                <Text style={envStyles.sealLargeEmoji}>⚜️</Text>
-              </View>
-            </Animated.View>
-          </Animated.View>
-
-          {/* Particules d'ouverture */}
-          {PARTICLE_PROPS.map((pp, i) => (
-            <Animated.Text
-              key={i}
-              style={[
-                envStyles.particle,
-                {
-                  opacity: particleAnims[i].op,
-                  transform: [
-                    { translateY: particleAnims[i].y },
-                    { translateX: pp.x },
-                  ],
-                },
-              ]}
-            >
-              {pp.emoji}
-            </Animated.Text>
-          ))}
-        </Animated.View>
-      </Modal>
     </>
   );
 };
