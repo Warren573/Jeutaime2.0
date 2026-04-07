@@ -1,14 +1,19 @@
 /**
- * PremiumLetterAnimation — Enveloppe qui s'ouvre (style référence)
+ * PremiumLetterAnimation
  *
- * Séquence :
- *   1. Enveloppe arrive en spring
- *   2. Cachet pulse
- *   3. Rabat se plie vers le haut (scaleY 1→0, pivot en bas du rabat)
- *   4. Enveloppe ouverte visible brièvement
- *   5. Fondu de sortie
+ * Structure :
+ *   Scene (overflow hidden)
+ *   ├── EnvelopeBody  — kraft avec plis en X
+ *   ├── LetterSlip    — papier crème visible dans l'ouverture
+ *   └── FlapWrap      — triangle qui pivote depuis le bord supérieur (rotateX)
  *
- * Pas de rotateX = pas de débordement 3D possible.
+ * Séquence (~1500ms) :
+ *   0–350ms   arrivée spring
+ *   350–500ms cachet pulse
+ *   500–900ms rabat rotateX 0 → -170° (pivot bord haut)
+ *   600–950ms lettre translateY 24→0 + opacity (100ms après le rabat)
+ *   950–1200ms état ouvert visible
+ *   1200–1500ms fondu sortie
  */
 import React, { useEffect } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
@@ -21,187 +26,175 @@ import Animated, {
   withSequence,
   Easing,
 } from 'react-native-reanimated';
-import Svg, { Polygon, Path } from 'react-native-svg';
+import Svg, { Polygon, Line } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SW } = Dimensions.get('window');
-const ENV_W  = Math.min(SW - 64, 280);
-const ENV_H  = Math.round(ENV_W * 0.64);
-const FLAP_H = Math.round(ENV_H * 0.50);   // hauteur du triangle fermé
+const ENV_W  = Math.min(SW - 64, 284);
+const ENV_H  = Math.round(ENV_W * 0.62);
+const FLAP_H = Math.round(ENV_H * 0.48);
 
-// ── Géométrie SVG ───────────────────────────────────────────────────────────────
+// Points SVG — rabat triangulaire pointe vers le bas
+const FLAP_PTS = `0,0 ${ENV_W},0 ${ENV_W / 2},${FLAP_H}`;
 
-// Rabat fermé : triangle avec pointe vers le bas (milieu de l'enveloppe)
-const FLAP_CLOSED = `0,0 ${ENV_W},0 ${ENV_W / 2},${FLAP_H}`;
+// Plis du corps (triangles gauche / droit / bas)
+const FOLD_L = `0,0 0,${ENV_H} ${ENV_W / 2},${ENV_H / 2}`;
+const FOLD_R = `${ENV_W},0 ${ENV_W},${ENV_H} ${ENV_W / 2},${ENV_H / 2}`;
+const FOLD_B = `0,${ENV_H} ${ENV_W},${ENV_H} ${ENV_W / 2},${ENV_H / 2}`;
 
-// Corps : triangle gauche, droit, bas (les 3 plis visibles sur le devant)
-const FOLD_LEFT  = `0,0 0,${ENV_H} ${ENV_W / 2},${ENV_H / 2}`;
-const FOLD_RIGHT = `${ENV_W},0 ${ENV_W},${ENV_H} ${ENV_W / 2},${ENV_H / 2}`;
-const FOLD_BTM   = `0,${ENV_H} ${ENV_W},${ENV_H} ${ENV_W / 2},${ENV_H / 2}`;
+interface Props { senderName?: string }
 
-// Ouverture quand le rabat est levé : triangle pointant vers le HAUT
-const OPENING = `0,0 ${ENV_W},0 ${ENV_W / 2},${FLAP_H}`;
+export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
 
-interface Props {
-  senderName?: string;
-}
+  /* ── valeurs animées ── */
+  const sceneOp  = useSharedValue(0);
+  const sceneY   = useSharedValue(30);
 
-export function PremiumLetterAnimation({ senderName: _senderName = 'Sophie' }: Props) {
+  const sealSc   = useSharedValue(1);
+  const sealOp   = useSharedValue(1);
 
-  // ── Conteneur global ──────────────────────────────────────────────────────────
-  const wrapOpacity    = useSharedValue(0);
-  const wrapTranslateY = useSharedValue(40);
-  const wrapScale      = useSharedValue(0.92);
+  const flapRot  = useSharedValue(0);     // 0 → -170 deg
+  const flapOp   = useSharedValue(1);
 
-  // ── Cachet ────────────────────────────────────────────────────────────────────
-  const sealScale   = useSharedValue(1);
-  const sealOpacity = useSharedValue(1);
+  const letterY  = useSharedValue(24);    // glisse depuis 24px vers 0
+  const letterOp = useSharedValue(0);
 
-  // ── Rabat (plie vers le haut : scaleY 1→0, pivot sur le bord bas du rabat) ───
-  const flapScaleY  = useSharedValue(1);
-  const flapOpacity = useSharedValue(1);
-
-  // ── Ouverture visible (triangle sombre en haut après pli) ────────────────────
-  const openingOpacity = useSharedValue(0);
-
-  // ── Sortie globale ────────────────────────────────────────────────────────────
-  const exitOpacity = useSharedValue(1);
-  const exitScale   = useSharedValue(1);
+  const exitOp   = useSharedValue(1);
+  const exitSc   = useSharedValue(1);
 
   useEffect(() => {
-    // 1 — Arrivée (0–380ms)
-    wrapOpacity.value    = withTiming(1, { duration: 300 });
-    wrapTranslateY.value = withSpring(0, { damping: 13, stiffness: 115 });
-    wrapScale.value      = withSequence(
-      withTiming(1.04, { duration: 180 }),
-      withTiming(1.0,  { duration: 160 }),
-    );
+    // 1 — arrivée
+    sceneOp.value = withTiming(1, { duration: 280 });
+    sceneY.value  = withSpring(0, { damping: 16, stiffness: 130 });
 
-    // 2 — Cachet pulse (350–700ms)
-    sealScale.value = withDelay(360, withSequence(
-      withTiming(1.22, { duration: 190 }),
-      withTiming(1.0,  { duration: 160 }),
-      withTiming(1.12, { duration: 130 }),
-      withTiming(1.0,  { duration: 120 }),
+    // 2 — cachet pulse
+    sealSc.value = withDelay(360, withSequence(
+      withTiming(1.20, { duration: 160 }),
+      withTiming(1.0,  { duration: 140 }),
+      withTiming(1.10, { duration: 110 }),
+      withTiming(1.0,  { duration: 110 }),
     ));
+    sealOp.value = withDelay(490, withTiming(0, { duration: 180 }));
 
-    // 3 — Cachet s'efface (700ms)
-    sealOpacity.value = withDelay(700, withTiming(0, { duration: 200 }));
-
-    // 4 — Rabat se plie : scaleY 1→0, pivot bas du rabat (730–1100ms)
-    flapScaleY.value  = withDelay(730, withTiming(0, {
-      duration: 370,
+    // 3 — rabat s'ouvre (pivot haut, ease-in-out)
+    flapRot.value = withDelay(520, withTiming(-170, {
+      duration: 380,
       easing: Easing.inOut(Easing.quad),
     }));
-    flapOpacity.value = withDelay(820, withTiming(0, { duration: 280 }));
+    // masquer backface une fois invisible
+    flapOp.value = withDelay(700, withTiming(0, { duration: 60 }));
 
-    // 5 — Ouverture apparaît quand le rabat disparaît (1050ms)
-    openingOpacity.value = withDelay(1050, withTiming(1, { duration: 120 }));
+    // 4 — lettre monte (100ms après le début du rabat)
+    letterOp.value = withDelay(620, withTiming(1, { duration: 260 }));
+    letterY.value  = withDelay(620, withSpring(0, {
+      damping: 22, stiffness: 160, mass: 0.8,
+    }));
 
-    // 6 — Fondu de sortie (1250–1550ms)
-    exitOpacity.value = withDelay(1250, withTiming(0, {
+    // 5 — sortie
+    exitOp.value = withDelay(1200, withTiming(0, {
       duration: 300, easing: Easing.in(Easing.quad),
     }));
-    exitScale.value = withDelay(1250, withTiming(0.94, { duration: 300 }));
+    exitSc.value = withDelay(1200, withTiming(0.94, { duration: 300 }));
   }, []);
 
-  // ── Styles animés ─────────────────────────────────────────────────────────────
+  /* ── styles animés ── */
 
-  const wrapStyle = useAnimatedStyle(() => ({
-    opacity: wrapOpacity.value,
-    transform: [
-      { translateY: wrapTranslateY.value },
-      { scale: wrapScale.value },
-    ],
+  const sceneStyle = useAnimatedStyle(() => ({
+    opacity: sceneOp.value,
+    transform: [{ translateY: sceneY.value }],
   }));
 
   const exitStyle = useAnimatedStyle(() => ({
-    opacity: exitOpacity.value,
-    transform: [{ scale: exitScale.value }],
+    opacity: exitOp.value,
+    transform: [{ scale: exitSc.value }],
   }));
 
   const sealStyle = useAnimatedStyle(() => ({
-    opacity: sealOpacity.value,
-    transform: [{ scale: sealScale.value }],
+    opacity: sealOp.value,
+    transform: [{ scale: sealSc.value }],
   }));
 
-  // Pivot en bas du rabat : translateY(+FLAP_H/2) → scaleY → translateY(-FLAP_H/2)
-  // Le bord bas du triangle reste fixe, le triangle se replie vers lui
+  /**
+   * Pivot au bord SUPÉRIEUR du rabat.
+   * Le rabat est positionné top:0, height:FLAP_H.
+   * Son centre RN est à y=FLAP_H/2.
+   * Pour pivoter sur le bord haut (y=0), on :
+   *   1. translateY(+FLAP_H/2)  → déplace le centre vers le bas = bord haut à y=0
+   *   2. rotateX               → pivote autour du nouveau centre = bord haut original
+   *   3. translateY(-FLAP_H/2) → restitue la position
+   */
   const flapStyle = useAnimatedStyle(() => ({
-    opacity: flapOpacity.value,
+    opacity: flapOp.value,
     transform: [
       { translateY:  FLAP_H / 2 },
-      { scaleY: flapScaleY.value },
+      { perspective: 700 },
+      { rotateX: `${flapRot.value}deg` },
       { translateY: -FLAP_H / 2 },
     ],
   }));
 
-  const openingStyle = useAnimatedStyle(() => ({
-    opacity: openingOpacity.value,
+  const letterStyle = useAnimatedStyle(() => ({
+    opacity: letterOp.value,
+    transform: [{ translateY: letterY.value }],
   }));
 
-  // ── Rendu ─────────────────────────────────────────────────────────────────────
+  /* ── rendu ── */
   return (
-    <View style={[styles.outer, { height: ENV_H + 16 }]}>
+    <View style={[styles.outer, { height: ENV_H }]}>
       <Animated.View style={exitStyle}>
-        <Animated.View style={[styles.scene, { width: ENV_W, height: ENV_H }, wrapStyle]}>
+        <Animated.View style={[styles.scene, { width: ENV_W, height: ENV_H }, sceneStyle]}>
 
-          {/* ── Corps de l'enveloppe ── */}
-          <View style={[styles.envBody, { width: ENV_W, height: ENV_H }]}>
+          {/* Corps de l'enveloppe — kraft avec plis */}
+          <View style={[styles.body, { width: ENV_W, height: ENV_H }]}>
             <LinearGradient
-              colors={['#EACF8C', '#E0BE72', '#D4A84E']}
-              start={{ x: 0.15, y: 0 }}
-              end={{ x: 0.85, y: 1 }}
+              colors={['#E2C47A', '#D4AD5C', '#C89A3E']}
+              start={{ x: 0.1, y: 0 }}
+              end={{ x: 0.9, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
-            <Svg width={ENV_W} height={ENV_H} style={StyleSheet.absoluteFill}>
-              {/* Triangle gauche */}
-              <Polygon
-                points={FOLD_LEFT}
-                fill="rgba(160,110,30,0.13)"
-                stroke="rgba(140,95,20,0.30)"
-                strokeWidth="0.8"
-              />
-              {/* Triangle droit */}
-              <Polygon
-                points={FOLD_RIGHT}
-                fill="rgba(200,160,60,0.07)"
-                stroke="rgba(140,95,20,0.30)"
-                strokeWidth="0.8"
-              />
-              {/* Triangle bas */}
-              <Polygon
-                points={FOLD_BTM}
-                fill="rgba(170,120,30,0.11)"
-                stroke="rgba(140,95,20,0.30)"
-                strokeWidth="0.8"
-              />
+            <Svg
+              width={ENV_W}
+              height={ENV_H}
+              style={StyleSheet.absoluteFill}
+            >
+              <Polygon points={FOLD_L} fill="rgba(150,100,15,0.12)" stroke="rgba(130,85,10,0.28)" strokeWidth="0.7" />
+              <Polygon points={FOLD_R} fill="rgba(200,160,50,0.06)" stroke="rgba(130,85,10,0.28)" strokeWidth="0.7" />
+              <Polygon points={FOLD_B} fill="rgba(160,110,20,0.10)" stroke="rgba(130,85,10,0.28)" strokeWidth="0.7" />
             </Svg>
             {/* Bordure intérieure fine */}
-            <View style={styles.envInner} />
+            <View style={styles.bodyInner} />
           </View>
 
-          {/* ── Ouverture visible après le pli (triangle sombre au-dessus) ── */}
+          {/* Papier lettre — glisse dans l'ouverture quand le rabat s'ouvre */}
           <Animated.View
             style={[
-              styles.openingWrap,
-              { width: ENV_W, height: FLAP_H },
-              openingStyle,
+              styles.letterSlip,
+              { width: ENV_W - 18, height: FLAP_H - 6, left: 9, top: 3 },
+              letterStyle,
             ]}
-            pointerEvents="none"
           >
-            <Svg width={ENV_W} height={FLAP_H} style={StyleSheet.absoluteFill}>
-              {/* Zone intérieure sombre de l'enveloppe ouverte */}
-              <Polygon
-                points={OPENING}
-                fill="rgba(100,65,10,0.18)"
-                stroke="rgba(130,85,15,0.35)"
-                strokeWidth="1"
-              />
-            </Svg>
+            <LinearGradient
+              colors={['#F9F2E2', '#F4EAD0']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            {/* Accent gauche */}
+            <View style={styles.letterAccent} />
+            {/* Lignes simulées */}
+            <View style={styles.letterLines}>
+              {[0, 1, 2].map(i => (
+                <View
+                  key={i}
+                  style={[styles.letterLine, { width: i === 2 ? '55%' : '85%', opacity: 0.22 + i * 0.04 }]}
+                />
+              ))}
+            </View>
+            {/* Micro shadow bas */}
+            <View style={styles.letterShadowBottom} />
           </Animated.View>
 
-          {/* ── Rabat triangulaire (se plie vers le haut) ── */}
+          {/* Rabat — triangle qui pivote depuis le bord haut */}
           <Animated.View
             style={[
               styles.flapWrap,
@@ -210,41 +203,37 @@ export function PremiumLetterAnimation({ senderName: _senderName = 'Sophie' }: P
             ]}
           >
             <Svg width={ENV_W} height={FLAP_H} style={StyleSheet.absoluteFill}>
-              {/* Remplissage principal du rabat */}
-              <Polygon points={FLAP_CLOSED} fill="#D8B05A" />
-              {/* Ombre gauche du rabat */}
+              {/* Remplissage du triangle */}
+              <Polygon points={FLAP_PTS} fill="#C8963A" />
+              {/* Ombre légère gauche */}
               <Polygon
                 points={`0,0 ${ENV_W / 2},0 ${ENV_W / 2},${FLAP_H}`}
-                fill="rgba(180,130,30,0.20)"
+                fill="rgba(160,100,10,0.18)"
               />
-              {/* Lumière droite du rabat */}
+              {/* Reflet droit */}
               <Polygon
                 points={`${ENV_W / 2},0 ${ENV_W},0 ${ENV_W / 2},${FLAP_H}`}
-                fill="rgba(255,235,150,0.15)"
+                fill="rgba(255,220,120,0.12)"
               />
               {/* Contour du triangle */}
               <Polygon
-                points={FLAP_CLOSED}
+                points={FLAP_PTS}
                 fill="none"
-                stroke="rgba(140,90,10,0.50)"
-                strokeWidth="1.2"
+                stroke="rgba(120,75,5,0.45)"
+                strokeWidth="1.1"
               />
             </Svg>
 
             {/* Cachet de cire */}
-            <Animated.View style={[styles.sealWrap, sealStyle]}>
+            <Animated.View style={[styles.seal, sealStyle]}>
               <LinearGradient
-                colors={['#C8352A', '#8B1515', '#5C0D0D']}
-                start={{ x: 0.3, y: 0 }}
-                end={{ x: 0.7, y: 1 }}
+                colors={['#B83030', '#7A0F0F', '#550A0A']}
+                start={{ x: 0.25, y: 0 }}
+                end={{ x: 0.75, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
-              {/* Anneau extérieur */}
-              <View style={styles.sealRingOuter} />
-              {/* Anneau intérieur */}
-              <View style={styles.sealRingInner} />
-              {/* Motif central */}
-              <View style={styles.sealDot} />
+              <View style={styles.sealRing} />
+              <View style={styles.sealCenter} />
             </Animated.View>
           </Animated.View>
 
@@ -254,44 +243,76 @@ export function PremiumLetterAnimation({ senderName: _senderName = 'Sophie' }: P
   );
 }
 
+const SEAL_SIZE = 48;
+
 const styles = StyleSheet.create({
   outer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   scene: {
     position: 'relative',
-    // Pas d'overflow: visible → le rabat ne peut pas déborder
-    overflow: 'hidden',
-    borderRadius: 12,
-    // Ombre portée de l'enveloppe
-    shadowColor: '#5A3800',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 16,
-    elevation: 10,
+    overflow: 'hidden',       // ← contient tous les débordements 3D
+    borderRadius: 10,
+    shadowColor: '#3A2000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 8,
   },
 
-  // Corps enveloppe
-  envBody: {
+  // Corps
+  body: {
     position: 'absolute',
     top: 0, left: 0,
-    borderRadius: 12,
+    borderRadius: 10,
     overflow: 'hidden',
   },
-  envInner: {
+  bodyInner: {
     position: 'absolute',
     inset: 5,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(200,155,40,0.30)',
+    borderColor: 'rgba(190,145,35,0.28)',
   },
 
-  // Zone ouverte visible après le pli
-  openingWrap: {
+  // Papier lettre
+  letterSlip: {
     position: 'absolute',
-    top: 0, left: 0,
+    borderRadius: 4,
+    overflow: 'hidden',
     zIndex: 1,
+    shadowColor: '#2A1500',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  letterAccent: {
+    position: 'absolute',
+    left: 0, top: 0, bottom: 0,
+    width: 2.5,
+    backgroundColor: '#B8902A',
+    opacity: 0.55,
+  },
+  letterLines: {
+    position: 'absolute',
+    bottom: 10,
+    left: 12,
+    right: 12,
+    gap: 9,
+  },
+  letterLine: {
+    height: 1,
+    backgroundColor: '#8A6A20',
+    borderRadius: 1,
+  },
+  letterShadowBottom: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    height: 6,
+    backgroundColor: 'rgba(100,60,0,0.06)',
   },
 
   // Rabat
@@ -299,44 +320,36 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0, left: 0,
     zIndex: 2,
-    overflow: 'hidden',
   },
 
-  // Cachet de cire
-  sealWrap: {
+  // Cachet
+  seal: {
     position: 'absolute',
-    bottom: 8,
-    left: ENV_W / 2 - 26,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    bottom: 7,
+    left: (ENV_W - SEAL_SIZE) / 2,
+    width: SEAL_SIZE,
+    height: SEAL_SIZE,
+    borderRadius: SEAL_SIZE / 2,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#2A0800',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.55,
-    shadowRadius: 8,
-    elevation: 10,
+    shadowColor: '#1A0000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 7,
+    elevation: 9,
   },
-  sealRingOuter: {
+  sealRing: {
     position: 'absolute',
-    inset: 2,
-    borderRadius: 24,
+    inset: 3,
+    borderRadius: 100,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,180,120,0.35)',
+    borderColor: 'rgba(255,170,120,0.32)',
   },
-  sealRingInner: {
-    position: 'absolute',
-    inset: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,180,120,0.20)',
-  },
-  sealDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255,200,160,0.55)',
+  sealCenter: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255,190,150,0.50)',
   },
 });
