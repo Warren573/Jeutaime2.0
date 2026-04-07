@@ -47,7 +47,6 @@ function injectCSS() {
       content: "";
       position: absolute;
       inset: 0;
-      border-radius: 14px;
       pointer-events: none;
       z-index: 20;
       opacity: 0.14;
@@ -58,13 +57,21 @@ function injectCSS() {
         radial-gradient(circle at 64% 82%, rgba(0,0,0,0.08) 0 1px, transparent 1.6px),
         radial-gradient(circle at 28% 56%, rgba(0,0,0,0.05) 0 0.8px, transparent 1.3px);
     }
+    /* rectangular outline — makes envelope shape immediately readable */
+    .real-envelope::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border: 1.5px solid rgba(85,48,10,0.50);
+      z-index: 21;
+      pointer-events: none;
+    }
 
     /* ── Back panel ── */
     .real-envelope__back {
       position: absolute;
       inset: 0;
       z-index: 1;
-      border-radius: 14px;
       background:
         linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0) 20%),
         linear-gradient(135deg, #d7b07c 0%, var(--env-base) 45%, #bf8f56 100%);
@@ -93,12 +100,11 @@ function injectCSS() {
     .real-envelope.is-open .real-envelope__letter {
       transform: translateX(-50%) translateY(-35%);
       opacity: 1;
-      transition-delay: 700ms;
+      transition-delay: 1200ms;
     }
     .real-envelope__letter-paper {
       width: 100%;
       height: 100%;
-      border-radius: 8px 8px 4px 4px;
       background:
         linear-gradient(180deg, rgba(255,255,255,0.46), rgba(255,255,255,0.08) 12%, transparent 18%),
         linear-gradient(135deg, #f8f0df 0%, var(--paper) 48%, #eadfc8 100%);
@@ -168,7 +174,7 @@ function injectCSS() {
       position: absolute;
       inset: 0;
       clip-path: polygon(0 0, 100% 52%, 0 100%);
-      background: linear-gradient(135deg, transparent 55%, rgba(108, 70, 28, 0.18) 100%);
+      background: linear-gradient(135deg, transparent 50%, rgba(80, 45, 10, 0.42) 100%);
     }
     .real-envelope__side--right {
       right: 0;
@@ -179,7 +185,7 @@ function injectCSS() {
       position: absolute;
       inset: 0;
       clip-path: polygon(100% 0, 0 52%, 100% 100%);
-      background: linear-gradient(225deg, transparent 55%, rgba(108, 70, 28, 0.18) 100%);
+      background: linear-gradient(225deg, transparent 50%, rgba(80, 45, 10, 0.42) 100%);
     }
 
     /* ── Bottom pocket — always in front of letter ── */
@@ -188,8 +194,6 @@ function injectCSS() {
       left: 0; right: 0; bottom: 0;
       height: 58%;
       z-index: 5;
-      border-bottom-left-radius: 14px;
-      border-bottom-right-radius: 14px;
       clip-path: polygon(0 0, 50% 69%, 100% 0, 100% 100%, 0 100%);
       background:
         linear-gradient(180deg, rgba(255,255,255,0.08), transparent 20%),
@@ -204,7 +208,7 @@ function injectCSS() {
       top: 0; bottom: 0; left: 0;
       width: 52%;
       pointer-events: none;
-      background: linear-gradient(41deg, transparent 49.2%, rgba(102,66,28,0.32) 49.8%, rgba(255,255,255,0.10) 50.2%, transparent 51%);
+      background: linear-gradient(41deg, transparent 48.5%, rgba(80,45,10,0.55) 49.5%, rgba(255,255,255,0.14) 50.5%, transparent 51.5%);
     }
     .real-envelope__bottom::after {
       content: "";
@@ -212,7 +216,7 @@ function injectCSS() {
       top: 0; bottom: 0; right: 0;
       width: 52%;
       pointer-events: none;
-      background: linear-gradient(-41deg, transparent 49.2%, rgba(102,66,28,0.32) 49.8%, rgba(255,255,255,0.10) 50.2%, transparent 51%);
+      background: linear-gradient(-41deg, transparent 48.5%, rgba(80,45,10,0.55) 49.5%, rgba(255,255,255,0.14) 50.5%, transparent 51.5%);
     }
 
     /* ── Top flap (rotation GROUP — no clip-path so seal is never clipped) ── */
@@ -244,57 +248,40 @@ function injectCSS() {
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
     }
-    /* fold crease lines on triangle */
+    /* fold crease lines on triangle — stronger for readability */
     .real-envelope__top-flap-shape::before {
       content: "";
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(139deg, transparent 49.3%, rgba(86,55,20,0.34) 49.8%, rgba(255,255,255,0.14) 50.2%, transparent 50.8%),
-        linear-gradient(221deg, transparent 49.3%, rgba(86,55,20,0.34) 49.8%, rgba(255,255,255,0.14) 50.2%, transparent 50.8%);
+        linear-gradient(139deg, transparent 48.5%, rgba(75,42,10,0.58) 49.5%, rgba(255,255,255,0.18) 50.5%, transparent 51.5%),
+        linear-gradient(221deg, transparent 48.5%, rgba(75,42,10,0.58) 49.5%, rgba(255,255,255,0.18) 50.5%, transparent 51.5%);
       pointer-events: none;
     }
 
-    /* seal — sibling of shape, NOT clipped, rotates with flap group
-       bottom:5% places seal CENTER at the triangle tip (76% of flap height) */
+    /* seal — même style que LettersScreen envStyles.sealMini :
+       cercle #7A1A1A 36×36px + emoji ⚜️ fontSize 18px + ombre rouge */
     .real-envelope__seal {
       position: absolute;
       left: 50%;
       bottom: 5%;
-      width: 54px;
-      height: 54px;
+      width: 36px;
+      height: 36px;
       transform: translateX(-50%);
       z-index: 9;
       border-radius: 50%;
-      background:
-        radial-gradient(circle at 34% 28%, rgba(255,255,255,0.32) 0 10%, transparent 28%),
-        radial-gradient(circle at 50% 52%, #b82c28 0 42%, var(--seal-red) 58%, var(--seal-dark) 100%);
+      background: #7A1A1A;
       box-shadow:
-        0 5px 8px rgba(70,10,10,0.24),
-        inset 0 -3px 5px rgba(91,8,8,0.30),
-        inset 0 2px 3px rgba(255,255,255,0.16);
+        0 2px 5px rgba(122,26,26,0.55),
+        0 4px 10px rgba(70,10,10,0.30);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      line-height: 36px;
+      text-align: center;
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
-    }
-    .real-envelope__seal::before {
-      content: "";
-      position: absolute;
-      inset: 7px;
-      border-radius: 50%;
-      background:
-        radial-gradient(circle at 35% 30%, rgba(255,255,255,0.22) 0 8%, transparent 24%),
-        linear-gradient(135deg, #b12522 0%, #941817 100%);
-      box-shadow:
-        inset 0 1px 1px rgba(255,255,255,0.14),
-        inset 0 -2px 2px rgba(87,10,10,0.22);
-    }
-    .real-envelope__seal::after {
-      content: "";
-      position: absolute;
-      inset: -2px;
-      border-radius: 44% 56% 48% 52% / 52% 48% 56% 44%;
-      box-shadow: inset 0 0 0 1px rgba(124,18,18,0.08);
-      pointer-events: none;
     }
   `;
   document.head.appendChild(style);
@@ -353,7 +340,7 @@ function WebEnvelope() {
       {/* z=8 — groupe rotation du rabat (NO clip-path → seal non clippé) */}
       <div className="real-envelope__top-flap">
         <div className="real-envelope__top-flap-shape" />
-        <div className="real-envelope__seal" />
+        <div className="real-envelope__seal">⚜️</div>
       </div>
     </div>
   );
