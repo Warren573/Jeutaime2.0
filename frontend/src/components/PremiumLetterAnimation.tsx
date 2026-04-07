@@ -101,6 +101,7 @@ function injectCSS() {
       transform: translateX(-50%) translateY(-35%);
       opacity: 1;
       transition-delay: 1200ms;
+      z-index: 4; /* flap open = z:3, pocket = z:5 → letter entre les deux */
     }
     .real-envelope__letter-paper {
       width: 100%;
