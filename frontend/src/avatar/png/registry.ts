@@ -115,8 +115,8 @@ const assets: AssetMap = {
   // ── Accessoires ────────────────────────────────────────────────────────────
   'glasses_01':     require('../../../assets/avatar/accessories/glasses_01.png'), // Lunettes
   'glasses_02':     require('../../../assets/avatar/accessories/glasses_02.png'), // Lunettes soleil
-  'hat_01':         require('../../../assets/avatar/accessories/hat_01.png'),     // Chapeau
-  'crown_01':       require('../../../assets/avatar/accessories/crown_01.png'),   // Couronne
+  // 'hat_01':      require('../../../assets/avatar/accessories/hat_01.png'),     // Chapeau (PNG manquant)
+  // 'crown_01':    require('../../../assets/avatar/accessories/crown_01.png'),   // Couronne (PNG manquant)
 
   // ── Effets (ajouter les PNG puis décommenter) ──────────────────────────────
   // 'glow_01':     require('../../../assets/avatar/effects/glow_01.png'),
