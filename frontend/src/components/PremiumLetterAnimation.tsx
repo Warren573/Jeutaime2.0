@@ -65,7 +65,7 @@ function injectCSS() {
       overflow: hidden;
     }
     .pla-scene.open .pla-letter {
-      transform: translateX(-50%) translateY(-18%);
+      transform: translateX(-50%) translateY(-65%);
       opacity: 1;
       transition-delay: 800ms;
     }
