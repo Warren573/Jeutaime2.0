@@ -35,18 +35,26 @@ function injectCSS() {
       width: min(78vw, 320px);
       aspect-ratio: 1.54 / 1;
       perspective: 1200px;
+      border-radius: 6px;
+      box-shadow: 0 8px 28px rgba(60,30,5,0.28), 0 2px 6px rgba(60,30,5,0.14);
     }
     .pla-back {
       position: absolute;
       inset: 0;
-      background: #C4955C;
+      background: #A07030;
       border-radius: 6px;
       z-index: 1;
     }
     .pla-back-inner {
       position: absolute;
       inset: 0;
-      background: #E0C898;
+      /* parchment center + two crossing fold lines */
+      background:
+        linear-gradient(to bottom right,
+          transparent calc(50% - 0.8px), rgba(100,55,5,0.13) 50%, transparent calc(50% + 0.8px)),
+        linear-gradient(to bottom left,
+          transparent calc(50% - 0.8px), rgba(100,55,5,0.13) 50%, transparent calc(50% + 0.8px)),
+        #F0DDAC;
       border-radius: 6px;
       z-index: 1;
     }
@@ -83,30 +91,33 @@ function injectCSS() {
       top: 0;
       width: 50%;
       height: 100%;
-      background: #B8854E;
       z-index: 3;
     }
     .pla-side-left {
       left: 0;
       clip-path: polygon(0 0, 100% 50%, 0 100%);
+      /* darker at outer edge, lighter toward fold — paper folding inward */
+      background: linear-gradient(to right, #7A5020, #C09058);
     }
     .pla-side-right {
       right: 0;
       clip-path: polygon(100% 0, 0 50%, 100% 100%);
+      background: linear-gradient(to left, #7A5020, #C09058);
     }
     .pla-pocket {
       position: absolute;
       inset: 0;
-      background: #C4955C;
+      background: #B87840;
       clip-path: polygon(0 0, 50% 68%, 100% 0, 100% 100%, 0 100%);
       z-index: 4;
     }
+    /* fold crease line at pocket junction */
     .pla-pocket::before {
       content: '';
       position: absolute;
       top: 0; left: 0; right: 0;
-      height: 1px;
-      background: rgba(70,38,5,0.25);
+      height: 1.5px;
+      background: rgba(60,30,5,0.22);
     }
     /* flap-group: carries the rotation; children are NOT clipped by parent clip-path */
     .pla-flap-group {
@@ -125,12 +136,13 @@ function injectCSS() {
     .pla-flap-shape {
       position: absolute;
       inset: 0;
-      background: #C4955C;
+      /* lighter at top (receives light), darker at fold tip */
+      background: linear-gradient(to bottom, #E0B878, #C49050);
       clip-path: polygon(0 0, 100% 0, 50% 78%);
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
     }
-    /* seal: sibling of flap-shape, not clipped, rotates with group */
+    /* seal: sibling of flap-shape → NOT clipped by triangle, rotates with group */
     .pla-seal {
       position: absolute;
       top: calc(78% - 18px);
@@ -140,20 +152,21 @@ function injectCSS() {
       height: 36px;
       border-radius: 50%;
       background: #7A1A1A;
-      box-shadow: 0 2px 5px rgba(122,26,26,0.55);
+      box-shadow: 0 2px 8px rgba(122,26,26,0.65), 0 0 0 2px rgba(180,80,80,0.25);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 18px;
       line-height: 36px;
       text-align: center;
+      z-index: 1;
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
     }
     .pla-border {
       position: absolute;
       inset: 0;
-      border: 1px solid rgba(80,45,5,0.30);
+      border: 1.5px solid rgba(70,35,5,0.40);
       border-radius: 6px;
       pointer-events: none;
       z-index: 10;
