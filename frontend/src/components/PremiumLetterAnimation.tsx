@@ -4,7 +4,7 @@
  * Native: Reanimated fallback (scaleY)
  */
 import React, { useEffect, useState } from 'react';
-import { Platform, View, StyleSheet, Dimensions } from 'react-native';
+import { Platform, View, Text, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -68,7 +68,7 @@ function injectCSS() {
     .pla-scene.open .pla-letter {
       transform: translateX(-50%) translateY(-55%);
       opacity: 1;
-      transition-delay: 1400ms;
+      transition-delay: 700ms;
     }
     .pla-letter-line {
       position: absolute;
@@ -118,7 +118,7 @@ function injectCSS() {
       clip-path: polygon(0 0, 100% 0, 50% 78%);
       transform-origin: top center;
       transform: rotateX(0deg);
-      transition: transform 1000ms cubic-bezier(0.34, 1.2, 0.64, 1);
+      transition: transform 1100ms cubic-bezier(0.4, 0, 0.2, 1);
       z-index: 5;
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
@@ -129,19 +129,26 @@ function injectCSS() {
     }
     .pla-seal {
       position: absolute;
-      bottom: 22%;
+      bottom: 18%;
       left: 50%;
       transform: translateX(-50%);
-      width: 26px;
-      height: 26px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
-      background: #8B0000;
+      background: #7A1A1A;
+      box-shadow: 0 2px 5px rgba(122,26,26,0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       z-index: 6;
-      transition: opacity 200ms ease;
+      transition: opacity 300ms ease;
+      font-size: 18px;
+      line-height: 36px;
+      text-align: center;
     }
     .pla-scene.open .pla-seal {
       opacity: 0;
-      transition-delay: 0ms;
+      transition-delay: 200ms;
     }
     .pla-border {
       position: absolute;
@@ -212,7 +219,7 @@ function WebEnvelope() {
 
         {/* z=5 — rabat supérieur */}
         <div className="pla-flap">
-          <div className="pla-seal" />
+          <div className="pla-seal">⚜️</div>
         </div>
 
         {/* bordure */}
@@ -272,7 +279,9 @@ function NativeEnvelope() {
           </Animated.View>
           <View style={[nStyles.pocket, { top: LETTER_PEEK + FLAP_H, width: ENV_W, height: POCKET_H }]} />
           <Animated.View style={[nStyles.flap, { top: LETTER_PEEK, width: ENV_W, height: FLAP_H }, flapStyle]}>
-            <View style={[nStyles.seal, { bottom: Math.round(FLAP_H * 0.22), left: ENV_W / 2 - 13 }]} />
+            <View style={[nStyles.seal, { bottom: Math.round(FLAP_H * 0.18), left: ENV_W / 2 - 18 }]}>
+              <Text style={nStyles.sealEmoji}>⚜️</Text>
+            </View>
           </Animated.View>
           <View style={[nStyles.border, { top: LETTER_PEEK, width: ENV_W, height: ENV_H }]} pointerEvents="none" />
         </View>
@@ -296,6 +305,12 @@ const nStyles = StyleSheet.create({
     position: 'absolute', left: 0, zIndex: 4, backgroundColor: '#C4955C',
     transformOrigin: 'top',
   },
-  seal: { position: 'absolute', width: 26, height: 26, borderRadius: 13, backgroundColor: '#8B0000', zIndex: 5 },
+  seal: {
+    position: 'absolute', width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#7A1A1A', zIndex: 5,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#7A1A1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.55, shadowRadius: 5, elevation: 5,
+  },
+  sealEmoji: { fontSize: 18 },
   border: { position: 'absolute', left: 0, zIndex: 10, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(80,45,5,0.30)' },
 });
