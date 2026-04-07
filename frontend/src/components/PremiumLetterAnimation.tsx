@@ -57,17 +57,7 @@ function injectCSS() {
         radial-gradient(circle at 64% 82%, rgba(0,0,0,0.08) 0 1px, transparent 1.6px),
         radial-gradient(circle at 28% 56%, rgba(0,0,0,0.05) 0 0.8px, transparent 1.3px);
     }
-    /* rectangular outline — makes envelope shape immediately readable */
-    .real-envelope::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border: 1.5px solid rgba(85,48,10,0.50);
-      z-index: 21;
-      pointer-events: none;
-    }
-
-    /* ── Back panel ── */
+    /* rectangular outline on the BACK (z=1) so it never crosses the letter */
     .real-envelope__back {
       position: absolute;
       inset: 0;
@@ -78,7 +68,7 @@ function injectCSS() {
       box-shadow:
         inset 0 1px 0 rgba(255,255,255,0.18),
         inset 0 -2px 10px rgba(96, 58, 18, 0.08),
-        0 1px 0 rgba(120, 78, 31, 0.15),
+        0 0 0 1.5px rgba(80,45,8,0.48),
         0 10px 32px rgba(60,30,5,0.26),
         0 2px 8px rgba(60,30,5,0.14);
       overflow: hidden;
@@ -106,38 +96,40 @@ function injectCSS() {
     .real-envelope__letter-paper {
       width: 100%;
       height: 100%;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.46), rgba(255,255,255,0.08) 12%, transparent 18%),
-        linear-gradient(135deg, #f8f0df 0%, var(--paper) 48%, #eadfc8 100%);
+      /* warm parchment, not stark white */
+      background: linear-gradient(170deg, #faf4e8 0%, #f5ead5 55%, #ede0c4 100%);
       box-shadow:
-        0 8px 18px rgba(0,0,0,0.10),
-        inset 0 1px 0 rgba(255,255,255,0.65),
-        inset 0 -1px 0 rgba(125, 92, 52, 0.10);
+        0 6px 20px rgba(0,0,0,0.13),
+        0 1px 4px rgba(0,0,0,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.70);
       position: relative;
       overflow: hidden;
     }
+    /* subtle left margin line + top fold shadow */
     .real-envelope__letter-paper::before {
       content: "";
       position: absolute;
+      top: 0; left: 22px; bottom: 0;
+      width: 1px;
+      background: rgba(180,120,60,0.14);
+    }
+    .real-envelope__letter-paper::after {
+      content: "";
+      position: absolute;
       inset: 0;
-      opacity: 0.08;
-      background-image:
-        radial-gradient(circle at 14% 20%, rgba(0,0,0,0.18) 0 0.8px, transparent 1.3px),
-        radial-gradient(circle at 78% 36%, rgba(0,0,0,0.12) 0 0.8px, transparent 1.2px),
-        radial-gradient(circle at 44% 82%, rgba(255,255,255,0.26) 0 1px, transparent 1.4px);
+      background: linear-gradient(180deg, rgba(0,0,0,0.04) 0px, transparent 12px);
+      pointer-events: none;
     }
     .real-envelope__letter-lines {
-      padding: 18px 16px 16px;
+      padding: 16px 14px 14px 30px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 11px;
     }
     .real-envelope__letter-lines span {
       display: block;
-      height: 2px;
-      border-radius: 999px;
-      background: var(--paper-line);
-      box-shadow: 0 1px 0 rgba(255,255,255,0.18);
+      height: 1px;
+      background: rgba(110, 78, 38, 0.22);
     }
     .real-envelope__letter-lines span:nth-child(1) { width: 64%; }
     .real-envelope__letter-lines span:nth-child(2) { width: 88%; }
