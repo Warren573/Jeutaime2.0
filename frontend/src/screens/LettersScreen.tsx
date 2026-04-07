@@ -304,11 +304,13 @@ function LetterCard({ letter, isOwn, isNew, otherName, formatTime, onSeen }: Let
         </View>
       )}
 
-      {/* Carte lettre — toujours visible */}
-      <View style={[lcStyles.card, isOwn && lcStyles.cardOwn]}>
-        <Text style={lcStyles.text}>{letter.content}</Text>
-        <Text style={lcStyles.time}>{formatTime(letter.createdAt)}</Text>
-      </View>
+      {/* Carte lettre — cachée pendant l'animation, visible après */}
+      {(!isNew || animPlayed) && (
+        <View style={[lcStyles.card, isOwn && lcStyles.cardOwn]}>
+          <Text style={lcStyles.text}>{letter.content}</Text>
+          <Text style={lcStyles.time}>{formatTime(letter.createdAt)}</Text>
+        </View>
+      )}
     </View>
   );
 }
