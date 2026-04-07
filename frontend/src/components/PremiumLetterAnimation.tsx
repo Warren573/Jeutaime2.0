@@ -16,7 +16,8 @@ import Animated, {
 const CSS_ID = 'pla-styles';
 
 function injectCSS() {
-  if (document.getElementById(CSS_ID)) return;
+  const existing = document.getElementById(CSS_ID);
+  if (existing) existing.remove();
   const style = document.createElement('style');
   style.id = CSS_ID;
   style.textContent = `
