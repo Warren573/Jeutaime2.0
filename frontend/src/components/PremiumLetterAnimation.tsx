@@ -7,11 +7,20 @@
  *   letter.png               — lettre qui sort (z=2, monte)
  *   envelope-open-front.png  — devant de l'enveloppe ouverte (z=3, masque bas lettre)
  *
+ * Layout :
+ *   SCENE_H = ENV_H + LETTER_RISE
+ *   ┌──────────────────┐ ← top of scene
+ *   │   (lettre zone)  │ LETTER_RISE px : espace où la lettre monte
+ *   ├──────────────────┤ ← top: LETTER_RISE (toutes les couches enveloppe partent ici)
+ *   │    enveloppe     │ ENV_H px
+ *   └──────────────────┘
+ *   La lettre part de top=LETTER_RISE et monte de -LETTER_RISE (translateY: 0 → -LETTER_RISE)
+ *
  * Timeline (~4 680 ms) :
  *   t=  0 ms  scène visible, enveloppe fermée
  *   t=600 ms  closed fade-out (320 ms) + open-back fade-in (360 ms)
  *   t=720 ms  open-front fade-in (360 ms, offset 120 ms)
- *   t=1080 ms lettre monte (-54 px, 900 ms) + fade-in (260 ms)
+ *   t=1080 ms lettre monte (900 ms) + fade-in (260 ms)
  *   t=2980 ms hold (1 800 ms)
  *   t=4780 ms scène fade-out (700 ms)   ← LettersScreen unmount > 5 100 ms ✓
  */
@@ -19,9 +28,11 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, StyleSheet, Easing } from 'react-native';
 
 const { width: SW } = Dimensions.get('window');
-const ENV_W = Math.min(SW * 0.84, 360);
-const ENV_H = Math.round(ENV_W / 1.45);
-const LETTER_RISE = 54; // px the letter rises above its rest position
+const ENV_W       = Math.min(SW * 0.88, 400);
+const ENV_H       = Math.round(ENV_W / 1.45);
+// La lettre monte de 55 % de la hauteur de l'enveloppe au-dessus d'elle
+const LETTER_RISE = Math.round(ENV_H * 0.55);
+const SCENE_H     = ENV_H + LETTER_RISE;
 
 interface Props { senderName?: string }
 
@@ -83,33 +94,40 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
   }, []);
 
   return (
+    // La scène est plus haute que l'enveloppe pour accueillir la lettre qui sort en haut
     <Animated.View style={[styles.scene, { opacity: sceneOp }]}>
+
+      {/* ── Couches enveloppe : décalées vers le bas de LETTER_RISE ── */}
+
       {/* z=1 — dos enveloppe ouverte */}
       <Animated.Image
         source={require('../../assets/envelope/envelope-open-back.png')}
-        style={[styles.layer, { zIndex: 1, opacity: openBackOp }]}
+        style={[styles.envLayer, { zIndex: 1, opacity: openBackOp }]}
         resizeMode="contain"
       />
 
-      {/* z=2 — lettre qui monte */}
+      {/* z=2 — lettre : part alignée avec l'enveloppe, monte de -LETTER_RISE */}
       <Animated.Image
         source={require('../../assets/envelope/letter.png')}
-        style={[styles.layer, { zIndex: 2, opacity: letterOp,
-          transform: [{ translateY: letterY }] }]}
+        style={[styles.envLayer, {
+          zIndex: 2,
+          opacity: letterOp,
+          transform: [{ translateY: letterY }],
+        }]}
         resizeMode="contain"
       />
 
       {/* z=3 — devant enveloppe ouverte (masque la partie basse de la lettre) */}
       <Animated.Image
         source={require('../../assets/envelope/envelope-open-front.png')}
-        style={[styles.layer, { zIndex: 3, opacity: frontOp }]}
+        style={[styles.envLayer, { zIndex: 3, opacity: frontOp }]}
         resizeMode="contain"
       />
 
       {/* z=4 — enveloppe fermée (disparaît en premier) */}
       <Animated.Image
         source={require('../../assets/envelope/envelope-closed.png')}
-        style={[styles.layer, { zIndex: 4, opacity: closedOp }]}
+        style={[styles.envLayer, { zIndex: 4, opacity: closedOp }]}
         resizeMode="contain"
       />
     </Animated.View>
@@ -119,11 +137,15 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
 const styles = StyleSheet.create({
   scene: {
     width: ENV_W,
-    height: ENV_H,
+    height: SCENE_H,
     alignSelf: 'center',
+    overflow: 'visible',
   },
-  layer: {
+  // Toutes les couches enveloppe commencent à LETTER_RISE depuis le haut de la scène
+  envLayer: {
     position: 'absolute',
+    top: LETTER_RISE,
+    left: 0,
     width: ENV_W,
     height: ENV_H,
   },
