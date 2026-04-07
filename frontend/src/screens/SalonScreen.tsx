@@ -45,54 +45,100 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
   showName = true
 }) => {
   const breathAnim = useRef(new Animated.Value(1)).current;
+  const poofScale  = useRef(new Animated.Value(1)).current;
+  const poofOp     = useRef(new Animated.Value(1)).current;
 
+  // Breathing idle
   useEffect(() => {
     const breathing = Animated.loop(
       Animated.sequence([
-        Animated.timing(breathAnim, {
-          toValue: 1.05,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(breathAnim, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
+        Animated.timing(breathAnim, { toValue: 1.05, duration: 2000, useNativeDriver: true }),
+        Animated.timing(breathAnim, { toValue: 1,    duration: 2000, useNativeDriver: true }),
       ])
     );
     breathing.start();
     return () => breathing.stop();
   }, []);
 
+  // Poof d'entrée quand une transformation apparaît
+  useEffect(() => {
+    const isActive = !!(
+      participant.transformation &&
+      participant.transformationExpiresAt &&
+      Date.now() < participant.transformationExpiresAt
+    );
+    if (isActive) {
+      poofScale.setValue(0.2);
+      poofOp.setValue(0);
+      Animated.parallel([
+        Animated.spring(poofScale, { toValue: 1, tension: 180, friction: 7, useNativeDriver: true }),
+        Animated.timing(poofOp,    { toValue: 1, duration: 280, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [participant.transformation]);
+
   const avatarConfig = participant.avatarConfig
     ?? (participant.gender === 'F' ? DEFAULT_AVATAR_FEMALE : DEFAULT_AVATAR_MALE);
 
+  // Transformation active ?
+  const isTransformed = !!(
+    participant.transformation &&
+    participant.transformationExpiresAt &&
+    Date.now() < participant.transformationExpiresAt
+  );
+  const activePower = isTransformed
+    ? allPowers.find(p => p.id === participant.transformation)
+    : null;
+
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.avatarWrapper}>
-      <Animated.View style={[
-        styles.avatarContainer,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          transform: [{ scale: breathAnim }]
-        },
-        isSelected && styles.avatarSelected,
-      ]}>
-        <Avatar size={size - 8} {...(avatarConfig as any)} />
+      {/* Cercle avatar — wrapper non-clippé pour le point en ligne */}
+      <View style={{ width: size, height: size }}>
+        <Animated.View style={[
+          styles.avatarContainer,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            overflow: 'hidden',
+            transform: [{ scale: isTransformed ? poofScale : breathAnim }],
+          },
+          isSelected && styles.avatarSelected,
+        ]}>
+          {isTransformed && activePower ? (
+            /* ── Mode REPLACE : emoji de transformation plein cercle ── */
+            <Animated.View style={[
+              styles.transfoContainer,
+              { opacity: poofOp },
+            ]}>
+              <Text style={[styles.transfoEmoji, { fontSize: size * 0.52 }]}>
+                {activePower.emoji}
+              </Text>
+            </Animated.View>
+          ) : (
+            /* ── Mode NORMAL : avatar ── */
+            <Avatar size={size - 8} {...(avatarConfig as any)} />
+          )}
+        </Animated.View>
         {participant.online && (
           <View style={[styles.onlineDot, { width: size * 0.2, height: size * 0.2, borderRadius: size * 0.1 }]} />
         )}
-        {participant.isMe && (
-          <View style={styles.meBadge}>
-            <Text style={styles.meBadgeText}>Moi</Text>
-          </View>
-        )}
-      </Animated.View>
+      </View>
+
+      {participant.isMe && (
+        <View style={styles.meBadge}>
+          <Text style={styles.meBadgeText}>Moi</Text>
+        </View>
+      )}
       {showName && (
         <Text style={[styles.avatarName, { maxWidth: size + 20 }]} numberOfLines={1}>
           {participant.name}
+        </Text>
+      )}
+      {/* Indice de rupture du sort */}
+      {isTransformed && activePower?.breakHint && (
+        <Text style={[styles.breakHint, { maxWidth: size + 30 }]} numberOfLines={2}>
+          {activePower.breakHint}
         </Text>
       )}
       {showBadges && participant.offerings && participant.offerings.length > 0 && (
@@ -122,6 +168,8 @@ export default function SalonScreen() {
   console.log(`📱 Orientation: ${isLandscape ? 'PAYSAGE' : 'PORTRAIT'} (${width}x${height})`);
 
   const flatListRef = useRef<FlatList>(null);
+  // Timers de transformation (un par participant) — nettoyés automatiquement
+  const transfoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig } = useStore();
 
   // Récupérer le salon
@@ -249,6 +297,45 @@ export default function SalonScreen() {
       return;
     }
 
+    const targetId = selectedPlayer.id;
+
+    // ── Transformation : remplace l'avatar pendant la durée ──────────────────
+    if (item.type === 'transformation') {
+      const durationMs = (item.durationMs ?? item.duration * 1000) as number;
+      const expiresAt  = Date.now() + durationMs;
+
+      // Annuler le timer précédent pour ce participant
+      if (transfoTimers.current[targetId]) {
+        clearTimeout(transfoTimers.current[targetId]);
+      }
+
+      setParticipants(prev => prev.map(p =>
+        p.id === targetId ? { ...p, transformation: item.id, transformationExpiresAt: expiresAt } : p
+      ));
+
+      // Retour automatique à la normale après la durée
+      transfoTimers.current[targetId] = setTimeout(() => {
+        setParticipants(prev => prev.map(p =>
+          p.id === targetId ? { ...p, transformation: null, transformationExpiresAt: undefined } : p
+        ));
+        delete transfoTimers.current[targetId];
+      }, durationMs);
+    }
+
+    // ── Annulateur : brise un sort actif ─────────────────────────────────────
+    if (item.cancels && Array.isArray(item.cancels)) {
+      setParticipants(prev => prev.map(p => {
+        if (p.id !== targetId) return p;
+        if (!p.transformation || !item.cancels.includes(p.transformation)) return p;
+        // Nettoyer le timer en cours
+        if (transfoTimers.current[targetId]) {
+          clearTimeout(transfoTimers.current[targetId]);
+          delete transfoTimers.current[targetId];
+        }
+        return { ...p, transformation: null, transformationExpiresAt: undefined };
+      }));
+    }
+
     setRecentInteractions(prev => [{
       id: Date.now().toString(),
       from: currentUser?.name || 'Vous',
@@ -272,7 +359,7 @@ export default function SalonScreen() {
       giftData: item,
     };
     addMessage(salonId, sysMsg);
-    
+
     setShowPowersModal(false);
     setSelectedPlayer(null);
   };
@@ -698,13 +785,32 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFF',
   },
+  // Transformation replace
+  transfoContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F0F0',
+  },
+  transfoEmoji: {
+    textAlign: 'center',
+  },
+  breakHint: {
+    fontSize: 9,
+    color: '#7A5C3A',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 2,
+    lineHeight: 12,
+  },
+
   meBadge: {
-    position: 'absolute',
-    bottom: -6,
     backgroundColor: '#667eea',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
+    marginTop: -8,
+    alignSelf: 'center',
   },
   meBadgeText: {
     fontSize: 10,

@@ -1,14 +1,15 @@
 /**
- * PremiumLetterAnimation — Journal Moderne Romantique
+ * PremiumLetterAnimation — Enveloppe qui s'ouvre puis disparaît
  *
- * Séquence :
- *   1. Arrivée avec spring naturel (inertie)
- *   2. Glow doré subtil
- *   3. Ouverture du rabat (translateY vers le haut, spring avec résistance)
- *   4. Dissolution enveloppe → révélation de la lettre en dessous
+ * Séquence (~1500ms) :
+ *   1. Enveloppe arrive avec spring
+ *   2. Cachet de cire pulse
+ *   3. Rabat s'ouvre (rotateX pivot sur le bord supérieur)
+ *   4. Enveloppe ouverte visible brièvement
+ *   5. Fondu de sortie → la carte lettre apparaît en dessous
  */
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -19,139 +20,153 @@ import Animated, {
   interpolate,
   Easing,
 } from 'react-native-reanimated';
+import Svg, { Polygon } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SW } = Dimensions.get('window');
-const ENV_W  = Math.min(SW - 64, 280);
-const ENV_H  = Math.round(ENV_W * 0.62);
-const FLAP_H = Math.round(ENV_H * 0.42);
+const ENV_W  = Math.min(SW - 48, 300);
+const ENV_H  = Math.round(ENV_W * 0.64);
+const FLAP_H = Math.round(ENV_H * 0.52);
 
-const C = {
-  paperWarm:    '#F1E4D2',
-  paperMid:     '#EAD9C0',
-  borderEnv:    '#C8A96E',
-  letterPaper:  '#FFFDF8',
-  sealRed:      '#7B1515',
-  glow:         '#C9A96E',
-  textMain:     '#2B2B2B',
-  textSub:      '#6B6B6B',
-  accentPrimary:'#8B2E3C',
-  borderSoft:   '#D8D2C4',
-};
+// Géométrie SVG de l'enveloppe
+const FLAP_PTS   = `0,0 ${ENV_W},0 ${ENV_W / 2},${FLAP_H}`;
+const FOLD_LEFT  = `0,0 0,${ENV_H} ${ENV_W / 2},${ENV_H / 2}`;
+const FOLD_RIGHT = `${ENV_W},0 ${ENV_W},${ENV_H} ${ENV_W / 2},${ENV_H / 2}`;
+const FOLD_BTM   = `0,${ENV_H} ${ENV_W},${ENV_H} ${ENV_W / 2},${ENV_H / 2}`;
 
 interface Props {
   senderName?: string;
 }
 
-export function PremiumLetterAnimation({ senderName = 'Sophie' }: Props) {
-  // Conteneur global
-  const opacity    = useSharedValue(0);
-  const translateY = useSharedValue(52);
-  const scale      = useSharedValue(0.91);
+export function PremiumLetterAnimation({ senderName: _senderName = 'Sophie' }: Props) {
+  // ── Conteneur global ────────────────────────────────────────────────────────
+  const wrapOpacity    = useSharedValue(0);
+  const wrapTranslateY = useSharedValue(50);
+  const wrapScale      = useSharedValue(0.90);
 
-  // Glow
-  const glowOpacity = useSharedValue(0);
-  const glowScale   = useSharedValue(0.8);
+  // ── Cachet ──────────────────────────────────────────────────────────────────
+  const sealScale   = useSharedValue(1);
+  const sealOpacity = useSharedValue(1);
 
-  // Rabat
-  const flapY       = useSharedValue(0);
+  // ── Rabat ───────────────────────────────────────────────────────────────────
+  const flapRotate  = useSharedValue(0);   // 0=fermé → 1=ouvert
   const flapOpacity = useSharedValue(1);
 
-  // Corps enveloppe
-  const envOpacity = useSharedValue(1);
-  const envScale   = useSharedValue(1);
-
-  // Lettre révélée
-  const letterOpacity = useSharedValue(0.4);
-  const letterScale   = useSharedValue(0.96);
+  // ── Sortie ──────────────────────────────────────────────────────────────────
+  const exitOpacity = useSharedValue(1);
+  const exitScale   = useSharedValue(1);
 
   useEffect(() => {
-    // 1 — Arrivée
-    opacity.value    = withTiming(1, { duration: 380 });
-    translateY.value = withSpring(0, { damping: 11, stiffness: 110 });
-    scale.value      = withSequence(
-      withTiming(1.05, { duration: 220 }),
-      withTiming(1.0,  { duration: 200 }),
+    // 1 — Arrivée (0–350ms)
+    wrapOpacity.value    = withTiming(1, { duration: 300 });
+    wrapTranslateY.value = withSpring(0, { damping: 12, stiffness: 120 });
+    wrapScale.value      = withSequence(
+      withTiming(1.04, { duration: 180 }),
+      withTiming(1.0,  { duration: 160 }),
     );
 
-    // 2 — Glow doré
-    glowOpacity.value = withDelay(300, withTiming(0.22, { duration: 500 }));
-    glowScale.value   = withDelay(300, withTiming(1.18, { duration: 500 }));
+    // 2 — Cachet pulse (350–650ms)
+    sealScale.value = withDelay(350, withSequence(
+      withTiming(1.20, { duration: 180 }),
+      withTiming(1.0,  { duration: 150 }),
+      withTiming(1.10, { duration: 130 }),
+      withTiming(1.0,  { duration: 120 }),
+    ));
 
-    // 3 — Ouverture rabat (spring avec résistance)
-    flapY.value       = withDelay(720, withSpring(-(FLAP_H + 56), { damping: 13, stiffness: 92 }));
-    flapOpacity.value = withDelay(920, withTiming(0, { duration: 260 }));
+    // 3 — Cachet disparaît + rabat s'ouvre (700–1200ms)
+    sealOpacity.value = withDelay(720, withTiming(0, { duration: 200 }));
+    flapRotate.value  = withDelay(700, withSpring(1, {
+      damping: 14, stiffness: 72, mass: 1.0,
+    }));
+    flapOpacity.value = withDelay(1000, withTiming(0, {
+      duration: 250, easing: Easing.out(Easing.quad),
+    }));
 
-    // 4 — Dissolution enveloppe → révélation lettre
-    envOpacity.value    = withDelay(1060, withTiming(0, { duration: 480, easing: Easing.out(Easing.quad) }));
-    envScale.value      = withDelay(1060, withTiming(0.88, { duration: 480 }));
-    letterOpacity.value = withDelay(960,  withTiming(1,   { duration: 440 }));
-    letterScale.value   = withDelay(960,  withTiming(1,   { duration: 440 }));
+    // 4 — Fondu de sortie (1200–1500ms)
+    exitOpacity.value = withDelay(1180, withTiming(0, {
+      duration: 320, easing: Easing.in(Easing.quad),
+    }));
+    exitScale.value = withDelay(1180, withTiming(0.92, { duration: 320 }));
   }, []);
 
-  const containerStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }, { scale: scale.value }],
+  // ── Styles animés ────────────────────────────────────────────────────────────
+  const wrapStyle = useAnimatedStyle(() => ({
+    opacity: wrapOpacity.value,
+    transform: [
+      { translateY: wrapTranslateY.value },
+      { scale: wrapScale.value },
+    ],
   }));
 
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-    transform: [{ scale: glowScale.value }],
+  const exitStyle = useAnimatedStyle(() => ({
+    opacity: exitOpacity.value,
+    transform: [{ scale: exitScale.value }],
   }));
 
-  const flapStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: flapY.value }],
-    opacity: flapOpacity.value,
+  const sealStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: sealScale.value }],
+    opacity: sealOpacity.value,
   }));
 
-  const envBodyStyle = useAnimatedStyle(() => ({
-    opacity: envOpacity.value,
-    transform: [{ scale: envScale.value }],
-  }));
-
-  const letterStyle = useAnimatedStyle(() => ({
-    opacity: letterOpacity.value,
-    transform: [{ scale: letterScale.value }],
-  }));
+  const flapStyle = useAnimatedStyle(() => {
+    const deg = interpolate(flapRotate.value, [0, 1], [0, -168]);
+    return {
+      opacity: flapOpacity.value,
+      transform: [
+        { translateY:  FLAP_H / 2 },
+        { perspective: 900 },
+        { rotateX: `${deg}deg` },
+        { translateY: -(FLAP_H / 2) },
+      ],
+    };
+  });
 
   return (
-    <View style={[styles.outer, { height: ENV_H + 56 }]}>
-      {/* Glow doré derrière tout */}
-      <Animated.View
-        style={[
-          styles.glow,
-          { width: ENV_W * 1.1, height: ENV_W * 1.1, borderRadius: ENV_W * 0.55 },
-          glowStyle,
-        ]}
-      />
+    <View style={[styles.outer, { height: ENV_H + 20 }]}>
+      <Animated.View style={exitStyle}>
+        <Animated.View style={[styles.scene, { width: ENV_W, height: ENV_H }, wrapStyle]}>
 
-      <Animated.View style={[styles.wrapper, { width: ENV_W, height: ENV_H }, containerStyle]}>
-
-        {/* ① Lettre — visible en dessous (z-index 1) */}
-        <Animated.View style={[styles.letterPaper, letterStyle]}>
-          <Text style={styles.letterSender}>✉ {senderName}</Text>
-          <View style={styles.letterDivider} />
-          <Text style={styles.letterHint}>Toucher pour lire</Text>
-        </Animated.View>
-
-        {/* ② Corps de l'enveloppe (z-index 2, se dissout) */}
-        <Animated.View style={[styles.envBody, envBodyStyle]}>
-          <View style={styles.foldLinesContainer}>
-            <View style={[styles.foldLine, styles.foldLL]} />
-            <View style={[styles.foldLine, styles.foldLR]} />
+          {/* Corps de l'enveloppe */}
+          <View style={[styles.envBody, { width: ENV_W, height: ENV_H }]}>
+            <LinearGradient
+              colors={['#EDD5A3', '#E8C98A', '#DFB86A']}
+              start={{ x: 0.1, y: 0 }}
+              end={{ x: 0.9, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <Svg width={ENV_W} height={ENV_H} style={StyleSheet.absoluteFill}>
+              <Polygon points={FOLD_LEFT}  fill="rgba(180,130,60,0.10)" stroke="rgba(160,110,40,0.28)" strokeWidth="0.8" />
+              <Polygon points={FOLD_RIGHT} fill="rgba(210,160,70,0.07)" stroke="rgba(160,110,40,0.28)" strokeWidth="0.8" />
+              <Polygon points={FOLD_BTM}   fill="rgba(190,140,60,0.12)" stroke="rgba(160,110,40,0.28)" strokeWidth="0.8" />
+            </Svg>
+            <View style={styles.envInnerBorder} />
           </View>
-        </Animated.View>
 
-        {/* ③ Rabat (z-index 3, se lève) */}
-        <Animated.View style={[styles.flap, { height: FLAP_H }, flapStyle]}>
-          <View style={styles.foldLinesContainer}>
-            <View style={[styles.foldLine, styles.flapLL]} />
-            <View style={[styles.foldLine, styles.flapLR]} />
-          </View>
-          <View style={styles.seal}>
-            <Text style={styles.sealEmoji}>💌</Text>
-          </View>
-        </Animated.View>
+          {/* Rabat triangulaire */}
+          <Animated.View style={[styles.flapContainer, { width: ENV_W, height: FLAP_H }, flapStyle]}>
+            <Svg width={ENV_W} height={FLAP_H} style={StyleSheet.absoluteFill}>
+              <Polygon points={FLAP_PTS} fill="#E5C280" />
+              <Polygon points={`0,0 ${ENV_W/2},0 ${ENV_W/2},${FLAP_H}`} fill="rgba(200,160,60,0.18)" />
+              <Polygon points={`${ENV_W/2},0 ${ENV_W},0 ${ENV_W/2},${FLAP_H}`} fill="rgba(255,240,190,0.15)" />
+              <Polygon points={FLAP_PTS} fill="none" stroke="rgba(160,110,40,0.55)" strokeWidth="1.2" />
+            </Svg>
 
+            {/* Cachet de cire */}
+            <Animated.View style={[styles.sealWrap, sealStyle]}>
+              <LinearGradient
+                colors={['#C0392B', '#7B1515', '#5A0E0E']}
+                start={{ x: 0.2, y: 0 }}
+                end={{ x: 0.8, y: 1 }}
+                style={styles.sealGrad}
+              />
+              <View style={styles.sealRing} />
+              <View style={styles.sealInner}>
+                <View style={styles.sealHeart} />
+              </View>
+            </Animated.View>
+          </Animated.View>
+
+        </Animated.View>
       </Animated.View>
     </View>
   );
@@ -163,131 +178,76 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'visible',
   },
-
-  glow: {
-    position: 'absolute',
-    backgroundColor: C.glow,
-  },
-
-  wrapper: {
+  scene: {
     position: 'relative',
-  },
-
-  // Lettre révélée
-  letterPaper: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    right: 8,
-    bottom: 8,
-    backgroundColor: C.letterPaper,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.borderSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    zIndex: 1,
-  },
-  letterSender: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: C.accentPrimary,
-    letterSpacing: 0.5,
-  },
-  letterDivider: {
-    width: '60%',
-    height: 1,
-    backgroundColor: C.borderSoft,
-    marginVertical: 8,
-  },
-  letterHint: {
-    fontSize: 12,
-    color: C.textSub,
-    fontStyle: 'italic',
+    overflow: 'visible',
   },
 
   // Corps enveloppe
   envBody: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: C.paperWarm,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: C.borderEnv,
+    top: 0, left: 0,
+    borderRadius: 10,
     overflow: 'hidden',
-    zIndex: 2,
+    borderWidth: 1.5,
+    borderColor: '#B8882A',
+    zIndex: 1,
   },
-
-  // Lignes de pli
-  foldLinesContainer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  foldLine: {
+  envInnerBorder: {
     position: 'absolute',
-    height: 1.5,
-    backgroundColor: '#A07030',
-    opacity: 0.4,
-  },
-  foldLL: {
-    width: ENV_W * 0.75,
-    top: ENV_H * 0.45,
-    left: -ENV_W * 0.1,
-    transform: [{ rotate: '20deg' }],
-  },
-  foldLR: {
-    width: ENV_W * 0.75,
-    top: ENV_H * 0.45,
-    right: -ENV_W * 0.1,
-    transform: [{ rotate: '-20deg' }],
+    inset: 4,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(200,160,60,0.35)',
   },
 
   // Rabat
-  flap: {
+  flapContainer: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: C.paperMid,
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-    borderWidth: 1.5,
-    borderBottomWidth: 0,
-    borderColor: C.borderEnv,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 3,
-  },
-  flapLL: {
-    width: ENV_W * 0.75,
-    top: FLAP_H * 0.3,
-    left: -ENV_W * 0.1,
-    transform: [{ rotate: '22deg' }],
-  },
-  flapLR: {
-    width: ENV_W * 0.75,
-    top: FLAP_H * 0.3,
-    right: -ENV_W * 0.1,
-    transform: [{ rotate: '-22deg' }],
+    top: 0, left: 0,
+    zIndex: 2,
+    overflow: 'visible',
   },
 
-  // Sceau
-  seal: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: C.sealRed,
+  // Cachet de cire
+  sealWrap: {
+    position: 'absolute',
+    bottom: 6,
+    left: ENV_W / 2 - 27,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 5,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.50,
+    shadowRadius: 7,
+    elevation: 9,
+    overflow: 'hidden',
   },
-  sealEmoji: { fontSize: 22 },
+  sealGrad: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 27,
+  },
+  sealRing: {
+    position: 'absolute',
+    inset: 3,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,190,140,0.40)',
+  },
+  sealInner: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sealHeart: {
+    width: 14,
+    height: 14,
+    backgroundColor: 'rgba(255,200,180,0.70)',
+    borderRadius: 7,
+    transform: [{ rotate: '45deg' }],
+  },
 });

@@ -99,51 +99,51 @@ export const transformations: Power[] = [
     id: 'grenouille', emoji: '🐸', name: 'Transformer en grenouille',
     cost: 100, duration: 60, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_kiss',
-    breakHint: 'Un bisou pour libérer 💋',
+    breakHint: '💋 Envoie un Bisou pour libérer',
     cancelledBy: ['break_kiss'],
   },
   {
     id: 'ane', emoji: '🫏', name: 'Transformer en âne',
     cost: 80, duration: 60, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_compliment',
-    breakHint: 'Un compliment sincère 👏',
+    breakHint: '👏 Envoie un Compliment pour briser',
   },
   {
     id: 'fantome', emoji: '👻', name: 'Transformer en fantôme',
     cost: 120, duration: 60, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_water',
-    breakHint: "De l'eau pour chasser 💧",
+    breakHint: "💧 Envoie de l'Eau pour chasser",
     cancelledBy: ['soleil', 'break_water'],
   },
   {
     id: 'pirate', emoji: '🏴‍☠️', name: 'Transformer en pirate',
     cost: 90, duration: 60, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_dance',
-    breakHint: 'Dansez pour briser le sort 💃',
+    breakHint: '💃 Envoie une Danse pour briser',
   },
   {
     id: 'statue', emoji: '🗿', name: 'Transformer en statue',
     cost: 110, duration: 30, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_compliment',
-    breakHint: '3 compliments pour réanimer 👏',
+    breakHint: '👏 Envoie un Compliment pour réanimer',
   },
   {
     id: 'poule', emoji: '🐔', name: 'Transformer en poule',
     cost: 70, duration: 60, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_laugh',
-    breakHint: '5 rires collectifs 😂',
+    breakHint: '😂 Envoie un Grand Rire pour libérer',
   },
   {
     id: 'invisibilite', emoji: '🫥', name: 'Invisibilité',
     cost: 150, duration: 30, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_laugh',
-    breakHint: 'Un grand rire collectif 😂',
+    breakHint: '😂 Envoie un Grand Rire pour révéler',
   },
   {
     id: 'rockstar', emoji: '🎸', name: 'Transformer en rockstar',
     cost: 130, duration: 45, type: 'transformation', stackPriority: 9,
     breakConditionId: 'break_music',
-    breakHint: 'Une autre guitare 🎸',
+    breakHint: '🎵 Envoie de la Musique pour finir le concert',
   },
 ];
 
@@ -202,7 +202,7 @@ export const effects: Power[] = [
   {
     id: 'pluie', emoji: '🌧️', name: 'Pluie sur avatar',
     cost: 50, duration: 60, type: 'weather', stackPriority: 3,
-    cancelledBy: ['soleil'], breakConditionId: 'soleil', breakHint: 'Un rayon de soleil ☀️',
+    cancelledBy: ['soleil'], breakConditionId: 'soleil', breakHint: '☀️ Envoie un Rayon de soleil pour chasser',
   },
 ];
 
@@ -226,7 +226,7 @@ export const metalPowers: Power[] = [
     id: 'chat_noir', emoji: '🐈‍⬛', name: 'Chat noir maléfique',
     cost: 100, duration: 60, type: 'transformation', stackPriority: 10,
     salonOnly: 'metal',
-    breakConditionId: 'break_rainbow', breakHint: 'Un arc-en-ciel 🌈',
+    breakConditionId: 'break_rainbow', breakHint: '🌈 Envoie un Arc-en-ciel pour libérer',
   },
   {
     id: 'licorne', emoji: '🦄', name: 'Transformer en licorne',

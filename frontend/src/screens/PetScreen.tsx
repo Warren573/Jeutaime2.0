@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Animated, Dimensions, Modal,
+  Animated, Dimensions,
 } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { PETS_CATALOG, RARITY_COLORS, RARITY_NAMES } from '../engine/PetEngine';
 import { PET_PIXEL_ART } from '../data/petPixelArt';
@@ -64,7 +65,6 @@ function FloatingPet({ petId, size }: { petId: string; size: number }) {
 
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-      {/* Glow */}
       <View style={[styles.glow, {
         width: size + 40, height: size + 40,
         shadowColor: art?.glowColor ?? '#fff',
@@ -72,6 +72,71 @@ function FloatingPet({ petId, size }: { petId: string; size: number }) {
       <Animated.View style={{ transform: [{ translateY: floatAnim }] }}>
         <PixelArt petId={petId} size={size} />
       </Animated.View>
+    </View>
+  );
+}
+
+// ─── Pet mood overlay ─────────────────────────────────────────────────────────
+
+type OverlayMood = 'hungry' | 'unhappy' | 'happy' | 'neutral';
+
+function getPetOverlayMood(stats: {
+  hunger: number; happiness: number; cleanliness: number; energy: number;
+}): OverlayMood {
+  if (stats.hunger < 30) return 'hungry';
+  if (stats.happiness < 40 || stats.cleanliness < 40 || stats.energy < 40) return 'unhappy';
+  if (stats.hunger > 75 && stats.happiness > 75 && stats.cleanliness > 75 && stats.energy > 75) return 'happy';
+  return 'neutral';
+}
+
+const OVERLAY_ICONS: Record<Exclude<OverlayMood, 'neutral'>, [string, string]> = {
+  hungry:  ['🍽️', '💭'],
+  unhappy: ['☁️',  '🌧️'],
+  happy:   ['💕',  '💕'],
+};
+
+function PetMoodOverlay({ mood }: { mood: OverlayMood }) {
+  const a1 = useRef(new Animated.Value(0)).current;
+  const a2 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    a1.setValue(0);
+    a2.setValue(0);
+    if (mood === 'neutral') return;
+
+    const makeLoop = (val: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(val, { toValue: 1, duration: 500, useNativeDriver: true }),
+          Animated.timing(val, { toValue: 0, duration: 700, useNativeDriver: true }),
+          Animated.delay(500),
+        ])
+      );
+
+    const l1 = makeLoop(a1, 0);
+    const l2 = makeLoop(a2, 450);
+    l1.start();
+    l2.start();
+    return () => { l1.stop(); l2.stop(); };
+  }, [mood]);
+
+  if (mood === 'neutral') return null;
+
+  const icons = OVERLAY_ICONS[mood];
+  const makeStyle = (val: Animated.Value) => ({
+    opacity: val,
+    transform: [{ translateY: val.interpolate({ inputRange: [0, 1], outputRange: [0, -28] }) }],
+  });
+
+  return (
+    <View style={styles.overlayWrap} pointerEvents="none">
+      <Animated.Text style={[styles.overlayIcon, { left: '18%', top: '20%' }, makeStyle(a1)]}>
+        {icons[0]}
+      </Animated.Text>
+      <Animated.Text style={[styles.overlayIcon, { right: '18%', top: '35%' }, makeStyle(a2)]}>
+        {icons[1]}
+      </Animated.Text>
     </View>
   );
 }
@@ -97,6 +162,7 @@ type ScreenView = 'refuge' | 'pet';
 
 export default function PetScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { pet, coins, adoptPet, feedPet, playWithPet, cleanPet, removeCoins, addPoints } = useStore();
   const [view, setView] = useState<ScreenView>(pet ? 'pet' : 'refuge');
   const [feedback, setFeedback] = useState('');
@@ -138,6 +204,13 @@ export default function PetScreen() {
 
   const currentPetDef = pet ? PETS_CATALOG.find(p => p.id === pet.petId) : null;
 
+  // If we somehow land on pet view without a pet, go back to refuge
+  useEffect(() => {
+    if (view === 'pet' && (!pet || !currentPetDef)) {
+      setView('refuge');
+    }
+  }, [view, pet, currentPetDef]);
+
   // ── REFUGE VIEW ──────────────────────────────────────────────────────────────
   if (view === 'refuge') {
     const sorted = [...PETS_CATALOG].sort((a, b) => a.cost - b.cost);
@@ -145,7 +218,10 @@ export default function PetScreen() {
       <View style={[styles.refugeContainer, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.refugeHeader}>
-          <Text style={styles.refugeTitle}>🐾 Refuge d'Animaux</Text>
+          <TouchableOpacity onPress={() => pet ? setView('pet') : router.back()} hitSlop={12}>
+            <Text style={styles.refugeBack}>← Retour</Text>
+          </TouchableOpacity>
+          <Text style={styles.refugeTitle}>🐾 Refuge</Text>
           <View style={styles.coinsChip}>
             <Text style={styles.coinsChipText}>🌕 {coins}</Text>
           </View>
@@ -229,12 +305,12 @@ export default function PetScreen() {
 
   // ── PET DETAIL VIEW ──────────────────────────────────────────────────────────
   if (!pet || !currentPetDef) {
-    setView('refuge');
     return null;
   }
 
   const avg = (pet.stats.hunger + pet.stats.happiness + pet.stats.cleanliness + pet.stats.energy) / 4;
   const mood = avg > 80 ? '😍' : avg > 60 ? '😊' : avg > 40 ? '😐' : '😢';
+  const overlayMood = getPetOverlayMood(pet.stats);
 
   return (
     <View style={[styles.petContainer, { paddingTop: insets.top }]}>
@@ -257,9 +333,10 @@ export default function PetScreen() {
           </Animated.View>
         ) : null}
 
-        {/* Floating sprite */}
+        {/* Floating sprite + mood overlay */}
         <View style={styles.spriteArea}>
           <FloatingPet petId={pet.petId} size={160} />
+          <PetMoodOverlay mood={overlayMood} />
         </View>
 
         {/* Stats */}
@@ -317,6 +394,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)',
   },
+  refugeBack: { fontSize: 15, fontWeight: '600', color: '#E85C8A' },
   refugeTitle: { fontSize: 20, fontWeight: '900', color: '#2D1F0E' },
   coinsChip: {
     backgroundColor: 'rgba(245,200,66,0.15)', borderWidth: 1.5, borderColor: '#F5C842',
@@ -392,6 +470,8 @@ const styles = StyleSheet.create({
     position: 'absolute', borderRadius: 999,
     shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 30, elevation: 0,
   },
+  overlayWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  overlayIcon: { position: 'absolute', fontSize: 22 },
   statsPanel: {
     backgroundColor: '#161616', marginHorizontal: 16, borderRadius: 16, padding: 16, marginBottom: 12,
     borderWidth: 1, borderColor: '#2a2a2a',
