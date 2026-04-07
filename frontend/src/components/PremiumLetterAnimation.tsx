@@ -1,22 +1,13 @@
 /**
  * PremiumLetterAnimation
+ * Enveloppe fermée → rabat qui s'ouvre vers l'arrière (pivot en haut)
+ * → lettre qui sort légèrement en restant partiellement cachée par la face avant.
  *
- * ARCHITECTURE EN COUCHES (ordre z) :
- *   z=1  back-panel    — fond kraft arrière, toujours visible
- *   z=2  letter        — papier lettre, part caché dans la poche, monte ensuite
- *   z=3  front-pocket  — face avant de l'enveloppe, TOUJOURS devant la lettre
- *                        masque la partie basse de la lettre = illusion "encore dedans"
- *   z=4  flap          — rabat triangulaire du dessus, s'ouvre en premier
- *
- * SÉQUENCE :
- *   Phase 1 — enveloppe fermée : lettre invisible derrière front-pocket + flap
- *   Phase 2 — flap scaleY 1→0 (pivot bord haut = hinge) : rabat se replie
- *   Phase 3 — lettre translateY depuis l'intérieur vers le haut
- *   Phase 4 — fondu de sortie
- *
- * Container height = ENV_H + LETTER_PEEK, overflow:hidden :
- *   - La zone LETTER_PEEK au sommet est à l'intérieur du container (la lettre peut y monter)
- *   - overflow:hidden clip le bas de la lettre (front-pocket couvre le reste)
+ * COUCHES (z-order dans envelopeContainer) :
+ *   z=1  backPanel    — fond arrière, visible sous le rabat ouvert
+ *   z=2  letter       — lettre, part cachée dans la poche, monte ensuite
+ *   z=3  frontPocket  — face avant de la poche, TOUJOURS devant la lettre
+ *   z=4  flap         — rabat triangulaire, scaleY 1→0, pivot en haut
  */
 import React, { useEffect } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
@@ -25,132 +16,77 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withDelay,
-  withSpring,
-  withSequence,
   Easing,
 } from 'react-native-reanimated';
 import Svg, { Polygon } from 'react-native-svg';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SW } = Dimensions.get('window');
 
-const ENV_W     = Math.min(SW - 64, 280);
-const ENV_H     = Math.round(ENV_W * 0.62);
-const FLAP_H    = Math.round(ENV_H * 0.48);
-const POCKET_H  = ENV_H - FLAP_H;                    // hauteur de la poche (partie basse)
+const ENV_W    = Math.min(SW - 80, 260);
+const ENV_H    = Math.round(ENV_W * 0.65);
+const FLAP_H   = Math.round(ENV_H * 0.45);
+const POCKET_H = ENV_H - FLAP_H;
 
-// Espace au-dessus de l'enveloppe où la lettre va émerger
-const LETTER_PEEK   = Math.round(ENV_H * 0.38);
-// Profondeur initiale de la lettre dans la poche (avant qu'elle monte)
-const LETTER_INSIDE = Math.round(FLAP_H * 0.35);
-// Hauteur totale du container
-const CONTAINER_H   = ENV_H + LETTER_PEEK;
+// Espace au-dessus de l'enveloppe où la lettre peut émerger
+const LETTER_PEEK = Math.round(ENV_H * 0.35);
+const CONTAINER_H = ENV_H + LETTER_PEEK;
 
-// — SVG enveloppe —
+// La lettre est plus haute que la poche pour rester partiellement dedans au final
+const LETTER_H = POCKET_H + LETTER_PEEK;
 
-// Triangle du rabat (pointe vers le bas = fermé, hinge en haut)
-const FLAP_TRI = `0,0 ${ENV_W},0 ${ENV_W / 2},${FLAP_H}`;
+// translateY final de la lettre : sort partiellement, pas entièrement
+const LETTER_FINAL_Y = -Math.round(LETTER_PEEK * 0.72);
 
-// Plis de la poche avant (triangle gauche, droit, bas → center de la poche)
-const CX = ENV_W / 2;
-const CY = POCKET_H / 2;
-const PKT_L = `0,0 0,${POCKET_H} ${CX},${CY}`;
-const PKT_R = `${ENV_W},0 ${ENV_W},${POCKET_H} ${CX},${CY}`;
-const PKT_B = `0,${POCKET_H} ${ENV_W},${POCKET_H} ${CX},${CY}`;
-
-// Pli supérieur visible sur le back-panel après ouverture du rabat
-const BCX = ENV_W / 2;
-const BCY = ENV_H / 2;
-const BACK_TOP = `0,0 ${ENV_W},0 ${BCX},${BCY}`;
+// SVG : triangle du rabat (hinge en haut, pointe en bas)
+const FLAP_PTS = `0,0 ${ENV_W},0 ${ENV_W / 2},${FLAP_H}`;
 
 interface Props { senderName?: string }
 
 export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
-
-  // Arrivée
-  const sceneOp = useSharedValue(0);
-  const sceneY  = useSharedValue(22);
-
-  // Cachet
-  const sealSc  = useSharedValue(1);
-  const sealOp  = useSharedValue(1);
-
-  // Flap : scaleY 1→0 avec pivot au bord SUPÉRIEUR (hinge)
-  // Technique : translateY(+FLAP_H/2) → scaleY → translateY(-FLAP_H/2)
-  // → le bord haut reste fixe, la pointe du triangle se replie vers lui
+  const sceneOp   = useSharedValue(0);
   const flapScale = useSharedValue(1);
   const flapOp    = useSharedValue(1);
-
-  // Lettre : part de (FLAP_H + LETTER_INSIDE) → monte vers -LETTER_PEEK
-  // translateY initial = FLAP_H + LETTER_INSIDE = lettre cachée dans la poche
-  // translateY final   = -LETTER_PEEK = lettre dépasse en haut du container
-  const letterY   = useSharedValue(FLAP_H + LETTER_INSIDE);
+  const letterY   = useSharedValue(FLAP_H);   // commence au niveau du hinge, dans la poche
   const letterOp  = useSharedValue(0);
-
-  // Sortie
-  const exitOp = useSharedValue(1);
-  const exitSc = useSharedValue(1);
+  const exitOp    = useSharedValue(1);
 
   useEffect(() => {
-    // 1 — arrivée (0–280ms)
-    sceneOp.value = withTiming(1, { duration: 260 });
-    sceneY.value  = withSpring(0, { damping: 18, stiffness: 150 });
+    // Apparition
+    sceneOp.value = withTiming(1, { duration: 200 });
 
-    // 2 — cachet pulse (280–490ms)
-    sealSc.value = withDelay(280, withSequence(
-      withTiming(1.16, { duration: 130 }),
-      withTiming(1.00, { duration: 110 }),
-      withTiming(1.09, { duration: 100 }),
-      withTiming(1.00, { duration: 90 }),
-    ));
-    sealOp.value = withDelay(470, withTiming(0, { duration: 130 }));
-
-    // 3 — flap se referme / se replie vers le haut (530–1010ms = ~480ms)
-    //     scaleY 1→0 avec pivot au bord haut (voir flapStyle)
-    flapScale.value = withDelay(530, withTiming(0, {
-      duration: 480,
-      easing: Easing.inOut(Easing.quad),
+    // Phase 1 — rabat s'ouvre (t=300ms, 500ms)
+    flapScale.value = withDelay(300, withTiming(0, {
+      duration: 500,
+      easing: Easing.inOut(Easing.ease),
     }));
-    flapOp.value = withDelay(820, withTiming(0, { duration: 160 }));
+    // Le rabat disparaît quand il est à moitié fermé (ne doit pas traîner)
+    flapOp.value = withDelay(600, withTiming(0, { duration: 200 }));
 
-    // 4 — lettre sort de l'intérieur (680–1180ms = ~500ms)
-    //     démarre 150ms après le début du flap (~2/3 de l'animation du flap)
-    letterOp.value = withDelay(680, withTiming(1, { duration: 320 }));
-    letterY.value  = withDelay(680, withSpring(-LETTER_PEEK, {
-      damping: 24,
-      stiffness: 130,
-      mass: 1.0,
+    // Phase 2 — lettre sort (t=900ms, 400ms)
+    letterOp.value = withDelay(900, withTiming(1, { duration: 180 }));
+    letterY.value  = withDelay(900, withTiming(LETTER_FINAL_Y, {
+      duration: 400,
+      easing: Easing.out(Easing.ease),
     }));
 
-    // 5 — sortie globale (1250–1560ms)
-    exitOp.value = withDelay(1250, withTiming(0, {
-      duration: 310,
-      easing: Easing.in(Easing.quad),
+    // Sortie (t=1600ms)
+    exitOp.value = withDelay(1600, withTiming(0, {
+      duration: 350,
+      easing: Easing.in(Easing.ease),
     }));
-    exitSc.value = withDelay(1250, withTiming(0.94, { duration: 310 }));
   }, []);
 
-  const sceneStyle = useAnimatedStyle(() => ({
-    opacity: sceneOp.value,
-    transform: [{ translateY: sceneY.value }],
-  }));
-
-  const exitStyle = useAnimatedStyle(() => ({
-    opacity: exitOp.value,
-    transform: [{ scale: exitSc.value }],
-  }));
-
-  const sealStyle = useAnimatedStyle(() => ({
-    opacity: sealOp.value,
-    transform: [{ scale: sealSc.value }],
+  const sceneStyle  = useAnimatedStyle(() => ({ opacity: sceneOp.value }));
+  const exitStyle   = useAnimatedStyle(() => ({ opacity: exitOp.value }));
+  const letterStyle = useAnimatedStyle(() => ({
+    opacity: letterOp.value,
+    transform: [{ translateY: letterY.value }],
   }));
 
   /**
-   * Flap pivot au bord SUPÉRIEUR :
-   *   translateY(+FLAP_H/2)  → déplace le centre vers le bas (bord haut au centre)
-   *   scaleY                 → compresse autour du nouveau centre = autour du bord haut
-   *   translateY(-FLAP_H/2)  → restitue la position
-   * Résultat : la pointe du triangle se replie vers la ligne de hinge en haut.
+   * Pivot au bord SUPÉRIEUR du rabat (hinge) :
+   *   [translateY(+FLAP_H/2), scaleY, translateY(-FLAP_H/2)]
+   *   → le bord haut reste fixe, la pointe remonte vers lui.
    */
   const flapStyle = useAnimatedStyle(() => ({
     opacity: flapOp.value,
@@ -161,161 +97,47 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
     ],
   }));
 
-  /**
-   * Lettre masquée par le corps opaque de l'enveloppe (z=2 < front-pocket z=3).
-   * Part de translateY = FLAP_H + LETTER_INSIDE (profondeur dans la poche).
-   * Monte vers translateY = -LETTER_PEEK (dépasse en haut du container).
-   * La front-pocket (z=3) masque toujours la partie basse de la lettre.
-   */
-  const letterStyle = useAnimatedStyle(() => ({
-    opacity: letterOp.value,
-    transform: [{ translateY: letterY.value }],
-  }));
-
-  const SEAL_R = 23;
-
   return (
-    /**
-     * Container — overflow:hidden clip tout.
-     * HEIGHT = ENV_H + LETTER_PEEK :
-     *   – top LETTER_PEEK pixels = espace où la lettre émerge (dans le container)
-     *   – bottom ENV_H pixels = corps de l'enveloppe
-     */
-    <Animated.View style={exitStyle}>
+    <Animated.View style={[styles.wrapper, exitStyle]}>
       <Animated.View style={sceneStyle}>
-        <View
-          style={[
-            styles.container,
-            { width: ENV_W, height: CONTAINER_H },
-          ]}
-        >
+        <View style={[styles.envelopeContainer, { width: ENV_W, height: CONTAINER_H }]}>
 
-          {/* ── z=1  back-panel ─────────────────────────────────────────────── */}
-          {/* Fond arrière de l'enveloppe. Visible dans la zone ouverte après flap. */}
+          {/* ── z=1  backPanel ── fond arrière ──────────────────────── */}
           <View
-            style={[
-              styles.backPanel,
-              { top: LETTER_PEEK, width: ENV_W, height: ENV_H },
-            ]}
-          >
-            <LinearGradient
-              colors={['#C8913A', '#B87E28', '#A86E18']}
-              start={{ x: 0.1, y: 0 }}
-              end={{ x: 0.9, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            {/* Pli supérieur visible quand le rabat est ouvert */}
-            <Svg width={ENV_W} height={ENV_H} style={StyleSheet.absoluteFill}>
-              <Polygon
-                points={BACK_TOP}
-                fill="rgba(100,60,5,0.12)"
-                stroke="rgba(90,50,3,0.25)"
-                strokeWidth="0.7"
-              />
-            </Svg>
-          </View>
+            style={[styles.backPanel, { top: LETTER_PEEK, width: ENV_W, height: ENV_H }]}
+          />
 
-          {/* ── z=2  letter ─────────────────────────────────────────────────── */}
-          {/*
-            Positionnée au même top que le corps de l'enveloppe.
-            translateY initial = FLAP_H + LETTER_INSIDE → profondeur dans la poche.
-            La front-pocket (z=3 > z=2) la masque tant qu'elle est en bas.
-          */}
+          {/* ── z=2  letter ── derrière la poche ───────────────────── */}
           <Animated.View
             style={[
               styles.letter,
-              {
-                top:    LETTER_PEEK,
-                left:   9,
-                width:  ENV_W - 18,
-                height: ENV_H,
-              },
+              { top: LETTER_PEEK, left: 10, width: ENV_W - 20, height: LETTER_H },
               letterStyle,
             ]}
           >
-            <LinearGradient
-              colors={['#F9F2E0', '#F1E7CB', '#EAD9B4']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            {/* Bord gauche décoratif */}
-            <View style={styles.letterBar} />
-            {/* Lignes de texte simulées */}
             {[0, 1, 2, 3].map((i) => (
               <View
                 key={i}
                 style={[
                   styles.letterLine,
-                  {
-                    top:   16 + i * 13,
-                    width: i === 3 ? '46%' : i === 0 ? '68%' : '80%',
-                    opacity: 0.18 + i * 0.025,
-                  },
+                  { top: 14 + i * 14, width: (['70%', '85%', '80%', '45%'][i]) as any },
                 ]}
               />
             ))}
           </Animated.View>
 
-          {/* ── z=3  front-pocket ───────────────────────────────────────────── */}
-          {/*
-            FACE AVANT de l'enveloppe — partie basse (sous la ligne de pli).
-            Commence à top = LETTER_PEEK + FLAP_H = ligne de pli.
-            Hauteur = POCKET_H = ENV_H - FLAP_H.
-            TOUJOURS au-dessus de la lettre (z=3 > z=2) :
-            la lettre qui monte semble encore dedans tant que sa partie basse
-            est couverte par cette poche.
-          */}
+          {/* ── z=3  frontPocket ── TOUJOURS devant la lettre ──────── */}
           <View
             style={[
               styles.frontPocket,
-              {
-                top:    LETTER_PEEK + FLAP_H,
-                width:  ENV_W,
-                height: POCKET_H,
-              },
+              { top: LETTER_PEEK + FLAP_H, width: ENV_W, height: POCKET_H },
             ]}
           >
-            <LinearGradient
-              colors={['#DCB060', '#CC9E48', '#BC8C32']}
-              start={{ x: 0.1, y: 0 }}
-              end={{ x: 0.9, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            {/* Plis en X de la poche */}
-            <Svg width={ENV_W} height={POCKET_H} style={StyleSheet.absoluteFill}>
-              <Polygon
-                points={PKT_L}
-                fill="rgba(130,82,5,0.12)"
-                stroke="rgba(110,68,3,0.28)"
-                strokeWidth="0.8"
-              />
-              <Polygon
-                points={PKT_R}
-                fill="rgba(185,145,35,0.07)"
-                stroke="rgba(110,68,3,0.28)"
-                strokeWidth="0.8"
-              />
-              <Polygon
-                points={PKT_B}
-                fill="rgba(140,90,8,0.10)"
-                stroke="rgba(110,68,3,0.28)"
-                strokeWidth="0.8"
-              />
-            </Svg>
-            {/* Micro-ombre en haut de la poche (profondeur à la ligne de pli) */}
-            <View style={styles.pocketTopShadow} />
-            {/* Bordure intérieure */}
-            <View style={styles.pocketInner} />
+            {/* Ligne de pli en haut de la poche */}
+            <View style={styles.foldLine} />
           </View>
 
-          {/* ── z=4  flap ───────────────────────────────────────────────────── */}
-          {/*
-            Rabat triangulaire supérieur.
-            Positionné au top de l'enveloppe (LETTER_PEEK).
-            Pivot au bord haut = hinge via translateY(+FLAP_H/2) + scaleY + translateY(-FLAP_H/2).
-            scaleY 1→0 : la pointe du triangle remonte vers la ligne de hinge en haut.
-          */}
+          {/* ── z=4  flap ── rabat triangulaire ─────────────────────── */}
           <Animated.View
             style={[
               styles.flap,
@@ -324,58 +146,26 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
             ]}
           >
             <Svg width={ENV_W} height={FLAP_H} style={StyleSheet.absoluteFill}>
-              {/* Remplissage du triangle */}
-              <Polygon points={FLAP_TRI} fill="#C48828" />
-              {/* Ombre gauche */}
+              <Polygon points={FLAP_PTS} fill="#CC9438" />
               <Polygon
-                points={`0,0 ${ENV_W / 2},0 ${ENV_W / 2},${FLAP_H}`}
-                fill="rgba(140,85,5,0.20)"
-              />
-              {/* Reflet droit */}
-              <Polygon
-                points={`${ENV_W / 2},0 ${ENV_W},0 ${ENV_W / 2},${FLAP_H}`}
-                fill="rgba(255,210,100,0.10)"
-              />
-              {/* Contour */}
-              <Polygon
-                points={FLAP_TRI}
+                points={FLAP_PTS}
                 fill="none"
-                stroke="rgba(105,62,3,0.45)"
-                strokeWidth="1.1"
+                stroke="rgba(95,55,5,0.38)"
+                strokeWidth="1"
               />
             </Svg>
-
             {/* Cachet de cire */}
-            <Animated.View
+            <View
               style={[
                 styles.seal,
-                {
-                  bottom: 8,
-                  left:   ENV_W / 2 - SEAL_R,
-                  width:  SEAL_R * 2,
-                  height: SEAL_R * 2,
-                  borderRadius: SEAL_R,
-                },
-                sealStyle,
+                { bottom: Math.round(FLAP_H * 0.20), left: ENV_W / 2 - 14 },
               ]}
-            >
-              <LinearGradient
-                colors={['#C02828', '#7A0C0C', '#520808']}
-                start={{ x: 0.3, y: 0 }}
-                end={{ x: 0.7, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <View style={styles.sealRing} />
-              <View style={styles.sealDot} />
-            </Animated.View>
+            />
           </Animated.View>
 
-          {/* Bordure extérieure de l'enveloppe */}
+          {/* Bordure de l'enveloppe (par-dessus tout) */}
           <View
-            style={[
-              styles.outerBorder,
-              { top: LETTER_PEEK, width: ENV_W, height: ENV_H },
-            ]}
+            style={[styles.outerBorder, { top: LETTER_PEEK, width: ENV_W, height: ENV_H }]}
             pointerEvents="none"
           />
 
@@ -386,72 +176,60 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  // Container principal — overflow:hidden clip tout
-  container: {
+  // Conteneur principal — overflow:hidden clip tout
+  envelopeContainer: {
     position: 'relative',
     overflow: 'hidden',
     alignSelf: 'center',
-    // Ombre portée sur l'ensemble
-    shadowColor: '#3A1E00',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.20,
-    shadowRadius: 12,
-    elevation: 8,
   },
 
-  // z=1 — Fond arrière kraft
+  // z=1 — dos de l'enveloppe
   backPanel: {
     position: 'absolute',
     left: 0,
     zIndex: 1,
-    overflow: 'hidden',
+    backgroundColor: '#B87428',
+    borderRadius: 6,
   },
 
-  // z=2 — Lettre (papier crème)
+  // z=2 — lettre
   letter: {
     position: 'absolute',
     zIndex: 2,
-    overflow: 'hidden',
+    backgroundColor: '#F7EED8',
     borderRadius: 3,
-  },
-  letterBar: {
-    position: 'absolute',
-    left: 0, top: 0, bottom: 0,
-    width: 3,
-    backgroundColor: '#A07018',
-    opacity: 0.42,
   },
   letterLine: {
     position: 'absolute',
     left: 12,
     height: 1,
-    backgroundColor: '#886215',
+    backgroundColor: '#8C7040',
+    opacity: 0.28,
     borderRadius: 1,
   },
 
-  // z=3 — Face avant de la poche (MASQUE la lettre en bas)
+  // z=3 — face avant de la poche (masque la lettre en bas)
   frontPocket: {
     position: 'absolute',
     left: 0,
     zIndex: 3,
-    overflow: 'hidden',
+    backgroundColor: '#CC9438',
   },
-  pocketTopShadow: {
+  foldLine: {
     position: 'absolute',
-    top: 0, left: 0, right: 0,
-    height: 5,
-    backgroundColor: 'rgba(60,32,0,0.12)',
-  },
-  pocketInner: {
-    position: 'absolute',
-    inset: 4,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(190,145,30,0.20)',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(90,50,3,0.30)',
   },
 
-  // z=4 — Rabat triangulaire
+  // z=4 — rabat
   flap: {
     position: 'absolute',
     left: 0,
@@ -461,37 +239,25 @@ const styles = StyleSheet.create({
   // Cachet de cire
   seal: {
     position: 'absolute',
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#880000',
     zIndex: 5,
-    shadowColor: '#180000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 6,
-    elevation: 9,
-  },
-  sealRing: {
-    position: 'absolute',
-    inset: 3,
-    borderRadius: 100,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,155,95,0.28)',
-  },
-  sealDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: 'rgba(255,175,125,0.42)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
+    elevation: 4,
   },
 
-  // Bordure extérieure de l'enveloppe (par-dessus tout)
+  // Bordure fine de l'enveloppe
   outerBorder: {
     position: 'absolute',
     left: 0,
     zIndex: 10,
-    borderRadius: 9,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(110,65,3,0.38)',
+    borderColor: 'rgba(95,55,3,0.32)',
   },
 });
