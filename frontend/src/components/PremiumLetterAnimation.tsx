@@ -14,7 +14,7 @@
  *   LettersScreen unmount : 5100ms ✓
  */
 import React, { useEffect, useState } from 'react';
-import { Platform, Dimensions, StyleSheet } from 'react-native';
+import { Platform, Dimensions, StyleSheet, Image as RNImage } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -24,10 +24,23 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 
-// ─── Asset modules (require = asset ID, jamais appelé comme URL directement) ──
+// ─── Asset modules ────────────────────────────────────────────────────────────
 const ENV_BACK_MOD   = require('../../assets/envelope/envelope-open-back.png');
 const LETTER_MOD     = require('../../assets/envelope/letter.png');
 const ENV_CLOSED_MOD = require('../../assets/envelope/envelope-closed.png');
+
+/**
+ * Résout un asset require() en URI string utilisable dans <img src> ou Image source.
+ *
+ * - Web (Expo Metro) : require() peut déjà retourner une string URI → on la retourne telle quelle
+ * - React Native    : require() retourne un number (asset ID) → resolveAssetSource() le résout
+ *
+ * Appelée au render, jamais au niveau module (RN doit être initialisé).
+ */
+function getImageSource(mod: number | string): string {
+  if (typeof mod === 'string') return mod;
+  return RNImage.resolveAssetSource(mod).uri;
+}
 
 // ─── CSS injection (web only) ─────────────────────────────────────────────────
 const CSS_ID = 'pla-envelope-styles';
@@ -105,21 +118,6 @@ export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
 function WebEnvelope() {
   const [phase, setPhase] = useState<'idle' | 'open' | 'out'>('idle');
 
-  // Résolution des URIs dans l'initialiseur de useState → safe (RN est prêt au premier render)
-  const [uris] = useState<{ back: string; letter: string; closed: string }>(() => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { Image: RNImg } = require('react-native');
-      return {
-        back:   RNImg.resolveAssetSource(ENV_BACK_MOD).uri,
-        letter: RNImg.resolveAssetSource(LETTER_MOD).uri,
-        closed: RNImg.resolveAssetSource(ENV_CLOSED_MOD).uri,
-      };
-    } catch {
-      return { back: '', letter: '', closed: '' };
-    }
-  });
-
   useEffect(() => {
     injectCSS();
     const t1 = setTimeout(() => setPhase('open'), 600);
@@ -133,12 +131,17 @@ function WebEnvelope() {
     phase === 'out'  ? 'is-out'  : '',
   ].filter(Boolean).join(' ');
 
+  // getImageSource() est appelée au render, pas à l'import → RN est initialisé ✓
+  const backUri   = getImageSource(ENV_BACK_MOD);
+  const letterUri = getImageSource(LETTER_MOD);
+  const closedUri = getImageSource(ENV_CLOSED_MOD);
+
   return (
     <div className={cls}>
-      <img className="env-layer env-back"   src={uris.back}   alt="" draggable={false} />
-      <img className="env-layer env-letter" src={uris.letter} alt="" draggable={false} />
-      <img className="env-layer env-front"  src={uris.back}   alt="" draggable={false} />
-      <img className="env-layer env-closed" src={uris.closed} alt="" draggable={false} />
+      <img className="env-layer env-back"   src={backUri}   alt="" draggable={false} />
+      <img className="env-layer env-letter" src={letterUri} alt="" draggable={false} />
+      <img className="env-layer env-front"  src={backUri}   alt="" draggable={false} />
+      <img className="env-layer env-closed" src={closedUri} alt="" draggable={false} />
     </div>
   );
 }
