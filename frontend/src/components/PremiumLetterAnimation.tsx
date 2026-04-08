@@ -1,214 +1,146 @@
 /**
- * PremiumLetterAnimation — 4 PNG assets, CSS clip-path for pocket illusion
+ * PremiumLetterAnimation — 4 vrais assets PNG
  *
- * Structure (z-order) :
- *   z=1  env-back   → envelope-open-back.png  (full image)
- *   z=2  env-letter → letter.png              (rises from inside)
- *   z=3  env-front  → envelope-open-back.png  (même image, clip-path poche)
- *   z=4  env-closed → envelope-closed.png     (fades out en premier)
+ * z=1  envelope-open-back.png   (fond enveloppe ouverte, fade-in)
+ * z=2  letter.png               (lettre, monte de l'intérieur)
+ * z=3  envelope-open-front.png  (devant enveloppe ouverte, masque naturellement le bas)
+ * z=4  envelope-closed.png      (enveloppe fermée, fade-out en premier)
  *
- * Timeline :
- *   t=  0 ms  env-closed visible, resto invisible
- *   t=600 ms  is-open → closed fade-out, back/front fade-in, letter rise
- *   t=4200ms  is-out  → scène fade-out (700ms)
- *   LettersScreen unmount : 5100ms ✓
+ * Layout :
+ *   SCENE_H = ENV_H + LETTER_PEEK  — espace en haut pour la lettre qui sort
+ *   Toutes les couches enveloppe à top=LETTER_PEEK (bas de la scène)
+ *   Lettre : translateY(+START → -PEEK) pour aller de l'intérieur vers le haut
+ *
+ * Même rendu web et natif via Animated.Image (React Native Web compatible).
  */
-import React, { useEffect, useState } from 'react';
-import { Platform, Dimensions, StyleSheet, Image as RNImage } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withDelay,
-  Easing,
-} from 'react-native-reanimated';
-import { Image } from 'expo-image';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Dimensions, StyleSheet, Easing } from 'react-native';
 
-// ─── Asset modules ────────────────────────────────────────────────────────────
+// ─── Assets ───────────────────────────────────────────────────────────────────
 const ENV_BACK_MOD   = require('../../assets/envelope/envelope-open-back.png');
 const LETTER_MOD     = require('../../assets/envelope/letter.png');
+const ENV_FRONT_MOD  = require('../../assets/envelope/envelope-open-front.png');
 const ENV_CLOSED_MOD = require('../../assets/envelope/envelope-closed.png');
 
-/**
- * Résout un asset require() en URI string utilisable dans <img src> ou Image source.
- *
- * - Web (Expo Metro) : require() peut déjà retourner une string URI → on la retourne telle quelle
- * - React Native    : require() retourne un number (asset ID) → resolveAssetSource() le résout
- *
- * Appelée au render, jamais au niveau module (RN doit être initialisé).
- */
-function getImageSource(mod: number | string): string {
-  if (typeof mod === 'string') return mod;
-  return RNImage.resolveAssetSource(mod).uri;
-}
-
-// ─── CSS injection (web only) ─────────────────────────────────────────────────
-const CSS_ID = 'pla-envelope-styles';
-
-function injectCSS() {
-  const existing = document.getElementById(CSS_ID);
-  if (existing) existing.remove();
-  const style = document.createElement('style');
-  style.id = CSS_ID;
-  style.textContent = `
-    .env-scene {
-      position: relative;
-      width: min(88vw, 400px);
-      aspect-ratio: 1.45;
-      margin: 0 auto;
-      overflow: visible;
-      transition: opacity 700ms ease-in;
-    }
-    .env-scene.is-out { opacity: 0; }
-
-    .env-layer {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      display: block;
-    }
-
-    .env-back {
-      z-index: 1;
-      opacity: 0;
-      transition: opacity 360ms ease;
-    }
-    .env-letter {
-      z-index: 2;
-      opacity: 0;
-      transform: translateY(40%);
-      transition:
-        transform 800ms cubic-bezier(0.22, 1, 0.36, 1) 480ms,
-        opacity   300ms ease                            480ms;
-    }
-    .env-front {
-      z-index: 3;
-      opacity: 0;
-      transition: opacity 360ms ease 120ms;
-      clip-path: polygon(0% 45%, 100% 45%, 100% 100%, 0% 100%);
-    }
-    .env-closed {
-      z-index: 4;
-      opacity: 1;
-      transition: opacity 320ms ease;
-    }
-
-    .env-scene.is-open .env-back   { opacity: 1; }
-    .env-scene.is-open .env-closed { opacity: 0; }
-    .env-scene.is-open .env-front  { opacity: 1; }
-    .env-scene.is-open .env-letter {
-      opacity: 1;
-      transform: translateY(-20%);
-    }
-  `;
-  document.head.appendChild(style);
-}
+// ─── Dimensions ───────────────────────────────────────────────────────────────
+const { width: SW } = Dimensions.get('window');
+const ENV_W       = Math.min(SW * 0.88, 400);
+const ENV_H       = Math.round(ENV_W / 1.45);
+const LETTER_PEEK = Math.round(ENV_H * 0.45);  // distance que la lettre dépasse en haut
+const LETTER_HIDE = Math.round(ENV_H * 0.35);  // distance sous la position repos (caché dans poche)
+const SCENE_H     = ENV_H + LETTER_PEEK;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props { senderName?: string }
 
 export function PremiumLetterAnimation({ senderName: _ = '' }: Props) {
-  if (Platform.OS === 'web') return <WebEnvelope />;
-  return <NativeEnvelope />;
-}
-
-// ─── Web version ──────────────────────────────────────────────────────────────
-function WebEnvelope() {
-  const [phase, setPhase] = useState<'idle' | 'open' | 'out'>('idle');
-
-  useEffect(() => {
-    injectCSS();
-    const t1 = setTimeout(() => setPhase('open'), 600);
-    const t2 = setTimeout(() => setPhase('out'),  4200);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
-
-  const cls = [
-    'env-scene',
-    phase !== 'idle' ? 'is-open' : '',
-    phase === 'out'  ? 'is-out'  : '',
-  ].filter(Boolean).join(' ');
-
-  // getImageSource() est appelée au render, pas à l'import → RN est initialisé ✓
-  const backUri   = getImageSource(ENV_BACK_MOD);
-  const letterUri = getImageSource(LETTER_MOD);
-  const closedUri = getImageSource(ENV_CLOSED_MOD);
-
-  return (
-    <div className={cls}>
-      <img className="env-layer env-back"   src={backUri}   alt="" draggable={false} />
-      <img className="env-layer env-letter" src={letterUri} alt="" draggable={false} />
-      <img className="env-layer env-front"  src={backUri}   alt="" draggable={false} />
-      <img className="env-layer env-closed" src={closedUri} alt="" draggable={false} />
-    </div>
-  );
-}
-
-// ─── Native fallback ──────────────────────────────────────────────────────────
-const { width: SW } = Dimensions.get('window');
-const ENV_W        = Math.min(SW * 0.88, 400);
-const ENV_H        = Math.round(ENV_W / 1.45);
-const LETTER_START = Math.round(ENV_H * 0.40);
-const LETTER_END   = -Math.round(ENV_H * 0.20);
-
-function NativeEnvelope() {
-  const sceneOp  = useSharedValue(1);
-  const closedOp = useSharedValue(1);
-  const backOp   = useSharedValue(0);
-  const frontOp  = useSharedValue(0);
-  const letterOp = useSharedValue(0);
-  const letterY  = useSharedValue(LETTER_START);
+  const closedOp = useRef(new Animated.Value(1)).current;
+  const backOp   = useRef(new Animated.Value(0)).current;
+  const frontOp  = useRef(new Animated.Value(0)).current;
+  const letterOp = useRef(new Animated.Value(0)).current;
+  const letterY  = useRef(new Animated.Value(LETTER_HIDE)).current;
+  const sceneOp  = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    closedOp.value = withDelay(600,  withTiming(0, { duration: 320, easing: Easing.out(Easing.ease) }));
-    backOp.value   = withDelay(600,  withTiming(1, { duration: 360, easing: Easing.out(Easing.ease) }));
-    frontOp.value  = withDelay(720,  withTiming(1, { duration: 360, easing: Easing.out(Easing.ease) }));
-    letterOp.value = withDelay(1080, withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) }));
-    letterY.value  = withDelay(1080, withTiming(LETTER_END, { duration: 800, easing: Easing.out(Easing.cubic) }));
-    sceneOp.value  = withDelay(4200, withTiming(0, { duration: 700, easing: Easing.in(Easing.ease) }));
+    Animated.sequence([
+      // Pause initiale
+      Animated.delay(600),
+
+      // Ouverture : closed disparaît, back + front apparaissent, lettre monte
+      Animated.parallel([
+        Animated.timing(closedOp, {
+          toValue: 0, duration: 320, useNativeDriver: true,
+          easing: Easing.out(Easing.ease),
+        }),
+        Animated.timing(backOp, {
+          toValue: 1, duration: 360, useNativeDriver: true,
+          easing: Easing.out(Easing.ease),
+        }),
+        Animated.sequence([
+          Animated.delay(120),
+          Animated.timing(frontOp, {
+            toValue: 1, duration: 360, useNativeDriver: true,
+            easing: Easing.out(Easing.ease),
+          }),
+        ]),
+        Animated.sequence([
+          Animated.delay(480),
+          Animated.parallel([
+            Animated.timing(letterOp, {
+              toValue: 1, duration: 300, useNativeDriver: true,
+              easing: Easing.out(Easing.ease),
+            }),
+            Animated.timing(letterY, {
+              toValue: -LETTER_PEEK, duration: 900, useNativeDriver: true,
+              easing: Easing.out(Easing.cubic),
+            }),
+          ]),
+        ]),
+      ]),
+
+      // Hold
+      Animated.delay(1800),
+
+      // Fade-out de toute la scène
+      Animated.timing(sceneOp, {
+        toValue: 0, duration: 700, useNativeDriver: true,
+        easing: Easing.in(Easing.ease),
+      }),
+    ]).start();
   }, []);
 
-  const sceneStyle  = useAnimatedStyle(() => ({ opacity: sceneOp.value }));
-  const closedStyle = useAnimatedStyle(() => ({ opacity: closedOp.value }));
-  const backStyle   = useAnimatedStyle(() => ({ opacity: backOp.value }));
-  const frontStyle  = useAnimatedStyle(() => ({ opacity: frontOp.value }));
-  const letterStyle = useAnimatedStyle(() => ({
-    opacity: letterOp.value,
-    transform: [{ translateY: letterY.value }],
-  }));
-
   return (
-    <Animated.View style={[nStyles.scene, sceneStyle]}>
-      <Animated.View style={[nStyles.layer, { zIndex: 1 }, backStyle]}>
-        <Image source={ENV_BACK_MOD} style={nStyles.img} contentFit="contain" />
-      </Animated.View>
-      <Animated.View style={[nStyles.layer, { zIndex: 2 }, letterStyle]}>
-        <Image source={LETTER_MOD} style={nStyles.img} contentFit="contain" />
-      </Animated.View>
-      <Animated.View style={[nStyles.layer, { zIndex: 3 }, frontStyle]}>
-        <Image source={ENV_BACK_MOD} style={nStyles.img} contentFit="contain" />
-      </Animated.View>
-      <Animated.View style={[nStyles.layer, { zIndex: 4 }, closedStyle]}>
-        <Image source={ENV_CLOSED_MOD} style={nStyles.img} contentFit="contain" />
-      </Animated.View>
+    <Animated.View style={[styles.scene, { opacity: sceneOp }]}>
+
+      {/* z=1 — fond enveloppe ouverte */}
+      <Animated.Image
+        source={ENV_BACK_MOD}
+        style={[styles.envLayer, { zIndex: 1, opacity: backOp }]}
+        resizeMode="contain"
+      />
+
+      {/* z=2 — lettre (part dans la poche, monte au-dessus) */}
+      <Animated.Image
+        source={LETTER_MOD}
+        style={[styles.envLayer, {
+          zIndex: 2,
+          opacity: letterOp,
+          transform: [{ translateY: letterY }],
+        }]}
+        resizeMode="contain"
+      />
+
+      {/* z=3 — devant enveloppe ouverte (masque naturellement le bas de la lettre) */}
+      <Animated.Image
+        source={ENV_FRONT_MOD}
+        style={[styles.envLayer, { zIndex: 3, opacity: frontOp }]}
+        resizeMode="contain"
+      />
+
+      {/* z=4 — enveloppe fermée (disparaît en premier) */}
+      <Animated.Image
+        source={ENV_CLOSED_MOD}
+        style={[styles.envLayer, { zIndex: 4, opacity: closedOp }]}
+        resizeMode="contain"
+      />
+
     </Animated.View>
   );
 }
 
-const nStyles = StyleSheet.create({
+const styles = StyleSheet.create({
   scene: {
     width: ENV_W,
-    height: ENV_H,
+    height: SCENE_H,
     alignSelf: 'center',
   },
-  layer: {
+  // Toutes les couches enveloppe démarrent à LETTER_PEEK depuis le haut
+  // → laisse de l'espace en haut pour la lettre qui sort
+  envLayer: {
     position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-  },
-  img: {
-    width: '100%' as any,
-    height: '100%' as any,
+    top: LETTER_PEEK,
+    left: 0,
+    width: ENV_W,
+    height: ENV_H,
   },
 });
