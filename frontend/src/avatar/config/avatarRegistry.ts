@@ -133,8 +133,8 @@ export const avatarRegistry: Record<string, AvatarAssetRef> = {
   },
   transfo_donkey_overlay_01: {
     id: 'transfo_donkey_overlay_01',
-    type: 'svg',
-    source: require('../../../assets/avatar/transformations/donkey_overlay_01.svg'),
+    type: 'png',
+    source: require('../../../assets/avatar/transformations/avatar_512.png'),
   },
   transfo_chicken_overlay_01: {
     id: 'transfo_chicken_overlay_01',
