@@ -17,10 +17,37 @@ import {
   Image,
 } from 'react-native';
 
-// Transformations avec image PNG custom (power id → source)
-const TRANSFO_IMAGE_MAP: Partial<Record<string, any>> = {
-  ane: require('../../assets/avatar/transformations/avatar_512.png'),
+// Transformations multi-étapes : power id → [étape1, étape2, étape3, ...]
+// Ajouter un PNG = déposer dans assets/avatar/transformations/ et l'ajouter ici
+const TRANSFO_STAGES: Partial<Record<string, any[]>> = {
+  ane: [
+    require('../../assets/avatar/transformations/ane_1.png'),
+    // ane_2.png et ane_3.png à ajouter quand disponibles
+  ],
 };
+
+/**
+ * Retourne l'image PNG correspondant à l'étape actuelle de la transformation.
+ * Si plusieurs étapes : divise la durée totale en parts égales.
+ * Si une étape manque : utilise la dernière disponible.
+ */
+function getTransfoImage(
+  powerId: string,
+  expiresAt: number,
+  durationMinutes: number,
+): any | null {
+  const stages = TRANSFO_STAGES[powerId];
+  if (!stages || stages.length === 0) return null;
+  if (stages.length === 1) return stages[0];
+  const totalMs = durationMinutes * 60 * 1000;
+  const startTime = expiresAt - totalMs;
+  const elapsed = Date.now() - startTime;
+  const stageIndex = Math.min(
+    Math.floor((elapsed / totalMs) * stages.length),
+    stages.length - 1,
+  );
+  return stages[Math.max(0, stageIndex)];
+}
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -117,17 +144,24 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
               styles.transfoContainer,
               { opacity: poofOp },
             ]}>
-              {TRANSFO_IMAGE_MAP[activePower.id] ? (
-                <Image
-                  source={TRANSFO_IMAGE_MAP[activePower.id]}
-                  style={{ width: size, height: size }}
-                  resizeMode="contain"
-                />
-              ) : (
-                <Text style={[styles.transfoEmoji, { fontSize: size * 0.52 }]}>
-                  {activePower.emoji}
-                </Text>
-              )}
+              {(() => {
+                const img = getTransfoImage(
+                  activePower.id,
+                  participant.transformationExpiresAt ?? 0,
+                  activePower.duration,
+                );
+                return img ? (
+                  <Image
+                    source={img}
+                    style={{ width: size, height: size }}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Text style={[styles.transfoEmoji, { fontSize: size * 0.52 }]}>
+                    {activePower.emoji}
+                  </Text>
+                );
+              })()}
             </Animated.View>
           ) : (
             /* ── Mode NORMAL : avatar ── */
