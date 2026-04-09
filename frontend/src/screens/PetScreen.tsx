@@ -218,7 +218,7 @@ export default function PetScreen() {
       <View style={[styles.refugeContainer, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.refugeHeader}>
-          <TouchableOpacity onPress={() => pet ? setView('pet') : router.back()} hitSlop={12}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
             <Text style={styles.refugeBack}>← Retour</Text>
           </TouchableOpacity>
           <Text style={styles.refugeTitle}>🐾 Refuge</Text>
