@@ -14,7 +14,13 @@ import {
   ScrollView,
   Animated,
   Dimensions,
+  Image,
 } from 'react-native';
+
+// Transformations avec image PNG custom (power id → source)
+const TRANSFO_IMAGE_MAP: Partial<Record<string, any>> = {
+  ane: require('../../assets/avatar/transformations/avatar_512.png'),
+};
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -106,14 +112,22 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
           isSelected && styles.avatarSelected,
         ]}>
           {isTransformed && activePower ? (
-            /* ── Mode REPLACE : emoji de transformation plein cercle ── */
+            /* ── Mode REPLACE : image ou emoji de transformation ── */
             <Animated.View style={[
               styles.transfoContainer,
               { opacity: poofOp },
             ]}>
-              <Text style={[styles.transfoEmoji, { fontSize: size * 0.52 }]}>
-                {activePower.emoji}
-              </Text>
+              {TRANSFO_IMAGE_MAP[activePower.id] ? (
+                <Image
+                  source={TRANSFO_IMAGE_MAP[activePower.id]}
+                  style={{ width: size, height: size }}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Text style={[styles.transfoEmoji, { fontSize: size * 0.52 }]}>
+                  {activePower.emoji}
+                </Text>
+              )}
             </Animated.View>
           ) : (
             /* ── Mode NORMAL : avatar ── */
