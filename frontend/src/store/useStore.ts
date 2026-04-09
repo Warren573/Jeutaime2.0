@@ -491,6 +491,12 @@ export const useStore = create<StoreState>()(
     {
       name: 'jeutaime-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        // En DEV_MODE, force les pièces après restauration depuis AsyncStorage
+        if (DEV_MODE_UNLIMITED_COINS && state) {
+          state.coins = DEV_MODE_INITIAL_COINS;
+        }
+      },
       partialize: (state) => ({
         coins: state.coins,
         points: state.points,
