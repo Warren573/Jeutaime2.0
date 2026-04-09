@@ -49,7 +49,6 @@ function injectCSS() {
       width: 300px;
       height: 230px;
       background: var(--env-bg);
-      perspective: 1000px;
     }
 
     /* Rabat supérieur */
@@ -61,8 +60,8 @@ function injectCSS() {
       border-top: 130px solid var(--env-tab);
       border-right: 150px solid transparent;
       border-left: 150px solid transparent;
-      transform-origin: top center;
-      transition: transform 0.6s ease-in-out 0.7s;
+      transform-origin: top;
+      transition: transform 0.5s ease-in-out 0.7s;
     }
 
     /* Corps + rabats latéraux */
