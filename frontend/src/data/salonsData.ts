@@ -55,9 +55,8 @@ export const salonsData: Salon[] = [
     gradient: ['#4FC3F7', '#0288D1'],
     maxParticipants: 8,
     participants: [
-      { id: 'p1', name: 'Sophie',    gender: 'F', age: 28, online: true  },
-      { id: 'p2', name: 'Emma',      gender: 'F', age: 26, online: true  },
-      { id: 'p3', name: 'Alexandre', gender: 'M', age: 32, online: true  },
+      { id: 'p1', name: 'Sophie', gender: 'F', age: 28, online: true },
+      { id: 'p2', name: 'Emma',   gender: 'F', age: 26, online: true },
     ],
   },
   {
@@ -70,9 +69,8 @@ export const salonsData: Salon[] = [
     gradient: ['#8D6E63', '#5D4037'],
     maxParticipants: 4,
     participants: [
-      { id: 'p1', name: 'Léa',   gender: 'F', age: 25, online: true  },
-      { id: 'p2', name: 'Clara', gender: 'F', age: 27, online: true  },
-      { id: 'p3', name: 'Jules', gender: 'M', age: 28, online: true  },
+      { id: 'p1', name: 'Léa',   gender: 'F', age: 25, online: true },
+      { id: 'p2', name: 'Clara', gender: 'F', age: 27, online: true },
     ],
   },
   {
@@ -87,7 +85,6 @@ export const salonsData: Salon[] = [
     participants: [
       { id: 'p1', name: 'Océane', gender: 'F', age: 29, online: true  },
       { id: 'p2', name: 'Marine', gender: 'F', age: 24, online: false },
-      { id: 'p3', name: 'Lucas',  gender: 'M', age: 30, online: true  },
     ],
   },
   {
@@ -102,7 +99,6 @@ export const salonsData: Salon[] = [
     participants: [
       { id: 'p1', name: 'Zoé',     gender: 'F', age: 26, online: true },
       { id: 'p2', name: 'Valérie', gender: 'F', age: 31, online: true },
-      { id: 'p3', name: 'Kevin',   gender: 'M', age: 27, online: true },
     ],
   },
   {
@@ -117,7 +113,6 @@ export const salonsData: Salon[] = [
     participants: [
       { id: 'p1', name: 'Amélia',   gender: 'F', age: 30, online: true  },
       { id: 'p2', name: 'Victoria', gender: 'F', age: 28, online: true  },
-      { id: 'p3', name: 'Xavier',   gender: 'M', age: 35, online: false },
     ],
   },
   {
@@ -130,9 +125,8 @@ export const salonsData: Salon[] = [
     gradient: ['#424242', '#212121'],
     maxParticipants: 8,
     participants: [
-      { id: 'p1', name: 'Maxime', gender: 'M', age: 29, online: true  },
-      { id: 'p2', name: 'Laura',  gender: 'F', age: 27, online: true  },
-      { id: 'p3', name: 'Thomas', gender: 'M', age: 31, online: false },
+      { id: 'p1', name: 'Laura',  gender: 'F', age: 27, online: true  },
+      { id: 'p2', name: 'Thomas', gender: 'M', age: 31, online: false },
     ],
   },
   {
@@ -146,8 +140,7 @@ export const salonsData: Salon[] = [
     maxParticipants: 8,
     participants: [
       { id: 'p1', name: 'Julie',   gender: 'F', age: 30, online: true },
-      { id: 'p2', name: 'Antoine', gender: 'M', age: 28, online: true },
-      { id: 'p3', name: 'Camille', gender: 'F', age: 26, online: true },
+      { id: 'p2', name: 'Camille', gender: 'F', age: 26, online: true },
     ],
   },
 ];

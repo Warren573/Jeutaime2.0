@@ -499,7 +499,7 @@ export default function LettersScreen() {
                           setTimeout(() => {
                             setEnvAnimVisible(false);
                             unread.forEach(l => markLetterRead(l.id));
-                          }, 5100); // doit être > durée totale animation (≈4900ms)
+                          }, 1700);
                         }
                       }}
                       formatTime={formatTime}
