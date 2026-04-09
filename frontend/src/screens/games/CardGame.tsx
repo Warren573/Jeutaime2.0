@@ -104,7 +104,11 @@ export default function CardGame({ onEnd }: Props) {
     setCoins(0);
     setGameOver(false);
     setMessage('');
-    setStartHint(`Il y a ${hc} ❤️ dans cette partie`);
+    // Indice de départ : un type au hasard
+    const hintTypes: CardType[] = ['heart', 'spade', 'club', 'diamond'];
+    const hintType = hintTypes[Math.floor(Math.random() * hintTypes.length)];
+    const hintCount = deck.filter(c => c.type === hintType).length;
+    setStartHint(`Il y a ${hintCount} ${EMOJI[hintType]} dans cette partie`);
     setStarted(true);
   };
 
