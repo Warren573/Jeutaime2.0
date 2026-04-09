@@ -27,6 +27,11 @@ import * as EconomyEngine from '../engine/EconomyEngine';
 import * as ProgressionEngine from '../engine/ProgressionEngine';
 import * as PetEngine from '../engine/PetEngine';
 
+// ===== DEV MODE =====
+// À mettre à `false` pour le build final
+const DEV_MODE_UNLIMITED_COINS = true;
+const DEV_MODE_INITIAL_COINS = DEV_MODE_UNLIMITED_COINS ? 50000 : 500;
+
 // Type pour les messages de salon (temporaire, sera déplacé vers les types)
 export interface Message {
   id: string;
@@ -156,8 +161,8 @@ export const useStore = create<StoreState>()(
       // ===== Initial State =====
       currentUser: null,
       isAuthenticated: false,
-      
-      coins: 500,
+
+      coins: DEV_MODE_INITIAL_COINS,
       transactions: [],
       lastDailyBonus: 0,
       
