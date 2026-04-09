@@ -104,7 +104,7 @@ export const transformations: Power[] = [
   },
   {
     id: 'ane', emoji: '🫏', name: 'Transformer en âne',
-    cost: 80, duration: 60, type: 'transformation', stackPriority: 10,
+    cost: 80, duration: 2160, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_compliment',
     breakHint: '👏 Envoie un Compliment pour briser',
   },

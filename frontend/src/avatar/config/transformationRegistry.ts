@@ -145,7 +145,7 @@ export const transformationRegistry: Record<TransformationType, TransformationDe
     animationKey: 'poofTransform',
     mode:         'muteAvatar',
     zLayer:       'front',
-    duration:     { unit: 'minutes', value: 60 },
+    duration:     { unit: 'minutes', value: 2160 },
     position: {
       sizeRatio:         1.0,
       topOffsetPercent:  0,
