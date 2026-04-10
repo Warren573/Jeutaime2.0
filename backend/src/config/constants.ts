@@ -12,6 +12,22 @@ export const PHOTO_UNLOCK_LETTERS_FREE = 10;
 /** Nombre de lettres envoyées par chaque côté pour déblocage (Premium) */
 export const PHOTO_UNLOCK_LETTERS_PREMIUM = 3; // validé
 
+// --- Upload photos ---
+/** Nombre maximal de photos par utilisateur */
+export const MAX_PHOTOS_PER_USER = 6;
+/** Largeur max de l'image originale (redimensionnement côté serveur) */
+export const PHOTO_ORIGINAL_MAX_WIDTH = 1080;
+/** Largeur max de l'image floutée */
+export const PHOTO_BLURRED_MAX_WIDTH = 640;
+/** Intensité du blur pour anonymiser (sharp sigma) */
+export const PHOTO_BLUR_SIGMA = 25;
+/** Qualité WebP de l'original */
+export const PHOTO_WEBP_QUALITY = 85;
+/** Qualité WebP de la version floutée */
+export const PHOTO_BLURRED_WEBP_QUALITY = 40;
+/** Mimetypes acceptés à l'upload */
+export const PHOTO_ACCEPTED_MIMETYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
 // --- Anti-ghosting ---
 /** Jours sans réponse avant état GHOSTED */
 export const GHOST_DAYS = 5; // validé

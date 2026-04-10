@@ -1,7 +1,8 @@
 import { prisma } from "../../config/prisma";
 import { NotFoundError, ForbiddenError } from "../../core/errors";
-import { isPhotoUnlocked, getPhotoUnlockProgress } from "../../policies/photoUnlock";
-import { toPrismaSkipTake, buildMeta } from "../../core/utils/pagination";
+import { getPhotoUnlockProgress } from "../../policies/photoUnlock";
+import { buildMeta } from "../../core/utils/pagination";
+import { buildPhotoUrl } from "../photos/photos.urls";
 import { UpdateProfileDto, UpdateQuestionsDto, DiscoveryQuery } from "./profiles.schemas";
 import { Gender, LookingFor, MatchStatus } from "@prisma/client";
 
@@ -104,15 +105,18 @@ export async function getPublicProfile(viewerId: string, targetUserId: string, v
     });
   }
 
-  // Photos
+  // Photos — jamais de chemin disque exposé, on construit des URLs API
+  // sécurisées qui passeront par /api/photos/file/:id/:variant
   const photos = await prisma.photo.findMany({
     where: { userId: targetUserId },
     orderBy: [{ isPrimary: "desc" }, { position: "asc" }],
+    select: { id: true, position: true, isPrimary: true },
   });
 
+  const variant = photoUnlockInfo.unlocked ? "original" : "blurred";
   const servedPhotos = photos.map((p) => ({
     id: p.id,
-    url: photoUnlockInfo.unlocked ? p.originalPath : p.blurredPath,
+    url: buildPhotoUrl(p.id, variant),
     position: p.position,
     isPrimary: p.isPrimary,
     isBlurred: !photoUnlockInfo.unlocked,
@@ -238,11 +242,24 @@ async function getExistingMatchUserIds(userId: string): Promise<string[]> {
 }
 
 // -----------------------------------------------------------------------
-// Mes photos
+// Mes photos — retourne des URLs API sécurisées (pas de chemin disque)
 // -----------------------------------------------------------------------
 export async function getMyPhotos(userId: string) {
-  return prisma.photo.findMany({
+  const photos = await prisma.photo.findMany({
     where: { userId },
     orderBy: [{ isPrimary: "desc" }, { position: "asc" }],
+    select: {
+      id: true,
+      position: true,
+      isPrimary: true,
+      createdAt: true,
+    },
   });
+  return photos.map((p) => ({
+    id: p.id,
+    url: buildPhotoUrl(p.id, "original"),
+    position: p.position,
+    isPrimary: p.isPrimary,
+    createdAt: p.createdAt,
+  }));
 }

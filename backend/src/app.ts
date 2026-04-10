@@ -13,6 +13,7 @@ import profilesRoutes from "./modules/profiles/profiles.routes";
 import usersRoutes from "./modules/users/users.routes";
 import matchesRoutes from "./modules/matches/matches.routes";
 import lettersRoutes from "./modules/letters/letters.routes";
+import photosRoutes from "./modules/photos/photos.routes";
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use(`${api}/profiles`, profilesRoutes);
 app.use(`${api}/users`, usersRoutes);
 app.use(`${api}/matches`, matchesRoutes);
 app.use(`${api}/letters`, lettersRoutes);
+app.use(`${api}/photos`, photosRoutes);
 
 // 404
 app.use((_req, res) => {
