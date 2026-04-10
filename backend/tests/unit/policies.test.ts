@@ -5,7 +5,6 @@
 import { describe, it, expect } from "vitest";
 import { assertCanSendLetter, canSendLetter } from "../../src/policies/letterAlternation";
 import { isPhotoUnlocked, getPhotoUnlockProgress } from "../../src/policies/photoUnlock";
-import { isBookUnlocked } from "../../src/policies/bookUnlock";
 import { canOpenNewMatch, getMatchLimit } from "../../src/policies/contactLimits";
 import { assertCanRelance, isGhosting } from "../../src/policies/antiGhosting";
 import { LetterAlternationError, GhostRelanceError } from "../../src/core/errors";
@@ -103,24 +102,6 @@ describe("photoUnlock", () => {
     });
     expect(progress.threshold).toBe(3);
     expect(progress.unlocked).toBe(true);
-  });
-});
-
-// ============================================================
-// bookUnlock — mêmes seuils que photo
-// ============================================================
-
-describe("bookUnlock", () => {
-  it("Free : verrouillé sous 10 lettres", () => {
-    expect(
-      isBookUnlocked({ myLetterCount: 5, otherLetterCount: 10, viewerIsPremium: false }),
-    ).toBe(false);
-  });
-
-  it("Premium : déverrouillé à 3 lettres chacun", () => {
-    expect(
-      isBookUnlocked({ myLetterCount: 3, otherLetterCount: 3, viewerIsPremium: true }),
-    ).toBe(true);
   });
 });
 

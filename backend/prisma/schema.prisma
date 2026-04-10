@@ -135,7 +135,6 @@ model User {
   matchesAsA      Match[]         @relation("MatchUserA")
   matchesAsB      Match[]         @relation("MatchUserB")
   photos          Photo[]
-  bookEntries     BookEntry[]
   pets            Pet[]
   salonMessages   SalonMessage[]
   offeringsSent   OfferingSent[]  @relation("OfferingFrom")
@@ -224,10 +223,10 @@ model UserSettings {
 }
 
 // ============================================================
-// PHOTOS + BOOK PRIVÉ
+// PHOTOS (floutées par défaut)
 // Déverrouillage calculé côté service (non stocké)
-// Free  : letterCountA >= 10 && letterCountB >= 10
-// Premium : letterCountA >= 3 && letterCountB >= 3
+// Free    : letterCountA >= 10 && letterCountB >= 10
+// Premium : letterCountA >= 3  && letterCountB >= 3
 // ============================================================
 
 model Photo {
@@ -239,19 +238,6 @@ model Photo {
   position      Int      @default(0)
   isPrimary     Boolean  @default(false)
   createdAt     DateTime @default(now())
-
-  @@index([userId])
-}
-
-model BookEntry {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String
-  content   String   @db.Text
-  mediaPath String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }

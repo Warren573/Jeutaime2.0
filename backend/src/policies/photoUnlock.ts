@@ -13,7 +13,7 @@ export interface UnlockContext {
 }
 
 /**
- * Détermine si les photos/book de l'autre sont déverrouillés pour ce viewer.
+ * Détermine si les photos de l'autre sont déverrouillées pour ce viewer.
  *
  * Règles :
  * - Premium viewer : seuil = 3 lettres envoyées chacun

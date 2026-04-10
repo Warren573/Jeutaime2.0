@@ -6,15 +6,11 @@
 export const MATCH_LIMIT_FREE = 5;     // validé
 export const MATCH_LIMIT_PREMIUM = 20; // validé
 
-// --- Déblocage photos / book ---
+// --- Déblocage photos ---
 /** Nombre de lettres envoyées par chaque côté pour déblocage (utilisateurs gratuits) */
 export const PHOTO_UNLOCK_LETTERS_FREE = 10;
 /** Nombre de lettres envoyées par chaque côté pour déblocage (Premium) */
 export const PHOTO_UNLOCK_LETTERS_PREMIUM = 3; // validé
-
-// Book : mêmes seuils que photos
-export const BOOK_UNLOCK_LETTERS_FREE = PHOTO_UNLOCK_LETTERS_FREE;
-export const BOOK_UNLOCK_LETTERS_PREMIUM = PHOTO_UNLOCK_LETTERS_PREMIUM;
 
 // --- Anti-ghosting ---
 /** Jours sans réponse avant état GHOSTED */
