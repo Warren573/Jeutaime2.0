@@ -29,6 +29,8 @@ const envSchema = z.object({
   RATE_LIMIT_LETTERS_WINDOW_MS: z.coerce.number().int().positive().default(3_600_000),
   RATE_LIMIT_REPORTS_MAX: z.coerce.number().int().positive().default(5),
   RATE_LIMIT_REPORTS_WINDOW_MS: z.coerce.number().int().positive().default(3_600_000),
+  RATE_LIMIT_PHOTO_UPLOAD_MAX: z.coerce.number().int().positive().default(10),
+  RATE_LIMIT_PHOTO_UPLOAD_WINDOW_MS: z.coerce.number().int().positive().default(3_600_000),
 
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 });

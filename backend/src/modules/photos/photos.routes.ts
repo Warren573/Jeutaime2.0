@@ -3,6 +3,7 @@ import multer from "multer";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
+import { photoUploadRateLimit } from "../../core/middleware/rateLimit";
 import { AuthedRequest } from "../../core/types";
 import { BadRequestError } from "../../core/errors";
 import { uploadSinglePhoto } from "./photos.upload";
@@ -48,8 +49,13 @@ function handleUploadMiddleware(
 // GET /api/photos/me
 router.get("/me", wrap(ctrl.handleListMine));
 
-// POST /api/photos/me
-router.post("/me", handleUploadMiddleware, wrap(ctrl.handleUpload));
+// POST /api/photos/me — rate limit dédié (10/h/user)
+router.post(
+  "/me",
+  photoUploadRateLimit,
+  handleUploadMiddleware,
+  wrap(ctrl.handleUpload),
+);
 
 // ------------------------------------------------------------------
 // Photos d'un autre user

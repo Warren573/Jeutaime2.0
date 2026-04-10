@@ -6,13 +6,13 @@ import {
   UnprocessableError,
 } from "../../core/errors";
 import { MAX_PHOTOS_PER_USER } from "../../config/constants";
-import { isPhotoUnlocked } from "../../policies/photoUnlock";
 import {
   processAndWrite,
   deletePhotoFiles,
   resolveStoredPath,
 } from "./photos.storage";
 import { buildPhotoUrl, PhotoVariant } from "./photos.urls";
+import { resolvePhotoAccess, pickNextPrimary } from "./photos.access";
 import type { UpdatePhotoDto } from "./photos.schemas";
 
 // ============================================================
@@ -50,14 +50,14 @@ function toDto(
 }
 
 // ============================================================
-// Helpers
+// Helpers DB (les helpers purs vivent dans photos.access.ts)
 // ============================================================
-async function assertNoBlock(a: string, b: string): Promise<void> {
+async function hasBlockBetween(a: string, b: string): Promise<boolean> {
   const block = await prisma.block.findFirst({
     where: { OR: [{ fromId: a, toId: b }, { fromId: b, toId: a }] },
     select: { id: true },
   });
-  if (block) throw new ForbiddenError("Accès interdit");
+  return Boolean(block);
 }
 
 async function findMatchBetween(userA: string, userB: string) {
@@ -80,7 +80,12 @@ async function findMatchBetween(userA: string, userB: string) {
 export async function listMyPhotos(userId: string): Promise<PhotoDto[]> {
   const photos = await prisma.photo.findMany({
     where: { userId },
-    orderBy: [{ isPrimary: "desc" }, { position: "asc" }, { createdAt: "asc" }],
+    orderBy: [
+      { isPrimary: "desc" },
+      { position: "asc" },
+      { createdAt: "asc" },
+      { id: "asc" },
+    ],
     select: {
       id: true,
       userId: true,
@@ -112,8 +117,6 @@ export async function listPhotosForViewer(params: {
     return { photos, unlocked: true };
   }
 
-  await assertNoBlock(viewerId, targetUserId);
-
   // Le user cible doit exister
   const target = await prisma.user.findUnique({
     where: { id: targetUserId },
@@ -121,24 +124,45 @@ export async function listPhotosForViewer(params: {
   });
   if (!target || target.isBanned) throw new NotFoundError("Utilisateur");
 
-  // Calcul unlock via match
+  const hasBlock = await hasBlockBetween(viewerId, targetUserId);
+
+  // Délégation complète à resolvePhotoAccess : on teste "original" pour
+  // savoir si unlock, puis on teste "blurred" pour savoir si on peut au
+  // moins voir les versions floutées.
   const match = await findMatchBetween(viewerId, targetUserId);
-  let unlocked = false;
-  if (match) {
-    const myLetterCount =
-      match.userAId === viewerId ? match.letterCountA : match.letterCountB;
-    const otherLetterCount =
-      match.userAId === viewerId ? match.letterCountB : match.letterCountA;
-    unlocked = isPhotoUnlocked({
-      myLetterCount,
-      otherLetterCount,
-      viewerIsPremium,
-    });
+  const originalAccess = resolvePhotoAccess({
+    viewerId,
+    ownerId: targetUserId,
+    variant: "original",
+    viewerIsPremium,
+    hasBlock,
+    match,
+  });
+  const blurredAccess = resolvePhotoAccess({
+    viewerId,
+    ownerId: targetUserId,
+    variant: "blurred",
+    viewerIsPremium,
+    hasBlock,
+    match,
+  });
+
+  if (!blurredAccess.allowed) {
+    // Bloqué : pas d'accès du tout
+    throw new ForbiddenError("Accès interdit");
   }
+
+  const unlocked = originalAccess.allowed;
+  const variant: PhotoVariant = unlocked ? "original" : "blurred";
 
   const photos = await prisma.photo.findMany({
     where: { userId: targetUserId },
-    orderBy: [{ isPrimary: "desc" }, { position: "asc" }, { createdAt: "asc" }],
+    orderBy: [
+      { isPrimary: "desc" },
+      { position: "asc" },
+      { createdAt: "asc" },
+      { id: "asc" },
+    ],
     select: {
       id: true,
       userId: true,
@@ -148,7 +172,6 @@ export async function listPhotosForViewer(params: {
     },
   });
 
-  const variant: PhotoVariant = unlocked ? "original" : "blurred";
   return {
     photos: photos.map((p) => toDto(p, variant)),
     unlocked,
@@ -298,13 +321,16 @@ export async function deletePhoto(params: {
   await prisma.$transaction(async (tx) => {
     await tx.photo.delete({ where: { id: photoId } });
 
-    // Si c'était la primary, promouvoir la première restante
+    // Si c'était la primary, promouvoir la suivante.
+    // On fetche toutes les photos restantes et on applique pickNextPrimary
+    // pour garantir un ordre 100% déterministe (position, createdAt, id).
+    // Limite MAX_PHOTOS_PER_USER = 6 → fetch in-memory négligeable.
     if (photo.isPrimary) {
-      const next = await tx.photo.findFirst({
+      const remaining = await tx.photo.findMany({
         where: { userId },
-        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-        select: { id: true },
+        select: { id: true, position: true, createdAt: true },
       });
+      const next = pickNextPrimary(remaining);
       if (next) {
         await tx.photo.update({
           where: { id: next.id },
@@ -320,7 +346,8 @@ export async function deletePhoto(params: {
 
 // ============================================================
 // resolvePhotoForStream — utilisée par la route /file/:id/:variant
-// Vérifie l'ownership ou le déblocage, puis retourne le chemin absolu.
+// Vérifie l'ownership ou le déblocage via resolvePhotoAccess,
+// puis retourne le chemin absolu du fichier à streamer.
 // ============================================================
 export async function resolvePhotoForStream(params: {
   viewerId: string;
@@ -342,31 +369,38 @@ export async function resolvePhotoForStream(params: {
   if (!photo) throw new NotFoundError("Photo");
 
   const isOwner = photo.userId === viewerId;
+  let hasBlock = false;
+  let match: Awaited<ReturnType<typeof findMatchBetween>> = null;
 
   if (!isOwner) {
-    // Pas de blocage dans les deux sens
-    await assertNoBlock(viewerId, photo.userId);
-
+    hasBlock = await hasBlockBetween(viewerId, photo.userId);
+    // Un lookup de match n'est utile que pour la variante "original"
     if (variant === "original") {
-      // Requiert un match + unlock photoUnlock
-      const match = await findMatchBetween(viewerId, photo.userId);
-      if (!match) {
-        throw new ForbiddenError("Aucune relation existante avec cet utilisateur");
-      }
-      const myLetterCount =
-        match.userAId === viewerId ? match.letterCountA : match.letterCountB;
-      const otherLetterCount =
-        match.userAId === viewerId ? match.letterCountB : match.letterCountA;
-      const unlocked = isPhotoUnlocked({
-        myLetterCount,
-        otherLetterCount,
-        viewerIsPremium,
-      });
-      if (!unlocked) {
-        throw new ForbiddenError("Photos non encore déverrouillées pour cette relation");
-      }
+      match = await findMatchBetween(viewerId, photo.userId);
     }
-    // variant = "blurred" → accessible dès qu'il n'y a pas de blocage
+  }
+
+  const access = resolvePhotoAccess({
+    viewerId,
+    ownerId: photo.userId,
+    variant,
+    viewerIsPremium,
+    hasBlock,
+    match,
+  });
+  if (!access.allowed) {
+    switch (access.reason) {
+      case "BLOCKED":
+        throw new ForbiddenError("Accès interdit");
+      case "NO_MATCH_FOR_ORIGINAL":
+        throw new ForbiddenError("Aucune relation existante avec cet utilisateur");
+      case "NOT_UNLOCKED":
+        throw new ForbiddenError(
+          "Photos non encore déverrouillées pour cette relation",
+        );
+      default:
+        throw new ForbiddenError("Accès interdit");
+    }
   }
 
   const relative = variant === "original" ? photo.originalPath : photo.blurredPath;

@@ -47,3 +47,16 @@ export const reportsRateLimit = rateLimit({
     : (req.ip ?? "unknown"),
   skip: () => env.NODE_ENV === "test",
 });
+
+/** Limite pour upload photos (10/h/user par défaut) */
+export const photoUploadRateLimit = rateLimit({
+  windowMs: env.RATE_LIMIT_PHOTO_UPLOAD_WINDOW_MS,
+  max: env.RATE_LIMIT_PHOTO_UPLOAD_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { code: "TOO_MANY_REQUESTS", message: "Limite d'upload photos atteinte" } },
+  keyGenerator: (req) => (req as Record<string, unknown>)["user"]
+    ? String(((req as Record<string, unknown>)["user"] as Record<string, unknown>)["userId"])
+    : (req.ip ?? "unknown"),
+  skip: () => env.NODE_ENV === "test",
+});
