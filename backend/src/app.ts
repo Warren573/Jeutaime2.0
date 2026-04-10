@@ -11,6 +11,8 @@ import healthRoutes from "./modules/health/health.routes";
 import authRoutes from "./modules/auth/auth.routes";
 import profilesRoutes from "./modules/profiles/profiles.routes";
 import usersRoutes from "./modules/users/users.routes";
+import matchesRoutes from "./modules/matches/matches.routes";
+import lettersRoutes from "./modules/letters/letters.routes";
 
 const app = express();
 
@@ -55,6 +57,8 @@ app.use(`${api}/health`, healthRoutes);
 app.use(`${api}/auth`, authRoutes);
 app.use(`${api}/profiles`, profilesRoutes);
 app.use(`${api}/users`, usersRoutes);
+app.use(`${api}/matches`, matchesRoutes);
+app.use(`${api}/letters`, lettersRoutes);
 
 // 404
 app.use((_req, res) => {

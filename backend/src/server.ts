@@ -3,6 +3,9 @@ import { logger } from "./config/logger";
 import { prisma } from "./config/prisma";
 import app from "./app";
 
+// Enregistrement des handlers d'événements (doit être importé avant tout)
+import "./events/handlers";
+
 async function main() {
   // Vérifier la connexion DB avant de démarrer
   await prisma.$connect();

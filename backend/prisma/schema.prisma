@@ -301,18 +301,19 @@ model Match {
 }
 
 model Letter {
-  id         String       @id @default(cuid())
-  matchId    String
-  match      Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  fromUserId String
-  toUserId   String
-  fromUser   User         @relation("LetterFrom", fields: [fromUserId], references: [id])
-  toUser     User         @relation("LetterTo",   fields: [toUserId],   references: [id])
+  id              String       @id @default(cuid())
+  matchId         String
+  match           Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  fromUserId      String
+  toUserId        String
+  fromUser        User         @relation("LetterFrom", fields: [fromUserId], references: [id])
+  toUser          User         @relation("LetterTo",   fields: [toUserId],   references: [id])
 
-  content    String       @db.Text  // max 3000 chars validé côté service
-  status     LetterStatus @default(SENT)
-  sentAt     DateTime     @default(now())
-  readAt     DateTime?
+  content         String       @db.Text  // max 3000 chars validé côté Zod + service
+  status          LetterStatus @default(SENT)
+  isGhostRelance  Boolean      @default(false)  // lettre de relance anti-ghosting
+  sentAt          DateTime     @default(now())
+  readAt          DateTime?
 
   @@index([matchId, sentAt])
   @@index([toUserId, status])
