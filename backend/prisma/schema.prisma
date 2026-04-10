@@ -1,0 +1,527 @@
+// ============================================================
+// JeuTaime — Schéma Prisma
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum Gender {
+  HOMME
+  FEMME
+  AUTRE
+}
+
+enum LookingFor {
+  AMITIE
+  RELATION
+  FLIRT
+  DISCUSSION
+  SERIEUX
+}
+
+enum MatchStatus {
+  PENDING   // en attente d'acceptation
+  ACTIVE    // match actif, échanges en cours
+  BROKEN    // lien rompu par un des deux
+  BLOCKED   // blocage
+  GHOSTED   // inactivité détectée (5 jours)
+}
+
+enum LetterStatus {
+  SENT
+  READ
+}
+
+enum CoinTxnType {
+  DAILY_BONUS
+  GAME_WIN
+  LETTER_SENT
+  OFFERING_SENT
+  POWER_USED
+  PET_ADOPTION
+  PET_CARE
+  PREMIUM_PURCHASE
+  STORY_PARTICIPATION
+  STORY_COMPLETION
+  REFUND
+  ADMIN_ADJUST
+  PURCHASE_COINS
+}
+
+enum OfferingCategory {
+  BOISSON
+  NOURRITURE
+  SYMBOLIQUE
+  HUMOUR
+}
+
+enum MagieType {
+  TRANSFORMATION
+  VISUAL_EFFECT
+  WEATHER
+}
+
+enum SalonKind {
+  PISCINE
+  CAFE_DE_PARIS
+  ILE_PIRATES
+  THEATRE
+  BAR_COCKTAILS
+  METAL
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  ACTIONED
+  DISMISSED
+}
+
+enum ReportReason {
+  HARASSMENT
+  SPAM
+  FAKE
+  INAPPROPRIATE_CONTENT
+  MINOR
+  OTHER
+}
+
+enum PremiumTier {
+  FREE
+  PREMIUM
+}
+
+// ============================================================
+// USER / AUTH
+// ============================================================
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  role         Role        @default(USER)
+  isVerified   Boolean     @default(false)
+  isBanned     Boolean     @default(false)
+  banReason    String?
+  premiumTier  PremiumTier @default(FREE)
+  premiumUntil DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  profile         Profile?
+  wallet          Wallet?
+  settings        UserSettings?
+  refreshTokens   RefreshToken[]
+
+  sentLetters     Letter[]        @relation("LetterFrom")
+  receivedLetters Letter[]        @relation("LetterTo")
+  matchesAsA      Match[]         @relation("MatchUserA")
+  matchesAsB      Match[]         @relation("MatchUserB")
+  photos          Photo[]
+  bookEntries     BookEntry[]
+  pets            Pet[]
+  salonMessages   SalonMessage[]
+  offeringsSent   OfferingSent[]  @relation("OfferingFrom")
+  offeringsRecv   OfferingSent[]  @relation("OfferingTo")
+  magiesCast      MagieCast[]     @relation("MagieFrom")
+  magiesRecv      MagieCast[]     @relation("MagieTo")
+  reportsMade     Report[]        @relation("ReportReporter")
+  reportsAgainst  Report[]        @relation("ReportTarget")
+  blocksMade      Block[]         @relation("BlockFrom")
+  blocksAgainst   Block[]         @relation("BlockTo")
+  auditLogs       AuditLog[]
+
+  @@index([email])
+  @@index([isBanned])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ============================================================
+// PROFIL
+// ============================================================
+
+model Profile {
+  id           String      @id @default(cuid())
+  userId       String      @unique
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  pseudo       String      @unique
+  birthDate    DateTime
+  gender       Gender
+  interestedIn Gender[]
+  city         String
+  postalCode   String?
+  bio          String?     @db.Text
+  physicalDesc String?
+  job          String?
+  interests    String[]
+  lookingFor   LookingFor[]
+  hasChildren  Boolean?
+  wantsChildren Boolean?
+  avatarConfig Json?
+
+  // Progression
+  points       Int         @default(0)
+  badges       String[]    @default([])
+
+  questions    ProfileQuestion[]
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([city])
+  @@index([gender])
+  @@index([points])
+}
+
+model ProfileQuestion {
+  id         String  @id @default(cuid())
+  profileId  String
+  profile    Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  questionId String
+  answer     String  @db.Text
+
+  @@unique([profileId, questionId])
+}
+
+model UserSettings {
+  userId          String  @id
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifEmail      Boolean @default(true)
+  notifPush       Boolean @default(true)
+  soundEnabled    Boolean @default(true)
+  language        String  @default("fr")
+  showInDiscovery Boolean @default(true)
+  locationShared  Boolean @default(false)
+}
+
+// ============================================================
+// PHOTOS + BOOK PRIVÉ
+// Déverrouillage calculé côté service (non stocké)
+// Free  : letterCountA >= 10 && letterCountB >= 10
+// Premium : letterCountA >= 3 && letterCountB >= 3
+// ============================================================
+
+model Photo {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalPath  String
+  blurredPath   String
+  position      Int      @default(0)
+  isPrimary     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
+model BookEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   @db.Text
+  mediaPath String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================================
+// MATCH + LETTRES
+// Match unique non orienté : on garantit userAId < userBId
+// ============================================================
+
+model Match {
+  id                    String      @id @default(cuid())
+  // Contrainte non orientée : userAId < userBId (cuid lexicographique)
+  userAId               String
+  userBId               String
+  userA                 User        @relation("MatchUserA", fields: [userAId], references: [id])
+  userB                 User        @relation("MatchUserB", fields: [userBId], references: [id])
+
+  status                MatchStatus @default(PENDING)
+
+  // Qui a initié la demande (pour déterminer qui envoie la 1ère lettre)
+  initiatorId           String
+
+  // Compteurs de lettres par côté (pour calcul unlock)
+  letterCountA          Int         @default(0)
+  letterCountB          Int         @default(0)
+
+  // Alternation : userId du dernier expéditeur
+  lastLetterBy          String?
+  lastLetterAt          DateTime?
+
+  // Questions de validation (les 2 doivent avoir répondu)
+  questionsValidated    Boolean     @default(false)
+
+  // Anti-ghosting : ID de celui qui a utilisé sa relance unique
+  ghostRelanceUsedBy    String?
+  ghostDetectedAt       DateTime?
+
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  letters               Letter[]
+
+  @@unique([userAId, userBId])
+  @@index([status])
+  @@index([userAId])
+  @@index([userBId])
+}
+
+model Letter {
+  id         String       @id @default(cuid())
+  matchId    String
+  match      Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  fromUserId String
+  toUserId   String
+  fromUser   User         @relation("LetterFrom", fields: [fromUserId], references: [id])
+  toUser     User         @relation("LetterTo",   fields: [toUserId],   references: [id])
+
+  content    String       @db.Text  // max 3000 chars validé côté service
+  status     LetterStatus @default(SENT)
+  sentAt     DateTime     @default(now())
+  readAt     DateTime?
+
+  @@index([matchId, sentAt])
+  @@index([toUserId, status])
+}
+
+// ============================================================
+// ÉCONOMIE
+// ============================================================
+
+model Wallet {
+  userId         String          @id
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coins          Int             @default(0)
+  lastDailyBonus DateTime?
+  updatedAt      DateTime        @updatedAt
+  transactions   CoinTransaction[]
+}
+
+model CoinTransaction {
+  id        String      @id @default(cuid())
+  walletId  String
+  wallet    Wallet      @relation(fields: [walletId], references: [userId], onDelete: Cascade)
+  type      CoinTxnType
+  amount    Int         // signé : + crédit, - débit
+  balance   Int         // solde après transaction
+  meta      Json?       // contexte libre (offeringId, petId, reason...)
+  createdAt DateTime    @default(now())
+
+  @@index([walletId, createdAt])
+}
+
+// ============================================================
+// OFFRANDES
+// ============================================================
+
+model OfferingCatalog {
+  id            String           @id
+  emoji         String
+  name          String
+  cost          Int
+  category      OfferingCategory
+  durationMs    Int?
+  stackPriority Int              @default(0)
+  salonOnly     SalonKind?
+  enabled       Boolean          @default(true)
+
+  sentOfferings OfferingSent[]
+}
+
+model OfferingSent {
+  id         String          @id @default(cuid())
+  offeringId String
+  offering   OfferingCatalog @relation(fields: [offeringId], references: [id])
+  fromUserId String
+  toUserId   String
+  fromUser   User            @relation("OfferingFrom", fields: [fromUserId], references: [id])
+  toUser     User            @relation("OfferingTo",   fields: [toUserId],   references: [id])
+  salonId    String?
+  salon      Salon?          @relation(fields: [salonId], references: [id])
+  expiresAt  DateTime?
+  createdAt  DateTime        @default(now())
+
+  @@index([toUserId])
+  @@index([salonId])
+}
+
+// ============================================================
+// MAGIES / POUVOIRS
+// ============================================================
+
+model MagieCatalog {
+  id               String    @id
+  emoji            String
+  name             String
+  cost             Int
+  durationSec      Int
+  type             MagieType
+  breakConditionId String?   // ex: "kiss", "compliment", "water"...
+  enabled          Boolean   @default(true)
+
+  casts            MagieCast[]
+}
+
+model MagieCast {
+  id         String       @id @default(cuid())
+  magieId    String
+  magie      MagieCatalog @relation(fields: [magieId], references: [id])
+  fromUserId String
+  toUserId   String
+  fromUser   User         @relation("MagieFrom", fields: [fromUserId], references: [id])
+  toUser     User         @relation("MagieTo",   fields: [toUserId],   references: [id])
+  salonId    String?
+  salon      Salon?       @relation(fields: [salonId], references: [id])
+  castAt     DateTime     @default(now())
+  expiresAt  DateTime
+  brokenAt   DateTime?
+  brokenBy   String?
+
+  @@index([toUserId, expiresAt])
+}
+
+// ============================================================
+// SALONS
+// ============================================================
+
+model Salon {
+  id          String       @id @default(cuid())
+  kind        SalonKind    @unique
+  name        String
+  description String?      @db.Text
+  magicAction String?
+  gradient    Json?
+  createdAt   DateTime     @default(now())
+
+  messages    SalonMessage[]
+  offerings   OfferingSent[]
+  magies      MagieCast[]
+}
+
+model SalonMessage {
+  id        String   @id @default(cuid())
+  salonId   String
+  salon     Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String   // "message" | "offering" | "power" | "system"
+  content   String   @db.Text
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([salonId, createdAt])
+}
+
+// ============================================================
+// ANIMAUX VIRTUELS
+// ============================================================
+
+model PetCatalog {
+  id      String  @id
+  name    String
+  emoji   String
+  cost    Int
+  enabled Boolean @default(true)
+
+  pets    Pet[]
+}
+
+model Pet {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  catalogId    String
+  catalog      PetCatalog @relation(fields: [catalogId], references: [id])
+  name         String
+  hunger       Int        @default(100)
+  happiness    Int        @default(100)
+  energy       Int        @default(100)
+  cleanliness  Int        @default(100)
+  xp           Int        @default(0)
+  level        Int        @default(1)
+  isIncarnated Boolean    @default(false)
+  lastUpdated  DateTime   @default(now())
+  adoptedAt    DateTime   @default(now())
+
+  @@index([userId])
+}
+
+// ============================================================
+// MODÉRATION
+// ============================================================
+
+model Report {
+  id         String       @id @default(cuid())
+  reporterId String
+  reporter   User         @relation("ReportReporter", fields: [reporterId], references: [id])
+  targetId   String
+  target     User         @relation("ReportTarget",   fields: [targetId],   references: [id])
+  reason     ReportReason
+  details    String?      @db.Text
+  status     ReportStatus @default(OPEN)
+  resolution String?      @db.Text
+  resolvedBy String?
+  resolvedAt DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@index([status])
+  @@index([targetId])
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  fromId    String
+  toId      String
+  from      User     @relation("BlockFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to        User     @relation("BlockTo",   fields: [toId],   references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([fromId, toId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action    String
+  target    String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([action, createdAt])
+  @@index([actorId])
+}

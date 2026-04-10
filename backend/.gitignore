@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.env.local
+storage/photos/**/*.jpg
+storage/photos/**/*.jpeg
+storage/photos/**/*.png
+storage/photos/**/*.webp
+*.log
+prisma/migrations/**/*.sql.bak
