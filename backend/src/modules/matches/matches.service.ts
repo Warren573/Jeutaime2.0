@@ -1,5 +1,6 @@
-import { MatchStatus, PremiumTier } from "@prisma/client";
+import { MatchStatus } from "@prisma/client";
 import { prisma } from "../../config/prisma";
+import { isPremiumActive } from "../../policies/premium";
 import {
   BadRequestError,
   ConflictError,
@@ -72,10 +73,7 @@ async function getUserPremiumStatus(userId: string): Promise<boolean> {
     select: { premiumTier: true, premiumUntil: true },
   });
   if (!user) return false;
-  return (
-    user.premiumTier === PremiumTier.PREMIUM &&
-    (user.premiumUntil === null || user.premiumUntil > new Date())
-  );
+  return isPremiumActive(user);
 }
 
 /** Vérifie si un blocage existe dans l'un ou l'autre sens */

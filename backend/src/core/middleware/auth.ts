@@ -3,8 +3,9 @@ import { AuthedRequest } from "../types";
 import { verifyAccessToken } from "../utils/jwt";
 import { UnauthorizedError, ForbiddenError } from "../errors";
 import { prisma } from "../../config/prisma";
-import { Role, PremiumTier } from "@prisma/client";
+import { Role } from "@prisma/client";
 import { asyncHandler } from "../utils/asyncHandler";
+import { isPremiumActive } from "../../policies/premium";
 
 /**
  * Middleware principal d'authentification.
@@ -32,14 +33,10 @@ export const requireAuth = asyncHandler(async (req: AuthedRequest, _res: Respons
     throw new ForbiddenError("Ton compte est banni");
   }
 
-  const isPremium =
-    user.premiumTier === PremiumTier.PREMIUM &&
-    (user.premiumUntil === null || user.premiumUntil > new Date());
-
   req.user = {
     userId: user.id,
     role: user.role,
-    isPremium,
+    isPremium: isPremiumActive(user),
   };
 
   next();

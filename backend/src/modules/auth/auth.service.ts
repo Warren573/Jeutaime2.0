@@ -10,6 +10,7 @@ import { ConflictError, UnauthorizedError, NotFoundError } from "../../core/erro
 import { REFRESH_TOKEN_TTL_S } from "../../config/constants";
 import { RegisterDto, LoginDto } from "./auth.schemas";
 import { Gender } from "@prisma/client";
+import { isPremiumActive } from "../../policies/premium";
 
 // -----------------------------------------------------------------------
 // Helpers
@@ -100,9 +101,7 @@ export async function login(dto: LoginDto) {
   const valid = await comparePassword(dto.password, user.passwordHash);
   if (!valid) throw new UnauthorizedError("Email ou mot de passe incorrect");
 
-  const isPremium =
-    user.premiumTier === "PREMIUM" &&
-    (user.premiumUntil === null || user.premiumUntil > new Date());
+  const isPremium = isPremiumActive(user);
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
@@ -139,9 +138,7 @@ export async function refresh(rawToken: string) {
     data: { revokedAt: new Date() },
   });
 
-  const isPremium =
-    stored.user.premiumTier === "PREMIUM" &&
-    (stored.user.premiumUntil === null || stored.user.premiumUntil > new Date());
+  const isPremium = isPremiumActive(stored.user);
 
   const { access, refresh: newRefresh, tokenId } = buildTokenPair(stored.user.id, stored.user.role, isPremium);
   await persistRefreshToken(stored.user.id, tokenId, newRefresh);

@@ -14,6 +14,8 @@ import usersRoutes from "./modules/users/users.routes";
 import matchesRoutes from "./modules/matches/matches.routes";
 import lettersRoutes from "./modules/letters/letters.routes";
 import photosRoutes from "./modules/photos/photos.routes";
+import walletRoutes from "./modules/wallet/wallet.routes";
+import premiumRoutes from "./modules/premium/premium.routes";
 
 const app = express();
 
@@ -61,6 +63,8 @@ app.use(`${api}/users`, usersRoutes);
 app.use(`${api}/matches`, matchesRoutes);
 app.use(`${api}/letters`, lettersRoutes);
 app.use(`${api}/photos`, photosRoutes);
+app.use(`${api}/wallet`, walletRoutes);
+app.use(`${api}/premium`, premiumRoutes);
 
 // 404
 app.use((_req, res) => {
