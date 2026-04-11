@@ -18,6 +18,7 @@ import walletRoutes from "./modules/wallet/wallet.routes";
 import premiumRoutes from "./modules/premium/premium.routes";
 import salonsRoutes from "./modules/salons/salons.routes";
 import reportsRoutes from "./modules/reports/reports.routes";
+import magiesRoutes from "./modules/magies/magies.routes";
 import adminSalonsRoutes from "./modules/admin/salons/adminSalons.routes";
 import adminUploadRoutes, {
   publicFilesRouter,
@@ -76,6 +77,7 @@ app.use(`${api}/wallet`, walletRoutes);
 app.use(`${api}/premium`, premiumRoutes);
 app.use(`${api}/salons`, salonsRoutes);
 app.use(`${api}/reports`, reportsRoutes);
+app.use(`${api}/magies`, magiesRoutes);
 
 // Admin (ADMIN/MOD role required — enforced inside each router)
 app.use(`${api}/admin/salons`, adminSalonsRoutes);
