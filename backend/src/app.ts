@@ -17,10 +17,14 @@ import photosRoutes from "./modules/photos/photos.routes";
 import walletRoutes from "./modules/wallet/wallet.routes";
 import premiumRoutes from "./modules/premium/premium.routes";
 import salonsRoutes from "./modules/salons/salons.routes";
+import reportsRoutes from "./modules/reports/reports.routes";
 import adminSalonsRoutes from "./modules/admin/salons/adminSalons.routes";
 import adminUploadRoutes, {
   publicFilesRouter,
 } from "./modules/admin/upload/adminUpload.routes";
+import adminReportsRoutes from "./modules/admin/reports/adminReports.routes";
+import adminUsersRoutes from "./modules/admin/users/adminUsers.routes";
+import adminAuditRoutes from "./modules/admin/audit/adminAudit.routes";
 
 const app = express();
 
@@ -71,10 +75,14 @@ app.use(`${api}/photos`, photosRoutes);
 app.use(`${api}/wallet`, walletRoutes);
 app.use(`${api}/premium`, premiumRoutes);
 app.use(`${api}/salons`, salonsRoutes);
+app.use(`${api}/reports`, reportsRoutes);
 
-// Admin (ADMIN role required — enforced inside each router)
+// Admin (ADMIN/MOD role required — enforced inside each router)
 app.use(`${api}/admin/salons`, adminSalonsRoutes);
 app.use(`${api}/admin/upload`, adminUploadRoutes);
+app.use(`${api}/admin/reports`, adminReportsRoutes);
+app.use(`${api}/admin/users`, adminUsersRoutes);
+app.use(`${api}/admin/audit-log`, adminAuditRoutes);
 
 // Public stream de fichiers admin (URLs opaques, no auth)
 app.use(`${api}/files`, publicFilesRouter);
