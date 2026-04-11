@@ -412,11 +412,27 @@ model Salon {
   description String?      @db.Text
   magicAction String?
   gradient    Json?
-  createdAt   DateTime     @default(now())
 
-  messages    SalonMessage[]
-  offerings   OfferingSent[]
-  magies      MagieCast[]
+  // --- CMS visuel (Phase 5) ------------------------------
+  backgroundImage  String?  // URL API /api/files/salons/... ou chemin relatif public
+  backgroundType   String   @default("gradient") // "image" | "gradient" | "color"
+  backgroundConfig Json?    // { start, end, angle } ou { color } ou { url, position }
+  primaryColor     String?  // ex: "#FF6B9D"
+  secondaryColor   String?
+  textColor        String?
+
+  // --- Gestion admin --------------------------------------
+  isActive   Boolean  @default(true)
+  order      Int      @default(0)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  messages   SalonMessage[]
+  offerings  OfferingSent[]
+  magies     MagieCast[]
+
+  @@index([isActive, order])
 }
 
 model SalonMessage {

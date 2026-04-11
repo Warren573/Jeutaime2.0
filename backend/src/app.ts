@@ -16,6 +16,11 @@ import lettersRoutes from "./modules/letters/letters.routes";
 import photosRoutes from "./modules/photos/photos.routes";
 import walletRoutes from "./modules/wallet/wallet.routes";
 import premiumRoutes from "./modules/premium/premium.routes";
+import salonsRoutes from "./modules/salons/salons.routes";
+import adminSalonsRoutes from "./modules/admin/salons/adminSalons.routes";
+import adminUploadRoutes, {
+  publicFilesRouter,
+} from "./modules/admin/upload/adminUpload.routes";
 
 const app = express();
 
@@ -65,6 +70,14 @@ app.use(`${api}/letters`, lettersRoutes);
 app.use(`${api}/photos`, photosRoutes);
 app.use(`${api}/wallet`, walletRoutes);
 app.use(`${api}/premium`, premiumRoutes);
+app.use(`${api}/salons`, salonsRoutes);
+
+// Admin (ADMIN role required — enforced inside each router)
+app.use(`${api}/admin/salons`, adminSalonsRoutes);
+app.use(`${api}/admin/upload`, adminUploadRoutes);
+
+// Public stream de fichiers admin (URLs opaques, no auth)
+app.use(`${api}/files`, publicFilesRouter);
 
 // 404
 app.use((_req, res) => {

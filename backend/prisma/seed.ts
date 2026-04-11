@@ -142,11 +142,32 @@ async function main() {
   console.log("🌱 Démarrage du seed JeuTaime...\n");
 
   // -- Salons --
-  for (const salon of salons) {
+  // Phase 5 : on assigne un `order` stable (index du tableau) pour
+  // garantir un affichage déterministe côté public. `backgroundType`
+  // reste à "gradient" (default) car le seed fournit `gradient`.
+  // `isActive` par défaut true. `primaryColor` initialisée avec
+  // gradient.start pour donner à l'admin une base exploitable.
+  for (let i = 0; i < salons.length; i++) {
+    const salon = salons[i]!;
     await prisma.salon.upsert({
       where: { kind: salon.kind },
-      update: { name: salon.name, description: salon.description, magicAction: salon.magicAction, gradient: salon.gradient },
-      create: { kind: salon.kind, name: salon.name, description: salon.description, magicAction: salon.magicAction, gradient: salon.gradient },
+      update: {
+        name: salon.name,
+        description: salon.description,
+        magicAction: salon.magicAction,
+        gradient: salon.gradient,
+        order: i,
+      },
+      create: {
+        kind: salon.kind,
+        name: salon.name,
+        description: salon.description,
+        magicAction: salon.magicAction,
+        gradient: salon.gradient,
+        order: i,
+        primaryColor: salon.gradient.start,
+        secondaryColor: salon.gradient.end,
+      },
     });
   }
   console.log(`✅ ${salons.length} salons seedés`);
