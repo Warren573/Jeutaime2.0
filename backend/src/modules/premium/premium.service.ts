@@ -10,6 +10,7 @@ import {
   isPremiumActive,
 } from "../../policies/premium";
 import { computeDebitBalance } from "../../policies/wallet";
+import { emitPremiumCancelled, emitPremiumSubscribed } from "../../events";
 import { PREMIUM_PLANS, PremiumPlan, findPlan } from "./premium.plans";
 import type { SubscribePremiumDto } from "./premium.schemas";
 
@@ -70,7 +71,7 @@ export async function subscribe(
   const plan = findPlan(dto.planId);
   if (!plan) throw new BadRequestError("Plan Premium inconnu");
 
-  return prisma.$transaction(async (tx) => {
+  const txResult = await prisma.$transaction(async (tx) => {
     const user = await tx.user.findUnique({
       where: { id: userId },
       select: { id: true, premiumTier: true, premiumUntil: true },
@@ -147,16 +148,31 @@ export async function subscribe(
     });
 
     return {
-      status: {
-        tier: updated.premiumTier,
-        premiumUntil: updated.premiumUntil,
-        active: isPremiumActive(updated, now),
+      result: {
+        status: {
+          tier: updated.premiumTier,
+          premiumUntil: updated.premiumUntil,
+          active: isPremiumActive(updated, now),
+        },
+        plan,
+        paymentMethod: dto.paymentMethod,
+        coinsSpent,
       },
-      plan,
-      paymentMethod: dto.paymentMethod,
-      coinsSpent,
+      newUntil,
     };
   });
+
+  // Event émis après succès de la transaction — non bloquant
+  emitPremiumSubscribed({
+    userId,
+    planId: plan.id,
+    paymentMethod: dto.paymentMethod,
+    coinsSpent: txResult.result.coinsSpent,
+    newUntil: txResult.newUntil,
+    durationDays: plan.durationDays,
+  });
+
+  return txResult.result;
 }
 
 // ============================================================
@@ -168,7 +184,7 @@ export async function subscribe(
 // pour garder la trace historique de la souscription.
 // ============================================================
 export async function cancel(userId: string): Promise<PremiumStatusDto> {
-  return prisma.$transaction(async (tx) => {
+  const txResult = await prisma.$transaction(async (tx) => {
     const user = await tx.user.findUnique({
       where: { id: userId },
       select: { premiumTier: true, premiumUntil: true },
@@ -197,9 +213,20 @@ export async function cancel(userId: string): Promise<PremiumStatusDto> {
     });
 
     return {
-      tier: updated.premiumTier,
-      premiumUntil: updated.premiumUntil,
-      active: isPremiumActive(updated),
+      status: {
+        tier: updated.premiumTier,
+        premiumUntil: updated.premiumUntil,
+        active: isPremiumActive(updated),
+      },
+      previousUntil: user.premiumUntil,
     };
   });
+
+  // Event émis après succès de la transaction — non bloquant
+  emitPremiumCancelled({
+    userId,
+    previousUntil: txResult.previousUntil,
+  });
+
+  return txResult.status;
 }

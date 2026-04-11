@@ -33,6 +33,15 @@ const envSchema = z.object({
   RATE_LIMIT_PHOTO_UPLOAD_WINDOW_MS: z.coerce.number().int().positive().default(3_600_000),
 
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
+
+  // ----- Scheduler (Phase 9 — Events / Cron) -----
+  // Opt-in : off par défaut pour rester compatible avec dev/tests/local.
+  ENABLE_SCHEDULER: z
+    .string()
+    .default("false")
+    .transform((v) => v.toLowerCase() === "true"),
+  SCHEDULER_INTERVAL_MS: z.coerce.number().int().positive().default(300_000), // 5 min
+  REFRESH_TOKEN_PURGE_GRACE_MS: z.coerce.number().int().min(0).default(3_600_000), // 1h
 });
 
 const parsed = envSchema.safeParse(process.env);

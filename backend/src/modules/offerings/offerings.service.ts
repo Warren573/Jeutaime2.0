@@ -18,6 +18,7 @@ import {
   isOfferingActive,
 } from "../../policies/offerings";
 import { computeDebitBalance } from "../../policies/wallet";
+import { emitOfferingSent } from "../../events";
 import type {
   ListReceivedQueryDto,
   SendOfferingDto,
@@ -195,6 +196,17 @@ export async function sendOffering(
     });
 
     return sent;
+  });
+
+  // Event émis après succès de la transaction — non bloquant
+  emitOfferingSent({
+    offeringSentId: result.id,
+    offeringId: catalog.id,
+    fromUserId,
+    toUserId: dto.toUserId,
+    salonId: dto.salonId ?? null,
+    cost: catalog.cost,
+    expiresAt,
   });
 
   return toSentDto(result, now);

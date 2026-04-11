@@ -20,6 +20,7 @@ import {
   isMagieActive,
 } from "../../policies/magies";
 import { computeDebitBalance } from "../../policies/wallet";
+import { emitMagieBroken, emitMagieCast } from "../../events";
 import type { CastMagieDto } from "./magies.schemas";
 
 // ============================================================
@@ -186,6 +187,17 @@ export async function castSpell(
     return cast;
   });
 
+  // Event émis après succès de la transaction — non bloquant
+  emitMagieCast({
+    magieCastId: result.id,
+    magieId: catalog.id,
+    fromUserId: actorId,
+    toUserId: dto.toUserId,
+    salonId: dto.salonId ?? null,
+    expiresAt,
+    cost: catalog.cost,
+  });
+
   return toCastDto(result);
 }
 
@@ -287,6 +299,15 @@ export async function breakMagie(
     });
 
     return updated;
+  });
+
+  // Event émis après succès de la transaction — non bloquant
+  emitMagieBroken({
+    magieCastId: castId,
+    magieId: cast.magieId,
+    antiSpellId: antiSpell.id,
+    brokenBy: actorId,
+    originalToUserId: cast.toUserId,
   });
 
   return toCastDto(result);

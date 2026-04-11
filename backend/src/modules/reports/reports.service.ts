@@ -5,6 +5,7 @@ import {
   assertNotSelfReport,
   assertCanCreateNewReport,
 } from "../../policies/reports";
+import { emitReportCreated } from "../../events";
 import type { CreateReportDto, ListMyReportsQueryDto } from "./reports.schemas";
 
 // ============================================================
@@ -68,6 +69,14 @@ export async function createReport(
       details: dto.details ?? null,
       status: ReportStatus.OPEN,
     },
+  });
+
+  // Event émis après succès — non bloquant
+  emitReportCreated({
+    reportId: created.id,
+    reporterId,
+    targetId: dto.targetId,
+    reason: created.reason,
   });
 
   return toMineDto(created);
