@@ -6,13 +6,16 @@
  *
  * Convention :
  *   - Les handlers métier (XP, stats) font des writes DB.
+ *   - Les handlers "notifications" créent une Notification in-app,
+ *     fire-and-forget, jamais bloquants.
  *   - Les handlers "debug" se contentent de logger proprement.
- *   - Aucun handler n'envoie de notification utilisateur (phase à venir).
  */
+import { NotificationType } from "@prisma/client";
 import { emitter } from "./index";
 import { prisma } from "../config/prisma";
 import { logger } from "../config/logger";
 import { XP } from "../config/constants";
+import { createNotification } from "../modules/notifications/notifications.service";
 
 // ============================================================
 // letterSent → awarding XP + check badges
@@ -43,6 +46,25 @@ emitter.on("letterSent", async (payload) => {
   }
 });
 
+// letterSent → notification destinataire
+emitter.on("letterSent", async (payload) => {
+  try {
+    await createNotification({
+      userId: payload.toUserId,
+      type: NotificationType.LETTER_RECEIVED,
+      meta: {
+        matchId: payload.matchId,
+        fromUserId: payload.fromUserId,
+      },
+    });
+  } catch (err) {
+    logger.error(
+      { err, payload },
+      "[event:letterSent] Erreur création notification",
+    );
+  }
+});
+
 // ============================================================
 // matchCreated → XP pour les deux participants
 // ============================================================
@@ -69,8 +91,37 @@ emitter.on("matchCreated", async (payload) => {
   }
 });
 
+// matchCreated → notifications pour les 2 users (chacun voit l'autre)
+emitter.on("matchCreated", async (payload) => {
+  try {
+    await Promise.all([
+      createNotification({
+        userId: payload.userAId,
+        type: NotificationType.MATCH_CREATED,
+        meta: {
+          matchId: payload.matchId,
+          otherUserId: payload.userBId,
+        },
+      }),
+      createNotification({
+        userId: payload.userBId,
+        type: NotificationType.MATCH_CREATED,
+        meta: {
+          matchId: payload.matchId,
+          otherUserId: payload.userAId,
+        },
+      }),
+    ]);
+  } catch (err) {
+    logger.error(
+      { err, payload },
+      "[event:matchCreated] Erreur création notifications",
+    );
+  }
+});
+
 // ============================================================
-// offeringSent → debug log (aucun side-effect DB pour l'instant)
+// offeringSent → debug log + notification cible
 // ============================================================
 emitter.on("offeringSent", (payload) => {
   logger.debug(
@@ -87,8 +138,27 @@ emitter.on("offeringSent", (payload) => {
   );
 });
 
+emitter.on("offeringSent", async (payload) => {
+  try {
+    await createNotification({
+      userId: payload.toUserId,
+      type: NotificationType.OFFERING_RECEIVED,
+      meta: {
+        offeringSentId: payload.offeringSentId,
+        offeringId: payload.offeringId,
+        fromUserId: payload.fromUserId,
+      },
+    });
+  } catch (err) {
+    logger.error(
+      { err, payload },
+      "[event:offeringSent] Erreur création notification",
+    );
+  }
+});
+
 // ============================================================
-// magieCast → debug log
+// magieCast → debug log + notification cible
 // ============================================================
 emitter.on("magieCast", (payload) => {
   logger.debug(
@@ -105,8 +175,28 @@ emitter.on("magieCast", (payload) => {
   );
 });
 
+emitter.on("magieCast", async (payload) => {
+  try {
+    await createNotification({
+      userId: payload.toUserId,
+      type: NotificationType.MAGIE_RECEIVED,
+      meta: {
+        magieCastId: payload.magieCastId,
+        magieId: payload.magieId,
+        fromUserId: payload.fromUserId,
+      },
+    });
+  } catch (err) {
+    logger.error(
+      { err, payload },
+      "[event:magieCast] Erreur création notification",
+    );
+  }
+});
+
 // ============================================================
-// magieBroken → debug log
+// magieBroken → debug log + notification à la personne libérée
+// Règle : seul originalToUserId est notifié, pas le caster initial.
 // ============================================================
 emitter.on("magieBroken", (payload) => {
   logger.debug(
@@ -121,8 +211,26 @@ emitter.on("magieBroken", (payload) => {
   );
 });
 
+emitter.on("magieBroken", async (payload) => {
+  try {
+    await createNotification({
+      userId: payload.originalToUserId,
+      type: NotificationType.MAGIE_BROKEN,
+      meta: {
+        magieCastId: payload.magieCastId,
+      },
+    });
+  } catch (err) {
+    logger.error(
+      { err, payload },
+      "[event:magieBroken] Erreur création notification",
+    );
+  }
+});
+
 // ============================================================
 // premiumSubscribed → info log (traçable dans les logs d'ops)
+// + notification user lui-même (pas de montants en meta)
 // ============================================================
 emitter.on("premiumSubscribed", (payload) => {
   logger.info(
@@ -138,14 +246,46 @@ emitter.on("premiumSubscribed", (payload) => {
   );
 });
 
+emitter.on("premiumSubscribed", async (payload) => {
+  try {
+    await createNotification({
+      userId: payload.userId,
+      type: NotificationType.PREMIUM_SUBSCRIBED,
+      // Pas de meta : on ne veut NI coinsSpent NI newUntil persistés
+      // dans la notif (règle phase 10).
+      meta: null,
+    });
+  } catch (err) {
+    logger.error(
+      { err, payload },
+      "[event:premiumSubscribed] Erreur création notification",
+    );
+  }
+});
+
 // ============================================================
-// premiumCancelled → info log
+// premiumCancelled → info log + notification user lui-même
 // ============================================================
 emitter.on("premiumCancelled", (payload) => {
   logger.info(
     { userId: payload.userId, previousUntil: payload.previousUntil },
     "[event:premiumCancelled]",
   );
+});
+
+emitter.on("premiumCancelled", async (payload) => {
+  try {
+    await createNotification({
+      userId: payload.userId,
+      type: NotificationType.PREMIUM_CANCELLED,
+      meta: null,
+    });
+  } catch (err) {
+    logger.error(
+      { err, payload },
+      "[event:premiumCancelled] Erreur création notification",
+    );
+  }
 });
 
 // ============================================================

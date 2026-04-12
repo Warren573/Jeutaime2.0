@@ -107,6 +107,16 @@ enum PremiumTier {
   PREMIUM
 }
 
+enum NotificationType {
+  LETTER_RECEIVED
+  MATCH_CREATED
+  OFFERING_RECEIVED
+  MAGIE_RECEIVED
+  MAGIE_BROKEN
+  PREMIUM_SUBSCRIBED
+  PREMIUM_CANCELLED
+}
+
 // ============================================================
 // USER / AUTH
 // ============================================================
@@ -146,6 +156,7 @@ model User {
   blocksMade      Block[]         @relation("BlockFrom")
   blocksAgainst   Block[]         @relation("BlockTo")
   auditLogs       AuditLog[]
+  notifications   Notification[]
 
   @@index([email])
   @@index([isBanned])
@@ -527,4 +538,28 @@ model AuditLog {
 
   @@index([action, createdAt])
   @@index([actorId])
+}
+
+// ============================================================
+// NOTIFICATIONS (Phase 10)
+// Alimentées par les event handlers, stockage in-app only.
+// meta: uniquement IDs de routage + fromUserId/otherUserId.
+//   jamais de montants, jamais de données sensibles.
+// ============================================================
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      NotificationType
+  message   String
+  meta      Json?
+
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
 }

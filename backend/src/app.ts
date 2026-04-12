@@ -20,6 +20,7 @@ import salonsRoutes from "./modules/salons/salons.routes";
 import reportsRoutes from "./modules/reports/reports.routes";
 import magiesRoutes from "./modules/magies/magies.routes";
 import offeringsRoutes from "./modules/offerings/offerings.routes";
+import notificationsRoutes from "./modules/notifications/notifications.routes";
 import adminSalonsRoutes from "./modules/admin/salons/adminSalons.routes";
 import adminUploadRoutes, {
   publicFilesRouter,
@@ -80,6 +81,7 @@ app.use(`${api}/salons`, salonsRoutes);
 app.use(`${api}/reports`, reportsRoutes);
 app.use(`${api}/magies`, magiesRoutes);
 app.use(`${api}/offerings`, offeringsRoutes);
+app.use(`${api}/notifications`, notificationsRoutes);
 
 // Admin (ADMIN/MOD role required — enforced inside each router)
 app.use(`${api}/admin/salons`, adminSalonsRoutes);
