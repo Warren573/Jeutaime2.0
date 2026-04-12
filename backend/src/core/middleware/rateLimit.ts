@@ -29,8 +29,8 @@ export const lettersRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { code: "TOO_MANY_REQUESTS", message: "Limite d'envoi de lettres atteinte" } },
-  keyGenerator: (req) => (req as Record<string, unknown>)["user"]
-    ? String(((req as Record<string, unknown>)["user"] as Record<string, unknown>)["userId"])
+  keyGenerator: (req) => (req as unknown as Record<string, unknown>)["user"]
+    ? String(((req as unknown as Record<string, unknown>)["user"] as Record<string, unknown>)["userId"])
     : (req.ip ?? "unknown"),
   skip: () => env.NODE_ENV === "test",
 });
@@ -42,8 +42,8 @@ export const reportsRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { code: "TOO_MANY_REQUESTS", message: "Limite de signalements atteinte" } },
-  keyGenerator: (req) => (req as Record<string, unknown>)["user"]
-    ? String(((req as Record<string, unknown>)["user"] as Record<string, unknown>)["userId"])
+  keyGenerator: (req) => (req as unknown as Record<string, unknown>)["user"]
+    ? String(((req as unknown as Record<string, unknown>)["user"] as Record<string, unknown>)["userId"])
     : (req.ip ?? "unknown"),
   skip: () => env.NODE_ENV === "test",
 });
@@ -55,8 +55,8 @@ export const photoUploadRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { code: "TOO_MANY_REQUESTS", message: "Limite d'upload photos atteinte" } },
-  keyGenerator: (req) => (req as Record<string, unknown>)["user"]
-    ? String(((req as Record<string, unknown>)["user"] as Record<string, unknown>)["userId"])
+  keyGenerator: (req) => (req as unknown as Record<string, unknown>)["user"]
+    ? String(((req as unknown as Record<string, unknown>)["user"] as Record<string, unknown>)["userId"])
     : (req.ip ?? "unknown"),
   skip: () => env.NODE_ENV === "test",
 });

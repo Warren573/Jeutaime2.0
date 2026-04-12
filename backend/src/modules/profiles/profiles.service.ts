@@ -4,7 +4,7 @@ import { getPhotoUnlockProgress } from "../../policies/photoUnlock";
 import { buildMeta } from "../../core/utils/pagination";
 import { buildPhotoUrl } from "../photos/photos.urls";
 import { UpdateProfileDto, UpdateQuestionsDto, DiscoveryQuery } from "./profiles.schemas";
-import { Gender, LookingFor, MatchStatus } from "@prisma/client";
+import { Gender, LookingFor, MatchStatus, Prisma } from "@prisma/client";
 
 // -----------------------------------------------------------------------
 // Mon profil complet
@@ -38,7 +38,7 @@ export async function updateMyProfile(userId: string, dto: UpdateProfileDto) {
       ...(dto.interestedIn !== undefined && { interestedIn: dto.interestedIn as Gender[] }),
       ...(dto.hasChildren !== undefined && { hasChildren: dto.hasChildren }),
       ...(dto.wantsChildren !== undefined && { wantsChildren: dto.wantsChildren }),
-      ...(dto.avatarConfig !== undefined && { avatarConfig: dto.avatarConfig }),
+      ...(dto.avatarConfig !== undefined && { avatarConfig: dto.avatarConfig as Prisma.InputJsonValue }),
     },
     include: { questions: true },
   });

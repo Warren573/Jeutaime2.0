@@ -20,7 +20,7 @@ export function validate(schema: ZodSchema, target: Target = "body") {
       return next(new BadRequestError("Données invalides", details));
     }
     // Remplacer les données par les données transformées/coercées par Zod
-    (req as Record<string, unknown>)[target] = result.data;
+    (req as unknown as Record<string, unknown>)[target] = result.data;
     return next();
   };
 }

@@ -1,4 +1,4 @@
-import { Response, NextFunction } from "express";
+import { Request, Response, NextFunction } from "express";
 import { AuthedRequest } from "../types";
 import { verifyAccessToken } from "../utils/jwt";
 import { UnauthorizedError, ForbiddenError } from "../errors";
@@ -11,8 +11,9 @@ import { isPremiumActive } from "../../policies/premium";
  * Middleware principal d'authentification.
  * Injecte `req.user: AuthPayload` si le token est valide.
  */
-export const requireAuth = asyncHandler(async (req: AuthedRequest, _res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
+export const requireAuth = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
+  const authedReq = req as AuthedRequest;
+  const authHeader = authedReq.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     throw new UnauthorizedError("Token manquant");
   }
@@ -33,7 +34,7 @@ export const requireAuth = asyncHandler(async (req: AuthedRequest, _res: Respons
     throw new ForbiddenError("Ton compte est banni");
   }
 
-  req.user = {
+  authedReq.user = {
     userId: user.id,
     role: user.role,
     isPremium: isPremiumActive(user),
