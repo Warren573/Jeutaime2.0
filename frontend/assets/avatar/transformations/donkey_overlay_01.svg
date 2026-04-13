@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300">
+  <!-- Recouvrement âne : teinte gris-brun + grandes oreilles pointues -->
+
+  <!-- Wash global gris-brun (mode muteAvatar) -->
+  <rect x="0" y="0" width="240" height="300" fill="#8D7B6A" opacity="0.72" rx="120"/>
+
+  <!-- Oreille gauche (longue, pointue) -->
+  <ellipse cx="64" cy="48" rx="18" ry="52"
+    fill="#A08878" stroke="#6B5040" stroke-width="2"
+    transform="rotate(-14 64 48)"/>
+  <!-- Intérieur oreille gauche -->
+  <ellipse cx="64" cy="52" rx="9" ry="32"
+    fill="#D4A8A0" opacity="0.8"
+    transform="rotate(-14 64 52)"/>
+
+  <!-- Oreille droite (longue, pointue) -->
+  <ellipse cx="176" cy="48" rx="18" ry="52"
+    fill="#A08878" stroke="#6B5040" stroke-width="2"
+    transform="rotate(14 176 48)"/>
+  <!-- Intérieur oreille droite -->
+  <ellipse cx="176" cy="52" rx="9" ry="32"
+    fill="#D4A8A0" opacity="0.8"
+    transform="rotate(14 176 52)"/>
+
+  <!-- Yeux d'âne tristes (sourcils baissés) -->
+  <!-- Œil gauche -->
+  <ellipse cx="88" cy="145" rx="14" ry="11" fill="#2A1A0A" opacity="0.85"/>
+  <ellipse cx="84" cy="142" rx="4" ry="3" fill="#FFF" opacity="0.5"/>
+  <!-- Sourcil gauche triste (incliné vers l'intérieur) -->
+  <path d="M72 130 Q88 122 102 128" stroke="#3A2010" stroke-width="4"
+    stroke-linecap="round" fill="none"/>
+
+  <!-- Œil droit -->
+  <ellipse cx="152" cy="145" rx="14" ry="11" fill="#2A1A0A" opacity="0.85"/>
+  <ellipse cx="148" cy="142" rx="4" ry="3" fill="#FFF" opacity="0.5"/>
+  <!-- Sourcil droit triste -->
+  <path d="M138 128 Q152 122 168 130" stroke="#3A2010" stroke-width="4"
+    stroke-linecap="round" fill="none"/>
+
+  <!-- Museau d'âne (gris clair, proéminent) -->
+  <ellipse cx="120" cy="198" rx="36" ry="28" fill="#C4A898" opacity="0.85"/>
+  <!-- Naseaux -->
+  <ellipse cx="108" cy="204" rx="7" ry="5" fill="#7A5A4A" opacity="0.7"/>
+  <ellipse cx="132" cy="204" rx="7" ry="5" fill="#7A5A4A" opacity="0.7"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300">
+  <!-- Nuage -->
+  <ellipse cx="120" cy="34" rx="52" ry="22" fill="#A8BFDB" opacity="0.90"/>
+  <ellipse cx="88"  cy="42" rx="34" ry="20" fill="#BAD0E8" opacity="0.90"/>
+  <ellipse cx="152" cy="40" rx="30" ry="18" fill="#BAD0E8" opacity="0.90"/>
+  <ellipse cx="120" cy="50" rx="58" ry="16" fill="#C9DCF0" opacity="0.92"/>
+  <!-- Reflet nuage -->
+  <ellipse cx="105" cy="28" rx="22" ry="8"  fill="white"   opacity="0.25"/>
+</svg>

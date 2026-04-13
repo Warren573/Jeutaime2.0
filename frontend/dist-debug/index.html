@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>JeuTaime</title>
+    <!-- Polyfill for import.meta -->
+    <script>
+      // Define import.meta.env before any modules load
+      if (typeof globalThis.process === 'undefined') {
+        globalThis.process = { env: { NODE_ENV: 'production' } };
+      }
+    </script>
+    <style id="expo-reset">
+      html, body { height: 100%; }
+      body { overflow: hidden; }
+      #root { display: flex; height: 100%; flex: 1; }
+    </style>
+  <link rel="icon" href="/favicon.ico" /></head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  <script src="/_expo/static/js/web/entry-d41d8cd98f00b204e9800998ecf8427e.js" defer></script>
+</body>
+</html>

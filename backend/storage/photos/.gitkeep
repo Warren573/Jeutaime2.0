@@ -1,0 +1,3 @@
+# Placeholder — ne pas supprimer.
+# Ce fichier garantit que le répertoire de stockage des photos existe
+# après un clone frais. Les fichiers image sont ignorés par .gitignore.

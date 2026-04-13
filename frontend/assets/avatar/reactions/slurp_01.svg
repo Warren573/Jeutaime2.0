@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Halo doux -->
+  <circle cx="32" cy="30" r="28" fill="#FFF3E0" opacity="0.7"/>
+  <!-- Visage -->
+  <circle cx="32" cy="30" r="22" fill="#FFD54F"/>
+  <!-- Yeux plissés de satisfaction -->
+  <path d="M 19 24 C 22 20 27 20 30 24" fill="none" stroke="#4E342E" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M 34 24 C 37 20 42 20 45 24" fill="none" stroke="#4E342E" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- Bouche ouverte -->
+  <path d="M 21 34 C 24 41 40 41 43 34" fill="#C62828" stroke="#4E342E" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Langue -->
+  <ellipse cx="32" cy="42" rx="7" ry="4.5" fill="#EF9A9A"/>
+  <path d="M 25 42 L 39 42" fill="none" stroke="#E57373" stroke-width="1.2"/>
+  <!-- Joues -->
+  <ellipse cx="16" cy="34" rx="5" ry="3" fill="#FFAB91" opacity="0.5"/>
+  <ellipse cx="48" cy="34" rx="5" ry="3" fill="#FFAB91" opacity="0.5"/>
+</svg>

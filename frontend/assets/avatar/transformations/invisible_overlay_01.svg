@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300">
+  <!-- Recouvrement invisibilité : contour en pointillés + silhouette fantomatique -->
+
+  <!-- Contour fantomatique (très faible opacité, bleu-gris) -->
+  <rect x="4" y="4" width="232" height="292" rx="116"
+    fill="#B0C8E8" opacity="0.12"/>
+
+  <!-- Contour pointillé externe (visible uniquement) -->
+  <rect x="4" y="4" width="232" height="292" rx="116"
+    fill="none" stroke="#A0B8D8" stroke-width="3"
+    stroke-dasharray="10 8" opacity="0.55"/>
+
+  <!-- Silhouette des yeux (à peine visible, interrogatif) -->
+  <!-- Œil gauche — contour -->
+  <ellipse cx="88" cy="148" rx="20" ry="14"
+    fill="#C8D8F0" opacity="0.18"
+    stroke="#A0B8D8" stroke-width="2" stroke-dasharray="6 4"/>
+  <!-- Pupille gauche -->
+  <circle cx="88" cy="148" r="6" fill="#8898C0" opacity="0.22"/>
+
+  <!-- Œil droit — contour -->
+  <ellipse cx="152" cy="148" rx="20" ry="14"
+    fill="#C8D8F0" opacity="0.18"
+    stroke="#A0B8D8" stroke-width="2" stroke-dasharray="6 4"/>
+  <!-- Pupille droite -->
+  <circle cx="152" cy="148" r="6" fill="#8898C0" opacity="0.22"/>
+
+  <!-- Points d'interrogation (×2) — clin d'œil visuel -->
+  <text x="68" y="100" font-size="32" fill="#A0B8D8" opacity="0.40"
+    font-family="sans-serif" font-weight="bold">?</text>
+  <text x="148" y="100" font-size="32" fill="#A0B8D8" opacity="0.40"
+    font-family="sans-serif" font-weight="bold">?</text>
+
+  <!-- Léger halo interne (fait "briller" la silhouette) -->
+  <ellipse cx="120" cy="148" rx="88" ry="104"
+    fill="none" stroke="#C0D4F0" stroke-width="6" opacity="0.10"/>
+</svg>
