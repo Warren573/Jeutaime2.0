@@ -1,99 +1,32 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# IDE and editors
-.idea/
-.vscode/
-
-# Dependencies
+# Dépendances
 node_modules/
-/node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+frontend/node_modules/
+backend/node_modules/
 
-# Testing
-/coverage
+# Variables d'environnement
+.env
+backend/.env
+frontend/.env
 
-# Next.js
-/.next/
-/out/
-next-env.d.ts
-*.tsbuildinfo
-
-# Production builds
-/build
+# Expo / build
+.expo/
+frontend/.expo/
 dist/
-dist
+dist-debug/
+build/
 
-# Environment files (comprehensive coverage)
+# Fichiers temporaires / outils
+.emergent/
+.gitconfig
+model.patch
+test_result.md
+test_reports/
+memory/
 
-*token.json*
-*credentials.json*
-
-# Logs and debug files
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-dump.rdb
-
-# System files
-.DS_Store
-*.pem
-
-# Python
+# Python cache
 __pycache__/
-*pyc*
-venv/
-.venv/
+*.pyc
 
-# Development tools
-chainlit.md
-.chainlit
-.ipynb_checkpoints/
-.ac
-
-# Deployment
-.vercel
-
-# Data and databases
-agenthub/agents/youtube/db
-
-# Archive files and large assets
-**/*.zip
-**/*.tar.gz
-**/*.tar
-**/*.tgz
-*.pack
-*.deb
-*.dylib
-
-# Build caches
-.cache/
-
-# Mobile development
-android-sdk/ -e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
+# Système
+.DS_Store
+Thumbs.db
