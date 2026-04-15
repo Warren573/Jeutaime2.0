@@ -109,7 +109,7 @@ export default function RegisterScreen() {
       }
 
       await saveToken(token);
-      piècesrouter.replace("/(tabs)");
+      router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert("Erreur", err?.message || "Impossible de créer le compte.");
     } finally {
