@@ -1,5 +1,7 @@
 const API_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.40:3000/api";
+  process.env.EXPO_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://192.168.0.40:3000/api";
 
 export async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(`${API_URL}${path}`, {
