@@ -1,4 +1,4 @@
-const API_URL = "http://192.168.0.40:3000/api";
+const API_URL = "https://jeutaime2-0.vercel.app/api";
 
 export async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(`${API_URL}${path}`, {
