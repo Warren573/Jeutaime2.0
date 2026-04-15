@@ -1,9 +1,5 @@
-import { removeToken } from "../src/utils/session";
-import { useRouter } from "expo-router";
+import RegisterScreen from "../src/screens/RegisterScreen";
 
-const router = useRouter();
-
-const handleLogout = async () => {
-  await removeToken();
-  router.replace("/login");
-};
+export default function RegisterPage() {
+  return <RegisterScreen />;
+}
