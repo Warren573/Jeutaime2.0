@@ -7,10 +7,10 @@ export const FEATURES: Record<string, FeatureState> = {
   journal: "unlocked",
   social: "unlocked",
   salons: "unlocked",
-  refuge: "unlocked",
+  refuge: "hidden",
   offrandes: "unlocked",
   magie: "unlocked",
-  games: "unlocked",
+  games: "hidden",
   premium: "unlocked",
   settings: "unlocked",
 };
