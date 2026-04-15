@@ -1,3 +1,5 @@
 import LoginScreen from "../src/screens/LoginScreen";
 
-export default LoginScreen;
+export default function LoginPage() {
+  return <LoginScreen />;
+}

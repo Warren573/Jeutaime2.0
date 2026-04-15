@@ -15,6 +15,23 @@ import { useRouter } from "expo-router";
 import { apiFetch } from "../api/client";
 import { saveToken } from "../utils/session";
 
+function extractToken(res: any): string | null {
+  if (!res) return null;
+
+  return (
+    res?.accessToken ||
+    res?.token ||
+    res?.access_token ||
+    res?.data?.accessToken ||
+    res?.data?.token ||
+    res?.data?.access_token ||
+    res?.tokens?.accessToken ||
+    res?.tokens?.token ||
+    res?.tokens?.access_token ||
+    null
+  );
+}
+
 export default function LoginScreen() {
   const router = useRouter();
 
@@ -35,27 +52,31 @@ export default function LoginScreen() {
       const res = await apiFetch("/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          email,
+          email: email.trim().toLowerCase(),
           password,
         }),
       });
 
-      console.log("LOGIN OK", res);
-
-      const token = res?.accessToken || res?.token;
+      const token = extractToken(res);
 
       if (!token) {
-        throw new Error("Token manquant");
+        console.log("LOGIN_RESPONSE =", JSON.stringify(res, null, 2));
+        throw new Error(
+          `Token manquant. Réponse login: ${JSON.stringify(res)}`
+        );
       }
 
       await saveToken(token);
-
       router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert("Erreur", err?.message || "Une erreur est survenue.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRegister = () => {
+    router.push("/register");
   };
 
   return (
@@ -117,7 +138,7 @@ export default function LoginScreen() {
                 )}
               </Pressable>
 
-              <Pressable disabled={isLoading}>
+              <Pressable disabled={isLoading} onPress={handleRegister}>
                 <Text style={styles.link}>Créer un compte</Text>
               </Pressable>
             </View>
