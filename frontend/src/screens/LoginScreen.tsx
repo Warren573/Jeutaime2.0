@@ -43,7 +43,7 @@ export default function LoginScreen() {
 
   const isFormValid = email.trim().length > 0 && password.trim().length > 0;
 
-  const handleLogin = async () => {
+  const handleRegister = () => {
     if (!isFormValid || isLoading) return;
 
     try {
