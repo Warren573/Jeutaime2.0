@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { buildRouteMeta } from '../access/feature.registry';
 
 // ─── Constantes de dimensions ────────────────────────────────────────────────
 
@@ -20,16 +21,9 @@ const ACTIVE_ICON = 30;       // taille de police de l'icône active
 const BAR_SIDE_MARGIN = 14;   // marges gauche/droite de la barre par rapport à l'écran
 const BOTTOM_MARGIN = 10;     // espace entre la barre et le bas du safe area
 
-// ─── Metadata des onglets ────────────────────────────────────────────────────
+// ─── Metadata des onglets (depuis le registre centralisé) ────────────────────
 
-const ROUTE_META: Record<string, { icon: string; label: string }> = {
-  index:    { icon: '⭐', label: 'Accueil' },
-  profiles: { icon: '🔍', label: 'Profils' },
-  social:   { icon: '🌐', label: 'Social' },
-  letters:  { icon: '💌', label: 'Boîte aux lettres' },
-  journal:  { icon: '📰', label: 'Journal' },
-  settings: { icon: '⚙️', label: 'Plus' },
-};
+const ROUTE_META = buildRouteMeta();
 
 // ─── Composant ───────────────────────────────────────────────────────────────
 
