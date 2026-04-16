@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -66,6 +66,9 @@ export default function SocialScreen() {
     null
   );
 
+  const socialHidden = FEATURES.social === "hidden";
+  const gamesHidden = FEATURES.games === "hidden";
+
   const visibleSections = useMemo(() => {
     return SECTIONS.filter((section) => {
       const state = FEATURES[section.feature];
@@ -73,20 +76,32 @@ export default function SocialScreen() {
     });
   }, []);
 
+  useEffect(() => {
+    if (gamesHidden && currentView) {
+      setCurrentView(null);
+      setResult(null);
+    }
+  }, [gamesHidden, currentView]);
+
   const handlePress = (id: string) => {
-    if (id === "salons") {
+    if (id === "salons" && FEATURES.salons !== "hidden") {
       router.push("/salons-list");
       return;
     }
-    if (id === "adoption") {
+
+    if (id === "adoption" && FEATURES.refuge !== "hidden") {
       router.push("/pet");
       return;
     }
-    if (id === "bottle") {
+
+    if (id === "bottle" && FEATURES.social !== "hidden") {
       router.push("/bottle");
       return;
     }
-    setCurrentView(id as "cards" | "story");
+
+    if ((id === "cards" || id === "story") && FEATURES.games !== "hidden") {
+      setCurrentView(id as "cards" | "story");
+    }
   };
 
   const handleWin = (reward: number) => {
@@ -105,6 +120,25 @@ export default function SocialScreen() {
     setResult(null);
     setCurrentView(null);
   };
+
+  if (socialHidden) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.centeredContainer,
+          { paddingTop: insets.top, backgroundColor: screenBg },
+        ]}
+      >
+        <View style={styles.emptyBox}>
+          <Text style={styles.emptyTitle}>Social indisponible</Text>
+          <Text style={styles.emptyText}>
+            Cette partie de l’expérience sera révélée plus tard.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   if (result) {
     return (
@@ -145,10 +179,12 @@ export default function SocialScreen() {
           <Text style={styles.topBackText}>← Retour</Text>
         </TouchableOpacity>
         <ScrollView contentContainerStyle={styles.gameContent}>
-          {currentView === "cards" && (
-            <CardGame onEnd={(won, coins) => (won ? handleWin(coins) : handleLose())} />
+          {currentView === "cards" && FEATURES.games !== "hidden" && (
+            <CardGame
+              onEnd={(won, coins) => (won ? handleWin(coins) : handleLose())}
+            />
           )}
-          {currentView === "story" && (
+          {currentView === "story" && FEATURES.games !== "hidden" && (
             <StoryGame onEnd={(won) => (won ? handleWin(50) : handleLose())} />
           )}
         </ScrollView>
@@ -194,6 +230,10 @@ export default function SocialScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFF8E7" },
+  centeredContainer: {
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
   header: {
     padding: 20,
     borderBottomWidth: 1,
