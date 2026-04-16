@@ -14,6 +14,7 @@ import { AvatarDefinition } from '../avatar/types/avatarTypes';
 import { MOCK_PROFILE_AVATARS, MOCK_AVATAR_DEFAULT } from '../avatar/data/mockAvatars';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
+import { FEATURES } from '../config/features';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -481,6 +482,37 @@ export default function ProfilesScreen() {
   const screenBg = useStore(s => s.screenBackgrounds?.['profiles'] ?? OLD_BG);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showMatch, setShowMatch] = useState<string | null>(null);
+
+  // ── Guard FEATURES ────────────────────────────────────────────────────────
+  // Tous les hooks appelés avant ce bloc pour respecter les règles React.
+  const featureState = FEATURES['profiles'];
+
+  if (featureState === 'hidden') {
+    return (
+      <View style={[np.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
+        <Masthead index={0} total={0} />
+        <View style={np.fallback}>
+          <Text style={np.fallbackEmoji}>○</Text>
+          <Text style={np.fallbackTitle}>SECTION INDISPONIBLE</Text>
+          <Text style={np.fallbackText}>Cette section n'est pas accessible pour l'instant.</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (featureState === 'locked' || featureState === 'teased') {
+    return (
+      <View style={[np.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
+        <Masthead index={0} total={0} />
+        <View style={np.fallback}>
+          <Text style={np.fallbackEmoji}>🔒</Text>
+          <Text style={np.fallbackTitle}>BIENTÔT DISPONIBLE</Text>
+          <Text style={np.fallbackText}>Les profils se dévoileront dans la prochaine édition.</Text>
+        </View>
+      </View>
+    );
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   const availableProfiles = profiles.filter(
     (p) => !likedProfiles.includes(p.id) && !dislikedProfiles.includes(p.id)
@@ -979,4 +1011,10 @@ const np = StyleSheet.create({
   emptyEmoji: { fontSize: 48, color: INK3 },
   emptyTitle: { fontSize: 18, fontWeight: '900', color: INK, letterSpacing: 3 },
   emptyText: { fontSize: 13, color: INK3, fontStyle: 'italic', textAlign: 'center' },
+
+  // ── Fallback FEATURES (hidden / locked / teased) ───────────────────────────
+  fallback: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 10 },
+  fallbackEmoji: { fontSize: 48, color: INK3 },
+  fallbackTitle: { fontSize: 18, fontWeight: '900', color: INK, letterSpacing: 3 },
+  fallbackText: { fontSize: 13, color: INK3, fontStyle: 'italic', textAlign: 'center' },
 });
