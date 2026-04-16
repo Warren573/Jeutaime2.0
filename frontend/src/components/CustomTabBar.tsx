@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { buildRouteMeta } from '../access/feature.registry';
+import { isVisible } from '../config/features';
 
 // ─── Constantes de dimensions ────────────────────────────────────────────────
 
@@ -21,9 +21,17 @@ const ACTIVE_ICON = 30;       // taille de police de l'icône active
 const BAR_SIDE_MARGIN = 14;   // marges gauche/droite de la barre par rapport à l'écran
 const BOTTOM_MARGIN = 10;     // espace entre la barre et le bas du safe area
 
-// ─── Metadata des onglets (depuis le registre centralisé) ────────────────────
+// ─── Metadata des onglets ────────────────────────────────────────────────────
+// Seules les routes listées ici + visibles dans FEATURES apparaissent dans la barre.
 
-const ROUTE_META = buildRouteMeta();
+const ROUTE_META: Record<string, { icon: string; label: string; featureKey: string }> = {
+  index:    { icon: '⭐', label: 'Accueil',           featureKey: 'home' },
+  profiles: { icon: '🔍', label: 'Profils',           featureKey: 'profiles' },
+  social:   { icon: '🌐', label: 'Social',            featureKey: 'social' },
+  letters:  { icon: '💌', label: 'Boîte aux lettres', featureKey: 'letters' },
+  journal:  { icon: '📰', label: 'Journal',           featureKey: 'journal' },
+  settings: { icon: '⚙️', label: 'Plus',              featureKey: 'settings' },
+};
 
 // ─── Composant ───────────────────────────────────────────────────────────────
 
@@ -70,9 +78,10 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         {/* Rangée des onglets — seules les routes déclarées dans ROUTE_META sont affichées */}
         <View style={styles.tabsRow}>
           {state.routes.map((route, index) => {
-            if (!(route.name in ROUTE_META)) return null;
+            const meta = ROUTE_META[route.name];
+            // Masquer si la route n'est pas dans ROUTE_META ou si la feature est "hidden"
+            if (!meta || !isVisible(meta.featureKey)) return null;
             const focused = state.index === index;
-            const meta = ROUTE_META[route.name] ?? { icon: '●', label: route.name };
 
             // translateY : 0 = centré dans la barre, -ACTIVE_LIFT = au-dessus
             const translateY = anims[index].interpolate({

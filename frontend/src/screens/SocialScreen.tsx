@@ -12,16 +12,20 @@ import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import CardGame from './games/CardGame';
 import StoryGame from './games/StoryGame';
+import { isVisible, isUnlocked, FEATURES } from '../config/features';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const SECTIONS = [
-  { id: 'salons',   emoji: '👥', name: 'Salons',              desc: 'Rejoins des salons de discussion' },
-  { id: 'adoption', emoji: '🐾', name: 'Adoption',            desc: 'Prends soin de ton animal' },
-  { id: 'cards',    emoji: '🎴', name: 'Jeu de Cartes',       desc: 'Révèle et gagne des pièces' },
-  { id: 'story',    emoji: '📖', name: "Continue l'Histoire", desc: 'Écris une histoire à plusieurs' },
-  { id: 'bottle',   emoji: '🍾', name: 'Bouteille à la Mer',  desc: 'Envoie un message à l\'inconnu' },
+const ALL_SECTIONS = [
+  { id: 'salons',   featureKey: 'salons',    emoji: '👥', name: 'Salons',              desc: 'Rejoins des salons de discussion' },
+  { id: 'adoption', featureKey: 'refuge',    emoji: '🐾', name: 'Adoption',            desc: 'Prends soin de ton animal' },
+  { id: 'cards',    featureKey: 'games',     emoji: '🎴', name: 'Jeu de Cartes',       desc: 'Révèle et gagne des pièces' },
+  { id: 'story',    featureKey: 'games',     emoji: '📖', name: "Continue l'Histoire", desc: 'Écris une histoire à plusieurs' },
+  { id: 'bottle',   featureKey: 'social',    emoji: '🍾', name: 'Bouteille à la Mer',  desc: "Envoie un message à l'inconnu" },
 ];
+
+// Filtre selon FEATURES — sections "hidden" masquées, "locked"/"teased" visibles mais bloquées
+const SECTIONS = ALL_SECTIONS.filter((s) => isVisible(s.featureKey));
 
 export default function SocialScreen() {
   const router = useRouter();
@@ -31,7 +35,10 @@ export default function SocialScreen() {
   const [currentView, setCurrentView] = useState<'cards' | 'story' | null>(null);
   const [result, setResult] = useState<{ won: boolean; reward: number } | null>(null);
 
-  const handlePress = (id: string) => {
+  const handlePress = (id: string, featureKey: string) => {
+    // Si la feature est locked/teased → ne pas naviguer
+    if (!isUnlocked(featureKey)) return;
+
     if (id === 'salons')   { router.push('/salons-list'); return; }
     if (id === 'adoption') { router.push('/pet');         return; }
     if (id === 'bottle')   { router.push('/bottle');      return; }
@@ -92,16 +99,24 @@ export default function SocialScreen() {
         <Text style={styles.subtitle}>Rencontres & activités</Text>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.grid}>
-        {SECTIONS.map((s) => (
-          <TouchableOpacity key={s.id} style={styles.card} onPress={() => handlePress(s.id)}>
-            <Text style={styles.cardEmoji}>{s.emoji}</Text>
-            <View style={styles.cardText}>
-              <Text style={styles.cardName}>{s.name}</Text>
-              <Text style={styles.cardDesc}>{s.desc}</Text>
-            </View>
-            <Text style={styles.arrow}>▶</Text>
-          </TouchableOpacity>
-        ))}
+        {SECTIONS.map((s) => {
+          const locked = !isUnlocked(s.featureKey);
+          return (
+            <TouchableOpacity
+              key={s.id}
+              style={[styles.card, locked && styles.cardLocked]}
+              onPress={() => handlePress(s.id, s.featureKey)}
+              activeOpacity={locked ? 1 : 0.7}
+            >
+              <Text style={styles.cardEmoji}>{s.emoji}</Text>
+              <View style={styles.cardText}>
+                <Text style={[styles.cardName, locked && styles.cardNameLocked]}>{s.name}</Text>
+                <Text style={styles.cardDesc}>{locked ? 'Bientôt disponible' : s.desc}</Text>
+              </View>
+              <Text style={styles.arrow}>{locked ? '🔒' : '▶'}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -127,6 +142,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 3,
+  },
+  cardLocked: {
+    opacity: 0.5,
+  },
+  cardNameLocked: {
+    color: '#B0A090',
   },
   cardEmoji: { fontSize: 42, marginRight: 16 },
   cardText: { flex: 1 },
