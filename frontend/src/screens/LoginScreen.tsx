@@ -15,9 +15,12 @@ import { useRouter } from "expo-router";
 import { apiFetch } from "../api/client";
 import { saveToken } from "../utils/session";
 
+// TEMP: auth disabled for development
+// Set to true to restore real API login flow
+const AUTH_ENABLED = false;
+
 function extractToken(res: any): string | null {
   if (!res) return null;
-
   return (
     res?.accessToken ||
     res?.token ||
@@ -44,7 +47,15 @@ export default function LoginScreen() {
   const isFormValid = email.trim().length > 0 && password.trim().length > 0;
 
   const handleLogin = async () => {
-    if (!isFormValid || isLoading) return;
+    if (isLoading) return;
+
+    // TEMP: skip API call, enter app directly
+    if (!AUTH_ENABLED) {
+      router.replace("/(tabs)");
+      return;
+    }
+
+    if (!isFormValid) return;
 
     try {
       setIsLoading(true);
@@ -60,10 +71,7 @@ export default function LoginScreen() {
       const token = extractToken(res);
 
       if (!token) {
-        console.log("LOGIN_RESPONSE =", JSON.stringify(res, null, 2));
-        throw new Error(
-          `Token manquant. Réponse login: ${JSON.stringify(res)}`
-        );
+        throw new Error(`Token manquant. Réponse: ${JSON.stringify(res)}`);
       }
 
       await saveToken(token);
@@ -90,7 +98,7 @@ export default function LoginScreen() {
             <Text style={styles.brand}>JEUTAIME</Text>
             <Text style={styles.title}>Connexion</Text>
             <Text style={styles.subtitle}>
-              Retrouve ton univers et continue l’aventure.
+              Retrouve ton univers et continue l'aventure.
             </Text>
 
             <View style={styles.form}>
@@ -124,12 +132,9 @@ export default function LoginScreen() {
               </View>
 
               <Pressable
-                style={[
-                  styles.button,
-                  (!isFormValid || isLoading) && styles.buttonDisabled,
-                ]}
+                style={[styles.button, isLoading && styles.buttonDisabled]}
                 onPress={handleLogin}
-                disabled={!isFormValid || isLoading}
+                disabled={isLoading}
               >
                 {isLoading ? (
                   <ActivityIndicator color="#fff" />

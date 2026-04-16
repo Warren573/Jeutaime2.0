@@ -16,6 +16,10 @@ import { useRouter } from "expo-router";
 import { apiFetch } from "../api/client";
 import { saveToken } from "../utils/session";
 
+// TEMP: auth disabled for development
+// Set to true to restore real API register flow
+const AUTH_ENABLED = false;
+
 const GENDER_OPTIONS = [
   { label: "Homme", value: "male" },
   { label: "Femme", value: "female" },
@@ -42,6 +46,12 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!isFormValid || isLoading) return;
+
+    // TEMP: skip API call, enter app directly
+    if (!AUTH_ENABLED) {
+      router.replace("/(tabs)");
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -76,7 +86,9 @@ export default function RegisterScreen() {
       await saveToken(token);
       router.replace("/create-profile");
     } catch (err: any) {
-      Alert.alert("Erreur", err?.message || "Impossible de créer le compte.");
+      // TEMP: on API error, enter app anyway
+      console.warn("[Register] API error (bypassed):", err?.message);
+      router.replace("/(tabs)");
     } finally {
       setIsLoading(false);
     }

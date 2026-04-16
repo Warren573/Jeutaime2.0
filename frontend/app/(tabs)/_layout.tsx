@@ -1,45 +1,11 @@
-import { Tabs, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { Tabs } from "expo-router";
 import CustomTabBar from "../../src/components/CustomTabBar";
-import { getToken } from "../../src/utils/session";
+
+// TEMP: auth disabled for development
+// To re-enable: restore the useEffect + getToken() check + redirect to /login
+// See git history for the original auth guard implementation
 
 export default function TabsLayout() {
-  const router = useRouter();
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const token = await getToken();
-
-        if (!token) {
-          router.replace("/login");
-          return;
-        }
-      } finally {
-        setIsCheckingAuth(false);
-      }
-    };
-
-    checkAuth();
-  }, [router]);
-
-  if (isCheckingAuth) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#f6f1ea",
-        }}
-      >
-        <ActivityIndicator size="large" color="#9c2f45" />
-      </View>
-    );
-  }
-
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
