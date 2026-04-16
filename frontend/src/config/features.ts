@@ -18,6 +18,7 @@ export const FEATURES: Record<string, FeatureState> = {
   profiles:  "unlocked",
   letters:   "unlocked",
   journal:   "hidden",
+  souvenirs: "unlocked",
   social:    "unlocked",
   salons:    "unlocked",
   refuge:    "hidden",

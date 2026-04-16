@@ -19,6 +19,19 @@ import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
+import { isVisible, isUnlocked } from '../config/features';
+
+// ─── Configuration des tabs internes ─────────────────────────────────────────
+// Chaque tab est liée à une feature key — si hidden, elle disparaît.
+// Si locked/teased, elle reste visible mais non accessible.
+
+type TabType = 'lettres' | 'journal' | 'souvenirs';
+
+const TAB_DEFS: { id: TabType; label: string; emoji: string; featureKey: string }[] = [
+  { id: 'lettres',   label: 'Lettres',   emoji: '📬', featureKey: 'letters' },
+  { id: 'journal',   label: 'Journal',   emoji: '📔', featureKey: 'journal' },
+  { id: 'souvenirs', label: 'Souvenirs', emoji: '🎁', featureKey: 'souvenirs' },
+];
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 32;
@@ -338,8 +351,6 @@ const lcStyles = StyleSheet.create({
 
 // ─── Types internes ───────────────────────────────────────────────────────────
 
-type TabType = 'lettres' | 'journal' | 'souvenirs';
-
 interface JournalEntry {
   id: string;
   date: string;
@@ -368,6 +379,18 @@ export default function LettersScreen() {
   const [newMessage, setNewMessage] = useState('');
   const [showCompose, setShowCompose] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('lettres');
+
+  // Tabs visibles selon FEATURES (hidden = masqué, locked/teased = visible mais bloqué)
+  const visibleTabs = TAB_DEFS.filter(t => isVisible(t.featureKey));
+
+  // Auto-switch : si l'onglet actif devient hidden, basculer vers le premier visible
+  useEffect(() => {
+    const current = TAB_DEFS.find(t => t.id === activeTab);
+    if (!current || !isVisible(current.featureKey)) {
+      const first = visibleTabs[0];
+      if (first) setActiveTab(first.id);
+    }
+  }, []);
 
   // Animation enveloppe — overlay plein écran à l'ouverture d'une nouvelle lettre
   const [envAnimVisible, setEnvAnimVisible] = useState(false);
@@ -589,26 +612,24 @@ export default function LettersScreen() {
         <Text style={styles.headerSubtitle}>Correspondances privées</Text>
       </View>
 
-      {/* Tabs */}
+      {/* Tabs — filtrées par FEATURES */}
       <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'lettres' && styles.tabActive]}
-          onPress={() => setActiveTab('lettres')}
-        >
-          <Text style={[styles.tabText, activeTab === 'lettres' && styles.tabTextActive]}>📬 Lettres</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'journal' && styles.tabActive]}
-          onPress={() => setActiveTab('journal')}
-        >
-          <Text style={[styles.tabText, activeTab === 'journal' && styles.tabTextActive]}>📔 Journal</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'souvenirs' && styles.tabActive]}
-          onPress={() => setActiveTab('souvenirs')}
-        >
-          <Text style={[styles.tabText, activeTab === 'souvenirs' && styles.tabTextActive]}>🎁 Souvenirs</Text>
-        </TouchableOpacity>
+        {visibleTabs.map(tab => {
+          const locked  = !isUnlocked(tab.featureKey);
+          const active  = activeTab === tab.id;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={[styles.tab, active && styles.tabActive, locked && styles.tabLocked]}
+              onPress={() => { if (!locked) setActiveTab(tab.id); }}
+              activeOpacity={locked ? 1 : 0.7}
+            >
+              <Text style={[styles.tabText, active && styles.tabTextActive, locked && styles.tabTextLocked]}>
+                {locked ? '🔒' : tab.emoji} {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {renderTabContent()}
@@ -757,8 +778,10 @@ const styles = StyleSheet.create({
   tabsContainer: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#C4A882', backgroundColor: '#2C1A0E' },
   tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10, marginHorizontal: 3 },
   tabActive: { backgroundColor: '#8B2E3C' },
+  tabLocked: { opacity: 0.45 },
   tabText: { fontSize: 12, fontWeight: '600', color: '#A08870' },
   tabTextActive: { color: '#FFF' },
+  tabTextLocked: { color: '#6A5040' },
 
   scrollView: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 160 },
