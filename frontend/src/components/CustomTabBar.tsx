@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -37,32 +37,48 @@ const ROUTE_TO_FEATURE: Record<string, keyof typeof FEATURES> = {
   "salons-list": "salons",
 };
 
+// Routes "internes" qui doivent activer un onglet visible
+const ROUTE_ACTIVE_TAB_ALIAS: Record<string, string> = {
+  "salons-list": "social",
+};
+
 export default function CustomTabBar({
   state,
   navigation,
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
-  const visibleRoutes = state.routes.filter((route) => {
-    const featureKey = ROUTE_TO_FEATURE[route.name];
-    if (!featureKey) return false;
-    return FEATURES[featureKey] !== "hidden";
-  });
+  const visibleRoutes = useMemo(() => {
+    return state.routes.filter((route) => {
+      const featureKey = ROUTE_TO_FEATURE[route.name];
+      if (!featureKey) return false;
+      return FEATURES[featureKey] !== "hidden" && route.name in ROUTE_META;
+    });
+  }, [state.routes]);
+
+  const currentRoute = state.routes[state.index];
+  const activeVisibleRouteName =
+    ROUTE_ACTIVE_TAB_ALIAS[currentRoute?.name] || currentRoute?.name;
 
   const anims = useRef(
     state.routes.map((_, i) => new Animated.Value(i === state.index ? 1 : 0))
   ).current;
 
   useEffect(() => {
-    state.routes.forEach((_, i) => {
+    state.routes.forEach((route, i) => {
+      const isFocused =
+        route.name === activeVisibleRouteName ||
+        (route.name === currentRoute?.name &&
+          route.name === activeVisibleRouteName);
+
       Animated.spring(anims[i], {
-        toValue: i === state.index ? 1 : 0,
+        toValue: isFocused ? 1 : 0,
         tension: 200,
         friction: 14,
         useNativeDriver: true,
       }).start();
     });
-  }, [state.index, state.routes, anims]);
+  }, [state.routes, state.index, activeVisibleRouteName, currentRoute?.name, anims]);
 
   const totalHeight = ACTIVE_LIFT + BAR_HEIGHT + insets.bottom + BOTTOM_MARGIN;
 
@@ -84,11 +100,8 @@ export default function CustomTabBar({
         <View style={styles.tabsRow}>
           {visibleRoutes.map((route) => {
             const realIndex = state.routes.findIndex((r) => r.key === route.key);
-            const focused = state.index === realIndex;
-            const meta = ROUTE_META[route.name] ?? {
-              icon: "●",
-              label: route.name,
-            };
+            const focused = route.name === activeVisibleRouteName;
+            const meta = ROUTE_META[route.name];
 
             const translateY = anims[realIndex].interpolate({
               inputRange: [0, 1],
