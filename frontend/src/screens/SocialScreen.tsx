@@ -100,20 +100,33 @@ export default function SocialScreen() {
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.grid}>
         {SECTIONS.map((s) => {
-          const locked = !isUnlocked(s.featureKey);
+          const featureState = FEATURES[s.featureKey];
+          const isLocked  = featureState === 'locked';
+          const isTeased  = featureState === 'teased';
+          const isBlocked = !isUnlocked(s.featureKey);
           return (
             <TouchableOpacity
               key={s.id}
-              style={[styles.card, locked && styles.cardLocked]}
+              style={[
+                styles.card,
+                isLocked && styles.cardLocked,
+                isTeased && styles.cardTeased,
+              ]}
               onPress={() => handlePress(s.id, s.featureKey)}
-              activeOpacity={locked ? 1 : 0.7}
+              activeOpacity={isBlocked ? 1 : 0.7}
             >
               <Text style={styles.cardEmoji}>{s.emoji}</Text>
               <View style={styles.cardText}>
-                <Text style={[styles.cardName, locked && styles.cardNameLocked]}>{s.name}</Text>
-                <Text style={styles.cardDesc}>{locked ? 'Bientôt disponible' : s.desc}</Text>
+                <Text style={[styles.cardName, isBlocked && styles.cardNameBlocked]}>
+                  {s.name}
+                </Text>
+                <Text style={styles.cardDesc}>
+                  {isLocked ? 'Accès restreint' : isTeased ? 'En préparation…' : s.desc}
+                </Text>
               </View>
-              <Text style={styles.arrow}>{locked ? '🔒' : '▶'}</Text>
+              <Text style={styles.arrow}>
+                {isLocked ? '🔒' : isTeased ? '✨' : '▶'}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -143,10 +156,17 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
+  // locked : feature existante, verrouillée (premium, niveau…)
   cardLocked: {
-    opacity: 0.5,
+    opacity: 0.55,
   },
-  cardNameLocked: {
+  // teased : feature annoncée, pas encore disponible
+  cardTeased: {
+    opacity: 0.75,
+    borderStyle: 'dashed',
+    borderColor: '#D4B896',
+  },
+  cardNameBlocked: {
     color: '#B0A090',
   },
   cardEmoji: { fontSize: 42, marginRight: 16 },

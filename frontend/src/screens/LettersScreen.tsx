@@ -19,7 +19,7 @@ import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
-import { isVisible, isUnlocked } from '../config/features';
+import { isVisible, isUnlocked, FEATURES } from '../config/features';
 
 // ─── Configuration des tabs internes ─────────────────────────────────────────
 // Chaque tab est liée à une feature key — si hidden, elle disparaît.
@@ -615,17 +615,33 @@ export default function LettersScreen() {
       {/* Tabs — filtrées par FEATURES */}
       <View style={styles.tabsContainer}>
         {visibleTabs.map(tab => {
-          const locked  = !isUnlocked(tab.featureKey);
-          const active  = activeTab === tab.id;
+          const featureState = FEATURES[tab.featureKey];
+          const isLocked  = featureState === 'locked';
+          const isTeased  = featureState === 'teased';
+          const isBlocked = !isUnlocked(tab.featureKey);
+          const active    = activeTab === tab.id;
+          // locked → 🔒  (verrouillé, premium requis)
+          // teased → ✨  (annoncé, pas encore dispo)
+          const tabIcon   = isLocked ? '🔒' : isTeased ? '✨' : tab.emoji;
           return (
             <TouchableOpacity
               key={tab.id}
-              style={[styles.tab, active && styles.tabActive, locked && styles.tabLocked]}
-              onPress={() => { if (!locked) setActiveTab(tab.id); }}
-              activeOpacity={locked ? 1 : 0.7}
+              style={[
+                styles.tab,
+                active  && styles.tabActive,
+                isLocked && styles.tabLocked,
+                isTeased && styles.tabTeased,
+              ]}
+              onPress={() => { if (!isBlocked) setActiveTab(tab.id); }}
+              activeOpacity={isBlocked ? 1 : 0.7}
             >
-              <Text style={[styles.tabText, active && styles.tabTextActive, locked && styles.tabTextLocked]}>
-                {locked ? '🔒' : tab.emoji} {tab.label}
+              <Text style={[
+                styles.tabText,
+                active   && styles.tabTextActive,
+                isLocked && styles.tabTextLocked,
+                isTeased && styles.tabTextTeased,
+              ]}>
+                {tabIcon} {tab.label}
               </Text>
             </TouchableOpacity>
           );
@@ -779,9 +795,11 @@ const styles = StyleSheet.create({
   tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10, marginHorizontal: 3 },
   tabActive: { backgroundColor: '#8B2E3C' },
   tabLocked: { opacity: 0.45 },
+  tabTeased: { opacity: 0.65, borderBottomColor: '#C4A35A' },
   tabText: { fontSize: 12, fontWeight: '600', color: '#A08870' },
   tabTextActive: { color: '#FFF' },
   tabTextLocked: { color: '#6A5040' },
+  tabTextTeased: { color: '#A07830' },
 
   scrollView: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 160 },

@@ -21,6 +21,15 @@
  *    Si hidden → router.replace(redirectTo) immédiatement.
  *    Si locked/teased → retourne l'état, le composant décide.
  *    Placé dans les fichiers app/*.tsx (thin wrappers Expo Router).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * États UX :
+ *
+ *   locked  → feature existante, verrouillée (premium, niveau…)
+ *             Rendu : 🔒  "ACCÈS RESTREINT"  + hint pour débloquer
+ *
+ *   teased  → feature annoncée, pas encore disponible
+ *             Rendu : ✨  "EN PRÉPARATION"   + message d'anticipation
  */
 
 import React, { useEffect } from 'react';
@@ -46,14 +55,6 @@ export function useFeature(key: string): FeatureState {
  * - hidden   → redirige vers `redirectTo` (défaut : '/(tabs)')
  * - locked / teased → retourne l'état sans rediriger (l'UI gère)
  * - unlocked → no-op, retourne 'unlocked'
- *
- * Usage dans un fichier app/*.tsx :
- *
- *   export default function PetPage() {
- *     const state = useRouteGuard('refuge');
- *     if (state === 'hidden') return null;   // redirect en cours
- *     return <PetScreen />;
- *   }
  */
 export function useRouteGuard(
   featureKey: string,
@@ -71,24 +72,63 @@ export function useRouteGuard(
   return state;
 }
 
-// ─── Fallbacks par défaut ─────────────────────────────────────────────────────
+// ─── Props partagées ──────────────────────────────────────────────────────────
 
-function DefaultLockedFallback() {
+export interface FallbackProps {
+  /** Titre principal — remplace le défaut si fourni */
+  title?: string;
+  /** Description — remplace le défaut si fourni */
+  description?: string;
+}
+
+// ─── LockedFallback ───────────────────────────────────────────────────────────
+
+/**
+ * Fallback plein-écran pour une feature **locked**.
+ *
+ * Cas d'usage : la feature existe mais l'utilisateur n'y a pas accès
+ * (abonnement Premium requis, niveau insuffisant, etc.).
+ *
+ * Usage direct :
+ *   if (state === 'locked') return <LockedFallback />;
+ *   if (state === 'locked') return <LockedFallback title="Profils Premium" description="..." />;
+ */
+export function LockedFallback({ title, description }: FallbackProps = {}) {
   return (
     <View style={s.center}>
-      <Text style={s.emoji}>🔒</Text>
-      <Text style={s.title}>Bientôt disponible</Text>
-      <Text style={s.sub}>Cette section sera accessible prochainement.</Text>
+      <Text style={s.icon}>🔒</Text>
+      <View style={s.rule} />
+      <Text style={s.kicker}>ACCÈS RESTREINT</Text>
+      <Text style={s.heading}>{title ?? 'Fonctionnalité verrouillée'}</Text>
+      <Text style={s.body}>
+        {description ?? 'Passe à Premium pour débloquer cette section.'}
+      </Text>
     </View>
   );
 }
 
-function DefaultTeasedFallback() {
+// ─── TeasedFallback ───────────────────────────────────────────────────────────
+
+/**
+ * Fallback plein-écran pour une feature **teased**.
+ *
+ * Cas d'usage : la feature n'existe pas encore — elle est annoncée
+ * pour une prochaine mise à jour.
+ *
+ * Usage direct :
+ *   if (state === 'teased') return <TeasedFallback />;
+ *   if (state === 'teased') return <TeasedFallback title="Journal intime" description="..." />;
+ */
+export function TeasedFallback({ title, description }: FallbackProps = {}) {
   return (
     <View style={s.center}>
-      <Text style={s.emoji}>✨</Text>
-      <Text style={s.title}>À venir</Text>
-      <Text style={s.sub}>Quelque chose de nouveau se prépare ici.</Text>
+      <Text style={s.icon}>✨</Text>
+      <View style={s.rule} />
+      <Text style={s.kicker}>EN PRÉPARATION</Text>
+      <Text style={s.heading}>{title ?? 'Bientôt disponible'}</Text>
+      <Text style={s.body}>
+        {description ?? 'Cette section arrive dans une prochaine mise à jour.'}
+      </Text>
     </View>
   );
 }
@@ -102,9 +142,9 @@ interface FeatureGateProps {
   children: React.ReactNode;
   /** Rendu si hidden — null par défaut */
   hiddenFallback?: React.ReactNode;
-  /** Rendu si locked — DefaultLockedFallback si omis */
+  /** Rendu si locked — LockedFallback si omis */
   lockedFallback?: React.ReactNode;
-  /** Rendu si teased — DefaultTeasedFallback si omis */
+  /** Rendu si teased — TeasedFallback si omis */
   teasedFallback?: React.ReactNode;
 }
 
@@ -118,8 +158,8 @@ export function FeatureGate({
   const state = useFeature(feature);
 
   if (state === 'hidden') return <>{hiddenFallback}</>;
-  if (state === 'locked') return <>{lockedFallback ?? <DefaultLockedFallback />}</>;
-  if (state === 'teased') return <>{teasedFallback ?? <DefaultTeasedFallback />}</>;
+  if (state === 'locked') return <>{lockedFallback ?? <LockedFallback />}</>;
+  if (state === 'teased') return <>{teasedFallback ?? <TeasedFallback />}</>;
   return <>{children}</>;
 }
 
@@ -131,22 +171,37 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
-    gap: 12,
+    gap: 10,
     backgroundColor: '#FFF8E7',
   },
-  emoji: {
+  icon: {
     fontSize: 52,
+    marginBottom: 4,
   },
-  title: {
-    fontSize: 18,
+  rule: {
+    width: 48,
+    height: 1,
+    backgroundColor: '#C4A882',
+    marginVertical: 6,
+  },
+  kicker: {
+    fontSize: 10,
     fontWeight: '700',
-    color: '#3A2818',
-    textAlign: 'center',
+    letterSpacing: 2.5,
+    color: '#B8956A',
   },
-  sub: {
+  heading: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#2C1A0E',
+    textAlign: 'center',
+    letterSpacing: 0.3,
+  },
+  body: {
     fontSize: 14,
     color: '#8B6F47',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 21,
+    marginTop: 2,
   },
 });

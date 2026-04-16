@@ -500,13 +500,28 @@ export default function ProfilesScreen() {
     );
   }
 
-  if (featureState === 'locked' || featureState === 'teased') {
+  // locked : profils existants mais verrouillés (premium requis)
+  if (featureState === 'locked') {
     return (
       <View style={[np.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
         <Masthead index={0} total={0} />
         <View style={np.fallback}>
           <Text style={np.fallbackEmoji}>🔒</Text>
-          <Text style={np.fallbackTitle}>BIENTÔT DISPONIBLE</Text>
+          <Text style={np.fallbackTitle}>ACCÈS RESTREINT</Text>
+          <Text style={np.fallbackText}>Les profils sont réservés aux abonnés Premium.</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // teased : section annoncée, pas encore disponible
+  if (featureState === 'teased') {
+    return (
+      <View style={[np.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
+        <Masthead index={0} total={0} />
+        <View style={np.fallback}>
+          <Text style={np.fallbackEmoji}>✨</Text>
+          <Text style={np.fallbackTitle}>EN PRÉPARATION</Text>
           <Text style={np.fallbackText}>Les profils se dévoileront dans la prochaine édition.</Text>
         </View>
       </View>
