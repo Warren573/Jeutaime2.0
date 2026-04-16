@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { removeToken } from '../utils/session';
 import { titles } from '../data/gameData';
 import { Avatar } from '../avatar/png/Avatar';
 
@@ -125,7 +126,8 @@ export default function SettingsScreen() {
         {
           text: 'Oui',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            await removeToken();
             router.replace('/login');
           },
         },
