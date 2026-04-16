@@ -14,7 +14,7 @@ import { AvatarDefinition } from '../avatar/types/avatarTypes';
 import { MOCK_PROFILE_AVATARS, MOCK_AVATAR_DEFAULT } from '../avatar/data/mockAvatars';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
-import { FEATURES } from '../config/features';
+import { useFeature } from '../components/FeatureGate';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -485,7 +485,7 @@ export default function ProfilesScreen() {
 
   // ── Guard FEATURES ────────────────────────────────────────────────────────
   // Tous les hooks appelés avant ce bloc pour respecter les règles React.
-  const featureState = FEATURES['profiles'];
+  const featureState = useFeature('profiles');
 
   if (featureState === 'hidden') {
     return (
