@@ -3,7 +3,7 @@ export type FeatureState = "unlocked" | "locked" | "teased" | "hidden";
 export const FEATURES: Record<string, FeatureState> = {
   home: "unlocked",
   profiles: "unlocked",
-  letters: "hidden",
+  letters: "unlocked",
   journal: "hidden",
   social: "unlocked",
   salons: "unlocked",
