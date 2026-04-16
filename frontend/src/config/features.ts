@@ -44,3 +44,32 @@ export function isLocked(key: string): boolean {
   const state = FEATURES[key];
   return state === "locked" || state === "teased";
 }
+
+/**
+ * Carte route Expo Router → feature key.
+ * Référence centralisée — utilisée avec useRouteGuard().
+ * Les routes non listées sont accessibles librement.
+ */
+export const ROUTE_FEATURE_MAP: Record<string, string> = {
+  // Tabs
+  journal:              "journal",
+  // Écrans standalone
+  pet:                  "refuge",
+  souvenirs:            "souvenirs",
+  "salons-list":        "salons",
+  "salon/[id]":         "salons",
+  "salon/cafe-paris":   "salons",
+  games:                "games",
+  "duel/create":        "games",
+  "duel/play":          "games",
+  premium:              "premium",
+  offerings:            "offrandes",
+  shop:                 "offrandes",
+  coins:                "offrandes",
+  "daily-rewards":      "offrandes",
+  "avatar-builder":     "magie",
+  sounds:               "magie",
+  "background-picker":  "magie",
+  badges:               "profiles",
+  "weekly-profile":     "profiles",
+};

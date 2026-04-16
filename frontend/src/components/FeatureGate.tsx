@@ -1,35 +1,34 @@
 /**
  * JeuTaime — Système d'accès aux features
  *
- * Trois patterns disponibles selon le contexte :
+ * Quatre patterns disponibles selon le contexte :
  *
  * ① useFeature(key)
- *    Hook — pour les écrans complexes avec plusieurs états conditionnels.
- *    Exemple : ProfilesScreen (guard manuel + fallback custom dans le style de l'écran)
- *
- *    const featureState = useFeature('profiles');
- *    if (featureState === 'hidden')  return <MesStyles />;
- *    if (featureState === 'locked')  return <MesStyles />;
- *    // ... contenu normal
+ *    Hook — état d'une feature. Pour les screens avec guards manuels complexes.
+ *    const state = useFeature('profiles');
+ *    if (state === 'hidden') return <MonFallback />;
  *
  * ② <FeatureGate feature="key">
- *    Composant — pour les écrans/blocs simples, tout-ou-rien.
- *    Fallbacks génériques par défaut, surchargeables par props.
- *
- *    <FeatureGate feature="premium">
- *      <PremiumContent />
- *    </FeatureGate>
+ *    Composant — gate tout-ou-rien. Fallbacks génériques par défaut.
+ *    <FeatureGate feature="premium"><PremiumContent /></FeatureGate>
  *
  * ③ isVisible() / isUnlocked() depuis features.ts
- *    Helpers inline — pour filtrer des éléments dans une liste ou des onglets.
- *    Exemple : SocialScreen (cards), LettersScreen (tabs), CustomTabBar
+ *    Helpers inline — filtrage d'éléments (listes, onglets).
+ *    Utilisé dans SocialScreen, LettersScreen, CustomTabBar.
+ *
+ * ④ useRouteGuard(key, redirectTo?)
+ *    Hook — protection au niveau route / navigation.
+ *    Si hidden → router.replace(redirectTo) immédiatement.
+ *    Si locked/teased → retourne l'état, le composant décide.
+ *    Placé dans les fichiers app/*.tsx (thin wrappers Expo Router).
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import { FEATURES, FeatureState } from '../config/features';
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// ─── ① useFeature ─────────────────────────────────────────────────────────────
 
 /**
  * Retourne l'état courant d'une feature.
@@ -39,9 +38,40 @@ export function useFeature(key: string): FeatureState {
   return (FEATURES[key] as FeatureState) ?? 'unlocked';
 }
 
+// ─── ④ useRouteGuard ──────────────────────────────────────────────────────────
+
+/**
+ * Protège une route selon l'état de sa feature.
+ *
+ * - hidden   → redirige vers `redirectTo` (défaut : '/(tabs)')
+ * - locked / teased → retourne l'état sans rediriger (l'UI gère)
+ * - unlocked → no-op, retourne 'unlocked'
+ *
+ * Usage dans un fichier app/*.tsx :
+ *
+ *   export default function PetPage() {
+ *     const state = useRouteGuard('refuge');
+ *     if (state === 'hidden') return null;   // redirect en cours
+ *     return <PetScreen />;
+ *   }
+ */
+export function useRouteGuard(
+  featureKey: string,
+  redirectTo: string = '/(tabs)',
+): FeatureState {
+  const router = useRouter();
+  const state = useFeature(featureKey);
+
+  useEffect(() => {
+    if (state === 'hidden') {
+      router.replace(redirectTo as never);
+    }
+  }, [state]);
+
+  return state;
+}
+
 // ─── Fallbacks par défaut ─────────────────────────────────────────────────────
-// Design neutre compatible avec toute l'app.
-// Les écrans avec un style spécifique (ex: journal papier) passent leur propre fallback.
 
 function DefaultLockedFallback() {
   return (
@@ -63,14 +93,14 @@ function DefaultTeasedFallback() {
   );
 }
 
-// ─── FeatureGate ──────────────────────────────────────────────────────────────
+// ─── ② FeatureGate ────────────────────────────────────────────────────────────
 
 interface FeatureGateProps {
   /** Clé de la feature dans FEATURES */
   feature: string;
   /** Contenu rendu si unlocked */
   children: React.ReactNode;
-  /** Rendu si hidden — null par défaut (rien n'apparaît) */
+  /** Rendu si hidden — null par défaut */
   hiddenFallback?: React.ReactNode;
   /** Rendu si locked — DefaultLockedFallback si omis */
   lockedFallback?: React.ReactNode;
