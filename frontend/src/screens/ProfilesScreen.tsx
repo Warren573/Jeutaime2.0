@@ -275,32 +275,25 @@ function Masthead({
   );
 }
 
-/** À la une — texte en premier, avatar secondaire */
 function ProfileHero({ profile }: { profile: DiscoveryProfile }) {
   return (
-    <View style={np.heroCard}>
-      <Text style={np.heroKicker}>— À LA UNE —</Text>
-      <Rule style={{ marginBottom: 10 }} />
-
-      <Text style={np.heroQuoteOpen}>«</Text>
-      <Text style={np.heroQuoteText}>{profile.quote}</Text>
-      <Text style={[np.heroQuoteOpen, np.heroQuoteClose]}>»</Text>
-
-      <Rule style={{ marginTop: 10 }} />
-
-      <View style={np.heroBottom}>
-        <View style={[np.heroAvatarWrap, { backgroundColor: profile.avatarBg }]}>
-          <Avatar size={46} {...DEFAULT_AVATAR} />
+    <View style={np.heroWrap}>
+      <View style={np.heroRow}>
+        <View style={np.polaroid}>
+          <Avatar size={104} {...DEFAULT_AVATAR} />
         </View>
-        <View style={np.heroIdentity}>
-          <Text style={np.heroName}>{profile.name.toUpperCase()}</Text>
-          <Text style={np.heroDateline}>{profile.city} · {profile.age} ans</Text>
+
+        <View style={np.heroContent}>
+          <Text style={np.heroName}>{profile.name}, {profile.age}</Text>
+          <Text style={np.heroSwash}>〜〜〜〜〜〜〜</Text>
           <Text style={np.heroVibe}>{profile.mainVibe}</Text>
+          <Text style={np.heroSwash}>〜〜〜〜〜〜〜</Text>
+          <Text style={np.heroQuote}>"{profile.quote}"</Text>
         </View>
       </View>
 
-      <TouchableOpacity style={np.heroDiscover} activeOpacity={0.7}>
-        <Text style={np.heroDiscoverText}>Découvrir le profil →</Text>
+      <TouchableOpacity style={np.discoverBtn} activeOpacity={0.85}>
+        <Text style={np.discoverBtnText}>Découvrir le profil →</Text>
       </TouchableOpacity>
     </View>
   );
@@ -523,56 +516,27 @@ export default function ProfilesScreen() {
     <View style={[np.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <ScrollView
         style={np.scroll}
-        contentContainerStyle={[np.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Manchette */}
-        <Masthead index={profilePos >= 0 ? profilePos : currentIndex} total={profiles.length} />
-
-        {/* Hero */}
         <ProfileHero profile={profile} />
-
-        {/* Tampons / tags */}
-        <Stamps tags={profile.tags} />
-
-        {/* Citation */}
-        <PullQuote quote={profile.quote} />
-
-        {/* Colonnes */}
-        {profile.sections.map((s) => (
-          <Column key={s.title} section={s} />
-        ))}
-
-        {/* Jeu */}
-        <ProgressBox game={profile.game} />
-
-        {/* Courrier */}
-        <MailSection letters={profile.letters} />
-
-        {/* Pied de page */}
-        <View style={np.footer}>
-          <Rule thick />
-          <Text style={np.footerText}>
-            ❧ jeutaime · rencontres par correspondance ❧
-          </Text>
-        </View>
       </ScrollView>
 
       {/* Barre d'actions */}
       <View style={[np.actionBar, { paddingBottom: insets.bottom + 6 }]}>
-        <TouchableOpacity style={np.passBtn} onPress={handlePass} activeOpacity={0.8}>
-          <Text style={np.actionEmoji}>😬</Text>
-          <Text style={[np.actionLabel, { color: RED_INK }]}>PASSER</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={np.giftBtn} activeOpacity={0.8}>
-          <Text style={np.actionEmoji}>🎁</Text>
-          <Text style={[np.actionLabel, { color: INK2 }]}>CADEAU</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={np.smileBtn} onPress={handleSmile} activeOpacity={0.8}>
+        <TouchableOpacity style={np.actionBtn} onPress={handleSmile} activeOpacity={0.8}>
           <Text style={np.actionEmoji}>😊</Text>
-          <Text style={[np.actionLabel, { color: '#2E5D2A' }]}>SOURIRE</Text>
+          <Text style={[np.actionLabel, { color: '#2E5D2A' }]}>Sourire</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={np.actionBtn} onPress={handlePass} activeOpacity={0.8}>
+          <Text style={np.actionEmoji}>😬</Text>
+          <Text style={[np.actionLabel, { color: INK2 }]}>Grimace</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={np.actionBtn} activeOpacity={0.8}>
+          <Text style={np.actionEmoji}>🚩</Text>
+          <Text style={[np.actionLabel, { color: INK3 }]}>Signaler</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -623,88 +587,68 @@ const np = StyleSheet.create({
   },
 
   // ── Hero ───────────────────────────────────────────────────────────────────
-  heroCard: {
-    backgroundColor: PAPER,
-    borderWidth: 1,
-    borderColor: RULE_COLOR,
-    padding: 20,
-    marginBottom: 10,
+  heroWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 8,
+    gap: 24,
   },
-  heroKicker: {
-    fontSize: 9,
-    color: INK3,
-    letterSpacing: 2.5,
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginBottom: 8,
-  },
-  heroQuoteOpen: {
-    fontSize: 44,
-    color: RED_INK,
-    fontWeight: '900',
-    lineHeight: 44,
-    alignSelf: 'flex-start',
-  },
-  heroQuoteClose: {
-    alignSelf: 'flex-end',
-    marginTop: -8,
-  },
-  heroQuoteText: {
-    fontSize: 18,
-    color: INK,
-    fontStyle: 'italic',
-    lineHeight: 28,
-    paddingHorizontal: 4,
-    marginVertical: 4,
-  },
-  heroBottom: {
+  heroRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 12,
-    marginBottom: 4,
+    gap: 18,
+    alignItems: 'flex-start',
   },
-  heroAvatarWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: RULE_COLOR,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
+  polaroid: {
+    backgroundColor: '#fff',
+    padding: 6,
+    paddingBottom: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 1, height: 4 },
+    elevation: 5,
   },
-  heroIdentity: {
+  heroContent: {
     flex: 1,
-    gap: 2,
+    gap: 5,
   },
   heroName: {
-    fontSize: 15,
-    fontWeight: '900',
+    fontSize: 26,
+    fontWeight: '800',
     color: INK,
+    lineHeight: 30,
+  },
+  heroSwash: {
+    fontSize: 12,
+    color: INK3,
     letterSpacing: 2,
   },
-  heroDateline: {
-    fontSize: 10,
-    color: RED_INK,
-    letterSpacing: 1.5,
-    fontWeight: '700',
-  },
   heroVibe: {
-    fontSize: 11,
+    fontSize: 13,
     color: INK2,
     fontStyle: 'italic',
+    lineHeight: 19,
   },
-  heroDiscover: {
-    alignSelf: 'flex-end',
-    marginTop: 8,
-  },
-  heroDiscoverText: {
-    fontSize: 11,
-    color: INK3,
+  heroQuote: {
+    fontSize: 14,
+    color: INK,
     fontStyle: 'italic',
-    letterSpacing: 0.5,
-    textDecorationLine: 'underline',
+    lineHeight: 22,
+    marginTop: 2,
+  },
+  discoverBtn: {
+    borderWidth: 1.5,
+    borderColor: RULE_COLOR,
+    borderRadius: 50,
+    backgroundColor: OLD_BG,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  discoverBtnText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: INK,
+    letterSpacing: 0.2,
   },
 
   // ── Tampons ────────────────────────────────────────────────────────────────
@@ -898,35 +842,17 @@ const np = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: PAPER,
     paddingTop: 12,
-    borderTopWidth: 2,
-    borderTopColor: INK,
+    borderTopWidth: 1,
+    borderTopColor: RULE_COLOR,
   },
-  passBtn: {
+  actionBtn: {
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: RED_INK,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    gap: 3,
-  },
-  smileBtn: {
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#2E5D2A',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    gap: 3,
-  },
-  giftBtn: {
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: INK2,
-    paddingHorizontal: 14,
+    gap: 4,
+    paddingHorizontal: 20,
     paddingVertical: 8,
-    gap: 3,
   },
-  actionEmoji: { fontSize: 26 },
-  actionLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
+  actionEmoji: { fontSize: 28 },
+  actionLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
 
   // ── Match overlay ──────────────────────────────────────────────────────────
   matchScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: RED_INK },
