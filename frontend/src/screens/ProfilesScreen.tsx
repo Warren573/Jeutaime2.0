@@ -328,82 +328,78 @@ const TITLE_MAP: Record<string, string> = {
 
 function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack: () => void }) {
   const insets = useSafeAreaInsets();
-  const remap = (s: DiscoveryProfile['sections'][0]) => ({ ...s, title: TITLE_MAP[s.title] ?? s.title });
   return (
-    <View style={[np.screen, { paddingTop: insets.top }]}>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 32, paddingHorizontal: 12 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <TouchableOpacity style={np.detailBack} onPress={onBack}>
-          <Text style={np.detailBackText}>← Seconde chance</Text>
-        </TouchableOpacity>
+    <ScrollView
+      style={[np.screen, { paddingTop: insets.top }]}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: insets.bottom + 28 }}
+      showsVerticalScrollIndicator={false}
+    >
+      <TouchableOpacity onPress={onBack}>
+        <Text style={np.dBackLink}>← Seconde chance</Text>
+      </TouchableOpacity>
 
-        <View style={np.detailHeader}>
-          <View style={np.polaroid}>
-            <Avatar size={56} {...DEFAULT_AVATAR} />
-          </View>
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={np.heroName}>{profile.name}, {profile.age}</Text>
-            <Text style={np.heroSwash}>〜〜〜〜〜〜〜</Text>
-            <Text style={np.heroVibe}>{profile.mainVibe}</Text>
-          </View>
+      <View style={np.dDetailHeader}>
+        <Avatar size={52} {...DEFAULT_AVATAR} />
+        <View style={np.dDetailHeaderText}>
+          <Text style={np.dDetailName}>{profile.name}, {profile.age}</Text>
+          <Text style={np.dDetailVibe}>{profile.mainVibe}</Text>
         </View>
+      </View>
 
-        <View style={np.detailSection}>
-          <View style={np.detailSep} />
-          <Text style={np.detailSecTitle}>{remap(profile.sections[0]).title}</Text>
-          <View style={np.detailSecItems}>
-            {profile.sections[0].items.map((item, i) => (
-              <Text key={i} style={np.detailSecItem}>— {item}</Text>
-            ))}
-          </View>
-        </View>
+      <View style={np.dFreeSection}>
+        <Text style={np.dSectionTitle}>Mon univers</Text>
+        {profile.sections[0].items.map((item, i) => (
+          <Text key={i} style={np.dFreeLine}>— {item}</Text>
+        ))}
+      </View>
 
-        <View style={[np.detailSection, { paddingTop: 24 }]}>
-          <Text style={np.detailSecTitle}>Ce que je gère (plus ou moins bien)</Text>
-          <View style={np.detailSecItems}>
-            {profile.game.badges.map((b) => (
-              <Text key={b} style={np.detailSecItem}>— {b} : {FUN_LEVEL[b] ?? '···'}</Text>
-            ))}
-            <Text style={np.detailSecItem}>— Animal totem : {profile.game.petEmoji} {profile.game.pet}</Text>
-          </View>
-        </View>
+      <View style={np.dFreeSection}>
+        <Text style={np.dSectionTitle}>Ce que je gère (plus ou moins bien)</Text>
+        {profile.game.badges.map((b) => (
+          <Text key={b} style={np.dFreeLine}>— {b} : {FUN_LEVEL[b] ?? '···'}</Text>
+        ))}
+        <Text style={np.dFreeLine}>— Animal totem : {profile.game.petEmoji} {profile.game.pet}</Text>
+      </View>
 
-        <View style={[np.detailSection, { paddingTop: 4 }]}>
-          <View style={np.detailSep} />
-          <Text style={np.detailSecTitle}>Mes petits + et mes petits −</Text>
-          <View style={np.detailSecItems}>
-            {profile.descriptors.map((d) => (
-              <Text key={d} style={np.detailSecItem}>— {d}</Text>
-            ))}
-          </View>
-        </View>
+      <View style={np.dFreeSection}>
+        <Text style={np.dSectionTitle}>Mes petits + et mes petits −</Text>
+        {profile.descriptors.map((d) => (
+          <Text key={d} style={np.dFreeLine}>— {d}</Text>
+        ))}
+      </View>
 
-        <Stamps tags={profile.tags} />
-
-        {profile.sections.slice(1).map((s, i) => {
-          const r = remap(s);
-          return (
-            <View key={s.title} style={[np.detailSection, i === 0 ? { paddingTop: 8 } : { paddingTop: 24 }]}>
-              <Text style={np.detailSecTitle}>{r.title}</Text>
-              <View style={np.detailSecItems}>
-                {r.items.map((item, j) => (
-                  <Text key={j} style={np.detailSecItem}>— {item}</Text>
-                ))}
-              </View>
+      <View style={np.dInterestsWrap}>
+        <Text style={np.dSectionTitleCenter}>Ce que j'aime</Text>
+        <View style={np.dTagsRow}>
+          {profile.tags.map((t) => (
+            <View key={t.label} style={np.dTag}>
+              <Text style={np.dTagText}>{t.emoji} {t.label}</Text>
             </View>
-          );
-        })}
-
-        <View style={np.detailToday}>
-          <Text style={np.detailTodayTitle}>— Journée idéale</Text>
-          {profile.today.map((line, i) => (
-            <Text key={i} style={np.detailTodayItem}>{line}</Text>
           ))}
         </View>
-      </ScrollView>
-    </View>
+      </View>
+
+      <View style={np.dHighlightCard}>
+        <Text style={np.dHighlightTitle}>Ce que je cherche ici</Text>
+        {profile.sections[1].items.map((item, i) => (
+          <Text key={i} style={np.dHighlightText}>— {item}</Text>
+        ))}
+      </View>
+
+      <View style={np.dFreeSection}>
+        <Text style={np.dSectionTitle}>Comment je suis vraiment</Text>
+        {profile.sections[2].items.map((item, i) => (
+          <Text key={i} style={np.dFreeLine}>— {item}</Text>
+        ))}
+      </View>
+
+      <View style={np.dJournalCard}>
+        <Text style={np.dJournalTitle}>Journée idéale</Text>
+        {profile.today.map((line, i) => (
+          <Text key={i} style={np.dJournalLine}>{line}</Text>
+        ))}
+      </View>
+    </ScrollView>
   );
 }
 
@@ -822,6 +818,79 @@ const np = StyleSheet.create({
     lineHeight: 25,
     fontStyle: 'italic',
   },
+
+  // ── Vue détaillée v2 ──────────────────────────────────────────────────────
+  dBackLink: { fontSize: 13, color: '#9A7040', fontStyle: 'italic', marginBottom: 14 },
+  dDetailHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 22 },
+  dDetailHeaderText: { marginLeft: 12, flex: 1 },
+  dDetailName: { fontSize: 22, fontWeight: '800', color: '#2C1A0E', marginBottom: 4 },
+  dDetailVibe: { fontSize: 14, color: '#7E5A33', fontStyle: 'italic' },
+  dFreeSection: {
+    marginBottom: 22,
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#D4C4A6',
+  },
+  dSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    fontStyle: 'italic',
+    color: '#7A5732',
+    marginBottom: 10,
+  },
+  dSectionTitleCenter: {
+    fontSize: 14,
+    fontWeight: '700',
+    fontStyle: 'italic',
+    color: '#8A6642',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  dFreeLine: { fontSize: 16, lineHeight: 28, color: '#2E2118', marginBottom: 2 },
+  dInterestsWrap: { marginBottom: 26, paddingTop: 4 },
+  dTagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
+  dTag: {
+    backgroundColor: '#F6F1E4',
+    borderWidth: 1,
+    borderColor: '#D7C7AA',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  dTagText: { fontSize: 14, color: '#4A3423', fontWeight: '600' },
+  dHighlightCard: {
+    backgroundColor: '#F8F1DF',
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    marginBottom: 26,
+    borderWidth: 1,
+    borderColor: '#DCC9A6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  dHighlightTitle: { fontSize: 17, fontWeight: '800', color: '#5C3B25', marginBottom: 10 },
+  dHighlightText: { fontSize: 16, lineHeight: 27, color: '#2E2118' },
+  dJournalCard: {
+    backgroundColor: '#F4EBD5',
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    marginTop: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#D8B36B',
+  },
+  dJournalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    fontStyle: 'italic',
+    color: '#8A6236',
+    marginBottom: 14,
+  },
+  dJournalLine: { fontSize: 16, lineHeight: 28, color: '#3A2A1F', fontStyle: 'italic', marginBottom: 6 },
 
   // ── Tampons ────────────────────────────────────────────────────────────────
   section: {
