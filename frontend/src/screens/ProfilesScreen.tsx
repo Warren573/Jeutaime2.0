@@ -345,6 +345,7 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
           <Text style={np.dDetailVibe}>{profile.mainVibe}</Text>
         </View>
       </View>
+      <Text style={np.dHeaderSwash}>〜〜〜〜〜〜〜〜〜〜</Text>
 
       <View style={np.dFreeSection}>
         <Text style={np.dSectionTitle}>Mon univers</Text>
@@ -825,11 +826,19 @@ const np = StyleSheet.create({
   dDetailHeaderText: { marginLeft: 12, flex: 1 },
   dDetailName: { fontSize: 22, fontWeight: '800', color: '#2C1A0E', marginBottom: 4 },
   dDetailVibe: { fontSize: 14, color: '#7E5A33', fontStyle: 'italic' },
+  dHeaderSwash: {
+    fontSize: 14,
+    color: '#C4A882',
+    textAlign: 'center',
+    letterSpacing: 3,
+    marginTop: -10,
+    marginBottom: 24,
+  },
   dFreeSection: {
-    marginBottom: 22,
-    paddingBottom: 4,
+    marginBottom: 28,
+    paddingBottom: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#D4C4A6',
+    borderBottomColor: '#DDD0BC',
   },
   dSectionTitle: {
     fontSize: 15,
@@ -859,20 +868,18 @@ const np = StyleSheet.create({
   },
   dTagText: { fontSize: 14, color: '#4A3423', fontWeight: '600' },
   dHighlightCard: {
-    backgroundColor: '#F8F1DF',
-    borderRadius: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    marginBottom: 26,
-    borderWidth: 1,
-    borderColor: '#DCC9A6',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    backgroundColor: '#FAF4E6',
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginBottom: 28,
+    shadowColor: '#8A6642',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 1,
   },
-  dHighlightTitle: { fontSize: 17, fontWeight: '800', color: '#5C3B25', marginBottom: 10 },
+  dHighlightTitle: { fontSize: 16, fontWeight: '700', fontStyle: 'italic', color: '#5C3B25', marginBottom: 10 },
   dHighlightText: { fontSize: 16, lineHeight: 27, color: '#2E2118' },
   dJournalCard: {
     backgroundColor: '#F4EBD5',
