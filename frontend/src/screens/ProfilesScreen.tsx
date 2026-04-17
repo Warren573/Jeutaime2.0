@@ -277,49 +277,50 @@ function Masthead({
 }
 
 /** À la une — bloc titre du profil */
-function FrontPage({ profile }: { profile: DiscoveryProfile }) {
-  return (
-    <View style={np.frontPage}>
-      {/* Photo + Headline */}
-      <View style={np.frontRow}>
-        {/* Portrait encadré — avatar SVG */}
-        <View style={np.portraitWrapper}>
-          <Avatar size={96} {...DEFAULT_AVATAR} />
-          <Text style={np.portraitCaption}>Portrait</Text>
-        </View>
+function ProfileHero({ profile }: { profile: DiscoveryProfile }) {
+  const compatColor = profile.compatibility >= 85 ? RED_INK
+    : profile.compatibility >= 70 ? '#5A7A2E' : INK3;
+  const compatLabel = profile.compatibility >= 85 ? 'Excellente correspondance'
+    : profile.compatibility >= 70 ? 'Bonne correspondance' : 'Correspondance à explorer';
 
-        {/* Headline + Description */}
-        <View style={np.frontHeadlines}>
-          <Text style={np.headline}>{profile.name.toUpperCase()}</Text>
-          <Rule thick />
-          <Text style={np.dateline}>
-            {profile.city.toUpperCase()} · {profile.age} ans
-          </Text>
-          {/* Description (min 50 caractères) à droite de l'avatar */}
-          <Text style={np.descriptionText}>
-            « {profile.quote} »
-          </Text>
-          <View style={np.descriptorsRow}>
-            {profile.descriptors.map((d) => (
-              <Text key={d} style={np.descriptor}>
-                {d}
-              </Text>
-            ))}
-          </View>
-        </View>
+  return (
+    <View style={np.heroCard}>
+      {/* Avatar centré dans un cadre à la couleur du profil */}
+      <View style={[np.avatarFrame, { backgroundColor: profile.avatarBg }]}>
+        {profile.avatarDef
+          ? <AvatarRenderer avatar={profile.avatarDef} size={108} />
+          : <Avatar size={108} {...DEFAULT_AVATAR} />
+        }
       </View>
 
-      {/* Compatibilité — en encadré */}
-      <View style={np.compatBox}>
-        <Text style={np.compatLabel}>AFFINITÉ</Text>
-        <Text style={np.compatValue}>{profile.compatibility}%</Text>
-        <Text style={np.compatSub}>
-          {profile.compatibility >= 85
-            ? 'Excellente correspondance'
-            : profile.compatibility >= 70
-            ? 'Bonne correspondance'
-            : 'Correspondance à explorer'}
-        </Text>
+      {/* Identité */}
+      <Text style={np.heroName}>{profile.name.toUpperCase()}</Text>
+      <Text style={np.heroDateline}>{profile.city.toUpperCase()} · {profile.age} ANS</Text>
+      <Text style={np.heroVibe}>{profile.mainVibe}</Text>
+
+      {/* Descripteurs en pills */}
+      <View style={np.descriptorsRow}>
+        {profile.descriptors.map((d) => (
+          <View key={d} style={np.descriptorChip}>
+            <Text style={np.descriptorChipText}>{d.toUpperCase()}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Affinité avec barre de progression */}
+      <View style={np.compatBlock}>
+        <DoubleRule />
+        <View style={np.compatRow}>
+          <Text style={np.compatKicker}>AFFINITÉ</Text>
+          <Text style={[np.compatPct, { color: compatColor }]}>{profile.compatibility}%</Text>
+          <Text style={np.compatDesc}>{compatLabel}</Text>
+        </View>
+        <View style={np.compatRail}>
+          <View style={[np.compatFill, {
+            width: `${profile.compatibility}%` as any,
+            backgroundColor: compatColor,
+          }]} />
+        </View>
       </View>
     </View>
   );
@@ -548,8 +549,8 @@ export default function ProfilesScreen() {
         {/* Manchette */}
         <Masthead index={profilePos >= 0 ? profilePos : currentIndex} total={profiles.length} />
 
-        {/* À la une */}
-        <FrontPage profile={profile} />
+        {/* Hero */}
+        <ProfileHero profile={profile} />
 
         {/* Tampons / tags */}
         <Stamps tags={profile.tags} />
@@ -641,110 +642,101 @@ const np = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
-  // ── À la une ───────────────────────────────────────────────────────────────
-  frontPage: {
+  // ── Hero ───────────────────────────────────────────────────────────────────
+  heroCard: {
     backgroundColor: PAPER,
     borderWidth: 1,
     borderColor: RULE_COLOR,
-    padding: 14,
-    gap: 12,
+    padding: 20,
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 10,
   },
-  frontRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 14,
-  },
-
-  // Portrait encadré (avatar SVG)
-  portraitWrapper: {
+  avatarFrame: {
+    width: 128,
+    height: 128,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    marginBottom: 4,
+    borderWidth: 2,
+    borderColor: RULE_COLOR,
+    overflow: 'hidden',
   },
-  portraitCaption: {
-    fontSize: 8,
-    color: INK3,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    fontStyle: 'italic',
-  },
-
-  // Headline
-  frontHeadlines: { flex: 1, gap: 5 },
-  headline: {
-    fontSize: 26,
+  heroName: {
+    fontSize: 30,
     fontWeight: '900',
     color: INK,
-    letterSpacing: 2,
-    lineHeight: 28,
+    letterSpacing: 3,
+    textAlign: 'center',
   },
-  dateline: {
+  heroDateline: {
     fontSize: 10,
     color: RED_INK,
-    letterSpacing: 2,
+    letterSpacing: 2.5,
     fontWeight: '700',
-    marginTop: 2,
-    marginBottom: 4,
   },
-  // Description min 50 chars — à droite de l'avatar
-  descriptionText: {
-    fontSize: 12,
-    color: INK2,
-    fontStyle: 'italic',
-    lineHeight: 17,
-    marginBottom: 4,
-  },
-  subheadline: {
+  heroVibe: {
     fontSize: 13,
     color: INK2,
     fontStyle: 'italic',
-    lineHeight: 18,
+    textAlign: 'center',
+    marginTop: 2,
   },
   descriptorsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 5,
+    gap: 6,
+    justifyContent: 'center',
     marginTop: 4,
   },
-  descriptor: {
-    fontSize: 9,
-    color: INK,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
+  descriptorChip: {
     borderWidth: 1,
     borderColor: INK,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-
-  // Compatibilité
-  compatBox: {
-    borderTopWidth: 1,
-    borderTopColor: RULE_COLOR,
-    paddingTop: 10,
-    alignItems: 'center',
+  descriptorChipText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: INK,
+    letterSpacing: 1.5,
+  },
+  compatBlock: {
+    width: '100%',
+    gap: 6,
+    marginTop: 4,
+  },
+  compatRow: {
     flexDirection: 'row',
-    gap: 10,
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
   },
-  compatLabel: {
+  compatKicker: {
     fontSize: 8,
     color: INK3,
     letterSpacing: 2,
     fontWeight: '700',
   },
-  compatValue: {
-    fontSize: 28,
+  compatPct: {
+    fontSize: 26,
     fontWeight: '900',
-    color: RED_INK,
     letterSpacing: -1,
   },
-  compatSub: {
+  compatDesc: {
     fontSize: 11,
     color: INK2,
     fontStyle: 'italic',
     flex: 1,
+  },
+  compatRail: {
+    height: 4,
+    backgroundColor: RULE_COLOR,
+    overflow: 'hidden',
+  },
+  compatFill: {
+    height: '100%',
   },
 
   // ── Tampons ────────────────────────────────────────────────────────────────
