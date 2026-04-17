@@ -28,6 +28,7 @@ interface DiscoveryProfile {
   descriptors: string[];
   tags: { emoji: string; label: string }[];
   quote: string;
+  today: string[];
   sections: { title: string; icon: string; items: string[] }[];
   game: { level: number; badges: string[]; pet: string; petEmoji: string };
   letters: { exchanged: number; total: number; lastLetterDaysAgo: number; nextReveal: number };
@@ -55,6 +56,7 @@ const profiles: DiscoveryProfile[] = [
       { emoji: '📖', label: 'Lectrice' },
     ],
     quote: 'Je crois qu\'on se comprend mieux autour d\'un plat qu\'on a cuisiné ensemble.',
+    today: ['08:00 → recette testée depuis une semaine enfin lancée', '14:00 → pause film en deux fois (je sais)', '23:00 → endormie sur un livre, page 47'],
     sections: [
       { title: 'Mon univers', icon: '✦', items: ['Voyages lointains', 'Cinéma d\'auteur', 'Cuisine du monde'] },
       { title: 'Ma manière d\'aimer', icon: '✦', items: ['Avec présence', 'En douceur', 'Par les détails'] },
@@ -82,6 +84,7 @@ const profiles: DiscoveryProfile[] = [
       { emoji: '🌿', label: 'Zen' },
     ],
     quote: 'L\'art m\'a appris à regarder les gens comme des œuvres inachevées.',
+    today: ['09:00 → atelier ou Netflix — mon cœur hésite encore', '16:00 → toile commencée, pas terminée, déjà aimée', '23:00 → jazz + journal intime + pas assez de sommeil'],
     sections: [
       { title: 'Mon univers', icon: '✦', items: ['Peinture', 'Jazz & soul', 'Littérature contemporaine'] },
       { title: 'Ma manière d\'aimer', icon: '✦', items: ['Avec intensité', 'De façon créative', 'Sans retenue'] },
@@ -109,6 +112,7 @@ const profiles: DiscoveryProfile[] = [
       { emoji: '🌊', label: 'La mer' },
     ],
     quote: 'Je veux vivre des histoires qui me donnent faim — de tout.',
+    today: ['06:30 → piscine. Pas négociable.', '12:00 → test d\'un nouveau resto (critique mentale incluse)', '21:00 → terrasse si le soleil coopère, canapé sinon'],
     sections: [
       { title: 'Mon univers', icon: '✦', items: ['Sport & mer', 'Gastronomie locale', 'Voyages spontanés'] },
       { title: 'Ma manière d\'aimer', icon: '✦', items: ['Avec énergie', 'Franchement', 'En riant beaucoup'] },
@@ -136,6 +140,7 @@ const profiles: DiscoveryProfile[] = [
       { emoji: '🌸', label: 'Romantique' },
     ],
     quote: 'Je tombe amoureuse des gens qui ont une playlist secrète.',
+    today: ['10:00 → guitare + café froid oublié sur la table', '15:00 → répétition ou improvisation totale, au feeling', '22:00 → chanson à écrire, procrastination musicale en cours'],
     sections: [
       { title: 'Mon univers', icon: '✦', items: ['Concerts & scènes', 'Vins du Sud-Ouest', 'Danse improvisée'] },
       { title: 'Ma manière d\'aimer', icon: '✦', items: ['Avec des chansons', 'Lentement', 'Avec des surprises'] },
@@ -163,6 +168,7 @@ const profiles: DiscoveryProfile[] = [
       { emoji: '☕', label: 'Café addict' },
     ],
     quote: 'J\'ai plus de personnages fictifs dans ma tête que d\'amis — et j\'assume.',
+    today: ['08:00 → café + essai qui prend toute la matinée (prévu : 20 min)', '14:00 → banc de parc, livre, pigeons comme public', '00:00 → personnage fictif plus intéressant que ma vraie journée'],
     sections: [
       { title: 'Mon univers', icon: '✦', items: ['Romans & essais', 'Théâtre amateur', 'Débats de fond'] },
       { title: 'Ma manière d\'aimer', icon: '✦', items: ['Par les mots', 'Avec profondeur', 'En observant d\'abord'] },
@@ -190,6 +196,7 @@ const profiles: DiscoveryProfile[] = [
       { emoji: '☁️', label: 'Contemplative' },
     ],
     quote: 'La meilleure conversation que j\'ai eue, c\'était face à l\'océan à 6h du matin.',
+    today: ['07:00 → yoga ou contemplation du plafond (les deux sont valides)', '11:00 → randonnée ou marche lente dans la ville comme si c\'était une forêt', '21:00 → photos développées, tisane, silence choisi'],
     sections: [
       { title: 'Mon univers', icon: '✦', items: ['Randonnées & nature', 'Photographie argentique', 'Yoga & silence'] },
       { title: 'Ma manière d\'aimer', icon: '✦', items: ['Avec calme', 'En pleine nature', 'Par la présence'] },
@@ -301,8 +308,28 @@ function ProfileHero({ profile, onDiscover }: { profile: DiscoveryProfile; onDis
   );
 }
 
+const FUN_LEVEL: Record<string, string> = {
+  Romantique: 'niveau dangereux',
+  Curieuse: 'je pose trop de questions',
+  Artiste: 'incurable',
+  Mystérieuse: 'à décrypter',
+  Solaire: 'force de la nature',
+  Compétitive: 'joueuse mais fair-play',
+  Musicale: 'chanson en tête en permanence',
+  Intellectuelle: 'pense trop (et le sait)',
+  Apaisante: 'comme une tisane',
+  Contemplative: 'souvent dans la lune',
+};
+
+const TITLE_MAP: Record<string, string> = {
+  'Mon univers': 'Qui je suis',
+  "Ma manière d'aimer": 'Ce que je cherche ici',
+  'Ma présence dans les salons': 'Comment je suis vraiment',
+};
+
 function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack: () => void }) {
   const insets = useSafeAreaInsets();
+  const remap = (s: DiscoveryProfile['sections'][0]) => ({ ...s, title: TITLE_MAP[s.title] ?? s.title });
   return (
     <View style={[np.screen, { paddingTop: insets.top }]}>
       <ScrollView
@@ -324,15 +351,15 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
           </View>
         </View>
 
-        <Column section={profile.sections[0]} />
+        <Column section={remap(profile.sections[0])} />
 
         <View style={np.infoBox}>
           <DoubleRule />
-          <Text style={np.infoBoxTitle}>✦  COMPÉTENCES (version fun)</Text>
+          <Text style={np.infoBoxTitle}>✦  Ce que je gère (plus ou moins bien)</Text>
           <Rule />
           <View style={np.columnItems}>
             {profile.game.badges.map((b) => (
-              <Text key={b} style={np.columnItem}>— {b} · niv. {profile.game.level}</Text>
+              <Text key={b} style={np.columnItem}>— {b} : {FUN_LEVEL[b] ?? '···'}</Text>
             ))}
             <Text style={np.columnItem}>— Animal totem : {profile.game.petEmoji} {profile.game.pet}</Text>
           </View>
@@ -340,7 +367,7 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
 
         <View style={np.column}>
           <DoubleRule />
-          <Text style={np.columnTitle}>✦  QUALITÉS & DÉFAUTS</Text>
+          <Text style={np.columnTitle}>✦  Mes qualités (et mes petits défauts)</Text>
           <Rule />
           <View style={np.columnItems}>
             {profile.descriptors.map((d) => (
@@ -352,8 +379,19 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
         <Stamps tags={profile.tags} />
 
         {profile.sections.slice(1).map((s) => (
-          <Column key={s.title} section={s} />
+          <Column key={s.title} section={remap(s)} />
         ))}
+
+        <View style={np.infoBox}>
+          <DoubleRule />
+          <Text style={np.infoBoxTitle}>📝  Aujourd'hui</Text>
+          <Rule />
+          <View style={np.columnItems}>
+            {profile.today.map((line, i) => (
+              <Text key={i} style={np.columnItem}>{line}</Text>
+            ))}
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
