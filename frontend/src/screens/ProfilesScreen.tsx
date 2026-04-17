@@ -352,7 +352,7 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
 
         <View style={np.detailSection}>
           <View style={np.detailSep} />
-          <Text style={np.detailSecTitle}>{remap(profile.sections[0]).title.toUpperCase()}</Text>
+          <Text style={np.detailSecTitle}>{remap(profile.sections[0]).title}</Text>
           <View style={np.detailSecItems}>
             {profile.sections[0].items.map((item, i) => (
               <Text key={i} style={np.detailSecItem}>— {item}</Text>
@@ -360,8 +360,8 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
           </View>
         </View>
 
-        <View style={[np.detailSection, { paddingTop: 22 }]}>
-          <Text style={np.detailSecTitle}>CE QUE JE GÈRE (PLUS OU MOINS BIEN)</Text>
+        <View style={[np.detailSection, { paddingTop: 24 }]}>
+          <Text style={np.detailSecTitle}>Ce que je gère (plus ou moins bien)</Text>
           <View style={np.detailSecItems}>
             {profile.game.badges.map((b) => (
               <Text key={b} style={np.detailSecItem}>— {b} : {FUN_LEVEL[b] ?? '···'}</Text>
@@ -370,9 +370,9 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
           </View>
         </View>
 
-        <View style={np.detailSection}>
+        <View style={[np.detailSection, { paddingTop: 4 }]}>
           <View style={np.detailSep} />
-          <Text style={np.detailSecTitle}>MES PETITS + ET MES PETITS −</Text>
+          <Text style={np.detailSecTitle}>Mes petits + et mes petits −</Text>
           <View style={np.detailSecItems}>
             {profile.descriptors.map((d) => (
               <Text key={d} style={np.detailSecItem}>— {d}</Text>
@@ -382,15 +382,14 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
 
         <Stamps tags={profile.tags} />
 
-        {profile.sections.slice(1).map((s) => {
+        {profile.sections.slice(1).map((s, i) => {
           const r = remap(s);
           return (
-            <View key={s.title} style={np.detailSection}>
-              <View style={np.detailSep} />
-              <Text style={np.detailSecTitle}>{r.title.toUpperCase()}</Text>
+            <View key={s.title} style={[np.detailSection, i === 0 ? { paddingTop: 8 } : { paddingTop: 24 }]}>
+              <Text style={np.detailSecTitle}>{r.title}</Text>
               <View style={np.detailSecItems}>
-                {r.items.map((item, i) => (
-                  <Text key={i} style={np.detailSecItem}>— {item}</Text>
+                {r.items.map((item, j) => (
+                  <Text key={j} style={np.detailSecItem}>— {item}</Text>
                 ))}
               </View>
             </View>
@@ -398,7 +397,7 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
         })}
 
         <View style={np.detailToday}>
-          <Text style={np.detailTodayTitle}>Journée idéale</Text>
+          <Text style={np.detailTodayTitle}>— Journée idéale</Text>
           {profile.today.map((line, i) => (
             <Text key={i} style={np.detailTodayItem}>{line}</Text>
           ))}
@@ -412,7 +411,7 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
 function Stamps({ tags }: { tags: DiscoveryProfile['tags'] }) {
   return (
     <View style={np.section}>
-      <Text style={np.sectionLabel}>— Caractéristiques —</Text>
+      <Text style={np.sectionLabel}>Ce que j'aime</Text>
       <View style={np.stampsWrap}>
         {tags.map((t) => (
           <View key={t.label} style={np.stamp}>
@@ -777,27 +776,29 @@ const np = StyleSheet.create({
     paddingBottom: 16,
   },
   detailSection: {
-    paddingVertical: 14,
-    gap: 8,
+    paddingVertical: 16,
+    gap: 10,
   },
   detailSep: {
     height: 1,
-    backgroundColor: RULE_COLOR,
-    marginBottom: 2,
+    backgroundColor: '#DDD3BE',
+    marginBottom: 6,
   },
   detailSecTitle: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: INK3,
-    letterSpacing: 2,
+    fontSize: 11,
+    fontWeight: '600',
+    color: INK2,
+    letterSpacing: 0.5,
+    fontStyle: 'italic',
+    marginBottom: 2,
   },
   detailSecItems: {
-    gap: 6,
+    gap: 7,
   },
   detailSecItem: {
-    fontSize: 13,
-    color: INK2,
-    lineHeight: 21,
+    fontSize: 14,
+    color: INK,
+    lineHeight: 22,
   },
   detailToday: {
     backgroundColor: '#FFFBF0',
