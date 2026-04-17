@@ -278,22 +278,24 @@ function Masthead({
 function ProfileHero({ profile }: { profile: DiscoveryProfile }) {
   return (
     <View style={np.heroWrap}>
+      {/* Identité */}
       <View style={np.heroRow}>
         <View style={np.polaroid}>
-          <Avatar size={104} {...DEFAULT_AVATAR} />
+          <Avatar size={92} {...DEFAULT_AVATAR} />
         </View>
-
         <View style={np.heroContent}>
           <Text style={np.heroName}>{profile.name}, {profile.age}</Text>
           <Text style={np.heroSwash}>〜〜〜〜〜〜〜</Text>
           <Text style={np.heroVibe}>{profile.mainVibe}</Text>
-          <Text style={np.heroSwash}>〜〜〜〜〜〜〜</Text>
-          <Text style={np.heroQuote}>"{profile.quote}"</Text>
         </View>
       </View>
 
-      <TouchableOpacity style={np.discoverBtn} activeOpacity={0.85}>
-        <Text style={np.discoverBtnText}>Découvrir le profil →</Text>
+      {/* Bla-bla — élément principal, pleine largeur */}
+      <Text style={np.heroQuote}>"{profile.quote}"</Text>
+
+      {/* Lien discret */}
+      <TouchableOpacity activeOpacity={0.6}>
+        <Text style={np.discoverLink}>Découvrir le profil →</Text>
       </TouchableOpacity>
     </View>
   );
@@ -589,14 +591,14 @@ const np = StyleSheet.create({
   // ── Hero ───────────────────────────────────────────────────────────────────
   heroWrap: {
     paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 8,
-    gap: 24,
+    paddingTop: 28,
+    paddingBottom: 16,
+    gap: 22,
   },
   heroRow: {
     flexDirection: 'row',
     gap: 18,
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   polaroid: {
     backgroundColor: '#fff',
@@ -630,25 +632,18 @@ const np = StyleSheet.create({
     lineHeight: 19,
   },
   heroQuote: {
-    fontSize: 14,
+    fontSize: 19,
     color: INK,
     fontStyle: 'italic',
-    lineHeight: 22,
-    marginTop: 2,
+    lineHeight: 31,
+    paddingVertical: 6,
   },
-  discoverBtn: {
-    borderWidth: 1.5,
-    borderColor: RULE_COLOR,
-    borderRadius: 50,
-    backgroundColor: OLD_BG,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  discoverBtnText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: INK,
-    letterSpacing: 0.2,
+  discoverLink: {
+    fontSize: 14,
+    color: INK3,
+    fontStyle: 'italic',
+    letterSpacing: 0.3,
+    alignSelf: 'flex-end',
   },
 
   // ── Tampons ────────────────────────────────────────────────────────────────
