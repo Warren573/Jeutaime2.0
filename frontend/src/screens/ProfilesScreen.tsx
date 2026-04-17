@@ -351,46 +351,59 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
           </View>
         </View>
 
-        <Column section={remap(profile.sections[0])} />
-
-        <View style={np.infoBox}>
-          <DoubleRule />
-          <Text style={np.infoBoxTitle}>✦  Ce que je gère (plus ou moins bien)</Text>
-          <Rule />
-          <View style={np.columnItems}>
-            {profile.game.badges.map((b) => (
-              <Text key={b} style={np.columnItem}>— {b} : {FUN_LEVEL[b] ?? '···'}</Text>
+        <View style={np.detailSection}>
+          <View style={np.detailSep} />
+          <Text style={np.detailSecTitle}>{remap(profile.sections[0]).title.toUpperCase()}</Text>
+          <View style={np.detailSecItems}>
+            {profile.sections[0].items.map((item, i) => (
+              <Text key={i} style={np.detailSecItem}>— {item}</Text>
             ))}
-            <Text style={np.columnItem}>— Animal totem : {profile.game.petEmoji} {profile.game.pet}</Text>
           </View>
         </View>
 
-        <View style={np.column}>
-          <DoubleRule />
-          <Text style={np.columnTitle}>✦  Mes qualités (et mes petits défauts)</Text>
-          <Rule />
-          <View style={np.columnItems}>
+        <View style={np.detailSection}>
+          <View style={np.detailSep} />
+          <Text style={np.detailSecTitle}>CE QUE JE GÈRE (PLUS OU MOINS BIEN)</Text>
+          <View style={np.detailSecItems}>
+            {profile.game.badges.map((b) => (
+              <Text key={b} style={np.detailSecItem}>— {b} : {FUN_LEVEL[b] ?? '···'}</Text>
+            ))}
+            <Text style={np.detailSecItem}>— Animal totem : {profile.game.petEmoji} {profile.game.pet}</Text>
+          </View>
+        </View>
+
+        <View style={np.detailSection}>
+          <View style={np.detailSep} />
+          <Text style={np.detailSecTitle}>MES QUALITÉS (ET MES PETITS DÉFAUTS)</Text>
+          <View style={np.detailSecItems}>
             {profile.descriptors.map((d) => (
-              <Text key={d} style={np.columnItem}>— {d}</Text>
+              <Text key={d} style={np.detailSecItem}>— {d}</Text>
             ))}
           </View>
         </View>
 
         <Stamps tags={profile.tags} />
 
-        {profile.sections.slice(1).map((s) => (
-          <Column key={s.title} section={remap(s)} />
-        ))}
+        {profile.sections.slice(1).map((s) => {
+          const r = remap(s);
+          return (
+            <View key={s.title} style={np.detailSection}>
+              <View style={np.detailSep} />
+              <Text style={np.detailSecTitle}>{r.title.toUpperCase()}</Text>
+              <View style={np.detailSecItems}>
+                {r.items.map((item, i) => (
+                  <Text key={i} style={np.detailSecItem}>— {item}</Text>
+                ))}
+              </View>
+            </View>
+          );
+        })}
 
-        <View style={np.infoBox}>
-          <DoubleRule />
-          <Text style={np.infoBoxTitle}>📝  Aujourd'hui</Text>
-          <Rule />
-          <View style={np.columnItems}>
-            {profile.today.map((line, i) => (
-              <Text key={i} style={np.columnItem}>{line}</Text>
-            ))}
-          </View>
+        <View style={np.detailToday}>
+          <Text style={np.detailTodayTitle}>📝 Aujourd'hui</Text>
+          {profile.today.map((line, i) => (
+            <Text key={i} style={np.detailTodayItem}>{line}</Text>
+          ))}
         </View>
       </ScrollView>
     </View>
@@ -764,6 +777,50 @@ const np = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 4,
     paddingBottom: 16,
+  },
+  detailSection: {
+    paddingVertical: 14,
+    gap: 8,
+  },
+  detailSep: {
+    height: 1,
+    backgroundColor: RULE_COLOR,
+    marginBottom: 2,
+  },
+  detailSecTitle: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: INK3,
+    letterSpacing: 2,
+  },
+  detailSecItems: {
+    gap: 6,
+  },
+  detailSecItem: {
+    fontSize: 13,
+    color: INK2,
+    lineHeight: 21,
+  },
+  detailToday: {
+    backgroundColor: '#FFF9E0',
+    padding: 18,
+    marginTop: 12,
+    gap: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#C8A84B',
+  },
+  detailTodayTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: INK2,
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  detailTodayItem: {
+    fontSize: 14,
+    color: INK,
+    lineHeight: 23,
+    fontStyle: 'italic',
   },
 
   // ── Tampons ────────────────────────────────────────────────────────────────
