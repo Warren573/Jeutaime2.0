@@ -322,7 +322,6 @@ const FUN_LEVEL: Record<string, string> = {
 };
 
 const TITLE_MAP: Record<string, string> = {
-  'Mon univers': 'Qui je suis',
   "Ma manière d'aimer": 'Ce que je cherche ici',
   'Ma présence dans les salons': 'Comment je suis vraiment',
 };
@@ -361,8 +360,7 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
           </View>
         </View>
 
-        <View style={np.detailSection}>
-          <View style={np.detailSep} />
+        <View style={[np.detailSection, { paddingTop: 22 }]}>
           <Text style={np.detailSecTitle}>CE QUE JE GÈRE (PLUS OU MOINS BIEN)</Text>
           <View style={np.detailSecItems}>
             {profile.game.badges.map((b) => (
@@ -374,7 +372,7 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
 
         <View style={np.detailSection}>
           <View style={np.detailSep} />
-          <Text style={np.detailSecTitle}>MES QUALITÉS (ET MES PETITS DÉFAUTS)</Text>
+          <Text style={np.detailSecTitle}>MES PETITS + ET MES PETITS −</Text>
           <View style={np.detailSecItems}>
             {profile.descriptors.map((d) => (
               <Text key={d} style={np.detailSecItem}>— {d}</Text>
@@ -400,7 +398,7 @@ function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack:
         })}
 
         <View style={np.detailToday}>
-          <Text style={np.detailTodayTitle}>📝 Aujourd'hui</Text>
+          <Text style={np.detailTodayTitle}>Journée idéale</Text>
           {profile.today.map((line, i) => (
             <Text key={i} style={np.detailTodayItem}>{line}</Text>
           ))}
@@ -802,24 +800,25 @@ const np = StyleSheet.create({
     lineHeight: 21,
   },
   detailToday: {
-    backgroundColor: '#FFF9E0',
-    padding: 18,
-    marginTop: 12,
-    gap: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#C8A84B',
+    backgroundColor: '#FFFBF0',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    marginTop: 24,
+    marginLeft: 6,
+    gap: 12,
   },
   detailTodayTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: INK2,
-    letterSpacing: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: INK3,
+    fontStyle: 'italic',
+    letterSpacing: 0.5,
     marginBottom: 2,
   },
   detailTodayItem: {
-    fontSize: 14,
-    color: INK,
-    lineHeight: 23,
+    fontSize: 15,
+    color: INK2,
+    lineHeight: 25,
     fontStyle: 'italic',
   },
 
