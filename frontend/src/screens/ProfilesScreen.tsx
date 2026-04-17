@@ -9,9 +9,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 import type { Match } from '../shared/types';
-import { AvatarRenderer } from '../avatar/components/AvatarRenderer';
 import { AvatarDefinition } from '../avatar/types/avatarTypes';
-import { MOCK_PROFILE_AVATARS, MOCK_AVATAR_DEFAULT } from '../avatar/data/mockAvatars';
+import { MOCK_PROFILE_AVATARS } from '../avatar/data/mockAvatars';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 
@@ -276,52 +275,33 @@ function Masthead({
   );
 }
 
-/** À la une — bloc titre du profil */
+/** À la une — texte en premier, avatar secondaire */
 function ProfileHero({ profile }: { profile: DiscoveryProfile }) {
-  const compatColor = profile.compatibility >= 85 ? RED_INK
-    : profile.compatibility >= 70 ? '#5A7A2E' : INK3;
-  const compatLabel = profile.compatibility >= 85 ? 'Excellente correspondance'
-    : profile.compatibility >= 70 ? 'Bonne correspondance' : 'Correspondance à explorer';
-
   return (
     <View style={np.heroCard}>
-      {/* Avatar centré dans un cadre à la couleur du profil */}
-      <View style={[np.avatarFrame, { backgroundColor: profile.avatarBg }]}>
-        {profile.avatarDef
-          ? <AvatarRenderer avatar={profile.avatarDef} size={108} />
-          : <Avatar size={108} {...DEFAULT_AVATAR} />
-        }
-      </View>
+      <Text style={np.heroKicker}>— À LA UNE —</Text>
+      <Rule style={{ marginBottom: 10 }} />
 
-      {/* Identité */}
-      <Text style={np.heroName}>{profile.name.toUpperCase()}</Text>
-      <Text style={np.heroDateline}>{profile.city.toUpperCase()} · {profile.age} ANS</Text>
-      <Text style={np.heroVibe}>{profile.mainVibe}</Text>
+      <Text style={np.heroQuoteOpen}>«</Text>
+      <Text style={np.heroQuoteText}>{profile.quote}</Text>
+      <Text style={[np.heroQuoteOpen, np.heroQuoteClose]}>»</Text>
 
-      {/* Descripteurs en pills */}
-      <View style={np.descriptorsRow}>
-        {profile.descriptors.map((d) => (
-          <View key={d} style={np.descriptorChip}>
-            <Text style={np.descriptorChipText}>{d.toUpperCase()}</Text>
-          </View>
-        ))}
-      </View>
+      <Rule style={{ marginTop: 10 }} />
 
-      {/* Affinité avec barre de progression */}
-      <View style={np.compatBlock}>
-        <DoubleRule />
-        <View style={np.compatRow}>
-          <Text style={np.compatKicker}>AFFINITÉ</Text>
-          <Text style={[np.compatPct, { color: compatColor }]}>{profile.compatibility}%</Text>
-          <Text style={np.compatDesc}>{compatLabel}</Text>
+      <View style={np.heroBottom}>
+        <View style={[np.heroAvatarWrap, { backgroundColor: profile.avatarBg }]}>
+          <Avatar size={46} {...DEFAULT_AVATAR} />
         </View>
-        <View style={np.compatRail}>
-          <View style={[np.compatFill, {
-            width: `${profile.compatibility}%` as any,
-            backgroundColor: compatColor,
-          }]} />
+        <View style={np.heroIdentity}>
+          <Text style={np.heroName}>{profile.name.toUpperCase()}</Text>
+          <Text style={np.heroDateline}>{profile.city} · {profile.age} ans</Text>
+          <Text style={np.heroVibe}>{profile.mainVibe}</Text>
         </View>
       </View>
+
+      <TouchableOpacity style={np.heroDiscover} activeOpacity={0.7}>
+        <Text style={np.heroDiscoverText}>Découvrir le profil →</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -648,95 +628,83 @@ const np = StyleSheet.create({
     borderWidth: 1,
     borderColor: RULE_COLOR,
     padding: 20,
-    alignItems: 'center',
-    gap: 8,
     marginBottom: 10,
   },
-  avatarFrame: {
-    width: 128,
-    height: 128,
-    borderRadius: 12,
+  heroKicker: {
+    fontSize: 9,
+    color: INK3,
+    letterSpacing: 2.5,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  heroQuoteOpen: {
+    fontSize: 44,
+    color: RED_INK,
+    fontWeight: '900',
+    lineHeight: 44,
+    alignSelf: 'flex-start',
+  },
+  heroQuoteClose: {
+    alignSelf: 'flex-end',
+    marginTop: -8,
+  },
+  heroQuoteText: {
+    fontSize: 18,
+    color: INK,
+    fontStyle: 'italic',
+    lineHeight: 28,
+    paddingHorizontal: 4,
+    marginVertical: 4,
+  },
+  heroBottom: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
+    marginTop: 12,
     marginBottom: 4,
-    borderWidth: 2,
+  },
+  heroAvatarWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 8,
+    borderWidth: 1,
     borderColor: RULE_COLOR,
     overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroIdentity: {
+    flex: 1,
+    gap: 2,
   },
   heroName: {
-    fontSize: 30,
+    fontSize: 15,
     fontWeight: '900',
     color: INK,
-    letterSpacing: 3,
-    textAlign: 'center',
+    letterSpacing: 2,
   },
   heroDateline: {
     fontSize: 10,
     color: RED_INK,
-    letterSpacing: 2.5,
+    letterSpacing: 1.5,
     fontWeight: '700',
   },
   heroVibe: {
-    fontSize: 13,
-    color: INK2,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  descriptorsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  descriptorChip: {
-    borderWidth: 1,
-    borderColor: INK,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  descriptorChipText: {
-    fontSize: 8,
-    fontWeight: '800',
-    color: INK,
-    letterSpacing: 1.5,
-  },
-  compatBlock: {
-    width: '100%',
-    gap: 6,
-    marginTop: 4,
-  },
-  compatRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 6,
-  },
-  compatKicker: {
-    fontSize: 8,
-    color: INK3,
-    letterSpacing: 2,
-    fontWeight: '700',
-  },
-  compatPct: {
-    fontSize: 26,
-    fontWeight: '900',
-    letterSpacing: -1,
-  },
-  compatDesc: {
     fontSize: 11,
     color: INK2,
     fontStyle: 'italic',
-    flex: 1,
   },
-  compatRail: {
-    height: 4,
-    backgroundColor: RULE_COLOR,
-    overflow: 'hidden',
+  heroDiscover: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
   },
-  compatFill: {
-    height: '100%',
+  heroDiscoverText: {
+    fontSize: 11,
+    color: INK3,
+    fontStyle: 'italic',
+    letterSpacing: 0.5,
+    textDecorationLine: 'underline',
   },
 
   // ── Tampons ────────────────────────────────────────────────────────────────
