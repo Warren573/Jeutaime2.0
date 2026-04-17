@@ -275,7 +275,7 @@ function Masthead({
   );
 }
 
-function ProfileHero({ profile }: { profile: DiscoveryProfile }) {
+function ProfileHero({ profile, onDiscover }: { profile: DiscoveryProfile; onDiscover?: () => void }) {
   return (
     <View style={np.heroWrap}>
       {/* Identité */}
@@ -294,9 +294,67 @@ function ProfileHero({ profile }: { profile: DiscoveryProfile }) {
       <Text style={np.heroQuote}>"{profile.quote}"</Text>
 
       {/* Lien discret */}
-      <TouchableOpacity activeOpacity={0.6}>
+      <TouchableOpacity activeOpacity={0.6} onPress={onDiscover}>
         <Text style={np.discoverLink}>Découvrir le profil →</Text>
       </TouchableOpacity>
+    </View>
+  );
+}
+
+function ProfileDetail({ profile, onBack }: { profile: DiscoveryProfile; onBack: () => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[np.screen, { paddingTop: insets.top }]}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32, paddingHorizontal: 12 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableOpacity style={np.detailBack} onPress={onBack}>
+          <Text style={np.detailBackText}>← Seconde chance</Text>
+        </TouchableOpacity>
+
+        <View style={np.detailHeader}>
+          <View style={np.polaroid}>
+            <Avatar size={56} {...DEFAULT_AVATAR} />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={np.heroName}>{profile.name}, {profile.age}</Text>
+            <Text style={np.heroSwash}>〜〜〜〜〜〜〜</Text>
+            <Text style={np.heroVibe}>{profile.mainVibe}</Text>
+          </View>
+        </View>
+
+        <Column section={profile.sections[0]} />
+
+        <View style={np.infoBox}>
+          <DoubleRule />
+          <Text style={np.infoBoxTitle}>✦  COMPÉTENCES (version fun)</Text>
+          <Rule />
+          <View style={np.columnItems}>
+            {profile.game.badges.map((b) => (
+              <Text key={b} style={np.columnItem}>— {b} · niv. {profile.game.level}</Text>
+            ))}
+            <Text style={np.columnItem}>— Animal totem : {profile.game.petEmoji} {profile.game.pet}</Text>
+          </View>
+        </View>
+
+        <View style={np.column}>
+          <DoubleRule />
+          <Text style={np.columnTitle}>✦  QUALITÉS & DÉFAUTS</Text>
+          <Rule />
+          <View style={np.columnItems}>
+            {profile.descriptors.map((d) => (
+              <Text key={d} style={np.columnItem}>— {d}</Text>
+            ))}
+          </View>
+        </View>
+
+        <Stamps tags={profile.tags} />
+
+        {profile.sections.slice(1).map((s) => (
+          <Column key={s.title} section={s} />
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -457,6 +515,7 @@ export default function ProfilesScreen() {
   const screenBg = useStore(s => s.screenBackgrounds?.['profiles'] ?? OLD_BG);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showMatch, setShowMatch] = useState<string | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
 
   const availableProfiles = profiles.filter(
     (p) => !likedProfiles.includes(p.id) && !dislikedProfiles.includes(p.id)
@@ -514,6 +573,10 @@ export default function ProfilesScreen() {
     );
   }
 
+  if (showDetail) {
+    return <ProfileDetail profile={profile} onBack={() => setShowDetail(false)} />;
+  }
+
   return (
     <View style={[np.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <ScrollView
@@ -521,7 +584,7 @@ export default function ProfilesScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}
       >
-        <ProfileHero profile={profile} />
+        <ProfileHero profile={profile} onDiscover={() => setShowDetail(true)} />
       </ScrollView>
 
       {/* Barre d'actions */}
@@ -644,6 +707,25 @@ const np = StyleSheet.create({
     fontStyle: 'italic',
     letterSpacing: 0.3,
     alignSelf: 'flex-end',
+  },
+
+  // ── Vue détaillée ─────────────────────────────────────────────────────────
+  detailBack: {
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  detailBackText: {
+    fontSize: 13,
+    color: INK3,
+    fontStyle: 'italic',
+    letterSpacing: 0.3,
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    gap: 16,
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingBottom: 16,
   },
 
   // ── Tampons ────────────────────────────────────────────────────────────────
