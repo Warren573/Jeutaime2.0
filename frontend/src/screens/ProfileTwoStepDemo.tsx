@@ -294,6 +294,7 @@ export default function ProfilesScreen() {
 
                 <View style={styles.idealDayCard}>
                   <View style={styles.tapeTape} />
+                  <View style={styles.tapeTapeAlt} />
                   {profile.idealDay.map((line) => (
                     <Text key={line} style={styles.idealDayLine}>
                       {line}
@@ -854,6 +855,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8D8C2",
     borderRadius: 2,
     transform: [{ rotate: "8deg" }],
+  },
+
+  tapeTapeAlt: {
+    position: "absolute",
+    left: 20,
+    bottom: -8,
+    width: 42,
+    height: 16,
+    backgroundColor: "#E8D8C2",
+    borderRadius: 2,
+    transform: [{ rotate: "-8deg" }],
   },
 
   idealDayLine: {
