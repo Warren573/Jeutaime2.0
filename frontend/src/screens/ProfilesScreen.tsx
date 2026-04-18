@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
+import ProfileTwoStepDemo from "../screens/ProfileTwoStepDemo";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 import type { Match } from '../shared/types';
@@ -555,6 +556,10 @@ function MailSection({ letters }: { letters: DiscoveryProfile['letters'] }) {
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 
 export default function ProfilesScreen() {
+  return <ProfileTwoStepDemo />;
+}
+
+function ProfilesScreenFull() {
   const insets = useSafeAreaInsets();
   const { likedProfiles, dislikedProfiles, addLike, addDislike, addMatch, currentUser } = useStore();
   const screenBg = useStore(s => s.screenBackgrounds?.['profiles'] ?? OLD_BG);
