@@ -151,7 +151,7 @@ export default function ProfilesScreen() {
 
             <View style={styles.stageOneHeader}>
               <View style={styles.photoCard}>
-                <View style={styles.photoPin} />
+                <View style={styles.photoTape} />
                 <Avatar size={96} {...DEFAULT_AVATAR} />
               </View>
 
@@ -395,13 +395,21 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
-  photoPin: {
+  photoTape: {
     position: "absolute",
-    top: 8,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: "#9D695D",
+    top: -8,
+    left: 30,
+    width: 52,
+    height: 16,
+    backgroundColor: "#E8D8BE",
+    borderRadius: 3,
+    opacity: 0.88,
+    transform: [{ rotate: "-4deg" }],
+    zIndex: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
   },
 
   stageOneHeaderText: {
@@ -410,18 +418,18 @@ const styles = StyleSheet.create({
   },
 
   stageOneName: {
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 22,
+    lineHeight: 26,
     fontWeight: "800",
     color: INK,
-    marginBottom: 6,
+    marginBottom: 5,
   },
 
   stageOneVibe: {
-    fontSize: 16,
+    fontSize: 14,
     color: INK_SOFT,
     fontStyle: "italic",
-    marginBottom: 8,
+    marginBottom: 6,
   },
 
   arrowLineWrap: {
@@ -435,11 +443,11 @@ const styles = StyleSheet.create({
   },
 
   stageOneBlabla: {
-    fontSize: 23,
-    lineHeight: 38,
+    fontSize: 16,
+    lineHeight: 26,
     color: INK,
     marginBottom: 14,
-    letterSpacing: -0.2,
+    letterSpacing: -0.1,
   },
 
   discoverWrap: {
@@ -448,7 +456,7 @@ const styles = StyleSheet.create({
   },
 
   discoverLink: {
-    fontSize: 18,
+    fontSize: 15,
     color: "#9C7A4D",
     fontWeight: "600",
   },
@@ -463,7 +471,7 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     borderRadius: 18,
-    paddingVertical: 13,
+    paddingVertical: 12,
     alignItems: "center",
     borderWidth: 1,
   },
@@ -484,7 +492,7 @@ const styles = StyleSheet.create({
   },
 
   actionText: {
-    fontSize: 17,
+    fontSize: 15,
     color: INK,
     fontWeight: "700",
   },
