@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: LINE,
     paddingHorizontal: 18,
-    paddingVertical: 18,
+    paddingVertical: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 10,
   },
 
   topBarTitle: {
@@ -381,12 +381,12 @@ const styles = StyleSheet.create({
   stageOneHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: 18,
+    marginBottom: 14,
   },
 
   photoCard: {
-    width: 126,
-    height: 156,
+    width: 112,
+    height: 138,
     borderRadius: 12,
     backgroundColor: "#FFF",
     borderWidth: 1,
@@ -416,18 +416,18 @@ const styles = StyleSheet.create({
   },
 
   stageOneName: {
-    fontSize: 34,
-    lineHeight: 38,
+    fontSize: 30,
+    lineHeight: 34,
     fontWeight: "800",
     color: INK,
-    marginBottom: 8,
+    marginBottom: 6,
   },
 
   stageOneVibe: {
-    fontSize: 18,
+    fontSize: 16,
     color: INK_SOFT,
     fontStyle: "italic",
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   arrowLineWrap: {
@@ -441,16 +441,16 @@ const styles = StyleSheet.create({
   },
 
   stageOneBlabla: {
-    fontSize: 26,
-    lineHeight: 43,
+    fontSize: 23,
+    lineHeight: 38,
     color: INK,
-    marginBottom: 18,
+    marginBottom: 14,
     letterSpacing: -0.2,
   },
 
   discoverWrap: {
     alignSelf: "flex-start",
-    marginBottom: 18,
+    marginBottom: 12,
   },
 
   discoverLink: {
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     borderRadius: 18,
-    paddingVertical: 16,
+    paddingVertical: 13,
     alignItems: "center",
     borderWidth: 1,
   },
@@ -536,7 +536,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E3D3BC",
     paddingHorizontal: 18,
-    paddingVertical: 18,
+    paddingVertical: 22,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
@@ -548,17 +548,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 20,
+    marginBottom: 26,
   },
 
   journalTitleWrap: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: 14,
   },
 
   journalMainTitle: {
-    fontSize: 32,
-    lineHeight: 36,
+    fontSize: 30,
+    lineHeight: 38,
     color: INK,
     fontWeight: "700",
   },
@@ -566,22 +566,21 @@ const styles = StyleSheet.create({
   journalUnderline: {
     fontSize: 16,
     color: "#A98668",
-    marginTop: -6,
-    marginBottom: 10,
+    marginTop: -4,
+    marginBottom: 14,
   },
 
   journalQuote: {
-    fontSize: 18,
-    lineHeight: 30,
+    fontSize: 16,
+    lineHeight: 26,
     color: INK_SOFT,
     fontStyle: "italic",
-    maxWidth: 210,
   },
 
   polaWrap: {
-    width: 118,
+    width: 112,
     alignItems: "center",
-    marginTop: 4,
+    marginTop: 6,
   },
 
   polaTape: {
@@ -614,7 +613,7 @@ const styles = StyleSheet.create({
 
   polaCaption: {
     marginTop: 6,
-    fontSize: 18,
+    fontSize: 14,
     color: INK_SOFT,
     fontStyle: "italic",
   },
@@ -638,7 +637,7 @@ const styles = StyleSheet.create({
   identityTagsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 8,
   },
 
   identityChip: {
@@ -646,28 +645,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#DECDB5",
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
   },
 
   identityChipText: {
-    fontSize: 15,
+    fontSize: 13,
     color: INK_SOFT,
     fontWeight: "600",
   },
 
   intentNote: {
     backgroundColor: "#F3E2C7",
-    borderRadius: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderWidth: 1,
     borderColor: "#E1CBA8",
+    borderLeftWidth: 4,
+    borderLeftColor: "#C4906A",
     position: "relative",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
 
@@ -850,7 +851,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2C9C5",
     paddingHorizontal: 18,
-    paddingVertical: 18,
+    paddingVertical: 20,
     position: "relative",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
@@ -871,9 +872,10 @@ const styles = StyleSheet.create({
   },
 
   idealDayLine: {
-    fontSize: 17,
-    lineHeight: 30,
-    color: INK,
-    marginBottom: 6,
+    fontSize: 16,
+    lineHeight: 36,
+    color: "#3A2410",
+    fontStyle: "italic",
+    marginBottom: 2,
   },
 });
