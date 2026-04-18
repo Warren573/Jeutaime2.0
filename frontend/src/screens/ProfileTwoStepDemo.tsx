@@ -196,12 +196,6 @@ export default function ProfilesScreen() {
           </Pressable>
 
           <View style={styles.journalShell}>
-            <View style={styles.spiralColumn}>
-              {Array.from({ length: 14 }).map((_, i) => (
-                <View key={i} style={styles.spiralRing} />
-              ))}
-            </View>
-
             <View style={styles.journalPage}>
               <View style={styles.journalHero}>
                 <View style={styles.journalTitleWrap}>
@@ -509,24 +503,7 @@ const styles = StyleSheet.create({
   },
 
   journalShell: {
-    flexDirection: "row",
-    alignItems: "stretch",
-  },
-
-  spiralColumn: {
-    width: 18,
-    alignItems: "center",
-    paddingTop: 16,
-    marginRight: 6,
-  },
-
-  spiralRing: {
-    width: 10,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "#3C2A20",
-    marginBottom: 10,
+    flex: 1,
   },
 
   journalPage: {
