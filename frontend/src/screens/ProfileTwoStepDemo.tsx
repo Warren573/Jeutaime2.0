@@ -6,56 +6,65 @@ import {
   ScrollView,
   Pressable,
 } from "react-native";
-
 import { Avatar } from "../avatar/png/Avatar";
 import { DEFAULT_AVATAR } from "../avatar/png/defaults";
+
+function JournalSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={s.section}>
+      <Text style={s.sectionTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+function Line({ text }: { text: string }) {
+  return <Text style={s.freeLine}>{text}</Text>;
+}
 
 export default function ProfileTwoStepDemo() {
   const [step, setStep] = useState<1 | 2>(1);
 
-  const profile = {
-    firstName: "Sophie",
-    age: 28,
-    city: "Paris",
-    vibe: "Romantique curieuse",
-    bio:
-      "Je crois qu'on se comprend mieux autour d'un plat qu'on a cuisiné ensemble. J'aime les gens qui savent écrire une vraie phrase, rire un peu d'eux-mêmes, et rester quand la conversation devient intéressante.",
-  };
-
   if (step === 1) {
     return (
-      <View style={styles.container}>
-        <View style={styles.card}>
-          <View style={styles.header}>
-            <View style={styles.avatarFrame}>
-              <Avatar {...DEFAULT_AVATAR} size={56} />
+      <View style={s.screen}>
+        <View style={s.stage1}>
+          <View style={s.card}>
+            <View style={s.cardHeader}>
+              <View style={s.avatarFrame}>
+                <Avatar {...DEFAULT_AVATAR} size={58} />
+              </View>
+              <View style={s.cardHeaderText}>
+                <Text style={s.name}>Sophie, 28</Text>
+                <Text style={s.vibe}>Romantique curieuse</Text>
+                <Text style={s.city}>Paris</Text>
+              </View>
             </View>
 
-            <View>
-              <Text style={styles.name}>
-                {profile.firstName}, {profile.age}
-              </Text>
-              <Text style={styles.meta}>
-                {profile.city} · {profile.vibe}
-              </Text>
-            </View>
-          </View>
+            <Text style={s.bio}>
+              Je crois qu'on se comprend mieux autour d'un plat qu'on a cuisiné
+              ensemble. J'aime les gens qui savent écrire une vraie phrase, rire
+              un peu d'eux-mêmes, et rester quand la conversation devient
+              intéressante.
+            </Text>
 
-          <Text style={styles.bio}>{profile.bio}</Text>
+            <Pressable onPress={() => setStep(2)} style={s.linkWrap}>
+              <Text style={s.link}>Découvrir le profil →</Text>
+            </Pressable>
 
-          <Pressable onPress={() => setStep(2)}>
-            <Text style={styles.link}>Découvrir le profil →</Text>
-          </Pressable>
-
-          <View style={styles.actions}>
-            <View style={styles.btnBad}>
-              <Text>😬 Grimace</Text>
-            </View>
-            <View style={styles.btnNeutral}>
-              <Text>🚩 Signaler</Text>
-            </View>
-            <View style={styles.btnGood}>
-              <Text>😊 Sourire</Text>
+            <View style={s.actions}>
+              <Pressable style={s.btnBad}>
+                <Text style={s.btnEmoji}>😬</Text>
+                <Text style={s.btnText}>Grimace</Text>
+              </Pressable>
+              <Pressable style={s.btnNeutral}>
+                <Text style={s.btnEmoji}>🚩</Text>
+                <Text style={s.btnText}>Signaler</Text>
+              </Pressable>
+              <Pressable style={s.btnGood}>
+                <Text style={s.btnEmoji}>😊</Text>
+                <Text style={s.btnText}>Sourire</Text>
+              </Pressable>
             </View>
           </View>
         </View>
@@ -64,186 +73,302 @@ export default function ProfileTwoStepDemo() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={s.screen} contentContainerStyle={s.stage2}>
       <Pressable onPress={() => setStep(1)}>
-        <Text style={styles.back}>← Seconde chance</Text>
+        <Text style={s.back}>← Seconde chance</Text>
       </Pressable>
 
-      <View style={styles.detailHeader}>
-        <View style={styles.avatarFrameBig}>
-          <Avatar {...DEFAULT_AVATAR} size={64} />
+      <View style={s.detailHeader}>
+        <View style={s.avatarFrameSmall}>
+          <Avatar {...DEFAULT_AVATAR} size={44} />
         </View>
-
         <View>
-          <Text style={styles.name}>
-            {profile.firstName}, {profile.age}
-          </Text>
-          <Text style={styles.meta}>{profile.vibe}</Text>
+          <Text style={s.detailName}>Sophie, 28</Text>
+          <Text style={s.vibe}>Romantique curieuse</Text>
         </View>
       </View>
 
-      <Text style={styles.quote}>
-        "Un mélange de sérieux et d'autodérision."
-      </Text>
+      <Text style={s.quote}>"Un mélange de sérieux et d'autodérision."</Text>
 
-      <View style={styles.sectionHighlight}>
-        <Text style={styles.sectionTitle}>Ce que je cherche ici</Text>
-        <Text style={styles.text}>
+      <View style={s.highlight}>
+        <Text style={s.highlightTitle}>Ce que je cherche ici</Text>
+        <Text style={s.highlightText}>
           Quelqu'un avec qui écrire plus de 10 lettres sans disparaître.
           Une vraie histoire, pas juste un passage rapide.
         </Text>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Mon univers</Text>
-        <Text style={styles.text}>— Voyages lointains</Text>
-        <Text style={styles.text}>— Cinéma d'auteur</Text>
-        <Text style={styles.text}>— Cuisine du monde</Text>
-      </View>
+      <JournalSection title="Mon univers">
+        <Line text="— Voyages lointains" />
+        <Line text="— Cinéma d'auteur" />
+        <Line text="— Cuisine du monde" />
+      </JournalSection>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Compétences (version fun)</Text>
-        <Text style={styles.text}>Communication — répond vraiment</Text>
-        <Text style={styles.text}>Cuisine — maîtrise les pâtes</Text>
-        <Text style={styles.text}>Organisation — procrastination pro</Text>
-      </View>
+      <JournalSection title="Compétences (version fun)">
+        <Line text="Communication — répond vraiment" />
+        <Line text="Cuisine — maîtrise les pâtes" />
+        <Line text="Organisation — procrastination pro" />
+      </JournalSection>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Mes petits + et −</Text>
-        <Text style={styles.text}>+ Douce</Text>
-        <Text style={styles.text}>+ Attentionnée</Text>
-        <Text style={styles.text}>− Têtue parfois</Text>
-      </View>
+      <JournalSection title="Mes petits + et −">
+        <Line text="+ Douce" />
+        <Line text="+ Attentionnée" />
+        <Line text="− Têtue parfois" />
+      </JournalSection>
 
-      <View style={styles.sectionJournal}>
-        <Text style={styles.sectionTitle}>Journée idéale</Text>
-        <Text style={styles.text}>08:00 → café tranquille</Text>
-        <Text style={styles.text}>
-          19:00 → rire avec quelqu'un (ou Netflix)
-        </Text>
-        <Text style={styles.text}>
-          23:00 → discuter jusqu'à oublier l'heure
-        </Text>
+      <JournalSection title="Comment je suis vraiment">
+        <Line text="— Je ris facilement" />
+        <Line text="— J'écoute vraiment" />
+        <Line text="— Je me souviens des détails" />
+      </JournalSection>
+
+      <View style={s.journalCard}>
+        <Text style={s.journalTitle}>Journée idéale</Text>
+        <Text style={s.journalLine}>08:00 → café tranquille + émerger doucement</Text>
+        <Text style={s.journalLine}>19:00 → rire avec quelqu'un (ou Netflix, soyons honnêtes)</Text>
+        <Text style={s.journalLine}>23:00 → discuter jusqu'à oublier l'heure</Text>
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const s = StyleSheet.create({
+  screen: {
     flex: 1,
-    backgroundColor: "#F5EBDD",
-    padding: 16,
+    backgroundColor: "#EFE3D3",
+  },
+
+  // ── PARTIE 1 ──────────────────────────────────────────────
+
+  stage1: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 18,
   },
 
   card: {
-    backgroundColor: "#F8F1E4",
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: "#F6EBDD",
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    shadowColor: "#4A2C00",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 4,
   },
 
-  header: {
+  cardHeader: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 12,
+    alignItems: "center",
+    gap: 14,
+    marginBottom: 18,
+  },
+
+  cardHeaderText: {
+    flex: 1,
   },
 
   avatarFrame: {
     backgroundColor: "#FFF",
     padding: 6,
-    borderRadius: 10,
-  },
-
-  avatarFrameBig: {
-    backgroundColor: "#FFF",
-    padding: 8,
-    borderRadius: 12,
+    borderRadius: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
   },
 
   name: {
-    fontSize: 20,
-    fontWeight: "600",
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#2B1E14",
+    lineHeight: 26,
   },
 
-  meta: {
+  vibe: {
+    fontSize: 14,
     fontStyle: "italic",
-    color: "#7a6f63",
+    color: "#8A7763",
+    marginTop: 3,
+  },
+
+  city: {
+    fontSize: 13,
+    color: "#A8917A",
+    marginTop: 2,
   },
 
   bio: {
-    fontSize: 18,
-    marginVertical: 12,
+    fontSize: 20,
+    lineHeight: 32,
+    color: "#2B1E14",
+    marginBottom: 20,
+    letterSpacing: -0.2,
+  },
+
+  linkWrap: {
+    marginBottom: 22,
   },
 
   link: {
-    color: "#8a6f4d",
-    marginBottom: 16,
+    color: "#9C7A4D",
+    fontSize: 15,
+    fontWeight: "500",
   },
 
   actions: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 8,
   },
 
   btnBad: {
-    backgroundColor: "#F4DADA",
-    padding: 10,
-    borderRadius: 12,
+    flex: 1,
+    backgroundColor: "#F1D9D9",
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignItems: "center",
   },
 
   btnNeutral: {
-    backgroundColor: "#EEE4D6",
-    padding: 10,
-    borderRadius: 12,
+    flex: 1,
+    backgroundColor: "#E9DFD2",
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignItems: "center",
   },
 
   btnGood: {
-    backgroundColor: "#DCEFE1",
-    padding: 10,
-    borderRadius: 12,
+    flex: 1,
+    backgroundColor: "#DDEADF",
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignItems: "center",
+  },
+
+  btnEmoji: {
+    fontSize: 20,
+    marginBottom: 3,
+  },
+
+  btnText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#2B1E14",
+  },
+
+  // ── PARTIE 2 ──────────────────────────────────────────────
+
+  stage2: {
+    padding: 18,
+    paddingBottom: 48,
   },
 
   back: {
-    marginBottom: 16,
-    color: "#7a6f63",
+    color: "#8A7763",
+    fontStyle: "italic",
+    fontSize: 14,
+    marginBottom: 22,
   },
 
   detailHeader: {
     flexDirection: "row",
+    alignItems: "center",
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 22,
+  },
+
+  avatarFrameSmall: {
+    backgroundColor: "#FFF",
+    padding: 5,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  detailName: {
+    fontSize: 19,
+    fontWeight: "700",
+    color: "#2B1E14",
   },
 
   quote: {
+    fontSize: 18,
     fontStyle: "italic",
-    marginBottom: 20,
+    color: "#5C4530",
+    lineHeight: 29,
+    marginBottom: 28,
+    paddingLeft: 2,
+  },
+
+  highlight: {
+    backgroundColor: "#E7D6C1",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    borderRadius: 18,
+    marginBottom: 30,
+  },
+
+  highlightTitle: {
+    fontSize: 16,
+    fontStyle: "italic",
+    fontWeight: "700",
+    color: "#7A5C3E",
+    marginBottom: 10,
+  },
+
+  highlightText: {
+    fontSize: 16,
+    lineHeight: 26,
+    color: "#2B1E14",
   },
 
   section: {
-    marginBottom: 20,
-  },
-
-  sectionHighlight: {
-    backgroundColor: "#F0E4D2",
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 20,
-  },
-
-  sectionJournal: {
-    backgroundColor: "#EAD7C2",
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 40,
+    marginBottom: 26,
   },
 
   sectionTitle: {
+    fontSize: 15,
+    fontStyle: "italic",
     fontWeight: "600",
-    marginBottom: 8,
+    color: "#7A5C3E",
+    marginBottom: 10,
   },
 
-  text: {
-    fontSize: 15,
-    marginBottom: 4,
+  freeLine: {
+    fontSize: 16,
+    lineHeight: 27,
+    color: "#2B1E14",
+    marginBottom: 3,
+  },
+
+  journalCard: {
+    backgroundColor: "#EAD7C2",
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    borderRadius: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: "#C89B5B",
+    marginTop: 6,
+  },
+
+  journalTitle: {
+    fontSize: 16,
+    fontStyle: "italic",
+    fontWeight: "700",
+    color: "#7A5C3E",
+    marginBottom: 14,
+  },
+
+  journalLine: {
+    fontSize: 16,
+    lineHeight: 28,
+    color: "#2B1E14",
+    fontStyle: "italic",
+    marginBottom: 6,
   },
 });
