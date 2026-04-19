@@ -155,6 +155,8 @@ export function EditProfileScreen() {
     return age >= 13 && age < 120 ? age : null;
   })();
 
+  const isLocked = !!currentUser?.birthDate;
+
   const toggleItem = (list: string[], setList: (v: string[]) => void, id: string) => {
     setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
   };
@@ -215,7 +217,14 @@ export function EditProfileScreen() {
         {/* ── Infos de base ── */}
         <SectionCard emoji="📝" title="Informations de base">
           <Text style={styles.inputLabel}>Prénom</Text>
-          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Ton prénom" placeholderTextColor="#B8A082" />
+          {isLocked ? (
+            <View style={styles.lockedField}>
+              <Text style={styles.lockedText}>{name}</Text>
+              <Text style={styles.lockedBadge}>🔒 non modifiable</Text>
+            </View>
+          ) : (
+            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Ton prénom" placeholderTextColor="#B8A082" />
+          )}
 
           <View style={styles.row2}>
             <View style={styles.halfField}>
@@ -229,16 +238,26 @@ export function EditProfileScreen() {
           </View>
 
           <Text style={styles.inputLabel}>Date de naissance</Text>
-          <View style={styles.birthRow}>
-            <TextInput style={[styles.input, styles.birthField]} value={birthDay} onChangeText={setBirthDay} placeholder="JJ" keyboardType="numeric" maxLength={2} placeholderTextColor="#B8A082" />
-            <Text style={styles.birthSep}>/</Text>
-            <TextInput style={[styles.input, styles.birthField]} value={birthMonth} onChangeText={setBirthMonth} placeholder="MM" keyboardType="numeric" maxLength={2} placeholderTextColor="#B8A082" />
-            <Text style={styles.birthSep}>/</Text>
-            <TextInput style={[styles.input, styles.birthFieldYear]} value={birthYear} onChangeText={setBirthYear} placeholder="AAAA" keyboardType="numeric" maxLength={4} placeholderTextColor="#B8A082" />
-            {computedAge !== null && (
-              <Text style={styles.birthAge}>→ {computedAge} ans ✓</Text>
-            )}
-          </View>
+          {isLocked ? (
+            <View style={styles.lockedField}>
+              <Text style={styles.lockedText}>
+                {birthDay}/{birthMonth}/{birthYear}
+                {computedAge !== null ? `  —  ${computedAge} ans` : ''}
+              </Text>
+              <Text style={styles.lockedBadge}>🔒 non modifiable</Text>
+            </View>
+          ) : (
+            <View style={styles.birthRow}>
+              <TextInput style={[styles.input, styles.birthField]} value={birthDay} onChangeText={setBirthDay} placeholder="JJ" keyboardType="numeric" maxLength={2} placeholderTextColor="#B8A082" />
+              <Text style={styles.birthSep}>/</Text>
+              <TextInput style={[styles.input, styles.birthField]} value={birthMonth} onChangeText={setBirthMonth} placeholder="MM" keyboardType="numeric" maxLength={2} placeholderTextColor="#B8A082" />
+              <Text style={styles.birthSep}>/</Text>
+              <TextInput style={[styles.input, styles.birthFieldYear]} value={birthYear} onChangeText={setBirthYear} placeholder="AAAA" keyboardType="numeric" maxLength={4} placeholderTextColor="#B8A082" />
+              {computedAge !== null && (
+                <Text style={styles.birthAge}>→ {computedAge} ans ✓</Text>
+              )}
+            </View>
+          )}
         </SectionCard>
 
         {/* ── Bio ── */}
@@ -443,6 +462,11 @@ const styles = StyleSheet.create({
   chipActive:   { backgroundColor: '#FFF0F7', borderColor: PINK },
   chipDisabled: { opacity: 0.4 },
   chipText:     { fontSize: 13, fontWeight: '600', color: BROWN },
+
+  // Champs verrouillés (création uniquement)
+  lockedField:    { backgroundColor: '#F0EBE3', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, borderWidth: 1, borderColor: '#DDD0BC', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  lockedText:     { fontSize: 15, color: BROWN, fontWeight: '600', flex: 1 },
+  lockedBadge:    { fontSize: 12, color: '#B8A082', marginLeft: 8 },
 
   // Date de naissance
   birthRow:       { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 },
