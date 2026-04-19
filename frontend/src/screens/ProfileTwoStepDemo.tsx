@@ -35,7 +35,7 @@ const ENFANTS_LABEL: Record<string, { emoji: string; label: string }> = {
   reflexion:  { emoji: "🤔", label: "En réflexion" },
   non_moment: { emoji: "⏳", label: "Pas pour le moment" },
   non:        { emoji: "🙅", label: "Ne veut pas d'enfants" },
-  cactus:     { emoji: "🌵", label: "Compte se lancer dans l'élevage de cactus" },
+  pingouins:  { emoji: "🐧", label: "Compte se lancer dans l'élevage de pingouins" },
 };
 
 type ProfileData = {

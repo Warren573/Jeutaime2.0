@@ -30,7 +30,7 @@ const ENFANTS_OPTIONS = [
   { id: 'reflexion',  emoji: '🤔', label: 'En réflexion',                               sub: 'les pour et les contre'  },
   { id: 'non_moment', emoji: '⏳', label: 'Pas pour le moment',                         sub: 'on verra plus tard'      },
   { id: 'non',        emoji: '🙅', label: "Ne veut pas d'enfants",                      sub: "c'est décidé"            },
-  { id: 'cactus',     emoji: '🌵', label: "Compte se lancer dans l'élevage de cactus",  sub: 'moins de caprices'       },
+  { id: 'pingouins',  emoji: '🐧', label: "Compte se lancer dans l'élevage de pingouins", sub: "c'est ambitieux"         },
 ];
 
 // ─── Préférences rencontre ────────────────────────────────────────────────────
@@ -124,8 +124,17 @@ export function EditProfileScreen() {
   const { currentUser, setCurrentUser, avatarPngConfig } = useStore();
 
   const [name,        setName]        = useState(currentUser?.name        ?? '');
-  const [age,         setAge]         = useState(String(currentUser?.age  ?? ''));
   const [city,        setCity]        = useState(currentUser?.city        ?? '');
+
+  const parsedBirth = (() => {
+    const bd = currentUser?.birthDate;
+    if (!bd) return { d: '', m: '', y: '' };
+    const [y, m, d] = bd.split('-');
+    return { d: d ?? '', m: m ?? '', y: y ?? '' };
+  })();
+  const [birthDay,   setBirthDay]   = useState(parsedBirth.d);
+  const [birthMonth, setBirthMonth] = useState(parsedBirth.m);
+  const [birthYear,  setBirthYear]  = useState(parsedBirth.y);
   const [bio,         setBio]         = useState(currentUser?.bio         ?? '');
   const [height,      setHeight]      = useState(String(currentUser?.height   ?? ''));
   const [children,    setChildren]    = useState(currentUser?.children  ?? '');
@@ -137,6 +146,15 @@ export function EditProfileScreen() {
     (currentUser?.questions as Question[] | undefined) ?? [EMPTY_QUESTION(), EMPTY_QUESTION(), EMPTY_QUESTION()]
   );
 
+  const computedAge = (() => {
+    const d = parseInt(birthDay), m = parseInt(birthMonth), y = parseInt(birthYear);
+    if (!d || !m || !y || y < 1900 || y > new Date().getFullYear()) return null;
+    const today = new Date();
+    let age = today.getFullYear() - y;
+    if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) age--;
+    return age >= 13 && age < 120 ? age : null;
+  })();
+
   const toggleItem = (list: string[], setList: (v: string[]) => void, id: string) => {
     setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
   };
@@ -144,10 +162,15 @@ export function EditProfileScreen() {
   const handleSave = () => {
     if (!name.trim()) { Alert.alert('Manque', 'Renseigne ton prénom.'); return; }
     if (bio.trim().length < 50) { Alert.alert('Bio trop courte', 'Min 50 caractères.'); return; }
+    const birthDate = birthYear && birthMonth && birthDay
+      ? `${birthYear}-${birthMonth.padStart(2, '0')}-${birthDay.padStart(2, '0')}`
+      : currentUser?.birthDate;
+
     setCurrentUser({
       ...(currentUser as any),
       name: name.trim(),
-      age: parseInt(age) || currentUser?.age,
+      birthDate,
+      age: computedAge ?? currentUser?.age,
       bio: bio.trim(),
       city: city.trim(),
       height: parseInt(height) || currentUser?.height,
@@ -196,10 +219,6 @@ export function EditProfileScreen() {
 
           <View style={styles.row2}>
             <View style={styles.halfField}>
-              <Text style={styles.inputLabel}>Âge</Text>
-              <TextInput style={styles.input} value={age} onChangeText={setAge} placeholder="Ex: 28" keyboardType="numeric" placeholderTextColor="#B8A082" />
-            </View>
-            <View style={[styles.halfField, { marginLeft: 12 }]}>
               <Text style={styles.inputLabel}>Ville</Text>
               <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Ex: Paris" placeholderTextColor="#B8A082" />
             </View>
@@ -207,6 +226,18 @@ export function EditProfileScreen() {
               <Text style={styles.inputLabel}>Taille (cm)</Text>
               <TextInput style={styles.input} value={height} onChangeText={setHeight} placeholder="Ex: 168" keyboardType="numeric" placeholderTextColor="#B8A082" />
             </View>
+          </View>
+
+          <Text style={styles.inputLabel}>Date de naissance</Text>
+          <View style={styles.birthRow}>
+            <TextInput style={[styles.input, styles.birthField]} value={birthDay} onChangeText={setBirthDay} placeholder="JJ" keyboardType="numeric" maxLength={2} placeholderTextColor="#B8A082" />
+            <Text style={styles.birthSep}>/</Text>
+            <TextInput style={[styles.input, styles.birthField]} value={birthMonth} onChangeText={setBirthMonth} placeholder="MM" keyboardType="numeric" maxLength={2} placeholderTextColor="#B8A082" />
+            <Text style={styles.birthSep}>/</Text>
+            <TextInput style={[styles.input, styles.birthFieldYear]} value={birthYear} onChangeText={setBirthYear} placeholder="AAAA" keyboardType="numeric" maxLength={4} placeholderTextColor="#B8A082" />
+            {computedAge !== null && (
+              <Text style={styles.birthAge}>→ {computedAge} ans ✓</Text>
+            )}
           </View>
         </SectionCard>
 
@@ -412,6 +443,13 @@ const styles = StyleSheet.create({
   chipActive:   { backgroundColor: '#FFF0F7', borderColor: PINK },
   chipDisabled: { opacity: 0.4 },
   chipText:     { fontSize: 13, fontWeight: '600', color: BROWN },
+
+  // Date de naissance
+  birthRow:       { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 },
+  birthField:     { width: 52, textAlign: 'center', paddingHorizontal: 8 },
+  birthFieldYear: { width: 76, textAlign: 'center', paddingHorizontal: 8 },
+  birthSep:       { fontSize: 18, color: '#B8A082', fontWeight: '700' },
+  birthAge:       { fontSize: 14, color: '#4CAF50', fontWeight: '700', marginLeft: 4, flex: 1 },
 
   // Save button
   saveBtn:     { backgroundColor: PINK, borderRadius: 20, padding: 20, alignItems: 'center', marginTop: 8, marginBottom: 20 },

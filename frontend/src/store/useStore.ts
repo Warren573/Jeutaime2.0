@@ -60,6 +60,9 @@ interface CurrentUser {
   unlockedBadges: string[];
   gender?: GenderType;
   age?: number;
+  birthDate?: string;
+  height?: number;
+  children?: string;
   // Profile fields
   bio?: string;
   city?: string;
