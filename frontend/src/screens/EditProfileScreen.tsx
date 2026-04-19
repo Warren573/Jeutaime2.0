@@ -155,7 +155,7 @@ export function EditProfileScreen() {
     return age >= 13 && age < 120 ? age : null;
   })();
 
-  const isLocked = !!currentUser?.birthDate;
+  const isLocked = true; // définis à la création, non modifiables ici
 
   const toggleItem = (list: string[], setList: (v: string[]) => void, id: string) => {
     setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
@@ -241,8 +241,9 @@ export function EditProfileScreen() {
           {isLocked ? (
             <View style={styles.lockedField}>
               <Text style={styles.lockedText}>
-                {birthDay}/{birthMonth}/{birthYear}
-                {computedAge !== null ? `  —  ${computedAge} ans` : ''}
+                {birthDay && birthMonth && birthYear
+                  ? `${birthDay}/${birthMonth}/${birthYear}${computedAge !== null ? `  —  ${computedAge} ans` : ''}`
+                  : 'Non renseignée'}
               </Text>
               <Text style={styles.lockedBadge}>🔒 non modifiable</Text>
             </View>
