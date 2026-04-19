@@ -10,15 +10,47 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "../avatar/png/Avatar";
 import { DEFAULT_AVATAR } from "../avatar/png/defaults";
 
+const PHYSIQUE_LABEL: Record<string, { emoji: string; label: string }> = {
+  filiforme:    { emoji: "🍝", label: "Filiforme" },
+  ras_motte:    { emoji: "🐭", label: "Ras motte" },
+  grande_gigue: { emoji: "🦒", label: "Grande gigue" },
+  beaute_int:   { emoji: "✨", label: "Grande beauté intérieure" },
+  athletique:   { emoji: "🏃", label: "Athlétique" },
+  genereuse:    { emoji: "🍑", label: "En formes généreuses" },
+  moyenne:      { emoji: "⚖️", label: "Moyenne" },
+  muscle:       { emoji: "💪", label: "Musclé•e" },
+};
+
+const LOOKING_FOR_LABEL: Record<string, string> = {
+  relation:   "💑 Relation sérieuse",
+  flirt:      "💋 Flirt",
+  amitie:     "🤝 Amitié",
+  discussion: "💬 Discussion",
+};
+
+const ENFANTS_LABEL: Record<string, { emoji: string; label: string }> = {
+  aucun:      { emoji: "🌱", label: "Pas d'enfants" },
+  oui:        { emoji: "👨‍👧", label: "J'ai des enfants" },
+  oui_plus:   { emoji: "👨‍👧‍👦", label: "J'ai des enfants mais pas assez" },
+  reflexion:  { emoji: "🤔", label: "En réflexion" },
+  non_moment: { emoji: "⏳", label: "Pas pour le moment" },
+  non:        { emoji: "🙅", label: "Ne veut pas d'enfants" },
+  cactus:     { emoji: "🌵", label: "Compte se lancer dans l'élevage de cactus" },
+};
+
 type ProfileData = {
   firstName: string;
   age: number;
   city: string;
+  height: number;
   vibe: string;
   blabla: string;
   quote: string;
+  physicalDesc: string;
   interestedIn: string;
-  lookingFor: string;
+  intentionText: string;
+  lookingFor: string[];
+  children: string;
   identityTags: string[];
   interests: string[];
   skills: Array<{ label: string; detail: string; score: number; emoji: string }>;
@@ -31,13 +63,17 @@ const MOCK_PROFILE: ProfileData = {
   firstName: "Sophie",
   age: 28,
   city: "Paris",
+  height: 168,
   vibe: "Romantique curieuse",
   blabla:
     "Je crois qu'on se comprend mieux autour d'un plat qu'on a cuisiné ensemble. J'aime les gens qui savent écrire une vraie phrase, rire un peu d'eux-mêmes, et rester quand la conversation devient intéressante.",
   quote: "Un mélange de sérieux et d'autodérision.",
+  physicalDesc: "grande_gigue",
   interestedIn: "Hommes",
-  lookingFor:
+  intentionText:
     "Quelqu'un avec qui écrire plus de 10 lettres sans disparaître. Une vraie histoire, pas juste un passage rapide.",
+  lookingFor: ["relation", "discussion"],
+  children: "aucun",
   identityTags: ["Curieuse", "Ambitieuse", "Un peu bordélique", "Grande romantique"],
   interests: ["Cinéma", "Café", "Écriture", "Jeux", "Voyages"],
   skills: [
@@ -161,6 +197,11 @@ export default function ProfilesScreen() {
                 </Text>
 
                 <Text style={styles.stageOneVibe}>{profile.vibe}</Text>
+                <Text style={styles.stageOneMeta}>
+                  📍 {profile.city}
+                  {profile.height ? `  ·  📏 ${profile.height}cm` : ""}
+                  {profile.physicalDesc ? `  ·  ${PHYSIQUE_LABEL[profile.physicalDesc]?.emoji}` : ""}
+                </Text>
 
                 <View style={styles.arrowLineWrap}>
                   <Text style={styles.arrowLine}>⟵ 〜〜〜〜〜〜〜〜〜</Text>
@@ -228,7 +269,7 @@ export default function ProfilesScreen() {
               <View style={styles.paperSection}>
                 <Text style={styles.kicker}>INTENTION</Text>
                 <View style={styles.intentNote}>
-                  <Text style={styles.intentText}>{profile.lookingFor}</Text>
+                  <Text style={styles.intentText}>{profile.intentionText}</Text>
                   <View style={styles.heartFloat}>
                     <Text style={styles.heartFloatText}>♡</Text>
                   </View>
@@ -237,16 +278,46 @@ export default function ProfilesScreen() {
 
               <View style={styles.paperSection}>
                 <Text style={styles.kicker}>JE CHERCHE</Text>
-                <View style={styles.identityMetaLine}>
-                  <Text style={styles.identityMetaLabel}>Intéressé par :</Text>
+                <View style={styles.interestsWrap}>
+                  {profile.lookingFor.map((id) => (
+                    <InterestChip key={id} label={LOOKING_FOR_LABEL[id] ?? id} />
+                  ))}
+                </View>
+                <View style={[styles.identityMetaLine, { marginTop: 14 }]}>
+                  <Text style={styles.identityMetaLabel}>Intéressé·e par :</Text>
                   <Text style={styles.identityMetaValue}>{profile.interestedIn}</Text>
                 </View>
-
                 <View style={styles.interestsWrap}>
                   {profile.interests.map((interest) => (
                     <InterestChip key={interest} label={interest} />
                   ))}
                 </View>
+              </View>
+
+              <View style={styles.paperSection}>
+                <Text style={styles.kicker}>EN PRATIQUE</Text>
+                <View style={styles.infoLine}>
+                  <Text style={styles.infoEmoji}>📍</Text>
+                  <Text style={styles.infoText}>{profile.city}</Text>
+                </View>
+                {profile.height > 0 && (
+                  <View style={styles.infoLine}>
+                    <Text style={styles.infoEmoji}>📏</Text>
+                    <Text style={styles.infoText}>{profile.height} cm</Text>
+                  </View>
+                )}
+                {profile.physicalDesc ? (
+                  <View style={styles.infoLine}>
+                    <Text style={styles.infoEmoji}>{PHYSIQUE_LABEL[profile.physicalDesc]?.emoji}</Text>
+                    <Text style={styles.infoText}>{PHYSIQUE_LABEL[profile.physicalDesc]?.label}</Text>
+                  </View>
+                ) : null}
+                {profile.children ? (
+                  <View style={styles.infoLine}>
+                    <Text style={styles.infoEmoji}>{ENFANTS_LABEL[profile.children]?.emoji}</Text>
+                    <Text style={styles.infoText}>{ENFANTS_LABEL[profile.children]?.label}</Text>
+                  </View>
+                ) : null}
               </View>
 
               <View style={styles.paperSection}>
@@ -431,6 +502,13 @@ const styles = StyleSheet.create({
     color: INK_SOFT,
     fontStyle: "italic",
     marginBottom: 6,
+  },
+
+  stageOneMeta: {
+    fontSize: 12,
+    color: "#AA9478",
+    marginTop: 4,
+    marginBottom: 2,
   },
 
   arrowLineWrap: {
@@ -829,6 +907,24 @@ const styles = StyleSheet.create({
   bulletText: {
     fontSize: 16,
     color: INK,
+  },
+
+  infoLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  infoEmoji: {
+    fontSize: 15,
+    width: 26,
+  },
+
+  infoText: {
+    fontSize: 15,
+    color: INK,
+    lineHeight: 22,
+    flex: 1,
   },
 
   idealDayCard: {

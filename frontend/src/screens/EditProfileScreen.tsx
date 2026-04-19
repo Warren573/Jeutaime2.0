@@ -21,6 +21,18 @@ const PHYSIQUE_OPTIONS = [
   { id: 'muscle',      emoji: '💪', label: 'Musclé•e',              sub: 'ça se voit sous le t-shirt'},
 ];
 
+// ─── Enfants ─────────────────────────────────────────────────────────────────
+
+const ENFANTS_OPTIONS = [
+  { id: 'aucun',      emoji: '🌱', label: "Pas d'enfants",                            sub: 'liberté totale'          },
+  { id: 'oui',        emoji: '👨‍👧', label: "J'ai des enfants",                          sub: 'mode parent activé'      },
+  { id: 'oui_plus',   emoji: '👨‍👧‍👦', label: "J'ai des enfants mais pas assez",           sub: 'la maison est animée'    },
+  { id: 'reflexion',  emoji: '🤔', label: 'En réflexion',                               sub: 'les pour et les contre'  },
+  { id: 'non_moment', emoji: '⏳', label: 'Pas pour le moment',                         sub: 'on verra plus tard'      },
+  { id: 'non',        emoji: '🙅', label: "Ne veut pas d'enfants",                      sub: "c'est décidé"            },
+  { id: 'cactus',     emoji: '🌵', label: "Compte se lancer dans l'élevage de cactus",  sub: 'moins de caprices'       },
+];
+
 // ─── Préférences rencontre ────────────────────────────────────────────────────
 
 const LOOKING_FOR_OPTIONS = [
@@ -115,6 +127,8 @@ export function EditProfileScreen() {
   const [age,         setAge]         = useState(String(currentUser?.age  ?? ''));
   const [city,        setCity]        = useState(currentUser?.city        ?? '');
   const [bio,         setBio]         = useState(currentUser?.bio         ?? '');
+  const [height,      setHeight]      = useState(String(currentUser?.height   ?? ''));
+  const [children,    setChildren]    = useState(currentUser?.children  ?? '');
   const [physique,    setPhysique]    = useState(currentUser?.physicalDesc ?? '');
   const [lookingFor,  setLookingFor]  = useState<string[]>(currentUser?.lookingFor  ?? []);
   const [interestedIn,setInterestedIn]= useState<string[]>(currentUser?.interestedIn ?? []);
@@ -136,6 +150,8 @@ export function EditProfileScreen() {
       age: parseInt(age) || currentUser?.age,
       bio: bio.trim(),
       city: city.trim(),
+      height: parseInt(height) || currentUser?.height,
+      children,
       physicalDesc: physique,
       questions,
       lookingFor,
@@ -187,6 +203,10 @@ export function EditProfileScreen() {
               <Text style={styles.inputLabel}>Ville</Text>
               <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Ex: Paris" placeholderTextColor="#B8A082" />
             </View>
+            <View style={[styles.halfField, { marginLeft: 12 }]}>
+              <Text style={styles.inputLabel}>Taille (cm)</Text>
+              <TextInput style={styles.input} value={height} onChangeText={setHeight} placeholder="Ex: 168" keyboardType="numeric" placeholderTextColor="#B8A082" />
+            </View>
           </View>
         </SectionCard>
 
@@ -214,6 +234,23 @@ export function EditProfileScreen() {
               key={opt.id}
               style={[styles.physiqueCard, physique === opt.id && styles.physiqueCardActive]}
               onPress={() => setPhysique(physique === opt.id ? '' : opt.id)}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.physiqueEmoji}>{opt.emoji}</Text>
+              <Text style={styles.physiqueLabel}>{opt.label}</Text>
+              <Text style={styles.physiqueSub}>{opt.sub}</Text>
+            </TouchableOpacity>
+          ))}
+        </SectionCard>
+
+        {/* ── Enfants ── */}
+        <SectionCard emoji="👶" title="Côté enfants">
+          <Text style={styles.subLabel}>Une question qui mérite une vraie réponse (et un peu d'humour)</Text>
+          {ENFANTS_OPTIONS.map(opt => (
+            <TouchableOpacity
+              key={opt.id}
+              style={[styles.physiqueCard, children === opt.id && styles.physiqueCardActive]}
+              onPress={() => setChildren(children === opt.id ? '' : opt.id)}
               activeOpacity={0.75}
             >
               <Text style={styles.physiqueEmoji}>{opt.emoji}</Text>
