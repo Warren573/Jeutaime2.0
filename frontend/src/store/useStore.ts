@@ -51,7 +51,7 @@ export interface Message {
 
 interface CurrentUser {
   id: string;
-  name: string;
+  pseudo: string;
   email?: string;
   isPremium: boolean;
   avatarConfig: AvatarConfig;
@@ -59,17 +59,17 @@ interface CurrentUser {
   stats: UserStats;
   unlockedBadges: string[];
   gender?: GenderType;
-  age?: number;
-  birthDate?: string;
-  height?: number;
-  children?: string;
+  birthDate?: string;         // YYYY-MM-DD — âge calculé depuis ce champ
+  height?: number;            // cm — non encore en backend, stocké localement
+  hasChildren?: boolean | null;
+  wantsChildren?: boolean | null;
   // Profile fields
   bio?: string;
   city?: string;
   physicalDesc?: string;
   questions?: { text: string; options: [string, string, string]; correctAnswer: 0 | 1 | 2 }[];
-  lookingFor?: string[];
-  interestedIn?: string[];
+  lookingFor?: string[];      // valeurs lowercase: 'relation', 'flirt', etc.
+  interestedIn?: string[];    // valeurs frontend: 'F', 'M', 'NB'
   interests?: string[];
 }
 
