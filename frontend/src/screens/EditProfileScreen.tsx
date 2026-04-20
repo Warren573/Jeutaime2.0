@@ -7,30 +7,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
+import { apiFetch } from '../api/client';
+import { GENDER_TO_BACKEND, LOOKING_FOR_TO_BACKEND } from '../utils/profileMappings';
 
 // ─── Description physique avec humour ────────────────────────────────────────
 
 const PHYSIQUE_OPTIONS = [
-  { id: 'filiforme',   emoji: '🍝', label: 'Filiforme',             sub: 'comme un spaghetti'       },
-  { id: 'ras_motte',   emoji: '🐭', label: 'Ras motte',             sub: 'petite taille'            },
-  { id: 'grande_gigue',emoji: '🦒', label: 'Grande gigue',          sub: 'très grand•e'             },
-  { id: 'beaute_int',  emoji: '✨', label: 'Grande beauté intérieure', sub: 'ce qui compte vraiment' },
-  { id: 'athletique',  emoji: '🏃', label: 'Athlétique',            sub: 'toujours en mouvement'    },
-  { id: 'genereuse',   emoji: '🍑', label: 'En formes généreuses',  sub: 'que de courbes !'         },
-  { id: 'moyenne',     emoji: '⚖️', label: 'Moyenne',               sub: 'le juste milieu parfait'  },
-  { id: 'muscle',      emoji: '💪', label: 'Musclé•e',              sub: 'ça se voit sous le t-shirt'},
-];
-
-// ─── Enfants ─────────────────────────────────────────────────────────────────
-
-const ENFANTS_OPTIONS = [
-  { id: 'aucun',      emoji: '🌱', label: "Pas d'enfants",                            sub: 'liberté totale'          },
-  { id: 'oui',        emoji: '👨‍👧', label: "J'ai des enfants",                          sub: 'mode parent activé'      },
-  { id: 'oui_plus',   emoji: '👨‍👧‍👦', label: "J'ai des enfants mais pas assez",           sub: 'la maison est animée'    },
-  { id: 'reflexion',  emoji: '🤔', label: 'En réflexion',                               sub: 'les pour et les contre'  },
-  { id: 'non_moment', emoji: '⏳', label: 'Pas pour le moment',                         sub: 'on verra plus tard'      },
-  { id: 'non',        emoji: '🙅', label: "Ne veut pas d'enfants",                      sub: "c'est décidé"            },
-  { id: 'pingouins',  emoji: '🐧', label: "Compte se lancer dans l'élevage de pingouins", sub: "c'est ambitieux"         },
+  { id: 'filiforme',    emoji: '🍝', label: 'Filiforme',         sub: 'comme un spaghetti'       },
+  { id: 'ras_motte',    emoji: '🌱', label: 'Ras motte',         sub: 'petite taille'            },
+  { id: 'grande_gigue', emoji: '🦒', label: 'Grande gigue',      sub: 'très grand·e'             },
+  { id: 'costaud',      emoji: '🌳', label: 'Costaud·e',         sub: 'comme un chêne'           },
+  { id: 'mignon',       emoji: '🍪', label: 'Mignon·ne',         sub: 'comme un cookie'          },
+  { id: 'mysterieux',   emoji: '🕶️', label: 'Mystérieux·se',     sub: 'sous la capuche'          },
+  { id: 'athletique',   emoji: '💪', label: 'Athlétique',        sub: 'toujours en mouvement'    },
+  { id: 'doux',         emoji: '🧸', label: 'Doux·ce',           sub: 'comme une peluche'        },
 ];
 
 // ─── Préférences rencontre ────────────────────────────────────────────────────
@@ -123,7 +113,7 @@ export function EditProfileScreen() {
   const insets = useSafeAreaInsets();
   const { currentUser, setCurrentUser, avatarPngConfig } = useStore();
 
-  const [name,        setName]        = useState(currentUser?.name        ?? '');
+  const [pseudo,       setPseudo]      = useState(currentUser?.pseudo       ?? '');
   const [city,        setCity]        = useState(currentUser?.city        ?? '');
 
   const parsedBirth = (() => {
@@ -135,10 +125,11 @@ export function EditProfileScreen() {
   const [birthDay,   setBirthDay]   = useState(parsedBirth.d);
   const [birthMonth, setBirthMonth] = useState(parsedBirth.m);
   const [birthYear,  setBirthYear]  = useState(parsedBirth.y);
-  const [bio,         setBio]         = useState(currentUser?.bio         ?? '');
-  const [height,      setHeight]      = useState(String(currentUser?.height   ?? ''));
-  const [children,    setChildren]    = useState(currentUser?.children  ?? '');
-  const [physique,    setPhysique]    = useState(currentUser?.physicalDesc ?? '');
+  const [bio,          setBio]          = useState(currentUser?.bio          ?? '');
+  const [height,       setHeight]       = useState(String(currentUser?.height ?? ''));
+  const [hasChildren,  setHasChildren]  = useState<boolean | null>(currentUser?.hasChildren  ?? null);
+  const [wantsChildren,setWantsChildren]= useState<boolean | null>(currentUser?.wantsChildren ?? null);
+  const [physique,     setPhysique]     = useState(currentUser?.physicalDesc ?? '');
   const [lookingFor,  setLookingFor]  = useState<string[]>(currentUser?.lookingFor  ?? []);
   const [interestedIn,setInterestedIn]= useState<string[]>(currentUser?.interestedIn ?? []);
   const [interests,   setInterests]   = useState<string[]>(currentUser?.interests   ?? []);
@@ -161,22 +152,39 @@ export function EditProfileScreen() {
     setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
   };
 
-  const handleSave = () => {
-    if (!name.trim()) { Alert.alert('Manque', 'Renseigne ton prénom.'); return; }
+  const handleSave = async () => {
+    if (!pseudo.trim()) { Alert.alert('Manque', 'Renseigne ton pseudo.'); return; }
     if (bio.trim().length < 50) { Alert.alert('Bio trop courte', 'Min 50 caractères.'); return; }
-    const birthDate = birthYear && birthMonth && birthDay
-      ? `${birthYear}-${birthMonth.padStart(2, '0')}-${birthDay.padStart(2, '0')}`
-      : currentUser?.birthDate;
+
+    try {
+      await apiFetch('/profiles/me', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          bio:          bio.trim(),
+          city:         city.trim() || undefined,
+          physicalDesc: physique    || undefined,
+          interests,
+          lookingFor:   lookingFor.map(id => LOOKING_FOR_TO_BACKEND[id]).filter(Boolean),
+          interestedIn: interestedIn.map(id => GENDER_TO_BACKEND[id]).filter(Boolean),
+          hasChildren:  hasChildren  ?? undefined,
+          wantsChildren:wantsChildren ?? undefined,
+          avatarConfig: avatarPngConfig,
+        }),
+      });
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message || 'Impossible de sauvegarder');
+      return;
+    }
 
     setCurrentUser({
       ...(currentUser as any),
-      name: name.trim(),
-      birthDate,
-      age: computedAge ?? currentUser?.age,
-      bio: bio.trim(),
-      city: city.trim(),
-      height: parseInt(height) || currentUser?.height,
-      children,
+      pseudo:       pseudo.trim(),
+      birthDate:    currentUser?.birthDate,
+      bio:          bio.trim(),
+      city:         city.trim(),
+      height:       parseInt(height) || currentUser?.height,
+      hasChildren,
+      wantsChildren,
       physicalDesc: physique,
       questions,
       lookingFor,
@@ -216,14 +224,14 @@ export function EditProfileScreen() {
 
         {/* ── Infos de base ── */}
         <SectionCard emoji="📝" title="Informations de base">
-          <Text style={styles.inputLabel}>Prénom</Text>
+          <Text style={styles.inputLabel}>Pseudo</Text>
           {isLocked ? (
             <View style={styles.lockedField}>
-              <Text style={styles.lockedText}>{name}</Text>
+              <Text style={styles.lockedText}>{pseudo}</Text>
               <Text style={styles.lockedBadge}>🔒 non modifiable</Text>
             </View>
           ) : (
-            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Ton prénom" placeholderTextColor="#B8A082" />
+            <TextInput style={styles.input} value={pseudo} onChangeText={setPseudo} placeholder="Ton pseudo" placeholderTextColor="#B8A082" />
           )}
 
           <View style={styles.row2}>
@@ -296,19 +304,30 @@ export function EditProfileScreen() {
 
         {/* ── Enfants ── */}
         <SectionCard emoji="👶" title="Côté enfants">
-          <Text style={styles.subLabel}>Une question qui mérite une vraie réponse (et un peu d'humour)</Text>
-          {ENFANTS_OPTIONS.map(opt => (
-            <TouchableOpacity
-              key={opt.id}
-              style={[styles.physiqueCard, children === opt.id && styles.physiqueCardActive]}
-              onPress={() => setChildren(children === opt.id ? '' : opt.id)}
-              activeOpacity={0.75}
-            >
-              <Text style={styles.physiqueEmoji}>{opt.emoji}</Text>
-              <Text style={styles.physiqueLabel}>{opt.label}</Text>
-              <Text style={styles.physiqueSub}>{opt.sub}</Text>
-            </TouchableOpacity>
-          ))}
+          <Text style={styles.subSectionLabel}>J'ai des enfants</Text>
+          <View style={styles.chipGrid}>
+            {([true, false] as const).map(val => (
+              <TouchableOpacity
+                key={String(val)}
+                style={[styles.chip, hasChildren === val && styles.chipActive]}
+                onPress={() => setHasChildren(hasChildren === val ? null : val)}
+              >
+                <Text style={styles.chipText}>{val ? '✓ Oui' : '✕ Non'}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Je veux des enfants</Text>
+          <View style={styles.chipGrid}>
+            {([true, false] as const).map(val => (
+              <TouchableOpacity
+                key={String(val)}
+                style={[styles.chip, wantsChildren === val && styles.chipActive]}
+                onPress={() => setWantsChildren(wantsChildren === val ? null : val)}
+              >
+                <Text style={styles.chipText}>{val ? '✓ Oui' : '✕ Non'}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </SectionCard>
 
         {/* ── Préférences rencontre ── */}
