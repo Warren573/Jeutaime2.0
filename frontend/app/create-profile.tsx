@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { apiFetch } from "../src/api/client";
+import { saveToken } from "../src/utils/session";
 
 export default function CreateProfileScreen() {
   const router = useRouter();
@@ -48,7 +49,7 @@ export default function CreateProfileScreen() {
     try {
       setIsLoading(true);
 
-      await apiFetch("/auth/register", {
+      const res = await apiFetch("/auth/register", {
         method: "POST",
         body: JSON.stringify({
           pseudo:    pseudo.trim(),
@@ -60,6 +61,14 @@ export default function CreateProfileScreen() {
         }),
       });
 
+      const token: string | undefined = res?.data?.accessToken;
+      if (!token) {
+        Alert.alert("Compte créé", "Connecte-toi pour continuer.");
+        router.replace("/login");
+        return;
+      }
+
+      await saveToken(token);
       router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert("Erreur", err?.message || "Impossible de créer le compte");
