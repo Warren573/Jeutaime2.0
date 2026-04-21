@@ -198,6 +198,16 @@ model Profile {
   wantsChildren Boolean?
   avatarConfig Json?
 
+  // V1 — champs enrichis
+  height       Int?
+  vibe         String?
+  quote        String?
+  identityTags String[]
+  qualities    String[]
+  defaults     String[]
+  idealDay     String[]
+  skills       Json?
+
   // Progression
   points       Int         @default(0)
   badges       String[]    @default([])
