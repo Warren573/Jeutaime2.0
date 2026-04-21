@@ -68,6 +68,14 @@ interface CurrentUser {
   lookingFor?: string[];
   interestedIn?: string[];
   interests?: string[];
+  height?: number;
+  vibe?: string;
+  quote?: string;
+  identityTags?: string[];
+  qualities?: string[];
+  defaults?: string[];
+  idealDay?: string[];
+  skills?: { label: string; detail: string; score: number; emoji: string }[];
 }
 
 interface StoreState {
