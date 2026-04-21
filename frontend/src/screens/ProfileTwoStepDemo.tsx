@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -9,16 +9,18 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "../avatar/png/Avatar";
 import { DEFAULT_AVATAR } from "../avatar/png/defaults";
+import { useStore } from "../store/useStore";
+import { computeAge, GENDER_DISPLAY } from "../utils/profileMappings";
 
 const PHYSIQUE_LABEL: Record<string, { emoji: string; label: string }> = {
   filiforme:    { emoji: "🍝", label: "Filiforme" },
-  ras_motte:    { emoji: "🐭", label: "Ras motte" },
+  ras_motte:    { emoji: "🌱", label: "Ras motte" },
   grande_gigue: { emoji: "🦒", label: "Grande gigue" },
-  beaute_int:   { emoji: "✨", label: "Grande beauté intérieure" },
-  athletique:   { emoji: "🏃", label: "Athlétique" },
-  genereuse:    { emoji: "🍑", label: "En formes généreuses" },
-  moyenne:      { emoji: "⚖️", label: "Moyenne" },
-  muscle:       { emoji: "💪", label: "Musclé•e" },
+  costaud:      { emoji: "🌳", label: "Costaud·e" },
+  mignon:       { emoji: "🍪", label: "Mignon·ne" },
+  mysterieux:   { emoji: "🕶️", label: "Mystérieux·se" },
+  athletique:   { emoji: "💪", label: "Athlétique" },
+  doux:         { emoji: "🧸", label: "Doux·ce" },
 };
 
 const LOOKING_FOR_LABEL: Record<string, string> = {
@@ -28,88 +30,18 @@ const LOOKING_FOR_LABEL: Record<string, string> = {
   discussion: "💬 Discussion",
 };
 
-const ENFANTS_LABEL: Record<string, { emoji: string; label: string }> = {
-  aucun:      { emoji: "🌱", label: "Pas d'enfants" },
-  oui:        { emoji: "👨‍👧", label: "J'ai des enfants" },
-  oui_plus:   { emoji: "👨‍👧‍👦", label: "J'ai des enfants mais pas assez" },
-  reflexion:  { emoji: "🤔", label: "En réflexion" },
-  non_moment: { emoji: "⏳", label: "Pas pour le moment" },
-  non:        { emoji: "🙅", label: "Ne veut pas d'enfants" },
-  pingouins:  { emoji: "🐧", label: "Compte se lancer dans l'élevage de pingouins" },
-};
-
-type ProfileData = {
-  firstName: string;
-  age: number;
-  city: string;
-  height: number;
-  vibe: string;
-  blabla: string;
-  quote: string;
-  physicalDesc: string;
-  interestedIn: string;
-  intentionText: string;
-  lookingFor: string[];
-  children: string;
-  identityTags: string[];
-  interests: string[];
-  skills: Array<{ label: string; detail: string; score: number; emoji: string }>;
-  qualities: string[];
-  defaults: string[];
-  idealDay: string[];
-};
-
-const MOCK_PROFILE: ProfileData = {
-  firstName: "Sophie",
-  age: 28,
-  city: "Paris",
-  height: 168,
-  vibe: "Romantique curieuse",
-  blabla:
-    "Je crois qu'on se comprend mieux autour d'un plat qu'on a cuisiné ensemble. J'aime les gens qui savent écrire une vraie phrase, rire un peu d'eux-mêmes, et rester quand la conversation devient intéressante.",
-  quote: "Un mélange de sérieux et d'autodérision.",
-  physicalDesc: "grande_gigue",
-  interestedIn: "Hommes",
-  intentionText:
-    "Quelqu'un avec qui écrire plus de 10 lettres sans disparaître. Une vraie histoire, pas juste un passage rapide.",
-  lookingFor: ["relation", "discussion"],
-  children: "aucun",
-  identityTags: ["Curieuse", "Ambitieuse", "Un peu bordélique", "Grande romantique"],
-  interests: ["Cinéma", "Café", "Écriture", "Jeux", "Voyages"],
-  skills: [
-    {
-      emoji: "💬",
-      label: "Communication",
-      detail: "répond vraiment (incroyable)",
-      score: 80,
-    },
-    {
-      emoji: "🍝",
-      label: "Cuisine",
-      detail: "maîtrise les pâtes (et Uber Eats)",
-      score: 72,
-    },
-    {
-      emoji: "🎯",
-      label: "Organisation",
-      detail: "pro dans la procrastination",
-      score: 58,
-    },
-    {
-      emoji: "🌿",
-      label: "Relationnel",
-      detail: "peut s'attacher trop vite",
-      score: 88,
-    },
-  ],
-  qualities: ["Drôle", "Attentionnée", "Loyale"],
-  defaults: ["Têtue", "Oublie de répondre", "Achète trop de trucs"],
-  idealDay: [
-    "07:00   café + guerre contre mon lit",
-    "19:00   sortir ou Netflix (selon motivation)",
-    "00:00   pensées existentielles et lettres",
-  ],
-};
+function childrenLabel(
+  hasChildren?: boolean | null,
+  wantsChildren?: boolean | null,
+): string {
+  if (hasChildren === true) return "J'ai des enfants";
+  if (hasChildren === false && wantsChildren === true) return "Pas d'enfants, souhaite en avoir";
+  if (hasChildren === false && wantsChildren === false) return "Pas d'enfants";
+  if (hasChildren === false) return "Pas d'enfants";
+  if (wantsChildren === true) return "Souhaite des enfants";
+  if (wantsChildren === false) return "Ne souhaite pas d'enfants";
+  return "";
+}
 
 function IdentityChip({ label }: { label: string }) {
   return (
@@ -171,7 +103,13 @@ export default function ProfilesScreen() {
   const insets = useSafeAreaInsets();
   const [isOpen, setIsOpen] = useState(false);
 
-  const profile = useMemo(() => MOCK_PROFILE, []);
+  const user = useStore((s) => s.currentUser);
+  const avatarConfig = useStore((s) => s.avatarPngConfig);
+  const age = computeAge(user?.birthDate);
+  const interestedInLabel = (user?.interestedIn ?? [])
+    .map((g) => GENDER_DISPLAY[g] ?? g)
+    .join(", ");
+  const childrenText = childrenLabel(user?.hasChildren, user?.wantsChildren);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -188,19 +126,19 @@ export default function ProfilesScreen() {
             <View style={styles.stageOneHeader}>
               <View style={styles.photoCard}>
                 <View style={styles.photoTape} />
-                <Avatar size={96} {...DEFAULT_AVATAR} />
+                <Avatar size={96} {...(avatarConfig ?? DEFAULT_AVATAR)} />
               </View>
 
               <View style={styles.stageOneHeaderText}>
                 <Text style={styles.stageOneName}>
-                  {profile.firstName}, {profile.age}
+                  {user?.pseudo ?? "—"}{age !== null ? `, ${age}` : ""}
                 </Text>
 
-                <Text style={styles.stageOneVibe}>{profile.vibe}</Text>
+                <Text style={styles.stageOneVibe}>{""}</Text>
                 <Text style={styles.stageOneMeta}>
-                  📍 {profile.city}
-                  {profile.height ? `  ·  📏 ${profile.height}cm` : ""}
-                  {profile.physicalDesc ? `  ·  ${PHYSIQUE_LABEL[profile.physicalDesc]?.emoji}` : ""}
+                  📍 {user?.city ?? "—"}
+                  {user?.height ? `  ·  📏 ${user.height}cm` : ""}
+                  {user?.physicalDesc ? `  ·  ${PHYSIQUE_LABEL[user.physicalDesc]?.emoji ?? ""}` : ""}
                 </Text>
 
                 <View style={styles.arrowLineWrap}>
@@ -209,7 +147,7 @@ export default function ProfilesScreen() {
               </View>
             </View>
 
-            <Text style={styles.stageOneBlabla}>{profile.blabla}</Text>
+            <Text style={styles.stageOneBlabla}>{user?.bio ?? ""}</Text>
 
             <Pressable onPress={() => setIsOpen(true)} style={styles.discoverWrap}>
               <Text style={styles.discoverLink}>Découvrir le profil →</Text>
@@ -243,16 +181,16 @@ export default function ProfilesScreen() {
                   <Text style={styles.journalMainTitle}>Mon journal</Text>
                   <Text style={styles.journalMainTitle}>de bord</Text>
                   <Text style={styles.journalUnderline}>________________</Text>
-                  <Text style={styles.journalQuote}>{profile.quote}</Text>
+                  <Text style={styles.journalQuote}>{""}</Text>
                 </View>
 
                 <View style={styles.polaWrap}>
                   <View style={styles.polaTape} />
                   <View style={styles.polaFrame}>
-                    <Avatar size={86} {...DEFAULT_AVATAR} />
+                    <Avatar size={86} {...(avatarConfig ?? DEFAULT_AVATAR)} />
                   </View>
                   <Text style={styles.polaCaption}>
-                    {profile.firstName}, {profile.age}
+                    {user?.pseudo ?? "—"}{age !== null ? `, ${age}` : ""}
                   </Text>
                 </View>
               </View>
@@ -260,7 +198,7 @@ export default function ProfilesScreen() {
               <View style={styles.identitySection}>
                 <Text style={styles.kicker}>FICHE D'IDENTITÉ</Text>
                 <View style={styles.identityTagsWrap}>
-                  {profile.identityTags.map((tag) => (
+                  {(user?.interests ?? []).map((tag) => (
                     <IdentityChip key={tag} label={tag} />
                   ))}
                 </View>
@@ -269,7 +207,7 @@ export default function ProfilesScreen() {
               <View style={styles.paperSection}>
                 <Text style={styles.kicker}>INTENTION</Text>
                 <View style={styles.intentNote}>
-                  <Text style={styles.intentText}>{profile.intentionText}</Text>
+                  <Text style={styles.intentText}>{user?.bio ?? ""}</Text>
                   <View style={styles.heartFloat}>
                     <Text style={styles.heartFloatText}>♡</Text>
                   </View>
@@ -279,16 +217,18 @@ export default function ProfilesScreen() {
               <View style={styles.paperSection}>
                 <Text style={styles.kicker}>JE CHERCHE</Text>
                 <View style={styles.interestsWrap}>
-                  {profile.lookingFor.map((id) => (
+                  {(user?.lookingFor ?? []).map((id) => (
                     <InterestChip key={id} label={LOOKING_FOR_LABEL[id] ?? id} />
                   ))}
                 </View>
-                <View style={[styles.identityMetaLine, { marginTop: 14 }]}>
-                  <Text style={styles.identityMetaLabel}>Intéressé·e par :</Text>
-                  <Text style={styles.identityMetaValue}>{profile.interestedIn}</Text>
-                </View>
+                {interestedInLabel ? (
+                  <View style={[styles.identityMetaLine, { marginTop: 14 }]}>
+                    <Text style={styles.identityMetaLabel}>Intéressé·e par :</Text>
+                    <Text style={styles.identityMetaValue}>{interestedInLabel}</Text>
+                  </View>
+                ) : null}
                 <View style={styles.interestsWrap}>
-                  {profile.interests.map((interest) => (
+                  {(user?.interests ?? []).map((interest) => (
                     <InterestChip key={interest} label={interest} />
                   ))}
                 </View>
@@ -296,26 +236,28 @@ export default function ProfilesScreen() {
 
               <View style={styles.paperSection}>
                 <Text style={styles.kicker}>EN PRATIQUE</Text>
-                <View style={styles.infoLine}>
-                  <Text style={styles.infoEmoji}>📍</Text>
-                  <Text style={styles.infoText}>{profile.city}</Text>
-                </View>
-                {profile.height > 0 && (
+                {user?.city ? (
                   <View style={styles.infoLine}>
-                    <Text style={styles.infoEmoji}>📏</Text>
-                    <Text style={styles.infoText}>{profile.height} cm</Text>
-                  </View>
-                )}
-                {profile.physicalDesc ? (
-                  <View style={styles.infoLine}>
-                    <Text style={styles.infoEmoji}>{PHYSIQUE_LABEL[profile.physicalDesc]?.emoji}</Text>
-                    <Text style={styles.infoText}>{PHYSIQUE_LABEL[profile.physicalDesc]?.label}</Text>
+                    <Text style={styles.infoEmoji}>📍</Text>
+                    <Text style={styles.infoText}>{user.city}</Text>
                   </View>
                 ) : null}
-                {profile.children ? (
+                {user?.height && user.height > 0 ? (
                   <View style={styles.infoLine}>
-                    <Text style={styles.infoEmoji}>{ENFANTS_LABEL[profile.children]?.emoji}</Text>
-                    <Text style={styles.infoText}>{ENFANTS_LABEL[profile.children]?.label}</Text>
+                    <Text style={styles.infoEmoji}>📏</Text>
+                    <Text style={styles.infoText}>{user.height} cm</Text>
+                  </View>
+                ) : null}
+                {user?.physicalDesc ? (
+                  <View style={styles.infoLine}>
+                    <Text style={styles.infoEmoji}>{PHYSIQUE_LABEL[user.physicalDesc]?.emoji ?? ""}</Text>
+                    <Text style={styles.infoText}>{PHYSIQUE_LABEL[user.physicalDesc]?.label ?? ""}</Text>
+                  </View>
+                ) : null}
+                {childrenText ? (
+                  <View style={styles.infoLine}>
+                    <Text style={styles.infoEmoji}>👶</Text>
+                    <Text style={styles.infoText}>{childrenText}</Text>
                   </View>
                 ) : null}
               </View>
@@ -324,7 +266,7 @@ export default function ProfilesScreen() {
                 <Text style={styles.kicker}>COMPÉTENCES (CV version fun)</Text>
 
                 <View style={styles.skillsCard}>
-                  {profile.skills.map((skill) => (
+                  {[].map((skill: { label: string; detail: string; score: number; emoji: string }) => (
                     <SkillRow
                       key={skill.label}
                       emoji={skill.emoji}
@@ -341,7 +283,7 @@ export default function ProfilesScreen() {
 
                 <View style={styles.qualitiesRow}>
                   <View style={styles.miniCard}>
-                    {profile.qualities.map((item) => (
+                    {([] as string[]).map((item) => (
                       <View key={item} style={styles.bulletRow}>
                         <Text style={styles.goodBullet}>✓</Text>
                         <Text style={styles.bulletText}>{item}</Text>
@@ -350,7 +292,7 @@ export default function ProfilesScreen() {
                   </View>
 
                   <View style={styles.miniCard}>
-                    {profile.defaults.map((item) => (
+                    {([] as string[]).map((item) => (
                       <View key={item} style={styles.bulletRow}>
                         <Text style={styles.badBullet}>✕</Text>
                         <Text style={styles.bulletText}>{item}</Text>
@@ -366,7 +308,7 @@ export default function ProfilesScreen() {
                 <View style={styles.idealDayCard}>
                   <View style={styles.tapeTape} />
                   <View style={styles.tapeTapeAlt} />
-                  {profile.idealDay.map((line) => (
+                  {([] as string[]).map((line) => (
                     <Text key={line} style={styles.idealDayLine}>
                       {line}
                     </Text>
