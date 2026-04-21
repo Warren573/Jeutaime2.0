@@ -110,6 +110,11 @@ export default function ProfilesScreen() {
     .map((g) => GENDER_DISPLAY[g] ?? g)
     .join(", ");
   const childrenText = childrenLabel(user?.hasChildren, user?.wantsChildren);
+  const intentionSentence = (() => {
+    const lf = user?.lookingFor ?? [];
+    if (lf.length === 0) return null;
+    return lf.map((id) => LOOKING_FOR_LABEL[id] ?? id).join("  ·  ");
+  })();
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -195,24 +200,19 @@ export default function ProfilesScreen() {
                 </View>
               </View>
 
-              <View style={styles.identitySection}>
-                <Text style={styles.kicker}>FICHE D'IDENTITÉ</Text>
-                <View style={styles.identityTagsWrap}>
-                  {(user?.interests ?? []).map((tag) => (
-                    <IdentityChip key={tag} label={tag} />
-                  ))}
-                </View>
-              </View>
+              {null /* FICHE D'IDENTITÉ : masquée — champ identityTags absent du store */}
 
-              <View style={styles.paperSection}>
-                <Text style={styles.kicker}>INTENTION</Text>
-                <View style={styles.intentNote}>
-                  <Text style={styles.intentText}>{user?.bio ?? ""}</Text>
-                  <View style={styles.heartFloat}>
-                    <Text style={styles.heartFloatText}>♡</Text>
+              {intentionSentence ? (
+                <View style={styles.paperSection}>
+                  <Text style={styles.kicker}>INTENTION</Text>
+                  <View style={styles.intentNote}>
+                    <Text style={styles.intentText}>{intentionSentence}</Text>
+                    <View style={styles.heartFloat}>
+                      <Text style={styles.heartFloatText}>♡</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+              ) : null}
 
               <View style={styles.paperSection}>
                 <Text style={styles.kicker}>JE CHERCHE</Text>
@@ -262,59 +262,11 @@ export default function ProfilesScreen() {
                 ) : null}
               </View>
 
-              <View style={styles.paperSection}>
-                <Text style={styles.kicker}>COMPÉTENCES (CV version fun)</Text>
+              {null /* COMPÉTENCES : masquée — champ skills absent du store */}
 
-                <View style={styles.skillsCard}>
-                  {[].map((skill: { label: string; detail: string; score: number; emoji: string }) => (
-                    <SkillRow
-                      key={skill.label}
-                      emoji={skill.emoji}
-                      label={skill.label}
-                      detail={skill.detail}
-                      score={skill.score}
-                    />
-                  ))}
-                </View>
-              </View>
+              {null /* QUALITÉS & DÉFAUTS : masquée — champs qualities/defaults absents du store */}
 
-              <View style={styles.paperSection}>
-                <Text style={styles.kicker}>QUALITÉS & DÉFAUTS</Text>
-
-                <View style={styles.qualitiesRow}>
-                  <View style={styles.miniCard}>
-                    {([] as string[]).map((item) => (
-                      <View key={item} style={styles.bulletRow}>
-                        <Text style={styles.goodBullet}>✓</Text>
-                        <Text style={styles.bulletText}>{item}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  <View style={styles.miniCard}>
-                    {([] as string[]).map((item) => (
-                      <View key={item} style={styles.bulletRow}>
-                        <Text style={styles.badBullet}>✕</Text>
-                        <Text style={styles.bulletText}>{item}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.paperSection}>
-                <Text style={styles.kicker}>JOURNÉE IDÉALE</Text>
-
-                <View style={styles.idealDayCard}>
-                  <View style={styles.tapeTape} />
-                  <View style={styles.tapeTapeAlt} />
-                  {([] as string[]).map((line) => (
-                    <Text key={line} style={styles.idealDayLine}>
-                      {line}
-                    </Text>
-                  ))}
-                </View>
-              </View>
+              {null /* JOURNÉE IDÉALE : masquée — champ idealDay absent du store */}
             </View>
           </View>
         </ScrollView>
