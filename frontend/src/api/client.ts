@@ -1,15 +1,12 @@
-import { getToken, removeToken } from '../utils/session';
-
-const API_URL = "https://jeutaime2-0.onrender.com/api";
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://192.168.0.40:3000/api";
 
 export async function apiFetch(path: string, options?: RequestInit) {
-  // Auto-inject auth token from session storage when available
-  const token = await getToken();
-
   const res = await fetch(`${API_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options?.headers || {}),
     },
     ...options,
@@ -18,21 +15,17 @@ export async function apiFetch(path: string, options?: RequestInit) {
   const text = await res.text();
 
   if (!res.ok) {
-    // Clear stale token on 401 so the app redirects to login on next mount
-    if (res.status === 401) {
-      await removeToken();
+    try {
+      const parsed = text ? JSON.parse(text) : null;
+      const message =
+        parsed?.error?.message ||
+        parsed?.message ||
+        text ||
+        `HTTP ${res.status}`;
+      throw new Error(message);
+    } catch {
+      throw new Error(text || `HTTP ${res.status}`);
     }
-
-    let message = `HTTP ${res.status}`;
-    if (text) {
-      try {
-        const parsed = JSON.parse(text);
-        message = parsed?.error?.message || parsed?.message || text;
-      } catch {
-        message = text;
-      }
-    }
-    throw new Error(message);
   }
 
   return text ? JSON.parse(text) : null;
