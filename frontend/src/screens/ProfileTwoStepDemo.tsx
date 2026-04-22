@@ -200,7 +200,16 @@ export default function ProfilesScreen() {
                 </View>
               </View>
 
-              {null /* FICHE D'IDENTITÉ : masquée — champ identityTags absent du store */}
+              {(user?.identityTags ?? []).length > 0 ? (
+                <View style={styles.identitySection}>
+                  <Text style={styles.kicker}>FICHE D'IDENTITÉ</Text>
+                  <View style={styles.identityTagsWrap}>
+                    {(user?.identityTags ?? []).map((tag) => (
+                      <IdentityChip key={tag} label={tag} />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
 
               {intentionSentence ? (
                 <View style={styles.paperSection}>
@@ -262,11 +271,53 @@ export default function ProfilesScreen() {
                 ) : null}
               </View>
 
-              {null /* COMPÉTENCES : masquée — champ skills absent du store */}
+              {(user?.skills ?? []).length > 0 ? (
+                <View style={styles.paperSection}>
+                  <Text style={styles.kicker}>COMPÉTENCES</Text>
+                  <View style={styles.skillsCard}>
+                    {(user.skills as Array<{ label: string; detail: string; score: number; emoji: string }>).map((s, i) => (
+                      <SkillRow key={i} emoji={s.emoji} label={s.label} detail={s.detail} score={s.score} />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
 
-              {null /* QUALITÉS & DÉFAUTS : masquée — champs qualities/defaults absents du store */}
+              {((user?.qualities ?? []).length > 0 || (user?.defaults ?? []).length > 0) ? (
+                <View style={styles.paperSection}>
+                  <Text style={styles.kicker}>QUALITÉS & DÉFAUTS</Text>
+                  <View style={styles.qualitiesRow}>
+                    <View style={styles.miniCard}>
+                      {(user?.qualities ?? []).map((q) => (
+                        <View key={q} style={styles.bulletRow}>
+                          <Text style={styles.goodBullet}>✓</Text>
+                          <Text style={styles.bulletText}>{q}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <View style={styles.miniCard}>
+                      {(user?.defaults ?? []).map((d) => (
+                        <View key={d} style={styles.bulletRow}>
+                          <Text style={styles.badBullet}>✗</Text>
+                          <Text style={styles.bulletText}>{d}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              ) : null}
 
-              {null /* JOURNÉE IDÉALE : masquée — champ idealDay absent du store */}
+              {(user?.idealDay ?? []).some((s) => s.trim()) ? (
+                <View style={styles.paperSection}>
+                  <Text style={styles.kicker}>JOURNÉE IDÉALE</Text>
+                  <View style={styles.idealDayCard}>
+                    <View style={styles.tapeTape} />
+                    <View style={styles.tapeTapeAlt} />
+                    {(user?.idealDay ?? []).filter((s) => s.trim()).map((step, i) => (
+                      <Text key={i} style={styles.idealDayLine}>{`${i + 1}. ${step}`}</Text>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
             </View>
           </View>
         </ScrollView>
