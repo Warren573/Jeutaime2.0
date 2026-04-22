@@ -33,7 +33,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [city, setCity] = useState("");
-  const [gender, setGender] = useState("male");
+  const [gender, setGender] = useState("HOMME");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -86,9 +86,7 @@ export default function RegisterScreen() {
       await hydrateFromApi();
       router.replace("/(tabs)");
     } catch (err: any) {
-      // TEMP: on API error, enter app anyway
-      console.warn("[Register] API error (bypassed):", err?.message);
-      router.replace("/(tabs)");
+      Alert.alert("Erreur", err?.message || "Une erreur est survenue.");
     } finally {
       setIsLoading(false);
     }
