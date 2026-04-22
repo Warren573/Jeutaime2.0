@@ -221,9 +221,10 @@ export function EditProfileScreen() {
   const [identityTags, setIdentityTags] = useState<string[]>(currentUser?.identityTags ?? []);
   const [qualities,    setQualities]    = useState<string[]>(currentUser?.qualities    ?? []);
   const [defaults,     setDefaults]     = useState<string[]>(currentUser?.defaults     ?? []);
-  const [idealDay,     setIdealDay]     = useState<string[]>(
-    currentUser?.idealDay?.length ? currentUser.idealDay : ['', '', '', '', '']
-  );
+  const [idealDay,     setIdealDay]     = useState<string[]>(() => {
+    const saved = currentUser?.idealDay ?? [];
+    return [...saved, '', '', '', '', ''].slice(0, 5);
+  });
   const [skills,       setSkills]       = useState<Skill[]>(currentUser?.skills ?? []);
 
   const toggleItem = (list: string[], setList: (v: string[]) => void, id: string) => {
@@ -238,6 +239,7 @@ export function EditProfileScreen() {
     const GI_MAP: Record<string, string> = { F: 'FEMME', M: 'HOMME', NB: 'AUTRE' };
     const heightNum = parseInt(height);
     const filteredIdealDay = idealDay.filter(s => s.trim());
+    const validSkills = skills.filter(s => s.label.trim());
 
     try {
       await apiFetch('/profiles/me', {
@@ -250,13 +252,13 @@ export function EditProfileScreen() {
           interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
           interests,
           ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
-          ...(vibe.trim()  && { vibe:  vibe.trim()  }),
-          ...(quote.trim() && { quote: quote.trim() }),
-          ...(identityTags.length > 0 && { identityTags }),
-          ...(qualities.length    > 0 && { qualities }),
-          ...(defaults.length     > 0 && { defaults }),
-          ...(filteredIdealDay.length > 0 && { idealDay: filteredIdealDay }),
-          ...(skills.length       > 0 && { skills }),
+          vibe:         vibe.trim(),
+          quote:        quote.trim(),
+          identityTags,
+          qualities,
+          defaults,
+          idealDay:     filteredIdealDay,
+          skills:       validSkills,
         }),
       });
     } catch (err: any) {
@@ -276,13 +278,13 @@ export function EditProfileScreen() {
       interestedIn,
       interests,
       height: heightNum >= 100 && heightNum <= 250 ? heightNum : currentUser?.height,
-      vibe:   vibe.trim()  || currentUser?.vibe,
-      quote:  quote.trim() || currentUser?.quote,
+      vibe:         vibe.trim(),
+      quote:        quote.trim(),
       identityTags,
       qualities,
       defaults,
-      idealDay: filteredIdealDay,
-      skills,
+      idealDay:     filteredIdealDay,
+      skills:       validSkills,
     });
     router.back();
   };
