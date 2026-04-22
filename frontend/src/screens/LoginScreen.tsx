@@ -14,10 +14,9 @@ import {
 import { useRouter } from "expo-router";
 import { apiFetch } from "../api/client";
 import { saveToken } from "../utils/session";
+import { useStore } from "../store/useStore";
 
-// TEMP: auth disabled for development
-// Set to true to restore real API login flow
-const AUTH_ENABLED = false;
+const AUTH_ENABLED = true;
 
 function extractToken(res: any): string | null {
   if (!res) return null;
@@ -37,6 +36,7 @@ function extractToken(res: any): string | null {
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { hydrateFromApi } = useStore();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,7 +49,6 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (isLoading) return;
 
-    // TEMP: skip API call, enter app directly
     if (!AUTH_ENABLED) {
       router.replace("/(tabs)");
       return;
@@ -75,6 +74,7 @@ export default function LoginScreen() {
       }
 
       await saveToken(token);
+      await hydrateFromApi();
       router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert("Erreur", err?.message || "Une erreur est survenue.");

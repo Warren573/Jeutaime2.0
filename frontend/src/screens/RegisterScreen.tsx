@@ -15,19 +15,19 @@ import {
 import { useRouter } from "expo-router";
 import { apiFetch } from "../api/client";
 import { saveToken } from "../utils/session";
+import { useStore } from "../store/useStore";
 
-// TEMP: auth disabled for development
-// Set to true to restore real API register flow
-const AUTH_ENABLED = false;
+const AUTH_ENABLED = true;
 
 const GENDER_OPTIONS = [
-  { label: "Homme", value: "male" },
-  { label: "Femme", value: "female" },
-  { label: "Autre", value: "other" },
+  { label: "Homme", value: "HOMME" },
+  { label: "Femme", value: "FEMME" },
+  { label: "Autre", value: "AUTRE" },
 ];
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { hydrateFromApi } = useStore();
 
   const [pseudo, setPseudo] = useState("");
   const [email, setEmail] = useState("");
@@ -72,19 +72,19 @@ export default function RegisterScreen() {
         }),
       });
 
-      const token = res?.accessToken || res?.token;
+      const token =
+        res?.data?.accessToken ?? res?.data?.token ??
+        res?.accessToken ?? res?.token ?? null;
 
       if (!token) {
-        Alert.alert(
-          "Compte créé",
-          "Le compte a bien été créé. Connecte-toi maintenant."
-        );
+        Alert.alert("Compte créé", "Connecte-toi pour continuer.");
         router.replace("/login");
         return;
       }
 
       await saveToken(token);
-      router.replace("/create-profile");
+      await hydrateFromApi();
+      router.replace("/(tabs)");
     } catch (err: any) {
       // TEMP: on API error, enter app anyway
       console.warn("[Register] API error (bypassed):", err?.message);
