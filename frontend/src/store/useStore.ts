@@ -70,6 +70,8 @@ interface CurrentUser {
   interestedIn?: string[];
   interests?: string[];
   height?: number;
+  hasChildren?: boolean;
+  wantsChildren?: boolean;
   vibe?: string;
   quote?: string;
   identityTags?: string[];
