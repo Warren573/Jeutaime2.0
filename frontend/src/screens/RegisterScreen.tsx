@@ -40,12 +40,18 @@ export default function RegisterScreen() {
   const VALID_GENDERS = ["HOMME", "FEMME", "AUTRE"];
 
   const isFormValid =
-    pseudo.trim().length >= 2 &&
+    pseudo.trim().length >= 3 &&
+    /^[a-zA-Z0-9_\-\.]+$/.test(pseudo.trim()) &&
     email.trim().length > 0 &&
     birthDate.trim().length === 10 &&
+    (() => {
+      const age = (Date.now() - new Date(`${birthDate.trim()}T00:00:00.000Z`).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+      return age >= 18;
+    })() &&
     city.trim().length > 0 &&
     VALID_GENDERS.includes(gender) &&
-    password.length >= 6;
+    password.length >= 8 &&
+    /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password);
 
   const handleRegister = async () => {
     if (!isFormValid || isLoading) return;
