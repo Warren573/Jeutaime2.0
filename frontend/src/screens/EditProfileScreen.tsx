@@ -218,6 +218,8 @@ export function EditProfileScreen() {
   const [height,       setHeight]       = useState(currentUser?.height != null ? String(currentUser.height) : '');
   const [vibe,         setVibe]         = useState(currentUser?.vibe         ?? '');
   const [quote,        setQuote]        = useState(currentUser?.quote        ?? '');
+  const [hasChildren,  setHasChildren]  = useState<boolean | null>(currentUser?.hasChildren  ?? null);
+  const [wantsChildren,setWantsChildren]= useState<boolean | null>(currentUser?.wantsChildren ?? null);
   const [identityTags, setIdentityTags] = useState<string[]>(currentUser?.identityTags ?? []);
   const [qualities,    setQualities]    = useState<string[]>(currentUser?.qualities    ?? []);
   const [defaults,     setDefaults]     = useState<string[]>(currentUser?.defaults     ?? []);
@@ -233,7 +235,9 @@ export function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) { Alert.alert('Manque', 'Renseigne ton prénom.'); return; }
-    if (bio.trim().length < 50) { Alert.alert('Bio trop courte', 'Min 50 caractères.'); return; }
+    if (bio.trim().length > 0 && bio.trim().length < 50) {
+      Alert.alert('Bio trop courte', 'Min 50 caractères. Les autres champs sont sauvegardés.');
+    }
 
     const LF_MAP: Record<string, string> = { relation: 'RELATION', flirt: 'FLIRT', amitie: 'AMITIE', discussion: 'DISCUSSION', serieux: 'SERIEUX' };
     const GI_MAP: Record<string, string> = { F: 'FEMME', M: 'HOMME', NB: 'AUTRE' };
@@ -252,6 +256,8 @@ export function EditProfileScreen() {
           interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
           interests,
           ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
+          ...(hasChildren  !== null && { hasChildren }),
+          ...(wantsChildren !== null && { wantsChildren }),
           vibe:         vibe.trim(),
           quote:        quote.trim(),
           identityTags,
@@ -267,24 +273,32 @@ export function EditProfileScreen() {
     }
 
     setCurrentUser({
-      ...(currentUser as any),
-      name: name.trim(),
-      age: parseInt(age) || currentUser?.age,
-      bio: bio.trim(),
-      city: city.trim(),
-      physicalDesc: physique,
+      id:             currentUser?.id            ?? '',
+      email:          currentUser?.email,
+      isPremium:      currentUser?.isPremium      ?? false,
+      avatarConfig:   currentUser?.avatarConfig   ?? ({} as any),
+      stats:          currentUser?.stats          ?? { matchesCount: 0, lettersSent: 0, lettersReceived: 0, offeringsSent: 0, powerUsed: 0, gamesWon: 0, salonsVisited: 0, daysActive: 0, storiesParticipated: 0, storiesCompleted: 0 },
+      unlockedBadges: currentUser?.unlockedBadges ?? [],
+      gender:         currentUser?.gender,
+      name:           name.trim(),
+      age:            parseInt(age) || currentUser?.age,
+      bio:            bio.trim(),
+      city:           city.trim(),
+      physicalDesc:   physique,
       questions,
       lookingFor,
       interestedIn,
       interests,
-      height: heightNum >= 100 && heightNum <= 250 ? heightNum : currentUser?.height,
-      vibe:         vibe.trim(),
-      quote:        quote.trim(),
+      hasChildren:    hasChildren  ?? currentUser?.hasChildren,
+      wantsChildren:  wantsChildren ?? currentUser?.wantsChildren,
+      height:         heightNum >= 100 && heightNum <= 250 ? heightNum : currentUser?.height,
+      vibe:           vibe.trim(),
+      quote:          quote.trim(),
       identityTags,
       qualities,
       defaults,
-      idealDay:     filteredIdealDay,
-      skills:       validSkills,
+      idealDay:       filteredIdealDay,
+      skills:         validSkills,
     });
     router.back();
   };
