@@ -39,19 +39,39 @@ export default function RegisterScreen() {
 
   const VALID_GENDERS = ["HOMME", "FEMME", "AUTRE"];
 
+  const pseudoError = pseudo.length > 0
+    ? pseudo.trim().length < 3
+      ? "3 caractères minimum"
+      : !/^[a-zA-Z0-9_\-\.]+$/.test(pseudo.trim())
+        ? "Lettres, chiffres, _ - . uniquement"
+        : null
+    : null;
+
+  const passwordError = password.length > 0
+    ? password.length < 8
+      ? "8 caractères minimum"
+      : !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)
+        ? "Doit contenir une majuscule, une minuscule et un chiffre"
+        : null
+    : null;
+
+  const birthDateError = birthDate.trim().length === 10
+    ? (() => {
+        const age = (Date.now() - new Date(`${birthDate.trim()}T00:00:00.000Z`).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+        return age < 18 ? "Tu dois avoir au moins 18 ans" : null;
+      })()
+    : null;
+
   const isFormValid =
     pseudo.trim().length >= 3 &&
-    /^[a-zA-Z0-9_\-\.]+$/.test(pseudo.trim()) &&
+    pseudoError === null &&
     email.trim().length > 0 &&
     birthDate.trim().length === 10 &&
-    (() => {
-      const age = (Date.now() - new Date(`${birthDate.trim()}T00:00:00.000Z`).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-      return age >= 18;
-    })() &&
+    birthDateError === null &&
     city.trim().length > 0 &&
     VALID_GENDERS.includes(gender) &&
     password.length >= 8 &&
-    /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password);
+    passwordError === null;
 
   const handleRegister = async () => {
     if (!isFormValid || isLoading) return;
@@ -128,6 +148,7 @@ export default function RegisterScreen() {
                   placeholderTextColor="#9a948d"
                   style={styles.input}
                 />
+                {pseudoError ? <Text style={styles.fieldError}>{pseudoError}</Text> : null}
               </View>
 
               <View style={styles.field}>
@@ -154,6 +175,7 @@ export default function RegisterScreen() {
                   style={styles.input}
                   maxLength={10}
                 />
+                {birthDateError ? <Text style={styles.fieldError}>{birthDateError}</Text> : null}
               </View>
 
               <View style={styles.field}>
@@ -202,6 +224,7 @@ export default function RegisterScreen() {
                   placeholderTextColor="#9a948d"
                   style={styles.input}
                 />
+                {passwordError ? <Text style={styles.fieldError}>{passwordError}</Text> : null}
               </View>
 
               <Pressable
@@ -351,5 +374,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#9c3d4f",
+  },
+  fieldError: {
+    fontSize: 13,
+    color: "#c0392b",
+    marginTop: 2,
   },
 });
