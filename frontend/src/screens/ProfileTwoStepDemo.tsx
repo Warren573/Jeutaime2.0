@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "../avatar/png/Avatar";
 import { DEFAULT_AVATAR } from "../avatar/png/defaults";
 import { useStore } from "../store/useStore";
-import { computeAge, GENDER_DISPLAY } from "../utils/profileMappings";
+import { GENDER_DISPLAY } from "../utils/profileMappings";
 
 const PHYSIQUE_LABEL: Record<string, { emoji: string; label: string }> = {
   filiforme:    { emoji: "🍝", label: "Filiforme" },
@@ -105,7 +105,7 @@ export default function ProfilesScreen() {
 
   const user = useStore((s) => s.currentUser);
   const avatarConfig = useStore((s) => s.avatarPngConfig);
-  const age = computeAge(user?.birthDate);
+  const age = user?.age ?? null;
   const interestedInLabel = (user?.interestedIn ?? [])
     .map((g) => GENDER_DISPLAY[g] ?? g)
     .join(", ");
@@ -136,10 +136,10 @@ export default function ProfilesScreen() {
 
               <View style={styles.stageOneHeaderText}>
                 <Text style={styles.stageOneName}>
-                  {user?.pseudo ?? "—"}{age !== null ? `, ${age}` : ""}
+                  {user?.name ?? "—"}{age !== null ? `, ${age}` : ""}
                 </Text>
 
-                <Text style={styles.stageOneVibe}>{""}</Text>
+                <Text style={styles.stageOneVibe}>{user?.vibe ?? ""}</Text>
                 <Text style={styles.stageOneMeta}>
                   📍 {user?.city ?? "—"}
                   {user?.height ? `  ·  📏 ${user.height}cm` : ""}
@@ -186,7 +186,7 @@ export default function ProfilesScreen() {
                   <Text style={styles.journalMainTitle}>Mon journal</Text>
                   <Text style={styles.journalMainTitle}>de bord</Text>
                   <Text style={styles.journalUnderline}>________________</Text>
-                  <Text style={styles.journalQuote}>{""}</Text>
+                  <Text style={styles.journalQuote}>{user?.quote ?? ""}</Text>
                 </View>
 
                 <View style={styles.polaWrap}>
@@ -195,7 +195,7 @@ export default function ProfilesScreen() {
                     <Avatar size={86} {...(avatarConfig ?? DEFAULT_AVATAR)} />
                   </View>
                   <Text style={styles.polaCaption}>
-                    {user?.pseudo ?? "—"}{age !== null ? `, ${age}` : ""}
+                    {user?.name ?? "—"}{age !== null ? `, ${age}` : ""}
                   </Text>
                 </View>
               </View>
