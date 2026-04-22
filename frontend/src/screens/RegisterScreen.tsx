@@ -37,11 +37,14 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const VALID_GENDERS = ["HOMME", "FEMME", "AUTRE"];
+
   const isFormValid =
     pseudo.trim().length >= 2 &&
     email.trim().length > 0 &&
     birthDate.trim().length === 10 &&
     city.trim().length > 0 &&
+    VALID_GENDERS.includes(gender) &&
     password.length >= 6;
 
   const handleRegister = async () => {
