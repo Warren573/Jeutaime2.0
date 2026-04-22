@@ -18,6 +18,24 @@ export const UpdateProfileSchema = z.object({
   hasChildren: z.boolean().optional(),
   wantsChildren: z.boolean().optional(),
   avatarConfig: z.record(z.unknown()).optional(),
+  height: z.number().int().min(100).max(250).optional(),
+  vibe: z.string().max(80).optional(),
+  quote: z.string().max(150).optional(),
+  identityTags: z.array(z.string().max(30)).max(5).optional(),
+  qualities: z.array(z.string().max(50)).max(5).optional(),
+  defaults: z.array(z.string().max(50)).max(5).optional(),
+  idealDay: z.array(z.string().max(100)).max(5).optional(),
+  skills: z
+    .array(
+      z.object({
+        label:  z.string().max(50),
+        detail: z.string().max(100),
+        score:  z.number().int().min(0).max(100),
+        emoji:  z.string().max(10),
+      }),
+    )
+    .max(6)
+    .optional(),
 });
 
 export const UpdateQuestionsSchema = z.object({

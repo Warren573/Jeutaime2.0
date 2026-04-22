@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
+import { apiFetch } from '../api/client';
 
 // ─── Description physique avec humour ────────────────────────────────────────
 
@@ -42,6 +43,97 @@ const INTERESTS_OPTIONS = [
   '🎨 Art', '🍳 Cuisine', '💃 Danse', '🎭 Théâtre',
   '📸 Photographie', '🐾 Animaux', '🧘 Méditation', '🚴 Vélo',
 ];
+
+// ─── Champs V1 ────────────────────────────────────────────────────────────────
+
+type Skill = { label: string; detail: string; score: number; emoji: string };
+
+const IDENTITY_TAG_OPTIONS = [
+  'Introverti•e', 'Extraverti•e', 'Créatif•ve', 'Analytique',
+  'Aventurier•ère', 'Romantique', 'Drôle', 'Sérieux•se',
+  'Empathique', 'Indépendant•e', 'Curieux•se', 'Calme',
+];
+
+const QUALITY_OPTIONS = [
+  'Loyal•e', 'Drôle', 'Attentionné•e', 'Honnête',
+  'Créatif•ve', 'Patient•e', 'Généreux•se', 'Curieux•se',
+  'Aventurier•ère', 'Empathique', 'Optimiste', 'Fiable',
+];
+
+const DEFAULT_OPTIONS = [
+  'Têtu•e', 'Toujours en retard', 'Trop perfectionniste',
+  "Tête en l'air", 'Trop bavard•e', 'Mauvais•e cuisinier•ère',
+  'Jaloux•se', 'Mauvais•e perdant•e', 'Trop sensible',
+];
+
+// ─── Composant SkillCard ──────────────────────────────────────────────────────
+
+interface SkillCardProps {
+  skill: Skill;
+  onChange: (s: Skill) => void;
+  onRemove: () => void;
+}
+
+const SkillCard: React.FC<SkillCardProps> = ({ skill, onChange, onRemove }) => (
+  <View style={skStyles.card}>
+    <View style={skStyles.topRow}>
+      <TextInput
+        style={[skStyles.input, skStyles.emojiInput]}
+        value={skill.emoji}
+        onChangeText={e => onChange({ ...skill, emoji: e })}
+        placeholder="⭐"
+        maxLength={2}
+        placeholderTextColor="#B8A082"
+      />
+      <TextInput
+        style={[skStyles.input, skStyles.labelInput]}
+        value={skill.label}
+        onChangeText={l => onChange({ ...skill, label: l })}
+        placeholder="Compétence (ex: Guitare)"
+        maxLength={50}
+        placeholderTextColor="#B8A082"
+      />
+      <TouchableOpacity style={skStyles.removeBtn} onPress={onRemove}>
+        <Text style={skStyles.removeText}>✕</Text>
+      </TouchableOpacity>
+    </View>
+    <TextInput
+      style={[skStyles.input, { marginBottom: 8 }]}
+      value={skill.detail}
+      onChangeText={d => onChange({ ...skill, detail: d })}
+      placeholder="Détail (ex: Je joue depuis 10 ans)"
+      maxLength={100}
+      placeholderTextColor="#B8A082"
+    />
+    <View style={skStyles.scoreRow}>
+      <Text style={skStyles.scoreLabel}>Niveau {skill.score}/100</Text>
+      {[20, 40, 60, 80, 100].map(v => (
+        <TouchableOpacity
+          key={v}
+          style={[skStyles.scoreBtn, skill.score >= v && skStyles.scoreBtnActive]}
+          onPress={() => onChange({ ...skill, score: v })}
+        >
+          <Text style={skStyles.scoreBtnText}>{v}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  </View>
+);
+
+const skStyles = StyleSheet.create({
+  card:           { backgroundColor: '#FFF8F0', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E8D5B7' },
+  topRow:         { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
+  input:          { backgroundColor: '#FFF8E7', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, borderWidth: 1, borderColor: '#E8D5B7', color: '#3A2818' },
+  emojiInput:     { width: 44, textAlign: 'center' },
+  labelInput:     { flex: 1 },
+  removeBtn:      { width: 32, height: 32, borderRadius: 10, backgroundColor: '#FFE4E4', alignItems: 'center', justifyContent: 'center' },
+  removeText:     { fontSize: 13, color: '#E91E8C', fontWeight: '700' },
+  scoreRow:       { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  scoreLabel:     { fontSize: 12, color: '#8B6F47', minWidth: 80 },
+  scoreBtn:       { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: '#E8D5B7' },
+  scoreBtnActive: { backgroundColor: '#E91E8C' },
+  scoreBtnText:   { fontSize: 11, fontWeight: '700', color: '#FFF' },
+});
 
 // ─── Composant QuestionBlock ──────────────────────────────────────────────────
 
@@ -123,13 +215,57 @@ export function EditProfileScreen() {
     (currentUser?.questions as Question[] | undefined) ?? [EMPTY_QUESTION(), EMPTY_QUESTION(), EMPTY_QUESTION()]
   );
 
+  const [height,       setHeight]       = useState(currentUser?.height != null ? String(currentUser.height) : '');
+  const [vibe,         setVibe]         = useState(currentUser?.vibe         ?? '');
+  const [quote,        setQuote]        = useState(currentUser?.quote        ?? '');
+  const [identityTags, setIdentityTags] = useState<string[]>(currentUser?.identityTags ?? []);
+  const [qualities,    setQualities]    = useState<string[]>(currentUser?.qualities    ?? []);
+  const [defaults,     setDefaults]     = useState<string[]>(currentUser?.defaults     ?? []);
+  const [idealDay,     setIdealDay]     = useState<string[]>(() => {
+    const saved = currentUser?.idealDay ?? [];
+    return [...saved, '', '', '', '', ''].slice(0, 5);
+  });
+  const [skills,       setSkills]       = useState<Skill[]>(currentUser?.skills ?? []);
+
   const toggleItem = (list: string[], setList: (v: string[]) => void, id: string) => {
     setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) { Alert.alert('Manque', 'Renseigne ton prénom.'); return; }
     if (bio.trim().length < 50) { Alert.alert('Bio trop courte', 'Min 50 caractères.'); return; }
+
+    const LF_MAP: Record<string, string> = { relation: 'RELATION', flirt: 'FLIRT', amitie: 'AMITIE', discussion: 'DISCUSSION', serieux: 'SERIEUX' };
+    const GI_MAP: Record<string, string> = { F: 'FEMME', M: 'HOMME', NB: 'AUTRE' };
+    const heightNum = parseInt(height);
+    const filteredIdealDay = idealDay.filter(s => s.trim());
+    const validSkills = skills.filter(s => s.label.trim());
+
+    try {
+      await apiFetch('/profiles/me', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          bio:          bio.trim(),
+          city:         city.trim(),
+          physicalDesc: physique || undefined,
+          lookingFor:   lookingFor.map(id => LF_MAP[id]).filter(Boolean),
+          interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
+          interests,
+          ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
+          vibe:         vibe.trim(),
+          quote:        quote.trim(),
+          identityTags,
+          qualities,
+          defaults,
+          idealDay:     filteredIdealDay,
+          skills:       validSkills,
+        }),
+      });
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message ?? 'Impossible de sauvegarder');
+      return;
+    }
+
     setCurrentUser({
       ...(currentUser as any),
       name: name.trim(),
@@ -141,6 +277,14 @@ export function EditProfileScreen() {
       lookingFor,
       interestedIn,
       interests,
+      height: heightNum >= 100 && heightNum <= 250 ? heightNum : currentUser?.height,
+      vibe:         vibe.trim(),
+      quote:        quote.trim(),
+      identityTags,
+      qualities,
+      defaults,
+      idealDay:     filteredIdealDay,
+      skills:       validSkills,
     });
     router.back();
   };
@@ -188,6 +332,17 @@ export function EditProfileScreen() {
               <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Ex: Paris" placeholderTextColor="#B8A082" />
             </View>
           </View>
+
+          <Text style={styles.inputLabel}>Taille (cm)</Text>
+          <TextInput
+            style={styles.input}
+            value={height}
+            onChangeText={setHeight}
+            placeholder="Ex: 175"
+            keyboardType="numeric"
+            maxLength={3}
+            placeholderTextColor="#B8A082"
+          />
         </SectionCard>
 
         {/* ── Bio ── */}
@@ -273,6 +428,139 @@ export function EditProfileScreen() {
               </TouchableOpacity>
             ))}
           </View>
+        </SectionCard>
+
+        {/* ── Vibe & Citation ── */}
+        <SectionCard emoji="💭" title="Vibe & Citation">
+          <Text style={styles.inputLabel}>Ta vibe (80 car. max)</Text>
+          <TextInput
+            style={styles.input}
+            value={vibe}
+            onChangeText={setVibe}
+            placeholder="Ex: Soleil et bonne humeur toute l'année"
+            placeholderTextColor="#B8A082"
+            maxLength={80}
+          />
+          <Text style={styles.inputLabel}>Ta citation (150 car. max)</Text>
+          <TextInput
+            style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
+            value={quote}
+            onChangeText={setQuote}
+            placeholder="Ex: « Carpe diem » ou quelque chose qui te tient à cœur"
+            placeholderTextColor="#B8A082"
+            maxLength={150}
+            multiline
+          />
+        </SectionCard>
+
+        {/* ── Tags d'identité ── */}
+        <SectionCard emoji="🏷️" title="Tags d'identité (5 max)">
+          <Text style={styles.subLabel}>Ce qui te définit en quelques mots</Text>
+          <View style={styles.chipGrid}>
+            {IDENTITY_TAG_OPTIONS.map(tag => (
+              <TouchableOpacity
+                key={tag}
+                style={[
+                  styles.chip,
+                  identityTags.includes(tag) && styles.chipActive,
+                  identityTags.length >= 5 && !identityTags.includes(tag) && styles.chipDisabled,
+                ]}
+                onPress={() => {
+                  if (identityTags.length >= 5 && !identityTags.includes(tag)) return;
+                  toggleItem(identityTags, setIdentityTags, tag);
+                }}
+              >
+                <Text style={styles.chipText}>{tag}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </SectionCard>
+
+        {/* ── Qualités & Défauts ── */}
+        <SectionCard emoji="⚖️" title="Qualités & Défauts (5 max chacun)">
+          <Text style={styles.subSectionLabel}>✨ Mes qualités</Text>
+          <View style={styles.chipGrid}>
+            {QUALITY_OPTIONS.map(q => (
+              <TouchableOpacity
+                key={q}
+                style={[
+                  styles.chip,
+                  qualities.includes(q) && styles.chipActive,
+                  qualities.length >= 5 && !qualities.includes(q) && styles.chipDisabled,
+                ]}
+                onPress={() => {
+                  if (qualities.length >= 5 && !qualities.includes(q)) return;
+                  toggleItem(qualities, setQualities, q);
+                }}
+              >
+                <Text style={styles.chipText}>{q}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>🤭 Mes défauts (soyons honnêtes…)</Text>
+          <View style={styles.chipGrid}>
+            {DEFAULT_OPTIONS.map(d => (
+              <TouchableOpacity
+                key={d}
+                style={[
+                  styles.chip,
+                  defaults.includes(d) && styles.chipActive,
+                  defaults.length >= 5 && !defaults.includes(d) && styles.chipDisabled,
+                ]}
+                onPress={() => {
+                  if (defaults.length >= 5 && !defaults.includes(d)) return;
+                  toggleItem(defaults, setDefaults, d);
+                }}
+              >
+                <Text style={styles.chipText}>{d}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </SectionCard>
+
+        {/* ── Journée idéale ── */}
+        <SectionCard emoji="🌅" title="Ma journée idéale (5 étapes)">
+          <Text style={styles.subLabel}>Décris ta journée parfaite étape par étape</Text>
+          {idealDay.map((step, i) => (
+            <TextInput
+              key={i}
+              style={[styles.input, { marginBottom: 8 }]}
+              value={step}
+              onChangeText={t => {
+                const copy = [...idealDay];
+                copy[i] = t;
+                setIdealDay(copy);
+              }}
+              placeholder={`Étape ${i + 1} (ex: Café en terrasse…)`}
+              placeholderTextColor="#B8A082"
+              maxLength={100}
+            />
+          ))}
+        </SectionCard>
+
+        {/* ── Compétences ── */}
+        <SectionCard emoji="🎯" title="Mes compétences (6 max)">
+          <Text style={styles.subLabel}>Tes talents cachés et pas si cachés</Text>
+          {skills.map((sk, i) => (
+            <SkillCard
+              key={i}
+              skill={sk}
+              onChange={updated => {
+                const copy = [...skills];
+                copy[i] = updated;
+                setSkills(copy);
+              }}
+              onRemove={() => setSkills(skills.filter((_, j) => j !== i))}
+            />
+          ))}
+          {skills.length < 6 && (
+            <TouchableOpacity
+              style={styles.addSkillBtn}
+              onPress={() => setSkills([...skills, { label: '', detail: '', score: 50, emoji: '⭐' }])}
+            >
+              <Text style={styles.addSkillText}>+ Ajouter une compétence</Text>
+            </TouchableOpacity>
+          )}
         </SectionCard>
 
         {/* ── Jeu des 3 Questions ── */}
@@ -377,6 +665,8 @@ const styles = StyleSheet.create({
   chipText:     { fontSize: 13, fontWeight: '600', color: BROWN },
 
   // Save button
-  saveBtn:     { backgroundColor: PINK, borderRadius: 20, padding: 20, alignItems: 'center', marginTop: 8, marginBottom: 20 },
-  saveBtnText: { color: '#FFF', fontWeight: '800', fontSize: 17, letterSpacing: 0.5 },
+  saveBtn:      { backgroundColor: PINK, borderRadius: 20, padding: 20, alignItems: 'center', marginTop: 8, marginBottom: 20 },
+  saveBtnText:  { color: '#FFF', fontWeight: '800', fontSize: 17, letterSpacing: 0.5 },
+  addSkillBtn:  { backgroundColor: '#FFF0F7', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1.5, borderColor: PINK },
+  addSkillText: { color: PINK, fontWeight: '700', fontSize: 14 },
 });

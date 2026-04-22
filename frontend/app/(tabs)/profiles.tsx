@@ -1,2 +1,2 @@
-import ProfilesScreen from '../../src/screens/ProfilesScreen';
-export default ProfilesScreen;
+import ProfileTwoStepDemo from '../../src/screens/ProfileTwoStepDemo';
+export default ProfileTwoStepDemo;

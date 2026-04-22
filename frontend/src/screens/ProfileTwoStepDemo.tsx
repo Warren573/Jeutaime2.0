@@ -137,7 +137,7 @@ export default function ProfileTwoStepDemo() {
     [user?.avatarConfig]
   );
 
-  const age = computeAge(user?.birthDate);
+  const age = user?.age ?? computeAge(user?.birthDate);
   const physique = user?.physicalDesc
     ? PHYSIQUE_LABEL[user.physicalDesc] ?? {
         emoji: "✨",
@@ -162,7 +162,7 @@ export default function ProfileTwoStepDemo() {
   const idealDay = user?.idealDay ?? [];
   const skills = (user?.skills ?? []) as Skill[];
 
-  const displayName = user?.pseudo ?? "Pseudo";
+  const displayName = user?.name ?? user?.pseudo ?? "Pseudo";
   const displayBio =
     user?.bio ??
     "Ajoute ton bla-bla ici. C’est lui qui donne envie d’ouvrir ton profil.";

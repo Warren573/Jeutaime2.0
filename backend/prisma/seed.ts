@@ -1,11 +1,26 @@
 /**
  * JeuTaime — Seed Prisma
  * Popule les catalogues immuables : salons, questions, offrandes, magies, animaux
+ * + crée un compte de test pour le développement
  * npm run prisma:seed
  */
-import { PrismaClient, SalonKind, OfferingCategory, MagieType } from "@prisma/client";
+import { PrismaClient, SalonKind, OfferingCategory, MagieType, Gender } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+
+// ============================================================
+// COMPTE DE TEST (développement uniquement)
+// Email : test@jeutaime.com  |  Mot de passe : Test1234!
+// ============================================================
+const TEST_USER = {
+  email:    "test@jeutaime.com",
+  password: "Test1234!",
+  pseudo:   "TestUser",
+  birthDate: new Date("1995-06-15T00:00:00.000Z"),
+  gender:   Gender.male,
+  city:     "Paris",
+} as const;
 
 // ============================================================
 // SALONS (7 salons, correspondance exacte frontend)
@@ -206,6 +221,48 @@ async function main() {
   // On les exporte en JSON pour que le service puisse les utiliser
   // Elles ne sont pas en table car le catalogue peut évoluer sans migration
   console.log(`✅ ${questionCatalog.length} questions disponibles (catalogue JSON embarqué)`);
+
+  // -- Compte de test --
+  const existingTest = await prisma.user.findUnique({
+    where: { email: TEST_USER.email },
+    select: { id: true },
+  });
+
+  if (existingTest) {
+    console.log(`ℹ️  Compte test déjà existant (${TEST_USER.email})`);
+  } else {
+    const passwordHash = await bcrypt.hash(TEST_USER.password, 10);
+
+    await prisma.$transaction(async (tx) => {
+      const testUser = await tx.user.create({
+        data: { email: TEST_USER.email, passwordHash, isVerified: true },
+      });
+
+      await tx.profile.create({
+        data: {
+          userId:      testUser.id,
+          pseudo:      TEST_USER.pseudo,
+          birthDate:   TEST_USER.birthDate,
+          gender:      TEST_USER.gender,
+          city:        TEST_USER.city,
+          interestedIn: [],
+          lookingFor:  [],
+          interests:   [],
+          bio:         "Compte de test JeuTaime 🧪",
+        },
+      });
+
+      await tx.wallet.create({
+        data: { userId: testUser.id, coins: 9999 },
+      });
+
+      await tx.userSettings.create({
+        data: { userId: testUser.id },
+      });
+    });
+
+    console.log(`✅ Compte test créé → ${TEST_USER.email} / ${TEST_USER.password}`);
+  }
 
   console.log("\n🎉 Seed terminé avec succès !");
 }

@@ -26,6 +26,7 @@ import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import * as EconomyEngine from '../engine/EconomyEngine';
 import * as ProgressionEngine from '../engine/ProgressionEngine';
 import * as PetEngine from '../engine/PetEngine';
+import { apiFetch } from '../api/client';
 
 // ===== DEV MODE =====
 // À mettre à `false` pour le build final
@@ -68,6 +69,16 @@ interface CurrentUser {
   lookingFor?: string[];
   interestedIn?: string[];
   interests?: string[];
+  height?: number;
+  hasChildren?: boolean;
+  wantsChildren?: boolean;
+  vibe?: string;
+  quote?: string;
+  identityTags?: string[];
+  qualities?: string[];
+  defaults?: string[];
+  idealDay?: string[];
+  skills?: { label: string; detail: string; score: number; emoji: string }[];
 }
 
 interface StoreState {
@@ -105,6 +116,7 @@ interface StoreState {
   // ===== Actions - User =====
   setCurrentUser: (user: CurrentUser | null) => void;
   loadUserData: () => void;
+  hydrateFromApi: () => Promise<void>;
   
   // ===== Actions - Economy =====
   addCoins: (amount: number, reason?: string, category?: TransactionCategory) => void;
@@ -231,6 +243,54 @@ export const useStore = create<StoreState>()(
 
       // ===== User Actions =====
       setCurrentUser: (user) => set({ currentUser: user, isAuthenticated: !!user }),
+
+      hydrateFromApi: async () => {
+        try {
+          const res = await apiFetch('/auth/me');
+          const d = res?.data;
+          const p = d?.profile;
+          if (!d?.id || !p) return;
+          const ageNum = (() => {
+            const bd = new Date(p.birthDate ?? '');
+            if (isNaN(bd.getTime())) return undefined;
+            const now = new Date();
+            let a = now.getFullYear() - bd.getFullYear();
+            if (now.getMonth() < bd.getMonth() || (now.getMonth() === bd.getMonth() && now.getDate() < bd.getDate())) a--;
+            return a >= 13 ? a : undefined;
+          })();
+          const LF: Record<string, string> = { AMITIE: 'amitie', RELATION: 'relation', FLIRT: 'flirt', DISCUSSION: 'discussion', SERIEUX: 'serieux' };
+          const GI: Record<string, string> = { FEMME: 'F', HOMME: 'M', AUTRE: 'NB' };
+          get().setCurrentUser({
+            id: d.id,
+            name: p.pseudo,
+            email: d.email,
+            isPremium: d.premiumTier === 'PREMIUM',
+            avatarConfig: (p.avatarConfig ?? {}) as any,
+            stats: { matchesCount: 0, lettersSent: 0, lettersReceived: 0, offeringsSent: 0, powerUsed: 0, gamesWon: 0, salonsVisited: 0, daysActive: 0, storiesParticipated: 0, storiesCompleted: 0 },
+            unlockedBadges: p.badges ?? [],
+            gender: p.gender,
+            age: ageNum,
+            bio: p.bio ?? undefined,
+            city: p.city ?? undefined,
+            physicalDesc: p.physicalDesc ?? undefined,
+            lookingFor: (p.lookingFor ?? []).map((v: string) => LF[v] ?? v.toLowerCase()),
+            interestedIn: (p.interestedIn ?? []).map((v: string) => GI[v] ?? v),
+            interests: p.interests ?? [],
+            hasChildren: p.hasChildren ?? undefined,
+            wantsChildren: p.wantsChildren ?? undefined,
+            height: p.height ?? undefined,
+            vibe: p.vibe ?? undefined,
+            quote: p.quote ?? undefined,
+            identityTags: p.identityTags ?? [],
+            qualities: p.qualities ?? [],
+            defaults: p.defaults ?? [],
+            idealDay: p.idealDay ?? [],
+            skills: (p.skills as any) ?? [],
+          });
+        } catch {
+          // token invalide ou réseau — user reste non-authentifié
+        }
+      },
       
       loadUserData: () => {
         // Charger les données utilisateur au démarrage

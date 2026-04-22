@@ -12,9 +12,31 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { apiFetch } from "../api/client";
+import { saveToken } from "../utils/session";
+import { useStore } from "../store/useStore";
+
+const AUTH_ENABLED = true;
+
+function extractToken(res: any): string | null {
+  if (!res) return null;
+  return (
+    res?.accessToken ||
+    res?.token ||
+    res?.access_token ||
+    res?.data?.accessToken ||
+    res?.data?.token ||
+    res?.data?.access_token ||
+    res?.tokens?.accessToken ||
+    res?.tokens?.token ||
+    res?.tokens?.access_token ||
+    null
+  );
+}
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { hydrateFromApi } = useStore();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,11 +47,44 @@ export default function LoginScreen() {
   const isFormValid = email.trim().length > 0 && password.trim().length > 0;
 
   const handleLogin = async () => {
-    router.replace("/(tabs)");
+    if (isLoading) return;
+
+    if (!AUTH_ENABLED) {
+      router.replace("/(tabs)");
+      return;
+    }
+
+    if (!isFormValid) return;
+
+    try {
+      setIsLoading(true);
+
+      const res = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+        }),
+      });
+
+      const token = extractToken(res);
+
+      if (!token) {
+        throw new Error(`Token manquant. Réponse: ${JSON.stringify(res)}`);
+      }
+
+      await saveToken(token);
+      await hydrateFromApi();
+      router.replace("/(tabs)");
+    } catch (err: any) {
+      Alert.alert("Erreur", err?.message || "Une erreur est survenue.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleRegister = () => {
-    router.replace("/(tabs)");
+    router.push("/register");
   };
 
   return (
@@ -43,7 +98,7 @@ export default function LoginScreen() {
             <Text style={styles.brand}>JEUTAIME</Text>
             <Text style={styles.title}>Connexion</Text>
             <Text style={styles.subtitle}>
-              Retrouve ton univers et continue l’aventure.
+              Retrouve ton univers et continue l'aventure.
             </Text>
 
             <View style={styles.form}>
@@ -77,12 +132,9 @@ export default function LoginScreen() {
               </View>
 
               <Pressable
-                style={[
-                  styles.button,
-                  (!isFormValid || isLoading) && styles.buttonDisabled,
-                ]}
+                style={[styles.button, isLoading && styles.buttonDisabled]}
                 onPress={handleLogin}
-                disabled={!isFormValid || isLoading}
+                disabled={isLoading}
               >
                 {isLoading ? (
                   <ActivityIndicator color="#fff" />
