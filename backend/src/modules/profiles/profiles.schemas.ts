@@ -5,6 +5,14 @@ const GenderEnum = z.enum(["HOMME", "FEMME", "AUTRE"]);
 const LookingForEnum = z.enum(["AMITIE", "RELATION", "FLIRT", "DISCUSSION", "SERIEUX"]);
 
 export const UpdateProfileSchema = z.object({
+  pseudo: z
+    .string()
+    .trim()
+    .min(3, "Pseudo : 3 caractères minimum")
+    .max(30, "Pseudo : 30 caractères maximum")
+    .regex(/^[a-zA-Z0-9_.-]+$/, "Pseudo invalide")
+    .optional(),
+  birthDate: z.coerce.date().optional(),
   bio: z.string().max(500, "Bio : 500 caractères max").optional(),
   city: z.string().min(1).max(100).optional(),
   postalCode: z.string().max(10).optional(),

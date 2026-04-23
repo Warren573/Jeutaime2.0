@@ -53,6 +53,7 @@ export interface Message {
 interface CurrentUser {
   id: string;
   name: string;
+  pseudo?: string;
   email?: string;
   isPremium: boolean;
   avatarConfig: AvatarConfig;
@@ -61,6 +62,7 @@ interface CurrentUser {
   unlockedBadges: string[];
   gender?: GenderType;
   age?: number;
+  birthDate?: string;
   // Profile fields
   bio?: string;
   city?: string;
@@ -250,6 +252,7 @@ export const useStore = create<StoreState>()(
           const d = res?.data;
           const p = d?.profile;
           if (!d?.id || !p) return;
+          console.log("HYDRATE_API_RESPONSE", d, p);
           const ageNum = (() => {
             const bd = new Date(p.birthDate ?? '');
             if (isNaN(bd.getTime())) return undefined;
@@ -260,33 +263,42 @@ export const useStore = create<StoreState>()(
           })();
           const LF: Record<string, string> = { AMITIE: 'amitie', RELATION: 'relation', FLIRT: 'flirt', DISCUSSION: 'discussion', SERIEUX: 'serieux' };
           const GI: Record<string, string> = { FEMME: 'F', HOMME: 'M', AUTRE: 'NB' };
-          get().setCurrentUser({
+          const prevUser = get().currentUser;
+          const mappedUser = {
             id: d.id,
-            name: p.pseudo,
+            name: p.pseudo ?? prevUser?.name ?? '',
+            pseudo: p.pseudo ?? prevUser?.pseudo,
             email: d.email,
             isPremium: d.premiumTier === 'PREMIUM',
-            avatarConfig: (p.avatarConfig ?? {}) as any,
-            stats: { matchesCount: 0, lettersSent: 0, lettersReceived: 0, offeringsSent: 0, powerUsed: 0, gamesWon: 0, salonsVisited: 0, daysActive: 0, storiesParticipated: 0, storiesCompleted: 0 },
-            unlockedBadges: p.badges ?? [],
+            avatarConfig: ((p.avatarConfig ?? prevUser?.avatarConfig ?? {}) as any),
+            stats: prevUser?.stats ?? { matchesCount: 0, lettersSent: 0, lettersReceived: 0, offeringsSent: 0, powerUsed: 0, gamesWon: 0, salonsVisited: 0, daysActive: 0, storiesParticipated: 0, storiesCompleted: 0 },
+            unlockedBadges: p.badges ?? prevUser?.unlockedBadges ?? [],
             gender: p.gender,
-            age: ageNum,
-            bio: p.bio ?? undefined,
-            city: p.city ?? undefined,
-            physicalDesc: p.physicalDesc ?? undefined,
-            lookingFor: (p.lookingFor ?? []).map((v: string) => LF[v] ?? v.toLowerCase()),
-            interestedIn: (p.interestedIn ?? []).map((v: string) => GI[v] ?? v),
-            interests: p.interests ?? [],
-            hasChildren: p.hasChildren ?? undefined,
-            wantsChildren: p.wantsChildren ?? undefined,
-            height: p.height ?? undefined,
-            vibe: p.vibe ?? undefined,
-            quote: p.quote ?? undefined,
-            identityTags: p.identityTags ?? [],
-            qualities: p.qualities ?? [],
-            defaults: p.defaults ?? [],
-            idealDay: p.idealDay ?? [],
-            skills: (p.skills as any) ?? [],
-          });
+            age: ageNum ?? prevUser?.age,
+            birthDate: p.birthDate ?? prevUser?.birthDate,
+            bio: p.bio ?? prevUser?.bio,
+            city: p.city ?? prevUser?.city,
+            physicalDesc: p.physicalDesc ?? prevUser?.physicalDesc,
+            lookingFor: Array.isArray(p.lookingFor)
+              ? p.lookingFor.map((v: string) => LF[v] ?? v.toLowerCase())
+              : prevUser?.lookingFor,
+            interestedIn: Array.isArray(p.interestedIn)
+              ? p.interestedIn.map((v: string) => GI[v] ?? v)
+              : prevUser?.interestedIn,
+            interests: Array.isArray(p.interests) ? p.interests : prevUser?.interests,
+            hasChildren: p.hasChildren ?? prevUser?.hasChildren,
+            wantsChildren: p.wantsChildren ?? prevUser?.wantsChildren,
+            height: p.height ?? prevUser?.height,
+            vibe: p.vibe ?? prevUser?.vibe,
+            quote: p.quote ?? prevUser?.quote,
+            identityTags: Array.isArray(p.identityTags) ? p.identityTags : prevUser?.identityTags,
+            qualities: Array.isArray(p.qualities) ? p.qualities : prevUser?.qualities,
+            defaults: Array.isArray(p.defaults) ? p.defaults : prevUser?.defaults,
+            idealDay: Array.isArray(p.idealDay) ? p.idealDay : prevUser?.idealDay,
+            skills: p.skills != null ? (p.skills as any) : prevUser?.skills,
+          };
+          console.log("HYDRATE_SET_USER", mappedUser);
+          get().setCurrentUser(mappedUser);
         } catch {
           // token invalide ou réseau — user reste non-authentifié
         }

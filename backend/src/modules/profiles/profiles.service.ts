@@ -1,5 +1,5 @@
 import { prisma } from "../../config/prisma";
-import { NotFoundError, ForbiddenError } from "../../core/errors";
+import { NotFoundError, ForbiddenError, ConflictError } from "../../core/errors";
 import { getPhotoUnlockProgress } from "../../policies/photoUnlock";
 import { buildMeta } from "../../core/utils/pagination";
 import { buildPhotoUrl } from "../photos/photos.urls";
@@ -24,10 +24,19 @@ export async function getMyProfile(userId: string) {
 export async function updateMyProfile(userId: string, dto: UpdateProfileDto) {
   const profile = await prisma.profile.findUnique({ where: { userId }, select: { id: true } });
   if (!profile) throw new NotFoundError("Profil");
+  if (dto.pseudo !== undefined) {
+    const pseudoTaken = await prisma.profile.findFirst({
+      where: { pseudo: dto.pseudo, userId: { not: userId } },
+      select: { id: true },
+    });
+    if (pseudoTaken) throw new ConflictError("Ce pseudo est déjà pris");
+  }
 
   return prisma.profile.update({
     where: { userId },
     data: {
+      ...(dto.pseudo !== undefined && { pseudo: dto.pseudo }),
+      ...(dto.birthDate !== undefined && { birthDate: dto.birthDate }),
       ...(dto.bio !== undefined && { bio: dto.bio }),
       ...(dto.city !== undefined && { city: dto.city }),
       ...(dto.postalCode !== undefined && { postalCode: dto.postalCode }),
