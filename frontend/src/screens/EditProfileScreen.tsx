@@ -44,6 +44,50 @@ const INTERESTS_OPTIONS = [
   '📸 Photographie', '🐾 Animaux', '🧘 Méditation', '🚴 Vélo',
 ];
 
+// ─── Situation parentale ─────────────────────────────────────────────────────
+
+const CHILDREN_OPTIONS = [
+  { id: 'no_children',       label: "Pas d'enfants" },
+  { id: 'has_children',      label: "J'ai des enfants" },
+  { id: 'has_children_more', label: "J'ai des enfants mais pas assez" },
+  { id: 'thinking',          label: "En réflexion" },
+  { id: 'not_now',           label: "Ne veut pas d'enfants pour le moment" },
+  { id: 'never',             label: "Ne veut pas d'enfants" },
+  { id: 'breeding',          label: "Compte se lancer dans l'élevage de …" },
+];
+
+function childrenStatusToStore(id: string | null): { hasChildren?: boolean; wantsChildren?: boolean } {
+  switch (id) {
+    case 'no_children':        return { hasChildren: false };
+    case 'has_children':       return { hasChildren: true };
+    case 'has_children_more':  return { hasChildren: true, wantsChildren: true };
+    case 'thinking':           return {};
+    case 'not_now':            return { hasChildren: false, wantsChildren: false };
+    case 'never':              return { hasChildren: false, wantsChildren: false };
+    case 'breeding':           return { wantsChildren: true };
+    default:                   return {};
+  }
+}
+
+function storeToChildrenStatus(has?: boolean | null, wants?: boolean | null): string | null {
+  if (has === false && wants === false) return 'never';
+  if (has === false)                    return 'no_children';
+  if (has === true && wants === true)   return 'has_children_more';
+  if (has === true)                     return 'has_children';
+  if (wants === true)                   return 'breeding';
+  return null;
+}
+
+function computeAge(dateStr: string): number | undefined {
+  if (dateStr.trim().length !== 10) return undefined;
+  const d = new Date(`${dateStr.trim()}T00:00:00.000Z`);
+  if (isNaN(d.getTime())) return undefined;
+  const now = new Date();
+  let a = now.getFullYear() - d.getFullYear();
+  if (now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate())) a--;
+  return a >= 0 ? a : undefined;
+}
+
 // ─── Écran principal ──────────────────────────────────────────────────────────
 
 export function EditProfileScreen() {
@@ -51,17 +95,18 @@ export function EditProfileScreen() {
   const insets = useSafeAreaInsets();
   const { currentUser, setCurrentUser, avatarPngConfig } = useStore();
 
-  const [name,         setName]         = useState(currentUser?.name        ?? '');
-  const [age,          setAge]          = useState(String(currentUser?.age  ?? ''));
-  const [city,         setCity]         = useState(currentUser?.city        ?? '');
-  const [bio,          setBio]          = useState(currentUser?.bio         ?? '');
-  const [physique,     setPhysique]     = useState(currentUser?.physicalDesc ?? '');
-  const [lookingFor,   setLookingFor]   = useState<string[]>(currentUser?.lookingFor   ?? []);
-  const [interestedIn, setInterestedIn] = useState<string[]>(currentUser?.interestedIn ?? []);
-  const [interests,    setInterests]    = useState<string[]>(currentUser?.interests    ?? []);
-  const [height,       setHeight]       = useState(currentUser?.height != null ? String(currentUser.height) : '');
-  const [hasChildren,  setHasChildren]  = useState<boolean | null>(currentUser?.hasChildren  ?? null);
-  const [wantsChildren,setWantsChildren]= useState<boolean | null>(currentUser?.wantsChildren ?? null);
+  const [name,          setName]          = useState(currentUser?.name        ?? '');
+  const [birthDate,     setBirthDate]     = useState('');
+  const [city,          setCity]          = useState(currentUser?.city        ?? '');
+  const [bio,           setBio]           = useState(currentUser?.bio         ?? '');
+  const [physique,      setPhysique]      = useState(currentUser?.physicalDesc ?? '');
+  const [lookingFor,    setLookingFor]    = useState<string[]>(currentUser?.lookingFor   ?? []);
+  const [interestedIn,  setInterestedIn]  = useState<string[]>(currentUser?.interestedIn ?? []);
+  const [interests,     setInterests]     = useState<string[]>(currentUser?.interests    ?? []);
+  const [height,        setHeight]        = useState(currentUser?.height != null ? String(currentUser.height) : '');
+  const [childrenStatus,setChildrenStatus]= useState<string | null>(
+    storeToChildrenStatus(currentUser?.hasChildren, currentUser?.wantsChildren)
+  );
 
   const toggleItem = (list: string[], setList: (v: string[]) => void, id: string) => {
     setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
@@ -86,15 +131,15 @@ export function EditProfileScreen() {
       unlockedBadges: currentUser?.unlockedBadges ?? [],
       gender:         currentUser?.gender,
       name:           name.trim(),
-      age:            parseInt(age) || currentUser?.age,
+      age:            computeAge(birthDate) ?? currentUser?.age,
       bio:            bio.trim(),
       city:           city.trim(),
       physicalDesc:   physique,
       lookingFor,
       interestedIn,
       interests,
-      hasChildren:    hasChildren  ?? currentUser?.hasChildren,
-      wantsChildren:  wantsChildren ?? currentUser?.wantsChildren,
+      hasChildren:    childrenStatus !== null ? childrenStatusToStore(childrenStatus).hasChildren  : currentUser?.hasChildren,
+      wantsChildren:  childrenStatus !== null ? childrenStatusToStore(childrenStatus).wantsChildren : currentUser?.wantsChildren,
       height:         heightNum >= 100 && heightNum <= 250 ? heightNum : currentUser?.height,
     };
 
@@ -111,8 +156,7 @@ export function EditProfileScreen() {
         interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
         interests,
         ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
-        ...(hasChildren  !== null && { hasChildren }),
-        ...(wantsChildren !== null && { wantsChildren }),
+        ...(childrenStatus !== null ? childrenStatusToStore(childrenStatus) : {}),
       }),
     }).catch((err: any) => {
       console.warn('PATCH /profiles/me failed (local save OK):', err?.message);
@@ -154,16 +198,19 @@ export function EditProfileScreen() {
           <Text style={styles.inputLabel}>Prénom</Text>
           <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Ton prénom" placeholderTextColor="#B8A082" />
 
-          <View style={styles.row2}>
-            <View style={styles.halfField}>
-              <Text style={styles.inputLabel}>Âge</Text>
-              <TextInput style={styles.input} value={age} onChangeText={setAge} placeholder="Ex: 28" keyboardType="numeric" placeholderTextColor="#B8A082" />
-            </View>
-            <View style={[styles.halfField, { marginLeft: 12 }]}>
-              <Text style={styles.inputLabel}>Ville</Text>
-              <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Ex: Paris" placeholderTextColor="#B8A082" />
-            </View>
-          </View>
+          <Text style={styles.inputLabel}>Date de naissance</Text>
+          <TextInput
+            style={styles.input}
+            value={birthDate}
+            onChangeText={setBirthDate}
+            placeholder="AAAA-MM-JJ"
+            keyboardType="numeric"
+            maxLength={10}
+            placeholderTextColor="#B8A082"
+          />
+
+          <Text style={styles.inputLabel}>Ville</Text>
+          <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Ex: Paris" placeholderTextColor="#B8A082" />
 
           <Text style={styles.inputLabel}>Taille (cm)</Text>
           <TextInput
@@ -264,26 +311,12 @@ export function EditProfileScreen() {
 
         {/* ── Situation parentale ── */}
         <SectionCard emoji="👶" title="Situation parentale">
-          <Text style={styles.subSectionLabel}>J'ai des enfants</Text>
           <View style={styles.chipGrid}>
-            {([{ label: 'Oui', value: true }, { label: 'Non', value: false }] as const).map(opt => (
+            {CHILDREN_OPTIONS.map(opt => (
               <TouchableOpacity
-                key={String(opt.value)}
-                style={[styles.chip, hasChildren === opt.value && styles.chipActive]}
-                onPress={() => setHasChildren(hasChildren === opt.value ? null : opt.value)}
-              >
-                <Text style={styles.chipText}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Je veux des enfants</Text>
-          <View style={styles.chipGrid}>
-            {([{ label: 'Oui', value: true }, { label: 'Non', value: false }] as const).map(opt => (
-              <TouchableOpacity
-                key={String(opt.value)}
-                style={[styles.chip, wantsChildren === opt.value && styles.chipActive]}
-                onPress={() => setWantsChildren(wantsChildren === opt.value ? null : opt.value)}
+                key={opt.id}
+                style={[styles.chip, childrenStatus === opt.id && styles.chipActive]}
+                onPress={() => setChildrenStatus(childrenStatus === opt.id ? null : opt.id)}
               >
                 <Text style={styles.chipText}>{opt.label}</Text>
               </TouchableOpacity>
