@@ -132,7 +132,7 @@ export default function ProfileTwoStepDemo() {
   const [isOpen, setIsOpen] = useState(false);
 
   const user = useStore((s) => s.currentUser);
-  console.log('PROFILE_RENDER_USER', user);
+  console.log("PROFILE_RENDER_USER", user);
   const avatarConfig = useMemo(
     () => user?.avatarConfig ?? DEFAULT_AVATAR,
     [user?.avatarConfig]
@@ -163,14 +163,15 @@ export default function ProfileTwoStepDemo() {
   const idealDay = user?.idealDay ?? [];
   const skills = (user?.skills ?? []) as Skill[];
 
-  const displayName = user?.name ?? user?.pseudo ?? "Pseudo";
-  const displayBio =
-    user?.bio ??
-    "Ajoute ton bla-bla ici. C’est lui qui donne envie d’ouvrir ton profil.";
+  const displayName = (user?.name ?? user?.pseudo ?? "").trim();
+  const displayBio = (user?.bio ?? "").trim();
   const displayVibe = user?.vibe ?? "";
   const displayQuote = user?.quote ?? "";
-  const displayCity = user?.city ?? "—";
+  const displayCity = (user?.city ?? "").trim();
   const displayHeight = user?.height ? `${user.height} cm` : null;
+  const headerLine = [displayName, age !== null ? String(age) : ""]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <View style={styles.screen}>
@@ -191,10 +192,9 @@ export default function ProfileTwoStepDemo() {
               </View>
 
               <View style={styles.stageOneHeaderText}>
-                <Text style={styles.stageOneName}>
-                  {displayName}
-                  {age !== null ? `, ${age}` : ""}
-                </Text>
+                {!!headerLine && (
+                  <Text style={styles.stageOneName}>{headerLine}</Text>
+                )}
 
                 {!!displayVibe && (
                   <Text style={styles.stageOneVibe}>{displayVibe}</Text>
@@ -204,22 +204,29 @@ export default function ProfileTwoStepDemo() {
                   <Text style={styles.arrowLine}>⟵ 〜〜〜〜〜〜〜〜〜</Text>
                 </View>
 
-                <View style={styles.metaLine}>
-                  <Text style={styles.metaInline}>{displayCity}</Text>
-                  {displayHeight ? (
-                    <Text style={styles.metaInline}> · {displayHeight}</Text>
-                  ) : null}
-                  {physique ? (
-                    <Text style={styles.metaInline}>
-                      {" "}
-                      · {physique.emoji} {physique.label}
-                    </Text>
-                  ) : null}
-                </View>
+                {(displayCity || displayHeight || physique) ? (
+                  <View style={styles.metaLine}>
+                    {!!displayCity && (
+                      <Text style={styles.metaInline}>{displayCity}</Text>
+                    )}
+                    {displayHeight ? (
+                      <Text style={styles.metaInline}>
+                        {displayCity ? " · " : ""}{displayHeight}
+                      </Text>
+                    ) : null}
+                    {physique ? (
+                      <Text style={styles.metaInline}>
+                        {(displayCity || displayHeight) ? " · " : ""}{physique.emoji} {physique.label}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
               </View>
             </View>
 
-            <Text style={styles.stageOneBlabla}>{displayBio}</Text>
+            {!!displayBio && (
+              <Text style={styles.stageOneBlabla}>{displayBio}</Text>
+            )}
 
             <Pressable onPress={() => setIsOpen(true)} style={styles.discoverWrap}>
               <Text style={styles.discoverLink}>Découvrir le profil →</Text>
@@ -269,10 +276,11 @@ export default function ProfileTwoStepDemo() {
                   <View style={styles.polaFrame}>
                     <Avatar size={86} {...avatarConfig} />
                   </View>
-                  <Text style={styles.polaCaption}>
-                    {displayName}
-                    {age !== null ? `, ${age}` : ""}
-                  </Text>
+                  {!!headerLine && (
+                    <Text style={styles.polaCaption}>
+                      {headerLine}
+                    </Text>
+                  )}
                 </View>
               </View>
 
@@ -327,7 +335,9 @@ export default function ProfileTwoStepDemo() {
                   <Text style={styles.kicker}>EN PRATIQUE</Text>
 
                   <View style={styles.practicalCard}>
-                    <Text style={styles.practicalLine}>📍 {displayCity}</Text>
+                    {!!displayCity && (
+                      <Text style={styles.practicalLine}>📍 {displayCity}</Text>
+                    )}
                     {displayHeight ? (
                       <Text style={styles.practicalLine}>📏 {displayHeight}</Text>
                     ) : null}

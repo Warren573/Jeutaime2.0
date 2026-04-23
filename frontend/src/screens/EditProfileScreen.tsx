@@ -203,8 +203,10 @@ export function EditProfileScreen() {
   const insets = useSafeAreaInsets();
   const { currentUser, setCurrentUser, avatarPngConfig } = useStore();
 
-  const [name,        setName]        = useState(currentUser?.name        ?? '');
-  const [age,         setAge]         = useState(String(currentUser?.age  ?? ''));
+  const [pseudo,      setPseudo]      = useState(currentUser?.pseudo ?? currentUser?.name ?? '');
+  const [birthDate,   setBirthDate]   = useState(
+    currentUser?.birthDate ? String(currentUser.birthDate).slice(0, 10) : ''
+  );
   const [city,        setCity]        = useState(currentUser?.city        ?? '');
   const [bio,         setBio]         = useState(currentUser?.bio         ?? '');
   const [physique,    setPhysique]    = useState(currentUser?.physicalDesc ?? '');
@@ -234,14 +236,51 @@ export function EditProfileScreen() {
   };
 
   const handleSave = async () => {
-    if (!name.trim()) { Alert.alert('Manque', 'Renseigne ton prénom.'); return; }
+    if (!pseudo.trim()) { Alert.alert('Manque', 'Renseigne ton pseudo.'); return; }
     if (bio.trim().length > 0 && bio.trim().length < 50) {
       Alert.alert('Bio trop courte', 'Min 50 caractères. Les autres champs sont sauvegardés.');
     }
 
     const LF_MAP: Record<string, string> = { relation: 'RELATION', flirt: 'FLIRT', amitie: 'AMITIE', discussion: 'DISCUSSION', serieux: 'SERIEUX' };
     const GI_MAP: Record<string, string> = { F: 'FEMME', M: 'HOMME', NB: 'AUTRE' };
+    const LF_REVERSE: Record<string, string> = { RELATION: 'relation', FLIRT: 'flirt', AMITIE: 'amitie', DISCUSSION: 'discussion', SERIEUX: 'serieux' };
+    const GI_REVERSE: Record<string, string> = { FEMME: 'F', HOMME: 'M', AUTRE: 'NB' };
+    const PHYSIQUE_MAP_TO_API: Record<string, string> = {
+      filiforme: 'filiforme',
+      ras_motte: 'ras_motte',
+      grande_gigue: 'grande_gigue',
+      beaute_int: 'doux',
+      athletique: 'athletique',
+      genereuse: 'costaud',
+      moyenne: 'mignon',
+      muscle: 'mysterieux',
+    };
+    const PHYSIQUE_MAP_FROM_API: Record<string, string> = {
+      filiforme: 'filiforme',
+      ras_motte: 'ras_motte',
+      grande_gigue: 'grande_gigue',
+      doux: 'beaute_int',
+      athletique: 'athletique',
+      costaud: 'genereuse',
+      mignon: 'moyenne',
+      mysterieux: 'muscle',
+    };
     const heightNum = parseInt(height);
+    const birthDateIso = (() => {
+      if (!birthDate.trim()) return currentUser?.birthDate;
+      const d = new Date(`${birthDate.trim()}T00:00:00.000Z`);
+      if (isNaN(d.getTime())) return currentUser?.birthDate;
+      return d.toISOString();
+    })();
+    const ageFromBirthDate = (() => {
+      if (!birthDateIso) return currentUser?.age;
+      const bd = new Date(birthDateIso);
+      if (isNaN(bd.getTime())) return currentUser?.age;
+      const now = new Date();
+      let a = now.getFullYear() - bd.getFullYear();
+      if (now.getMonth() < bd.getMonth() || (now.getMonth() === bd.getMonth() && now.getDate() < bd.getDate())) a--;
+      return a;
+    })();
     const filteredIdealDay = idealDay.filter(s => s.trim());
     const validSkills = skills.filter(s => s.label.trim());
 
@@ -253,11 +292,13 @@ export function EditProfileScreen() {
       stats:          currentUser?.stats          ?? { matchesCount: 0, lettersSent: 0, lettersReceived: 0, offeringsSent: 0, powerUsed: 0, gamesWon: 0, salonsVisited: 0, daysActive: 0, storiesParticipated: 0, storiesCompleted: 0 },
       unlockedBadges: currentUser?.unlockedBadges ?? [],
       gender:         currentUser?.gender,
-      name:           name.trim(),
-      age:            parseInt(age) || currentUser?.age,
+      name:           pseudo.trim(),
+      pseudo:         pseudo.trim(),
+      age:            ageFromBirthDate,
+      birthDate:      birthDateIso,
       bio:            bio.trim(),
       city:           city.trim(),
-      physicalDesc:   physique,
+      physicalDesc:   physique || currentUser?.physicalDesc,
       questions,
       lookingFor,
       interestedIn,
@@ -274,33 +315,74 @@ export function EditProfileScreen() {
       skills:         validSkills,
     };
 
-    console.log('SAVE_PAYLOAD', localProfile);
+    console.log("SAVE_PAYLOAD", localProfile);
     setCurrentUser(localProfile);
-    console.log('STORE_AFTER_SAVE', useStore.getState().currentUser);
+    console.log("STORE_AFTER_SAVE", useStore.getState().currentUser);
 
-    apiFetch('/profiles/me', {
-      method: 'PATCH',
-      body: JSON.stringify({
-        bio:          bio.trim(),
-        city:         city.trim(),
-        physicalDesc: physique || undefined,
-        lookingFor:   lookingFor.map(id => LF_MAP[id]).filter(Boolean),
-        interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
-        interests,
-        ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
-        ...(hasChildren  !== null && { hasChildren }),
-        ...(wantsChildren !== null && { wantsChildren }),
-        vibe:         vibe.trim(),
-        quote:        quote.trim(),
-        identityTags,
-        qualities,
-        defaults,
-        idealDay:     filteredIdealDay,
-        skills:       validSkills,
-      }),
-    }).catch((err: any) => {
+    try {
+      const res = await apiFetch('/profiles/me', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          pseudo:       pseudo.trim(),
+          birthDate:    birthDateIso,
+          bio:          bio.trim(),
+          city:         city.trim(),
+          physicalDesc: PHYSIQUE_MAP_TO_API[physique] || undefined,
+          lookingFor:   lookingFor.map(id => LF_MAP[id]).filter(Boolean),
+          interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
+          interests,
+          ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
+          ...(hasChildren  !== null && { hasChildren }),
+          ...(wantsChildren !== null && { wantsChildren }),
+          vibe:         vibe.trim(),
+          quote:        quote.trim(),
+          identityTags,
+          qualities,
+          defaults,
+          idealDay:     filteredIdealDay,
+          skills:       validSkills,
+        }),
+      });
+
+      const p = res?.data;
+      if (p) {
+        const nextBirthDate = p.birthDate ?? birthDateIso;
+        const ageFromApi = (() => {
+          if (!nextBirthDate) return localProfile.age;
+          const bd = new Date(nextBirthDate);
+          if (isNaN(bd.getTime())) return localProfile.age;
+          const now = new Date();
+          let a = now.getFullYear() - bd.getFullYear();
+          if (now.getMonth() < bd.getMonth() || (now.getMonth() === bd.getMonth() && now.getDate() < bd.getDate())) a--;
+          return a;
+        })();
+        setCurrentUser({
+          ...localProfile,
+          name: p.pseudo ?? localProfile.pseudo,
+          pseudo: p.pseudo ?? localProfile.pseudo,
+          birthDate: nextBirthDate,
+          age: ageFromApi,
+          city: p.city ?? localProfile.city,
+          bio: p.bio ?? localProfile.bio,
+          physicalDesc: PHYSIQUE_MAP_FROM_API[p.physicalDesc] ?? localProfile.physicalDesc,
+          lookingFor: (p.lookingFor ?? localProfile.lookingFor ?? []).map((v: string) => LF_REVERSE[v] ?? v),
+          interestedIn: (p.interestedIn ?? localProfile.interestedIn ?? []).map((v: string) => GI_REVERSE[v] ?? v),
+          interests: p.interests ?? localProfile.interests,
+          height: p.height ?? localProfile.height,
+          hasChildren: p.hasChildren ?? localProfile.hasChildren,
+          wantsChildren: p.wantsChildren ?? localProfile.wantsChildren,
+          vibe: p.vibe ?? localProfile.vibe,
+          quote: p.quote ?? localProfile.quote,
+          identityTags: p.identityTags ?? localProfile.identityTags,
+          qualities: p.qualities ?? localProfile.qualities,
+          defaults: p.defaults ?? localProfile.defaults,
+          idealDay: p.idealDay ?? localProfile.idealDay,
+          skills: p.skills ?? localProfile.skills,
+        });
+      }
+    } catch (err: any) {
       console.warn('PATCH /profiles/me failed (local save OK):', err?.message);
-    });
+    }
 
     setTimeout(() => { router.back(); }, 200);
   };
@@ -335,13 +417,13 @@ export function EditProfileScreen() {
 
         {/* ── Infos de base ── */}
         <SectionCard emoji="📝" title="Informations de base">
-          <Text style={styles.inputLabel}>Prénom</Text>
-          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Ton prénom" placeholderTextColor="#B8A082" />
+          <Text style={styles.inputLabel}>Pseudo</Text>
+          <TextInput style={styles.input} value={pseudo} onChangeText={setPseudo} placeholder="Ton pseudo" placeholderTextColor="#B8A082" />
 
           <View style={styles.row2}>
             <View style={styles.halfField}>
-              <Text style={styles.inputLabel}>Âge</Text>
-              <TextInput style={styles.input} value={age} onChangeText={setAge} placeholder="Ex: 28" keyboardType="numeric" placeholderTextColor="#B8A082" />
+              <Text style={styles.inputLabel}>Date de naissance</Text>
+              <TextInput style={styles.input} value={birthDate} onChangeText={setBirthDate} placeholder="YYYY-MM-DD" placeholderTextColor="#B8A082" />
             </View>
             <View style={[styles.halfField, { marginLeft: 12 }]}>
               <Text style={styles.inputLabel}>Ville</Text>
@@ -359,6 +441,43 @@ export function EditProfileScreen() {
             maxLength={3}
             placeholderTextColor="#B8A082"
           />
+        </SectionCard>
+
+        {/* ── Enfants ── */}
+        <SectionCard emoji="👶" title="Enfants">
+          <Text style={styles.subSectionLabel}>As-tu des enfants ?</Text>
+          <View style={styles.chipGrid}>
+            {[
+              { label: "J'ai des enfants", value: true as boolean | null },
+              { label: "Je n'ai pas d'enfant", value: false as boolean | null },
+              { label: 'Je préfère en parler plus tard', value: null as boolean | null },
+            ].map(opt => (
+              <TouchableOpacity
+                key={opt.label}
+                style={[styles.chip, hasChildren === opt.value && styles.chipActive]}
+                onPress={() => setHasChildren(opt.value)}
+              >
+                <Text style={styles.chipText}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Souhaites-tu avoir des enfants ?</Text>
+          <View style={styles.chipGrid}>
+            {[
+              { label: "J'en veux", value: true as boolean | null },
+              { label: "Je n'en veux pas", value: false as boolean | null },
+              { label: "Je n'ai pas encore décidé", value: null as boolean | null },
+            ].map(opt => (
+              <TouchableOpacity
+                key={`wants-${opt.label}`}
+                style={[styles.chip, wantsChildren === opt.value && styles.chipActive]}
+                onPress={() => setWantsChildren(opt.value)}
+              >
+                <Text style={styles.chipText}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </SectionCard>
 
         {/* ── Bio ── */}
