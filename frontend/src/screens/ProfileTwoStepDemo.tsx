@@ -9,6 +9,7 @@ import {
 import { useStore } from "../store/useStore";
 import { Avatar } from "../avatar/png/Avatar";
 import { DEFAULT_AVATAR } from "../avatar/png/defaults";
+import { PremiumLetterAnimation } from "../components/PremiumLetterAnimation";
 
 type Skill = {
   label: string;
@@ -122,6 +123,15 @@ function SkillRow({ skill }: { skill: Skill }) {
 
 export default function ProfileTwoStepDemo() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showEnvAnim, setShowEnvAnim] = useState(false);
+
+  const handleDiscover = () => {
+    setShowEnvAnim(true);
+    setTimeout(() => {
+      setShowEnvAnim(false);
+      setIsOpen(true);
+    }, 4900);
+  };
 
   const user = useStore((s) => s.currentUser);
   console.log("PROFILE_RENDER_USER", user);
@@ -198,7 +208,7 @@ export default function ProfileTwoStepDemo() {
               <Text style={styles.stageOneBlabla}>{displayBio}</Text>
             )}
 
-            <Pressable onPress={() => setIsOpen(true)} style={styles.discoverWrap}>
+            <Pressable onPress={handleDiscover} style={styles.discoverWrap}>
               <Text style={styles.discoverLink}>Découvrir le profil →</Text>
             </Pressable>
 
@@ -401,6 +411,12 @@ export default function ProfileTwoStepDemo() {
             </View>
           </View>
         </ScrollView>
+      )}
+
+      {showEnvAnim && (
+        <View style={styles.envAnimOverlay}>
+          <PremiumLetterAnimation />
+        </View>
       )}
     </View>
   );
@@ -1047,6 +1063,15 @@ const styles = StyleSheet.create({
     color: INK_SOFT,
     fontStyle: "italic",
     marginBottom: 12,
+  },
+
+  envAnimOverlay: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "#F4ECD8",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 50,
   },
 
   secondeChanceWrap: {
