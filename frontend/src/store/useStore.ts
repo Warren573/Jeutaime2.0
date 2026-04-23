@@ -244,8 +244,8 @@ export const useStore = create<StoreState>()(
       
       matches: [
         // Matchs de démo
-        { id: 'm1', userAId: 'me', userBId: 'sophie', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, status: 'active', letterCount: 5 },
-        { id: 'm2', userAId: 'me', userBId: 'alex', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, status: 'active', letterCount: 12 },
+        { id: 'm1', userAId: 'dev-local', userBId: 'sophie', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, status: 'active', letterCount: 5 },
+        { id: 'm2', userAId: 'dev-local', userBId: 'alex', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, status: 'active', letterCount: 12 },
       ],
       letters: [
         // Lettres de démo — SANS readAt → déclenchent PremiumLetterAnimation à l'ouverture
@@ -253,15 +253,14 @@ export const useStore = create<StoreState>()(
           id: 'l1',
           threadId: 'm1',
           fromUserId: 'sophie',
-          toUserId: 'me',
+          toUserId: 'dev-local',
           content: "Bonsoir... Je ne sais pas trop comment commencer, mais je voulais te dire que tes réponses m'ont vraiment touché(e). Il y a quelque chose dans ta façon d'être qui me donne envie d'en savoir plus. À bientôt, peut-être ? 🌿",
           createdAt: Date.now() - 7200000,
-          // readAt absent → lettre non lue → animation jouée
         },
         {
           id: 'l2',
           threadId: 'm1',
-          fromUserId: 'me',
+          fromUserId: 'dev-local',
           toUserId: 'sophie',
           content: "Bonsoir Sophie. Tes mots m'ont mis le sourire aux lèvres. Écrire comme ça, c'est un art que peu maîtrisent — toi, tu sembles y exceller naturellement.",
           createdAt: Date.now() - 3600000,
@@ -271,10 +270,9 @@ export const useStore = create<StoreState>()(
           id: 'l3',
           threadId: 'm2',
           fromUserId: 'alex',
-          toUserId: 'me',
+          toUserId: 'dev-local',
           content: "Salut ! Je suis tombé(e) sur ton profil et j'ai adoré ta question sur les étoiles. Moi aussi je me perds parfois à regarder le ciel. On a peut-être plus en commun qu'il n'y paraît ✨",
           createdAt: Date.now() - 1800000,
-          // readAt absent → lettre non lue → animation jouée
         },
       ],
       likedProfiles: [],
@@ -616,7 +614,7 @@ export const useStore = create<StoreState>()(
       updateAvatarPngConfig: (config) => set({ avatarPngConfig: config }),
     }),
     {
-      name: 'jeutaime-storage-v3',
+      name: 'jeutaime-storage-v4',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         // En dev mode, coins n'est pas sauvegardé → toujours 50 000 au démarrage
