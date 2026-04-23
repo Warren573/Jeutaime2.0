@@ -188,10 +188,6 @@ export default function ProfileTwoStepDemo() {
                   <Text style={styles.stageOneName}>{headerLine}</Text>
                 )}
 
-                {!!displayVibe && (
-                  <Text style={styles.stageOneVibe}>{displayVibe}</Text>
-                )}
-
                 <View style={styles.arrowLineWrap}>
                   <Text style={styles.arrowLine}>⟵ 〜〜〜〜〜〜〜〜〜</Text>
                 </View>
@@ -220,9 +216,9 @@ export default function ProfileTwoStepDemo() {
               </Pressable>
             </View>
 
-            <View style={styles.secondeChanceWrap}>
+            <Pressable style={styles.secondeChanceWrap}>
               <Text style={styles.secondeChanceLink}>← Seconde chance</Text>
-            </View>
+            </Pressable>
           </View>
         </ScrollView>
       ) : (
@@ -262,16 +258,21 @@ export default function ProfileTwoStepDemo() {
                 </View>
               </View>
 
-              {!!identityTags.length && (
+              {(!!displayVibe || !!identityTags.length) && (
                 <View style={styles.identitySection}>
-                  <Text style={styles.kicker}>FICHE D'IDENTITÉ</Text>
-                  <View style={styles.identityTagsWrap}>
-                    {identityTags.map((tag) => (
-                      <View key={tag} style={styles.identityChip}>
-                        <Text style={styles.identityChipText}>{tag}</Text>
-                      </View>
-                    ))}
-                  </View>
+                  <Text style={styles.kicker}>MON UNIVERS</Text>
+                  {!!displayVibe && (
+                    <Text style={styles.vibeTag}>{displayVibe}</Text>
+                  )}
+                  {!!identityTags.length && (
+                    <View style={styles.identityTagsWrap}>
+                      {identityTags.map((tag) => (
+                        <View key={tag} style={styles.identityChip}>
+                          <Text style={styles.identityChipText}>{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -306,7 +307,7 @@ export default function ProfileTwoStepDemo() {
                       <Text style={styles.practicalLine}>📍 {displayCity}</Text>
                     )}
                     {displayHeight ? (
-                      <Text style={styles.practicalLine}>📏 {displayHeight} cm</Text>
+                      <Text style={styles.practicalLine}>📏 {displayHeight}</Text>
                     ) : null}
                     {physique ? (
                       <Text style={styles.practicalLine}>
@@ -335,7 +336,7 @@ export default function ProfileTwoStepDemo() {
 
               {!!skills.length && (
                 <View style={styles.paperSection}>
-                  <Text style={styles.kicker}>CV VERSION FUN</Text>
+                  <Text style={styles.kicker}>CE QUE JE GÈRE (plus ou moins bien)</Text>
                   <View style={styles.skillsCard}>
                     {skills.map((skill, index) => (
                       <View key={`${skill.label}-${index}`}>
@@ -989,6 +990,13 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     color: INK,
     marginBottom: 6,
+  },
+
+  vibeTag: {
+    fontSize: 17,
+    color: INK_SOFT,
+    fontStyle: "italic",
+    marginBottom: 12,
   },
 
   secondeChanceWrap: {

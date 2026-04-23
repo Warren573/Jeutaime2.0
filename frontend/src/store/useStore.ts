@@ -54,6 +54,7 @@ const DEV_INITIAL_USER = {
   interests: ['Cinéma', 'Café', 'Écriture', 'Jeux', 'Voyages'],
   hasChildren: false,
   wantsChildren: true,
+  height: 168,
   physicalDesc: 'moyenne',
   skills: [
     { label: 'Communication', detail: 'répond vraiment (incroyable)',      score: 80, emoji: '💬' },
