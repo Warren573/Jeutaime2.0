@@ -77,7 +77,7 @@ function childrenLabel(
   if (hasChildren === true && wantsChildren == null)
     return "A des enfants";
   if (hasChildren === false && wantsChildren === true)
-    return "Pas d’enfants — compte se lancer dans l’élevage de petits monstres adorables";
+    return "Pas d’enfants — compte se lancer dans l’élevage de pingouins";
   if (hasChildren === false && wantsChildren === false)
     return "Pas d’enfants, et ça ne changera pas";
   if (hasChildren === false && wantsChildren == null)
