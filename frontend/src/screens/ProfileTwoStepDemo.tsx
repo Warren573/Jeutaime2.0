@@ -179,7 +179,6 @@ export default function ProfileTwoStepDemo() {
 
             <View style={styles.stageOneHeader}>
               <View style={styles.photoCard}>
-                <View style={styles.photoPin} />
                 <View style={styles.photoTape} />
                 <Avatar size={96} {...avatarConfig} />
               </View>
