@@ -33,6 +33,39 @@ import { apiFetch } from '../api/client';
 const DEV_MODE_UNLIMITED_COINS = true;
 const DEV_MODE_INITIAL_COINS = DEV_MODE_UNLIMITED_COINS ? 50000 : 500;
 
+const DEV_INITIAL_USER = {
+  id: 'dev-local',
+  name: 'Sophie',
+  email: 'sophie@jeutaime.dev',
+  isPremium: false,
+  avatarConfig: {} as any,
+  stats: { matchesCount: 2, lettersSent: 0, lettersReceived: 0, offeringsSent: 0, powerUsed: 0, gamesWon: 0, salonsVisited: 0, daysActive: 1, storiesParticipated: 0, storiesCompleted: 0 },
+  unlockedBadges: [] as string[],
+  gender: 'FEMME' as any,
+  age: 28,
+  city: 'Paris',
+  bio: "Je crois qu'on se comprend mieux autour d'un plat qu'on a cuisiné ensemble. J'aime les gens qui savent écrire une vraie phrase, rire un peu d'eux-mêmes, et rester quand la conversation devient intéressante.",
+  vibe: 'Romantique curieuse',
+  quote: "Un mélange de sérieux et d'autodérision.",
+  identityTags: ['Curieuse', 'Ambitieuse', 'Un peu bordélique', 'Grande romantique'],
+  lookingFor: ["Quelqu'un avec qui écrire plus de 10 lettres sans retenue"],
+  interestedIn: ['M'],
+  interests: ['Cinéma', 'Café', 'Écriture', 'Jeux', 'Voyages'],
+  skills: [
+    { label: 'Communication', detail: 'répond vraiment (incroyable)',      score: 80, emoji: '💬' },
+    { label: 'Cuisine',       detail: 'maîtrise les pâtes (et Uber Eats)', score: 72, emoji: '🍝' },
+    { label: 'Organisation',  detail: 'pro dans la procrastination',        score: 58, emoji: '🎯' },
+    { label: 'Relationnel',   detail: "peut s'attacher trop vite",          score: 88, emoji: '🌿' },
+  ],
+  qualities: ['Drôle', 'Attentionnée', 'Loyale'],
+  defaults: ['Têtue', 'Oublie de répondre', 'Achète trop de trucs'],
+  idealDay: [
+    '07:00  café + guerre contre mon lit',
+    '19:00  sortir ou Netflix (selon motivation)',
+    '00:00  pensées existentielles et lettres',
+  ],
+};
+
 // Type pour les messages de salon (temporaire, sera déplacé vers les types)
 export interface Message {
   id: string;
@@ -173,7 +206,7 @@ export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
       // ===== Initial State =====
-      currentUser: null,
+      currentUser: DEV_INITIAL_USER,
       isAuthenticated: false,
 
       coins: DEV_MODE_INITIAL_COINS,
@@ -561,7 +594,7 @@ export const useStore = create<StoreState>()(
       updateAvatarPngConfig: (config) => set({ avatarPngConfig: config }),
     }),
     {
-      name: 'jeutaime-storage',
+      name: 'jeutaime-storage-v3',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         // En dev mode, coins n'est pas sauvegardé → toujours 50 000 au démarrage
