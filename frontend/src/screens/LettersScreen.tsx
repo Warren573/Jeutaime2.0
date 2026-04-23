@@ -417,8 +417,10 @@ export default function LettersScreen() {
     }
   }, [activeTab, visibleTabs]);
 
-  const getOtherUserName = (match: Match) =>
-    match.userAId === 'me' ? match.userBId : match.userAId;
+  const getOtherUserName = (match: Match) => {
+    const myId = currentUser?.id || 'me';
+    return match.userAId === myId ? match.userBId : match.userAId;
+  };
 
   const getConversation = (match: Match) => {
     const otherId = getOtherUserName(match);
