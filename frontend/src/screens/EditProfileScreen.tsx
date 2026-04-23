@@ -245,34 +245,7 @@ export function EditProfileScreen() {
     const filteredIdealDay = idealDay.filter(s => s.trim());
     const validSkills = skills.filter(s => s.label.trim());
 
-    try {
-      await apiFetch('/profiles/me', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          bio:          bio.trim(),
-          city:         city.trim(),
-          physicalDesc: physique || undefined,
-          lookingFor:   lookingFor.map(id => LF_MAP[id]).filter(Boolean),
-          interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
-          interests,
-          ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
-          ...(hasChildren  !== null && { hasChildren }),
-          ...(wantsChildren !== null && { wantsChildren }),
-          vibe:         vibe.trim(),
-          quote:        quote.trim(),
-          identityTags,
-          qualities,
-          defaults,
-          idealDay:     filteredIdealDay,
-          skills:       validSkills,
-        }),
-      });
-    } catch (err: any) {
-      Alert.alert('Erreur', err?.message ?? 'Impossible de sauvegarder');
-      return;
-    }
-
-    setCurrentUser({
+    const localProfile = {
       id:             currentUser?.id            ?? '',
       email:          currentUser?.email,
       isPremium:      currentUser?.isPremium      ?? false,
@@ -299,7 +272,38 @@ export function EditProfileScreen() {
       defaults,
       idealDay:       filteredIdealDay,
       skills:         validSkills,
-    });
+    };
+
+    try {
+      await apiFetch('/profiles/me', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          bio:          bio.trim(),
+          city:         city.trim(),
+          physicalDesc: physique || undefined,
+          lookingFor:   lookingFor.map(id => LF_MAP[id]).filter(Boolean),
+          interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
+          interests,
+          ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
+          ...(hasChildren  !== null && { hasChildren }),
+          ...(wantsChildren !== null && { wantsChildren }),
+          vibe:         vibe.trim(),
+          quote:        quote.trim(),
+          identityTags,
+          qualities,
+          defaults,
+          idealDay:     filteredIdealDay,
+          skills:       validSkills,
+        }),
+      });
+    } catch {
+      setCurrentUser(localProfile);
+      Alert.alert('Sauvegardé localement', 'Sync backend échouée — ton profil est visible dans l\'app.');
+      router.back();
+      return;
+    }
+
+    setCurrentUser(localProfile);
     router.back();
   };
 
