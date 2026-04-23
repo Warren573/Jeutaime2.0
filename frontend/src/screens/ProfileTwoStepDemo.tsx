@@ -282,6 +282,7 @@ export default function ProfileTwoStepDemo() {
 
                   {!!intentionSentence && (
                     <View style={styles.intentNote}>
+                      <View style={styles.intentTape} />
                       <Text style={styles.intentText}>{intentionSentence}</Text>
                       <View style={styles.heartFloat}>
                         <Text style={styles.heartFloatText}>♡</Text>
@@ -386,6 +387,7 @@ export default function ProfileTwoStepDemo() {
 
                   <View style={styles.idealDayCard}>
                     <View style={styles.tapeTape} />
+                    <View style={styles.tapeTapeAlt} />
                     {idealDay.map((line) => (
                       <Text key={line} style={styles.idealDayLine}>
                         {line}
@@ -983,6 +985,29 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8D8C2",
     borderRadius: 2,
     transform: [{ rotate: "8deg" }],
+  },
+
+  tapeTapeAlt: {
+    position: "absolute",
+    left: 24,
+    bottom: -8,
+    width: 36,
+    height: 14,
+    backgroundColor: "#E8D8C2",
+    borderRadius: 2,
+    transform: [{ rotate: "-5deg" }],
+  },
+
+  intentTape: {
+    position: "absolute",
+    left: 18,
+    top: -7,
+    width: 40,
+    height: 14,
+    backgroundColor: "#E7D5BF",
+    borderRadius: 2,
+    transform: [{ rotate: "-3deg" }],
+    zIndex: 1,
   },
 
   idealDayLine: {
