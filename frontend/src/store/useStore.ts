@@ -48,9 +48,13 @@ const DEV_INITIAL_USER = {
   vibe: 'Romantique curieuse',
   quote: "Un mélange de sérieux et d'autodérision.",
   identityTags: ['Curieuse', 'Ambitieuse', 'Un peu bordélique', 'Grande romantique'],
-  lookingFor: ["Quelqu'un avec qui écrire plus de 10 lettres sans retenue"],
+  pseudo: 'Sophie',
+  lookingFor: ['relation'],
   interestedIn: ['M'],
   interests: ['Cinéma', 'Café', 'Écriture', 'Jeux', 'Voyages'],
+  hasChildren: false,
+  wantsChildren: true,
+  physicalDesc: 'moyenne',
   skills: [
     { label: 'Communication', detail: 'répond vraiment (incroyable)',      score: 80, emoji: '💬' },
     { label: 'Cuisine',       detail: 'maîtrise les pâtes (et Uber Eats)', score: 72, emoji: '🍝' },
@@ -63,6 +67,23 @@ const DEV_INITIAL_USER = {
     '07:00  café + guerre contre mon lit',
     '19:00  sortir ou Netflix (selon motivation)',
     '00:00  pensées existentielles et lettres',
+  ],
+  questions: [
+    {
+      text: "On se retrouve quelque part. Lequel ?",
+      options: ["Un café indépendant avec une bonne playlist", "Un marché le dimanche matin", "Une librairie en fin de journée"] as [string, string, string],
+      correctAnswer: 0 as 0 | 1 | 2,
+    },
+    {
+      text: "Pour toi, une bonne soirée c'est…",
+      options: ["Cuisine maison + série qu'on avait envie de voir", "Sortir sans plan précis et voir ce qui arrive", "Dîner avec des gens qui savent vraiment parler"] as [string, string, string],
+      correctAnswer: 2 as 0 | 1 | 2,
+    },
+    {
+      text: "Tu reçois un message à 23h. C'est…",
+      options: ["Une idée bizarre qu'on devait absolument partager", "Un \"t'as mangé ?\" avec intention cachée", "Une question qui commence par \"bon, sérieusement…\""] as [string, string, string],
+      correctAnswer: 2 as 0 | 1 | 2,
+    },
   ],
 };
 
