@@ -274,8 +274,9 @@ export function EditProfileScreen() {
       skills:         validSkills,
     };
 
+    console.log('SAVE_PAYLOAD', localProfile);
     setCurrentUser(localProfile);
-    console.log('USER SAVED', localProfile);
+    console.log('STORE_AFTER_SAVE', useStore.getState().currentUser);
 
     apiFetch('/profiles/me', {
       method: 'PATCH',

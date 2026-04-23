@@ -132,6 +132,7 @@ export default function ProfileTwoStepDemo() {
   const [isOpen, setIsOpen] = useState(false);
 
   const user = useStore((s) => s.currentUser);
+  console.log('PROFILE_RENDER_USER', user);
   const avatarConfig = useMemo(
     () => user?.avatarConfig ?? DEFAULT_AVATAR,
     [user?.avatarConfig]

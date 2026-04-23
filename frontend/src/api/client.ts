@@ -1,12 +1,17 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
   "http://192.168.0.40:3000/api";
 
 export async function apiFetch(path: string, options?: RequestInit) {
+  const token = await AsyncStorage.getItem("auth_token");
+
   const res = await fetch(`${API_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options?.headers || {}),
     },
     ...options,
