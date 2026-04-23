@@ -9,6 +9,7 @@ import {
 import { useStore } from "../store/useStore";
 import { Avatar } from "../avatar/png/Avatar";
 import { DEFAULT_AVATAR } from "../avatar/png/defaults";
+import { PremiumLetterAnimation } from "../components/PremiumLetterAnimation";
 
 type Skill = {
   label: string;
@@ -18,27 +19,27 @@ type Skill = {
 };
 
 const PHYSIQUE_LABEL: Record<string, { emoji: string; label: string }> = {
-  filiforme: { emoji: "🍝", label: "Filiforme" },
-  ras_motte: { emoji: "🌱", label: "Ras motte" },
-  grande_gigue: { emoji: "🦒", label: "Grande gigue" },
-  costaud: { emoji: "🌳", label: "Costaud·e" },
-  mignon: { emoji: "🍪", label: "Mignon·ne" },
-  mysterieux: { emoji: "🕶️", label: "Mystérieux·se" },
-  athletique: { emoji: "💪", label: "Athlétique" },
-  doux: { emoji: "🧸", label: "Doux·ce" },
+  filiforme:   { emoji: "🍝", label: "Filiforme" },
+  ras_motte:   { emoji: "🐭", label: "Ras motte" },
+  grande_gigue:{ emoji: "🦒", label: "Grande gigue" },
+  beaute_int:  { emoji: "✨", label: "Grande beauté intérieure" },
+  athletique:  { emoji: "🏃", label: "Athlétique" },
+  genereuse:   { emoji: "🍑", label: "En formes généreuses" },
+  moyenne:     { emoji: "⚖️", label: "Moyenne" },
+  muscle:      { emoji: "💪", label: "Musclé·e" },
 };
 
 const LOOKING_FOR_LABEL: Record<string, string> = {
-  relation: "Une vraie histoire",
-  flirt: "Un peu de légèreté",
-  amitie: "Des affinités d’abord",
-  discussion: "Discuter pour voir",
-  serieux: "Quelque chose de sérieux",
-  RELATION: "Une vraie histoire",
-  FLIRT: "Un peu de légèreté",
-  AMITIE: "Des affinités d’abord",
-  DISCUSSION: "Discuter pour voir",
-  SERIEUX: "Quelque chose de sérieux",
+  relation:   "J’ai vu de la lumière, je suis entré·e",
+  flirt:      "Rien de trop sérieux",
+  amitie:     "Des affinités, d’abord",
+  discussion: "Je cherche à discuter",
+  serieux:    "Je cherche l’âme sœur",
+  RELATION:   "J’ai vu de la lumière, je suis entré·e",
+  FLIRT:      "Rien de trop sérieux",
+  AMITIE:     "Des affinités, d’abord",
+  DISCUSSION: "Je cherche à discuter",
+  SERIEUX:    "Je cherche l’âme sœur",
 };
 
 const GENDER_DISPLAY: Record<string, string> = {
@@ -70,30 +71,22 @@ function childrenLabel(
   hasChildren?: boolean | null,
   wantsChildren?: boolean | null
 ) {
-  if (hasChildren === true && wantsChildren === true) {
-    return "A des enfants · ouverte à en avoir d’autres";
-  }
-  if (hasChildren === true && wantsChildren === false) {
-    return "A des enfants · n’en veut pas d’autres";
-  }
-  if (hasChildren === true && wantsChildren == null) {
+  if (hasChildren === true && wantsChildren === true)
+    return "A des enfants — et prêt·e à agrandir la troupe";
+  if (hasChildren === true && wantsChildren === false)
+    return "A des enfants, c’est largement suffisant";
+  if (hasChildren === true && wantsChildren == null)
     return "A des enfants";
-  }
-  if (hasChildren === false && wantsChildren === true) {
-    return "Pas d’enfants · en veut un jour";
-  }
-  if (hasChildren === false && wantsChildren === false) {
-    return "Pas d’enfants · n’en veut pas";
-  }
-  if (hasChildren === false && wantsChildren == null) {
+  if (hasChildren === false && wantsChildren === true)
+    return "Pas d’enfants — compte se lancer dans l’élevage de pingouins";
+  if (hasChildren === false && wantsChildren === false)
+    return "Pas d’enfants, et ça ne changera pas";
+  if (hasChildren === false && wantsChildren == null)
     return "Pas d’enfants";
-  }
-  if (hasChildren == null && wantsChildren === true) {
-    return "En veut un jour";
-  }
-  if (hasChildren == null && wantsChildren === false) {
-    return "N’en veut pas";
-  }
+  if (hasChildren == null && wantsChildren === true)
+    return "En réflexion — probablement oui";
+  if (hasChildren == null && wantsChildren === false)
+    return "Pas vraiment prévu d’enfants";
   return null;
 }
 
@@ -130,6 +123,15 @@ function SkillRow({ skill }: { skill: Skill }) {
 
 export default function ProfileTwoStepDemo() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showEnvAnim, setShowEnvAnim] = useState(false);
+
+  const handleDiscover = () => {
+    setShowEnvAnim(true);
+    setTimeout(() => {
+      setShowEnvAnim(false);
+      setIsOpen(true);
+    }, 4900);
+  };
 
   const user = useStore((s) => s.currentUser);
   console.log("PROFILE_RENDER_USER", user);
@@ -187,7 +189,7 @@ export default function ProfileTwoStepDemo() {
 
             <View style={styles.stageOneHeader}>
               <View style={styles.photoCard}>
-                <View style={styles.photoPin} />
+                <View style={styles.photoTape} />
                 <Avatar size={96} {...avatarConfig} />
               </View>
 
@@ -196,31 +198,9 @@ export default function ProfileTwoStepDemo() {
                   <Text style={styles.stageOneName}>{headerLine}</Text>
                 )}
 
-                {!!displayVibe && (
-                  <Text style={styles.stageOneVibe}>{displayVibe}</Text>
-                )}
-
                 <View style={styles.arrowLineWrap}>
                   <Text style={styles.arrowLine}>⟵ 〜〜〜〜〜〜〜〜〜</Text>
                 </View>
-
-                {(displayCity || displayHeight || physique) ? (
-                  <View style={styles.metaLine}>
-                    {!!displayCity && (
-                      <Text style={styles.metaInline}>{displayCity}</Text>
-                    )}
-                    {displayHeight ? (
-                      <Text style={styles.metaInline}>
-                        {displayCity ? " · " : ""}{displayHeight}
-                      </Text>
-                    ) : null}
-                    {physique ? (
-                      <Text style={styles.metaInline}>
-                        {(displayCity || displayHeight) ? " · " : ""}{physique.emoji} {physique.label}
-                      </Text>
-                    ) : null}
-                  </View>
-                ) : null}
               </View>
             </View>
 
@@ -228,7 +208,7 @@ export default function ProfileTwoStepDemo() {
               <Text style={styles.stageOneBlabla}>{displayBio}</Text>
             )}
 
-            <Pressable onPress={() => setIsOpen(true)} style={styles.discoverWrap}>
+            <Pressable onPress={handleDiscover} style={styles.discoverWrap}>
               <Text style={styles.discoverLink}>Découvrir le profil →</Text>
             </Pressable>
 
@@ -245,6 +225,10 @@ export default function ProfileTwoStepDemo() {
                 <Text style={styles.actionText}>😊 Sourire</Text>
               </Pressable>
             </View>
+
+            <Pressable style={styles.secondeChanceWrap}>
+              <Text style={styles.secondeChanceLink}>← Seconde chance</Text>
+            </Pressable>
           </View>
         </ScrollView>
       ) : (
@@ -284,55 +268,51 @@ export default function ProfileTwoStepDemo() {
                 </View>
               </View>
 
-              {!!identityTags.length && (
+              {(!!displayVibe || !!identityTags.length) && (
                 <View style={styles.identitySection}>
-                  <Text style={styles.kicker}>FICHE D'IDENTITÉ</Text>
-                  <View style={styles.identityTagsWrap}>
-                    {identityTags.map((tag) => (
-                      <View key={tag} style={styles.identityChip}>
-                        <Text style={styles.identityChipText}>{tag}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {!!intentionSentence && (
-                <View style={styles.paperSection}>
-                  <Text style={styles.kicker}>INTENTION</Text>
-                  <View style={styles.intentNote}>
-                    <Text style={styles.intentText}>{intentionSentence}</Text>
-                    <View style={styles.heartFloat}>
-                      <Text style={styles.heartFloatText}>♡</Text>
+                  <Text style={styles.kicker}>MON UNIVERS</Text>
+                  {!!displayVibe && (
+                    <Text style={styles.vibeTag}>{displayVibe}</Text>
+                  )}
+                  {!!identityTags.length && (
+                    <View style={styles.identityTagsWrap}>
+                      {identityTags.map((tag) => (
+                        <View key={tag} style={styles.identityChip}>
+                          <Text style={styles.identityChipText}>{tag}</Text>
+                        </View>
+                      ))}
                     </View>
-                  </View>
+                  )}
                 </View>
               )}
 
-              <View style={styles.paperSection}>
-                <Text style={styles.kicker}>JE CHERCHE</Text>
+              {(!!intentionSentence || !!interestedInLabel) && (
+                <View style={styles.paperSection}>
+                  <Text style={styles.kicker}>CE QUE JE CHERCHE ICI</Text>
 
-                {!!interestedInLabel && (
-                  <View style={styles.identityMetaLine}>
-                    <Text style={styles.identityMetaLabel}>Intéressé par :</Text>
-                    <Text style={styles.identityMetaValue}>{interestedInLabel}</Text>
-                  </View>
-                )}
-
-                {!!interests.length && (
-                  <View style={styles.interestsWrap}>
-                    {interests.map((interest) => (
-                      <View key={interest} style={styles.interestChip}>
-                        <Text style={styles.interestChipText}>{interest}</Text>
+                  {!!intentionSentence && (
+                    <View style={styles.intentNote}>
+                      <View style={styles.intentTape} />
+                      <View style={styles.intentTapeBottom} />
+                      <Text style={styles.intentText}>{intentionSentence}</Text>
+                      <View style={styles.heartFloat}>
+                        <Text style={styles.heartFloatText}>♡</Text>
                       </View>
-                    ))}
-                  </View>
-                )}
-              </View>
+                    </View>
+                  )}
+
+                  {!!interestedInLabel && (
+                    <View style={[styles.identityMetaLine, { marginTop: intentionSentence ? 12 : 0 }]}>
+                      <Text style={styles.identityMetaLabel}>Intéressé·e par :</Text>
+                      <Text style={styles.identityMetaValue}>{interestedInLabel}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
 
               {(displayCity || displayHeight || physique || childrenText) && (
                 <View style={styles.paperSection}>
-                  <Text style={styles.kicker}>EN PRATIQUE</Text>
+                  <Text style={styles.kicker}>UN PEU DE MOI</Text>
 
                   <View style={styles.practicalCard}>
                     {!!displayCity && (
@@ -353,9 +333,22 @@ export default function ProfileTwoStepDemo() {
                 </View>
               )}
 
+              {!!interests.length && (
+                <View style={styles.paperSection}>
+                  <Text style={styles.kicker}>MES CENTRES D'INTÉRÊT</Text>
+                  <View style={styles.interestsWrap}>
+                    {interests.map((interest) => (
+                      <View key={interest} style={styles.interestChip}>
+                        <Text style={styles.interestChipText}>{interest}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
               {!!skills.length && (
                 <View style={styles.paperSection}>
-                  <Text style={styles.kicker}>COMPÉTENCES (CV version fun)</Text>
+                  <Text style={styles.kicker}>CE QUE JE GÈRE (plus ou moins bien)</Text>
                   <View style={styles.skillsCard}>
                     {skills.map((skill, index) => (
                       <View key={`${skill.label}-${index}`}>
@@ -371,7 +364,7 @@ export default function ProfileTwoStepDemo() {
 
               {(qualities.length > 0 || defaults.length > 0) && (
                 <View style={styles.paperSection}>
-                  <Text style={styles.kicker}>QUALITÉS & DÉFAUTS</Text>
+                  <Text style={styles.kicker}>MES PETITS + ET MES PETITS −</Text>
 
                   <View style={styles.qualitiesRow}>
                     {!!qualities.length && (
@@ -405,6 +398,7 @@ export default function ProfileTwoStepDemo() {
 
                   <View style={styles.idealDayCard}>
                     <View style={styles.tapeTape} />
+                    <View style={styles.tapeTapeAlt} />
                     {idealDay.map((line) => (
                       <Text key={line} style={styles.idealDayLine}>
                         {line}
@@ -413,9 +407,16 @@ export default function ProfileTwoStepDemo() {
                   </View>
                 </View>
               )}
+
             </View>
           </View>
         </ScrollView>
+      )}
+
+      {showEnvAnim && (
+        <View style={styles.envAnimOverlay}>
+          <PremiumLetterAnimation />
+        </View>
       )}
     </View>
   );
@@ -643,7 +644,7 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: "#3C2A20",
+    borderColor: "#8B6347",
     marginBottom: 10,
   },
 
@@ -1003,10 +1004,86 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "8deg" }],
   },
 
+  tapeTapeAlt: {
+    position: "absolute",
+    left: 24,
+    bottom: -8,
+    width: 36,
+    height: 14,
+    backgroundColor: "#E8D8C2",
+    borderRadius: 2,
+    transform: [{ rotate: "-5deg" }],
+  },
+
+  intentTape: {
+    position: "absolute",
+    left: 18,
+    top: -7,
+    width: 40,
+    height: 14,
+    backgroundColor: "#E7D5BF",
+    borderRadius: 2,
+    transform: [{ rotate: "-3deg" }],
+    zIndex: 1,
+  },
+
+  intentTapeBottom: {
+    position: "absolute",
+    left: 14,
+    bottom: -7,
+    width: 36,
+    height: 14,
+    backgroundColor: "#E7D5BF",
+    borderRadius: 2,
+    transform: [{ rotate: "4deg" }],
+    zIndex: 1,
+  },
+
+  photoTape: {
+    position: "absolute",
+    top: -7,
+    alignSelf: "center",
+    width: 44,
+    height: 14,
+    backgroundColor: "#E8D8C2",
+    borderRadius: 2,
+    transform: [{ rotate: "-6deg" }],
+    zIndex: 3,
+  },
+
   idealDayLine: {
     fontSize: 17,
     lineHeight: 30,
     color: INK,
     marginBottom: 6,
+  },
+
+  vibeTag: {
+    fontSize: 17,
+    color: INK_SOFT,
+    fontStyle: "italic",
+    marginBottom: 12,
+  },
+
+  envAnimOverlay: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "#F4ECD8",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 50,
+  },
+
+  secondeChanceWrap: {
+    alignItems: "center",
+    marginTop: 14,
+    paddingBottom: 4,
+  },
+
+  secondeChanceLink: {
+    fontSize: 15,
+    color: INK_SOFT,
+    fontStyle: "italic",
+    opacity: 0.7,
   },
 });
