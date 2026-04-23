@@ -180,6 +180,7 @@ export default function ProfileTwoStepDemo() {
             <View style={styles.stageOneHeader}>
               <View style={styles.photoCard}>
                 <View style={styles.photoPin} />
+                <View style={styles.photoTape} />
                 <Avatar size={96} {...avatarConfig} />
               </View>
 
@@ -283,6 +284,7 @@ export default function ProfileTwoStepDemo() {
                   {!!intentionSentence && (
                     <View style={styles.intentNote}>
                       <View style={styles.intentTape} />
+                      <View style={styles.intentTapeBottom} />
                       <Text style={styles.intentText}>{intentionSentence}</Text>
                       <View style={styles.heartFloat}>
                         <Text style={styles.heartFloatText}>♡</Text>
@@ -627,7 +629,7 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: "#3C2A20",
+    borderColor: "#8B6347",
     marginBottom: 10,
   },
 
@@ -1008,6 +1010,30 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     transform: [{ rotate: "-3deg" }],
     zIndex: 1,
+  },
+
+  intentTapeBottom: {
+    position: "absolute",
+    left: 14,
+    bottom: -7,
+    width: 36,
+    height: 14,
+    backgroundColor: "#E7D5BF",
+    borderRadius: 2,
+    transform: [{ rotate: "4deg" }],
+    zIndex: 1,
+  },
+
+  photoTape: {
+    position: "absolute",
+    top: -7,
+    alignSelf: "center",
+    width: 44,
+    height: 14,
+    backgroundColor: "#E8D8C2",
+    borderRadius: 2,
+    transform: [{ rotate: "-6deg" }],
+    zIndex: 3,
   },
 
   idealDayLine: {
