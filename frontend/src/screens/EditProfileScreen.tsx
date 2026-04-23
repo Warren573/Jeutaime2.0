@@ -274,37 +274,34 @@ export function EditProfileScreen() {
       skills:         validSkills,
     };
 
-    try {
-      await apiFetch('/profiles/me', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          bio:          bio.trim(),
-          city:         city.trim(),
-          physicalDesc: physique || undefined,
-          lookingFor:   lookingFor.map(id => LF_MAP[id]).filter(Boolean),
-          interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
-          interests,
-          ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
-          ...(hasChildren  !== null && { hasChildren }),
-          ...(wantsChildren !== null && { wantsChildren }),
-          vibe:         vibe.trim(),
-          quote:        quote.trim(),
-          identityTags,
-          qualities,
-          defaults,
-          idealDay:     filteredIdealDay,
-          skills:       validSkills,
-        }),
-      });
-    } catch {
-      setCurrentUser(localProfile);
-      Alert.alert('Sauvegardé localement', 'Sync backend échouée — ton profil est visible dans l\'app.');
-      router.back();
-      return;
-    }
-
     setCurrentUser(localProfile);
-    router.back();
+    console.log('USER SAVED', localProfile);
+
+    apiFetch('/profiles/me', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        bio:          bio.trim(),
+        city:         city.trim(),
+        physicalDesc: physique || undefined,
+        lookingFor:   lookingFor.map(id => LF_MAP[id]).filter(Boolean),
+        interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
+        interests,
+        ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
+        ...(hasChildren  !== null && { hasChildren }),
+        ...(wantsChildren !== null && { wantsChildren }),
+        vibe:         vibe.trim(),
+        quote:        quote.trim(),
+        identityTags,
+        qualities,
+        defaults,
+        idealDay:     filteredIdealDay,
+        skills:       validSkills,
+      }),
+    }).catch((err: any) => {
+      console.warn('PATCH /profiles/me failed (local save OK):', err?.message);
+    });
+
+    setTimeout(() => { router.back(); }, 200);
   };
 
   return (
