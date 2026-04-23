@@ -162,7 +162,6 @@ export default function ProfileTwoStepDemo() {
   const defaults = user?.defaults ?? [];
   const idealDay = user?.idealDay ?? [];
   const skills = (user?.skills ?? []) as Skill[];
-  const questions = (user?.questions ?? []) as { text: string; options: [string, string, string]; correctAnswer: 0 | 1 | 2 }[];
 
   const displayName = (user?.name ?? user?.pseudo ?? "").trim();
   const displayBio = (user?.bio ?? "").trim();
@@ -415,39 +414,6 @@ export default function ProfileTwoStepDemo() {
                 </View>
               )}
 
-              {!!questions.length && (
-                <View style={styles.paperSection}>
-                  <Text style={styles.kicker}>BRISE-GLACE 🎲</Text>
-                  <Text style={styles.briseGlaceSubtitle}>
-                    En cas de match, tu devras répondre à ces 3 questions pour débloquer les lettres.
-                  </Text>
-                  {questions.map((q, i) => (
-                    <View key={i} style={styles.briseGlaceCard}>
-                      <Text style={styles.briseGlaceQ}>
-                        {i + 1}. {q.text}
-                      </Text>
-                      {q.options.map((opt, j) => (
-                        <View
-                          key={j}
-                          style={[
-                            styles.briseGlaceOption,
-                            j === q.correctAnswer && styles.briseGlaceOptionCorrect,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.briseGlaceOptionText,
-                              j === q.correctAnswer && styles.briseGlaceOptionTextCorrect,
-                            ]}
-                          >
-                            {opt}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  ))}
-                </View>
-              )}
             </View>
           </View>
         </ScrollView>
@@ -1045,51 +1011,4 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
-  briseGlaceSubtitle: {
-    fontSize: 14,
-    color: INK_SOFT,
-    fontStyle: "italic",
-    marginBottom: 14,
-  },
-
-  briseGlaceCard: {
-    backgroundColor: PAPER_3,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E0D1BC",
-    padding: 14,
-    marginBottom: 12,
-  },
-
-  briseGlaceQ: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: INK,
-    marginBottom: 10,
-  },
-
-  briseGlaceOption: {
-    backgroundColor: "#F6EEDF",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E2D3BE",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 6,
-  },
-
-  briseGlaceOptionCorrect: {
-    backgroundColor: "#DFF0E2",
-    borderColor: "#B8D9BE",
-  },
-
-  briseGlaceOptionText: {
-    fontSize: 15,
-    color: INK_SOFT,
-  },
-
-  briseGlaceOptionTextCorrect: {
-    color: "#3A7048",
-    fontWeight: "600",
-  },
 });
