@@ -980,13 +980,13 @@ const styles = StyleSheet.create({
 
   intentTape: {
     position: "absolute",
-    left: 18,
+    right: 18,
     top: -7,
     width: 40,
     height: 14,
     backgroundColor: "#E7D5BF",
     borderRadius: 2,
-    transform: [{ rotate: "-3deg" }],
+    transform: [{ rotate: "3deg" }],
     zIndex: 1,
   },
 
@@ -998,7 +998,7 @@ const styles = StyleSheet.create({
     height: 14,
     backgroundColor: "#E7D5BF",
     borderRadius: 2,
-    transform: [{ rotate: "4deg" }],
+    transform: [{ rotate: "-4deg" }],
     zIndex: 1,
   },
 
