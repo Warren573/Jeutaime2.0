@@ -46,7 +46,31 @@ const INTERESTS_OPTIONS = [
 
 // ─── Champs V1 ────────────────────────────────────────────────────────────────
 
-type Skill = { label: string; detail: string; score: number; emoji: string };
+type Skill = { id: string; label: string; detail: string; score: number; emoji: string };
+
+// ─── Liste centralisée des compétences ───────────────────────────────────────
+const SKILL_OPTIONS = [
+  { id: 'communication', label: 'Communication',       emoji: '💬' },
+  { id: 'cuisine',       label: 'Cuisine',             emoji: '🍝' },
+  { id: 'organisation',  label: 'Organisation',        emoji: '🗂️' },
+  { id: 'ponctualite',   label: 'Ponctualité',         emoji: '⏰' },
+  { id: 'ecoute',        label: 'Écoute',              emoji: '👂' },
+  { id: 'humour',        label: 'Humour',              emoji: '😄' },
+  { id: 'empathie',      label: 'Empathie',            emoji: '🫂' },
+  { id: 'creativite',    label: 'Créativité',          emoji: '🎨' },
+  { id: 'patience',      label: 'Patience',            emoji: '🕊️' },
+  { id: 'seduction',     label: 'Séduction',           emoji: '💋' },
+  { id: 'bricolage',     label: 'Bricolage',           emoji: '🔧' },
+  { id: 'sport',         label: 'Sport',               emoji: '🏃' },
+  { id: 'romantisme',    label: 'Romantisme',          emoji: '🌹' },
+  { id: 'memoire',       label: 'Mémoire',             emoji: '🧠' },
+  { id: 'techno',        label: 'Technologie',         emoji: '💻' },
+  { id: 'navigation',    label: 'Navigation GPS',      emoji: '🗺️' },
+  { id: 'drama',         label: 'Gestion des dramas',  emoji: '🎭' },
+  { id: 'nocturnite',    label: 'Vie nocturne',        emoji: '🌙' },
+  { id: 'menage',        label: 'Ménage',              emoji: '🧹' },
+  { id: 'finances',      label: 'Budget',              emoji: '💸' },
+];
 
 const IDENTITY_TAG_OPTIONS = [
   'Introverti•e', 'Extraverti•e', 'Créatif•ve', 'Analytique',
@@ -74,65 +98,59 @@ interface SkillCardProps {
   onRemove: () => void;
 }
 
+const SCORE_VALUES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
 const SkillCard: React.FC<SkillCardProps> = ({ skill, onChange, onRemove }) => (
   <View style={skStyles.card}>
     <View style={skStyles.topRow}>
-      <TextInput
-        style={[skStyles.input, skStyles.emojiInput]}
-        value={skill.emoji}
-        onChangeText={e => onChange({ ...skill, emoji: e })}
-        placeholder="⭐"
-        maxLength={2}
-        placeholderTextColor="#B8A082"
-      />
-      <TextInput
-        style={[skStyles.input, skStyles.labelInput]}
-        value={skill.label}
-        onChangeText={l => onChange({ ...skill, label: l })}
-        placeholder="Compétence (ex: Guitare)"
-        maxLength={50}
-        placeholderTextColor="#B8A082"
-      />
+      <Text style={skStyles.skillEmoji}>{skill.emoji}</Text>
+      <Text style={skStyles.skillLabel}>{skill.label}</Text>
       <TouchableOpacity style={skStyles.removeBtn} onPress={onRemove}>
         <Text style={skStyles.removeText}>✕</Text>
       </TouchableOpacity>
     </View>
     <TextInput
-      style={[skStyles.input, { marginBottom: 8 }]}
+      style={[skStyles.input, !skill.detail.trim() && skStyles.inputMissing]}
       value={skill.detail}
       onChangeText={d => onChange({ ...skill, detail: d })}
-      placeholder="Détail (ex: Je joue depuis 10 ans)"
+      placeholder="Commentaire drôle (obligatoire)…"
       maxLength={100}
       placeholderTextColor="#B8A082"
     />
-    <View style={skStyles.scoreRow}>
-      <Text style={skStyles.scoreLabel}>Niveau {skill.score}/100</Text>
-      {[20, 40, 60, 80, 100].map(v => (
-        <TouchableOpacity
-          key={v}
-          style={[skStyles.scoreBtn, skill.score >= v && skStyles.scoreBtnActive]}
-          onPress={() => onChange({ ...skill, score: v })}
-        >
-          <Text style={skStyles.scoreBtnText}>{v}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={skStyles.scoreRow}>
+        <Text style={skStyles.scoreLabel}>{skill.score}/100</Text>
+        {SCORE_VALUES.map(v => (
+          <TouchableOpacity
+            key={v}
+            style={[skStyles.scoreBtn, skill.score === v && skStyles.scoreBtnActive]}
+            onPress={() => onChange({ ...skill, score: v })}
+          >
+            <Text style={[skStyles.scoreBtnText, skill.score === v && skStyles.scoreBtnTextActive]}>
+              {v}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
   </View>
 );
 
 const skStyles = StyleSheet.create({
-  card:           { backgroundColor: '#FFF8F0', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E8D5B7' },
-  topRow:         { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-  input:          { backgroundColor: '#FFF8E7', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, borderWidth: 1, borderColor: '#E8D5B7', color: '#3A2818' },
-  emojiInput:     { width: 44, textAlign: 'center' },
-  labelInput:     { flex: 1 },
-  removeBtn:      { width: 32, height: 32, borderRadius: 10, backgroundColor: '#FFE4E4', alignItems: 'center', justifyContent: 'center' },
-  removeText:     { fontSize: 13, color: '#E91E8C', fontWeight: '700' },
-  scoreRow:       { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  scoreLabel:     { fontSize: 12, color: '#8B6F47', minWidth: 80 },
-  scoreBtn:       { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: '#E8D5B7' },
-  scoreBtnActive: { backgroundColor: '#E91E8C' },
-  scoreBtnText:   { fontSize: 11, fontWeight: '700', color: '#FFF' },
+  card:               { backgroundColor: '#FFF8F0', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E8D5B7' },
+  topRow:             { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
+  skillEmoji:         { fontSize: 22 },
+  skillLabel:         { flex: 1, fontSize: 15, fontWeight: '700', color: '#3A2818' },
+  removeBtn:          { width: 28, height: 28, borderRadius: 8, backgroundColor: '#FFE4E4', alignItems: 'center', justifyContent: 'center' },
+  removeText:         { fontSize: 12, color: '#E91E8C', fontWeight: '700' },
+  input:              { backgroundColor: '#FFF8E7', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, borderWidth: 1, borderColor: '#E8D5B7', color: '#3A2818', marginBottom: 10 },
+  inputMissing:       { borderColor: '#E91E8C', borderWidth: 1.5 },
+  scoreRow:           { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  scoreLabel:         { fontSize: 12, fontWeight: '700', color: '#8B6F47', minWidth: 48 },
+  scoreBtn:           { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, backgroundColor: '#E8D5B7' },
+  scoreBtnActive:     { backgroundColor: '#E91E8C' },
+  scoreBtnText:       { fontSize: 11, fontWeight: '600', color: '#5A3A1A' },
+  scoreBtnTextActive: { color: '#FFF' },
 });
 
 // ─── Composant QuestionBlock ──────────────────────────────────────────────────
@@ -282,7 +300,7 @@ export function EditProfileScreen() {
       return a;
     })();
     const filteredIdealDay = idealDay.filter(s => s.trim());
-    const validSkills = skills.filter(s => s.label.trim());
+    const validSkills = skills.filter(s => s.id && s.detail.trim());
 
     const localProfile = {
       id:             currentUser?.id            ?? '',
@@ -674,11 +692,12 @@ export function EditProfileScreen() {
         </SectionCard>
 
         {/* ── Compétences ── */}
-        <SectionCard emoji="🎯" title="Mes compétences (6 max)">
-          <Text style={styles.subLabel}>Tes talents cachés et pas si cachés</Text>
+        <SectionCard emoji="🎯" title={`CE QUE JE GÈRE  (${skills.length}/5)`}>
+          <Text style={styles.subLabel}>Choisis 3 à 5 compétences — sois honnête (ou presque)</Text>
+
           {skills.map((sk, i) => (
             <SkillCard
-              key={i}
+              key={sk.id}
               skill={sk}
               onChange={updated => {
                 const copy = [...skills];
@@ -688,13 +707,32 @@ export function EditProfileScreen() {
               onRemove={() => setSkills(skills.filter((_, j) => j !== i))}
             />
           ))}
-          {skills.length < 6 && (
-            <TouchableOpacity
-              style={styles.addSkillBtn}
-              onPress={() => setSkills([...skills, { label: '', detail: '', score: 50, emoji: '⭐' }])}
-            >
-              <Text style={styles.addSkillText}>+ Ajouter une compétence</Text>
-            </TouchableOpacity>
+
+          {skills.length < 3 && (
+            <Text style={styles.skillWarning}>⚠️ Minimum 3 compétences requises</Text>
+          )}
+
+          {skills.length < 5 && (
+            <>
+              <Text style={[styles.subLabel, { marginTop: 12 }]}>
+                {skills.length === 0 ? 'Sélectionne des compétences :' : 'En ajouter une autre :'}
+              </Text>
+              <View style={styles.chipGrid}>
+                {SKILL_OPTIONS
+                  .filter(opt => !skills.find(s => s.id === opt.id))
+                  .map(opt => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={styles.chip}
+                      onPress={() =>
+                        setSkills([...skills, { id: opt.id, label: opt.label, emoji: opt.emoji, detail: '', score: 50 }])
+                      }
+                    >
+                      <Text style={styles.chipText}>{opt.emoji} {opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+              </View>
+            </>
           )}
         </SectionCard>
 
@@ -799,9 +837,9 @@ const styles = StyleSheet.create({
   chipDisabled: { opacity: 0.4 },
   chipText:     { fontSize: 13, fontWeight: '600', color: BROWN },
 
+  skillWarning: { fontSize: 12, color: '#E91E8C', fontWeight: '600', marginBottom: 10 },
+
   // Save button
   saveBtn:      { backgroundColor: PINK, borderRadius: 20, padding: 20, alignItems: 'center', marginTop: 8, marginBottom: 20 },
   saveBtnText:  { color: '#FFF', fontWeight: '800', fontSize: 17, letterSpacing: 0.5 },
-  addSkillBtn:  { backgroundColor: '#FFF0F7', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1.5, borderColor: PINK },
-  addSkillText: { color: PINK, fontWeight: '700', fontSize: 14 },
 });
