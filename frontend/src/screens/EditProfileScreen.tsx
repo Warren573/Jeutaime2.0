@@ -25,10 +25,10 @@ const PHYSIQUE_OPTIONS = [
 // ─── Préférences rencontre ────────────────────────────────────────────────────
 
 const LOOKING_FOR_OPTIONS = [
-  { id: 'relation',   emoji: '💑', label: 'Relation sérieuse'  },
-  { id: 'flirt',      emoji: '💋', label: 'Flirt'              },
-  { id: 'amitie',     emoji: '🤝', label: 'Amitié'             },
-  { id: 'discussion', emoji: '💬', label: 'Discussion'         },
+  { id: 'relation',   emoji: '💑', label: "J'ai vu de la lumière, je suis entré·e" },
+  { id: 'flirt',      emoji: '💋', label: "Rien de trop sérieux"                   },
+  { id: 'amitie',     emoji: '🤝', label: "Des affinités, d'abord"                 },
+  { id: 'discussion', emoji: '💬', label: "Je cherche à discuter"                  },
 ];
 
 const INTERESTED_IN_OPTIONS = [
@@ -43,6 +43,18 @@ const INTERESTS_OPTIONS = [
   '🎨 Art', '🍳 Cuisine', '💃 Danse', '🎭 Théâtre',
   '📸 Photographie', '🐾 Animaux', '🧘 Méditation', '🚴 Vélo',
 ];
+
+function childrenLabel(hasChildren?: boolean | null, wantsChildren?: boolean | null): string | null {
+  if (hasChildren === true  && wantsChildren === true)  return "A des enfants — et prêt·e à agrandir la troupe";
+  if (hasChildren === true  && wantsChildren === false) return "A des enfants, c'est largement suffisant";
+  if (hasChildren === true  && wantsChildren == null)   return "A des enfants";
+  if (hasChildren === false && wantsChildren === true)  return "Pas d'enfants — compte se lancer dans l'élevage de pingouins";
+  if (hasChildren === false && wantsChildren === false) return "Pas d'enfants, et ça ne changera pas";
+  if (hasChildren === false && wantsChildren == null)   return "Pas d'enfants";
+  if (hasChildren == null   && wantsChildren === true)  return "En réflexion — probablement oui";
+  if (hasChildren == null   && wantsChildren === false) return "Pas vraiment prévu d'enfants";
+  return null;
+}
 
 // ─── Champs V1 ────────────────────────────────────────────────────────────────
 
@@ -490,6 +502,12 @@ export function EditProfileScreen() {
               </TouchableOpacity>
             ))}
           </View>
+
+          {!!childrenLabel(hasChildren, wantsChildren) && (
+            <Text style={styles.childrenPreview}>
+              👶 Affiché dans le profil : « {childrenLabel(hasChildren, wantsChildren)} »
+            </Text>
+          )}
         </SectionCard>
 
         {/* ── Bio ── */}
@@ -525,9 +543,9 @@ export function EditProfileScreen() {
           ))}
         </SectionCard>
 
-        {/* ── Préférences rencontre ── */}
-        <SectionCard emoji="💕" title="Préférences de Rencontre">
-          <Text style={styles.subSectionLabel}>💑 Je cherche…</Text>
+        {/* ── Ce que je cherche ici ── */}
+        <SectionCard emoji="💕" title="CE QUE JE CHERCHE ICI">
+          <Text style={styles.subSectionLabel}>Ce qui s'affichera dans ton profil :</Text>
           <View style={styles.chipGrid}>
             {LOOKING_FOR_OPTIONS.map(opt => (
               <TouchableOpacity
@@ -555,7 +573,7 @@ export function EditProfileScreen() {
         </SectionCard>
 
         {/* ── Centres d'intérêt ── */}
-        <SectionCard emoji="🎯" title="Centres d'intérêt">
+        <SectionCard emoji="🎯" title="MES CENTRES D'INTÉRÊT">
           <Text style={styles.subLabel}>Choisis jusqu'à 8 passions</Text>
           <View style={styles.chipGrid}>
             {INTERESTS_OPTIONS.map(opt => (
@@ -577,18 +595,18 @@ export function EditProfileScreen() {
           </View>
         </SectionCard>
 
-        {/* ── Vibe & Citation ── */}
-        <SectionCard emoji="💭" title="Vibe & Citation">
-          <Text style={styles.inputLabel}>Ta vibe (80 car. max)</Text>
+        {/* ── Mon univers & Citation ── */}
+        <SectionCard emoji="💭" title="MON UNIVERS & MA CITATION">
+          <Text style={styles.inputLabel}>Mon univers en une phrase (80 car. max)</Text>
           <TextInput
             style={styles.input}
             value={vibe}
             onChangeText={setVibe}
-            placeholder="Ex: Soleil et bonne humeur toute l'année"
+            placeholder="Ex: Romantique curieuse, soleil et autodérision"
             placeholderTextColor="#B8A082"
             maxLength={80}
           />
-          <Text style={styles.inputLabel}>Ta citation (150 car. max)</Text>
+          <Text style={styles.inputLabel}>Ma citation — affichée dans le journal (150 car. max)</Text>
           <TextInput
             style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
             value={quote}
@@ -624,7 +642,7 @@ export function EditProfileScreen() {
         </SectionCard>
 
         {/* ── Qualités & Défauts ── */}
-        <SectionCard emoji="⚖️" title="Qualités & Défauts (5 max chacun)">
+        <SectionCard emoji="⚖️" title="MES PETITS + ET MES PETITS −">
           <Text style={styles.subSectionLabel}>✨ Mes qualités</Text>
           <View style={styles.chipGrid}>
             {QUALITY_OPTIONS.map(q => (
@@ -666,7 +684,7 @@ export function EditProfileScreen() {
         </SectionCard>
 
         {/* ── Journée idéale ── */}
-        <SectionCard emoji="🌅" title="Ma journée idéale (5 étapes)">
+        <SectionCard emoji="🌅" title="JOURNÉE IDÉALE">
           <Text style={styles.subLabel}>Décris ta journée parfaite étape par étape</Text>
           {idealDay.map((step, i) => (
             <TextInput
@@ -831,7 +849,8 @@ const styles = StyleSheet.create({
   chipDisabled: { opacity: 0.4 },
   chipText:     { fontSize: 13, fontWeight: '600', color: BROWN },
 
-  skillWarning: { fontSize: 12, color: '#E91E8C', fontWeight: '600', marginBottom: 10 },
+  skillWarning:     { fontSize: 12, color: '#E91E8C', fontWeight: '600', marginBottom: 10 },
+  childrenPreview:  { marginTop: 14, fontSize: 13, color: '#5A3A1A', fontStyle: 'italic', backgroundColor: '#FFF8E7', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#E8D5B7' },
 
   // Save button
   saveBtn:      { backgroundColor: PINK, borderRadius: 20, padding: 20, alignItems: 'center', marginTop: 8, marginBottom: 20 },
