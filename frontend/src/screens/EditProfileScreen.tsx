@@ -435,30 +435,24 @@ export function EditProfileScreen() {
 
         {/* ── Infos de base ── */}
         <SectionCard emoji="📝" title="Informations de base">
-          <Text style={styles.inputLabel}>Pseudo</Text>
-          <TextInput style={styles.input} value={pseudo} onChangeText={setPseudo} placeholder="Ton pseudo" placeholderTextColor="#B8A082" />
-
           <View style={styles.row2}>
             <View style={styles.halfField}>
-              <Text style={styles.inputLabel}>Date de naissance</Text>
-              <TextInput style={styles.input} value={birthDate} onChangeText={setBirthDate} placeholder="YYYY-MM-DD" placeholderTextColor="#B8A082" />
-            </View>
-            <View style={[styles.halfField, { marginLeft: 12 }]}>
               <Text style={styles.inputLabel}>Ville</Text>
               <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Ex: Paris" placeholderTextColor="#B8A082" />
             </View>
+            <View style={[styles.halfField, { marginLeft: 12 }]}>
+              <Text style={styles.inputLabel}>Taille (cm)</Text>
+              <TextInput
+                style={styles.input}
+                value={height}
+                onChangeText={setHeight}
+                placeholder="Ex: 175"
+                keyboardType="numeric"
+                maxLength={3}
+                placeholderTextColor="#B8A082"
+              />
+            </View>
           </View>
-
-          <Text style={styles.inputLabel}>Taille (cm)</Text>
-          <TextInput
-            style={styles.input}
-            value={height}
-            onChangeText={setHeight}
-            placeholder="Ex: 175"
-            keyboardType="numeric"
-            maxLength={3}
-            placeholderTextColor="#B8A082"
-          />
         </SectionCard>
 
         {/* ── Enfants ── */}
