@@ -57,10 +57,10 @@ const DEV_INITIAL_USER = {
   height: 168,
   physicalDesc: 'moyenne',
   skills: [
-    { label: 'Communication', detail: 'répond vraiment (incroyable)',      score: 80, emoji: '💬' },
-    { label: 'Cuisine',       detail: 'maîtrise les pâtes (et Uber Eats)', score: 72, emoji: '🍝' },
-    { label: 'Organisation',  detail: 'pro dans la procrastination',        score: 58, emoji: '🎯' },
-    { label: 'Relationnel',   detail: "peut s'attacher trop vite",          score: 88, emoji: '🌿' },
+    { id: 'communication', label: 'Communication', detail: 'répond vraiment (incroyable)',      score: 80, emoji: '💬' },
+    { id: 'cuisine',       label: 'Cuisine',       detail: 'maîtrise les pâtes (et Uber Eats)', score: 70, emoji: '🍝' },
+    { id: 'organisation',  label: 'Organisation',  detail: 'pro dans la procrastination',       score: 60, emoji: '🗂️' },
+    { id: 'empathie',      label: 'Empathie',      detail: "peut s'attacher trop vite",         score: 90, emoji: '🫂' },
   ],
   qualities: ['Drôle', 'Attentionnée', 'Loyale'],
   defaults: ['Têtue', 'Oublie de répondre', 'Achète trop de trucs'],
@@ -135,7 +135,7 @@ interface CurrentUser {
   qualities?: string[];
   defaults?: string[];
   idealDay?: string[];
-  skills?: { label: string; detail: string; score: number; emoji: string }[];
+  skills?: { id?: string; label: string; detail: string; score: number; emoji: string }[];
 }
 
 interface StoreState {
@@ -614,7 +614,7 @@ export const useStore = create<StoreState>()(
       updateAvatarPngConfig: (config) => set({ avatarPngConfig: config }),
     }),
     {
-      name: 'jeutaime-storage-v4',
+      name: 'jeutaime-storage-v5',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         // En dev mode, coins n'est pas sauvegardé → toujours 50 000 au démarrage

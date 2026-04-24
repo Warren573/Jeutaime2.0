@@ -11,6 +11,7 @@ import { Avatar } from "../avatar/png/Avatar";
 import { DEFAULT_AVATAR } from "../avatar/png/defaults";
 
 type Skill = {
+  id?: string;
   label: string;
   detail: string;
   score: number;
