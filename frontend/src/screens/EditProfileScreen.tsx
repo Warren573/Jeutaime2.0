@@ -445,8 +445,66 @@ export function EditProfileScreen() {
           <Text style={styles.avatarEditHint}>Modifier mon avatar</Text>
         </TouchableOpacity>
 
-        {/* ── Infos de base ── */}
-        <SectionCard emoji="📝" title="Informations de base">
+        {/* ── Bio ── */}
+        <SectionCard emoji="✨" title="BIO">
+          <TextInput
+            style={[styles.input, styles.bioInput]}
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Parle de toi avec authenticité…"
+            placeholderTextColor="#B8A082"
+            multiline
+            maxLength={500}
+          />
+          <Text style={[styles.charCount, bio.length >= 50 && styles.charCountOk]}>
+            {bio.length} / 500 {bio.length >= 50 ? '✓' : `(min 50 caractères)`}
+          </Text>
+        </SectionCard>
+
+        {/* ── Ma citation ── */}
+        <SectionCard emoji="💬" title="MA CITATION">
+          <Text style={styles.subLabel}>Affichée en italique dans ton journal de bord</Text>
+          <TextInput
+            style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
+            value={quote}
+            onChangeText={setQuote}
+            placeholder="Ex: « Un mélange de sérieux et d'autodérision »"
+            placeholderTextColor="#B8A082"
+            maxLength={150}
+            multiline
+          />
+        </SectionCard>
+
+        {/* ── Ce que je cherche ici ── */}
+        <SectionCard emoji="💕" title="CE QUE JE CHERCHE ICI">
+          <Text style={styles.subSectionLabel}>Ce qui s'affichera dans ton profil :</Text>
+          <View style={styles.chipGrid}>
+            {LOOKING_FOR_OPTIONS.map(opt => (
+              <TouchableOpacity
+                key={opt.id}
+                style={[styles.chip, lookingFor.includes(opt.id) && styles.chipActive]}
+                onPress={() => toggleItem(lookingFor, setLookingFor, opt.id)}
+              >
+                <Text style={styles.chipText}>{opt.emoji} {opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>👥 Intéressé•e par</Text>
+          <View style={styles.chipGrid}>
+            {INTERESTED_IN_OPTIONS.map(opt => (
+              <TouchableOpacity
+                key={opt.id}
+                style={[styles.chip, interestedIn.includes(opt.id) && styles.chipActive]}
+                onPress={() => toggleItem(interestedIn, setInterestedIn, opt.id)}
+              >
+                <Text style={styles.chipText}>{opt.emoji} {opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </SectionCard>
+
+        {/* ── Un peu de moi ── */}
+        <SectionCard emoji="📍" title="UN PEU DE MOI">
           <View style={styles.row2}>
             <View style={styles.halfField}>
               <Text style={styles.inputLabel}>Ville</Text>
@@ -465,16 +523,27 @@ export function EditProfileScreen() {
               />
             </View>
           </View>
-        </SectionCard>
 
-        {/* ── Enfants ── */}
-        <SectionCard emoji="👶" title="Enfants">
-          <Text style={styles.subSectionLabel}>As-tu des enfants ?</Text>
+          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Morphologie</Text>
+          {PHYSIQUE_OPTIONS.map(opt => (
+            <TouchableOpacity
+              key={opt.id}
+              style={[styles.physiqueCard, physique === opt.id && styles.physiqueCardActive]}
+              onPress={() => setPhysique(physique === opt.id ? '' : opt.id)}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.physiqueEmoji}>{opt.emoji}</Text>
+              <Text style={styles.physiqueLabel}>{opt.label}</Text>
+              <Text style={styles.physiqueSub}>{opt.sub}</Text>
+            </TouchableOpacity>
+          ))}
+
+          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>As-tu des enfants ?</Text>
           <View style={styles.chipGrid}>
             {[
-              { label: "J'ai des enfants", value: true as boolean | null },
-              { label: "Je n'ai pas d'enfant", value: false as boolean | null },
-              { label: 'Je préfère en parler plus tard', value: null as boolean | null },
+              { label: "J'ai des enfants",                   value: true  as boolean | null },
+              { label: "Je n'ai pas d'enfant",               value: false as boolean | null },
+              { label: 'Je préfère en parler plus tard',      value: null  as boolean | null },
             ].map(opt => (
               <TouchableOpacity
                 key={opt.label}
@@ -489,9 +558,9 @@ export function EditProfileScreen() {
           <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Souhaites-tu avoir des enfants ?</Text>
           <View style={styles.chipGrid}>
             {[
-              { label: "J'en veux", value: true as boolean | null },
-              { label: "Je n'en veux pas", value: false as boolean | null },
-              { label: "Je n'ai pas encore décidé", value: null as boolean | null },
+              { label: "J'en veux",                          value: true  as boolean | null },
+              { label: "Je n'en veux pas",                   value: false as boolean | null },
+              { label: "Je n'ai pas encore décidé",          value: null  as boolean | null },
             ].map(opt => (
               <TouchableOpacity
                 key={`wants-${opt.label}`}
@@ -510,138 +579,49 @@ export function EditProfileScreen() {
           )}
         </SectionCard>
 
-        {/* ── Bio ── */}
-        <SectionCard emoji="✨" title="Bio (Obligatoire - Min 50 caractères)">
-          <TextInput
-            style={[styles.input, styles.bioInput]}
-            value={bio}
-            onChangeText={setBio}
-            placeholder="Parle de toi avec authenticité…"
-            placeholderTextColor="#B8A082"
-            multiline
-            maxLength={500}
-          />
-          <Text style={[styles.charCount, bio.length >= 50 && styles.charCountOk]}>
-            {bio.length} / 500 caractères {bio.length >= 50 ? '✓' : `(${50 - bio.length} de plus)`}
-          </Text>
-        </SectionCard>
-
-        {/* ── Description physique ── */}
-        <SectionCard emoji="😄" title="Description physique (avec humour)">
-          <Text style={styles.subLabel}>Comment te décrirais-tu physiquement ? Choisis l'option qui te correspond le mieux !</Text>
-          {PHYSIQUE_OPTIONS.map(opt => (
-            <TouchableOpacity
-              key={opt.id}
-              style={[styles.physiqueCard, physique === opt.id && styles.physiqueCardActive]}
-              onPress={() => setPhysique(physique === opt.id ? '' : opt.id)}
-              activeOpacity={0.75}
-            >
-              <Text style={styles.physiqueEmoji}>{opt.emoji}</Text>
-              <Text style={styles.physiqueLabel}>{opt.label}</Text>
-              <Text style={styles.physiqueSub}>{opt.sub}</Text>
-            </TouchableOpacity>
+        {/* ── Ce que je gère ── */}
+        <SectionCard emoji="🎯" title={`CE QUE JE GÈRE  (${skills.length}/5)`}>
+          <Text style={styles.subLabel}>Choisis 3 à 5 compétences — sois honnête (ou presque)</Text>
+          {skills.map((sk, i) => (
+            <SkillCard
+              key={sk.id}
+              skill={sk}
+              onChange={updated => {
+                const copy = [...skills];
+                copy[i] = updated;
+                setSkills(copy);
+              }}
+              onRemove={() => setSkills(skills.filter((_, j) => j !== i))}
+            />
           ))}
+          {skills.length < 3 && (
+            <Text style={styles.skillWarning}>⚠️ Minimum 3 compétences requises</Text>
+          )}
+          {skills.length < 5 && (
+            <>
+              <Text style={[styles.subLabel, { marginTop: 12 }]}>
+                {skills.length === 0 ? 'Sélectionne des compétences :' : 'En ajouter une autre :'}
+              </Text>
+              <View style={styles.chipGrid}>
+                {SKILL_OPTIONS
+                  .filter(opt => !skills.find(s => s.id === opt.id))
+                  .map(opt => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={styles.chip}
+                      onPress={() =>
+                        setSkills([...skills, { id: opt.id, label: opt.label, emoji: opt.emoji, detail: '', score: 50 }])
+                      }
+                    >
+                      <Text style={styles.chipText}>{opt.emoji} {opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+              </View>
+            </>
+          )}
         </SectionCard>
 
-        {/* ── Ce que je cherche ici ── */}
-        <SectionCard emoji="💕" title="CE QUE JE CHERCHE ICI">
-          <Text style={styles.subSectionLabel}>Ce qui s'affichera dans ton profil :</Text>
-          <View style={styles.chipGrid}>
-            {LOOKING_FOR_OPTIONS.map(opt => (
-              <TouchableOpacity
-                key={opt.id}
-                style={[styles.chip, lookingFor.includes(opt.id) && styles.chipActive]}
-                onPress={() => toggleItem(lookingFor, setLookingFor, opt.id)}
-              >
-                <Text style={styles.chipText}>{opt.emoji} {opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>👥 Intéressé•e par</Text>
-          <View style={styles.chipGrid}>
-            {INTERESTED_IN_OPTIONS.map(opt => (
-              <TouchableOpacity
-                key={opt.id}
-                style={[styles.chip, interestedIn.includes(opt.id) && styles.chipActive]}
-                onPress={() => toggleItem(interestedIn, setInterestedIn, opt.id)}
-              >
-                <Text style={styles.chipText}>{opt.emoji} {opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </SectionCard>
-
-        {/* ── Centres d'intérêt ── */}
-        <SectionCard emoji="🎯" title="MES CENTRES D'INTÉRÊT">
-          <Text style={styles.subLabel}>Choisis jusqu'à 8 passions</Text>
-          <View style={styles.chipGrid}>
-            {INTERESTS_OPTIONS.map(opt => (
-              <TouchableOpacity
-                key={opt}
-                style={[
-                  styles.chip,
-                  interests.includes(opt) && styles.chipActive,
-                  interests.length >= 8 && !interests.includes(opt) && styles.chipDisabled,
-                ]}
-                onPress={() => {
-                  if (interests.length >= 8 && !interests.includes(opt)) return;
-                  toggleItem(interests, setInterests, opt);
-                }}
-              >
-                <Text style={styles.chipText}>{opt}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </SectionCard>
-
-        {/* ── Mon univers & Citation ── */}
-        <SectionCard emoji="💭" title="MON UNIVERS & MA CITATION">
-          <Text style={styles.inputLabel}>Mon univers en une phrase (80 car. max)</Text>
-          <TextInput
-            style={styles.input}
-            value={vibe}
-            onChangeText={setVibe}
-            placeholder="Ex: Romantique curieuse, soleil et autodérision"
-            placeholderTextColor="#B8A082"
-            maxLength={80}
-          />
-          <Text style={styles.inputLabel}>Ma citation — affichée dans le journal (150 car. max)</Text>
-          <TextInput
-            style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
-            value={quote}
-            onChangeText={setQuote}
-            placeholder="Ex: « Carpe diem » ou quelque chose qui te tient à cœur"
-            placeholderTextColor="#B8A082"
-            maxLength={150}
-            multiline
-          />
-        </SectionCard>
-
-        {/* ── Tags d'identité ── */}
-        <SectionCard emoji="🏷️" title="Tags d'identité (5 max)">
-          <Text style={styles.subLabel}>Ce qui te définit en quelques mots</Text>
-          <View style={styles.chipGrid}>
-            {IDENTITY_TAG_OPTIONS.map(tag => (
-              <TouchableOpacity
-                key={tag}
-                style={[
-                  styles.chip,
-                  identityTags.includes(tag) && styles.chipActive,
-                  identityTags.length >= 5 && !identityTags.includes(tag) && styles.chipDisabled,
-                ]}
-                onPress={() => {
-                  if (identityTags.length >= 5 && !identityTags.includes(tag)) return;
-                  toggleItem(identityTags, setIdentityTags, tag);
-                }}
-              >
-                <Text style={styles.chipText}>{tag}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </SectionCard>
-
-        {/* ── Qualités & Défauts ── */}
+        {/* ── Mes petits + et − ── */}
         <SectionCard emoji="⚖️" title="MES PETITS + ET MES PETITS −">
           <Text style={styles.subSectionLabel}>✨ Mes qualités</Text>
           <View style={styles.chipGrid}>
@@ -703,49 +683,61 @@ export function EditProfileScreen() {
           ))}
         </SectionCard>
 
-        {/* ── Compétences ── */}
-        <SectionCard emoji="🎯" title={`CE QUE JE GÈRE  (${skills.length}/5)`}>
-          <Text style={styles.subLabel}>Choisis 3 à 5 compétences — sois honnête (ou presque)</Text>
+        {/* ── Mes tags (matching invisible) ── */}
+        <SectionCard emoji="🏷️" title="MES TAGS">
+          <Text style={styles.tagsNote}>
+            Ces informations n'apparaissent pas dans ton profil visible.{'\n'}Elles servent à te trouver des profils compatibles.
+          </Text>
 
-          {skills.map((sk, i) => (
-            <SkillCard
-              key={sk.id}
-              skill={sk}
-              onChange={updated => {
-                const copy = [...skills];
-                copy[i] = updated;
-                setSkills(copy);
-              }}
-              onRemove={() => setSkills(skills.filter((_, j) => j !== i))}
-            />
-          ))}
+          <Text style={styles.inputLabel}>Mon univers en une phrase (80 car. max)</Text>
+          <TextInput
+            style={styles.input}
+            value={vibe}
+            onChangeText={setVibe}
+            placeholder="Ex: Romantique curieuse, soleil et autodérision"
+            placeholderTextColor="#B8A082"
+            maxLength={80}
+          />
 
-          {skills.length < 3 && (
-            <Text style={styles.skillWarning}>⚠️ Minimum 3 compétences requises</Text>
-          )}
+          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Qui je suis (5 max)</Text>
+          <View style={styles.chipGrid}>
+            {IDENTITY_TAG_OPTIONS.map(tag => (
+              <TouchableOpacity
+                key={tag}
+                style={[
+                  styles.chip,
+                  identityTags.includes(tag) && styles.chipActive,
+                  identityTags.length >= 5 && !identityTags.includes(tag) && styles.chipDisabled,
+                ]}
+                onPress={() => {
+                  if (identityTags.length >= 5 && !identityTags.includes(tag)) return;
+                  toggleItem(identityTags, setIdentityTags, tag);
+                }}
+              >
+                <Text style={styles.chipText}>{tag}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-          {skills.length < 5 && (
-            <>
-              <Text style={[styles.subLabel, { marginTop: 12 }]}>
-                {skills.length === 0 ? 'Sélectionne des compétences :' : 'En ajouter une autre :'}
-              </Text>
-              <View style={styles.chipGrid}>
-                {SKILL_OPTIONS
-                  .filter(opt => !skills.find(s => s.id === opt.id))
-                  .map(opt => (
-                    <TouchableOpacity
-                      key={opt.id}
-                      style={styles.chip}
-                      onPress={() =>
-                        setSkills([...skills, { id: opt.id, label: opt.label, emoji: opt.emoji, detail: '', score: 50 }])
-                      }
-                    >
-                      <Text style={styles.chipText}>{opt.emoji} {opt.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-              </View>
-            </>
-          )}
+          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Centres d'intérêt (8 max)</Text>
+          <View style={styles.chipGrid}>
+            {INTERESTS_OPTIONS.map(opt => (
+              <TouchableOpacity
+                key={opt}
+                style={[
+                  styles.chip,
+                  interests.includes(opt) && styles.chipActive,
+                  interests.length >= 8 && !interests.includes(opt) && styles.chipDisabled,
+                ]}
+                onPress={() => {
+                  if (interests.length >= 8 && !interests.includes(opt)) return;
+                  toggleItem(interests, setInterests, opt);
+                }}
+              >
+                <Text style={styles.chipText}>{opt}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </SectionCard>
 
         {/* ── Jeu des 3 Questions ── */}

@@ -253,24 +253,6 @@ export default function ProfileTwoStepDemo() {
                 </View>
               </View>
 
-              {(!!displayVibe || !!identityTags.length) && (
-                <View style={styles.identitySection}>
-                  <Text style={styles.kicker}>MON UNIVERS</Text>
-                  {!!displayVibe && (
-                    <Text style={styles.vibeTag}>{displayVibe}</Text>
-                  )}
-                  {!!identityTags.length && (
-                    <View style={styles.identityTagsWrap}>
-                      {identityTags.map((tag) => (
-                        <View key={tag} style={styles.identityChip}>
-                          <Text style={styles.identityChipText}>{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              )}
-
               {(!!intentionSentence || !!interestedInLabel) && (
                 <View style={styles.paperSection}>
                   <Text style={styles.kicker}>CE QUE JE CHERCHE ICI</Text>
@@ -314,19 +296,6 @@ export default function ProfileTwoStepDemo() {
                     {childrenText ? (
                       <Text style={styles.practicalLine}>👶 {childrenText}</Text>
                     ) : null}
-                  </View>
-                </View>
-              )}
-
-              {!!interests.length && (
-                <View style={styles.paperSection}>
-                  <Text style={styles.kicker}>MES CENTRES D'INTÉRÊT</Text>
-                  <View style={styles.interestsWrap}>
-                    {interests.map((interest) => (
-                      <View key={interest} style={styles.interestChip}>
-                        <Text style={styles.interestChipText}>{interest}</Text>
-                      </View>
-                    ))}
                   </View>
                 </View>
               )}
