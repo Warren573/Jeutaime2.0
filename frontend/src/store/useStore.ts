@@ -281,13 +281,13 @@ export const useStore = create<StoreState>()(
           idealDay: [
             'Café au soleil avec un bon livre',
             'Balade photo dans un quartier inconnu',
-            'Cuisine improvvisée avec ce qu'il y a dans le frigo',
+            "Cuisine improvisée avec ce qu'il y a dans le frigo",
             'Film en plein air ou concert de jazz',
           ],
           skills: [
-            { id: 'empathie',      label: 'Empathie',      emoji: '🫂', detail: 's'attache trop facilement', score: 90 },
+            { id: 'empathie',      label: 'Empathie',      emoji: '🫂', detail: "s'attache trop facilement", score: 90 },
             { id: 'creativite',    label: 'Créativité',    emoji: '🎨', detail: 'voit le beau partout sauf dans son ménage', score: 80 },
-            { id: 'organisation',  label: 'Organisation',  emoji: '🗂️', detail: 'a un système. personne d'autre ne le comprend', score: 50 },
+            { id: 'organisation',  label: 'Organisation',  emoji: '🗂️', detail: "a un système. personne d'autre ne le comprend", score: 50 },
           ],
         },
         alex: {
@@ -305,7 +305,7 @@ export const useStore = create<StoreState>()(
           idealDay: [
             'Marché du matin pour trouver des bons produits',
             'Cuisine expérimentale (ratée ou réussie)',
-            'Débat philosophique autour d'un verre',
+            "Débat philosophique autour d'un verre",
             'Fin de soirée sur un rooftop',
           ],
           skills: [
