@@ -4,11 +4,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { useStore } from "../store/useStore";
 import { Avatar } from "../avatar/png/Avatar";
 import { DEFAULT_AVATAR } from "../avatar/png/defaults";
+import { getRelationInfo } from "../engine/RelationEngine";
 
 type Skill = {
   id?: string;
@@ -90,6 +93,67 @@ function childrenLabel(
   return null;
 }
 
+// ── Composant badge niveau de relation ───────────────────────
+// Exporté pour réutilisation dans LettersScreen et futures vues match
+export function RelationLevelBadge({
+  letterCount,
+  isPremium = false,
+  compact = false,
+}: {
+  letterCount: number;
+  isPremium?: boolean;
+  compact?: boolean;
+}) {
+  const info = getRelationInfo(letterCount, isPremium);
+
+  return (
+    <View style={[badgeStyles.container, compact && badgeStyles.containerCompact]}>
+      <View style={badgeStyles.topRow}>
+        <Text style={badgeStyles.stars}>{info.stars}</Text>
+        <Text style={badgeStyles.label}>Niveau {info.level} — {info.label}</Text>
+      </View>
+      {!compact && info.progressText && (
+        <Text style={badgeStyles.progress}>{info.progressText}</Text>
+      )}
+    </View>
+  );
+}
+
+const badgeStyles = StyleSheet.create({
+  container:        { backgroundColor: "#F9EFDB", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#E8D5B7", marginTop: 10 },
+  containerCompact: { paddingHorizontal: 10, paddingVertical: 6, marginTop: 6 },
+  topRow:           { flexDirection: "row", alignItems: "center", gap: 8 },
+  stars:            { fontSize: 14 },
+  label:            { fontSize: 13, fontWeight: "700", color: "#6B4C30" },
+  progress:         { fontSize: 12, color: "#8B6F47", marginTop: 5, fontStyle: "italic" },
+});
+
+// ── Composant média profil (avatar / photo floutée / photo nette) ─
+// Réutilisable dans toutes les vues de profil selon le niveau de relation
+function ProfileMedia({
+  avatarConfig,
+  photoUri,
+  visibility,
+  size,
+}: {
+  avatarConfig: any;
+  photoUri?: string;
+  visibility: "avatar" | "blurred" | "revealed";
+  size: number;
+}) {
+  if (visibility === "avatar" || !photoUri) {
+    return <Avatar size={size} {...avatarConfig} />;
+  }
+  return (
+    <Image
+      source={{ uri: photoUri }}
+      style={{ width: size, height: size, borderRadius: size * 0.12 }}
+      contentFit="cover"
+      blurRadius={visibility === "blurred" ? 20 : 0}
+    />
+  );
+}
+
 function SkillRow({ skill }: { skill: Skill }) {
   const filled = Math.max(0, Math.min(5, Math.round((skill.score || 0) / 20)));
 
@@ -121,8 +185,19 @@ function SkillRow({ skill }: { skill: Skill }) {
   );
 }
 
-export default function ProfileTwoStepDemo() {
+// ── Props optionnels pour contexte match (vues tierce personne)
+// Quand non fournis → profil propre (niveau 3 = tout visible)
+interface ProfileTwoStepDemoProps {
+  matchLetterCount?: number;  // nombre total de lettres dans le thread
+  viewerIsPremium?: boolean;
+}
+
+export default function ProfileTwoStepDemo({
+  matchLetterCount,
+  viewerIsPremium = false,
+}: ProfileTwoStepDemoProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showPhoto, setShowPhoto] = useState<boolean | null>(null);
 
   const user = useStore((s) => s.currentUser);
   console.log("PROFILE_RENDER_USER", user);
@@ -130,6 +205,21 @@ export default function ProfileTwoStepDemo() {
     () => user?.avatarConfig ?? DEFAULT_AVATAR,
     [user?.avatarConfig]
   );
+
+  const isOwnProfile = matchLetterCount === undefined;
+
+  // Pour le profil propre : niveau 3 toujours (on voit tout de soi-même)
+  const effectiveLetterCount = isOwnProfile ? 999 : matchLetterCount!;
+  const relationInfo = getRelationInfo(effectiveLetterCount, viewerIsPremium || (user?.isPremium ?? false));
+
+  const mainPhotoUri      = user?.mainPhotoUri;
+  const defaultShowPhoto  = user?.showPhotoByDefault ?? false;
+  // showPhoto local override : null = suivre le réglage du store
+  const displayPhoto = showPhoto !== null ? showPhoto : defaultShowPhoto;
+  const photoVisibility  = isOwnProfile
+    ? (displayPhoto && mainPhotoUri ? "revealed" : "avatar")
+    : relationInfo.photoVisibility;
+  const hasPhoto = !!mainPhotoUri;
 
   const age = user?.age ?? computeAge(user?.birthDate);
   const physique = user?.physicalDesc
@@ -179,9 +269,33 @@ export default function ProfileTwoStepDemo() {
             </View>
 
             <View style={styles.stageOneHeader}>
-              <View style={styles.photoCard}>
-                <View style={styles.photoTape} />
-                <Avatar size={96} {...avatarConfig} />
+              <View>
+                <View style={styles.photoCard}>
+                  <View style={styles.photoTape} />
+                  <ProfileMedia
+                    avatarConfig={avatarConfig}
+                    photoUri={mainPhotoUri}
+                    visibility={photoVisibility as any}
+                    size={96}
+                  />
+                </View>
+                {/* Toggle avatar / photo (propre profil avec photo, ou niveau 3 match) */}
+                {hasPhoto && (isOwnProfile || relationInfo.level === 3) && (
+                  <View style={styles.mediaToggleRow}>
+                    <TouchableOpacity
+                      style={[styles.mediaToggleBtn, !displayPhoto && styles.mediaToggleBtnActive]}
+                      onPress={() => setShowPhoto(false)}
+                    >
+                      <Text style={styles.mediaToggleText}>🎭</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.mediaToggleBtn, displayPhoto && styles.mediaToggleBtnActive]}
+                      onPress={() => setShowPhoto(true)}
+                    >
+                      <Text style={styles.mediaToggleText}>🪞</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
 
               <View style={styles.stageOneHeaderText}>
@@ -192,6 +306,15 @@ export default function ProfileTwoStepDemo() {
                 <View style={styles.arrowLineWrap}>
                   <Text style={styles.arrowLine}>⟵ 〜〜〜〜〜〜〜〜〜</Text>
                 </View>
+
+                {/* Badge niveau — affiché seulement dans contexte match */}
+                {!isOwnProfile && (
+                  <RelationLevelBadge
+                    letterCount={matchLetterCount!}
+                    isPremium={viewerIsPremium}
+                    compact
+                  />
+                )}
               </View>
             </View>
 
@@ -243,12 +366,34 @@ export default function ProfileTwoStepDemo() {
                 <View style={styles.polaWrap}>
                   <View style={styles.polaTape} />
                   <View style={styles.polaFrame}>
-                    <Avatar size={86} {...avatarConfig} />
+                    <ProfileMedia
+                      avatarConfig={avatarConfig}
+                      photoUri={mainPhotoUri}
+                      visibility={photoVisibility as any}
+                      size={86}
+                    />
                   </View>
                   {!!headerLine && (
                     <Text style={styles.polaCaption}>
                       {headerLine}
                     </Text>
+                  )}
+                  {/* Toggle avatar/photo dans le journal (niveau 3 ou profil propre) */}
+                  {hasPhoto && (isOwnProfile || relationInfo.level === 3) && (
+                    <View style={[styles.mediaToggleRow, { marginTop: 8 }]}>
+                      <TouchableOpacity
+                        style={[styles.mediaToggleBtn, !displayPhoto && styles.mediaToggleBtnActive]}
+                        onPress={() => setShowPhoto(false)}
+                      >
+                        <Text style={styles.mediaToggleText}>🎭</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.mediaToggleBtn, displayPhoto && styles.mediaToggleBtnActive]}
+                        onPress={() => setShowPhoto(true)}
+                      >
+                        <Text style={styles.mediaToggleText}>🪞</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </View>
               </View>
@@ -983,6 +1128,11 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "-6deg" }],
     zIndex: 3,
   },
+
+  mediaToggleRow:      { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 6 },
+  mediaToggleBtn:      { width: 32, height: 32, borderRadius: 10, backgroundColor: "#E8D8C2", alignItems: "center", justifyContent: "center" },
+  mediaToggleBtnActive:{ backgroundColor: "#D7B26A" },
+  mediaToggleText:     { fontSize: 14 },
 
   idealDayLine: {
     fontSize: 17,

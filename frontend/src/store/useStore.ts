@@ -136,6 +136,10 @@ interface CurrentUser {
   defaults?: string[];
   idealDay?: string[];
   skills?: { id?: string; label: string; detail: string; score: number; emoji: string }[];
+  // Photos
+  photos?: string[];           // URIs des photos uploadées (web: objectURL, prod: CDN URL)
+  mainPhotoUri?: string;       // photo sélectionnée comme principale
+  showPhotoByDefault?: boolean; // true = afficher la photo dans le profil, false = avatar
 }
 
 interface StoreState {
@@ -614,7 +618,7 @@ export const useStore = create<StoreState>()(
       updateAvatarPngConfig: (config) => set({ avatarPngConfig: config }),
     }),
     {
-      name: 'jeutaime-storage-v6',
+      name: 'jeutaime-storage-v7',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         // En dev mode, coins n'est pas sauvegardé → toujours 50 000 au démarrage

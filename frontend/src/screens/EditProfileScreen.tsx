@@ -842,6 +842,7 @@ const styles = StyleSheet.create({
   chipText:     { fontSize: 13, fontWeight: '600', color: BROWN },
 
   skillWarning:     { fontSize: 12, color: '#E91E8C', fontWeight: '600', marginBottom: 10 },
+  tagsNote:         { fontSize: 13, color: '#8B6F47', fontStyle: 'italic', lineHeight: 20, backgroundColor: '#FFF8E7', borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E8D5B7' },
   childrenPreview:  { marginTop: 14, fontSize: 13, color: '#5A3A1A', fontStyle: 'italic', backgroundColor: '#FFF8E7', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#E8D5B7' },
 
   // Save button
