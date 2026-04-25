@@ -614,7 +614,7 @@ export const useStore = create<StoreState>()(
       updateAvatarPngConfig: (config) => set({ avatarPngConfig: config }),
     }),
     {
-      name: 'jeutaime-storage-v5',
+      name: 'jeutaime-storage-v6',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         // En dev mode, coins n'est pas sauvegardé → toujours 50 000 au démarrage
