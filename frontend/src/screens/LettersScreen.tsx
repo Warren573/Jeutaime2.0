@@ -34,6 +34,7 @@ interface EnvelopeCardProps {
   letterCount: number;
   isPremium?: boolean;
   onOpen: () => void;
+  onViewProfile: () => void;
   formatTime: (ts: number) => string;
 }
 
@@ -45,6 +46,7 @@ const EnvelopeCard = ({
   letterCount,
   isPremium = false,
   onOpen,
+  onViewProfile,
   formatTime,
 }: EnvelopeCardProps) => {
   const rel = getRelationInfo(letterCount, isPremium);
@@ -94,6 +96,11 @@ const EnvelopeCard = ({
             {!lastMsg ? 'Nouveau' : myTurn ? (unread > 0 ? 'Non lu' : formatTime(lastMsg.createdAt)) : 'Envoyé'}
           </Text>
         </View>
+
+        {/* Bouton voir le profil — séparé du TouchableOpacity d'ouverture */}
+        <TouchableOpacity style={envStyles.profileBtn} onPress={onViewProfile}>
+          <Text style={envStyles.profileBtnText}>Voir le profil →</Text>
+        </TouchableOpacity>
       </TouchableOpacity>
     </>
   );
@@ -173,9 +180,11 @@ const envStyles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   badgeTxt: { color: '#FFF', fontSize: 11, fontWeight: '700' },
-  preview:   { fontSize: 13, color: '#7A5C3A', marginTop: 2 },
-  levelLine: { fontSize: 11, color: '#B87333', marginTop: 4, fontWeight: '600' },
-  time:      { fontSize: 11, color: '#9A7040' },
+  preview:        { fontSize: 13, color: '#7A5C3A', marginTop: 2 },
+  levelLine:      { fontSize: 11, color: '#B87333', marginTop: 4, fontWeight: '600' },
+  time:           { fontSize: 11, color: '#9A7040' },
+  profileBtn:     { paddingHorizontal: 14, paddingVertical: 9, borderTopWidth: 1, borderTopColor: '#E8D9C6', alignItems: 'flex-end' },
+  profileBtnText: { fontSize: 12, color: '#9C4D1A', fontWeight: '700', letterSpacing: 0.3 },
 
   overlay: {
     flex: 1,
@@ -542,6 +551,7 @@ export default function LettersScreen() {
                       myTurn={isMyTurn(match)}
                       letterCount={conv.length}
                       isPremium={currentUser?.isPremium}
+                      onViewProfile={() => router.push({ pathname: '/match-profile', params: { matchId: match.id } })}
                       onOpen={() => {
                         const unreadLetters = conv.filter(
                           l => (l.toUserId === (currentUser?.id || 'me')) && !l.readAt
@@ -699,9 +709,16 @@ export default function LettersScreen() {
             <TouchableOpacity onPress={() => setShowCompose(false)}>
               <Text style={styles.closeText}>← Retour</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>
-              {selectedMatch ? getOtherUserName(selectedMatch) : ''}
-            </Text>
+            {/* Nom cliquable → profil du match */}
+            <TouchableOpacity
+              style={styles.modalTitleBtn}
+              onPress={() => selectedMatch && router.push({ pathname: '/match-profile', params: { matchId: selectedMatch.id } })}
+            >
+              <Text style={styles.modalTitle}>
+                {selectedMatch ? getOtherUserName(selectedMatch) : ''}
+              </Text>
+              <Text style={styles.modalTitleHint}>voir le profil ↗</Text>
+            </TouchableOpacity>
             <View style={{ width: 60 }} />
           </View>
 
@@ -1019,13 +1036,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#C4A882',
     backgroundColor: '#2C1A0E',
   },
-  closeText: { fontSize: 15, color: '#F0D98C', fontWeight: '600' },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#F0D98C',
-    letterSpacing: 0.3,
-  },
+  closeText:      { fontSize: 15, color: '#F0D98C', fontWeight: '600' },
+  modalTitleBtn:  { flex: 1, alignItems: 'center' },
+  modalTitle:     { fontSize: 17, fontWeight: '700', color: '#F0D98C', letterSpacing: 0.3 },
+  modalTitleHint: { fontSize: 10, color: '#B87333', marginTop: 2, letterSpacing: 0.5 },
   messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
 
   startConv: { alignItems: 'center', paddingVertical: 60 },
