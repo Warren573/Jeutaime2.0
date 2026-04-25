@@ -19,6 +19,7 @@ import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import { FEATURES } from '../config/features';
+import { getRelationInfo } from '../engine/RelationEngine';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 32;
@@ -30,6 +31,8 @@ interface EnvelopeCardProps {
   lastMsg?: Letter;
   unread: number;
   myTurn: boolean;
+  letterCount: number;
+  isPremium?: boolean;
   onOpen: () => void;
   formatTime: (ts: number) => string;
 }
@@ -39,9 +42,12 @@ const EnvelopeCard = ({
   lastMsg,
   unread,
   myTurn,
+  letterCount,
+  isPremium = false,
   onOpen,
   formatTime,
 }: EnvelopeCardProps) => {
+  const rel = getRelationInfo(letterCount, isPremium);
   return (
     <>
       <TouchableOpacity style={envStyles.card} onPress={onOpen} activeOpacity={0.82}>
@@ -79,6 +85,9 @@ const EnvelopeCard = ({
                     ? '📨 Nouvelle lettre reçue!'
                     : "✍️ À vous d'écrire..."
                   : '⏳ En attente de réponse...'}
+            </Text>
+            <Text style={envStyles.levelLine}>
+              {rel.stars} Niveau {rel.level} — {rel.label}
             </Text>
           </View>
           <Text style={envStyles.time}>
@@ -164,8 +173,9 @@ const envStyles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   badgeTxt: { color: '#FFF', fontSize: 11, fontWeight: '700' },
-  preview: { fontSize: 13, color: '#7A5C3A', marginTop: 2 },
-  time: { fontSize: 11, color: '#9A7040' },
+  preview:   { fontSize: 13, color: '#7A5C3A', marginTop: 2 },
+  levelLine: { fontSize: 11, color: '#B87333', marginTop: 4, fontWeight: '600' },
+  time:      { fontSize: 11, color: '#9A7040' },
 
   overlay: {
     flex: 1,
@@ -530,6 +540,8 @@ export default function LettersScreen() {
                       lastMsg={lastMsg}
                       unread={unread}
                       myTurn={isMyTurn(match)}
+                      letterCount={conv.length}
+                      isPremium={currentUser?.isPremium}
                       onOpen={() => {
                         const unreadLetters = conv.filter(
                           l => (l.toUserId === (currentUser?.id || 'me')) && !l.readAt
@@ -693,22 +705,37 @@ export default function LettersScreen() {
             <View style={{ width: 60 }} />
           </View>
 
-          {selectedMatch && (
-            <View
-              style={[
-                styles.turnBanner,
-                isMyTurn(selectedMatch) ? styles.turnBannerMine : styles.turnBannerWait,
-              ]}
-            >
-              <Text style={styles.turnBannerText}>
-                {getConversation(selectedMatch).length === 0
-                  ? '🪶  Écrivez la première lettre'
-                  : isMyTurn(selectedMatch)
-                    ? "📬  C'est votre tour — répondez à la lettre reçue"
-                    : '⏳  Lettre envoyée — en attente de réponse'}
-              </Text>
-            </View>
-          )}
+          {selectedMatch && (() => {
+            const conv = getConversation(selectedMatch);
+            const rel  = getRelationInfo(conv.length, currentUser?.isPremium ?? false);
+            return (
+              <>
+                {/* ── Niveau de la relation ── */}
+                <View style={styles.relationBanner}>
+                  <Text style={styles.relationBannerStars}>{rel.stars}</Text>
+                  <View style={styles.relationBannerText}>
+                    <Text style={styles.relationBannerLevel}>
+                      Niveau {rel.level} — {rel.label}
+                    </Text>
+                    {rel.progressText && (
+                      <Text style={styles.relationBannerProgress}>{rel.progressText}</Text>
+                    )}
+                  </View>
+                </View>
+
+                {/* ── Tour de parole ── */}
+                <View style={[styles.turnBanner, isMyTurn(selectedMatch) ? styles.turnBannerMine : styles.turnBannerWait]}>
+                  <Text style={styles.turnBannerText}>
+                    {conv.length === 0
+                      ? '🪶  Écrivez la première lettre'
+                      : isMyTurn(selectedMatch)
+                        ? "📬  C'est votre tour — répondez à la lettre reçue"
+                        : '⏳  Lettre envoyée — en attente de réponse'}
+                  </Text>
+                </View>
+              </>
+            );
+          })()}
 
           <ScrollView style={styles.messagesContainer}>
             {selectedMatch &&
@@ -1033,6 +1060,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendBtnText: { fontSize: 18, color: '#FFF' },
+
+  relationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#1C1208',
+    borderBottomWidth: 1,
+    borderBottomColor: '#3A2818',
+    gap: 10,
+  },
+  relationBannerStars:    { fontSize: 16 },
+  relationBannerText:     { flex: 1 },
+  relationBannerLevel:    { fontSize: 13, fontWeight: '700', color: '#D4A862' },
+  relationBannerProgress: { fontSize: 11, color: '#8B6F47', marginTop: 2, fontStyle: 'italic' },
 
   turnBanner: {
     paddingHorizontal: 16,
