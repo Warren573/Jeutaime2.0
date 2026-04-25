@@ -142,10 +142,29 @@ interface CurrentUser {
   showPhotoByDefault?: boolean; // true = afficher la photo dans le profil, false = avatar
 }
 
+// Profil d'un partenaire de match (subset des champs, toujours visible côté personnalité)
+export interface PartnerProfile {
+  id: string;
+  pseudo: string;
+  age?: number;
+  bio?: string;
+  city?: string;
+  height?: number;
+  physicalDesc?: string;
+  lookingFor?: string[];
+  quote?: string;
+  qualities?: string[];
+  defaults?: string[];
+  idealDay?: string[];
+  skills?: { id?: string; label: string; detail: string; score: number; emoji: string }[];
+  mainPhotoUri?: string; // révélée selon le niveau de relation
+}
+
 interface StoreState {
   // ===== User & Profile =====
   currentUser: CurrentUser | null;
   isAuthenticated: boolean;
+  matchPartners: Record<string, PartnerProfile>;
   
   // ===== Economy =====
   coins: number;
@@ -246,6 +265,57 @@ export const useStore = create<StoreState>()(
       
       pet: null,
       
+      matchPartners: {
+        sophie: {
+          id: 'sophie',
+          pseudo: 'Sophie',
+          age: 28,
+          bio: "Photographe amateur le week-end, rêveuse la semaine. J'aime les conversations qui commencent par une question et finissent par un silence complice.",
+          city: 'Lyon',
+          height: 167,
+          physicalDesc: 'filiforme',
+          lookingFor: ['relation'],
+          quote: "« La vie est trop courte pour les mauvais cafés et les conversations superficielles »",
+          qualities: ['Empathique', 'Créatif•ve', 'Curieux•se'],
+          defaults: ['Trop perfectionniste', 'Toujours en retard'],
+          idealDay: [
+            'Café au soleil avec un bon livre',
+            'Balade photo dans un quartier inconnu',
+            'Cuisine improvvisée avec ce qu'il y a dans le frigo',
+            'Film en plein air ou concert de jazz',
+          ],
+          skills: [
+            { id: 'empathie',      label: 'Empathie',      emoji: '🫂', detail: 's'attache trop facilement', score: 90 },
+            { id: 'creativite',    label: 'Créativité',    emoji: '🎨', detail: 'voit le beau partout sauf dans son ménage', score: 80 },
+            { id: 'organisation',  label: 'Organisation',  emoji: '🗂️', detail: 'a un système. personne d'autre ne le comprend', score: 50 },
+          ],
+        },
+        alex: {
+          id: 'alex',
+          pseudo: 'Alex',
+          age: 31,
+          bio: "Ingénieur le jour, cuisinier le soir. Je cherche quelqu'un avec qui débattre de tout et de rien — et partager une bonne table.",
+          city: 'Paris',
+          height: 182,
+          physicalDesc: 'athletique',
+          lookingFor: ['relation', 'amitie'],
+          quote: "« Voyager, c'est découvrir que tout le monde a raison »",
+          qualities: ['Loyal•e', 'Honnête', 'Généreux•se'],
+          defaults: ['Têtu•e', 'Mauvais•e perdant•e'],
+          idealDay: [
+            'Marché du matin pour trouver des bons produits',
+            'Cuisine expérimentale (ratée ou réussie)',
+            'Débat philosophique autour d'un verre',
+            'Fin de soirée sur un rooftop',
+          ],
+          skills: [
+            { id: 'cuisine',       label: 'Cuisine',       emoji: '🍝', detail: 'vraiment doué, ou juste chanceux ?', score: 85 },
+            { id: 'communication', label: 'Communication',  emoji: '💬', detail: 'parle beaucoup, écoute aussi (parfois)', score: 70 },
+            { id: 'humour',        label: 'Humour',        emoji: '😄', detail: 'fait rire les autres, pleure seul dans sa cuisine', score: 75 },
+          ],
+        },
+      },
+
       matches: [
         // Matchs de démo
         { id: 'm1', userAId: 'dev-local', userBId: 'sophie', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, status: 'active', letterCount: 5 },
@@ -618,7 +688,7 @@ export const useStore = create<StoreState>()(
       updateAvatarPngConfig: (config) => set({ avatarPngConfig: config }),
     }),
     {
-      name: 'jeutaime-storage-v7',
+      name: 'jeutaime-storage-v8',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         // En dev mode, coins n'est pas sauvegardé → toujours 50 000 au démarrage
