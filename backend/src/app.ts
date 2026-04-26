@@ -28,6 +28,7 @@ import adminUploadRoutes, {
 import adminReportsRoutes from "./modules/admin/reports/adminReports.routes";
 import adminUsersRoutes from "./modules/admin/users/adminUsers.routes";
 import adminAuditRoutes from "./modules/admin/audit/adminAudit.routes";
+import reactionsRoutes from "./modules/reactions/reactions.routes";
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.use(`${api}/reports`, reportsRoutes);
 app.use(`${api}/magies`, magiesRoutes);
 app.use(`${api}/offerings`, offeringsRoutes);
 app.use(`${api}/notifications`, notificationsRoutes);
+app.use(`${api}/discover`, reactionsRoutes);
 
 // Admin (ADMIN/MOD role required — enforced inside each router)
 app.use(`${api}/admin/salons`, adminSalonsRoutes);

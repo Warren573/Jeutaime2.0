@@ -27,6 +27,8 @@ import * as EconomyEngine from '../engine/EconomyEngine';
 import * as ProgressionEngine from '../engine/ProgressionEngine';
 import * as PetEngine from '../engine/PetEngine';
 import { apiFetch } from '../api/client';
+import { login as apiLogin, register as apiRegister, logout as apiLogout, saveSession, clearSession as clearApiSession, type RegisterPayload } from '../api/auth';
+import { listMatches, type MatchDTO } from '../api/matches';
 
 // ===== DEV MODE =====
 // À mettre à `false` pour le build final
@@ -182,6 +184,7 @@ interface StoreState {
   
   // ===== Matches & Letters =====
   matches: Match[];
+  apiMatches: MatchDTO[];
   letters: Letter[];
   likedProfiles: string[];
   dislikedProfiles: string[];
@@ -197,6 +200,10 @@ interface StoreState {
   setCurrentUser: (user: CurrentUser | null) => void;
   loadUserData: () => void;
   hydrateFromApi: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
+  logout: () => Promise<void>;
+  loadMatches: () => Promise<void>;
   
   // ===== Actions - Economy =====
   addCoins: (amount: number, reason?: string, category?: TransactionCategory) => void;
@@ -316,8 +323,9 @@ export const useStore = create<StoreState>()(
         },
       },
 
+      apiMatches: [],
       matches: [
-        // Matchs de démo
+        // Matchs de démo (remplacés par loadMatches() après connexion réelle)
         { id: 'm1', userAId: 'dev-local', userBId: 'sophie', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, status: 'active', letterCount: 5 },
         { id: 'm2', userAId: 'dev-local', userBId: 'alex', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, status: 'active', letterCount: 12 },
       ],
@@ -426,8 +434,109 @@ export const useStore = create<StoreState>()(
           };
           console.log("HYDRATE_SET_USER", mappedUser);
           get().setCurrentUser(mappedUser);
+          // Charger les vrais matchs depuis l'API
+          await get().loadMatches();
         } catch {
           // token invalide ou réseau — user reste non-authentifié
+        }
+      },
+
+      login: async (email, password) => {
+        const tokens = await apiLogin({ email, password });
+        await saveSession(tokens);
+        await get().hydrateFromApi();
+      },
+
+      register: async (payload) => {
+        const tokens = await apiRegister(payload);
+        await saveSession(tokens);
+        await get().hydrateFromApi();
+      },
+
+      logout: async () => {
+        try {
+          const refreshToken = await AsyncStorage.getItem('auth_refresh_token');
+          if (refreshToken) await apiLogout(refreshToken);
+        } catch {
+          // Ignore erreurs réseau au logout
+        }
+        await clearApiSession();
+        set({
+          currentUser: DEV_INITIAL_USER,
+          isAuthenticated: false,
+          apiMatches: [],
+          matches: [],
+          letters: [],
+        });
+      },
+
+      loadMatches: async () => {
+        try {
+          const data = await listMatches();
+          const viewerId = get().currentUser?.id;
+          if (!viewerId || data.length === 0) return;
+
+          const adapted: Match[] = data.map((m) => {
+            const isA = m.userAId === viewerId;
+            const myCount = isA ? m.letterCountA : m.letterCountB;
+            const otherCount = isA ? m.letterCountB : m.letterCountA;
+            const rawStatus = m.status;
+            const status: 'active' | 'broken' | 'blocked' =
+              ['ACTIVE', 'PENDING', 'GHOSTED'].includes(rawStatus)
+                ? 'active'
+                : rawStatus === 'BLOCKED'
+                ? 'blocked'
+                : 'broken';
+            return {
+              id: m.id,
+              userAId: m.userAId,
+              userBId: m.userBId,
+              createdAt: new Date(m.createdAt).getTime(),
+              status,
+              letterCount: myCount + otherCount,
+              questionValidation: {
+                userACorrect: 0,
+                userBCorrect: 0,
+                isValid: m.questionsValidated,
+              },
+            };
+          });
+
+          const newPartners: Record<string, PartnerProfile> = {};
+          for (const m of data) {
+            if (m.otherProfile && m.otherUserId) {
+              const bd = m.otherProfile.birthDate
+                ? new Date(m.otherProfile.birthDate)
+                : null;
+              let age: number | undefined;
+              if (bd && !isNaN(bd.getTime())) {
+                const now = new Date();
+                let a = now.getFullYear() - bd.getFullYear();
+                if (
+                  now.getMonth() < bd.getMonth() ||
+                  (now.getMonth() === bd.getMonth() &&
+                    now.getDate() < bd.getDate())
+                ) a--;
+                age = a >= 13 ? a : undefined;
+              }
+              newPartners[m.otherUserId] = {
+                id: m.otherUserId,
+                pseudo: m.otherProfile.pseudo,
+                age,
+                bio: m.otherProfile.bio,
+                city: m.otherProfile.city,
+                physicalDesc: m.otherProfile.physicalDesc ?? undefined,
+              };
+            }
+          }
+
+          set({
+            apiMatches: data,
+            matches: adapted,
+            matchPartners: { ...get().matchPartners, ...newPartners },
+          });
+        } catch {
+          // API unreachable — garder les données existantes
         }
       },
       
