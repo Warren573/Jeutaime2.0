@@ -43,7 +43,7 @@ export default function MatchProfileScreen() {
   if (!match) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/(tabs)/letters')}>
           <Text style={styles.backText}>← Lettres</Text>
         </TouchableOpacity>
         <View style={styles.errorState}>
@@ -74,7 +74,7 @@ export default function MatchProfileScreen() {
 
       {/* ── Barre nav sombre (cohérente avec les lettres) ── */}
       <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.replace('/(tabs)/letters')}>
           <Text style={styles.backText}>← Lettres</Text>
         </TouchableOpacity>
         <Text style={styles.navTitle} numberOfLines={1}>
@@ -256,7 +256,7 @@ export default function MatchProfileScreen() {
         </View>
 
         {/* ── CTA retour ── */}
-        <TouchableOpacity style={styles.backToLettersBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backToLettersBtn} onPress={() => router.replace('/(tabs)/letters')}>
           <Text style={styles.backToLettersText}>✉️ Retourner aux lettres</Text>
         </TouchableOpacity>
 
