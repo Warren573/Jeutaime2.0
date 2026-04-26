@@ -13,8 +13,6 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { apiFetch } from "../api/client";
-import { saveToken } from "../utils/session";
 import { useStore } from "../store/useStore";
 
 const AUTH_ENABLED = true;
@@ -27,7 +25,7 @@ const GENDER_OPTIONS = [
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { hydrateFromApi } = useStore();
+  const { register: storeRegister } = useStore();
 
   const [pseudo, setPseudo] = useState("");
   const [email, setEmail] = useState("");
@@ -89,30 +87,15 @@ export default function RegisterScreen() {
         `${birthDate.trim()}T00:00:00.000Z`
       ).toISOString();
 
-      const res = await apiFetch("/auth/register", {
-        method: "POST",
-        body: JSON.stringify({
-          pseudo: pseudo.trim(),
-          email: email.trim().toLowerCase(),
-          birthDate: birthDateIso,
-          city: city.trim(),
-          gender,
-          password,
-        }),
+      await storeRegister({
+        pseudo: pseudo.trim(),
+        email: email.trim().toLowerCase(),
+        birthDate: birthDateIso,
+        city: city.trim(),
+        gender: gender as "HOMME" | "FEMME" | "AUTRE",
+        password,
       });
 
-      const token =
-        res?.data?.accessToken ?? res?.data?.token ??
-        res?.accessToken ?? res?.token ?? null;
-
-      if (!token) {
-        Alert.alert("Compte créé", "Connecte-toi pour continuer.");
-        router.replace("/login");
-        return;
-      }
-
-      await saveToken(token);
-      await hydrateFromApi();
       router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert("Erreur", err?.message || "Une erreur est survenue.");

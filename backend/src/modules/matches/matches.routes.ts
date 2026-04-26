@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
-import { requireAuth } from "../../core/middleware/auth";
+import { requireAuth, requireRole } from "../../core/middleware/auth";
+import { Role } from "@prisma/client";
 import { lettersRateLimit } from "../../core/middleware/rateLimit";
 import { CreateMatchSchema, GhostRelanceSchema } from "./matches.schemas";
 import * as matchCtrl from "./matches.controller";
@@ -20,8 +21,14 @@ const wrap = (
 
 // ── Matches ───────────────────────────────────────────────────────────────────
 
-// POST /api/matches — Proposer un match
-router.post("/", validate(CreateMatchSchema), wrap(matchCtrl.handleCreate));
+// POST /api/matches — Création directe de match (ADMIN/MOD uniquement)
+// Les utilisateurs normaux passent par POST /api/discover/react (sourire mutuel)
+router.post(
+  "/",
+  requireRole(Role.ADMIN, Role.MODERATOR) as never,
+  validate(CreateMatchSchema),
+  wrap(matchCtrl.handleCreate),
+);
 
 // GET /api/matches — Liste mes matchs
 router.get("/", wrap(matchCtrl.handleList));

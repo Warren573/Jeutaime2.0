@@ -386,7 +386,12 @@ interface Souvenir {
 export default function LettersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { matches, letters, addLetter, markLetterRead, currentUser, addPoints, duelEntries } = useStore();
+  const {
+    matches, letters, lettersByMatch,
+    addLetter, markLetterRead, markLetterReadApi,
+    loadLetters, sendApiLetter,
+    currentUser, matchPartners, addPoints, duelEntries,
+  } = useStore();
   const screenBg = useStore(s => s.screenBackgrounds?.['letters'] ?? '#FFF8E7');
 
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -447,40 +452,61 @@ export default function LettersScreen() {
     }
   }, [activeTab, visibleTabs]);
 
-  const getOtherUserName = (match: Match) => {
-    const myId = currentUser?.id || 'me';
+  const getOtherUserId = (match: Match): string => {
+    const myId = currentUser?.id ?? 'me';
     return match.userAId === myId ? match.userBId : match.userAId;
   };
 
+  // Retourne le nom affiché du partenaire (pseudo réel si disponible, sinon userId)
+  const getOtherName = (match: Match): string => {
+    const otherId = getOtherUserId(match);
+    return matchPartners[otherId]?.pseudo ?? otherId;
+  };
+
+  // Garde l'ancienne signature pour compatibilité (utilisée dans certains endroits)
+  const getOtherUserName = getOtherName;
+
   const getConversation = (match: Match) => {
-    const otherId = getOtherUserName(match);
+    // Préférer les lettres API si elles ont été chargées pour ce match
+    const apiLetters = lettersByMatch[match.id];
+    if (apiLetters !== undefined) {
+      return apiLetters;
+    }
+    // Fallback : lettres locales du store
+    const otherId = getOtherUserId(match);
     return letters
       .filter(l => l.fromUserId === otherId || l.toUserId === otherId)
       .sort((a, b) => a.createdAt - b.createdAt);
   };
 
   const isMyTurn = (match: Match): boolean => {
-    const myId = currentUser?.id || 'me';
+    const myId = currentUser?.id ?? 'me';
     const conv = getConversation(match);
     if (conv.length === 0) return true;
     return conv[conv.length - 1].fromUserId !== myId;
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!newMessage.trim() || !selectedMatch) return;
     if (!isMyTurn(selectedMatch)) return;
 
-    const letter: Letter = {
-      id: Date.now().toString(),
-      threadId: selectedMatch.id,
-      fromUserId: currentUser?.id || 'me',
-      toUserId: selectedMatch.userBId === 'me' ? selectedMatch.userAId : selectedMatch.userBId,
-      content: newMessage.trim(),
-      createdAt: Date.now(),
-    };
-
-    addLetter(letter);
+    const content = newMessage.trim();
     setNewMessage('');
+
+    try {
+      await sendApiLetter(selectedMatch.id, content);
+    } catch {
+      // Fallback local si l'API est inaccessible
+      const letter: Letter = {
+        id: Date.now().toString(),
+        threadId: selectedMatch.id,
+        fromUserId: currentUser?.id ?? 'me',
+        toUserId: getOtherUserId(selectedMatch),
+        content,
+        createdAt: Date.now(),
+      };
+      addLetter(letter);
+    }
   };
 
   const handleAddJournal = () => {
@@ -546,7 +572,7 @@ export default function LettersScreen() {
                 </Text>
 
                 {matches.map((match) => {
-                  const otherName = getOtherUserName(match);
+                  const otherName = getOtherName(match);
                   const conv = getConversation(match);
                   const lastMsg = conv[conv.length - 1];
                   const unread = conv.filter(
@@ -565,19 +591,21 @@ export default function LettersScreen() {
                       isPremium={currentUser?.isPremium}
                       onOpen={() => {
                         const unreadLetters = conv.filter(
-                          l => (l.toUserId === (currentUser?.id || 'me')) && !l.readAt
+                          l => (l.toUserId === (currentUser?.id ?? 'me')) && !l.readAt
                         );
 
                         setSelectedMatch(match);
                         setShowCompose(true);
+                        // Charger les lettres depuis l'API pour ce match
+                        loadLetters(match.id);
 
                         if (unreadLetters.length > 0) {
-                          setEnvAnimSender(getOtherUserName(match));
+                          setEnvAnimSender(getOtherName(match));
                           setEnvAnimVisible(true);
 
                           setTimeout(() => {
                             setEnvAnimVisible(false);
-                            unreadLetters.forEach(l => markLetterRead(l.id));
+                            unreadLetters.forEach(l => markLetterReadApi(l.id));
                           }, 5100);
                         }
                       }}
@@ -726,7 +754,7 @@ export default function LettersScreen() {
               onPress={() => { if (selectedMatch) { setShowCompose(false); router.replace({ pathname: '/match-profile', params: { matchId: selectedMatch.id } }); } }}
             >
               <Text style={styles.modalTitle}>
-                {selectedMatch ? getOtherUserName(selectedMatch) : ''}
+                {selectedMatch ? getOtherName(selectedMatch) : ''}
               </Text>
               <Text style={styles.modalTitleHint}>voir le profil ↗</Text>
             </TouchableOpacity>
@@ -770,7 +798,7 @@ export default function LettersScreen() {
               getConversation(selectedMatch).map((letter) => {
                 const isOwn =
                   letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
-                const otherName = getOtherUserName(selectedMatch);
+                const otherName = getOtherName(selectedMatch);
 
                 return (
                   <LetterCard

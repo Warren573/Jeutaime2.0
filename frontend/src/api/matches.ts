@@ -63,8 +63,8 @@ export interface MatchListResponse {
 export interface LetterDTO {
   id: string;
   matchId: string;
-  fromId: string;
-  toId: string;
+  fromUserId: string;
+  toUserId: string;
   content: string;
   status: "SENT" | "READ";
   sentAt: string;
@@ -98,8 +98,8 @@ export async function sendLetter(matchId: string, content: string): Promise<Lett
   return res.data;
 }
 
-export async function markLetterRead(matchId: string, letterId: string): Promise<void> {
-  await apiFetch(`/matches/${matchId}/letters/${letterId}/read`, {
-    method: "POST",
+export async function markLetterRead(letterId: string): Promise<void> {
+  await apiFetch(`/letters/${letterId}/read`, {
+    method: "PATCH",
   });
 }

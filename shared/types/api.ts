@@ -197,8 +197,8 @@ export type LetterStatusEnum = 'SENT' | 'READ';
 export interface LetterDTO {
   id: string;
   matchId: string;
-  fromId: string;
-  toId: string;
+  fromUserId: string;
+  toUserId: string;
   content: string;
   status: LetterStatusEnum;
   sentAt: string;

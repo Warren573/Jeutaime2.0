@@ -28,7 +28,7 @@ import * as ProgressionEngine from '../engine/ProgressionEngine';
 import * as PetEngine from '../engine/PetEngine';
 import { apiFetch } from '../api/client';
 import { login as apiLogin, register as apiRegister, logout as apiLogout, saveSession, clearSession as clearApiSession, type RegisterPayload } from '../api/auth';
-import { listMatches, type MatchDTO } from '../api/matches';
+import { listMatches, listLetters, sendLetter, markLetterRead as apiMarkLetterRead, type MatchDTO, type LetterDTO } from '../api/matches';
 
 // ===== DEV MODE =====
 // À mettre à `false` pour le build final
@@ -186,6 +186,7 @@ interface StoreState {
   matches: Match[];
   apiMatches: MatchDTO[];
   letters: Letter[];
+  lettersByMatch: Record<string, Letter[]>;
   likedProfiles: string[];
   dislikedProfiles: string[];
   
@@ -232,6 +233,9 @@ interface StoreState {
   addMatch: (match: Match) => void;
   addLetter: (letter: Letter) => void;
   markLetterRead: (letterId: string) => void;
+  loadLetters: (matchId: string) => Promise<void>;
+  sendApiLetter: (matchId: string, content: string) => Promise<void>;
+  markLetterReadApi: (letterId: string) => Promise<void>;
   addLike: (profileId: string) => void;
   addDislike: (profileId: string) => void;
   
@@ -357,6 +361,7 @@ export const useStore = create<StoreState>()(
           createdAt: Date.now() - 1800000,
         },
       ],
+      lettersByMatch: {},
       likedProfiles: [],
       dislikedProfiles: [],
       messagesBySalon: {},
@@ -467,6 +472,7 @@ export const useStore = create<StoreState>()(
           apiMatches: [],
           matches: [],
           letters: [],
+          lettersByMatch: {},
         });
       },
 
@@ -530,10 +536,16 @@ export const useStore = create<StoreState>()(
             }
           }
 
+          // Si l'user est authentifié, toujours utiliser les données API
+          // (même vides — ça veut dire qu'il n'a pas encore de matchs)
+          // Sinon, garder les mocks si pas de données API
+          const isAuth = get().isAuthenticated;
           set({
             apiMatches: data,
-            matches: adapted,
-            matchPartners: { ...get().matchPartners, ...newPartners },
+            matches: isAuth ? adapted : (adapted.length > 0 ? adapted : get().matches),
+            matchPartners: Object.keys(newPartners).length > 0
+              ? { ...get().matchPartners, ...newPartners }
+              : get().matchPartners,
           });
         } catch {
           // API unreachable — garder les données existantes
@@ -725,6 +737,74 @@ export const useStore = create<StoreState>()(
       },
 
       // ===== Match & Letter Actions =====
+
+      loadLetters: async (matchId: string) => {
+        try {
+          const data = await listLetters(matchId);
+          const adapted: Letter[] = data.map((dto: LetterDTO) => ({
+            id: dto.id,
+            threadId: dto.matchId,
+            fromUserId: dto.fromUserId,
+            toUserId: dto.toUserId,
+            content: dto.content,
+            createdAt: new Date(dto.sentAt).getTime(),
+            readAt: dto.readAt ? new Date(dto.readAt).getTime() : undefined,
+          }));
+          set((state) => ({
+            lettersByMatch: { ...state.lettersByMatch, [matchId]: adapted },
+          }));
+        } catch {
+          // API unreachable — garder les données existantes
+        }
+      },
+
+      sendApiLetter: async (matchId: string, content: string) => {
+        const dto = await sendLetter(matchId, content);
+        const adapted: Letter = {
+          id: dto.id,
+          threadId: dto.matchId,
+          fromUserId: dto.fromUserId,
+          toUserId: dto.toUserId,
+          content: dto.content,
+          createdAt: new Date(dto.sentAt).getTime(),
+          readAt: undefined,
+        };
+        set((state) => ({
+          lettersByMatch: {
+            ...state.lettersByMatch,
+            [matchId]: [...(state.lettersByMatch[matchId] ?? []), adapted],
+          },
+        }));
+        get().incrementStat('lettersSent');
+        get().addPoints(ProgressionEngine.POINTS.sendLetter, 'Lettre envoyée');
+      },
+
+      markLetterReadApi: async (letterId: string) => {
+        try {
+          await apiMarkLetterRead(letterId);
+        } catch {
+          // Silencieux — la mise à jour locale reste
+        }
+        get().markLetterRead(letterId);
+        // Mettre à jour lettersByMatch aussi
+        set((state) => {
+          const updated = { ...state.lettersByMatch };
+          for (const matchId of Object.keys(updated)) {
+            const arr = updated[matchId];
+            if (arr) {
+              const idx = arr.findIndex((l) => l.id === letterId);
+              if (idx >= 0) {
+                const copy = [...arr];
+                copy[idx] = { ...copy[idx]!, readAt: Date.now() };
+                updated[matchId] = copy;
+                break;
+              }
+            }
+          }
+          return { lettersByMatch: updated };
+        });
+      },
+
       addMatch: (match) => {
         set((state) => ({ 
           matches: [...state.matches, match],
