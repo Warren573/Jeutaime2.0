@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { apiFetch } from "../api/client";
-import { saveToken } from "../utils/session";
+import { saveToken, saveRefreshToken } from "../utils/session";
 import { useStore } from "../store/useStore";
 
 const AUTH_ENABLED = true;
@@ -21,15 +21,19 @@ const AUTH_ENABLED = true;
 function extractToken(res: any): string | null {
   if (!res) return null;
   return (
-    res?.accessToken ||
-    res?.token ||
-    res?.access_token ||
     res?.data?.accessToken ||
+    res?.accessToken ||
     res?.data?.token ||
-    res?.data?.access_token ||
-    res?.tokens?.accessToken ||
-    res?.tokens?.token ||
-    res?.tokens?.access_token ||
+    res?.token ||
+    null
+  );
+}
+
+function extractRefreshToken(res: any): string | null {
+  if (!res) return null;
+  return (
+    res?.data?.refreshToken ||
+    res?.refreshToken ||
     null
   );
 }
@@ -68,12 +72,13 @@ export default function LoginScreen() {
       });
 
       const token = extractToken(res);
-
       if (!token) {
         throw new Error(`Token manquant. Réponse: ${JSON.stringify(res)}`);
       }
 
+      const refreshToken = extractRefreshToken(res);
       await saveToken(token);
+      if (refreshToken) await saveRefreshToken(refreshToken);
       await hydrateFromApi();
       router.replace("/(tabs)");
     } catch (err: any) {

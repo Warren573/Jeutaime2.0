@@ -3,7 +3,13 @@ const { getDefaultConfig } = require("expo/metro-config");
 const path = require('path');
 const { FileStore } = require('metro-cache');
 
+// Dossier partagé backend/frontend (types API contract)
+const sharedDir = path.resolve(__dirname, '../shared');
+
 const config = getDefaultConfig(__dirname);
+
+// Permettre à Metro de résoudre les imports depuis ../shared
+config.watchFolders = [...(config.watchFolders ?? []), sharedDir];
 
 // ── SVG transformer (plateforme-aware) ─────────────────────────────────────
 // mobile → react-native-svg-transformer → composant React

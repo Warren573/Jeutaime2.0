@@ -117,6 +117,11 @@ enum NotificationType {
   PREMIUM_CANCELLED
 }
 
+enum ReactionType {
+  SMILE
+  GRIMACE
+}
+
 // ============================================================
 // USER / AUTH
 // ============================================================
@@ -157,6 +162,8 @@ model User {
   blocksAgainst   Block[]         @relation("BlockTo")
   auditLogs       AuditLog[]
   notifications   Notification[]
+  reactionsGiven    Reaction[]    @relation("ReactionFrom")
+  reactionsReceived Reaction[]    @relation("ReactionTo")
 
   @@index([email])
   @@index([isBanned])
@@ -535,6 +542,25 @@ model Block {
   createdAt DateTime @default(now())
 
   @@unique([fromId, toId])
+}
+
+// ============================================================
+// RÉACTIONS — Sourire / Grimace (système de découverte)
+// Un utilisateur peut réagir une seule fois à un profil.
+// Sourire mutuel → match créé automatiquement.
+// ============================================================
+
+model Reaction {
+  id        String       @id @default(cuid())
+  fromId    String
+  toId      String
+  from      User         @relation("ReactionFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to        User         @relation("ReactionTo",   fields: [toId],   references: [id], onDelete: Cascade)
+  type      ReactionType
+  createdAt DateTime     @default(now())
+
+  @@unique([fromId, toId])
+  @@index([toId])
 }
 
 model AuditLog {
