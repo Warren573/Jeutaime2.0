@@ -52,60 +52,62 @@ const EnvelopeCard = ({
   const rel = getRelationInfo(letterCount, isPremium);
   return (
     <View style={envStyles.card}>
-      {/* Zone principale → ouvre la conversation */}
-      <TouchableOpacity onPress={onOpen} activeOpacity={0.82}>
-        <View style={envStyles.flapMini}>
-          <View style={envStyles.foldLinesWrap}>
-            <View style={[envStyles.foldLine, envStyles.foldLineLL]} />
-            <View style={[envStyles.foldLine, envStyles.foldLineLR]} />
-          </View>
-          {unread > 0 ? (
-            <View style={envStyles.sealMini}>
-              <Text style={envStyles.sealEmoji}>⚜️</Text>
-            </View>
-          ) : (
-            <Text style={envStyles.sealEmpty}>✉️</Text>
-          )}
+      {/* Visuel enveloppe — non cliquable, juste décoratif */}
+      <View style={envStyles.flapMini}>
+        <View style={envStyles.foldLinesWrap}>
+          <View style={[envStyles.foldLine, envStyles.foldLineLL]} />
+          <View style={[envStyles.foldLine, envStyles.foldLineLR]} />
         </View>
-        <View style={envStyles.divider} />
-
-        <View style={envStyles.infoRow}>
-          <Avatar size={42} {...DEFAULT_AVATAR} />
-          <View style={envStyles.texts}>
-            <View style={envStyles.nameRow}>
-              <Text style={envStyles.name}>{otherName}</Text>
-              {unread > 0 && (
-                <View style={envStyles.badge}>
-                  <Text style={envStyles.badgeTxt}>{unread}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={envStyles.preview} numberOfLines={1}>
-              {!lastMsg
-                ? '✨ Envoyez la première lettre!'
-                : myTurn
-                  ? unread > 0
-                    ? '📨 Nouvelle lettre reçue!'
-                    : "✍️ À vous d'écrire..."
-                  : '⏳ En attente de réponse...'}
-            </Text>
-            <Text style={envStyles.levelLine}>
-              {rel.stars} Niveau {rel.level} — {rel.label}
-            </Text>
+        {unread > 0 ? (
+          <View style={envStyles.sealMini}>
+            <Text style={envStyles.sealEmoji}>⚜️</Text>
           </View>
-          <Text style={envStyles.time}>
-            {!lastMsg ? 'Nouveau' : myTurn ? (unread > 0 ? 'Non lu' : formatTime(lastMsg.createdAt)) : 'Envoyé'}
+        ) : (
+          <Text style={envStyles.sealEmpty}>✉️</Text>
+        )}
+      </View>
+      <View style={envStyles.divider} />
+
+      <View style={envStyles.infoRow}>
+        <Avatar size={42} {...DEFAULT_AVATAR} />
+        <View style={envStyles.texts}>
+          <View style={envStyles.nameRow}>
+            <Text style={envStyles.name}>{otherName}</Text>
+            {unread > 0 && (
+              <View style={envStyles.badge}>
+                <Text style={envStyles.badgeTxt}>{unread}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={envStyles.preview} numberOfLines={1}>
+            {!lastMsg
+              ? '✨ Envoyez la première lettre!'
+              : myTurn
+                ? unread > 0
+                  ? '📨 Nouvelle lettre reçue!'
+                  : "✍️ À vous d'écrire..."
+                : '⏳ En attente de réponse...'}
+          </Text>
+          <Text style={envStyles.levelLine}>
+            {rel.stars} Niveau {rel.level} — {rel.label}
           </Text>
         </View>
-      </TouchableOpacity>
+        <Text style={envStyles.time}>
+          {!lastMsg ? 'Nouveau' : myTurn ? (unread > 0 ? 'Non lu' : formatTime(lastMsg.createdAt)) : 'Envoyé'}
+        </Text>
+      </View>
 
-      {/* Zone profil → <a> natif sur web, aucune propagation vers le touchable ci-dessus */}
-      <View style={envStyles.profileBtnRow}>
+      {/* ── Barre d'actions : deux boutons complètement indépendants ── */}
+      <View style={envStyles.actionBar}>
+        <TouchableOpacity style={envStyles.actionLeft} onPress={onOpen} activeOpacity={0.75}>
+          <Text style={envStyles.actionLeftText}>📬 Lettres</Text>
+        </TouchableOpacity>
+        <View style={envStyles.actionSep} />
         <Link
           href={{ pathname: '/match-profile', params: { matchId } }}
-          style={envStyles.profileBtnLink}
+          style={envStyles.actionRight}
         >
-          {'Voir le profil →'}
+          {'👤 Profil →'}
         </Link>
       </View>
     </View>
@@ -189,8 +191,11 @@ const envStyles = StyleSheet.create({
   preview:        { fontSize: 13, color: '#7A5C3A', marginTop: 2 },
   levelLine:      { fontSize: 11, color: '#B87333', marginTop: 4, fontWeight: '600' },
   time:           { fontSize: 11, color: '#9A7040' },
-  profileBtnRow:  { paddingHorizontal: 14, paddingVertical: 9, borderTopWidth: 1, borderTopColor: '#E8D9C6', alignItems: 'flex-end' },
-  profileBtnLink: { fontSize: 12, color: '#9C4D1A', fontWeight: '700', letterSpacing: 0.3, textDecorationLine: 'none' },
+  actionBar:      { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#E8D9C6', minHeight: 40 },
+  actionLeft:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
+  actionLeftText: { fontSize: 12, color: '#5A3A1A', fontWeight: '700' },
+  actionSep:      { width: 1, backgroundColor: '#E8D9C6' },
+  actionRight:    { flex: 1, textAlign: 'center', paddingVertical: 10, fontSize: 12, color: '#9C4D1A', fontWeight: '700', letterSpacing: 0.3, textDecorationLine: 'none' },
 
   overlay: {
     flex: 1,
