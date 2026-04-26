@@ -51,8 +51,9 @@ const EnvelopeCard = ({
 }: EnvelopeCardProps) => {
   const rel = getRelationInfo(letterCount, isPremium);
   return (
-    <>
-      <TouchableOpacity style={envStyles.card} onPress={onOpen} activeOpacity={0.82}>
+    <View style={envStyles.card}>
+      {/* Zone principale → ouvre la conversation */}
+      <TouchableOpacity onPress={onOpen} activeOpacity={0.82}>
         <View style={envStyles.flapMini}>
           <View style={envStyles.foldLinesWrap}>
             <View style={[envStyles.foldLine, envStyles.foldLineLL]} />
@@ -96,13 +97,13 @@ const EnvelopeCard = ({
             {!lastMsg ? 'Nouveau' : myTurn ? (unread > 0 ? 'Non lu' : formatTime(lastMsg.createdAt)) : 'Envoyé'}
           </Text>
         </View>
-
-        {/* Bouton voir le profil — séparé du TouchableOpacity d'ouverture */}
-        <TouchableOpacity style={envStyles.profileBtn} onPress={onViewProfile}>
-          <Text style={envStyles.profileBtnText}>Voir le profil →</Text>
-        </TouchableOpacity>
       </TouchableOpacity>
-    </>
+
+      {/* Zone profil → navigation séparée, hors du touchable ci-dessus */}
+      <TouchableOpacity style={envStyles.profileBtn} onPress={onViewProfile}>
+        <Text style={envStyles.profileBtnText}>Voir le profil →</Text>
+      </TouchableOpacity>
+    </View>
   );
 };
 
