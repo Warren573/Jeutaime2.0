@@ -12,7 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, Link } from 'expo-router';
 import { useStore } from '../store/useStore';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
@@ -27,6 +27,7 @@ const MINI_FLAP_H = 54;
 const LARGE_FLAP_H = 92;
 
 interface EnvelopeCardProps {
+  matchId: string;
   otherName: string;
   lastMsg?: Letter;
   unread: number;
@@ -34,11 +35,11 @@ interface EnvelopeCardProps {
   letterCount: number;
   isPremium?: boolean;
   onOpen: () => void;
-  onViewProfile: () => void;
   formatTime: (ts: number) => string;
 }
 
 const EnvelopeCard = ({
+  matchId,
   otherName,
   lastMsg,
   unread,
@@ -46,7 +47,6 @@ const EnvelopeCard = ({
   letterCount,
   isPremium = false,
   onOpen,
-  onViewProfile,
   formatTime,
 }: EnvelopeCardProps) => {
   const rel = getRelationInfo(letterCount, isPremium);
@@ -99,10 +99,15 @@ const EnvelopeCard = ({
         </View>
       </TouchableOpacity>
 
-      {/* Zone profil → navigation séparée, hors du touchable ci-dessus */}
-      <TouchableOpacity style={envStyles.profileBtn} onPress={onViewProfile}>
-        <Text style={envStyles.profileBtnText}>Voir le profil →</Text>
-      </TouchableOpacity>
+      {/* Zone profil → <a> natif sur web, aucune propagation vers le touchable ci-dessus */}
+      <View style={envStyles.profileBtnRow}>
+        <Link
+          href={{ pathname: '/match-profile', params: { matchId } }}
+          style={envStyles.profileBtnLink}
+        >
+          {'Voir le profil →'}
+        </Link>
+      </View>
     </View>
   );
 };
@@ -184,8 +189,8 @@ const envStyles = StyleSheet.create({
   preview:        { fontSize: 13, color: '#7A5C3A', marginTop: 2 },
   levelLine:      { fontSize: 11, color: '#B87333', marginTop: 4, fontWeight: '600' },
   time:           { fontSize: 11, color: '#9A7040' },
-  profileBtn:     { paddingHorizontal: 14, paddingVertical: 9, borderTopWidth: 1, borderTopColor: '#E8D9C6', alignItems: 'flex-end' },
-  profileBtnText: { fontSize: 12, color: '#9C4D1A', fontWeight: '700', letterSpacing: 0.3 },
+  profileBtnRow:  { paddingHorizontal: 14, paddingVertical: 9, borderTopWidth: 1, borderTopColor: '#E8D9C6', alignItems: 'flex-end' },
+  profileBtnLink: { fontSize: 12, color: '#9C4D1A', fontWeight: '700', letterSpacing: 0.3, textDecorationLine: 'none' },
 
   overlay: {
     flex: 1,
@@ -546,13 +551,13 @@ export default function LettersScreen() {
                   return (
                     <EnvelopeCard
                       key={match.id}
+                      matchId={match.id}
                       otherName={otherName}
                       lastMsg={lastMsg}
                       unread={unread}
                       myTurn={isMyTurn(match)}
                       letterCount={conv.length}
                       isPremium={currentUser?.isPremium}
-                      onViewProfile={() => router.push({ pathname: '/match-profile', params: { matchId: match.id } })}
                       onOpen={() => {
                         const unreadLetters = conv.filter(
                           l => (l.toUserId === (currentUser?.id || 'me')) && !l.readAt
