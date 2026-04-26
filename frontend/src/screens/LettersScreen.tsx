@@ -717,13 +717,13 @@ export default function LettersScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowCompose(false)}>
+            <TouchableOpacity onPress={() => { setShowCompose(false); router.replace('/(tabs)/letters'); }}>
               <Text style={styles.closeText}>← Retour</Text>
             </TouchableOpacity>
-            {/* Nom cliquable → profil du match */}
+            {/* Nom cliquable → profil du match (replace = démonte LettersScreen, évite modal fantôme) */}
             <TouchableOpacity
               style={styles.modalTitleBtn}
-              onPress={() => selectedMatch && router.push({ pathname: '/match-profile', params: { matchId: selectedMatch.id } })}
+              onPress={() => { if (selectedMatch) { setShowCompose(false); router.replace({ pathname: '/match-profile', params: { matchId: selectedMatch.id } }); } }}
             >
               <Text style={styles.modalTitle}>
                 {selectedMatch ? getOtherUserName(selectedMatch) : ''}
