@@ -7,10 +7,21 @@ export const MATCH_LIMIT_FREE = 5;     // validé
 export const MATCH_LIMIT_PREMIUM = 20; // validé
 
 // --- Déblocage photos ---
-/** Nombre de lettres envoyées par chaque côté pour déblocage (utilisateurs gratuits) */
+/** Nombre de lettres envoyées par chaque côté pour déblocage final (utilisateurs gratuits) */
 export const PHOTO_UNLOCK_LETTERS_FREE = 10;
-/** Nombre de lettres envoyées par chaque côté pour déblocage (Premium) */
+/** Nombre de lettres envoyées par chaque côté pour déblocage final (Premium) */
 export const PHOTO_UNLOCK_LETTERS_PREMIUM = 3; // validé
+
+/** Seuils de lettres par niveau de reveal progressif (chaque côté doit avoir atteint ce seuil)
+ *  Level 0 → hidden     : 0 lettres
+ *  Level 1 → blurStrong : PHOTO_LEVEL_1 lettres chacun
+ *  Level 2 → blurMedium : PHOTO_LEVEL_2 lettres chacun
+ *  Level 3 → clear      : PHOTO_UNLOCK_LETTERS_FREE / _PREMIUM lettres chacun
+ */
+export const PHOTO_LEVEL_1_FREE = 2;
+export const PHOTO_LEVEL_2_FREE = 5;
+export const PHOTO_LEVEL_1_PREMIUM = 1;
+export const PHOTO_LEVEL_2_PREMIUM = 2;
 
 // --- Upload photos ---
 /** Nombre maximal de photos par utilisateur */

@@ -72,8 +72,13 @@ export async function updateQuestions(userId: string, dto: UpdateQuestionsDto) {
     dto.questions.map((q) =>
       prisma.profileQuestion.upsert({
         where: { profileId_questionId: { profileId: profile.id, questionId: q.questionId } },
-        update: { answer: q.answer },
-        create: { profileId: profile.id, questionId: q.questionId, answer: q.answer },
+        update: { answer: q.answer, wrongAnswers: q.wrongAnswers },
+        create: {
+          profileId: profile.id,
+          questionId: q.questionId,
+          answer: q.answer,
+          wrongAnswers: q.wrongAnswers,
+        },
       }),
     ),
   );

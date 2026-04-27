@@ -59,6 +59,7 @@ export interface ProfileQuestionDTO {
   id: string;
   questionId: string;
   answer: string;
+  wrongAnswers: string[];
 }
 
 export interface ProfileDTO {
@@ -140,11 +141,16 @@ export interface PublicProfileDTO {
 // Photo unlock
 // ------------------------------------------------------------------
 
+export type PhotoUnlockLevel = 0 | 1 | 2 | 3;
+export type PhotoVariant = 'hidden' | 'blurStrong' | 'blurMedium' | 'clear';
+
 export interface PhotoUnlockDTO {
   threshold: number;
   myCount: number;
   otherCount: number;
   unlocked: boolean;
+  level: PhotoUnlockLevel;
+  variant: PhotoVariant;
 }
 
 // ------------------------------------------------------------------
@@ -220,6 +226,36 @@ export interface ReactionDTO {
   createdAt: string;
   matchCreated: boolean;
   matchId?: string;
+}
+
+// ------------------------------------------------------------------
+// Jeu des 3 questions
+// ------------------------------------------------------------------
+
+/** Une question de l'autre joueur à répondre (options mélangées, réponse correcte masquée) */
+export interface MatchQuestionItemDTO {
+  profileQuestionId: string;
+  questionId: string;
+  questionText: string;
+  options: string[] | null; // null si aucune wrongAnswer configurée (saisie libre)
+}
+
+/** Retourné par GET /matches/:matchId/questions */
+export interface MatchQuestionsDTO {
+  matchId: string;
+  questionsValidated: boolean;
+  myStatus: 'pending' | 'submitted';
+  myScore: number | null; // null si pas encore soumis
+  questions: MatchQuestionItemDTO[];
+}
+
+/** Retourné par POST /matches/:matchId/questions/answers */
+export interface MatchAnswersResultDTO {
+  myScore: number;
+  passed: boolean;
+  questionsValidated: boolean;
+  waitingForOther: boolean;
+  matchBroken: boolean;
 }
 
 // ------------------------------------------------------------------
