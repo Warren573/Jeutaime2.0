@@ -53,6 +53,7 @@ export interface MatchDTO {
   isGhosting: boolean;
   canRelance: boolean;
   photoUnlock: PhotoUnlockDTO;
+  photoUrl: string | null;
 }
 
 export interface MatchListResponse {

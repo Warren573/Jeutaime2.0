@@ -15,6 +15,8 @@ import { canOpenNewMatch, getMatchLimit } from "../../policies/contactLimits";
 import { canSendLetter } from "../../policies/letterAlternation";
 import { assertCanRelance, isGhosting } from "../../policies/antiGhosting";
 import { getPhotoUnlockProgress } from "../../policies/photoUnlock";
+import { buildPhotoUrl } from "../photos/photos.urls";
+import type { PhotoVariant } from "../photos/photos.urls";
 import { GHOST_RELANCE_MAX_DAYS, GHOST_DAYS } from "../../config/constants";
 import { emitMatchCreated } from "../../events";
 import type { CreateMatchDto, GhostRelanceDto } from "./matches.schemas";
@@ -161,6 +163,24 @@ const matchSelect = {
 } as const;
 
 // ============================================================
+// Mappe photoVariant → variante de fichier → URL
+// ============================================================
+
+function buildPhotoUrlForVariant(
+  photoId: string,
+  variant: ReturnType<typeof getPhotoUnlockProgress>["variant"],
+): string | null {
+  const variantMap: Record<string, PhotoVariant | null> = {
+    hidden: null,
+    blurStrong: "blurred",
+    blurMedium: "blurMedium",
+    clear: "original",
+  };
+  const fileVariant = variantMap[variant];
+  return fileVariant ? buildPhotoUrl(photoId, fileVariant) : null;
+}
+
+// ============================================================
 // Enrichir un match avec les données calculées
 // ============================================================
 
@@ -175,7 +195,13 @@ async function enrichMatch(
 
   const viewerIsPremium = await getUserPremiumStatus(viewerId);
 
-  const [otherProfile, canSendResult] = await Promise.all([
+  const photoUnlock = getPhotoUnlockProgress({
+    myLetterCount,
+    otherLetterCount,
+    viewerIsPremium,
+  });
+
+  const [otherProfile, primaryPhoto, canSendResult] = await Promise.all([
     prisma.profile.findUnique({
       where: { userId: otherUserId },
       select: {
@@ -190,14 +216,16 @@ async function enrichMatch(
         badges: true,
       },
     }),
+    prisma.photo.findFirst({
+      where: { userId: otherUserId, isPrimary: true },
+      select: { id: true },
+    }),
     Promise.resolve(computeCanSend(match, viewerId)),
   ]);
 
-  const photoUnlock = getPhotoUnlockProgress({
-    myLetterCount,
-    otherLetterCount,
-    viewerIsPremium,
-  });
+  const photoUrl = primaryPhoto
+    ? buildPhotoUrlForVariant(primaryPhoto.id, photoUnlock.variant)
+    : null;
 
   return {
     ...match,
@@ -214,6 +242,7 @@ async function enrichMatch(
     }),
     canRelance: computeCanRelance(match, viewerId),
     photoUnlock,
+    photoUrl,
   };
 }
 

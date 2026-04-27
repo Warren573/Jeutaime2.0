@@ -1,6 +1,7 @@
 import { env } from "../../config/env";
 
-export type PhotoVariant = "original" | "blurred";
+/** Variantes de fichier stockées sur disque */
+export type PhotoVariant = "original" | "blurred" | "blurMedium";
 
 /**
  * Construit l'URL API sécurisée d'une photo.

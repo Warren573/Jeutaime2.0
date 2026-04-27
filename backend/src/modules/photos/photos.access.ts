@@ -1,11 +1,11 @@
 /**
  * Helpers purs pour la logique d'accès photos.
- * Aucune dépendance à Prisma : permet des tests unitaires rapides et
- * garantit que la logique d'autorisation reste isolée.
+ * Aucune dépendance à Prisma : permet des tests unitaires rapides.
  */
-import { isPhotoUnlocked } from "../../policies/photoUnlock";
+import { computePhotoLevel } from "../../policies/photoUnlock";
+import type { PhotoVariant } from "./photos.urls";
 
-export type PhotoVariant = "original" | "blurred";
+export type { PhotoVariant };
 
 export type PhotoAccessReason =
   | "OWNER"
@@ -20,9 +20,7 @@ export interface PhotoAccessContext {
   ownerId: string;
   variant: PhotoVariant;
   viewerIsPremium: boolean;
-  /** Vrai s'il existe un Block dans un sens ou l'autre */
   hasBlock: boolean;
-  /** Match entre les deux users, null s'il n'existe pas */
   match: {
     userAId: string;
     letterCountA: number;
@@ -36,33 +34,27 @@ export interface PhotoAccessResult {
 }
 
 /**
- * Résout l'autorisation d'accès à une photo donnée.
+ * Résout l'autorisation d'accès à une variante de photo.
  *
  * Règles :
  * 1. Le propriétaire voit toujours ses propres photos (toute variante)
- * 2. Un blocage (dans un sens ou l'autre) refuse tout accès
- * 3. Variante "blurred" : accessible en l'absence de blocage
- * 4. Variante "original" : requiert un match ET isPhotoUnlocked()
+ * 2. Un blocage refuse tout accès
+ * 3. "blurred" (blurStrong, level 1) : accessible sans match si pas de blocage
+ * 4. "blurMedium" (level 2) : requiert un match et level >= 2
+ * 5. "original" (clear, level 3) : requiert un match et level >= 3
  */
 export function resolvePhotoAccess(ctx: PhotoAccessContext): PhotoAccessResult {
   const { viewerId, ownerId, variant, viewerIsPremium, hasBlock, match } = ctx;
 
-  // 1. Owner : accès total
-  if (viewerId === ownerId) {
-    return { allowed: true, reason: "OWNER" };
-  }
+  if (viewerId === ownerId) return { allowed: true, reason: "OWNER" };
+  if (hasBlock) return { allowed: false, reason: "BLOCKED" };
 
-  // 2. Blocage : refus total (même blurred)
-  if (hasBlock) {
-    return { allowed: false, reason: "BLOCKED" };
-  }
-
-  // 3. Blurred : accessible tant qu'il n'y a pas de blocage
+  // blurStrong : accessible dès qu'il n'y a pas de blocage (discovery)
   if (variant === "blurred") {
     return { allowed: true, reason: "NO_BLOCK_BLURRED" };
   }
 
-  // 4. Original : requiert un match existant
+  // blurMedium et original requièrent un match
   if (!match) {
     return { allowed: false, reason: "NO_MATCH_FOR_ORIGINAL" };
   }
@@ -72,13 +64,16 @@ export function resolvePhotoAccess(ctx: PhotoAccessContext): PhotoAccessResult {
   const otherLetterCount =
     match.userAId === viewerId ? match.letterCountB : match.letterCountA;
 
-  const unlocked = isPhotoUnlocked({
-    myLetterCount,
-    otherLetterCount,
-    viewerIsPremium,
-  });
+  const level = computePhotoLevel({ myLetterCount, otherLetterCount, viewerIsPremium });
 
-  return unlocked
+  if (variant === "blurMedium") {
+    return level >= 2
+      ? { allowed: true, reason: "UNLOCKED" }
+      : { allowed: false, reason: "NOT_UNLOCKED" };
+  }
+
+  // "original"
+  return level >= 3
     ? { allowed: true, reason: "UNLOCKED" }
     : { allowed: false, reason: "NOT_UNLOCKED" };
 }
@@ -96,16 +91,6 @@ export interface PhotoForOrdering {
 /**
  * Sélectionne de manière déterministe la prochaine photo à promouvoir
  * en primary après la suppression de l'ancienne.
- *
- * Ordre de tri :
- *   1. position ASC
- *   2. createdAt ASC (égalité position)
- *   3. id ASC (égalité parfaite — les cuid sont lex-sortables)
- *
- * Le tri `id` en dernier recours garantit un résultat identique pour
- * n'importe quel ordre d'entrée (stabilité sur collisions).
- *
- * Retourne null si le tableau est vide.
  */
 export function pickNextPrimary<T extends PhotoForOrdering>(
   photos: readonly T[],

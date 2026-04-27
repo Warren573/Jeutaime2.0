@@ -225,8 +225,8 @@ export async function uploadPhoto(params: {
   });
 
   try {
-    // Étape 2 : sharp écrit original + blurred sur disque
-    const { originalPath, blurredPath } = await processAndWrite({
+    // Étape 2 : sharp écrit original + blurred + blurMedium sur disque
+    const { originalPath, blurredPath, blurMediumPath } = await processAndWrite({
       userId,
       photoId: created.id,
       inputBuffer: buffer,
@@ -235,7 +235,7 @@ export async function uploadPhoto(params: {
     // Étape 3 : update row avec les vrais paths
     const updated = await prisma.photo.update({
       where: { id: created.id },
-      data: { originalPath, blurredPath },
+      data: { originalPath, blurredPath, blurMediumPath },
       select: {
         id: true,
         userId: true,
@@ -311,7 +311,7 @@ export async function deletePhoto(params: {
 
   const photo = await prisma.photo.findUnique({
     where: { id: photoId },
-    select: { id: true, userId: true, originalPath: true, blurredPath: true, isPrimary: true },
+    select: { id: true, userId: true, originalPath: true, blurredPath: true, blurMediumPath: true, isPrimary: true },
   });
   if (!photo) throw new NotFoundError("Photo");
   if (photo.userId !== userId) {
@@ -341,7 +341,7 @@ export async function deletePhoto(params: {
   });
 
   // Fichiers disque : fire-and-forget après commit
-  await deletePhotoFiles(photo.originalPath, photo.blurredPath);
+  await deletePhotoFiles(photo.originalPath, photo.blurredPath, photo.blurMediumPath);
 }
 
 // ============================================================
@@ -364,6 +364,7 @@ export async function resolvePhotoForStream(params: {
       userId: true,
       originalPath: true,
       blurredPath: true,
+      blurMediumPath: true,
     },
   });
   if (!photo) throw new NotFoundError("Photo");
@@ -374,8 +375,8 @@ export async function resolvePhotoForStream(params: {
 
   if (!isOwner) {
     hasBlock = await hasBlockBetween(viewerId, photo.userId);
-    // Un lookup de match n'est utile que pour la variante "original"
-    if (variant === "original") {
+    // Lookup du match nécessaire pour blurMedium et original
+    if (variant === "original" || variant === "blurMedium") {
       match = await findMatchBetween(viewerId, photo.userId);
     }
   }
@@ -403,7 +404,15 @@ export async function resolvePhotoForStream(params: {
     }
   }
 
-  const relative = variant === "original" ? photo.originalPath : photo.blurredPath;
+  let relative: string;
+  if (variant === "original") {
+    relative = photo.originalPath;
+  } else if (variant === "blurMedium") {
+    // Fallback vers blurredPath pour les photos uploadées avant ce changement
+    relative = photo.blurMediumPath ?? photo.blurredPath;
+  } else {
+    relative = photo.blurredPath;
+  }
   const absolutePath = resolveStoredPath(relative);
   return { absolutePath, ownerId: photo.userId };
 }
