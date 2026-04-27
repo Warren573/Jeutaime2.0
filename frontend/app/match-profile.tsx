@@ -57,10 +57,11 @@ export default function MatchProfileScreen() {
   const partnerId = match.userAId === myId ? match.userBId : match.userAId;
   const partner   = matchPartners?.[partnerId];
 
-  const conv        = letters.filter(l => l.fromUserId === partnerId || l.toUserId === partnerId);
-  const letterCount = conv.length;
-  const isPremium   = currentUser?.isPremium ?? false;
-  const rel         = getRelationInfo(letterCount, isPremium);
+  const conv         = letters.filter(l => l.fromUserId === partnerId || l.toUserId === partnerId);
+  const letterCount  = conv.length;
+  const isPremium    = currentUser?.isPremium ?? false;
+  const rel          = getRelationInfo(letterCount, isPremium);
+  const photoVariant = match.photoVariant ?? 'hidden';
 
   const physique = partner?.physicalDesc
     ? PHYSIQUE_LABEL[partner.physicalDesc] ?? { emoji: '✨', label: partner.physicalDesc }
@@ -92,14 +93,18 @@ export default function MatchProfileScreen() {
             {/* Photo / avatar selon niveau */}
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
-              {rel.photoVisibility === 'avatar' || !partner?.mainPhotoUri ? (
+              {photoVariant === 'hidden' || !partner?.mainPhotoUri ? (
                 <Avatar size={86} {...DEFAULT_AVATAR} />
               ) : (
                 <Image
                   source={{ uri: partner.mainPhotoUri }}
                   style={styles.photoImg}
                   contentFit="cover"
-                  blurRadius={rel.photoVisibility === 'blurred' ? 20 : 0}
+                  blurRadius={
+                    photoVariant === 'blurStrong' ? 30
+                    : photoVariant === 'blurMedium' ? 10
+                    : 0
+                  }
                 />
               )}
             </View>
@@ -121,9 +126,9 @@ export default function MatchProfileScreen() {
                   )}
                 </View>
               </View>
-              {rel.photoVisibility !== 'revealed' && (
+              {photoVariant !== 'clear' && (
                 <Text style={styles.photoHint}>
-                  {rel.photoVisibility === 'avatar'
+                  {photoVariant === 'hidden'
                     ? '🎭 La relation se construit avant tout'
                     : '🌫️ La photo se précise à mesure que vous vous découvrez'}
                 </Text>
