@@ -191,6 +191,8 @@ export interface MatchDTO {
   isGhosting: boolean;
   canRelance: boolean;
   photoUnlock: PhotoUnlockDTO;
+  /** URL photo principale du partenaire selon le niveau de reveal. null si hidden ou pas de photo. */
+  photoUrl: string | null;
 }
 
 // ------------------------------------------------------------------

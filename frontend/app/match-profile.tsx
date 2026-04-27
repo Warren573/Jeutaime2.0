@@ -57,11 +57,13 @@ export default function MatchProfileScreen() {
   const partnerId = match.userAId === myId ? match.userBId : match.userAId;
   const partner   = matchPartners?.[partnerId];
 
-  const conv         = letters.filter(l => l.fromUserId === partnerId || l.toUserId === partnerId);
-  const letterCount  = conv.length;
-  const isPremium    = currentUser?.isPremium ?? false;
-  const rel          = getRelationInfo(letterCount, isPremium);
+  const conv        = letters.filter(l => l.fromUserId === partnerId || l.toUserId === partnerId);
+  const letterCount = conv.length;
+  const isPremium   = currentUser?.isPremium ?? false;
+  const rel         = getRelationInfo(letterCount, isPremium);
+  // photoUrl et photoVariant viennent du backend (calculés par enrichMatch)
   const photoVariant = match.photoVariant ?? 'hidden';
+  const photoUrl     = match.photoUrl ?? null;
 
   const physique = partner?.physicalDesc
     ? PHYSIQUE_LABEL[partner.physicalDesc] ?? { emoji: '✨', label: partner.physicalDesc }
@@ -93,18 +95,13 @@ export default function MatchProfileScreen() {
             {/* Photo / avatar selon niveau */}
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
-              {photoVariant === 'hidden' || !partner?.mainPhotoUri ? (
+              {photoUrl === null ? (
                 <Avatar size={86} {...DEFAULT_AVATAR} />
               ) : (
                 <Image
-                  source={{ uri: partner.mainPhotoUri }}
+                  source={{ uri: photoUrl }}
                   style={styles.photoImg}
                   contentFit="cover"
-                  blurRadius={
-                    photoVariant === 'blurStrong' ? 30
-                    : photoVariant === 'blurMedium' ? 10
-                    : 0
-                  }
                 />
               )}
             </View>

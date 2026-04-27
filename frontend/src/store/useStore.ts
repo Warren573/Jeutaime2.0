@@ -338,8 +338,8 @@ export const useStore = create<StoreState>()(
       apiMatches: [],
       matches: [
         // Matchs de démo (remplacés par loadMatches() après connexion réelle)
-        { id: 'm1', userAId: 'dev-local', userBId: 'sophie', initiatorId: 'dev-local', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, questionsValidated: true, status: 'active', letterCount: 5, letterCountA: 3, letterCountB: 2, canSend: true, canSendReason: null, photoUnlockLevel: 0, photoVariant: 'hidden' },
-        { id: 'm2', userAId: 'dev-local', userBId: 'alex', initiatorId: 'dev-local', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, questionsValidated: true, status: 'active', letterCount: 12, letterCountA: 6, letterCountB: 6, canSend: false, canSendReason: 'AWAITING_REPLY', photoUnlockLevel: 1, photoVariant: 'blurStrong' },
+        { id: 'm1', userAId: 'dev-local', userBId: 'sophie', initiatorId: 'dev-local', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, questionsValidated: true, status: 'active', letterCount: 5, letterCountA: 3, letterCountB: 2, canSend: true, canSendReason: null, photoUnlockLevel: 0, photoVariant: 'hidden', photoUrl: null },
+        { id: 'm2', userAId: 'dev-local', userBId: 'alex', initiatorId: 'dev-local', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, questionsValidated: true, status: 'active', letterCount: 12, letterCountA: 6, letterCountB: 6, canSend: false, canSendReason: 'AWAITING_REPLY', photoUnlockLevel: 1, photoVariant: 'blurStrong', photoUrl: null },
       ],
       letters: [
         // Lettres de démo — SANS readAt → déclenchent PremiumLetterAnimation à l'ouverture
@@ -520,6 +520,7 @@ export const useStore = create<StoreState>()(
               canSendReason: m.canSendReason,
               photoUnlockLevel: m.photoUnlock.level,
               photoVariant: m.photoUnlock.variant,
+              photoUrl: m.photoUrl ?? null,
               questionValidation: {
                 userACorrect: 0,
                 userBCorrect: 0,

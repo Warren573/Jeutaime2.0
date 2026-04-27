@@ -201,6 +201,8 @@ export interface Match {
   canSendReason: string | null;
   photoUnlockLevel: 0 | 1 | 2 | 3;
   photoVariant: 'hidden' | 'blurStrong' | 'blurMedium' | 'clear';
+  /** URL photo principale du partenaire (variante adaptée au niveau). null si hidden ou sans photo. */
+  photoUrl: string | null;
 }
 
 // ==================== LETTERS ====================

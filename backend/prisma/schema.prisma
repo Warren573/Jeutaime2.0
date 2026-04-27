@@ -263,8 +263,9 @@ model Photo {
   id            String   @id @default(cuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  originalPath  String
-  blurredPath   String
+  originalPath    String
+  blurredPath     String
+  blurMediumPath  String?
   position      Int      @default(0)
   isPrimary     Boolean  @default(false)
   createdAt     DateTime @default(now())

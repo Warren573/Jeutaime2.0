@@ -67,7 +67,7 @@ const EnvelopeCard = ({
     if (matchStatus === 'pending') return '⏳ En attente d\'acceptation';
     if (matchStatus === 'broken' || matchStatus === 'blocked') return '🚫 Match terminé';
     if (!questionsValidated) return '🎮 Jeu des questions à compléter';
-    if (!lastMsg) return '✨ Envoyez la première lettre!';
+    if (!lastMsg) return myTurn ? '✍️ Écrivez la première lettre !' : '⏳ En attente de la première lettre...';
     if (unread > 0) return '📨 Nouvelle lettre reçue!';
     return myTurn ? "✍️ À vous d'écrire..." : '⏳ En attente de réponse...';
   };
@@ -538,22 +538,15 @@ export default function LettersScreen() {
     try {
       await sendApiLetter(selectedMatch.id, content);
     } catch (err: any) {
+      // Restaurer le message en cas d'erreur pour que l'utilisateur puisse réessayer
+      setNewMessage(content);
       const msg: string = err?.message ?? '';
       if (msg.includes('AWAITING_REPLY') || msg.includes('alternation') || msg.includes('tour')) {
         Alert.alert('Pas encore ton tour', "Tu dois attendre la réponse de l'autre avant d'écrire à nouveau.");
       } else if (msg.includes('QUESTIONS_NOT_VALIDATED') || msg.includes('questions')) {
         Alert.alert('Questions requises', 'Le jeu des 3 questions doit être complété avant d\'écrire.');
       } else {
-        // Fallback local uniquement si API complètement inaccessible
-        const letter: Letter = {
-          id: Date.now().toString(),
-          threadId: selectedMatch.id,
-          fromUserId: currentUser?.id ?? 'me',
-          toUserId: getOtherUserId(selectedMatch),
-          content,
-          createdAt: Date.now(),
-        };
-        addLetter(letter);
+        Alert.alert('Erreur', "La lettre n'a pas pu être envoyée. Vérifie ta connexion et réessaie.");
       }
     }
   };
