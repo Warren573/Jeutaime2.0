@@ -34,6 +34,10 @@ import {
   getMatchQuestions, submitMatchAnswers,
   type MatchDTO, type LetterDTO, type MatchQuestionsDTO, type MatchAnswersResultDTO,
 } from '../api/matches';
+import {
+  getWallet as apiGetWallet,
+  claimDailyBonus as apiClaimDailyBonus,
+} from '../api/wallet';
 
 // ===== DEV MODE =====
 // À mettre à `false` pour le build final
@@ -218,7 +222,8 @@ interface StoreState {
   addCoins: (amount: number, reason?: string, category?: TransactionCategory) => void;
   removeCoins: (amount: number, reason?: string, category?: TransactionCategory) => boolean;
   canAfford: (amount: number) => boolean;
-  claimDailyBonus: () => boolean;
+  loadWallet: () => Promise<void>;
+  claimDailyBonus: () => Promise<boolean>;
   
   // ===== Actions - Progression =====
   addPoints: (amount: number, reason?: string) => void;
@@ -448,8 +453,8 @@ export const useStore = create<StoreState>()(
           };
           console.log("HYDRATE_SET_USER", mappedUser);
           get().setCurrentUser(mappedUser);
-          // Charger les vrais matchs depuis l'API
-          await get().loadMatches();
+          // Charger les vrais matchs et le wallet depuis l'API
+          await Promise.all([get().loadMatches(), get().loadWallet()]);
         } catch {
           // token invalide ou réseau — user reste non-authentifié
         }
@@ -596,47 +601,79 @@ export const useStore = create<StoreState>()(
         const { coins, transactions } = get();
         const wallet: Wallet = { odId: 'me', coins, lastDailyBonus: get().lastDailyBonus, transactions };
         const updated = EconomyEngine.addCoins(wallet, amount, reason, category);
-        set({ 
-          coins: updated.coins, 
-          transactions: updated.transactions.slice(0, 50) 
+        set({
+          coins: updated.coins,
+          transactions: updated.transactions.slice(0, 50)
         });
       },
-      
+
       removeCoins: (amount, reason = 'Achat', category = 'offering_sent') => {
         const { coins, transactions, lastDailyBonus } = get();
         const wallet: Wallet = { odId: 'me', coins, lastDailyBonus, transactions };
         const updated = EconomyEngine.removeCoins(wallet, amount, reason, category);
         if (updated) {
-          set({ 
-            coins: updated.coins, 
-            transactions: updated.transactions.slice(0, 50) 
+          set({
+            coins: updated.coins,
+            transactions: updated.transactions.slice(0, 50)
           });
           return true;
         }
         return false;
       },
-      
+
       canAfford: (amount) => get().coins >= amount,
-      
-      claimDailyBonus: () => {
+
+      loadWallet: async () => {
+        try {
+          const wallet = await apiGetWallet();
+          set({
+            coins: wallet.coins,
+            lastDailyBonus: wallet.lastDailyBonus
+              ? new Date(wallet.lastDailyBonus).getTime()
+              : 0,
+          });
+        } catch {
+          // API unreachable — garder le solde local
+        }
+      },
+
+      claimDailyBonus: async () => {
+        const isAuth = get().isAuthenticated;
+
+        if (isAuth) {
+          try {
+            const result = await apiClaimDailyBonus();
+            set({
+              coins: result.wallet.coins,
+              lastDailyBonus: result.wallet.lastDailyBonus
+                ? new Date(result.wallet.lastDailyBonus).getTime()
+                : Date.now(),
+            });
+            get().addPoints(ProgressionEngine.POINTS.dailyLogin, 'Connexion quotidienne');
+            return true;
+          } catch {
+            // Déjà réclamé aujourd'hui (422) ou erreur réseau
+            return false;
+          }
+        }
+
+        // Fallback local (non authentifié / dev)
         const { coins, transactions, lastDailyBonus, currentUser } = get();
         const wallet: Wallet = { odId: 'me', coins, lastDailyBonus, transactions };
-        
+
         if (!EconomyEngine.canClaimDailyBonus(wallet)) {
           return false;
         }
-        
+
         const isPremium = currentUser?.isPremium ?? false;
         const updated = EconomyEngine.applyDailyBonus(wallet, isPremium);
-        set({ 
-          coins: updated.coins, 
+        set({
+          coins: updated.coins,
           transactions: updated.transactions.slice(0, 50),
           lastDailyBonus: updated.lastDailyBonus,
         });
-        
-        // Ajouter des points pour la connexion
+
         get().addPoints(ProgressionEngine.POINTS.dailyLogin, 'Connexion quotidienne');
-        
         return true;
       },
 
@@ -921,8 +958,9 @@ export const useStore = create<StoreState>()(
       name: 'jeutaime-storage-v8',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
-        // En dev mode, coins n'est pas sauvegardé → toujours 50 000 au démarrage
-        ...(DEV_MODE_UNLIMITED_COINS ? {} : { coins: state.coins }),
+        // En dev non-authentifié, coins n'est pas sauvegardé → 50 000 au démarrage
+        // Si authentifié, le solde réel est toujours persisté même en dev
+        ...(DEV_MODE_UNLIMITED_COINS && !state.isAuthenticated ? {} : { coins: state.coins }),
         points: state.points,
         level: state.level,
         title: state.title,
