@@ -28,7 +28,12 @@ import * as ProgressionEngine from '../engine/ProgressionEngine';
 import * as PetEngine from '../engine/PetEngine';
 import { apiFetch } from '../api/client';
 import { login as apiLogin, register as apiRegister, logout as apiLogout, saveSession, clearSession as clearApiSession, type RegisterPayload } from '../api/auth';
-import { listMatches, listLetters, sendLetter, markLetterRead as apiMarkLetterRead, type MatchDTO, type LetterDTO } from '../api/matches';
+import {
+  listMatches, listLetters, sendLetter,
+  markLetterRead as apiMarkLetterRead,
+  getMatchQuestions, submitMatchAnswers,
+  type MatchDTO, type LetterDTO, type MatchQuestionsDTO, type MatchAnswersResultDTO,
+} from '../api/matches';
 
 // ===== DEV MODE =====
 // À mettre à `false` pour le build final
@@ -187,6 +192,7 @@ interface StoreState {
   apiMatches: MatchDTO[];
   letters: Letter[];
   lettersByMatch: Record<string, Letter[]>;
+  questionsByMatch: Record<string, MatchQuestionsDTO>;
   likedProfiles: string[];
   dislikedProfiles: string[];
   
@@ -205,7 +211,9 @@ interface StoreState {
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   loadMatches: () => Promise<void>;
-  
+  loadQuestions: (matchId: string) => Promise<void>;
+  submitAnswers: (matchId: string, answers: { profileQuestionId: string; answer: string }[]) => Promise<MatchAnswersResultDTO>;
+
   // ===== Actions - Economy =====
   addCoins: (amount: number, reason?: string, category?: TransactionCategory) => void;
   removeCoins: (amount: number, reason?: string, category?: TransactionCategory) => boolean;
@@ -330,8 +338,8 @@ export const useStore = create<StoreState>()(
       apiMatches: [],
       matches: [
         // Matchs de démo (remplacés par loadMatches() après connexion réelle)
-        { id: 'm1', userAId: 'dev-local', userBId: 'sophie', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, status: 'active', letterCount: 5 },
-        { id: 'm2', userAId: 'dev-local', userBId: 'alex', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, status: 'active', letterCount: 12 },
+        { id: 'm1', userAId: 'dev-local', userBId: 'sophie', initiatorId: 'dev-local', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, questionsValidated: true, status: 'active', letterCount: 5, letterCountA: 3, letterCountB: 2, canSend: true, canSendReason: null, photoUnlockLevel: 0, photoVariant: 'hidden' },
+        { id: 'm2', userAId: 'dev-local', userBId: 'alex', initiatorId: 'dev-local', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, questionsValidated: true, status: 'active', letterCount: 12, letterCountA: 6, letterCountB: 6, canSend: false, canSendReason: 'AWAITING_REPLY', photoUnlockLevel: 1, photoVariant: 'blurStrong' },
       ],
       letters: [
         // Lettres de démo — SANS readAt → déclenchent PremiumLetterAnimation à l'ouverture
@@ -362,6 +370,7 @@ export const useStore = create<StoreState>()(
         },
       ],
       lettersByMatch: {},
+      questionsByMatch: {},
       likedProfiles: [],
       dislikedProfiles: [],
       messagesBySalon: {},
@@ -473,6 +482,7 @@ export const useStore = create<StoreState>()(
           matches: [],
           letters: [],
           lettersByMatch: {},
+          questionsByMatch: {},
         });
       },
 
@@ -487,8 +497,10 @@ export const useStore = create<StoreState>()(
             const myCount = isA ? m.letterCountA : m.letterCountB;
             const otherCount = isA ? m.letterCountB : m.letterCountA;
             const rawStatus = m.status;
-            const status: 'active' | 'broken' | 'blocked' =
-              ['ACTIVE', 'PENDING', 'GHOSTED'].includes(rawStatus)
+            const status: 'pending' | 'active' | 'broken' | 'blocked' =
+              rawStatus === 'PENDING'
+                ? 'pending'
+                : ['ACTIVE', 'GHOSTED'].includes(rawStatus)
                 ? 'active'
                 : rawStatus === 'BLOCKED'
                 ? 'blocked'
@@ -497,9 +509,17 @@ export const useStore = create<StoreState>()(
               id: m.id,
               userAId: m.userAId,
               userBId: m.userBId,
+              initiatorId: m.initiatorId,
               createdAt: new Date(m.createdAt).getTime(),
               status,
               letterCount: myCount + otherCount,
+              letterCountA: m.letterCountA,
+              letterCountB: m.letterCountB,
+              questionsValidated: m.questionsValidated,
+              canSend: m.canSend,
+              canSendReason: m.canSendReason,
+              photoUnlockLevel: m.photoUnlock.level,
+              photoVariant: m.photoUnlock.variant,
               questionValidation: {
                 userACorrect: 0,
                 userBCorrect: 0,
@@ -805,8 +825,28 @@ export const useStore = create<StoreState>()(
         });
       },
 
+      loadQuestions: async (matchId: string) => {
+        try {
+          const data = await getMatchQuestions(matchId);
+          set((state) => ({
+            questionsByMatch: { ...state.questionsByMatch, [matchId]: data },
+          }));
+        } catch {
+          // API unreachable — garder ce qui est en cache
+        }
+      },
+
+      submitAnswers: async (matchId: string, answers: { profileQuestionId: string; answer: string }[]) => {
+        const result = await submitMatchAnswers(matchId, answers);
+        // Si validé → rafraîchir le match pour mettre à jour questionsValidated
+        if (result.questionsValidated || result.matchBroken) {
+          await get().loadMatches();
+        }
+        return result;
+      },
+
       addMatch: (match) => {
-        set((state) => ({ 
+        set((state) => ({
           matches: [...state.matches, match],
         }));
         get().incrementStat('matchesCount');

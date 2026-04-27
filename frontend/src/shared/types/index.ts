@@ -187,10 +187,20 @@ export interface Match {
   id: string;
   userAId: string;
   userBId: string;
+  initiatorId: string;
   createdAt: number;
   questionValidation: QuestionValidation;
-  status: 'active' | 'broken' | 'blocked';
+  /** Alias direct de questionValidation.isValid — préférer ce champ */
+  questionsValidated: boolean;
+  status: 'pending' | 'active' | 'broken' | 'blocked';
   letterCount: number;
+  letterCountA: number;
+  letterCountB: number;
+  /** Calculé par le backend : c'est ce tour-ci */
+  canSend: boolean;
+  canSendReason: string | null;
+  photoUnlockLevel: 0 | 1 | 2 | 3;
+  photoVariant: 'hidden' | 'blurStrong' | 'blurMedium' | 'clear';
 }
 
 // ==================== LETTERS ====================
