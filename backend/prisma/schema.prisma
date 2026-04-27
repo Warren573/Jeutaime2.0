@@ -164,6 +164,7 @@ model User {
   notifications   Notification[]
   reactionsGiven    Reaction[]    @relation("ReactionFrom")
   reactionsReceived Reaction[]    @relation("ReactionTo")
+  questionAttempts  MatchQuestionAttempt[] @relation("QuestionAttemptResponder")
 
   @@index([email])
   @@index([isBanned])
@@ -230,11 +231,12 @@ model Profile {
 }
 
 model ProfileQuestion {
-  id         String  @id @default(cuid())
-  profileId  String
-  profile    Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  questionId String
-  answer     String  @db.Text
+  id           String   @id @default(cuid())
+  profileId    String
+  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  questionId   String
+  answer       String   @db.Text
+  wrongAnswers String[] @default([])
 
   @@unique([profileId, questionId])
 }
@@ -307,6 +309,7 @@ model Match {
   updatedAt             DateTime    @updatedAt
 
   letters               Letter[]
+  questionAttempts      MatchQuestionAttempt[]
 
   @@unique([userAId, userBId])
   @@index([status])
@@ -561,6 +564,27 @@ model Reaction {
 
   @@unique([fromId, toId])
   @@index([toId])
+}
+
+// ============================================================
+// JEU DES 3 QUESTIONS — Réponses soumises pendant le jeu de validation
+// Un joueur répond aux 3 questions de l'autre (ProfileQuestion de l'autre).
+// Sourire mutuel → match créé → les deux jouent → si ≥1 correct chacun → validé
+// ============================================================
+
+model MatchQuestionAttempt {
+  id              String   @id @default(cuid())
+  matchId         String
+  match           Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  responderId     String
+  responder       User     @relation("QuestionAttemptResponder", fields: [responderId], references: [id], onDelete: Cascade)
+  questionId      String   // ProfileQuestion.id de l'autre utilisateur
+  submittedAnswer String
+  isCorrect       Boolean
+  createdAt       DateTime @default(now())
+
+  @@unique([matchId, responderId, questionId])
+  @@index([matchId])
 }
 
 model AuditLog {

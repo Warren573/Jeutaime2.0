@@ -7,7 +7,9 @@ import { lettersRateLimit } from "../../core/middleware/rateLimit";
 import { CreateMatchSchema, GhostRelanceSchema } from "./matches.schemas";
 import * as matchCtrl from "./matches.controller";
 import * as letterCtrl from "../letters/letters.controller";
+import * as questionsCtrl from "./questions.controller";
 import { SendLetterSchema, ListLettersQuerySchema } from "../letters/letters.schemas";
+import { SubmitAnswersSchema } from "./questions.schemas";
 import { AuthedRequest } from "../../core/types";
 
 const router = Router();
@@ -50,6 +52,18 @@ router.post(
   "/:id/ghost-relance",
   validate(GhostRelanceSchema),
   wrap(matchCtrl.handleGhostRelance),
+);
+
+// ── Jeu des 3 questions ───────────────────────────────────────────────────────
+
+// GET /api/matches/:matchId/questions — Questions de l'autre + statut de ma soumission
+router.get("/:matchId/questions", wrap(questionsCtrl.handleGetQuestions));
+
+// POST /api/matches/:matchId/questions/answers — Soumettre mes réponses
+router.post(
+  "/:matchId/questions/answers",
+  validate(SubmitAnswersSchema),
+  wrap(questionsCtrl.handleSubmitAnswers),
 );
 
 // ── Lettres (sous-ressource du match) ────────────────────────────────────────

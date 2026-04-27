@@ -15,7 +15,7 @@ import { canOpenNewMatch, getMatchLimit } from "../../policies/contactLimits";
 import { canSendLetter } from "../../policies/letterAlternation";
 import { assertCanRelance, isGhosting } from "../../policies/antiGhosting";
 import { getPhotoUnlockProgress } from "../../policies/photoUnlock";
-import { GHOST_RELANCE_MAX_DAYS, GHOST_DAYS, PROFILE_QUESTIONS_REQUIRED } from "../../config/constants";
+import { GHOST_RELANCE_MAX_DAYS, GHOST_DAYS } from "../../config/constants";
 import { emitMatchCreated } from "../../events";
 import type { CreateMatchDto, GhostRelanceDto } from "./matches.schemas";
 
@@ -58,14 +58,6 @@ async function countActiveMatches(userId: string): Promise<number> {
   });
 }
 
-async function countUserQuestions(userId: string): Promise<number> {
-  const profile = await prisma.profile.findUnique({
-    where: { userId },
-    select: { id: true },
-  });
-  if (!profile) return 0;
-  return prisma.profileQuestion.count({ where: { profileId: profile.id } });
-}
 
 async function getUserPremiumStatus(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
@@ -307,20 +299,11 @@ export async function acceptMatch(matchId: string, userId: string) {
     throw new ForbiddenError("Tu ne peux pas accepter ta propre demande de match");
   }
 
-  // Vérifier les questions des deux utilisateurs
-  const [countA, countB] = await Promise.all([
-    countUserQuestions(match.userAId),
-    countUserQuestions(match.userBId),
-  ]);
-  const questionsValidated =
-    countA >= PROFILE_QUESTIONS_REQUIRED && countB >= PROFILE_QUESTIONS_REQUIRED;
-
+  // Match activé — questionsValidated reste false jusqu'à ce que les deux joueurs
+  // aient répondu aux questions via POST /matches/:id/questions/answers
   const updated = await prisma.match.update({
     where: { id: matchId },
-    data: {
-      status: MatchStatus.ACTIVE,
-      questionsValidated,
-    },
+    data: { status: MatchStatus.ACTIVE },
     select: matchSelect,
   });
 

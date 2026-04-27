@@ -53,7 +53,10 @@ export const UpdateQuestionsSchema = z.object({
         questionId: z.string().refine((id) => QUESTION_IDS.includes(id), {
           message: "Question ID invalide",
         }),
-        answer: z.string().min(1, "Réponse requise").max(500, "Réponse : 500 caractères max"),
+        answer: z.string().min(1, "Réponse requise").max(200, "Réponse : 200 caractères max"),
+        wrongAnswers: z
+          .array(z.string().min(1).max(200))
+          .length(2, "2 mauvaises réponses requises pour le jeu"),
       }),
     )
     .length(3, "Tu dois répondre exactement à 3 questions"),
