@@ -1,10 +1,11 @@
 import { Response } from "express";
 import * as svc from "./profiles.service";
 import { AuthedRequest } from "../../core/types";
+import { computeProfileStatus } from "../../policies/profiles";
 
 export async function handleGetMe(req: AuthedRequest, res: Response) {
   const profile = await svc.getMyProfile(req.user.userId);
-  res.json({ data: profile });
+  res.json({ data: { ...profile, profileStatus: computeProfileStatus(profile) } });
 }
 
 export async function handleUpdateMe(req: AuthedRequest, res: Response) {

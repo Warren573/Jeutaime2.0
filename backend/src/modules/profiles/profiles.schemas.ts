@@ -2,6 +2,7 @@ import { z } from "zod";
 import { QUESTION_IDS } from "../../config/questions";
 
 const GenderEnum = z.enum(["HOMME", "FEMME", "AUTRE"]);
+const InterestedInEnum = z.enum(["HOMME", "FEMME"]);
 const LookingForEnum = z.enum(["AMITIE", "RELATION", "FLIRT", "DISCUSSION", "SERIEUX"]);
 
 export const UpdateProfileSchema = z.object({
@@ -22,7 +23,7 @@ export const UpdateProfileSchema = z.object({
     .optional(),
   interests: z.array(z.string().max(50)).max(20).optional(),
   lookingFor: z.array(LookingForEnum).optional(),
-  interestedIn: z.array(GenderEnum).optional(),
+  interestedIn: z.array(InterestedInEnum).optional(),
   hasChildren: z.boolean().optional(),
   wantsChildren: z.boolean().optional(),
   avatarConfig: z.record(z.unknown()).optional(),

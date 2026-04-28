@@ -13,95 +13,78 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { apiFetch } from "../src/api/client";
+import { useStore } from "../src/store/useStore";
 
-type Question = { text: string; options: [string, string, string]; correctAnswer: 0 | 1 | 2 };
-const EMPTY_QUESTION = (): Question => ({ text: '', options: ['', '', ''], correctAnswer: 0 });
+const INTERESTED_IN_OPTIONS = [
+  { label: "Femmes", value: "FEMME" },
+  { label: "Hommes", value: "HOMME" },
+];
 
-function QuestionBlock({ index, question, onChange }: {
-  index: number;
-  question: Question;
-  onChange: (q: Question) => void;
-}) {
-  return (
-    <View style={qStyles.block}>
-      <Text style={qStyles.qLabel}>Question {index + 1}</Text>
-      <TextInput
-        style={qStyles.qInput}
-        value={question.text}
-        onChangeText={t => onChange({ ...question, text: t })}
-        placeholder="Ex: Quelle est ma passion principale ?"
-        placeholderTextColor="#B8A082"
-      />
-      <Text style={qStyles.aLabel}>3 Réponses possibles</Text>
-      {([0, 1, 2] as (0 | 1 | 2)[]).map(i => (
-        <View key={i} style={qStyles.optionRow}>
-          <TextInput
-            style={qStyles.optionInput}
-            value={question.options[i]}
-            onChangeText={t => {
-              const opts = [...question.options] as [string, string, string];
-              opts[i] = t;
-              onChange({ ...question, options: opts });
-            }}
-            placeholder={`Réponse ${i + 1}`}
-            placeholderTextColor="#B8A082"
-          />
-          <TouchableOpacity
-            style={[qStyles.checkBtn, question.correctAnswer === i && qStyles.checkBtnActive]}
-            onPress={() => onChange({ ...question, correctAnswer: i })}
-          >
-            <Text style={qStyles.checkIcon}>{question.correctAnswer === i ? '✓' : ''}</Text>
-          </TouchableOpacity>
-        </View>
-      ))}
-      <Text style={qStyles.hint}>Marquez la bonne réponse avec ✓</Text>
-    </View>
-  );
+const LOOKING_FOR_OPTIONS = [
+  { label: "Relation sérieuse", value: "SERIEUX" },
+  { label: "Flirt", value: "FLIRT" },
+  { label: "Amitié", value: "AMITIE" },
+  { label: "Discussion", value: "DISCUSSION" },
+];
+
+const PHYSICAL_DESC_OPTIONS = [
+  { label: "Filiforme", value: "filiforme" },
+  { label: "Ras des mottes", value: "ras_motte" },
+  { label: "Grande gigue", value: "grande_gigue" },
+  { label: "Costaud(e)", value: "costaud" },
+  { label: "Mignon(ne)", value: "mignon" },
+  { label: "Mystérieux(se)", value: "mysterieux" },
+  { label: "Athlétique", value: "athletique" },
+  { label: "Doux(ce)", value: "doux" },
+];
+
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
 }
-
-const qStyles = StyleSheet.create({
-  block:          { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#d9cec3' },
-  qLabel:         { fontSize: 15, fontWeight: '700', color: '#3A2818', marginBottom: 8 },
-  qInput:         { backgroundColor: '#f6f1ea', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, borderWidth: 1, borderColor: '#d9cec3', marginBottom: 12 },
-  aLabel:         { fontSize: 13, fontWeight: '600', color: '#8B6F47', marginBottom: 8 },
-  optionRow:      { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  optionInput:    { flex: 1, backgroundColor: '#f6f1ea', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, borderWidth: 1, borderColor: '#d9cec3' },
-  checkBtn:       { width: 40, height: 40, borderRadius: 10, backgroundColor: '#d9cec3', alignItems: 'center', justifyContent: 'center', marginLeft: 8, borderWidth: 2, borderColor: '#d9cec3' },
-  checkBtnActive: { backgroundColor: '#9c2f45', borderColor: '#9c2f45' },
-  checkIcon:      { fontSize: 18, color: '#fff', fontWeight: '800' },
-  hint:           { fontSize: 12, color: '#B8A082', textAlign: 'right', marginTop: 4 },
-});
 
 export default function CreateProfileScreen() {
   const router = useRouter();
+  const { hydrateFromApi } = useStore();
 
-  const [pseudo, setPseudo] = useState("");
   const [bio, setBio] = useState("");
-  const [questions, setQuestions] = useState<Question[]>([
-    EMPTY_QUESTION(), EMPTY_QUESTION(), EMPTY_QUESTION(),
-  ]);
+  const [interestedIn, setInterestedIn] = useState<string[]>([]);
+  const [lookingFor, setLookingFor] = useState<string[]>([]);
+  const [physicalDesc, setPhysicalDesc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const isValid = pseudo.trim().length >= 2;
+  const bioWords = countWords(bio);
+  const isValid =
+    bio.trim().length > 0 &&
+    interestedIn.length > 0 &&
+    lookingFor.length > 0 &&
+    physicalDesc !== null;
 
-  const handleCreateProfile = async () => {
+  function toggleLookingFor(value: string) {
+    setLookingFor((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  }
+
+  const handleSave = async () => {
     if (!isValid || isLoading) return;
 
     try {
       setIsLoading(true);
 
-      await apiFetch("/profiles", {
-        method: "POST",
+      await apiFetch("/profiles/me", {
+        method: "PATCH",
         body: JSON.stringify({
-          pseudo: pseudo.trim(),
           bio: bio.trim(),
-          questions,
+          interestedIn,
+          lookingFor,
+          physicalDesc,
         }),
       });
 
+      await hydrateFromApi();
       router.replace("/(tabs)");
     } catch (err: any) {
-      Alert.alert("Erreur", err?.message || "Impossible de créer le profil");
+      Alert.alert("Erreur", err?.message || "Impossible de sauvegarder le profil");
     } finally {
       setIsLoading(false);
     }
@@ -111,52 +94,89 @@ export default function CreateProfileScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Ton profil</Text>
-        <Text style={styles.subtitle}>Donne une première impression…</Text>
+        <Text style={styles.subtitle}>Quelques infos pour bien démarrer</Text>
 
         <View style={styles.form}>
-          <View>
-            <Text style={styles.label}>Pseudo</Text>
-            <TextInput
-              value={pseudo}
-              onChangeText={setPseudo}
-              placeholder="Ton pseudo"
-              style={styles.input}
-            />
-          </View>
-
+          {/* Bio */}
           <View>
             <Text style={styles.label}>Bio</Text>
             <TextInput
               value={bio}
               onChangeText={setBio}
-              placeholder="Quelques mots sur toi…"
-              style={[styles.input, { height: 100 }]}
+              placeholder="Dis-nous qui tu es, ce que tu aimes, ce qui te fait lever le matin…"
+              placeholderTextColor="#B8A082"
+              style={[styles.input, styles.inputMultiline]}
               multiline
+              textAlignVertical="top"
             />
+            <Text style={[styles.wordCount, bioWords >= 50 && styles.wordCountOk]}>
+              {bioWords} mot{bioWords !== 1 ? "s" : ""}{bioWords < 50 ? ` — encore ${50 - bioWords} pour un profil complet` : " — parfait !"}
+            </Text>
           </View>
 
+          {/* interestedIn */}
           <View>
-            <Text style={styles.sectionTitle}>🎲 Jeu des 3 Questions</Text>
-            <Text style={styles.sectionSub}>
-              Crée 3 questions avec 3 réponses chacune. En cas de match, l'autre personne devra y répondre pour débloquer les lettres.
-            </Text>
-            {questions.map((q, i) => (
-              <QuestionBlock
-                key={i}
-                index={i}
-                question={q}
-                onChange={updated => {
-                  const copy = [...questions];
-                  copy[i] = updated;
-                  setQuestions(copy);
-                }}
-              />
-            ))}
+            <Text style={styles.label}>Je suis intéressé(e) par</Text>
+            <View style={styles.chipRow}>
+              {INTERESTED_IN_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.chip, interestedIn.includes(opt.value) && styles.chipActive]}
+                  onPress={() => {
+                    setInterestedIn((prev) =>
+                      prev.includes(opt.value)
+                        ? prev.filter((v) => v !== opt.value)
+                        : [...prev, opt.value]
+                    );
+                  }}
+                >
+                  <Text style={[styles.chipText, interestedIn.includes(opt.value) && styles.chipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* lookingFor */}
+          <View>
+            <Text style={styles.label}>Je cherche</Text>
+            <View style={styles.chipRow}>
+              {LOOKING_FOR_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.chip, lookingFor.includes(opt.value) && styles.chipActive]}
+                  onPress={() => toggleLookingFor(opt.value)}
+                >
+                  <Text style={[styles.chipText, lookingFor.includes(opt.value) && styles.chipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* physicalDesc */}
+          <View>
+            <Text style={styles.label}>Je me décris physiquement comme</Text>
+            <View style={styles.chipGrid}>
+              {PHYSICAL_DESC_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.chip, physicalDesc === opt.value && styles.chipActive]}
+                  onPress={() => setPhysicalDesc(opt.value)}
+                >
+                  <Text style={[styles.chipText, physicalDesc === opt.value && styles.chipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           <Pressable
             style={[styles.button, (!isValid || isLoading) && { opacity: 0.5 }]}
-            onPress={handleCreateProfile}
+            onPress={handleSave}
             disabled={!isValid || isLoading}
           >
             {isLoading ? (
@@ -165,6 +185,10 @@ export default function CreateProfileScreen() {
               <Text style={styles.buttonText}>Entrer dans l'univers</Text>
             )}
           </Pressable>
+
+          <Pressable onPress={() => router.replace("/(tabs)")} style={styles.skipBtn}>
+            <Text style={styles.skipText}>Passer pour l'instant</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -172,15 +196,24 @@ export default function CreateProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea:     { flex: 1, backgroundColor: "#f6f1ea" },
-  container:    { padding: 24, paddingBottom: 60 },
-  title:        { fontSize: 32, fontWeight: "800", color: "#232126", marginBottom: 8, textAlign: "center" },
-  subtitle:     { fontSize: 16, color: "#7a746d", marginBottom: 24, textAlign: "center" },
-  form:         { gap: 16 },
-  label:        { fontSize: 15, fontWeight: "600", color: "#2a272c", marginBottom: 6 },
-  input:        { borderWidth: 1, borderColor: "#d9cec3", borderRadius: 12, padding: 12, backgroundColor: "#fff" },
-  sectionTitle: { fontSize: 17, fontWeight: "800", color: "#2a272c", marginBottom: 6 },
-  sectionSub:   { fontSize: 13, color: "#7a746d", marginBottom: 14, lineHeight: 20 },
-  button:       { marginTop: 16, height: 56, borderRadius: 16, backgroundColor: "#9c2f45", justifyContent: "center", alignItems: "center" },
-  buttonText:   { color: "#fff", fontSize: 18, fontWeight: "700" },
+  safeArea:        { flex: 1, backgroundColor: "#f6f1ea" },
+  container:       { padding: 24, paddingBottom: 60 },
+  title:           { fontSize: 32, fontWeight: "800", color: "#232126", marginBottom: 8, textAlign: "center" },
+  subtitle:        { fontSize: 16, color: "#7a746d", marginBottom: 24, textAlign: "center" },
+  form:            { gap: 20 },
+  label:           { fontSize: 15, fontWeight: "600", color: "#2a272c", marginBottom: 8 },
+  input:           { borderWidth: 1, borderColor: "#d9cec3", borderRadius: 12, padding: 12, backgroundColor: "#fff", fontSize: 15, color: "#1f1d21" },
+  inputMultiline:  { height: 120 },
+  wordCount:       { fontSize: 12, color: "#B8A082", marginTop: 4, textAlign: "right" },
+  wordCountOk:     { color: "#4a9c6d" },
+  chipRow:         { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  chipGrid:        { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  chip:            { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: "#d9cec3", backgroundColor: "#fff" },
+  chipActive:      { backgroundColor: "#9c2f45", borderColor: "#9c2f45" },
+  chipText:        { fontSize: 14, fontWeight: "600", color: "#2a272c" },
+  chipTextActive:  { color: "#fff" },
+  button:          { marginTop: 8, height: 56, borderRadius: 16, backgroundColor: "#9c2f45", justifyContent: "center", alignItems: "center" },
+  buttonText:      { color: "#fff", fontSize: 18, fontWeight: "700" },
+  skipBtn:         { alignItems: "center", paddingVertical: 12 },
+  skipText:        { fontSize: 14, color: "#B8A082", fontWeight: "600" },
 });
