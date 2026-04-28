@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
 import { apiFetch } from '../api/client';
+import { QUESTION_CATALOG } from '../config/questions';
 
 // ─── Description physique avec humour ────────────────────────────────────────
 
@@ -167,7 +168,8 @@ const skStyles = StyleSheet.create({
 
 // ─── Composant QuestionBlock ──────────────────────────────────────────────────
 
-type Question = { text: string; options: [string, string, string]; correctAnswer: 0 | 1 | 2 };
+type Question  = { text: string; options: [string, string, string]; correctAnswer: 0 | 1 | 2 };
+type QAnswers  = { answer: string; wrong1: string; wrong2: string };
 
 const EMPTY_QUESTION = (): Question => ({ text: '', options: ['', '', ''], correctAnswer: 0 });
 
@@ -231,7 +233,7 @@ const qStyles = StyleSheet.create({
 export function EditProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser, setCurrentUser, avatarPngConfig } = useStore();
+  const { currentUser, setCurrentUser, avatarPngConfig, hydrateFromApi } = useStore();
 
   const [pseudo,      setPseudo]      = useState(currentUser?.pseudo ?? currentUser?.name ?? '');
   const [birthDate,   setBirthDate]   = useState(
@@ -263,6 +265,61 @@ export function EditProfileScreen() {
 
   const toggleItem = (list: string[], setList: (v: string[]) => void, id: string) => {
     setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
+  };
+
+  // ── Catalogue questions (format backend) ──────────────────────────────────
+  const [qSelected, setQSelected] = useState<string[]>(() =>
+    (currentUser?.apiQuestions ?? []).slice(0, 3).map(q => q.questionId)
+  );
+  const [qAnswers, setQAnswers] = useState<Record<string, QAnswers>>(() => {
+    const init: Record<string, QAnswers> = {};
+    for (const q of (currentUser?.apiQuestions ?? [])) {
+      init[q.questionId] = { answer: q.answer, wrong1: q.wrongAnswers[0] ?? '', wrong2: q.wrongAnswers[1] ?? '' };
+    }
+    return init;
+  });
+  const [qSaving, setQSaving] = useState(false);
+
+  const qReady = qSelected.length === 3 && qSelected.every(id => {
+    const a = qAnswers[id];
+    return a?.answer.trim() && a?.wrong1.trim() && a?.wrong2.trim();
+  });
+
+  const toggleCatalogQ = (id: string) => {
+    if (qSelected.includes(id)) {
+      setQSelected(prev => prev.filter(q => q !== id));
+      setQAnswers(prev => { const n = { ...prev }; delete n[id]; return n; });
+    } else if (qSelected.length < 3) {
+      setQSelected(prev => [...prev, id]);
+      setQAnswers(prev => ({ ...prev, [id]: { answer: '', wrong1: '', wrong2: '' } }));
+    }
+  };
+
+  const updateQAnswer = (id: string, field: keyof QAnswers, value: string) => {
+    setQAnswers(prev => ({ ...prev, [id]: { ...(prev[id] ?? { answer: '', wrong1: '', wrong2: '' }), [field]: value } }));
+  };
+
+  const handleSaveQuestions = async () => {
+    if (!qReady || qSaving) return;
+    try {
+      setQSaving(true);
+      await apiFetch('/profiles/me/questions', {
+        method: 'PUT',
+        body: JSON.stringify({
+          questions: qSelected.map(id => ({
+            questionId: id,
+            answer: qAnswers[id].answer.trim(),
+            wrongAnswers: [qAnswers[id].wrong1.trim(), qAnswers[id].wrong2.trim()],
+          })),
+        }),
+      });
+      await hydrateFromApi();
+      Alert.alert('Questions sauvegardées !', 'Tu peux maintenant matcher.');
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message || 'Impossible de sauvegarder les questions');
+    } finally {
+      setQSaving(false);
+    }
   };
 
   const handleSave = async () => {
@@ -444,6 +501,14 @@ export function EditProfileScreen() {
           </View>
           <Text style={styles.avatarEditHint}>Modifier mon avatar</Text>
         </TouchableOpacity>
+
+        {(currentUser?.profileMissingFields ?? []).includes('questions') && (
+          <View style={styles.matchWarning}>
+            <Text style={styles.matchWarningText}>
+              🎲 Ajoute tes 3 questions pour pouvoir matcher
+            </Text>
+          </View>
+        )}
 
         {/* ── Bio ── */}
         <SectionCard emoji="✨" title="BIO">
@@ -740,23 +805,76 @@ export function EditProfileScreen() {
           </View>
         </SectionCard>
 
-        {/* ── Jeu des 3 Questions ── */}
-        <SectionCard emoji="🎲" title="Jeu des 3 Questions (Brise-glace)">
+        {/* ── Mes 3 questions ── */}
+        <SectionCard emoji="🎲" title="MES 3 QUESTIONS">
           <Text style={styles.subLabel}>
-            Crée 3 questions avec 3 réponses chacune. En cas de match, l'autre personne devra répondre à tes questions pour débloquer les lettres.
+            En cas de match, l'autre devra deviner ta vraie réponse parmi 3 choix.
+            {!qReady && qSelected.length === 0 && '\nChoisis 3 questions ci-dessous.'}
           </Text>
-          {questions.map((q, i) => (
-            <QuestionBlock
-              key={i}
-              index={i}
-              question={q}
-              onChange={updated => {
-                const copy = [...questions];
-                copy[i] = updated;
-                setQuestions(copy);
-              }}
-            />
-          ))}
+
+          <Text style={styles.qProgress}>
+            {qSelected.length}/3{qSelected.length === 3 ? ' ✓' : ''}
+          </Text>
+
+          {QUESTION_CATALOG.map(q => {
+            const isSelected = qSelected.includes(q.id);
+            const isDisabled = !isSelected && qSelected.length >= 3;
+            const ans = qAnswers[q.id];
+            return (
+              <View key={q.id} style={[styles.qCard, isSelected && styles.qCardSelected]}>
+                <TouchableOpacity
+                  onPress={() => toggleCatalogQ(q.id)}
+                  disabled={isDisabled}
+                  style={styles.qCardHeader}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.qDot, isSelected && styles.qDotSelected]} />
+                  <Text style={[styles.qCardText, isDisabled && styles.qCardTextDisabled]}>
+                    {q.text}
+                  </Text>
+                </TouchableOpacity>
+
+                {isSelected && ans !== undefined && (
+                  <View style={styles.qAnswersBlock}>
+                    <Text style={styles.qAnswerLabel}>Ta vraie réponse</Text>
+                    <TextInput
+                      style={styles.qAnswerInput}
+                      value={ans.answer}
+                      onChangeText={v => updateQAnswer(q.id, 'answer', v)}
+                      placeholder="Ta vraie réponse…"
+                      placeholderTextColor="#B8A082"
+                    />
+                    <Text style={styles.qAnswerLabel}>Fausse piste 1</Text>
+                    <TextInput
+                      style={styles.qAnswerInput}
+                      value={ans.wrong1}
+                      onChangeText={v => updateQAnswer(q.id, 'wrong1', v)}
+                      placeholder="Une réponse plausible mais fausse…"
+                      placeholderTextColor="#B8A082"
+                    />
+                    <Text style={styles.qAnswerLabel}>Fausse piste 2</Text>
+                    <TextInput
+                      style={styles.qAnswerInput}
+                      value={ans.wrong2}
+                      onChangeText={v => updateQAnswer(q.id, 'wrong2', v)}
+                      placeholder="Une autre réponse plausible mais fausse…"
+                      placeholderTextColor="#B8A082"
+                    />
+                  </View>
+                )}
+              </View>
+            );
+          })}
+
+          <TouchableOpacity
+            style={[styles.saveQBtn, (!qReady || qSaving) && { opacity: 0.5 }]}
+            onPress={handleSaveQuestions}
+            disabled={!qReady || qSaving}
+          >
+            <Text style={styles.saveQBtnText}>
+              {qSaving ? 'Sauvegarde…' : '💾 Sauver mes questions'}
+            </Text>
+          </TouchableOpacity>
         </SectionCard>
 
         {/* ── Bouton Sauvegarder ── */}
@@ -848,4 +966,23 @@ const styles = StyleSheet.create({
   // Save button
   saveBtn:      { backgroundColor: PINK, borderRadius: 20, padding: 20, alignItems: 'center', marginTop: 8, marginBottom: 20 },
   saveBtnText:  { color: '#FFF', fontWeight: '800', fontSize: 17, letterSpacing: 0.5 },
+
+  // canMatch warning banner
+  matchWarning:     { backgroundColor: '#FFF3CD', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#FFCA28', flexDirection: 'row', alignItems: 'center' },
+  matchWarningText: { fontSize: 14, fontWeight: '700', color: '#7B5800', flex: 1 },
+
+  // Catalog questions section
+  qProgress:          { fontSize: 13, fontWeight: '700', color: PINK, marginBottom: 12 },
+  qCard:              { backgroundColor: '#FDF5E6', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1.5, borderColor: SAND },
+  qCardSelected:      { borderColor: PINK, backgroundColor: '#FFF0F7' },
+  qCardHeader:        { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  qDot:               { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: SAND, marginTop: 2, flexShrink: 0 },
+  qDotSelected:       { backgroundColor: PINK, borderColor: PINK },
+  qCardText:          { flex: 1, fontSize: 14, fontWeight: '600', color: BROWN, lineHeight: 21 },
+  qCardTextDisabled:  { color: '#B8A082' },
+  qAnswersBlock:      { marginTop: 14, gap: 4 },
+  qAnswerLabel:       { fontSize: 11, fontWeight: '700', color: MOCHA, marginTop: 8, marginBottom: 2 },
+  qAnswerInput:       { backgroundColor: BEIGE, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, borderWidth: 1, borderColor: SAND, color: BROWN },
+  saveQBtn:           { marginTop: 18, backgroundColor: PINK, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  saveQBtnText:       { color: '#FFF', fontWeight: '800', fontSize: 15 },
 });
