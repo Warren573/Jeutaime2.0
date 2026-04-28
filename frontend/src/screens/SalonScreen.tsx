@@ -54,6 +54,22 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { salonsData, SalonParticipant } from '../data/salonsData';
 import { useStore, Message } from '../store/useStore';
 import { allOfferings, allPowers } from '../data/offerings';
+import {
+  listSalons,
+  listMessages as apiListMessages,
+  postMessage as apiPostMessage,
+  type SalonMessageDTO,
+} from '../api/salons';
+
+// Correspondance slug frontend → kind backend
+const SLUG_TO_KIND: Record<string, string> = {
+  piscine: 'PISCINE',
+  cafe_paris: 'CAFE_DE_PARIS',
+  pirates: 'ILE_PIRATES',
+  theatre: 'THEATRE',
+  cocktails: 'BAR_COCKTAILS',
+  metal: 'METAL',
+};
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE } from '../avatar/png/defaults';
 
@@ -218,7 +234,7 @@ export default function SalonScreen() {
   const flatListRef = useRef<FlatList>(null);
   // Timers de transformation (un par participant) — nettoyés automatiquement
   const transfoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const { currentUser, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig } = useStore();
+  const { currentUser, isAuthenticated, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig } = useStore();
 
   // Récupérer le salon
   const rawSalonId = params.id as string;
@@ -242,12 +258,77 @@ export default function SalonScreen() {
   // Participants
   const [participants, setParticipants] = useState<(SalonParticipant & { isMe?: boolean })[]>([]);
 
+  // ID réel du salon côté backend (cuid), résolu via kind
+  const [apiSalonId, setApiSalonId] = useState<string | null>(null);
+  // Messages chargés depuis l'API
+  const [apiMessages, setApiMessages] = useState<SalonMessageDTO[]>([]);
+  // Flag : participants déjà initialisés depuis l'API (pour ne pas écraser les badges locaux)
+  const participantsReady = useRef(false);
+
+  // Résolution slug → cuid backend via GET /api/salons
   useEffect(() => {
-    if (salon) {
+    if (!isAuthenticated) return;
+    const kind = SLUG_TO_KIND[salonId];
+    if (!kind) return;
+    listSalons()
+      .then((list) => {
+        const match = list.find((s) => s.kind === kind);
+        if (match) setApiSalonId(match.id);
+      })
+      .catch(() => {});
+  }, [salonId, isAuthenticated]);
+
+  // Chargement messages API + polling 15s
+  const loadApiMessages = useCallback(() => {
+    if (!apiSalonId) return;
+    apiListMessages(apiSalonId)
+      .then((msgs) => setApiMessages(msgs))
+      .catch(() => {});
+  }, [apiSalonId]);
+
+  useEffect(() => {
+    loadApiMessages();
+    const interval = setInterval(loadApiMessages, 15000);
+    return () => clearInterval(interval);
+  }, [loadApiMessages]);
+
+  // Participants : depuis les auteurs récents de l'API (une seule fois au premier load)
+  // puis fallback mock si non authentifié
+  useEffect(() => {
+    if (isAuthenticated && apiMessages.length > 0 && !participantsReady.current) {
+      participantsReady.current = true;
+      const cutoff = Date.now() - 30 * 60 * 1000;
+      const seen = new Map<string, SalonParticipant & { isMe?: boolean }>();
+      for (const msg of apiMessages) {
+        if (new Date(msg.createdAt).getTime() > cutoff && !seen.has(msg.userId)) {
+          seen.set(msg.userId, {
+            id: msg.userId,
+            name: msg.pseudo,
+            gender: (msg.gender === 'FEMME' ? 'F' : 'M') as 'M' | 'F',
+            age: msg.age ?? 25,
+            online: true,
+            offerings: [],
+          });
+        }
+      }
+      // Toujours inclure l'utilisateur courant avec son vrai ID
+      const myId = currentUser?.id ?? 'me';
+      seen.set(myId, {
+        id: myId,
+        name: currentUser?.name || 'Vous',
+        gender: (currentUser?.gender ?? 'M') as 'M' | 'F',
+        age: currentUser?.age ?? 25,
+        online: true,
+        offerings: [],
+        isMe: true,
+        avatarConfig: avatarPngConfig,
+      } as SalonParticipant & { isMe: boolean; avatarConfig: object });
+      setParticipants(Array.from(seen.values()));
+    } else if (!isAuthenticated && salon && !participantsReady.current) {
       setParticipants([
         ...salon.participants,
         {
-          id: 'me',
+          id: currentUser?.id ?? 'me',
           name: currentUser?.name || 'Vous',
           gender: currentUser?.gender || 'M',
           age: currentUser?.age || 25,
@@ -258,13 +339,27 @@ export default function SalonScreen() {
         } as SalonParticipant & { isMe: boolean; avatarConfig: object },
       ]);
     }
-  }, [salon, currentUser]);
+  }, [isAuthenticated, apiMessages, salon, currentUser, avatarPngConfig]);
 
-  const messages = messagesBySalon[salonId] || [];
+  // Source des messages : API si authentifié, store local sinon
+  const messages: Message[] = isAuthenticated && apiMessages.length > 0
+    ? apiMessages.map((msg) => ({
+        id: msg.id,
+        salonId: msg.salonId,
+        userId: msg.userId,
+        userName: msg.pseudo,
+        username: msg.pseudo,
+        content: msg.content,
+        text: msg.content,
+        timestamp: new Date(msg.createdAt).getTime(),
+        type: (msg.kind as Message['type']),
+      }))
+    : (messagesBySalon[salonId] || []);
 
+  // Fallback store local (non authentifié)
   useEffect(() => {
-    if (salonId) loadMessages(salonId);
-  }, [salonId]);
+    if (!isAuthenticated && salonId) loadMessages(salonId);
+  }, [salonId, isAuthenticated]);
 
   const scrollToEnd = useCallback(() => {
     setTimeout(() => {
@@ -273,16 +368,31 @@ export default function SalonScreen() {
   }, []);
 
   // Envoyer un message
-  const sendMessage = () => {
-    if (!messageInput.trim()) return;
+  const sendMessage = async () => {
+    const content = messageInput.trim();
+    if (!content) return;
+
+    if (isAuthenticated && apiSalonId) {
+      try {
+        const msg = await apiPostMessage(apiSalonId, content);
+        setApiMessages((prev) => [...prev, msg]);
+        setMessageInput('');
+        scrollToEnd();
+      } catch {
+        alert('Message non envoyé. Vérifie ta connexion.');
+      }
+      return;
+    }
+
+    // Fallback local (non authentifié)
     const newMessage: Message = {
       id: Date.now().toString(),
       salonId: salonId,
       userId: currentUser?.id || 'me',
       userName: currentUser?.name || 'Vous',
       username: currentUser?.name || 'Vous',
-      content: messageInput.trim(),
-      text: messageInput.trim(),
+      content,
+      text: content,
       timestamp: Date.now(),
       type: 'message',
     };
