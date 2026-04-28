@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -60,6 +60,17 @@ import {
   postMessage as apiPostMessage,
   type SalonMessageDTO,
 } from '../api/salons';
+import {
+  getOfferingsCatalog,
+  sendOffering,
+  type OfferingCatalogItemDTO,
+} from '../api/offerings';
+import {
+  getMagiesCatalog,
+  castSpell,
+  type MagieCatalogItemDTO,
+  type MagieCatalogDTO,
+} from '../api/magies';
 
 // Correspondance slug frontend → kind backend
 const SLUG_TO_KIND: Record<string, string> = {
@@ -234,7 +245,7 @@ export default function SalonScreen() {
   const flatListRef = useRef<FlatList>(null);
   // Timers de transformation (un par participant) — nettoyés automatiquement
   const transfoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const { currentUser, isAuthenticated, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig } = useStore();
+  const { currentUser, isAuthenticated, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig, loadWallet } = useStore();
 
   // Récupérer le salon
   const rawSalonId = params.id as string;
@@ -264,6 +275,29 @@ export default function SalonScreen() {
   const [apiMessages, setApiMessages] = useState<SalonMessageDTO[]>([]);
   // Flag : participants déjà initialisés depuis l'API (pour ne pas écraser les badges locaux)
   const participantsReady = useRef(false);
+
+  // Catalogues backend (chargés une fois quand authentifié)
+  const [offeringsCatalog, setOfferingsCatalog] = useState<OfferingCatalogItemDTO[]>([]);
+  const [magiesCatalog, setMagiesCatalog] = useState<MagieCatalogDTO | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    getOfferingsCatalog().then(setOfferingsCatalog).catch(() => {});
+    getMagiesCatalog().then(setMagiesCatalog).catch(() => {});
+  }, [isAuthenticated]);
+
+  // Items affichés dans les modals (API si auth, local sinon)
+  const displayOfferings = useMemo(
+    () => (isAuthenticated && offeringsCatalog.length > 0 ? offeringsCatalog : allOfferings),
+    [isAuthenticated, offeringsCatalog],
+  );
+  const displayPowers = useMemo(() => {
+    if (isAuthenticated && magiesCatalog) {
+      // Anti-sorts nécessitent un castId — on n'expose que les vrais sorts
+      return magiesCatalog.spells;
+    }
+    return allPowers;
+  }, [isAuthenticated, magiesCatalog]);
 
   // Résolution slug → cuid backend via GET /api/salons
   useEffect(() => {
@@ -402,11 +436,27 @@ export default function SalonScreen() {
   };
 
   // Envoyer une offrande
-  const handleSendOffering = (item: any) => {
+  const handleSendOffering = async (item: any) => {
     if (!selectedPlayer) return;
-    if (!removeCoins(item.cost)) {
-      alert('Pas assez de pièces!');
-      return;
+
+    if (isAuthenticated && apiSalonId) {
+      try {
+        await sendOffering({ offeringId: item.id, toUserId: selectedPlayer.id, salonId: apiSalonId });
+        await loadWallet();
+      } catch (e: any) {
+        const msg: string = e?.message ?? '';
+        if (/insuffisant|insufficient|coins/i.test(msg)) {
+          alert('Pas assez de pièces !');
+        } else {
+          alert('Offrande non envoyée. Réessaie.');
+        }
+        return;
+      }
+    } else {
+      if (!removeCoins(item.cost)) {
+        alert('Pas assez de pièces!');
+        return;
+      }
     }
 
     setParticipants(prev => prev.map(p => {
@@ -442,17 +492,35 @@ export default function SalonScreen() {
       giftData: item,
     };
     addMessage(salonId, sysMsg);
-    
+
     setShowOfferingsModal(false);
     setSelectedPlayer(null);
   };
 
   // Envoyer un pouvoir
-  const handleSendPower = (item: any) => {
+  const handleSendPower = async (item: any) => {
     if (!selectedPlayer) return;
-    if (!removeCoins(item.cost)) {
-      alert('Pas assez de pièces!');
-      return;
+
+    const isSpell = isAuthenticated && magiesCatalog && !item.cancels;
+
+    if (isSpell && apiSalonId) {
+      try {
+        await castSpell({ magieId: item.id, toUserId: selectedPlayer.id, salonId: apiSalonId });
+        await loadWallet();
+      } catch (e: any) {
+        const msg: string = e?.message ?? '';
+        if (/insuffisant|insufficient|coins/i.test(msg)) {
+          alert('Pas assez de pièces !');
+        } else {
+          alert('Sort non lancé. Réessaie.');
+        }
+        return;
+      }
+    } else {
+      if (!removeCoins(item.cost)) {
+        alert('Pas assez de pièces!');
+        return;
+      }
     }
 
     const targetId = selectedPlayer.id;
@@ -759,7 +827,7 @@ export default function SalonScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.offeringsGrid} contentContainerStyle={styles.offeringsGridContent}>
-            {allOfferings.map((item) => (
+            {displayOfferings.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.offeringItem}
@@ -789,7 +857,7 @@ export default function SalonScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.offeringsGrid} contentContainerStyle={styles.offeringsGridContent}>
-            {allPowers.map((item) => (
+            {displayPowers.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.offeringItem}
