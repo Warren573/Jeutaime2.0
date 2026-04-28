@@ -36,7 +36,8 @@ function getTransfoImage(
   expiresAt: number,
   durationMinutes: number,
 ): any | null {
-  const stages = TRANSFO_STAGES[powerId];
+  const id = powerId.startsWith('mag_') ? powerId.slice(4) : powerId;
+  const stages = TRANSFO_STAGES[id];
   if (!stages || stages.length === 0) return null;
   if (stages.length === 1) return stages[0];
   const totalMs = durationMinutes * 60 * 1000;
@@ -62,14 +63,19 @@ import {
 } from '../api/salons';
 import {
   getOfferingsCatalog,
+  getReceivedOfferings,
   sendOffering,
   type OfferingCatalogItemDTO,
+  type OfferingSentDTO,
 } from '../api/offerings';
 import {
   getMagiesCatalog,
+  getActiveMagies,
   castSpell,
+  breakSpell,
   type MagieCatalogItemDTO,
   type MagieCatalogDTO,
+  type MagieCastDTO,
 } from '../api/magies';
 
 // Correspondance slug frontend → kind backend
@@ -80,6 +86,16 @@ const SLUG_TO_KIND: Record<string, string> = {
   theatre: 'THEATRE',
   cocktails: 'BAR_COCKTAILS',
   metal: 'METAL',
+};
+
+// Miroir du backend : breakConditionId → id de l'anti-sort
+const BREAK_CONDITION_TO_ANTISPELL: Readonly<Record<string, string>> = {
+  kiss: 'mag_bisou',
+  compliment: 'mag_compliment',
+  water: 'mag_eau',
+  dance: 'mag_danse',
+  laughter: 'mag_rire',
+  music: 'mag_musique',
 };
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE } from '../avatar/png/defaults';
@@ -146,8 +162,11 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
     participant.transformationExpiresAt &&
     Date.now() < participant.transformationExpiresAt
   );
+  const localTransfoId = participant.transformation?.startsWith('mag_')
+    ? participant.transformation.slice(4)
+    : participant.transformation;
   const activePower = isTransformed
-    ? allPowers.find(p => p.id === participant.transformation)
+    ? allPowers.find(p => p.id === localTransfoId)
     : null;
 
   return (
@@ -276,6 +295,15 @@ export default function SalonScreen() {
   // Flag : participants déjà initialisés depuis l'API (pour ne pas écraser les badges locaux)
   const participantsReady = useRef(false);
 
+  // Offrandes reçues par le user courant (backend, sondées toutes les 15s)
+  const [myReceivedOfferings, setMyReceivedOfferings] = useState<OfferingSentDTO[]>([]);
+  // Magies actives ciblant le user courant (backend, sondées toutes les 15s)
+  const [activeMagiesOnMe, setActiveMagiesOnMe] = useState<MagieCastDTO[]>([]);
+  // Sorts envoyés par le user courant (castId trackés pour break spell)
+  const sentCastsRef = useRef<Map<string, MagieCastDTO>>(new Map());
+  // Sorts actifs sur la cible sélectionnée (chargés à l'ouverture du modal magie)
+  const [targetActiveCasts, setTargetActiveCasts] = useState<MagieCastDTO[]>([]);
+
   // Catalogues backend (chargés une fois quand authentifié)
   const [offeringsCatalog, setOfferingsCatalog] = useState<OfferingCatalogItemDTO[]>([]);
   const [magiesCatalog, setMagiesCatalog] = useState<MagieCatalogDTO | null>(null);
@@ -320,11 +348,30 @@ export default function SalonScreen() {
       .catch(() => {});
   }, [apiSalonId]);
 
+  // Sondage offrandes reçues + magies actives sur moi
+  const refreshMagiesAndOfferings = useCallback(async () => {
+    if (!isAuthenticated || !currentUser?.id) return;
+    try {
+      const [offers, magies] = await Promise.all([
+        getReceivedOfferings(1, 50, true),
+        getActiveMagies(currentUser.id),
+      ]);
+      setMyReceivedOfferings(offers);
+      setActiveMagiesOnMe(magies);
+    } catch {
+      // silent — ne pas bloquer l'UI si le backend est indisponible
+    }
+  }, [isAuthenticated, currentUser?.id]);
+
   useEffect(() => {
     loadApiMessages();
-    const interval = setInterval(loadApiMessages, 15000);
+    refreshMagiesAndOfferings();
+    const interval = setInterval(() => {
+      loadApiMessages();
+      refreshMagiesAndOfferings();
+    }, 15000);
     return () => clearInterval(interval);
-  }, [loadApiMessages]);
+  }, [loadApiMessages, refreshMagiesAndOfferings]);
 
   // Participants : depuis les auteurs récents de l'API (une seule fois au premier load)
   // puis fallback mock si non authentifié
@@ -374,6 +421,43 @@ export default function SalonScreen() {
       ]);
     }
   }, [isAuthenticated, apiMessages, salon, currentUser, avatarPngConfig]);
+
+  // Mettre à jour les badges d'offrandes du user courant depuis le backend
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser?.id) return;
+    const myId = currentUser.id;
+    setParticipants(prev => prev.map(p => {
+      if (p.id !== myId) return p;
+      const badges = myReceivedOfferings.slice(-6).map(o => ({
+        emoji: o.offering.emoji,
+        from: o.fromUserId,
+        timestamp: new Date(o.createdAt).getTime(),
+      }));
+      return { ...p, offerings: badges };
+    }));
+  }, [myReceivedOfferings, currentUser?.id, isAuthenticated]);
+
+  // Appliquer la transformation active (provenant du backend) sur le user courant
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser?.id) return;
+    const myId = currentUser.id;
+    const topCast = activeMagiesOnMe[0]; // trié par expiresAt asc
+    setParticipants(prev => prev.map(p => {
+      if (p.id !== myId) return p;
+      if (topCast) {
+        if (transfoTimers.current[myId]) {
+          clearTimeout(transfoTimers.current[myId]);
+          delete transfoTimers.current[myId];
+        }
+        return {
+          ...p,
+          transformation: topCast.magieId,
+          transformationExpiresAt: new Date(topCast.expiresAt).getTime(),
+        };
+      }
+      return { ...p, transformation: null, transformationExpiresAt: undefined };
+    }));
+  }, [activeMagiesOnMe, currentUser?.id, isAuthenticated]);
 
   // Source des messages : API si authentifié, store local sinon
   const messages: Message[] = isAuthenticated && apiMessages.length > 0
@@ -501,12 +585,29 @@ export default function SalonScreen() {
   const handleSendPower = async (item: any) => {
     if (!selectedPlayer) return;
 
-    const isSpell = isAuthenticated && magiesCatalog && !item.cancels;
+    const targetId = selectedPlayer.id;
+    const isBackendSpell = isAuthenticated && magiesCatalog && !item.cancels;
 
-    if (isSpell && apiSalonId) {
+    if (isBackendSpell && apiSalonId) {
+      // ── Chemin backend : cast réel via API ───────────────────────────────
       try {
-        await castSpell({ magieId: item.id, toUserId: selectedPlayer.id, salonId: apiSalonId });
+        const castResult = await castSpell({ magieId: item.id, toUserId: targetId, salonId: apiSalonId });
+        sentCastsRef.current.set(targetId, castResult);
         await loadWallet();
+        // Appliquer transformation locale à partir du résultat backend
+        const durationMs = castResult.magie.durationSec * 1000;
+        const expiresAt = Date.now() + durationMs;
+        if (transfoTimers.current[targetId]) clearTimeout(transfoTimers.current[targetId]);
+        setParticipants(prev => prev.map(p =>
+          p.id === targetId ? { ...p, transformation: castResult.magieId, transformationExpiresAt: expiresAt } : p
+        ));
+        transfoTimers.current[targetId] = setTimeout(() => {
+          setParticipants(prev => prev.map(p =>
+            p.id === targetId ? { ...p, transformation: null, transformationExpiresAt: undefined } : p
+          ));
+          delete transfoTimers.current[targetId];
+          sentCastsRef.current.delete(targetId);
+        }, durationMs);
       } catch (e: any) {
         const msg: string = e?.message ?? '';
         if (/insuffisant|insufficient|coins/i.test(msg)) {
@@ -517,49 +618,38 @@ export default function SalonScreen() {
         return;
       }
     } else {
+      // ── Chemin local : mode non authentifié ou anti-sort local ───────────
       if (!removeCoins(item.cost)) {
         alert('Pas assez de pièces!');
         return;
       }
-    }
-
-    const targetId = selectedPlayer.id;
-
-    // ── Transformation : remplace l'avatar pendant la durée ──────────────────
-    if (item.type === 'transformation') {
-      const durationMs = (item.durationMs ?? item.duration * 1000) as number;
-      const expiresAt  = Date.now() + durationMs;
-
-      // Annuler le timer précédent pour ce participant
-      if (transfoTimers.current[targetId]) {
-        clearTimeout(transfoTimers.current[targetId]);
-      }
-
-      setParticipants(prev => prev.map(p =>
-        p.id === targetId ? { ...p, transformation: item.id, transformationExpiresAt: expiresAt } : p
-      ));
-
-      // Retour automatique à la normale après la durée
-      transfoTimers.current[targetId] = setTimeout(() => {
+      // Transformation locale (items locaux de type 'transformation' seulement)
+      if (item.type === 'transformation') {
+        const durationMs = (item.durationMs ?? item.duration * 1000) as number;
+        const expiresAt  = Date.now() + durationMs;
+        if (transfoTimers.current[targetId]) clearTimeout(transfoTimers.current[targetId]);
         setParticipants(prev => prev.map(p =>
-          p.id === targetId ? { ...p, transformation: null, transformationExpiresAt: undefined } : p
+          p.id === targetId ? { ...p, transformation: item.id, transformationExpiresAt: expiresAt } : p
         ));
-        delete transfoTimers.current[targetId];
-      }, durationMs);
-    }
-
-    // ── Annulateur : brise un sort actif ─────────────────────────────────────
-    if (item.cancels && Array.isArray(item.cancels)) {
-      setParticipants(prev => prev.map(p => {
-        if (p.id !== targetId) return p;
-        if (!p.transformation || !item.cancels.includes(p.transformation)) return p;
-        // Nettoyer le timer en cours
-        if (transfoTimers.current[targetId]) {
-          clearTimeout(transfoTimers.current[targetId]);
+        transfoTimers.current[targetId] = setTimeout(() => {
+          setParticipants(prev => prev.map(p =>
+            p.id === targetId ? { ...p, transformation: null, transformationExpiresAt: undefined } : p
+          ));
           delete transfoTimers.current[targetId];
-        }
-        return { ...p, transformation: null, transformationExpiresAt: undefined };
-      }));
+        }, durationMs);
+      }
+      // Annulateur local (items locaux avec `cancels`)
+      if (item.cancels && Array.isArray(item.cancels)) {
+        setParticipants(prev => prev.map(p => {
+          if (p.id !== targetId) return p;
+          if (!p.transformation || !item.cancels.includes(p.transformation)) return p;
+          if (transfoTimers.current[targetId]) {
+            clearTimeout(transfoTimers.current[targetId]);
+            delete transfoTimers.current[targetId];
+          }
+          return { ...p, transformation: null, transformationExpiresAt: undefined };
+        }));
+      }
     }
 
     setRecentInteractions(prev => [{
@@ -589,6 +679,67 @@ export default function SalonScreen() {
     setShowPowersModal(false);
     setSelectedPlayer(null);
   };
+
+  // Casser un sort actif via le backend
+  const handleBreakSpell = async (cast: MagieCastDTO, antiSpell: MagieCatalogItemDTO) => {
+    try {
+      await breakSpell(cast.id, antiSpell.id);
+      await Promise.all([loadWallet(), refreshMagiesAndOfferings()]);
+      const targetId = cast.toUserId;
+      if (transfoTimers.current[targetId]) {
+        clearTimeout(transfoTimers.current[targetId]);
+        delete transfoTimers.current[targetId];
+      }
+      setParticipants(prev => prev.map(p =>
+        p.id === targetId ? { ...p, transformation: null, transformationExpiresAt: undefined } : p
+      ));
+      sentCastsRef.current.delete(targetId);
+      setTargetActiveCasts([]);
+    } catch (e: any) {
+      const msg: string = e?.message ?? '';
+      if (/insuffisant|insufficient|coins/i.test(msg)) {
+        alert('Pas assez de pièces !');
+      } else if (/expir/i.test(msg)) {
+        alert('Ce sort est déjà expiré.');
+        setTargetActiveCasts([]);
+      } else if (/bris/i.test(msg)) {
+        alert('Ce sort vient d\'être brisé.');
+        setTargetActiveCasts([]);
+      } else {
+        alert('Sort non cassé. Réessaie.');
+      }
+    }
+  };
+
+  // Ouvrir le modal magie en chargeant d'abord les sorts actifs sur la cible
+  const openPowersModal = useCallback(async () => {
+    if (!selectedPlayer) return;
+    if (isAuthenticated && selectedPlayer.transformation && selectedPlayer.transformationExpiresAt && Date.now() < selectedPlayer.transformationExpiresAt) {
+      try {
+        const casts = await getActiveMagies(selectedPlayer.id);
+        setTargetActiveCasts(casts);
+      } catch {
+        setTargetActiveCasts([]);
+      }
+    } else {
+      setTargetActiveCasts([]);
+    }
+    setShowPowersModal(true);
+  }, [isAuthenticated, selectedPlayer]);
+
+  // Options de rupture disponibles pour la cible sélectionnée
+  const breakOptions = useMemo(() => {
+    if (!magiesCatalog || targetActiveCasts.length === 0) return [];
+    return targetActiveCasts.flatMap(cast => {
+      const condId = cast.magie.breakConditionId;
+      if (!condId) return [];
+      const antiSpellId = BREAK_CONDITION_TO_ANTISPELL[condId];
+      if (!antiSpellId) return [];
+      const antiSpell = magiesCatalog.antiSpells.find(a => a.id === antiSpellId);
+      if (!antiSpell) return [];
+      return [{ cast, antiSpell }];
+    });
+  }, [magiesCatalog, targetActiveCasts]);
 
   if (!salon) {
     return (
@@ -705,9 +856,9 @@ export default function SalonScreen() {
         >
           <Text style={styles.actionEmoji}>🎁</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.actionButton, !selectedPlayer && styles.actionButtonDisabled]}
-          onPress={() => selectedPlayer ? setShowPowersModal(true) : alert('Sélectionnez d\'abord un participant!')}
+          onPress={() => selectedPlayer ? openPowersModal() : alert('Sélectionnez d\'abord un participant!')}
         >
           <Text style={styles.actionEmoji}>✨</Text>
         </TouchableOpacity>
@@ -802,7 +953,7 @@ export default function SalonScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.bigActionButton, styles.magicButton, !selectedPlayer && styles.bigActionButtonDisabled]}
-              onPress={() => selectedPlayer ? setShowPowersModal(true) : alert('Sélectionnez d\'abord un participant!')}
+              onPress={() => selectedPlayer ? openPowersModal() : alert('Sélectionnez d\'abord un participant!')}
             >
               <Text style={styles.bigActionEmoji}>✨</Text>
               <Text style={styles.bigActionText}>Magie</Text>
@@ -852,11 +1003,38 @@ export default function SalonScreen() {
         <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>✨ Magie sur {selectedPlayer?.name}</Text>
-            <TouchableOpacity onPress={() => setShowPowersModal(false)}>
+            <TouchableOpacity onPress={() => { setShowPowersModal(false); setTargetActiveCasts([]); }}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.offeringsGrid} contentContainerStyle={styles.offeringsGridContent}>
+            {/* Section : casser un sort actif */}
+            {breakOptions.length > 0 && (
+              <>
+                <Text style={[styles.offeringName, { marginBottom: 4, color: '#e74c3c', fontWeight: '700' }]}>
+                  ⚡ Casser le sort actif
+                </Text>
+                {breakOptions.map(({ cast, antiSpell }) => (
+                  <TouchableOpacity
+                    key={cast.id}
+                    style={[styles.offeringItem, { borderColor: '#e74c3c', borderWidth: 1 }]}
+                    onPress={() => handleBreakSpell(cast, antiSpell)}
+                  >
+                    <Text style={styles.offeringEmoji}>{antiSpell.emoji}</Text>
+                    <View style={styles.offeringInfo}>
+                      <Text style={styles.offeringName}>
+                        {antiSpell.name} — casse {cast.magie.emoji} {cast.magie.name}
+                      </Text>
+                      <Text style={styles.offeringCost}>💰 {antiSpell.cost}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                <Text style={[styles.offeringName, { marginTop: 8, marginBottom: 4, color: '#555' }]}>
+                  — ou lancer un nouveau sort —
+                </Text>
+              </>
+            )}
+            {/* Section : sorts disponibles */}
             {displayPowers.map((item) => (
               <TouchableOpacity
                 key={item.id}

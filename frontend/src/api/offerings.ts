@@ -54,9 +54,9 @@ export async function getReceivedOfferings(
   page = 1,
   pageSize = 20,
   onlyActive = true,
-): Promise<ListReceivedResponseDTO> {
+): Promise<OfferingSentDTO[]> {
   const res = (await apiFetch(
     `/offerings/received?page=${page}&pageSize=${pageSize}&onlyActive=${onlyActive}`,
-  )) as { data: ListReceivedResponseDTO };
+  )) as { data: OfferingSentDTO[] };
   return res.data;
 }
