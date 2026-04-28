@@ -33,9 +33,8 @@ const LOOKING_FOR_OPTIONS = [
 ];
 
 const INTERESTED_IN_OPTIONS = [
-  { id: 'F',  emoji: '👩', label: 'Femmes'    },
-  { id: 'M',  emoji: '👨', label: 'Hommes'    },
-  { id: 'NB', emoji: '🧑', label: 'Non-binaires' },
+  { id: 'F', emoji: '👩', label: 'Femmes' },
+  { id: 'M', emoji: '👨', label: 'Hommes' },
 ];
 
 const INTERESTS_OPTIONS = [
@@ -416,7 +415,7 @@ export function EditProfileScreen() {
           city:         city.trim(),
           physicalDesc: PHYSIQUE_MAP_TO_API[physique] || undefined,
           lookingFor:   lookingFor.map(id => LF_MAP[id]).filter(Boolean),
-          interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
+          interestedIn: interestedIn.map(id => GI_MAP[id]).filter((v): v is string => v === 'FEMME' || v === 'HOMME'),
           interests,
           ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
           ...(hasChildren  !== null && { hasChildren }),
@@ -467,6 +466,7 @@ export function EditProfileScreen() {
           skills: p.skills ?? localProfile.skills,
         });
       }
+      await hydrateFromApi();
     } catch (err: any) {
       console.warn('PATCH /profiles/me failed (local save OK):', err?.message);
     }
