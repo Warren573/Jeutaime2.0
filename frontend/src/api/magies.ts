@@ -62,3 +62,27 @@ export async function getActiveMagies(userId: string): Promise<MagieCastDTO[]> {
   };
   return res.data;
 }
+
+export interface SalonMagieDTO {
+  castId: string;
+  magieId: string;
+  name: string;
+  emoji: string;
+  type: string;
+  breakConditionId: string | null;
+  fromUserId: string;
+  fromPseudo: string;
+  toUserId: string;
+  toPseudo: string;
+  salonId: string;
+  castAt: string;
+  expiresAt: string;
+  isActive: boolean;
+}
+
+export async function getSalonMagies(salonId: string): Promise<SalonMagieDTO[]> {
+  const res = (await apiFetch(`/magies/salon/${salonId}`)) as {
+    data: SalonMagieDTO[];
+  };
+  return res.data;
+}
