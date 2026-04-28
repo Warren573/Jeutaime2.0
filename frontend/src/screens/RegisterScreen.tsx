@@ -96,7 +96,7 @@ export default function RegisterScreen() {
         password,
       });
 
-      router.replace("/(tabs)");
+      router.replace("/create-profile");
     } catch (err: any) {
       Alert.alert("Erreur", err?.message || "Une erreur est survenue.");
     } finally {

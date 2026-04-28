@@ -151,6 +151,13 @@ interface CurrentUser {
   photos?: string[];           // URIs des photos uploadées (web: objectURL, prod: CDN URL)
   mainPhotoUri?: string;       // photo sélectionnée comme principale
   showPhotoByDefault?: boolean; // true = afficher la photo dans le profil, false = avatar
+  // Profile completeness
+  isProfileComplete?: boolean;
+  profileMissingFields?: string[];
+  completionScore?: number;
+  canDiscover?: boolean;
+  canMatch?: boolean;
+  canEnterSalon?: boolean;
 }
 
 // Profil d'un partenaire de match (subset des champs, toujours visible côté personnalité)
@@ -450,6 +457,12 @@ export const useStore = create<StoreState>()(
             defaults: Array.isArray(p.defaults) ? p.defaults : prevUser?.defaults,
             idealDay: Array.isArray(p.idealDay) ? p.idealDay : prevUser?.idealDay,
             skills: p.skills != null ? (p.skills as any) : prevUser?.skills,
+            isProfileComplete: d.profileStatus?.isComplete,
+            profileMissingFields: d.profileStatus?.missingFields,
+            completionScore: d.profileStatus?.completionScore,
+            canDiscover: d.profileStatus?.canDiscover,
+            canMatch: d.profileStatus?.canMatch,
+            canEnterSalon: d.profileStatus?.canEnterSalon,
           };
           console.log("HYDRATE_SET_USER", mappedUser);
           get().setCurrentUser(mappedUser);
