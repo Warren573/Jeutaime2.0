@@ -60,3 +60,25 @@ export async function getReceivedOfferings(
   )) as { data: OfferingSentDTO[] };
   return res.data;
 }
+
+export interface SalonOfferingDTO {
+  id: string;
+  offeringId: string;
+  emoji: string;
+  name: string;
+  fromUserId: string;
+  fromPseudo: string;
+  toUserId: string;
+  toPseudo: string;
+  salonId: string;
+  createdAt: string;
+  expiresAt: string | null;
+  isActive: boolean;
+}
+
+export async function getSalonOfferings(salonId: string): Promise<SalonOfferingDTO[]> {
+  const res = (await apiFetch(`/offerings/salon/${salonId}`)) as {
+    data: SalonOfferingDTO[];
+  };
+  return res.data;
+}
