@@ -22,9 +22,9 @@ const INTERESTED_IN_OPTIONS = [
 
 const LOOKING_FOR_OPTIONS = [
   { label: "Relation sérieuse", value: "SERIEUX" },
-  { label: "Flirt", value: "FLIRT" },
-  { label: "Amitié", value: "AMITIE" },
-  { label: "Discussion", value: "DISCUSSION" },
+  { label: "Du Fun", value: "FLIRT" },
+  { label: "Amitiés", value: "AMITIE" },
+  { label: "Advienne que pourra", value: "DISCUSSION" },
 ];
 
 const PHYSICAL_DESC_OPTIONS = [
@@ -82,7 +82,7 @@ export default function CreateProfileScreen() {
       });
 
       await hydrateFromApi();
-      router.replace("/(tabs)");
+      router.replace("/setup-questions");
     } catch (err: any) {
       Alert.alert("Erreur", err?.message || "Impossible de sauvegarder le profil");
     } finally {
