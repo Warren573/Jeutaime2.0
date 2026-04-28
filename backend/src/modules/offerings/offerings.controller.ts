@@ -28,3 +28,13 @@ export async function handleListReceived(
   const { items, ...meta } = await svc.listReceived(req.user.userId, query);
   res.json({ data: items, meta });
 }
+
+// GET /api/offerings/salon/:salonId
+export async function handleListSalonOfferings(
+  req: AuthedRequest,
+  res: Response,
+) {
+  const salonId = req.params["salonId"] as string;
+  const data = await svc.listSalonOfferings(salonId);
+  res.json({ data });
+}

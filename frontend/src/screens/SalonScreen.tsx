@@ -64,9 +64,11 @@ import {
 import {
   getOfferingsCatalog,
   getReceivedOfferings,
+  getSalonOfferings,
   sendOffering,
   type OfferingCatalogItemDTO,
   type OfferingSentDTO,
+  type SalonOfferingDTO,
 } from '../api/offerings';
 import {
   getMagiesCatalog,
@@ -297,6 +299,8 @@ export default function SalonScreen() {
 
   // Offrandes reçues par le user courant (backend, sondées toutes les 15s)
   const [myReceivedOfferings, setMyReceivedOfferings] = useState<OfferingSentDTO[]>([]);
+  // Offrandes du salon entier (clé pour les badges de tous les participants)
+  const [salonOfferings, setSalonOfferings] = useState<SalonOfferingDTO[]>([]);
   // Magies actives ciblant le user courant (backend, sondées toutes les 15s)
   const [activeMagiesOnMe, setActiveMagiesOnMe] = useState<MagieCastDTO[]>([]);
   // Sorts envoyés par le user courant (castId trackés pour break spell)
@@ -348,20 +352,22 @@ export default function SalonScreen() {
       .catch(() => {});
   }, [apiSalonId]);
 
-  // Sondage offrandes reçues + magies actives sur moi
+  // Sondage offrandes reçues + magies actives sur moi + offrandes du salon
   const refreshMagiesAndOfferings = useCallback(async () => {
     if (!isAuthenticated || !currentUser?.id) return;
     try {
-      const [offers, magies] = await Promise.all([
+      const [offers, magies, salonOff] = await Promise.all([
         getReceivedOfferings(1, 50, true),
         getActiveMagies(currentUser.id),
+        apiSalonId ? getSalonOfferings(apiSalonId) : Promise.resolve([]),
       ]);
       setMyReceivedOfferings(offers);
       setActiveMagiesOnMe(magies);
+      setSalonOfferings(salonOff);
     } catch {
       // silent — ne pas bloquer l'UI si le backend est indisponible
     }
-  }, [isAuthenticated, currentUser?.id]);
+  }, [isAuthenticated, currentUser?.id, apiSalonId]);
 
   useEffect(() => {
     loadApiMessages();
@@ -422,20 +428,22 @@ export default function SalonScreen() {
     }
   }, [isAuthenticated, apiMessages, salon, currentUser, avatarPngConfig]);
 
-  // Mettre à jour les badges d'offrandes du user courant depuis le backend
+  // Mettre à jour les badges d'offrandes de TOUS les participants depuis le salon
   useEffect(() => {
-    if (!isAuthenticated || !currentUser?.id) return;
-    const myId = currentUser.id;
+    if (!isAuthenticated || salonOfferings.length === 0) return;
     setParticipants(prev => prev.map(p => {
-      if (p.id !== myId) return p;
-      const badges = myReceivedOfferings.slice(-6).map(o => ({
-        emoji: o.offering.emoji,
-        from: o.fromUserId,
-        timestamp: new Date(o.createdAt).getTime(),
-      }));
-      return { ...p, offerings: badges };
+      const forP = salonOfferings.filter(o => o.toUserId === p.id).slice(-6);
+      if (forP.length === 0) return p;
+      return {
+        ...p,
+        offerings: forP.map(o => ({
+          emoji: o.emoji,
+          from: o.fromPseudo,
+          timestamp: new Date(o.createdAt).getTime(),
+        })),
+      };
     }));
-  }, [myReceivedOfferings, currentUser?.id, isAuthenticated]);
+  }, [salonOfferings, isAuthenticated]);
 
   // Appliquer la transformation active (provenant du backend) sur le user courant
   useEffect(() => {
@@ -527,6 +535,8 @@ export default function SalonScreen() {
       try {
         await sendOffering({ offeringId: item.id, toUserId: selectedPlayer.id, salonId: apiSalonId });
         await loadWallet();
+        // Refresh immédiat pour que le badge apparaisse sur le bon avatar
+        getSalonOfferings(apiSalonId).then(setSalonOfferings).catch(() => {});
       } catch (e: any) {
         const msg: string = e?.message ?? '';
         if (/insuffisant|insufficient|coins/i.test(msg)) {

@@ -29,3 +29,14 @@ export const ListReceivedQuerySchema = z
   .strict();
 
 export type ListReceivedQueryDto = z.infer<typeof ListReceivedQuerySchema>;
+
+// ============================================================
+// GET /api/offerings/salon/:salonId
+// ============================================================
+export const SalonOfferingsParamsSchema = z
+  .object({
+    salonId: z.string().min(1).max(64),
+  })
+  .strict();
+
+export type SalonOfferingsParamsDto = z.infer<typeof SalonOfferingsParamsSchema>;
