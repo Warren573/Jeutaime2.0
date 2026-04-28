@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -7,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { useStore } from "../store/useStore";
 import { Avatar } from "../avatar/png/Avatar";
@@ -196,10 +198,14 @@ export default function ProfileTwoStepDemo({
   matchLetterCount,
   viewerIsPremium = false,
 }: ProfileTwoStepDemoProps = {}) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [showPhoto, setShowPhoto] = useState<boolean | null>(null);
 
   const user = useStore((s) => s.currentUser);
+  const canDiscover = user?.canDiscover ?? true;
+  const canMatch = user?.canMatch ?? true;
+  const profileMissingFields = user?.profileMissingFields ?? [];
   console.log("PROFILE_RENDER_USER", user);
   const avatarConfig = useMemo(
     () => user?.avatarConfig ?? DEFAULT_AVATAR,
@@ -268,6 +274,21 @@ export default function ProfileTwoStepDemo({
               </View>
             </View>
 
+            {isOwnProfile && !canDiscover && (
+              <Pressable style={styles.discoverGate} onPress={() => router.push('/edit-profile')}>
+                <Text style={styles.discoverGateText}>
+                  {"Ton profil n'est pas encore visible dans la découverte"}
+                  {profileMissingFields.length > 0
+                    ? ` — il manque : ${profileMissingFields
+                        .map((f) => ({ bio: "une bio", interestedIn: "tes préférences", lookingFor: "ce que tu cherches", physicalDesc: "ta description physique", questions: "tes 3 questions" })[f] ?? f)
+                        .filter(Boolean)
+                        .join(", ")}.`
+                    : "."}
+                </Text>
+                <Text style={styles.discoverGateLink}>Compléter mon profil →</Text>
+              </Pressable>
+            )}
+
             <View style={styles.stageOneHeader}>
               <View>
                 <View style={styles.photoCard}>
@@ -335,7 +356,20 @@ export default function ProfileTwoStepDemo({
                 <Text style={styles.actionText}>🚩 Signaler</Text>
               </Pressable>
 
-              <Pressable style={[styles.actionButton, styles.actionGood]}>
+              <Pressable
+                style={[styles.actionButton, styles.actionGood]}
+                onPress={() => {
+                  if (!canMatch) {
+                    const msg = profileMissingFields.includes("questions")
+                      ? "Ajoute tes 3 questions pour pouvoir matcher."
+                      : "Complète ton profil (bio 50 mots minimum) pour pouvoir matcher.";
+                    Alert.alert("Match indisponible", msg, [
+                      { text: "Annuler", style: "cancel" },
+                      { text: "Compléter mon profil", onPress: () => router.push("/edit-profile") },
+                    ]);
+                  }
+                }}
+              >
                 <Text style={styles.actionText}>😊 Sourire</Text>
               </Pressable>
             </View>
@@ -1159,5 +1193,27 @@ const styles = StyleSheet.create({
     color: INK_SOFT,
     fontStyle: "italic",
     opacity: 0.7,
+  },
+
+  discoverGate: {
+    backgroundColor: "#FFF3CD",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#FFEAA7",
+  },
+
+  discoverGateText: {
+    fontSize: 13,
+    color: "#856404",
+    lineHeight: 19,
+    marginBottom: 6,
+  },
+
+  discoverGateLink: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#856404",
   },
 });

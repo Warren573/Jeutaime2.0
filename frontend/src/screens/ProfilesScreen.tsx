@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
@@ -535,8 +536,18 @@ export default function ProfilesScreen() {
   const profile = availableProfiles[currentIndex % Math.max(availableProfiles.length, 1)];
   const profilePos = profiles.findIndex(p => p.id === profile?.id);
 
+  const canMatch = currentUser?.canMatch ?? true;
+  const profileMissingFields = currentUser?.profileMissingFields ?? [];
+
   const handleSmile = () => {
     if (!profile) return;
+    if (!canMatch) {
+      const msg = profileMissingFields.includes('questions')
+        ? "Ajoute tes 3 questions pour pouvoir matcher."
+        : "Complète ton profil (bio 50 mots minimum) pour pouvoir matcher.";
+      Alert.alert("Match indisponible", msg);
+      return;
+    }
     addLike(profile.id);
     if (Math.random() > 0.5) {
       addMatch({
