@@ -3,6 +3,24 @@ import { prisma } from "../../config/prisma";
 import { NotFoundError } from "../../core/errors";
 
 // ============================================================
+// Helpers internes
+// ============================================================
+
+function computeAge(birthDate: Date | null | undefined): number | null {
+  if (!birthDate) return null;
+  const now = new Date();
+  let age = now.getFullYear() - birthDate.getFullYear();
+  if (
+    now.getMonth() < birthDate.getMonth() ||
+    (now.getMonth() === birthDate.getMonth() &&
+      now.getDate() < birthDate.getDate())
+  ) {
+    age--;
+  }
+  return age >= 13 ? age : null;
+}
+
+// ============================================================
 // DTO public — renvoyé au frontend
 //
 // On expose volontairement toutes les données visuelles dont le
@@ -72,4 +90,99 @@ export async function getActiveById(id: string): Promise<SalonPublicDto> {
   const salon = await prisma.salon.findUnique({ where: { id } });
   if (!salon || !salon.isActive) throw new NotFoundError("Salon");
   return toPublicDto(salon);
+}
+
+// ============================================================
+// SalonMessagePublicDto — DTO des messages avec infos auteur
+// ============================================================
+export interface SalonMessagePublicDto {
+  id: string;
+  salonId: string;
+  userId: string;
+  pseudo: string;
+  gender: string;
+  age: number | null;
+  kind: string;
+  content: string;
+  meta: Prisma.JsonValue | null;
+  createdAt: string;
+}
+
+// ============================================================
+// listMessages — derniers N messages, ordre chronologique
+// ============================================================
+export async function listMessages(
+  salonId: string,
+  limit = 50,
+): Promise<SalonMessagePublicDto[]> {
+  const salon = await prisma.salon.findUnique({
+    where: { id: salonId },
+    select: { id: true, isActive: true },
+  });
+  if (!salon || !salon.isActive) throw new NotFoundError("Salon");
+
+  // DESC pour récupérer les N derniers, puis on inverse pour l'ordre chrono
+  const rows = await prisma.salonMessage.findMany({
+    where: { salonId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      user: {
+        select: {
+          profile: { select: { pseudo: true, gender: true, birthDate: true } },
+        },
+      },
+    },
+  });
+
+  return rows.reverse().map((row) => ({
+    id: row.id,
+    salonId: row.salonId,
+    userId: row.userId,
+    pseudo: row.user.profile?.pseudo ?? "Anonyme",
+    gender: row.user.profile?.gender ?? "AUTRE",
+    age: computeAge(row.user.profile?.birthDate),
+    kind: row.kind,
+    content: row.content,
+    meta: row.meta,
+    createdAt: row.createdAt.toISOString(),
+  }));
+}
+
+// ============================================================
+// postMessage — crée un message et retourne le DTO enrichi
+// ============================================================
+export async function postMessage(
+  salonId: string,
+  userId: string,
+  content: string,
+): Promise<SalonMessagePublicDto> {
+  const salon = await prisma.salon.findUnique({
+    where: { id: salonId },
+    select: { id: true, isActive: true },
+  });
+  if (!salon || !salon.isActive) throw new NotFoundError("Salon");
+
+  const [row, profile] = await Promise.all([
+    prisma.salonMessage.create({
+      data: { salonId, userId, kind: "message", content },
+    }),
+    prisma.profile.findUnique({
+      where: { userId },
+      select: { pseudo: true, gender: true, birthDate: true },
+    }),
+  ]);
+
+  return {
+    id: row.id,
+    salonId: row.salonId,
+    userId: row.userId,
+    pseudo: profile?.pseudo ?? "Anonyme",
+    gender: profile?.gender ?? "AUTRE",
+    age: computeAge(profile?.birthDate),
+    kind: row.kind,
+    content: row.content,
+    meta: row.meta,
+    createdAt: row.createdAt.toISOString(),
+  };
 }
