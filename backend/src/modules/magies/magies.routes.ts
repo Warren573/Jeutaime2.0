@@ -7,6 +7,7 @@ import {
   BreakMagieSchema,
   CastMagieSchema,
   MagieIdParamsSchema,
+  SalonMagiesParamsSchema,
   UserIdParamsSchema,
 } from "./magies.schemas";
 import * as ctrl from "./magies.controller";
@@ -30,6 +31,13 @@ router.get(
   "/active/:userId",
   validate(UserIdParamsSchema, "params"),
   wrap(ctrl.handleListActive),
+);
+
+// GET /api/magies/salon/:salonId — doit être AVANT /:id/break pour éviter le conflit de route
+router.get(
+  "/salon/:salonId",
+  validate(SalonMagiesParamsSchema, "params"),
+  wrap(ctrl.handleListSalonMagies),
 );
 
 // POST /api/magies/:id/break

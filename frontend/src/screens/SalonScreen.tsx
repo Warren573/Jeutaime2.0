@@ -73,11 +73,13 @@ import {
 import {
   getMagiesCatalog,
   getActiveMagies,
+  getSalonMagies,
   castSpell,
   breakSpell,
   type MagieCatalogItemDTO,
   type MagieCatalogDTO,
   type MagieCastDTO,
+  type SalonMagieDTO,
 } from '../api/magies';
 
 // Correspondance slug frontend → kind backend
@@ -301,6 +303,8 @@ export default function SalonScreen() {
   const [myReceivedOfferings, setMyReceivedOfferings] = useState<OfferingSentDTO[]>([]);
   // Offrandes du salon entier (clé pour les badges de tous les participants)
   const [salonOfferings, setSalonOfferings] = useState<SalonOfferingDTO[]>([]);
+  // Sorts actifs dans le salon entier (source de vérité pour les transformations)
+  const [salonMagies, setSalonMagies] = useState<SalonMagieDTO[]>([]);
   // Magies actives ciblant le user courant (backend, sondées toutes les 15s)
   const [activeMagiesOnMe, setActiveMagiesOnMe] = useState<MagieCastDTO[]>([]);
   // Sorts envoyés par le user courant (castId trackés pour break spell)
@@ -352,18 +356,20 @@ export default function SalonScreen() {
       .catch(() => {});
   }, [apiSalonId]);
 
-  // Sondage offrandes reçues + magies actives sur moi + offrandes du salon
+  // Sondage offrandes reçues + magies actives sur moi + données salon
   const refreshMagiesAndOfferings = useCallback(async () => {
     if (!isAuthenticated || !currentUser?.id) return;
     try {
-      const [offers, magies, salonOff] = await Promise.all([
+      const [offers, magies, salonOff, salonMag] = await Promise.all([
         getReceivedOfferings(1, 50, true),
         getActiveMagies(currentUser.id),
         apiSalonId ? getSalonOfferings(apiSalonId) : Promise.resolve([]),
+        apiSalonId ? getSalonMagies(apiSalonId) : Promise.resolve([]),
       ]);
       setMyReceivedOfferings(offers);
       setActiveMagiesOnMe(magies);
       setSalonOfferings(salonOff);
+      setSalonMagies(salonMag);
     } catch {
       // silent — ne pas bloquer l'UI si le backend est indisponible
     }
@@ -466,6 +472,37 @@ export default function SalonScreen() {
       return { ...p, transformation: null, transformationExpiresAt: undefined };
     }));
   }, [activeMagiesOnMe, currentUser?.id, isAuthenticated]);
+
+  // Appliquer les transformations de TOUS les participants depuis le salon
+  // (hors user courant géré par activeMagiesOnMe pour éviter les conflits)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const byTarget = new Map<string, SalonMagieDTO>();
+    for (const m of salonMagies) {
+      if (!byTarget.has(m.toUserId)) byTarget.set(m.toUserId, m); // premier = expirant le plus tôt
+    }
+    setParticipants(prev => prev.map(p => {
+      if ((p as any).isMe) return p; // user courant : géré par activeMagiesOnMe
+      const cast = byTarget.get(p.id);
+      if (cast) {
+        // Le backend confirme un sort actif — annuler le timer local si présent
+        if (transfoTimers.current[p.id]) {
+          clearTimeout(transfoTimers.current[p.id]);
+          delete transfoTimers.current[p.id];
+        }
+        return {
+          ...p,
+          transformation: cast.magieId,
+          transformationExpiresAt: new Date(cast.expiresAt).getTime(),
+        };
+      }
+      // Pas de sort actif côté backend — effacer uniquement si aucun timer local en cours
+      if (p.transformation && !transfoTimers.current[p.id]) {
+        return { ...p, transformation: null, transformationExpiresAt: undefined };
+      }
+      return p;
+    }));
+  }, [salonMagies, isAuthenticated]);
 
   // Source des messages : API si authentifié, store local sinon
   const messages: Message[] = isAuthenticated && apiMessages.length > 0
@@ -604,6 +641,8 @@ export default function SalonScreen() {
         const castResult = await castSpell({ magieId: item.id, toUserId: targetId, salonId: apiSalonId });
         sentCastsRef.current.set(targetId, castResult);
         await loadWallet();
+        // Refresh immédiat des sorts salon pour que les autres voient la transformation
+        getSalonMagies(apiSalonId).then(setSalonMagies).catch(() => {});
         // Appliquer transformation locale à partir du résultat backend
         const durationMs = castResult.magie.durationSec * 1000;
         const expiresAt = Date.now() + durationMs;
@@ -721,21 +760,47 @@ export default function SalonScreen() {
     }
   };
 
-  // Ouvrir le modal magie en chargeant d'abord les sorts actifs sur la cible
+  // Ouvrir le modal magie — sorts actifs sur la cible depuis salonMagies (ou fetch frais en fallback)
   const openPowersModal = useCallback(async () => {
     if (!selectedPlayer) return;
     if (isAuthenticated && selectedPlayer.transformation && selectedPlayer.transformationExpiresAt && Date.now() < selectedPlayer.transformationExpiresAt) {
-      try {
-        const casts = await getActiveMagies(selectedPlayer.id);
-        setTargetActiveCasts(casts);
-      } catch {
-        setTargetActiveCasts([]);
+      const fromSalon = salonMagies.filter(m => m.toUserId === selectedPlayer.id);
+      if (fromSalon.length > 0) {
+        // Mapper SalonMagieDTO → MagieCastDTO (shape attendue par breakOptions)
+        setTargetActiveCasts(fromSalon.map(m => ({
+          id: m.castId,
+          magieId: m.magieId,
+          magie: {
+            id: m.magieId,
+            emoji: m.emoji,
+            name: m.name,
+            cost: 0,
+            durationSec: 0,
+            type: m.type,
+            breakConditionId: m.breakConditionId,
+          },
+          fromUserId: m.fromUserId,
+          toUserId: m.toUserId,
+          salonId: m.salonId,
+          castAt: m.castAt,
+          expiresAt: m.expiresAt,
+          brokenAt: null,
+          brokenBy: null,
+        })));
+      } else {
+        // Fallback : fetch frais si salonMagies n'a pas encore chargé
+        try {
+          const casts = await getActiveMagies(selectedPlayer.id);
+          setTargetActiveCasts(casts);
+        } catch {
+          setTargetActiveCasts([]);
+        }
       }
     } else {
       setTargetActiveCasts([]);
     }
     setShowPowersModal(true);
-  }, [isAuthenticated, selectedPlayer]);
+  }, [isAuthenticated, selectedPlayer, salonMagies]);
 
   // Options de rupture disponibles pour la cible sélectionnée
   const breakOptions = useMemo(() => {

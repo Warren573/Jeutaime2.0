@@ -312,3 +312,79 @@ export async function breakMagie(
 
   return toCastDto(result);
 }
+
+// ============================================================
+// SalonMagieDto — DTO retourné par GET /api/magies/salon/:salonId
+// ============================================================
+export interface SalonMagieDto {
+  castId: string;
+  magieId: string;
+  name: string;
+  emoji: string;
+  type: MagieCatalog["type"];
+  breakConditionId: string | null;
+  fromUserId: string;
+  fromPseudo: string;
+  toUserId: string;
+  toPseudo: string;
+  salonId: string;
+  castAt: Date;
+  expiresAt: Date;
+  isActive: boolean;
+}
+
+// ============================================================
+// listSalonMagies — sorts actifs dans un salon
+// Sécurité : salon actif requis ; accès libre aux membres authentifiés.
+// ============================================================
+export async function listSalonMagies(
+  salonId: string,
+  now: Date = new Date(),
+): Promise<SalonMagieDto[]> {
+  const salon = await prisma.salon.findUnique({
+    where: { id: salonId },
+    select: { id: true, isActive: true },
+  });
+  if (!salon || !salon.isActive) throw new NotFoundError("Salon");
+
+  const rows = await prisma.magieCast.findMany({
+    where: {
+      salonId,
+      brokenAt: null,
+      expiresAt: { gt: now },
+    },
+    orderBy: [{ expiresAt: "asc" }, { id: "asc" }],
+    include: {
+      magie: {
+        select: {
+          id: true,
+          emoji: true,
+          name: true,
+          type: true,
+          breakConditionId: true,
+        },
+      },
+      fromUser: { select: { profile: { select: { pseudo: true } } } },
+      toUser: { select: { profile: { select: { pseudo: true } } } },
+    },
+  });
+
+  return rows
+    .filter((r) => isMagieActive(r, now))
+    .map((r) => ({
+      castId: r.id,
+      magieId: r.magieId,
+      name: r.magie.name,
+      emoji: r.magie.emoji,
+      type: r.magie.type,
+      breakConditionId: r.magie.breakConditionId,
+      fromUserId: r.fromUserId,
+      fromPseudo: r.fromUser.profile?.pseudo ?? "Anonyme",
+      toUserId: r.toUserId,
+      toPseudo: r.toUser.profile?.pseudo ?? "Anonyme",
+      salonId,
+      castAt: r.castAt,
+      expiresAt: r.expiresAt,
+      isActive: true,
+    }));
+}

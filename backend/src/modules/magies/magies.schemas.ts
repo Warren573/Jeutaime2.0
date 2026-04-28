@@ -38,3 +38,11 @@ export const UserIdParamsSchema = z
     userId: z.string().min(1),
   })
   .strict();
+
+export const SalonMagiesParamsSchema = z
+  .object({
+    salonId: z.string().min(1).max(64),
+  })
+  .strict();
+
+export type SalonMagiesParamsDto = z.infer<typeof SalonMagiesParamsSchema>;
