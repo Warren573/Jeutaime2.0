@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,9 +20,21 @@ export default function SalonsListScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const screenBg = useStore(s => s.screenBackgrounds?.['salons'] ?? '#FFF8E7');
+  const currentUser = useStore(s => s.currentUser);
+  const canEnterSalon = currentUser?.canEnterSalon ?? true;
 
   const handleSalonPress = (salon: typeof salonsData[0]) => {
-    // Tous les salons utilisent maintenant la même route dynamique
+    if (!canEnterSalon) {
+      Alert.alert(
+        'Profil incomplet',
+        'Complète ta bio et tes préférences pour entrer dans les salons.',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Compléter mon profil', onPress: () => router.push('/edit-profile') },
+        ],
+      );
+      return;
+    }
     router.push(`/salon/${salon.id}`);
   };
 
@@ -36,6 +49,18 @@ export default function SalonsListScreen() {
         <Text style={styles.headerSubtitle}>Rejoignez une discussion</Text>
       </View>
 
+      {/* Gate banner */}
+      {!canEnterSalon && (
+        <View style={styles.gateBanner}>
+          <Text style={styles.gateBannerText}>
+            Complète ta bio et tes préférences pour entrer dans les salons.
+          </Text>
+          <TouchableOpacity onPress={() => router.push('/edit-profile')}>
+            <Text style={styles.gateBannerBtnText}>Compléter mon profil →</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Liste des salons */}
       <ScrollView
         style={styles.scrollView}
@@ -45,7 +70,7 @@ export default function SalonsListScreen() {
         {salonsData.map((salon) => (
           <TouchableOpacity
             key={salon.id}
-            style={styles.salonCard}
+            style={[styles.salonCard, !canEnterSalon && { opacity: 0.5 }]}
             onPress={() => handleSalonPress(salon)}
             activeOpacity={0.8}
           >
@@ -197,5 +222,25 @@ const styles = StyleSheet.create({
     color: '#FFF',
     marginTop: 8,
     fontWeight: '700',
+  },
+  gateBanner: {
+    backgroundColor: '#FFF3CD',
+    borderRadius: 12,
+    margin: 16,
+    marginBottom: 0,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#FFEAA7',
+  },
+  gateBannerText: {
+    fontSize: 14,
+    color: '#856404',
+    marginBottom: 10,
+    lineHeight: 20,
+  },
+  gateBannerBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#856404',
   },
 });
