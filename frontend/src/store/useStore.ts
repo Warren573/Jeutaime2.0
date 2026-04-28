@@ -134,6 +134,7 @@ interface CurrentUser {
   city?: string;
   physicalDesc?: string;
   questions?: { text: string; options: [string, string, string]; correctAnswer: 0 | 1 | 2 }[];
+  apiQuestions?: { questionId: string; answer: string; wrongAnswers: string[] }[];
   lookingFor?: string[];
   interestedIn?: string[];
   interests?: string[];
@@ -457,6 +458,13 @@ export const useStore = create<StoreState>()(
             defaults: Array.isArray(p.defaults) ? p.defaults : prevUser?.defaults,
             idealDay: Array.isArray(p.idealDay) ? p.idealDay : prevUser?.idealDay,
             skills: p.skills != null ? (p.skills as any) : prevUser?.skills,
+            apiQuestions: Array.isArray(p.questions)
+              ? p.questions.map((q: any) => ({
+                  questionId: q.questionId,
+                  answer: q.answer ?? '',
+                  wrongAnswers: Array.isArray(q.wrongAnswers) ? q.wrongAnswers : [],
+                }))
+              : prevUser?.apiQuestions,
             isProfileComplete: d.profileStatus?.isComplete,
             profileMissingFields: d.profileStatus?.missingFields,
             completionScore: d.profileStatus?.completionScore,
