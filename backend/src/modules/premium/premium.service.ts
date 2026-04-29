@@ -2,6 +2,7 @@ import { CoinTxnType, PremiumTier, Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import {
   BadRequestError,
+  ForbiddenError,
   NotFoundError,
   UnprocessableError,
 } from "../../core/errors";
@@ -13,6 +14,7 @@ import { computeDebitBalance } from "../../policies/wallet";
 import { emitPremiumCancelled, emitPremiumSubscribed } from "../../events";
 import { PREMIUM_PLANS, PremiumPlan, findPlan } from "./premium.plans";
 import type { SubscribePremiumDto } from "./premium.schemas";
+import { env } from "../../config/env";
 
 // ============================================================
 // Types de retour
@@ -70,6 +72,10 @@ export async function subscribe(
 ): Promise<SubscribeResult> {
   const plan = findPlan(dto.planId);
   if (!plan) throw new BadRequestError("Plan Premium inconnu");
+
+  if (dto.paymentMethod === "stripe_stub" && env.NODE_ENV === "production") {
+    throw new ForbiddenError("Méthode de paiement non disponible en production");
+  }
 
   const txResult = await prisma.$transaction(async (tx) => {
     const user = await tx.user.findUnique({

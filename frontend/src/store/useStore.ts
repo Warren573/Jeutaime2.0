@@ -431,7 +431,7 @@ export const useStore = create<StoreState>()(
             name: p.pseudo ?? prevUser?.name ?? '',
             pseudo: p.pseudo ?? prevUser?.pseudo,
             email: d.email,
-            isPremium: d.premiumTier === 'PREMIUM',
+            isPremium: d.premiumTier === 'PREMIUM' && !!d.premiumUntil && new Date(d.premiumUntil) > new Date(),
             avatarConfig: ((p.avatarConfig ?? prevUser?.avatarConfig ?? {}) as any),
             stats: prevUser?.stats ?? { matchesCount: 0, lettersSent: 0, lettersReceived: 0, offeringsSent: 0, powerUsed: 0, gamesWon: 0, salonsVisited: 0, daysActive: 0, storiesParticipated: 0, storiesCompleted: 0 },
             unlockedBadges: p.badges ?? prevUser?.unlockedBadges ?? [],
