@@ -1,164 +1,201 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { useStore } from '../../store/useStore';
+import {
+  startCardGame,
+  revealCard,
+  claimCardGame,
+  betCardGame,
+  type CardSuit,
+  type StartResult,
+  type RevealResult,
+} from '../../api/card-game';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const H_PAD   = 16;
 const CARD_GAP = 8;
 const COLS     = 5;
-const ROWS     = 2;
-const TOTAL    = COLS * ROWS; // 10 cartes
-
-const CARD_W = Math.floor((SCREEN_WIDTH - H_PAD * 2 - CARD_GAP * (COLS - 1)) / COLS);
-const CARD_H = Math.floor(CARD_W * 1.45);
-
-const HEART_VALUE = 15;
+const CARD_W   = Math.floor((SCREEN_WIDTH - H_PAD * 2 - CARD_GAP * (COLS - 1)) / COLS);
+const CARD_H   = Math.floor(CARD_W * 1.45);
 
 interface Props {
-  onEnd: (won: boolean, score: number) => void;
+  onEnd: (won: boolean, gained: number) => void;
 }
 
-type CardType = 'heart' | 'spade' | 'club' | 'diamond';
-
-interface Card {
-  id: number;
-  type: CardType;
-  row: 1 | 2;
+interface LocalCard {
+  index: number;
+  suit: CardSuit | null; // null = face cachée
   revealed: boolean;
 }
 
-const CARD_STYLES: Record<CardType, { bg: string; border: string; text: string }> = {
+const CARD_STYLES: Record<CardSuit, { bg: string; border: string; text: string }> = {
   heart:   { bg: '#FFF0F5', border: '#E91E63', text: '#C2185B' },
   spade:   { bg: '#EEF2FF', border: '#3949AB', text: '#1A237E' },
   club:    { bg: '#F0FBF1', border: '#2E7D32', text: '#1B5E20' },
   diamond: { bg: '#FFF8E7', border: '#F57C00', text: '#E65100' },
 };
 
-const EMOJI: Record<CardType, string> = {
+const EMOJI: Record<CardSuit, string> = {
   heart: '❤️', spade: '♠️', club: '♣️', diamond: '♦️',
 };
 
-const TYPE_NAME: Record<CardType, string> = {
+const SUIT_LABEL: Record<CardSuit, string> = {
   heart: 'cœur', spade: 'pique', club: 'trèfle', diamond: 'carreau',
 };
 
-function buildDeck(): { cards: Card[]; heartCount: number } {
-  // Tirage aléatoire des quantités
-  const heartCount   = 2 + Math.floor(Math.random() * 3);       // 2, 3 ou 4
-  const spadeCount   = 1 + Math.floor(Math.random() * 2);       // 1 ou 2
-  const clubCount    = 1 + Math.floor(Math.random() * 2);       // 1 ou 2
-  const diamondCount = TOTAL - heartCount - spadeCount - clubCount;
+const ENTRY_COST = 20;
 
-  // Si diamondCount < 0, on réduit clubs ou spades
-  const adjusted = Math.max(0, diamondCount);
-  const types: CardType[] = [
-    ...Array(heartCount).fill('heart'),
-    ...Array(spadeCount).fill('spade'),
-    ...Array(clubCount).fill('club'),
-    ...Array(Math.max(0, TOTAL - heartCount - spadeCount - clubCount)).fill('diamond'),
-  ];
-
-  // Mélange Fisher-Yates
-  for (let i = types.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [types[i], types[j]] = [types[j], types[i]];
-  }
-
-  const cards: Card[] = types.map((type, i) => ({
-    id: i,
-    type: type as CardType,
-    row: i < COLS ? 1 : 2,
-    revealed: false,
-  }));
-
-  return { cards, heartCount };
+function buildLocalCards(): LocalCard[] {
+  return Array.from({ length: 10 }, (_, i) => ({ index: i, suit: null, revealed: false }));
 }
 
-function getDiamondHint(cards: Card[]): string {
-  const hidden = cards.filter(c => !c.revealed);
-  if (hidden.length === 0) return '♦️ Plus aucune carte cachée.';
-  const pick = hidden[Math.floor(Math.random() * hidden.length)];
-  return `♦️ Indice : il y a un ${TYPE_NAME[pick.type]} sur la rangée ${pick.row}`;
-}
+type Phase = 'lobby' | 'playing' | 'done';
 
 export default function CardGame({ onEnd }: Props) {
-  const [cards, setCards]           = useState<Card[]>([]);
-  const [heartCount, setHeartCount] = useState(0);
-  const [coins, setCoins]           = useState(0);
-  const [started, setStarted]       = useState(false);
-  const [gameOver, setGameOver]     = useState(false);
-  const [message, setMessage]       = useState('');
-  const [startHint, setStartHint]   = useState('');
+  const loadWallet = useStore((s) => s.loadWallet);
+  const isAuthenticated = useStore((s) => s.isAuthenticated);
 
-  // ── Initialisation ──────────────────────────────────────────────────────────
-  const initGame = () => {
-    const { cards: deck, heartCount: hc } = buildDeck();
-    setCards(deck);
-    setHeartCount(hc);
-    setCoins(0);
-    setGameOver(false);
-    setMessage('');
-    // Indice de départ : un type au hasard
-    const hintTypes: CardType[] = ['heart', 'spade', 'club', 'diamond'];
-    const hintType = hintTypes[Math.floor(Math.random() * hintTypes.length)];
-    const hintCount = deck.filter(c => c.type === hintType).length;
-    setStartHint(`Il y a ${hintCount} ${EMOJI[hintType]} dans cette partie`);
-    setStarted(true);
+  const [phase, setPhase]             = useState<Phase>('lobby');
+  const [sessionId, setSessionId]     = useState<string | null>(null);
+  const [cards, setCards]             = useState<LocalCard[]>(buildLocalCards());
+  const [gainsCurrent, setGainsCurrent] = useState(0);
+  const [message, setMessage]         = useState('');
+  const [startHint, setStartHint]     = useState('');
+  const [isLoading, setIsLoading]     = useState(false);
+  const [pendingIndex, setPendingIndex] = useState<number | null>(null);
+
+  // ── Démarrage ────────────────────────────────────────────────────────────────
+  const handleStart = useCallback(async () => {
+    if (isLoading) return;
+    try {
+      setIsLoading(true);
+      const result: StartResult = await startCardGame();
+      setSessionId(result.sessionId);
+      setCards(buildLocalCards());
+      setGainsCurrent(0);
+      setMessage('');
+      setStartHint(
+        `Il y a ${result.hint.count} ${EMOJI[result.hint.suit]} dans cette partie`,
+      );
+      setPhase('playing');
+    } catch (err: any) {
+      const msg: string = err?.message ?? 'Impossible de démarrer la partie.';
+      Alert.alert('Erreur', msg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading]);
+
+  // ── Révélation ───────────────────────────────────────────────────────────────
+  const handleReveal = useCallback(async (index: number) => {
+    if (!sessionId || pendingIndex !== null) return;
+    const card = cards[index];
+    if (!card || card.revealed) return;
+
+    try {
+      setPendingIndex(index);
+      const result: RevealResult = await revealCard(sessionId, index);
+      const { suit, gainsDelta, newGains, allRevealed, diamondHint } = result.effect;
+
+      setCards((prev) =>
+        prev.map((c) => c.index === index ? { ...c, suit, revealed: true } : c),
+      );
+      setGainsCurrent(newGains);
+
+      // Message
+      switch (suit) {
+        case 'heart':
+          setMessage(`❤️ +${gainsDelta} pièces !`);
+          break;
+        case 'spade':
+          setMessage('♠️ Tout perdu !');
+          break;
+        case 'club':
+          setMessage(`♣️ Gains divisés par 2 — ${newGains} 🪙`);
+          break;
+        case 'diamond':
+          if (diamondHint) {
+            setMessage(
+              `♦️ Indice : il y a un ${SUIT_LABEL[diamondHint.suit]} en rangée ${diamondHint.row}`,
+            );
+          } else {
+            setMessage('♦️ Plus aucune carte cachée.');
+          }
+          break;
+      }
+
+      if (allRevealed) {
+        await doClaimAfterAllRevealed(sessionId, newGains);
+      }
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message ?? 'Impossible de révéler cette carte.');
+    } finally {
+      setPendingIndex(null);
+    }
+  }, [sessionId, cards, pendingIndex]);
+
+  // ── Claim automatique (toutes les cartes révélées) ───────────────────────────
+  const doClaimAfterAllRevealed = async (sid: string, gains: number) => {
+    try {
+      await claimCardGame(sid);
+      await loadWallet();
+      setPhase('done');
+      onEnd(gains > 0, gains);
+    } catch {
+      // On ne bloque pas l'UI — les gains sont déjà crédités ou nuls
+      setPhase('done');
+      onEnd(gains > 0, gains);
+    }
   };
 
-  // ── Révèle une carte ────────────────────────────────────────────────────────
-  const revealCard = (index: number) => {
-    if (cards[index].revealed || gameOver) return;
-
-    const next = cards.map((c, i) => i === index ? { ...c, revealed: true } : c);
-    setCards(next);
-    const card = next[index];
-
-    switch (card.type) {
-      case 'heart':
-        setCoins(prev => prev + HEART_VALUE);
-        setMessage(`❤️ +${HEART_VALUE} pièces !`);
-        break;
-      case 'spade':
-        setCoins(0);
-        setMessage('♠️ Tout perdu !');
-        break;
-      case 'club':
-        setCoins(prev => Math.floor(prev / 2));
-        setMessage('♣️ Gains divisés par 2 !');
-        break;
-      case 'diamond':
-        setMessage(getDiamondHint(next));
-        break;
+  // ── Encaisser ────────────────────────────────────────────────────────────────
+  const handleClaim = useCallback(async () => {
+    if (!sessionId || isLoading) return;
+    try {
+      setIsLoading(true);
+      const result = await claimCardGame(sessionId);
+      await loadWallet();
+      setPhase('done');
+      onEnd(result.gained > 0, result.gained);
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message ?? 'Impossible d\'encaisser.');
+    } finally {
+      setIsLoading(false);
     }
+  }, [sessionId, isLoading, loadWallet, onEnd]);
 
-    if (next.every(c => c.revealed)) {
-      setGameOver(true);
+  // ── Pari "plus de cœurs" ─────────────────────────────────────────────────────
+  const handleBet = useCallback(async () => {
+    if (!sessionId || isLoading) return;
+    try {
+      setIsLoading(true);
+      const result = await betCardGame(sessionId);
+      await loadWallet();
+      if (result.won) {
+        setMessage(`🎉 Bravo ! Il ne restait plus de cœurs — +${result.gained} 🪙`);
+      } else {
+        setMessage(`💔 Raté ! Il restait ${result.heartsRemaining} cœur${result.heartsRemaining > 1 ? 's' : ''} caché${result.heartsRemaining > 1 ? 's' : ''}.`);
+      }
+      setPhase('done');
+      onEnd(result.won, result.gained);
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message ?? 'Impossible de parier.');
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [sessionId, isLoading, loadWallet, onEnd]);
 
-  // ── Pari : plus de cœurs ────────────────────────────────────────────────────
-  const betNoHearts = () => {
-    const heartsLeft = cards.filter(c => !c.revealed && c.type === 'heart').length;
-    setGameOver(true);
-    if (heartsLeft === 0) {
-      setMessage('🎉 Bravo ! Il ne restait plus de cœurs !');
-      setTimeout(() => onEnd(true, coins), 1500);
-    } else {
-      setCoins(0);
-      setMessage(`💔 Raté ! Il restait encore ${heartsLeft} cœur${heartsLeft > 1 ? 's' : ''} caché${heartsLeft > 1 ? 's' : ''}.`);
-      setTimeout(() => onEnd(false, 0), 1500);
-    }
-  };
-
-  // ── Écran d'accueil ──────────────────────────────────────────────────────────
-  if (!started) {
+  // ── Lobby ────────────────────────────────────────────────────────────────────
+  if (phase === 'lobby') {
     return (
       <View style={styles.screen}>
         <View style={styles.titleRow}>
@@ -168,109 +205,151 @@ export default function CardGame({ onEnd }: Props) {
 
         <View style={styles.rulesBox}>
           <Text style={styles.rulesTitle}>Règles</Text>
-
-          <View style={styles.ruleRow}>
-            <Text style={styles.ruleEmoji}>❤️</Text>
-            <Text style={styles.ruleText}>Cœur → <Text style={styles.ruleBold}>+{HEART_VALUE} pièces</Text></Text>
-          </View>
-          <View style={styles.ruleRow}>
-            <Text style={styles.ruleEmoji}>♠️</Text>
-            <Text style={styles.ruleText}>Pique → <Text style={styles.ruleBold}>tout perdu</Text></Text>
-          </View>
-          <View style={styles.ruleRow}>
-            <Text style={styles.ruleEmoji}>♣️</Text>
-            <Text style={styles.ruleText}>Trèfle → <Text style={styles.ruleBold}>gains ÷ 2</Text></Text>
-          </View>
-          <View style={styles.ruleRow}>
-            <Text style={styles.ruleEmoji}>♦️</Text>
-            <Text style={styles.ruleText}>Carreau → <Text style={styles.ruleBold}>indice sur une carte cachée</Text></Text>
-          </View>
-
+          <RuleRow emoji="❤️" text={`Cœur → +15 pièces`} />
+          <RuleRow emoji="♠️" text="Pique → tout perdu" />
+          <RuleRow emoji="♣️" text="Trèfle → gains ÷ 2" />
+          <RuleRow emoji="♦️" text="Carreau → indice sur une carte cachée" />
           <View style={styles.separator} />
           <Text style={styles.tipText}>
-            💡 Pariez qu'il n'y a plus de cœurs pour empocher vos gains avant de tomber sur un piège.
+            💡 Pariez qu'il n'y a plus de cœurs pour empocher vos gains avant un piège.
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.startBtn} onPress={initGame}>
-          <Text style={styles.startText}>Jouer</Text>
+        <TouchableOpacity
+          style={[styles.startBtn, isLoading && { opacity: 0.5 }]}
+          onPress={handleStart}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.startText}>Jouer — {ENTRY_COST} 🪙</Text>
+          )}
         </TouchableOpacity>
       </View>
     );
   }
 
-  // ── Jeu ──────────────────────────────────────────────────────────────────────
+  // ── Jeu en cours ou terminé ──────────────────────────────────────────────────
   const row1 = cards.slice(0, COLS);
   const row2 = cards.slice(COLS);
+  const isDone = phase === 'done';
 
   return (
     <View style={styles.screen}>
-      {/* Indice de départ */}
       <View style={styles.hintBox}>
         <Text style={styles.hintText}>💌 {startHint}</Text>
       </View>
 
-      {/* Pièces */}
       <View style={styles.coinsRow}>
         <Text style={styles.coinsLabel}>Gains</Text>
-        <Text style={styles.coinsValue}>💰 {coins}</Text>
+        <Text style={styles.coinsValue}>💰 {gainsCurrent}</Text>
       </View>
 
-      {/* Message */}
       <View style={message ? styles.msgBox : styles.msgBoxEmpty}>
         {!!message && <Text style={styles.msgText}>{message}</Text>}
       </View>
 
-      {/* Rangée 1 */}
       <Text style={styles.rowLabel}>Rangée 1</Text>
       <View style={styles.row}>
-        {row1.map((card, i) => (
-          <CardTile key={card.id} card={card} onPress={() => revealCard(i)} disabled={gameOver} />
+        {row1.map((card: LocalCard) => (
+          <CardTile
+            key={card.index}
+            card={card}
+            pending={pendingIndex === card.index}
+            onPress={() => handleReveal(card.index)}
+            disabled={isDone || pendingIndex !== null}
+          />
         ))}
       </View>
 
-      {/* Rangée 2 */}
       <Text style={styles.rowLabel}>Rangée 2</Text>
       <View style={styles.row}>
-        {row2.map((card, i) => (
-          <CardTile key={card.id} card={card} onPress={() => revealCard(COLS + i)} disabled={gameOver} />
+        {row2.map((card: LocalCard) => (
+          <CardTile
+            key={card.index}
+            card={card}
+            pending={pendingIndex === card.index}
+            onPress={() => handleReveal(card.index)}
+            disabled={isDone || pendingIndex !== null}
+          />
         ))}
       </View>
 
-      {/* Bouton */}
-      {!gameOver ? (
-        <TouchableOpacity style={styles.betBtn} onPress={betNoHearts}>
-          <Text style={styles.betText}>🤞 Parier qu'il n'y a plus de cœurs</Text>
-          <Text style={styles.betSub}>Gagner {coins} pièces si vrai — tout perdre si faux</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity style={styles.doneBtn} onPress={() => onEnd(coins > 0, coins)}>
-          <Text style={styles.doneBtnText}>Terminer · {coins} 💰</Text>
-        </TouchableOpacity>
+      {!isDone && (
+        <>
+          <TouchableOpacity
+            style={[styles.betBtn, isLoading && { opacity: 0.5 }]}
+            onPress={handleBet}
+            disabled={isLoading}
+          >
+            <Text style={styles.betText}>🤞 Parier qu'il n'y a plus de cœurs</Text>
+            <Text style={styles.betSub}>Gagner {gainsCurrent} 🪙 si vrai — tout perdre si faux</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.claimBtn, isLoading && { opacity: 0.5 }]}
+            onPress={handleClaim}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.claimText}>✅ Encaisser {gainsCurrent} 🪙</Text>
+            )}
+          </TouchableOpacity>
+        </>
       )}
     </View>
   );
 }
 
-// ── Composant carte ───────────────────────────────────────────────────────────
-function CardTile({ card, onPress, disabled }: { card: Card; onPress: () => void; disabled: boolean }) {
-  const cs = CARD_STYLES[card.type];
+// ── Composants ────────────────────────────────────────────────────────────────
+
+function RuleRow({ emoji, text }: { emoji: string; text: string }) {
+  return (
+    <View style={styles.ruleRow}>
+      <Text style={styles.ruleEmoji}>{emoji}</Text>
+      <Text style={styles.ruleText}>{text}</Text>
+    </View>
+  );
+}
+
+function CardTile({
+  card,
+  onPress,
+  disabled,
+  pending,
+}: {
+  card: LocalCard;
+  onPress: () => any;
+  disabled: boolean;
+  pending: boolean;
+}) {
+  if (pending) {
+    return (
+      <View style={[styles.card, styles.cardBack, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color="#C9B8FF" size="small" />
+      </View>
+    );
+  }
+
+  const cs = card.suit ? CARD_STYLES[card.suit] : null;
+
   return (
     <TouchableOpacity
       style={[
         styles.card,
-        card.revealed
-          ? { backgroundColor: cs.bg, borderColor: cs.border }
-          : styles.cardBack,
+        card.revealed && cs ? { backgroundColor: cs.bg, borderColor: cs.border } : styles.cardBack,
       ]}
       onPress={onPress}
       disabled={card.revealed || disabled}
       activeOpacity={0.75}
     >
-      {card.revealed ? (
+      {card.revealed && cs && card.suit ? (
         <>
-          <Text style={styles.cardCorner}>{EMOJI[card.type]}</Text>
-          <Text style={[styles.cardCenter, { color: cs.text }]}>{EMOJI[card.type]}</Text>
+          <Text style={styles.cardCorner}>{EMOJI[card.suit]}</Text>
+          <Text style={[styles.cardCenter, { color: cs.text }]}>{EMOJI[card.suit]}</Text>
         </>
       ) : (
         <Text style={styles.cardBackEmoji}>🎴</Text>
@@ -289,51 +368,42 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 24,
   },
-
-  // Accueil
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 24 },
+  titleRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 24 },
   titleEmoji: { fontSize: 36 },
-  title: { fontSize: 28, fontWeight: '900', color: '#F0E6FF', letterSpacing: 0.5 },
+  title:      { fontSize: 28, fontWeight: '900', color: '#F0E6FF', letterSpacing: 0.5 },
   rulesBox: {
     backgroundColor: '#1A1A30', borderRadius: 16, padding: 20,
     marginBottom: 28, borderWidth: 1, borderColor: '#2E2A50',
   },
   rulesTitle: { fontSize: 13, fontWeight: '800', color: '#7B6FA0', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 16 },
-  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-  ruleEmoji: { fontSize: 22, width: 30, textAlign: 'center' },
-  ruleText: { fontSize: 14, color: '#C0B8D8', flex: 1 },
-  ruleBold: { fontWeight: '700', color: '#E0D8FF' },
-  separator: { height: 1, backgroundColor: '#2E2A50', marginVertical: 14 },
-  tipText: { fontSize: 13, color: '#A89CC0', textAlign: 'center', lineHeight: 20 },
+  ruleRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+  ruleEmoji:  { fontSize: 22, width: 30, textAlign: 'center' },
+  ruleText:   { fontSize: 14, color: '#C0B8D8', flex: 1, fontWeight: '600' },
+  separator:  { height: 1, backgroundColor: '#2E2A50', marginVertical: 14 },
+  tipText:    { fontSize: 13, color: '#A89CC0', textAlign: 'center', lineHeight: 20 },
   startBtn: {
     backgroundColor: '#7C3AED', borderRadius: 14, paddingVertical: 16,
     alignItems: 'center',
     shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6,
   },
-  startText: { fontSize: 18, fontWeight: '900', color: '#fff' },
-
-  // Jeu
+  startText:  { fontSize: 18, fontWeight: '900', color: '#fff' },
   hintBox: {
     backgroundColor: '#1C1A2E', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14,
     marginBottom: 10, borderWidth: 1, borderColor: '#4A3080',
   },
-  hintText: { fontSize: 14, color: '#C9B8FF', textAlign: 'center', fontStyle: 'italic' },
-
-  coinsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  hintText:   { fontSize: 14, color: '#C9B8FF', textAlign: 'center', fontStyle: 'italic' },
+  coinsRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   coinsLabel: { fontSize: 13, color: '#7B6FA0', fontWeight: '600' },
   coinsValue: { fontSize: 22, fontWeight: '900', color: '#F59E0B' },
-
   msgBox: {
     backgroundColor: '#1C1A2E', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14,
     marginBottom: 12, borderWidth: 1, borderColor: '#3D3560', minHeight: 40,
     alignItems: 'center', justifyContent: 'center',
   },
-  msgBoxEmpty: { height: 40, marginBottom: 12 },
-  msgText: { fontSize: 14, fontWeight: '700', color: '#E0D8FF', textAlign: 'center' },
-
-  rowLabel: { fontSize: 11, fontWeight: '700', color: '#5A527A', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
-  row: { flexDirection: 'row', gap: CARD_GAP, marginBottom: 14 },
-
+  msgBoxEmpty:  { height: 40, marginBottom: 12 },
+  msgText:      { fontSize: 14, fontWeight: '700', color: '#E0D8FF', textAlign: 'center' },
+  rowLabel:     { fontSize: 11, fontWeight: '700', color: '#5A527A', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
+  row:          { flexDirection: 'row', gap: CARD_GAP, marginBottom: 14 },
   card: {
     width: CARD_W, height: CARD_H,
     borderRadius: 10, borderWidth: 2,
@@ -341,24 +411,21 @@ const styles = StyleSheet.create({
     padding: 4,
     shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 4, elevation: 4,
   },
-  cardBack: { backgroundColor: '#1E1545', borderColor: '#4A3080' },
-  cardBackEmoji: { fontSize: CARD_W * 0.52 },
-  cardCorner: { position: 'absolute', top: 4, left: 5, fontSize: 10 },
-  cardCenter: { fontSize: CARD_W * 0.40 },
-
+  cardBack:       { backgroundColor: '#1E1545', borderColor: '#4A3080' },
+  cardBackEmoji:  { fontSize: CARD_W * 0.52 },
+  cardCorner:     { position: 'absolute', top: 4, left: 5, fontSize: 10 },
+  cardCenter:     { fontSize: CARD_W * 0.40 },
   betBtn: {
     backgroundColor: '#3B1F6B', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16,
-    alignItems: 'center', marginTop: 4,
+    alignItems: 'center', marginTop: 4, marginBottom: 8,
     borderWidth: 1, borderColor: '#7C3AED80',
-    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 5,
   },
-  betText: { fontSize: 15, fontWeight: '900', color: '#D4AAFF' },
-  betSub: { fontSize: 11, color: '#9B82CC', marginTop: 3, textAlign: 'center' },
-
-  doneBtn: {
-    backgroundColor: '#7C3AED', borderRadius: 14, paddingVertical: 16,
-    alignItems: 'center', marginTop: 4,
+  betText:  { fontSize: 15, fontWeight: '900', color: '#D4AAFF' },
+  betSub:   { fontSize: 11, color: '#9B82CC', marginTop: 3, textAlign: 'center' },
+  claimBtn: {
+    backgroundColor: '#7C3AED', borderRadius: 14, paddingVertical: 14,
+    alignItems: 'center',
     shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6,
   },
-  doneBtnText: { fontSize: 17, fontWeight: '900', color: '#fff' },
+  claimText: { fontSize: 17, fontWeight: '900', color: '#fff' },
 });

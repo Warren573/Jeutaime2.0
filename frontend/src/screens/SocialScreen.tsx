@@ -59,7 +59,8 @@ type CurrentView = "cards" | "story" | null;
 export default function SocialScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { addCoins, addPoints, incrementStat } = useStore();
+  const { addPoints, incrementStat } = useStore();
+  const loadWallet = useStore((s) => s.loadWallet);
   const screenBg = useStore((s) => s.screenBackgrounds?.["social"] ?? "#FFF8E7");
   const [currentView, setCurrentView] = useState<CurrentView>(null);
   const [result, setResult] = useState<{ won: boolean; reward: number } | null>(
@@ -104,8 +105,20 @@ export default function SocialScreen() {
     }
   };
 
+  // Le wallet est déjà mis à jour côté backend par CardGame — on raffraîchit
+  // le solde local et on met à jour les stats locales
+  const handleCardGameEnd = async (won: boolean, reward: number) => {
+    await loadWallet();
+    if (won) {
+      addPoints(15);
+      incrementStat("gamesWon");
+    } else {
+      addPoints(5);
+    }
+    setResult({ won, reward });
+  };
+
   const handleWin = (reward: number) => {
-    addCoins(reward);
     addPoints(15);
     incrementStat("gamesWon");
     setResult({ won: true, reward });
@@ -180,9 +193,7 @@ export default function SocialScreen() {
         </TouchableOpacity>
         <ScrollView contentContainerStyle={styles.gameContent}>
           {currentView === "cards" && FEATURES.games !== "hidden" && (
-            <CardGame
-              onEnd={(won, coins) => (won ? handleWin(coins) : handleLose())}
-            />
+            <CardGame onEnd={handleCardGameEnd} />
           )}
           {currentView === "story" && FEATURES.games !== "hidden" && (
             <StoryGame onEnd={(won) => (won ? handleWin(50) : handleLose())} />
