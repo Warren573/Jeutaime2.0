@@ -1,11 +1,11 @@
 import { apiFetch } from "./client";
 
 export interface PremiumPlanDTO {
-  planId: string;
+  id: string;
+  label: string;
   durationDays: number;
   priceCoins: number;
-  priceStripe: number | null;
-  label: string;
+  priceEur: number;
 }
 
 export interface PremiumStatusDTO {
@@ -22,9 +22,7 @@ export interface PremiumSubscribeResultDTO {
 }
 
 export async function getPremiumPlans(): Promise<PremiumPlanDTO[]> {
-  const res = (await apiFetch("/premium/plans")) as {
-    data: PremiumPlanDTO[];
-  };
+  const res = (await apiFetch("/premium/plans")) as { data: PremiumPlanDTO[] };
   return res.data;
 }
 
@@ -35,7 +33,7 @@ export async function getMyPremiumStatus(): Promise<PremiumStatusDTO> {
 
 export async function subscribePremium(payload: {
   planId: string;
-  paymentMethod: "coins" | "stripe_stub";
+  paymentMethod: "coins";
 }): Promise<PremiumSubscribeResultDTO> {
   const res = (await apiFetch("/premium/subscribe", {
     method: "POST",
