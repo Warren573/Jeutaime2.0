@@ -29,6 +29,7 @@ import adminReportsRoutes from "./modules/admin/reports/adminReports.routes";
 import adminUsersRoutes from "./modules/admin/users/adminUsers.routes";
 import adminAuditRoutes from "./modules/admin/audit/adminAudit.routes";
 import reactionsRoutes from "./modules/reactions/reactions.routes";
+import cardGameRoutes from "./modules/card-game/card-game.routes";
 
 const app = express();
 
@@ -84,6 +85,7 @@ app.use(`${api}/magies`, magiesRoutes);
 app.use(`${api}/offerings`, offeringsRoutes);
 app.use(`${api}/notifications`, notificationsRoutes);
 app.use(`${api}/discover`, reactionsRoutes);
+app.use(`${api}/card-game`, cardGameRoutes);
 
 // Admin (ADMIN/MOD role required — enforced inside each router)
 app.use(`${api}/admin/salons`, adminSalonsRoutes);

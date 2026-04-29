@@ -51,6 +51,7 @@ enum LetterStatus {
 enum CoinTxnType {
   DAILY_BONUS
   GAME_WIN
+  GAME_ENTRY
   LETTER_SENT
   OFFERING_SENT
   POWER_USED
@@ -62,6 +63,12 @@ enum CoinTxnType {
   REFUND
   ADMIN_ADJUST
   PURCHASE_COINS
+}
+
+enum CardGameStatus {
+  ACTIVE
+  CLAIMED
+  EXPIRED
 }
 
 enum OfferingCategory {
@@ -165,6 +172,7 @@ model User {
   reactionsGiven    Reaction[]    @relation("ReactionFrom")
   reactionsReceived Reaction[]    @relation("ReactionTo")
   questionAttempts  MatchQuestionAttempt[] @relation("QuestionAttemptResponder")
+  cardGameSessions  CardGameSession[]
 
   @@index([email])
   @@index([isBanned])
@@ -623,4 +631,26 @@ model Notification {
 
   @@index([userId, isRead, createdAt])
   @@index([userId, createdAt])
+}
+
+// ============================================================
+// JEU DE CARTES
+// ============================================================
+
+model CardGameSession {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        CardGameStatus  @default(ACTIVE)
+  deck          Json            // [{index, suit}]×10 — jamais exposé au client
+  revealed      Int             @default(0)  // bitmask 10 bits
+  gainsCurrent  Int             @default(0)
+  entryAmount   Int             @default(20)
+  claimedAmount Int?
+  expiresAt     DateTime
+  claimedAt     DateTime?
+  createdAt     DateTime        @default(now())
+
+  @@index([userId, status])
+  @@index([status, expiresAt])
 }
