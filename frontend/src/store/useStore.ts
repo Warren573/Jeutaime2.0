@@ -38,6 +38,13 @@ import {
   getWallet as apiGetWallet,
   claimDailyBonus as apiClaimDailyBonus,
 } from '../api/wallet';
+import {
+  getNotifications as apiGetNotifications,
+  getUnreadCount as apiGetUnreadCount,
+  markNotificationRead as apiMarkNotificationRead,
+  markAllNotificationsRead as apiMarkAllNotificationsRead,
+  type NotificationDto,
+} from '../api/notifications';
 
 // ===== DEV MODE =====
 // À mettre à `false` pour le build final
@@ -268,6 +275,14 @@ interface StoreState {
   duelEntries: Array<{ id: string; text: string; createdAt: number; players: string[] }>;
   addDuelEntry: (entry: { text: string; players: string[] }) => void;
 
+  // ===== Notifications =====
+  notifications: NotificationDto[];
+  unreadNotificationsCount: number;
+  loadNotifications: () => Promise<void>;
+  loadUnreadCount: () => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+
   // ===== Backgrounds =====
   screenBackgrounds: Record<string, string>;
   setScreenBackground: (screenId: string, color: string) => void;
@@ -390,6 +405,8 @@ export const useStore = create<StoreState>()(
       screenBackgrounds: {},
       duelEntries: [],
       avatarPngConfig: DEFAULT_AVATAR,
+      notifications: [],
+      unreadNotificationsCount: 0,
 
       stats: {
         matchesCount: 2,
@@ -474,8 +491,8 @@ export const useStore = create<StoreState>()(
           };
           console.log("HYDRATE_SET_USER", mappedUser);
           get().setCurrentUser(mappedUser);
-          // Charger les vrais matchs et le wallet depuis l'API
-          await Promise.all([get().loadMatches(), get().loadWallet()]);
+          // Charger les vrais matchs, le wallet et le compteur notifs depuis l'API
+          await Promise.all([get().loadMatches(), get().loadWallet(), get().loadUnreadCount()]);
         } catch {
           // token invalide ou réseau — user reste non-authentifié
         }
@@ -974,6 +991,47 @@ export const useStore = create<StoreState>()(
       },
 
       updateAvatarPngConfig: (config) => set({ avatarPngConfig: config }),
+
+      // ===== Notification Actions =====
+      loadNotifications: async () => {
+        try {
+          const page = await apiGetNotifications({ pageSize: 50 });
+          set({ notifications: page.items });
+        } catch { }
+      },
+
+      loadUnreadCount: async () => {
+        try {
+          const count = await apiGetUnreadCount();
+          set({ unreadNotificationsCount: count });
+        } catch { }
+      },
+
+      markNotificationRead: async (id) => {
+        try {
+          await apiMarkNotificationRead(id);
+          set((state) => ({
+            notifications: state.notifications.map((n) =>
+              n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n,
+            ),
+            unreadNotificationsCount: Math.max(0, state.unreadNotificationsCount - 1),
+          }));
+        } catch { }
+      },
+
+      markAllNotificationsRead: async () => {
+        try {
+          await apiMarkAllNotificationsRead();
+          set((state) => ({
+            notifications: state.notifications.map((n) => ({
+              ...n,
+              isRead: true,
+              readAt: n.readAt ?? new Date().toISOString(),
+            })),
+            unreadNotificationsCount: 0,
+          }));
+        } catch { }
+      },
     }),
     {
       name: 'jeutaime-storage-v8',
