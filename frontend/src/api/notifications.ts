@@ -57,3 +57,10 @@ export async function markAllNotificationsRead(): Promise<{ updated: number }> {
   const res = await apiFetch('/notifications/read-all', { method: 'POST' });
   return res.data as { updated: number };
 }
+
+export async function registerDevice(token: string, platform: 'ios' | 'android' | 'web'): Promise<void> {
+  await apiFetch('/notifications/register-device', {
+    method: 'POST',
+    body: JSON.stringify({ token, platform }),
+  });
+}
