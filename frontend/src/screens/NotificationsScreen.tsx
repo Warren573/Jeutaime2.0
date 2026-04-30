@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,10 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
 import type { NotificationDto, NotificationType } from '../api/notifications';
 import { getNotificationTarget } from '../utils/notifications';
@@ -74,15 +75,35 @@ export default function NotificationsScreen() {
     notifications,
     unreadNotificationsCount,
     loadNotifications,
+    loadUnreadCount,
     markNotificationRead,
     markAllNotificationsRead,
   } = useStore();
 
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
+  const refresh = useCallback(async () => {
+    await Promise.all([loadNotifications(), loadUnreadCount()]);
+  }, [loadNotifications, loadUnreadCount]);
+
+  // Chargement initial
   useEffect(() => {
-    loadNotifications().finally(() => setLoading(false));
+    refresh().finally(() => setLoading(false));
   }, []);
+
+  // Rechargement à chaque fois que l'écran prend le focus
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+    }, [refresh]),
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  }, [refresh]);
 
   const handlePress = useCallback(async (notification: NotificationDto) => {
     // Marquer comme lu si nécessaire (fire-and-forget, ne bloque pas la nav)
@@ -134,6 +155,14 @@ export default function NotificationsScreen() {
           )}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#8B2E3C"
+              colors={['#8B2E3C']}
+            />
+          }
         />
       )}
     </View>

@@ -873,6 +873,7 @@ export const useStore = create<StoreState>()(
         }));
         get().incrementStat('lettersSent');
         get().addPoints(ProgressionEngine.POINTS.sendLetter, 'Lettre envoyée');
+        void get().loadUnreadCount();
       },
 
       markLetterReadApi: async (letterId: string) => {
