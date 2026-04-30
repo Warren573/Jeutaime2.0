@@ -58,7 +58,12 @@ function buildLocalCards(): LocalCard[] {
   return Array.from({ length: 10 }, (_, i) => ({ index: i, suit: null, revealed: false }));
 }
 
-type Phase = 'lobby' | 'playing' | 'done';
+type Phase = 'lobby' | 'playing' | 'done' | 'expired';
+
+function isExpiredError(err: unknown): boolean {
+  const msg: string = (err as any)?.message ?? '';
+  return msg.toLowerCase().includes('expir');
+}
 
 export default function CardGame({ onEnd }: Props) {
   const loadWallet = useStore((s) => s.loadWallet);
@@ -88,8 +93,7 @@ export default function CardGame({ onEnd }: Props) {
       );
       setPhase('playing');
     } catch (err: any) {
-      const msg: string = err?.message ?? 'Impossible de démarrer la partie.';
-      Alert.alert('Erreur', msg);
+      Alert.alert('Erreur', err?.message ?? 'Impossible de démarrer la partie.');
     } finally {
       setIsLoading(false);
     }
@@ -137,6 +141,7 @@ export default function CardGame({ onEnd }: Props) {
         await doClaimAfterAllRevealed(sessionId, newGains);
       }
     } catch (err: any) {
+      if (isExpiredError(err)) { setPhase('expired'); return; }
       Alert.alert('Erreur', err?.message ?? 'Impossible de révéler cette carte.');
     } finally {
       setPendingIndex(null);
@@ -167,6 +172,7 @@ export default function CardGame({ onEnd }: Props) {
       setPhase('done');
       onEnd(result.gained > 0, result.gained);
     } catch (err: any) {
+      if (isExpiredError(err)) { setPhase('expired'); return; }
       Alert.alert('Erreur', err?.message ?? 'Impossible d\'encaisser.');
     } finally {
       setIsLoading(false);
@@ -188,11 +194,39 @@ export default function CardGame({ onEnd }: Props) {
       setPhase('done');
       onEnd(result.won, result.gained);
     } catch (err: any) {
+      if (isExpiredError(err)) { setPhase('expired'); return; }
       Alert.alert('Erreur', err?.message ?? 'Impossible de parier.');
     } finally {
       setIsLoading(false);
     }
   }, [sessionId, isLoading, loadWallet, onEnd]);
+
+  // ── Expired ──────────────────────────────────────────────────────────────────
+  if (phase === 'expired') {
+    return (
+      <View style={styles.screen}>
+        <View style={styles.expiredBox}>
+          <Text style={styles.expiredEmoji}>⏰</Text>
+          <Text style={styles.expiredTitle}>Session expirée</Text>
+          <Text style={styles.expiredText}>
+            Ta partie a expiré après 30 minutes d&apos;inactivité.{'\n'}
+            Les {ENTRY_COST} 🪙 de mise de départ ne sont pas remboursés.
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.startBtn, isLoading && { opacity: 0.5 }]}
+          onPress={handleStart}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.startText}>Rejouer — {ENTRY_COST} 🪙</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // ── Lobby ────────────────────────────────────────────────────────────────────
   if (phase === 'lobby') {
@@ -428,4 +462,13 @@ const styles = StyleSheet.create({
     shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6,
   },
   claimText: { fontSize: 17, fontWeight: '900', color: '#fff' },
+  expiredBox: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  expiredEmoji: { fontSize: 56, marginBottom: 16 },
+  expiredTitle: { fontSize: 24, fontWeight: '900', color: '#F0E6FF', marginBottom: 12 },
+  expiredText: {
+    fontSize: 14, color: '#A89CC0', textAlign: 'center', lineHeight: 22,
+  },
 });

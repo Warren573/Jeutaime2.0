@@ -5,6 +5,7 @@ import app from "./app";
 import {
   createPurgeExpiredRefreshTokensJob,
   demoteExpiredPremiumJob,
+  expireCardGamesJob,
   startScheduler,
 } from "./jobs";
 
@@ -30,6 +31,7 @@ async function main() {
       intervalMs: env.SCHEDULER_INTERVAL_MS,
       jobs: [
         demoteExpiredPremiumJob,
+        expireCardGamesJob,
         createPurgeExpiredRefreshTokensJob({
           graceMs: env.REFRESH_TOKEN_PURGE_GRACE_MS,
         }),
