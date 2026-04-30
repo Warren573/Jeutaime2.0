@@ -1,4 +1,2 @@
-import PlaceholderScreen from '../src/screens/PlaceholderScreen';
-export default function Screen() {
-  return <PlaceholderScreen icon="🔔" title="Notifications" description="Gérez vos alertes et notifications." />;
-}
+import NotificationsScreen from '../src/screens/NotificationsScreen';
+export default NotificationsScreen;
