@@ -7,7 +7,8 @@ import { useStore } from '../store/useStore';
 // Show push in foreground as banner + badge + sound
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
