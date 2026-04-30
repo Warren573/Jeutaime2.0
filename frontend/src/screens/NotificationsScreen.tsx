@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import type { NotificationDto, NotificationType } from '../api/notifications';
+import { getNotificationTarget } from '../utils/notifications';
 
 const TYPE_EMOJI: Record<NotificationType, string> = {
   LETTER_RECEIVED:    '💌',
@@ -39,13 +40,14 @@ function NotifItem({
   onPress,
 }: {
   item: NotificationDto;
-  onPress: (id: string) => void;
+  onPress: (notification: NotificationDto) => void;
 }) {
+  const hasTarget = !!getNotificationTarget(item);
   return (
     <TouchableOpacity
       style={[styles.item, !item.isRead && styles.itemUnread]}
-      onPress={() => onPress(item.id)}
-      activeOpacity={0.75}
+      onPress={() => onPress(item)}
+      activeOpacity={hasTarget ? 0.75 : 1}
     >
       <View style={styles.itemLeft}>
         <Text style={styles.itemEmoji}>{TYPE_EMOJI[item.type] ?? '🔔'}</Text>
@@ -55,7 +57,10 @@ function NotifItem({
         <Text style={[styles.itemMsg, !item.isRead && styles.itemMsgBold]}>
           {item.message}
         </Text>
-        <Text style={styles.itemDate}>{formatRelative(item.createdAt)}</Text>
+        <View style={styles.itemFooter}>
+          <Text style={styles.itemDate}>{formatRelative(item.createdAt)}</Text>
+          {hasTarget && <Text style={styles.itemChevron}>›</Text>}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -79,9 +84,16 @@ export default function NotificationsScreen() {
     loadNotifications().finally(() => setLoading(false));
   }, []);
 
-  const handlePress = useCallback(async (id: string) => {
-    await markNotificationRead(id);
-  }, [markNotificationRead]);
+  const handlePress = useCallback(async (notification: NotificationDto) => {
+    // Marquer comme lu si nécessaire (fire-and-forget, ne bloque pas la nav)
+    if (!notification.isRead) {
+      void markNotificationRead(notification.id);
+    }
+    const target = getNotificationTarget(notification);
+    if (target) {
+      router.push(target as any);
+    }
+  }, [markNotificationRead, router]);
 
   const handleMarkAll = useCallback(async () => {
     await markAllNotificationsRead();
@@ -118,7 +130,7 @@ export default function NotificationsScreen() {
           data={notifications}
           keyExtractor={(n) => n.id}
           renderItem={({ item }) => (
-            <NotifItem item={item} onPress={handlePress} />
+            <NotifItem item={item as NotificationDto} onPress={handlePress} />
           )}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -215,10 +227,21 @@ const styles = StyleSheet.create({
   itemMsgBold: {
     fontWeight: '700',
   },
+  itemFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 3,
+  },
   itemDate: {
     fontSize: 11,
     color: '#9B9080',
-    marginTop: 3,
+  },
+  itemChevron: {
+    fontSize: 18,
+    color: '#C9A96E',
+    lineHeight: 20,
+    fontWeight: '700',
   },
   center: {
     flex: 1,
