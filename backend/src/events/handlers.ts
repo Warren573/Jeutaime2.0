@@ -147,6 +147,7 @@ emitter.on("offeringSent", async (payload) => {
         offeringSentId: payload.offeringSentId,
         offeringId: payload.offeringId,
         fromUserId: payload.fromUserId,
+        salonId: payload.salonId,
       },
     });
   } catch (err) {
@@ -184,6 +185,7 @@ emitter.on("magieCast", async (payload) => {
         magieCastId: payload.magieCastId,
         magieId: payload.magieId,
         fromUserId: payload.fromUserId,
+        salonId: payload.salonId,
       },
     });
   } catch (err) {

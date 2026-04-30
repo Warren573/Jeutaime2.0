@@ -106,6 +106,7 @@ export const ALLOWED_META_KEYS = [
   "offeringId",
   "magieCastId",
   "magieId",
+  "salonId",
 ] as const;
 
 export type AllowedMetaKey = (typeof ALLOWED_META_KEYS)[number];
