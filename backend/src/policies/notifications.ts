@@ -131,3 +131,38 @@ export function sanitizeNotificationMeta(
   }
   return Object.keys(out).length > 0 ? out : null;
 }
+
+// ============================================================
+// Push payload builders
+// title/body courts pour FCM/APNS via Expo.
+// data = IDs de routage — jamais de montants.
+// ============================================================
+
+export interface PushPayload {
+  title: string;
+  body: string;
+  data: Record<string, string>;
+}
+
+export function buildPushPayload(
+  type: NotificationType,
+  meta?: NotificationMeta | null,
+): PushPayload {
+  const data: Record<string, string> = { type };
+  if (meta?.matchId)  data["matchId"]  = meta.matchId;
+  if (meta?.salonId)  data["salonId"]  = meta.salonId;
+  if (meta?.fromUserId) data["fromUserId"] = meta.fromUserId;
+
+  switch (type) {
+    case NotificationType.LETTER_RECEIVED:
+      return { title: "💌 JeuTaime", body: "Tu as reçu une nouvelle lettre", data };
+    case NotificationType.MATCH_CREATED:
+      return { title: "💘 JeuTaime", body: "Tu as un nouveau match !", data };
+    case NotificationType.OFFERING_RECEIVED:
+      return { title: "🎁 JeuTaime", body: "Quelqu'un vient de t'offrir quelque chose", data };
+    case NotificationType.MAGIE_RECEIVED:
+      return { title: "✨ JeuTaime", body: "Un sort vient d'être lancé sur toi", data };
+    default:
+      return { title: "JeuTaime", body: buildNotificationMessage(type), data };
+  }
+}

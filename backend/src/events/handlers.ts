@@ -16,6 +16,8 @@ import { prisma } from "../config/prisma";
 import { logger } from "../config/logger";
 import { XP } from "../config/constants";
 import { createNotification } from "../modules/notifications/notifications.service";
+import { sendPushToUser } from "../modules/notifications/push.service";
+import { buildPushPayload } from "../policies/notifications";
 
 // ============================================================
 // letterSent → awarding XP + check badges
@@ -46,17 +48,17 @@ emitter.on("letterSent", async (payload) => {
   }
 });
 
-// letterSent → notification destinataire
+// letterSent → notification destinataire + push
 emitter.on("letterSent", async (payload) => {
   try {
+    const meta = { matchId: payload.matchId, fromUserId: payload.fromUserId };
     await createNotification({
       userId: payload.toUserId,
       type: NotificationType.LETTER_RECEIVED,
-      meta: {
-        matchId: payload.matchId,
-        fromUserId: payload.fromUserId,
-      },
+      meta,
     });
+    const push = buildPushPayload(NotificationType.LETTER_RECEIVED, meta);
+    void sendPushToUser({ userId: payload.toUserId, ...push });
   } catch (err) {
     logger.error(
       { err, payload },
@@ -91,27 +93,18 @@ emitter.on("matchCreated", async (payload) => {
   }
 });
 
-// matchCreated → notifications pour les 2 users (chacun voit l'autre)
+// matchCreated → notifications + push pour les 2 users
 emitter.on("matchCreated", async (payload) => {
   try {
+    const metaA = { matchId: payload.matchId, otherUserId: payload.userBId };
+    const metaB = { matchId: payload.matchId, otherUserId: payload.userAId };
     await Promise.all([
-      createNotification({
-        userId: payload.userAId,
-        type: NotificationType.MATCH_CREATED,
-        meta: {
-          matchId: payload.matchId,
-          otherUserId: payload.userBId,
-        },
-      }),
-      createNotification({
-        userId: payload.userBId,
-        type: NotificationType.MATCH_CREATED,
-        meta: {
-          matchId: payload.matchId,
-          otherUserId: payload.userAId,
-        },
-      }),
+      createNotification({ userId: payload.userAId, type: NotificationType.MATCH_CREATED, meta: metaA }),
+      createNotification({ userId: payload.userBId, type: NotificationType.MATCH_CREATED, meta: metaB }),
     ]);
+    const push = buildPushPayload(NotificationType.MATCH_CREATED, metaA);
+    void sendPushToUser({ userId: payload.userAId, ...push });
+    void sendPushToUser({ userId: payload.userBId, ...push });
   } catch (err) {
     logger.error(
       { err, payload },
@@ -140,16 +133,15 @@ emitter.on("offeringSent", (payload) => {
 
 emitter.on("offeringSent", async (payload) => {
   try {
-    await createNotification({
-      userId: payload.toUserId,
-      type: NotificationType.OFFERING_RECEIVED,
-      meta: {
-        offeringSentId: payload.offeringSentId,
-        offeringId: payload.offeringId,
-        fromUserId: payload.fromUserId,
-        salonId: payload.salonId,
-      },
-    });
+    const meta = {
+      offeringSentId: payload.offeringSentId,
+      offeringId: payload.offeringId,
+      fromUserId: payload.fromUserId,
+      salonId: payload.salonId ?? undefined,
+    };
+    await createNotification({ userId: payload.toUserId, type: NotificationType.OFFERING_RECEIVED, meta });
+    const push = buildPushPayload(NotificationType.OFFERING_RECEIVED, meta);
+    void sendPushToUser({ userId: payload.toUserId, ...push });
   } catch (err) {
     logger.error(
       { err, payload },
@@ -178,16 +170,15 @@ emitter.on("magieCast", (payload) => {
 
 emitter.on("magieCast", async (payload) => {
   try {
-    await createNotification({
-      userId: payload.toUserId,
-      type: NotificationType.MAGIE_RECEIVED,
-      meta: {
-        magieCastId: payload.magieCastId,
-        magieId: payload.magieId,
-        fromUserId: payload.fromUserId,
-        salonId: payload.salonId,
-      },
-    });
+    const meta = {
+      magieCastId: payload.magieCastId,
+      magieId: payload.magieId,
+      fromUserId: payload.fromUserId,
+      salonId: payload.salonId ?? undefined,
+    };
+    await createNotification({ userId: payload.toUserId, type: NotificationType.MAGIE_RECEIVED, meta });
+    const push = buildPushPayload(NotificationType.MAGIE_RECEIVED, meta);
+    void sendPushToUser({ userId: payload.toUserId, ...push });
   } catch (err) {
     logger.error(
       { err, payload },

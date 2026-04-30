@@ -34,3 +34,15 @@ export const NotificationIdParamsSchema = z
 export type NotificationIdParamsDto = z.infer<
   typeof NotificationIdParamsSchema
 >;
+
+// ============================================================
+// POST /api/notifications/register-device — body
+// ============================================================
+export const RegisterDeviceSchema = z
+  .object({
+    token:    z.string().min(1).max(512),
+    platform: z.enum(["ios", "android", "web"]),
+  })
+  .strict();
+
+export type RegisterDeviceDto = z.infer<typeof RegisterDeviceSchema>;

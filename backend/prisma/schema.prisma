@@ -173,6 +173,7 @@ model User {
   reactionsReceived Reaction[]    @relation("ReactionTo")
   questionAttempts  MatchQuestionAttempt[] @relation("QuestionAttemptResponder")
   cardGameSessions  CardGameSession[]
+  pushTokens        PushToken[]
 
   @@index([email])
   @@index([isBanned])
@@ -631,6 +632,23 @@ model Notification {
 
   @@index([userId, isRead, createdAt])
   @@index([userId, createdAt])
+}
+
+// ============================================================
+// PUSH TOKENS
+// ============================================================
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String   // 'ios' | 'android' | 'web'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ============================================================

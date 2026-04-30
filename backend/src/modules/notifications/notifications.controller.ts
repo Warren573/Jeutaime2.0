@@ -1,9 +1,11 @@
 import { Response } from "express";
 import { AuthedRequest } from "../../core/types";
 import * as svc from "./notifications.service";
+import { registerDeviceToken } from "./push.service";
 import type {
   ListNotificationsQueryDto,
   NotificationIdParamsDto,
+  RegisterDeviceDto,
 } from "./notifications.schemas";
 
 // GET /api/notifications
@@ -38,4 +40,11 @@ export async function handleMarkAsRead(req: AuthedRequest, res: Response) {
 export async function handleMarkAllAsRead(req: AuthedRequest, res: Response) {
   const result = await svc.markAllAsRead(req.user.userId);
   res.json({ data: result });
+}
+
+// POST /api/notifications/register-device
+export async function handleRegisterDevice(req: AuthedRequest, res: Response) {
+  const { token, platform } = req.body as RegisterDeviceDto;
+  await registerDeviceToken({ userId: req.user.userId, token, platform });
+  res.status(201).json({ data: { registered: true } });
 }

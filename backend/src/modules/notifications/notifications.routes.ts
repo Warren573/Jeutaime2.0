@@ -6,6 +6,7 @@ import { AuthedRequest } from "../../core/types";
 import {
   ListNotificationsQuerySchema,
   NotificationIdParamsSchema,
+  RegisterDeviceSchema,
 } from "./notifications.schemas";
 import * as ctrl from "./notifications.controller";
 
@@ -29,6 +30,13 @@ router.get("/unread-count", wrap(ctrl.handleUnreadCount));
 
 // POST /api/notifications/read-all
 router.post("/read-all", wrap(ctrl.handleMarkAllAsRead));
+
+// POST /api/notifications/register-device
+router.post(
+  "/register-device",
+  validate(RegisterDeviceSchema, "body"),
+  wrap(ctrl.handleRegisterDevice),
+);
 
 // PATCH /api/notifications/:id/read
 router.patch(
