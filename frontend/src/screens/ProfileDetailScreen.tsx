@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,16 @@ import {
   Dimensions,
   Modal,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../store/useStore';
-import { AvatarRenderer } from '../avatar/components/AvatarRenderer';
 import { AvatarDefinition } from '../avatar/types/avatarTypes';
-import { MOCK_AVATAR_BUN, MOCK_AVATAR_DEFAULT } from '../avatar/data/mockAvatars';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
+import { getPublicProfile, PublicProfileResponse } from '../api/profiles';
+import type { MatchDTO } from '../api/matches';
 
 const { width } = Dimensions.get('window');
 
@@ -55,58 +56,82 @@ interface ProfileData {
   };
 }
 
-// ─── MOCK DATA ─────────────────────────────────────────────────────────────────
+// ─── DATA HELPERS ─────────────────────────────────────────────────────────────
 
-const mockProfile: ProfileData = {
-  id: 'zoe_27',
-  name: 'Zoé',
-  age: 27,
-  city: 'Paris',
-  mainVibe: '✨ Aventurière romantique',
-  descriptors: ['Taquine', 'Mystérieuse'],
-  avatarEmoji: '🦊',
-  avatarBg: '#F3E5F5',
-  avatarDef: MOCK_AVATAR_BUN,
-  tags: [
-    { emoji: '🎭', label: 'Improvisatrice' },
-    { emoji: '🔥', label: 'Passionnée' },
-    { emoji: '💬', label: 'Taquine' },
-    { emoji: '🌙', label: 'Mystérieuse' },
-    { emoji: '📚', label: 'Curieuse' },
-    { emoji: '🌍', label: 'Voyageuse' },
-  ],
-  quote:
-    'Je préfère les histoires qui commencent par un mystère plutôt que par un swipe.',
-  sections: [
-    {
-      title: 'Mon univers',
-      icon: '🌐',
-      items: ['Théâtre', 'Voyages', 'Nuits imprévues'],
+function calcAge(birthDate: string | null): number {
+  if (!birthDate) return 0;
+  const bd = new Date(birthDate);
+  if (isNaN(bd.getTime())) return 0;
+  const now = new Date();
+  let age = now.getFullYear() - bd.getFullYear();
+  if (
+    now.getMonth() < bd.getMonth() ||
+    (now.getMonth() === bd.getMonth() && now.getDate() < bd.getDate())
+  ) age--;
+  return age;
+}
+
+const TAG_EMOJIS = ['✨', '💫', '🌟', '💎', '🔥', '🌸', '⚡', '🦋', '🎭', '🎯'];
+
+function mapApiToProfileData(
+  data: PublicProfileResponse,
+  match?: MatchDTO,
+): ProfileData {
+  const p = data.profile;
+
+  const myCount = match
+    ? (match.currentUserSide === 'A' ? match.letterCountA : match.letterCountB)
+    : 0;
+  const theirCount = match
+    ? (match.currentUserSide === 'A' ? match.letterCountB : match.letterCountA)
+    : 0;
+  const totalExchanged = myCount + theirCount;
+
+  const lastAt = match?.lastLetterAt ? new Date(match.lastLetterAt) : null;
+  const lastLetterDaysAgo = lastAt
+    ? Math.max(0, Math.floor((Date.now() - lastAt.getTime()) / 86_400_000))
+    : 0;
+
+  const nextMilestone = REVEAL_MILESTONES.find((m) => m.threshold > totalExchanged);
+  const nextReveal = nextMilestone ? nextMilestone.threshold - totalExchanged : 0;
+
+  const sections: JournalSection[] = [];
+  if ((p.interests ?? []).length > 0)
+    sections.push({ title: 'Mon univers', icon: '🌐', items: p.interests! });
+  if ((p.idealDay ?? []).length > 0)
+    sections.push({ title: 'Ma journée idéale', icon: '☀️', items: p.idealDay! });
+  if ((p.defaults ?? []).length > 0)
+    sections.push({ title: 'Mes défauts (assumés)', icon: '🙈', items: p.defaults! });
+
+  return {
+    id: p.id,
+    name: p.pseudo ?? 'Inconnu',
+    age: calcAge(p.birthDate),
+    city: p.city ?? 'Inconnue',
+    mainVibe: p.vibe ?? '',
+    descriptors: (p.qualities ?? []).slice(0, 3),
+    avatarEmoji: '✨',
+    avatarBg: '#F3E5F5',
+    tags: (p.identityTags ?? []).map((label, i) => ({
+      emoji: TAG_EMOJIS[i % TAG_EMOJIS.length],
+      label,
+    })),
+    quote: p.quote ?? '',
+    sections,
+    game: {
+      level: Math.max(1, Math.floor((p.points ?? 0) / 200) + 1),
+      badges: (p.badges ?? []).slice(0, 2),
+      pet: '—',
+      petEmoji: '🐾',
     },
-    {
-      title: 'Ma manière d\'aimer',
-      icon: '💞',
-      items: ['Lentement', 'Avec tension', 'Avec curiosité'],
+    letters: {
+      exchanged: totalExchanged,
+      total: 10,
+      lastLetterDaysAgo,
+      nextReveal,
     },
-    {
-      title: 'Ma présence dans les salons',
-      icon: '🫧',
-      items: ['J\'observe d\'abord', 'Puis je joue', 'Puis je révèle'],
-    },
-  ],
-  game: {
-    level: 12,
-    badges: ['Séductrice', 'Mystérieuse'],
-    pet: 'Renard',
-    petEmoji: '🦊',
-  },
-  letters: {
-    exchanged: 4,
-    total: 10,
-    lastLetterDaysAgo: 2,
-    nextReveal: 6,
-  },
-};
+  };
+}
 
 // ─── REVEAL HELPERS ────────────────────────────────────────────────────────────
 
@@ -400,20 +425,73 @@ function LetterModal({
 export default function ProfileDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const [showLetterModal, setShowLetterModal] = useState(false);
-  const screenBg = useStore(s => s.screenBackgrounds?.['profile_detail'] ?? '#FFF8E7');
-  const profile = mockProfile; // In production: fetch by id from route params
+  const [apiData, setApiData] = useState<PublicProfileResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const screenBg = useStore((s) => s.screenBackgrounds?.['profile_detail'] ?? '#FFF8E7');
+  const apiMatches = useStore((s) => s.apiMatches);
+  const sendApiLetter = useStore((s) => s.sendApiLetter);
+
+  useEffect(() => {
+    if (!id) {
+      setLoadError('Profil introuvable');
+      setIsLoading(false);
+      return;
+    }
+    getPublicProfile(id)
+      .then((data) => { setApiData(data); setIsLoading(false); })
+      .catch((err: unknown) => {
+        setLoadError(err instanceof Error ? err.message : 'Profil introuvable');
+        setIsLoading(false);
+      });
+  }, [id]);
+
+  const match = apiData
+    ? apiMatches.find((m) => m.otherUserId === apiData.profile.userId)
+    : undefined;
+  const profile = apiData ? mapApiToProfileData(apiData, match) : null;
+
+  const topBar = (
+    <View style={styles.topBar}>
+      <TouchableOpacity
+        onPress={() => router.back()}
+        style={styles.backBtn}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Text style={styles.backArrow}>←</Text>
+      </TouchableOpacity>
+      <Text style={styles.topBarTitle}>Profil</Text>
+      <View style={{ width: 36 }} />
+    </View>
+  );
+
+  if (isLoading) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: screenBg, alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#E91E63" />
+      </View>
+    );
+  }
+
+  if (loadError || !profile || !apiData) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
+        {topBar}
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ fontSize: 16, color: '#8B6F47', textAlign: 'center' }}>
+            {loadError ?? 'Profil introuvable'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
-      {/* Back bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Profil</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      {topBar}
 
       <ScrollView
         style={styles.scroll}
@@ -424,51 +502,63 @@ export default function ProfileDetailScreen() {
         <ProfileHeader profile={profile} />
 
         {/* 2. Identity tags */}
-        <View style={styles.section}>
-          <ProfileTags tags={profile.tags} />
-        </View>
+        {profile.tags.length > 0 && (
+          <View style={styles.section}>
+            <ProfileTags tags={profile.tags} />
+          </View>
+        )}
 
         {/* 3. Quote */}
-        <View style={styles.section}>
-          <ProfileQuote quote={profile.quote} />
-        </View>
+        {profile.quote.length > 0 && (
+          <View style={styles.section}>
+            <ProfileQuote quote={profile.quote} />
+          </View>
+        )}
 
         {/* 4. Journal sections */}
-        <View style={styles.sectionsGrid}>
-          {profile.sections.map((s) => (
-            <ProfileSection key={s.title} section={s} />
-          ))}
-        </View>
+        {profile.sections.length > 0 && (
+          <View style={styles.sectionsGrid}>
+            {profile.sections.map((s) => (
+              <ProfileSection key={s.title} section={s} />
+            ))}
+          </View>
+        )}
 
         {/* 5. Game progression */}
         <View style={styles.section}>
           <ProfileGameSection game={profile.game} />
         </View>
 
-        {/* 6. Letter system */}
-        <View style={styles.section}>
-          <RevealProgressCard letters={profile.letters} />
-        </View>
-
-        <View style={styles.section}>
-          <LettersSection letters={profile.letters} />
-        </View>
-
-        {/* CTA */}
-        <View style={[styles.section, { paddingBottom: 8 }]}>
-          <WriteLetterButton onPress={() => setShowLetterModal(true)} />
-        </View>
+        {/* 6. Letter system — only shown when a match exists */}
+        {match && (
+          <>
+            <View style={styles.section}>
+              <RevealProgressCard letters={profile.letters} />
+            </View>
+            <View style={styles.section}>
+              <LettersSection letters={profile.letters} />
+            </View>
+            <View style={[styles.section, { paddingBottom: 8 }]}>
+              <WriteLetterButton onPress={() => setShowLetterModal(true)} />
+            </View>
+          </>
+        )}
       </ScrollView>
 
-      <LetterModal
-        visible={showLetterModal}
-        recipientName={profile.name}
-        onClose={() => setShowLetterModal(false)}
-        onSend={(text) => {
-          // In production: dispatch to store
-          console.log('Letter sent:', text);
-        }}
-      />
+      {match && (
+        <LetterModal
+          visible={showLetterModal}
+          recipientName={profile.name}
+          onClose={() => setShowLetterModal(false)}
+          onSend={async (text) => {
+            try {
+              await sendApiLetter(match.id, text);
+            } catch {
+              // Error surfaced by store
+            }
+          }}
+        />
+      )}
     </View>
   );
 }
