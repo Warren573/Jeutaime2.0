@@ -12,35 +12,11 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { apiFetch } from "../api/client";
-import { saveToken, saveRefreshToken } from "../utils/session";
 import { useStore } from "../store/useStore";
-
-const AUTH_ENABLED = true;
-
-function extractToken(res: any): string | null {
-  if (!res) return null;
-  return (
-    res?.data?.accessToken ||
-    res?.accessToken ||
-    res?.data?.token ||
-    res?.token ||
-    null
-  );
-}
-
-function extractRefreshToken(res: any): string | null {
-  if (!res) return null;
-  return (
-    res?.data?.refreshToken ||
-    res?.refreshToken ||
-    null
-  );
-}
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { hydrateFromApi } = useStore();
+  const { login: storeLogin } = useStore();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,35 +27,11 @@ export default function LoginScreen() {
   const isFormValid = email.trim().length > 0 && password.trim().length > 0;
 
   const handleLogin = async () => {
-    if (isLoading) return;
-
-    if (!AUTH_ENABLED) {
-      router.replace("/(tabs)");
-      return;
-    }
-
-    if (!isFormValid) return;
+    if (!isFormValid || isLoading) return;
 
     try {
       setIsLoading(true);
-
-      const res = await apiFetch("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          password,
-        }),
-      });
-
-      const token = extractToken(res);
-      if (!token) {
-        throw new Error(`Token manquant. Réponse: ${JSON.stringify(res)}`);
-      }
-
-      const refreshToken = extractRefreshToken(res);
-      await saveToken(token);
-      if (refreshToken) await saveRefreshToken(refreshToken);
-      await hydrateFromApi();
+      await storeLogin(email.trim().toLowerCase(), password);
       router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert("Erreur", err?.message || "Une erreur est survenue.");
