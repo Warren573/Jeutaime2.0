@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,208 @@ import {
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 
-const AUTH_ENABLED = true;
+// ─── Date picker constants ────────────────────────────────────────────────────
+
+const ITEM_H = 50;          // height of each picker row
+const VISIBLE = 5;          // visible rows per column (must be odd)
+const PAD = 2;              // (VISIBLE - 1) / 2  — invisible padding rows top & bottom
+
+const MONTHS_FR = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+];
+
+const MAX_BIRTH_YEAR = new Date().getFullYear() - 18;  // youngest allowed (18 y/o)
+const MIN_BIRTH_YEAR = 1930;
+
+function daysInMonth(month: number, year: number): number {
+  return new Date(year, month, 0).getDate();  // day 0 of month+1 = last day of month
+}
+
+// ─── PickerColumn ─────────────────────────────────────────────────────────────
+
+interface ColProps {
+  items: string[];
+  selectedIndex: number;
+  onChange: (index: number) => void;
+  flex?: number;
+}
+
+function PickerColumn({ items, selectedIndex, onChange, flex = 1 }: ColProps) {
+  const scrollRef = useRef<ScrollView>(null);
+  const inited = useRef(false);
+
+  // Stable refs so the onSnap callback never captures stale values
+  const itemsLenRef = useRef(items.length);
+  const onChangeRef = useRef(onChange);
+  itemsLenRef.current = items.length;
+  onChangeRef.current = onChange;
+
+  // Initial scroll — needs a small delay so the layout is complete
+  useEffect(() => {
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_H, animated: false });
+      inited.current = true;
+    }, 80);
+    return () => clearTimeout(t);
+  }, []); // mount only
+
+  // External selectedIndex change (e.g., day clamped when month changes)
+  useEffect(() => {
+    if (inited.current) {
+      scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_H, animated: true });
+    }
+  }, [selectedIndex]);
+
+  const onSnap = useCallback((e: any) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const idx = Math.round(y / ITEM_H);
+    const clamped = Math.max(0, Math.min(idx, itemsLenRef.current - 1));
+    onChangeRef.current(clamped);
+    // snapToInterval handles the visual snap — no manual scrollTo needed
+  }, []);
+
+  // Padding rows so first/last item can reach the center position
+  const empty = Array(PAD).fill('');
+  const all = [...empty, ...items, ...empty];
+
+  return (
+    <View style={{ flex, height: ITEM_H * VISIBLE, overflow: 'hidden' }}>
+      {/* Fixed selection highlight band at the center */}
+      <View
+        pointerEvents="none"
+        style={pickerStyles.highlight}
+      />
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_H}
+        decelerationRate="fast"
+        onMomentumScrollEnd={onSnap}
+        onScrollEndDrag={onSnap}
+        scrollEventThrottle={32}
+      >
+        {all.map((item, i) => {
+          const realIdx = i - PAD;
+          const isSelected = realIdx === selectedIndex;
+          return (
+            <View key={i} style={pickerStyles.row}>
+              <Text style={[
+                pickerStyles.itemText,
+                isSelected && pickerStyles.itemTextSelected,
+                item === '' && pickerStyles.itemTextHidden,
+              ]}>
+                {item || ' '}
+              </Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+const pickerStyles = StyleSheet.create({
+  highlight: {
+    position: 'absolute',
+    top: ITEM_H * PAD,
+    left: 6,
+    right: 6,
+    height: ITEM_H,
+    backgroundColor: 'rgba(156, 47, 69, 0.08)',
+    borderRadius: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(156, 47, 69, 0.35)',
+    zIndex: 2,
+  },
+  row: {
+    height: ITEM_H,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  itemText: {
+    fontSize: 15,
+    color: '#9a948d',
+    fontWeight: '400',
+  },
+  itemTextSelected: {
+    fontSize: 17,
+    color: '#9c2f45',
+    fontWeight: '700',
+  },
+  itemTextHidden: {
+    color: 'transparent',
+  },
+});
+
+// ─── DateScrollPicker ─────────────────────────────────────────────────────────
+
+interface DatePickerProps {
+  day: number;
+  month: number;
+  year: number;
+  onDayChange: (d: number) => void;
+  onMonthChange: (m: number) => void;
+  onYearChange: (y: number) => void;
+}
+
+function DateScrollPicker({ day, month, year, onDayChange, onMonthChange, onYearChange }: DatePickerProps) {
+  const maxDay = daysInMonth(month, year);
+  const dayItems = Array.from({ length: maxDay }, (_, i) =>
+    String(i + 1).padStart(2, '0')
+  );
+  const yearItems = Array.from(
+    { length: MAX_BIRTH_YEAR - MIN_BIRTH_YEAR + 1 },
+    (_, i) => String(MAX_BIRTH_YEAR - i)
+  );
+
+  return (
+    <View style={datePickerStyles.container}>
+      {/* Jour */}
+      <PickerColumn
+        items={dayItems}
+        selectedIndex={Math.min(day - 1, maxDay - 1)}
+        onChange={(i) => onDayChange(i + 1)}
+        flex={1}
+      />
+      <View style={datePickerStyles.divider} />
+      {/* Mois */}
+      <PickerColumn
+        items={MONTHS_FR}
+        selectedIndex={month - 1}
+        onChange={(i) => onMonthChange(i + 1)}
+        flex={2}
+      />
+      <View style={datePickerStyles.divider} />
+      {/* Année */}
+      <PickerColumn
+        items={yearItems}
+        selectedIndex={Math.max(0, MAX_BIRTH_YEAR - year)}
+        onChange={(i) => onYearChange(MAX_BIRTH_YEAR - i)}
+        flex={1.4}
+      />
+    </View>
+  );
+}
+
+const datePickerStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#d9cec3',
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    overflow: 'hidden',
+  },
+  divider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: '#d9cec3',
+    alignSelf: 'stretch',
+  },
+});
+
+// ─── RegisterScreen ───────────────────────────────────────────────────────────
 
 const GENDER_OPTIONS = [
   { label: "Homme", value: "HOMME" },
@@ -29,13 +230,31 @@ export default function RegisterScreen() {
 
   const [pseudo, setPseudo] = useState("");
   const [email, setEmail] = useState("");
-  const [birthDate, setBirthDate] = useState("");
+  const [day, setDay] = useState(1);
+  const [month, setMonth] = useState(1);
+  const [year, setYear] = useState(2000);
   const [city, setCity] = useState("");
   const [gender, setGender] = useState("HOMME");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const VALID_GENDERS = ["HOMME", "FEMME", "AUTRE"];
+
+  // Computed birthDate always in YYYY-MM-DD format — always valid (day auto-clamped)
+  const birthDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+  // Auto-clamp day when month/year changes (e.g. March 31 → February 28)
+  const handleMonthChange = (m: number) => {
+    setMonth(m);
+    const max = daysInMonth(m, year);
+    if (day > max) setDay(max);
+  };
+
+  const handleYearChange = (y: number) => {
+    setYear(y);
+    const max = daysInMonth(month, y);
+    if (day > max) setDay(max);
+  };
 
   const pseudoError = pseudo.length > 0
     ? pseudo.trim().length < 3
@@ -53,18 +272,15 @@ export default function RegisterScreen() {
         : null
     : null;
 
-  const birthDateError = birthDate.trim().length === 10
-    ? (() => {
-        const age = (Date.now() - new Date(`${birthDate.trim()}T00:00:00.000Z`).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-        return age < 18 ? "Tu dois avoir au moins 18 ans" : null;
-      })()
-    : null;
+  const birthDateError = (() => {
+    const age = (Date.now() - new Date(`${birthDate}T00:00:00.000Z`).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+    return age < 18 ? "Tu dois avoir au moins 18 ans" : null;
+  })();
 
   const isFormValid =
     pseudo.trim().length >= 3 &&
     pseudoError === null &&
     email.trim().length > 0 &&
-    birthDate.trim().length === 10 &&
     birthDateError === null &&
     city.trim().length > 0 &&
     VALID_GENDERS.includes(gender) &&
@@ -74,23 +290,13 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     if (!isFormValid || isLoading) return;
 
-    // TEMP: skip API call, enter app directly
-    if (!AUTH_ENABLED) {
-      router.replace("/(tabs)");
-      return;
-    }
-
     try {
       setIsLoading(true);
-
-      const birthDateIso = new Date(
-        `${birthDate.trim()}T00:00:00.000Z`
-      ).toISOString();
 
       await storeRegister({
         pseudo: pseudo.trim(),
         email: email.trim().toLowerCase(),
-        birthDate: birthDateIso,
+        birthDate: new Date(`${birthDate}T00:00:00.000Z`).toISOString(),
         city: city.trim(),
         gender: gender as "HOMME" | "FEMME" | "AUTRE",
         password,
@@ -149,14 +355,18 @@ export default function RegisterScreen() {
 
               <View style={styles.field}>
                 <Text style={styles.label}>Date de naissance</Text>
-                <TextInput
-                  value={birthDate}
-                  onChangeText={setBirthDate}
-                  placeholder="AAAA-MM-JJ"
-                  placeholderTextColor="#9a948d"
-                  keyboardType="numeric"
-                  style={styles.input}
-                  maxLength={10}
+                <View style={styles.pickerHeader}>
+                  <Text style={styles.pickerColLabel}>Jour</Text>
+                  <Text style={[styles.pickerColLabel, { flex: 2 }]}>Mois</Text>
+                  <Text style={[styles.pickerColLabel, { flex: 1.4 }]}>Année</Text>
+                </View>
+                <DateScrollPicker
+                  day={day}
+                  month={month}
+                  year={year}
+                  onDayChange={setDay}
+                  onMonthChange={handleMonthChange}
+                  onYearChange={handleYearChange}
                 />
                 {birthDateError ? <Text style={styles.fieldError}>{birthDateError}</Text> : null}
               </View>
@@ -298,6 +508,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#2a272c",
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    paddingHorizontal: 2,
+  },
+  pickerColLabel: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9a948d',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
   input: {
     height: 54,
