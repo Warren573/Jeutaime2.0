@@ -1,8 +1,9 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   SafeAreaView,
@@ -15,306 +16,265 @@ import {
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 
-// ─── Date picker constants ────────────────────────────────────────────────────
-
-const ITEM_H = 50;          // height of each picker row
-const VISIBLE = 5;          // visible rows per column (must be odd)
-const PAD = 2;              // (VISIBLE - 1) / 2  — invisible padding rows top & bottom
+// ─── Date constants ────────────────────────────────────────────────────────────
 
 const MONTHS_FR = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
 ];
-
-const MAX_BIRTH_YEAR = new Date().getFullYear() - 18;  // youngest allowed (18 y/o)
+const MAX_BIRTH_YEAR = new Date().getFullYear() - 18;
 const MIN_BIRTH_YEAR = 1930;
 
 function daysInMonth(month: number, year: number): number {
-  return new Date(year, month, 0).getDate();  // day 0 of month+1 = last day of month
+  return new Date(year, month, 0).getDate();
 }
 
-// ─── PickerColumn ─────────────────────────────────────────────────────────────
+// ─── PickerBottomSheet ────────────────────────────────────────────────────────
 
-interface ColProps {
+interface SheetProps {
+  visible: boolean;
+  title: string;
   items: string[];
   selectedIndex: number;
-  onChange: (index: number) => void;
-  flex?: number;
+  onSelect: (index: number) => void;
+  onClose: () => void;
 }
 
-function PickerColumn({ items, selectedIndex, onChange, flex = 1 }: ColProps) {
+const SHEET_ITEM_H = 52;
+
+function PickerBottomSheet({ visible, title, items, selectedIndex, onSelect, onClose }: SheetProps) {
   const scrollRef = useRef<ScrollView>(null);
-  const inited = useRef(false);
 
-  // Stable refs so the onSnap callback never captures stale values
-  const itemsLenRef = useRef(items.length);
-  const onChangeRef = useRef(onChange);
-  itemsLenRef.current = items.length;
-  onChangeRef.current = onChange;
-
-  // Initial scroll — needs a small delay so the layout is complete
   useEffect(() => {
+    if (!visible) return;
     const t = setTimeout(() => {
-      scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_H, animated: false });
-      inited.current = true;
+      // Scroll so selected item is roughly centered (2 items above)
+      const y = Math.max(0, (selectedIndex - 2) * SHEET_ITEM_H);
+      scrollRef.current?.scrollTo({ y, animated: false });
     }, 80);
     return () => clearTimeout(t);
-  }, []); // mount only
-
-  // External selectedIndex change (e.g., day clamped when month changes)
-  useEffect(() => {
-    if (inited.current) {
-      scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_H, animated: true });
-    }
-  }, [selectedIndex]);
-
-  const onSnap = useCallback((e: any) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const idx = Math.round(y / ITEM_H);
-    const clamped = Math.max(0, Math.min(idx, itemsLenRef.current - 1));
-    onChangeRef.current(clamped);
-    // snapToInterval handles the visual snap — no manual scrollTo needed
-  }, []);
-
-  // Padding rows so first/last item can reach the center position
-  const empty = Array(PAD).fill('');
-  const all = [...empty, ...items, ...empty];
+  }, [visible, selectedIndex]);
 
   return (
-    <View style={{ flex, height: ITEM_H * VISIBLE, overflow: 'hidden' }}>
-      {/* Fixed selection highlight band at the center */}
-      <View
-        pointerEvents="none"
-        style={pickerStyles.highlight}
-      />
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_H}
-        decelerationRate="fast"
-        onMomentumScrollEnd={onSnap}
-        onScrollEndDrag={onSnap}
-        scrollEventThrottle={32}
-      >
-        {all.map((item, i) => {
-          const realIdx = i - PAD;
-          const isSelected = realIdx === selectedIndex;
-          return (
-            <View key={i} style={pickerStyles.row}>
-              <Text style={[
-                pickerStyles.itemText,
-                isSelected && pickerStyles.itemTextSelected,
-                item === '' && pickerStyles.itemTextHidden,
-              ]}>
-                {item || ' '}
-              </Text>
-            </View>
-          );
-        })}
-      </ScrollView>
-    </View>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={ss.modalWrap}>
+        {/* Tap outside to close */}
+        <Pressable style={ss.overlay} onPress={onClose} />
+
+        {/* Bottom sheet */}
+        <Pressable style={ss.sheet} onPress={() => {}}>
+          <View style={ss.handle} />
+          <Text style={ss.sheetTitle}>{title}</Text>
+          <ScrollView
+            ref={scrollRef}
+            style={{ maxHeight: 300 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {items.map((item, i) => {
+              const isSelected = i === selectedIndex;
+              return (
+                <Pressable
+                  key={i}
+                  style={[ss.item, isSelected && ss.itemSelected]}
+                  onPress={() => { onSelect(i); onClose(); }}
+                >
+                  <Text style={[ss.itemText, isSelected && ss.itemTextSelected]}>
+                    {item}
+                  </Text>
+                  {isSelected && <Text style={ss.check}>✓</Text>}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </Pressable>
+      </View>
+    </Modal>
   );
 }
 
-const pickerStyles = StyleSheet.create({
-  highlight: {
-    position: 'absolute',
-    top: ITEM_H * PAD,
-    left: 6,
-    right: 6,
-    height: ITEM_H,
-    backgroundColor: 'rgba(156, 47, 69, 0.08)',
-    borderRadius: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(156, 47, 69, 0.35)',
-    zIndex: 2,
+const ss = StyleSheet.create({
+  modalWrap: { flex: 1, justifyContent: 'flex-end' },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
-  row: {
-    height: ITEM_H,
-    justifyContent: 'center',
-    alignItems: 'center',
+  sheet: {
+    backgroundColor: '#fffaf5',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 10,
+    paddingBottom: 36,
   },
-  itemText: {
-    fontSize: 15,
-    color: '#9a948d',
-    fontWeight: '400',
-  },
-  itemTextSelected: {
-    fontSize: 17,
-    color: '#9c2f45',
-    fontWeight: '700',
-  },
-  itemTextHidden: {
-    color: 'transparent',
-  },
-});
-
-// ─── DateScrollPicker ─────────────────────────────────────────────────────────
-
-interface DatePickerProps {
-  day: number;
-  month: number;
-  year: number;
-  onDayChange: (d: number) => void;
-  onMonthChange: (m: number) => void;
-  onYearChange: (y: number) => void;
-}
-
-function DateScrollPicker({ day, month, year, onDayChange, onMonthChange, onYearChange }: DatePickerProps) {
-  const maxDay = daysInMonth(month, year);
-  const dayItems = Array.from({ length: maxDay }, (_, i) =>
-    String(i + 1).padStart(2, '0')
-  );
-  const yearItems = Array.from(
-    { length: MAX_BIRTH_YEAR - MIN_BIRTH_YEAR + 1 },
-    (_, i) => String(MAX_BIRTH_YEAR - i)
-  );
-
-  return (
-    <View style={datePickerStyles.container}>
-      {/* Jour */}
-      <PickerColumn
-        items={dayItems}
-        selectedIndex={Math.min(day - 1, maxDay - 1)}
-        onChange={(i) => onDayChange(i + 1)}
-        flex={1}
-      />
-      <View style={datePickerStyles.divider} />
-      {/* Mois */}
-      <PickerColumn
-        items={MONTHS_FR}
-        selectedIndex={month - 1}
-        onChange={(i) => onMonthChange(i + 1)}
-        flex={2}
-      />
-      <View style={datePickerStyles.divider} />
-      {/* Année */}
-      <PickerColumn
-        items={yearItems}
-        selectedIndex={Math.max(0, MAX_BIRTH_YEAR - year)}
-        onChange={(i) => onYearChange(MAX_BIRTH_YEAR - i)}
-        flex={1.4}
-      />
-    </View>
-  );
-}
-
-const datePickerStyles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#d9cec3',
-    borderRadius: 14,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-  },
-  divider: {
-    width: StyleSheet.hairlineWidth,
+  handle: {
+    alignSelf: 'center',
+    width: 40, height: 4,
+    borderRadius: 2,
     backgroundColor: '#d9cec3',
-    alignSelf: 'stretch',
+    marginBottom: 12,
   },
+  sheetTitle: {
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#232126',
+    paddingBottom: 10,
+    marginHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e7ddd2',
+    marginBottom: 4,
+  },
+  item: {
+    height: SHEET_ITEM_H,
+    paddingHorizontal: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  itemSelected: { backgroundColor: 'rgba(156,47,69,0.07)' },
+  itemText: { fontSize: 16, color: '#2a272c' },
+  itemTextSelected: { fontWeight: '700', color: '#9c2f45' },
+  check: { fontSize: 15, color: '#9c2f45' },
 });
 
 // ─── RegisterScreen ───────────────────────────────────────────────────────────
 
 const GENDER_OPTIONS = [
-  { label: "Homme", value: "HOMME" },
-  { label: "Femme", value: "FEMME" },
-  { label: "Autre", value: "AUTRE" },
+  { label: 'Homme', value: 'HOMME' },
+  { label: 'Femme', value: 'FEMME' },
+  { label: 'Autre', value: 'AUTRE' },
 ];
+
+type PickerField = 'day' | 'month' | 'year';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { register: storeRegister } = useStore();
 
-  const [pseudo, setPseudo] = useState("");
-  const [email, setEmail] = useState("");
-  const [day, setDay] = useState(1);
-  const [month, setMonth] = useState(1);
-  const [year, setYear] = useState(2000);
-  const [city, setCity] = useState("");
-  const [gender, setGender] = useState("HOMME");
-  const [password, setPassword] = useState("");
+  // Text fields
+  const [pseudo, setPseudo]   = useState('');
+  const [email, setEmail]     = useState('');
+  const [city, setCity]       = useState('');
+  const [gender, setGender]   = useState('HOMME');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const VALID_GENDERS = ["HOMME", "FEMME", "AUTRE"];
+  // Date fields
+  const [day, setDay]     = useState(1);
+  const [month, setMonth] = useState(1);
+  const [year, setYear]   = useState(2000);
 
-  // Computed birthDate always in YYYY-MM-DD format — always valid (day auto-clamped)
+  // Date picker modal
+  const [activePicker, setActivePicker] = useState<PickerField | null>(null);
+
+  const VALID_GENDERS = ['HOMME', 'FEMME', 'AUTRE'];
+
+  // Computed birthDate — always valid (day auto-clamped)
   const birthDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-  // Auto-clamp day when month/year changes (e.g. March 31 → February 28)
-  const handleMonthChange = (m: number) => {
+  // Picker items
+  const maxDay   = daysInMonth(month, year);
+  const dayItems = Array.from({ length: maxDay }, (_, i) => String(i + 1).padStart(2, '0'));
+  const yearItems = Array.from(
+    { length: MAX_BIRTH_YEAR - MIN_BIRTH_YEAR + 1 },
+    (_, i) => String(MAX_BIRTH_YEAR - i)
+  );
+
+  // Auto-clamp day when month/year changes
+  const handleMonthSelect = (i: number) => {
+    const m = i + 1;
     setMonth(m);
     const max = daysInMonth(m, year);
     if (day > max) setDay(max);
   };
 
-  const handleYearChange = (y: number) => {
+  const handleYearSelect = (i: number) => {
+    const y = MAX_BIRTH_YEAR - i;
     setYear(y);
     const max = daysInMonth(month, y);
     if (day > max) setDay(max);
   };
 
+  const pickerConfig: Record<PickerField, { title: string; items: string[]; selectedIndex: number; onSelect: (i: number) => void }> = {
+    day:   { title: 'Jour de naissance',   items: dayItems,  selectedIndex: day - 1,                        onSelect: (i) => setDay(i + 1) },
+    month: { title: 'Mois de naissance',   items: MONTHS_FR, selectedIndex: month - 1,                      onSelect: handleMonthSelect },
+    year:  { title: 'Année de naissance',  items: yearItems, selectedIndex: Math.max(0, MAX_BIRTH_YEAR - year), onSelect: handleYearSelect },
+  };
+
+  // Validation
   const pseudoError = pseudo.length > 0
     ? pseudo.trim().length < 3
-      ? "3 caractères minimum"
+      ? '3 caractères minimum'
       : !/^[a-zA-Z0-9_\-\.]+$/.test(pseudo.trim())
-        ? "Lettres, chiffres, _ - . uniquement"
+        ? 'Lettres, chiffres, _ - . uniquement'
         : null
     : null;
 
   const passwordError = password.length > 0
     ? password.length < 8
-      ? "8 caractères minimum"
+      ? '8 caractères minimum'
       : !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)
-        ? "Doit contenir une majuscule, une minuscule et un chiffre"
+        ? 'Doit contenir une majuscule, une minuscule et un chiffre'
         : null
     : null;
 
-  const birthDateError = (() => {
+  const ageError = (() => {
     const age = (Date.now() - new Date(`${birthDate}T00:00:00.000Z`).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-    return age < 18 ? "Tu dois avoir au moins 18 ans" : null;
+    return age < 18 ? 'Tu dois avoir au moins 18 ans' : null;
   })();
 
   const isFormValid =
-    pseudo.trim().length >= 3 &&
-    pseudoError === null &&
+    pseudo.trim().length >= 3 && pseudoError === null &&
     email.trim().length > 0 &&
-    birthDateError === null &&
+    ageError === null &&
     city.trim().length > 0 &&
     VALID_GENDERS.includes(gender) &&
-    password.length >= 8 &&
-    passwordError === null;
+    password.length >= 8 && passwordError === null;
 
   const handleRegister = async () => {
-    if (!isFormValid || isLoading) return;
+    if (isLoading) return;
+
+    // Show explicit validation feedback instead of silently blocking
+    if (!isFormValid) {
+      const errors: string[] = [];
+      if (!pseudo.trim() || pseudoError) errors.push(`• Pseudo : ${pseudoError || 'requis'}`);
+      if (!email.trim())                  errors.push('• Email : requis');
+      if (ageError)                       errors.push(`• Date de naissance : ${ageError}`);
+      if (!city.trim())                   errors.push('• Ville : requise');
+      if (!password || passwordError)     errors.push(`• Mot de passe : ${passwordError || 'requis'}`);
+      Alert.alert('Formulaire incomplet', errors.join('\n') || 'Remplis tous les champs.');
+      return;
+    }
 
     try {
       setIsLoading(true);
+      console.warn('[Register] payload →', { pseudo: pseudo.trim(), email: email.trim().toLowerCase(), birthDate, city: city.trim(), gender });
 
       await storeRegister({
-        pseudo: pseudo.trim(),
-        email: email.trim().toLowerCase(),
+        pseudo:    pseudo.trim(),
+        email:     email.trim().toLowerCase(),
         birthDate: new Date(`${birthDate}T00:00:00.000Z`).toISOString(),
-        city: city.trim(),
-        gender: gender as "HOMME" | "FEMME" | "AUTRE",
+        city:      city.trim(),
+        gender:    gender as 'HOMME' | 'FEMME' | 'AUTRE',
         password,
       });
 
-      router.replace("/create-profile");
+      console.warn('[Register] success → /create-profile');
+      router.replace('/create-profile');
     } catch (err: any) {
-      Alert.alert("Erreur", err?.message || "Une erreur est survenue.");
+      console.warn('[Register] error →', err?.message);
+      Alert.alert('Erreur', err?.message || 'Une erreur est survenue. Vérifie ta connexion.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const currentPicker = activePicker ? pickerConfig[activePicker] : null;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -328,6 +288,7 @@ export default function RegisterScreen() {
             </Text>
 
             <View style={styles.form}>
+              {/* Pseudo */}
               <View style={styles.field}>
                 <Text style={styles.label}>Pseudo</Text>
                 <TextInput
@@ -340,6 +301,7 @@ export default function RegisterScreen() {
                 {pseudoError ? <Text style={styles.fieldError}>{pseudoError}</Text> : null}
               </View>
 
+              {/* Email */}
               <View style={styles.field}>
                 <Text style={styles.label}>Email</Text>
                 <TextInput
@@ -353,24 +315,43 @@ export default function RegisterScreen() {
                 />
               </View>
 
+              {/* Date de naissance */}
               <View style={styles.field}>
                 <Text style={styles.label}>Date de naissance</Text>
-                <View style={styles.pickerHeader}>
-                  <Text style={styles.pickerColLabel}>Jour</Text>
-                  <Text style={[styles.pickerColLabel, { flex: 2 }]}>Mois</Text>
-                  <Text style={[styles.pickerColLabel, { flex: 1.4 }]}>Année</Text>
+
+                {/* Column labels */}
+                <View style={styles.dateLabels}>
+                  <Text style={[styles.dateColLabel, { flex: 1 }]}>Jour</Text>
+                  <Text style={[styles.dateColLabel, { flex: 2 }]}>Mois</Text>
+                  <Text style={[styles.dateColLabel, { flex: 1.5 }]}>Année</Text>
                 </View>
-                <DateScrollPicker
-                  day={day}
-                  month={month}
-                  year={year}
-                  onDayChange={setDay}
-                  onMonthChange={handleMonthChange}
-                  onYearChange={handleYearChange}
-                />
-                {birthDateError ? <Text style={styles.fieldError}>{birthDateError}</Text> : null}
+
+                {/* Compact selector row */}
+                <View style={styles.dateRow}>
+                  <Pressable style={[styles.dateBtn, { flex: 1 }]} onPress={() => setActivePicker('day')}>
+                    <Text style={styles.dateBtnText}>{String(day).padStart(2, '0')}</Text>
+                    <Text style={styles.dateBtnChevron}>▾</Text>
+                  </Pressable>
+
+                  <View style={styles.dateSep} />
+
+                  <Pressable style={[styles.dateBtn, { flex: 2 }]} onPress={() => setActivePicker('month')}>
+                    <Text style={styles.dateBtnText} numberOfLines={1}>{MONTHS_FR[month - 1]}</Text>
+                    <Text style={styles.dateBtnChevron}>▾</Text>
+                  </Pressable>
+
+                  <View style={styles.dateSep} />
+
+                  <Pressable style={[styles.dateBtn, { flex: 1.5 }]} onPress={() => setActivePicker('year')}>
+                    <Text style={styles.dateBtnText}>{String(year)}</Text>
+                    <Text style={styles.dateBtnChevron}>▾</Text>
+                  </Pressable>
+                </View>
+
+                {ageError ? <Text style={styles.fieldError}>{ageError}</Text> : null}
               </View>
 
+              {/* Ville */}
               <View style={styles.field}>
                 <Text style={styles.label}>Ville</Text>
                 <TextInput
@@ -382,24 +363,17 @@ export default function RegisterScreen() {
                 />
               </View>
 
+              {/* Genre */}
               <View style={styles.field}>
                 <Text style={styles.label}>Genre</Text>
                 <View style={styles.genderRow}>
                   {GENDER_OPTIONS.map((opt) => (
                     <Pressable
                       key={opt.value}
-                      style={[
-                        styles.genderBtn,
-                        gender === opt.value && styles.genderBtnActive,
-                      ]}
+                      style={[styles.genderBtn, gender === opt.value && styles.genderBtnActive]}
                       onPress={() => setGender(opt.value)}
                     >
-                      <Text
-                        style={[
-                          styles.genderBtnText,
-                          gender === opt.value && styles.genderBtnTextActive,
-                        ]}
-                      >
+                      <Text style={[styles.genderBtnText, gender === opt.value && styles.genderBtnTextActive]}>
                         {opt.label}
                       </Text>
                     </Pressable>
@@ -407,6 +381,7 @@ export default function RegisterScreen() {
                 </View>
               </View>
 
+              {/* Mot de passe */}
               <View style={styles.field}>
                 <Text style={styles.label}>Mot de passe</Text>
                 <TextInput
@@ -420,171 +395,178 @@ export default function RegisterScreen() {
                 {passwordError ? <Text style={styles.fieldError}>{passwordError}</Text> : null}
               </View>
 
+              {/* Submit — always tappable, shows validation message if incomplete */}
               <Pressable
-                style={[
-                  styles.button,
-                  (!isFormValid || isLoading) && styles.buttonDisabled,
-                ]}
+                style={[styles.button, (!isFormValid || isLoading) && styles.buttonDisabled]}
                 onPress={handleRegister}
-                disabled={!isFormValid || isLoading}
               >
-                {isLoading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>Créer mon compte</Text>
-                )}
+                {isLoading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.buttonText}>Créer mon compte</Text>
+                }
               </Pressable>
 
-              <Pressable disabled={isLoading} onPress={() => router.replace("/login")}>
+              <Pressable disabled={isLoading} onPress={() => router.replace('/login')}>
                 <Text style={styles.link}>Déjà un compte ? Se connecter</Text>
               </Pressable>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Date bottom-sheet picker */}
+      {currentPicker && (
+        <PickerBottomSheet
+          visible={activePicker !== null}
+          title={currentPicker.title}
+          items={currentPicker.items}
+          selectedIndex={currentPicker.selectedIndex}
+          onSelect={currentPicker.onSelect}
+          onClose={() => setActivePicker(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#f6f1ea",
-  },
+  flex:       { flex: 1 },
+  safeArea:   { flex: 1, backgroundColor: '#f6f1ea' },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 32,
   },
   card: {
-    width: "100%",
+    width: '100%',
     maxWidth: 420,
-    backgroundColor: "#fffaf5",
+    backgroundColor: '#fffaf5',
     borderRadius: 24,
     paddingHorizontal: 24,
     paddingVertical: 28,
     borderWidth: 1,
-    borderColor: "#e7ddd2",
-    shadowColor: "#000",
+    borderColor: '#e7ddd2',
+    shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
   brand: {
-    textAlign: "center",
+    textAlign: 'center',
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: '700',
     letterSpacing: 4,
-    color: "#9c3d4f",
+    color: '#9c3d4f',
     marginBottom: 14,
   },
   title: {
-    textAlign: "center",
+    textAlign: 'center',
     fontSize: 34,
-    fontWeight: "800",
-    color: "#232126",
+    fontWeight: '800',
+    color: '#232126',
     marginBottom: 8,
   },
   subtitle: {
-    textAlign: "center",
+    textAlign: 'center',
     fontSize: 17,
     lineHeight: 24,
-    color: "#7a746d",
+    color: '#7a746d',
     marginBottom: 28,
   },
-  form: {
-    gap: 16,
-  },
-  field: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2a272c",
-  },
-  pickerHeader: {
+  form:  { gap: 16 },
+  field: { gap: 8 },
+  label: { fontSize: 16, fontWeight: '600', color: '#2a272c' },
+
+  // Date picker row
+  dateLabels: {
     flexDirection: 'row',
-    paddingHorizontal: 2,
+    paddingHorizontal: 4,
   },
-  pickerColLabel: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 12,
+  dateColLabel: {
+    fontSize: 11,
     fontWeight: '600',
     color: '#9a948d',
-    letterSpacing: 0.5,
+    textAlign: 'center',
     textTransform: 'uppercase',
-    marginBottom: 2,
+    letterSpacing: 0.4,
+    marginBottom: 3,
   },
+  dateRow: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#d9cec3',
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    overflow: 'hidden',
+    height: 54,
+  },
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+  },
+  dateBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1f1d21',
+    flexShrink: 1,
+  },
+  dateBtnChevron: {
+    fontSize: 11,
+    color: '#9a948d',
+  },
+  dateSep: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: '#d9cec3',
+    alignSelf: 'stretch',
+  },
+
   input: {
     height: 54,
     borderWidth: 1,
-    borderColor: "#d9cec3",
+    borderColor: '#d9cec3',
     borderRadius: 14,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     paddingHorizontal: 16,
     fontSize: 16,
-    color: "#1f1d21",
+    color: '#1f1d21',
   },
-  genderRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
+  genderRow: { flexDirection: 'row', gap: 10 },
   genderBtn: {
     flex: 1,
     height: 46,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#d9cec3",
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
+    borderColor: '#d9cec3',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  genderBtnActive: {
-    backgroundColor: "#9c2f45",
-    borderColor: "#9c2f45",
-  },
-  genderBtnText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#2a272c",
-  },
-  genderBtnTextActive: {
-    color: "#fff",
-  },
+  genderBtnActive:     { backgroundColor: '#9c2f45', borderColor: '#9c2f45' },
+  genderBtnText:       { fontSize: 15, fontWeight: '600', color: '#2a272c' },
+  genderBtnTextActive: { color: '#fff' },
+
   button: {
     marginTop: 8,
     height: 56,
     borderRadius: 16,
-    backgroundColor: "#9c2f45",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#9c2f45',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "700",
-  },
+  buttonDisabled: { opacity: 0.5 },
+  buttonText:     { color: '#fff', fontSize: 18, fontWeight: '700' },
   link: {
     marginTop: 10,
-    textAlign: "center",
+    textAlign: 'center',
     fontSize: 15,
-    fontWeight: "600",
-    color: "#9c3d4f",
+    fontWeight: '600',
+    color: '#9c3d4f',
   },
-  fieldError: {
-    fontSize: 13,
-    color: "#c0392b",
-    marginTop: 2,
-  },
+  fieldError: { fontSize: 13, color: '#c0392b', marginTop: 2 },
 });
