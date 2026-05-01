@@ -252,7 +252,23 @@ export default function RegisterScreen() {
     password.length >= 8 && !passwordError;
 
   const handleRegister = async () => {
-    if (isLoading) return;
+    console.warn("[Register] handleRegister appelé");
+
+    if (isLoading) {
+      console.warn("[Register] isLoading=true, ignoré");
+      return;
+    }
+
+    console.warn("[Register] isFormValid=", isFormValid, {
+      pseudo: pseudo.trim(),
+      email: email.trim(),
+      birthDate,
+      city: city.trim(),
+      passwordLen: password.length,
+      pseudoError,
+      passwordError,
+      ageError,
+    });
 
     if (!isFormValid) {
       const errs: string[] = [];
@@ -265,24 +281,30 @@ export default function RegisterScreen() {
       return;
     }
 
+    const payload = {
+      pseudo:    pseudo.trim(),
+      email:     email.trim().toLowerCase(),
+      birthDate: new Date(`${birthDate}T00:00:00.000Z`).toISOString(),
+      city:      city.trim(),
+      gender:    gender as "HOMME" | "FEMME" | "AUTRE",
+      password,
+    };
+    console.warn("[Register] payload:", JSON.stringify(payload));
+
     try {
       setIsLoading(true);
-      console.warn("[Register] →", { pseudo: pseudo.trim(), email: email.trim(), birthDate, city: city.trim(), gender });
-
-      await storeRegister({
-        pseudo:    pseudo.trim(),
-        email:     email.trim().toLowerCase(),
-        birthDate: new Date(`${birthDate}T00:00:00.000Z`).toISOString(),
-        city:      city.trim(),
-        gender:    gender as "HOMME" | "FEMME" | "AUTRE",
-        password,
-      });
-
-      console.warn("[Register] succès");
-      router.replace("/create-profile");
+      console.warn("[Register] appel storeRegister...");
+      await storeRegister(payload);
+      console.warn("[Register] storeRegister OK");
+      Alert.alert(
+        "Compte créé !",
+        "Bienvenue sur JeuTaime.\nComplète maintenant ton profil pour commencer.",
+        [{ text: "Continuer", onPress: () => router.replace("/create-profile") }]
+      );
     } catch (err: any) {
-      console.warn("[Register] erreur:", err?.message);
-      Alert.alert("Erreur", err?.message ?? "Connexion impossible. Vérifie le réseau.");
+      const msg = err?.message ?? "Connexion impossible. Vérifie ton réseau.";
+      console.warn("[Register] erreur complète:", msg, err);
+      Alert.alert("Erreur inscription", msg);
     } finally {
       setIsLoading(false);
     }
