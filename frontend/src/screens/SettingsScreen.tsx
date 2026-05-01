@@ -10,7 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
-import { removeToken } from '../utils/session';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { titles } from '../data/gameData';
 import { Avatar } from '../avatar/png/Avatar';
 
@@ -103,7 +103,7 @@ function SectionCard({
 export default function SettingsScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
-  const { currentUser, coins, points, getCurrentTitle, pet, avatarPngConfig } = useStore();
+  const { currentUser, coins, points, getCurrentTitle, pet, avatarPngConfig, logout } = useStore();
   const isAuthenticated = useStore(s => s.isAuthenticated);
   const screenBg = useStore(s => s.screenBackgrounds?.['settings'] ?? '#FFF8E7');
   const title = getCurrentTitle();
@@ -131,7 +131,27 @@ export default function SettingsScreen() {
           text: 'Oui',
           style: 'destructive',
           onPress: async () => {
-            await removeToken();
+            await logout();
+            router.replace('/login');
+          },
+        },
+      ],
+    );
+  };
+
+  const handleDebugReset = () => {
+    Alert.alert(
+      'Réinitialiser la session',
+      'Efface toutes les données locales (tokens, cache Zustand) et retourne au login.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Réinitialiser',
+          style: 'destructive',
+          onPress: async () => {
+            // Clear Zustand persist key + auth tokens
+            await AsyncStorage.removeItem('jeutaime-storage-v8');
+            await logout();
             router.replace('/login');
           },
         },
@@ -207,9 +227,10 @@ export default function SettingsScreen() {
         { icon: '🚩', label: 'Signalements',                 route: '/user-reports' },
         { icon: '🔑', label: 'Mot de passe et connexion',    route: '/password' },
         { icon: '🗄️', label: 'Données personnelles',         route: '/personal-data' },
-        { icon: '🚪', label: 'Se déconnecter',               action: handleLogout, warning: true },
-        { icon: '⏸️', label: 'Désactiver mon compte',        route: '/deactivate',     warning: true },
+        { icon: '🚪', label: 'Se déconnecter',               action: handleLogout,    warning: true },
+        { icon: '⏸️', label: 'Désactiver mon compte',        route: '/deactivate',    warning: true },
         { icon: '🗑️', label: 'Supprimer mon compte',         route: '/delete-account', danger: true },
+        { icon: '🔄', label: 'Réinitialiser session locale', action: handleDebugReset, danger: true },
       ],
     },
     {

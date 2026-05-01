@@ -439,8 +439,9 @@ export const useStore = create<StoreState>()(
         }
         await clearApiSession();
         set({
-          currentUser: DEV_INITIAL_USER,
+          currentUser: null,
           isAuthenticated: false,
+          matchPartners: {},
           apiMatches: [],
           matches: [],
           letters: [],

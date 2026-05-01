@@ -5,8 +5,16 @@ import { getToken } from "../src/utils/session";
 import { useNotificationPolling } from "../src/hooks/useNotificationPolling";
 import { usePushNotifications } from "../src/hooks/usePushNotifications";
 
-// Paths where the profile gate must NOT redirect (create-profile itself, auth flows)
-const GATE_EXCLUDED: string[] = [
+// Paths that don't require authentication (auth flows + in-progress onboarding)
+const AUTH_EXCLUDED: string[] = [
+  '/login',
+  '/register',
+  '/create-profile',
+  '/setup-questions',
+];
+
+// Paths where the profile gate must NOT redirect
+const PROFILE_GATE_EXCLUDED: string[] = [
   '/create-profile',
   '/setup-questions',
   '/login',
@@ -30,6 +38,14 @@ export default function RootLayout() {
     })();
   }, []);
 
+  // Auth gate — unauthenticated users must go to /login
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (isAuthenticated) return;
+    if (AUTH_EXCLUDED.some((p) => pathname.startsWith(p))) return;
+    router.replace('/login');
+  }, [isHydrated, isAuthenticated, pathname]);
+
   // Profile gate — only fires for authenticated users whose profile is
   // critically incomplete (canDiscover=false: missing gender, city, bio, etc.)
   // Users who just haven't added questions yet (canDiscover=true) are NOT blocked.
@@ -38,7 +54,7 @@ export default function RootLayout() {
     if (!isAuthenticated) return;
     // canDiscover=undefined means unknown (old account, backend didn't return it) — don't gate
     if (canDiscover !== false) return;
-    if (GATE_EXCLUDED.some((p) => pathname.startsWith(p))) return;
+    if (PROFILE_GATE_EXCLUDED.some((p) => pathname.startsWith(p))) return;
     router.replace('/create-profile');
   }, [isHydrated, isAuthenticated, canDiscover, pathname]);
 
