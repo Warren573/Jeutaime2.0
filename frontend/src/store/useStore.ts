@@ -425,9 +425,20 @@ export const useStore = create<StoreState>()(
       },
 
       register: async (payload) => {
+        console.warn('[store.register] calling apiRegister...');
         const tokens = await apiRegister(payload);
+        console.warn('[store.register] tokens received, saving session...');
         await saveSession(tokens);
+        console.warn('[store.register] session saved, hydrating...');
         await get().hydrateFromApi();
+        // New users have no profile yet → hydrateFromApi returns early without
+        // calling setCurrentUser → isAuthenticated stays false.
+        // Tokens are valid, so force isAuthenticated=true.
+        if (!get().isAuthenticated) {
+          console.warn('[store.register] hydrateFromApi returned early (no profile yet) — forcing isAuthenticated=true');
+          set({ isAuthenticated: true });
+        }
+        console.warn('[store.register] done. isAuthenticated=', get().isAuthenticated);
       },
 
       logout: async () => {
