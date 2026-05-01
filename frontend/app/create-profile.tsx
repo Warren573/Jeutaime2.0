@@ -38,18 +38,40 @@ const PHYSICAL_DESC_OPTIONS = [
   { label: "Doux(ce)", value: "doux" },
 ];
 
+// Reverse maps: store format → API/form format
+const GI_REV: Record<string, string> = { F: "FEMME", M: "HOMME", NB: "AUTRE" };
+const LF_REV: Record<string, string> = {
+  amitie: "AMITIE",
+  relation: "RELATION",
+  flirt: "FLIRT",
+  discussion: "DISCUSSION",
+  serieux: "SERIEUX",
+};
+
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
 export default function CreateProfileScreen() {
   const router = useRouter();
-  const { hydrateFromApi } = useStore();
+  const { hydrateFromApi, currentUser } = useStore();
+  const canDiscover = currentUser?.canDiscover;
 
-  const [bio, setBio] = useState("");
-  const [interestedIn, setInterestedIn] = useState<string[]>([]);
-  const [lookingFor, setLookingFor] = useState<string[]>([]);
-  const [physicalDesc, setPhysicalDesc] = useState<string | null>(null);
+  // Pre-populate from existing store values (for edit flow / gated incomplete profiles)
+  const [bio, setBio] = useState(currentUser?.bio ?? "");
+  const [interestedIn, setInterestedIn] = useState<string[]>(
+    Array.isArray(currentUser?.interestedIn)
+      ? currentUser.interestedIn.map((v) => GI_REV[v] ?? v)
+      : []
+  );
+  const [lookingFor, setLookingFor] = useState<string[]>(
+    Array.isArray(currentUser?.lookingFor)
+      ? currentUser.lookingFor.map((v) => LF_REV[v] ?? v.toUpperCase())
+      : []
+  );
+  const [physicalDesc, setPhysicalDesc] = useState<string | null>(
+    currentUser?.physicalDesc ?? null
+  );
   const [isLoading, setIsLoading] = useState(false);
 
   const bioWords = countWords(bio);
@@ -82,7 +104,11 @@ export default function CreateProfileScreen() {
       });
 
       await hydrateFromApi();
-      router.replace("/setup-questions");
+
+      // If user already set up questions (editing flow), go back to app.
+      // Otherwise continue to setup-questions (new onboarding).
+      const hasQuestions = (currentUser?.apiQuestions?.length ?? 0) > 0;
+      router.replace(hasQuestions ? "/(tabs)" : "/setup-questions");
     } catch (err: any) {
       Alert.alert("Erreur", err?.message || "Impossible de sauvegarder le profil");
     } finally {
@@ -186,9 +212,12 @@ export default function CreateProfileScreen() {
             )}
           </Pressable>
 
-          <Pressable onPress={() => router.replace("/(tabs)")} style={styles.skipBtn}>
-            <Text style={styles.skipText}>Passer pour l'instant</Text>
-          </Pressable>
+          {/* Hide skip when gate is active (canDiscover=false) to avoid redirect loop */}
+          {canDiscover !== false && (
+            <Pressable onPress={() => router.replace("/(tabs)")} style={styles.skipBtn}>
+              <Text style={styles.skipText}>Passer pour l'instant</Text>
+            </Pressable>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
