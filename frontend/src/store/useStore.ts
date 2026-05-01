@@ -57,7 +57,7 @@ const DEV_INITIAL_USER = {
   email: 'sophie@jeutaime.dev',
   isPremium: false,
   avatarConfig: {} as any,
-  stats: { matchesCount: 2, lettersSent: 0, lettersReceived: 0, offeringsSent: 0, powerUsed: 0, gamesWon: 0, salonsVisited: 0, daysActive: 1, storiesParticipated: 0, storiesCompleted: 0 },
+  stats: { matchesCount: 0, lettersSent: 0, lettersReceived: 0, offeringsSent: 0, powerUsed: 0, gamesWon: 0, salonsVisited: 0, daysActive: 0, storiesParticipated: 0, storiesCompleted: 0 },
   unlockedBadges: [] as string[],
   gender: 'FEMME' as any,
   age: 28,
@@ -312,91 +312,11 @@ export const useStore = create<StoreState>()(
       
       pet: null,
       
-      matchPartners: {
-        sophie: {
-          id: 'sophie',
-          pseudo: 'Sophie',
-          age: 28,
-          bio: "Photographe amateur le week-end, rêveuse la semaine. J'aime les conversations qui commencent par une question et finissent par un silence complice.",
-          city: 'Lyon',
-          height: 167,
-          physicalDesc: 'filiforme',
-          lookingFor: ['relation'],
-          quote: "« La vie est trop courte pour les mauvais cafés et les conversations superficielles »",
-          qualities: ['Empathique', 'Créatif•ve', 'Curieux•se'],
-          defaults: ['Trop perfectionniste', 'Toujours en retard'],
-          idealDay: [
-            'Café au soleil avec un bon livre',
-            'Balade photo dans un quartier inconnu',
-            "Cuisine improvisée avec ce qu'il y a dans le frigo",
-            'Film en plein air ou concert de jazz',
-          ],
-          skills: [
-            { id: 'empathie',      label: 'Empathie',      emoji: '🫂', detail: "s'attache trop facilement", score: 90 },
-            { id: 'creativite',    label: 'Créativité',    emoji: '🎨', detail: 'voit le beau partout sauf dans son ménage', score: 80 },
-            { id: 'organisation',  label: 'Organisation',  emoji: '🗂️', detail: "a un système. personne d'autre ne le comprend", score: 50 },
-          ],
-        },
-        alex: {
-          id: 'alex',
-          pseudo: 'Alex',
-          age: 31,
-          bio: "Ingénieur le jour, cuisinier le soir. Je cherche quelqu'un avec qui débattre de tout et de rien — et partager une bonne table.",
-          city: 'Paris',
-          height: 182,
-          physicalDesc: 'athletique',
-          lookingFor: ['relation', 'amitie'],
-          quote: "« Voyager, c'est découvrir que tout le monde a raison »",
-          qualities: ['Loyal•e', 'Honnête', 'Généreux•se'],
-          defaults: ['Têtu•e', 'Mauvais•e perdant•e'],
-          idealDay: [
-            'Marché du matin pour trouver des bons produits',
-            'Cuisine expérimentale (ratée ou réussie)',
-            "Débat philosophique autour d'un verre",
-            'Fin de soirée sur un rooftop',
-          ],
-          skills: [
-            { id: 'cuisine',       label: 'Cuisine',       emoji: '🍝', detail: 'vraiment doué, ou juste chanceux ?', score: 85 },
-            { id: 'communication', label: 'Communication',  emoji: '💬', detail: 'parle beaucoup, écoute aussi (parfois)', score: 70 },
-            { id: 'humour',        label: 'Humour',        emoji: '😄', detail: 'fait rire les autres, pleure seul dans sa cuisine', score: 75 },
-          ],
-        },
-      },
+      matchPartners: {},
 
       apiMatches: [],
-      matches: [
-        // Matchs de démo (remplacés par loadMatches() après connexion réelle)
-        { id: 'm1', userAId: 'dev-local', userBId: 'sophie', initiatorId: 'dev-local', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, questionsValidated: true, status: 'active', letterCount: 5, letterCountA: 3, letterCountB: 2, canSend: true, canSendReason: null, photoUnlockLevel: 0, photoVariant: 'hidden', photoUrl: null },
-        { id: 'm2', userAId: 'dev-local', userBId: 'alex', initiatorId: 'dev-local', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, questionsValidated: true, status: 'active', letterCount: 12, letterCountA: 6, letterCountB: 6, canSend: false, canSendReason: 'AWAITING_REPLY', photoUnlockLevel: 1, photoVariant: 'blurStrong', photoUrl: null },
-      ],
-      letters: [
-        // Lettres de démo — SANS readAt → déclenchent PremiumLetterAnimation à l'ouverture
-        {
-          id: 'l1',
-          threadId: 'm1',
-          fromUserId: 'sophie',
-          toUserId: 'dev-local',
-          content: "Bonsoir... Je ne sais pas trop comment commencer, mais je voulais te dire que tes réponses m'ont vraiment touché(e). Il y a quelque chose dans ta façon d'être qui me donne envie d'en savoir plus. À bientôt, peut-être ? 🌿",
-          createdAt: Date.now() - 7200000,
-        },
-        {
-          id: 'l2',
-          threadId: 'm1',
-          fromUserId: 'dev-local',
-          toUserId: 'sophie',
-          content: "Bonsoir Sophie. Tes mots m'ont mis le sourire aux lèvres. Écrire comme ça, c'est un art que peu maîtrisent — toi, tu sembles y exceller naturellement.",
-          createdAt: Date.now() - 3600000,
-          readAt: Date.now() - 3500000,
-        },
-        {
-          id: 'l3',
-          threadId: 'm2',
-          fromUserId: 'alex',
-          toUserId: 'dev-local',
-          content: "Salut ! Je suis tombé(e) sur ton profil et j'ai adoré ta question sur les étoiles. Moi aussi je me perds parfois à regarder le ciel. On a peut-être plus en commun qu'il n'y paraît ✨",
-          createdAt: Date.now() - 1800000,
-        },
-      ],
+      matches: [],
+      letters: [],
       lettersByMatch: {},
       questionsByMatch: {},
       likedProfiles: [],
@@ -409,14 +329,14 @@ export const useStore = create<StoreState>()(
       unreadNotificationsCount: 0,
 
       stats: {
-        matchesCount: 2,
+        matchesCount: 0,
         lettersSent: 0,
         lettersReceived: 0,
         offeringsSent: 0,
         powerUsed: 0,
         gamesWon: 0,
         salonsVisited: 0,
-        daysActive: 1,
+        daysActive: 0,
         storiesParticipated: 0,
         storiesCompleted: 0,
       },
@@ -607,9 +527,12 @@ export const useStore = create<StoreState>()(
           set({
             apiMatches: data,
             matches: isAuth ? adapted : (adapted.length > 0 ? adapted : get().matches),
-            matchPartners: Object.keys(newPartners).length > 0
-              ? { ...get().matchPartners, ...newPartners }
-              : get().matchPartners,
+            // When authenticated, replace matchPartners entirely so no mock data leaks
+            matchPartners: isAuth
+              ? newPartners
+              : (Object.keys(newPartners).length > 0
+                  ? { ...get().matchPartners, ...newPartners }
+                  : get().matchPartners),
           });
         } catch {
           // API unreachable — garder les données existantes
