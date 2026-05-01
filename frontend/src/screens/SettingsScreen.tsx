@@ -104,8 +104,12 @@ export default function SettingsScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
   const { currentUser, coins, points, getCurrentTitle, pet, avatarPngConfig } = useStore();
+  const isAuthenticated = useStore(s => s.isAuthenticated);
   const screenBg = useStore(s => s.screenBackgrounds?.['settings'] ?? '#FFF8E7');
   const title = getCurrentTitle();
+
+  const canDiscover = currentUser?.canDiscover;
+  const hasQuestions = (currentUser?.apiQuestions?.length ?? 0) > 0;
 
   // Progression vers prochain titre
   const currentTitleData = titles.find(t => t.level === title.level);
@@ -142,6 +146,9 @@ export default function SettingsScreen() {
       key: 'profil',
       title: 'Mon profil',
       items: [
+        // Onboarding shortcuts — shown when the user hasn't completed mandatory steps
+        ...(canDiscover === false ? [{ icon: '⚠️', label: 'Compléter mon profil', route: '/create-profile', warning: true } as SettingsItem] : []),
+        ...(isAuthenticated && !hasQuestions ? [{ icon: '❓', label: 'Mes 3 questions', route: '/setup-questions' } as SettingsItem] : []),
         { icon: '✏️', label: 'Modifier mon profil',       route: '/edit-profile' },
         { icon: '📸', label: 'Mes photos',                route: '/my-photos' },
         { icon: '🎯', label: 'Préférences de rencontre',  route: '/matching-preferences' },
