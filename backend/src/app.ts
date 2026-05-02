@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { env, corsOrigins } from "./config/env";
+import { env, corsOriginCallback } from "./config/env";
 import { requestLogger } from "./core/middleware/requestLogger";
 import { generalRateLimit } from "./core/middleware/rateLimit";
 import { errorHandler } from "./core/middleware/errorHandler";
@@ -37,22 +37,17 @@ const app = express();
 // Sécurité
 // ------------------------------------------------------------------
 app.use(helmet());
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Requêtes sans origin (apps mobiles natives, curl, server-to-server)
-      if (!origin) return callback(null, true);
-      // Origines explicitement configurées (localhost dev, domaine custom)
-      if (corsOrigins.includes(origin)) return callback(null, true);
-      // Tout déploiement Vercel (*.vercel.app) — inclut preview et production
-      if (origin.endsWith(".vercel.app")) return callback(null, true);
-      callback(new Error(`CORS: origin not allowed — ${origin}`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
-);
+
+const corsOptions = {
+  origin: corsOriginCallback,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+// Respond to every OPTIONS preflight before any other middleware touches it
+app.options("*", cors(corsOptions));
+app.use(cors(corsOptions));
 
 // ------------------------------------------------------------------
 // Logging + parsing
