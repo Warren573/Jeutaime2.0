@@ -435,7 +435,9 @@ export default function RegisterScreen() {
 
               {/* Feedback statut */}
               {status === "submitting" && (
-                <Text style={s.statusInfo}>Création du compte en cours…</Text>
+                <Text style={s.statusInfo}>
+                  Connexion au serveur… (peut prendre 30-60s au premier démarrage)
+                </Text>
               )}
               {status === "success" && (
                 <Text style={s.statusOk}>Compte créé ! Redirection…</Text>

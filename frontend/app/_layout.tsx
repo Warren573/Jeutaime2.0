@@ -4,6 +4,7 @@ import { useStore } from "../src/store/useStore";
 import { getToken } from "../src/utils/session";
 import { useNotificationPolling } from "../src/hooks/useNotificationPolling";
 import { usePushNotifications } from "../src/hooks/usePushNotifications";
+import { API_URL } from "../src/api/client";
 
 // Paths that don't require authentication (auth flows + in-progress onboarding)
 const AUTH_EXCLUDED: string[] = [
@@ -28,6 +29,12 @@ export default function RootLayout() {
   const router = useRouter();
   const pathname = usePathname();
   const [isHydrated, setIsHydrated] = useState(false);
+
+  // Wakeup ping — réveille le backend Render Free dès le chargement de l'app
+  // (fire-and-forget, silencieux en cas d'erreur)
+  useEffect(() => {
+    fetch(`${API_URL}/health`, { method: "GET" }).catch(() => {});
+  }, []);
 
   // Initial hydration
   useEffect(() => {
