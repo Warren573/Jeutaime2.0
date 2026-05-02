@@ -39,7 +39,15 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      // Requêtes sans origin (apps mobiles natives, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      // Origines explicitement configurées (localhost dev, domaine custom)
+      if (corsOrigins.includes(origin)) return callback(null, true);
+      // Tout déploiement Vercel (*.vercel.app) — inclut preview et production
+      if (origin.endsWith(".vercel.app")) return callback(null, true);
+      callback(new Error(`CORS: origin not allowed — ${origin}`));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
