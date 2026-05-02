@@ -56,3 +56,18 @@ if (!parsed.success) {
 export const env = parsed.data;
 
 export const corsOrigins = env.CORS_ORIGINS.split(",").map((s) => s.trim());
+
+export function corsOriginCallback(
+  origin: string | undefined,
+  callback: (err: Error | null, allow?: boolean) => void,
+): void {
+  // Requests with no Origin (mobile apps, curl, server-to-server)
+  if (!origin) return callback(null, true);
+  // Explicitly configured origins (localhost dev, custom domains)
+  if (corsOrigins.includes(origin)) return callback(null, true);
+  // Any Vercel deployment — covers preview and production URLs
+  if (origin.endsWith(".vercel.app")) return callback(null, true);
+  // localhost with any port
+  if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
+  callback(new Error(`CORS: origin not allowed — ${origin}`));
+}
