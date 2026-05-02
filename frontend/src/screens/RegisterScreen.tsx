@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
+import { API_URL } from "../api/client";
 
 // ─── Constantes date ──────────────────────────────────────────────────────────
 
@@ -278,14 +279,26 @@ export default function RegisterScreen() {
     setLastError(null);
 
     try {
-      console.warn("[Register] appel storeRegister...");
+      console.warn("[Register] appel storeRegister... API_URL=", API_URL);
       await storeRegister(payload);
       console.warn("[Register] OK");
       setStatus("success");
       setTimeout(() => router.replace("/create-profile"), 800);
     } catch (err: any) {
-      const msg = err?.message ?? "Connexion impossible. Vérifie ton réseau.";
-      console.warn("[Register] erreur:", msg, err);
+      const rawMsg: string = err?.message ?? "";
+      console.warn("[Register] erreur brute:", rawMsg, err);
+
+      const isNetworkError =
+        rawMsg === "Load failed" ||
+        rawMsg === "Failed to fetch" ||
+        rawMsg === "Network request failed" ||
+        rawMsg.toLowerCase().includes("network") ||
+        rawMsg.toLowerCase().includes("load failed");
+
+      const msg = isNetworkError
+        ? `Réseau inaccessible — API: ${API_URL}\n→ Vérifier EXPO_PUBLIC_API_URL dans Vercel`
+        : rawMsg || "Erreur inconnue";
+
       setLastError(msg);
       setStatus("error");
     }
@@ -436,6 +449,7 @@ export default function RegisterScreen() {
                 <Text style={s.debugTxt}>isFormValid: {String(isFormValid)}</Text>
                 <Text style={s.debugTxt}>birthDate: {birthDate}</Text>
                 <Text style={s.debugTxt}>statut: {status}</Text>
+                <Text style={s.debugTxt}>API: {API_URL}</Text>
                 <Text style={s.debugTxt}>erreur: {lastError ?? "–"}</Text>
               </View>
 
