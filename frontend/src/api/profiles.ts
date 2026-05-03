@@ -49,3 +49,36 @@ export async function getPublicProfile(userId: string): Promise<PublicProfileRes
   const res = await apiFetch(`/profiles/${userId}`);
   return res.data as PublicProfileResponse;
 }
+
+export interface DiscoveryProfileDto {
+  id: string;
+  userId: string;
+  pseudo: string | null;
+  gender: string | null;
+  city: string | null;
+  birthDate: string | null;
+  bio: string | null;
+  physicalDesc: string | null;
+  interests: string[] | null;
+  lookingFor: string[] | null;
+  avatarConfig: Record<string, unknown> | null;
+  points: number;
+  badges: string[] | null;
+}
+
+export interface DiscoveryResponse {
+  data: DiscoveryProfileDto[];
+  meta: { total: number; page: number; pageSize: number; totalPages: number };
+}
+
+export async function discoverProfiles(params?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<DiscoveryResponse> {
+  const q = new URLSearchParams();
+  if (params?.page) q.set("page", String(params.page));
+  if (params?.pageSize) q.set("pageSize", String(params.pageSize));
+  const qs = q.toString();
+  const res = await apiFetch(`/profiles${qs ? `?${qs}` : ""}`);
+  return res as DiscoveryResponse;
+}
