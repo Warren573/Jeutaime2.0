@@ -6,11 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { titles } from '../data/gameData';
 import { Avatar } from '../avatar/png/Avatar';
 
@@ -121,40 +121,48 @@ export default function SettingsScreen() {
 
   const nav = (route: string) => router.push(route as any);
 
+  const doLogout = () => {
+    // Don't await — navigate regardless of backend revocation outcome
+    logout().catch(() => {});
+    router.replace('/login');
+  };
+
   const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      // Alert.alert uses window.confirm on web, which can be blocked silently
+      // Use window.confirm directly for reliable behaviour
+      if (typeof window !== 'undefined' && !window.confirm('Tu veux vraiment te déconnecter ?')) return;
+      doLogout();
+      return;
+    }
     Alert.alert(
       'Déconnexion',
       'Tu veux vraiment te déconnecter ?',
       [
         { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Oui',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/login');
-          },
-        },
+        { text: 'Oui', style: 'destructive', onPress: doLogout },
       ],
     );
   };
 
+  const doDebugReset = () => {
+    // logout() already clears the persist key — just call it
+    logout().catch(() => {});
+    router.replace('/login');
+  };
+
   const handleDebugReset = () => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && !window.confirm('Effacer toutes les données locales et retourner au login ?')) return;
+      doDebugReset();
+      return;
+    }
     Alert.alert(
       'Réinitialiser la session',
       'Efface toutes les données locales (tokens, cache Zustand) et retourne au login.',
       [
         { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Réinitialiser',
-          style: 'destructive',
-          onPress: async () => {
-            // Clear Zustand persist key + auth tokens
-            await AsyncStorage.removeItem('jeutaime-storage-v8');
-            await logout();
-            router.replace('/login');
-          },
-        },
+        { text: 'Réinitialiser', style: 'destructive', onPress: doDebugReset },
       ],
     );
   };
