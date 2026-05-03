@@ -442,13 +442,18 @@ export const useStore = create<StoreState>()(
       },
 
       logout: async () => {
-        try {
-          const refreshToken = await AsyncStorage.getItem('auth_refresh_token');
-          if (refreshToken) await apiLogout(refreshToken);
-        } catch {
-          // Ignore erreurs réseau au logout
-        }
-        await clearApiSession();
+        // Revoke refresh token on backend — fire-and-forget, never block local cleanup
+        AsyncStorage.getItem('auth_refresh_token')
+          .then((rt) => { if (rt) apiLogout(rt).catch(() => {}); })
+          .catch(() => {});
+
+        // Clear auth tokens + Zustand persist key immediately
+        await Promise.all([
+          clearApiSession(),
+          AsyncStorage.removeItem('jeutaime-storage-v8'),
+        ]).catch(() => {});
+
+        // Reset all auth-sensitive state
         set({
           currentUser: null,
           isAuthenticated: false,
@@ -458,6 +463,10 @@ export const useStore = create<StoreState>()(
           letters: [],
           lettersByMatch: {},
           questionsByMatch: {},
+          notifications: [],
+          unreadNotificationsCount: 0,
+          likedProfiles: [],
+          dislikedProfiles: [],
         });
       },
 
