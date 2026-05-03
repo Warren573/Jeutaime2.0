@@ -9,10 +9,10 @@ const ACCESS_TOKEN_KEY  = "auth_token";
 const REFRESH_TOKEN_KEY = "auth_refresh_token";
 
 // Cold-start Render Free peut prendre jusqu'à 60s.
-// On donne 65s par tentative et on retry 3 fois sur erreur réseau.
+// GET requests retried 3x; POST/PATCH/DELETE/PUT tried once only (not idempotent).
 const TIMEOUT_MS     = 65_000;
 const MAX_RETRIES    = 3;
-const RETRY_DELAY_MS = 4_000; // 4s, 8s entre les tentatives
+const RETRY_DELAY_MS = 4_000;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -21,11 +21,15 @@ function sleep(ms: number): Promise<void> {
 }
 
 function isNetworkError(err: unknown): boolean {
-  // AbortError = notre timeout de 65s écoulé
   if (err instanceof DOMException && err.name === "AbortError") return true;
-  // TypeError = erreur réseau native (Load failed / Failed to fetch / Network request failed)
   if (err instanceof TypeError) return true;
   return false;
+}
+
+function maxRetriesFor(options?: RequestInit): number {
+  const method = (options?.method ?? "GET").toUpperCase();
+  // Only retry idempotent read-only methods — never retry writes to avoid duplicates
+  return method === "GET" || method === "HEAD" ? MAX_RETRIES : 1;
 }
 
 async function buildHeaders(token?: string | null): Promise<Record<string, string>> {
@@ -40,18 +44,14 @@ async function buildHeaders(token?: string | null): Promise<Record<string, strin
 async function parseResponse(res: Response): Promise<any> {
   const text = await res.text();
   if (!res.ok) {
+    let message = `HTTP ${res.status}`;
     try {
       const parsed = text ? JSON.parse(text) : null;
-      const message =
-        parsed?.error?.message ||
-        parsed?.message ||
-        text ||
-        `HTTP ${res.status}`;
-      throw new Error(message);
-    } catch (e) {
-      if (e instanceof Error) throw e;
-      throw new Error(text || `HTTP ${res.status}`);
+      message = parsed?.error?.message || parsed?.message || text || message;
+    } catch {
+      message = text || message;
     }
+    throw new Error(message);
   }
   return text ? JSON.parse(text) : null;
 }
@@ -61,7 +61,7 @@ async function doFetch(
   options?: RequestInit,
   token?: string | null,
 ): Promise<Response> {
-  const headers   = await buildHeaders(token);
+  const headers    = await buildHeaders(token);
   const controller = new AbortController();
   const timer      = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -72,7 +72,6 @@ async function doFetch(
       signal: controller.signal,
     });
   } catch (err) {
-    // Convertit l'AbortError en message lisible
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new TypeError(
         `Délai dépassé (${TIMEOUT_MS / 1000}s) — le serveur démarre, réessaie dans quelques secondes`,
@@ -105,7 +104,7 @@ async function attemptTokenRefresh(): Promise<string | null> {
 
     if (!res.ok) return null;
 
-    const data      = await res.json() as { data?: { accessToken?: string; refreshToken?: string } };
+    const data       = await res.json() as { data?: { accessToken?: string; refreshToken?: string } };
     const newAccess  = data?.data?.accessToken;
     const newRefresh = data?.data?.refreshToken;
     if (!newAccess) return null;
@@ -118,50 +117,53 @@ async function attemptTokenRefresh(): Promise<string | null> {
   }
 }
 
-// ─── apiFetch — avec timeout 65s et retry 3x sur erreur réseau ───────────────
-
+// ─── apiFetch ─────────────────────────────────────────────────────────────────
+// - GET/HEAD: up to 3 retries on network error (cold-start recovery)
+// - POST/PATCH/PUT/DELETE: single attempt — no retry (not idempotent)
+// - Any 2xx response (including 201) is treated as success
+// - On 401: attempt one token refresh then retry once
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function apiFetch(path: string, options?: RequestInit): Promise<any> {
+  const maxRetries = maxRetriesFor(options);
   let lastError: Error = new Error("Erreur inconnue");
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const res = await doFetch(path, options);
 
+      // 2xx (including 201 Created) — return parsed body immediately
       if (res.status !== 401) {
-        return parseResponse(res);
+        return await parseResponse(res);
       }
 
-      // 401 — tente un refresh puis réessaie une fois
+      // 401 — attempt token refresh then retry once
       const newToken = await attemptTokenRefresh();
       if (!newToken) {
         await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]);
         throw new Error("Session expirée, veuillez vous reconnecter");
       }
       const retryRes = await doFetch(path, options, newToken);
-      return parseResponse(retryRes);
+      return await parseResponse(retryRes);
 
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
       lastError   = error;
 
-      // Erreurs 4xx/5xx/auth → on ne retry pas
+      // HTTP errors (4xx/5xx) and auth errors — fail immediately, no retry
       if (!isNetworkError(err)) throw error;
 
-      if (attempt < MAX_RETRIES) {
-        const delay = RETRY_DELAY_MS * attempt; // 4s, 8s
+      if (attempt < maxRetries) {
+        const delay = RETRY_DELAY_MS * attempt;
         console.warn(
-          `[apiFetch] ${path} — tentative ${attempt}/${MAX_RETRIES} (${error.message}), retry dans ${delay / 1000}s`,
+          `[apiFetch] ${path} — tentative ${attempt}/${maxRetries} (${error.message}), retry dans ${delay / 1000}s`,
         );
         await sleep(delay);
       }
     }
   }
 
-  // Toutes les tentatives épuisées
   throw new Error(
-    `Serveur inaccessible après ${MAX_RETRIES} tentatives (${(TIMEOUT_MS * MAX_RETRIES) / 1000}s). ` +
-    `Cold start en cours — réessaie dans 30 secondes.`,
+    `Réseau inaccessible — ${lastError.message}\nAPI: ${API_URL}`,
   );
 }
 
