@@ -292,11 +292,13 @@ export default function RegisterScreen() {
         rawMsg === "Load failed" ||
         rawMsg === "Failed to fetch" ||
         rawMsg === "Network request failed" ||
+        rawMsg.toLowerCase().includes("réseau inaccessible") ||
         rawMsg.toLowerCase().includes("network") ||
-        rawMsg.toLowerCase().includes("load failed");
+        rawMsg.toLowerCase().includes("load failed") ||
+        rawMsg.toLowerCase().includes("délai dépassé");
 
       const msg = isNetworkError
-        ? `Réseau inaccessible — API: ${API_URL}\n→ Vérifier EXPO_PUBLIC_API_URL dans Vercel`
+        ? `Réseau inaccessible — API: ${API_URL}`
         : rawMsg || "Erreur inconnue";
 
       setLastError(msg);
