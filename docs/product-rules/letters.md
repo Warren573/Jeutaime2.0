@@ -1,27 +1,59 @@
 # Règles produit — Lettres
 
-## Principe général
+## 1. Principe général
 
-Les lettres sont privées, alternées, et liées à un match validé après le jeu des 3 questions.
+Les lettres sont le **mode principal de communication** entre deux utilisateurs.
 
-## Conditions d'accès
+Objectifs :
 
-Un utilisateur peut écrire à l'autre uniquement si :
+- ralentir les échanges
+- créer de la qualité
+- éviter le chat instantané vide
 
-- match existe avec `status = ACTIVE`
+Les lettres sont :
+
+- privées
+- alternées
+- accessibles uniquement après validation du jeu des 3 questions
+
+---
+
+## 2. Conditions d'accès
+
+Un utilisateur peut écrire une lettre uniquement si :
+
+- `match.status = ACTIVE`
 - `questionsValidated = true`
-- `canSend = true` (calculé par le backend)
+- `canSend = true` (calculé et fourni par le backend)
 
-Le champ `canSend` est fourni par le backend dans le DTO `MatchDTO`. Le frontend ne recalcule pas cette logique — il fait confiance au backend.
+Le frontend ne recalcule pas cette logique — il fait confiance au backend.
 
-## Alternance obligatoire
+---
 
-- L'initiateur du match (celui qui a déclenché le sourire mutuel) écrit la première lettre.
-- Si A envoie une lettre à B, A ne peut plus écrire tant que B n'a pas répondu.
-- Si B répond, c'est à nouveau au tour de A.
-- Le champ `canSend` reflète ce tour à tout moment.
-- Le frontend affiche clairement : `"✍️ À vous d'écrire..."` ou `"⏳ En attente de réponse..."`.
-- Si `canSend = false` et qu'aucune lettre n'existe encore, afficher : `"L'autre doit envoyer la première lettre. Tu pourras répondre ensuite."`
+## 3. Alternance obligatoire
+
+Les lettres sont **strictement alternées**.
+
+```
+A envoie → A bloqué
+B répond → B bloqué
+A peut répondre → etc.
+```
+
+Règle UX :
+
+- afficher clairement :
+  - `"📬  C'est votre tour — répondez à la lettre reçue"`
+  - `"⏳  Lettre envoyée — en attente de réponse"`
+
+---
+
+## 4. Tour d'écriture
+
+Le champ `canSend` (backend → MatchDTO) indique si l'utilisateur courant peut écrire.  
+Un utilisateur ne peut écrire que si `canSend = true`.
+
+Le frontend n'a pas besoin d'un `nextTurnUserId` explicite — `canSend` est l'équivalent calculé côté backend.
 
 ### Raisons `canSendReason` retournées par le backend
 
@@ -33,86 +65,205 @@ Le champ `canSend` est fourni par le backend dans le DTO `MatchDTO`. Le frontend
 | `AWAITING_REPLY` | En attente de la réponse de l'autre (inclut le cas "non-initiateur attend la première lettre") |
 | `GHOST_WINDOW_CLOSED` | Fenêtre de relance fantôme expirée |
 
-## Nouvelle lettre reçue
+---
+
+## 5. Première lettre
+
+Après validation des questions, un utilisateur peut écrire la première lettre si `canSend = true`.
+
+Afficher : **"🖊 Tu peux écrire la première lettre"**
+
+Si `canSend = false` (l'autre écrit en premier) : **"L'autre doit envoyer la première lettre. Tu pourras répondre ensuite."**
+
+---
+
+## 6. Nouvelle lettre reçue
 
 Une "nouvelle lettre" existe uniquement si :
 
-- `toUserId === currentUser.id` (la lettre m'est destinée)
-- `readAt === null` (pas encore lue)
+- le dernier message du thread vient de l'autre utilisateur
+- ce message n'a pas encore été lu (`readAt === null`)
 
-Détection côté frontend : `conv.filter(l => l.toUserId === currentUser.id && !l.readAt).length > 0`
+Détection côté frontend :
 
-## Petite animation dans la boîte aux lettres
+```ts
+conv.filter(l => l.toUserId === currentUser.id && !l.readAt).length > 0
+```
 
-Dans la liste des conversations :
+---
 
-- Si une conversation contient une nouvelle lettre reçue non lue → l'enveloppe vibre légèrement (tremblement ±3px translateX, répété toutes les ~4 secondes) et la bordure devient ambrée avec un glow orange
-- Cette animation sert uniquement à signaler "tu as reçu une nouvelle lettre"
-- Pas d'animation si le dernier message vient de moi
-- Pas d'animation si la lettre a déjà été lue (`readAt !== null`)
-- Pas d'animation si aucun message n'existe encore dans la conversation
+## 7. Boîte aux lettres (liste)
 
-## Grande animation d'ouverture
+Chaque match apparaît sous forme d'une **enveloppe**.
 
-La grande animation `PremiumLetterAnimation` (enveloppe s'ouvre, lettre monte, ~4 secondes) se joue **uniquement** quand :
+### États de l'enveloppe
+
+#### 1. Lettre reçue non lue
+
+- enveloppe fermée
+- **petite animation : vibration légère** (±3px translateX, toutes les ~4 secondes)
+- bordure ambrée avec glow orange
+- objectif : signal "tu as reçu une nouvelle lettre"
+
+#### 2. Lettre lue / en attente de réponse
+
+- enveloppe stable
+- pas d'animation
+
+#### 3. À mon tour
+
+- indicateur visible dans le turnBanner :
+  `"📬  C'est votre tour — répondez à la lettre reçue"`
+
+---
+
+## 8. Animation d'ouverture (signature produit)
+
+### Déclenchement
+
+La grande animation `PremiumLetterAnimation` (~4 secondes, enveloppe s'ouvre, lettre monte, sceau) se déclenche **uniquement** si :
 
 - l'utilisateur tape sur une conversation
-- ET cette conversation contient au moins une lettre reçue non lue (`unreadLetters.length > 0`)
+- ET cette conversation contient au moins une lettre reçue non lue
 
-Après animation (~5100ms) :
+### Comportement
 
-- afficher la conversation
-- marquer les lettres concernées comme lues via `PATCH /letters/:id/read`
-- la vibration de la carte disparaît de la liste
-- ne jamais rejouer l'animation pour ces mêmes lettres
+- animation d'ouverture complète (~4200ms)
+- puis affichage de la conversation
 
-## Conversation sans nouvelle lettre
+### Après lecture (~5100ms)
+
+- marquer la lettre comme lue via `PATCH /letters/:id/read`
+- supprimer la vibration dans la liste
+- **ne jamais rejouer cette animation pour cette lettre**
+
+---
+
+## 9. Ouverture sans nouvelle lettre
 
 Si l'utilisateur ouvre une conversation sans lettre reçue non lue :
 
 - pas de grande animation
-- afficher directement la conversation
+- affichage direct de la conversation
 
-## Accès depuis le jeu des questions (succès validé)
+---
 
-Quand le bouton "📬 Écrire une lettre" est tapé après la validation des questions :
-
-- pas de grande animation (l'utilisateur va écrire, pas lire)
-- ouvrir directement l'écran de composition
-- le `selectedMatch` doit être rechargé depuis le store (`matches.find(m => m.id === qGameMatch.id)`) pour avoir le `canSend` à jour
-
-## Envoi d'une lettre
+## 10. Envoi d'une lettre
 
 Quand j'envoie une lettre :
 
-- je ne vois pas d'animation d'ouverture
-- mon enveloppe ne vibre pas dans ma liste
-- l'autre utilisateur verra l'enveloppe fermée vibrante à sa prochaine ouverture de la boîte aux lettres
+- aucune animation pour moi
+- verrouillage immédiat (`canSend` passe à `false`)
+- message affiché instantanément dans la conversation
 
-## Cas vide (aucun message encore)
+Effet côté autre utilisateur :
 
-Si aucun message n'existe dans la conversation :
+- verra l'enveloppe vibrer à sa prochaine ouverture de la boîte aux lettres
 
-- pas de vibration dans la liste
-- pas de grande animation à l'ouverture
-- si `canSend = true` → afficher l'invite "Commencez la conversation !"
-- si `canSend = false` → afficher "L'autre doit envoyer la première lettre. Tu pourras répondre ensuite."
+---
 
-## Champs nécessaires dans le DTO
+## 11. Conversation
 
-Le frontend doit pouvoir connaître pour chaque match :
+### Format
 
-| Champ | Source | Usage |
+- messages type "lettre" : carte crème avec bordure, texte en italique
+- **pas de chat instantané, pas de bulles type Messenger**
+- chaque lettre affiche son auteur en en-tête (`"Ta lettre"` / `"Lettre de Prénom"`)
+
+### Ton attendu de l'utilisateur
+
+- plus long
+- plus posé
+- plus personnel
+
+---
+
+## 12. Cas vide (aucune lettre)
+
+Si aucun message n'existe encore :
+
+- pas d'animation à l'ouverture
+- enveloppe neutre dans la liste (pas de vibration)
+- si `canSend = true` → afficher : **"🖊 Tu peux écrire la première lettre"**
+- si `canSend = false` → afficher : **"L'autre doit envoyer la première lettre. Tu pourras répondre ensuite."**
+
+---
+
+## 13. États nécessaires (backend → frontend)
+
+Le frontend doit connaître pour chaque match / lettre :
+
+| Champ | Source | Correspondance implémentation |
 |---|---|---|
-| `canSend` | Backend (`MatchDTO`) | Autorisation d'écrire |
-| `canSendReason` | Backend (`MatchDTO`) | Message d'explication à l'utilisateur |
-| `initiatorId` | Backend (`MatchDTO`) | Qui écrit en premier |
-| `questionsValidated` | Backend (`MatchDTO`) | Accès aux lettres débloqué |
-| `status` | Backend (`MatchDTO`) | État du match (ACTIVE requis) |
-| `readAt` | Backend (`LetterDTO`) | Détection lettre non lue |
-| `toUserId` | Backend (`LetterDTO`) | Destinataire de la lettre |
+| `canSend` | `MatchDTO` | Autorisation d'écrire (remplace `nextTurnUserId` et `canWriteLetters`) |
+| `canSendReason` | `MatchDTO` | Message d'explication à l'utilisateur |
+| `initiatorId` | `MatchDTO` | Qui écrit en premier |
+| `questionsValidated` | `MatchDTO` | Accès aux lettres débloqué |
+| `status` | `MatchDTO` | État du match (ACTIVE requis) |
+| `lastLetterBy` | `MatchDTO` | Dernier expéditeur (≈ `lastMessageSenderId`) |
+| `readAt` | `LetterDTO` | Détection lettre non lue |
+| `toUserId` | `LetterDTO` | Destinataire de la lettre |
 
-## Règle importante
+> `threadId` n'est pas nécessaire en tant que champ séparé : `match.id` sert d'identifiant de thread.  
+> `lastMessageReadByCurrentUser` est déduit via `readAt` sur chaque `LetterDTO`.
 
-Ne jamais utiliser une animation comme simple décoration.
-Chaque animation doit correspondre à un état produit réel.
+---
+
+## 14. Règles strictes
+
+Interdictions :
+
+- pas de double message
+- pas de spam
+- pas de messages consécutifs du même utilisateur
+- pas de chat instantané
+
+Ces règles sont garanties par l'alternance forcée (`canSend` calculé par le backend).
+
+---
+
+## 15. Flow global
+
+```
+Match validé (questionsValidated = true)
+→ Lettres débloquées
+→ Échanges alternés
+→ Progression relationnelle (compteur lettres, niveaux)
+→ Déblocage photos
+```
+
+---
+
+## 16. Objectif produit
+
+Créer :
+
+- attente
+- tension positive
+- engagement émotionnel
+
+Les lettres doivent donner envie de :
+
+- réfléchir
+- écrire
+- répondre
+
+---
+
+## 17. Règle fondamentale
+
+Les lettres ne sont pas un chat.
+
+Ce sont des **messages intentionnels**.
+
+---
+
+## 18. Règle UX critique
+
+Une animation ne doit jamais être décorative.
+
+Chaque animation doit correspondre à un état réel :
+
+- nouvelle lettre → vibration de l'enveloppe
+- ouverture d'une lettre non lue → grande animation d'enveloppe
+- après lecture → disparition de l'animation
