@@ -924,10 +924,21 @@ export default function LettersScreen() {
               })}
 
             {selectedMatch && getConversation(selectedMatch).length === 0 && (
-              <View style={styles.startConv}>
-                <Text style={styles.startEmoji}>✨</Text>
-                <Text style={styles.startText}>Commencez la conversation!</Text>
-              </View>
+              selectedMatch.canSend ? (
+                <View style={styles.startConv}>
+                  <Text style={styles.startEmoji}>✨</Text>
+                  <Text style={styles.startText}>Commencez la conversation!</Text>
+                </View>
+              ) : (
+                <View style={styles.startConv}>
+                  <Text style={styles.startEmoji}>⏳</Text>
+                  <Text style={styles.startText}>
+                    {selectedMatch.canSendReason === 'AWAITING_REPLY'
+                      ? "L'autre doit envoyer la première lettre.\nTu pourras répondre ensuite."
+                      : "En attente de la réponse de l'autre."}
+                  </Text>
+                </View>
+              )
             )}
           </ScrollView>
 
@@ -1008,7 +1019,8 @@ export default function LettersScreen() {
                         setShowQGame(false);
                         setQResult(null);
                         if (qGameMatch) {
-                          setSelectedMatch(qGameMatch);
+                          const freshMatch = matches.find(m => m.id === qGameMatch.id) ?? qGameMatch;
+                          setSelectedMatch(freshMatch);
                           setShowCompose(true);
                           loadLetters(qGameMatch.id);
                         }
