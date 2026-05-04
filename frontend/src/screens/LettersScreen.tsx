@@ -497,6 +497,7 @@ export default function LettersScreen() {
   const [showQGame, setShowQGame] = useState(false);
   const [qGameMatch, setQGameMatch] = useState<Match | null>(null);
   const [qSelectedAnswers, setQSelectedAnswers] = useState<Record<string, string>>({});
+  const [qCurrentStep, setQCurrentStep] = useState(0);
   const [qSubmitting, setQSubmitting] = useState(false);
   const [qResult, setQResult] = useState<{ myScore: number; passed: boolean; questionsValidated: boolean; waitingForOther: boolean; matchBroken: boolean } | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('lettres');
@@ -602,7 +603,7 @@ export default function LettersScreen() {
       if (msg.includes('AWAITING_REPLY') || msg.includes('alternation') || msg.includes('tour')) {
         Alert.alert('Pas encore ton tour', "Tu dois attendre la réponse de l'autre avant d'écrire à nouveau.");
       } else if (msg.includes('QUESTIONS_NOT_VALIDATED') || msg.includes('questions')) {
-        Alert.alert('Questions requises', 'Le jeu des 3 questions doit être complété avant d\'écrire.');
+        Alert.alert('Questions requises', 'Joue aux questions pour débloquer les lettres.');
       } else {
         Alert.alert('Erreur', "La lettre n'a pas pu être envoyée. Vérifie ta connexion et réessaie.");
       }
@@ -621,6 +622,7 @@ export default function LettersScreen() {
   const handleQGameOpen = async (match: Match) => {
     setQGameMatch(match);
     setQSelectedAnswers({});
+    setQCurrentStep(0);
     setQResult(null);
     setShowQGame(true);
     loadQuestions(match.id);
@@ -1092,33 +1094,46 @@ export default function LettersScreen() {
                   </View>
                 );
               }
+              const currentQ = matchQ.questions[qCurrentStep];
+              const currentAnswer = currentQ ? qSelectedAnswers[currentQ.profileQuestionId] ?? '' : '';
+              const isLast = qCurrentStep === matchQ.questions.length - 1;
+
               return (
                 <>
                   <Text style={qStyles.intro}>
                     Réponds aux 3 questions de{' '}
                     <Text style={qStyles.introName}>{qGameMatch ? getOtherName(qGameMatch) : ''}</Text>.
-                    {'\n'}Au moins 1 bonne réponse est nécessaire pour débloquer les lettres.
                   </Text>
 
-                  {matchQ.questions.map((q, idx) => (
-                    <View key={q.profileQuestionId} style={qStyles.questionBlock}>
-                      <Text style={qStyles.questionNum}>Question {idx + 1}</Text>
-                      <Text style={qStyles.questionText}>{q.questionText}</Text>
-                      {q.options ? (
-                        q.options.map((opt) => (
+                  <View style={qStyles.stepRow}>
+                    {matchQ.questions.map((_, i) => (
+                      <View
+                        key={i}
+                        style={[qStyles.stepDot, i === qCurrentStep && qStyles.stepDotActive, i < qCurrentStep && qStyles.stepDotDone]}
+                      />
+                    ))}
+                    <Text style={qStyles.stepLabel}>Question {qCurrentStep + 1} / {matchQ.questions.length}</Text>
+                  </View>
+
+                  {currentQ && (
+                    <View style={qStyles.questionBlock}>
+                      <Text style={qStyles.questionNum}>Question {qCurrentStep + 1}</Text>
+                      <Text style={qStyles.questionText}>{currentQ.questionText}</Text>
+                      {currentQ.options ? (
+                        currentQ.options.map((opt) => (
                           <TouchableOpacity
                             key={opt}
                             style={[
                               qStyles.optionBtn,
-                              qSelectedAnswers[q.profileQuestionId] === opt && qStyles.optionBtnSelected,
+                              qSelectedAnswers[currentQ.profileQuestionId] === opt && qStyles.optionBtnSelected,
                             ]}
                             onPress={() =>
-                              setQSelectedAnswers(prev => ({ ...prev, [q.profileQuestionId]: opt }))
+                              setQSelectedAnswers(prev => ({ ...prev, [currentQ.profileQuestionId]: opt }))
                             }
                           >
                             <Text style={[
                               qStyles.optionText,
-                              qSelectedAnswers[q.profileQuestionId] === opt && qStyles.optionTextSelected,
+                              qSelectedAnswers[currentQ.profileQuestionId] === opt && qStyles.optionTextSelected,
                             ]}>
                               {opt}
                             </Text>
@@ -1129,25 +1144,35 @@ export default function LettersScreen() {
                           style={qStyles.freeInput}
                           placeholder="Ta réponse…"
                           placeholderTextColor="#9A7040"
-                          value={qSelectedAnswers[q.profileQuestionId] ?? ''}
+                          value={currentAnswer}
                           onChangeText={v =>
-                            setQSelectedAnswers(prev => ({ ...prev, [q.profileQuestionId]: v }))
+                            setQSelectedAnswers(prev => ({ ...prev, [currentQ.profileQuestionId]: v }))
                           }
                         />
                       )}
                     </View>
-                  ))}
+                  )}
 
-                  <TouchableOpacity
-                    style={[qStyles.submitBtn, qSubmitting && qStyles.submitBtnDisabled]}
-                    onPress={handleQGameSubmit}
-                    disabled={qSubmitting}
-                  >
-                    {qSubmitting
-                      ? <ActivityIndicator color="#fff" />
-                      : <Text style={qStyles.submitBtnText}>Envoyer mes réponses</Text>
-                    }
-                  </TouchableOpacity>
+                  {isLast ? (
+                    <TouchableOpacity
+                      style={[qStyles.submitBtn, (qSubmitting || !currentAnswer) && qStyles.submitBtnDisabled]}
+                      onPress={handleQGameSubmit}
+                      disabled={qSubmitting || !currentAnswer}
+                    >
+                      {qSubmitting
+                        ? <ActivityIndicator color="#fff" />
+                        : <Text style={qStyles.submitBtnText}>Envoyer mes réponses</Text>
+                      }
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[qStyles.submitBtn, !currentAnswer && qStyles.submitBtnDisabled]}
+                      disabled={!currentAnswer}
+                      onPress={() => setQCurrentStep(prev => prev + 1)}
+                    >
+                      <Text style={qStyles.submitBtnText}>Suivant →</Text>
+                    </TouchableOpacity>
+                  )}
                 </>
               );
             })()}
@@ -1521,6 +1546,11 @@ const qStyles = StyleSheet.create({
   loadingText:    { color: '#7A5C3A', fontSize: 15 },
   intro:          { fontSize: 14, color: '#5A3A1A', lineHeight: 22, marginBottom: 24, textAlign: 'center' },
   introName:      { fontWeight: '700', color: '#9C2F45' },
+  stepRow:        { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
+  stepDot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D4B896' },
+  stepDotActive:  { backgroundColor: '#9C2F45', width: 10, height: 10, borderRadius: 5 },
+  stepDotDone:    { backgroundColor: '#B87333' },
+  stepLabel:      { fontSize: 11, color: '#9A7040', letterSpacing: 1, fontWeight: '600', marginLeft: 4 },
   questionBlock:  { backgroundColor: '#FEFAF0', borderRadius: 14, borderWidth: 1, borderColor: '#D4B896', padding: 16, marginBottom: 20 },
   questionNum:    { fontSize: 11, color: '#B87333', fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 },
   questionText:   { fontSize: 16, fontWeight: '600', color: '#2C1A0E', marginBottom: 14, lineHeight: 22 },
