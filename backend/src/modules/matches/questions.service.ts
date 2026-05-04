@@ -65,7 +65,7 @@ export async function getMatchQuestions(matchId: string, userId: string) {
 
   const otherQuestions = await prisma.profileQuestion.findMany({
     where: { profileId: otherProfile.id },
-    select: { id: true, questionId: true, answer: true, wrongAnswers: true },
+    select: { id: true, questionId: true, questionText: true, answer: true, wrongAnswers: true },
   });
 
   const myAttempts = await prisma.matchQuestionAttempt.findMany({
@@ -87,7 +87,7 @@ export async function getMatchQuestions(matchId: string, userId: string) {
     return {
       profileQuestionId: q.id,
       questionId: q.questionId,
-      questionText: catalogEntry?.text ?? q.questionId,
+      questionText: q.questionText ?? catalogEntry?.text ?? q.questionId,
       options,
     };
   });

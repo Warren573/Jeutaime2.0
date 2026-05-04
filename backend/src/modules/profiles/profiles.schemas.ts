@@ -50,15 +50,21 @@ export const UpdateProfileSchema = z.object({
 export const UpdateQuestionsSchema = z.object({
   questions: z
     .array(
-      z.object({
-        questionId: z.string().refine((id) => QUESTION_IDS.includes(id), {
-          message: "Question ID invalide",
-        }),
-        answer: z.string().min(1, "Réponse requise").max(200, "Réponse : 200 caractères max"),
-        wrongAnswers: z
-          .array(z.string().min(1).max(200))
-          .length(2, "2 mauvaises réponses requises pour le jeu"),
-      }),
+      z
+        .object({
+          questionText: z.string().min(5, "Question : 5 caractères min").max(200).optional(),
+          questionId: z.string().optional(),
+          answer: z.string().min(1, "Réponse requise").max(200, "Réponse : 200 caractères max"),
+          wrongAnswers: z
+            .array(z.string().min(1).max(200))
+            .length(2, "2 mauvaises réponses requises pour le jeu"),
+        })
+        .refine(
+          (q) =>
+            (q.questionText && q.questionText.trim().length >= 5) ||
+            (q.questionId && QUESTION_IDS.includes(q.questionId)),
+          { message: "questionText (≥5 chars) ou questionId valide du catalogue requis" },
+        ),
     )
     .length(3, "Tu dois répondre exactement à 3 questions"),
 });

@@ -8,7 +8,6 @@ import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
 import { apiFetch } from '../api/client';
-import { QUESTION_CATALOG } from '../config/questions';
 
 // ─── Description physique avec humour ────────────────────────────────────────
 
@@ -168,7 +167,6 @@ const skStyles = StyleSheet.create({
 // ─── Composant QuestionBlock ──────────────────────────────────────────────────
 
 type Question  = { text: string; options: [string, string, string]; correctAnswer: 0 | 1 | 2 };
-type QAnswers  = { answer: string; wrong1: string; wrong2: string };
 
 const EMPTY_QUESTION = (): Question => ({ text: '', options: ['', '', ''], correctAnswer: 0 });
 
@@ -260,55 +258,32 @@ export function EditProfileScreen() {
     const saved = currentUser?.idealDay ?? [];
     return [...saved, '', '', '', '', ''].slice(0, 5);
   });
-  const [skills,       setSkills]       = useState<Skill[]>(currentUser?.skills ?? []);
+  const [skills,       setSkills]       = useState<Skill[]>((currentUser?.skills ?? []) as Skill[]);
 
   const toggleItem = (list: string[], setList: (v: string[]) => void, id: string) => {
     setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
   };
 
-  // ── Catalogue questions (format backend) ──────────────────────────────────
-  const [qSelected, setQSelected] = useState<string[]>(() =>
-    (currentUser?.apiQuestions ?? []).slice(0, 3).map(q => q.questionId)
-  );
-  const [qAnswers, setQAnswers] = useState<Record<string, QAnswers>>(() => {
-    const init: Record<string, QAnswers> = {};
-    for (const q of (currentUser?.apiQuestions ?? [])) {
-      init[q.questionId] = { answer: q.answer, wrong1: q.wrongAnswers[0] ?? '', wrong2: q.wrongAnswers[1] ?? '' };
-    }
-    return init;
-  });
   const [qSaving, setQSaving] = useState(false);
 
-  const qReady = qSelected.length === 3 && qSelected.every(id => {
-    const a = qAnswers[id];
-    return a?.answer.trim() && a?.wrong1.trim() && a?.wrong2.trim();
-  });
-
-  const toggleCatalogQ = (id: string) => {
-    if (qSelected.includes(id)) {
-      setQSelected(prev => prev.filter(q => q !== id));
-      setQAnswers(prev => { const n = { ...prev }; delete n[id]; return n; });
-    } else if (qSelected.length < 3) {
-      setQSelected(prev => [...prev, id]);
-      setQAnswers(prev => ({ ...prev, [id]: { answer: '', wrong1: '', wrong2: '' } }));
-    }
-  };
-
-  const updateQAnswer = (id: string, field: keyof QAnswers, value: string) => {
-    setQAnswers(prev => ({ ...prev, [id]: { ...(prev[id] ?? { answer: '', wrong1: '', wrong2: '' }), [field]: value } }));
-  };
+  const questionsReady = questions.every(q =>
+    q.text.trim().length >= 5 &&
+    q.options.every(o => o.trim().length > 0)
+  );
 
   const handleSaveQuestions = async () => {
-    if (!qReady || qSaving) return;
+    if (!questionsReady || qSaving) return;
     try {
       setQSaving(true);
       await apiFetch('/profiles/me/questions', {
         method: 'PUT',
         body: JSON.stringify({
-          questions: qSelected.map(id => ({
-            questionId: id,
-            answer: qAnswers[id].answer.trim(),
-            wrongAnswers: [qAnswers[id].wrong1.trim(), qAnswers[id].wrong2.trim()],
+          questions: questions.map(q => ({
+            questionText: q.text.trim(),
+            answer: q.options[q.correctAnswer].trim(),
+            wrongAnswers: q.options
+              .filter((_, i) => i !== q.correctAnswer)
+              .map(o => o.trim()),
           })),
         }),
       });
@@ -323,8 +298,9 @@ export function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!pseudo.trim()) { Alert.alert('Manque', 'Renseigne ton pseudo.'); return; }
-    if (bio.trim().length > 0 && bio.trim().length < 50) {
-      Alert.alert('Bio trop courte', 'Min 50 caractères. Les autres champs sont sauvegardés.');
+    const bioWordCount = bio.trim() ? bio.trim().split(/\s+/).length : 0;
+    if (bio.trim().length > 0 && bioWordCount < 50) {
+      Alert.alert('Bio trop courte', `${bioWordCount}/50 mots. Les autres champs sont sauvegardés.`);
     }
 
     const LF_MAP: Record<string, string> = { relation: 'RELATION', flirt: 'FLIRT', amitie: 'AMITIE', discussion: 'DISCUSSION', serieux: 'SERIEUX' };
@@ -368,7 +344,7 @@ export function EditProfileScreen() {
       return a;
     })();
     const filteredIdealDay = idealDay.filter(s => s.trim());
-    const validSkills = skills.filter(s => s.id && s.detail.trim());
+    const validSkills = skills.filter(s => s.id && s.detail.trim()).slice(0, 3);
 
     const localProfile = {
       id:             currentUser?.id            ?? '',
@@ -502,16 +478,27 @@ export function EditProfileScreen() {
           <Text style={styles.avatarEditHint}>Modifier mon avatar</Text>
         </TouchableOpacity>
 
-        {(currentUser?.profileMissingFields ?? []).includes('questions') && (
-          <View style={styles.matchWarning}>
-            <Text style={styles.matchWarningText}>
-              🎲 Ajoute tes 3 questions pour pouvoir matcher
-            </Text>
-          </View>
-        )}
+        {(() => {
+          const bioWords = bio.trim() ? bio.trim().split(/\s+/).length : 0;
+          const missing: string[] = [];
+          if (bioWords < 50) missing.push(`bio (${bioWords}/50 mots)`);
+          if (interests.length === 0) missing.push('centres d\'intérêt');
+          const validSkills = skills.filter(s => s.id && s.detail.trim());
+          if (validSkills.length < 3) missing.push(`compétences (${validSkills.length}/3)`);
+          if (!questionsReady) missing.push('3 questions complètes');
+          if (missing.length === 0) return null;
+          return (
+            <View style={styles.matchWarning}>
+              <Text style={styles.matchWarningText}>
+                ⚠️ Profil incomplet — manque : {missing.join(', ')}
+              </Text>
+            </View>
+          );
+        })()}
 
         {/* ── Bio ── */}
         <SectionCard emoji="✨" title="BIO">
+          <Text style={styles.subLabel}>La première chose vue sur ton profil — min 50 mots</Text>
           <TextInput
             style={[styles.input, styles.bioInput]}
             value={bio}
@@ -521,9 +508,15 @@ export function EditProfileScreen() {
             multiline
             maxLength={500}
           />
-          <Text style={[styles.charCount, bio.length >= 50 && styles.charCountOk]}>
-            {bio.length} / 500 {bio.length >= 50 ? '✓' : `(min 50 caractères)`}
-          </Text>
+          {(() => {
+            const wordCount = bio.trim() ? bio.trim().split(/\s+/).length : 0;
+            const ok = wordCount >= 50;
+            return (
+              <Text style={[styles.charCount, ok && styles.charCountOk]}>
+                {wordCount} mot{wordCount !== 1 ? 's' : ''} {ok ? '✓' : '(min 50 mots)'}
+              </Text>
+            );
+          })()}
         </SectionCard>
 
         {/* ── Ma citation ── */}
@@ -623,9 +616,10 @@ export function EditProfileScreen() {
           <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Souhaites-tu avoir des enfants ?</Text>
           <View style={styles.chipGrid}>
             {[
-              { label: "J'en veux",                          value: true  as boolean | null },
-              { label: "Je n'en veux pas",                   value: false as boolean | null },
-              { label: "Je n'ai pas encore décidé",          value: null  as boolean | null },
+              { label: "Oui, je veux des enfants 🍼",                             value: true  as boolean | null },
+              { label: "Non, ça ne changera pas 🙅",                              value: false as boolean | null },
+              { label: "Peut-être… on verra 🤷",                                  value: null  as boolean | null },
+              { label: "Je compte me lancer dans l'élevage de pingouins 🐧",      value: true  as boolean | null },
             ].map(opt => (
               <TouchableOpacity
                 key={`wants-${opt.label}`}
@@ -644,9 +638,9 @@ export function EditProfileScreen() {
           )}
         </SectionCard>
 
-        {/* ── Ce que je gère ── */}
-        <SectionCard emoji="🎯" title={`CE QUE JE GÈRE  (${skills.length}/5)`}>
-          <Text style={styles.subLabel}>Choisis 3 à 5 compétences — sois honnête (ou presque)</Text>
+        {/* ── Mes compétences ── */}
+        <SectionCard emoji="🎯" title={`MES COMPÉTENCES  (${skills.length}/3)`}>
+          <Text style={styles.subLabel}>Exactement 3 compétences — sois honnête (ou presque)</Text>
           {skills.map((sk, i) => (
             <SkillCard
               key={sk.id}
@@ -660,12 +654,10 @@ export function EditProfileScreen() {
             />
           ))}
           {skills.length < 3 && (
-            <Text style={styles.skillWarning}>⚠️ Minimum 3 compétences requises</Text>
-          )}
-          {skills.length < 5 && (
             <>
+              <Text style={styles.skillWarning}>⚠️ Exactement 3 compétences requises</Text>
               <Text style={[styles.subLabel, { marginTop: 12 }]}>
-                {skills.length === 0 ? 'Sélectionne des compétences :' : 'En ajouter une autre :'}
+                {skills.length === 0 ? 'Sélectionne 3 compétences :' : `En ajouter ${3 - skills.length} autre${3 - skills.length > 1 ? 's' : ''} :`}
               </Text>
               <View style={styles.chipGrid}>
                 {SKILL_OPTIONS
@@ -686,47 +678,6 @@ export function EditProfileScreen() {
           )}
         </SectionCard>
 
-        {/* ── Mes petits + et − ── */}
-        <SectionCard emoji="⚖️" title="MES PETITS + ET MES PETITS −">
-          <Text style={styles.subSectionLabel}>✨ Mes qualités</Text>
-          <View style={styles.chipGrid}>
-            {QUALITY_OPTIONS.map(q => (
-              <TouchableOpacity
-                key={q}
-                style={[
-                  styles.chip,
-                  qualities.includes(q) && styles.chipActive,
-                  qualities.length >= 5 && !qualities.includes(q) && styles.chipDisabled,
-                ]}
-                onPress={() => {
-                  if (qualities.length >= 5 && !qualities.includes(q)) return;
-                  toggleItem(qualities, setQualities, q);
-                }}
-              >
-                <Text style={styles.chipText}>{q}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>🤭 Mes défauts (soyons honnêtes…)</Text>
-          <View style={styles.chipGrid}>
-            {DEFAULT_OPTIONS.map(d => (
-              <TouchableOpacity
-                key={d}
-                style={[
-                  styles.chip,
-                  defaults.includes(d) && styles.chipActive,
-                  defaults.length >= 5 && !defaults.includes(d) && styles.chipDisabled,
-                ]}
-                onPress={() => {
-                  if (defaults.length >= 5 && !defaults.includes(d)) return;
-                  toggleItem(defaults, setDefaults, d);
-                }}
-              >
-                <Text style={styles.chipText}>{d}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </SectionCard>
 
         {/* ── Journée idéale ── */}
         <SectionCard emoji="🌅" title="JOURNÉE IDÉALE">
@@ -748,43 +699,9 @@ export function EditProfileScreen() {
           ))}
         </SectionCard>
 
-        {/* ── Mes tags (matching invisible) ── */}
-        <SectionCard emoji="🏷️" title="MES TAGS">
-          <Text style={styles.tagsNote}>
-            Ces informations n'apparaissent pas dans ton profil visible.{'\n'}Elles servent à te trouver des profils compatibles.
-          </Text>
-
-          <Text style={styles.inputLabel}>Mon univers en une phrase (80 car. max)</Text>
-          <TextInput
-            style={styles.input}
-            value={vibe}
-            onChangeText={setVibe}
-            placeholder="Ex: Romantique curieuse, soleil et autodérision"
-            placeholderTextColor="#B8A082"
-            maxLength={80}
-          />
-
-          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Qui je suis (5 max)</Text>
-          <View style={styles.chipGrid}>
-            {IDENTITY_TAG_OPTIONS.map(tag => (
-              <TouchableOpacity
-                key={tag}
-                style={[
-                  styles.chip,
-                  identityTags.includes(tag) && styles.chipActive,
-                  identityTags.length >= 5 && !identityTags.includes(tag) && styles.chipDisabled,
-                ]}
-                onPress={() => {
-                  if (identityTags.length >= 5 && !identityTags.includes(tag)) return;
-                  toggleItem(identityTags, setIdentityTags, tag);
-                }}
-              >
-                <Text style={styles.chipText}>{tag}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Centres d'intérêt (8 max)</Text>
+        {/* ── Centres d'intérêt ── */}
+        <SectionCard emoji="🌐" title="CENTRES D'INTÉRÊT">
+          <Text style={styles.subLabel}>Ce qui t'anime — affiché dans ton profil (8 max)</Text>
           <View style={styles.chipGrid}>
             {INTERESTS_OPTIONS.map(opt => (
               <TouchableOpacity
@@ -808,68 +725,24 @@ export function EditProfileScreen() {
         {/* ── Mes 3 questions ── */}
         <SectionCard emoji="🎲" title="MES 3 QUESTIONS">
           <Text style={styles.subLabel}>
-            En cas de match, l'autre devra deviner ta vraie réponse parmi 3 choix.
-            {!qReady && qSelected.length === 0 && '\nChoisis 3 questions ci-dessous.'}
+            Écris 3 questions sur toi. En cas de match, l'autre devra deviner ta vraie réponse parmi 3 choix.
           </Text>
-
-          <Text style={styles.qProgress}>
-            {qSelected.length}/3{qSelected.length === 3 ? ' ✓' : ''}
-          </Text>
-
-          {QUESTION_CATALOG.map(q => {
-            const isSelected = qSelected.includes(q.id);
-            const isDisabled = !isSelected && qSelected.length >= 3;
-            const ans = qAnswers[q.id];
-            return (
-              <View key={q.id} style={[styles.qCard, isSelected && styles.qCardSelected]}>
-                <TouchableOpacity
-                  onPress={() => toggleCatalogQ(q.id)}
-                  disabled={isDisabled}
-                  style={styles.qCardHeader}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.qDot, isSelected && styles.qDotSelected]} />
-                  <Text style={[styles.qCardText, isDisabled && styles.qCardTextDisabled]}>
-                    {q.text}
-                  </Text>
-                </TouchableOpacity>
-
-                {isSelected && ans !== undefined && (
-                  <View style={styles.qAnswersBlock}>
-                    <Text style={styles.qAnswerLabel}>Ta vraie réponse</Text>
-                    <TextInput
-                      style={styles.qAnswerInput}
-                      value={ans.answer}
-                      onChangeText={v => updateQAnswer(q.id, 'answer', v)}
-                      placeholder="Ta vraie réponse…"
-                      placeholderTextColor="#B8A082"
-                    />
-                    <Text style={styles.qAnswerLabel}>Fausse piste 1</Text>
-                    <TextInput
-                      style={styles.qAnswerInput}
-                      value={ans.wrong1}
-                      onChangeText={v => updateQAnswer(q.id, 'wrong1', v)}
-                      placeholder="Une réponse plausible mais fausse…"
-                      placeholderTextColor="#B8A082"
-                    />
-                    <Text style={styles.qAnswerLabel}>Fausse piste 2</Text>
-                    <TextInput
-                      style={styles.qAnswerInput}
-                      value={ans.wrong2}
-                      onChangeText={v => updateQAnswer(q.id, 'wrong2', v)}
-                      placeholder="Une autre réponse plausible mais fausse…"
-                      placeholderTextColor="#B8A082"
-                    />
-                  </View>
-                )}
-              </View>
-            );
-          })}
-
+          {questions.map((q, i) => (
+            <QuestionBlock
+              key={i}
+              index={i}
+              question={q}
+              onChange={updated => {
+                const copy = [...questions];
+                copy[i] = updated;
+                setQuestions(copy);
+              }}
+            />
+          ))}
           <TouchableOpacity
-            style={[styles.saveQBtn, (!qReady || qSaving) && { opacity: 0.5 }]}
+            style={[styles.saveQBtn, (!questionsReady || qSaving) && { opacity: 0.5 }]}
             onPress={handleSaveQuestions}
-            disabled={!qReady || qSaving}
+            disabled={!questionsReady || qSaving}
           >
             <Text style={styles.saveQBtnText}>
               {qSaving ? 'Sauvegarde…' : '💾 Sauver mes questions'}

@@ -29,6 +29,13 @@ interface JournalSection {
   items: string[];
 }
 
+interface Skill {
+  label: string;
+  emoji: string;
+  detail: string;
+  score: number;
+}
+
 interface ProfileData {
   id: string;
   name: string;
@@ -39,8 +46,12 @@ interface ProfileData {
   avatarEmoji: string;
   avatarBg: string;
   avatarDef?: AvatarDefinition;
-  tags: { emoji: string; label: string }[];
+  bio: string;
   quote: string;
+  interests: string[];
+  skills: Skill[];
+  questionTexts: string[];
+  childrenLabel: string | null;
   sections: JournalSection[];
   game: {
     level: number;
@@ -71,8 +82,6 @@ function calcAge(birthDate: string | null): number {
   return age;
 }
 
-const TAG_EMOJIS = ['✨', '💫', '🌟', '💎', '🔥', '🌸', '⚡', '🦋', '🎭', '🎯'];
-
 function mapApiToProfileData(
   data: PublicProfileResponse,
   match?: MatchDTO,
@@ -96,12 +105,28 @@ function mapApiToProfileData(
   const nextReveal = nextMilestone ? nextMilestone.threshold - totalExchanged : 0;
 
   const sections: JournalSection[] = [];
-  if ((p.interests ?? []).length > 0)
-    sections.push({ title: 'Mon univers', icon: '🌐', items: p.interests! });
   if ((p.idealDay ?? []).length > 0)
     sections.push({ title: 'Ma journée idéale', icon: '☀️', items: p.idealDay! });
-  if ((p.defaults ?? []).length > 0)
-    sections.push({ title: 'Mes défauts (assumés)', icon: '🙈', items: p.defaults! });
+
+  // Texte enfants à partir des booleans
+  const childrenLabel = (() => {
+    const has = p.hasChildren ?? null;
+    const wants = p.wantsChildren ?? null;
+    if (has === true  && wants === true)  return "A des enfants — et prêt·e à agrandir la troupe 👨‍👩‍👧";
+    if (has === true  && wants === false) return "A des enfants, c'est largement suffisant 😄";
+    if (has === true  && wants === null)  return "A des enfants";
+    if (has === false && wants === true)  return "Compte se lancer dans l'élevage de pingouins 🐧";
+    if (has === false && wants === false) return "Pas d'enfants, et ça ne changera pas 🙅";
+    if (has === false && wants === null)  return "Pas d'enfants";
+    if (has === null  && wants === true)  return "En réflexion — probablement oui 🍼";
+    if (has === null  && wants === false) return "Pas vraiment prévu d'enfants";
+    return null;
+  })();
+
+  // Questions text (user-written ou catalogue)
+  const questionTexts = (p.questions ?? [])
+    .map(q => q.questionText)
+    .filter((t): t is string => !!t);
 
   return {
     id: p.id,
@@ -112,11 +137,12 @@ function mapApiToProfileData(
     descriptors: (p.qualities ?? []).slice(0, 3),
     avatarEmoji: '✨',
     avatarBg: '#F3E5F5',
-    tags: (p.identityTags ?? []).map((label, i) => ({
-      emoji: TAG_EMOJIS[i % TAG_EMOJIS.length],
-      label,
-    })),
+    bio: p.bio ?? '',
     quote: p.quote ?? '',
+    interests: p.interests ?? [],
+    skills: (p.skills ?? []).slice(0, 3) as Skill[],
+    questionTexts,
+    childrenLabel,
     sections,
     game: {
       level: Math.max(1, Math.floor((p.points ?? 0) / 200) + 1),
@@ -189,21 +215,6 @@ function ProfileHeader({ profile }: { profile: ProfileData }) {
   );
 }
 
-// ─── TAGS ──────────────────────────────────────────────────────────────────────
-
-function ProfileTags({ tags }: { tags: ProfileData['tags'] }) {
-  return (
-    <View style={styles.tagsWrap}>
-      {tags.map((t) => (
-        <View key={t.label} style={styles.tag}>
-          <Text style={styles.tagEmoji}>{t.emoji}</Text>
-          <Text style={styles.tagLabel}>{t.label}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 // ─── QUOTE ─────────────────────────────────────────────────────────────────────
 
 function ProfileQuote({ quote }: { quote: string }) {
@@ -211,6 +222,96 @@ function ProfileQuote({ quote }: { quote: string }) {
     <View style={styles.quoteCard}>
       <View style={styles.quoteAccent} />
       <Text style={styles.quoteText}>« {quote} »</Text>
+    </View>
+  );
+}
+
+// ─── BIO ───────────────────────────────────────────────────────────────────────
+
+function ProfileBio({ bio }: { bio: string }) {
+  return (
+    <View style={styles.bioCard}>
+      <Text style={styles.bioText}>{bio}</Text>
+    </View>
+  );
+}
+
+// ─── INTERESTS ─────────────────────────────────────────────────────────────────
+
+function ProfileInterests({ interests }: { interests: string[] }) {
+  return (
+    <View style={styles.sectionCard}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionIcon}>🌐</Text>
+        <Text style={styles.sectionTitle}>Centres d'intérêt</Text>
+      </View>
+      <View style={styles.interestChips}>
+        {interests.map((it, i) => (
+          <View key={i} style={styles.interestChip}>
+            <Text style={styles.interestChipText}>{it}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ─── SKILLS ────────────────────────────────────────────────────────────────────
+
+function ProfileSkills({ skills }: { skills: Skill[] }) {
+  return (
+    <View style={styles.sectionCard}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionIcon}>🎯</Text>
+        <Text style={styles.sectionTitle}>Compétences</Text>
+      </View>
+      {skills.map((sk, i) => (
+        <View key={i} style={styles.skillRow}>
+          <View style={styles.skillMeta}>
+            <Text style={styles.skillEmoji}>{sk.emoji}</Text>
+            <View style={{ flex: 1 }}>
+              <View style={styles.skillNameRow}>
+                <Text style={styles.skillLabel}>{sk.label}</Text>
+                <Text style={styles.skillScore}>{sk.score}%</Text>
+              </View>
+              <Text style={styles.skillDetail}>{sk.detail}</Text>
+            </View>
+          </View>
+          <View style={styles.skillBarBg}>
+            <View style={[styles.skillBarFill, { width: `${sk.score}%` as any }]} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// ─── QUESTIONS ─────────────────────────────────────────────────────────────────
+
+function ProfileQuestions({ questionTexts }: { questionTexts: string[] }) {
+  return (
+    <View style={styles.sectionCard}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionIcon}>🎲</Text>
+        <Text style={styles.sectionTitle}>Ses questions</Text>
+      </View>
+      {questionTexts.map((q, i) => (
+        <View key={i} style={styles.questionRow}>
+          <Text style={styles.questionNum}>{i + 1}.</Text>
+          <Text style={styles.questionText}>{q}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// ─── CHILDREN ──────────────────────────────────────────────────────────────────
+
+function ProfileChildren({ label }: { label: string }) {
+  return (
+    <View style={styles.childrenCard}>
+      <Text style={styles.childrenEmoji}>👶</Text>
+      <Text style={styles.childrenText}>{label}</Text>
     </View>
   );
 }
@@ -498,15 +599,15 @@ export default function ProfileDetailScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. Header */}
-        <ProfileHeader profile={profile} />
-
-        {/* 2. Identity tags */}
-        {profile.tags.length > 0 && (
+        {/* 1. Bio */}
+        {profile.bio.length > 0 && (
           <View style={styles.section}>
-            <ProfileTags tags={profile.tags} />
+            <ProfileBio bio={profile.bio} />
           </View>
         )}
+
+        {/* 2. Header (avatar + infos) */}
+        <ProfileHeader profile={profile} />
 
         {/* 3. Quote */}
         {profile.quote.length > 0 && (
@@ -515,7 +616,35 @@ export default function ProfileDetailScreen() {
           </View>
         )}
 
-        {/* 4. Journal sections */}
+        {/* 4. Centres d'intérêt */}
+        {profile.interests.length > 0 && (
+          <View style={styles.section}>
+            <ProfileInterests interests={profile.interests} />
+          </View>
+        )}
+
+        {/* 5. Compétences */}
+        {profile.skills.length > 0 && (
+          <View style={styles.section}>
+            <ProfileSkills skills={profile.skills} />
+          </View>
+        )}
+
+        {/* 6. Questions */}
+        {profile.questionTexts.length > 0 && (
+          <View style={styles.section}>
+            <ProfileQuestions questionTexts={profile.questionTexts} />
+          </View>
+        )}
+
+        {/* 7. Enfants */}
+        {profile.childrenLabel && (
+          <View style={styles.section}>
+            <ProfileChildren label={profile.childrenLabel} />
+          </View>
+        )}
+
+        {/* 8. Journal sections (journée idéale) */}
         {profile.sections.length > 0 && (
           <View style={styles.sectionsGrid}>
             {profile.sections.map((s) => (
@@ -524,12 +653,12 @@ export default function ProfileDetailScreen() {
           </View>
         )}
 
-        {/* 5. Game progression */}
+        {/* 9. Game progression */}
         <View style={styles.section}>
           <ProfileGameSection game={profile.game} />
         </View>
 
-        {/* 6. Letter system — only shown when a match exists */}
+        {/* 10. Letter system — only shown when a match exists */}
         {match && (
           <>
             <View style={styles.section}>
@@ -1065,5 +1194,132 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+
+  // ── Bio card
+  bioCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 3,
+    borderLeftWidth: 4,
+    borderLeftColor: '#E91E63',
+  },
+  bioText: {
+    fontSize: 15,
+    color: '#3A2818',
+    lineHeight: 24,
+    fontWeight: '400',
+  },
+
+  // ── Interest chips
+  interestChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  interestChip: {
+    backgroundColor: '#FFF0F7',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#F8BBD9',
+  },
+  interestChipText: {
+    fontSize: 13,
+    color: '#C2185B',
+    fontWeight: '500',
+  },
+
+  // ── Skills
+  skillRow: {
+    marginBottom: 14,
+  },
+  skillMeta: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 6,
+  },
+  skillEmoji: {
+    fontSize: 20,
+    marginTop: 1,
+  },
+  skillNameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  skillLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3A2818',
+  },
+  skillScore: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#C2185B',
+  },
+  skillDetail: {
+    fontSize: 12,
+    color: '#8B6F47',
+    fontStyle: 'italic',
+  },
+  skillBarBg: {
+    height: 5,
+    backgroundColor: '#EDE0C8',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  skillBarFill: {
+    height: '100%',
+    backgroundColor: '#E91E63',
+    borderRadius: 3,
+  },
+
+  // ── Questions
+  questionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 10,
+  },
+  questionNum: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#E91E63',
+    minWidth: 18,
+  },
+  questionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#3A2818',
+    lineHeight: 20,
+  },
+
+  // ── Children
+  childrenCard: {
+    backgroundColor: '#FFF8E7',
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#E8D5B7',
+  },
+  childrenEmoji: {
+    fontSize: 24,
+  },
+  childrenText: {
+    fontSize: 14,
+    color: '#5D4037',
+    fontWeight: '500',
+    flex: 1,
   },
 });
