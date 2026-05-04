@@ -155,34 +155,22 @@ export default function ProfileTwoStepDemo() {
   const handleReact = async (type: "SMILE" | "GRIMACE") => {
     if (!profile || reacting) return;
     setReacting(true);
+    console.log("[Sourire] payload →", { toId: profile.userId, type, currentUserId: currentUser?.id });
     try {
       const result = await sendReaction(profile.userId, type);
+      console.log("[Sourire] réponse →", result);
+      advance();
       if (type === "SMILE" && result.matchCreated) {
         Alert.alert("Match !", "Vous avez matché ! Rendez-vous dans Matches.");
       }
-    } catch {
-      // Non-blocking: still advance to next profile
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi";
+      console.error("[Sourire] erreur →", msg);
+      Alert.alert("Erreur", msg);
+      // Don't advance on error so the user can retry or see what happened
     } finally {
       setReacting(false);
-      advance();
     }
-  };
-
-  const handleSmile = () => {
-    if (!profile || reacting) return;
-    const canMatch = currentUser?.canMatch ?? true;
-    if (!canMatch) {
-      const missing = currentUser?.profileMissingFields ?? [];
-      const msg = missing.includes("questions")
-        ? "Ajoute tes 3 questions pour pouvoir matcher."
-        : "Complète ton profil (bio 50 mots minimum) pour pouvoir matcher.";
-      Alert.alert("Match indisponible", msg, [
-        { text: "Annuler", style: "cancel" },
-        { text: "Compléter mon profil", onPress: () => router.push("/edit-profile") },
-      ]);
-      return;
-    }
-    handleReact("SMILE");
   };
 
   // ── Loading ──
@@ -314,7 +302,7 @@ export default function ProfileTwoStepDemo() {
 
             <Pressable
               style={[styles.actionButton, styles.actionGood, reacting && styles.actionDisabled]}
-              onPress={handleSmile}
+              onPress={() => handleReact("SMILE")}
               disabled={reacting}
             >
               <Text style={styles.actionText}>😊 Sourire</Text>
