@@ -21,7 +21,9 @@ export interface PublicProfileDto {
   defaults: string[] | null;
   idealDay: string[] | null;
   skills: { label: string; detail: string; score: number; emoji: string }[] | null;
-  questions: { questionId: string; answer: string }[] | null;
+  questions: { questionId: string; questionText: string | null }[] | null;
+  hasChildren: boolean | null;
+  wantsChildren: boolean | null;
 }
 
 export interface PublicPhotoDto {

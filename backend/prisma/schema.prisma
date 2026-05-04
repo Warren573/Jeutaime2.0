@@ -244,6 +244,7 @@ model ProfileQuestion {
   profileId    String
   profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   questionId   String
+  questionText String?  @db.Text
   answer       String   @db.Text
   wrongAnswers String[] @default([])
 

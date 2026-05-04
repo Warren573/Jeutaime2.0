@@ -68,20 +68,19 @@ export async function updateQuestions(userId: string, dto: UpdateQuestionsDto) {
   const profile = await prisma.profile.findUnique({ where: { userId }, select: { id: true } });
   if (!profile) throw new NotFoundError("Profil");
 
-  await prisma.$transaction(
-    dto.questions.map((q) =>
-      prisma.profileQuestion.upsert({
-        where: { profileId_questionId: { profileId: profile.id, questionId: q.questionId } },
-        update: { answer: q.answer, wrongAnswers: q.wrongAnswers },
-        create: {
-          profileId: profile.id,
-          questionId: q.questionId,
-          answer: q.answer,
-          wrongAnswers: q.wrongAnswers,
-        },
-      }),
-    ),
-  );
+  // Remplacer toutes les questions (delete + create pour supporter user-written + catalogue)
+  await prisma.$transaction([
+    prisma.profileQuestion.deleteMany({ where: { profileId: profile.id } }),
+    prisma.profileQuestion.createMany({
+      data: dto.questions.map((q, i) => ({
+        profileId: profile.id,
+        questionId: (q as any).questionId ?? `custom_${i}`,
+        questionText: (q as any).questionText?.trim() ?? null,
+        answer: q.answer,
+        wrongAnswers: q.wrongAnswers,
+      })),
+    }),
+  ]);
 
   return prisma.profileQuestion.findMany({ where: { profileId: profile.id } });
 }
@@ -92,7 +91,7 @@ export async function updateQuestions(userId: string, dto: UpdateQuestionsDto) {
 export async function getPublicProfile(viewerId: string, targetUserId: string, viewerIsPremium: boolean) {
   const profile = await prisma.profile.findUnique({
     where: { userId: targetUserId },
-    include: { questions: { select: { questionId: true, answer: true } } },
+    include: { questions: { select: { questionId: true, questionText: true } } },
   });
   if (!profile) throw new NotFoundError("Profil");
 
