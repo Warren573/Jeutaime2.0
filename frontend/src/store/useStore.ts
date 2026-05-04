@@ -474,6 +474,13 @@ export const useStore = create<StoreState>()(
         try {
           const data = await listMatches();
           const viewerId = get().currentUser?.id;
+          console.log("[loadMatches] raw →", data.map(m => ({
+            id: m.id, status: m.status,
+            questionsValidated: m.questionsValidated,
+            initiatorId: m.initiatorId,
+            otherUserId: m.otherUserId,
+            canSend: m.canSend,
+          })));
           if (!viewerId || data.length === 0) return;
 
           const adapted: Match[] = data.map((m) => {

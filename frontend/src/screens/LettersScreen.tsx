@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Link, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { acceptMatch } from '../api/matches';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
 import { Avatar } from '../avatar/png/Avatar';
@@ -40,8 +41,10 @@ interface EnvelopeCardProps {
   isPremium?: boolean;
   questionsValidated: boolean;
   matchStatus: 'pending' | 'active' | 'broken' | 'blocked';
+  isInitiator: boolean;
   onOpen: () => void;
   onPlayQuestions: () => void | Promise<void>;
+  onAccept: () => void | Promise<void>;
   formatTime: (ts: number) => string;
 }
 
@@ -57,8 +60,10 @@ const EnvelopeCard = ({
   isPremium = false,
   questionsValidated,
   matchStatus,
+  isInitiator,
   onOpen,
   onPlayQuestions,
+  onAccept,
   formatTime,
 }: EnvelopeCardProps) => {
   const rel = getRelationInfo(letterCount, isPremium);
@@ -123,7 +128,17 @@ const EnvelopeCard = ({
       </View>
 
       <View style={envStyles.actionBar}>
-        {isActive && !questionsValidated ? (
+        {matchStatus === 'pending' ? (
+          isInitiator ? (
+            <View style={[envStyles.actionLeft, envStyles.actionDisabled]}>
+              <Text style={[envStyles.actionLeftText, envStyles.actionDisabledText]}>⏳ En attente</Text>
+            </View>
+          ) : (
+            <TouchableOpacity style={envStyles.actionLeft} onPress={onAccept} activeOpacity={0.75}>
+              <Text style={envStyles.actionLeftText}>✅ Accepter le match</Text>
+            </TouchableOpacity>
+          )
+        ) : isActive && !questionsValidated ? (
           <TouchableOpacity style={envStyles.actionLeft} onPress={onPlayQuestions} activeOpacity={0.75}>
             <Text style={envStyles.actionLeftText}>🎮 Jouer aux questions</Text>
           </TouchableOpacity>
@@ -557,6 +572,15 @@ export default function LettersScreen() {
     }
   };
 
+  const handleAccept = async (match: Match) => {
+    try {
+      await acceptMatch(match.id);
+      await loadMatches();
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message ?? "Impossible d'accepter le match");
+    }
+  };
+
   const handleQGameOpen = async (match: Match) => {
     setQGameMatch(match);
     setQSelectedAnswers({});
@@ -671,6 +695,8 @@ export default function LettersScreen() {
                       isPremium={currentUser?.isPremium}
                       questionsValidated={match.questionsValidated}
                       matchStatus={match.status}
+                      isInitiator={match.initiatorId === (currentUser?.id ?? '')}
+                      onAccept={() => handleAccept(match)}
                       onPlayQuestions={() => handleQGameOpen(match)}
                       onOpen={() => {
                         const unreadLetters = conv.filter(

@@ -152,3 +152,10 @@ export async function submitMatchAnswers(
   }) as { data: MatchAnswersResultDTO };
   return res.data;
 }
+
+export async function acceptMatch(matchId: string): Promise<MatchDTO> {
+  const res = await apiFetch(`/matches/${matchId}/accept`, {
+    method: "POST",
+  }) as { data: MatchDTO };
+  return res.data;
+}
