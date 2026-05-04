@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Link, useFocusEffect } from 'expo-router';
@@ -68,6 +70,28 @@ const EnvelopeCard = ({
 }: EnvelopeCardProps) => {
   const rel = getRelationInfo(letterCount, isPremium);
 
+  // Petite animation tremblement quand lettre non lue
+  const shakeX = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (unread <= 0) {
+      shakeX.setValue(0);
+      return;
+    }
+    // Tremblement discret répété toutes les 4 secondes
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(3500),
+        Animated.timing(shakeX, { toValue: -3, duration: 60, useNativeDriver: true, easing: Easing.linear }),
+        Animated.timing(shakeX, { toValue: 3, duration: 60, useNativeDriver: true, easing: Easing.linear }),
+        Animated.timing(shakeX, { toValue: -2, duration: 50, useNativeDriver: true, easing: Easing.linear }),
+        Animated.timing(shakeX, { toValue: 2, duration: 50, useNativeDriver: true, easing: Easing.linear }),
+        Animated.timing(shakeX, { toValue: 0, duration: 40, useNativeDriver: true, easing: Easing.linear }),
+      ])
+    );
+    loop.start();
+    return () => { loop.stop(); shakeX.setValue(0); };
+  }, [unread]);
+
   const previewText = () => {
     if (matchStatus === 'pending') return '⏳ En attente d\'acceptation';
     if (matchStatus === 'broken' || matchStatus === 'blocked') return '🚫 Match terminé';
@@ -87,7 +111,13 @@ const EnvelopeCard = ({
   const canInteract = isActive && questionsValidated;
 
   return (
-    <View style={envStyles.card}>
+    <Animated.View
+      style={[
+        envStyles.card,
+        unread > 0 && envStyles.cardUnread,
+        { transform: [{ translateX: shakeX }] },
+      ]}
+    >
       <View style={envStyles.flapMini}>
         <View style={envStyles.foldLinesWrap}>
           <View style={[envStyles.foldLine, envStyles.foldLineLL]} />
@@ -161,7 +191,7 @@ const EnvelopeCard = ({
           {'👤 Profil →'}
         </Link>
       </View>
-    </View>
+    </Animated.View>
   );
 };
 
@@ -178,6 +208,13 @@ const envStyles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     overflow: 'hidden',
+  },
+  cardUnread: {
+    borderColor: '#C9621A',
+    shadowColor: '#C9621A',
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 9,
   },
   flapMini: {
     height: MINI_FLAP_H,
@@ -707,13 +744,15 @@ export default function LettersScreen() {
                         setShowCompose(true);
                         loadLetters(match.id);
 
-                        // Toujours jouer l'animation à l'ouverture de la conversation
-                        setEnvAnimSender(getOtherName(match));
-                        setEnvAnimVisible(true);
-                        setTimeout(() => {
-                          setEnvAnimVisible(false);
-                          unreadLetters.forEach(l => markLetterReadApi(l.id));
-                        }, 5100);
+                        // Grande animation uniquement si une lettre reçue non lue
+                        if (unreadLetters.length > 0) {
+                          setEnvAnimSender(getOtherName(match));
+                          setEnvAnimVisible(true);
+                          setTimeout(() => {
+                            setEnvAnimVisible(false);
+                            unreadLetters.forEach(l => markLetterReadApi(l.id));
+                          }, 5100);
+                        }
                       }}
                       formatTime={formatTime}
                     />
@@ -1021,9 +1060,6 @@ export default function LettersScreen() {
                           setSelectedMatch(freshMatch);
                           setShowCompose(true);
                           loadLetters(qGameMatch.id);
-                          setEnvAnimSender(getOtherName(qGameMatch));
-                          setEnvAnimVisible(true);
-                          setTimeout(() => setEnvAnimVisible(false), 5100);
                         }
                       }}
                     >
