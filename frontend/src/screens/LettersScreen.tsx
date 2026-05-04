@@ -963,8 +963,8 @@ export default function LettersScreen() {
             {selectedMatch && getConversation(selectedMatch).length === 0 && (
               selectedMatch.canSend ? (
                 <View style={styles.startConv}>
-                  <Text style={styles.startEmoji}>✨</Text>
-                  <Text style={styles.startText}>Commencez la conversation!</Text>
+                  <Text style={styles.startEmoji}>🖊</Text>
+                  <Text style={styles.startText}>Tu peux écrire la première lettre</Text>
                 </View>
               ) : (
                 <View style={styles.startConv}>
