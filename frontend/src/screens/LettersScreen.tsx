@@ -707,15 +707,13 @@ export default function LettersScreen() {
                         setShowCompose(true);
                         loadLetters(match.id);
 
-                        if (unreadLetters.length > 0) {
-                          setEnvAnimSender(getOtherName(match));
-                          setEnvAnimVisible(true);
-
-                          setTimeout(() => {
-                            setEnvAnimVisible(false);
-                            unreadLetters.forEach(l => markLetterReadApi(l.id));
-                          }, 5100);
-                        }
+                        // Toujours jouer l'animation à l'ouverture de la conversation
+                        setEnvAnimSender(getOtherName(match));
+                        setEnvAnimVisible(true);
+                        setTimeout(() => {
+                          setEnvAnimVisible(false);
+                          unreadLetters.forEach(l => markLetterReadApi(l.id));
+                        }, 5100);
                       }}
                       formatTime={formatTime}
                     />
@@ -1023,6 +1021,9 @@ export default function LettersScreen() {
                           setSelectedMatch(freshMatch);
                           setShowCompose(true);
                           loadLetters(qGameMatch.id);
+                          setEnvAnimSender(getOtherName(qGameMatch));
+                          setEnvAnimVisible(true);
+                          setTimeout(() => setEnvAnimVisible(false), 5100);
                         }
                       }}
                     >
