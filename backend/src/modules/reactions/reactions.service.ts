@@ -113,14 +113,14 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
     throw new BadRequestError(`Limite de matches atteinte (${getMatchLimit(isPremium)}). Passe en premium pour en avoir plus.`);
   }
 
-  // Créer le match
+  // Créer le match — auto-activé car les deux ont souri volontairement
   const match = await prisma.$transaction(async (tx) => {
     return tx.match.create({
       data: {
         userAId,
         userBId,
         initiatorId: fromId,
-        status: MatchStatus.PENDING,
+        status: MatchStatus.ACTIVE,
       },
       select: { id: true },
     });
