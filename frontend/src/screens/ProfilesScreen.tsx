@@ -738,9 +738,13 @@ export default function ProfilesScreen() {
           <Text style={[np.actionLabel, { color: INK2 }]}>CADEAU</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={np.smileBtn} onPress={handleSmile} activeOpacity={0.8}>
-          <Text style={np.actionEmoji}>😊</Text>
-          <Text style={[np.actionLabel, { color: '#2E5D2A' }]}>SOURIRE</Text>
+        <TouchableOpacity
+          style={[np.smileBtn, !canMatch && np.smileBtnDisabled]}
+          onPress={handleSmile}
+          activeOpacity={0.8}
+        >
+          <Text style={np.actionEmoji}>{canMatch ? '😊' : '🔒'}</Text>
+          <Text style={[np.actionLabel, { color: canMatch ? '#2E5D2A' : INK3 }]}>SOURIRE</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -1105,6 +1109,10 @@ const np = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     gap: 3,
+  },
+  smileBtnDisabled: {
+    borderColor: RULE_COLOR,
+    opacity: 0.5,
   },
   giftBtn: {
     alignItems: 'center',
