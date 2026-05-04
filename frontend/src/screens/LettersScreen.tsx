@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, Link } from 'expo-router';
+import { useRouter, Link, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
@@ -429,8 +429,14 @@ export default function LettersScreen() {
     matches, letters, lettersByMatch, questionsByMatch,
     addLetter, markLetterRead, markLetterReadApi,
     loadLetters, sendApiLetter, loadQuestions, submitAnswers,
-    currentUser, matchPartners, addPoints, duelEntries,
+    loadMatches, currentUser, matchPartners, addPoints, duelEntries,
   } = useStore();
+
+  useFocusEffect(
+    useCallback(() => {
+      loadMatches();
+    }, [loadMatches]),
+  );
   const screenBg = useStore(s => s.screenBackgrounds?.['letters'] ?? '#FFF8E7');
 
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);

@@ -119,7 +119,8 @@ export function ProfileMedia({
 
 export default function ProfileTwoStepDemo() {
   const router = useRouter();
-  const currentUser = useStore((s) => s.currentUser);
+  const currentUser  = useStore((s) => s.currentUser);
+  const loadMatches  = useStore((s) => s.loadMatches);
 
   const [profiles, setProfiles] = useState<DiscoveryProfileDto[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -160,14 +161,15 @@ export default function ProfileTwoStepDemo() {
       const result = await sendReaction(profile.userId, type);
       console.log("[Sourire] réponse →", result);
       advance();
-      if (type === "SMILE" && result.matchCreated) {
-        Alert.alert("Match !", "Vous avez matché ! Rendez-vous dans Matches.");
+      if (type === "SMILE" && result.matchCreated && result.matchId) {
+        console.log("[Match] matchId →", result.matchId, "— chargement des matchs puis navigation vers lettres");
+        await loadMatches();
+        router.push("/(tabs)/letters");
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi";
       console.error("[Sourire] erreur →", msg);
       Alert.alert("Erreur", msg);
-      // Don't advance on error so the user can retry or see what happened
     } finally {
       setReacting(false);
     }
