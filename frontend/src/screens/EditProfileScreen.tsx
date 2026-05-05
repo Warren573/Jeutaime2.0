@@ -755,6 +755,16 @@ export function EditProfileScreen() {
           <Text style={styles.saveBtnText}>💾 Sauvegarder mon profil</Text>
         </TouchableOpacity>
 
+        {/* ── Aperçu du profil ── */}
+        {currentUser?.id && (
+          <TouchableOpacity
+            style={styles.previewBtn}
+            onPress={() => router.push(`/profile/${currentUser.id}`)}
+          >
+            <Text style={styles.previewBtnText}>🪞 Voir mon profil</Text>
+          </TouchableOpacity>
+        )}
+
       </ScrollView>
     </View>
   );
@@ -837,7 +847,9 @@ const styles = StyleSheet.create({
   childrenPreview:  { marginTop: 14, fontSize: 13, color: '#5A3A1A', fontStyle: 'italic', backgroundColor: '#FFF8E7', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#E8D5B7' },
 
   // Save button
-  saveBtn:      { backgroundColor: PINK, borderRadius: 20, padding: 20, alignItems: 'center', marginTop: 8, marginBottom: 20 },
+  saveBtn:      { backgroundColor: PINK, borderRadius: 20, padding: 20, alignItems: 'center', marginTop: 8, marginBottom: 8 },
+  previewBtn:   { borderWidth: 1.5, borderColor: PINK, borderRadius: 20, padding: 16, alignItems: 'center', marginBottom: 30 },
+  previewBtnText: { fontSize: 15, fontWeight: '700', color: PINK },
   saveBtnText:  { color: '#FFF', fontWeight: '800', fontSize: 17, letterSpacing: 0.5 },
 
   // canMatch warning banner
