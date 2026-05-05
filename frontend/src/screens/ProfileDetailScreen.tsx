@@ -535,6 +535,8 @@ export default function ProfileDetailScreen() {
   const screenBg = useStore((s) => s.screenBackgrounds?.['profile_detail'] ?? '#FFF8E7');
   const apiMatches = useStore((s) => s.apiMatches);
   const sendApiLetter = useStore((s) => s.sendApiLetter);
+  const currentUser = useStore((s) => s.currentUser);
+  const isOwnProfile = !!id && !!currentUser?.id && id === currentUser.id;
 
   useEffect(() => {
     if (!id) {
@@ -599,6 +601,15 @@ export default function ProfileDetailScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Bannière aperçu (vue propre) */}
+        {isOwnProfile && (
+          <View style={styles.previewBanner}>
+            <Text style={styles.previewBannerText}>
+              🪞 Aperçu — c'est comme ça que les autres voient ton profil
+            </Text>
+          </View>
+        )}
+
         {/* 1. Bio */}
         {profile.bio.length > 0 && (
           <View style={styles.section}>
@@ -698,6 +709,23 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#FFF8E7',
+  },
+
+  previewBanner: {
+    backgroundColor: '#F3E5F5',
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#CE93D8',
+    alignItems: 'center',
+  },
+  previewBannerText: {
+    fontSize: 13,
+    color: '#6A1B9A',
+    fontWeight: '600',
+    textAlign: 'center',
   },
 
   // ── Top bar
