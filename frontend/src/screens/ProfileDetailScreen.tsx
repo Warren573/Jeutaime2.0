@@ -279,6 +279,7 @@ function PhotoAvatarSlider({
       <ScrollView
         horizontal
         pagingEnabled
+        nestedScrollEnabled
         showsHorizontalScrollIndicator={false}
         decelerationRate="fast"
         style={{ width: SLIDER_W, height: SLIDER_H }}
