@@ -52,6 +52,21 @@ export async function getPublicProfile(userId: string): Promise<PublicProfileRes
   return res.data as PublicProfileResponse;
 }
 
+export interface MyPhotoDto {
+  id: string;
+  userId: string;
+  position: number;
+  isPrimary: boolean;
+  createdAt: string;
+  url: string;
+  variant: string;
+}
+
+export async function getMyPhotos(): Promise<MyPhotoDto[]> {
+  const res = await apiFetch('/photos/me');
+  return (res?.data ?? []) as MyPhotoDto[];
+}
+
 export interface DiscoveryProfileDto {
   id: string;
   userId: string;

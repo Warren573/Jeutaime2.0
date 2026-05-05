@@ -10,16 +10,25 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { AvatarDefinition } from '../avatar/types/avatarTypes';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
-import { getPublicProfile, PublicProfileResponse } from '../api/profiles';
+import { getPublicProfile, getMyPhotos, PublicProfileResponse, MyPhotoDto } from '../api/profiles';
+import { API_URL } from '../api/client';
 import type { MatchDTO } from '../api/matches';
 
 const { width } = Dimensions.get('window');
+const SLIDER_W = width - 32;
+const SLIDER_H = 280;
+
+function makePhotoUrl(relativeUrl: string): string {
+  return API_URL + relativeUrl.replace(/^\/api/, '');
+}
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -137,6 +146,7 @@ function mapApiToProfileData(
     descriptors: (p.qualities ?? []).slice(0, 3),
     avatarEmoji: '✨',
     avatarBg: '#F3E5F5',
+    avatarDef: p.avatarConfig ? (p.avatarConfig as unknown as AvatarDefinition) : undefined,
     bio: p.bio ?? '',
     quote: p.quote ?? '',
     interests: p.interests ?? [],
@@ -185,7 +195,7 @@ function ProfileHeader({ profile }: { profile: ProfileData }) {
     <View style={styles.headerCard}>
       <View style={styles.headerRow}>
         {/* LEFT: avatar */}
-        <Avatar size={88} {...DEFAULT_AVATAR} />
+        <Avatar size={88} {...(profile.avatarDef ?? DEFAULT_AVATAR)} />
 
         {/* RIGHT: identity block */}
         <View style={styles.headerInfo}>
@@ -211,6 +221,92 @@ function ProfileHeader({ profile }: { profile: ProfileData }) {
           </View>
         </View>
       </View>
+    </View>
+  );
+}
+
+// ─── PHOTO / AVATAR SLIDER ─────────────────────────────────────────────────────
+
+interface SlidePhoto {
+  id: string;
+  url: string;
+}
+
+function PhotoAvatarSlider({
+  avatarDef,
+  photos,
+  unlocked,
+  isOwnProfile,
+  lettersNeeded,
+  authToken,
+}: {
+  avatarDef?: AvatarDefinition;
+  photos: SlidePhoto[];
+  unlocked: boolean;
+  isOwnProfile: boolean;
+  lettersNeeded: number;
+  authToken: string | null;
+}) {
+  const showPhotos = unlocked || isOwnProfile;
+  const photoHeaders: Record<string, string> = authToken
+    ? { Authorization: `Bearer ${authToken}` }
+    : {};
+
+  if (!showPhotos) {
+    return (
+      <View style={[sliderStyles.wrap, { height: SLIDER_H }]}>
+        <View style={sliderStyles.avatarCenter}>
+          <Avatar size={180} {...(avatarDef ?? DEFAULT_AVATAR)} />
+        </View>
+        {lettersNeeded > 0 && (
+          <View style={sliderStyles.lockBadge}>
+            <Text style={sliderStyles.lockText}>
+              🔒 Échange encore {lettersNeeded} lettre{lettersNeeded > 1 ? 's' : ''} pour découvrir sa photo
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  const slides: Array<{ type: 'avatar' } | { type: 'photo'; id: string; url: string }> = [
+    { type: 'avatar' },
+    ...photos.map(p => ({ type: 'photo' as const, id: p.id, url: makePhotoUrl(p.url) })),
+  ];
+
+  return (
+    <View style={sliderStyles.wrap}>
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        decelerationRate="fast"
+        style={{ width: SLIDER_W, height: SLIDER_H }}
+        contentContainerStyle={{ flexDirection: 'row' }}
+      >
+        {slides.map((slide) =>
+          slide.type === 'avatar' ? (
+            <View key="avatar" style={sliderStyles.slide}>
+              <Avatar size={180} {...(avatarDef ?? DEFAULT_AVATAR)} />
+            </View>
+          ) : (
+            <View key={slide.id} style={sliderStyles.slide}>
+              <Image
+                source={{ uri: slide.url, headers: photoHeaders }}
+                style={sliderStyles.photoImg}
+                contentFit="cover"
+              />
+            </View>
+          )
+        )}
+      </ScrollView>
+      {slides.length > 1 && (
+        <View style={sliderStyles.dots}>
+          {slides.map((_, i) => (
+            <View key={i} style={sliderStyles.dot} />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -371,57 +467,6 @@ function ProfileGameSection({ game }: { game: ProfileData['game'] }) {
   );
 }
 
-// ─── REVEAL PROGRESS CARD ─────────────────────────────────────────────────────
-
-function RevealProgressCard({ letters }: { letters: ProfileData['letters'] }) {
-  const { current, next } = getRevealState(letters.exchanged);
-  const progress = Math.min(letters.exchanged / letters.total, 1);
-  const remaining = next ? next.threshold - letters.exchanged : 0;
-
-  return (
-    <View style={styles.revealCard}>
-      {/* Header */}
-      <View style={styles.revealHeader}>
-        <View style={[styles.revealStateBadge, { backgroundColor: current.color + '20', borderColor: current.color + '40' }]}>
-          <Text style={[styles.revealStateText, { color: current.color }]}>{current.label}</Text>
-        </View>
-        <Text style={styles.revealTitle}>Photos cachées</Text>
-      </View>
-
-      {/* Progress bar */}
-      <View style={styles.progressBarBg}>
-        <View style={[styles.progressBarFill, { width: `${progress * 100}%`, backgroundColor: current.color }]} />
-      </View>
-      <View style={styles.progressLabels}>
-        <Text style={styles.progressCount}>{letters.exchanged} / {letters.total} lettres</Text>
-        {next && (
-          <Text style={styles.progressNext}>
-            {remaining} {remaining === 1 ? 'lettre' : 'lettres'} → {next.label}
-          </Text>
-        )}
-      </View>
-
-      {/* Milestones row */}
-      <View style={styles.milestonesRow}>
-        {REVEAL_MILESTONES.map((m) => {
-          const reached = letters.exchanged >= m.threshold;
-          return (
-            <View key={m.label} style={styles.milestone}>
-              <View style={[
-                styles.milestoneDot,
-                reached ? { backgroundColor: m.color } : styles.milestoneDotEmpty,
-              ]} />
-              <Text style={[styles.milestoneLabel, reached && { color: m.color, fontWeight: '600' }]}>
-                {m.label}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
 // ─── LETTERS SECTION ───────────────────────────────────────────────────────────
 
 function LettersSection({ letters }: { letters: ProfileData['letters'] }) {
@@ -531,12 +576,18 @@ export default function ProfileDetailScreen() {
   const [apiData, setApiData] = useState<PublicProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [ownPhotos, setOwnPhotos] = useState<MyPhotoDto[]>([]);
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   const screenBg = useStore((s) => s.screenBackgrounds?.['profile_detail'] ?? '#FFF8E7');
   const apiMatches = useStore((s) => s.apiMatches);
   const sendApiLetter = useStore((s) => s.sendApiLetter);
   const currentUser = useStore((s) => s.currentUser);
   const isOwnProfile = !!id && !!currentUser?.id && id === currentUser.id;
+
+  useEffect(() => {
+    AsyncStorage.getItem('auth_token').then(setAuthToken);
+  }, []);
 
   useEffect(() => {
     if (!id) {
@@ -551,6 +602,11 @@ export default function ProfileDetailScreen() {
         setIsLoading(false);
       });
   }, [id]);
+
+  useEffect(() => {
+    if (!isOwnProfile) return;
+    getMyPhotos().then(setOwnPhotos).catch(() => {});
+  }, [isOwnProfile]);
 
   const match = apiData
     ? apiMatches.find((m) => m.otherUserId === apiData.profile.userId)
@@ -609,6 +665,22 @@ export default function ProfileDetailScreen() {
             </Text>
           </View>
         )}
+
+        {/* Photo / Avatar slider */}
+        <View style={styles.section}>
+          <PhotoAvatarSlider
+            avatarDef={profile.avatarDef}
+            photos={isOwnProfile ? ownPhotos : (apiData.photos ?? [])}
+            unlocked={apiData.photoUnlock?.unlocked ?? false}
+            isOwnProfile={isOwnProfile}
+            lettersNeeded={
+              apiData.photoUnlock
+                ? Math.max(0, apiData.photoUnlock.threshold - apiData.photoUnlock.myCount - apiData.photoUnlock.otherCount)
+                : 0
+            }
+            authToken={authToken}
+          />
+        </View>
 
         {/* 1. Bio */}
         {profile.bio.length > 0 && (
@@ -672,9 +744,6 @@ export default function ProfileDetailScreen() {
         {/* 10. Letter system — only shown when a match exists */}
         {match && (
           <>
-            <View style={styles.section}>
-              <RevealProgressCard letters={profile.letters} />
-            </View>
             <View style={styles.section}>
               <LettersSection letters={profile.letters} />
             </View>
@@ -1008,85 +1077,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#EDE0C8',
   },
 
-  // ── Reveal card
-  revealCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  revealHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  revealTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#3A2818',
-  },
-  revealStateBadge: {
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  revealStateText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: '#EDE0C8',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  progressCount: {
-    fontSize: 12,
-    color: '#5D4037',
-    fontWeight: '600',
-  },
-  progressNext: {
-    fontSize: 12,
-    color: '#8B6F47',
-  },
-  milestonesRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  milestone: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  milestoneDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  milestoneDotEmpty: {
-    backgroundColor: '#EDE0C8',
-  },
-  milestoneLabel: {
-    fontSize: 10,
-    color: '#B8A082',
-    fontWeight: '500',
-  },
-
   // ── Letters card
   lettersCard: {
     backgroundColor: '#FFFFFF',
@@ -1349,5 +1339,67 @@ const styles = StyleSheet.create({
     color: '#5D4037',
     fontWeight: '500',
     flex: 1,
+  },
+});
+
+// ─── SLIDER STYLES ─────────────────────────────────────────────────────────────
+
+const sliderStyles = StyleSheet.create({
+  wrap: {
+    backgroundColor: '#F9F3E8',
+    borderRadius: 16,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  avatarCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: SLIDER_H,
+    width: SLIDER_W,
+  },
+  lockBadge: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+  },
+  lockText: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  slide: {
+    width: SLIDER_W,
+    height: SLIDER_H,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F9F3E8',
+  },
+  photoImg: {
+    width: SLIDER_W,
+    height: SLIDER_H,
+  },
+  dots: {
+    position: 'absolute',
+    bottom: 10,
+    flexDirection: 'row',
+    gap: 5,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.75)',
   },
 });
