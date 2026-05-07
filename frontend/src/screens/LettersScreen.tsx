@@ -759,14 +759,16 @@ export default function LettersScreen() {
                         setShowCompose(true);
                         loadLetters(match.id);
 
-                        // Grande animation uniquement si une lettre reçue non lue
                         if (unreadLetters.length > 0) {
+                          // Marquer comme lus IMMÉDIATEMENT (optimiste) — arrête la vibration tout de suite
+                          unreadLetters.forEach(l => void markLetterReadApi(l.id));
+
+                          // Grande animation : une seule fois à l'ouverture
                           if (envAnimTimerRef.current) clearTimeout(envAnimTimerRef.current);
                           setEnvAnimSender(getOtherName(match));
                           setEnvAnimVisible(true);
                           envAnimTimerRef.current = setTimeout(() => {
                             setEnvAnimVisible(false);
-                            unreadLetters.forEach(l => markLetterReadApi(l.id));
                             envAnimTimerRef.current = null;
                           }, 5100);
                         }

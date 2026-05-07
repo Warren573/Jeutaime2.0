@@ -787,18 +787,27 @@ export const useStore = create<StoreState>()(
       loadLetters: async (matchId: string) => {
         try {
           const data = await listLetters(matchId);
-          const adapted: Letter[] = data.map((dto: LetterDTO) => ({
-            id: dto.id,
-            threadId: dto.matchId,
-            fromUserId: dto.fromUserId,
-            toUserId: dto.toUserId,
-            content: dto.content,
-            createdAt: new Date(dto.sentAt).getTime(),
-            readAt: dto.readAt ? new Date(dto.readAt).getTime() : undefined,
-          }));
-          set((state) => ({
-            lettersByMatch: { ...state.lettersByMatch, [matchId]: adapted },
-          }));
+          set((state) => {
+            // Conserver les readAt déjà posés localement (mises à jour optimistes)
+            // pour éviter qu'un rechargement API les efface si le serveur n'a pas encore traité le markRead
+            const localReadAt = new Map(
+              (state.lettersByMatch[matchId] ?? []).map(l => [l.id, l.readAt]),
+            );
+            const adapted: Letter[] = data.map((dto: LetterDTO) => ({
+              id: dto.id,
+              threadId: dto.matchId,
+              fromUserId: dto.fromUserId,
+              toUserId: dto.toUserId,
+              content: dto.content,
+              createdAt: new Date(dto.sentAt).getTime(),
+              readAt: dto.readAt
+                ? new Date(dto.readAt).getTime()
+                : localReadAt.get(dto.id),
+            }));
+            return {
+              lettersByMatch: { ...state.lettersByMatch, [matchId]: adapted },
+            };
+          });
         } catch {
           // API unreachable — garder les données existantes
         }
@@ -827,13 +836,8 @@ export const useStore = create<StoreState>()(
       },
 
       markLetterReadApi: async (letterId: string) => {
-        try {
-          await apiMarkLetterRead(letterId);
-        } catch {
-          // Silencieux — la mise à jour locale reste
-        }
+        // Mise à jour locale immédiate (optimiste) — arrête l'animation avant la réponse API
         get().markLetterRead(letterId);
-        // Mettre à jour lettersByMatch aussi
         set((state) => {
           const updated = { ...state.lettersByMatch };
           for (const matchId of Object.keys(updated)) {
@@ -850,6 +854,12 @@ export const useStore = create<StoreState>()(
           }
           return { lettersByMatch: updated };
         });
+        // Appel API en arrière-plan
+        try {
+          await apiMarkLetterRead(letterId);
+        } catch {
+          // Silencieux — l'état local reste correct
+        }
       },
 
       loadQuestions: async (matchId: string) => {
