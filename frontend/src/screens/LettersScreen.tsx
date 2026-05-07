@@ -34,7 +34,7 @@ const LARGE_FLAP_H = 92;
 interface EnvelopeCardProps {
   matchId: string;
   otherName: string;
-  lastMsg?: Letter;
+  lastLetterAt: number | null;
   unread: number;
   myTurn: boolean;
   letterCount: number;
@@ -53,7 +53,7 @@ interface EnvelopeCardProps {
 const EnvelopeCard = ({
   matchId,
   otherName,
-  lastMsg,
+  lastLetterAt,
   unread,
   myTurn,
   letterCount,
@@ -96,15 +96,15 @@ const EnvelopeCard = ({
     if (matchStatus === 'pending') return '⏳ En attente d\'acceptation';
     if (matchStatus === 'broken' || matchStatus === 'blocked') return '🚫 Match terminé';
     if (!questionsValidated) return '🎮 Jeu des questions à compléter';
-    if (!lastMsg) return myTurn ? '✍️ Écrivez la première lettre !' : '⏳ En attente de la première lettre...';
+    if (letterCount === 0) return myTurn ? '✍️ Écrivez la première lettre !' : '⏳ En attente de la première lettre...';
     if (unread > 0) return '📨 Nouvelle lettre reçue!';
     return myTurn ? "✍️ À vous d'écrire..." : '⏳ En attente de réponse...';
   };
 
   const timeText = () => {
-    if (!lastMsg) return 'Nouveau';
+    if (letterCount === 0) return 'Nouveau';
     if (unread > 0) return 'Non lu';
-    return myTurn ? formatTime(lastMsg.createdAt) : 'Envoyé';
+    return myTurn ? (lastLetterAt ? formatTime(lastLetterAt) : '') : 'Envoyé';
   };
 
   const isActive = matchStatus === 'active';
@@ -480,7 +480,7 @@ export default function LettersScreen() {
   const {
     matches, letters, lettersByMatch, questionsByMatch,
     addLetter, markLetterRead, markLetterReadApi,
-    loadLetters, sendApiLetter, loadQuestions, submitAnswers,
+    loadLetters, openAndMarkRead, sendApiLetter, loadQuestions, submitAnswers,
     loadMatches, currentUser, matchPartners, addPoints, duelEntries,
   } = useStore();
 
@@ -605,9 +605,9 @@ export default function LettersScreen() {
 
     try {
       await sendApiLetter(selectedMatch.id, content);
-      setSelectedMatch(prev =>
-        prev ? { ...prev, canSend: false, canSendReason: 'AWAITING_REPLY' } : null,
-      );
+      // Sync selectedMatch avec la mise à jour déjà faite dans le store
+      const updatedMatch = useStore.getState().matches.find(m => m.id === selectedMatch.id);
+      if (updatedMatch) setSelectedMatch(updatedMatch);
     } catch (err: any) {
       setNewMessage(content);
       const msg: string = err?.message ?? '';
@@ -727,21 +727,16 @@ export default function LettersScreen() {
 
                 {matches.map((match) => {
                   const otherName = getOtherName(match);
-                  const conv = getConversation(match);
-                  const lastMsg = conv[conv.length - 1];
-                  const unread = conv.filter(
-                    l => l.toUserId === (currentUser?.id || 'me') && !l.readAt
-                  ).length;
 
                   return (
                     <EnvelopeCard
                       key={match.id}
                       matchId={match.id}
                       otherName={otherName}
-                      lastMsg={lastMsg}
-                      unread={unread}
+                      lastLetterAt={match.lastLetterAt}
+                      unread={match.hasUnreadIncomingLetter ? 1 : 0}
                       myTurn={isMyTurn(match)}
-                      letterCount={conv.length}
+                      letterCount={match.letterCount}
                       letterCountA={match.letterCountA}
                       letterCountB={match.letterCountB}
                       isPremium={currentUser?.isPremium}
@@ -751,21 +746,17 @@ export default function LettersScreen() {
                       onAccept={() => handleAccept(match)}
                       onPlayQuestions={() => handleQGameOpen(match)}
                       onOpen={() => {
-                        const unreadLetters = conv.filter(
-                          l => (l.toUserId === (currentUser?.id ?? 'me')) && !l.readAt
-                        );
+                        const shouldAnimate = match.hasUnreadIncomingLetter;
 
                         setSelectedMatch(match);
                         setShowCompose(true);
-                        loadLetters(match.id);
 
-                        if (unreadLetters.length > 0) {
-                          // Marquer comme lus IMMÉDIATEMENT (optimiste) — arrête la vibration tout de suite
-                          unreadLetters.forEach(l => void markLetterReadApi(l.id));
+                        // Charger les lettres ET marquer les non-lues comme lues atomiquement
+                        void openAndMarkRead(match.id);
 
-                          // Grande animation : une seule fois à l'ouverture
+                        if (shouldAnimate) {
                           if (envAnimTimerRef.current) clearTimeout(envAnimTimerRef.current);
-                          setEnvAnimSender(getOtherName(match));
+                          setEnvAnimSender(otherName);
                           setEnvAnimVisible(true);
                           envAnimTimerRef.current = setTimeout(() => {
                             setEnvAnimVisible(false);

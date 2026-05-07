@@ -262,6 +262,8 @@ interface StoreState {
   addLetter: (letter: Letter) => void;
   markLetterRead: (letterId: string) => void;
   loadLetters: (matchId: string) => Promise<void>;
+  /** Charge les lettres du match et marque toutes les entrantes non lues comme lues. */
+  openAndMarkRead: (matchId: string) => Promise<void>;
   sendApiLetter: (matchId: string, content: string) => Promise<void>;
   markLetterReadApi: (letterId: string) => Promise<void>;
   addLike: (profileId: string) => void;
@@ -509,6 +511,9 @@ export const useStore = create<StoreState>()(
               questionsValidated: m.questionsValidated,
               canSend: m.canSend,
               canSendReason: m.canSendReason,
+              lastLetterAt: m.lastLetterAt ? new Date(m.lastLetterAt).getTime() : null,
+              lastLetterBy: m.lastLetterBy,
+              hasUnreadIncomingLetter: m.hasUnreadIncomingLetter,
               photoUnlocked: m.photoUnlock.unlocked,
               photoUrl: m.photoUrl ?? null,
               questionValidation: {
@@ -813,15 +818,32 @@ export const useStore = create<StoreState>()(
         }
       },
 
+      openAndMarkRead: async (matchId: string) => {
+        await get().loadLetters(matchId);
+        const viewerId = get().currentUser?.id ?? '';
+        const unread = (get().lettersByMatch[matchId] ?? []).filter(
+          l => l.toUserId === viewerId && !l.readAt,
+        );
+        await Promise.all(unread.map(l => get().markLetterReadApi(l.id)));
+        // S'assurer que le flag match-level est bien éteint
+        set((state) => ({
+          matches: state.matches.map(m =>
+            m.id === matchId ? { ...m, hasUnreadIncomingLetter: false } : m,
+          ),
+        }));
+      },
+
       sendApiLetter: async (matchId: string, content: string) => {
         const dto = await sendLetter(matchId, content);
+        const viewerId = get().currentUser?.id ?? '';
+        const sentAt = new Date(dto.sentAt).getTime();
         const adapted: Letter = {
           id: dto.id,
           threadId: dto.matchId,
           fromUserId: dto.fromUserId,
           toUserId: dto.toUserId,
           content: dto.content,
-          createdAt: new Date(dto.sentAt).getTime(),
+          createdAt: sentAt,
           readAt: undefined,
         };
         set((state) => ({
@@ -829,6 +851,21 @@ export const useStore = create<StoreState>()(
             ...state.lettersByMatch,
             [matchId]: [...(state.lettersByMatch[matchId] ?? []), adapted],
           },
+          // Mise à jour optimiste de la carte liste : plus notre tour, lettre envoyée
+          matches: state.matches.map(m => {
+            if (m.id !== matchId) return m;
+            return {
+              ...m,
+              canSend: false,
+              canSendReason: 'AWAITING_REPLY' as const,
+              hasUnreadIncomingLetter: false,
+              lastLetterBy: viewerId,
+              lastLetterAt: sentAt,
+              letterCountA: m.userAId === viewerId ? m.letterCountA + 1 : m.letterCountA,
+              letterCountB: m.userBId === viewerId ? m.letterCountB + 1 : m.letterCountB,
+              letterCount: m.letterCount + 1,
+            };
+          }),
         }));
         get().incrementStat('lettersSent');
         get().addPoints(ProgressionEngine.POINTS.sendLetter, 'Lettre envoyée');

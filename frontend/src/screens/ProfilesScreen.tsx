@@ -643,6 +643,9 @@ export default function ProfilesScreen() {
           letterCountB: 0,
           canSend: true,
           canSendReason: null,
+          lastLetterAt: null,
+          lastLetterBy: null,
+          hasUnreadIncomingLetter: false,
           photoUnlocked: false,
           photoUrl: null,
         });

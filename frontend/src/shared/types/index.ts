@@ -199,6 +199,12 @@ export interface Match {
   /** Calculé par le backend : c'est ce tour-ci */
   canSend: boolean;
   canSendReason: string | null;
+  /** Timestamp de la dernière lettre envoyée dans ce match (ms). null = aucune lettre. */
+  lastLetterAt: number | null;
+  /** userId de l'expéditeur de la dernière lettre. null = aucune lettre. */
+  lastLetterBy: string | null;
+  /** Vrai si le viewer a au moins une lettre reçue non lue dans ce match. */
+  hasUnreadIncomingLetter: boolean;
   photoUnlocked: boolean;
   /** URL photo principale du partenaire (variante adaptée au niveau). null si hidden ou sans photo. */
   photoUrl: string | null;

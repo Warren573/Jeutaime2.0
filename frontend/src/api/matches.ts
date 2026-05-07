@@ -47,6 +47,7 @@ export interface MatchDTO {
   canSendReason: string | null;
   isGhosting: boolean;
   canRelance: boolean;
+  hasUnreadIncomingLetter: boolean;
   photoUnlock: PhotoUnlockDTO;
   photoUrl: string | null;
 }

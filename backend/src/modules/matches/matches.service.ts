@@ -1,4 +1,4 @@
-import { MatchStatus } from "@prisma/client";
+import { MatchStatus, LetterStatus } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { isPremiumActive } from "../../policies/premium";
 import {
@@ -182,7 +182,7 @@ async function enrichMatch(
     viewerIsPremium,
   });
 
-  const [otherProfile, primaryPhoto, canSendResult] = await Promise.all([
+  const [otherProfile, primaryPhoto, canSendResult, unreadCount] = await Promise.all([
     prisma.profile.findUnique({
       where: { userId: otherUserId },
       select: {
@@ -202,6 +202,9 @@ async function enrichMatch(
       select: { id: true },
     }),
     Promise.resolve(computeCanSend(match, viewerId)),
+    prisma.letter.count({
+      where: { matchId: match.id, toUserId: viewerId, status: LetterStatus.SENT },
+    }),
   ]);
 
   const photoUrl = primaryPhoto && photoUnlock.unlocked
@@ -222,6 +225,7 @@ async function enrichMatch(
       ghostRelanceUsedBy: match.ghostRelanceUsedBy,
     }),
     canRelance: computeCanRelance(match, viewerId),
+    hasUnreadIncomingLetter: unreadCount > 0,
     photoUnlock,
     photoUrl,
   };
