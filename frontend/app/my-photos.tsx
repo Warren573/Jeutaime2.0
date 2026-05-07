@@ -98,13 +98,12 @@ export default function MyPhotosScreen() {
         <View style={styles.revealNote}>
           <Text style={styles.revealNoteTitle}>📖 Comment ça marche</Text>
           <Text style={styles.revealNoteText}>
-            Ta photo se révèle progressivement selon le niveau de la relation — jamais d'emblée.
+            Ta photo reste cachée jusqu'à ce que vous ayez échangé suffisamment de lettres — puis elle se révèle entièrement.
           </Text>
           <View style={styles.levelsRow}>
             {[
-              { stars: '⭐',     label: 'Découverte\nAvatar'       },
-              { stars: '⭐⭐',   label: 'Connexion\nPhoto floue'   },
-              { stars: '⭐⭐⭐', label: 'Révélation\nPhoto nette'  },
+              { stars: '🔒', label: 'Avant déblocage\nAvatar uniquement' },
+              { stars: '🔓', label: 'Après déblocage\nPhoto visible'     },
             ].map((item, i, arr) => (
               <React.Fragment key={i}>
                 <View style={styles.levelPill}>
@@ -117,8 +116,8 @@ export default function MyPhotosScreen() {
           </View>
           <Text style={styles.revealThreshold}>
             {isPremium
-              ? `✨ Premium : révélation dès ${t.level3} lettres`
-              : `Révélation complète après ${t.level3} lettres échangées`}
+              ? `✨ Premium : déblocage dès ${t.level3} lettres par côté`
+              : `Déblocage après ${t.level3} lettres échangées par chacun`}
           </Text>
         </View>
 
