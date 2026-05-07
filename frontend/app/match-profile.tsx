@@ -61,9 +61,7 @@ export default function MatchProfileScreen() {
   const letterCount = conv.length;
   const isPremium   = currentUser?.isPremium ?? false;
   const rel         = getRelationInfo(letterCount, isPremium);
-  // photoUrl et photoVariant viennent du backend (calculés par enrichMatch)
-  const photoVariant = match.photoVariant ?? 'hidden';
-  const photoUrl     = match.photoUrl ?? null;
+  const photoUrl = match.photoUrl ?? null;
 
   const physique = partner?.physicalDesc
     ? PHYSIQUE_LABEL[partner.physicalDesc] ?? { emoji: '✨', label: partner.physicalDesc }
@@ -123,11 +121,9 @@ export default function MatchProfileScreen() {
                   )}
                 </View>
               </View>
-              {photoVariant !== 'clear' && (
+              {!match.photoUnlocked && (
                 <Text style={styles.photoHint}>
-                  {photoVariant === 'hidden'
-                    ? '🎭 La relation se construit avant tout'
-                    : '🌫️ La photo se précise à mesure que vous vous découvrez'}
+                  🎭 La relation se construit avant tout
                 </Text>
               )}
             </View>

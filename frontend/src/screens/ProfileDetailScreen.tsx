@@ -237,20 +237,19 @@ function PhotoAvatarSlider({
   photos,
   unlocked,
   isOwnProfile,
-  lettersNeeded,
+  myRemaining,
+  otherRemaining,
   authToken,
 }: {
   avatarDef?: AvatarDefinition;
   photos: SlidePhoto[];
   unlocked: boolean;
   isOwnProfile: boolean;
-  lettersNeeded: number;
+  myRemaining: number;
+  otherRemaining: number;
   authToken: string | null;
 }) {
   const showPhotos = unlocked || isOwnProfile;
-  const photoHeaders: Record<string, string> = authToken
-    ? { Authorization: `Bearer ${authToken}` }
-    : {};
 
   if (!showPhotos) {
     return (
@@ -258,16 +257,34 @@ function PhotoAvatarSlider({
         <View style={sliderStyles.avatarCenter}>
           <Avatar size={180} {...(avatarDef ?? DEFAULT_AVATAR)} />
         </View>
-        {lettersNeeded > 0 && (
-          <View style={sliderStyles.lockBadge}>
-            <Text style={sliderStyles.lockText}>
-              🔒 Échange encore {lettersNeeded} lettre{lettersNeeded > 1 ? 's' : ''} pour découvrir sa photo
+        <View style={sliderStyles.lockBadge}>
+          <Text style={sliderStyles.lockText}>🔒 Photos verrouillées</Text>
+          {myRemaining > 0 && (
+            <Text style={sliderStyles.lockHint}>
+              Tu dois encore envoyer {myRemaining} lettre{myRemaining > 1 ? 's' : ''}
             </Text>
-          </View>
-        )}
+          )}
+          {otherRemaining > 0 && (
+            <Text style={sliderStyles.lockHint}>
+              Il/elle doit encore envoyer {otherRemaining} lettre{otherRemaining > 1 ? 's' : ''}
+            </Text>
+          )}
+        </View>
       </View>
     );
   }
+
+  if (showPhotos && authToken === null) {
+    return (
+      <View style={[sliderStyles.wrap, { height: SLIDER_H }]}>
+        <ActivityIndicator size="large" color="#E91E63" />
+      </View>
+    );
+  }
+
+  const photoHeaders: Record<string, string> = authToken
+    ? { Authorization: `Bearer ${authToken}` }
+    : {};
 
   const slides: Array<{ type: 'avatar' } | { type: 'photo'; id: string; url: string }> = [
     { type: 'avatar' },
@@ -674,9 +691,14 @@ export default function ProfileDetailScreen() {
             photos={isOwnProfile ? ownPhotos : (apiData.photos ?? [])}
             unlocked={apiData.photoUnlock?.unlocked ?? false}
             isOwnProfile={isOwnProfile}
-            lettersNeeded={
+            myRemaining={
               apiData.photoUnlock
-                ? Math.max(0, apiData.photoUnlock.threshold - apiData.photoUnlock.myCount - apiData.photoUnlock.otherCount)
+                ? Math.max(0, apiData.photoUnlock.threshold - apiData.photoUnlock.myCount)
+                : 0
+            }
+            otherRemaining={
+              apiData.photoUnlock
+                ? Math.max(0, apiData.photoUnlock.threshold - apiData.photoUnlock.otherCount)
                 : 0
             }
             authToken={authToken}
@@ -1379,6 +1401,12 @@ const sliderStyles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     textAlign: 'center',
+  },
+  lockHint: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    marginTop: 4,
   },
   slide: {
     width: SLIDER_W,

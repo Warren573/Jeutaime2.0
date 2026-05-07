@@ -18,16 +18,11 @@ export interface PublicProfileDTO {
   badges: string[];
 }
 
-export type PhotoUnlockLevel = 0 | 1 | 2 | 3;
-export type PhotoVariant = "hidden" | "blurStrong" | "blurMedium" | "clear";
-
 export interface PhotoUnlockDTO {
   threshold: number;
   myCount: number;
   otherCount: number;
   unlocked: boolean;
-  level: PhotoUnlockLevel;
-  variant: PhotoVariant;
 }
 
 export interface MatchDTO {

@@ -126,22 +126,18 @@ export async function getPublicProfile(viewerId: string, targetUserId: string, v
     });
   }
 
-  // Photos — jamais de chemin disque exposé, on construit des URLs API
-  // sécurisées qui passeront par /api/photos/file/:id/:variant
-  const photos = await prisma.photo.findMany({
-    where: { userId: targetUserId },
-    orderBy: [{ isPrimary: "desc" }, { position: "asc" }],
-    select: { id: true, position: true, isPrimary: true },
-  });
-
-  const variant = photoUnlockInfo.unlocked ? "original" : "blurred";
-  const servedPhotos = photos.map((p) => ({
-    id: p.id,
-    url: buildPhotoUrl(p.id, variant),
-    position: p.position,
-    isPrimary: p.isPrimary,
-    isBlurred: !photoUnlockInfo.unlocked,
-  }));
+  const servedPhotos = photoUnlockInfo.unlocked
+    ? (await prisma.photo.findMany({
+        where: { userId: targetUserId },
+        orderBy: [{ isPrimary: "desc" }, { position: "asc" }],
+        select: { id: true, position: true, isPrimary: true },
+      })).map((p) => ({
+        id: p.id,
+        url: buildPhotoUrl(p.id, "original"),
+        position: p.position,
+        isPrimary: p.isPrimary,
+      }))
+    : [];
 
   return {
     profile,

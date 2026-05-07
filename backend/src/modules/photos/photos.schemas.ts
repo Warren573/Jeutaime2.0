@@ -19,7 +19,7 @@ export type UpdatePhotoDto = z.infer<typeof UpdatePhotoSchema>;
 // ============================================================
 export const PhotoFileParamsSchema = z.object({
   id: z.string().min(1),
-  variant: z.enum(["original", "blurred"]),
+  variant: z.enum(["original"]),
 });
 
 export type PhotoFileParams = z.infer<typeof PhotoFileParamsSchema>;

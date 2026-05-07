@@ -31,7 +31,6 @@ export interface PublicPhotoDto {
   url: string;
   position: number;
   isPrimary: boolean;
-  isBlurred: boolean;
 }
 
 export interface PhotoUnlockDto {

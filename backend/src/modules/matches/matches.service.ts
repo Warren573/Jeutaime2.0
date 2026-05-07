@@ -16,7 +16,6 @@ import { canSendLetter } from "../../policies/letterAlternation";
 import { assertCanRelance, isGhosting } from "../../policies/antiGhosting";
 import { getPhotoUnlockProgress } from "../../policies/photoUnlock";
 import { buildPhotoUrl } from "../photos/photos.urls";
-import type { PhotoVariant } from "../photos/photos.urls";
 import { GHOST_RELANCE_MAX_DAYS, GHOST_DAYS } from "../../config/constants";
 import { emitMatchCreated } from "../../events";
 import type { CreateMatchDto, GhostRelanceDto } from "./matches.schemas";
@@ -163,24 +162,6 @@ const matchSelect = {
 } as const;
 
 // ============================================================
-// Mappe photoVariant → variante de fichier → URL
-// ============================================================
-
-function buildPhotoUrlForVariant(
-  photoId: string,
-  variant: ReturnType<typeof getPhotoUnlockProgress>["variant"],
-): string | null {
-  const variantMap: Record<string, PhotoVariant | null> = {
-    hidden: null,
-    blurStrong: "blurred",
-    blurMedium: "blurMedium",
-    clear: "original",
-  };
-  const fileVariant = variantMap[variant];
-  return fileVariant ? buildPhotoUrl(photoId, fileVariant) : null;
-}
-
-// ============================================================
 // Enrichir un match avec les données calculées
 // ============================================================
 
@@ -223,8 +204,8 @@ async function enrichMatch(
     Promise.resolve(computeCanSend(match, viewerId)),
   ]);
 
-  const photoUrl = primaryPhoto
-    ? buildPhotoUrlForVariant(primaryPhoto.id, photoUnlock.variant)
+  const photoUrl = primaryPhoto && photoUnlock.unlocked
+    ? buildPhotoUrl(primaryPhoto.id, "original")
     : null;
 
   return {

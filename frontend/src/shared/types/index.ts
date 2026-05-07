@@ -199,8 +199,7 @@ export interface Match {
   /** Calculé par le backend : c'est ce tour-ci */
   canSend: boolean;
   canSendReason: string | null;
-  photoUnlockLevel: 0 | 1 | 2 | 3;
-  photoVariant: 'hidden' | 'blurStrong' | 'blurMedium' | 'clear';
+  photoUnlocked: boolean;
   /** URL photo principale du partenaire (variante adaptée au niveau). null si hidden ou sans photo. */
   photoUrl: string | null;
 }

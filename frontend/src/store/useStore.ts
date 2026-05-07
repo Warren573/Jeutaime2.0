@@ -509,8 +509,7 @@ export const useStore = create<StoreState>()(
               questionsValidated: m.questionsValidated,
               canSend: m.canSend,
               canSendReason: m.canSendReason,
-              photoUnlockLevel: m.photoUnlock.level,
-              photoVariant: m.photoUnlock.variant,
+              photoUnlocked: m.photoUnlock.unlocked,
               photoUrl: m.photoUrl ?? null,
               questionValidation: {
                 userACorrect: 0,

@@ -643,8 +643,7 @@ export default function ProfilesScreen() {
           letterCountB: 0,
           canSend: true,
           canSendReason: null,
-          photoUnlockLevel: 0,
-          photoVariant: 'hidden',
+          photoUnlocked: false,
           photoUrl: null,
         });
         setShowMatch(profile.name);
