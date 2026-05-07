@@ -1,4 +1,6 @@
 import { apiFetch } from './client';
+import { API_URL } from './client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface PublicProfileDto {
   id: string;
@@ -63,7 +65,56 @@ export interface MyPhotoDto {
 
 export async function getMyPhotos(): Promise<MyPhotoDto[]> {
   const res = await apiFetch('/photos/me');
+  console.log('[getMyPhotos] response →', res?.data?.length ?? 0, 'photos');
   return (res?.data ?? []) as MyPhotoDto[];
+}
+
+/**
+ * Upload une photo via multipart/form-data.
+ * N'utilise PAS apiFetch car celui-ci force Content-Type: application/json,
+ * ce qui empêche le navigateur de poser le boundary multipart.
+ */
+export async function uploadPhoto(file: File): Promise<MyPhotoDto> {
+  const token = await AsyncStorage.getItem('auth_token');
+  const formData = new FormData();
+  formData.append('photo', file);
+
+  console.log('[uploadPhoto] POST /photos/me —', file.name, file.size, 'bytes', file.type);
+
+  const res = await fetch(`${API_URL}/photos/me`, {
+    method: 'POST',
+    headers: {
+      // Content-Type intentionnellement absent : le navigateur génère le boundary multipart
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { msg = JSON.parse(text)?.error?.message ?? msg; } catch {}
+    console.error('[uploadPhoto] erreur', res.status, msg);
+    throw new Error(msg);
+  }
+  const data = JSON.parse(text);
+  console.log('[uploadPhoto] succès → id:', data?.data?.id, 'url:', data?.data?.url);
+  return data.data as MyPhotoDto;
+}
+
+export async function deleteMyPhoto(photoId: string): Promise<void> {
+  await apiFetch(`/photos/${photoId}`, { method: 'DELETE' });
+}
+
+export async function patchMyPhoto(
+  photoId: string,
+  dto: { isPrimary?: boolean; position?: number },
+): Promise<MyPhotoDto> {
+  const res = await apiFetch(`/photos/${photoId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(dto),
+  });
+  return res.data as MyPhotoDto;
 }
 
 export interface DiscoveryProfileDto {

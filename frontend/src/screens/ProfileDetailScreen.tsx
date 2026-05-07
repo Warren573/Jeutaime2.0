@@ -614,7 +614,12 @@ export default function ProfileDetailScreen() {
       return;
     }
     getPublicProfile(id)
-      .then((data) => { setApiData(data); setIsLoading(false); })
+      .then((data) => {
+        console.log('[ProfileDetail] public profile', id, '→ photos:', data.photos.length, 'unlocked:', data.photoUnlock?.unlocked, 'myCount:', data.photoUnlock?.myCount, 'otherCount:', data.photoUnlock?.otherCount, 'threshold:', data.photoUnlock?.threshold);
+        if (data.photos.length > 0) console.log('[ProfileDetail] photo URLs:', data.photos.map(p => p.url));
+        setApiData(data);
+        setIsLoading(false);
+      })
       .catch((err: unknown) => {
         setLoadError(err instanceof Error ? err.message : 'Profil introuvable');
         setIsLoading(false);
@@ -623,7 +628,12 @@ export default function ProfileDetailScreen() {
 
   useEffect(() => {
     if (!isOwnProfile) return;
-    getMyPhotos().then(setOwnPhotos).catch(() => {});
+    getMyPhotos()
+      .then(photos => {
+        console.log('[ProfileDetail] own photos →', photos.map(p => ({ id: p.id, url: p.url, isPrimary: p.isPrimary })));
+        setOwnPhotos(photos);
+      })
+      .catch((err) => console.warn('[ProfileDetail] getMyPhotos error:', err));
   }, [isOwnProfile]);
 
   const match = apiData

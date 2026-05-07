@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,24 +8,37 @@ import {
   Platform,
   Alert,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../src/store/useStore';
 import { Avatar } from '../src/avatar/png/Avatar';
 import { RELATION_THRESHOLDS } from '../src/engine/RelationEngine';
+import { API_URL } from '../src/api/client';
+import {
+  getMyPhotos,
+  uploadPhoto,
+  deleteMyPhoto,
+  patchMyPhoto,
+  type MyPhotoDto,
+} from '../src/api/profiles';
+
+// Même logique que ProfileDetailScreen : bande "/api" puis préfixe API_URL
+function makePhotoUrl(relativeUrl: string): string {
+  return API_URL + relativeUrl.replace(/^\/api/, '');
+}
 
 // ── Sélecteur de fichier (web uniquement) ────────────────────
-function pickImageWeb(): Promise<string | null> {
+function pickImageWeb(): Promise<File | null> {
   return new Promise(resolve => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
     input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) { resolve(null); return; }
-      resolve(URL.createObjectURL(file));
+      resolve((e.target as HTMLInputElement).files?.[0] ?? null);
     };
     input.click();
   });
@@ -36,12 +49,38 @@ export default function MyPhotosScreen() {
   const insets = useSafeAreaInsets();
   const { currentUser, setCurrentUser, avatarPngConfig } = useStore();
 
-  const photos: string[]             = currentUser?.photos           ?? [];
-  const mainPhotoUri: string | undefined = currentUser?.mainPhotoUri;
-  const showPhotoByDefault           = currentUser?.showPhotoByDefault ?? false;
-  const isPremium                    = currentUser?.isPremium ?? false;
+  const showPhotoByDefault = currentUser?.showPhotoByDefault ?? false;
+  const isPremium          = currentUser?.isPremium ?? false;
 
-  const [loading, setLoading] = useState(false);
+  const [apiPhotos, setApiPhotos]         = useState<MyPhotoDto[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(true);
+  const [uploading, setUploading]         = useState(false);
+  const [authToken, setAuthToken]         = useState<string | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('auth_token').then(setAuthToken);
+  }, []);
+
+  const reloadPhotos = async () => {
+    try {
+      const photos = await getMyPhotos();
+      setApiPhotos(photos);
+    } catch (err) {
+      console.warn('[my-photos] reloadPhotos error:', err);
+    }
+  };
+
+  useEffect(() => {
+    setLoadingPhotos(true);
+    reloadPhotos().finally(() => setLoadingPhotos(false));
+  }, []);
+
+  const photoHeaders: Record<string, string> = authToken
+    ? { Authorization: `Bearer ${authToken}` }
+    : {};
+
+  const primaryPhoto    = apiPhotos.find(p => p.isPrimary) ?? apiPhotos[0];
+  const primaryPhotoUrl = primaryPhoto ? makePhotoUrl(primaryPhoto.url) : undefined;
 
   const patchUser = (patch: object) => {
     if (!currentUser) return;
@@ -53,30 +92,35 @@ export default function MyPhotosScreen() {
       Alert.alert('Bientôt disponible', "L'ajout de photos depuis l'app mobile arrive prochainement.");
       return;
     }
-    setLoading(true);
+    setUploading(true);
     try {
-      const uri = await pickImageWeb();
-      if (!uri) return;
-      const newPhotos = [...photos, uri];
-      patchUser({
-        photos: newPhotos,
-        mainPhotoUri: mainPhotoUri ?? uri,
-      });
+      const file = await pickImageWeb();
+      if (!file) return;
+      await uploadPhoto(file);
+      await reloadPhotos();
+    } catch (err: any) {
+      Alert.alert('Erreur upload', err?.message ?? "Impossible d'envoyer la photo");
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
   };
 
-  const handleSetMain = (uri: string) => patchUser({ mainPhotoUri: uri });
+  const handleSetMain = async (photoId: string) => {
+    try {
+      await patchMyPhoto(photoId, { isPrimary: true });
+      await reloadPhotos();
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message ?? 'Impossible de changer la photo principale');
+    }
+  };
 
-  const handleDelete = (uri: string) => {
-    const newPhotos = photos.filter(p => p !== uri);
-    const newMain   = mainPhotoUri === uri ? (newPhotos[0] ?? undefined) : mainPhotoUri;
-    patchUser({
-      photos: newPhotos,
-      mainPhotoUri: newMain,
-      showPhotoByDefault: newMain ? showPhotoByDefault : false,
-    });
+  const handleDelete = async (photoId: string) => {
+    try {
+      await deleteMyPhoto(photoId);
+      await reloadPhotos();
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message ?? 'Impossible de supprimer la photo');
+    }
   };
 
   const t = isPremium ? RELATION_THRESHOLDS.premium : RELATION_THRESHOLDS.normal;
@@ -124,30 +168,40 @@ export default function MyPhotosScreen() {
         {/* ── Aperçu ── */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Aperçu actuel</Text>
-          <View style={styles.previewRow}>
-            <View style={styles.previewBlock}>
-              <Text style={styles.previewLabel}>🎭 Avatar</Text>
-              <View style={styles.previewFrame}>
-                <Avatar size={72} {...avatarPngConfig} />
-              </View>
-            </View>
 
-            {mainPhotoUri ? (
+          {loadingPhotos ? (
+            <ActivityIndicator color={PINK} style={{ marginVertical: 24 }} />
+          ) : (
+            <View style={styles.previewRow}>
               <View style={styles.previewBlock}>
-                <Text style={styles.previewLabel}>🪞 Ma photo</Text>
+                <Text style={styles.previewLabel}>🎭 Avatar</Text>
                 <View style={styles.previewFrame}>
-                  <Image source={{ uri: mainPhotoUri }} style={styles.previewPhoto} contentFit="cover" />
+                  <Avatar size={72} {...avatarPngConfig} />
                 </View>
               </View>
-            ) : (
-              <View style={[styles.previewBlock, styles.previewEmpty]}>
-                <Text style={styles.previewEmptyIcon}>📷</Text>
-                <Text style={styles.previewEmptyText}>Pas encore de photo</Text>
-              </View>
-            )}
-          </View>
 
-          {mainPhotoUri && (
+              {primaryPhotoUrl ? (
+                <View style={styles.previewBlock}>
+                  <Text style={styles.previewLabel}>🪞 Ma photo</Text>
+                  <View style={styles.previewFrame}>
+                    <Image
+                      source={{ uri: primaryPhotoUrl, headers: photoHeaders }}
+                      style={styles.previewPhoto}
+                      contentFit="cover"
+                      onError={(e) => console.warn('[my-photos] preview load error:', e)}
+                    />
+                  </View>
+                </View>
+              ) : (
+                <View style={[styles.previewBlock, styles.previewEmpty]}>
+                  <Text style={styles.previewEmptyIcon}>📷</Text>
+                  <Text style={styles.previewEmptyText}>Pas encore de photo</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {primaryPhotoUrl && (
             <View style={styles.toggleRow}>
               <Text style={styles.toggleLabel}>
                 {showPhotoByDefault
@@ -164,26 +218,31 @@ export default function MyPhotosScreen() {
           )}
         </View>
 
-        {/* ── Photo existante ── */}
-        {photos.length > 0 && (
+        {/* ── Photos existantes ── */}
+        {apiPhotos.length > 0 && (
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Ma photo</Text>
             <Text style={styles.sectionSub}>Une seule photo forte — c'est tout ce qu'il faut.</Text>
 
-            {photos.map((uri, i) => (
-              <View key={i} style={styles.photoRow}>
-                <Image source={{ uri }} style={styles.photoThumb} contentFit="cover" />
+            {apiPhotos.map((photo) => (
+              <View key={photo.id} style={styles.photoRow}>
+                <Image
+                  source={{ uri: makePhotoUrl(photo.url), headers: photoHeaders }}
+                  style={styles.photoThumb}
+                  contentFit="cover"
+                  onError={(e) => console.warn('[my-photos] thumb error', photo.id, e)}
+                />
                 <View style={styles.photoMeta}>
-                  {uri === mainPhotoUri ? (
+                  {photo.isPrimary ? (
                     <View style={styles.mainBadge}>
                       <Text style={styles.mainBadgeText}>✓ Photo principale</Text>
                     </View>
                   ) : (
-                    <TouchableOpacity style={styles.setMainBtn} onPress={() => handleSetMain(uri)}>
+                    <TouchableOpacity style={styles.setMainBtn} onPress={() => handleSetMain(photo.id)}>
                       <Text style={styles.setMainText}>Choisir comme principale</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(uri)}>
+                  <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(photo.id)}>
                     <Text style={styles.deleteText}>Supprimer</Text>
                   </TouchableOpacity>
                 </View>
@@ -194,17 +253,17 @@ export default function MyPhotosScreen() {
 
         {/* ── Ajouter / Remplacer ── */}
         <TouchableOpacity
-          style={[photos.length > 0 ? styles.replaceBtn : styles.addBtn, loading && { opacity: 0.6 }]}
+          style={[apiPhotos.length > 0 ? styles.replaceBtn : styles.addBtn, uploading && { opacity: 0.6 }]}
           onPress={handleAddPhoto}
-          disabled={loading}
+          disabled={uploading}
         >
-          {photos.length === 0 ? (
+          {apiPhotos.length === 0 ? (
             <>
               <Text style={styles.addBtnIcon}>📷</Text>
-              <Text style={styles.addBtnText}>{loading ? 'Chargement…' : 'Ajouter ma photo'}</Text>
+              <Text style={styles.addBtnText}>{uploading ? 'Envoi…' : 'Ajouter ma photo'}</Text>
             </>
           ) : (
-            <Text style={styles.replaceBtnText}>{loading ? 'Chargement…' : '🔄 Remplacer la photo'}</Text>
+            <Text style={styles.replaceBtnText}>{uploading ? 'Envoi…' : '🔄 Remplacer la photo'}</Text>
           )}
         </TouchableOpacity>
 
