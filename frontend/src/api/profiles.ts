@@ -76,30 +76,60 @@ export async function getMyPhotos(): Promise<MyPhotoDto[]> {
  */
 export async function uploadPhoto(file: File): Promise<MyPhotoDto> {
   const token = await AsyncStorage.getItem('auth_token');
+
+  console.log(
+    '[uploadPhoto] file:', file.name, '|',
+    Math.round(file.size / 1024), 'KB', '|',
+    file.type, '| token present:', !!token,
+  );
+
   const formData = new FormData();
   formData.append('photo', file);
 
-  console.log('[uploadPhoto] POST /photos/me —', file.name, file.size, 'bytes', file.type);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
 
-  const res = await fetch(`${API_URL}/photos/me`, {
-    method: 'POST',
-    headers: {
-      // Content-Type intentionnellement absent : le navigateur génère le boundary multipart
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: formData,
-  });
-
-  const text = await res.text();
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try { msg = JSON.parse(text)?.error?.message ?? msg; } catch {}
-    console.error('[uploadPhoto] erreur', res.status, msg);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/photos/me`, {
+      method: 'POST',
+      headers: {
+        // Content-Type omis : le navigateur pose multipart/form-data;boundary=... automatiquement
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+  } catch (err: any) {
+    clearTimeout(timer);
+    const msg = err?.name === 'AbortError'
+      ? 'Délai dépassé — connexion trop lente ou photo trop lourde (max 5 MB)'
+      : `Réseau inaccessible — ${err?.message ?? 'erreur inconnue'}`;
+    console.error('[uploadPhoto] fetch error:', err?.name, err?.message);
     throw new Error(msg);
   }
-  const data = JSON.parse(text);
-  console.log('[uploadPhoto] succès → id:', data?.data?.id, 'url:', data?.data?.url);
-  return data.data as MyPhotoDto;
+
+  const text = await res.text();
+  console.log('[uploadPhoto] ← HTTP', res.status, '|', text.slice(0, 300));
+
+  if (!res.ok) {
+    let msg = `Erreur serveur (${res.status})`;
+    try { msg = JSON.parse(text)?.error?.message ?? msg; } catch {}
+    console.error('[uploadPhoto] server error:', msg);
+    throw new Error(msg);
+  }
+
+  let data: { data: MyPhotoDto };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    console.error('[uploadPhoto] parse error — not JSON:', text.slice(0, 100));
+    throw new Error('Réponse serveur invalide');
+  }
+
+  console.log('[uploadPhoto] succès → id:', data.data?.id, '| url:', data.data?.url);
+  return data.data;
 }
 
 export async function deleteMyPhoto(photoId: string): Promise<void> {

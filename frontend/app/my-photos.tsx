@@ -92,13 +92,24 @@ export default function MyPhotosScreen() {
       Alert.alert('Bientôt disponible', "L'ajout de photos depuis l'app mobile arrive prochainement.");
       return;
     }
+    // Ouvrir le sélecteur SANS toucher à l'état uploading
+    // (le bouton ne doit pas se bloquer si l'utilisateur annule)
+    let file: File | null = null;
+    try {
+      file = await pickImageWeb();
+    } catch {
+      return;
+    }
+    if (!file) return;
+
+    // Fichier confirmé → démarrer l'upload
+    console.log('[my-photos] fichier sélectionné:', file.name, Math.round(file.size / 1024), 'KB', file.type);
     setUploading(true);
     try {
-      const file = await pickImageWeb();
-      if (!file) return;
       await uploadPhoto(file);
       await reloadPhotos();
     } catch (err: any) {
+      console.error('[my-photos] handleAddPhoto error:', err?.message);
       Alert.alert('Erreur upload', err?.message ?? "Impossible d'envoyer la photo");
     } finally {
       setUploading(false);
