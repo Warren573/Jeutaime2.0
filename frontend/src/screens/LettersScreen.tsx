@@ -504,6 +504,14 @@ export default function LettersScreen() {
 
   const [envAnimVisible, setEnvAnimVisible] = useState(false);
   const [envAnimSender, setEnvAnimSender] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const envAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (envAnimTimerRef.current) clearTimeout(envAnimTimerRef.current);
+    };
+  }, []);
 
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([
     {
@@ -589,15 +597,18 @@ export default function LettersScreen() {
 
   const handleSend = async () => {
     if (!newMessage.trim() || !selectedMatch) return;
-    if (!selectedMatch.canSend) return;
+    if (!selectedMatch.canSend || isSending) return;
 
     const content = newMessage.trim();
     setNewMessage('');
+    setIsSending(true);
 
     try {
       await sendApiLetter(selectedMatch.id, content);
+      setSelectedMatch(prev =>
+        prev ? { ...prev, canSend: false, canSendReason: 'AWAITING_REPLY' } : null,
+      );
     } catch (err: any) {
-      // Restaurer le message en cas d'erreur pour que l'utilisateur puisse réessayer
       setNewMessage(content);
       const msg: string = err?.message ?? '';
       if (msg.includes('AWAITING_REPLY') || msg.includes('alternation') || msg.includes('tour')) {
@@ -607,6 +618,8 @@ export default function LettersScreen() {
       } else {
         Alert.alert('Erreur', "La lettre n'a pas pu être envoyée. Vérifie ta connexion et réessaie.");
       }
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -748,11 +761,13 @@ export default function LettersScreen() {
 
                         // Grande animation uniquement si une lettre reçue non lue
                         if (unreadLetters.length > 0) {
+                          if (envAnimTimerRef.current) clearTimeout(envAnimTimerRef.current);
                           setEnvAnimSender(getOtherName(match));
                           setEnvAnimVisible(true);
-                          setTimeout(() => {
+                          envAnimTimerRef.current = setTimeout(() => {
                             setEnvAnimVisible(false);
                             unreadLetters.forEach(l => markLetterReadApi(l.id));
+                            envAnimTimerRef.current = null;
                           }, 5100);
                         }
                       }}
@@ -992,9 +1007,9 @@ export default function LettersScreen() {
               editable={selectedMatch?.canSend ?? false}
             />
             <TouchableOpacity
-              style={[styles.sendBtn, !(selectedMatch?.canSend) && styles.sendBtnDisabled]}
+              style={[styles.sendBtn, (!(selectedMatch?.canSend) || isSending) && styles.sendBtnDisabled]}
               onPress={handleSend}
-              disabled={!(selectedMatch?.canSend)}
+              disabled={!(selectedMatch?.canSend) || isSending}
             >
               <Text style={styles.sendBtnText}>➤</Text>
             </TouchableOpacity>

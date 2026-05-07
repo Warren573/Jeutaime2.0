@@ -7,7 +7,8 @@ import {
   UnprocessableError,
 } from "../../core/errors";
 import { assertCanSendLetter } from "../../policies/letterAlternation";
-import { LETTER_MAX_LENGTH, PROFILE_QUESTIONS_REQUIRED } from "../../config/constants";
+import { LETTER_MAX_LENGTH, GHOST_RELANCE_MAX_DAYS } from "../../config/constants";
+import { differenceInDays } from "../../core/utils/dateUtils";
 import { buildMeta, toPrismaSkipTake } from "../../core/utils/pagination";
 import { emitLetterSent } from "../../events";
 import type { PaginationQuery } from "../../core/types";
@@ -89,6 +90,18 @@ export async function sendLetter(matchId: string, senderId: string, dto: SendLet
     senderId,
     initiatorId: match.initiatorId,
   });
+
+  // Vérifier la fenêtre anti-ghosting : si l'autre a envoyé en dernier
+  // et qu'il s'est écoulé plus de GHOST_RELANCE_MAX_DAYS sans réponse,
+  // la fenêtre est fermée (cohérence avec computeCanSend dans matches.service)
+  if (match.lastLetterAt && match.lastLetterBy !== null && match.lastLetterBy !== senderId) {
+    const daysSince = differenceInDays(new Date(), match.lastLetterAt);
+    if (daysSince > GHOST_RELANCE_MAX_DAYS) {
+      throw new UnprocessableError(
+        "La fenêtre de réponse est fermée — trop de temps s'est écoulé",
+      );
+    }
+  }
 
   const isUserA = match.userAId === senderId;
 
