@@ -668,6 +668,12 @@ export default function ProfileDetailScreen() {
     );
   }
 
+  const photoHeaders: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+  const ownPrimary   = isOwnProfile ? (ownPhotos.find(p => p.isPrimary) ?? ownPhotos[0] ?? null) : null;
+  const partnerPhoto = !isOwnProfile && (apiData.photoUnlock?.unlocked ?? false) ? (apiData.photos[0] ?? null) : null;
+  const rawPhotoUrl  = ownPrimary?.url ?? partnerPhoto?.url ?? null;
+  const visiblePhotoUrl = rawPhotoUrl ? makePhotoUrl(rawPhotoUrl) : null;
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       {topBar}
@@ -687,9 +693,15 @@ export default function ProfileDetailScreen() {
         )}
 
         {/* Photo / Avatar */}
-        <View style={{ width: 180, height: 180, backgroundColor: 'red', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: 'white', fontWeight: '900' }}>TEST VISIBLE</Text>
-        </View>
+        <Image
+          source={
+            visiblePhotoUrl
+              ? { uri: visiblePhotoUrl, headers: photoHeaders }
+              : require('../../assets/images/icon.png')
+          }
+          style={{ width: 180, height: 180, borderRadius: 16 }}
+          contentFit="cover"
+        />
 
         {/* 1. Bio */}
         {profile.bio.length > 0 && (
