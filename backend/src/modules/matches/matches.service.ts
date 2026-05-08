@@ -1,4 +1,4 @@
-import { MatchStatus } from "@prisma/client";
+import { MatchStatus, LetterStatus } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { isPremiumActive } from "../../policies/premium";
 import {
@@ -15,7 +15,8 @@ import { canOpenNewMatch, getMatchLimit } from "../../policies/contactLimits";
 import { canSendLetter } from "../../policies/letterAlternation";
 import { assertCanRelance, isGhosting } from "../../policies/antiGhosting";
 import { getPhotoUnlockProgress } from "../../policies/photoUnlock";
-import { GHOST_RELANCE_MAX_DAYS, GHOST_DAYS, PROFILE_QUESTIONS_REQUIRED } from "../../config/constants";
+import { buildPhotoUrl } from "../photos/photos.urls";
+import { GHOST_RELANCE_MAX_DAYS, GHOST_DAYS } from "../../config/constants";
 import { emitMatchCreated } from "../../events";
 import type { CreateMatchDto, GhostRelanceDto } from "./matches.schemas";
 
@@ -58,14 +59,6 @@ async function countActiveMatches(userId: string): Promise<number> {
   });
 }
 
-async function countUserQuestions(userId: string): Promise<number> {
-  const profile = await prisma.profile.findUnique({
-    where: { userId },
-    select: { id: true },
-  });
-  if (!profile) return 0;
-  return prisma.profileQuestion.count({ where: { profileId: profile.id } });
-}
 
 async function getUserPremiumStatus(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
@@ -183,7 +176,13 @@ async function enrichMatch(
 
   const viewerIsPremium = await getUserPremiumStatus(viewerId);
 
-  const [otherProfile, canSendResult] = await Promise.all([
+  const photoUnlock = getPhotoUnlockProgress({
+    myLetterCount,
+    otherLetterCount,
+    viewerIsPremium,
+  });
+
+  const [otherProfile, primaryPhoto, canSendResult, unreadCount] = await Promise.all([
     prisma.profile.findUnique({
       where: { userId: otherUserId },
       select: {
@@ -198,14 +197,19 @@ async function enrichMatch(
         badges: true,
       },
     }),
+    prisma.photo.findFirst({
+      where: { userId: otherUserId, isPrimary: true },
+      select: { id: true },
+    }),
     Promise.resolve(computeCanSend(match, viewerId)),
+    prisma.letter.count({
+      where: { matchId: match.id, toUserId: viewerId, status: LetterStatus.SENT },
+    }),
   ]);
 
-  const photoUnlock = getPhotoUnlockProgress({
-    myLetterCount,
-    otherLetterCount,
-    viewerIsPremium,
-  });
+  const photoUrl = primaryPhoto && photoUnlock.unlocked
+    ? buildPhotoUrl(primaryPhoto.id, "original")
+    : null;
 
   return {
     ...match,
@@ -221,7 +225,9 @@ async function enrichMatch(
       ghostRelanceUsedBy: match.ghostRelanceUsedBy,
     }),
     canRelance: computeCanRelance(match, viewerId),
+    hasUnreadIncomingLetter: unreadCount > 0,
     photoUnlock,
+    photoUrl,
   };
 }
 
@@ -307,20 +313,11 @@ export async function acceptMatch(matchId: string, userId: string) {
     throw new ForbiddenError("Tu ne peux pas accepter ta propre demande de match");
   }
 
-  // Vérifier les questions des deux utilisateurs
-  const [countA, countB] = await Promise.all([
-    countUserQuestions(match.userAId),
-    countUserQuestions(match.userBId),
-  ]);
-  const questionsValidated =
-    countA >= PROFILE_QUESTIONS_REQUIRED && countB >= PROFILE_QUESTIONS_REQUIRED;
-
+  // Match activé — questionsValidated reste false jusqu'à ce que les deux joueurs
+  // aient répondu aux questions via POST /matches/:id/questions/answers
   const updated = await prisma.match.update({
     where: { id: matchId },
-    data: {
-      status: MatchStatus.ACTIVE,
-      questionsValidated,
-    },
+    data: { status: MatchStatus.ACTIVE },
     select: matchSelect,
   });
 

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { QUESTION_IDS } from "../../config/questions";
 
 const GenderEnum = z.enum(["HOMME", "FEMME", "AUTRE"]);
+const InterestedInEnum = z.enum(["HOMME", "FEMME"]);
 const LookingForEnum = z.enum(["AMITIE", "RELATION", "FLIRT", "DISCUSSION", "SERIEUX"]);
 
 export const UpdateProfileSchema = z.object({
@@ -22,7 +23,7 @@ export const UpdateProfileSchema = z.object({
     .optional(),
   interests: z.array(z.string().max(50)).max(20).optional(),
   lookingFor: z.array(LookingForEnum).optional(),
-  interestedIn: z.array(GenderEnum).optional(),
+  interestedIn: z.array(InterestedInEnum).optional(),
   hasChildren: z.boolean().optional(),
   wantsChildren: z.boolean().optional(),
   avatarConfig: z.record(z.unknown()).optional(),
@@ -49,12 +50,21 @@ export const UpdateProfileSchema = z.object({
 export const UpdateQuestionsSchema = z.object({
   questions: z
     .array(
-      z.object({
-        questionId: z.string().refine((id) => QUESTION_IDS.includes(id), {
-          message: "Question ID invalide",
-        }),
-        answer: z.string().min(1, "Réponse requise").max(500, "Réponse : 500 caractères max"),
-      }),
+      z
+        .object({
+          questionText: z.string().min(5, "Question : 5 caractères min").max(200).optional(),
+          questionId: z.string().optional(),
+          answer: z.string().min(1, "Réponse requise").max(200, "Réponse : 200 caractères max"),
+          wrongAnswers: z
+            .array(z.string().min(1).max(200))
+            .length(2, "2 mauvaises réponses requises pour le jeu"),
+        })
+        .refine(
+          (q) =>
+            (q.questionText && q.questionText.trim().length >= 5) ||
+            (q.questionId && QUESTION_IDS.includes(q.questionId)),
+          { message: "questionText (≥5 chars) ou questionId valide du catalogue requis" },
+        ),
     )
     .length(3, "Tu dois répondre exactement à 3 questions"),
 });

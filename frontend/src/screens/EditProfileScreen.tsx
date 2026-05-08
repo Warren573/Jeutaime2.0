@@ -25,16 +25,15 @@ const PHYSIQUE_OPTIONS = [
 // ─── Préférences rencontre ────────────────────────────────────────────────────
 
 const LOOKING_FOR_OPTIONS = [
-  { id: 'relation',   emoji: '💑', label: 'Relation sérieuse'  },
-  { id: 'flirt',      emoji: '💋', label: 'Flirt'              },
-  { id: 'amitie',     emoji: '🤝', label: 'Amitié'             },
-  { id: 'discussion', emoji: '💬', label: 'Discussion'         },
+  { id: 'relation',   emoji: '💑', label: "J'ai vu de la lumière, je suis entré·e" },
+  { id: 'flirt',      emoji: '💋', label: "Rien de trop sérieux"                   },
+  { id: 'amitie',     emoji: '🤝', label: "Des affinités, d'abord"                 },
+  { id: 'discussion', emoji: '💬', label: "Je cherche à discuter"                  },
 ];
 
 const INTERESTED_IN_OPTIONS = [
-  { id: 'F',  emoji: '👩', label: 'Femmes'    },
-  { id: 'M',  emoji: '👨', label: 'Hommes'    },
-  { id: 'NB', emoji: '🧑', label: 'Non-binaires' },
+  { id: 'F', emoji: '👩', label: 'Femmes' },
+  { id: 'M', emoji: '👨', label: 'Hommes' },
 ];
 
 const INTERESTS_OPTIONS = [
@@ -44,9 +43,45 @@ const INTERESTS_OPTIONS = [
   '📸 Photographie', '🐾 Animaux', '🧘 Méditation', '🚴 Vélo',
 ];
 
+function childrenLabel(hasChildren?: boolean | null, wantsChildren?: boolean | null): string | null {
+  if (hasChildren === true  && wantsChildren === true)  return "A des enfants — et prêt·e à agrandir la troupe";
+  if (hasChildren === true  && wantsChildren === false) return "A des enfants, c'est largement suffisant";
+  if (hasChildren === true  && wantsChildren == null)   return "A des enfants";
+  if (hasChildren === false && wantsChildren === true)  return "Pas d'enfants — compte se lancer dans l'élevage de pingouins";
+  if (hasChildren === false && wantsChildren === false) return "Pas d'enfants, et ça ne changera pas";
+  if (hasChildren === false && wantsChildren == null)   return "Pas d'enfants";
+  if (hasChildren == null   && wantsChildren === true)  return "En réflexion — probablement oui";
+  if (hasChildren == null   && wantsChildren === false) return "Pas vraiment prévu d'enfants";
+  return null;
+}
+
 // ─── Champs V1 ────────────────────────────────────────────────────────────────
 
-type Skill = { label: string; detail: string; score: number; emoji: string };
+type Skill = { id: string; label: string; detail: string; score: number; emoji: string };
+
+// ─── Liste centralisée des compétences ───────────────────────────────────────
+const SKILL_OPTIONS = [
+  { id: 'communication', label: 'Communication',       emoji: '💬' },
+  { id: 'cuisine',       label: 'Cuisine',             emoji: '🍝' },
+  { id: 'organisation',  label: 'Organisation',        emoji: '🗂️' },
+  { id: 'ponctualite',   label: 'Ponctualité',         emoji: '⏰' },
+  { id: 'ecoute',        label: 'Écoute',              emoji: '👂' },
+  { id: 'humour',        label: 'Humour',              emoji: '😄' },
+  { id: 'empathie',      label: 'Empathie',            emoji: '🫂' },
+  { id: 'creativite',    label: 'Créativité',          emoji: '🎨' },
+  { id: 'patience',      label: 'Patience',            emoji: '🕊️' },
+  { id: 'seduction',     label: 'Séduction',           emoji: '💋' },
+  { id: 'bricolage',     label: 'Bricolage',           emoji: '🔧' },
+  { id: 'sport',         label: 'Sport',               emoji: '🏃' },
+  { id: 'romantisme',    label: 'Romantisme',          emoji: '🌹' },
+  { id: 'memoire',       label: 'Mémoire',             emoji: '🧠' },
+  { id: 'techno',        label: 'Technologie',         emoji: '💻' },
+  { id: 'navigation',    label: 'Navigation GPS',      emoji: '🗺️' },
+  { id: 'drama',         label: 'Gestion des dramas',  emoji: '🎭' },
+  { id: 'nocturnite',    label: 'Vie nocturne',        emoji: '🌙' },
+  { id: 'menage',        label: 'Ménage',              emoji: '🧹' },
+  { id: 'finances',      label: 'Budget',              emoji: '💸' },
+];
 
 const IDENTITY_TAG_OPTIONS = [
   'Introverti•e', 'Extraverti•e', 'Créatif•ve', 'Analytique',
@@ -74,70 +109,64 @@ interface SkillCardProps {
   onRemove: () => void;
 }
 
+const SCORE_VALUES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
 const SkillCard: React.FC<SkillCardProps> = ({ skill, onChange, onRemove }) => (
   <View style={skStyles.card}>
     <View style={skStyles.topRow}>
-      <TextInput
-        style={[skStyles.input, skStyles.emojiInput]}
-        value={skill.emoji}
-        onChangeText={e => onChange({ ...skill, emoji: e })}
-        placeholder="⭐"
-        maxLength={2}
-        placeholderTextColor="#B8A082"
-      />
-      <TextInput
-        style={[skStyles.input, skStyles.labelInput]}
-        value={skill.label}
-        onChangeText={l => onChange({ ...skill, label: l })}
-        placeholder="Compétence (ex: Guitare)"
-        maxLength={50}
-        placeholderTextColor="#B8A082"
-      />
+      <Text style={skStyles.skillEmoji}>{skill.emoji}</Text>
+      <Text style={skStyles.skillLabel}>{skill.label}</Text>
       <TouchableOpacity style={skStyles.removeBtn} onPress={onRemove}>
         <Text style={skStyles.removeText}>✕</Text>
       </TouchableOpacity>
     </View>
     <TextInput
-      style={[skStyles.input, { marginBottom: 8 }]}
+      style={[skStyles.input, !skill.detail.trim() && skStyles.inputMissing]}
       value={skill.detail}
       onChangeText={d => onChange({ ...skill, detail: d })}
-      placeholder="Détail (ex: Je joue depuis 10 ans)"
+      placeholder="Commentaire drôle (obligatoire)…"
       maxLength={100}
       placeholderTextColor="#B8A082"
     />
-    <View style={skStyles.scoreRow}>
-      <Text style={skStyles.scoreLabel}>Niveau {skill.score}/100</Text>
-      {[20, 40, 60, 80, 100].map(v => (
-        <TouchableOpacity
-          key={v}
-          style={[skStyles.scoreBtn, skill.score >= v && skStyles.scoreBtnActive]}
-          onPress={() => onChange({ ...skill, score: v })}
-        >
-          <Text style={skStyles.scoreBtnText}>{v}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={skStyles.scoreRow}>
+        <Text style={skStyles.scoreLabel}>{skill.score}/100</Text>
+        {SCORE_VALUES.map(v => (
+          <TouchableOpacity
+            key={v}
+            style={[skStyles.scoreBtn, skill.score === v && skStyles.scoreBtnActive]}
+            onPress={() => onChange({ ...skill, score: v })}
+          >
+            <Text style={[skStyles.scoreBtnText, skill.score === v && skStyles.scoreBtnTextActive]}>
+              {v}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
   </View>
 );
 
 const skStyles = StyleSheet.create({
-  card:           { backgroundColor: '#FFF8F0', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E8D5B7' },
-  topRow:         { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-  input:          { backgroundColor: '#FFF8E7', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, borderWidth: 1, borderColor: '#E8D5B7', color: '#3A2818' },
-  emojiInput:     { width: 44, textAlign: 'center' },
-  labelInput:     { flex: 1 },
-  removeBtn:      { width: 32, height: 32, borderRadius: 10, backgroundColor: '#FFE4E4', alignItems: 'center', justifyContent: 'center' },
-  removeText:     { fontSize: 13, color: '#E91E8C', fontWeight: '700' },
-  scoreRow:       { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  scoreLabel:     { fontSize: 12, color: '#8B6F47', minWidth: 80 },
-  scoreBtn:       { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: '#E8D5B7' },
-  scoreBtnActive: { backgroundColor: '#E91E8C' },
-  scoreBtnText:   { fontSize: 11, fontWeight: '700', color: '#FFF' },
+  card:               { backgroundColor: '#FFF8F0', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E8D5B7' },
+  topRow:             { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
+  skillEmoji:         { fontSize: 22 },
+  skillLabel:         { flex: 1, fontSize: 15, fontWeight: '700', color: '#3A2818' },
+  removeBtn:          { width: 28, height: 28, borderRadius: 8, backgroundColor: '#FFE4E4', alignItems: 'center', justifyContent: 'center' },
+  removeText:         { fontSize: 12, color: '#E91E8C', fontWeight: '700' },
+  input:              { backgroundColor: '#FFF8E7', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, borderWidth: 1, borderColor: '#E8D5B7', color: '#3A2818', marginBottom: 10 },
+  inputMissing:       { borderColor: '#E91E8C', borderWidth: 1.5 },
+  scoreRow:           { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  scoreLabel:         { fontSize: 12, fontWeight: '700', color: '#8B6F47', minWidth: 48 },
+  scoreBtn:           { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, backgroundColor: '#E8D5B7' },
+  scoreBtnActive:     { backgroundColor: '#E91E8C' },
+  scoreBtnText:       { fontSize: 11, fontWeight: '600', color: '#5A3A1A' },
+  scoreBtnTextActive: { color: '#FFF' },
 });
 
 // ─── Composant QuestionBlock ──────────────────────────────────────────────────
 
-type Question = { text: string; options: [string, string, string]; correctAnswer: 0 | 1 | 2 };
+type Question  = { text: string; options: [string, string, string]; correctAnswer: 0 | 1 | 2 };
 
 const EMPTY_QUESTION = (): Question => ({ text: '', options: ['', '', ''], correctAnswer: 0 });
 
@@ -201,7 +230,7 @@ const qStyles = StyleSheet.create({
 export function EditProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser, setCurrentUser, avatarPngConfig } = useStore();
+  const { currentUser, setCurrentUser, avatarPngConfig, hydrateFromApi } = useStore();
 
   const [pseudo,      setPseudo]      = useState(currentUser?.pseudo ?? currentUser?.name ?? '');
   const [birthDate,   setBirthDate]   = useState(
@@ -229,16 +258,49 @@ export function EditProfileScreen() {
     const saved = currentUser?.idealDay ?? [];
     return [...saved, '', '', '', '', ''].slice(0, 5);
   });
-  const [skills,       setSkills]       = useState<Skill[]>(currentUser?.skills ?? []);
+  const [skills,       setSkills]       = useState<Skill[]>((currentUser?.skills ?? []) as Skill[]);
 
   const toggleItem = (list: string[], setList: (v: string[]) => void, id: string) => {
     setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
   };
 
+  const [qSaving, setQSaving] = useState(false);
+
+  const questionsReady = questions.every(q =>
+    q.text.trim().length >= 5 &&
+    q.options.every(o => o.trim().length > 0)
+  );
+
+  const handleSaveQuestions = async () => {
+    if (!questionsReady || qSaving) return;
+    try {
+      setQSaving(true);
+      await apiFetch('/profiles/me/questions', {
+        method: 'PUT',
+        body: JSON.stringify({
+          questions: questions.map(q => ({
+            questionText: q.text.trim(),
+            answer: q.options[q.correctAnswer].trim(),
+            wrongAnswers: q.options
+              .filter((_, i) => i !== q.correctAnswer)
+              .map(o => o.trim()),
+          })),
+        }),
+      });
+      await hydrateFromApi();
+      Alert.alert('Questions sauvegardées !', 'Tu peux maintenant matcher.');
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message || 'Impossible de sauvegarder les questions');
+    } finally {
+      setQSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!pseudo.trim()) { Alert.alert('Manque', 'Renseigne ton pseudo.'); return; }
-    if (bio.trim().length > 0 && bio.trim().length < 50) {
-      Alert.alert('Bio trop courte', 'Min 50 caractères. Les autres champs sont sauvegardés.');
+    const bioWordCount = bio.trim() ? bio.trim().split(/\s+/).length : 0;
+    if (bio.trim().length > 0 && bioWordCount < 50) {
+      Alert.alert('Bio trop courte', `${bioWordCount}/50 mots. Les autres champs sont sauvegardés.`);
     }
 
     const LF_MAP: Record<string, string> = { relation: 'RELATION', flirt: 'FLIRT', amitie: 'AMITIE', discussion: 'DISCUSSION', serieux: 'SERIEUX' };
@@ -282,7 +344,7 @@ export function EditProfileScreen() {
       return a;
     })();
     const filteredIdealDay = idealDay.filter(s => s.trim());
-    const validSkills = skills.filter(s => s.label.trim());
+    const validSkills = skills.filter(s => s.id && s.detail.trim()).slice(0, 3);
 
     const localProfile = {
       id:             currentUser?.id            ?? '',
@@ -329,7 +391,7 @@ export function EditProfileScreen() {
           city:         city.trim(),
           physicalDesc: PHYSIQUE_MAP_TO_API[physique] || undefined,
           lookingFor:   lookingFor.map(id => LF_MAP[id]).filter(Boolean),
-          interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
+          interestedIn: interestedIn.map(id => GI_MAP[id]).filter((v): v is string => v === 'FEMME' || v === 'HOMME'),
           interests,
           ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
           ...(hasChildren  !== null && { hasChildren }),
@@ -380,6 +442,7 @@ export function EditProfileScreen() {
           skills: p.skills ?? localProfile.skills,
         });
       }
+      await hydrateFromApi();
     } catch (err: any) {
       console.warn('PATCH /profiles/me failed (local save OK):', err?.message);
     }
@@ -415,73 +478,27 @@ export function EditProfileScreen() {
           <Text style={styles.avatarEditHint}>Modifier mon avatar</Text>
         </TouchableOpacity>
 
-        {/* ── Infos de base ── */}
-        <SectionCard emoji="📝" title="Informations de base">
-          <Text style={styles.inputLabel}>Pseudo</Text>
-          <TextInput style={styles.input} value={pseudo} onChangeText={setPseudo} placeholder="Ton pseudo" placeholderTextColor="#B8A082" />
-
-          <View style={styles.row2}>
-            <View style={styles.halfField}>
-              <Text style={styles.inputLabel}>Date de naissance</Text>
-              <TextInput style={styles.input} value={birthDate} onChangeText={setBirthDate} placeholder="YYYY-MM-DD" placeholderTextColor="#B8A082" />
+        {(() => {
+          const bioWords = bio.trim() ? bio.trim().split(/\s+/).length : 0;
+          const missing: string[] = [];
+          if (bioWords < 50) missing.push(`bio (${bioWords}/50 mots)`);
+          if (interests.length === 0) missing.push('centres d\'intérêt');
+          const validSkills = skills.filter(s => s.id && s.detail.trim());
+          if (validSkills.length < 3) missing.push(`compétences (${validSkills.length}/3)`);
+          if (!questionsReady) missing.push('3 questions complètes');
+          if (missing.length === 0) return null;
+          return (
+            <View style={styles.matchWarning}>
+              <Text style={styles.matchWarningText}>
+                ⚠️ Profil incomplet — manque : {missing.join(', ')}
+              </Text>
             </View>
-            <View style={[styles.halfField, { marginLeft: 12 }]}>
-              <Text style={styles.inputLabel}>Ville</Text>
-              <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Ex: Paris" placeholderTextColor="#B8A082" />
-            </View>
-          </View>
-
-          <Text style={styles.inputLabel}>Taille (cm)</Text>
-          <TextInput
-            style={styles.input}
-            value={height}
-            onChangeText={setHeight}
-            placeholder="Ex: 175"
-            keyboardType="numeric"
-            maxLength={3}
-            placeholderTextColor="#B8A082"
-          />
-        </SectionCard>
-
-        {/* ── Enfants ── */}
-        <SectionCard emoji="👶" title="Enfants">
-          <Text style={styles.subSectionLabel}>As-tu des enfants ?</Text>
-          <View style={styles.chipGrid}>
-            {[
-              { label: "J'ai des enfants", value: true as boolean | null },
-              { label: "Je n'ai pas d'enfant", value: false as boolean | null },
-              { label: 'Je préfère en parler plus tard', value: null as boolean | null },
-            ].map(opt => (
-              <TouchableOpacity
-                key={opt.label}
-                style={[styles.chip, hasChildren === opt.value && styles.chipActive]}
-                onPress={() => setHasChildren(opt.value)}
-              >
-                <Text style={styles.chipText}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Souhaites-tu avoir des enfants ?</Text>
-          <View style={styles.chipGrid}>
-            {[
-              { label: "J'en veux", value: true as boolean | null },
-              { label: "Je n'en veux pas", value: false as boolean | null },
-              { label: "Je n'ai pas encore décidé", value: null as boolean | null },
-            ].map(opt => (
-              <TouchableOpacity
-                key={`wants-${opt.label}`}
-                style={[styles.chip, wantsChildren === opt.value && styles.chipActive]}
-                onPress={() => setWantsChildren(opt.value)}
-              >
-                <Text style={styles.chipText}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </SectionCard>
+          );
+        })()}
 
         {/* ── Bio ── */}
-        <SectionCard emoji="✨" title="Bio (Obligatoire - Min 50 caractères)">
+        <SectionCard emoji="✨" title="BIO">
+          <Text style={styles.subLabel}>La première chose vue sur ton profil — min 50 mots</Text>
           <TextInput
             style={[styles.input, styles.bioInput]}
             value={bio}
@@ -491,31 +508,34 @@ export function EditProfileScreen() {
             multiline
             maxLength={500}
           />
-          <Text style={[styles.charCount, bio.length >= 50 && styles.charCountOk]}>
-            {bio.length} / 500 caractères {bio.length >= 50 ? '✓' : `(${50 - bio.length} de plus)`}
-          </Text>
+          {(() => {
+            const wordCount = bio.trim() ? bio.trim().split(/\s+/).length : 0;
+            const ok = wordCount >= 50;
+            return (
+              <Text style={[styles.charCount, ok && styles.charCountOk]}>
+                {wordCount} mot{wordCount !== 1 ? 's' : ''} {ok ? '✓' : '(min 50 mots)'}
+              </Text>
+            );
+          })()}
         </SectionCard>
 
-        {/* ── Description physique ── */}
-        <SectionCard emoji="😄" title="Description physique (avec humour)">
-          <Text style={styles.subLabel}>Comment te décrirais-tu physiquement ? Choisis l'option qui te correspond le mieux !</Text>
-          {PHYSIQUE_OPTIONS.map(opt => (
-            <TouchableOpacity
-              key={opt.id}
-              style={[styles.physiqueCard, physique === opt.id && styles.physiqueCardActive]}
-              onPress={() => setPhysique(physique === opt.id ? '' : opt.id)}
-              activeOpacity={0.75}
-            >
-              <Text style={styles.physiqueEmoji}>{opt.emoji}</Text>
-              <Text style={styles.physiqueLabel}>{opt.label}</Text>
-              <Text style={styles.physiqueSub}>{opt.sub}</Text>
-            </TouchableOpacity>
-          ))}
+        {/* ── Ma citation ── */}
+        <SectionCard emoji="💬" title="MA CITATION">
+          <Text style={styles.subLabel}>Affichée en italique dans ton journal de bord</Text>
+          <TextInput
+            style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
+            value={quote}
+            onChangeText={setQuote}
+            placeholder="Ex: « Un mélange de sérieux et d'autodérision »"
+            placeholderTextColor="#B8A082"
+            maxLength={150}
+            multiline
+          />
         </SectionCard>
 
-        {/* ── Préférences rencontre ── */}
-        <SectionCard emoji="💕" title="Préférences de Rencontre">
-          <Text style={styles.subSectionLabel}>💑 Je cherche…</Text>
+        {/* ── Ce que je cherche ici ── */}
+        <SectionCard emoji="💕" title="CE QUE JE CHERCHE ICI">
+          <Text style={styles.subSectionLabel}>Ce qui s'affichera dans ton profil :</Text>
           <View style={styles.chipGrid}>
             {LOOKING_FOR_OPTIONS.map(opt => (
               <TouchableOpacity
@@ -527,7 +547,6 @@ export function EditProfileScreen() {
               </TouchableOpacity>
             ))}
           </View>
-
           <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>👥 Intéressé•e par</Text>
           <View style={styles.chipGrid}>
             {INTERESTED_IN_OPTIONS.map(opt => (
@@ -542,9 +561,147 @@ export function EditProfileScreen() {
           </View>
         </SectionCard>
 
+        {/* ── Un peu de moi ── */}
+        <SectionCard emoji="📍" title="UN PEU DE MOI">
+          <View style={styles.row2}>
+            <View style={styles.halfField}>
+              <Text style={styles.inputLabel}>Ville</Text>
+              <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Ex: Paris" placeholderTextColor="#B8A082" />
+            </View>
+            <View style={[styles.halfField, { marginLeft: 12 }]}>
+              <Text style={styles.inputLabel}>Taille (cm)</Text>
+              <TextInput
+                style={styles.input}
+                value={height}
+                onChangeText={setHeight}
+                placeholder="Ex: 175"
+                keyboardType="numeric"
+                maxLength={3}
+                placeholderTextColor="#B8A082"
+              />
+            </View>
+          </View>
+
+          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Morphologie</Text>
+          {PHYSIQUE_OPTIONS.map(opt => (
+            <TouchableOpacity
+              key={opt.id}
+              style={[styles.physiqueCard, physique === opt.id && styles.physiqueCardActive]}
+              onPress={() => setPhysique(physique === opt.id ? '' : opt.id)}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.physiqueEmoji}>{opt.emoji}</Text>
+              <Text style={styles.physiqueLabel}>{opt.label}</Text>
+              <Text style={styles.physiqueSub}>{opt.sub}</Text>
+            </TouchableOpacity>
+          ))}
+
+          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>As-tu des enfants ?</Text>
+          <View style={styles.chipGrid}>
+            {[
+              { label: "J'ai des enfants",                   value: true  as boolean | null },
+              { label: "Je n'ai pas d'enfant",               value: false as boolean | null },
+              { label: 'Je préfère en parler plus tard',      value: null  as boolean | null },
+            ].map(opt => (
+              <TouchableOpacity
+                key={opt.label}
+                style={[styles.chip, hasChildren === opt.value && styles.chipActive]}
+                onPress={() => setHasChildren(opt.value)}
+              >
+                <Text style={styles.chipText}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>Souhaites-tu avoir des enfants ?</Text>
+          <View style={styles.chipGrid}>
+            {[
+              { label: "Oui, je veux des enfants 🍼",                             value: true  as boolean | null },
+              { label: "Non, ça ne changera pas 🙅",                              value: false as boolean | null },
+              { label: "Peut-être… on verra 🤷",                                  value: null  as boolean | null },
+              { label: "Je compte me lancer dans l'élevage de pingouins 🐧",      value: true  as boolean | null },
+            ].map(opt => (
+              <TouchableOpacity
+                key={`wants-${opt.label}`}
+                style={[styles.chip, wantsChildren === opt.value && styles.chipActive]}
+                onPress={() => setWantsChildren(opt.value)}
+              >
+                <Text style={styles.chipText}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {!!childrenLabel(hasChildren, wantsChildren) && (
+            <Text style={styles.childrenPreview}>
+              👶 Affiché dans le profil : « {childrenLabel(hasChildren, wantsChildren)} »
+            </Text>
+          )}
+        </SectionCard>
+
+        {/* ── Mes compétences ── */}
+        <SectionCard emoji="🎯" title={`MES COMPÉTENCES  (${skills.length}/3)`}>
+          <Text style={styles.subLabel}>Exactement 3 compétences — sois honnête (ou presque)</Text>
+          {skills.map((sk, i) => (
+            <SkillCard
+              key={sk.id}
+              skill={sk}
+              onChange={updated => {
+                const copy = [...skills];
+                copy[i] = updated;
+                setSkills(copy);
+              }}
+              onRemove={() => setSkills(skills.filter((_, j) => j !== i))}
+            />
+          ))}
+          {skills.length < 3 && (
+            <>
+              <Text style={styles.skillWarning}>⚠️ Exactement 3 compétences requises</Text>
+              <Text style={[styles.subLabel, { marginTop: 12 }]}>
+                {skills.length === 0 ? 'Sélectionne 3 compétences :' : `En ajouter ${3 - skills.length} autre${3 - skills.length > 1 ? 's' : ''} :`}
+              </Text>
+              <View style={styles.chipGrid}>
+                {SKILL_OPTIONS
+                  .filter(opt => !skills.find(s => s.id === opt.id))
+                  .map(opt => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={styles.chip}
+                      onPress={() =>
+                        setSkills([...skills, { id: opt.id, label: opt.label, emoji: opt.emoji, detail: '', score: 50 }])
+                      }
+                    >
+                      <Text style={styles.chipText}>{opt.emoji} {opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+              </View>
+            </>
+          )}
+        </SectionCard>
+
+
+        {/* ── Journée idéale ── */}
+        <SectionCard emoji="🌅" title="JOURNÉE IDÉALE">
+          <Text style={styles.subLabel}>Décris ta journée parfaite étape par étape</Text>
+          {idealDay.map((step, i) => (
+            <TextInput
+              key={i}
+              style={[styles.input, { marginBottom: 8 }]}
+              value={step}
+              onChangeText={t => {
+                const copy = [...idealDay];
+                copy[i] = t;
+                setIdealDay(copy);
+              }}
+              placeholder={`Étape ${i + 1} (ex: Café en terrasse…)`}
+              placeholderTextColor="#B8A082"
+              maxLength={100}
+            />
+          ))}
+        </SectionCard>
+
         {/* ── Centres d'intérêt ── */}
-        <SectionCard emoji="🎯" title="Centres d'intérêt">
-          <Text style={styles.subLabel}>Choisis jusqu'à 8 passions</Text>
+        <SectionCard emoji="🌐" title="CENTRES D'INTÉRÊT">
+          <Text style={styles.subLabel}>Ce qui t'anime — affiché dans ton profil (8 max)</Text>
           <View style={styles.chipGrid}>
             {INTERESTS_OPTIONS.map(opt => (
               <TouchableOpacity
@@ -565,143 +722,10 @@ export function EditProfileScreen() {
           </View>
         </SectionCard>
 
-        {/* ── Vibe & Citation ── */}
-        <SectionCard emoji="💭" title="Vibe & Citation">
-          <Text style={styles.inputLabel}>Ta vibe (80 car. max)</Text>
-          <TextInput
-            style={styles.input}
-            value={vibe}
-            onChangeText={setVibe}
-            placeholder="Ex: Soleil et bonne humeur toute l'année"
-            placeholderTextColor="#B8A082"
-            maxLength={80}
-          />
-          <Text style={styles.inputLabel}>Ta citation (150 car. max)</Text>
-          <TextInput
-            style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
-            value={quote}
-            onChangeText={setQuote}
-            placeholder="Ex: « Carpe diem » ou quelque chose qui te tient à cœur"
-            placeholderTextColor="#B8A082"
-            maxLength={150}
-            multiline
-          />
-        </SectionCard>
-
-        {/* ── Tags d'identité ── */}
-        <SectionCard emoji="🏷️" title="Tags d'identité (5 max)">
-          <Text style={styles.subLabel}>Ce qui te définit en quelques mots</Text>
-          <View style={styles.chipGrid}>
-            {IDENTITY_TAG_OPTIONS.map(tag => (
-              <TouchableOpacity
-                key={tag}
-                style={[
-                  styles.chip,
-                  identityTags.includes(tag) && styles.chipActive,
-                  identityTags.length >= 5 && !identityTags.includes(tag) && styles.chipDisabled,
-                ]}
-                onPress={() => {
-                  if (identityTags.length >= 5 && !identityTags.includes(tag)) return;
-                  toggleItem(identityTags, setIdentityTags, tag);
-                }}
-              >
-                <Text style={styles.chipText}>{tag}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </SectionCard>
-
-        {/* ── Qualités & Défauts ── */}
-        <SectionCard emoji="⚖️" title="Qualités & Défauts (5 max chacun)">
-          <Text style={styles.subSectionLabel}>✨ Mes qualités</Text>
-          <View style={styles.chipGrid}>
-            {QUALITY_OPTIONS.map(q => (
-              <TouchableOpacity
-                key={q}
-                style={[
-                  styles.chip,
-                  qualities.includes(q) && styles.chipActive,
-                  qualities.length >= 5 && !qualities.includes(q) && styles.chipDisabled,
-                ]}
-                onPress={() => {
-                  if (qualities.length >= 5 && !qualities.includes(q)) return;
-                  toggleItem(qualities, setQualities, q);
-                }}
-              >
-                <Text style={styles.chipText}>{q}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <Text style={[styles.subSectionLabel, { marginTop: 16 }]}>🤭 Mes défauts (soyons honnêtes…)</Text>
-          <View style={styles.chipGrid}>
-            {DEFAULT_OPTIONS.map(d => (
-              <TouchableOpacity
-                key={d}
-                style={[
-                  styles.chip,
-                  defaults.includes(d) && styles.chipActive,
-                  defaults.length >= 5 && !defaults.includes(d) && styles.chipDisabled,
-                ]}
-                onPress={() => {
-                  if (defaults.length >= 5 && !defaults.includes(d)) return;
-                  toggleItem(defaults, setDefaults, d);
-                }}
-              >
-                <Text style={styles.chipText}>{d}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </SectionCard>
-
-        {/* ── Journée idéale ── */}
-        <SectionCard emoji="🌅" title="Ma journée idéale (5 étapes)">
-          <Text style={styles.subLabel}>Décris ta journée parfaite étape par étape</Text>
-          {idealDay.map((step, i) => (
-            <TextInput
-              key={i}
-              style={[styles.input, { marginBottom: 8 }]}
-              value={step}
-              onChangeText={t => {
-                const copy = [...idealDay];
-                copy[i] = t;
-                setIdealDay(copy);
-              }}
-              placeholder={`Étape ${i + 1} (ex: Café en terrasse…)`}
-              placeholderTextColor="#B8A082"
-              maxLength={100}
-            />
-          ))}
-        </SectionCard>
-
-        {/* ── Compétences ── */}
-        <SectionCard emoji="🎯" title="Mes compétences (6 max)">
-          <Text style={styles.subLabel}>Tes talents cachés et pas si cachés</Text>
-          {skills.map((sk, i) => (
-            <SkillCard
-              key={i}
-              skill={sk}
-              onChange={updated => {
-                const copy = [...skills];
-                copy[i] = updated;
-                setSkills(copy);
-              }}
-              onRemove={() => setSkills(skills.filter((_, j) => j !== i))}
-            />
-          ))}
-          {skills.length < 6 && (
-            <TouchableOpacity
-              style={styles.addSkillBtn}
-              onPress={() => setSkills([...skills, { label: '', detail: '', score: 50, emoji: '⭐' }])}
-            >
-              <Text style={styles.addSkillText}>+ Ajouter une compétence</Text>
-            </TouchableOpacity>
-          )}
-        </SectionCard>
-
-        {/* ── Jeu des 3 Questions ── */}
-        <SectionCard emoji="🎲" title="Jeu des 3 Questions (Brise-glace)">
+        {/* ── Mes 3 questions ── */}
+        <SectionCard emoji="🎲" title="MES 3 QUESTIONS">
           <Text style={styles.subLabel}>
-            Crée 3 questions avec 3 réponses chacune. En cas de match, l'autre personne devra répondre à tes questions pour débloquer les lettres.
+            Écris 3 questions sur toi. En cas de match, l'autre devra deviner ta vraie réponse parmi 3 choix.
           </Text>
           {questions.map((q, i) => (
             <QuestionBlock
@@ -715,12 +739,31 @@ export function EditProfileScreen() {
               }}
             />
           ))}
+          <TouchableOpacity
+            style={[styles.saveQBtn, (!questionsReady || qSaving) && { opacity: 0.5 }]}
+            onPress={handleSaveQuestions}
+            disabled={!questionsReady || qSaving}
+          >
+            <Text style={styles.saveQBtnText}>
+              {qSaving ? 'Sauvegarde…' : '💾 Sauver mes questions'}
+            </Text>
+          </TouchableOpacity>
         </SectionCard>
 
         {/* ── Bouton Sauvegarder ── */}
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
           <Text style={styles.saveBtnText}>💾 Sauvegarder mon profil</Text>
         </TouchableOpacity>
+
+        {/* ── Aperçu du profil ── */}
+        {currentUser?.id && (
+          <TouchableOpacity
+            style={styles.previewBtn}
+            onPress={() => router.push(`/profile/${currentUser.id}`)}
+          >
+            <Text style={styles.previewBtnText}>🪞 Voir mon profil</Text>
+          </TouchableOpacity>
+        )}
 
       </ScrollView>
     </View>
@@ -799,9 +842,32 @@ const styles = StyleSheet.create({
   chipDisabled: { opacity: 0.4 },
   chipText:     { fontSize: 13, fontWeight: '600', color: BROWN },
 
+  skillWarning:     { fontSize: 12, color: '#E91E8C', fontWeight: '600', marginBottom: 10 },
+  tagsNote:         { fontSize: 13, color: '#8B6F47', fontStyle: 'italic', lineHeight: 20, backgroundColor: '#FFF8E7', borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E8D5B7' },
+  childrenPreview:  { marginTop: 14, fontSize: 13, color: '#5A3A1A', fontStyle: 'italic', backgroundColor: '#FFF8E7', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#E8D5B7' },
+
   // Save button
-  saveBtn:      { backgroundColor: PINK, borderRadius: 20, padding: 20, alignItems: 'center', marginTop: 8, marginBottom: 20 },
+  saveBtn:      { backgroundColor: PINK, borderRadius: 20, padding: 20, alignItems: 'center', marginTop: 8, marginBottom: 8 },
+  previewBtn:   { borderWidth: 1.5, borderColor: PINK, borderRadius: 20, padding: 16, alignItems: 'center', marginBottom: 30 },
+  previewBtnText: { fontSize: 15, fontWeight: '700', color: PINK },
   saveBtnText:  { color: '#FFF', fontWeight: '800', fontSize: 17, letterSpacing: 0.5 },
-  addSkillBtn:  { backgroundColor: '#FFF0F7', borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1.5, borderColor: PINK },
-  addSkillText: { color: PINK, fontWeight: '700', fontSize: 14 },
+
+  // canMatch warning banner
+  matchWarning:     { backgroundColor: '#FFF3CD', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#FFCA28', flexDirection: 'row', alignItems: 'center' },
+  matchWarningText: { fontSize: 14, fontWeight: '700', color: '#7B5800', flex: 1 },
+
+  // Catalog questions section
+  qProgress:          { fontSize: 13, fontWeight: '700', color: PINK, marginBottom: 12 },
+  qCard:              { backgroundColor: '#FDF5E6', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1.5, borderColor: SAND },
+  qCardSelected:      { borderColor: PINK, backgroundColor: '#FFF0F7' },
+  qCardHeader:        { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  qDot:               { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: SAND, marginTop: 2, flexShrink: 0 },
+  qDotSelected:       { backgroundColor: PINK, borderColor: PINK },
+  qCardText:          { flex: 1, fontSize: 14, fontWeight: '600', color: BROWN, lineHeight: 21 },
+  qCardTextDisabled:  { color: '#B8A082' },
+  qAnswersBlock:      { marginTop: 14, gap: 4 },
+  qAnswerLabel:       { fontSize: 11, fontWeight: '700', color: MOCHA, marginTop: 8, marginBottom: 2 },
+  qAnswerInput:       { backgroundColor: BEIGE, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, borderWidth: 1, borderColor: SAND, color: BROWN },
+  saveQBtn:           { marginTop: 18, backgroundColor: PINK, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  saveQBtnText:       { color: '#FFF', fontWeight: '800', fontSize: 15 },
 });

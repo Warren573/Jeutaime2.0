@@ -41,7 +41,8 @@
  */
 
 import React, { memo } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
 import { getAsset } from './registry';
 
 // ─── Couches de base (ordre fixe) ────────────────────────────────────────────
@@ -133,8 +134,7 @@ export const Avatar = memo(function Avatar({
             key={slot}
             source={source}
             style={styles.layer}
-            resizeMode="contain"
-            fadeDuration={0}
+            contentFit="contain"
           />
         );
       })}
@@ -148,8 +148,7 @@ export const Avatar = memo(function Avatar({
             key={effectId}
             source={source}
             style={styles.layer}
-            resizeMode="contain"
-            fadeDuration={0}
+            contentFit="contain"
           />
         );
       })}
@@ -159,8 +158,7 @@ export const Avatar = memo(function Avatar({
         <Image
           source={transformationSource}
           style={styles.layer}
-          resizeMode="contain"
-          fadeDuration={0}
+          contentFit="contain"
         />
       )}
 

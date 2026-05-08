@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 import type { Match } from '../shared/types';
-import { AvatarRenderer } from '../avatar/components/AvatarRenderer';
 import { AvatarDefinition } from '../avatar/types/avatarTypes';
-import { MOCK_PROFILE_AVATARS, MOCK_AVATAR_DEFAULT } from '../avatar/data/mockAvatars';
+import { MOCK_PROFILE_AVATARS } from '../avatar/data/mockAvatars';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import { useFeature } from '../components/FeatureGate';
+import { apiFetch } from '../api/client';
+import { sendReaction } from '../api/reactions';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -202,6 +204,52 @@ const profiles: DiscoveryProfile[] = [
     compatibility: 88,
   },
 ];
+
+// ─── API MAPPER ───────────────────────────────────────────────────────────────
+
+const DISCOVER_TAG_EMOJIS = ['✈️', '🎬', '🍳', '📖', '🎵', '🌿', '🎨', '🏃', '📸', '☕'];
+
+function calcDiscoverAge(birthDate: string | null): number {
+  if (!birthDate) return 0;
+  const bd = new Date(birthDate);
+  if (isNaN(bd.getTime())) return 0;
+  const now = new Date();
+  let age = now.getFullYear() - bd.getFullYear();
+  if (now.getMonth() < bd.getMonth() ||
+    (now.getMonth() === bd.getMonth() && now.getDate() < bd.getDate())) age--;
+  return age;
+}
+
+function mapApiDiscoverProfile(p: Record<string, unknown>): DiscoveryProfile {
+  const interests = Array.isArray(p.interests) ? (p.interests as string[]) : [];
+  const badges = Array.isArray(p.badges) ? (p.badges as string[]) : [];
+  return {
+    id: p.userId as string,         // userId used as ID for reactions
+    name: (p.pseudo as string) || 'Inconnu',
+    age: calcDiscoverAge((p.birthDate as string | null) ?? null),
+    city: (p.city as string) || '',
+    avatarEmoji: '✨',
+    avatarBg: '#F3E5F5',
+    mainVibe: '',
+    descriptors: [],
+    tags: interests.slice(0, 5).map((label, i) => ({
+      emoji: DISCOVER_TAG_EMOJIS[i % DISCOVER_TAG_EMOJIS.length],
+      label,
+    })),
+    quote: (p.bio as string) || '',
+    sections: interests.length > 0
+      ? [{ title: "Centres d'intérêt", icon: '✦', items: interests }]
+      : [],
+    game: {
+      level: Math.max(1, Math.floor(((p.points as number) ?? 0) / 200) + 1),
+      badges: badges.slice(0, 2),
+      pet: '',
+      petEmoji: '',
+    },
+    letters: { exchanged: 0, total: 10, lastLetterDaysAgo: 0, nextReveal: 3 },
+    compatibility: 0,
+  };
+}
 
 // ─── REVEAL HELPERS ────────────────────────────────────────────────────────────
 
@@ -479,9 +527,23 @@ function MailSection({ letters }: { letters: DiscoveryProfile['letters'] }) {
 export default function ProfilesScreen() {
   const insets = useSafeAreaInsets();
   const { likedProfiles, dislikedProfiles, addLike, addDislike, addMatch, currentUser } = useStore();
+  const isAuthenticated = useStore((s) => s.isAuthenticated);
+  const loadMatches = useStore((s) => s.loadMatches);
   const screenBg = useStore(s => s.screenBackgrounds?.['profiles'] ?? OLD_BG);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showMatch, setShowMatch] = useState<string | null>(null);
+  const [apiProfiles, setApiProfiles] = useState<DiscoveryProfile[]>([]);
+
+  // Load real profiles from API when authenticated
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    apiFetch('/profiles')
+      .then((res) => {
+        const data: Record<string, unknown>[] = Array.isArray(res?.data) ? res.data : [];
+        setApiProfiles(data.map(mapApiDiscoverProfile));
+      })
+      .catch(() => { /* show empty state */ });
+  }, [isAuthenticated]);
 
   // ── Guard FEATURES ────────────────────────────────────────────────────────
   // Tous les hooks appelés avant ce bloc pour respecter les règles React.
@@ -529,35 +591,77 @@ export default function ProfilesScreen() {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  const availableProfiles = profiles.filter(
+  // When authenticated use real API profiles; fall back to mock for dev/unauthenticated
+  const activeProfiles = isAuthenticated ? apiProfiles : profiles;
+
+  const availableProfiles = activeProfiles.filter(
     (p) => !likedProfiles.includes(p.id) && !dislikedProfiles.includes(p.id)
   );
   const profile = availableProfiles[currentIndex % Math.max(availableProfiles.length, 1)];
-  const profilePos = profiles.findIndex(p => p.id === profile?.id);
+  const profilePos = activeProfiles.findIndex(p => p.id === profile?.id);
 
-  const handleSmile = () => {
+  const canMatch = currentUser?.canMatch ?? true;
+  const profileMissingFields = currentUser?.profileMissingFields ?? [];
+
+  const handleSmile = async () => {
     if (!profile) return;
-    addLike(profile.id);
-    if (Math.random() > 0.5) {
-      addMatch({
-        id: `match_${Date.now()}`,
-        userAId: currentUser?.id || 'me',
-        userBId: profile.id,
-        createdAt: Date.now(),
-        questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true },
-        status: 'active',
-        letterCount: 0,
-      });
-      setShowMatch(profile.name);
-      setTimeout(() => setShowMatch(null), 2500);
+    if (!canMatch) {
+      const msg = profileMissingFields.includes('questions')
+        ? "Ajoute tes 3 questions pour pouvoir matcher."
+        : "Complète ton profil (bio 50 mots minimum) pour pouvoir matcher.";
+      Alert.alert("Match indisponible", msg);
+      return;
     }
+    addLike(profile.id);
     setCurrentIndex((prev) => prev + 1);
+
+    if (isAuthenticated) {
+      try {
+        const result = await sendReaction(profile.id, 'SMILE');
+        if (result.matchCreated) {
+          await loadMatches();
+          setShowMatch(profile.name);
+          setTimeout(() => setShowMatch(null), 2500);
+        }
+      } catch {
+        // réaction silencieusement ignorée si réseau indisponible
+      }
+    } else {
+      // dev: match aléatoire
+      if (Math.random() > 0.5) {
+        addMatch({
+          id: `match_${Date.now()}`,
+          userAId: currentUser?.id || 'me',
+          userBId: profile.id,
+          initiatorId: currentUser?.id || 'me',
+          createdAt: Date.now(),
+          questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true },
+          questionsValidated: true,
+          status: 'active',
+          letterCount: 0,
+          letterCountA: 0,
+          letterCountB: 0,
+          canSend: true,
+          canSendReason: null,
+          lastLetterAt: null,
+          lastLetterBy: null,
+          hasUnreadIncomingLetter: false,
+          photoUnlocked: false,
+          photoUrl: null,
+        });
+        setShowMatch(profile.name);
+        setTimeout(() => setShowMatch(null), 2500);
+      }
+    }
   };
 
-  const handlePass = () => {
+  const handlePass = async () => {
     if (!profile) return;
     addDislike(profile.id);
     setCurrentIndex((prev) => prev + 1);
+    if (isAuthenticated) {
+      try { await sendReaction(profile.id, 'GRIMACE'); } catch { /* silently ignore */ }
+    }
   };
 
   // ── Match overlay
@@ -593,7 +697,7 @@ export default function ProfilesScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Manchette */}
-        <Masthead index={profilePos >= 0 ? profilePos : currentIndex} total={profiles.length} />
+        <Masthead index={profilePos >= 0 ? profilePos : currentIndex} total={activeProfiles.length} />
 
         {/* À la une */}
         <FrontPage profile={profile} />
@@ -636,9 +740,13 @@ export default function ProfilesScreen() {
           <Text style={[np.actionLabel, { color: INK2 }]}>CADEAU</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={np.smileBtn} onPress={handleSmile} activeOpacity={0.8}>
-          <Text style={np.actionEmoji}>😊</Text>
-          <Text style={[np.actionLabel, { color: '#2E5D2A' }]}>SOURIRE</Text>
+        <TouchableOpacity
+          style={[np.smileBtn, !canMatch && np.smileBtnDisabled]}
+          onPress={handleSmile}
+          activeOpacity={0.8}
+        >
+          <Text style={np.actionEmoji}>{canMatch ? '😊' : '🔒'}</Text>
+          <Text style={[np.actionLabel, { color: canMatch ? '#2E5D2A' : INK3 }]}>SOURIRE</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -1003,6 +1111,10 @@ const np = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     gap: 3,
+  },
+  smileBtnDisabled: {
+    borderColor: RULE_COLOR,
+    opacity: 0.5,
   },
   giftBtn: {
     alignItems: 'center',

@@ -7,9 +7,9 @@ export const MATCH_LIMIT_FREE = 5;     // validé
 export const MATCH_LIMIT_PREMIUM = 20; // validé
 
 // --- Déblocage photos ---
-/** Nombre de lettres envoyées par chaque côté pour déblocage (utilisateurs gratuits) */
+/** Nombre de lettres envoyées par chaque côté pour déblocage final (utilisateurs gratuits) */
 export const PHOTO_UNLOCK_LETTERS_FREE = 10;
-/** Nombre de lettres envoyées par chaque côté pour déblocage (Premium) */
+/** Nombre de lettres envoyées par chaque côté pour déblocage final (Premium) */
 export const PHOTO_UNLOCK_LETTERS_PREMIUM = 3; // validé
 
 // --- Upload photos ---
@@ -19,8 +19,10 @@ export const MAX_PHOTOS_PER_USER = 6;
 export const PHOTO_ORIGINAL_MAX_WIDTH = 1080;
 /** Largeur max de l'image floutée */
 export const PHOTO_BLURRED_MAX_WIDTH = 640;
-/** Intensité du blur pour anonymiser (sharp sigma) */
+/** Intensité du blur fort (blurStrong, level 1 — sharp sigma) */
 export const PHOTO_BLUR_SIGMA = 25;
+/** Intensité du blur moyen (blurMedium, level 2 — sharp sigma) */
+export const PHOTO_BLUR_MEDIUM_SIGMA = 6;
 /** Qualité WebP de l'original */
 export const PHOTO_WEBP_QUALITY = 85;
 /** Qualité WebP de la version floutée */

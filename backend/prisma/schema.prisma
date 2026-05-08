@@ -51,6 +51,7 @@ enum LetterStatus {
 enum CoinTxnType {
   DAILY_BONUS
   GAME_WIN
+  GAME_ENTRY
   LETTER_SENT
   OFFERING_SENT
   POWER_USED
@@ -62,6 +63,12 @@ enum CoinTxnType {
   REFUND
   ADMIN_ADJUST
   PURCHASE_COINS
+}
+
+enum CardGameStatus {
+  ACTIVE
+  CLAIMED
+  EXPIRED
 }
 
 enum OfferingCategory {
@@ -117,6 +124,11 @@ enum NotificationType {
   PREMIUM_CANCELLED
 }
 
+enum ReactionType {
+  SMILE
+  GRIMACE
+}
+
 // ============================================================
 // USER / AUTH
 // ============================================================
@@ -157,6 +169,11 @@ model User {
   blocksAgainst   Block[]         @relation("BlockTo")
   auditLogs       AuditLog[]
   notifications   Notification[]
+  reactionsGiven    Reaction[]    @relation("ReactionFrom")
+  reactionsReceived Reaction[]    @relation("ReactionTo")
+  questionAttempts  MatchQuestionAttempt[] @relation("QuestionAttemptResponder")
+  cardGameSessions  CardGameSession[]
+  pushTokens        PushToken[]
 
   @@index([email])
   @@index([isBanned])
@@ -223,11 +240,13 @@ model Profile {
 }
 
 model ProfileQuestion {
-  id         String  @id @default(cuid())
-  profileId  String
-  profile    Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  questionId String
-  answer     String  @db.Text
+  id           String   @id @default(cuid())
+  profileId    String
+  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  questionId   String
+  questionText String?  @db.Text
+  answer       String   @db.Text
+  wrongAnswers String[] @default([])
 
   @@unique([profileId, questionId])
 }
@@ -254,8 +273,9 @@ model Photo {
   id            String   @id @default(cuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  originalPath  String
-  blurredPath   String
+  originalPath    String
+  blurredPath     String
+  blurMediumPath  String?
   position      Int      @default(0)
   isPrimary     Boolean  @default(false)
   createdAt     DateTime @default(now())
@@ -300,6 +320,7 @@ model Match {
   updatedAt             DateTime    @updatedAt
 
   letters               Letter[]
+  questionAttempts      MatchQuestionAttempt[]
 
   @@unique([userAId, userBId])
   @@index([status])
@@ -537,6 +558,46 @@ model Block {
   @@unique([fromId, toId])
 }
 
+// ============================================================
+// RÉACTIONS — Sourire / Grimace (système de découverte)
+// Un utilisateur peut réagir une seule fois à un profil.
+// Sourire mutuel → match créé automatiquement.
+// ============================================================
+
+model Reaction {
+  id        String       @id @default(cuid())
+  fromId    String
+  toId      String
+  from      User         @relation("ReactionFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to        User         @relation("ReactionTo",   fields: [toId],   references: [id], onDelete: Cascade)
+  type      ReactionType
+  createdAt DateTime     @default(now())
+
+  @@unique([fromId, toId])
+  @@index([toId])
+}
+
+// ============================================================
+// JEU DES 3 QUESTIONS — Réponses soumises pendant le jeu de validation
+// Un joueur répond aux 3 questions de l'autre (ProfileQuestion de l'autre).
+// Sourire mutuel → match créé → les deux jouent → si ≥1 correct chacun → validé
+// ============================================================
+
+model MatchQuestionAttempt {
+  id              String   @id @default(cuid())
+  matchId         String
+  match           Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  responderId     String
+  responder       User     @relation("QuestionAttemptResponder", fields: [responderId], references: [id], onDelete: Cascade)
+  questionId      String   // ProfileQuestion.id de l'autre utilisateur
+  submittedAnswer String
+  isCorrect       Boolean
+  createdAt       DateTime @default(now())
+
+  @@unique([matchId, responderId, questionId])
+  @@index([matchId])
+}
+
 model AuditLog {
   id        String   @id @default(cuid())
   actorId   String?
@@ -572,4 +633,43 @@ model Notification {
 
   @@index([userId, isRead, createdAt])
   @@index([userId, createdAt])
+}
+
+// ============================================================
+// PUSH TOKENS
+// ============================================================
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String   // 'ios' | 'android' | 'web'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ============================================================
+// JEU DE CARTES
+// ============================================================
+
+model CardGameSession {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        CardGameStatus  @default(ACTIVE)
+  deck          Json            // [{index, suit}]×10 — jamais exposé au client
+  revealed      Int             @default(0)  // bitmask 10 bits
+  gainsCurrent  Int             @default(0)
+  entryAmount   Int             @default(20)
+  claimedAmount Int?
+  expiresAt     DateTime
+  claimedAt     DateTime?
+  createdAt     DateTime        @default(now())
+
+  @@index([userId, status])
+  @@index([status, expiresAt])
 }

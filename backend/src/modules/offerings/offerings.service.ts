@@ -257,3 +257,69 @@ export async function listReceived(
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
   };
 }
+
+// ============================================================
+// SalonOfferingDto — DTO retourné par GET /api/offerings/salon/:salonId
+// ============================================================
+export interface SalonOfferingDto {
+  id: string;
+  offeringId: string;
+  emoji: string;
+  name: string;
+  fromUserId: string;
+  fromPseudo: string;
+  toUserId: string;
+  toPseudo: string;
+  salonId: string;
+  createdAt: Date;
+  expiresAt: Date | null;
+  isActive: boolean;
+}
+
+// ============================================================
+// listSalonOfferings — offrandes récentes d'un salon (24h, max 100)
+// Sécurité : le salon doit exister et être actif ; l'acteur doit être
+// authentifié (garanti par requireAuth en amont, actorId non utilisé
+// ici car les salons sont ouverts — pas de membership table).
+// ============================================================
+export async function listSalonOfferings(
+  salonId: string,
+  now: Date = new Date(),
+): Promise<SalonOfferingDto[]> {
+  const salon = await prisma.salon.findUnique({
+    where: { id: salonId },
+    select: { id: true, isActive: true },
+  });
+  if (!salon || !salon.isActive) throw new NotFoundError("Salon");
+
+  const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  const rows = await prisma.offeringSent.findMany({
+    where: {
+      salonId,
+      createdAt: { gt: since },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: 100,
+    include: {
+      offering: { select: { emoji: true, name: true } },
+      fromUser: { select: { profile: { select: { pseudo: true } } } },
+      toUser: { select: { profile: { select: { pseudo: true } } } },
+    },
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
+    offeringId: r.offeringId,
+    emoji: r.offering.emoji,
+    name: r.offering.name,
+    fromUserId: r.fromUserId,
+    fromPseudo: r.fromUser.profile?.pseudo ?? "Anonyme",
+    toUserId: r.toUserId,
+    toPseudo: r.toUser.profile?.pseudo ?? "Anonyme",
+    salonId: salonId,
+    createdAt: r.createdAt,
+    expiresAt: r.expiresAt,
+    isActive: isOfferingActive(r, now),
+  }));
+}

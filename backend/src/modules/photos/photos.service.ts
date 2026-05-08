@@ -100,7 +100,7 @@ export async function listMyPhotos(userId: string): Promise<PhotoDto[]> {
 
 // ============================================================
 // listPhotosForViewer — retourne les photos d'un autre user
-// selon la policy photoUnlock (blurred par défaut, original si unlock)
+// uniquement si débloqué (binaire : tout ou rien)
 // ============================================================
 export async function listPhotosForViewer(params: {
   viewerId: string;
@@ -117,7 +117,6 @@ export async function listPhotosForViewer(params: {
     return { photos, unlocked: true };
   }
 
-  // Le user cible doit exister
   const target = await prisma.user.findUnique({
     where: { id: targetUserId },
     select: { id: true, isBanned: true },
@@ -125,35 +124,23 @@ export async function listPhotosForViewer(params: {
   if (!target || target.isBanned) throw new NotFoundError("Utilisateur");
 
   const hasBlock = await hasBlockBetween(viewerId, targetUserId);
-
-  // Délégation complète à resolvePhotoAccess : on teste "original" pour
-  // savoir si unlock, puis on teste "blurred" pour savoir si on peut au
-  // moins voir les versions floutées.
   const match = await findMatchBetween(viewerId, targetUserId);
-  const originalAccess = resolvePhotoAccess({
+
+  const access = resolvePhotoAccess({
     viewerId,
     ownerId: targetUserId,
-    variant: "original",
-    viewerIsPremium,
-    hasBlock,
-    match,
-  });
-  const blurredAccess = resolvePhotoAccess({
-    viewerId,
-    ownerId: targetUserId,
-    variant: "blurred",
     viewerIsPremium,
     hasBlock,
     match,
   });
 
-  if (!blurredAccess.allowed) {
-    // Bloqué : pas d'accès du tout
+  if (access.reason === "BLOCKED") {
     throw new ForbiddenError("Accès interdit");
   }
 
-  const unlocked = originalAccess.allowed;
-  const variant: PhotoVariant = unlocked ? "original" : "blurred";
+  if (!access.allowed) {
+    return { photos: [], unlocked: false };
+  }
 
   const photos = await prisma.photo.findMany({
     where: { userId: targetUserId },
@@ -173,8 +160,8 @@ export async function listPhotosForViewer(params: {
   });
 
   return {
-    photos: photos.map((p) => toDto(p, variant)),
-    unlocked,
+    photos: photos.map((p) => toDto(p, "original")),
+    unlocked: true,
   };
 }
 
@@ -225,8 +212,8 @@ export async function uploadPhoto(params: {
   });
 
   try {
-    // Étape 2 : sharp écrit original + blurred sur disque
-    const { originalPath, blurredPath } = await processAndWrite({
+    // Étape 2 : sharp écrit original + blurred + blurMedium sur disque
+    const { originalPath, blurredPath, blurMediumPath } = await processAndWrite({
       userId,
       photoId: created.id,
       inputBuffer: buffer,
@@ -235,7 +222,7 @@ export async function uploadPhoto(params: {
     // Étape 3 : update row avec les vrais paths
     const updated = await prisma.photo.update({
       where: { id: created.id },
-      data: { originalPath, blurredPath },
+      data: { originalPath, blurredPath, blurMediumPath },
       select: {
         id: true,
         userId: true,
@@ -311,7 +298,7 @@ export async function deletePhoto(params: {
 
   const photo = await prisma.photo.findUnique({
     where: { id: photoId },
-    select: { id: true, userId: true, originalPath: true, blurredPath: true, isPrimary: true },
+    select: { id: true, userId: true, originalPath: true, blurredPath: true, blurMediumPath: true, isPrimary: true },
   });
   if (!photo) throw new NotFoundError("Photo");
   if (photo.userId !== userId) {
@@ -341,13 +328,12 @@ export async function deletePhoto(params: {
   });
 
   // Fichiers disque : fire-and-forget après commit
-  await deletePhotoFiles(photo.originalPath, photo.blurredPath);
+  await deletePhotoFiles(photo.originalPath, photo.blurredPath, photo.blurMediumPath);
 }
 
 // ============================================================
 // resolvePhotoForStream — utilisée par la route /file/:id/:variant
-// Vérifie l'ownership ou le déblocage via resolvePhotoAccess,
-// puis retourne le chemin absolu du fichier à streamer.
+// Vérifie l'ownership ou le déblocage, puis retourne l'original.
 // ============================================================
 export async function resolvePhotoForStream(params: {
   viewerId: string;
@@ -355,7 +341,7 @@ export async function resolvePhotoForStream(params: {
   photoId: string;
   variant: PhotoVariant;
 }): Promise<{ absolutePath: string; ownerId: string }> {
-  const { viewerId, viewerIsPremium, photoId, variant } = params;
+  const { viewerId, viewerIsPremium, photoId } = params;
 
   const photo = await prisma.photo.findUnique({
     where: { id: photoId },
@@ -363,7 +349,6 @@ export async function resolvePhotoForStream(params: {
       id: true,
       userId: true,
       originalPath: true,
-      blurredPath: true,
     },
   });
   if (!photo) throw new NotFoundError("Photo");
@@ -374,36 +359,30 @@ export async function resolvePhotoForStream(params: {
 
   if (!isOwner) {
     hasBlock = await hasBlockBetween(viewerId, photo.userId);
-    // Un lookup de match n'est utile que pour la variante "original"
-    if (variant === "original") {
-      match = await findMatchBetween(viewerId, photo.userId);
-    }
+    match = await findMatchBetween(viewerId, photo.userId);
   }
 
   const access = resolvePhotoAccess({
     viewerId,
     ownerId: photo.userId,
-    variant,
     viewerIsPremium,
     hasBlock,
     match,
   });
+
   if (!access.allowed) {
     switch (access.reason) {
       case "BLOCKED":
         throw new ForbiddenError("Accès interdit");
-      case "NO_MATCH_FOR_ORIGINAL":
+      case "NO_MATCH":
         throw new ForbiddenError("Aucune relation existante avec cet utilisateur");
       case "NOT_UNLOCKED":
-        throw new ForbiddenError(
-          "Photos non encore déverrouillées pour cette relation",
-        );
+        throw new ForbiddenError("Photos non encore déverrouillées pour cette relation");
       default:
         throw new ForbiddenError("Accès interdit");
     }
   }
 
-  const relative = variant === "original" ? photo.originalPath : photo.blurredPath;
-  const absolutePath = resolveStoredPath(relative);
+  const absolutePath = resolveStoredPath(photo.originalPath);
   return { absolutePath, ownerId: photo.userId };
 }

@@ -1,12 +1,15 @@
 import { Router } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
-import { requireAuth } from "../../core/middleware/auth";
+import { requireAuth, requireRole } from "../../core/middleware/auth";
+import { Role } from "@prisma/client";
 import { lettersRateLimit } from "../../core/middleware/rateLimit";
 import { CreateMatchSchema, GhostRelanceSchema } from "./matches.schemas";
 import * as matchCtrl from "./matches.controller";
 import * as letterCtrl from "../letters/letters.controller";
+import * as questionsCtrl from "./questions.controller";
 import { SendLetterSchema, ListLettersQuerySchema } from "../letters/letters.schemas";
+import { SubmitAnswersSchema } from "./questions.schemas";
 import { AuthedRequest } from "../../core/types";
 
 const router = Router();
@@ -20,8 +23,14 @@ const wrap = (
 
 // ── Matches ───────────────────────────────────────────────────────────────────
 
-// POST /api/matches — Proposer un match
-router.post("/", validate(CreateMatchSchema), wrap(matchCtrl.handleCreate));
+// POST /api/matches — Création directe de match (ADMIN/MOD uniquement)
+// Les utilisateurs normaux passent par POST /api/discover/react (sourire mutuel)
+router.post(
+  "/",
+  requireRole(Role.ADMIN, Role.MODERATOR) as never,
+  validate(CreateMatchSchema),
+  wrap(matchCtrl.handleCreate),
+);
 
 // GET /api/matches — Liste mes matchs
 router.get("/", wrap(matchCtrl.handleList));
@@ -43,6 +52,18 @@ router.post(
   "/:id/ghost-relance",
   validate(GhostRelanceSchema),
   wrap(matchCtrl.handleGhostRelance),
+);
+
+// ── Jeu des 3 questions ───────────────────────────────────────────────────────
+
+// GET /api/matches/:matchId/questions — Questions de l'autre + statut de ma soumission
+router.get("/:matchId/questions", wrap(questionsCtrl.handleGetQuestions));
+
+// POST /api/matches/:matchId/questions/answers — Soumettre mes réponses
+router.post(
+  "/:matchId/questions/answers",
+  validate(SubmitAnswersSchema),
+  wrap(questionsCtrl.handleSubmitAnswers),
 );
 
 // ── Lettres (sous-ressource du match) ────────────────────────────────────────

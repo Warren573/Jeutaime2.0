@@ -22,12 +22,24 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export default function MiniGamesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { addCoins, addPoints, incrementStat } = useStore();
+  const { addPoints, incrementStat } = useStore();
+  const loadWallet = useStore((s) => s.loadWallet);
   const [currentGame, setCurrentGame] = useState<string | null>(null);
   const [result, setResult] = useState<{ won: boolean; reward: number } | null>(null);
 
+  // CardGame gère lui-même le wallet via backend — on raffraîchit et màj stats
+  const handleCardGameEnd = async (won: boolean, reward: number) => {
+    await loadWallet();
+    if (won) {
+      addPoints(15);
+      incrementStat('gamesWon');
+    } else {
+      addPoints(5);
+    }
+    setResult({ won, reward });
+  };
+
   const handleWin = (game: string, reward: number) => {
-    addCoins(reward);
     addPoints(15);
     incrementStat('gamesWon');
     setResult({ won: true, reward });
@@ -71,7 +83,7 @@ export default function MiniGamesScreen() {
         
         <ScrollView contentContainerStyle={styles.gameContent}>
           {currentGame === 'cards' && (
-            <CardGame onEnd={(won, coins) => won ? handleWin('cards', coins) : handleLose()} />
+            <CardGame onEnd={handleCardGameEnd} />
           )}
           {currentGame === 'story' && (
             <StoryGame onEnd={(won, score) => won ? handleWin('story', 50) : handleLose()} />

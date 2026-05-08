@@ -9,6 +9,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { FEATURES } from "../config/features";
+import { useStore } from "../store/useStore";
 
 const BAR_HEIGHT = 64;
 const ACTIVE_LIFT = 24;
@@ -47,6 +48,7 @@ export default function CustomTabBar({
   navigation,
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const unreadNotificationsCount = useStore((s) => s.unreadNotificationsCount);
 
   const visibleRoutes = useMemo(() => {
     return state.routes.filter((route) => {
@@ -153,6 +155,9 @@ export default function CustomTabBar({
                   ]}
                 >
                   <Text style={styles.activeIcon}>{meta.icon}</Text>
+                  {route.name === "settings" && unreadNotificationsCount > 0 && (
+                    <View style={styles.badgeDot} />
+                  )}
                 </Animated.View>
 
                 <Animated.View
@@ -172,6 +177,9 @@ export default function CustomTabBar({
                   ]}
                 >
                   <Text style={styles.inactiveIcon}>{meta.icon}</Text>
+                  {route.name === "settings" && unreadNotificationsCount > 0 && (
+                    <View style={styles.badgeDotInactive} />
+                  )}
                 </Animated.View>
               </TouchableOpacity>
             );
@@ -248,5 +256,27 @@ const styles = StyleSheet.create({
     lineHeight: INACTIVE_ICON + 4,
     opacity: 0.45,
     textAlign: "center",
+  },
+  badgeDot: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#C0392B",
+    borderWidth: 1.5,
+    borderColor: "#3A2818",
+  },
+  badgeDotInactive: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: "#C0392B",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
   },
 });

@@ -27,6 +27,24 @@ import * as EconomyEngine from '../engine/EconomyEngine';
 import * as ProgressionEngine from '../engine/ProgressionEngine';
 import * as PetEngine from '../engine/PetEngine';
 import { apiFetch } from '../api/client';
+import { login as apiLogin, register as apiRegister, logout as apiLogout, saveSession, clearSession as clearApiSession, type RegisterPayload } from '../api/auth';
+import {
+  listMatches, listLetters, sendLetter,
+  markLetterRead as apiMarkLetterRead,
+  getMatchQuestions, submitMatchAnswers,
+  type MatchDTO, type LetterDTO, type MatchQuestionsDTO, type MatchAnswersResultDTO,
+} from '../api/matches';
+import {
+  getWallet as apiGetWallet,
+  claimDailyBonus as apiClaimDailyBonus,
+} from '../api/wallet';
+import {
+  getNotifications as apiGetNotifications,
+  getUnreadCount as apiGetUnreadCount,
+  markNotificationRead as apiMarkNotificationRead,
+  markAllNotificationsRead as apiMarkAllNotificationsRead,
+  type NotificationDto,
+} from '../api/notifications';
 
 // ===== DEV MODE =====
 // À mettre à `false` pour le build final
@@ -39,7 +57,7 @@ const DEV_INITIAL_USER = {
   email: 'sophie@jeutaime.dev',
   isPremium: false,
   avatarConfig: {} as any,
-  stats: { matchesCount: 2, lettersSent: 0, lettersReceived: 0, offeringsSent: 0, powerUsed: 0, gamesWon: 0, salonsVisited: 0, daysActive: 1, storiesParticipated: 0, storiesCompleted: 0 },
+  stats: { matchesCount: 0, lettersSent: 0, lettersReceived: 0, offeringsSent: 0, powerUsed: 0, gamesWon: 0, salonsVisited: 0, daysActive: 0, storiesParticipated: 0, storiesCompleted: 0 },
   unlockedBadges: [] as string[],
   gender: 'FEMME' as any,
   age: 28,
@@ -57,10 +75,10 @@ const DEV_INITIAL_USER = {
   height: 168,
   physicalDesc: 'moyenne',
   skills: [
-    { label: 'Communication', detail: 'répond vraiment (incroyable)',      score: 80, emoji: '💬' },
-    { label: 'Cuisine',       detail: 'maîtrise les pâtes (et Uber Eats)', score: 72, emoji: '🍝' },
-    { label: 'Organisation',  detail: 'pro dans la procrastination',        score: 58, emoji: '🎯' },
-    { label: 'Relationnel',   detail: "peut s'attacher trop vite",          score: 88, emoji: '🌿' },
+    { id: 'communication', label: 'Communication', detail: 'répond vraiment (incroyable)',      score: 80, emoji: '💬' },
+    { id: 'cuisine',       label: 'Cuisine',       detail: 'maîtrise les pâtes (et Uber Eats)', score: 70, emoji: '🍝' },
+    { id: 'organisation',  label: 'Organisation',  detail: 'pro dans la procrastination',       score: 60, emoji: '🗂️' },
+    { id: 'empathie',      label: 'Empathie',      detail: "peut s'attacher trop vite",         score: 90, emoji: '🫂' },
   ],
   qualities: ['Drôle', 'Attentionnée', 'Loyale'],
   defaults: ['Têtue', 'Oublie de répondre', 'Achète trop de trucs'],
@@ -123,6 +141,7 @@ interface CurrentUser {
   city?: string;
   physicalDesc?: string;
   questions?: { text: string; options: [string, string, string]; correctAnswer: 0 | 1 | 2 }[];
+  apiQuestions?: { questionId: string; answer: string; wrongAnswers: string[] }[];
   lookingFor?: string[];
   interestedIn?: string[];
   interests?: string[];
@@ -135,13 +154,43 @@ interface CurrentUser {
   qualities?: string[];
   defaults?: string[];
   idealDay?: string[];
-  skills?: { label: string; detail: string; score: number; emoji: string }[];
+  skills?: { id?: string; label: string; detail: string; score: number; emoji: string }[];
+  // Photos
+  photos?: string[];           // URIs des photos uploadées (web: objectURL, prod: CDN URL)
+  mainPhotoUri?: string;       // photo sélectionnée comme principale
+  showPhotoByDefault?: boolean; // true = afficher la photo dans le profil, false = avatar
+  // Profile completeness
+  isProfileComplete?: boolean;
+  profileMissingFields?: string[];
+  completionScore?: number;
+  canDiscover?: boolean;
+  canMatch?: boolean;
+  canEnterSalon?: boolean;
+}
+
+// Profil d'un partenaire de match (subset des champs, toujours visible côté personnalité)
+export interface PartnerProfile {
+  id: string;
+  pseudo: string;
+  age?: number;
+  bio?: string;
+  city?: string;
+  height?: number;
+  physicalDesc?: string;
+  lookingFor?: string[];
+  quote?: string;
+  qualities?: string[];
+  defaults?: string[];
+  idealDay?: string[];
+  skills?: { id?: string; label: string; detail: string; score: number; emoji: string }[];
+  mainPhotoUri?: string; // révélée selon le niveau de relation
 }
 
 interface StoreState {
   // ===== User & Profile =====
   currentUser: CurrentUser | null;
   isAuthenticated: boolean;
+  matchPartners: Record<string, PartnerProfile>;
   
   // ===== Economy =====
   coins: number;
@@ -159,7 +208,10 @@ interface StoreState {
   
   // ===== Matches & Letters =====
   matches: Match[];
+  apiMatches: MatchDTO[];
   letters: Letter[];
+  lettersByMatch: Record<string, Letter[]>;
+  questionsByMatch: Record<string, MatchQuestionsDTO>;
   likedProfiles: string[];
   dislikedProfiles: string[];
   
@@ -174,12 +226,19 @@ interface StoreState {
   setCurrentUser: (user: CurrentUser | null) => void;
   loadUserData: () => void;
   hydrateFromApi: () => Promise<void>;
-  
+  login: (email: string, password: string) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
+  logout: () => Promise<void>;
+  loadMatches: () => Promise<void>;
+  loadQuestions: (matchId: string) => Promise<void>;
+  submitAnswers: (matchId: string, answers: { profileQuestionId: string; answer: string }[]) => Promise<MatchAnswersResultDTO>;
+
   // ===== Actions - Economy =====
   addCoins: (amount: number, reason?: string, category?: TransactionCategory) => void;
   removeCoins: (amount: number, reason?: string, category?: TransactionCategory) => boolean;
   canAfford: (amount: number) => boolean;
-  claimDailyBonus: () => boolean;
+  loadWallet: () => Promise<void>;
+  claimDailyBonus: () => Promise<boolean>;
   
   // ===== Actions - Progression =====
   addPoints: (amount: number, reason?: string) => void;
@@ -202,6 +261,11 @@ interface StoreState {
   addMatch: (match: Match) => void;
   addLetter: (letter: Letter) => void;
   markLetterRead: (letterId: string) => void;
+  loadLetters: (matchId: string) => Promise<void>;
+  /** Charge les lettres du match et marque toutes les entrantes non lues comme lues. */
+  openAndMarkRead: (matchId: string) => Promise<void>;
+  sendApiLetter: (matchId: string, content: string) => Promise<void>;
+  markLetterReadApi: (letterId: string) => Promise<void>;
   addLike: (profileId: string) => void;
   addDislike: (profileId: string) => void;
   
@@ -212,6 +276,14 @@ interface StoreState {
   // ===== Duels =====
   duelEntries: Array<{ id: string; text: string; createdAt: number; players: string[] }>;
   addDuelEntry: (entry: { text: string; players: string[] }) => void;
+
+  // ===== Notifications =====
+  notifications: NotificationDto[];
+  unreadNotificationsCount: number;
+  loadNotifications: () => Promise<void>;
+  loadUnreadCount: () => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
 
   // ===== Backgrounds =====
   screenBackgrounds: Record<string, string>;
@@ -242,57 +314,31 @@ export const useStore = create<StoreState>()(
       
       pet: null,
       
-      matches: [
-        // Matchs de démo
-        { id: 'm1', userAId: 'me', userBId: 'sophie', createdAt: Date.now(), questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true }, status: 'active', letterCount: 5 },
-        { id: 'm2', userAId: 'me', userBId: 'alex', createdAt: Date.now() - 86400000, questionValidation: { userACorrect: 1, userBCorrect: 3, isValid: true }, status: 'active', letterCount: 12 },
-      ],
-      letters: [
-        // Lettres de démo — SANS readAt → déclenchent PremiumLetterAnimation à l'ouverture
-        {
-          id: 'l1',
-          threadId: 'm1',
-          fromUserId: 'sophie',
-          toUserId: 'me',
-          content: "Bonsoir... Je ne sais pas trop comment commencer, mais je voulais te dire que tes réponses m'ont vraiment touché(e). Il y a quelque chose dans ta façon d'être qui me donne envie d'en savoir plus. À bientôt, peut-être ? 🌿",
-          createdAt: Date.now() - 7200000,
-          // readAt absent → lettre non lue → animation jouée
-        },
-        {
-          id: 'l2',
-          threadId: 'm1',
-          fromUserId: 'me',
-          toUserId: 'sophie',
-          content: "Bonsoir Sophie. Tes mots m'ont mis le sourire aux lèvres. Écrire comme ça, c'est un art que peu maîtrisent — toi, tu sembles y exceller naturellement.",
-          createdAt: Date.now() - 3600000,
-          readAt: Date.now() - 3500000,
-        },
-        {
-          id: 'l3',
-          threadId: 'm2',
-          fromUserId: 'alex',
-          toUserId: 'me',
-          content: "Salut ! Je suis tombé(e) sur ton profil et j'ai adoré ta question sur les étoiles. Moi aussi je me perds parfois à regarder le ciel. On a peut-être plus en commun qu'il n'y paraît ✨",
-          createdAt: Date.now() - 1800000,
-          // readAt absent → lettre non lue → animation jouée
-        },
-      ],
+      matchPartners: {},
+
+      apiMatches: [],
+      matches: [],
+      letters: [],
+      lettersByMatch: {},
+      questionsByMatch: {},
       likedProfiles: [],
       dislikedProfiles: [],
       messagesBySalon: {},
       screenBackgrounds: {},
       duelEntries: [],
       avatarPngConfig: DEFAULT_AVATAR,
+      notifications: [],
+      unreadNotificationsCount: 0,
 
       stats: {
-        matchesCount: 2,
+        matchesCount: 0,
         lettersSent: 0,
         lettersReceived: 0,
         offeringsSent: 0,
         powerUsed: 0,
         gamesWon: 0,
         salonsVisited: 0,
-        daysActive: 1,
+        daysActive: 0,
         storiesParticipated: 0,
         storiesCompleted: 0,
       },
@@ -324,7 +370,7 @@ export const useStore = create<StoreState>()(
             name: p.pseudo ?? prevUser?.name ?? '',
             pseudo: p.pseudo ?? prevUser?.pseudo,
             email: d.email,
-            isPremium: d.premiumTier === 'PREMIUM',
+            isPremium: d.premiumTier === 'PREMIUM' && !!d.premiumUntil && new Date(d.premiumUntil) > new Date(),
             avatarConfig: ((p.avatarConfig ?? prevUser?.avatarConfig ?? {}) as any),
             stats: prevUser?.stats ?? { matchesCount: 0, lettersSent: 0, lettersReceived: 0, offeringsSent: 0, powerUsed: 0, gamesWon: 0, salonsVisited: 0, daysActive: 0, storiesParticipated: 0, storiesCompleted: 0 },
             unlockedBadges: p.badges ?? prevUser?.unlockedBadges ?? [],
@@ -351,11 +397,177 @@ export const useStore = create<StoreState>()(
             defaults: Array.isArray(p.defaults) ? p.defaults : prevUser?.defaults,
             idealDay: Array.isArray(p.idealDay) ? p.idealDay : prevUser?.idealDay,
             skills: p.skills != null ? (p.skills as any) : prevUser?.skills,
+            apiQuestions: Array.isArray(p.questions)
+              ? p.questions.map((q: any) => ({
+                  questionId: q.questionId,
+                  answer: q.answer ?? '',
+                  wrongAnswers: Array.isArray(q.wrongAnswers) ? q.wrongAnswers : [],
+                }))
+              : prevUser?.apiQuestions,
+            isProfileComplete: d.profileStatus?.isComplete,
+            profileMissingFields: d.profileStatus?.missingFields,
+            completionScore: d.profileStatus?.completionScore,
+            canDiscover: d.profileStatus?.canDiscover,
+            canMatch: d.profileStatus?.canMatch,
+            canEnterSalon: d.profileStatus?.canEnterSalon,
           };
           console.log("HYDRATE_SET_USER", mappedUser);
           get().setCurrentUser(mappedUser);
+          // Charger les vrais matchs, le wallet et le compteur notifs depuis l'API
+          await Promise.all([get().loadMatches(), get().loadWallet(), get().loadUnreadCount()]);
         } catch {
           // token invalide ou réseau — user reste non-authentifié
+        }
+      },
+
+      login: async (email, password) => {
+        const tokens = await apiLogin({ email, password });
+        await saveSession(tokens);
+        await get().hydrateFromApi();
+      },
+
+      register: async (payload) => {
+        console.warn('[store.register] calling apiRegister...');
+        const tokens = await apiRegister(payload);
+        console.warn('[store.register] tokens received, saving session...');
+        await saveSession(tokens);
+        console.warn('[store.register] session saved, hydrating...');
+        await get().hydrateFromApi();
+        // New users have no profile yet → hydrateFromApi returns early without
+        // calling setCurrentUser → isAuthenticated stays false.
+        // Tokens are valid, so force isAuthenticated=true.
+        if (!get().isAuthenticated) {
+          console.warn('[store.register] hydrateFromApi returned early (no profile yet) — forcing isAuthenticated=true');
+          set({ isAuthenticated: true });
+        }
+        console.warn('[store.register] done. isAuthenticated=', get().isAuthenticated);
+      },
+
+      logout: async () => {
+        // Revoke refresh token on backend — fire-and-forget, never block local cleanup
+        AsyncStorage.getItem('auth_refresh_token')
+          .then((rt) => { if (rt) apiLogout(rt).catch(() => {}); })
+          .catch(() => {});
+
+        // Clear auth tokens + Zustand persist key immediately
+        await Promise.all([
+          clearApiSession(),
+          AsyncStorage.removeItem('jeutaime-storage-v8'),
+        ]).catch(() => {});
+
+        // Reset all auth-sensitive state
+        set({
+          currentUser: null,
+          isAuthenticated: false,
+          matchPartners: {},
+          apiMatches: [],
+          matches: [],
+          letters: [],
+          lettersByMatch: {},
+          questionsByMatch: {},
+          notifications: [],
+          unreadNotificationsCount: 0,
+          likedProfiles: [],
+          dislikedProfiles: [],
+        });
+      },
+
+      loadMatches: async () => {
+        try {
+          const data = await listMatches();
+          const viewerId = get().currentUser?.id;
+          console.log("[loadMatches] raw →", data.map(m => ({
+            id: m.id, status: m.status,
+            questionsValidated: m.questionsValidated,
+            initiatorId: m.initiatorId,
+            otherUserId: m.otherUserId,
+            canSend: m.canSend,
+          })));
+          if (!viewerId || data.length === 0) return;
+
+          const adapted: Match[] = data.map((m) => {
+            const isA = m.userAId === viewerId;
+            const myCount = isA ? m.letterCountA : m.letterCountB;
+            const otherCount = isA ? m.letterCountB : m.letterCountA;
+            const rawStatus = m.status;
+            const status: 'pending' | 'active' | 'broken' | 'blocked' =
+              rawStatus === 'PENDING'
+                ? 'pending'
+                : ['ACTIVE', 'GHOSTED'].includes(rawStatus)
+                ? 'active'
+                : rawStatus === 'BLOCKED'
+                ? 'blocked'
+                : 'broken';
+            return {
+              id: m.id,
+              userAId: m.userAId,
+              userBId: m.userBId,
+              initiatorId: m.initiatorId,
+              createdAt: new Date(m.createdAt).getTime(),
+              status,
+              letterCount: myCount + otherCount,
+              letterCountA: m.letterCountA,
+              letterCountB: m.letterCountB,
+              questionsValidated: m.questionsValidated,
+              canSend: m.canSend,
+              canSendReason: m.canSendReason,
+              lastLetterAt: m.lastLetterAt ? new Date(m.lastLetterAt).getTime() : null,
+              lastLetterBy: m.lastLetterBy,
+              hasUnreadIncomingLetter: m.hasUnreadIncomingLetter,
+              photoUnlocked: m.photoUnlock.unlocked,
+              photoUrl: m.photoUrl ?? null,
+              questionValidation: {
+                userACorrect: 0,
+                userBCorrect: 0,
+                isValid: m.questionsValidated,
+              },
+            };
+          });
+
+          const newPartners: Record<string, PartnerProfile> = {};
+          for (const m of data) {
+            if (m.otherProfile && m.otherUserId) {
+              const bd = m.otherProfile.birthDate
+                ? new Date(m.otherProfile.birthDate)
+                : null;
+              let age: number | undefined;
+              if (bd && !isNaN(bd.getTime())) {
+                const now = new Date();
+                let a = now.getFullYear() - bd.getFullYear();
+                if (
+                  now.getMonth() < bd.getMonth() ||
+                  (now.getMonth() === bd.getMonth() &&
+                    now.getDate() < bd.getDate())
+                ) a--;
+                age = a >= 13 ? a : undefined;
+              }
+              newPartners[m.otherUserId] = {
+                id: m.otherUserId,
+                pseudo: m.otherProfile.pseudo,
+                age,
+                bio: m.otherProfile.bio,
+                city: m.otherProfile.city,
+                physicalDesc: m.otherProfile.physicalDesc ?? undefined,
+              };
+            }
+          }
+
+          // Si l'user est authentifié, toujours utiliser les données API
+          // (même vides — ça veut dire qu'il n'a pas encore de matchs)
+          // Sinon, garder les mocks si pas de données API
+          const isAuth = get().isAuthenticated;
+          set({
+            apiMatches: data,
+            matches: isAuth ? adapted : (adapted.length > 0 ? adapted : get().matches),
+            // When authenticated, replace matchPartners entirely so no mock data leaks
+            matchPartners: isAuth
+              ? newPartners
+              : (Object.keys(newPartners).length > 0
+                  ? { ...get().matchPartners, ...newPartners }
+                  : get().matchPartners),
+          });
+        } catch {
+          // API unreachable — garder les données existantes
         }
       },
       
@@ -382,47 +594,79 @@ export const useStore = create<StoreState>()(
         const { coins, transactions } = get();
         const wallet: Wallet = { odId: 'me', coins, lastDailyBonus: get().lastDailyBonus, transactions };
         const updated = EconomyEngine.addCoins(wallet, amount, reason, category);
-        set({ 
-          coins: updated.coins, 
-          transactions: updated.transactions.slice(0, 50) 
+        set({
+          coins: updated.coins,
+          transactions: updated.transactions.slice(0, 50)
         });
       },
-      
+
       removeCoins: (amount, reason = 'Achat', category = 'offering_sent') => {
         const { coins, transactions, lastDailyBonus } = get();
         const wallet: Wallet = { odId: 'me', coins, lastDailyBonus, transactions };
         const updated = EconomyEngine.removeCoins(wallet, amount, reason, category);
         if (updated) {
-          set({ 
-            coins: updated.coins, 
-            transactions: updated.transactions.slice(0, 50) 
+          set({
+            coins: updated.coins,
+            transactions: updated.transactions.slice(0, 50)
           });
           return true;
         }
         return false;
       },
-      
+
       canAfford: (amount) => get().coins >= amount,
-      
-      claimDailyBonus: () => {
+
+      loadWallet: async () => {
+        try {
+          const wallet = await apiGetWallet();
+          set({
+            coins: wallet.coins,
+            lastDailyBonus: wallet.lastDailyBonus
+              ? new Date(wallet.lastDailyBonus).getTime()
+              : 0,
+          });
+        } catch {
+          // API unreachable — garder le solde local
+        }
+      },
+
+      claimDailyBonus: async () => {
+        const isAuth = get().isAuthenticated;
+
+        if (isAuth) {
+          try {
+            const result = await apiClaimDailyBonus();
+            set({
+              coins: result.wallet.coins,
+              lastDailyBonus: result.wallet.lastDailyBonus
+                ? new Date(result.wallet.lastDailyBonus).getTime()
+                : Date.now(),
+            });
+            get().addPoints(ProgressionEngine.POINTS.dailyLogin, 'Connexion quotidienne');
+            return true;
+          } catch {
+            // Déjà réclamé aujourd'hui (422) ou erreur réseau
+            return false;
+          }
+        }
+
+        // Fallback local (non authentifié / dev)
         const { coins, transactions, lastDailyBonus, currentUser } = get();
         const wallet: Wallet = { odId: 'me', coins, lastDailyBonus, transactions };
-        
+
         if (!EconomyEngine.canClaimDailyBonus(wallet)) {
           return false;
         }
-        
+
         const isPremium = currentUser?.isPremium ?? false;
         const updated = EconomyEngine.applyDailyBonus(wallet, isPremium);
-        set({ 
-          coins: updated.coins, 
+        set({
+          coins: updated.coins,
           transactions: updated.transactions.slice(0, 50),
           lastDailyBonus: updated.lastDailyBonus,
         });
-        
-        // Ajouter des points pour la connexion
+
         get().addPoints(ProgressionEngine.POINTS.dailyLogin, 'Connexion quotidienne');
-        
         return true;
       },
 
@@ -544,8 +788,139 @@ export const useStore = create<StoreState>()(
       },
 
       // ===== Match & Letter Actions =====
+
+      loadLetters: async (matchId: string) => {
+        try {
+          const data = await listLetters(matchId);
+          set((state) => {
+            // Conserver les readAt déjà posés localement (mises à jour optimistes)
+            // pour éviter qu'un rechargement API les efface si le serveur n'a pas encore traité le markRead
+            const localReadAt = new Map(
+              (state.lettersByMatch[matchId] ?? []).map(l => [l.id, l.readAt]),
+            );
+            const adapted: Letter[] = data.map((dto: LetterDTO) => ({
+              id: dto.id,
+              threadId: dto.matchId,
+              fromUserId: dto.fromUserId,
+              toUserId: dto.toUserId,
+              content: dto.content,
+              createdAt: new Date(dto.sentAt).getTime(),
+              readAt: dto.readAt
+                ? new Date(dto.readAt).getTime()
+                : localReadAt.get(dto.id),
+            }));
+            return {
+              lettersByMatch: { ...state.lettersByMatch, [matchId]: adapted },
+            };
+          });
+        } catch {
+          // API unreachable — garder les données existantes
+        }
+      },
+
+      openAndMarkRead: async (matchId: string) => {
+        await get().loadLetters(matchId);
+        const viewerId = get().currentUser?.id ?? '';
+        const unread = (get().lettersByMatch[matchId] ?? []).filter(
+          l => l.toUserId === viewerId && !l.readAt,
+        );
+        await Promise.all(unread.map(l => get().markLetterReadApi(l.id)));
+        // S'assurer que le flag match-level est bien éteint
+        set((state) => ({
+          matches: state.matches.map(m =>
+            m.id === matchId ? { ...m, hasUnreadIncomingLetter: false } : m,
+          ),
+        }));
+      },
+
+      sendApiLetter: async (matchId: string, content: string) => {
+        const dto = await sendLetter(matchId, content);
+        const viewerId = get().currentUser?.id ?? '';
+        const sentAt = new Date(dto.sentAt).getTime();
+        const adapted: Letter = {
+          id: dto.id,
+          threadId: dto.matchId,
+          fromUserId: dto.fromUserId,
+          toUserId: dto.toUserId,
+          content: dto.content,
+          createdAt: sentAt,
+          readAt: undefined,
+        };
+        set((state) => ({
+          lettersByMatch: {
+            ...state.lettersByMatch,
+            [matchId]: [...(state.lettersByMatch[matchId] ?? []), adapted],
+          },
+          // Mise à jour optimiste de la carte liste : plus notre tour, lettre envoyée
+          matches: state.matches.map(m => {
+            if (m.id !== matchId) return m;
+            return {
+              ...m,
+              canSend: false,
+              canSendReason: 'AWAITING_REPLY' as const,
+              hasUnreadIncomingLetter: false,
+              lastLetterBy: viewerId,
+              lastLetterAt: sentAt,
+              letterCountA: m.userAId === viewerId ? m.letterCountA + 1 : m.letterCountA,
+              letterCountB: m.userBId === viewerId ? m.letterCountB + 1 : m.letterCountB,
+              letterCount: m.letterCount + 1,
+            };
+          }),
+        }));
+        get().incrementStat('lettersSent');
+        get().addPoints(ProgressionEngine.POINTS.sendLetter, 'Lettre envoyée');
+        void get().loadUnreadCount();
+      },
+
+      markLetterReadApi: async (letterId: string) => {
+        // Mise à jour locale immédiate (optimiste) — arrête l'animation avant la réponse API
+        get().markLetterRead(letterId);
+        set((state) => {
+          const updated = { ...state.lettersByMatch };
+          for (const matchId of Object.keys(updated)) {
+            const arr = updated[matchId];
+            if (arr) {
+              const idx = arr.findIndex((l) => l.id === letterId);
+              if (idx >= 0) {
+                const copy = [...arr];
+                copy[idx] = { ...copy[idx]!, readAt: Date.now() };
+                updated[matchId] = copy;
+                break;
+              }
+            }
+          }
+          return { lettersByMatch: updated };
+        });
+        // Appel API en arrière-plan
+        try {
+          await apiMarkLetterRead(letterId);
+        } catch {
+          // Silencieux — l'état local reste correct
+        }
+      },
+
+      loadQuestions: async (matchId: string) => {
+        try {
+          const data = await getMatchQuestions(matchId);
+          set((state) => ({
+            questionsByMatch: { ...state.questionsByMatch, [matchId]: data },
+          }));
+        } catch {
+          // API unreachable — garder ce qui est en cache
+        }
+      },
+
+      submitAnswers: async (matchId: string, answers: { profileQuestionId: string; answer: string }[]) => {
+        const result = await submitMatchAnswers(matchId, answers);
+        // Si validé → rafraîchir le match pour mettre à jour questionsValidated
+        if (result.questionsValidated || result.matchBroken) {
+          await get().loadMatches();
+        }
+        return result;
+      },
+
       addMatch: (match) => {
-        set((state) => ({ 
+        set((state) => ({
           matches: [...state.matches, match],
         }));
         get().incrementStat('matchesCount');
@@ -614,13 +989,55 @@ export const useStore = create<StoreState>()(
       },
 
       updateAvatarPngConfig: (config) => set({ avatarPngConfig: config }),
+
+      // ===== Notification Actions =====
+      loadNotifications: async () => {
+        try {
+          const page = await apiGetNotifications({ pageSize: 50 });
+          set({ notifications: page.items });
+        } catch { }
+      },
+
+      loadUnreadCount: async () => {
+        try {
+          const count = await apiGetUnreadCount();
+          set({ unreadNotificationsCount: count });
+        } catch { }
+      },
+
+      markNotificationRead: async (id) => {
+        try {
+          await apiMarkNotificationRead(id);
+          set((state) => ({
+            notifications: state.notifications.map((n) =>
+              n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n,
+            ),
+            unreadNotificationsCount: Math.max(0, state.unreadNotificationsCount - 1),
+          }));
+        } catch { }
+      },
+
+      markAllNotificationsRead: async () => {
+        try {
+          await apiMarkAllNotificationsRead();
+          set((state) => ({
+            notifications: state.notifications.map((n) => ({
+              ...n,
+              isRead: true,
+              readAt: n.readAt ?? new Date().toISOString(),
+            })),
+            unreadNotificationsCount: 0,
+          }));
+        } catch { }
+      },
     }),
     {
-      name: 'jeutaime-storage-v3',
+      name: 'jeutaime-storage-v8',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
-        // En dev mode, coins n'est pas sauvegardé → toujours 50 000 au démarrage
-        ...(DEV_MODE_UNLIMITED_COINS ? {} : { coins: state.coins }),
+        // En dev non-authentifié, coins n'est pas sauvegardé → 50 000 au démarrage
+        // Si authentifié, le solde réel est toujours persisté même en dev
+        ...(DEV_MODE_UNLIMITED_COINS && !state.isAuthenticated ? {} : { coins: state.coins }),
         points: state.points,
         level: state.level,
         title: state.title,

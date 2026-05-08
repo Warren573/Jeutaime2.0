@@ -11,6 +11,7 @@ import { REFRESH_TOKEN_TTL_S } from "../../config/constants";
 import { RegisterDto, LoginDto } from "./auth.schemas";
 import { Gender } from "@prisma/client";
 import { isPremiumActive } from "../../policies/premium";
+import { computeProfileStatus } from "../../policies/profiles";
 
 // -----------------------------------------------------------------------
 // Helpers
@@ -181,5 +182,5 @@ export async function getMe(userId: string) {
   });
 
   if (!user) throw new NotFoundError("Utilisateur");
-  return user;
+  return { ...user, profileStatus: computeProfileStatus(user.profile ?? null) };
 }

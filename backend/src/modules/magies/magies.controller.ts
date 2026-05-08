@@ -30,3 +30,13 @@ export async function handleBreak(req: AuthedRequest, res: Response) {
   const data = await svc.breakMagie(req.user.userId, id, antiSpellId);
   res.json({ data });
 }
+
+// GET /api/magies/salon/:salonId
+export async function handleListSalonMagies(
+  req: AuthedRequest,
+  res: Response,
+) {
+  const salonId = req.params["salonId"] as string;
+  const data = await svc.listSalonMagies(salonId);
+  res.json({ data });
+}

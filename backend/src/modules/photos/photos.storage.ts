@@ -6,6 +6,7 @@ import {
   PHOTO_ORIGINAL_MAX_WIDTH,
   PHOTO_BLURRED_MAX_WIDTH,
   PHOTO_BLUR_SIGMA,
+  PHOTO_BLUR_MEDIUM_SIGMA,
   PHOTO_WEBP_QUALITY,
   PHOTO_BLURRED_WEBP_QUALITY,
 } from "../../config/constants";
@@ -47,6 +48,7 @@ export function buildRelativePaths(userId: string, photoId: string) {
   return {
     originalPath: path.posix.join(userId, `${photoId}-original.webp`),
     blurredPath: path.posix.join(userId, `${photoId}-blurred.webp`),
+    blurMediumPath: path.posix.join(userId, `${photoId}-blur-medium.webp`),
   };
 }
 
@@ -65,10 +67,9 @@ export async function processAndWrite(params: {
   userId: string;
   photoId: string;
   inputBuffer: Buffer;
-}): Promise<{ originalPath: string; blurredPath: string }> {
+}): Promise<{ originalPath: string; blurredPath: string; blurMediumPath: string }> {
   const { userId, photoId, inputBuffer } = params;
 
-  // Vérifier que sharp accepte le bitstream
   let meta;
   try {
     meta = await sharp(inputBuffer).metadata();
@@ -80,43 +81,42 @@ export async function processAndWrite(params: {
   }
 
   const dir = await ensureUserDir(userId);
-  const { originalPath, blurredPath } = buildRelativePaths(userId, photoId);
+  const { originalPath, blurredPath, blurMediumPath } = buildRelativePaths(userId, photoId);
   const absOriginal = path.join(dir, path.basename(originalPath));
   const absBlurred = path.join(dir, path.basename(blurredPath));
+  const absBlurMedium = path.join(dir, path.basename(blurMediumPath));
 
-  // Original : downsize, strip EXIF via rotate() (EXIF orientation baked in)
   try {
+    // Original : downsize, strip EXIF
     await sharp(inputBuffer)
       .rotate()
-      .resize({
-        width: PHOTO_ORIGINAL_MAX_WIDTH,
-        height: PHOTO_ORIGINAL_MAX_WIDTH,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
+      .resize({ width: PHOTO_ORIGINAL_MAX_WIDTH, height: PHOTO_ORIGINAL_MAX_WIDTH, fit: "inside", withoutEnlargement: true })
       .webp({ quality: PHOTO_WEBP_QUALITY })
       .toFile(absOriginal);
 
-    // Blurred : plus petit, blur fort, quality basse
+    // blurStrong (level 1) : forte anonymisation
     await sharp(inputBuffer)
       .rotate()
-      .resize({
-        width: PHOTO_BLURRED_MAX_WIDTH,
-        height: PHOTO_BLURRED_MAX_WIDTH,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
+      .resize({ width: PHOTO_BLURRED_MAX_WIDTH, height: PHOTO_BLURRED_MAX_WIDTH, fit: "inside", withoutEnlargement: true })
       .blur(PHOTO_BLUR_SIGMA)
       .webp({ quality: PHOTO_BLURRED_WEBP_QUALITY })
       .toFile(absBlurred);
+
+    // blurMedium (level 2) : légèrement flouté, silhouette visible
+    await sharp(inputBuffer)
+      .rotate()
+      .resize({ width: PHOTO_BLURRED_MAX_WIDTH, height: PHOTO_BLURRED_MAX_WIDTH, fit: "inside", withoutEnlargement: true })
+      .blur(PHOTO_BLUR_MEDIUM_SIGMA)
+      .webp({ quality: PHOTO_BLURRED_WEBP_QUALITY })
+      .toFile(absBlurMedium);
   } catch (e) {
-    // Cleanup en cas d'échec partiel
     await safeUnlink(absOriginal);
     await safeUnlink(absBlurred);
+    await safeUnlink(absBlurMedium);
     throw new UnprocessableError("Traitement de l'image échoué");
   }
 
-  return { originalPath, blurredPath };
+  return { originalPath, blurredPath, blurMediumPath };
 }
 
 /**
@@ -126,11 +126,16 @@ export async function processAndWrite(params: {
 export async function deletePhotoFiles(
   relativeOriginal: string,
   relativeBlurred: string,
+  relativeBlurMedium?: string | null,
 ): Promise<void> {
-  await Promise.all([
+  const tasks = [
     safeUnlink(resolveStoredPath(relativeOriginal)),
     safeUnlink(resolveStoredPath(relativeBlurred)),
-  ]);
+  ];
+  if (relativeBlurMedium) {
+    tasks.push(safeUnlink(resolveStoredPath(relativeBlurMedium)));
+  }
+  await Promise.all(tasks);
 }
 
 async function safeUnlink(absPath: string): Promise<void> {

@@ -5,6 +5,7 @@ import { requireAuth } from "../../core/middleware/auth";
 import { AuthedRequest } from "../../core/types";
 import {
   ListReceivedQuerySchema,
+  SalonOfferingsParamsSchema,
   SendOfferingSchema,
 } from "./offerings.schemas";
 import * as ctrl from "./offerings.controller";
@@ -28,6 +29,13 @@ router.get(
   "/received",
   validate(ListReceivedQuerySchema, "query"),
   wrap(ctrl.handleListReceived),
+);
+
+// GET /api/offerings/salon/:salonId
+router.get(
+  "/salon/:salonId",
+  validate(SalonOfferingsParamsSchema, "params"),
+  wrap(ctrl.handleListSalonOfferings),
 );
 
 export default router;

@@ -6,11 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
-import { removeToken } from '../utils/session';
 import { titles } from '../data/gameData';
 import { Avatar } from '../avatar/png/Avatar';
 
@@ -103,9 +103,13 @@ function SectionCard({
 export default function SettingsScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
-  const { currentUser, coins, points, getCurrentTitle, pet, avatarPngConfig } = useStore();
+  const { currentUser, coins, points, getCurrentTitle, pet, avatarPngConfig, logout } = useStore();
+  const isAuthenticated = useStore(s => s.isAuthenticated);
   const screenBg = useStore(s => s.screenBackgrounds?.['settings'] ?? '#FFF8E7');
   const title = getCurrentTitle();
+
+  const canDiscover = currentUser?.canDiscover;
+  const hasQuestions = (currentUser?.apiQuestions?.length ?? 0) > 0;
 
   // Progression vers prochain titre
   const currentTitleData = titles.find(t => t.level === title.level);
@@ -117,20 +121,48 @@ export default function SettingsScreen() {
 
   const nav = (route: string) => router.push(route as any);
 
+  const doLogout = () => {
+    // Don't await — navigate regardless of backend revocation outcome
+    logout().catch(() => {});
+    router.replace('/login');
+  };
+
   const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      // Alert.alert uses window.confirm on web, which can be blocked silently
+      // Use window.confirm directly for reliable behaviour
+      if (typeof window !== 'undefined' && !window.confirm('Tu veux vraiment te déconnecter ?')) return;
+      doLogout();
+      return;
+    }
     Alert.alert(
       'Déconnexion',
       'Tu veux vraiment te déconnecter ?',
       [
         { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Oui',
-          style: 'destructive',
-          onPress: async () => {
-            await removeToken();
-            router.replace('/login');
-          },
-        },
+        { text: 'Oui', style: 'destructive', onPress: doLogout },
+      ],
+    );
+  };
+
+  const doDebugReset = () => {
+    // logout() already clears the persist key — just call it
+    logout().catch(() => {});
+    router.replace('/login');
+  };
+
+  const handleDebugReset = () => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && !window.confirm('Effacer toutes les données locales et retourner au login ?')) return;
+      doDebugReset();
+      return;
+    }
+    Alert.alert(
+      'Réinitialiser la session',
+      'Efface toutes les données locales (tokens, cache Zustand) et retourne au login.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Réinitialiser', style: 'destructive', onPress: doDebugReset },
       ],
     );
   };
@@ -142,6 +174,9 @@ export default function SettingsScreen() {
       key: 'profil',
       title: 'Mon profil',
       items: [
+        // Onboarding shortcuts — shown when the user hasn't completed mandatory steps
+        ...(canDiscover === false ? [{ icon: '⚠️', label: 'Compléter mon profil', route: '/create-profile', warning: true } as SettingsItem] : []),
+        ...(isAuthenticated && !hasQuestions ? [{ icon: '❓', label: 'Mes 3 questions', route: '/setup-questions' } as SettingsItem] : []),
         { icon: '✏️', label: 'Modifier mon profil',       route: '/edit-profile' },
         { icon: '📸', label: 'Mes photos',                route: '/my-photos' },
         { icon: '🎯', label: 'Préférences de rencontre',  route: '/matching-preferences' },
@@ -200,9 +235,10 @@ export default function SettingsScreen() {
         { icon: '🚩', label: 'Signalements',                 route: '/user-reports' },
         { icon: '🔑', label: 'Mot de passe et connexion',    route: '/password' },
         { icon: '🗄️', label: 'Données personnelles',         route: '/personal-data' },
-        { icon: '🚪', label: 'Se déconnecter',               action: handleLogout, warning: true },
-        { icon: '⏸️', label: 'Désactiver mon compte',        route: '/deactivate',     warning: true },
+        { icon: '🚪', label: 'Se déconnecter',               action: handleLogout,    warning: true },
+        { icon: '⏸️', label: 'Désactiver mon compte',        route: '/deactivate',    warning: true },
         { icon: '🗑️', label: 'Supprimer mon compte',         route: '/delete-account', danger: true },
+        { icon: '🔄', label: 'Réinitialiser session locale', action: handleDebugReset, danger: true },
       ],
     },
     {

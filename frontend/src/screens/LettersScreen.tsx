@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,21 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  Alert,
+  ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, Link, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { acceptMatch } from '../api/matches';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import { FEATURES } from '../config/features';
+import { getRelationInfo } from '../engine/RelationEngine';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 32;
@@ -26,67 +32,166 @@ const MINI_FLAP_H = 54;
 const LARGE_FLAP_H = 92;
 
 interface EnvelopeCardProps {
+  matchId: string;
   otherName: string;
-  lastMsg?: Letter;
+  lastLetterAt: number | null;
   unread: number;
   myTurn: boolean;
+  letterCount: number;
+  letterCountA: number;
+  letterCountB: number;
+  isPremium?: boolean;
+  questionsValidated: boolean;
+  matchStatus: 'pending' | 'active' | 'broken' | 'blocked';
+  isInitiator: boolean;
   onOpen: () => void;
+  onPlayQuestions: () => void | Promise<void>;
+  onAccept: () => void | Promise<void>;
   formatTime: (ts: number) => string;
 }
 
 const EnvelopeCard = ({
+  matchId,
   otherName,
-  lastMsg,
+  lastLetterAt,
   unread,
   myTurn,
+  letterCount,
+  letterCountA,
+  letterCountB,
+  isPremium = false,
+  questionsValidated,
+  matchStatus,
+  isInitiator,
   onOpen,
+  onPlayQuestions,
+  onAccept,
   formatTime,
 }: EnvelopeCardProps) => {
+  const rel = getRelationInfo(letterCount, isPremium);
+
+  // Petite animation tremblement quand lettre non lue
+  const shakeX = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (unread <= 0) {
+      shakeX.setValue(0);
+      return;
+    }
+    // Tremblement discret répété toutes les 4 secondes
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(3500),
+        Animated.timing(shakeX, { toValue: -3, duration: 60, useNativeDriver: true, easing: Easing.linear }),
+        Animated.timing(shakeX, { toValue: 3, duration: 60, useNativeDriver: true, easing: Easing.linear }),
+        Animated.timing(shakeX, { toValue: -2, duration: 50, useNativeDriver: true, easing: Easing.linear }),
+        Animated.timing(shakeX, { toValue: 2, duration: 50, useNativeDriver: true, easing: Easing.linear }),
+        Animated.timing(shakeX, { toValue: 0, duration: 40, useNativeDriver: true, easing: Easing.linear }),
+      ])
+    );
+    loop.start();
+    return () => { loop.stop(); shakeX.setValue(0); };
+  }, [unread]);
+
+  const previewText = () => {
+    if (matchStatus === 'pending') return '⏳ En attente d\'acceptation';
+    if (matchStatus === 'broken' || matchStatus === 'blocked') return '🚫 Match terminé';
+    if (!questionsValidated) return '🎮 Jeu des questions à compléter';
+    if (letterCount === 0) return myTurn ? '✍️ Écrivez la première lettre !' : '⏳ En attente de la première lettre...';
+    if (unread > 0) return '📨 Nouvelle lettre reçue!';
+    return myTurn ? "✍️ À vous d'écrire..." : '⏳ En attente de réponse...';
+  };
+
+  const timeText = () => {
+    if (letterCount === 0) return 'Nouveau';
+    if (unread > 0) return 'Non lu';
+    return myTurn ? (lastLetterAt ? formatTime(lastLetterAt) : '') : 'Envoyé';
+  };
+
+  const isActive = matchStatus === 'active';
+  const canInteract = isActive && questionsValidated;
+
   return (
-    <>
-      <TouchableOpacity style={envStyles.card} onPress={onOpen} activeOpacity={0.82}>
-        <View style={envStyles.flapMini}>
-          <View style={envStyles.foldLinesWrap}>
-            <View style={[envStyles.foldLine, envStyles.foldLineLL]} />
-            <View style={[envStyles.foldLine, envStyles.foldLineLR]} />
+    <Animated.View
+      style={[
+        envStyles.card,
+        unread > 0 && envStyles.cardUnread,
+        { transform: [{ translateX: shakeX }] },
+      ]}
+    >
+      <View style={envStyles.flapMini}>
+        <View style={envStyles.foldLinesWrap}>
+          <View style={[envStyles.foldLine, envStyles.foldLineLL]} />
+          <View style={[envStyles.foldLine, envStyles.foldLineLR]} />
+        </View>
+        {unread > 0 ? (
+          <View style={envStyles.sealMini}>
+            <Text style={envStyles.sealEmoji}>⚜️</Text>
           </View>
-          {unread > 0 ? (
-            <View style={envStyles.sealMini}>
-              <Text style={envStyles.sealEmoji}>⚜️</Text>
-            </View>
+        ) : (
+          <Text style={envStyles.sealEmpty}>✉️</Text>
+        )}
+      </View>
+      <View style={envStyles.divider} />
+
+      <View style={envStyles.infoRow}>
+        <Avatar size={42} {...DEFAULT_AVATAR} />
+        <View style={envStyles.texts}>
+          <View style={envStyles.nameRow}>
+            <Text style={envStyles.name}>{otherName}</Text>
+            {unread > 0 && (
+              <View style={envStyles.badge}>
+                <Text style={envStyles.badgeTxt}>{unread}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={envStyles.preview} numberOfLines={1}>{previewText()}</Text>
+          {canInteract ? (
+            <Text style={envStyles.levelLine}>
+              {rel.stars} Niveau {rel.level} — {rel.label}{'  '}
+              <Text style={envStyles.letterCounter}>{letterCountA}↑ {letterCountB}↓</Text>
+            </Text>
           ) : (
-            <Text style={envStyles.sealEmpty}>✉️</Text>
+            <Text style={envStyles.levelLine}>{rel.stars} {rel.label}</Text>
           )}
         </View>
-        <View style={envStyles.divider} />
+        <Text style={envStyles.time}>{timeText()}</Text>
+      </View>
 
-        <View style={envStyles.infoRow}>
-          <Avatar size={42} {...DEFAULT_AVATAR} />
-          <View style={envStyles.texts}>
-            <View style={envStyles.nameRow}>
-              <Text style={envStyles.name}>{otherName}</Text>
-              {unread > 0 && (
-                <View style={envStyles.badge}>
-                  <Text style={envStyles.badgeTxt}>{unread}</Text>
-                </View>
-              )}
+      <View style={envStyles.actionBar}>
+        {matchStatus === 'pending' ? (
+          isInitiator ? (
+            <View style={[envStyles.actionLeft, envStyles.actionDisabled]}>
+              <Text style={[envStyles.actionLeftText, envStyles.actionDisabledText]}>⏳ En attente</Text>
             </View>
-            <Text style={envStyles.preview} numberOfLines={1}>
-              {!lastMsg
-                ? '✨ Envoyez la première lettre!'
-                : myTurn
-                  ? unread > 0
-                    ? '📨 Nouvelle lettre reçue!'
-                    : "✍️ À vous d'écrire..."
-                  : '⏳ En attente de réponse...'}
+          ) : (
+            <TouchableOpacity style={envStyles.actionLeft} onPress={onAccept} activeOpacity={0.75}>
+              <Text style={envStyles.actionLeftText}>✅ Accepter le match</Text>
+            </TouchableOpacity>
+          )
+        ) : isActive && !questionsValidated ? (
+          <TouchableOpacity style={envStyles.actionLeft} onPress={onPlayQuestions} activeOpacity={0.75}>
+            <Text style={envStyles.actionLeftText}>🎮 Jouer aux questions</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[envStyles.actionLeft, !canInteract && envStyles.actionDisabled]}
+            onPress={canInteract ? onOpen : undefined}
+            activeOpacity={canInteract ? 0.75 : 1}
+          >
+            <Text style={[envStyles.actionLeftText, !canInteract && envStyles.actionDisabledText]}>
+              📬 Lettres
             </Text>
-          </View>
-          <Text style={envStyles.time}>
-            {!lastMsg ? 'Nouveau' : myTurn ? (unread > 0 ? 'Non lu' : formatTime(lastMsg.createdAt)) : 'Envoyé'}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    </>
+          </TouchableOpacity>
+        )}
+        <View style={envStyles.actionSep} />
+        <Link
+          href={{ pathname: '/match-profile', params: { matchId } }}
+          style={envStyles.actionRight}
+        >
+          {'👤 Profil →'}
+        </Link>
+      </View>
+    </Animated.View>
   );
 };
 
@@ -103,6 +208,13 @@ const envStyles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     overflow: 'hidden',
+  },
+  cardUnread: {
+    borderColor: '#C9621A',
+    shadowColor: '#C9621A',
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 9,
   },
   flapMini: {
     height: MINI_FLAP_H,
@@ -164,8 +276,17 @@ const envStyles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   badgeTxt: { color: '#FFF', fontSize: 11, fontWeight: '700' },
-  preview: { fontSize: 13, color: '#7A5C3A', marginTop: 2 },
-  time: { fontSize: 11, color: '#9A7040' },
+  preview:        { fontSize: 13, color: '#7A5C3A', marginTop: 2 },
+  levelLine:      { fontSize: 11, color: '#B87333', marginTop: 4, fontWeight: '600' },
+  time:           { fontSize: 11, color: '#9A7040' },
+  actionBar:      { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#E8D9C6', minHeight: 40 },
+  actionLeft:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
+  actionLeftText: { fontSize: 12, color: '#5A3A1A', fontWeight: '700' },
+  actionSep:      { width: 1, backgroundColor: '#E8D9C6' },
+  actionRight:       { flex: 1, textAlign: 'center', paddingVertical: 10, fontSize: 12, color: '#9C4D1A', fontWeight: '700', letterSpacing: 0.3, textDecorationLine: 'none' },
+  actionDisabled:    { opacity: 0.4 },
+  actionDisabledText:{ color: '#9A7040' },
+  letterCounter:     { fontSize: 10, color: '#B87333', fontWeight: '600' },
 
   overlay: {
     flex: 1,
@@ -356,16 +477,41 @@ interface Souvenir {
 export default function LettersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { matches, letters, addLetter, markLetterRead, currentUser, addPoints, duelEntries } = useStore();
+  const {
+    matches, letters, lettersByMatch, questionsByMatch,
+    addLetter, markLetterRead, markLetterReadApi,
+    loadLetters, openAndMarkRead, sendApiLetter, loadQuestions, submitAnswers,
+    loadMatches, currentUser, matchPartners, addPoints, duelEntries,
+  } = useStore();
+
+  useFocusEffect(
+    useCallback(() => {
+      loadMatches();
+    }, [loadMatches]),
+  );
   const screenBg = useStore(s => s.screenBackgrounds?.['letters'] ?? '#FFF8E7');
 
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [showCompose, setShowCompose] = useState(false);
+  const [showQGame, setShowQGame] = useState(false);
+  const [qGameMatch, setQGameMatch] = useState<Match | null>(null);
+  const [qSelectedAnswers, setQSelectedAnswers] = useState<Record<string, string>>({});
+  const [qCurrentStep, setQCurrentStep] = useState(0);
+  const [qSubmitting, setQSubmitting] = useState(false);
+  const [qResult, setQResult] = useState<{ myScore: number; passed: boolean; questionsValidated: boolean; waitingForOther: boolean; matchBroken: boolean } | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('lettres');
 
   const [envAnimVisible, setEnvAnimVisible] = useState(false);
   const [envAnimSender, setEnvAnimSender] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const envAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (envAnimTimerRef.current) clearTimeout(envAnimTimerRef.current);
+    };
+  }, []);
 
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([
     {
@@ -417,38 +563,104 @@ export default function LettersScreen() {
     }
   }, [activeTab, visibleTabs]);
 
-  const getOtherUserName = (match: Match) =>
-    match.userAId === 'me' ? match.userBId : match.userAId;
+  const getOtherUserId = (match: Match): string => {
+    const myId = currentUser?.id ?? 'me';
+    return match.userAId === myId ? match.userBId : match.userAId;
+  };
+
+  // Retourne le nom affiché du partenaire (pseudo réel si disponible, sinon userId)
+  const getOtherName = (match: Match): string => {
+    const otherId = getOtherUserId(match);
+    return matchPartners[otherId]?.pseudo ?? otherId;
+  };
+
+  // Garde l'ancienne signature pour compatibilité (utilisée dans certains endroits)
+  const getOtherUserName = getOtherName;
 
   const getConversation = (match: Match) => {
-    const otherId = getOtherUserName(match);
+    // Préférer les lettres API si elles ont été chargées pour ce match
+    const apiLetters = lettersByMatch[match.id];
+    if (apiLetters !== undefined) {
+      return apiLetters;
+    }
+    // Fallback : lettres locales du store
+    const otherId = getOtherUserId(match);
     return letters
       .filter(l => l.fromUserId === otherId || l.toUserId === otherId)
       .sort((a, b) => a.createdAt - b.createdAt);
   };
 
   const isMyTurn = (match: Match): boolean => {
-    const myId = currentUser?.id || 'me';
-    const conv = getConversation(match);
-    if (conv.length === 0) return true;
-    return conv[conv.length - 1].fromUserId !== myId;
+    // Préférer canSend du backend si disponible (plus fiable)
+    return match.canSend;
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!newMessage.trim() || !selectedMatch) return;
-    if (!isMyTurn(selectedMatch)) return;
+    if (!selectedMatch.canSend || isSending) return;
 
-    const letter: Letter = {
-      id: Date.now().toString(),
-      threadId: selectedMatch.id,
-      fromUserId: currentUser?.id || 'me',
-      toUserId: selectedMatch.userBId === 'me' ? selectedMatch.userAId : selectedMatch.userBId,
-      content: newMessage.trim(),
-      createdAt: Date.now(),
-    };
-
-    addLetter(letter);
+    const content = newMessage.trim();
     setNewMessage('');
+    setIsSending(true);
+
+    try {
+      await sendApiLetter(selectedMatch.id, content);
+      // Sync selectedMatch avec la mise à jour déjà faite dans le store
+      const updatedMatch = useStore.getState().matches.find(m => m.id === selectedMatch.id);
+      if (updatedMatch) setSelectedMatch(updatedMatch);
+    } catch (err: any) {
+      setNewMessage(content);
+      const msg: string = err?.message ?? '';
+      if (msg.includes('AWAITING_REPLY') || msg.includes('alternation') || msg.includes('tour')) {
+        Alert.alert('Pas encore ton tour', "Tu dois attendre la réponse de l'autre avant d'écrire à nouveau.");
+      } else if (msg.includes('QUESTIONS_NOT_VALIDATED') || msg.includes('questions')) {
+        Alert.alert('Questions requises', 'Joue aux questions pour débloquer les lettres.');
+      } else {
+        Alert.alert('Erreur', "La lettre n'a pas pu être envoyée. Vérifie ta connexion et réessaie.");
+      }
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleAccept = async (match: Match) => {
+    try {
+      await acceptMatch(match.id);
+      await loadMatches();
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message ?? "Impossible d'accepter le match");
+    }
+  };
+
+  const handleQGameOpen = async (match: Match) => {
+    setQGameMatch(match);
+    setQSelectedAnswers({});
+    setQCurrentStep(0);
+    setQResult(null);
+    setShowQGame(true);
+    loadQuestions(match.id);
+  };
+
+  const handleQGameSubmit = async () => {
+    if (!qGameMatch) return;
+    const questions = questionsByMatch[qGameMatch.id]?.questions ?? [];
+    const answers = questions.map(q => ({
+      profileQuestionId: q.profileQuestionId,
+      answer: qSelectedAnswers[q.profileQuestionId] ?? '',
+    }));
+    if (answers.some(a => !a.answer)) {
+      Alert.alert('Incomplet', 'Tu dois répondre à toutes les questions.');
+      return;
+    }
+    setQSubmitting(true);
+    try {
+      const result = await submitAnswers(qGameMatch.id, answers);
+      setQResult(result);
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message ?? 'Une erreur est survenue.');
+    } finally {
+      setQSubmitting(false);
+    }
   };
 
   const handleAddJournal = () => {
@@ -514,35 +726,41 @@ export default function LettersScreen() {
                 </Text>
 
                 {matches.map((match) => {
-                  const otherName = getOtherUserName(match);
-                  const conv = getConversation(match);
-                  const lastMsg = conv[conv.length - 1];
-                  const unread = conv.filter(
-                    l => l.toUserId === (currentUser?.id || 'me') && !l.readAt
-                  ).length;
+                  const otherName = getOtherName(match);
 
                   return (
                     <EnvelopeCard
                       key={match.id}
+                      matchId={match.id}
                       otherName={otherName}
-                      lastMsg={lastMsg}
-                      unread={unread}
+                      lastLetterAt={match.lastLetterAt}
+                      unread={match.hasUnreadIncomingLetter ? 1 : 0}
                       myTurn={isMyTurn(match)}
+                      letterCount={match.letterCount}
+                      letterCountA={match.letterCountA}
+                      letterCountB={match.letterCountB}
+                      isPremium={currentUser?.isPremium}
+                      questionsValidated={match.questionsValidated}
+                      matchStatus={match.status}
+                      isInitiator={match.initiatorId === (currentUser?.id ?? '')}
+                      onAccept={() => handleAccept(match)}
+                      onPlayQuestions={() => handleQGameOpen(match)}
                       onOpen={() => {
-                        const unreadLetters = conv.filter(
-                          l => (l.toUserId === (currentUser?.id || 'me')) && !l.readAt
-                        );
+                        const shouldAnimate = match.hasUnreadIncomingLetter;
 
                         setSelectedMatch(match);
                         setShowCompose(true);
 
-                        if (unreadLetters.length > 0) {
-                          setEnvAnimSender(getOtherUserName(match));
-                          setEnvAnimVisible(true);
+                        // Charger les lettres ET marquer les non-lues comme lues atomiquement
+                        void openAndMarkRead(match.id);
 
-                          setTimeout(() => {
+                        if (shouldAnimate) {
+                          if (envAnimTimerRef.current) clearTimeout(envAnimTimerRef.current);
+                          setEnvAnimSender(otherName);
+                          setEnvAnimVisible(true);
+                          envAnimTimerRef.current = setTimeout(() => {
                             setEnvAnimVisible(false);
-                            unreadLetters.forEach(l => markLetterRead(l.id));
+                            envAnimTimerRef.current = null;
                           }, 5100);
                         }
                       }}
@@ -682,38 +900,64 @@ export default function LettersScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowCompose(false)}>
+            <TouchableOpacity onPress={() => { setShowCompose(false); router.replace('/(tabs)/letters'); }}>
               <Text style={styles.closeText}>← Retour</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>
-              {selectedMatch ? getOtherUserName(selectedMatch) : ''}
-            </Text>
+            {/* Nom cliquable → profil du match (replace = démonte LettersScreen, évite modal fantôme) */}
+            <TouchableOpacity
+              style={styles.modalTitleBtn}
+              onPress={() => { if (selectedMatch) { setShowCompose(false); router.replace({ pathname: '/match-profile', params: { matchId: selectedMatch.id } }); } }}
+            >
+              <Text style={styles.modalTitle}>
+                {selectedMatch ? getOtherName(selectedMatch) : ''}
+              </Text>
+              <Text style={styles.modalTitleHint}>voir le profil ↗</Text>
+            </TouchableOpacity>
             <View style={{ width: 60 }} />
           </View>
 
-          {selectedMatch && (
-            <View
-              style={[
-                styles.turnBanner,
-                isMyTurn(selectedMatch) ? styles.turnBannerMine : styles.turnBannerWait,
-              ]}
-            >
-              <Text style={styles.turnBannerText}>
-                {getConversation(selectedMatch).length === 0
-                  ? '🪶  Écrivez la première lettre'
-                  : isMyTurn(selectedMatch)
-                    ? "📬  C'est votre tour — répondez à la lettre reçue"
-                    : '⏳  Lettre envoyée — en attente de réponse'}
-              </Text>
-            </View>
-          )}
+          {selectedMatch && (() => {
+            const conv = getConversation(selectedMatch);
+            const rel  = getRelationInfo(conv.length, currentUser?.isPremium ?? false);
+            const myTurn = isMyTurn(selectedMatch);
+            const isViewerA = selectedMatch.userAId === (currentUser?.id ?? 'me');
+            const myLetters = isViewerA ? selectedMatch.letterCountA : selectedMatch.letterCountB;
+            const theirLetters = isViewerA ? selectedMatch.letterCountB : selectedMatch.letterCountA;
+            return (
+              <>
+                {/* ── Niveau de la relation ── */}
+                <View style={styles.relationBanner}>
+                  <Text style={styles.relationBannerStars}>{rel.stars}</Text>
+                  <View style={styles.relationBannerText}>
+                    <Text style={styles.relationBannerLevel}>
+                      Niveau {rel.level} — {rel.label}
+                    </Text>
+                    <Text style={styles.relationBannerProgress}>
+                      Mes lettres : {myLetters}  ·  Ses lettres : {theirLetters}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* ── Tour de parole ── */}
+                <View style={[styles.turnBanner, myTurn ? styles.turnBannerMine : styles.turnBannerWait]}>
+                  <Text style={styles.turnBannerText}>
+                    {conv.length === 0
+                      ? '🪶  Écrivez la première lettre'
+                      : myTurn
+                        ? "📬  C'est votre tour — répondez à la lettre reçue"
+                        : '⏳  Lettre envoyée — en attente de réponse'}
+                  </Text>
+                </View>
+              </>
+            );
+          })()}
 
           <ScrollView style={styles.messagesContainer}>
             {selectedMatch &&
               getConversation(selectedMatch).map((letter) => {
                 const isOwn =
                   letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
-                const otherName = getOtherUserName(selectedMatch);
+                const otherName = getOtherName(selectedMatch);
 
                 return (
                   <LetterCard
@@ -727,23 +971,39 @@ export default function LettersScreen() {
               })}
 
             {selectedMatch && getConversation(selectedMatch).length === 0 && (
-              <View style={styles.startConv}>
-                <Text style={styles.startEmoji}>✨</Text>
-                <Text style={styles.startText}>Commencez la conversation!</Text>
-              </View>
+              selectedMatch.canSend ? (
+                <View style={styles.startConv}>
+                  <Text style={styles.startEmoji}>🖊</Text>
+                  <Text style={styles.startText}>Tu peux écrire la première lettre</Text>
+                </View>
+              ) : (
+                <View style={styles.startConv}>
+                  <Text style={styles.startEmoji}>⏳</Text>
+                  <Text style={styles.startText}>
+                    {selectedMatch.canSendReason === 'AWAITING_REPLY'
+                      ? "L'autre doit envoyer la première lettre.\nTu pourras répondre ensuite."
+                      : "En attente de la réponse de l'autre."}
+                  </Text>
+                </View>
+              )
             )}
           </ScrollView>
 
           <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
             <TextInput
               style={styles.input}
-              placeholder="Écrivez votre lettre..."
+              placeholder={selectedMatch?.canSend ? 'Écrivez votre lettre...' : "En attente de réponse..."}
               placeholderTextColor="#8B6F47"
               value={newMessage}
               onChangeText={setNewMessage}
               multiline
+              editable={selectedMatch?.canSend ?? false}
             />
-            <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
+            <TouchableOpacity
+              style={[styles.sendBtn, (!(selectedMatch?.canSend) || isSending) && styles.sendBtnDisabled]}
+              onPress={handleSend}
+              disabled={!(selectedMatch?.canSend) || isSending}
+            >
               <Text style={styles.sendBtnText}>➤</Text>
             </TouchableOpacity>
           </View>
@@ -754,6 +1014,178 @@ export default function LettersScreen() {
             </View>
           )}
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Jeu des 3 questions ─────────────────────────────────── */}
+      <Modal visible={showQGame} animationType="slide">
+        <View style={[qStyles.container, { paddingTop: insets.top }]}>
+          <View style={qStyles.header}>
+            <TouchableOpacity onPress={() => { setShowQGame(false); setQGameMatch(null); setQResult(null); }}>
+              <Text style={qStyles.back}>← Retour</Text>
+            </TouchableOpacity>
+            <Text style={qStyles.title}>🎮 Jeu des questions</Text>
+            <View style={{ width: 60 }} />
+          </View>
+
+          <ScrollView contentContainerStyle={qStyles.scroll}>
+            {qResult ? (
+              /* ── Résultat ── */
+              <View style={qStyles.resultBox}>
+                {qResult.matchBroken ? (
+                  <>
+                    <Text style={qStyles.resultEmoji}>💔</Text>
+                    <Text style={qStyles.resultTitle}>Match rompu</Text>
+                    <Text style={qStyles.resultSub}>
+                      L'un de vous n'a pas obtenu au moins 1 bonne réponse.{'\n'}Ce match est terminé.
+                    </Text>
+                    <TouchableOpacity style={qStyles.closeBtn} onPress={() => { setShowQGame(false); setQResult(null); }}>
+                      <Text style={qStyles.closeBtnText}>Fermer</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : qResult.waitingForOther ? (
+                  <>
+                    <Text style={qStyles.resultEmoji}>⏳</Text>
+                    <Text style={qStyles.resultTitle}>Réponses envoyées !</Text>
+                    <Text style={qStyles.resultSub}>
+                      Tu as obtenu {qResult.myScore}/3.{'\n'}En attente de l'autre joueur…
+                    </Text>
+                    <TouchableOpacity style={qStyles.closeBtn} onPress={() => { setShowQGame(false); setQResult(null); }}>
+                      <Text style={qStyles.closeBtnText}>Fermer</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : qResult.questionsValidated ? (
+                  <>
+                    <Text style={qStyles.resultEmoji}>🎉</Text>
+                    <Text style={qStyles.resultTitle}>Validé !</Text>
+                    <Text style={qStyles.resultSub}>
+                      Les deux joueurs ont réussi.{'\n'}Vous pouvez maintenant vous écrire!
+                    </Text>
+                    <TouchableOpacity
+                      style={[qStyles.closeBtn, qStyles.closeBtnSuccess]}
+                      onPress={() => {
+                        setShowQGame(false);
+                        setQResult(null);
+                        if (qGameMatch) {
+                          const freshMatch = matches.find(m => m.id === qGameMatch.id) ?? qGameMatch;
+                          setSelectedMatch(freshMatch);
+                          setShowCompose(true);
+                          loadLetters(qGameMatch.id);
+                        }
+                      }}
+                    >
+                      <Text style={qStyles.closeBtnText}>📬 Écrire une lettre</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : null}
+              </View>
+            ) : (() => {
+              const matchQ = qGameMatch ? questionsByMatch[qGameMatch.id] : null;
+              if (!matchQ) {
+                return (
+                  <View style={qStyles.loading}>
+                    <ActivityIndicator color="#9C2F45" />
+                    <Text style={qStyles.loadingText}>Chargement des questions…</Text>
+                  </View>
+                );
+              }
+              if (matchQ.myStatus === 'submitted') {
+                return (
+                  <View style={qStyles.resultBox}>
+                    <Text style={qStyles.resultEmoji}>✅</Text>
+                    <Text style={qStyles.resultTitle}>Déjà répondu</Text>
+                    <Text style={qStyles.resultSub}>
+                      Score : {matchQ.myScore}/3{'\n'}En attente de l'autre joueur…
+                    </Text>
+                    <TouchableOpacity style={qStyles.closeBtn} onPress={() => setShowQGame(false)}>
+                      <Text style={qStyles.closeBtnText}>Fermer</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              }
+              const currentQ = matchQ.questions[qCurrentStep];
+              const currentAnswer = currentQ ? qSelectedAnswers[currentQ.profileQuestionId] ?? '' : '';
+              const isLast = qCurrentStep === matchQ.questions.length - 1;
+
+              return (
+                <>
+                  <Text style={qStyles.intro}>
+                    Réponds aux 3 questions de{' '}
+                    <Text style={qStyles.introName}>{qGameMatch ? getOtherName(qGameMatch) : ''}</Text>.
+                  </Text>
+
+                  <View style={qStyles.stepRow}>
+                    {matchQ.questions.map((_, i) => (
+                      <View
+                        key={i}
+                        style={[qStyles.stepDot, i === qCurrentStep && qStyles.stepDotActive, i < qCurrentStep && qStyles.stepDotDone]}
+                      />
+                    ))}
+                    <Text style={qStyles.stepLabel}>Question {qCurrentStep + 1} / {matchQ.questions.length}</Text>
+                  </View>
+
+                  {currentQ && (
+                    <View style={qStyles.questionBlock}>
+                      <Text style={qStyles.questionNum}>Question {qCurrentStep + 1}</Text>
+                      <Text style={qStyles.questionText}>{currentQ.questionText}</Text>
+                      {currentQ.options ? (
+                        currentQ.options.map((opt) => (
+                          <TouchableOpacity
+                            key={opt}
+                            style={[
+                              qStyles.optionBtn,
+                              qSelectedAnswers[currentQ.profileQuestionId] === opt && qStyles.optionBtnSelected,
+                            ]}
+                            onPress={() =>
+                              setQSelectedAnswers(prev => ({ ...prev, [currentQ.profileQuestionId]: opt }))
+                            }
+                          >
+                            <Text style={[
+                              qStyles.optionText,
+                              qSelectedAnswers[currentQ.profileQuestionId] === opt && qStyles.optionTextSelected,
+                            ]}>
+                              {opt}
+                            </Text>
+                          </TouchableOpacity>
+                        ))
+                      ) : (
+                        <TextInput
+                          style={qStyles.freeInput}
+                          placeholder="Ta réponse…"
+                          placeholderTextColor="#9A7040"
+                          value={currentAnswer}
+                          onChangeText={v =>
+                            setQSelectedAnswers(prev => ({ ...prev, [currentQ.profileQuestionId]: v }))
+                          }
+                        />
+                      )}
+                    </View>
+                  )}
+
+                  {isLast ? (
+                    <TouchableOpacity
+                      style={[qStyles.submitBtn, (qSubmitting || !currentAnswer) && qStyles.submitBtnDisabled]}
+                      onPress={handleQGameSubmit}
+                      disabled={qSubmitting || !currentAnswer}
+                    >
+                      {qSubmitting
+                        ? <ActivityIndicator color="#fff" />
+                        : <Text style={qStyles.submitBtnText}>Envoyer mes réponses</Text>
+                      }
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[qStyles.submitBtn, !currentAnswer && qStyles.submitBtnDisabled]}
+                      disabled={!currentAnswer}
+                      onPress={() => setQCurrentStep(prev => prev + 1)}
+                    >
+                      <Text style={qStyles.submitBtnText}>Suivant →</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              );
+            })()}
+          </ScrollView>
+        </View>
       </Modal>
 
       <Modal visible={showJournalModal} animationType="slide" transparent>
@@ -990,13 +1422,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#C4A882',
     backgroundColor: '#2C1A0E',
   },
-  closeText: { fontSize: 15, color: '#F0D98C', fontWeight: '600' },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#F0D98C',
-    letterSpacing: 0.3,
-  },
+  closeText:      { fontSize: 15, color: '#F0D98C', fontWeight: '600' },
+  modalTitleBtn:  { flex: 1, alignItems: 'center' },
+  modalTitle:     { fontSize: 17, fontWeight: '700', color: '#F0D98C', letterSpacing: 0.3 },
+  modalTitleHint: { fontSize: 10, color: '#B87333', marginTop: 2, letterSpacing: 0.5 },
   messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
 
   startConv: { alignItems: 'center', paddingVertical: 60 },
@@ -1030,7 +1459,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnText: { fontSize: 18, color: '#FFF' },
+  sendBtnText:     { fontSize: 18, color: '#FFF' },
+  sendBtnDisabled: { opacity: 0.4 },
+
+  relationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#1C1208',
+    borderBottomWidth: 1,
+    borderBottomColor: '#3A2818',
+    gap: 10,
+  },
+  relationBannerStars:    { fontSize: 16 },
+  relationBannerText:     { flex: 1 },
+  relationBannerLevel:    { fontSize: 13, fontWeight: '700', color: '#D4A862' },
+  relationBannerProgress: { fontSize: 11, color: '#8B6F47', marginTop: 2, fontStyle: 'italic' },
 
   turnBanner: {
     paddingHorizontal: 16,
@@ -1096,4 +1541,40 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   saveJournalText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
+});
+
+// ── Styles du jeu des 3 questions ────────────────────────────────
+const qStyles = StyleSheet.create({
+  container:      { flex: 1, backgroundColor: '#FFF8E7' },
+  header:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E8D9C6' },
+  back:           { fontSize: 15, color: '#9C2F45', fontWeight: '600' },
+  title:          { fontSize: 17, fontWeight: '700', color: '#2C1A0E' },
+  scroll:         { padding: 20, paddingBottom: 60 },
+  loading:        { alignItems: 'center', marginTop: 60, gap: 12 },
+  loadingText:    { color: '#7A5C3A', fontSize: 15 },
+  intro:          { fontSize: 14, color: '#5A3A1A', lineHeight: 22, marginBottom: 24, textAlign: 'center' },
+  introName:      { fontWeight: '700', color: '#9C2F45' },
+  stepRow:        { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
+  stepDot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D4B896' },
+  stepDotActive:  { backgroundColor: '#9C2F45', width: 10, height: 10, borderRadius: 5 },
+  stepDotDone:    { backgroundColor: '#B87333' },
+  stepLabel:      { fontSize: 11, color: '#9A7040', letterSpacing: 1, fontWeight: '600', marginLeft: 4 },
+  questionBlock:  { backgroundColor: '#FEFAF0', borderRadius: 14, borderWidth: 1, borderColor: '#D4B896', padding: 16, marginBottom: 20 },
+  questionNum:    { fontSize: 11, color: '#B87333', fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 },
+  questionText:   { fontSize: 16, fontWeight: '600', color: '#2C1A0E', marginBottom: 14, lineHeight: 22 },
+  optionBtn:      { borderWidth: 1, borderColor: '#D4B896', borderRadius: 10, padding: 12, marginBottom: 8 },
+  optionBtnSelected: { borderColor: '#9C2F45', backgroundColor: '#FFF0F2' },
+  optionText:     { fontSize: 14, color: '#5A3A1A' },
+  optionTextSelected: { color: '#9C2F45', fontWeight: '600' },
+  freeInput:      { borderWidth: 1, borderColor: '#D4B896', borderRadius: 10, padding: 12, fontSize: 14, color: '#2C1A0E' },
+  submitBtn:      { backgroundColor: '#9C2F45', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 8 },
+  submitBtnDisabled: { opacity: 0.5 },
+  submitBtnText:  { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  resultBox:      { alignItems: 'center', paddingVertical: 40, gap: 16 },
+  resultEmoji:    { fontSize: 56 },
+  resultTitle:    { fontSize: 22, fontWeight: '700', color: '#2C1A0E' },
+  resultSub:      { fontSize: 14, color: '#7A5C3A', textAlign: 'center', lineHeight: 22 },
+  closeBtn:       { backgroundColor: '#5A3A1A', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28, marginTop: 8 },
+  closeBtnSuccess:{ backgroundColor: '#9C2F45' },
+  closeBtnText:   { color: '#FFF', fontWeight: '700', fontSize: 15 },
 });
