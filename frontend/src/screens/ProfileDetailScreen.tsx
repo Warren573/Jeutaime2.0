@@ -264,11 +264,10 @@ function PhotoAvatarSlider({
   );
 
   if (!showPhotos) {
+    const safeW = SLIDER_W > 0 ? SLIDER_W : 320;
     return (
-      <View style={[sliderStyles.wrap, { height: SLIDER_H }]}>
-        <View style={sliderStyles.avatarCenter}>
-          <Avatar size={180} {...resolvedAvatar} />
-        </View>
+      <View style={{ width: safeW, height: SLIDER_H, backgroundColor: '#F9F3E8', borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+        <Avatar size={180} {...resolvedAvatar} />
         <View style={sliderStyles.lockBadge}>
           <Text style={sliderStyles.lockText}>🔒 Photos verrouillées</Text>
           {myRemaining > 0 && (
@@ -290,52 +289,28 @@ function PhotoAvatarSlider({
     ? { Authorization: `Bearer ${authToken}` }
     : {};
 
-  const slides: Array<{ type: 'avatar' } | { type: 'photo'; id: string; url: string }> = [
-    { type: 'avatar' },
-    ...photos.map(p => ({ type: 'photo' as const, id: p.id, url: makePhotoUrl(p.url) })),
-  ];
+  const photoSlides = photos.map(p => ({ id: p.id, url: makePhotoUrl(p.url) }));
 
-  console.log('[PhotoAvatarSlider] slides.length:', slides.length, '| SLIDER_W:', SLIDER_W, '| SLIDER_H:', SLIDER_H);
+  const safeW = SLIDER_W > 0 ? SLIDER_W : 320;
+  console.log('[PhotoAvatarSlider] DIAG safeW:', safeW, '| SLIDER_H:', SLIDER_H, '| photos:', photoSlides.length);
 
   return (
-    <View style={[sliderStyles.wrap, { height: SLIDER_H }]}>
-      <ScrollView
-        horizontal
-        pagingEnabled
-        nestedScrollEnabled
-        showsHorizontalScrollIndicator={false}
-        decelerationRate="fast"
-        style={{ width: SLIDER_W, height: SLIDER_H }}
-        contentContainerStyle={{ flexDirection: 'row' }}
-      >
-        {slides.map((slide) =>
-          slide.type === 'avatar' ? (
-            <View key="avatar" style={sliderStyles.slide}>
-              {/* TEST DIAGNOSTIQUE — boîte rouge pour vérifier le rendu du conteneur */}
-              <View style={{ width: 180, height: 180, backgroundColor: 'red', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>AVATAR TEST</Text>
-              </View>
-            </View>
-          ) : (
-            <View key={slide.id} style={sliderStyles.slide}>
-              <Image
-                source={{ uri: slide.url, headers: photoHeaders }}
-                style={sliderStyles.photoImg}
-                contentFit="cover"
-                onLoad={() => console.log('[PhotoAvatarSlider] photo loaded:', slide.url)}
-                onError={(e) => console.warn('[PhotoAvatarSlider] photo error:', slide.url, e)}
-              />
-            </View>
-          )
-        )}
-      </ScrollView>
-      {slides.length > 1 && (
-        <View style={sliderStyles.dots}>
-          {slides.map((_, i) => (
-            <View key={i} style={sliderStyles.dot} />
-          ))}
-        </View>
-      )}
+    <View
+      style={{
+        width: safeW,
+        height: SLIDER_H,
+        backgroundColor: '#F9F3E8',
+        borderRadius: 16,
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {/* DIAGNOSTIC: boîte rouge — si visible → container OK, problème Avatar
+                      si invisible → problème au-dessus de ce composant */}
+      <View style={{ width: 180, height: 180, backgroundColor: 'red', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: 'white', fontSize: 18, fontWeight: '900' }}>AVATAR TEST</Text>
+      </View>
     </View>
   );
 }
