@@ -222,22 +222,86 @@ function ProfileHeader({ profile }: { profile: ProfileData }) {
   );
 }
 
-// ─── PHOTO / AVATAR SLIDER ─────────────────────────────────────────────────────
+// ─── AVATAR / PHOTO BLOCK ──────────────────────────────────────────────────────
 
 interface SlidePhoto {
   id: string;
   url: string;
 }
 
-function PhotoAvatarSlider({
+function ProfileAvatarPhoto({
   avatarDef,
   photos,
   unlocked,
   isOwnProfile,
-  myRemaining,
-  otherRemaining,
   authToken,
 }: {
+  avatarDef?: AvatarConfig;
+  photos: SlidePhoto[];
+  unlocked: boolean;
+  isOwnProfile: boolean;
+  authToken: string | null;
+}) {
+  const [photoError, setPhotoError] = React.useState(false);
+
+  const showPhotos    = unlocked || isOwnProfile;
+  const resolvedAvatar = avatarDef ?? DEFAULT_AVATAR;
+  const primaryPhoto  = photos[0] ?? null;
+  const photoHeaders: Record<string, string> = authToken
+    ? { Authorization: `Bearer ${authToken}` }
+    : {};
+
+  // Affiche la photo si dispo + autorisée + pas d'erreur, sinon avatar
+  const displayPhoto = showPhotos && primaryPhoto && !photoError;
+
+  return (
+    <View style={{
+      width: 180, height: 180,
+      backgroundColor: '#F9F3E8',
+      borderRadius: 16,
+      overflow: 'hidden',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      {displayPhoto ? (
+        /* ── Photo ── */
+        <Image
+          source={{ uri: makePhotoUrl(primaryPhoto!.url), headers: photoHeaders }}
+          style={{ width: 180, height: 180 }}
+          contentFit="cover"
+          onError={() => setPhotoError(true)}
+        />
+      ) : (
+        /* ── Avatar (même logique que my-photos.tsx) ── */
+        <View style={{ width: 180, height: 180, alignItems: 'center', justifyContent: 'center' }}>
+          <Avatar size={150} {...resolvedAvatar} />
+          {/* Fallback texte — visible seulement si les couches Avatar sont toutes vides */}
+          <Text style={{
+            position: 'absolute',
+            fontSize: 12, color: '#8B6F47', fontWeight: '600',
+            bottom: 12,
+          }}>
+            Avatar
+          </Text>
+        </View>
+      )}
+
+      {/* Badge lock si photos verrouillées */}
+      {!showPhotos && (
+        <View style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          paddingVertical: 6, alignItems: 'center',
+        }}>
+          <Text style={{ color: 'white', fontSize: 11, fontWeight: '600' }}>🔒 Photo verrouillée</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/* Alias pour compatibilité avec l'appel existant */
+function PhotoAvatarSlider(props: {
   avatarDef?: AvatarConfig;
   photos: SlidePhoto[];
   unlocked: boolean;
@@ -246,58 +310,14 @@ function PhotoAvatarSlider({
   otherRemaining: number;
   authToken: string | null;
 }) {
-  const showPhotos = unlocked || isOwnProfile;
-  const resolvedAvatar = avatarDef ?? DEFAULT_AVATAR;
-  const photoHeaders: Record<string, string> = authToken
-    ? { Authorization: `Bearer ${authToken}` }
-    : {};
-  const primaryPhoto = photos[0] ?? null;
-
-  // ── Layout identique à my-photos.tsx (previewRow / previewFrame) ──────────────
   return (
-    <View style={{ flexDirection: 'row', gap: 16, alignItems: 'flex-start', justifyContent: 'center' }}>
-
-      {/* Bloc avatar — copie exacte du previewFrame de my-photos.tsx */}
-      <View style={{ flex: 1, alignItems: 'center' }}>
-        <Text style={{ fontSize: 12, fontWeight: '700', color: '#3A2818', marginBottom: 8 }}>🎭 Avatar</Text>
-        <View style={{ width: 110, height: 110, borderRadius: 14, borderWidth: 2, borderColor: '#E8D5B7', overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9F3E8' }}>
-          <Avatar size={90} {...resolvedAvatar} />
-        </View>
-      </View>
-
-      {/* Bloc photo */}
-      <View style={{ flex: 1, alignItems: 'center' }}>
-        <Text style={{ fontSize: 12, fontWeight: '700', color: '#3A2818', marginBottom: 8 }}>
-          {showPhotos ? '🪞 Photo' : '🔒 Photo'}
-        </Text>
-        {showPhotos ? (
-          primaryPhoto ? (
-            <View style={{ width: 110, height: 110, borderRadius: 14, borderWidth: 2, borderColor: '#E8D5B7', overflow: 'hidden', backgroundColor: '#F0EDE8' }}>
-              <Image
-                source={{ uri: makePhotoUrl(primaryPhoto.url), headers: photoHeaders }}
-                style={{ width: '100%', height: '100%' }}
-                contentFit="cover"
-                onLoad={() => console.log('[PhotoAvatarSlider] photo loaded')}
-                onError={(e) => console.warn('[PhotoAvatarSlider] photo error', e)}
-              />
-            </View>
-          ) : (
-            <View style={{ width: 110, height: 110, borderRadius: 14, borderWidth: 2, borderColor: '#E8D5B7', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9F3E8' }}>
-              <Text style={{ fontSize: 24 }}>📷</Text>
-              <Text style={{ fontSize: 10, color: '#8B6F47', textAlign: 'center', marginTop: 4 }}>Pas encore{'\n'}de photo</Text>
-            </View>
-          )
-        ) : (
-          <View style={{ width: 110, height: 110, borderRadius: 14, borderWidth: 2, borderColor: '#E8D5B7', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF0F7' }}>
-            <Text style={{ fontSize: 24 }}>🔒</Text>
-            <Text style={{ fontSize: 9, color: '#8B6F47', textAlign: 'center', marginTop: 4, paddingHorizontal: 6 }}>
-              {myRemaining > 0 ? `${myRemaining} lettre${myRemaining > 1 ? 's' : ''} manquante${myRemaining > 1 ? 's' : ''}` : 'Verrouillée'}
-            </Text>
-          </View>
-        )}
-      </View>
-
-    </View>
+    <ProfileAvatarPhoto
+      avatarDef={props.avatarDef}
+      photos={props.photos}
+      unlocked={props.unlocked}
+      isOwnProfile={props.isOwnProfile}
+      authToken={props.authToken}
+    />
   );
 }
 
