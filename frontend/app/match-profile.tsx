@@ -94,17 +94,8 @@ export default function MatchProfileScreen() {
 
           <View style={styles.hero}>
             {/* Photo / avatar selon niveau */}
-            <View style={styles.photoCard}>
-              <View style={styles.photoTape} />
-              {photoUrl === null ? (
-                <Avatar size={86} {...DEFAULT_AVATAR} />
-              ) : (
-                <Image
-                  source={{ uri: photoUrl }}
-                  style={styles.photoImg}
-                  contentFit="cover"
-                />
-              )}
+            <View style={{ width: 180, height: 180, backgroundColor: 'red', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: 'white', fontSize: 24, fontWeight: '900' }}>AVATAR</Text>
             </View>
 
             <View style={styles.heroRight}>
