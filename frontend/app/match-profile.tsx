@@ -11,8 +11,6 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../src/store/useStore';
-import { Avatar } from '../src/avatar/png/Avatar';
-import { DEFAULT_AVATAR } from '../src/avatar/png/defaults';
 import { getRelationInfo } from '../src/engine/RelationEngine';
 
 const PHYSIQUE_LABEL: Record<string, { emoji: string; label: string }> = {
@@ -71,11 +69,8 @@ export default function MatchProfileScreen() {
   const headerLine = [partner?.pseudo ?? partnerId, partner?.age ? String(partner.age) : '']
     .filter(Boolean).join(', ');
 
-  console.log("REAL PROFILE SCREEN — match-profile.tsx");
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Text style={{ fontSize: 48, color: 'red', fontWeight: '900' }}>TEST DEBUG</Text>
 
       {/* ── Barre nav sombre (cohérente avec les lettres) ── */}
       <View style={styles.navBar}>
@@ -94,11 +89,23 @@ export default function MatchProfileScreen() {
         <View style={styles.journalPage}>
 
           <View style={styles.hero}>
-            {/* Photo / avatar selon niveau */}
-            <RNImage
-              source={require('../assets/images/icon.png')}
-              style={{ width: 180, height: 180 }}
-            />
+            {/* Photo si débloquée, sinon placeholder garanti */}
+            <View style={styles.photoCard}>
+              <View style={styles.photoTape} />
+              {match.photoUnlocked && photoUrl ? (
+                <Image
+                  source={{ uri: photoUrl }}
+                  style={styles.photoImg}
+                  contentFit="cover"
+                />
+              ) : (
+                <RNImage
+                  source={require('../assets/images/icon.png')}
+                  style={styles.photoImg}
+                  resizeMode="cover"
+                />
+              )}
+            </View>
 
             <View style={styles.heroRight}>
               {!!headerLine && (
