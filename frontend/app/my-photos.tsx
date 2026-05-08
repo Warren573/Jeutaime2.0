@@ -9,8 +9,8 @@ import {
   Alert,
   Switch,
   ActivityIndicator,
+  Image,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -198,8 +198,7 @@ export default function MyPhotosScreen() {
                     <Image
                       source={{ uri: primaryPhotoUrl, headers: photoHeaders }}
                       style={styles.previewPhoto}
-                      contentFit="cover"
-                      onError={(e) => console.warn('[my-photos] preview load error:', e)}
+                      resizeMode="cover"
                     />
                   </View>
                 </View>
@@ -235,14 +234,20 @@ export default function MyPhotosScreen() {
             <Text style={styles.sectionTitle}>Ma photo</Text>
             <Text style={styles.sectionSub}>Une seule photo forte — c'est tout ce qu'il faut.</Text>
 
-            {apiPhotos.map((photo) => (
+            {apiPhotos.map((photo) => {
+              const visiblePhotoUrl = makePhotoUrl(photo.url);
+              const source = { uri: photo.url, headers: photoHeaders };
+              console.log('[my-photos] photo.url:', photo.url);
+              console.log('[my-photos] visiblePhotoUrl:', visiblePhotoUrl);
+              console.log('[my-photos] photoHeaders:', JSON.stringify(photoHeaders));
+              console.log('[my-photos] source:', JSON.stringify(source));
+              return (
               <View key={photo.id} style={styles.photoRow}>
                 <Image
-                  source={{ uri: makePhotoUrl(photo.url), headers: photoHeaders }}
-                  style={styles.photoThumb}
-                  contentFit="cover"
-                  onError={(e) => console.warn('[my-photos] thumb error', photo.id, e)}
+                  source={source}
+                  style={{ width: 120, height: 120 }}
                 />
+                <Text style={{ fontSize: 10, color: '#888', flexShrink: 1 }}>{photo.url}</Text>
                 <View style={styles.photoMeta}>
                   {photo.isPrimary ? (
                     <View style={styles.mainBadge}>
@@ -258,7 +263,8 @@ export default function MyPhotosScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-            ))}
+              );
+            })}
           </View>
         )}
 
