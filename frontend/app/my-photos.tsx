@@ -236,18 +236,17 @@ export default function MyPhotosScreen() {
 
             {apiPhotos.map((photo) => {
               const visiblePhotoUrl = makePhotoUrl(photo.url);
-              const source = { uri: photo.url, headers: photoHeaders };
-              console.log('[my-photos] photo.url:', photo.url);
-              console.log('[my-photos] visiblePhotoUrl:', visiblePhotoUrl);
-              console.log('[my-photos] photoHeaders:', JSON.stringify(photoHeaders));
-              console.log('[my-photos] source:', JSON.stringify(source));
+              const source = { uri: visiblePhotoUrl, headers: photoHeaders };
               return (
               <View key={photo.id} style={styles.photoRow}>
                 <Image
                   source={source}
                   style={{ width: 120, height: 120 }}
                 />
-                <Text style={{ fontSize: 10, color: '#888', flexShrink: 1 }}>{photo.url}</Text>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={{ fontSize: 9, color: '#888' }}>token: {authToken ? '✓ présent' : '✗ absent'}</Text>
+                  <Text style={{ fontSize: 9, color: '#888' }} selectable>{visiblePhotoUrl}</Text>
+                </View>
                 <View style={styles.photoMeta}>
                   {photo.isPrimary ? (
                     <View style={styles.mainBadge}>
