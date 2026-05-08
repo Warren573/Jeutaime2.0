@@ -686,25 +686,9 @@ export default function ProfileDetailScreen() {
           </View>
         )}
 
-        {/* Photo / Avatar slider */}
-        <View style={styles.section}>
-          <PhotoAvatarSlider
-            avatarDef={profile.avatarDef}
-            photos={isOwnProfile ? ownPhotos : (apiData.photos ?? [])}
-            unlocked={apiData.photoUnlock?.unlocked ?? false}
-            isOwnProfile={isOwnProfile}
-            myRemaining={
-              apiData.photoUnlock
-                ? Math.max(0, apiData.photoUnlock.threshold - apiData.photoUnlock.myCount)
-                : 0
-            }
-            otherRemaining={
-              apiData.photoUnlock
-                ? Math.max(0, apiData.photoUnlock.threshold - apiData.photoUnlock.otherCount)
-                : 0
-            }
-            authToken={authToken}
-          />
+        {/* Photo / Avatar */}
+        <View style={{ width: 180, height: 180, backgroundColor: 'red', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: 'white', fontWeight: '900' }}>TEST VISIBLE</Text>
         </View>
 
         {/* 1. Bio */}
