@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image as RNImage,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -92,19 +91,15 @@ export default function MatchProfileScreen() {
             {/* Photo si débloquée, sinon placeholder garanti */}
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
-              {match.photoUnlocked && photoUrl ? (
-                <Image
-                  source={{ uri: photoUrl }}
-                  style={styles.photoImg}
-                  contentFit="cover"
-                />
-              ) : (
-                <RNImage
-                  source={require('../assets/images/icon.png')}
-                  style={styles.photoImg}
-                  resizeMode="cover"
-                />
-              )}
+              <Image
+                source={
+                  match.photoUnlocked && photoUrl
+                    ? { uri: photoUrl }
+                    : require('../assets/images/icon.png')
+                }
+                style={styles.photoImg}
+                contentFit="cover"
+              />
             </View>
 
             <View style={styles.heroRight}>
