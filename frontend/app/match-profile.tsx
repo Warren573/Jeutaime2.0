@@ -70,8 +70,11 @@ export default function MatchProfileScreen() {
   const headerLine = [partner?.pseudo ?? partnerId, partner?.age ? String(partner.age) : '']
     .filter(Boolean).join(', ');
 
+  console.log("REAL PROFILE SCREEN — match-profile.tsx");
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <Text style={{ fontSize: 48, color: 'red', fontWeight: '900' }}>TEST DEBUG</Text>
 
       {/* ── Barre nav sombre (cohérente avec les lettres) ── */}
       <View style={styles.navBar}>
