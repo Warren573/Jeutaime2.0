@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image as RNImage,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -94,9 +95,10 @@ export default function MatchProfileScreen() {
 
           <View style={styles.hero}>
             {/* Photo / avatar selon niveau */}
-            <View style={{ width: 180, height: 180, backgroundColor: 'red', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: 'white', fontSize: 24, fontWeight: '900' }}>AVATAR</Text>
-            </View>
+            <RNImage
+              source={require('../assets/images/icon.png')}
+              style={{ width: 180, height: 180 }}
+            />
 
             <View style={styles.heroRight}>
               {!!headerLine && (
