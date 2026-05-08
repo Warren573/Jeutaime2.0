@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -21,9 +20,6 @@ import { getPublicProfile, getMyPhotos, PublicProfileResponse, MyPhotoDto } from
 import { API_URL } from '../api/client';
 import type { MatchDTO } from '../api/matches';
 
-const { width } = Dimensions.get('window');
-const SLIDER_W = width - 32;
-const SLIDER_H = 280;
 
 function makePhotoUrl(relativeUrl: string): string {
   return API_URL + relativeUrl.replace(/^\/api/, '');
@@ -252,65 +248,55 @@ function PhotoAvatarSlider({
 }) {
   const showPhotos = unlocked || isOwnProfile;
   const resolvedAvatar = avatarDef ?? DEFAULT_AVATAR;
-
-  console.log(
-    '[PhotoAvatarSlider] isOwnProfile:', isOwnProfile,
-    '| unlocked:', unlocked,
-    '| showPhotos:', showPhotos,
-    '| photos.length:', photos.length,
-    '| authToken:', !!authToken,
-    '| avatarDef:', JSON.stringify(avatarDef)?.slice(0, 100),
-    '| DEFAULT_AVATAR.body:', DEFAULT_AVATAR.body,
-  );
-
-  if (!showPhotos) {
-    const safeW = SLIDER_W > 0 ? SLIDER_W : 320;
-    return (
-      <View style={{ width: safeW, height: SLIDER_H, backgroundColor: '#F9F3E8', borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
-        <Avatar size={180} {...resolvedAvatar} />
-        <View style={sliderStyles.lockBadge}>
-          <Text style={sliderStyles.lockText}>🔒 Photos verrouillées</Text>
-          {myRemaining > 0 && (
-            <Text style={sliderStyles.lockHint}>
-              Tu dois encore envoyer {myRemaining} lettre{myRemaining > 1 ? 's' : ''}
-            </Text>
-          )}
-          {otherRemaining > 0 && (
-            <Text style={sliderStyles.lockHint}>
-              Il/elle doit encore envoyer {otherRemaining} lettre{otherRemaining > 1 ? 's' : ''}
-            </Text>
-          )}
-        </View>
-      </View>
-    );
-  }
-
   const photoHeaders: Record<string, string> = authToken
     ? { Authorization: `Bearer ${authToken}` }
     : {};
+  const primaryPhoto = photos[0] ?? null;
 
-  const photoSlides = photos.map(p => ({ id: p.id, url: makePhotoUrl(p.url) }));
-
-  const safeW = SLIDER_W > 0 ? SLIDER_W : 320;
-  console.log('[PhotoAvatarSlider] DIAG safeW:', safeW, '| SLIDER_H:', SLIDER_H, '| photos:', photoSlides.length);
-
+  // ── Layout identique à my-photos.tsx (previewRow / previewFrame) ──────────────
   return (
-    <View
-      style={{
-        width: safeW,
-        height: SLIDER_H,
-        backgroundColor: '#F9F3E8',
-        borderRadius: 16,
-        overflow: 'hidden',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      {/* DIAGNOSTIC: boîte rouge — si visible → container OK, problème Avatar
-                      si invisible → problème au-dessus de ce composant */}
-      <View style={{ width: 180, height: 180, backgroundColor: 'red', alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ color: 'white', fontSize: 18, fontWeight: '900' }}>AVATAR TEST</Text>
+    <View style={{ flexDirection: 'row', gap: 16, alignItems: 'flex-start', justifyContent: 'center' }}>
+
+      {/* Bloc avatar — copie exacte du previewFrame de my-photos.tsx */}
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <Text style={{ fontSize: 12, fontWeight: '700', color: '#3A2818', marginBottom: 8 }}>🎭 Avatar</Text>
+        <View style={{ width: 110, height: 110, borderRadius: 14, borderWidth: 2, borderColor: '#E8D5B7', overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9F3E8' }}>
+          <Avatar size={90} {...resolvedAvatar} />
+        </View>
       </View>
+
+      {/* Bloc photo */}
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <Text style={{ fontSize: 12, fontWeight: '700', color: '#3A2818', marginBottom: 8 }}>
+          {showPhotos ? '🪞 Photo' : '🔒 Photo'}
+        </Text>
+        {showPhotos ? (
+          primaryPhoto ? (
+            <View style={{ width: 110, height: 110, borderRadius: 14, borderWidth: 2, borderColor: '#E8D5B7', overflow: 'hidden', backgroundColor: '#F0EDE8' }}>
+              <Image
+                source={{ uri: makePhotoUrl(primaryPhoto.url), headers: photoHeaders }}
+                style={{ width: '100%', height: '100%' }}
+                contentFit="cover"
+                onLoad={() => console.log('[PhotoAvatarSlider] photo loaded')}
+                onError={(e) => console.warn('[PhotoAvatarSlider] photo error', e)}
+              />
+            </View>
+          ) : (
+            <View style={{ width: 110, height: 110, borderRadius: 14, borderWidth: 2, borderColor: '#E8D5B7', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9F3E8' }}>
+              <Text style={{ fontSize: 24 }}>📷</Text>
+              <Text style={{ fontSize: 10, color: '#8B6F47', textAlign: 'center', marginTop: 4 }}>Pas encore{'\n'}de photo</Text>
+            </View>
+          )
+        ) : (
+          <View style={{ width: 110, height: 110, borderRadius: 14, borderWidth: 2, borderColor: '#E8D5B7', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF0F7' }}>
+            <Text style={{ fontSize: 24 }}>🔒</Text>
+            <Text style={{ fontSize: 9, color: '#8B6F47', textAlign: 'center', marginTop: 4, paddingHorizontal: 6 }}>
+              {myRemaining > 0 ? `${myRemaining} lettre${myRemaining > 1 ? 's' : ''} manquante${myRemaining > 1 ? 's' : ''}` : 'Verrouillée'}
+            </Text>
+          </View>
+        )}
+      </View>
+
     </View>
   );
 }
@@ -1358,73 +1344,5 @@ const styles = StyleSheet.create({
     color: '#5D4037',
     fontWeight: '500',
     flex: 1,
-  },
-});
-
-// ─── SLIDER STYLES ─────────────────────────────────────────────────────────────
-
-const sliderStyles = StyleSheet.create({
-  wrap: {
-    backgroundColor: '#F9F3E8',
-    borderRadius: 16,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  avatarCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: SLIDER_H,
-    width: SLIDER_W,
-  },
-  lockBadge: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 12,
-    padding: 10,
-    alignItems: 'center',
-  },
-  lockText: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  lockHint: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  slide: {
-    width: SLIDER_W,
-    height: SLIDER_H,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F9F3E8',
-  },
-  photoImg: {
-    width: SLIDER_W,
-    height: SLIDER_H,
-  },
-  dots: {
-    position: 'absolute',
-    bottom: 10,
-    flexDirection: 'row',
-    gap: 5,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.75)',
   },
 });
