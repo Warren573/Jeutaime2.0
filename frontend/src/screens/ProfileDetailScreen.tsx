@@ -15,9 +15,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../store/useStore';
-import { AvatarDefinition } from '../avatar/types/avatarTypes';
 import { Avatar } from '../avatar/png/Avatar';
-import { DEFAULT_AVATAR } from '../avatar/png/defaults';
+import { DEFAULT_AVATAR, type AvatarConfig } from '../avatar/png/defaults';
 import { getPublicProfile, getMyPhotos, PublicProfileResponse, MyPhotoDto } from '../api/profiles';
 import { API_URL } from '../api/client';
 import type { MatchDTO } from '../api/matches';
@@ -54,7 +53,7 @@ interface ProfileData {
   descriptors: string[];
   avatarEmoji: string;
   avatarBg: string;
-  avatarDef?: AvatarDefinition;
+  avatarDef?: AvatarConfig;
   bio: string;
   quote: string;
   interests: string[];
@@ -146,7 +145,9 @@ function mapApiToProfileData(
     descriptors: (p.qualities ?? []).slice(0, 3),
     avatarEmoji: '✨',
     avatarBg: '#F3E5F5',
-    avatarDef: p.avatarConfig ? (p.avatarConfig as unknown as AvatarDefinition) : undefined,
+    avatarDef: p.avatarConfig && Object.keys(p.avatarConfig).length > 0
+      ? (p.avatarConfig as unknown as AvatarConfig)
+      : undefined,
     bio: p.bio ?? '',
     quote: p.quote ?? '',
     interests: p.interests ?? [],
@@ -241,7 +242,7 @@ function PhotoAvatarSlider({
   otherRemaining,
   authToken,
 }: {
-  avatarDef?: AvatarDefinition;
+  avatarDef?: AvatarConfig;
   photos: SlidePhoto[];
   unlocked: boolean;
   isOwnProfile: boolean;
@@ -250,12 +251,23 @@ function PhotoAvatarSlider({
   authToken: string | null;
 }) {
   const showPhotos = unlocked || isOwnProfile;
+  const resolvedAvatar = avatarDef ?? DEFAULT_AVATAR;
+
+  console.log(
+    '[PhotoAvatarSlider] isOwnProfile:', isOwnProfile,
+    '| unlocked:', unlocked,
+    '| showPhotos:', showPhotos,
+    '| photos.length:', photos.length,
+    '| authToken:', !!authToken,
+    '| avatarDef:', JSON.stringify(avatarDef)?.slice(0, 100),
+    '| DEFAULT_AVATAR.body:', DEFAULT_AVATAR.body,
+  );
 
   if (!showPhotos) {
     return (
       <View style={[sliderStyles.wrap, { height: SLIDER_H }]}>
         <View style={sliderStyles.avatarCenter}>
-          <Avatar size={180} {...(avatarDef ?? DEFAULT_AVATAR)} />
+          <Avatar size={180} {...resolvedAvatar} />
         </View>
         <View style={sliderStyles.lockBadge}>
           <Text style={sliderStyles.lockText}>🔒 Photos verrouillées</Text>
@@ -283,10 +295,10 @@ function PhotoAvatarSlider({
     ...photos.map(p => ({ type: 'photo' as const, id: p.id, url: makePhotoUrl(p.url) })),
   ];
 
-  console.log('[PhotoAvatarSlider] showPhotos:', showPhotos, '| photos:', photos.length, '| authToken:', !!authToken, '| slides:', slides.length, '| avatarDef:', !!avatarDef);
+  console.log('[PhotoAvatarSlider] slides.length:', slides.length, '| SLIDER_W:', SLIDER_W, '| SLIDER_H:', SLIDER_H);
 
   return (
-    <View style={sliderStyles.wrap}>
+    <View style={[sliderStyles.wrap, { height: SLIDER_H }]}>
       <ScrollView
         horizontal
         pagingEnabled
@@ -299,7 +311,10 @@ function PhotoAvatarSlider({
         {slides.map((slide) =>
           slide.type === 'avatar' ? (
             <View key="avatar" style={sliderStyles.slide}>
-              <Avatar size={180} {...(avatarDef ?? DEFAULT_AVATAR)} />
+              {/* TEST DIAGNOSTIQUE — boîte rouge pour vérifier le rendu du conteneur */}
+              <View style={{ width: 180, height: 180, backgroundColor: 'red', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>AVATAR TEST</Text>
+              </View>
             </View>
           ) : (
             <View key={slide.id} style={sliderStyles.slide}>
@@ -307,6 +322,8 @@ function PhotoAvatarSlider({
                 source={{ uri: slide.url, headers: photoHeaders }}
                 style={sliderStyles.photoImg}
                 contentFit="cover"
+                onLoad={() => console.log('[PhotoAvatarSlider] photo loaded:', slide.url)}
+                onError={(e) => console.warn('[PhotoAvatarSlider] photo error:', slide.url, e)}
               />
             </View>
           )
