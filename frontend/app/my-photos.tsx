@@ -9,8 +9,8 @@ import {
   Alert,
   Switch,
   ActivityIndicator,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -198,7 +198,7 @@ export default function MyPhotosScreen() {
                     <Image
                       source={{ uri: primaryPhotoUrl, headers: photoHeaders }}
                       style={styles.previewPhoto}
-                      resizeMode="cover"
+                      contentFit="cover"
                     />
                   </View>
                 </View>
@@ -234,19 +234,13 @@ export default function MyPhotosScreen() {
             <Text style={styles.sectionTitle}>Ma photo</Text>
             <Text style={styles.sectionSub}>Une seule photo forte — c'est tout ce qu'il faut.</Text>
 
-            {apiPhotos.map((photo) => {
-              const visiblePhotoUrl = makePhotoUrl(photo.url);
-              const source = { uri: visiblePhotoUrl, headers: photoHeaders };
-              return (
+            {apiPhotos.map((photo) => (
               <View key={photo.id} style={styles.photoRow}>
                 <Image
-                  source={source}
-                  style={{ width: 120, height: 120 }}
+                  source={{ uri: makePhotoUrl(photo.url), headers: photoHeaders }}
+                  style={styles.photoThumb}
+                  contentFit="cover"
                 />
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={{ fontSize: 9, color: '#888' }}>token: {authToken ? '✓ présent' : '✗ absent'}</Text>
-                  <Text style={{ fontSize: 9, color: '#888' }} selectable>{visiblePhotoUrl}</Text>
-                </View>
                 <View style={styles.photoMeta}>
                   {photo.isPrimary ? (
                     <View style={styles.mainBadge}>
@@ -262,8 +256,7 @@ export default function MyPhotosScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-              );
-            })}
+            ))}
           </View>
         )}
 
