@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,15 @@ import {
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStore } from '../src/store/useStore';
+import { API_URL } from '../src/api/client';
 import { getRelationInfo } from '../src/engine/RelationEngine';
+
+function makePhotoUrl(url: string): string {
+  if (url.startsWith('http')) return url;
+  return API_URL + url.replace(/^\/api/, '');
+}
 
 const PHYSIQUE_LABEL: Record<string, { emoji: string; label: string }> = {
   filiforme:    { emoji: '🍝', label: 'Filiforme' },
@@ -34,6 +41,9 @@ export default function MatchProfileScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
+  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  useEffect(() => { AsyncStorage.getItem('auth_token').then(setAuthToken); }, []);
 
   const { matches, letters, currentUser, matchPartners } = useStore();
 
@@ -91,15 +101,20 @@ export default function MatchProfileScreen() {
             {/* Photo si débloquée, sinon placeholder garanti */}
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
-              <Image
-                source={
-                  match.photoUnlocked && photoUrl
-                    ? { uri: photoUrl }
-                    : require('../assets/images/icon.png')
-                }
-                style={styles.photoImg}
-                contentFit="cover"
-              />
+              {match.photoUnlocked && photoUrl ? (
+                <Image
+                  source={{
+                    uri: makePhotoUrl(photoUrl),
+                    headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+                  }}
+                  style={styles.photoImg}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <Text style={styles.photoPlaceholderIcon}>🎭</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.heroRight}>
@@ -331,6 +346,12 @@ const styles = StyleSheet.create({
     borderRadius: 2, transform: [{ rotate: '-8deg' }], zIndex: 3,
   },
   photoImg: { width: 106, height: 126, borderRadius: 6 },
+  photoPlaceholder: {
+    width: 106, height: 126, borderRadius: 6,
+    backgroundColor: '#EDE5D8',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  photoPlaceholderIcon: { fontSize: 36 },
 
   heroRight:  { flex: 1, paddingTop: 4 },
   heroName:   { fontSize: 28, fontWeight: '800', color: INK, lineHeight: 34, marginBottom: 4 },
