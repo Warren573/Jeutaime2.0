@@ -274,14 +274,6 @@ function PhotoAvatarSlider({
     );
   }
 
-  if (showPhotos && authToken === null) {
-    return (
-      <View style={[sliderStyles.wrap, { height: SLIDER_H }]}>
-        <ActivityIndicator size="large" color="#E91E63" />
-      </View>
-    );
-  }
-
   const photoHeaders: Record<string, string> = authToken
     ? { Authorization: `Bearer ${authToken}` }
     : {};
@@ -290,6 +282,8 @@ function PhotoAvatarSlider({
     { type: 'avatar' },
     ...photos.map(p => ({ type: 'photo' as const, id: p.id, url: makePhotoUrl(p.url) })),
   ];
+
+  console.log('[PhotoAvatarSlider] showPhotos:', showPhotos, '| photos:', photos.length, '| authToken:', !!authToken, '| slides:', slides.length, '| avatarDef:', !!avatarDef);
 
   return (
     <View style={sliderStyles.wrap}>
