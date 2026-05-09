@@ -44,13 +44,9 @@ export default function MatchProfileScreen() {
   const insets  = useSafeAreaInsets();
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const [authToken, setAuthToken] = useState<string | null>(null);
-  const [photoLoadError, setPhotoLoadError] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('auth_token').then((token) => {
-      setAuthToken(token);
-      setPhotoLoadError(false);
-    });
+    AsyncStorage.getItem('auth_token').then(setAuthToken);
   }, []);
 
   const { matches, letters, currentUser, matchPartners } = useStore();
@@ -109,17 +105,16 @@ export default function MatchProfileScreen() {
             {/* Photo si débloquée, sinon Avatar du partenaire */}
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
-              {match.photoUnlocked && photoUrl && authToken && !photoLoadError ? (
+              {match.photoUnlocked && photoUrl ? (
                 <Image
-                  key={authToken}
+                  key={authToken ?? 'notoken'}
                   source={{
                     uri: makePhotoUrl(photoUrl),
-                    headers: { Authorization: `Bearer ${authToken}` },
+                    headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
                   }}
                   style={styles.photoImg}
                   contentFit="cover"
                   cachePolicy="none"
-                  onError={() => setPhotoLoadError(true)}
                 />
               ) : (
                 <View style={styles.photoPlaceholder}>
