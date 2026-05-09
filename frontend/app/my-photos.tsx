@@ -191,11 +191,12 @@ export default function MyPhotosScreen() {
                 </View>
               </View>
 
-              {primaryPhotoUrl ? (
+              {primaryPhotoUrl && authToken ? (
                 <View style={styles.previewBlock}>
                   <Text style={styles.previewLabel}>🪞 Ma photo</Text>
                   <View style={styles.previewFrame}>
                     <Image
+                      key={authToken}
                       source={{ uri: primaryPhotoUrl, headers: photoHeaders }}
                       style={styles.previewPhoto}
                       contentFit="cover"
@@ -234,9 +235,10 @@ export default function MyPhotosScreen() {
             <Text style={styles.sectionTitle}>Ma photo</Text>
             <Text style={styles.sectionSub}>Une seule photo forte — c'est tout ce qu'il faut.</Text>
 
-            {apiPhotos.map((photo) => (
+            {authToken && apiPhotos.map((photo) => (
               <View key={photo.id} style={styles.photoRow}>
                 <Image
+                  key={authToken}
                   source={{ uri: makePhotoUrl(photo.url), headers: photoHeaders }}
                   style={styles.photoThumb}
                   contentFit="cover"
