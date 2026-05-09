@@ -693,13 +693,15 @@ export default function ProfileDetailScreen() {
 
         {/* Photo / Avatar */}
         <Image
+          key={authToken ?? 'notoken'}
           source={
-            visiblePhotoUrl
+            visiblePhotoUrl && authToken
               ? { uri: visiblePhotoUrl, headers: photoHeaders }
               : require('../../assets/images/icon.png')
           }
           style={{ width: 180, height: 180 }}
           contentFit="cover"
+          cachePolicy="none"
         />
 
         {/* 1. Bio */}
