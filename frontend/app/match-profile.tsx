@@ -73,17 +73,12 @@ export default function MatchProfileScreen() {
 
   // Utilise les vrais compteurs API (plus fiables que le tableau letters local)
   const rawMatch    = apiMatches.find(m => m.id === matchId);
-  const unlock      = rawMatch?.photoUnlock;
   const apiLetterCount = rawMatch
     ? rawMatch.letterCountA + rawMatch.letterCountB
     : letters.filter(l => l.fromUserId === partnerId || l.toUserId === partnerId).length;
   const rel = getRelationInfo(apiLetterCount, isPremium);
 
-  // Photo visible seulement si les deux côtés ont atteint le seuil ET que l'user préfère montrer la photo
-  const photoThresholdMet = unlock != null
-    && unlock.myCount >= unlock.threshold
-    && unlock.otherCount >= unlock.threshold;
-  const photoUrl = (match.photoUnlocked && photoThresholdMet && showPhotoByDefault)
+  const photoUrl = (match.photoUnlocked && showPhotoByDefault)
     ? (match.photoUrl ?? null)
     : null;
 
