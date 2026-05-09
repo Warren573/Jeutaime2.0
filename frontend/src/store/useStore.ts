@@ -333,7 +333,7 @@ export const useStore = create<StoreState>()(
       avatarPngConfig: DEFAULT_AVATAR,
       notifications: [],
       unreadNotificationsCount: 0,
-      showPhotoByDefault: false,
+      showPhotoByDefault: true,
 
       stats: {
         matchesCount: 0,
@@ -438,6 +438,9 @@ export const useStore = create<StoreState>()(
         await saveSession(tokens);
         console.warn('[store.register] session saved, hydrating...');
         await get().hydrateFromApi();
+        // New users have no profile yet → hydrateFromApi returns early without
+        // calling setCurrentUser → isAuthenticated stays false.
+        // Tokens are valid, so force isAuthenticated=true.
         if (!get().isAuthenticated) {
           console.warn('[store.register] hydrateFromApi returned early (no profile yet) — forcing isAuthenticated=true');
           set({ isAuthenticated: true });
@@ -446,15 +449,18 @@ export const useStore = create<StoreState>()(
       },
 
       logout: async () => {
+        // Revoke refresh token on backend — fire-and-forget, never block local cleanup
         AsyncStorage.getItem('auth_refresh_token')
           .then((rt) => { if (rt) apiLogout(rt).catch(() => {}); })
           .catch(() => {});
 
+        // Clear auth tokens + Zustand persist key immediately
         await Promise.all([
           clearApiSession(),
           AsyncStorage.removeItem('jeutaime-storage-v8'),
         ]).catch(() => {});
 
+        // Reset all auth-sensitive state
         set({
           currentUser: null,
           isAuthenticated: false,
@@ -552,10 +558,14 @@ export const useStore = create<StoreState>()(
             }
           }
 
+          // Si l'user est authentifié, toujours utiliser les données API
+          // (même vides — ça veut dire qu'il n'a pas encore de matchs)
+          // Sinon, garder les mocks si pas de données API
           const isAuth = get().isAuthenticated;
           set({
             apiMatches: data,
             matches: isAuth ? adapted : (adapted.length > 0 ? adapted : get().matches),
+            // When authenticated, replace matchPartners entirely so no mock data leaks
             matchPartners: isAuth
               ? newPartners
               : (Object.keys(newPartners).length > 0
@@ -568,8 +578,10 @@ export const useStore = create<StoreState>()(
       },
       
       loadUserData: () => {
+        // Charger les données utilisateur au démarrage
         const { coins, points, pet, stats } = get();
         
+        // Mettre à jour les stats de l'animal si nécessaire
         if (pet) {
           const hoursPassed = (Date.now() - pet.stats.lastUpdated) / (1000 * 60 * 60);
           if (hoursPassed > 0.1) {
@@ -578,6 +590,7 @@ export const useStore = create<StoreState>()(
           }
         }
         
+        // Recalculer le niveau
         const { level, title, emoji } = ProgressionEngine.calculateLevel(points);
         set({ level, title, titleEmoji: emoji });
       },
@@ -638,10 +651,12 @@ export const useStore = create<StoreState>()(
             get().addPoints(ProgressionEngine.POINTS.dailyLogin, 'Connexion quotidienne');
             return true;
           } catch {
+            // Déjà réclamé aujourd'hui (422) ou erreur réseau
             return false;
           }
         }
 
+        // Fallback local (non authentifié / dev)
         const { coins, transactions, lastDailyBonus, currentUser } = get();
         const wallet: Wallet = { odId: 'me', coins, lastDailyBonus, transactions };
 
@@ -673,6 +688,7 @@ export const useStore = create<StoreState>()(
           titleEmoji: emoji 
         });
         
+        // Vérifier les badges
         get().checkAndUnlockBadges();
       },
       
@@ -783,6 +799,8 @@ export const useStore = create<StoreState>()(
         try {
           const data = await listLetters(matchId);
           set((state) => {
+            // Conserver les readAt déjà posés localement (mises à jour optimistes)
+            // pour éviter qu'un rechargement API les efface si le serveur n'a pas encore traité le markRead
             const localReadAt = new Map(
               (state.lettersByMatch[matchId] ?? []).map(l => [l.id, l.readAt]),
             );
@@ -813,6 +831,7 @@ export const useStore = create<StoreState>()(
           l => l.toUserId === viewerId && !l.readAt,
         );
         await Promise.all(unread.map(l => get().markLetterReadApi(l.id)));
+        // S'assurer que le flag match-level est bien éteint
         set((state) => ({
           matches: state.matches.map(m =>
             m.id === matchId ? { ...m, hasUnreadIncomingLetter: false } : m,
@@ -838,6 +857,7 @@ export const useStore = create<StoreState>()(
             ...state.lettersByMatch,
             [matchId]: [...(state.lettersByMatch[matchId] ?? []), adapted],
           },
+          // Mise à jour optimiste de la carte liste : plus notre tour, lettre envoyée
           matches: state.matches.map(m => {
             if (m.id !== matchId) return m;
             return {
@@ -859,6 +879,7 @@ export const useStore = create<StoreState>()(
       },
 
       markLetterReadApi: async (letterId: string) => {
+        // Mise à jour locale immédiate (optimiste) — arrête l'animation avant la réponse API
         get().markLetterRead(letterId);
         set((state) => {
           const updated = { ...state.lettersByMatch };
@@ -876,6 +897,7 @@ export const useStore = create<StoreState>()(
           }
           return { lettersByMatch: updated };
         });
+        // Appel API en arrière-plan
         try {
           await apiMarkLetterRead(letterId);
         } catch {
@@ -896,6 +918,7 @@ export const useStore = create<StoreState>()(
 
       submitAnswers: async (matchId: string, answers: { profileQuestionId: string; answer: string }[]) => {
         const result = await submitMatchAnswers(matchId, answers);
+        // Si validé → rafraîchir le match pour mettre à jour questionsValidated
         if (result.questionsValidated || result.matchBroken) {
           await get().loadMatches();
         }
@@ -1020,6 +1043,8 @@ export const useStore = create<StoreState>()(
       name: 'jeutaime-storage-v8',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
+        // En dev non-authentifié, coins n'est pas sauvegardé → 50 000 au démarrage
+        // Si authentifié, le solde réel est toujours persisté même en dev
         ...(DEV_MODE_UNLIMITED_COINS && !state.isAuthenticated ? {} : { coins: state.coins }),
         points: state.points,
         level: state.level,
