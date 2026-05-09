@@ -411,6 +411,7 @@ export const useStore = create<StoreState>()(
             canDiscover: d.profileStatus?.canDiscover,
             canMatch: d.profileStatus?.canMatch,
             canEnterSalon: d.profileStatus?.canEnterSalon,
+            showPhotoByDefault: prevUser?.showPhotoByDefault ?? true,
           };
           console.log("HYDRATE_SET_USER", mappedUser);
           get().setCurrentUser(mappedUser);

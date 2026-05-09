@@ -80,7 +80,7 @@ export default function MatchProfileScreen() {
   const rel = getRelationInfo(apiLetterCount, isPremium);
 
   // Photo visible seulement si les deux côtés ont atteint le seuil ET que l'user préfère montrer la photo
-  const showPhotoByDefault = currentUser?.showPhotoByDefault ?? false;
+  const showPhotoByDefault = currentUser?.showPhotoByDefault ?? true;
   const photoThresholdMet = unlock != null
     && unlock.myCount >= unlock.threshold
     && unlock.otherCount >= unlock.threshold;
