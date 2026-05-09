@@ -49,7 +49,7 @@ export default function MatchProfileScreen() {
     AsyncStorage.getItem('auth_token').then(setAuthToken);
   }, []);
 
-  const { matches, letters, currentUser, matchPartners } = useStore();
+  const { matches, letters, currentUser, matchPartners, apiMatches } = useStore();
 
   const match = matches.find(m => m.id === matchId);
   if (!match) {
@@ -69,11 +69,21 @@ export default function MatchProfileScreen() {
   const partnerId = match.userAId === myId ? match.userBId : match.userAId;
   const partner   = matchPartners?.[partnerId];
 
-  const conv        = letters.filter(l => l.fromUserId === partnerId || l.toUserId === partnerId);
-  const letterCount = conv.length;
   const isPremium   = currentUser?.isPremium ?? false;
-  const rel         = getRelationInfo(letterCount, isPremium);
-  const photoUrl = match.photoUrl ?? null;
+
+  // Utilise les vrais compteurs API (plus fiables que le tableau letters local)
+  const rawMatch    = apiMatches.find(m => m.id === matchId);
+  const unlock      = rawMatch?.photoUnlock;
+  const apiLetterCount = rawMatch
+    ? rawMatch.letterCountA + rawMatch.letterCountB
+    : letters.filter(l => l.fromUserId === partnerId || l.toUserId === partnerId).length;
+  const rel = getRelationInfo(apiLetterCount, isPremium);
+
+  // Photo visible seulement si les deux côtés ont atteint le seuil
+  const photoThresholdMet = unlock != null
+    && unlock.myCount >= unlock.threshold
+    && unlock.otherCount >= unlock.threshold;
+  const photoUrl = (match.photoUnlocked && photoThresholdMet) ? (match.photoUrl ?? null) : null;
 
   const physique = partner?.physicalDesc
     ? PHYSIQUE_LABEL[partner.physicalDesc] ?? { emoji: '✨', label: partner.physicalDesc }
@@ -102,10 +112,10 @@ export default function MatchProfileScreen() {
         <View style={styles.journalPage}>
 
           <View style={styles.hero}>
-            {/* Photo si débloquée, sinon Avatar du partenaire */}
+            {/* Photo si débloquée (les deux côtés au seuil), sinon Avatar du partenaire */}
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
-              {match.photoUnlocked && photoUrl ? (
+              {photoUrl ? (
                 <Image
                   key={authToken ?? 'notoken'}
                   source={{
@@ -145,7 +155,7 @@ export default function MatchProfileScreen() {
                   )}
                 </View>
               </View>
-              {!match.photoUnlocked && (
+              {!photoUrl && (
                 <Text style={styles.photoHint}>
                   🎭 La relation se construit avant tout
                 </Text>
