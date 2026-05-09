@@ -49,7 +49,7 @@ export default function MatchProfileScreen() {
     AsyncStorage.getItem('auth_token').then(setAuthToken);
   }, []);
 
-  const { matches, letters, currentUser, matchPartners, apiMatches } = useStore();
+  const { matches, letters, currentUser, matchPartners, apiMatches, showPhotoByDefault } = useStore();
 
   const match = matches.find(m => m.id === matchId);
   if (!match) {
@@ -71,7 +71,6 @@ export default function MatchProfileScreen() {
 
   const isPremium   = currentUser?.isPremium ?? false;
 
-  // Utilise les vrais compteurs API (plus fiables que le tableau letters local)
   const rawMatch    = apiMatches.find(m => m.id === matchId);
   const unlock      = rawMatch?.photoUnlock;
   const apiLetterCount = rawMatch
@@ -79,8 +78,6 @@ export default function MatchProfileScreen() {
     : letters.filter(l => l.fromUserId === partnerId || l.toUserId === partnerId).length;
   const rel = getRelationInfo(apiLetterCount, isPremium);
 
-  // Photo visible seulement si les deux côtés ont atteint le seuil ET que l'user préfère montrer la photo
-  const showPhotoByDefault = currentUser?.showPhotoByDefault ?? false;
   const photoThresholdMet = unlock != null
     && unlock.myCount >= unlock.threshold
     && unlock.otherCount >= unlock.threshold;
@@ -98,7 +95,6 @@ export default function MatchProfileScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
 
-      {/* ── Barre nav sombre (cohérente avec les lettres) ── */}
       <View style={styles.navBar}>
         <TouchableOpacity onPress={() => router.replace('/(tabs)/letters')}>
           <Text style={styles.backText}>← Lettres</Text>
@@ -111,11 +107,10 @@ export default function MatchProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
 
-        {/* ── Héro : avatar/photo + nom + niveau ── */}
         <View style={styles.journalPage}>
 
           <View style={styles.hero}>
-            {/* Photo si débloquée (les deux côtés au seuil + photo par défaut activée), sinon Avatar */}
+            {/* Photo si débloquée, sinon Avatar du partenaire */}
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
               {photoUrl ? (
@@ -148,7 +143,6 @@ export default function MatchProfileScreen() {
               {partner?.city && (
                 <Text style={styles.heroCity}>📍 {partner.city}</Text>
               )}
-              {/* Badge niveau */}
               <View style={styles.levelBadge}>
                 <Text style={styles.levelStars}>{rel.stars}</Text>
                 <View style={styles.levelBadgeText}>
@@ -166,7 +160,6 @@ export default function MatchProfileScreen() {
             </View>
           </View>
 
-          {/* ── Citation ── */}
           {partner?.quote ? (
             <>
               <Text style={styles.quoteText}>{partner.quote}</Text>
@@ -174,7 +167,6 @@ export default function MatchProfileScreen() {
             </>
           ) : null}
 
-          {/* ── Ce qu'il·elle cherche ── */}
           {partner?.lookingFor?.length ? (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>CE QU'IL·ELLE CHERCHE ICI</Text>
@@ -191,7 +183,6 @@ export default function MatchProfileScreen() {
             </View>
           ) : null}
 
-          {/* ── Un peu de lui·elle ── */}
           {(partner?.height || physique) ? (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>UN PEU DE LUI·ELLE</Text>
@@ -203,7 +194,6 @@ export default function MatchProfileScreen() {
             </View>
           ) : null}
 
-          {/* ── Compétences ── */}
           {partner?.skills?.length ? (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>CE QU'IL·ELLE GÈRE (plus ou moins bien)</Text>
@@ -237,7 +227,6 @@ export default function MatchProfileScreen() {
             </View>
           ) : null}
 
-          {/* ── Qualités / Défauts ── */}
           {(partner?.qualities?.length || partner?.defaults?.length) ? (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>SES PETITS + ET SES PETITS −</Text>
@@ -266,7 +255,6 @@ export default function MatchProfileScreen() {
             </View>
           ) : null}
 
-          {/* ── Journée idéale ── */}
           {partner?.idealDay?.length ? (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>SA JOURNÉE IDÉALE</Text>
@@ -290,7 +278,6 @@ export default function MatchProfileScreen() {
 
         </View>
 
-        {/* ── CTA retour ── */}
         <TouchableOpacity style={styles.backToLettersBtn} onPress={() => router.replace('/(tabs)/letters')}>
           <Text style={styles.backToLettersText}>✉️ Retourner aux lettres</Text>
         </TouchableOpacity>

@@ -47,10 +47,9 @@ function pickImageWeb(): Promise<File | null> {
 export default function MyPhotosScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser, setCurrentUser, avatarPngConfig } = useStore();
+  const { currentUser, setCurrentUser, avatarPngConfig, showPhotoByDefault, setShowPhotoByDefault } = useStore();
 
-  const showPhotoByDefault = currentUser?.showPhotoByDefault ?? false;
-  const isPremium          = currentUser?.isPremium ?? false;
+  const isPremium = currentUser?.isPremium ?? false;
 
   const [apiPhotos, setApiPhotos]         = useState<MyPhotoDto[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(true);
@@ -92,8 +91,6 @@ export default function MyPhotosScreen() {
       Alert.alert('Bientôt disponible', "L'ajout de photos depuis l'app mobile arrive prochainement.");
       return;
     }
-    // Ouvrir le sélecteur SANS toucher à l'état uploading
-    // (le bouton ne doit pas se bloquer si l'utilisateur annule)
     let file: File | null = null;
     try {
       file = await pickImageWeb();
@@ -102,7 +99,6 @@ export default function MyPhotosScreen() {
     }
     if (!file) return;
 
-    // Fichier confirmé → démarrer l'upload
     console.log('[my-photos] fichier sélectionné:', file.name, Math.round(file.size / 1024), 'KB', file.type);
     setUploading(true);
     try {
@@ -222,7 +218,7 @@ export default function MyPhotosScreen() {
               </Text>
               <Switch
                 value={showPhotoByDefault}
-                onValueChange={val => patchUser({ showPhotoByDefault: val })}
+                onValueChange={setShowPhotoByDefault}
                 trackColor={{ false: '#E8D5B7', true: '#E91E8C' }}
                 thumbColor="#FFF"
               />
