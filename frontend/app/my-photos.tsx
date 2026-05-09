@@ -200,6 +200,7 @@ export default function MyPhotosScreen() {
                       source={{ uri: primaryPhotoUrl, headers: photoHeaders }}
                       style={styles.previewPhoto}
                       contentFit="cover"
+                      cachePolicy="none"
                     />
                   </View>
                 </View>
@@ -242,6 +243,7 @@ export default function MyPhotosScreen() {
                   source={{ uri: makePhotoUrl(photo.url), headers: photoHeaders }}
                   style={styles.photoThumb}
                   contentFit="cover"
+                  cachePolicy="none"
                 />
                 <View style={styles.photoMeta}>
                   {photo.isPrimary ? (
