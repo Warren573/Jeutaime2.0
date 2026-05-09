@@ -158,7 +158,6 @@ interface CurrentUser {
   // Photos
   photos?: string[];           // URIs des photos uploadées (web: objectURL, prod: CDN URL)
   mainPhotoUri?: string;       // photo sélectionnée comme principale
-  showPhotoByDefault?: boolean; // true = afficher la photo dans le profil, false = avatar
   // Profile completeness
   isProfileComplete?: boolean;
   profileMissingFields?: string[];
@@ -293,6 +292,10 @@ interface StoreState {
   // ===== Avatar PNG =====
   avatarPngConfig: PngAvatarConfig;
   updateAvatarPngConfig: (config: PngAvatarConfig) => void;
+
+  // ===== Photo preference (top-level so hydrateFromApi can never overwrite it) =====
+  showPhotoByDefault: boolean;
+  setShowPhotoByDefault: (val: boolean) => void;
 }
 
 // ==================== STORE ====================
@@ -330,6 +333,7 @@ export const useStore = create<StoreState>()(
       avatarPngConfig: DEFAULT_AVATAR,
       notifications: [],
       unreadNotificationsCount: 0,
+      showPhotoByDefault: true,
 
       stats: {
         matchesCount: 0,
@@ -411,7 +415,6 @@ export const useStore = create<StoreState>()(
             canDiscover: d.profileStatus?.canDiscover,
             canMatch: d.profileStatus?.canMatch,
             canEnterSalon: d.profileStatus?.canEnterSalon,
-            showPhotoByDefault: prevUser?.showPhotoByDefault ?? true,
           };
           console.log("HYDRATE_SET_USER", mappedUser);
           get().setCurrentUser(mappedUser);
@@ -993,6 +996,8 @@ export const useStore = create<StoreState>()(
 
       updateAvatarPngConfig: (config) => set({ avatarPngConfig: config }),
 
+      setShowPhotoByDefault: (val) => set({ showPhotoByDefault: val }),
+
       // ===== Notification Actions =====
       loadNotifications: async () => {
         try {
@@ -1053,6 +1058,7 @@ export const useStore = create<StoreState>()(
         screenBackgrounds: state.screenBackgrounds,
         duelEntries: state.duelEntries,
         avatarPngConfig: state.avatarPngConfig,
+        showPhotoByDefault: state.showPhotoByDefault,
       }),
     }
   )

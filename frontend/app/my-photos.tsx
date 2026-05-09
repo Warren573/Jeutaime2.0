@@ -47,10 +47,9 @@ function pickImageWeb(): Promise<File | null> {
 export default function MyPhotosScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser, setCurrentUser, avatarPngConfig } = useStore();
+  const { currentUser, setCurrentUser, avatarPngConfig, showPhotoByDefault, setShowPhotoByDefault } = useStore();
 
-  const showPhotoByDefault = currentUser?.showPhotoByDefault ?? false;
-  const isPremium          = currentUser?.isPremium ?? false;
+  const isPremium = currentUser?.isPremium ?? false;
 
   const [apiPhotos, setApiPhotos]         = useState<MyPhotoDto[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(true);
@@ -222,7 +221,7 @@ export default function MyPhotosScreen() {
               </Text>
               <Switch
                 value={showPhotoByDefault}
-                onValueChange={val => patchUser({ showPhotoByDefault: val })}
+                onValueChange={setShowPhotoByDefault}
                 trackColor={{ false: '#E8D5B7', true: '#E91E8C' }}
                 thumbColor="#FFF"
               />

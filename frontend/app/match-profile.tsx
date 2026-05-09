@@ -49,7 +49,7 @@ export default function MatchProfileScreen() {
     AsyncStorage.getItem('auth_token').then(setAuthToken);
   }, []);
 
-  const { matches, letters, currentUser, matchPartners, apiMatches } = useStore();
+  const { matches, letters, currentUser, matchPartners, apiMatches, showPhotoByDefault } = useStore();
 
   const match = matches.find(m => m.id === matchId);
   if (!match) {
@@ -80,7 +80,6 @@ export default function MatchProfileScreen() {
   const rel = getRelationInfo(apiLetterCount, isPremium);
 
   // Photo visible seulement si les deux côtés ont atteint le seuil ET que l'user préfère montrer la photo
-  const showPhotoByDefault = currentUser?.showPhotoByDefault ?? true;
   const photoThresholdMet = unlock != null
     && unlock.myCount >= unlock.threshold
     && unlock.otherCount >= unlock.threshold;
