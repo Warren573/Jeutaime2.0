@@ -79,11 +79,14 @@ export default function MatchProfileScreen() {
     : letters.filter(l => l.fromUserId === partnerId || l.toUserId === partnerId).length;
   const rel = getRelationInfo(apiLetterCount, isPremium);
 
-  // Photo visible seulement si les deux côtés ont atteint le seuil
+  // Photo visible seulement si les deux côtés ont atteint le seuil ET que l'user préfère montrer la photo
+  const showPhotoByDefault = currentUser?.showPhotoByDefault ?? false;
   const photoThresholdMet = unlock != null
     && unlock.myCount >= unlock.threshold
     && unlock.otherCount >= unlock.threshold;
-  const photoUrl = (match.photoUnlocked && photoThresholdMet) ? (match.photoUrl ?? null) : null;
+  const photoUrl = (match.photoUnlocked && photoThresholdMet && showPhotoByDefault)
+    ? (match.photoUrl ?? null)
+    : null;
 
   const physique = partner?.physicalDesc
     ? PHYSIQUE_LABEL[partner.physicalDesc] ?? { emoji: '✨', label: partner.physicalDesc }
@@ -112,7 +115,7 @@ export default function MatchProfileScreen() {
         <View style={styles.journalPage}>
 
           <View style={styles.hero}>
-            {/* Photo si débloquée (les deux côtés au seuil), sinon Avatar du partenaire */}
+            {/* Photo si débloquée (les deux côtés au seuil + photo par défaut activée), sinon Avatar */}
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
               {photoUrl ? (
@@ -323,7 +326,6 @@ const styles = StyleSheet.create({
 
   scroll: { padding: 16, paddingBottom: 60 },
 
-  // ── Journal page (même conteneur que ProfileTwoStepDemo) ──
   journalPage: {
     backgroundColor: PAPER,
     borderRadius: 24,
@@ -339,7 +341,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  // ── Héro ──
   hero: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -386,18 +387,15 @@ const styles = StyleSheet.create({
   levelProgress:  { fontSize: 11, color: INK_S, marginTop: 3, fontStyle: 'italic' },
   photoHint:      { fontSize: 11, color: INK_S, fontStyle: 'italic', lineHeight: 16 },
 
-  // ── Citation + séparateur ──
   quoteText:  { fontSize: 17, lineHeight: 28, color: INK_S, fontStyle: 'italic', marginBottom: 4 },
   underline:  { fontSize: 16, color: '#A98668', marginBottom: 18 },
 
-  // ── Sections (même style que ProfileTwoStepDemo) ──
   paperSection: { marginBottom: 22 },
   kicker: {
     fontSize: 15, color: INK, fontWeight: '800',
     letterSpacing: 0.6, marginBottom: 12,
   },
 
-  // intention note
   intentNote: {
     backgroundColor: '#F3E2C7', borderRadius: 18,
     paddingHorizontal: 18, paddingVertical: 18,
@@ -418,7 +416,6 @@ const styles = StyleSheet.create({
     borderRadius: 2, transform: [{ rotate: '-4deg' }], zIndex: 1,
   },
 
-  // practical card
   practicalCard: {
     backgroundColor: PAPER2, borderRadius: 18,
     borderWidth: 1, borderColor: '#E2D1BA',
@@ -426,7 +423,6 @@ const styles = StyleSheet.create({
   },
   practicalLine: { fontSize: 16, color: INK, marginBottom: 8 },
 
-  // skills
   skillsCard: {
     backgroundColor: PAPER3, borderRadius: 18,
     borderWidth: 1, borderColor: '#E2D3BE',
@@ -444,7 +440,6 @@ const styles = StyleSheet.create({
   skillScore:    { fontSize: 14, fontWeight: '700', color: INK_S },
   skillDivider:  { height: 1, backgroundColor: '#E8D9C6' },
 
-  // qualités / défauts
   qualitiesRow: { flexDirection: 'row', gap: 12 },
   miniCard: {
     flex: 1, backgroundColor: PAPER3,
@@ -455,7 +450,6 @@ const styles = StyleSheet.create({
   badBullet:  { fontSize: 17, color: RED,   marginRight: 8, fontWeight: '800' },
   bulletText: { fontSize: 16, color: INK, flex: 1 },
 
-  // journée idéale
   idealDayCard: {
     backgroundColor: '#F0DBD9', borderRadius: 18,
     borderWidth: 1, borderColor: '#E2C9C5',
@@ -473,13 +467,11 @@ const styles = StyleSheet.create({
   },
   idealDayLine: { fontSize: 17, lineHeight: 30, color: INK, marginBottom: 6 },
 
-  // états
   errorState:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
   errorText:   { fontSize: 16, color: INK_S },
   noDataState: { alignItems: 'center', paddingVertical: 20 },
   noDataText:  { fontSize: 14, color: INK_S, textAlign: 'center', lineHeight: 22, fontStyle: 'italic' },
 
-  // CTA retour
   backToLettersBtn: {
     borderRadius: 16, borderWidth: 1.5, borderColor: '#8B2E3C',
     padding: 16, alignItems: 'center',
