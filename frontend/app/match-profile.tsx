@@ -72,16 +72,12 @@ export default function MatchProfileScreen() {
   const isPremium   = currentUser?.isPremium ?? false;
 
   const rawMatch    = apiMatches.find(m => m.id === matchId);
-  const unlock      = rawMatch?.photoUnlock;
   const apiLetterCount = rawMatch
     ? rawMatch.letterCountA + rawMatch.letterCountB
     : letters.filter(l => l.fromUserId === partnerId || l.toUserId === partnerId).length;
   const rel = getRelationInfo(apiLetterCount, isPremium);
 
-  const photoThresholdMet = unlock != null
-    && unlock.myCount >= unlock.threshold
-    && unlock.otherCount >= unlock.threshold;
-  const photoUrl = (match.photoUnlocked && photoThresholdMet && showPhotoByDefault)
+  const photoUrl = (match.photoUnlocked && showPhotoByDefault)
     ? (match.photoUrl ?? null)
     : null;
 
@@ -95,6 +91,7 @@ export default function MatchProfileScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
 
+      {/* ── Barre nav sombre (cohérente avec les lettres) ── */}
       <View style={styles.navBar}>
         <TouchableOpacity onPress={() => router.replace('/(tabs)/letters')}>
           <Text style={styles.backText}>← Lettres</Text>
@@ -107,6 +104,7 @@ export default function MatchProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
 
+        {/* ── Héro : avatar/photo + nom + niveau ── */}
         <View style={styles.journalPage}>
 
           <View style={styles.hero}>
@@ -143,6 +141,7 @@ export default function MatchProfileScreen() {
               {partner?.city && (
                 <Text style={styles.heroCity}>📍 {partner.city}</Text>
               )}
+              {/* Badge niveau */}
               <View style={styles.levelBadge}>
                 <Text style={styles.levelStars}>{rel.stars}</Text>
                 <View style={styles.levelBadgeText}>
@@ -160,6 +159,7 @@ export default function MatchProfileScreen() {
             </View>
           </View>
 
+          {/* ── Citation ── */}
           {partner?.quote ? (
             <>
               <Text style={styles.quoteText}>{partner.quote}</Text>
@@ -167,6 +167,7 @@ export default function MatchProfileScreen() {
             </>
           ) : null}
 
+          {/* ── Ce qu'il·elle cherche ── */}
           {partner?.lookingFor?.length ? (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>CE QU'IL·ELLE CHERCHE ICI</Text>
@@ -183,17 +184,19 @@ export default function MatchProfileScreen() {
             </View>
           ) : null}
 
+          {/* ── Un peu de lui·elle ── */}
           {(partner?.height || physique) ? (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>UN PEU DE LUI·ELLE</Text>
               <View style={styles.practicalCard}>
-                {partner?.city    ? <Text style={styles.practicalLine}>📍 {partner.city}</Text> : null}
-                {partner?.height  ? <Text style={styles.practicalLine}>📏 {partner.height} cm</Text> : null}
-                {physique         ? <Text style={styles.practicalLine}>{physique.emoji} {physique.label}</Text> : null}
+                {partner?.city     ? <Text style={styles.practicalLine}>📍 {partner.city}</Text> : null}
+                {partner?.height   ? <Text style={styles.practicalLine}>📏 {partner.height} cm</Text> : null}
+                {physique          ? <Text style={styles.practicalLine}>{physique.emoji} {physique.label}</Text> : null}
               </View>
             </View>
           ) : null}
 
+          {/* ── Compétences ── */}
           {partner?.skills?.length ? (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>CE QU'IL·ELLE GÈRE (plus ou moins bien)</Text>
@@ -227,6 +230,7 @@ export default function MatchProfileScreen() {
             </View>
           ) : null}
 
+          {/* ── Qualités / Défauts ── */}
           {(partner?.qualities?.length || partner?.defaults?.length) ? (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>SES PETITS + ET SES PETITS −</Text>
@@ -255,6 +259,7 @@ export default function MatchProfileScreen() {
             </View>
           ) : null}
 
+          {/* ── Journée idéale ── */}
           {partner?.idealDay?.length ? (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>SA JOURNÉE IDÉALE</Text>
@@ -278,6 +283,7 @@ export default function MatchProfileScreen() {
 
         </View>
 
+        {/* ── CTA retour ── */}
         <TouchableOpacity style={styles.backToLettersBtn} onPress={() => router.replace('/(tabs)/letters')}>
           <Text style={styles.backToLettersText}>✉️ Retourner aux lettres</Text>
         </TouchableOpacity>
@@ -313,6 +319,7 @@ const styles = StyleSheet.create({
 
   scroll: { padding: 16, paddingBottom: 60 },
 
+  // ── Journal page (même conteneur que ProfileTwoStepDemo) ──
   journalPage: {
     backgroundColor: PAPER,
     borderRadius: 24,
@@ -328,6 +335,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
+  // ── Héro ──
   hero: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -374,15 +382,18 @@ const styles = StyleSheet.create({
   levelProgress:  { fontSize: 11, color: INK_S, marginTop: 3, fontStyle: 'italic' },
   photoHint:      { fontSize: 11, color: INK_S, fontStyle: 'italic', lineHeight: 16 },
 
+  // ── Citation + séparateur ──
   quoteText:  { fontSize: 17, lineHeight: 28, color: INK_S, fontStyle: 'italic', marginBottom: 4 },
   underline:  { fontSize: 16, color: '#A98668', marginBottom: 18 },
 
+  // ── Sections (même style que ProfileTwoStepDemo) ──
   paperSection: { marginBottom: 22 },
   kicker: {
     fontSize: 15, color: INK, fontWeight: '800',
     letterSpacing: 0.6, marginBottom: 12,
   },
 
+  // intention note
   intentNote: {
     backgroundColor: '#F3E2C7', borderRadius: 18,
     paddingHorizontal: 18, paddingVertical: 18,
@@ -403,6 +414,7 @@ const styles = StyleSheet.create({
     borderRadius: 2, transform: [{ rotate: '-4deg' }], zIndex: 1,
   },
 
+  // practical card
   practicalCard: {
     backgroundColor: PAPER2, borderRadius: 18,
     borderWidth: 1, borderColor: '#E2D1BA',
@@ -410,6 +422,7 @@ const styles = StyleSheet.create({
   },
   practicalLine: { fontSize: 16, color: INK, marginBottom: 8 },
 
+  // skills
   skillsCard: {
     backgroundColor: PAPER3, borderRadius: 18,
     borderWidth: 1, borderColor: '#E2D3BE',
@@ -427,6 +440,7 @@ const styles = StyleSheet.create({
   skillScore:    { fontSize: 14, fontWeight: '700', color: INK_S },
   skillDivider:  { height: 1, backgroundColor: '#E8D9C6' },
 
+  // qualités / défauts
   qualitiesRow: { flexDirection: 'row', gap: 12 },
   miniCard: {
     flex: 1, backgroundColor: PAPER3,
@@ -437,6 +451,7 @@ const styles = StyleSheet.create({
   badBullet:  { fontSize: 17, color: RED,   marginRight: 8, fontWeight: '800' },
   bulletText: { fontSize: 16, color: INK, flex: 1 },
 
+  // journée idéale
   idealDayCard: {
     backgroundColor: '#F0DBD9', borderRadius: 18,
     borderWidth: 1, borderColor: '#E2C9C5',
@@ -454,11 +469,13 @@ const styles = StyleSheet.create({
   },
   idealDayLine: { fontSize: 17, lineHeight: 30, color: INK, marginBottom: 6 },
 
+  // états
   errorState:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
   errorText:   { fontSize: 16, color: INK_S },
   noDataState: { alignItems: 'center', paddingVertical: 20 },
   noDataText:  { fontSize: 14, color: INK_S, textAlign: 'center', lineHeight: 22, fontStyle: 'italic' },
 
+  // CTA retour
   backToLettersBtn: {
     borderRadius: 16, borderWidth: 1.5, borderColor: '#8B2E3C',
     padding: 16, alignItems: 'center',
