@@ -78,7 +78,7 @@ const DEV_INITIAL_USER = {
     { id: 'communication', label: 'Communication', detail: 'répond vraiment (incroyable)',      score: 80, emoji: '💬' },
     { id: 'cuisine',       label: 'Cuisine',       detail: 'maîtrise les pâtes (et Uber Eats)', score: 70, emoji: '🍝' },
     { id: 'organisation',  label: 'Organisation',  detail: 'pro dans la procrastination',       score: 60, emoji: '🗂️' },
-    { id: 'empathie',      label: 'Empathie',      detail: "peut s'attacher trop vite",         score: 90, emoji: '🫂' },
+    { id: 'empathie',      label: 'Empathie',      detail: "peut s'attacher trop vite",         score: 90, emoji: '🫸' },
   ],
   qualities: ['Drôle', 'Attentionnée', 'Loyale'],
   defaults: ['Têtue', 'Oublie de répondre', 'Achète trop de trucs'],
@@ -184,6 +184,7 @@ export interface PartnerProfile {
   idealDay?: string[];
   skills?: { id?: string; label: string; detail: string; score: number; emoji: string }[];
   mainPhotoUri?: string; // révélée selon le niveau de relation
+  avatarConfig?: Record<string, unknown>;
 }
 
 interface StoreState {
@@ -548,6 +549,7 @@ export const useStore = create<StoreState>()(
                 bio: m.otherProfile.bio,
                 city: m.otherProfile.city,
                 physicalDesc: m.otherProfile.physicalDesc ?? undefined,
+                avatarConfig: m.otherProfile.avatarConfig,
               };
             }
           }
