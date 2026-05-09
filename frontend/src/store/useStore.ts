@@ -333,7 +333,7 @@ export const useStore = create<StoreState>()(
       avatarPngConfig: DEFAULT_AVATAR,
       notifications: [],
       unreadNotificationsCount: 0,
-      showPhotoByDefault: false,
+      showPhotoByDefault: true,
 
       stats: {
         matchesCount: 0,
