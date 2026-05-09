@@ -13,6 +13,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStore } from '../src/store/useStore';
 import { API_URL } from '../src/api/client';
 import { getRelationInfo } from '../src/engine/RelationEngine';
+import { Avatar } from '../src/avatar/png/Avatar';
+import { DEFAULT_AVATAR } from '../src/avatar/png/defaults';
 
 function makePhotoUrl(url: string): string {
   if (url.startsWith('http')) return url;
@@ -98,7 +100,7 @@ export default function MatchProfileScreen() {
         <View style={styles.journalPage}>
 
           <View style={styles.hero}>
-            {/* Photo si débloquée, sinon placeholder garanti */}
+            {/* Photo si débloquée, sinon Avatar du partenaire */}
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
               {match.photoUnlocked && photoUrl ? (
@@ -112,7 +114,12 @@ export default function MatchProfileScreen() {
                 />
               ) : (
                 <View style={styles.photoPlaceholder}>
-                  <Text style={styles.photoPlaceholderIcon}>🎭</Text>
+                  <Avatar
+                    size={106}
+                    {...(partner?.avatarConfig && Object.keys(partner.avatarConfig).length > 0
+                      ? (partner.avatarConfig as any)
+                      : DEFAULT_AVATAR)}
+                  />
                 </View>
               )}
             </View>
@@ -348,8 +355,9 @@ const styles = StyleSheet.create({
   photoImg: { width: 106, height: 126, borderRadius: 6 },
   photoPlaceholder: {
     width: 106, height: 126, borderRadius: 6,
-    backgroundColor: '#EDE5D8',
+    backgroundColor: '#F3EDE3',
     alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
   photoPlaceholderIcon: { fontSize: 36 },
 
