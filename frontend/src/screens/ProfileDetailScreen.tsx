@@ -593,6 +593,7 @@ export default function ProfileDetailScreen() {
   const apiMatches = useStore((s) => s.apiMatches);
   const sendApiLetter = useStore((s) => s.sendApiLetter);
   const currentUser = useStore((s) => s.currentUser);
+  const showPhotoByDefault = useStore((s) => s.showPhotoByDefault);
   const isOwnProfile = !!id && !!currentUser?.id && id === currentUser.id;
 
   useEffect(() => {
@@ -668,10 +669,13 @@ export default function ProfileDetailScreen() {
     );
   }
 
-  const photoHeaders: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {};
-  const ownPrimary = isOwnProfile ? (ownPhotos.find(p => p.isPrimary) ?? ownPhotos[0] ?? null) : null;
-  const partnerPhoto = !isOwnProfile && (apiData.photoUnlock?.unlocked ?? false) ? (apiData.photos[0] ?? null) : null;
-  const visiblePhotoUrl = (ownPrimary?.url ?? partnerPhoto?.url) ? makePhotoUrl((ownPrimary?.url ?? partnerPhoto!.url)!) : null;
+  const sliderPhotos: SlidePhoto[] = isOwnProfile
+    ? ownPhotos.map(p => ({ id: p.id, url: p.url }))
+    : apiData.photos.map((p, i) => ({ id: String(i), url: p.url }));
+
+  const photoUnlocked = isOwnProfile
+    ? true
+    : (apiData.photoUnlock?.unlocked ?? false) && showPhotoByDefault;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
@@ -691,17 +695,15 @@ export default function ProfileDetailScreen() {
           </View>
         )}
 
-        {/* Photo / Avatar */}
-        <Image
-          key={authToken ?? 'notoken'}
-          source={
-            visiblePhotoUrl && authToken
-              ? { uri: visiblePhotoUrl, headers: photoHeaders }
-              : require('../../assets/images/icon.png')
-          }
-          style={{ width: 180, height: 180 }}
-          contentFit="cover"
-          cachePolicy="none"
+        {/* Photo / Avatar — jamais de cadre blanc */}
+        <PhotoAvatarSlider
+          avatarDef={profile.avatarDef}
+          photos={sliderPhotos}
+          unlocked={photoUnlocked}
+          isOwnProfile={isOwnProfile}
+          myRemaining={0}
+          otherRemaining={0}
+          authToken={authToken}
         />
 
         {/* 1. Bio */}
