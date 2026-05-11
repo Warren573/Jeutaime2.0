@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Platform,
   Alert,
-  Switch,
   ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -23,7 +22,6 @@ import {
   uploadPhoto,
   deleteMyPhoto,
   patchMyPhoto,
-  saveShowPhotoByDefault,
   type MyPhotoDto,
 } from '../src/api/profiles';
 
@@ -48,7 +46,7 @@ function pickImageWeb(): Promise<File | null> {
 export default function MyPhotosScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser, setCurrentUser, avatarPngConfig, showPhotoByDefault, setShowPhotoByDefault } = useStore();
+  const { currentUser, avatarPngConfig } = useStore();
 
   const isPremium = currentUser?.isPremium ?? false;
 
@@ -82,10 +80,6 @@ export default function MyPhotosScreen() {
   const primaryPhoto    = apiPhotos.find(p => p.isPrimary) ?? apiPhotos[0];
   const primaryPhotoUrl = primaryPhoto ? makePhotoUrl(primaryPhoto.url) : undefined;
 
-  const patchUser = (patch: object) => {
-    if (!currentUser) return;
-    setCurrentUser({ ...currentUser, ...patch });
-  };
 
   const handleAddPhoto = async () => {
     if (Platform.OS !== 'web') {
@@ -212,25 +206,6 @@ export default function MyPhotosScreen() {
               )}
             </View>
           )}
-
-          {primaryPhotoUrl && (
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>
-                {showPhotoByDefault
-                  ? '🪞 Photo affichée par défaut dans ton profil'
-                  : '🎭 Avatar affiché par défaut dans ton profil'}
-              </Text>
-              <Switch
-                value={showPhotoByDefault}
-                onValueChange={(val) => {
-                  setShowPhotoByDefault(val);
-                  saveShowPhotoByDefault(val).catch(console.warn);
-                }}
-                trackColor={{ false: '#E8D5B7', true: '#E91E8C' }}
-                thumbColor="#FFF"
-              />
-            </View>
-          )}
         </View>
 
         {/* ── Photos existantes ── */}
@@ -343,8 +318,6 @@ const styles = StyleSheet.create({
   previewEmptyIcon: { fontSize: 28, marginBottom: 4 },
   previewEmptyText: { fontSize: 11, color: MOCHA, textAlign: 'center' },
 
-  toggleRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F5EDE0' },
-  toggleLabel: { flex: 1, fontSize: 13, color: BROWN, fontWeight: '600', paddingRight: 12, lineHeight: 18 },
 
   photoRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   photoThumb:  { width: 80, height: 80, borderRadius: 12, marginRight: 14 },
