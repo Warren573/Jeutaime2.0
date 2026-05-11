@@ -282,7 +282,7 @@ export default function ProfileTwoStepDemo() {
 
           {/* Navigate to full profile */}
           <Pressable
-            onPress={() => router.push(`/profile/${profile.userId}`)}
+            onPress={() => router.push({ pathname: '/profile/[id]', params: { id: profile.userId } })}
             style={styles.discoverWrap}
           >
             <Text style={styles.discoverLink}>Découvrir le profil →</Text>
