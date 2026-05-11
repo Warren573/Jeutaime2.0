@@ -23,6 +23,7 @@ import {
   uploadPhoto,
   deleteMyPhoto,
   patchMyPhoto,
+  saveShowPhotoByDefault,
   type MyPhotoDto,
 } from '../src/api/profiles';
 
@@ -221,7 +222,10 @@ export default function MyPhotosScreen() {
               </Text>
               <Switch
                 value={showPhotoByDefault}
-                onValueChange={setShowPhotoByDefault}
+                onValueChange={(val) => {
+                  setShowPhotoByDefault(val);
+                  saveShowPhotoByDefault(val).catch(console.warn);
+                }}
                 trackColor={{ false: '#E8D5B7', true: '#E91E8C' }}
                 thumbColor="#FFF"
               />

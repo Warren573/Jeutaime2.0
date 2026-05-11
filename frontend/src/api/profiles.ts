@@ -26,6 +26,7 @@ export interface PublicProfileDto {
   questions: { questionId: string; questionText: string | null }[] | null;
   hasChildren: boolean | null;
   wantsChildren: boolean | null;
+  showPhotoByDefault: boolean;
 }
 
 export interface PublicPhotoDto {
@@ -178,4 +179,11 @@ export async function discoverProfiles(params?: {
   const qs = q.toString();
   const res = await apiFetch(`/profiles${qs ? `?${qs}` : ""}`);
   return res as DiscoveryResponse;
+}
+
+export async function saveShowPhotoByDefault(value: boolean): Promise<void> {
+  await apiFetch('/profiles/me/photo-display', {
+    method: 'PATCH',
+    body: JSON.stringify({ showPhotoByDefault: value }),
+  });
 }

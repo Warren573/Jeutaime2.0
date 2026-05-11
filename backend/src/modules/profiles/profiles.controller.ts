@@ -46,3 +46,13 @@ export async function handleGetMyPhotos(req: AuthedRequest, res: Response) {
   const photos = await svc.getMyPhotos(req.user.userId);
   res.json({ data: photos });
 }
+
+export async function handleUpdateShowPhotoByDefault(req: AuthedRequest, res: Response) {
+  const { showPhotoByDefault } = req.body as { showPhotoByDefault: boolean };
+  if (typeof showPhotoByDefault !== 'boolean') {
+    res.status(400).json({ error: 'showPhotoByDefault must be a boolean' });
+    return;
+  }
+  await svc.updateShowPhotoByDefault(req.user.userId, showPhotoByDefault);
+  res.json({ data: { showPhotoByDefault } });
+}

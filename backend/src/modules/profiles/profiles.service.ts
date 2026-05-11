@@ -126,7 +126,13 @@ export async function getPublicProfile(viewerId: string, targetUserId: string, v
     });
   }
 
-  const servedPhotos = photoUnlockInfo.unlocked
+  const targetSettings = await prisma.userSettings.findUnique({
+    where: { userId: targetUserId },
+    select: { showPhotoByDefault: true },
+  });
+  const showPhotoByDefault = targetSettings?.showPhotoByDefault ?? true;
+
+  const servedPhotos = photoUnlockInfo.unlocked && showPhotoByDefault
     ? (await prisma.photo.findMany({
         where: { userId: targetUserId },
         orderBy: [{ isPrimary: "desc" }, { position: "asc" }],
@@ -140,10 +146,21 @@ export async function getPublicProfile(viewerId: string, targetUserId: string, v
     : [];
 
   return {
-    profile,
+    profile: { ...profile, showPhotoByDefault },
     photos: servedPhotos,
     photoUnlock: photoUnlockInfo,
   };
+}
+
+// -----------------------------------------------------------------------
+// Paramètre : affichage photo par défaut
+// -----------------------------------------------------------------------
+export async function updateShowPhotoByDefault(userId: string, value: boolean) {
+  await prisma.userSettings.upsert({
+    where: { userId },
+    update: { showPhotoByDefault: value },
+    create: { userId, showPhotoByDefault: value },
+  });
 }
 
 // -----------------------------------------------------------------------

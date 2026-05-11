@@ -681,11 +681,14 @@ export default function ProfileDetailScreen() {
   };
   const resolvedAvatarConfig = isOwnProfile ? avatarPngConfig : partnerAvatarConfig;
 
-  // Photo visible : propre photo (toggle ON seulement) ou photo partenaire (unlocked + toggle ON)
-  const ownPrimary = isOwnProfile && showPhotoByDefault
+  // Préférence du propriétaire du profil (backend autoritaire)
+  const profileShowPhoto = apiData.profile.showPhotoByDefault ?? true;
+
+  // Photo visible : uniquement si le propriétaire a activé l'affichage
+  const ownPrimary = isOwnProfile && profileShowPhoto
     ? (ownPhotos.find(p => p.isPrimary) ?? ownPhotos[0] ?? null)
     : null;
-  const partnerPhotoEntry = !isOwnProfile && (apiData.photoUnlock?.unlocked ?? false) && showPhotoByDefault
+  const partnerPhotoEntry = !isOwnProfile && (apiData.photoUnlock?.unlocked ?? false) && profileShowPhoto
     ? (apiData.photos[0] ?? null)
     : null;
   const rawPhotoUrl = ownPrimary?.url ?? partnerPhotoEntry?.url ?? null;
