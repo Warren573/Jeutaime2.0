@@ -581,8 +581,8 @@ export default function ProfileDetailScreen() {
   };
   const resolvedAvatarConfig = isOwnProfile ? avatarPngConfig : partnerAvatarConfig;
 
-  // Préférence exacte sauvegardée côté backend (UserSettings.showPhotoByDefault)
-  const showPhotoByDefault = apiData.profile.showPhotoByDefault === true;
+  // Champ exact du switch "Mes Photos" : showPhotoByDefault (UserSettings.showPhotoByDefault)
+  const displayPhotoByDefault = apiData.profile.showPhotoByDefault === true;
 
   const ownPrimary = isOwnProfile
     ? (ownPhotos.find(p => p.isPrimary) ?? ownPhotos[0] ?? null)
@@ -597,8 +597,7 @@ export default function ProfileDetailScreen() {
   const shouldShowPhoto =
     photoUnlocked === true &&
     Boolean(visiblePhotoUrl) &&
-    showPhotoByDefault === true &&
-    Boolean(authToken);
+    displayPhotoByDefault === true;
   const photoLocked = !isOwnProfile && !photoUnlocked;
 
   return (
