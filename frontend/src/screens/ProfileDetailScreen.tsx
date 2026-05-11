@@ -544,6 +544,9 @@ export default function ProfileDetailScreen() {
       >
         <Text style={styles.backArrow}>←</Text>
       </TouchableOpacity>
+      <Text style={{ fontSize: 40, color: "red", fontWeight: "900" }}>
+        DISCOVERY PROFILE ROUTE
+      </Text>
       <Text style={styles.topBarTitle}>Profil</Text>
       <View style={{ width: 36 }} />
     </View>
