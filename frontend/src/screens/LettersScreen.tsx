@@ -185,7 +185,7 @@ const EnvelopeCard = ({
         )}
         <View style={envStyles.actionSep} />
         <Link
-          href={{ pathname: '/match-profile', params: { matchId } }}
+          href={{ pathname: '/profile/[id]', params: { id: otherUserId } }}
           style={envStyles.actionRight}
         >
           {'👤 Profil →'}
@@ -906,7 +906,14 @@ export default function LettersScreen() {
             {/* Nom cliquable → profil du match (replace = démonte LettersScreen, évite modal fantôme) */}
             <TouchableOpacity
               style={styles.modalTitleBtn}
-              onPress={() => { if (selectedMatch) { setShowCompose(false); router.replace({ pathname: '/match-profile', params: { matchId: selectedMatch.id } }); } }}
+              onPress={() => {
+                if (!selectedMatch) return;
+                const targetUserId = selectedMatch.userAId === (currentUser?.id ?? 'me')
+                  ? selectedMatch.userBId
+                  : selectedMatch.userAId;
+                setShowCompose(false);
+                router.replace({ pathname: '/profile/[id]', params: { id: targetUserId } });
+              }}
             >
               <Text style={styles.modalTitle}>
                 {selectedMatch ? getOtherName(selectedMatch) : ''}
