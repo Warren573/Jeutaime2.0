@@ -26,6 +26,9 @@ router.put("/me/questions", validate(UpdateQuestionsSchema), wrap(ctrl.handleUpd
 // GET /api/profiles/me/photos
 router.get("/me/photos", wrap(ctrl.handleGetMyPhotos));
 
+// PATCH /api/profiles/me/photo-display
+router.patch("/me/photo-display", wrap(ctrl.handleUpdateShowPhotoByDefault));
+
 // GET /api/profiles — discovery
 router.get(
   "/",
