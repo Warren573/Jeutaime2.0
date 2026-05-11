@@ -222,105 +222,6 @@ function ProfileHeader({ profile }: { profile: ProfileData }) {
   );
 }
 
-// ─── AVATAR / PHOTO BLOCK ──────────────────────────────────────────────────────
-
-interface SlidePhoto {
-  id: string;
-  url: string;
-}
-
-function ProfileAvatarPhoto({
-  avatarDef,
-  photos,
-  unlocked,
-  isOwnProfile,
-  authToken,
-}: {
-  avatarDef?: AvatarConfig;
-  photos: SlidePhoto[];
-  unlocked: boolean;
-  isOwnProfile: boolean;
-  authToken: string | null;
-}) {
-  const [photoError, setPhotoError] = React.useState(false);
-
-  const showPhotos    = unlocked || isOwnProfile;
-  const resolvedAvatar = avatarDef ?? DEFAULT_AVATAR;
-  const primaryPhoto  = photos[0] ?? null;
-  const photoHeaders: Record<string, string> = authToken
-    ? { Authorization: `Bearer ${authToken}` }
-    : {};
-
-  // Affiche la photo si dispo + autorisée + pas d'erreur, sinon avatar
-  const displayPhoto = showPhotos && primaryPhoto && !photoError;
-
-  return (
-    <View style={{
-      width: 180, height: 180,
-      backgroundColor: '#F9F3E8',
-      borderRadius: 16,
-      overflow: 'hidden',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}>
-      {displayPhoto ? (
-        /* ── Photo ── */
-        <Image
-          source={{ uri: makePhotoUrl(primaryPhoto!.url), headers: photoHeaders }}
-          style={{ width: 180, height: 180 }}
-          contentFit="cover"
-          onError={() => setPhotoError(true)}
-        />
-      ) : (
-        /* ── Avatar (même logique que my-photos.tsx) ── */
-        <View style={{ width: 180, height: 180, alignItems: 'center', justifyContent: 'center' }}>
-          <Avatar size={150} {...resolvedAvatar} />
-          {/* Fallback texte — visible seulement si les couches Avatar sont toutes vides */}
-          <Text style={{
-            position: 'absolute',
-            fontSize: 12, color: '#8B6F47', fontWeight: '600',
-            bottom: 12,
-          }}>
-            Avatar
-          </Text>
-        </View>
-      )}
-
-      {/* Badge lock si photos verrouillées */}
-      {!showPhotos && (
-        <View style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          paddingVertical: 6, alignItems: 'center',
-        }}>
-          <Text style={{ color: 'white', fontSize: 11, fontWeight: '600' }}>🔒 Photo verrouillée</Text>
-        </View>
-      )}
-    </View>
-  );
-}
-
-/* Alias pour compatibilité avec l'appel existant */
-function PhotoAvatarSlider(props: {
-  avatarDef?: AvatarConfig;
-  photos: SlidePhoto[];
-  unlocked: boolean;
-  isOwnProfile: boolean;
-  myRemaining: number;
-  otherRemaining: number;
-  authToken: string | null;
-}) {
-  return (
-    <ProfileAvatarPhoto
-      avatarDef={props.avatarDef}
-      photos={props.photos}
-      unlocked={props.unlocked}
-      isOwnProfile={props.isOwnProfile}
-      authToken={props.authToken}
-    />
-  );
-}
-
 // ─── QUOTE ─────────────────────────────────────────────────────────────────────
 
 function ProfileQuote({ quote }: { quote: string }) {
@@ -593,7 +494,6 @@ export default function ProfileDetailScreen() {
   const apiMatches = useStore((s) => s.apiMatches);
   const sendApiLetter = useStore((s) => s.sendApiLetter);
   const currentUser = useStore((s) => s.currentUser);
-  const showPhotoByDefault = useStore((s) => s.showPhotoByDefault);
   const avatarPngConfig = useStore((s) => s.avatarPngConfig);
   const isOwnProfile = !!id && !!currentUser?.id && id === currentUser.id;
 
@@ -681,11 +581,14 @@ export default function ProfileDetailScreen() {
   };
   const resolvedAvatarConfig = isOwnProfile ? avatarPngConfig : partnerAvatarConfig;
 
-  // Photo visible : propre photo (toggle ON seulement) ou photo partenaire (unlocked + toggle ON)
-  const ownPrimary = isOwnProfile && showPhotoByDefault
+  // Préférence du propriétaire du profil (backend autoritaire)
+  const profileShowPhoto = apiData.profile.showPhotoByDefault ?? true;
+
+  // Photo visible : uniquement si le propriétaire a activé l'affichage
+  const ownPrimary = isOwnProfile && profileShowPhoto
     ? (ownPhotos.find(p => p.isPrimary) ?? ownPhotos[0] ?? null)
     : null;
-  const partnerPhotoEntry = !isOwnProfile && (apiData.photoUnlock?.unlocked ?? false) && showPhotoByDefault
+  const partnerPhotoEntry = !isOwnProfile && (apiData.photoUnlock?.unlocked ?? false) && profileShowPhoto
     ? (apiData.photos[0] ?? null)
     : null;
   const rawPhotoUrl = ownPrimary?.url ?? partnerPhotoEntry?.url ?? null;

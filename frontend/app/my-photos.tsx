@@ -23,6 +23,7 @@ import {
   uploadPhoto,
   deleteMyPhoto,
   patchMyPhoto,
+  saveShowPhotoByDefault,
   type MyPhotoDto,
 } from '../src/api/profiles';
 
@@ -91,6 +92,8 @@ export default function MyPhotosScreen() {
       Alert.alert('Bientôt disponible', "L'ajout de photos depuis l'app mobile arrive prochainement.");
       return;
     }
+    // Ouvrir le sélecteur SANS toucher à l'état uploading
+    // (le bouton ne doit pas se bloquer si l'utilisateur annule)
     let file: File | null = null;
     try {
       file = await pickImageWeb();
@@ -99,6 +102,7 @@ export default function MyPhotosScreen() {
     }
     if (!file) return;
 
+    // Fichier confirmé → démarrer l'upload
     console.log('[my-photos] fichier sélectionné:', file.name, Math.round(file.size / 1024), 'KB', file.type);
     setUploading(true);
     try {
@@ -218,7 +222,10 @@ export default function MyPhotosScreen() {
               </Text>
               <Switch
                 value={showPhotoByDefault}
-                onValueChange={setShowPhotoByDefault}
+                onValueChange={(val) => {
+                  setShowPhotoByDefault(val);
+                  saveShowPhotoByDefault(val).catch(console.warn);
+                }}
                 trackColor={{ false: '#E8D5B7', true: '#E91E8C' }}
                 thumbColor="#FFF"
               />

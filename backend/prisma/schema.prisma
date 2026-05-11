@@ -252,14 +252,15 @@ model ProfileQuestion {
 }
 
 model UserSettings {
-  userId          String  @id
-  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  notifEmail      Boolean @default(true)
-  notifPush       Boolean @default(true)
-  soundEnabled    Boolean @default(true)
-  language        String  @default("fr")
-  showInDiscovery Boolean @default(true)
-  locationShared  Boolean @default(false)
+  userId             String  @id
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifEmail         Boolean @default(true)
+  notifPush          Boolean @default(true)
+  soundEnabled       Boolean @default(true)
+  language           String  @default("fr")
+  showInDiscovery    Boolean @default(true)
+  locationShared     Boolean @default(false)
+  showPhotoByDefault Boolean @default(true)
 }
 
 // ============================================================
