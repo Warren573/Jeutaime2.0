@@ -49,7 +49,7 @@ export default function ProfileDetailScreen() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { currentUser, matches, apiMatches, letters, matchPartners } = useStore();
+  const { currentUser, matches, apiMatches, letters } = useStore();
 
   useEffect(() => {
     AsyncStorage.getItem('auth_token').then(setAuthToken);
@@ -80,8 +80,6 @@ export default function ProfileDetailScreen() {
   }, [id]);
 
   const profile = profileData?.profile;
-  const partnerFromMatches = id ? matchPartners[id] : undefined;
-
   const myId = currentUser?.id ?? '';
   const linkedMatch = matches.find((m) => m.userAId === id || m.userBId === id);
   const linkedRawMatch = apiMatches.find((m) => m.otherUserId === id || m.userAId === id || m.userBId === id);
@@ -94,9 +92,9 @@ export default function ProfileDetailScreen() {
 
   const age = useMemo(() => calcAge(profile?.birthDate ?? null), [profile?.birthDate]);
   const headerLine = [profile?.pseudo ?? 'Profil', age ? String(age) : ''].filter(Boolean).join(', ');
-  const lookingForValues = (partnerFromMatches?.lookingFor?.length ? partnerFromMatches.lookingFor : profile?.lookingFor) ?? [];
+  const lookingForValues = profile?.lookingFor ?? [];
   const interestsValues = (profile?.interests ?? []);
-  const effectiveBio = (partnerFromMatches?.bio ?? profile?.bio ?? '').trim();
+  const effectiveBio = (profile?.bio ?? '').trim();
   const lookingFor = lookingForValues.map((k) => LOOKING_FOR_LABEL[k] ?? k).join(' · ');
   const interests = interestsValues.join(' · ');
   const firstPhoto = photos.find((p) => !p.isPrivate)?.url;
@@ -151,6 +149,7 @@ export default function ProfileDetailScreen() {
               <Text style={styles.heroName}>{headerLine}</Text>
               {!!profile.city && <Text style={styles.heroCity}>📍 {profile.city}</Text>}
               <Text style={styles.heroCity}>{rel.stars} Niveau {Math.max(1, Math.min(3, rel.level))} — {rel.label}</Text>
+              {rel.progressText ? <Text style={styles.heroProgress}>{rel.progressText}</Text> : null}
             </View>
           </View>
 
@@ -200,6 +199,7 @@ const styles = StyleSheet.create({
   heroRight: { flex: 1, paddingTop: 4 },
   heroName: { fontSize: 28, fontWeight: '800', color: INK, lineHeight: 34, marginBottom: 4 },
   heroCity: { fontSize: 14, color: INK_S },
+  heroProgress: { marginTop: 4, fontSize: 12, color: INK_S, fontStyle: 'italic' },
   paperSection: { marginBottom: 16 },
   kicker: { fontSize: 15, color: INK, fontWeight: '800', letterSpacing: 0.4, marginBottom: 10 },
   softCard: { backgroundColor: '#F3E7D7', borderRadius: 14, borderWidth: 1, borderColor: '#E2D1BA', padding: 14 },
