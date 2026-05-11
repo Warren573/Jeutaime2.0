@@ -8,6 +8,8 @@ import { API_URL } from '../api/client';
 import { getPublicProfile, getMyPhotos, type PublicProfileResponse, type MyPhotoDto } from '../api/profiles';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR, type AvatarConfig } from '../avatar/png/defaults';
+import { useStore } from '../store/useStore';
+import { getRelationInfo } from '../engine/RelationEngine';
 
 function makePhotoUrl(url: string): string {
   if (url.startsWith('http')) return url;
@@ -47,6 +49,7 @@ export default function ProfileDetailScreen() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { currentUser, matches, apiMatches, letters, matchPartners } = useStore();
 
   useEffect(() => {
     AsyncStorage.getItem('auth_token').then(setAuthToken);
@@ -77,11 +80,25 @@ export default function ProfileDetailScreen() {
   }, [id]);
 
   const profile = profileData?.profile;
+  const partnerFromMatches = id ? matchPartners[id] : undefined;
+
+  const myId = currentUser?.id ?? '';
+  const linkedMatch = matches.find((m) => m.userAId === id || m.userBId === id);
+  const linkedRawMatch = apiMatches.find((m) => m.otherUserId === id || m.userAId === id || m.userBId === id);
+  const letterCount = linkedRawMatch
+    ? linkedRawMatch.letterCountA + linkedRawMatch.letterCountB
+    : linkedMatch
+      ? linkedMatch.letterCount
+      : letters.filter((l) => l.fromUserId === id || l.toUserId === id || (myId && (l.fromUserId === myId || l.toUserId === myId))).length;
+  const rel = getRelationInfo(letterCount, currentUser?.isPremium ?? false);
 
   const age = useMemo(() => calcAge(profile?.birthDate ?? null), [profile?.birthDate]);
   const headerLine = [profile?.pseudo ?? 'Profil', age ? String(age) : ''].filter(Boolean).join(', ');
-  const lookingFor = (profile?.lookingFor ?? []).map((k) => LOOKING_FOR_LABEL[k] ?? k).join(' · ');
-  const interests = (profile?.interests ?? []).join(' · ');
+  const lookingForValues = (partnerFromMatches?.lookingFor?.length ? partnerFromMatches.lookingFor : profile?.lookingFor) ?? [];
+  const interestsValues = (profile?.interests ?? []);
+  const effectiveBio = (partnerFromMatches?.bio ?? profile?.bio ?? '').trim();
+  const lookingFor = lookingForValues.map((k) => LOOKING_FOR_LABEL[k] ?? k).join(' · ');
+  const interests = interestsValues.join(' · ');
   const firstPhoto = photos.find((p) => !p.isPrivate)?.url;
   const avatarDef = profile?.avatarConfig && Object.keys(profile.avatarConfig).length > 0
     ? (profile.avatarConfig as unknown as AvatarConfig)
@@ -133,6 +150,7 @@ export default function ProfileDetailScreen() {
             <View style={styles.heroRight}>
               <Text style={styles.heroName}>{headerLine}</Text>
               {!!profile.city && <Text style={styles.heroCity}>📍 {profile.city}</Text>}
+              <Text style={styles.heroCity}>{rel.stars} Niveau {Math.max(1, Math.min(3, rel.level))} — {rel.label}</Text>
             </View>
           </View>
 
@@ -143,7 +161,7 @@ export default function ProfileDetailScreen() {
 
           <View style={styles.paperSection}>
             <Text style={styles.kicker}>UN PEU DE MOI</Text>
-            <View style={styles.softCard}><Text style={styles.bodyText}>{profile.bio?.trim() || 'Encore un peu de mystère pour le moment.'}</Text></View>
+            <View style={styles.softCard}><Text style={styles.bodyText}>{effectiveBio || 'Encore un peu de mystère pour le moment.'}</Text></View>
           </View>
 
           <View style={styles.paperSection}>
