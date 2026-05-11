@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -69,14 +69,10 @@ export default function MatchProfileScreen() {
   const revealLevel = Math.max(1, Math.min(3, rel.level)) as RevealLevel;
 
   const hasUnlockedPhoto = !!match.photoUnlocked && revealLevel >= 3 && !!match.photoUrl;
-  const introText = useMemo(() => {
-    const bio = partner?.bio?.trim();
-    if (!bio) return '';
-    if (revealLevel === 1) {
-      return bio.length > 110 ? `${bio.slice(0, 110).trim()}…` : bio;
-    }
-    return bio;
-  }, [partner?.bio, revealLevel]);
+  const bio = partner?.bio?.trim() ?? '';
+  const introText = revealLevel === 1
+    ? (bio.length > 110 ? `${bio.slice(0, 110).trim()}…` : bio)
+    : bio;
 
   const interests = partner?.interests ?? [];
   const visibleInterests = revealLevel === 1 ? interests.slice(0, 2) : interests;
@@ -87,17 +83,19 @@ export default function MatchProfileScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}> 
-      <View style={styles.navBar}>
+      <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.replace('/(tabs)/letters')}>
-          <Text style={styles.backText}>← Lettres</Text>
+          <View style={styles.backBtn}>
+            <Text style={styles.backArrow}>←</Text>
+          </View>
         </TouchableOpacity>
-        <Text style={styles.navTitle} numberOfLines={1}>{partner?.pseudo ?? partnerId}</Text>
-        <View style={{ width: 60 }} />
+        <Text style={styles.topBarTitle} numberOfLines={1}>{partner?.pseudo ?? partnerId}</Text>
+        <View style={styles.backBtn} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.journalPage}>
-          <Text style={styles.pageTitle}>Mon journal de bord</Text>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Mon journal de bord</Text>
 
           <View style={styles.hero}>
             <View style={styles.photoCard}>
@@ -141,9 +139,9 @@ export default function MatchProfileScreen() {
             </View>
           </View>
 
-          <View style={styles.paperSection}>
+          <View style={styles.section}>
             <Text style={styles.kicker}>CE QUE JE CHERCHE ICI</Text>
-            <View style={styles.softCard}>
+            <View style={styles.contentCard}>
               <Text style={styles.bodyText}>
                 {(partner?.lookingFor?.length ? partner.lookingFor.map(id => LOOKING_FOR_LABEL[id] ?? id) : ['Continuer une vraie conversation'])
                   .join(' · ')}
@@ -151,37 +149,26 @@ export default function MatchProfileScreen() {
             </View>
           </View>
 
-          <View style={styles.paperSection}>
+          <View style={styles.section}>
             <Text style={styles.kicker}>UN PEU DE MOI</Text>
-            <View style={styles.softCard}>
+            <View style={styles.contentCard}>
               <Text style={styles.bodyText}>{introText || 'Encore un peu de mystère pour le moment.'}</Text>
             </View>
           </View>
 
-          <View style={styles.paperSection}>
+          <View style={styles.section}>
             <Text style={styles.kicker}>CENTRES D’INTÉRÊT</Text>
-            <View style={styles.softCard}>
+            <View style={styles.contentCard}>
               <Text style={styles.bodyText}>
                 {visibleInterests.length ? visibleInterests.join(' · ') : 'À découvrir au fil des lettres'}
               </Text>
             </View>
           </View>
 
-          {!!partner?.questionTexts?.length && (
-            <View style={styles.paperSection}>
-              <Text style={styles.kicker}>SES 3 QUESTIONS</Text>
-              <View style={styles.softCard}>
-                {partner.questionTexts
-                  .slice(0, 3)
-                  .map((q, i) => <Text key={`${q}-${i}`} style={styles.listLine}>• {q}</Text>)}
-              </View>
-            </View>
-          )}
-
           {!!partner?.idealDay?.length && (
-            <View style={styles.paperSection}>
+            <View style={styles.section}>
               <Text style={styles.kicker}>SA JOURNÉE IDÉALE</Text>
-              <View style={styles.softCard}>
+              <View style={styles.contentCard}>
                 {partner.idealDay
                   .map((line, i) => <Text key={`${line}-${i}`} style={styles.listLine}>• {line}</Text>)}
               </View>
@@ -189,9 +176,9 @@ export default function MatchProfileScreen() {
           )}
 
           {!!(partner?.qualities?.length || partner?.defaults?.length) && (
-            <View style={styles.paperSection}>
+            <View style={styles.section}>
               <Text style={styles.kicker}>SES PETITS + ET SES PETITS -</Text>
-              <View style={styles.softCard}>
+              <View style={styles.contentCard}>
                 <>
                   {(partner?.qualities ?? []).map((q, i) => <Text key={`${q}-${i}`} style={styles.listLine}>✓ {q}</Text>)}
                   {(partner?.defaults ?? []).map((d, i) => <Text key={`${d}-${i}`} style={styles.listLine}>✕ {d}</Text>)}
@@ -201,17 +188,17 @@ export default function MatchProfileScreen() {
           )}
 
           {!!partner?.quote?.trim() && (
-            <View style={styles.paperSection}>
+            <View style={styles.section}>
               <Text style={styles.kicker}>ANECDOTE</Text>
-              <View style={styles.softCard}>
+              <View style={styles.contentCard}>
                 <Text style={styles.bodyText}>{partner.quote}</Text>
               </View>
             </View>
           )}
 
-          <View style={styles.paperSection}>
+          <View style={styles.section}>
             <Text style={styles.kicker}>PROGRESSION</Text>
-            <View style={styles.softCard}>
+            <View style={styles.contentCard}>
               <Text style={styles.bodyText}>{apiLetterCount} lettres échangées.</Text>
               {rel.progressText ? <Text style={styles.progressText}>{rel.progressText}</Text> : null}
             </View>
@@ -222,27 +209,46 @@ export default function MatchProfileScreen() {
   );
 }
 
-const BG = '#ECE3D4';
-const PAPER = '#F6EEDF';
-const INK = '#2B1B12';
-const INK_S = '#7C5A43';
-const LINE = '#D9C7AA';
+const BG = '#FFF8E7';
+const INK = '#3A2818';
+const INK_S = '#8B6F47';
+const LINE = '#EDE0C8';
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
-  navBar: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13,
-    backgroundColor: '#2C1A0E', borderBottomWidth: 1, borderBottomColor: '#5A3A1A',
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: LINE,
   },
-  backBtn: { minWidth: 60 },
-  backText: { fontSize: 15, color: '#F0D98C', fontWeight: '600' },
-  navTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#F0D98C' },
-  scroll: { padding: 16, paddingBottom: 60 },
-  journalPage: {
-    backgroundColor: PAPER, borderRadius: 24, borderWidth: 1, borderColor: '#E3D3BC',
-    paddingHorizontal: 18, paddingVertical: 18,
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3E5C8',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  pageTitle: { fontSize: 32, fontWeight: '900', color: INK, marginBottom: 12 },
+  backArrow: { fontSize: 18, color: INK, fontWeight: '600' },
+  backText: { fontSize: 15, color: '#5D4037', fontWeight: '600' },
+  topBarTitle: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', color: INK, letterSpacing: 0.3 },
+  scroll: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
+  sectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  sectionTitle: { fontSize: 28, fontWeight: '800', color: INK, marginBottom: 12 },
   hero: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 },
   photoCard: {
     width: 106, height: 126, backgroundColor: '#FFF', borderRadius: 6, borderWidth: 1,
@@ -259,15 +265,15 @@ const styles = StyleSheet.create({
   heroRight: { flex: 1, paddingTop: 4 },
   heroName: { fontSize: 28, fontWeight: '800', color: INK, lineHeight: 34, marginBottom: 4 },
   heroCity: { fontSize: 14, color: INK_S, marginBottom: 10 },
-  levelBadge: { backgroundColor: '#F9EFDB', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: LINE, flexDirection: 'row', gap: 8, marginBottom: 8 },
+  levelBadge: { backgroundColor: '#F9EFDB', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: '#E3D3BC', flexDirection: 'row', gap: 8, marginBottom: 8 },
   levelBadgeText: { flex: 1 },
   levelStars: { fontSize: 14, marginTop: 1 },
   levelLabel: { fontSize: 12, fontWeight: '700', color: '#6B4C30' },
   levelProgress: { fontSize: 11, color: INK_S, marginTop: 3, fontStyle: 'italic' },
   photoHint: { fontSize: 11, color: INK_S, fontStyle: 'italic', lineHeight: 16 },
-  paperSection: { marginBottom: 16 },
+  section: { marginBottom: 16 },
   kicker: { fontSize: 15, color: INK, fontWeight: '800', letterSpacing: 0.4, marginBottom: 10 },
-  softCard: { backgroundColor: '#F3E7D7', borderRadius: 14, borderWidth: 1, borderColor: '#E2D1BA', padding: 14 },
+  contentCard: { backgroundColor: '#FFFDF8', borderRadius: 14, borderWidth: 1, borderColor: LINE, padding: 14 },
   bodyText: { fontSize: 16, lineHeight: 24, color: INK },
   listLine: { fontSize: 15, lineHeight: 24, color: INK, marginBottom: 4 },
   progressText: { marginTop: 4, fontSize: 13, color: INK_S, fontStyle: 'italic' },
