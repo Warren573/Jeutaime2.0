@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { QUESTION_IDS } from "../../config/questions";
 
 const GenderEnum = z.enum(["HOMME", "FEMME", "AUTRE"]);
 const InterestedInEnum = z.enum(["HOMME", "FEMME"]);
@@ -52,19 +51,12 @@ export const UpdateQuestionsSchema = z.object({
     .array(
       z
         .object({
-          questionText: z.string().min(5, "Question : 5 caractères min").max(200).optional(),
-          questionId: z.string().optional(),
+          questionText: z.string().min(5, "Question : 5 caractères min").max(200),
           answer: z.string().min(1, "Réponse requise").max(200, "Réponse : 200 caractères max"),
           wrongAnswers: z
             .array(z.string().min(1).max(200))
             .length(2, "2 mauvaises réponses requises pour le jeu"),
-        })
-        .refine(
-          (q) =>
-            (q.questionText && q.questionText.trim().length >= 5) ||
-            (q.questionId && QUESTION_IDS.includes(q.questionId)),
-          { message: "questionText (≥5 chars) ou questionId valide du catalogue requis" },
-        ),
+        }),
     )
     .length(3, "Tu dois répondre exactement à 3 questions"),
 });

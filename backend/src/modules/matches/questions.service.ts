@@ -6,7 +6,6 @@ import {
   ForbiddenError,
   NotFoundError,
 } from "../../core/errors";
-import { getQuestion } from "../../config/questions";
 import { PROFILE_QUESTIONS_REQUIRED } from "../../config/constants";
 import type { SubmitAnswersDto } from "./questions.schemas";
 
@@ -76,8 +75,9 @@ export async function getMatchQuestions(matchId: string, userId: string) {
   const myStatus = myAttempts.length >= PROFILE_QUESTIONS_REQUIRED ? "submitted" : "pending";
   const myScore = myAttempts.filter((a) => a.isCorrect).length;
 
-  const questions = otherQuestions.map((q) => {
-    const catalogEntry = getQuestion(q.questionId);
+  const questions = otherQuestions
+    .filter((q) => typeof q.questionText === "string" && q.questionText.trim().length > 0)
+    .map((q) => {
     // Mélanger correct + mauvaises réponses ; si aucune wrongAnswer : retourner sans options
     const options =
       q.wrongAnswers.length >= 2
@@ -87,10 +87,10 @@ export async function getMatchQuestions(matchId: string, userId: string) {
     return {
       profileQuestionId: q.id,
       questionId: q.questionId,
-      questionText: q.questionText ?? catalogEntry?.text ?? q.questionId,
+      questionText: q.questionText,
       options,
     };
-  });
+    });
 
   return {
     matchId,

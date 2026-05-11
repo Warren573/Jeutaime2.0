@@ -1,3 +1,12 @@
+/**
+ * @deprecated LEGACY SCREEN (ne doit plus être routé en production)
+ *
+ * Source officielle actuelle:
+ * - Découverte: ProfileTwoStepDemo
+ * - Profil complet: ProfileDetailScreen
+ *
+ * Ce fichier est conservé temporairement pour référence visuelle legacy.
+ */
 import React, { useState, useEffect } from 'react';
 import {
   View,

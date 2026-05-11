@@ -30,17 +30,6 @@ const LOOKING_FOR_LABEL: Record<string, string> = {
 
 type RevealLevel = 1 | 2 | 3;
 
-function LockedSection({ title, hint }: { title: string; hint: string }) {
-  return (
-    <View style={styles.paperSection}>
-      <Text style={styles.kicker}>{title}</Text>
-      <View style={styles.lockedCard}>
-        <Text style={styles.lockedText}>🔒 {hint}</Text>
-      </View>
-    </View>
-  );
-}
-
 export default function MatchProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -178,49 +167,47 @@ export default function MatchProfileScreen() {
             </View>
           </View>
 
-          {revealLevel >= 2 ? (
+          {!!partner?.questionTexts?.length && (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>SES 3 QUESTIONS</Text>
               <View style={styles.softCard}>
-                {(partner?.questionTexts?.length ? partner.questionTexts : ['Question à venir…', 'Question à venir…', 'Question à venir…'])
+                {partner.questionTexts
                   .slice(0, 3)
                   .map((q, i) => <Text key={`${q}-${i}`} style={styles.listLine}>• {q}</Text>)}
               </View>
             </View>
-          ) : <LockedSection title="SES 3 QUESTIONS" hint="Débloqué au niveau 2" />}
+          )}
 
-          {revealLevel >= 2 ? (
+          {!!partner?.idealDay?.length && (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>SA JOURNÉE IDÉALE</Text>
               <View style={styles.softCard}>
-                {(partner?.idealDay?.length ? partner.idealDay : ['Matin doux', 'Balade qui s’allonge', 'Soirée sans chrono'])
+                {partner.idealDay
                   .map((line, i) => <Text key={`${line}-${i}`} style={styles.listLine}>• {line}</Text>)}
               </View>
             </View>
-          ) : <LockedSection title="SA JOURNÉE IDÉALE" hint="Continuez à échanger des lettres" />}
+          )}
 
-          {revealLevel >= 2 ? (
+          {!!(partner?.qualities?.length || partner?.defaults?.length) && (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>SES PETITS + ET SES PETITS -</Text>
               <View style={styles.softCard}>
-                {(partner?.qualities?.length || partner?.defaults?.length) ? (
-                  <>
-                    {(partner?.qualities ?? []).map((q, i) => <Text key={`${q}-${i}`} style={styles.listLine}>✓ {q}</Text>)}
-                    {(partner?.defaults ?? []).map((d, i) => <Text key={`${d}-${i}`} style={styles.listLine}>✕ {d}</Text>)}
-                  </>
-                ) : <Text style={styles.bodyText}>Encore en cours d’écriture.</Text>}
+                <>
+                  {(partner?.qualities ?? []).map((q, i) => <Text key={`${q}-${i}`} style={styles.listLine}>✓ {q}</Text>)}
+                  {(partner?.defaults ?? []).map((d, i) => <Text key={`${d}-${i}`} style={styles.listLine}>✕ {d}</Text>)}
+                </>
               </View>
             </View>
-          ) : <LockedSection title="SES PETITS + ET SES PETITS -" hint="Débloqué au niveau 2" />}
+          )}
 
-          {revealLevel >= 3 ? (
+          {!!partner?.quote?.trim() && (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>ANECDOTE</Text>
               <View style={styles.softCard}>
-                <Text style={styles.bodyText}>{partner?.quote || 'Promis, la meilleure anecdote arrive ici.'}</Text>
+                <Text style={styles.bodyText}>{partner.quote}</Text>
               </View>
             </View>
-          ) : <LockedSection title="ANECDOTE" hint="🔒 Révélé après 10 lettres chacun" />}
+          )}
 
           <View style={styles.paperSection}>
             <Text style={styles.kicker}>PROGRESSION</Text>
@@ -281,8 +268,6 @@ const styles = StyleSheet.create({
   paperSection: { marginBottom: 16 },
   kicker: { fontSize: 15, color: INK, fontWeight: '800', letterSpacing: 0.4, marginBottom: 10 },
   softCard: { backgroundColor: '#F3E7D7', borderRadius: 14, borderWidth: 1, borderColor: '#E2D1BA', padding: 14 },
-  lockedCard: { backgroundColor: '#EFE3D1', borderRadius: 14, borderWidth: 1, borderColor: '#DCC6A8', padding: 14 },
-  lockedText: { fontSize: 14, color: '#6F4F37', fontStyle: 'italic' },
   bodyText: { fontSize: 16, lineHeight: 24, color: INK },
   listLine: { fontSize: 15, lineHeight: 24, color: INK, marginBottom: 4 },
   progressText: { marginTop: 4, fontSize: 13, color: INK_S, fontStyle: 'italic' },
