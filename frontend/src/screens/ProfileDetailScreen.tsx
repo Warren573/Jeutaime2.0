@@ -594,6 +594,7 @@ export default function ProfileDetailScreen() {
   const sendApiLetter = useStore((s) => s.sendApiLetter);
   const currentUser = useStore((s) => s.currentUser);
   const showPhotoByDefault = useStore((s) => s.showPhotoByDefault);
+  const avatarPngConfig = useStore((s) => s.avatarPngConfig);
   const isOwnProfile = !!id && !!currentUser?.id && id === currentUser.id;
 
   useEffect(() => {
@@ -669,13 +670,26 @@ export default function ProfileDetailScreen() {
     );
   }
 
-  const sliderPhotos: SlidePhoto[] = isOwnProfile
-    ? ownPhotos.map(p => ({ id: p.id, url: p.url }))
-    : apiData.photos.map((p, i) => ({ id: String(i), url: p.url }));
+  const photoHeaders: Record<string, string> = authToken ? { Authorization: `Bearer ${authToken}` } : {};
 
-  const photoUnlocked = isOwnProfile
-    ? true
-    : (apiData.photoUnlock?.unlocked ?? false) && showPhotoByDefault;
+  // Avatar config : store pour le profil propre (fiable), API sinon
+  const partnerAvatarConfig: AvatarConfig = {
+    ...DEFAULT_AVATAR,
+    ...(apiData.profile.avatarConfig && Object.keys(apiData.profile.avatarConfig).length > 0
+      ? (apiData.profile.avatarConfig as unknown as AvatarConfig)
+      : {}),
+  };
+  const resolvedAvatarConfig = isOwnProfile ? avatarPngConfig : partnerAvatarConfig;
+
+  // Photo visible : propre photo (toujours) ou photo partenaire (unlocked + toggle ON)
+  const ownPrimary = isOwnProfile ? (ownPhotos.find(p => p.isPrimary) ?? ownPhotos[0] ?? null) : null;
+  const partnerPhotoEntry = !isOwnProfile && (apiData.photoUnlock?.unlocked ?? false) && showPhotoByDefault
+    ? (apiData.photos[0] ?? null)
+    : null;
+  const rawPhotoUrl = ownPrimary?.url ?? partnerPhotoEntry?.url ?? null;
+  const primaryPhotoUrl = rawPhotoUrl ? makePhotoUrl(rawPhotoUrl) : null;
+  const hasVisiblePhoto = Boolean(primaryPhotoUrl) && Boolean(authToken);
+  const photoLocked = !isOwnProfile && !(apiData.photoUnlock?.unlocked ?? false);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
@@ -696,15 +710,33 @@ export default function ProfileDetailScreen() {
         )}
 
         {/* Photo / Avatar — jamais de cadre blanc */}
-        <PhotoAvatarSlider
-          avatarDef={profile.avatarDef}
-          photos={sliderPhotos}
-          unlocked={photoUnlocked}
-          isOwnProfile={isOwnProfile}
-          myRemaining={0}
-          otherRemaining={0}
-          authToken={authToken}
-        />
+        <View style={{
+          width: 180, height: 180, borderRadius: 16,
+          backgroundColor: '#F9F3E8', overflow: 'hidden',
+          alignItems: 'center', justifyContent: 'center',
+          alignSelf: 'center', marginBottom: 16,
+        }}>
+          {hasVisiblePhoto ? (
+            <Image
+              key={authToken ?? 'notoken'}
+              source={{ uri: primaryPhotoUrl!, headers: photoHeaders }}
+              style={{ width: 180, height: 180 }}
+              contentFit="cover"
+              cachePolicy="none"
+            />
+          ) : (
+            <Avatar size={150} {...resolvedAvatarConfig} />
+          )}
+          {photoLocked && (
+            <View style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              paddingVertical: 6, alignItems: 'center',
+            }}>
+              <Text style={{ color: 'white', fontSize: 11, fontWeight: '600' }}>🔒 Photo verrouillée</Text>
+            </View>
+          )}
+        </View>
 
         {/* 1. Bio */}
         {profile.bio.length > 0 && (
