@@ -581,20 +581,25 @@ export default function ProfileDetailScreen() {
   };
   const resolvedAvatarConfig = isOwnProfile ? avatarPngConfig : partnerAvatarConfig;
 
-  // Préférence du propriétaire du profil (backend autoritaire)
-  const profileShowPhoto = apiData.profile.showPhotoByDefault ?? true;
+  // Préférence exacte sauvegardée côté backend (UserSettings.showPhotoByDefault)
+  const showPhotoByDefault = apiData.profile.showPhotoByDefault === true;
 
-  // Photo visible : uniquement si le propriétaire a activé l'affichage
-  const ownPrimary = isOwnProfile && profileShowPhoto
+  const ownPrimary = isOwnProfile
     ? (ownPhotos.find(p => p.isPrimary) ?? ownPhotos[0] ?? null)
     : null;
-  const partnerPhotoEntry = !isOwnProfile && (apiData.photoUnlock?.unlocked ?? false) && profileShowPhoto
+  const partnerPhotoEntry = !isOwnProfile
     ? (apiData.photos[0] ?? null)
     : null;
+
+  const photoUnlocked = isOwnProfile ? true : (apiData.photoUnlock?.unlocked ?? false);
   const rawPhotoUrl = ownPrimary?.url ?? partnerPhotoEntry?.url ?? null;
-  const primaryPhotoUrl = rawPhotoUrl ? makePhotoUrl(rawPhotoUrl) : null;
-  const hasVisiblePhoto = Boolean(primaryPhotoUrl) && Boolean(authToken);
-  const photoLocked = !isOwnProfile && !(apiData.photoUnlock?.unlocked ?? false);
+  const visiblePhotoUrl = rawPhotoUrl ? makePhotoUrl(rawPhotoUrl) : null;
+  const shouldShowPhoto =
+    photoUnlocked === true &&
+    Boolean(visiblePhotoUrl) &&
+    showPhotoByDefault === true &&
+    Boolean(authToken);
+  const photoLocked = !isOwnProfile && !photoUnlocked;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top, backgroundColor: screenBg }]}>
@@ -621,10 +626,10 @@ export default function ProfileDetailScreen() {
           alignItems: 'center', justifyContent: 'center',
           alignSelf: 'center', marginBottom: 16,
         }}>
-          {hasVisiblePhoto ? (
+          {shouldShowPhoto ? (
             <Image
               key={authToken ?? 'notoken'}
-              source={{ uri: primaryPhotoUrl!, headers: photoHeaders }}
+              source={{ uri: visiblePhotoUrl!, headers: photoHeaders }}
               style={{ width: 180, height: 180 }}
               contentFit="cover"
               cachePolicy="none"
