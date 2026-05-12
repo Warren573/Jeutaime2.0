@@ -180,24 +180,26 @@ export default function ProfileDetailScreen() {
             <Text style={[styles.bodyText, styles.italic, styles.quoteText]}>{profile.quote || 'À écrire bientôt'}</Text>
           </View>
 
-          <View style={[styles.block, styles.blockSoft, styles.blockMinimal]}>
+          <View style={styles.interestsEditorial}>
             <Text style={styles.kicker}>CENTRES D’INTÉRÊT</Text>
             <Text style={styles.bodyText}>{interests || 'À découvrir au fil des lettres'}</Text>
           </View>
 
           <View style={styles.editorialRow}>
-            <View style={[styles.block, styles.blockPink, styles.featureBlock, styles.colMain, styles.withSoftTape]}>
+            <View style={[styles.block, styles.blockPink, styles.featureBlock, styles.idealDayMain, styles.withSoftTape]}>
               <View style={[styles.cardTape, styles.tapeLeftSoft]} />
               <Text style={styles.kicker}>SA JOURNÉE IDÉALE</Text>
               <Text style={styles.bodyText}>{idealDayParts.length ? idealDayParts.map((s, i) => `${i + 1}. ${s}`).join('\n\n') : 'À improviser à deux'}</Text>
             </View>
-            <View style={[styles.block, styles.outlinedBlock, styles.colSide]}>
+            <View style={styles.sideNoteWrap}>
+            <View style={[styles.block, styles.outlinedBlock, styles.editorialNote]}>
               <Text style={styles.kicker}>CE QUE JE GÈRE (plus ou moins bien)</Text>
               <Text style={styles.bodyText}>{profile.vibe || 'À ressentir en discutant'}</Text>
             </View>
+            </View>
           </View>
 
-          <View style={[styles.block, styles.blockWarm, styles.featureBlock, styles.spaciousBlock]}>
+          <View style={[styles.block, styles.blockWarm, styles.featureBlock, styles.spaciousBlock, styles.plusMinusBlock]}>
             <Text style={styles.kicker}>SES PETITS + ET SES PETITS -</Text>
             <Text style={styles.bodyText}>{plus || 'Qualités à découvrir'}</Text>
             <Text style={[styles.kicker, styles.subKicker]}>CE QUI DEMANDE UN PEU D’INDULGENCE</Text>
@@ -216,7 +218,6 @@ export default function ProfileDetailScreen() {
 }
 
 const BG = '#EFE5D8';
-const PAPER = '#F7EFE2';
 const INK = '#2B1B12';
 const INK_S = '#7C5A43';
 
@@ -227,9 +228,9 @@ const styles = StyleSheet.create({
   backText: { fontSize: 15, color: '#F0D98C', fontWeight: '600' },
   navTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#F0D98C' },
   errorText: { color: INK_S, fontSize: 16 },
-  scroll: { padding: 16, paddingBottom: 40 },
-  journalPage: { backgroundColor: PAPER, borderRadius: 28, borderWidth: 1, borderColor: '#E3D3BC', padding: 18, paddingBottom: 22 },
-  pageTitle: { fontSize: 32, fontWeight: '900', color: INK, marginBottom: 12 },
+  scroll: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 60 },
+  journalPage: { paddingHorizontal: 4, paddingBottom: 22 },
+  pageTitle: { fontSize: 34, fontWeight: '900', color: INK, marginBottom: 14, marginLeft: 6, transform: [{ rotate: '-1.2deg' }] },
   hero: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 },
   photoCard: { width: 106, height: 126, backgroundColor: '#FFF', borderRadius: 6, borderWidth: 1, borderColor: '#E7DAC8', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
   photoTape: { position: 'absolute', top: -6, alignSelf: 'center', width: 38, height: 14, backgroundColor: '#E7D5BF', borderRadius: 2, transform: [{ rotate: '-8deg' }], zIndex: 2 },
@@ -246,24 +247,26 @@ const styles = StyleSheet.create({
   blockSoft: { backgroundColor: '#F8EDDF' },
   blockNote: { backgroundColor: '#FBF3E8', borderStyle: 'dashed' },
   outlinedBlock: { backgroundColor: 'transparent', borderColor: '#DABFA3', borderWidth: 2, borderStyle: 'dashed' },
-  blockMinimal: { backgroundColor: 'transparent', borderWidth: 0, paddingHorizontal: 4, paddingTop: 4, paddingBottom: 2 },
   featureBlock: { paddingVertical: 18 },
   spaciousBlock: { marginTop: 12, marginBottom: 24, paddingVertical: 22 },
   fullWidthAir: { marginTop: 10, marginBottom: 30 },
   pullUp: { marginTop: -2, marginBottom: 20 },
-  editorialRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 6 },
-  colMain: { flex: 1.55, marginBottom: 0 },
-  colSide: { flex: 0.95, marginBottom: 0, marginTop: 18, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 14 },
+  editorialRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 6, marginTop: 6 },
+  idealDayMain: { flex: 1.45, marginBottom: 0, borderRadius: 22, transform: [{ rotate: '-0.8deg' }], minHeight: 280 },
+  sideNoteWrap: { flex: 0.98, marginTop: 28, marginLeft: -6 },
+  editorialNote: { marginBottom: 0, borderRadius: 9, paddingHorizontal: 14, paddingVertical: 13, transform: [{ rotate: '1.5deg' }], backgroundColor: '#F9F0E6' },
   withSoftTape: { position: 'relative', overflow: 'visible' },
   tapeLeftSoft: { left: 44, width: 38, height: 13, top: -6, opacity: 0.62, transform: [{ rotate: '-11deg' }] },
   tapedBlock: { position: 'relative', overflow: 'visible' },
   cardTape: { position: 'absolute', top: -7, left: 28, width: 46, height: 15, backgroundColor: '#E6D2B8', borderRadius: 2, transform: [{ rotate: '-7deg' }], zIndex: 3, opacity: 0.9 },
   tapeRight: { right: 30, transform: [{ rotate: '9deg' }] },
-  quoteBlock: { backgroundColor: '#F8E5E0', alignItems: 'center', paddingVertical: 20 },
+  quoteBlock: { backgroundColor: '#F8E5E0', alignItems: 'center', paddingVertical: 20, marginRight: 10, marginLeft: 4, transform: [{ rotate: '-0.7deg' }] },
   quoteMark: { fontSize: 44, color: '#A45056', marginBottom: 8, fontWeight: '700' },
   kicker: { fontSize: 14, color: INK, fontWeight: '800', letterSpacing: 0.3, marginBottom: 8 },
   bodyText: { fontSize: 16, lineHeight: 24, color: INK },
   subKicker: { marginTop: 16 },
   quoteText: { textAlign: 'center', maxWidth: '92%' },
   italic: { fontStyle: 'italic' },
+  interestsEditorial: { marginTop: 2, marginBottom: 20, marginLeft: 14, marginRight: 28, paddingHorizontal: 2 },
+  plusMinusBlock: { marginLeft: -4, marginRight: 14, borderRadius: 24, transform: [{ rotate: '0.6deg' }] },
 });
