@@ -261,7 +261,7 @@ export default function ProfileDetailScreen() {
                 />
               ) : (
                 <View style={styles.avatarWrap}>
-                  <Avatar size={108} {...avatarDef} />
+                  <Avatar size={96} {...avatarDef} />
                 </View>
               )}
             </View>
@@ -445,31 +445,30 @@ const styles = StyleSheet.create({
   },
 
   scroll: {
-    paddingHorizontal: 14,
-    paddingTop: 14,
+    paddingHorizontal: 18,
+    paddingTop: 28,
     paddingBottom: 70,
   },
 
   page: {
-    paddingHorizontal: 3,
+    paddingHorizontal: 0,
     paddingBottom: 30,
   },
 
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 28,
+    position: 'relative',
+    minHeight: 320,
+    marginBottom: 24,
   },
 
   headerLeft: {
-    flex: 1,
-    paddingRight: 14,
-    paddingTop: 6,
+    width: '62%',
+    paddingTop: 8,
   },
 
   title: {
-    fontSize: 34,
+    fontSize: 32,
+    lineHeight: 39,
     fontWeight: '900',
     color: INK,
     letterSpacing: -0.7,
@@ -478,33 +477,37 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: '#BCA88E',
-    marginTop: 10,
-    marginBottom: 10,
-    width: '92%',
+    marginTop: 12,
+    marginBottom: 12,
+    width: '100%',
   },
 
   mood: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 25,
     color: MUTED,
     fontStyle: 'italic',
-    marginBottom: 22,
+    marginBottom: 28,
   },
 
   name: {
-    fontSize: 25,
+    fontSize: 27,
+    lineHeight: 34,
     fontWeight: '900',
     color: INK,
     marginBottom: 4,
   },
 
   city: {
-    fontSize: 15,
+    fontSize: 17,
     color: MUTED,
   },
 
   polaroid: {
-    width: 118,
+    position: 'absolute',
+    top: 6,
+    right: 0,
+    width: 112,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     padding: 6,
@@ -533,13 +536,13 @@ const styles = StyleSheet.create({
 
   photo: {
     width: '100%',
-    height: 138,
+    height: 124,
     borderRadius: 4,
   },
 
   avatarWrap: {
     width: '100%',
-    height: 138,
+    height: 124,
     borderRadius: 4,
     backgroundColor: '#F3EBDD',
     alignItems: 'center',
