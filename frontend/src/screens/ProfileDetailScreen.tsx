@@ -375,7 +375,7 @@ export default function ProfileDetailScreen() {
             <View style={styles.smallTapeRight} />
             <View style={styles.smallTapeLeftBottom} />
             <Text style={styles.sectionTitle}>SA JOURNÉE IDÉALE</Text>
-            <Text style={styles.idealText}>{idealDay.length > 0 ? idealDay.join(‘\n\n’) : "(vide)"}</Text>
+            <Text style={styles.idealText}>{idealDay.length > 0 ? idealDay.join("\n\n") : "(vide)"}</Text>
           </View>
 
           <View style={[styles.card, styles.quoteCard]}>
