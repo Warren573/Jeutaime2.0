@@ -54,7 +54,8 @@ function childrenLabel(hasChildren?: boolean | null, wantsChildren?: boolean | n
 export default function ProfileDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id?: string | string[] }>();
+  const profileId = useMemo(() => (Array.isArray(id) ? id[0] : id) ?? '', [id]);
 
   const [profileData, setProfileData] = useState<PublicProfileResponse | null>(null);
   const [photos, setPhotos] = useState<MyPhotoDto[]>([]);
@@ -70,12 +71,12 @@ export default function ProfileDetailScreen() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      if (!id) return;
+      if (!profileId) return;
       setLoading(true);
       setError(null);
       try {
-        const data = await getPublicProfile(id);
-        const media = await getMyPhotos(id).catch(() => []);
+        const data = await getPublicProfile(profileId);
+        const media = await getMyPhotos(profileId).catch(() => []);
         if (!mounted) return;
         setProfileData(data);
         setPhotos(media);
@@ -89,17 +90,17 @@ export default function ProfileDetailScreen() {
     return () => {
       mounted = false;
     };
-  }, [id]);
+  }, [profileId]);
 
   const profile = profileData?.profile;
   const myId = currentUser?.id ?? '';
-  const linkedMatch = matches.find((m) => m.userAId === id || m.userBId === id);
-  const linkedRawMatch = apiMatches.find((m) => m.otherUserId === id || m.userAId === id || m.userBId === id);
+  const linkedMatch = matches.find((m) => m.userAId === profileId || m.userBId === profileId);
+  const linkedRawMatch = apiMatches.find((m) => m.otherUserId === profileId || m.userAId === profileId || m.userBId === profileId);
   const letterCount = linkedRawMatch
     ? linkedRawMatch.letterCountA + linkedRawMatch.letterCountB
     : linkedMatch
       ? linkedMatch.letterCount
-      : letters.filter((l) => l.fromUserId === id || l.toUserId === id || (myId && (l.fromUserId === myId || l.toUserId === myId))).length;
+      : letters.filter((l) => l.fromUserId === profileId || l.toUserId === profileId || (myId && (l.fromUserId === myId || l.toUserId === myId))).length;
   const rel = getRelationInfo(letterCount, currentUser?.isPremium ?? false);
 
   const age = useMemo(() => calcAge(profile?.birthDate ?? null), [profile?.birthDate]);
