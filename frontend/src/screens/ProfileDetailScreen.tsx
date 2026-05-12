@@ -400,6 +400,7 @@ export default function ProfileDetailScreen() {
                 <Text style={styles.badgeText}>(vide)</Text>
               )}
             </View>
+          </View>
         </View>
       </ScrollView>
     </View>
