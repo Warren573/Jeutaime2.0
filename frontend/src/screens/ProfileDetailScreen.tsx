@@ -247,8 +247,6 @@ export default function ProfileDetailScreen() {
     ? profile.skills.filter((skill: any) => skill?.label || skill?.detail)
     : [];
 
-  const questions = Array.isArray(profile.questions) ? profile.questions : [];
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <TopBar title={profile.pseudo ?? 'Profil'} onBack={() => router.back()} />
@@ -408,18 +406,6 @@ export default function ProfileDetailScreen() {
                   </View>
                 ))}
               </View>
-            </View>
-          )}
-
-          {!!questions.length && (
-            <View style={[styles.card, styles.questionsCard]}>
-              <Text style={styles.sectionTitle}>MES 3 QUESTIONS</Text>
-              {questions.map((q, index) => (
-                <View key={`${q.questionText}-${index}`} style={styles.questionItem}>
-                  <Text style={styles.questionNumber}>Question {index + 1}</Text>
-                  <Text style={styles.questionText}>{q.questionText ?? 'Sans titre'}</Text>
-                </View>
-              ))}
             </View>
           )}
         </View>
@@ -783,30 +769,6 @@ const styles = StyleSheet.create({
 
   vibeCard: {
     backgroundColor: '#F2E3CF',
-  },
-
-  questionsCard: {
-    backgroundColor: '#F0E5F0',
-  },
-
-  questionItem: {
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8D5B7',
-  },
-
-  questionNumber: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: MUTED,
-    marginBottom: 4,
-  },
-
-  questionText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: INK,
   },
 
   smallTapeRight: {
