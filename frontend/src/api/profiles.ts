@@ -13,6 +13,7 @@ export interface PublicProfileDto {
   physicalDesc: string | null;
   interests: string[] | null;
   lookingFor: string[] | null;
+  interestedIn: string[] | null;
   avatarConfig: Record<string, unknown> | null;
   points: number;
   badges: string[] | null;
@@ -159,6 +160,7 @@ export interface DiscoveryProfileDto {
   physicalDesc: string | null;
   interests: string[] | null;
   lookingFor: string[] | null;
+  interestedIn: string[] | null;
   avatarConfig: Record<string, unknown> | null;
   points: number;
   badges: string[] | null;
