@@ -116,12 +116,13 @@ export default function ProfileDetailScreen() {
   const lookingFor = (profile?.lookingFor ?? []).map((k) => LOOKING_FOR_LABEL[k] ?? k).join(' · ');
   const effectiveBio = (profile?.bio ?? '').trim();
   const hasValidBio = effectiveBio.length > 1;
-  const interests = (profile?.interests ?? []).filter(Boolean);
   const interestedIn = (profile?.interestedIn ?? []).map((k) => INTERESTED_IN_LABEL[k] ?? k).filter(Boolean);
   const interestLine = interestedIn.join(' · ');
   const children = childrenLabel(profile?.hasChildren ?? null, profile?.wantsChildren ?? null);
+  const heightLine = typeof profile?.height === 'number' ? `${profile.height} cm` : null;
   const aboutLines = [
     !!profile?.city,
+    !!heightLine,
     !!profile?.physicalDesc,
     !!children,
   ].some(Boolean);
@@ -163,7 +164,7 @@ export default function ProfileDetailScreen() {
             <View style={styles.heroLeft}>
               <Text style={styles.pageTitle}>Mon journal de bord</Text>
               <View style={styles.titleLine} />
-              <Text style={styles.headerMood}>Quelques pages pour se dévoiler doucement.</Text>
+              {!!lookingFor && <Text style={styles.headerMood}>{lookingFor}</Text>}
             </View>
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
@@ -196,6 +197,7 @@ export default function ProfileDetailScreen() {
           <View style={[styles.block, styles.blockWide]}>
             <Text style={styles.kicker}>UN PEU DE MOI</Text>
             {!!profile.city && <Text style={styles.listLine}>📍 {profile.city}</Text>}
+            {!!heightLine && <Text style={styles.listLine}>📏 {heightLine}</Text>}
             {!!profile.physicalDesc && <Text style={styles.listLine}>⚖️ {profile.physicalDesc}</Text>}
             {!!children && <Text style={styles.listLine}>👶 {children}</Text>}
           </View>
@@ -208,22 +210,9 @@ export default function ProfileDetailScreen() {
           </View>
           )}
 
-          {!!interests.length && (
-          <View style={[styles.block, styles.blockWarm]}>
-            <Text style={styles.kicker}>CENTRES D’INTÉRÊT</Text>
-            <View style={styles.badgesWrap}>
-              {interests.map((interest, idx) => (
-                <View key={`${interest}-${idx}`} style={styles.badge}>
-                  <Text style={styles.badgeText}>{interest}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-          )}
-
           {!!skillLines.length && (
           <View style={[styles.block, styles.blockSoft]}>
-            <Text style={styles.kicker}>CE QUE JE GÈRE / COMPÉTENCES</Text>
+            <Text style={styles.kicker}>CE QUE JE GÈRE (plus ou moins bien)</Text>
             {skillLines.map((s, idx) => (
               <Text key={`${s.label}-${idx}`} style={styles.listLine}>
                 {s.emoji ? `${s.emoji} ` : ''}{s.label} — {s.detail}
@@ -261,6 +250,7 @@ export default function ProfileDetailScreen() {
 
           {!!profile.quote?.trim() && (
           <View style={[styles.block, styles.blockPink]}>
+            <Text style={styles.kicker}>CITATION</Text>
             <Text style={[styles.bodyText, styles.italic, styles.quoteText]}>{profile.quote}</Text>
           </View>
           )}
@@ -315,7 +305,7 @@ const styles = StyleSheet.create({
   tapedBlock: { position: 'relative', overflow: 'visible' },
   cardTape: { position: 'absolute', top: -7, left: 28, width: 46, height: 15, backgroundColor: '#E6D2B8', borderRadius: 2, transform: [{ rotate: '-7deg' }], zIndex: 3, opacity: 0.9 },
   tapeRight: { right: 30, transform: [{ rotate: '9deg' }] },
-  kicker: { fontSize: 14, color: INK, fontWeight: '800', letterSpacing: 0.3, marginBottom: 8 },
+  kicker: { fontSize: 14, color: INK, fontWeight: '900', letterSpacing: 1.2, marginBottom: 10 },
   bodyText: { fontSize: 16, lineHeight: 24, color: INK },
   quoteText: { textAlign: 'center', maxWidth: '92%' },
   italic: { fontStyle: 'italic' },
@@ -327,9 +317,6 @@ const styles = StyleSheet.create({
   freeLineText: { fontSize: 16, lineHeight: 24, color: INK },
   listLine: { fontSize: 16, color: INK, lineHeight: 25, marginBottom: 2 },
   bioText: { marginTop: 8 },
-  badgesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  badge: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: '#EFE0CA', borderWidth: 1, borderColor: '#E4D0B0' },
-  badgeText: { color: INK, fontSize: 14, fontWeight: '600' },
   heart: { position: 'absolute', right: 14, top: 12, color: '#9F6A6A', fontSize: 16 },
   idealDayText: { fontSize: 18, lineHeight: 31, color: INK },
   tapeBottomLeft: { top: undefined, bottom: -7, left: 16, transform: [{ rotate: '7deg' }] },
