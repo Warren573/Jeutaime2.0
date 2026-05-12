@@ -170,8 +170,10 @@ export default function ProfileDetailScreen() {
           <View style={[styles.block, styles.blockPink, styles.featureBlock, styles.pullUp]}>
             <Text style={styles.kicker}>CE QUE JE CHERCHE ICI</Text>
             <Text style={styles.bodyText}>{lookingFor || 'Continuer une vraie conversation'}</Text>
-            <Text style={[styles.kicker, styles.subKicker]}>INTÉRESSÉ(E) PAR</Text>
-            <Text style={styles.bodyText}>{interestedIn || 'Le feeling avant les étiquettes'}</Text>
+          </View>
+          <View style={styles.freeLineWrap}>
+            <Text style={styles.freeLineLabel}>Intéressé·e par :</Text>
+            <Text style={styles.freeLineText}>{interestedIn || 'Le feeling avant les étiquettes'}</Text>
           </View>
 
           <View style={[styles.block, styles.quoteBlock, styles.tapedBlock]}>
@@ -206,7 +208,8 @@ export default function ProfileDetailScreen() {
             <Text style={styles.bodyText}>{minus || 'Défauts assumés avec humour'}</Text>
           </View>
           <View style={[styles.block, styles.blockSoft, styles.fullWidthAir]}>
-            <Text style={styles.kicker}>DESCRIPTION PHYSIQUE</Text>
+            <Text style={styles.kicker}>INFOS PERSO</Text>
+            <Text style={[styles.kicker, styles.subKicker]}>DESCRIPTION PHYSIQUE</Text>
             <Text style={styles.bodyText}>{profile.physicalDesc || 'À découvrir en personne'}</Text>
             <Text style={[styles.kicker, styles.subKicker]}>ENFANTS</Text>
             <Text style={styles.bodyText}>{children || 'Sujet ouvert à la discussion'}</Text>
@@ -241,7 +244,7 @@ const styles = StyleSheet.create({
   heroCity: { fontSize: 14, color: INK_S },
   heroProgress: { marginTop: 4, fontSize: 12, color: INK_S, fontStyle: 'italic' },
   block: { marginBottom: 14, borderRadius: 18, borderWidth: 1, borderColor: '#E4D4BE', backgroundColor: '#F4E8D8', padding: 16 },
-  blockWide: { backgroundColor: '#F6EAD8', borderLeftWidth: 4, borderLeftColor: '#B57A60' },
+  blockWide: { backgroundColor: '#F6EAD8', borderLeftWidth: 4, borderLeftColor: '#B57A60', marginRight: 24, paddingVertical: 22, paddingHorizontal: 17, transform: [{ rotate: '-0.7deg' }] },
   blockPink: { backgroundColor: '#F7E3DF', borderColor: '#E8C2BA' },
   blockWarm: { backgroundColor: '#F2E3CF' },
   blockSoft: { backgroundColor: '#F8EDDF' },
@@ -249,7 +252,7 @@ const styles = StyleSheet.create({
   outlinedBlock: { backgroundColor: 'transparent', borderColor: '#DABFA3', borderWidth: 2, borderStyle: 'dashed' },
   featureBlock: { paddingVertical: 18 },
   spaciousBlock: { marginTop: 12, marginBottom: 24, paddingVertical: 22 },
-  fullWidthAir: { marginTop: 10, marginBottom: 30 },
+  fullWidthAir: { marginTop: 18, marginBottom: 40, marginRight: 36, paddingVertical: 24, paddingHorizontal: 20 },
   pullUp: { marginTop: -2, marginBottom: 20 },
   editorialRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 6, marginTop: 6 },
   idealDayMain: { flex: 1.45, marginBottom: 0, borderRadius: 22, transform: [{ rotate: '-0.8deg' }], minHeight: 280 },
@@ -260,7 +263,7 @@ const styles = StyleSheet.create({
   tapedBlock: { position: 'relative', overflow: 'visible' },
   cardTape: { position: 'absolute', top: -7, left: 28, width: 46, height: 15, backgroundColor: '#E6D2B8', borderRadius: 2, transform: [{ rotate: '-7deg' }], zIndex: 3, opacity: 0.9 },
   tapeRight: { right: 30, transform: [{ rotate: '9deg' }] },
-  quoteBlock: { backgroundColor: '#F8E5E0', alignItems: 'center', paddingVertical: 20, marginRight: 10, marginLeft: 4, transform: [{ rotate: '-0.7deg' }] },
+  quoteBlock: { backgroundColor: '#F8E5E0', alignItems: 'center', paddingVertical: 42, minHeight: 260, marginRight: 10, marginLeft: 4, transform: [{ rotate: '-0.7deg' }] },
   quoteMark: { fontSize: 44, color: '#A45056', marginBottom: 8, fontWeight: '700' },
   kicker: { fontSize: 14, color: INK, fontWeight: '800', letterSpacing: 0.3, marginBottom: 8 },
   bodyText: { fontSize: 16, lineHeight: 24, color: INK },
@@ -269,4 +272,7 @@ const styles = StyleSheet.create({
   italic: { fontStyle: 'italic' },
   interestsEditorial: { marginTop: 2, marginBottom: 20, marginLeft: 14, marginRight: 28, paddingHorizontal: 2 },
   plusMinusBlock: { marginLeft: -4, marginRight: 14, borderRadius: 24, transform: [{ rotate: '0.6deg' }] },
+  freeLineWrap: { marginTop: -6, marginBottom: 18, marginLeft: 10, marginRight: 34 },
+  freeLineLabel: { fontSize: 14, color: INK, fontWeight: '800', marginBottom: 4 },
+  freeLineText: { fontSize: 16, lineHeight: 24, color: INK },
 });
