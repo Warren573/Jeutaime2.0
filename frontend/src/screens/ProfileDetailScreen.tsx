@@ -120,6 +120,11 @@ export default function ProfileDetailScreen() {
   const interestedIn = (profile?.interestedIn ?? []).map((k) => INTERESTED_IN_LABEL[k] ?? k).filter(Boolean);
   const interestLine = interestedIn.join(' · ');
   const children = childrenLabel(profile?.hasChildren ?? null, profile?.wantsChildren ?? null);
+  const aboutLines = [
+    !!profile?.city,
+    !!profile?.physicalDesc,
+    !!children,
+  ].some(Boolean);
   const idealDayParts = (profile?.idealDay ?? []).filter(Boolean);
   const plus = (profile?.qualities ?? []).filter(Boolean);
   const minus = (profile?.defaults ?? []).filter(Boolean);
@@ -187,13 +192,14 @@ export default function ProfileDetailScreen() {
             </View>
           )}
 
+          {!!aboutLines && (
           <View style={[styles.block, styles.blockWide]}>
             <Text style={styles.kicker}>UN PEU DE MOI</Text>
             {!!profile.city && <Text style={styles.listLine}>📍 {profile.city}</Text>}
-            {!!profile.height && <Text style={styles.listLine}>📏 {profile.height} cm</Text>}
             {!!profile.physicalDesc && <Text style={styles.listLine}>⚖️ {profile.physicalDesc}</Text>}
             {!!children && <Text style={styles.listLine}>👶 {children}</Text>}
           </View>
+          )}
 
           {!!hasValidBio && (
           <View style={[styles.block, styles.blockSoft]}>
