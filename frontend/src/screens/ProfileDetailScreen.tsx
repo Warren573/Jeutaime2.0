@@ -9,7 +9,6 @@ import { getPublicProfile, getMyPhotos, type PublicProfileResponse, type MyPhoto
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR, type AvatarConfig } from '../avatar/png/defaults';
 import { useStore } from '../store/useStore';
-import { getRelationInfo } from '../engine/RelationEngine';
 
 function makePhotoUrl(url: string): string {
   if (url.startsWith('http')) return url;
@@ -110,19 +109,20 @@ export default function ProfileDetailScreen() {
     : linkedMatch
       ? linkedMatch.letterCount
       : letters.filter((l) => l.fromUserId === profileId || l.toUserId === profileId || (myId && (l.fromUserId === myId || l.toUserId === myId))).length;
-  const rel = getRelationInfo(letterCount, currentUser?.isPremium ?? false);
+  void letterCount;
 
   const age = useMemo(() => calcAge(profile?.birthDate ?? null), [profile?.birthDate]);
   const headerLine = [profile?.pseudo ?? 'Profil', age ? String(age) : ''].filter(Boolean).join(', ');
   const lookingFor = (profile?.lookingFor ?? []).map((k) => LOOKING_FOR_LABEL[k] ?? k).join(' · ');
   const effectiveBio = (profile?.bio ?? '').trim();
+  const hasValidBio = effectiveBio.length > 1;
   const interests = (profile?.interests ?? []).filter(Boolean);
   const interestedIn = (profile?.interestedIn ?? []).map((k) => INTERESTED_IN_LABEL[k] ?? k).filter(Boolean);
-  const interestLine = [...interestedIn, ...interests].join(' · ');
+  const interestLine = interestedIn.join(' · ');
   const children = childrenLabel(profile?.hasChildren ?? null, profile?.wantsChildren ?? null);
   const idealDayParts = (profile?.idealDay ?? []).filter(Boolean);
-  const plus = (profile?.qualities ?? []).join(' · ');
-  const minus = (profile?.defaults ?? []).join(' · ');
+  const plus = (profile?.qualities ?? []).filter(Boolean);
+  const minus = (profile?.defaults ?? []).filter(Boolean);
   const skillLines = (profile?.skills ?? []).filter((s) => s?.label && s?.detail);
   const firstPhoto = photos.find((p) => !p.isPrivate)?.url;
   const avatarDef = profile?.avatarConfig && Object.keys(profile.avatarConfig).length > 0
@@ -170,6 +170,7 @@ export default function ProfileDetailScreen() {
             </View>
           </View>
           <Text style={styles.heroName}>{headerLine}</Text>
+          {!!profile.city && <Text style={styles.heroCity}>{profile.city}</Text>}
 
           {!!lookingFor && (
           <View style={[styles.block, styles.searchBlock, styles.tapedBlock]}>
@@ -192,22 +193,53 @@ export default function ProfileDetailScreen() {
             {!!profile.height && <Text style={styles.listLine}>📏 {profile.height} cm</Text>}
             {!!profile.physicalDesc && <Text style={styles.listLine}>⚖️ {profile.physicalDesc}</Text>}
             {!!children && <Text style={styles.listLine}>👶 {children}</Text>}
-            {!!effectiveBio && <Text style={[styles.bodyText, styles.bioText]}>{effectiveBio}</Text>}
           </View>
 
-          {!!profile.vibe && (
+          {!!hasValidBio && (
           <View style={[styles.block, styles.blockSoft]}>
-            <Text style={styles.kicker}>CE QUE JE GÈRE (plus ou moins bien)</Text>
-            <Text style={styles.bodyText}>{profile.vibe}</Text>
+            <Text style={styles.kicker}>BIO / DESCRIPTION</Text>
+            <Text style={[styles.bodyText, styles.bioText]}>{effectiveBio}</Text>
           </View>
           )}
 
-          {!!(plus || minus) && (
+          {!!interests.length && (
+          <View style={[styles.block, styles.blockWarm]}>
+            <Text style={styles.kicker}>CENTRES D’INTÉRÊT</Text>
+            <View style={styles.badgesWrap}>
+              {interests.map((interest, idx) => (
+                <View key={`${interest}-${idx}`} style={styles.badge}>
+                  <Text style={styles.badgeText}>{interest}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          )}
+
+          {!!skillLines.length && (
+          <View style={[styles.block, styles.blockSoft]}>
+            <Text style={styles.kicker}>CE QUE JE GÈRE / COMPÉTENCES</Text>
+            {skillLines.map((s, idx) => (
+              <Text key={`${s.label}-${idx}`} style={styles.listLine}>
+                {s.emoji ? `${s.emoji} ` : ''}{s.label} — {s.detail}
+              </Text>
+            ))}
+          </View>
+          )}
+
+          {!!(plus.length || minus.length) && (
           <View style={styles.plusMinusSection}>
             <Text style={styles.kicker}>SES PETITS + ET SES PETITS -</Text>
             <View style={styles.plusMinusRow}>
-              {!!plus && <View style={[styles.block, styles.halfCard]}><Text style={styles.bodyText}>✅ {plus}</Text></View>}
-              {!!minus && <View style={[styles.block, styles.halfCard]}><Text style={styles.bodyText}>❌ {minus}</Text></View>}
+              {!!plus.length && (
+                <View style={[styles.block, styles.halfCard]}>
+                  {plus.map((p, idx) => <Text key={`${p}-${idx}`} style={styles.listLine}>✅ {p}</Text>)}
+                </View>
+              )}
+              {!!minus.length && (
+                <View style={[styles.block, styles.halfCard]}>
+                  {minus.map((m, idx) => <Text key={`${m}-${idx}`} style={styles.listLine}>❌ {m}</Text>)}
+                </View>
+              )}
             </View>
           </View>
           )}
@@ -227,22 +259,12 @@ export default function ProfileDetailScreen() {
           </View>
           )}
 
-          {!!skillLines.length && (
+          {!!profile.vibe?.trim() && (
           <View style={[styles.block, styles.blockWarm]}>
-            <Text style={styles.kicker}>MES COMPÉTENCES</Text>
-            {skillLines.map((s, idx) => (
-              <Text key={`${s.label}-${idx}`} style={styles.listLine}>
-                {s.emoji ? `${s.emoji} ` : ''}{s.label} — {s.detail}
-              </Text>
-            ))}
+            <Text style={styles.kicker}>VIBE / AMBIANCE</Text>
+            <Text style={styles.bodyText}>{profile.vibe.trim()}</Text>
           </View>
           )}
-
-          {/* hidden legacy blocks */}
-          <View style={styles.hidden}>
-            <Text style={styles.kicker}>CENTRES D’INTÉRÊT</Text>
-            <Text>{rel.label}</Text>
-          </View>
         </View>
       </ScrollView>
     </View>
@@ -272,6 +294,7 @@ const styles = StyleSheet.create({
   photoImg: { width: 106, height: 126, borderRadius: 6 },
   photoPlaceholder: { width: 106, height: 126, borderRadius: 6, backgroundColor: '#F3EDE3', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   heroName: { fontSize: 24, fontWeight: '800', color: INK, marginBottom: 14 },
+  heroCity: { marginTop: -10, marginBottom: 16, fontSize: 16, color: INK_S },
   block: { marginBottom: 14, borderRadius: 18, borderWidth: 1, borderColor: '#E4D4BE', backgroundColor: '#F4E8D8', padding: 16 },
   blockWide: { backgroundColor: '#F6EAD8', borderLeftWidth: 4, borderLeftColor: '#B57A60', marginRight: 24, paddingVertical: 22, paddingHorizontal: 17, transform: [{ rotate: '-0.7deg' }] },
   blockPink: { backgroundColor: '#F7E3DF', borderColor: '#E8C2BA' },
@@ -298,8 +321,10 @@ const styles = StyleSheet.create({
   freeLineText: { fontSize: 16, lineHeight: 24, color: INK },
   listLine: { fontSize: 16, color: INK, lineHeight: 25, marginBottom: 2 },
   bioText: { marginTop: 8 },
+  badgesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  badge: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: '#EFE0CA', borderWidth: 1, borderColor: '#E4D0B0' },
+  badgeText: { color: INK, fontSize: 14, fontWeight: '600' },
   heart: { position: 'absolute', right: 14, top: 12, color: '#9F6A6A', fontSize: 16 },
   idealDayText: { fontSize: 18, lineHeight: 31, color: INK },
   tapeBottomLeft: { top: undefined, bottom: -7, left: 16, transform: [{ rotate: '7deg' }] },
-  hidden: { display: 'none' },
 });
