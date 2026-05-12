@@ -107,7 +107,9 @@ export default function ProfileDetailScreen() {
   const headerLine = [profile?.pseudo ?? 'Profil', age ? String(age) : ''].filter(Boolean).join(', ');
   const lookingFor = (profile?.lookingFor ?? []).map((k) => LOOKING_FOR_LABEL[k] ?? k).join(' · ');
   const effectiveBio = (profile?.bio ?? '').trim();
+  const interests = (profile?.interests ?? []).join(' · ');
   const interestedIn = (profile?.interestedIn ?? []).join(' · ');
+  const interestLine = interests || interestedIn;
   const children = childrenLabel(profile?.hasChildren ?? null, profile?.wantsChildren ?? null);
   const idealDayParts = (profile?.idealDay ?? []).filter(Boolean);
   const plus = (profile?.qualities ?? []).join(' · ');
@@ -169,12 +171,13 @@ export default function ProfileDetailScreen() {
           )}
           <View style={styles.freeLineWrap}>
             <Text style={styles.freeLineLabel}>Intéressé·e par :</Text>
-            <Text style={styles.freeLineText}>{interestedIn}</Text>
+            <Text style={styles.freeLineText}>{interestLine}</Text>
           </View>
 
           <View style={[styles.block, styles.blockWide]}>
             <Text style={styles.kicker}>UN PEU DE MOI</Text>
             {!!profile.city && <Text style={styles.listLine}>📍 {profile.city}</Text>}
+            {!!profile.height && <Text style={styles.listLine}>📏 {profile.height} cm</Text>}
             {!!profile.physicalDesc && <Text style={styles.listLine}>⚖️ {profile.physicalDesc}</Text>}
             {!!children && <Text style={styles.listLine}>👶 {children}</Text>}
             {!!effectiveBio && <Text style={[styles.bodyText, styles.bioText]}>{effectiveBio}</Text>}
