@@ -261,7 +261,7 @@ export default function ProfileDetailScreen() {
                 />
               ) : (
                 <View style={styles.avatarWrap}>
-                  <Avatar size={96} {...avatarDef} />
+                  <Avatar size={88} {...avatarDef} />
                 </View>
               )}
             </View>
@@ -457,18 +457,18 @@ const styles = StyleSheet.create({
 
   header: {
     position: 'relative',
-    minHeight: 320,
-    marginBottom: 24,
+    minHeight: 230,
+    marginBottom: 18,
   },
 
   headerLeft: {
     width: '62%',
-    paddingTop: 8,
+    paddingTop: 0,
   },
 
   title: {
-    fontSize: 32,
-    lineHeight: 39,
+    fontSize: 31,
+    lineHeight: 36,
     fontWeight: '900',
     color: INK,
     letterSpacing: -0.7,
@@ -483,19 +483,19 @@ const styles = StyleSheet.create({
   },
 
   mood: {
-    fontSize: 16,
-    lineHeight: 25,
+    fontSize: 15,
+    lineHeight: 22,
     color: MUTED,
     fontStyle: 'italic',
-    marginBottom: 28,
+    marginBottom: 18,
   },
 
   name: {
-    fontSize: 27,
-    lineHeight: 34,
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: '900',
     color: INK,
-    marginBottom: 4,
+    marginBottom: 2,
   },
 
   city: {
@@ -505,9 +505,9 @@ const styles = StyleSheet.create({
 
   polaroid: {
     position: 'absolute',
-    top: 6,
+    top: 0,
     right: 0,
-    width: 112,
+    width: 104,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     padding: 6,
@@ -536,13 +536,13 @@ const styles = StyleSheet.create({
 
   photo: {
     width: '100%',
-    height: 124,
+    height: 114,
     borderRadius: 4,
   },
 
   avatarWrap: {
     width: '100%',
-    height: 124,
+    height: 114,
     borderRadius: 4,
     backgroundColor: '#F3EBDD',
     alignItems: 'center',
