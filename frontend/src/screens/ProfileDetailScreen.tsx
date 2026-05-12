@@ -261,7 +261,7 @@ export default function ProfileDetailScreen() {
                 />
               ) : (
                 <View style={styles.avatarWrap}>
-                  <Avatar size={88} {...avatarDef} />
+                  <Avatar size={80} {...avatarDef} />
                 </View>
               )}
             </View>
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
 
   header: {
     position: 'relative',
-    minHeight: 230,
+    minHeight: 185,
     marginBottom: 18,
   },
 
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     right: 0,
-    width: 104,
+    width: 96,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     padding: 6,
@@ -536,13 +536,13 @@ const styles = StyleSheet.create({
 
   photo: {
     width: '100%',
-    height: 114,
+    height: 104,
     borderRadius: 4,
   },
 
   avatarWrap: {
     width: '100%',
-    height: 114,
+    height: 104,
     borderRadius: 4,
     backgroundColor: '#F3EBDD',
     alignItems: 'center',
