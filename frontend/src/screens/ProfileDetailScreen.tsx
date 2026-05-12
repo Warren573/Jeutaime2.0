@@ -331,7 +331,7 @@ export default function ProfileDetailScreen() {
               skills.map((skill: any, index: number) => (
                 <View key={`${skill.label}-${index}`} style={styles.skillLine}>
                   <Text style={styles.skillName}>
-                    {skill.emoji ? `${skill.emoji} ` : ‘’}
+                    {skill.emoji ? `${skill.emoji} ` : ""}
                     {skill.label}
                   </Text>
                   {!!skill.level && <Text style={styles.skillLevel}>{skill.level}%</Text>}
