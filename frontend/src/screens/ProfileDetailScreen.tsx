@@ -160,23 +160,49 @@ export default function ProfileDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.journalPage}>
-          <View style={styles.hero}>
-            <View style={styles.heroLeft}>
-              <Text style={styles.pageTitle}>Mon journal de bord</Text>
-              <View style={styles.titleLine} />
-              {!!lookingFor && <Text style={styles.headerMood}>{lookingFor}</Text>}
+          <View style={styles.sophieHeader}>
+            <View style={styles.sophieLeft}>
+              <Text style={styles.sophieTitle}>Mon journal de bord</Text>
+
+              <View style={styles.sophieDivider} />
+
+              <Text style={styles.sophieMood}>
+                Quelques pages pour se dévoiler doucement.
+              </Text>
+
+              <Text style={styles.sophieName}>
+                {headerLine}
+              </Text>
+
+              {!!profile.city && (
+                <Text style={styles.sophieCity}>
+                  {profile.city}
+                </Text>
+              )}
             </View>
-            <View style={styles.photoCard}>
-              <View style={styles.photoTape} />
+
+            <View style={styles.sophiePolaroid}>
+              <View style={styles.sophieTape} />
+
               {firstPhoto ? (
-                <Image source={{ uri: makePhotoUrl(firstPhoto), headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} }} style={styles.photoImg} contentFit="cover" cachePolicy="none" />
+                <Image
+                  source={{
+                    uri: makePhotoUrl(firstPhoto),
+                    headers: authToken
+                      ? { Authorization: `Bearer ${authToken}` }
+                      : {},
+                  }}
+                  style={styles.sophiePhoto}
+                  contentFit="cover"
+                  cachePolicy="none"
+                />
               ) : (
-                <View style={styles.photoPlaceholder}><Avatar size={106} {...avatarDef} /></View>
+                <View style={styles.sophieAvatarWrap}>
+                  <Avatar size={110} {...avatarDef} />
+                </View>
               )}
             </View>
           </View>
-          <Text style={styles.heroName}>{headerLine}</Text>
-          {!!profile.city && <Text style={styles.heroCity}>{profile.city}</Text>}
 
           {!!lookingFor && (
           <View style={[styles.block, styles.searchBlock, styles.tapedBlock]}>
@@ -280,17 +306,87 @@ const styles = StyleSheet.create({
   errorText: { color: INK_S, fontSize: 16 },
   scroll: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 60 },
   journalPage: { paddingHorizontal: 4, paddingBottom: 22 },
-  pageTitle: { fontSize: 34, fontWeight: '900', color: INK },
-  hero: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, justifyContent: 'space-between' },
-  heroLeft: { flex: 1, paddingRight: 10 },
-  titleLine: { marginTop: 8, marginBottom: 8, height: 1, backgroundColor: '#BCA88E', width: '100%' },
-  headerMood: { fontStyle: 'italic', color: INK_S, fontSize: 14 },
-  photoCard: { width: 106, height: 126, backgroundColor: '#FFF', borderRadius: 6, borderWidth: 1, borderColor: '#E7DAC8', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  photoTape: { position: 'absolute', top: -6, alignSelf: 'center', width: 38, height: 14, backgroundColor: '#E7D5BF', borderRadius: 2, transform: [{ rotate: '-8deg' }], zIndex: 2 },
-  photoImg: { width: 106, height: 126, borderRadius: 6 },
-  photoPlaceholder: { width: 106, height: 126, borderRadius: 6, backgroundColor: '#F3EDE3', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  heroName: { fontSize: 24, fontWeight: '800', color: INK, marginBottom: 14 },
-  heroCity: { marginTop: -10, marginBottom: 16, fontSize: 16, color: INK_S },
+  sophieHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 28,
+    paddingHorizontal: 4,
+  },
+  sophieLeft: {
+    flex: 1,
+    paddingRight: 14,
+    paddingTop: 6,
+  },
+  sophieTitle: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#2B1B12',
+    letterSpacing: -0.6,
+  },
+  sophieDivider: {
+    height: 1,
+    backgroundColor: '#BCA88E',
+    marginTop: 10,
+    marginBottom: 10,
+    width: '92%',
+  },
+  sophieMood: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#7C5A43',
+    fontStyle: 'italic',
+    marginBottom: 22,
+  },
+  sophieName: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#2B1B12',
+    marginBottom: 4,
+  },
+  sophieCity: {
+    fontSize: 15,
+    color: '#7C5A43',
+  },
+  sophiePolaroid: {
+    width: 118,
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: '#E5D7C5',
+    transform: [{ rotate: '1.5deg' }],
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  sophieTape: {
+    position: 'absolute',
+    top: -7,
+    alignSelf: 'center',
+    width: 42,
+    height: 15,
+    backgroundColor: '#E8D5BC',
+    borderRadius: 2,
+    transform: [{ rotate: '-6deg' }],
+    zIndex: 10,
+    opacity: 0.92,
+  },
+  sophiePhoto: {
+    width: '100%',
+    height: 138,
+    borderRadius: 4,
+  },
+  sophieAvatarWrap: {
+    width: '100%',
+    height: 138,
+    borderRadius: 4,
+    backgroundColor: '#F3EBDD',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   block: { marginBottom: 14, borderRadius: 18, borderWidth: 1, borderColor: '#E4D4BE', backgroundColor: '#F4E8D8', padding: 16 },
   blockWide: { backgroundColor: '#F6EAD8', borderLeftWidth: 4, borderLeftColor: '#B57A60', marginRight: 24, paddingVertical: 22, paddingHorizontal: 17, transform: [{ rotate: '-0.7deg' }] },
   blockPink: { backgroundColor: '#F7E3DF', borderColor: '#E8C2BA' },
