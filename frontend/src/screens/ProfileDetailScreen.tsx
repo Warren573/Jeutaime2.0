@@ -39,6 +39,15 @@ const LOOKING_FOR_LABEL: Record<string, string> = {
   SERIEUX: "Je cherche l'âme sœur",
 };
 
+const INTERESTED_IN_LABEL: Record<string, string> = {
+  FEMME: 'Femmes',
+  HOMME: 'Hommes',
+  AUTRE: 'Non-binaires',
+  F: 'Femmes',
+  M: 'Hommes',
+  NB: 'Non-binaires',
+};
+
 function childrenLabel(hasChildren?: boolean | null, wantsChildren?: boolean | null): string | null {
   if (hasChildren === true && wantsChildren === true) return 'A des enfants — et prêt·e à agrandir la troupe';
   if (hasChildren === true && wantsChildren === false) return "A des enfants, c'est largement suffisant";
@@ -107,13 +116,14 @@ export default function ProfileDetailScreen() {
   const headerLine = [profile?.pseudo ?? 'Profil', age ? String(age) : ''].filter(Boolean).join(', ');
   const lookingFor = (profile?.lookingFor ?? []).map((k) => LOOKING_FOR_LABEL[k] ?? k).join(' · ');
   const effectiveBio = (profile?.bio ?? '').trim();
-  const interests = (profile?.interests ?? []).join(' · ');
-  const interestedIn = (profile?.interestedIn ?? []).join(' · ');
-  const interestLine = interests || interestedIn;
+  const interests = (profile?.interests ?? []).filter(Boolean);
+  const interestedIn = (profile?.interestedIn ?? []).map((k) => INTERESTED_IN_LABEL[k] ?? k).filter(Boolean);
+  const interestLine = [...interestedIn, ...interests].join(' · ');
   const children = childrenLabel(profile?.hasChildren ?? null, profile?.wantsChildren ?? null);
   const idealDayParts = (profile?.idealDay ?? []).filter(Boolean);
   const plus = (profile?.qualities ?? []).join(' · ');
   const minus = (profile?.defaults ?? []).join(' · ');
+  const skillLines = (profile?.skills ?? []).filter((s) => s?.label && s?.detail);
   const firstPhoto = photos.find((p) => !p.isPrivate)?.url;
   const avatarDef = profile?.avatarConfig && Object.keys(profile.avatarConfig).length > 0
     ? (profile.avatarConfig as unknown as AvatarConfig)
@@ -169,10 +179,12 @@ export default function ProfileDetailScreen() {
             <Text style={styles.heart}>♡</Text>
           </View>
           )}
-          <View style={styles.freeLineWrap}>
-            <Text style={styles.freeLineLabel}>Intéressé·e par :</Text>
-            <Text style={styles.freeLineText}>{interestLine}</Text>
-          </View>
+          {!!interestLine && (
+            <View style={styles.freeLineWrap}>
+              <Text style={styles.freeLineLabel}>Intéressé·e par :</Text>
+              <Text style={styles.freeLineText}>{interestLine}</Text>
+            </View>
+          )}
 
           <View style={[styles.block, styles.blockWide]}>
             <Text style={styles.kicker}>UN PEU DE MOI</Text>
@@ -212,6 +224,17 @@ export default function ProfileDetailScreen() {
           {!!profile.quote?.trim() && (
           <View style={[styles.block, styles.blockPink]}>
             <Text style={[styles.bodyText, styles.italic, styles.quoteText]}>{profile.quote}</Text>
+          </View>
+          )}
+
+          {!!skillLines.length && (
+          <View style={[styles.block, styles.blockWarm]}>
+            <Text style={styles.kicker}>MES COMPÉTENCES</Text>
+            {skillLines.map((s, idx) => (
+              <Text key={`${s.label}-${idx}`} style={styles.listLine}>
+                {s.emoji ? `${s.emoji} ` : ''}{s.label} — {s.detail}
+              </Text>
+            ))}
           </View>
           )}
 
