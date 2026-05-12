@@ -59,22 +59,22 @@ function cleanArray(value?: unknown): string[] {
 }
 
 const LOOKING_FOR_LABEL: Record<string, string> = {
-  relation: "J'ai vu de la lumière, je suis entré·e",
-  RELATION: "J'ai vu de la lumière, je suis entré·e",
-  serieux: "Je cherche l'âme sœur",
-  SERIEUX: "Je cherche l'âme sœur",
-  serious: "Je cherche l'âme sœur",
-  SERIOUS: "Je cherche l'âme sœur",
-  flirt: 'Rien de trop sérieux',
-  FLIRT: 'Rien de trop sérieux',
-  fun: 'Du fun, sans pression',
-  FUN: 'Du fun, sans pression',
-  amitie: "Des affinités, d'abord",
-  AMITIE: "Des affinités, d'abord",
-  friendship: "Des affinités, d'abord",
-  FRIENDSHIP: "Des affinités, d'abord",
-  discussion: 'Je cherche à discuter',
-  DISCUSSION: 'Je cherche à discuter',
+  relation: "Relation sérieuse",
+  RELATION: "Relation sérieuse",
+  serieux: "Relation sérieuse",
+  SERIEUX: "Relation sérieuse",
+  serious: "Relation sérieuse",
+  SERIOUS: "Relation sérieuse",
+  flirt: 'Flirt',
+  FLIRT: 'Flirt',
+  fun: 'Flirt',
+  FUN: 'Flirt',
+  amitie: "Amitié",
+  AMITIE: "Amitié",
+  friendship: "Amitié",
+  FRIENDSHIP: "Amitié",
+  discussion: 'Discussion',
+  DISCUSSION: 'Discussion',
 };
 
 const INTERESTED_IN_LABEL: Record<string, string> = {
@@ -90,6 +90,21 @@ const INTERESTED_IN_LABEL: Record<string, string> = {
   FEMME: 'Femmes',
   femmes: 'Femmes',
   FEMMES: 'Femmes',
+  other: 'Non-binaires',
+  OTHER: 'Non-binaires',
+  autre: 'Non-binaires',
+  AUTRE: 'Non-binaires',
+};
+
+const PHYSIQUE_LABEL: Record<string, string> = {
+  filiforme: 'Filiforme',
+  ras_motte: 'Ras motte',
+  grande_gigue: 'Grande gigue',
+  doux: 'Grande beauté intérieure',
+  athletique: 'Athlétique',
+  costaud: 'En formes généreuses',
+  mignon: 'Moyenne',
+  mysterieux: 'Musclé•e',
 };
 
 function childrenLabel(hasChildren?: string | null, wantsChildren?: string | null): string {
@@ -215,7 +230,8 @@ export default function ProfileDetailScreen() {
 
   const city = cleanText(profile.city);
   const height = profile.height ? `${profile.height} cm` : '';
-  const physicalDesc = cleanText(profile.physicalDesc);
+  const physicalDescRaw = cleanText(profile.physicalDesc);
+  const physicalDesc = PHYSIQUE_LABEL[physicalDescRaw] ?? physicalDescRaw;
   const children = childrenLabel(profile.hasChildren, profile.wantsChildren);
 
   const bio = cleanText(profile.bio);
