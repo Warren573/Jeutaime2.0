@@ -241,10 +241,13 @@ export default function ProfileDetailScreen() {
   const idealDay = cleanArray(profile.idealDay);
   const quote = cleanText(profile.quote);
   const vibe = cleanText(profile.vibe);
+  const identityTags = cleanArray(profile.identityTags);
 
   const skills = Array.isArray(profile.skills)
     ? profile.skills.filter((skill: any) => skill?.label || skill?.detail)
     : [];
+
+  const questions = Array.isArray(profile.questions) ? profile.questions : [];
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -392,6 +395,31 @@ export default function ProfileDetailScreen() {
             <View style={[styles.card, styles.vibeCard]}>
               <Text style={styles.sectionTitle}>VIBE / AMBIANCE</Text>
               <Text style={styles.text}>{vibe}</Text>
+            </View>
+          )}
+
+          {!!identityTags.length && (
+            <View style={styles.interestsBlock}>
+              <Text style={styles.sectionTitle}>QUI JE SUIS</Text>
+              <View style={styles.badges}>
+                {identityTags.map((tag, index) => (
+                  <View key={`${tag}-${index}`} style={styles.badge}>
+                    <Text style={styles.badgeText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {!!questions.length && (
+            <View style={[styles.card, styles.questionsCard]}>
+              <Text style={styles.sectionTitle}>MES 3 QUESTIONS</Text>
+              {questions.map((q, index) => (
+                <View key={`${q.questionText}-${index}`} style={styles.questionItem}>
+                  <Text style={styles.questionNumber}>Question {index + 1}</Text>
+                  <Text style={styles.questionText}>{q.questionText ?? 'Sans titre'}</Text>
+                </View>
+              ))}
             </View>
           )}
         </View>
@@ -755,6 +783,30 @@ const styles = StyleSheet.create({
 
   vibeCard: {
     backgroundColor: '#F2E3CF',
+  },
+
+  questionsCard: {
+    backgroundColor: '#F0E5F0',
+  },
+
+  questionItem: {
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8D5B7',
+  },
+
+  questionNumber: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: MUTED,
+    marginBottom: 4,
+  },
+
+  questionText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: INK,
   },
 
   smallTapeRight: {
