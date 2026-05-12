@@ -59,22 +59,22 @@ function cleanArray(value?: unknown): string[] {
 }
 
 const LOOKING_FOR_LABEL: Record<string, string> = {
-  relation: "Relation sérieuse",
-  RELATION: "Relation sérieuse",
-  serieux: "Relation sérieuse",
-  SERIEUX: "Relation sérieuse",
-  serious: "Relation sérieuse",
-  SERIOUS: "Relation sérieuse",
-  flirt: 'Flirt',
-  FLIRT: 'Flirt',
-  fun: 'Flirt',
-  FUN: 'Flirt',
-  amitie: "Amitié",
-  AMITIE: "Amitié",
-  friendship: "Amitié",
-  FRIENDSHIP: "Amitié",
-  discussion: 'Discussion',
-  DISCUSSION: 'Discussion',
+  relation: "J'ai vu de la lumière, je suis entré·e",
+  RELATION: "J'ai vu de la lumière, je suis entré·e",
+  serieux: "Je cherche l'âme sœur",
+  SERIEUX: "Je cherche l'âme sœur",
+  serious: "Je cherche l'âme sœur",
+  SERIOUS: "Je cherche l'âme sœur",
+  flirt: 'Rien de trop sérieux',
+  FLIRT: 'Rien de trop sérieux',
+  fun: 'Rien de trop sérieux',
+  FUN: 'Rien de trop sérieux',
+  amitie: "Des affinités, d'abord",
+  AMITIE: "Des affinités, d'abord",
+  friendship: "Des affinités, d'abord",
+  FRIENDSHIP: "Des affinités, d'abord",
+  discussion: 'Je cherche à discuter',
+  DISCUSSION: 'Je cherche à discuter',
 };
 
 const INTERESTED_IN_LABEL: Record<string, string> = {
