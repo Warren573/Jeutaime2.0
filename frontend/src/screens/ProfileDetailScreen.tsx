@@ -40,14 +40,14 @@ const LOOKING_FOR_LABEL: Record<string, string> = {
 };
 
 function childrenLabel(hasChildren?: boolean | null, wantsChildren?: boolean | null): string | null {
-  if (hasChildren === true  && wantsChildren === true)  return "A des enfants — et prêt·e à agrandir la troupe";
-  if (hasChildren === true  && wantsChildren === false) return "A des enfants, c'est largement suffisant";
-  if (hasChildren === true  && wantsChildren == null)   return "A des enfants";
-  if (hasChildren === false && wantsChildren === true)  return "Pas d'enfants — compte se lancer dans l'élevage de pingouins";
+  if (hasChildren === true && wantsChildren === true) return 'A des enfants — et prêt·e à agrandir la troupe';
+  if (hasChildren === true && wantsChildren === false) return "A des enfants, c'est largement suffisant";
+  if (hasChildren === true && wantsChildren == null) return 'A des enfants';
+  if (hasChildren === false && wantsChildren === true) return "Pas d'enfants — compte se lancer dans l'élevage de pingouins";
   if (hasChildren === false && wantsChildren === false) return "Pas d'enfants, et ça ne changera pas";
-  if (hasChildren === false && wantsChildren == null)   return "Pas d'enfants";
-  if (hasChildren == null   && wantsChildren === true)  return "En réflexion — probablement oui";
-  if (hasChildren == null   && wantsChildren === false) return "Pas vraiment prévu d'enfants";
+  if (hasChildren === false && wantsChildren == null) return "Pas d'enfants";
+  if (hasChildren == null && wantsChildren === true) return 'En réflexion — probablement oui';
+  if (hasChildren == null && wantsChildren === false) return "Pas vraiment prévu d'enfants";
   return null;
 }
 
@@ -104,26 +104,20 @@ export default function ProfileDetailScreen() {
 
   const age = useMemo(() => calcAge(profile?.birthDate ?? null), [profile?.birthDate]);
   const headerLine = [profile?.pseudo ?? 'Profil', age ? String(age) : ''].filter(Boolean).join(', ');
-  const lookingForValues = profile?.lookingFor ?? [];
-  const interestsValues = (profile?.interests ?? []);
+  const lookingFor = (profile?.lookingFor ?? []).map((k) => LOOKING_FOR_LABEL[k] ?? k).join(' · ');
+  const interests = (profile?.interests ?? []).join(' · ');
   const effectiveBio = (profile?.bio ?? '').trim();
-  const lookingFor = lookingForValues.map((k) => LOOKING_FOR_LABEL[k] ?? k).join(' · ');
-  const interests = interestsValues.join(' · ');
   const interestedIn = (profile?.interestedIn ?? []).join(' · ');
   const children = childrenLabel(profile?.hasChildren ?? null, profile?.wantsChildren ?? null);
-  const idealDay = (profile?.idealDay ?? []).filter(Boolean).join(' → ');
-  const plusMinus = [
-    (profile?.qualities ?? []).length ? `+ ${(profile?.qualities ?? []).join(' · ')}` : '',
-    (profile?.defaults ?? []).length ? `- ${(profile?.defaults ?? []).join(' · ')}` : '',
-  ].filter(Boolean).join('\n');
+  const idealDayParts = (profile?.idealDay ?? []).filter(Boolean);
+  const plus = (profile?.qualities ?? []).join(' · ');
+  const minus = (profile?.defaults ?? []).join(' · ');
   const firstPhoto = photos.find((p) => !p.isPrivate)?.url;
   const avatarDef = profile?.avatarConfig && Object.keys(profile.avatarConfig).length > 0
     ? (profile.avatarConfig as unknown as AvatarConfig)
     : DEFAULT_AVATAR;
 
-  if (loading) {
-    return <View style={[styles.container, styles.center]}><ActivityIndicator size="large" color="#9C7A4D" /></View>;
-  }
+  if (loading) return <View style={[styles.container, styles.center]}><ActivityIndicator size="large" color="#9C7A4D" /></View>;
 
   if (error || !profile) {
     return (
@@ -154,12 +148,7 @@ export default function ProfileDetailScreen() {
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
               {firstPhoto ? (
-                <Image
-                  source={{ uri: makePhotoUrl(firstPhoto), headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} }}
-                  style={styles.photoImg}
-                  contentFit="cover"
-                  cachePolicy="none"
-                />
+                <Image source={{ uri: makePhotoUrl(firstPhoto), headers: authToken ? { Authorization: `Bearer ${authToken}` } : {} }} style={styles.photoImg} contentFit="cover" cachePolicy="none" />
               ) : (
                 <View style={styles.photoPlaceholder}><Avatar size={106} {...avatarDef} /></View>
               )}
@@ -172,67 +161,57 @@ export default function ProfileDetailScreen() {
             </View>
           </View>
 
-          <View style={styles.paperSection}>
-            <Text style={styles.kicker}>CE QUE JE CHERCHE ICI</Text>
-            <View style={styles.softCard}><Text style={styles.bodyText}>{lookingFor || 'Continuer une vraie conversation'}</Text></View>
-          </View>
-
-          <View style={styles.paperSection}>
+          <View style={[styles.block, styles.blockWide]}>
             <Text style={styles.kicker}>UN PEU DE MOI</Text>
-            <View style={styles.softCard}><Text style={styles.bodyText}>{effectiveBio || 'Encore un peu de mystère pour le moment.'}</Text></View>
+            <Text style={styles.bodyText}>{effectiveBio || 'Encore un peu de mystère pour le moment.'}</Text>
           </View>
 
-          <View style={styles.paperSection}>
-            <Text style={styles.kicker}>INTÉRESSÉ(E) PAR</Text>
-            <View style={styles.softCard}><Text style={styles.bodyText}>{interestedIn || 'Le feeling avant les étiquettes'}</Text></View>
-          </View>
-
-          <View style={styles.paperSection}>
-            <Text style={styles.kicker}>DESCRIPTION PHYSIQUE</Text>
-            <View style={styles.softCard}><Text style={styles.bodyText}>{profile.physicalDesc || 'À découvrir en personne'}</Text></View>
-          </View>
-
-          <View style={styles.paperSection}>
-            <Text style={styles.kicker}>ENFANTS</Text>
-            <View style={styles.softCard}><Text style={styles.bodyText}>{children || 'Sujet ouvert à la discussion'}</Text></View>
-          </View>
-
-          <View style={styles.paperSection}>
-            <Text style={styles.kicker}>CENTRES D’INTÉRÊT</Text>
-            <View style={styles.softCard}><Text style={styles.bodyText}>{interests || 'À découvrir au fil des lettres'}</Text></View>
-          </View>
-
-          <View style={styles.paperSection}>
-            <Text style={styles.kicker}>MES 3 COMPÉTENCES</Text>
-            <View style={styles.softCard}>
-              {(profile.skills ?? []).length ? (
-                (profile.skills ?? []).slice(0, 3).map((s, idx) => (
-                  <Text key={`${s.label}-${idx}`} style={styles.bodyText}>• {s.emoji} {s.label} — {s.score}% ({s.detail})</Text>
-                ))
-              ) : (
-                <Text style={styles.bodyText}>En cours de calibration 😄</Text>
-              )}
+          <View style={styles.row}>
+            <View style={[styles.block, styles.blockPink, styles.colBig]}>
+              <Text style={styles.kicker}>CE QUE JE CHERCHE ICI</Text>
+              <Text style={styles.bodyText}>{lookingFor || 'Continuer une vraie conversation'}</Text>
+            </View>
+            <View style={[styles.block, styles.blockNote, styles.colSmall]}>
+              <Text style={styles.kicker}>INTÉRESSÉ(E) PAR</Text>
+              <Text style={styles.bodyText}>{interestedIn || 'Le feeling avant les étiquettes'}</Text>
             </View>
           </View>
 
-          <View style={styles.paperSection}>
-            <Text style={styles.kicker}>MA JOURNÉE IDÉALE</Text>
-            <View style={styles.softCard}><Text style={styles.bodyText}>{idealDay || 'À improviser à deux'}</Text></View>
+          <View style={[styles.block, styles.quoteBlock]}>
+            <Text style={styles.quoteMark}>“</Text>
+            <Text style={[styles.bodyText, styles.italic]}>{profile.quote || 'À écrire bientôt'}</Text>
           </View>
 
-          <View style={styles.paperSection}>
-            <Text style={styles.kicker}>PETITS + / PETITS -</Text>
-            <View style={styles.softCard}><Text style={styles.bodyText}>{plusMinus || 'Honnête, mais pas encore listé'}</Text></View>
+          <View style={styles.row}>
+            <View style={[styles.block, styles.colSmall]}>
+              <Text style={styles.kicker}>CENTRES D’INTÉRÊT</Text>
+              <Text style={styles.bodyText}>{interests || 'À découvrir au fil des lettres'}</Text>
+            </View>
+            <View style={[styles.block, styles.colBig, styles.blockPink]}>
+              <Text style={styles.kicker}>MA JOURNÉE IDÉALE</Text>
+              <Text style={styles.bodyText}>{idealDayParts.length ? idealDayParts.map((s, i) => `${i + 1}. ${s}`).join('\n') : 'À improviser à deux'}</Text>
+            </View>
           </View>
 
-          <View style={styles.paperSection}>
-            <Text style={styles.kicker}>CITATION SIGNATURE</Text>
-            <View style={styles.softCard}><Text style={[styles.bodyText, styles.italic]}>{profile.quote || '"À écrire bientôt"'}</Text></View>
+          <View style={styles.row}>
+            <View style={[styles.block, styles.colBig]}>
+              <Text style={styles.kicker}>PETITS +</Text>
+              <Text style={styles.bodyText}>{plus || 'Qualités à découvrir'}</Text>
+            </View>
+            <View style={[styles.block, styles.colSmall, styles.blockWarm]}>
+              <Text style={styles.kicker}>PETITS -</Text>
+              <Text style={styles.bodyText}>{minus || 'Défauts assumés avec humour'}</Text>
+            </View>
           </View>
 
-          <View style={styles.paperSection}>
+          <View style={[styles.block, styles.blockNote]}>
             <Text style={styles.kicker}>VIBE / AMBIANCE</Text>
-            <View style={styles.softCard}><Text style={styles.bodyText}>{profile.vibe || 'À ressentir en discutant'}</Text></View>
+            <Text style={styles.bodyText}>{profile.vibe || 'À ressentir en discutant'}</Text>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.block, styles.colSmall]}><Text style={styles.kicker}>DESCRIPTION PHYSIQUE</Text><Text style={styles.bodyText}>{profile.physicalDesc || 'À découvrir en personne'}</Text></View>
+            <View style={[styles.block, styles.colBig]}><Text style={styles.kicker}>ENFANTS</Text><Text style={styles.bodyText}>{children || 'Sujet ouvert à la discussion'}</Text></View>
           </View>
         </View>
       </ScrollView>
@@ -240,18 +219,15 @@ export default function ProfileDetailScreen() {
   );
 }
 
-const BG = '#ECE3D4';
-const PAPER = '#F6EEDF';
+const BG = '#EFE5D8';
+const PAPER = '#F7EFE2';
 const INK = '#2B1B12';
 const INK_S = '#7C5A43';
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  navBar: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13,
-    backgroundColor: '#2C1A0E', borderBottomWidth: 1, borderBottomColor: '#5A3A1A',
-  },
+  navBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, backgroundColor: '#2C1A0E', borderBottomWidth: 1, borderBottomColor: '#5A3A1A' },
   backText: { fontSize: 15, color: '#F0D98C', fontWeight: '600' },
   navTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#F0D98C' },
   errorText: { color: INK_S, fontSize: 16 },
@@ -267,9 +243,17 @@ const styles = StyleSheet.create({
   heroName: { fontSize: 28, fontWeight: '800', color: INK, lineHeight: 34, marginBottom: 4 },
   heroCity: { fontSize: 14, color: INK_S },
   heroProgress: { marginTop: 4, fontSize: 12, color: INK_S, fontStyle: 'italic' },
-  paperSection: { marginBottom: 16 },
-  kicker: { fontSize: 15, color: INK, fontWeight: '800', letterSpacing: 0.4, marginBottom: 10 },
-  softCard: { backgroundColor: '#F3E7D7', borderRadius: 14, borderWidth: 1, borderColor: '#E2D1BA', padding: 14 },
-  bodyText: { fontSize: 16, lineHeight: 24, color: INK },
+  row: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  colBig: { flex: 1.25 },
+  colSmall: { flex: 0.75 },
+  block: { marginBottom: 10, borderRadius: 16, borderWidth: 1, borderColor: '#E4D4BE', backgroundColor: '#F4E8D8', padding: 14 },
+  blockWide: { backgroundColor: '#F6EAD8', borderLeftWidth: 4, borderLeftColor: '#B57A60' },
+  blockPink: { backgroundColor: '#F7E3DF', borderColor: '#E8C2BA' },
+  blockWarm: { backgroundColor: '#F2E3CF' },
+  blockNote: { backgroundColor: '#FBF3E8', borderStyle: 'dashed' },
+  quoteBlock: { backgroundColor: '#F8E5E0', alignItems: 'center', paddingVertical: 18 },
+  quoteMark: { fontSize: 38, color: '#A45056', marginBottom: 6, fontWeight: '700' },
+  kicker: { fontSize: 14, color: INK, fontWeight: '800', letterSpacing: 0.3, marginBottom: 8 },
+  bodyText: { fontSize: 15, lineHeight: 22, color: INK },
   italic: { fontStyle: 'italic' },
 });
