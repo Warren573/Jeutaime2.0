@@ -161,47 +161,40 @@ export default function ProfileDetailScreen() {
             </View>
           </View>
 
-          <View style={[styles.block, styles.blockWide]}>
+          <View style={[styles.block, styles.blockWide, styles.tapedBlock]}>
+            <View style={styles.cardTape} />
             <Text style={styles.kicker}>UN PEU DE MOI</Text>
             <Text style={styles.bodyText}>{effectiveBio || 'Encore un peu de mystère pour le moment.'}</Text>
           </View>
 
-          <View style={styles.row}>
-            <View style={[styles.block, styles.blockPink, styles.colBig]}>
-              <Text style={styles.kicker}>CE QUE JE CHERCHE ICI</Text>
-              <Text style={styles.bodyText}>{lookingFor || 'Continuer une vraie conversation'}</Text>
-            </View>
-            <View style={[styles.block, styles.blockNote, styles.colSmall]}>
-              <Text style={styles.kicker}>INTÉRESSÉ(E) PAR</Text>
-              <Text style={styles.bodyText}>{interestedIn || 'Le feeling avant les étiquettes'}</Text>
-            </View>
+          <View style={[styles.block, styles.blockPink, styles.featureBlock]}>
+            <Text style={styles.kicker}>CE QUE JE CHERCHE ICI</Text>
+            <Text style={styles.bodyText}>{lookingFor || 'Continuer une vraie conversation'}</Text>
+            <Text style={[styles.kicker, styles.subKicker]}>INTÉRESSÉ(E) PAR</Text>
+            <Text style={styles.bodyText}>{interestedIn || 'Le feeling avant les étiquettes'}</Text>
           </View>
 
-          <View style={[styles.block, styles.quoteBlock]}>
+          <View style={[styles.block, styles.quoteBlock, styles.tapedBlock]}>
+            <View style={[styles.cardTape, styles.tapeRight]} />
             <Text style={styles.quoteMark}>“</Text>
-            <Text style={[styles.bodyText, styles.italic]}>{profile.quote || 'À écrire bientôt'}</Text>
+            <Text style={[styles.bodyText, styles.italic, styles.quoteText]}>{profile.quote || 'À écrire bientôt'}</Text>
           </View>
 
-          <View style={styles.row}>
-            <View style={[styles.block, styles.colSmall]}>
-              <Text style={styles.kicker}>CENTRES D’INTÉRÊT</Text>
-              <Text style={styles.bodyText}>{interests || 'À découvrir au fil des lettres'}</Text>
-            </View>
-            <View style={[styles.block, styles.colBig, styles.blockPink]}>
-              <Text style={styles.kicker}>MA JOURNÉE IDÉALE</Text>
-              <Text style={styles.bodyText}>{idealDayParts.length ? idealDayParts.map((s, i) => `${i + 1}. ${s}`).join('\n') : 'À improviser à deux'}</Text>
-            </View>
+          <View style={[styles.block, styles.blockSoft]}>
+            <Text style={styles.kicker}>CENTRES D’INTÉRÊT</Text>
+            <Text style={styles.bodyText}>{interests || 'À découvrir au fil des lettres'}</Text>
           </View>
 
-          <View style={styles.row}>
-            <View style={[styles.block, styles.colBig]}>
-              <Text style={styles.kicker}>PETITS +</Text>
-              <Text style={styles.bodyText}>{plus || 'Qualités à découvrir'}</Text>
-            </View>
-            <View style={[styles.block, styles.colSmall, styles.blockWarm]}>
-              <Text style={styles.kicker}>PETITS -</Text>
-              <Text style={styles.bodyText}>{minus || 'Défauts assumés avec humour'}</Text>
-            </View>
+          <View style={[styles.block, styles.blockPink, styles.featureBlock]}>
+            <Text style={styles.kicker}>MA JOURNÉE IDÉALE</Text>
+            <Text style={styles.bodyText}>{idealDayParts.length ? idealDayParts.map((s, i) => `${i + 1}. ${s}`).join('\n') : 'À improviser à deux'}</Text>
+          </View>
+
+          <View style={[styles.block, styles.blockWarm]}>
+            <Text style={styles.kicker}>PETITS +</Text>
+            <Text style={styles.bodyText}>{plus || 'Qualités à découvrir'}</Text>
+            <Text style={[styles.kicker, styles.subKicker]}>PETITS -</Text>
+            <Text style={styles.bodyText}>{minus || 'Défauts assumés avec humour'}</Text>
           </View>
 
           <View style={[styles.block, styles.blockNote]}>
@@ -209,9 +202,11 @@ export default function ProfileDetailScreen() {
             <Text style={styles.bodyText}>{profile.vibe || 'À ressentir en discutant'}</Text>
           </View>
 
-          <View style={styles.row}>
-            <View style={[styles.block, styles.colSmall]}><Text style={styles.kicker}>DESCRIPTION PHYSIQUE</Text><Text style={styles.bodyText}>{profile.physicalDesc || 'À découvrir en personne'}</Text></View>
-            <View style={[styles.block, styles.colBig]}><Text style={styles.kicker}>ENFANTS</Text><Text style={styles.bodyText}>{children || 'Sujet ouvert à la discussion'}</Text></View>
+          <View style={[styles.block, styles.blockSoft]}>
+            <Text style={styles.kicker}>DESCRIPTION PHYSIQUE</Text>
+            <Text style={styles.bodyText}>{profile.physicalDesc || 'À découvrir en personne'}</Text>
+            <Text style={[styles.kicker, styles.subKicker]}>ENFANTS</Text>
+            <Text style={styles.bodyText}>{children || 'Sujet ouvert à la discussion'}</Text>
           </View>
         </View>
       </ScrollView>
@@ -232,7 +227,7 @@ const styles = StyleSheet.create({
   navTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#F0D98C' },
   errorText: { color: INK_S, fontSize: 16 },
   scroll: { padding: 16, paddingBottom: 40 },
-  journalPage: { backgroundColor: PAPER, borderRadius: 24, borderWidth: 1, borderColor: '#E3D3BC', padding: 18 },
+  journalPage: { backgroundColor: PAPER, borderRadius: 28, borderWidth: 1, borderColor: '#E3D3BC', padding: 18, paddingBottom: 22 },
   pageTitle: { fontSize: 32, fontWeight: '900', color: INK, marginBottom: 12 },
   hero: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 },
   photoCard: { width: 106, height: 126, backgroundColor: '#FFF', borderRadius: 6, borderWidth: 1, borderColor: '#E7DAC8', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
@@ -243,17 +238,21 @@ const styles = StyleSheet.create({
   heroName: { fontSize: 28, fontWeight: '800', color: INK, lineHeight: 34, marginBottom: 4 },
   heroCity: { fontSize: 14, color: INK_S },
   heroProgress: { marginTop: 4, fontSize: 12, color: INK_S, fontStyle: 'italic' },
-  row: { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  colBig: { flex: 1.25 },
-  colSmall: { flex: 0.75 },
-  block: { marginBottom: 10, borderRadius: 16, borderWidth: 1, borderColor: '#E4D4BE', backgroundColor: '#F4E8D8', padding: 14 },
+  block: { marginBottom: 14, borderRadius: 18, borderWidth: 1, borderColor: '#E4D4BE', backgroundColor: '#F4E8D8', padding: 16 },
   blockWide: { backgroundColor: '#F6EAD8', borderLeftWidth: 4, borderLeftColor: '#B57A60' },
   blockPink: { backgroundColor: '#F7E3DF', borderColor: '#E8C2BA' },
   blockWarm: { backgroundColor: '#F2E3CF' },
+  blockSoft: { backgroundColor: '#F8EDDF' },
   blockNote: { backgroundColor: '#FBF3E8', borderStyle: 'dashed' },
-  quoteBlock: { backgroundColor: '#F8E5E0', alignItems: 'center', paddingVertical: 18 },
-  quoteMark: { fontSize: 38, color: '#A45056', marginBottom: 6, fontWeight: '700' },
+  featureBlock: { paddingVertical: 18 },
+  tapedBlock: { position: 'relative', overflow: 'visible' },
+  cardTape: { position: 'absolute', top: -7, left: 28, width: 46, height: 15, backgroundColor: '#E6D2B8', borderRadius: 2, transform: [{ rotate: '-7deg' }], zIndex: 3, opacity: 0.9 },
+  tapeRight: { right: 30, transform: [{ rotate: '9deg' }] },
+  quoteBlock: { backgroundColor: '#F8E5E0', alignItems: 'center', paddingVertical: 20 },
+  quoteMark: { fontSize: 44, color: '#A45056', marginBottom: 8, fontWeight: '700' },
   kicker: { fontSize: 14, color: INK, fontWeight: '800', letterSpacing: 0.3, marginBottom: 8 },
-  bodyText: { fontSize: 15, lineHeight: 22, color: INK },
+  bodyText: { fontSize: 16, lineHeight: 24, color: INK },
+  subKicker: { marginTop: 16 },
+  quoteText: { textAlign: 'center', maxWidth: '92%' },
   italic: { fontStyle: 'italic' },
 });
