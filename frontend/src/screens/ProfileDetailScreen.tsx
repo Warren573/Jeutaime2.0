@@ -167,7 +167,7 @@ export default function ProfileDetailScreen() {
             <Text style={styles.bodyText}>{effectiveBio || 'Encore un peu de mystère pour le moment.'}</Text>
           </View>
 
-          <View style={[styles.block, styles.blockPink, styles.featureBlock]}>
+          <View style={[styles.block, styles.blockPink, styles.featureBlock, styles.pullUp]}>
             <Text style={styles.kicker}>CE QUE JE CHERCHE ICI</Text>
             <Text style={styles.bodyText}>{lookingFor || 'Continuer une vraie conversation'}</Text>
             <Text style={[styles.kicker, styles.subKicker]}>INTÉRESSÉ(E) PAR</Text>
@@ -180,29 +180,30 @@ export default function ProfileDetailScreen() {
             <Text style={[styles.bodyText, styles.italic, styles.quoteText]}>{profile.quote || 'À écrire bientôt'}</Text>
           </View>
 
-          <View style={[styles.block, styles.blockSoft]}>
+          <View style={[styles.block, styles.blockSoft, styles.blockMinimal]}>
             <Text style={styles.kicker}>CENTRES D’INTÉRÊT</Text>
             <Text style={styles.bodyText}>{interests || 'À découvrir au fil des lettres'}</Text>
           </View>
 
-          <View style={[styles.block, styles.blockPink, styles.featureBlock]}>
-            <Text style={styles.kicker}>MA JOURNÉE IDÉALE</Text>
-            <Text style={styles.bodyText}>{idealDayParts.length ? idealDayParts.map((s, i) => `${i + 1}. ${s}`).join('\n') : 'À improviser à deux'}</Text>
+          <View style={styles.editorialRow}>
+            <View style={[styles.block, styles.blockPink, styles.featureBlock, styles.colMain, styles.withSoftTape]}>
+              <View style={[styles.cardTape, styles.tapeLeftSoft]} />
+              <Text style={styles.kicker}>SA JOURNÉE IDÉALE</Text>
+              <Text style={styles.bodyText}>{idealDayParts.length ? idealDayParts.map((s, i) => `${i + 1}. ${s}`).join('\n\n') : 'À improviser à deux'}</Text>
+            </View>
+            <View style={[styles.block, styles.outlinedBlock, styles.colSide]}>
+              <Text style={styles.kicker}>CE QUE JE GÈRE (plus ou moins bien)</Text>
+              <Text style={styles.bodyText}>{profile.vibe || 'À ressentir en discutant'}</Text>
+            </View>
           </View>
 
-          <View style={[styles.block, styles.blockWarm]}>
-            <Text style={styles.kicker}>PETITS +</Text>
+          <View style={[styles.block, styles.blockWarm, styles.featureBlock, styles.spaciousBlock]}>
+            <Text style={styles.kicker}>SES PETITS + ET SES PETITS -</Text>
             <Text style={styles.bodyText}>{plus || 'Qualités à découvrir'}</Text>
-            <Text style={[styles.kicker, styles.subKicker]}>PETITS -</Text>
+            <Text style={[styles.kicker, styles.subKicker]}>CE QUI DEMANDE UN PEU D’INDULGENCE</Text>
             <Text style={styles.bodyText}>{minus || 'Défauts assumés avec humour'}</Text>
           </View>
-
-          <View style={[styles.block, styles.blockNote]}>
-            <Text style={styles.kicker}>VIBE / AMBIANCE</Text>
-            <Text style={styles.bodyText}>{profile.vibe || 'À ressentir en discutant'}</Text>
-          </View>
-
-          <View style={[styles.block, styles.blockSoft]}>
+          <View style={[styles.block, styles.blockSoft, styles.fullWidthAir]}>
             <Text style={styles.kicker}>DESCRIPTION PHYSIQUE</Text>
             <Text style={styles.bodyText}>{profile.physicalDesc || 'À découvrir en personne'}</Text>
             <Text style={[styles.kicker, styles.subKicker]}>ENFANTS</Text>
@@ -244,7 +245,17 @@ const styles = StyleSheet.create({
   blockWarm: { backgroundColor: '#F2E3CF' },
   blockSoft: { backgroundColor: '#F8EDDF' },
   blockNote: { backgroundColor: '#FBF3E8', borderStyle: 'dashed' },
+  outlinedBlock: { backgroundColor: 'transparent', borderColor: '#DABFA3', borderWidth: 2, borderStyle: 'dashed' },
+  blockMinimal: { backgroundColor: 'transparent', borderWidth: 0, paddingHorizontal: 4, paddingTop: 4, paddingBottom: 2 },
   featureBlock: { paddingVertical: 18 },
+  spaciousBlock: { marginTop: 12, marginBottom: 24, paddingVertical: 22 },
+  fullWidthAir: { marginTop: 10, marginBottom: 30 },
+  pullUp: { marginTop: -2, marginBottom: 20 },
+  editorialRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 6 },
+  colMain: { flex: 1.55, marginBottom: 0 },
+  colSide: { flex: 0.95, marginBottom: 0, marginTop: 18, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 14 },
+  withSoftTape: { position: 'relative', overflow: 'visible' },
+  tapeLeftSoft: { left: 44, width: 38, height: 13, top: -6, opacity: 0.62, transform: [{ rotate: '-11deg' }] },
   tapedBlock: { position: 'relative', overflow: 'visible' },
   cardTape: { position: 'absolute', top: -7, left: 28, width: 46, height: 15, backgroundColor: '#E6D2B8', borderRadius: 2, transform: [{ rotate: '-7deg' }], zIndex: 3, opacity: 0.9 },
   tapeRight: { right: 30, transform: [{ rotate: '9deg' }] },
