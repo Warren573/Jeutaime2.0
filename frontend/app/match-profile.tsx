@@ -141,36 +141,46 @@ export default function MatchProfileScreen() {
             </View>
           </View>
 
-          <View style={styles.paperSection}>
-            <Text style={styles.kicker}>CE QUE JE CHERCHE ICI</Text>
-            <View style={styles.softCard}>
-              <Text style={styles.bodyText}>
-                {(partner?.lookingFor?.length ? partner.lookingFor.map(id => LOOKING_FOR_LABEL[id] ?? id) : ['Continuer une vraie conversation'])
-                  .join(' · ')}
-              </Text>
-            </View>
+          <View style={styles.freeLineWrap}>
+            <Text style={styles.freeLineLabel}>Intéressé·e par :</Text>
+            <Text style={styles.freeLineText}>
+              {(partner?.lookingFor?.length ? partner.lookingFor.map(id => LOOKING_FOR_LABEL[id] ?? id) : ['Continuer une vraie conversation'])
+                .join(' · ')}
+            </Text>
           </View>
 
-          <View style={styles.paperSection}>
+          <View style={[styles.paperSection, styles.widePaper] }>
             <Text style={styles.kicker}>UN PEU DE MOI</Text>
-            <View style={styles.softCard}>
+            <View style={styles.openBlock}>
               <Text style={styles.bodyText}>{introText || 'Encore un peu de mystère pour le moment.'}</Text>
             </View>
           </View>
 
-          <View style={styles.paperSection}>
-            <Text style={styles.kicker}>CENTRES D’INTÉRÊT</Text>
-            <View style={styles.softCard}>
-              <Text style={styles.bodyText}>
-                {visibleInterests.length ? visibleInterests.join(' · ') : 'À découvrir au fil des lettres'}
-              </Text>
+          <View style={styles.offsetRow}>
+            <View style={[styles.paperSection, styles.leftTall]}>
+              <Text style={styles.kicker}>CE QUE JE GÈRE (plus ou moins bien)</Text>
+              <View style={styles.outlineBlock}>
+                <Text style={styles.bodyText}>
+                  {visibleInterests.length ? visibleInterests.join(' · ') : 'À découvrir au fil des lettres'}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.paperSection, styles.rightFloat]}>
+              <Text style={styles.kicker}>CE QUI DEMANDE UN PEU D’INDULGENCE</Text>
+              <View style={styles.bareBlock}>
+                {(partner?.defaults?.length
+                  ? partner.defaults
+                  : ['Je réponds parfois après un long roman intérieur'])
+                  .slice(0, 2)
+                  .map((d, i) => <Text key={`${d}-${i}`} style={styles.listLine}>— {d}</Text>)}
+              </View>
             </View>
           </View>
 
           {!!partner?.questionTexts?.length && (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>SES 3 QUESTIONS</Text>
-              <View style={styles.softCard}>
+              <View style={styles.textDenseCard}>
                 {partner.questionTexts
                   .slice(0, 3)
                   .map((q, i) => <Text key={`${q}-${i}`} style={styles.listLine}>• {q}</Text>)}
@@ -181,7 +191,7 @@ export default function MatchProfileScreen() {
           {!!partner?.idealDay?.length && (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>SA JOURNÉE IDÉALE</Text>
-              <View style={styles.softCard}>
+              <View style={styles.softCardNoRadius}>
                 {partner.idealDay
                   .map((line, i) => <Text key={`${line}-${i}`} style={styles.listLine}>• {line}</Text>)}
               </View>
@@ -191,7 +201,8 @@ export default function MatchProfileScreen() {
           {!!(partner?.qualities?.length || partner?.defaults?.length) && (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>SES PETITS + ET SES PETITS -</Text>
-              <View style={styles.softCard}>
+              <View style={styles.stampedCard}>
+                <View style={styles.smallTape} />
                 <>
                   {(partner?.qualities ?? []).map((q, i) => <Text key={`${q}-${i}`} style={styles.listLine}>✓ {q}</Text>)}
                   {(partner?.defaults ?? []).map((d, i) => <Text key={`${d}-${i}`} style={styles.listLine}>✕ {d}</Text>)}
@@ -203,7 +214,7 @@ export default function MatchProfileScreen() {
           {!!partner?.quote?.trim() && (
             <View style={styles.paperSection}>
               <Text style={styles.kicker}>ANECDOTE</Text>
-              <View style={styles.softCard}>
+              <View style={styles.openBlock}>
                 <Text style={styles.bodyText}>{partner.quote}</Text>
               </View>
             </View>
@@ -211,7 +222,7 @@ export default function MatchProfileScreen() {
 
           <View style={styles.paperSection}>
             <Text style={styles.kicker}>PROGRESSION</Text>
-            <View style={styles.softCard}>
+            <View style={styles.outlineBlock}>
               <Text style={styles.bodyText}>{apiLetterCount} lettres échangées.</Text>
               {rel.progressText ? <Text style={styles.progressText}>{rel.progressText}</Text> : null}
             </View>
@@ -265,9 +276,23 @@ const styles = StyleSheet.create({
   levelLabel: { fontSize: 12, fontWeight: '700', color: '#6B4C30' },
   levelProgress: { fontSize: 11, color: INK_S, marginTop: 3, fontStyle: 'italic' },
   photoHint: { fontSize: 11, color: INK_S, fontStyle: 'italic', lineHeight: 16 },
-  paperSection: { marginBottom: 16 },
+  paperSection: { marginBottom: 22 },
+  widePaper: { marginTop: 10, marginBottom: 30 },
   kicker: { fontSize: 15, color: INK, fontWeight: '800', letterSpacing: 0.4, marginBottom: 10 },
   softCard: { backgroundColor: '#F3E7D7', borderRadius: 14, borderWidth: 1, borderColor: '#E2D1BA', padding: 14 },
+  softCardNoRadius: { backgroundColor: '#F3E7D7', borderWidth: 1, borderColor: '#E2D1BA', padding: 14 },
+  openBlock: { paddingHorizontal: 2, paddingVertical: 4 },
+  outlineBlock: { borderWidth: 1, borderColor: '#D7C1A2', borderRadius: 4, padding: 14, backgroundColor: '#F8F1E5' },
+  bareBlock: { paddingHorizontal: 2, paddingVertical: 2 },
+  textDenseCard: { borderLeftWidth: 3, borderLeftColor: '#9A7553', paddingLeft: 12, paddingVertical: 4 },
+  stampedCard: { backgroundColor: '#F2E2CE', borderWidth: 1, borderColor: '#DDBD97', padding: 14, borderRadius: 10, position: 'relative' },
+  smallTape: { position: 'absolute', top: -6, right: 18, width: 26, height: 10, backgroundColor: '#E4CFAF', transform: [{ rotate: '6deg' }] },
+  freeLineWrap: { marginTop: 8, marginBottom: 30 },
+  freeLineLabel: { fontSize: 12, color: INK_S, textTransform: 'uppercase', letterSpacing: 1.1, marginBottom: 4 },
+  freeLineText: { fontSize: 20, lineHeight: 28, color: INK, fontWeight: '600' },
+  offsetRow: { flexDirection: 'row', alignItems: 'flex-start', columnGap: 16, marginBottom: 18 },
+  leftTall: { flex: 1.2, marginTop: 6 },
+  rightFloat: { flex: 0.8, marginTop: 32, marginBottom: 0 },
   bodyText: { fontSize: 16, lineHeight: 24, color: INK },
   listLine: { fontSize: 15, lineHeight: 24, color: INK, marginBottom: 4 },
   progressText: { marginTop: 4, fontSize: 13, color: INK_S, fontStyle: 'italic' },
