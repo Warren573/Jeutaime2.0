@@ -287,13 +287,13 @@ export default function ProfileDetailScreen() {
           <View style={[styles.card, styles.searchCard]}>
             <View style={styles.smallTapeRight} />
             <Text style={styles.sectionTitle}>CE QUE JE CHERCHE ICI</Text>
-            <Text style={styles.text}>{lookingFor || ‘(vide)’}</Text>
+            <Text style={styles.text}>{lookingFor || "(vide)"}</Text>
             <Text style={styles.heart}>♡</Text>
           </View>
 
           <View style={styles.freeLine}>
             <Text style={styles.freeLabel}>Intéressé·e par :</Text>
-            <Text style={styles.freeText}>{interestedIn || ‘(vide)’}</Text>
+            <Text style={styles.freeText}>{interestedIn || "(vide)"}</Text>
           </View>
 
           <View style={[styles.card, styles.aboutCard]}>
@@ -307,7 +307,7 @@ export default function ProfileDetailScreen() {
 
           <View style={[styles.card, styles.bioCard]}>
             <Text style={styles.sectionTitle}>BIO / DESCRIPTION</Text>
-            <Text style={styles.text}>{bio || ‘(vide)’}</Text>
+            <Text style={styles.text}>{bio || "(vide)"}</Text>
           </View>
 
           <View style={styles.interestsBlock}>
@@ -375,16 +375,16 @@ export default function ProfileDetailScreen() {
             <View style={styles.smallTapeRight} />
             <View style={styles.smallTapeLeftBottom} />
             <Text style={styles.sectionTitle}>SA JOURNÉE IDÉALE</Text>
-            <Text style={styles.idealText}>{idealDay.length > 0 ? idealDay.join(‘\n\n’) : ‘(vide)’}</Text>
+            <Text style={styles.idealText}>{idealDay.length > 0 ? idealDay.join(‘\n\n’) : "(vide)"}</Text>
           </View>
 
           <View style={[styles.card, styles.quoteCard]}>
-            <Text style={styles.quoteText}>”{quote || ‘(vide)’}”</Text>
+            <Text style={styles.quoteText}>”{quote || "(vide)"}”</Text>
           </View>
 
           <View style={[styles.card, styles.vibeCard]}>
             <Text style={styles.sectionTitle}>VIBE / AMBIANCE</Text>
-            <Text style={styles.text}>{vibe || ‘(vide)’}</Text>
+            <Text style={styles.text}>{vibe || "(vide)"}</Text>
           </View>
 
           <View style={styles.interestsBlock}>
