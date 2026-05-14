@@ -134,9 +134,10 @@ echo "User B ID: $USER_B_ID"
 
 test_step 3 "User A - Complete Profile"
 
-PROFILE_A_DATA='{
+PROFILE_A_DATA=$(cat <<'JSONEOF'
+{
   "pseudo": "UserA_Updated",
-  "bio": "Je suis un utilisateur de test passionné par les tests",
+  "bio": "Je suis un utilisateur de test passionne par les tests",
   "city": "Paris",
   "physicalDesc": "mysterieux",
   "interests": ["tech", "musique", "voyages"],
@@ -145,7 +146,9 @@ PROFILE_A_DATA='{
   "height": 180,
   "vibe": "Curieux et bienveillant",
   "quote": "La vie est une aventure"
-}'
+}
+JSONEOF
+)
 
 PROFILE_A=$(api_call PATCH "/profiles/me" "$PROFILE_A_DATA" "$TOKEN_A")
 check_response "$PROFILE_A" "200" "User A - Update Profile"
@@ -156,18 +159,21 @@ check_response "$PROFILE_A" "200" "User A - Update Profile"
 
 test_step 4 "User B - Complete Profile"
 
-PROFILE_B_DATA='{
+PROFILE_B_DATA=$(cat <<'JSONEOF'
+{
   "pseudo": "UserB_Updated",
-  "bio": "Passionnée par la rencontre et les défis",
+  "bio": "Passionnee par la rencontre et les defis",
   "city": "Lyon",
   "physicalDesc": "doux",
   "interests": ["art", "sport", "nature"],
   "lookingFor": ["RELATION"],
   "interestedIn": ["HOMME"],
   "height": 165,
-  "vibe": "Spontanée et joyeuse",
-  "quote": "La magie c'\''est dans les petites choses"
-}'
+  "vibe": "Spontanee et joyeuse",
+  "quote": "La magie c est dans les petites choses"
+}
+JSONEOF
+)
 
 PROFILE_B=$(api_call PATCH "/profiles/me" "$PROFILE_B_DATA" "$TOKEN_B")
 check_response "$PROFILE_B" "200" "User B - Update Profile"
@@ -178,12 +184,13 @@ check_response "$PROFILE_B" "200" "User B - Update Profile"
 
 test_step 5 "User A - Add Questions (required for matching)"
 
-QUESTIONS_A_DATA='{
+QUESTIONS_A_DATA=$(cat <<'JSONEOF'
+{
   "questions": [
     {
       "questionText": "Quel est ton rêve le plus fou?",
       "answer": "Voyager autour du monde",
-      "wrongAnswers": ["Rester chez moi", "Devenir célèbre"]
+      "wrongAnswers": ["Rester chez moi", "Devenir celebre"]
     },
     {
       "questionText": "Comment tu passes un dimanche parfait?",
@@ -191,12 +198,14 @@ QUESTIONS_A_DATA='{
       "wrongAnswers": ["En restant au lit", "Au travail"]
     },
     {
-      "questionText": "Qu'\''est-ce qui te fait rire?",
-      "answer": "Les blagues absurdes et les moments spontanés",
-      "wrongAnswers": ["Rien de spécial", "Les films d'\''horreur"]
+      "questionText": "Qu est-ce qui te fait rire?",
+      "answer": "Les blagues absurdes et les moments spontanes",
+      "wrongAnswers": ["Rien de special", "Les films d horreur"]
     }
   ]
-}'
+}
+JSONEOF
+)
 
 QUESTIONS_A=$(api_call PUT "/profiles/me/questions" "$QUESTIONS_A_DATA" "$TOKEN_A")
 check_response "$QUESTIONS_A" "200" "User A - Add Questions"
@@ -207,25 +216,28 @@ check_response "$QUESTIONS_A" "200" "User A - Add Questions"
 
 test_step 6 "User B - Add Questions"
 
-QUESTIONS_B_DATA='{
+QUESTIONS_B_DATA=$(cat <<'JSONEOF'
+{
   "questions": [
     {
       "questionText": "Quel est ton rêve le plus fou?",
-      "answer": "Créer une galerie d'\''art",
+      "answer": "Creer une galerie d art",
       "wrongAnswers": ["Devenir riche", "Vivre tranquille"]
     },
     {
       "questionText": "Comment tu passes un dimanche parfait?",
-      "answer": "Au musée ou en nature",
+      "answer": "Au musee ou en nature",
       "wrongAnswers": ["Seule chez moi", "En shopping"]
     },
     {
-      "questionText": "Qu'\''est-ce qui te fait rire?",
-      "answer": "L'\''humour intelligent et les bons moments partagés",
-      "wrongAnswers": ["Rien de spécial", "Les plaisanteries méchantes"]
+      "questionText": "Qu est-ce qui te fait rire?",
+      "answer": "L humour intelligent et les bons moments partages",
+      "wrongAnswers": ["Rien de special", "Les plaisanteries mechantes"]
     }
   ]
-}'
+}
+JSONEOF
+)
 
 QUESTIONS_B=$(api_call PUT "/profiles/me/questions" "$QUESTIONS_B_DATA" "$TOKEN_B")
 check_response "$QUESTIONS_B" "200" "User B - Add Questions"
@@ -346,9 +358,12 @@ check_response "$ANSWERS_B" "200" "User B - Submit Answers"
 
 test_step 14 "User A - Send Letter to User B"
 
-LETTER_A_DATA='{
-  "content": "Bonjour! J'\''ai adoré tes réponses aux questions. J'\''aimerais bien continuer cette conversation!"
-}'
+LETTER_A_DATA=$(cat <<'JSONEOF'
+{
+  "content": "Bonjour! J ai adoré tes réponses aux questions. J aimerais bien continuer cette conversation!"
+}
+JSONEOF
+)
 
 LETTER_A=$(api_call POST "/matches/$MATCH_ID/letters" "$LETTER_A_DATA" "$TOKEN_A")
 check_response "$LETTER_A" "201" "User A - Send Letter"
@@ -378,9 +393,12 @@ fi
 
 test_step 16 "User B - Send Letter Reply"
 
-LETTER_B_DATA='{
-  "content": "Salut! Moi aussi j'\''ai beaucoup aimé. C'\''est un plaisir de discuter avec quelqu'\''un qui partage mes intérêts!"
-}'
+LETTER_B_DATA=$(cat <<'JSONEOF'
+{
+  "content": "Salut! Moi aussi j ai beaucoup aimé. C est un plaisir de discuter avec quelqu un qui partage mes intérêts!"
+}
+JSONEOF
+)
 
 LETTER_B=$(api_call POST "/matches/$MATCH_ID/letters" "$LETTER_B_DATA" "$TOKEN_B")
 check_response "$LETTER_B" "201" "User B - Send Letter"

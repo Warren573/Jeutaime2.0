@@ -21,9 +21,10 @@ export const RegisterSchema = z.object({
     .regex(/^[a-zA-Z0-9_\-\.]+$/, "Pseudo : lettres, chiffres, _ - . uniquement"),
   birthDate: z
     .string()
-    .datetime({ message: "Date de naissance invalide (ISO 8601)" })
+    .regex(/^\d{4}-\d{2}-\d{2}/, "Date invalide (format: YYYY-MM-DD)")
+    .transform((d) => new Date(d))
     .refine((d) => {
-      const age = (Date.now() - new Date(d).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+      const age = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
       return age >= 18;
     }, "Tu dois avoir au moins 18 ans pour t'inscrire"),
   gender: z.enum(["HOMME", "FEMME", "AUTRE"]),
