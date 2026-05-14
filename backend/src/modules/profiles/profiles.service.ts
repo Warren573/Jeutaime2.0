@@ -1,6 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { NotFoundError, ForbiddenError, ConflictError } from "../../core/errors";
-import { getPhotoUnlockProgress } from "../../policies/photoUnlock";
+import { getPhotoUnlockProgress, type PhotoLevel } from "../../policies/photoUnlock";
 import { buildMeta } from "../../core/utils/pagination";
 import { buildPhotoUrl } from "../photos/photos.urls";
 import { UpdateProfileDto, UpdateQuestionsDto, DiscoveryQuery } from "./profiles.schemas";
@@ -110,18 +110,16 @@ export async function getPublicProfile(viewerId: string, targetUserId: string, v
   const match = await findMatchBetween(viewerId, targetUserId);
 
   let photoUnlockInfo = {
-    unlocked: false,
-    threshold: viewerIsPremium ? 3 : 10,
-    myCount: 0,
-    otherCount: 0,
+    level: 0 as PhotoLevel,
+    totalLetters: 0,
+    nextLevelAt: (viewerIsPremium ? 1 : 3) as number | null,
+    progressPercent: 0,
   };
 
   if (match) {
-    const myLetterCount = match.userAId === viewerId ? match.letterCountA : match.letterCountB;
-    const otherLetterCount = match.userAId === viewerId ? match.letterCountB : match.letterCountA;
+    const totalLetters = match.letterCountA + match.letterCountB;
     photoUnlockInfo = getPhotoUnlockProgress({
-      myLetterCount,
-      otherLetterCount,
+      totalLetters,
       viewerIsPremium,
     });
   }
@@ -132,7 +130,7 @@ export async function getPublicProfile(viewerId: string, targetUserId: string, v
   });
   const showPhotoByDefault = targetSettings?.showPhotoByDefault ?? true;
 
-  const servedPhotos = photoUnlockInfo.unlocked && showPhotoByDefault
+  const servedPhotos = photoUnlockInfo.level >= 3 && showPhotoByDefault
     ? (await prisma.photo.findMany({
         where: { userId: targetUserId },
         orderBy: [{ isPrimary: "desc" }, { position: "asc" }],

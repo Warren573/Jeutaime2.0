@@ -176,9 +176,9 @@ async function enrichMatch(
 
   const viewerIsPremium = await getUserPremiumStatus(viewerId);
 
+  const totalLetters = myLetterCount + otherLetterCount;
   const photoUnlock = getPhotoUnlockProgress({
-    myLetterCount,
-    otherLetterCount,
+    totalLetters,
     viewerIsPremium,
   });
 
@@ -207,7 +207,7 @@ async function enrichMatch(
     }),
   ]);
 
-  const photoUrl = primaryPhoto && photoUnlock.unlocked
+  const photoUrl = primaryPhoto && photoUnlock.level === 3
     ? buildPhotoUrl(primaryPhoto.id, "original")
     : null;
 

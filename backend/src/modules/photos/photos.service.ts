@@ -397,7 +397,7 @@ export async function resolvePhotoForStream(params: {
       absolutePath = resolveStoredPath(photo.blurredPath);
       break;
     case "medium":
-      absolutePath = resolveStoredPath(photo.blurMediumPath);
+      absolutePath = resolveStoredPath(photo.blurMediumPath || photo.blurredPath);
       break;
     case "original":
       absolutePath = resolveStoredPath(photo.originalPath);

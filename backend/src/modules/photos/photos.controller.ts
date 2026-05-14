@@ -72,7 +72,7 @@ export async function handleListForUser(req: AuthedRequest, res: Response) {
 // ============================================================
 export async function handleStreamFile(req: AuthedRequest, res: Response) {
   const photoId = req.params["id"] as string;
-  const variant = req.params["variant"] as PhotoVariant;
+  const variant = req.params["variant"] as string;
 
   const { absolutePath } = await svc.resolvePhotoForStream({
     viewerId: req.user.userId,
