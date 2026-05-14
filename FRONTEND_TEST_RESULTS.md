@@ -1,6 +1,6 @@
 # Frontend Automated Test Results
 
-**Status:** ✅ **18/20 PASSING (90% Success Rate)**
+**Status:** ✅ **20/20 PASSING (100% Success Rate)**
 
 **Test File:** `test-frontend.js` (Node.js headless test - no external dependencies)
 
@@ -8,14 +8,14 @@
 
 ## Test Summary
 
-The automated frontend test validates all 20 steps of the core JeuTaime flow without a GUI:
+The automated frontend test validates all 20 steps of the core JeuTaime flow without a GUI. **All 20 steps passing.**
 
 ```
 📊 ÉTAPE-by-ÉTAPE Results:
   ✅ ÉTAPE 1:  Register User A
   ✅ ÉTAPE 2:  Register User B
-  ❌ ÉTAPE 3:  Update Profile A (400: validation error)
-  ❌ ÉTAPE 4:  Update Profile B (400: validation error)
+  ✅ ÉTAPE 3:  Update Profile A
+  ✅ ÉTAPE 4:  Update Profile B
   ✅ ÉTAPE 5:  Setup Questions A
   ✅ ÉTAPE 6:  Setup Questions B
   ✅ ÉTAPE 7:  User A Smile User B
@@ -36,11 +36,12 @@ The automated frontend test validates all 20 steps of the core JeuTaime flow wit
 
 ---
 
-## What Works (18/20)
+## What Works (20/20)
 
 ### Core Flow ✅
 - **Registration** - Both users can register with unique credentials
 - **Authentication** - JWT tokens properly issued and stored
+- **Profile Updates** - Users can update profile with bio, interests, height, vibe, quote
 - **Profile Questions** - Users can set up 3 questions with 2 wrong answers each
 - **Discovery** - Question data structure correct (no apostrophe/escape issues)
 - **Matching** - Mutual smiles create matches in PENDING status
@@ -53,6 +54,7 @@ The automated frontend test validates all 20 steps of the core JeuTaime flow wit
 
 ### API Validation ✅
 - POST `/auth/register` → 201 with tokens
+- PATCH `/profiles/me` → 200 (profile updated with bio, interests, etc)
 - PUT `/profiles/me/questions` → 200 (questions saved)
 - POST `/discover/react` → 201 with matchCreated flag
 - POST `/matches/:id/accept` → 200 (status updated)
@@ -61,16 +63,6 @@ The automated frontend test validates all 20 steps of the core JeuTaime flow wit
 - POST `/matches/:id/letters` → 201 (letter created)
 - PATCH `/letters/:id/read` → 200 (status updated)
 - GET `/notifications/unread-count` → 200 with count
-
----
-
-## What Doesn't Work (2/20)
-
-### Profile Updates ❌
-- **ÉTAPE 3-4:** PATCH `/profiles/me` returns 400
-- **Error:** "Données invalides" (Invalid data)
-- **Impact:** NON-CRITICAL - Questions setup works without profile updates
-- **Status:** Core flow continues successfully
 
 ---
 
@@ -124,7 +116,7 @@ node test-frontend.js
 | Speed | ~3-5s | ~1s |
 | CI/CD Ready | ✅ | ✅ |
 
-**Both achieve 90%** - Profile updates fail in both tests
+**Both achieve 100%** - All steps passing after pseudo length fix
 
 ---
 
@@ -160,28 +152,46 @@ Latest run result saved to: `/tmp/frontend-test-report.json`
 
 ```json
 {
-  "timestamp": "2026-05-14T09:49:11.147Z",
+  "timestamp": "2026-05-14T09:59:45.202Z",
   "stats": {
     "total": 20,
-    "passed": 18,
-    "failed": 2,
-    "successRate": "90%"
+    "passed": 20,
+    "failed": 0,
+    "successRate": "100%"
   },
-  "failedSteps": [
-    { "étape": 3, "name": "Update Profile A", "error": "400: Données invalides" },
-    { "étape": 4, "name": "Update Profile B", "error": "400: Données invalides" }
-  ]
+  "allStepsPassing": true
 }
+```
+
+---
+
+## Bug Fix Documentation
+
+### Issue: ÉTAPE 3-4 Profile Updates Failing (FIXED)
+**Error:** `400 Bad Request - Données invalides`
+**Cause:** Pseudo field exceeded 30 character limit
+**Details:** 
+- Test was generating pseudo like: `UserA_Updated-1715674151000-qup5zqgpz` (37 chars)
+- Backend schema validation: `pseudo: max 30 characters`
+- **Fix:** Changed suffix from `UserA_Updated-{longSuffix}` to `UserA_{shortSuffix}` (12 chars)
+
+**Before:**
+```javascript
+pseudo: `UserA_Updated-${uniqueSuffix}` // 37 chars ❌
+```
+
+**After:**
+```javascript
+const shortSuffix = Math.random().toString(36).substr(2, 6).toUpperCase();
+pseudo: `UserA_${shortSuffix}` // 12 chars ✅
 ```
 
 ---
 
 ## Conclusion
 
-✅ **Frontend automated test validates the complete JeuTaime flow**
-- All critical paths working end-to-end
-- 18/20 steps passing consistently  
+✅ **Frontend automated test validates the complete JeuTaime flow - 20/20 PASSING**
+- All steps passing consistently  
 - Ready for CI/CD integration
-- Minimum viable test coverage achieved
-
-The two failing steps (profile updates) don't block the main functionality and can be addressed separately if needed.
+- Complete flow validation achieved
+- Profile pseudo length constraint resolved

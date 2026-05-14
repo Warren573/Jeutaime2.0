@@ -147,8 +147,9 @@ async function runTests() {
 
   let tokenA, tokenB, userAId, userBId, matchId;
 
-  // Add unique suffix to avoid conflicts
+  // Add unique suffix to avoid conflicts (short version for pseudo field limits)
   const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const shortSuffix = Math.random().toString(36).substr(2, 6).toUpperCase();
 
   // ÉTAPE 1-2: Register
   try {
@@ -207,7 +208,7 @@ async function runTests() {
   try {
     logStep(3, 'Update Profile A', 'testing...');
     const profA = await httpPatch(`${API_URL}/profiles/me`, {
-      pseudo: `UserA_Updated-${uniqueSuffix}`,
+      pseudo: `UserA_${shortSuffix}`,
       bio: 'Je suis un utilisateur de test passionne par les tests',
       city: 'Paris',
       physicalDesc: 'mysterieux',
@@ -223,8 +224,8 @@ async function runTests() {
       addStep(3, 'Update Profile A', true);
       logStep(3, 'Update Profile A', '✅ PASS');
     } else {
-      const errorMsg = typeof profA.data === 'string' ? profA.data : JSON.stringify(profA.data);
-      console.log(`  DEBUG: Profile A error: ${errorMsg.substring(0, 200)}`);
+      const errorMsg = typeof profA.data === 'string' ? profA.data : JSON.stringify(profA.data, null, 2);
+      console.log(`  DEBUG: Profile A FULL error response:\n${errorMsg}`);
       throw new Error(`Status ${profA.status}: ${profA.data?.error?.message || profA.data?.message || 'unknown'}`);
     }
   } catch (err) {
@@ -235,7 +236,7 @@ async function runTests() {
   try {
     logStep(4, 'Update Profile B', 'testing...');
     const profB = await httpPatch(`${API_URL}/profiles/me`, {
-      pseudo: `UserB_Updated-${uniqueSuffix}`,
+      pseudo: `UserB_${shortSuffix}`,
       bio: 'Passionnee par la rencontre et les defis',
       city: 'Lyon',
       physicalDesc: 'doux',
