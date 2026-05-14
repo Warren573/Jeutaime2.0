@@ -67,8 +67,8 @@ const LOOKING_FOR_LABEL: Record<string, string> = {
   SERIOUS: "Je cherche l'âme sœur",
   flirt: 'Rien de trop sérieux',
   FLIRT: 'Rien de trop sérieux',
-  fun: 'Du fun, sans pression',
-  FUN: 'Du fun, sans pression',
+  fun: 'Rien de trop sérieux',
+  FUN: 'Rien de trop sérieux',
   amitie: "Des affinités, d'abord",
   AMITIE: "Des affinités, d'abord",
   friendship: "Des affinités, d'abord",
@@ -90,6 +90,21 @@ const INTERESTED_IN_LABEL: Record<string, string> = {
   FEMME: 'Femmes',
   femmes: 'Femmes',
   FEMMES: 'Femmes',
+  other: 'Non-binaires',
+  OTHER: 'Non-binaires',
+  autre: 'Non-binaires',
+  AUTRE: 'Non-binaires',
+};
+
+const PHYSIQUE_LABEL: Record<string, string> = {
+  filiforme: 'Filiforme',
+  ras_motte: 'Ras motte',
+  grande_gigue: 'Grande gigue',
+  doux: 'Grande beauté intérieure',
+  athletique: 'Athlétique',
+  costaud: 'En formes généreuses',
+  mignon: 'Moyenne',
+  mysterieux: 'Musclé•e',
 };
 
 function childrenLabel(hasChildren?: string | null, wantsChildren?: string | null): string {
@@ -215,7 +230,8 @@ export default function ProfileDetailScreen() {
 
   const city = cleanText(profile.city);
   const height = profile.height ? `${profile.height} cm` : '';
-  const physicalDesc = cleanText(profile.physicalDesc);
+  const physicalDescRaw = cleanText(profile.physicalDesc);
+  const physicalDesc = PHYSIQUE_LABEL[physicalDescRaw] ?? physicalDescRaw;
   const children = childrenLabel(profile.hasChildren, profile.wantsChildren);
 
   const bio = cleanText(profile.bio);
@@ -225,6 +241,7 @@ export default function ProfileDetailScreen() {
   const idealDay = cleanArray(profile.idealDay);
   const quote = cleanText(profile.quote);
   const vibe = cleanText(profile.vibe);
+  const identityTags = cleanArray(profile.identityTags);
 
   const skills = Array.isArray(profile.skills)
     ? profile.skills.filter((skill: any) => skill?.label || skill?.detail)
@@ -267,117 +284,123 @@ export default function ProfileDetailScreen() {
             </View>
           </View>
 
-          {!!lookingFor && (
-            <View style={[styles.card, styles.searchCard]}>
-              <View style={styles.smallTapeRight} />
-              <Text style={styles.sectionTitle}>CE QUE JE CHERCHE ICI</Text>
-              <Text style={styles.text}>{lookingFor}</Text>
-              <Text style={styles.heart}>♡</Text>
-            </View>
-          )}
+          <View style={[styles.card, styles.searchCard]}>
+            <View style={styles.smallTapeRight} />
+            <Text style={styles.sectionTitle}>CE QUE JE CHERCHE ICI</Text>
+            <Text style={styles.text}>{lookingFor || "(vide)"}</Text>
+            <Text style={styles.heart}>♡</Text>
+          </View>
 
-          {!!interestedIn && (
-            <View style={styles.freeLine}>
-              <Text style={styles.freeLabel}>Intéressé·e par :</Text>
-              <Text style={styles.freeText}>{interestedIn}</Text>
-            </View>
-          )}
+          <View style={styles.freeLine}>
+            <Text style={styles.freeLabel}>Intéressé·e par :</Text>
+            <Text style={styles.freeText}>{interestedIn || "(vide)"}</Text>
+          </View>
 
-          {(city || height || physicalDesc || children) && (
-            <View style={[styles.card, styles.aboutCard]}>
-              <Text style={styles.sectionTitle}>UN PEU DE MOI</Text>
-              {!!city && <Text style={styles.listText}>📍 {city}</Text>}
-              {!!height && <Text style={styles.listText}>📏 {height}</Text>}
-              {!!physicalDesc && <Text style={styles.listText}>⚖️ {physicalDesc}</Text>}
-              {!!children && <Text style={styles.listText}>👶 {children}</Text>}
-            </View>
-          )}
+          <View style={[styles.card, styles.aboutCard]}>
+            <Text style={styles.sectionTitle}>UN PEU DE MOI</Text>
+            {!!city && <Text style={styles.listText}>📍 {city}</Text>}
+            {!!height && <Text style={styles.listText}>📏 {height}</Text>}
+            {!!physicalDesc && <Text style={styles.listText}>⚖️ {physicalDesc}</Text>}
+            {!!children && <Text style={styles.listText}>👶 {children}</Text>}
+            {!city && !height && !physicalDesc && !children && <Text style={styles.listText}>(vide)</Text>}
+          </View>
 
-          {!!bio && (
-            <View style={[styles.card, styles.bioCard]}>
-              <Text style={styles.sectionTitle}>BIO / DESCRIPTION</Text>
-              <Text style={styles.text}>{bio}</Text>
-            </View>
-          )}
+          <View style={[styles.card, styles.bioCard]}>
+            <Text style={styles.sectionTitle}>BIO / DESCRIPTION</Text>
+            <Text style={styles.text}>{bio || "(vide)"}</Text>
+          </View>
 
-          {!!interests.length && (
-            <View style={styles.interestsBlock}>
-              <Text style={styles.sectionTitle}>CENTRES D’INTÉRÊT</Text>
-              <View style={styles.badges}>
-                {interests.map((interest, index) => (
+          <View style={styles.interestsBlock}>
+            <Text style={styles.sectionTitle}>CENTRES D’INTÉRÊT</Text>
+            <View style={styles.badges}>
+              {interests.length > 0 ? (
+                interests.map((interest, index) => (
                   <View key={`${interest}-${index}`} style={styles.badge}>
                     <Text style={styles.badgeText}>{interest}</Text>
                   </View>
-                ))}
-              </View>
+                ))
+              ) : (
+                <Text style={styles.badgeText}>(vide)</Text>
+              )}
             </View>
-          )}
+          </View>
 
-          {!!skills.length && (
-            <View style={[styles.card, styles.skillsCard]}>
-              <Text style={styles.sectionTitle}>CE QUE JE GÈRE (plus ou moins bien)</Text>
-              {skills.map((skill: any, index: number) => (
+          <View style={[styles.card, styles.skillsCard]}>
+            <Text style={styles.sectionTitle}>CE QUE JE GÈRE (plus ou moins bien)</Text>
+            {skills.length > 0 ? (
+              skills.map((skill: any, index: number) => (
                 <View key={`${skill.label}-${index}`} style={styles.skillLine}>
                   <Text style={styles.skillName}>
-                    {skill.emoji ? `${skill.emoji} ` : ''}
+                    {skill.emoji ? `${skill.emoji} ` : ""}
                     {skill.label}
                   </Text>
                   {!!skill.level && <Text style={styles.skillLevel}>{skill.level}%</Text>}
                   {!!skill.detail && <Text style={styles.skillDetail}>{skill.detail}</Text>}
                 </View>
-              ))}
-            </View>
-          )}
+              ))
+            ) : (
+              <Text style={styles.listText}>(vide)</Text>
+            )}
+          </View>
 
-          {(qualities.length || defaults.length) && (
-            <View style={styles.plusMinusSection}>
-              <Text style={styles.sectionTitle}>SES PETITS + ET SES PETITS -</Text>
-
-              <View style={styles.plusMinusRow}>
-                {!!qualities.length && (
-                  <View style={[styles.card, styles.plusCard]}>
-                    {qualities.map((item, index) => (
-                      <Text key={`${item}-${index}`} style={styles.listText}>
-                        ✅ {item}
-                      </Text>
-                    ))}
-                  </View>
+          <View style={styles.plusMinusSection}>
+            <Text style={styles.sectionTitle}>SES PETITS + ET SES PETITS -</Text>
+            <View style={styles.plusMinusRow}>
+              <View style={[styles.card, styles.plusCard]}>
+                {qualities.length > 0 ? (
+                  qualities.map((item, index) => (
+                    <Text key={`${item}-${index}`} style={styles.listText}>
+                      ✅ {item}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.listText}>(vide)</Text>
                 )}
-
-                {!!defaults.length && (
-                  <View style={[styles.card, styles.minusCard]}>
-                    {defaults.map((item, index) => (
-                      <Text key={`${item}-${index}`} style={styles.listText}>
-                        ❌ {item}
-                      </Text>
-                    ))}
-                  </View>
+              </View>
+              <View style={[styles.card, styles.minusCard]}>
+                {defaults.length > 0 ? (
+                  defaults.map((item, index) => (
+                    <Text key={`${item}-${index}`} style={styles.listText}>
+                      ❌ {item}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.listText}>(vide)</Text>
                 )}
               </View>
             </View>
-          )}
+          </View>
 
-          {!!idealDay.length && (
-            <View style={[styles.card, styles.idealCard]}>
-              <View style={styles.smallTapeRight} />
-              <View style={styles.smallTapeLeftBottom} />
-              <Text style={styles.sectionTitle}>SA JOURNÉE IDÉALE</Text>
-              <Text style={styles.idealText}>{idealDay.join('\n\n')}</Text>
-            </View>
-          )}
+          <View style={[styles.card, styles.idealCard]}>
+            <View style={styles.smallTapeRight} />
+            <View style={styles.smallTapeLeftBottom} />
+            <Text style={styles.sectionTitle}>SA JOURNÉE IDÉALE</Text>
+            <Text style={styles.idealText}>{idealDay.length > 0 ? idealDay.join("\n\n") : "(vide)"}</Text>
+          </View>
 
-          {!!quote && (
-            <View style={[styles.card, styles.quoteCard]}>
-              <Text style={styles.quoteText}>“{quote}”</Text>
-            </View>
-          )}
+          <View style={[styles.card, styles.quoteCard]}>
+            <Text style={styles.quoteText}>”{quote || "(vide)"}”</Text>
+          </View>
 
-          {!!vibe && (
-            <View style={[styles.card, styles.vibeCard]}>
-              <Text style={styles.sectionTitle}>VIBE / AMBIANCE</Text>
-              <Text style={styles.text}>{vibe}</Text>
+          <View style={[styles.card, styles.vibeCard]}>
+            <Text style={styles.sectionTitle}>VIBE / AMBIANCE</Text>
+            <Text style={styles.text}>{vibe || "(vide)"}</Text>
+          </View>
+
+          <View style={styles.interestsBlock}>
+            <Text style={styles.sectionTitle}>QUI JE SUIS</Text>
+            <View style={styles.badges}>
+              {identityTags.length > 0 ? (
+                identityTags.map((tag, index) => (
+                  <View key={`${tag}-${index}`} style={styles.badge}>
+                    <Text style={styles.badgeText}>{tag}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.badgeText}>(vide)</Text>
+              )}
             </View>
-          )}
+          </View>
         </View>
       </ScrollView>
     </View>

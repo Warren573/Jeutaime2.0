@@ -81,7 +81,7 @@ export async function register(dto: RegisterDto) {
   const { access, refresh, tokenId } = buildTokenPair(user.id, user.role, false);
   await persistRefreshToken(user.id, tokenId, refresh);
 
-  return { accessToken: access, refreshToken: refresh };
+  return { accessToken: access, refreshToken: refresh, userId: user.id };
 }
 
 // -----------------------------------------------------------------------
