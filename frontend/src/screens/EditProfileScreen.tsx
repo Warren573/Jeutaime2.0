@@ -25,15 +25,16 @@ const PHYSIQUE_OPTIONS = [
 // ─── Préférences rencontre ────────────────────────────────────────────────────
 
 const LOOKING_FOR_OPTIONS = [
-  { id: 'relation',   emoji: '💑', label: "J'ai vu de la lumière, je suis entré·e" },
-  { id: 'flirt',      emoji: '💋', label: "Rien de trop sérieux"                   },
-  { id: 'amitie',     emoji: '🤝', label: "Des affinités, d'abord"                 },
-  { id: 'discussion', emoji: '💬', label: "Je cherche à discuter"                  },
+  { id: 'relation',   emoji: '💑', label: 'Relation sérieuse'  },
+  { id: 'flirt',      emoji: '💋', label: 'Flirt'              },
+  { id: 'amitie',     emoji: '🤝', label: 'Amitié'             },
+  { id: 'discussion', emoji: '💬', label: 'Discussion'         },
 ];
 
 const INTERESTED_IN_OPTIONS = [
-  { id: 'F', emoji: '👩', label: 'Femmes' },
-  { id: 'M', emoji: '👨', label: 'Hommes' },
+  { id: 'F',  emoji: '👩', label: 'Femmes'    },
+  { id: 'M',  emoji: '👨', label: 'Hommes'    },
+  { id: 'NB', emoji: '🧑', label: 'Non-binaires' },
 ];
 
 const INTERESTS_OPTIONS = [
@@ -58,30 +59,6 @@ function childrenLabel(hasChildren?: boolean | null, wantsChildren?: boolean | n
 // ─── Champs V1 ────────────────────────────────────────────────────────────────
 
 type Skill = { id: string; label: string; detail: string; score: number; emoji: string };
-
-// ─── Liste centralisée des compétences ───────────────────────────────────────
-const SKILL_OPTIONS = [
-  { id: 'communication', label: 'Communication',       emoji: '💬' },
-  { id: 'cuisine',       label: 'Cuisine',             emoji: '🍝' },
-  { id: 'organisation',  label: 'Organisation',        emoji: '🗂️' },
-  { id: 'ponctualite',   label: 'Ponctualité',         emoji: '⏰' },
-  { id: 'ecoute',        label: 'Écoute',              emoji: '👂' },
-  { id: 'humour',        label: 'Humour',              emoji: '😄' },
-  { id: 'empathie',      label: 'Empathie',            emoji: '🫂' },
-  { id: 'creativite',    label: 'Créativité',          emoji: '🎨' },
-  { id: 'patience',      label: 'Patience',            emoji: '🕊️' },
-  { id: 'seduction',     label: 'Séduction',           emoji: '💋' },
-  { id: 'bricolage',     label: 'Bricolage',           emoji: '🔧' },
-  { id: 'sport',         label: 'Sport',               emoji: '🏃' },
-  { id: 'romantisme',    label: 'Romantisme',          emoji: '🌹' },
-  { id: 'memoire',       label: 'Mémoire',             emoji: '🧠' },
-  { id: 'techno',        label: 'Technologie',         emoji: '💻' },
-  { id: 'navigation',    label: 'Navigation GPS',      emoji: '🗺️' },
-  { id: 'drama',         label: 'Gestion des dramas',  emoji: '🎭' },
-  { id: 'nocturnite',    label: 'Vie nocturne',        emoji: '🌙' },
-  { id: 'menage',        label: 'Ménage',              emoji: '🧹' },
-  { id: 'finances',      label: 'Budget',              emoji: '💸' },
-];
 
 const IDENTITY_TAG_OPTIONS = [
   'Introverti•e', 'Extraverti•e', 'Créatif•ve', 'Analytique',
@@ -109,59 +86,67 @@ interface SkillCardProps {
   onRemove: () => void;
 }
 
-const SCORE_VALUES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+const SCORE_VALUES = [20, 40, 60, 80, 100];
 
 const SkillCard: React.FC<SkillCardProps> = ({ skill, onChange, onRemove }) => (
   <View style={skStyles.card}>
     <View style={skStyles.topRow}>
-      <Text style={skStyles.skillEmoji}>{skill.emoji}</Text>
-      <Text style={skStyles.skillLabel}>{skill.label}</Text>
+      <TextInput
+        style={[skStyles.input, skStyles.emojiInput]}
+        value={skill.emoji}
+        onChangeText={e => onChange({ ...skill, emoji: e })}
+        placeholder="⭐"
+        maxLength={2}
+        placeholderTextColor="#B8A082"
+      />
+      <TextInput
+        style={[skStyles.input, skStyles.labelInput]}
+        value={skill.label}
+        onChangeText={l => onChange({ ...skill, label: l })}
+        placeholder="Compétence (ex: Guitare)"
+        maxLength={50}
+        placeholderTextColor="#B8A082"
+      />
       <TouchableOpacity style={skStyles.removeBtn} onPress={onRemove}>
         <Text style={skStyles.removeText}>✕</Text>
       </TouchableOpacity>
     </View>
     <TextInput
-      style={[skStyles.input, !skill.detail.trim() && skStyles.inputMissing]}
+      style={[skStyles.input, { marginBottom: 8 }]}
       value={skill.detail}
       onChangeText={d => onChange({ ...skill, detail: d })}
-      placeholder="Commentaire drôle (obligatoire)…"
+      placeholder="Détail (ex: Je joue depuis 10 ans)"
       maxLength={100}
       placeholderTextColor="#B8A082"
     />
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <View style={skStyles.scoreRow}>
-        <Text style={skStyles.scoreLabel}>{skill.score}/100</Text>
-        {SCORE_VALUES.map(v => (
-          <TouchableOpacity
-            key={v}
-            style={[skStyles.scoreBtn, skill.score === v && skStyles.scoreBtnActive]}
-            onPress={() => onChange({ ...skill, score: v })}
-          >
-            <Text style={[skStyles.scoreBtnText, skill.score === v && skStyles.scoreBtnTextActive]}>
-              {v}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </ScrollView>
+    <View style={skStyles.scoreRow}>
+      <Text style={skStyles.scoreLabel}>Niveau {skill.score}/100</Text>
+      {[20, 40, 60, 80, 100].map(v => (
+        <TouchableOpacity
+          key={v}
+          style={[skStyles.scoreBtn, skill.score >= v && skStyles.scoreBtnActive]}
+          onPress={() => onChange({ ...skill, score: v })}
+        >
+          <Text style={skStyles.scoreBtnText}>{v}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
   </View>
 );
 
 const skStyles = StyleSheet.create({
-  card:               { backgroundColor: '#FFF8F0', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E8D5B7' },
-  topRow:             { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
-  skillEmoji:         { fontSize: 22 },
-  skillLabel:         { flex: 1, fontSize: 15, fontWeight: '700', color: '#3A2818' },
-  removeBtn:          { width: 28, height: 28, borderRadius: 8, backgroundColor: '#FFE4E4', alignItems: 'center', justifyContent: 'center' },
-  removeText:         { fontSize: 12, color: '#E91E8C', fontWeight: '700' },
-  input:              { backgroundColor: '#FFF8E7', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, borderWidth: 1, borderColor: '#E8D5B7', color: '#3A2818', marginBottom: 10 },
-  inputMissing:       { borderColor: '#E91E8C', borderWidth: 1.5 },
-  scoreRow:           { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  scoreLabel:         { fontSize: 12, fontWeight: '700', color: '#8B6F47', minWidth: 48 },
-  scoreBtn:           { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, backgroundColor: '#E8D5B7' },
-  scoreBtnActive:     { backgroundColor: '#E91E8C' },
-  scoreBtnText:       { fontSize: 11, fontWeight: '600', color: '#5A3A1A' },
-  scoreBtnTextActive: { color: '#FFF' },
+  card:           { backgroundColor: '#FFF8F0', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E8D5B7' },
+  topRow:         { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
+  input:          { backgroundColor: '#FFF8E7', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, borderWidth: 1, borderColor: '#E8D5B7', color: '#3A2818' },
+  emojiInput:     { width: 44, textAlign: 'center' },
+  labelInput:     { flex: 1 },
+  removeBtn:      { width: 32, height: 32, borderRadius: 10, backgroundColor: '#FFE4E4', alignItems: 'center', justifyContent: 'center' },
+  removeText:     { fontSize: 13, color: '#E91E8C', fontWeight: '700' },
+  scoreRow:       { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  scoreLabel:     { fontSize: 12, color: '#8B6F47', minWidth: 80 },
+  scoreBtn:       { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: '#E8D5B7' },
+  scoreBtnActive: { backgroundColor: '#E91E8C' },
+  scoreBtnText:   { fontSize: 11, fontWeight: '700', color: '#FFF' },
 });
 
 // ─── Composant QuestionBlock ──────────────────────────────────────────────────
@@ -344,7 +329,7 @@ export function EditProfileScreen() {
       return a;
     })();
     const filteredIdealDay = idealDay.filter(s => s.trim());
-    const validSkills = skills.filter(s => s.id && s.detail.trim()).slice(0, 3);
+    const validSkills = skills.filter(s => s.label.trim() && s.detail.trim()).slice(0, 3);
 
     const localProfile = {
       id:             currentUser?.id            ?? '',
@@ -391,7 +376,7 @@ export function EditProfileScreen() {
           city:         city.trim(),
           physicalDesc: PHYSIQUE_MAP_TO_API[physique] || undefined,
           lookingFor:   lookingFor.map(id => LF_MAP[id]).filter(Boolean),
-          interestedIn: interestedIn.map(id => GI_MAP[id]).filter((v): v is string => v === 'FEMME' || v === 'HOMME'),
+          interestedIn: interestedIn.map(id => GI_MAP[id]).filter(Boolean),
           interests,
           ...(heightNum >= 100 && heightNum <= 250 && { height: heightNum }),
           ...(hasChildren  !== null && { hasChildren }),
@@ -483,7 +468,7 @@ export function EditProfileScreen() {
           const missing: string[] = [];
           if (bioWords < 50) missing.push(`bio (${bioWords}/50 mots)`);
           if (interests.length === 0) missing.push('centres d\'intérêt');
-          const validSkills = skills.filter(s => s.id && s.detail.trim());
+          const validSkills = skills.filter(s => s.label.trim() && s.detail.trim());
           if (validSkills.length < 3) missing.push(`compétences (${validSkills.length}/3)`);
           if (!questionsReady) missing.push('3 questions complètes');
           if (missing.length === 0) return null;
@@ -643,7 +628,7 @@ export function EditProfileScreen() {
           <Text style={styles.subLabel}>Exactement 3 compétences — sois honnête (ou presque)</Text>
           {skills.map((sk, i) => (
             <SkillCard
-              key={sk.id}
+              key={i}
               skill={sk}
               onChange={updated => {
                 const copy = [...skills];
@@ -654,27 +639,14 @@ export function EditProfileScreen() {
             />
           ))}
           {skills.length < 3 && (
-            <>
-              <Text style={styles.skillWarning}>⚠️ Exactement 3 compétences requises</Text>
-              <Text style={[styles.subLabel, { marginTop: 12 }]}>
-                {skills.length === 0 ? 'Sélectionne 3 compétences :' : `En ajouter ${3 - skills.length} autre${3 - skills.length > 1 ? 's' : ''} :`}
-              </Text>
-              <View style={styles.chipGrid}>
-                {SKILL_OPTIONS
-                  .filter(opt => !skills.find(s => s.id === opt.id))
-                  .map(opt => (
-                    <TouchableOpacity
-                      key={opt.id}
-                      style={styles.chip}
-                      onPress={() =>
-                        setSkills([...skills, { id: opt.id, label: opt.label, emoji: opt.emoji, detail: '', score: 50 }])
-                      }
-                    >
-                      <Text style={styles.chipText}>{opt.emoji} {opt.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-              </View>
-            </>
+            <TouchableOpacity
+              style={[styles.chip, { marginTop: 12 }]}
+              onPress={() =>
+                setSkills([...skills, { id: `skill_${Date.now()}`, label: '', emoji: '', detail: '', score: 50 }])
+              }
+            >
+              <Text style={styles.chipText}>➕ Ajouter une compétence</Text>
+            </TouchableOpacity>
           )}
         </SectionCard>
 

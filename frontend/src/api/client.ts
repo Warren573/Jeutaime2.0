@@ -126,6 +126,7 @@ async function attemptTokenRefresh(): Promise<string | null> {
 export async function apiFetch(path: string, options?: RequestInit): Promise<any> {
   const maxRetries = maxRetriesFor(options);
   let lastError: Error = new Error("Erreur inconnue");
+  const method = (options?.method ?? "GET").toUpperCase();
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -149,6 +150,16 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<any
       const error = err instanceof Error ? err : new Error(String(err));
       lastError   = error;
 
+      // Log détaillé en développement (Expo __DEV__ est global)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((global as any).__DEV__) {
+        console.error(`[apiFetch] ${method} ${path}`, {
+          attempt,
+          error: error.message,
+          api_url: API_URL,
+        });
+      }
+
       // HTTP errors (4xx/5xx) and auth errors — fail immediately, no retry
       if (!isNetworkError(err)) throw error;
 
@@ -162,9 +173,9 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<any
     }
   }
 
-  throw new Error(
-    `Réseau inaccessible — ${lastError.message}\nAPI: ${API_URL}`,
-  );
+  const errorMsg = `${method} ${path}\nAPI: ${API_URL}\nÉrreur: ${lastError.message}`;
+  console.error("[apiFetch] Final error:", errorMsg);
+  throw new Error(errorMsg);
 }
 
 export async function apiAuthFetch(

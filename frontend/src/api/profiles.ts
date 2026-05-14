@@ -19,6 +19,7 @@ export interface PublicProfileDto {
   badges: string[] | null;
   vibe: string | null;
   quote: string | null;
+  height: number | null;
   identityTags: string[] | null;
   qualities: string[] | null;
   defaults: string[] | null;

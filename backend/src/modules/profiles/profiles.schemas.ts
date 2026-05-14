@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const GenderEnum = z.enum(["HOMME", "FEMME", "AUTRE"]);
-const InterestedInEnum = z.enum(["HOMME", "FEMME"]);
+const InterestedInEnum = z.enum(["HOMME", "FEMME", "AUTRE"]);
 const LookingForEnum = z.enum(["AMITIE", "RELATION", "FLIRT", "DISCUSSION", "SERIEUX"]);
 
 export const UpdateProfileSchema = z.object({

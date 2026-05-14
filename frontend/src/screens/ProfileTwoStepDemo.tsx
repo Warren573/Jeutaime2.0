@@ -24,11 +24,11 @@ const PHYSIQUE_LABEL: Record<string, { emoji: string; label: string }> = {
   filiforme:    { emoji: "🍝", label: "Filiforme" },
   ras_motte:    { emoji: "🐭", label: "Ras motte" },
   grande_gigue: { emoji: "🦒", label: "Grande gigue" },
-  beaute_int:   { emoji: "✨", label: "Grande beauté intérieure" },
+  doux:         { emoji: "✨", label: "Grande beauté intérieure" },
   athletique:   { emoji: "🏃", label: "Athlétique" },
-  genereuse:    { emoji: "🍑", label: "En formes généreuses" },
-  moyenne:      { emoji: "⚖️", label: "Moyenne" },
-  muscle:       { emoji: "💪", label: "Musclé·e" },
+  costaud:      { emoji: "🍑", label: "En formes généreuses" },
+  mignon:       { emoji: "⚖️", label: "Moyenne" },
+  mysterieux:   { emoji: "💪", label: "Musclé•e" },
 };
 
 const LOOKING_FOR_LABEL: Record<string, string> = {

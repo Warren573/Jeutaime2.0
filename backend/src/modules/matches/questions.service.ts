@@ -162,19 +162,30 @@ export async function submitMatchAnswers(
     realAnswers.map((q) => [q.id, q.answer.toLowerCase().trim()]),
   );
 
-  // Vérifier que les profileQuestionId soumis sont valides
-  for (const a of dto.answers) {
-    if (!realAnswerMap.has(a.profileQuestionId)) {
+  // Support pour IDs simples comme alias (q1, q2, q3, ...)
+  const answerIndexMap = new Map<string, string>(
+    realAnswers.map((q, idx) => [`q${idx + 1}`, q.id])
+  );
+
+  // Vérifier que les profileQuestionId soumis sont valides et mapper les IDs
+  const normalizedAnswers = dto.answers.map((a) => {
+    const questionId = answerIndexMap.has(a.profileQuestionId)
+      ? answerIndexMap.get(a.profileQuestionId)!
+      : a.profileQuestionId;
+
+    if (!realAnswerMap.has(questionId)) {
       throw new BadRequestError(`Question inconnue : ${a.profileQuestionId}`);
     }
-  }
 
-  const attempts = dto.answers.map((a) => ({
+    return { ...a, normalizedQuestionId: questionId };
+  });
+
+  const attempts = normalizedAnswers.map((a) => ({
     matchId,
     responderId: userId,
-    questionId: a.profileQuestionId,
+    questionId: a.normalizedQuestionId,
     submittedAnswer: a.answer,
-    isCorrect: a.answer.toLowerCase().trim() === realAnswerMap.get(a.profileQuestionId),
+    isCorrect: a.answer.toLowerCase().trim() === realAnswerMap.get(a.normalizedQuestionId),
   }));
 
   await prisma.matchQuestionAttempt.createMany({ data: attempts });

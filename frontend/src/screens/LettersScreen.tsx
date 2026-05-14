@@ -640,7 +640,7 @@ export default function LettersScreen() {
     setQCurrentStep(0);
     setQResult(null);
     setShowQGame(true);
-    loadQuestions(match.id);
+    await loadQuestions(match.id);
   };
 
   const handleQGameSubmit = async () => {
