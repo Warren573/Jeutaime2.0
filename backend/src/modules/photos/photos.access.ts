@@ -1,14 +1,15 @@
-import { isPhotoUnlocked } from "../../policies/photoUnlock";
-import type { PhotoVariant } from "./photos.urls";
+import { getPhotoLevel, getPhotoVariant, type PhotoLevel, type PhotoVariant } from "../../policies/photoUnlock";
 
-export type { PhotoVariant };
+export type { PhotoVariant, PhotoLevel };
 
 export type PhotoAccessReason =
   | "OWNER"
-  | "UNLOCKED"
   | "BLOCKED"
   | "NO_MATCH"
-  | "NOT_UNLOCKED";
+  | "LEVEL_0"
+  | "LEVEL_1"
+  | "LEVEL_2"
+  | "LEVEL_3";
 
 export interface PhotoAccessContext {
   viewerId: string;
@@ -25,21 +26,30 @@ export interface PhotoAccessContext {
 export interface PhotoAccessResult {
   allowed: boolean;
   reason: PhotoAccessReason;
+  level?: PhotoLevel;
+  variant?: PhotoVariant | null;
 }
 
 export function resolvePhotoAccess(ctx: PhotoAccessContext): PhotoAccessResult {
   const { viewerId, ownerId, viewerIsPremium, hasBlock, match } = ctx;
 
-  if (viewerId === ownerId) return { allowed: true, reason: "OWNER" };
+  if (viewerId === ownerId) return { allowed: true, reason: "OWNER", level: 3, variant: "original" };
   if (hasBlock) return { allowed: false, reason: "BLOCKED" };
   if (!match) return { allowed: false, reason: "NO_MATCH" };
 
-  const myLetterCount = match.userAId === viewerId ? match.letterCountA : match.letterCountB;
-  const otherLetterCount = match.userAId === viewerId ? match.letterCountB : match.letterCountA;
+  const totalLetters = match.letterCountA + match.letterCountB;
+  const level = getPhotoLevel({ totalLetters, viewerIsPremium });
+  const variant = getPhotoVariant(level);
+  const allowed = level > 0;
 
-  return isPhotoUnlocked({ myLetterCount, otherLetterCount, viewerIsPremium })
-    ? { allowed: true, reason: "UNLOCKED" }
-    : { allowed: false, reason: "NOT_UNLOCKED" };
+  const reason: PhotoAccessReason = allowed ? `LEVEL_${level}` : "LEVEL_0";
+
+  return {
+    allowed,
+    reason,
+    level,
+    variant,
+  };
 }
 
 // ============================================================

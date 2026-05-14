@@ -1,7 +1,6 @@
 import { env } from "../../config/env";
+export type { PhotoVariant } from "../../policies/photoUnlock";
 
-export type PhotoVariant = "original";
-
-export function buildPhotoUrl(photoId: string, variant: PhotoVariant): string {
+export function buildPhotoUrl(photoId: string, variant: string): string {
   return `${env.API_PREFIX}/photos/file/${photoId}/${variant}`;
 }

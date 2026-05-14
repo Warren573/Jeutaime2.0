@@ -4,7 +4,6 @@ import path from "path";
 import { AuthedRequest } from "../../core/types";
 import { BadRequestError } from "../../core/errors";
 import * as svc from "./photos.service";
-import type { PhotoVariant } from "./photos.urls";
 
 // ============================================================
 // GET /api/photos/me
@@ -63,7 +62,7 @@ export async function handleListForUser(req: AuthedRequest, res: Response) {
   });
   res.json({
     data: result.photos,
-    meta: { unlocked: result.unlocked },
+    meta: { unlocked: result.unlocked, level: result.level },
   });
 }
 

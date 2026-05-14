@@ -6,11 +6,19 @@
 export const MATCH_LIMIT_FREE = 5;     // validé
 export const MATCH_LIMIT_PREMIUM = 20; // validé
 
-// --- Déblocage photos ---
-/** Nombre de lettres envoyées par chaque côté pour déblocage final (utilisateurs gratuits) */
-export const PHOTO_UNLOCK_LETTERS_FREE = 10;
-/** Nombre de lettres envoyées par chaque côté pour déblocage final (Premium) */
-export const PHOTO_UNLOCK_LETTERS_PREMIUM = 3; // validé
+// --- Révélation progressive des photos ---
+/** Seuils de révélation par niveau (total lettres, symétrique) */
+export const PHOTO_THRESHOLDS_FREE = {
+  level1: 3,  // Silhouette / ultra flou
+  level2: 6,  // Flou léger
+  level3: 10, // Photo nette
+} as const;
+
+export const PHOTO_THRESHOLDS_PREMIUM = {
+  level1: 1,  // Silhouette / ultra flou
+  level2: 2,  // Flou léger
+  level3: 3,  // Photo nette
+} as const;
 
 // --- Upload photos ---
 /** Nombre maximal de photos par utilisateur */
