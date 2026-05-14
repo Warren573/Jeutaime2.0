@@ -4,7 +4,6 @@ import path from "path";
 import { AuthedRequest } from "../../core/types";
 import { BadRequestError } from "../../core/errors";
 import * as svc from "./photos.service";
-import type { PhotoVariant } from "./photos.urls";
 
 // ============================================================
 // GET /api/photos/me
@@ -63,7 +62,7 @@ export async function handleListForUser(req: AuthedRequest, res: Response) {
   });
   res.json({
     data: result.photos,
-    meta: { unlocked: result.unlocked },
+    meta: { unlocked: result.unlocked, level: result.level },
   });
 }
 
@@ -73,7 +72,7 @@ export async function handleListForUser(req: AuthedRequest, res: Response) {
 // ============================================================
 export async function handleStreamFile(req: AuthedRequest, res: Response) {
   const photoId = req.params["id"] as string;
-  const variant = req.params["variant"] as PhotoVariant;
+  const variant = req.params["variant"] as string;
 
   const { absolutePath } = await svc.resolvePhotoForStream({
     viewerId: req.user.userId,

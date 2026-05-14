@@ -11,8 +11,8 @@ import {
   deletePhotoFiles,
   resolveStoredPath,
 } from "./photos.storage";
-import { buildPhotoUrl, PhotoVariant } from "./photos.urls";
-import { resolvePhotoAccess, pickNextPrimary } from "./photos.access";
+import { buildPhotoUrl } from "./photos.urls";
+import { resolvePhotoAccess, pickNextPrimary, type PhotoVariant, type PhotoLevel } from "./photos.access";
 import type { UpdatePhotoDto } from "./photos.schemas";
 
 // ============================================================
@@ -99,8 +99,7 @@ export async function listMyPhotos(userId: string): Promise<PhotoDto[]> {
 }
 
 // ============================================================
-// listPhotosForViewer — retourne les photos d'un autre user
-// uniquement si débloqué (binaire : tout ou rien)
+// listPhotosForViewer — retourne les photos avec révélation progressive
 // ============================================================
 export async function listPhotosForViewer(params: {
   viewerId: string;
@@ -108,13 +107,14 @@ export async function listPhotosForViewer(params: {
   viewerIsPremium: boolean;
 }): Promise<{
   photos: PhotoDto[];
+  level: PhotoLevel;
   unlocked: boolean;
 }> {
   const { viewerId, targetUserId, viewerIsPremium } = params;
 
   if (viewerId === targetUserId) {
     const photos = await listMyPhotos(viewerId);
-    return { photos, unlocked: true };
+    return { photos, unlocked: true, level: 3 };
   }
 
   const target = await prisma.user.findUnique({
@@ -138,8 +138,12 @@ export async function listPhotosForViewer(params: {
     throw new ForbiddenError("Accès interdit");
   }
 
-  if (!access.allowed) {
-    return { photos: [], unlocked: false };
+  const level = access.level ?? 0;
+  const variant = access.variant ?? null;
+
+  // Level 0 = pas de photos, retourner liste vide
+  if (level === 0) {
+    return { photos: [], unlocked: false, level: 0 };
   }
 
   const photos = await prisma.photo.findMany({
@@ -160,8 +164,9 @@ export async function listPhotosForViewer(params: {
   });
 
   return {
-    photos: photos.map((p) => toDto(p, "original")),
-    unlocked: true,
+    photos: photos.map((p) => toDto(p, variant || "original")),
+    unlocked: level === 3,
+    level,
   };
 }
 
@@ -333,13 +338,13 @@ export async function deletePhoto(params: {
 
 // ============================================================
 // resolvePhotoForStream — utilisée par la route /file/:id/:variant
-// Vérifie l'ownership ou le déblocage, puis retourne l'original.
+// Sert la variante appropriée selon le level de révélation
 // ============================================================
 export async function resolvePhotoForStream(params: {
   viewerId: string;
   viewerIsPremium: boolean;
   photoId: string;
-  variant: PhotoVariant;
+  variant: string;
 }): Promise<{ absolutePath: string; ownerId: string }> {
   const { viewerId, viewerIsPremium, photoId } = params;
 
@@ -349,6 +354,8 @@ export async function resolvePhotoForStream(params: {
       id: true,
       userId: true,
       originalPath: true,
+      blurredPath: true,
+      blurMediumPath: true,
     },
   });
   if (!photo) throw new NotFoundError("Photo");
@@ -376,13 +383,28 @@ export async function resolvePhotoForStream(params: {
         throw new ForbiddenError("Accès interdit");
       case "NO_MATCH":
         throw new ForbiddenError("Aucune relation existante avec cet utilisateur");
-      case "NOT_UNLOCKED":
-        throw new ForbiddenError("Photos non encore déverrouillées pour cette relation");
+      case "LEVEL_0":
+        throw new ForbiddenError("Aperçu non disponible à ce stade");
       default:
         throw new ForbiddenError("Accès interdit");
     }
   }
 
-  const absolutePath = resolveStoredPath(photo.originalPath);
+  let absolutePath: string;
+
+  switch (access.variant) {
+    case "blurred":
+      absolutePath = resolveStoredPath(photo.blurredPath);
+      break;
+    case "medium":
+      absolutePath = resolveStoredPath(photo.blurMediumPath || photo.blurredPath);
+      break;
+    case "original":
+      absolutePath = resolveStoredPath(photo.originalPath);
+      break;
+    default:
+      throw new ForbiddenError("Variante de photo invalide");
+  }
+
   return { absolutePath, ownerId: photo.userId };
 }
