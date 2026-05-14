@@ -8,6 +8,9 @@
 API="http://localhost:3000/api"
 TIMEOUT=5
 
+# Generate unique timestamp for this test run
+TIMESTAMP=$(date +%s%N | tail -c 10)
+
 # Couleurs
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -87,14 +90,14 @@ check_response() {
 
 test_step 1 "Register User A"
 
-REGISTER_A_DATA='{
-  "email": "userA@test.com",
-  "password": "TestPassword123!",
-  "pseudo": "UserA",
-  "birthDate": "1990-01-01",
-  "gender": "HOMME",
-  "city": "Paris"
-}'
+REGISTER_A_DATA="{
+  \"email\": \"userA-${TIMESTAMP}@test.com\",
+  \"password\": \"TestPassword123!\",
+  \"pseudo\": \"UserA-${TIMESTAMP}\",
+  \"birthDate\": \"1990-01-01\",
+  \"gender\": \"HOMME\",
+  \"city\": \"Paris\"
+}"
 
 REGISTER_A=$(api_call POST "/auth/register" "$REGISTER_A_DATA")
 check_response "$REGISTER_A" "201" "Register User A"
@@ -111,14 +114,14 @@ echo "User A ID: $USER_A_ID"
 
 test_step 2 "Register User B"
 
-REGISTER_B_DATA='{
-  "email": "userB@test.com",
-  "password": "TestPassword123!",
-  "pseudo": "UserB",
-  "birthDate": "1991-02-02",
-  "gender": "FEMME",
-  "city": "Lyon"
-}'
+REGISTER_B_DATA="{
+  \"email\": \"userB-${TIMESTAMP}@test.com\",
+  \"password\": \"TestPassword123!\",
+  \"pseudo\": \"UserB-${TIMESTAMP}\",
+  \"birthDate\": \"1991-02-02\",
+  \"gender\": \"FEMME\",
+  \"city\": \"Lyon\"
+}"
 
 REGISTER_B=$(api_call POST "/auth/register" "$REGISTER_B_DATA")
 check_response "$REGISTER_B" "201" "Register User B"
@@ -135,21 +138,18 @@ echo "User B ID: $USER_B_ID"
 
 test_step 3 "User A - Complete Profile"
 
-PROFILE_A_DATA=$(cat <<'JSONEOF'
-{
-  "pseudo": "UserA_Updated",
-  "bio": "Je suis un utilisateur de test passionne par les tests",
-  "city": "Paris",
-  "physicalDesc": "mysterieux",
-  "interests": ["tech", "musique", "voyages"],
-  "lookingFor": ["RELATION", "FLIRT"],
-  "interestedIn": ["FEMME"],
-  "height": 180,
-  "vibe": "Curieux et bienveillant",
-  "quote": "La vie est une aventure"
-}
-JSONEOF
-)
+PROFILE_A_DATA="{
+  \"pseudo\": \"UA-${TIMESTAMP}\",
+  \"bio\": \"Je suis un utilisateur de test passionne par les tests\",
+  \"city\": \"Paris\",
+  \"physicalDesc\": \"mysterieux\",
+  \"interests\": [\"tech\", \"musique\", \"voyages\"],
+  \"lookingFor\": [\"RELATION\", \"FLIRT\"],
+  \"interestedIn\": [\"FEMME\"],
+  \"height\": 180,
+  \"vibe\": \"Curieux et bienveillant\",
+  \"quote\": \"La vie est une aventure\"
+}"
 
 PROFILE_A=$(api_call PATCH "/profiles/me" "$PROFILE_A_DATA" "$TOKEN_A")
 check_response "$PROFILE_A" "200" "User A - Update Profile"
@@ -160,21 +160,18 @@ check_response "$PROFILE_A" "200" "User A - Update Profile"
 
 test_step 4 "User B - Complete Profile"
 
-PROFILE_B_DATA=$(cat <<'JSONEOF'
-{
-  "pseudo": "UserB_Updated",
-  "bio": "Passionnee par la rencontre et les defis",
-  "city": "Lyon",
-  "physicalDesc": "doux",
-  "interests": ["art", "sport", "nature"],
-  "lookingFor": ["RELATION"],
-  "interestedIn": ["HOMME"],
-  "height": 165,
-  "vibe": "Spontanee et joyeuse",
-  "quote": "La magie c est dans les petites choses"
-}
-JSONEOF
-)
+PROFILE_B_DATA="{
+  \"pseudo\": \"UB-${TIMESTAMP}\",
+  \"bio\": \"Passionnee par la rencontre et les defis\",
+  \"city\": \"Lyon\",
+  \"physicalDesc\": \"doux\",
+  \"interests\": [\"art\", \"sport\", \"nature\"],
+  \"lookingFor\": [\"RELATION\"],
+  \"interestedIn\": [\"HOMME\"],
+  \"height\": 165,
+  \"vibe\": \"Spontanee et joyeuse\",
+  \"quote\": \"La magie c est dans les petites choses\"
+}"
 
 PROFILE_B=$(api_call PATCH "/profiles/me" "$PROFILE_B_DATA" "$TOKEN_B")
 check_response "$PROFILE_B" "200" "User B - Update Profile"
