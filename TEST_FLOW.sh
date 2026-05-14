@@ -47,7 +47,8 @@ api_call() {
   fi
 
   if [ ! -z "$data" ]; then
-    cmd="$cmd -H 'Content-Type: application/json' -d '$data'"
+    local escaped_data="${data//\"/\\\"}"
+    cmd="$cmd -H 'Content-Type: application/json' -d \"$escaped_data\""
   fi
 
   cmd="$cmd -w '\n%{http_code}' $API$endpoint"
@@ -326,9 +327,9 @@ test_step 12 "User A - Submit Question Answers"
 
 ANSWERS_A_DATA='{
   "answers": [
-    {"profileQuestionId": "q1", "answer": "Voyager autour du monde"},
-    {"profileQuestionId": "q2", "answer": "En explorant une nouvelle ville"},
-    {"profileQuestionId": "q3", "answer": "Les blagues absurdes et les moments spontanés"}
+    {"profileQuestionId": "q1", "answer": "Creer une galerie d art"},
+    {"profileQuestionId": "q2", "answer": "Au musee ou en nature"},
+    {"profileQuestionId": "q3", "answer": "L humour intelligent et les bons moments partages"}
   ]
 }'
 
@@ -343,9 +344,9 @@ test_step 13 "User B - Submit Question Answers"
 
 ANSWERS_B_DATA='{
   "answers": [
-    {"profileQuestionId": "q1", "answer": "Créer une galerie d'\''art"},
-    {"profileQuestionId": "q2", "answer": "Au musée ou en nature"},
-    {"profileQuestionId": "q3", "answer": "L'\''humour intelligent et les bons moments partagés"}
+    {"profileQuestionId": "q1", "answer": "Voyager autour du monde"},
+    {"profileQuestionId": "q2", "answer": "En explorant une nouvelle ville"},
+    {"profileQuestionId": "q3", "answer": "Les blagues absurdes et les moments spontanes"}
   ]
 }'
 
@@ -353,49 +354,14 @@ ANSWERS_B=$(api_call POST "/matches/$MATCH_ID/questions/answers" "$ANSWERS_B_DAT
 check_response "$ANSWERS_B" "200" "User B - Submit Answers"
 
 # ============================================================
-# TEST 14: User A - Send Letter to User B
+# TEST 14: User B - Send Letter (first, since initiator)
 # ============================================================
 
-test_step 14 "User A - Send Letter to User B"
-
-LETTER_A_DATA=$(cat <<'JSONEOF'
-{
-  "content": "Bonjour! J ai adoré tes réponses aux questions. J aimerais bien continuer cette conversation!"
-}
-JSONEOF
-)
-
-LETTER_A=$(api_call POST "/matches/$MATCH_ID/letters" "$LETTER_A_DATA" "$TOKEN_A")
-check_response "$LETTER_A" "201" "User A - Send Letter"
-
-LETTER_A_ID=$(echo "$LETTER_A" | sed '$d' | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-echo "Letter A ID: $LETTER_A_ID"
-
-# ============================================================
-# TEST 15: Verify User A canSend is false
-# ============================================================
-
-test_step 15 "Verify User A canSend is false after sending"
-
-MATCH_DETAIL=$(api_call GET "/matches/$MATCH_ID" "" "$TOKEN_A")
-check_response "$MATCH_DETAIL" "200" "Get Match Detail (User A)"
-
-CANSEND=$(echo "$MATCH_DETAIL" | sed '$d' | grep -o '"canSend":false' || echo "")
-if [ ! -z "$CANSEND" ]; then
-  echo "✅ User A cannot send (canSend=false)"
-else
-  echo "❌ User A should not be able to send yet"
-fi
-
-# ============================================================
-# TEST 16: User B - Send Letter Reply
-# ============================================================
-
-test_step 16 "User B - Send Letter Reply"
+test_step 14 "User B - Send Letter (initiator sends first)"
 
 LETTER_B_DATA=$(cat <<'JSONEOF'
 {
-  "content": "Salut! Moi aussi j ai beaucoup aimé. C est un plaisir de discuter avec quelqu un qui partage mes intérêts!"
+  "content": "Salut! J ai adoré tes réponses aux questions. J aimerais bien continuer cette conversation!"
 }
 JSONEOF
 )
@@ -407,19 +373,54 @@ LETTER_B_ID=$(echo "$LETTER_B" | sed '$d' | grep -o '"id":"[^"]*"' | head -1 | c
 echo "Letter B ID: $LETTER_B_ID"
 
 # ============================================================
-# TEST 17: Verify User B canSend is false
+# TEST 15: Verify User B canSend is false
 # ============================================================
 
-test_step 17 "Verify User B canSend is false after sending"
+test_step 15 "Verify User B canSend is false after sending"
 
-MATCH_DETAIL_B=$(api_call GET "/matches/$MATCH_ID" "" "$TOKEN_B")
-check_response "$MATCH_DETAIL_B" "200" "Get Match Detail (User B)"
+MATCH_DETAIL=$(api_call GET "/matches/$MATCH_ID" "" "$TOKEN_B")
+check_response "$MATCH_DETAIL" "200" "Get Match Detail (User B)"
 
-CANSEND_B=$(echo "$MATCH_DETAIL_B" | sed '$d' | grep -o '"canSend":false' || echo "")
-if [ ! -z "$CANSEND_B" ]; then
+CANSEND=$(echo "$MATCH_DETAIL" | sed '$d' | grep -o '"canSend":false' || echo "")
+if [ ! -z "$CANSEND" ]; then
   echo "✅ User B cannot send (canSend=false)"
 else
   echo "❌ User B should not be able to send yet"
+fi
+
+# ============================================================
+# TEST 16: User A - Send Letter Reply
+# ============================================================
+
+test_step 16 "User A - Send Letter Reply"
+
+LETTER_A_DATA=$(cat <<'JSONEOF'
+{
+  "content": "Bonjour! Moi aussi j ai beaucoup aimé. C est un plaisir de discuter avec quelqu un qui partage mes intérêts!"
+}
+JSONEOF
+)
+
+LETTER_A=$(api_call POST "/matches/$MATCH_ID/letters" "$LETTER_A_DATA" "$TOKEN_A")
+check_response "$LETTER_A" "201" "User A - Send Letter"
+
+LETTER_A_ID=$(echo "$LETTER_A" | sed '$d' | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+echo "Letter A ID: $LETTER_A_ID"
+
+# ============================================================
+# TEST 17: Verify User A canSend is false after sending
+# ============================================================
+
+test_step 17 "Verify User A canSend is false after sending"
+
+MATCH_DETAIL_A=$(api_call GET "/matches/$MATCH_ID" "" "$TOKEN_A")
+check_response "$MATCH_DETAIL_A" "200" "Get Match Detail (User A)"
+
+CANSEND_A=$(echo "$MATCH_DETAIL_A" | sed '$d' | grep -o '"canSend":false' || echo "")
+if [ ! -z "$CANSEND_A" ]; then
+  echo "✅ User A cannot send (canSend=false)"
+else
+  echo "❌ User A should not be able to send yet"
 fi
 
 # ============================================================
