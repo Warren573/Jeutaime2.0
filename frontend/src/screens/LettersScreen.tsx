@@ -28,7 +28,7 @@ import { getRelationInfo } from '../engine/RelationEngine';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 32;
-const MINI_FLAP_H = 54;
+const MINI_FLAP_H = 90;
 const LARGE_FLAP_H = 92;
 
 interface EnvelopeCardProps {
@@ -265,30 +265,30 @@ const envStyles = StyleSheet.create({
   divider: { height: 1.5, backgroundColor: '#C4A882' },
   infoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    gap: 10,
+    alignItems: 'flex-start',
+    padding: 16,
+    gap: 14,
   },
   texts: { flex: 1, minWidth: 0 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { fontSize: 16, fontWeight: '700', color: '#2C1A0E' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  name: { fontSize: 18, fontWeight: '700', color: '#2C1A0E' },
   badge: {
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: '#8B2E3C',
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: '#D4A862',
     alignItems: 'center', justifyContent: 'center',
   },
-  badgeTxt: { color: '#FFF', fontSize: 11, fontWeight: '700' },
-  preview:        { fontSize: 13, color: '#7A5C3A', marginTop: 2 },
-  levelLine:      { fontSize: 11, color: '#B87333', marginTop: 4, fontWeight: '600' },
-  time:           { fontSize: 11, color: '#9A7040' },
-  actionBar:      { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#E8D9C6', minHeight: 40 },
+  badgeTxt: { color: '#FFF', fontSize: 12, fontWeight: '700' },
+  preview:        { fontSize: 14, color: '#7A5C3A', marginTop: 2, lineHeight: 20 },
+  levelLine:      { fontSize: 12, color: '#D4A862', marginTop: 6, fontWeight: '700' },
+  time:           { fontSize: 11, color: '#9A7040', marginTop: 4 },
+  actionBar:      { height: 0, overflow: 'hidden', minHeight: 0 },
   actionLeft:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
   actionLeftText: { fontSize: 12, color: '#5A3A1A', fontWeight: '700' },
   actionSep:      { width: 1, backgroundColor: '#E8D9C6' },
-  actionRight:       { flex: 1, textAlign: 'center', paddingVertical: 10, fontSize: 12, color: '#9C4D1A', fontWeight: '700', letterSpacing: 0.3, textDecorationLine: 'none' },
+  actionRight:    { flex: 1, textAlign: 'center', paddingVertical: 10, fontSize: 12, color: '#9C4D1A', fontWeight: '700', letterSpacing: 0.3, textDecorationLine: 'none' },
   actionDisabled:    { opacity: 0.4 },
   actionDisabledText:{ color: '#9A7040' },
-  letterCounter:     { fontSize: 10, color: '#B87333', fontWeight: '600' },
+  letterCounter:     { fontSize: 11, color: '#D4A862', fontWeight: '700' },
 
   overlay: {
     flex: 1,
@@ -1285,7 +1285,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginHorizontal: 3,
   },
-  tabActive: { backgroundColor: '#8B2E3C' },
+  tabActive: { backgroundColor: '#D4A862' },
   tabText: { fontSize: 12, fontWeight: '600', color: '#A08870' },
   tabTextActive: { color: '#FFF' },
 
@@ -1458,7 +1458,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 12,
-    backgroundColor: '#8B2E3C',
+    backgroundColor: '#D4A862',
     alignItems: 'center',
     justifyContent: 'center',
   },
