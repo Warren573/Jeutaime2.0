@@ -1,0 +1,148 @@
+================================================================================
+LETTERS SCREEN MOCKUP — VISUAL PROPOSAL V2
+Mobile Portrait 375px width
+================================================================================
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ZONE 1: HEADER (unchanged)               ┃
+┃ ┌───────────────────────────────────┐   ┃
+┃ │ JEUTAIME                    (gold)│   ┃
+┃ │ 📬 Mes correspondances            │   ┃
+┃ │ Correspondances privées (gray)    │   ┃
+┃ └───────────────────────────────────┘   ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ZONE 2: PROGRESS BAR (NEW — integr.)     ┃
+┃ ┌───────────────────────────────────┐   ┃
+┃ │ Révélation photo progressive      │   ┃
+┃ │ ████████░░░░░░ 60%                │   ┃
+┃ │ Niveau 2 — Tendre (gold accent)   │   ┃
+┃ │ Prochain: 4 lettres (actuellement │   ┃
+┃ │ 6/10 lettres)                     │   ┃
+┃ └───────────────────────────────────┘   ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ZONE 3: ENVELOPE LIST (slightly improved)┃
+┃ ┌───────────────────────────────────┐   ┃
+┃ │ Flap (54px, unchanged)            │   ┃
+┃ │     [⚜️ Sceau]                    │   ┃
+┃ ├───────────────────────────────────┤   ┃
+┃ │ [Avatar] Sophie                 ① │   ← Non-lue badge (gold)
+┃ │  42px     "Salut, comment tu..."   │   ← 2 lignes preview
+┃ │          13:42 (dark gray)        │   ← Temps
+┃ │          ★★ Niveau 2 — Tendre (gol)│  ← Gold accent
+┃ └───────────────────────────────────┘   ┃
+┃                                         ┃
+┃ ┌───────────────────────────────────┐   ┃
+┃ │ Flap (54px)                       │   ┃
+┃ │     [✉️ Sceau]                    │   ┃
+┃ ├───────────────────────────────────┤   ┃
+┃ │ [Avatar] Marc                     │   ← Pas non-lu
+┃ │  42px     "À vous de répondre..."  │   ← Status
+┃ │          2j (gray)                │   ┃
+┃ │          ★ Niveau 1 — Intéressé (gol)│
+┃ └───────────────────────────────────┘   ┃
+┃                                         ┃
+┃ ┌───────────────────────────────────┐   ┃
+┃ │ Flap (54px)                       │   ┃
+┃ │     [✉️ Sceau]                    │   ┃
+┃ ├───────────────────────────────────┤   ┃
+┃ │ [Avatar] Laura                    │   ┃
+┃ │  42px     "En attente d'accep..." │   ┃
+┃ │          Nouveau                  │   ┃
+┃ │          ★ Niveau 0 — Premier pas (gol)│
+┃ └───────────────────────────────────┘   ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ZONE 4: ACTIONS (clarified)              ┃
+┃ ┌───────────────────────────────────┐   ┃
+┃ │ [📬 Ouvrir]  [👤 Profil] [⋮ Menu]│   ┃
+┃ │  44px min touch targets, clear    │   ┃
+┃ └───────────────────────────────────┘   ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+================================================================================
+ZONE 5: MODAL — Lettres ouvertes
+================================================================================
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ ← Sophie                                 ┃
+┃ ★★ Niveau 2 — Tendre                    ┃ (gold accent, valorized)
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ PROGRESS BAR (integrated)                ┃
+┃ ████████░░ 60% → +4 lettres              ┃ (gold bar)
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ [SI NIVEAU 3: PHOTO INTÉGRÉE]            ┃
+┃ ┌───────────────────────────────────┐   ┃
+┃ │     [Photo original                │   ┃
+┃ │      Sans blur]                   │   ┃
+┃ │     ★ Photo de Sophie              │   ┃
+┃ └───────────────────────────────────┘   ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ MESSAGES (scroll)                        ┃
+┃                                         ┃
+┃ Message 1 (reçu)                        ┃
+┃ ┌───────────────────────────────────┐   ┃
+┃ │ "Coucou! Ça va bien pour toi?"     │   ┃
+┃ │                       — Sophie, 2j│   ┃
+┃ └───────────────────────────────────┘   ┃
+┃                                         ┃
+┃ Message 2 (envoyé)                      ┃
+┃ ┌───────────────────────────────────┐   ┃
+┃ │ "Salut! Oui, tout va bien         │   ┃
+┃ │  J'aime bien parler avec toi"     │   ┃
+┃ │                          — Toi, 1j│   ┃
+┃ └───────────────────────────────────┘   ┃
+┃                                         ┃
+┃ Message 3 (nouveau)                     ┃
+┃ ┌───────────────────────────────────┐   ┃
+┃ │ "Oh ouais? Continue alors! ;)"    │   ┃
+┃ │                       — Sophie, 1h│   ┃
+┃ └───────────────────────────────────┘   ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ INPUT ZONE                               ┃
+┃ ┌────────────────────────────────┬─┐   ┃
+┃ │ Écrivez votre réponse...       │➤│   ┃
+┃ └────────────────────────────────┴─┘   ┃
+┃  (Gold button #D4A862)                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+================================================================================
+KEY CHANGES SUMMARY
+================================================================================
+
+WHAT'S BETTER:
+✅ Photo progress visible in list (not hidden)
+✅ Photo integrated in modal when unlocked (no separate reveal)
+✅ Gold accents warmer than red (less harsh, more intimate)
+✅ Level/sentiment shown clearly (Niveau 2 — Tendre, not just numbers)
+✅ Envelopes still 54px (not huge, still functional)
+✅ Profile access preserved (clear button)
+✅ Letter opening preserved (clear button)
+✅ Actions bar helpful, not removed (3 buttons: Ouvrir/Profil/Menu)
+
+WHAT'S UNCHANGED:
+✅ API logic (fetch letters, send, receive)
+✅ Store (matches, letters state)
+✅ Photo reveal system (levels 0-3 unchanged)
+✅ Alternation logic (A ↔ B)
+✅ Backend (zero changes)
+
+MOBILE FIRST:
+✅ 375px fits without cut-off
+✅ Touch targets 44px min
+✅ Scroll vertical (natural)
+✅ Spacing breathes (not dense)
+✅ Tap to open (clear affordance)
+
+COLOR PALETTE:
+- Background: #F4ECD8 (unchanged)
+- Accent (was red): #D4A862 (gold, warm)
+- Text primary: #2C1A0E (unchanged)
+- Text secondary: #8B6F47 (unchanged)
+- Paper white: #FEFAF0 (unchanged)
+
+================================================================================
