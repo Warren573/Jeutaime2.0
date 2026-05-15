@@ -93,11 +93,16 @@ export default function SetupQuestionsScreen() {
       await apiFetch("/profiles/me/questions", {
         method: "PUT",
         body: JSON.stringify({
-          questions: questions.map((q) => ({
-            questionText: q.text.trim(),
-            options: q.options.map((o) => o.trim()),
-            correctAnswer: q.correctAnswer,
-          })),
+          questions: questions.map((q) => {
+            const trimmedOptions = q.options.map((o) => o.trim());
+            const correctAnswer = trimmedOptions[q.correctAnswer];
+            const wrongAnswers = trimmedOptions.filter((_, i) => i !== q.correctAnswer);
+            return {
+              questionText: q.text.trim(),
+              answer: correctAnswer,
+              wrongAnswers,
+            };
+          }),
         }),
       });
 
