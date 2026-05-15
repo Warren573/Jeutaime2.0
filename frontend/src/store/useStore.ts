@@ -519,7 +519,7 @@ export const useStore = create<StoreState>()(
               lastLetterAt: m.lastLetterAt ? new Date(m.lastLetterAt).getTime() : null,
               lastLetterBy: m.lastLetterBy,
               hasUnreadIncomingLetter: m.hasUnreadIncomingLetter,
-              photoUnlocked: m.photoUnlock.unlocked,
+              photoUnlocked: m.photoUnlock.level >= 3,
               photoUrl: m.photoUrl ?? null,
               questionValidation: {
                 userACorrect: 0,

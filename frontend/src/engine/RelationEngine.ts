@@ -6,18 +6,19 @@
 // et futures fonctionnalités (cadeaux, mini-jeux, salon privé).
 // ============================================================
 
-export type RelationLevel = 1 | 2 | 3;
+export type RelationLevel = 0 | 1 | 2 | 3;
 
-export type PhotoVisibility = 'avatar' | 'blurred' | 'revealed';
+export type PhotoVisibility = 'avatar' | 'blurred' | 'medium' | 'revealed';
 
 // ── Seuils (total de lettres dans le thread, des deux côtés) ─
 export const RELATION_THRESHOLDS = {
-  normal:  { level2: 6,  level3: 10 },
-  premium: { level2: 3,  level3: 5  },
+  normal:  { level1: 3,  level2: 6,  level3: 10 },
+  premium: { level1: 1,  level2: 2,  level3: 3  },
 } as const;
 
 // ── Labels affichés dans l'UI ────────────────────────────────
 const LEVEL_META: Record<RelationLevel, { label: string; stars: string }> = {
+  0: { label: 'En attente', stars: ''        },
   1: { label: 'Découverte', stars: '⭐'     },
   2: { label: 'Connexion',  stars: '⭐⭐'   },
   3: { label: 'Révélation', stars: '⭐⭐⭐' },
@@ -26,6 +27,7 @@ const LEVEL_META: Record<RelationLevel, { label: string; stars: string }> = {
 // ── Fonctionnalités débloquées par niveau ────────────────────
 // Extensible pour les futures features (cadeaux, jeux duo, salon)
 export const LEVEL_UNLOCKS: Record<RelationLevel, string[]> = {
+  0: [],
   1: ['letters'],
   2: ['letters', 'photo_blur'],
   3: ['letters', 'photo_reveal', 'avatar_toggle'],
@@ -41,12 +43,14 @@ export function getRelationLevel(
   const t = isPremium ? RELATION_THRESHOLDS.premium : RELATION_THRESHOLDS.normal;
   if (letterCount >= t.level3) return 3;
   if (letterCount >= t.level2) return 2;
-  return 1;
+  if (letterCount >= t.level1) return 1;
+  return 0;
 }
 
 export function getPhotoVisibility(level: RelationLevel): PhotoVisibility {
   if (level === 3) return 'revealed';
-  if (level === 2) return 'blurred';
+  if (level === 2) return 'medium';
+  if (level === 1) return 'blurred';
   return 'avatar';
 }
 
@@ -71,9 +75,18 @@ export function getRelationInfo(
   let progressText: string | null = null;
   let progressPercent = 100;
 
-  if (level === 1) {
-    const remaining = t.level2 - letterCount;
-    progressPercent = Math.round((letterCount / t.level2) * 100);
+  if (level === 0) {
+    const remaining = t.level1 - letterCount;
+    progressPercent = Math.round((letterCount / t.level1) * 100);
+    progressText =
+      remaining === 1
+        ? '💌 Encore 1 lettre pour débuter'
+        : `💌 Encore ${remaining} lettres pour débuter`;
+  } else if (level === 1) {
+    const tierStart = t.level1;
+    const tierEnd   = t.level2;
+    progressPercent = Math.round(((letterCount - tierStart) / (tierEnd - tierStart)) * 100);
+    const remaining = tierEnd - letterCount;
     progressText =
       remaining === 1
         ? '💌 Encore 1 lettre pour approfondir la relation'
@@ -106,7 +119,7 @@ export function isPhotoVisible(
   letterCount: number,
   isPremium = false,
 ): boolean {
-  return getRelationLevel(letterCount, isPremium) >= 2;
+  return getRelationLevel(letterCount, isPremium) >= 1;
 }
 
 export function isPhotoRevealed(

@@ -19,10 +19,10 @@ export interface PublicProfileDTO {
 }
 
 export interface PhotoUnlockDTO {
-  threshold: number;
-  myCount: number;
-  otherCount: number;
-  unlocked: boolean;
+  level: 0 | 1 | 2 | 3;
+  totalLetters: number;
+  nextLevelAt: number | null;
+  progressPercent: number;
 }
 
 export interface MatchDTO {

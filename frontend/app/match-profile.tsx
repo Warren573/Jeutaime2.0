@@ -68,7 +68,7 @@ export default function MatchProfileScreen() {
   const rel = getRelationInfo(apiLetterCount, currentUser?.isPremium ?? false);
   const revealLevel = Math.max(1, Math.min(3, rel.level)) as RevealLevel;
 
-  const hasUnlockedPhoto = !!match.photoUnlocked && revealLevel >= 3 && !!match.photoUrl;
+  const hasUnlockedPhoto = (rel.level >= 3) && !!match.photoUrl;
   const introText = useMemo(() => {
     const bio = partner?.bio?.trim();
     if (!bio) return '';
@@ -135,8 +135,8 @@ export default function MatchProfileScreen() {
                   {rel.progressText ? <Text style={styles.levelProgress}>{rel.progressText}</Text> : null}
                 </View>
               </View>
-              {!hasUnlockedPhoto && (
-                <Text style={styles.photoHint}>🔒 Révélé après 10 lettres chacun</Text>
+              {!hasUnlockedPhoto && rel.progressText && (
+                <Text style={styles.photoHint}>🔒 {rel.progressText}</Text>
               )}
             </View>
           </View>

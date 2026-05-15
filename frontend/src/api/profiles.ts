@@ -36,13 +36,14 @@ export interface PublicPhotoDto {
   url: string;
   position: number;
   isPrimary: boolean;
+  variant?: 'blurred' | 'medium' | 'original';
 }
 
 export interface PhotoUnlockDto {
-  unlocked: boolean;
-  threshold: number;
-  myCount: number;
-  otherCount: number;
+  level: 0 | 1 | 2 | 3;
+  totalLetters: number;
+  nextLevelAt: number | null;
+  progressPercent: number;
 }
 
 export interface PublicProfileResponse {

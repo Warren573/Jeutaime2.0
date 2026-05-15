@@ -213,8 +213,8 @@ export default function ProfileDetailScreen() {
   const photos = isOwnProfile ? ownPhotos : publicPhotos;
 
   const firstPhoto = photos.find((photo: any) => !photo.isPrivate)?.url ?? photos[0]?.url;
-  const photoUnlocked = isOwnProfile || Boolean(profileData?.photoUnlock?.unlocked);
-  const shouldShowPhoto = photoUnlocked && Boolean(firstPhoto);
+  const photoLevel = isOwnProfile ? 3 : (profileData?.photoUnlock?.level ?? 0);
+  const shouldShowPhoto = photoLevel >= 3 && Boolean(firstPhoto);
 
   const imageHeaders = authToken ? { Authorization: `Bearer ${authToken}` } : {};
 
