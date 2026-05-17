@@ -155,3 +155,17 @@ export async function acceptMatch(matchId: string): Promise<MatchDTO> {
   }) as { data: MatchDTO };
   return res.data;
 }
+
+export async function breakMatch(matchId: string): Promise<MatchDTO> {
+  const res = await apiFetch(`/matches/${matchId}`, {
+    method: "DELETE",
+  }) as { data: MatchDTO };
+  return res.data;
+}
+
+export async function blockMatch(matchId: string): Promise<MatchDTO> {
+  const res = await apiFetch(`/matches/${matchId}/block`, {
+    method: "POST",
+  }) as { data: MatchDTO };
+  return res.data;
+}

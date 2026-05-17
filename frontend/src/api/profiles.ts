@@ -191,3 +191,12 @@ export async function saveShowPhotoByDefault(value: boolean): Promise<void> {
     body: JSON.stringify({ showPhotoByDefault: value }),
   });
 }
+
+export type ReportReason = 'HARASSMENT' | 'SPAM' | 'FAKE' | 'INAPPROPRIATE_CONTENT' | 'MINOR' | 'OTHER';
+
+export async function reportUser(targetId: string, reason: ReportReason, details?: string): Promise<void> {
+  await apiFetch('/reports', {
+    method: 'POST',
+    body: JSON.stringify({ targetId, reason, details }),
+  });
+}
