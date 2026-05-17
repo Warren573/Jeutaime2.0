@@ -63,3 +63,11 @@ export async function handleGhostRelance(req: AuthedRequest, res: Response) {
   );
   res.status(201).json({ data: result });
 }
+
+export async function handleBlock(req: AuthedRequest, res: Response) {
+  const match = await svc.blockMatch(
+    req.params["id"] as string,
+    req.user.userId,
+  );
+  res.json({ data: match });
+}

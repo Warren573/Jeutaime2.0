@@ -505,3 +505,54 @@ export async function ghostRelance(matchId: string, userId: string, dto: GhostRe
     match: await enrichMatch(updatedMatch as never, userId),
   };
 }
+
+// ============================================================
+// blockMatch — bloquer un utilisateur et son match
+// ============================================================
+
+export async function blockMatch(matchId: string, userId: string) {
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { id: true, userAId: true, userBId: true, status: true },
+  });
+  if (!match) throw new NotFoundError("Match");
+
+  await assertParticipant(match, userId);
+
+  const otherUserId = match.userAId === userId ? match.userBId : match.userAId;
+
+  // Vérifier si un blocage existe déjà
+  const existingBlock = await prisma.block.findFirst({
+    where: {
+      OR: [
+        { fromId: userId, toId: otherUserId },
+        { fromId: otherUserId, toId: userId },
+      ],
+    },
+  });
+  if (existingBlock) {
+    throw new ConflictError("Un blocage existe déjà entre ces utilisateurs");
+  }
+
+  // Transaction : créer le blocage + mettre à jour le match
+  const result = await prisma.$transaction(async (tx) => {
+    // Créer le bloc (unidirectionnel : userId bloque otherUserId)
+    await tx.block.create({
+      data: {
+        fromId: userId,
+        toId: otherUserId,
+      },
+    });
+
+    // Marquer le match comme BLOCKED
+    const updatedMatch = await tx.match.update({
+      where: { id: matchId },
+      data: { status: MatchStatus.BLOCKED },
+      select: matchSelect,
+    });
+
+    return updatedMatch;
+  });
+
+  return result;
+}

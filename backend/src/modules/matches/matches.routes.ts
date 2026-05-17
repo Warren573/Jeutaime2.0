@@ -47,6 +47,9 @@ router.post("/:id/decline", wrap(matchCtrl.handleDecline));
 // DELETE /api/matches/:id — Rompre
 router.delete("/:id", wrap(matchCtrl.handleBreak));
 
+// POST /api/matches/:id/block — Bloquer
+router.post("/:id/block", wrap(matchCtrl.handleBlock));
+
 // POST /api/matches/:id/ghost-relance — Relance anti-ghosting
 router.post(
   "/:id/ghost-relance",
