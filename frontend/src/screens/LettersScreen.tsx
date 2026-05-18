@@ -509,6 +509,7 @@ export default function LettersScreen() {
   const [envAnimSender, setEnvAnimSender] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isActioning, setIsActioning] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason>('OTHER');
   const [reportDetails, setReportDetails] = useState('');
@@ -996,7 +997,12 @@ export default function LettersScreen() {
               </Text>
               <Text style={styles.modalTitleHint}>voir le profil ↗</Text>
             </TouchableOpacity>
-            <View style={{ width: 60 }} />
+            <TouchableOpacity
+              style={styles.menuBtn}
+              onPress={() => setShowActionsMenu(true)}
+            >
+              <Text style={styles.menuBtnText}>⋯</Text>
+            </TouchableOpacity>
           </View>
 
           {selectedMatch && (() => {
@@ -1091,29 +1097,6 @@ export default function LettersScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.securityActionsBar}>
-            <TouchableOpacity
-              style={[styles.securityBtn, styles.securityBtnBreak]}
-              onPress={handleBreakMatch}
-              disabled={isActioning}
-            >
-              <Text style={styles.securityBtnText}>Rompre</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.securityBtn, styles.securityBtnBlock]}
-              onPress={handleBlockUser}
-              disabled={isActioning}
-            >
-              <Text style={styles.securityBtnText}>Bloquer</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.securityBtn, styles.securityBtnReport]}
-              onPress={() => setShowReportModal(true)}
-              disabled={isActioning}
-            >
-              <Text style={styles.securityBtnText}>Signaler</Text>
-            </TouchableOpacity>
-          </View>
 
           {envAnimVisible && (
             <View style={styles.envAnimOverlay}>
@@ -1121,6 +1104,76 @@ export default function LettersScreen() {
             </View>
           )}
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Actions Menu (Bottom Sheet) ─────────────────────────────────────── */}
+      <Modal visible={showActionsMenu} transparent animationType="slide" onRequestClose={() => setShowActionsMenu(false)}>
+        <View style={styles.actionsMenuOverlay}>
+          <View style={styles.actionsMenuBox}>
+            <View style={styles.actionsMenuHandle} />
+
+            <TouchableOpacity
+              style={styles.actionsMenuItem}
+              onPress={() => {
+                setShowActionsMenu(false);
+                if (selectedMatch) {
+                  const otherId = getOtherUserId(selectedMatch);
+                  router.push({ pathname: '/profile/[id]', params: { id: otherId } });
+                }
+              }}
+            >
+              <Text style={styles.actionsMenuIcon}>👁️</Text>
+              <Text style={styles.actionsMenuLabel}>Voir le profil</Text>
+            </TouchableOpacity>
+
+            {selectedMatch?.status === 'active' && (
+              <>
+                <TouchableOpacity
+                  style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
+                  onPress={() => {
+                    setShowActionsMenu(false);
+                    handleBreakMatch();
+                  }}
+                  disabled={isActioning}
+                >
+                  <Text style={styles.actionsMenuIcon}>🚪</Text>
+                  <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Rompre l'échange</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
+                  onPress={() => {
+                    setShowActionsMenu(false);
+                    handleBlockUser();
+                  }}
+                  disabled={isActioning}
+                >
+                  <Text style={styles.actionsMenuIcon}>🚫</Text>
+                  <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Bloquer</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
+                  onPress={() => {
+                    setShowActionsMenu(false);
+                    setShowReportModal(true);
+                  }}
+                  disabled={isActioning}
+                >
+                  <Text style={styles.actionsMenuIcon}>⚠️</Text>
+                  <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Signaler</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            <TouchableOpacity
+              style={styles.actionsMenuCancel}
+              onPress={() => setShowActionsMenu(false)}
+            >
+              <Text style={styles.actionsMenuCancelText}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
       {/* ── Report Modal ─────────────────────────────────────── */}
@@ -1633,29 +1686,79 @@ const styles = StyleSheet.create({
   sendBtnText:     { fontSize: 18, color: '#FFF' },
   sendBtnDisabled: { opacity: 0.4 },
 
-  securityActionsBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E8D9C6',
-    backgroundColor: '#FFF8E7',
-    gap: 8,
-  },
-  securityBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 6,
+  menuBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 36,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  securityBtnBreak: { backgroundColor: '#FFE5E5' },
-  securityBtnBlock: { backgroundColor: '#FFE5E5' },
-  securityBtnReport: { backgroundColor: '#FFF3CD' },
-  securityBtnText: { fontSize: 11, fontWeight: '600', color: '#5A3A1A' },
+  menuBtnText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFF8E7',
+  },
+
+  actionsMenuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  actionsMenuBox: {
+    backgroundColor: '#FEFAF0',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 28,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  actionsMenuHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: '#D4B896',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  actionsMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: '#F5EFDA',
+    gap: 12,
+  },
+  actionsMenuItemDanger: {
+    backgroundColor: '#FFE5E5',
+  },
+  actionsMenuIcon: {
+    fontSize: 20,
+  },
+  actionsMenuLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2C1A0E',
+    flex: 1,
+  },
+  actionsMenuLabelDanger: {
+    color: '#9C2F45',
+  },
+  actionsMenuCancel: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginTop: 8,
+    backgroundColor: '#E8D9C6',
+    alignItems: 'center',
+  },
+  actionsMenuCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#5A3A1A',
+  },
   btnDisabled: { opacity: 0.5 },
 
   reportModalOverlay: {
