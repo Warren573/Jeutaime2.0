@@ -18,8 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Link, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
-import { acceptMatch, breakMatch, blockMatch } from '../api/matches';
-import { reportUser, type ReportReason } from '../api/profiles';
+import { acceptMatch } from '../api/matches';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
 import { Avatar } from '../avatar/png/Avatar';
@@ -508,10 +507,6 @@ export default function LettersScreen() {
   const [envAnimVisible, setEnvAnimVisible] = useState(false);
   const [envAnimSender, setEnvAnimSender] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [isActioning, setIsActioning] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [reportReason, setReportReason] = useState<ReportReason>('OTHER');
-  const [reportDetails, setReportDetails] = useState('');
   const envAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -686,81 +681,6 @@ export default function LettersScreen() {
     setJournalTitle('');
     setJournalContent('');
     setShowJournalModal(false);
-  };
-
-  const handleBreakMatch = async () => {
-    if (!selectedMatch) return;
-    Alert.alert(
-      'Rompre cette relation ?',
-      'Vous ne pourrez plus vous écrire. Cette action ne peut pas être annulée.',
-      [
-        { text: 'Annuler', onPress: () => {}, style: 'cancel' },
-        {
-          text: 'Confirmer',
-          onPress: async () => {
-            setIsActioning(true);
-            try {
-              await breakMatch(selectedMatch.id);
-              await loadMatches();
-              setShowCompose(false);
-              setSelectedMatch(null);
-              Alert.alert('Relation rompue', 'Le match a été terminé.');
-            } catch (err: any) {
-              Alert.alert('Erreur', err?.message ?? 'Impossible de rompre le match.');
-            } finally {
-              setIsActioning(false);
-            }
-          },
-          style: 'destructive',
-        },
-      ],
-    );
-  };
-
-  const handleBlockUser = async () => {
-    if (!selectedMatch) return;
-    Alert.alert(
-      'Bloquer cet utilisateur ?',
-      'Vous ne pourrez plus interagir. Le match sera terminé.',
-      [
-        { text: 'Annuler', onPress: () => {}, style: 'cancel' },
-        {
-          text: 'Bloquer',
-          onPress: async () => {
-            setIsActioning(true);
-            try {
-              await blockMatch(selectedMatch.id);
-              await loadMatches();
-              setShowCompose(false);
-              setSelectedMatch(null);
-              Alert.alert('Utilisateur bloqué', "Vous ne verrez plus ses messages.");
-            } catch (err: any) {
-              Alert.alert('Erreur', err?.message ?? 'Impossible de bloquer cet utilisateur.');
-            } finally {
-              setIsActioning(false);
-            }
-          },
-          style: 'destructive',
-        },
-      ],
-    );
-  };
-
-  const handleReportSubmit = async () => {
-    if (!selectedMatch) return;
-    setIsActioning(true);
-    try {
-      const otherUserId = getOtherUserId(selectedMatch);
-      await reportUser(otherUserId, reportReason, reportDetails || undefined);
-      setShowReportModal(false);
-      setReportReason('OTHER');
-      setReportDetails('');
-      Alert.alert('Signalement envoyé', 'Merci de votre aide pour maintenir JeuTaime sûr.');
-    } catch (err: any) {
-      Alert.alert('Erreur', err?.message ?? 'Impossible d\'envoyer le signalement.');
-    } finally {
-      setIsActioning(false);
-    }
   };
 
   const formatTime = (ts: number) => {
@@ -1091,30 +1011,6 @@ export default function LettersScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnBreak]}
-              onPress={handleBreakMatch}
-              disabled={isActioning}
-            >
-              <Text style={styles.actionBtnText}>🚪 Rompre</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnBlock]}
-              onPress={handleBlockUser}
-              disabled={isActioning}
-            >
-              <Text style={styles.actionBtnText}>🚫 Bloquer</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnReport]}
-              onPress={() => setShowReportModal(true)}
-              disabled={isActioning}
-            >
-              <Text style={styles.actionBtnText}>⚠️ Signaler</Text>
-            </TouchableOpacity>
-          </View>
-
           {envAnimVisible && (
             <View style={styles.envAnimOverlay}>
               <PremiumLetterAnimation senderName={envAnimSender} />
@@ -1345,70 +1241,6 @@ export default function LettersScreen() {
               <Text style={styles.saveJournalText}>💾 Sauvegarder</Text>
             </TouchableOpacity>
           </KeyboardAvoidingView>
-        </View>
-      </Modal>
-
-      {/* ── Report Modal ─────────────────────────────────────── */}
-      <Modal visible={showReportModal} transparent animationType="fade">
-        <View style={styles.reportModalOverlay}>
-          <View style={styles.reportModalBox}>
-            <View style={styles.reportModalHeader}>
-              <Text style={styles.reportModalTitle}>⚠️ Signaler un utilisateur</Text>
-              <TouchableOpacity onPress={() => setShowReportModal(false)}>
-                <Text style={styles.closeX}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.reportModalLabel}>Raison du signalement</Text>
-            <View style={styles.reasonsContainer}>
-              {(['HARASSMENT', 'SPAM', 'FAKE', 'INAPPROPRIATE_CONTENT', 'MINOR', 'OTHER'] as ReportReason[]).map(reason => (
-                <TouchableOpacity
-                  key={reason}
-                  style={[styles.reasonBtn, reportReason === reason && styles.reasonBtnActive]}
-                  onPress={() => setReportReason(reason)}
-                >
-                  <Text style={[styles.reasonBtnText, reportReason === reason && styles.reasonBtnTextActive]}>
-                    {reason === 'HARASSMENT' && '😤 Harcèlement'}
-                    {reason === 'SPAM' && '🔔 Spam'}
-                    {reason === 'FAKE' && '🤥 Fake/Faux profil'}
-                    {reason === 'INAPPROPRIATE_CONTENT' && '🚫 Contenu inapproprié'}
-                    {reason === 'MINOR' && '👶 Mineur'}
-                    {reason === 'OTHER' && '❓ Autre'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.reportModalLabel}>Détails (optionnel)</Text>
-            <TextInput
-              style={styles.reportDetailsInput}
-              placeholder="Décrivez le problème..."
-              placeholderTextColor="#8B6F47"
-              value={reportDetails}
-              onChangeText={setReportDetails}
-              multiline
-              numberOfLines={4}
-            />
-
-            <View style={styles.reportModalButtons}>
-              <TouchableOpacity
-                style={[styles.reportCancelBtn, isActioning && styles.btnDisabled]}
-                onPress={() => setShowReportModal(false)}
-                disabled={isActioning}
-              >
-                <Text style={styles.reportCancelBtnText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.reportSubmitBtn, isActioning && styles.btnDisabled]}
-                onPress={handleReportSubmit}
-                disabled={isActioning}
-              >
-                <Text style={styles.reportSubmitBtnText}>
-                  {isActioning ? 'Envoi...' : 'Envoyer'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
         </View>
       </Modal>
     </View>
@@ -1712,105 +1544,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   saveJournalText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
-
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E8D9C6',
-    backgroundColor: '#FEFAF0',
-  },
-  actionBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    minWidth: 70,
-    alignItems: 'center',
-  },
-  actionBtnBreak: { backgroundColor: '#FFE5E5' },
-  actionBtnBlock: { backgroundColor: '#FFE5E5' },
-  actionBtnReport: { backgroundColor: '#FFF3CD' },
-  actionBtnText: { fontSize: 11, fontWeight: '600', color: '#5A3A1A' },
-  btnDisabled: { opacity: 0.5 },
-
-  reportModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  reportModalBox: {
-    backgroundColor: '#FEFAF0',
-    borderRadius: 16,
-    padding: 20,
-    width: '100%',
-    maxWidth: 400,
-  },
-  reportModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  reportModalTitle: { fontSize: 18, fontWeight: '700', color: '#2C1A0E' },
-  reportModalLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3A2818',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  reasonsContainer: {
-    gap: 8,
-  },
-  reasonBtn: {
-    borderWidth: 1,
-    borderColor: '#D4B896',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-  },
-  reasonBtnActive: {
-    backgroundColor: '#FFE5E5',
-    borderColor: '#9C2F45',
-  },
-  reasonBtnText: { fontSize: 13, color: '#5A3A1A', fontWeight: '500' },
-  reasonBtnTextActive: { color: '#9C2F45', fontWeight: '700' },
-  reportDetailsInput: {
-    borderWidth: 1,
-    borderColor: '#D4B896',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 13,
-    color: '#2C1A0E',
-    marginTop: 12,
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  reportModalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-  },
-  reportCancelBtn: {
-    flex: 1,
-    backgroundColor: '#E8D9C6',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  reportCancelBtnText: { color: '#5A3A1A', fontWeight: '600', fontSize: 14 },
-  reportSubmitBtn: {
-    flex: 1,
-    backgroundColor: '#9C2F45',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  reportSubmitBtnText: { color: '#FFF', fontWeight: '600', fontSize: 14 },
 });
 
 // ── Styles du jeu des 3 questions ────────────────────────────────
