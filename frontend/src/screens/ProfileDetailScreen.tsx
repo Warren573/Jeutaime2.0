@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,9 +17,12 @@ import { API_URL } from '../api/client';
 import {
   getMyPhotos,
   getPublicProfile,
+  reportUser,
   type MyPhotoDto,
   type PublicProfileResponse,
+  type ReportReason,
 } from '../api/profiles';
+import { blockMatch } from '../api/matches';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR, type AvatarConfig } from '../avatar/png/defaults';
 import { useStore } from '../store/useStore';
@@ -107,17 +111,17 @@ const PHYSIQUE_LABEL: Record<string, string> = {
   mysterieux: 'Musclé•e',
 };
 
-function childrenLabel(hasChildren?: string | null, wantsChildren?: string | null): string {
+function childrenLabel(hasChildren?: string | null | boolean, wantsChildren?: string | null | boolean): string {
   const parts: string[] = [];
 
   if (hasChildren) {
     const value = String(hasChildren).trim();
-    if (value) parts.push(value);
+    if (value && value !== 'false') parts.push(value);
   }
 
   if (wantsChildren) {
     const value = String(wantsChildren).trim();
-    if (value) parts.push(value);
+    if (value && value !== 'false') parts.push(value);
   }
 
   return parts.join(' · ');
@@ -137,6 +141,10 @@ export default function ProfileDetailScreen() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isActioning, setIsActioning] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState<ReportReason>('OTHER');
+  const [reportDetails, setReportDetails] = useState('');
 
   const isOwnProfile = !!profileId && currentUser?.id === profileId;
 
@@ -163,7 +171,7 @@ export default function ProfileDetailScreen() {
         setProfileData(publicProfile);
 
         if (isOwnProfile) {
-          const photos = await getMyPhotos(profileId).catch(() => []);
+          const photos = await getMyPhotos().catch(() => []);
           if (mounted) setOwnPhotos(photos);
         }
       } catch (e) {
@@ -185,6 +193,26 @@ export default function ProfileDetailScreen() {
 
   const age = useMemo(() => calcAge(profile?.birthDate), [profile?.birthDate]);
 
+  const handleReportProfile = async () => {
+    if (!profileId || isOwnProfile) return;
+
+    setIsActioning(true);
+    try {
+      await reportUser(profileId, reportReason, reportDetails || undefined);
+      setShowReportModal(false);
+      setReportReason('OTHER');
+      setReportDetails('');
+      Alert.alert('Succès', 'Merci pour votre signalement. Notre équipe l\'examinera.');
+    } catch (e) {
+      Alert.alert(
+        'Erreur',
+        e instanceof Error ? e.message : 'Impossible de signaler cet utilisateur'
+      );
+    } finally {
+      setIsActioning(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -196,7 +224,12 @@ export default function ProfileDetailScreen() {
   if (error || !profile) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <TopBar title="Profil" onBack={() => router.back()} />
+        <TopBar
+          title="Profil"
+          onBack={() => router.back()}
+          onReport={() => {}}
+          isOwnProfile={false}
+        />
         <View style={styles.center}>
           <Text style={styles.errorText}>{error ?? 'Profil introuvable'}</Text>
         </View>
@@ -249,7 +282,12 @@ export default function ProfileDetailScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <TopBar title={profile.pseudo ?? 'Profil'} onBack={() => router.back()} />
+      <TopBar
+        title={profile.pseudo ?? 'Profil'}
+        onBack={() => router.back()}
+        onReport={() => !isOwnProfile && setShowReportModal(true)}
+        isOwnProfile={isOwnProfile}
+      />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.page}>
@@ -268,10 +306,11 @@ export default function ProfileDetailScreen() {
 
               {shouldShowPhoto ? (
                 <Image
-                  source={{
-                    uri: makePhotoUrl(firstPhoto),
-                    headers: imageHeaders,
-                  }}
+                  source={
+                    authToken
+                      ? { uri: makePhotoUrl(firstPhoto), headers: { Authorization: `Bearer ${authToken}` } }
+                      : { uri: makePhotoUrl(firstPhoto) }
+                  }
                   style={styles.photo}
                   contentFit="cover"
                   cachePolicy="none"
@@ -403,11 +442,79 @@ export default function ProfileDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {showReportModal && !isOwnProfile && (
+        <View style={styles.reportModalOverlay}>
+          <View style={styles.reportModal}>
+            <Text style={styles.reportModalTitle}>Signaler ce profil</Text>
+
+            <Text style={styles.reportModalLabel}>Raison du signalement :</Text>
+            {(['HARASSMENT', 'SPAM', 'FAKE', 'INAPPROPRIATE_CONTENT', 'MINOR', 'OTHER'] as ReportReason[]).map((reason) => (
+              <TouchableOpacity
+                key={reason}
+                style={[
+                  styles.reasonOption,
+                  reportReason === reason && styles.reasonOptionSelected,
+                ]}
+                onPress={() => setReportReason(reason)}
+              >
+                <Text style={styles.reasonText}>
+                  {reason === 'HARASSMENT' && '😠 Harcèlement'}
+                  {reason === 'SPAM' && '📧 Spam'}
+                  {reason === 'FAKE' && '👤 Faux profil'}
+                  {reason === 'INAPPROPRIATE_CONTENT' && '🚫 Contenu inapproprié'}
+                  {reason === 'MINOR' && '👶 Mineur'}
+                  {reason === 'OTHER' && '❓ Autre'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            <Text style={styles.reportModalLabel}>Détails (optionnel) :</Text>
+            <Text style={styles.reportDetailsInput}>
+              {reportDetails}
+              {reportDetails.length < 2000 && <Text style={styles.cursor}>|</Text>}
+            </Text>
+
+            <View style={styles.reportModalButtons}>
+              <TouchableOpacity
+                style={styles.reportCancelBtn}
+                onPress={() => {
+                  setShowReportModal(false);
+                  setReportReason('OTHER');
+                  setReportDetails('');
+                }}
+                disabled={isActioning}
+              >
+                <Text style={styles.reportCancelBtnText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.reportSubmitBtn, isActioning && styles.reportSubmitBtnDisabled]}
+                onPress={handleReportProfile}
+                disabled={isActioning}
+              >
+                <Text style={styles.reportSubmitBtnText}>
+                  {isActioning ? '...' : 'Signaler'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
-function TopBar({ title, onBack }: { title: string; onBack: () => void }) {
+function TopBar({
+  title,
+  onBack,
+  onReport,
+  isOwnProfile,
+}: {
+  title: string;
+  onBack: () => void;
+  onReport: () => void;
+  isOwnProfile: boolean;
+}) {
   return (
     <View style={styles.navBar}>
       <TouchableOpacity onPress={onBack}>
@@ -416,7 +523,13 @@ function TopBar({ title, onBack }: { title: string; onBack: () => void }) {
       <Text style={styles.navTitle} numberOfLines={1}>
         {title}
       </Text>
-      <View style={{ width: 70 }} />
+      {!isOwnProfile ? (
+        <TouchableOpacity onPress={onReport} style={styles.reportBtn}>
+          <Text style={styles.reportBtnText}>⚠️</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={{ width: 40 }} />
+      )}
     </View>
   );
 }
@@ -788,5 +901,142 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '7deg' }],
     zIndex: 10,
     opacity: 0.9,
+  },
+
+  reportBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+
+  reportBtnText: {
+    fontSize: 20,
+  },
+
+  reportModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+
+  reportModal: {
+    backgroundColor: BG,
+    borderRadius: 20,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+    borderWidth: 2,
+    borderColor: BORDER,
+  },
+
+  reportModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: INK,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+
+  reportModalLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: INK,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+
+  reasonOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#DBC8B0',
+    marginBottom: 8,
+    backgroundColor: '#F8F2E8',
+  },
+
+  reasonOptionSelected: {
+    backgroundColor: '#F0E6CC',
+    borderColor: '#9C7A4D',
+    borderWidth: 2,
+  },
+
+  reasonText: {
+    fontSize: 14,
+    color: INK,
+    fontWeight: '600',
+  },
+
+  reportDetailsInput: {
+    fontSize: 14,
+    color: INK,
+    backgroundColor: '#F8F2E8',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#DBC8B0',
+    padding: 12,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+    fontFamily: 'System',
+  },
+
+  cursor: {
+    color: MUTED,
+    fontSize: 14,
+  },
+
+  reportModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  reportCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#E8D5BC',
+    borderWidth: 1,
+    borderColor: '#D4B5A0',
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  reportCancelBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: INK,
+  },
+
+  reportSubmitBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#9C7A4D',
+    borderWidth: 1,
+    borderColor: '#7A5838',
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  reportSubmitBtnDisabled: {
+    opacity: 0.6,
+  },
+
+  reportSubmitBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
