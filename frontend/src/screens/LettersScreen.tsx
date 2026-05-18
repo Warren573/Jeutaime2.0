@@ -18,7 +18,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Link, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
-import { acceptMatch } from '../api/matches';
+import { acceptMatch, breakMatch, blockMatch } from '../api/matches';
+import { reportUser, type ReportReason } from '../api/profiles';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
 import { Avatar } from '../avatar/png/Avatar';
@@ -507,6 +508,11 @@ export default function LettersScreen() {
   const [envAnimVisible, setEnvAnimVisible] = useState(false);
   const [envAnimSender, setEnvAnimSender] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isActioning, setIsActioning] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState<ReportReason>('OTHER');
+  const [reportDetails, setReportDetails] = useState('');
   const envAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -681,6 +687,81 @@ export default function LettersScreen() {
     setJournalTitle('');
     setJournalContent('');
     setShowJournalModal(false);
+  };
+
+  const handleBreakMatch = async () => {
+    if (!selectedMatch) return;
+    Alert.alert(
+      'Rompre cette relation ?',
+      'Vous ne pourrez plus vous écrire. Cette action ne peut pas être annulée.',
+      [
+        { text: 'Annuler', onPress: () => {}, style: 'cancel' },
+        {
+          text: 'Confirmer',
+          onPress: async () => {
+            setIsActioning(true);
+            try {
+              await breakMatch(selectedMatch.id);
+              await loadMatches();
+              setShowCompose(false);
+              setSelectedMatch(null);
+              Alert.alert('Relation rompue', 'Le match a été terminé.');
+            } catch (err: any) {
+              Alert.alert('Erreur', err?.message ?? 'Impossible de rompre le match.');
+            } finally {
+              setIsActioning(false);
+            }
+          },
+          style: 'destructive',
+        },
+      ],
+    );
+  };
+
+  const handleBlockUser = async () => {
+    if (!selectedMatch) return;
+    Alert.alert(
+      'Bloquer cet utilisateur ?',
+      'Vous ne pourrez plus interagir. Le match sera terminé.',
+      [
+        { text: 'Annuler', onPress: () => {}, style: 'cancel' },
+        {
+          text: 'Bloquer',
+          onPress: async () => {
+            setIsActioning(true);
+            try {
+              await blockMatch(selectedMatch.id);
+              await loadMatches();
+              setShowCompose(false);
+              setSelectedMatch(null);
+              Alert.alert('Utilisateur bloqué', "Vous ne verrez plus ses messages.");
+            } catch (err: any) {
+              Alert.alert('Erreur', err?.message ?? 'Impossible de bloquer cet utilisateur.');
+            } finally {
+              setIsActioning(false);
+            }
+          },
+          style: 'destructive',
+        },
+      ],
+    );
+  };
+
+  const handleReportSubmit = async () => {
+    if (!selectedMatch) return;
+    setIsActioning(true);
+    try {
+      const otherUserId = selectedMatch.userAId === (currentUser?.id ?? 'me') ? selectedMatch.userBId : selectedMatch.userAId;
+      await reportUser(otherUserId, reportReason, reportDetails || undefined);
+      setShowReportModal(false);
+      setReportReason('OTHER');
+      setReportDetails('');
+      Alert.alert('Signalement envoyé', 'Merci de votre aide pour maintenir JeuTaime sûr.');
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message ?? 'Impossible d\'envoyer le signalement.');
+    } finally {
+      setIsActioning(false);
+    }
   };
 
   const formatTime = (ts: number) => {
@@ -916,7 +997,12 @@ export default function LettersScreen() {
               </Text>
               <Text style={styles.modalTitleHint}>voir le profil ↗</Text>
             </TouchableOpacity>
-            <View style={{ width: 60 }} />
+            <TouchableOpacity
+              style={styles.menuBtn}
+              onPress={() => setShowActionsMenu(true)}
+            >
+              <Text style={styles.menuBtnText}>⋯</Text>
+            </TouchableOpacity>
           </View>
 
           {selectedMatch && (() => {
@@ -1011,12 +1097,147 @@ export default function LettersScreen() {
             </TouchableOpacity>
           </View>
 
+
           {envAnimVisible && (
             <View style={styles.envAnimOverlay}>
               <PremiumLetterAnimation senderName={envAnimSender} />
             </View>
           )}
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Actions Menu (Bottom Sheet) ─────────────────────────────────────── */}
+      <Modal visible={showActionsMenu} transparent animationType="slide" onRequestClose={() => setShowActionsMenu(false)}>
+        <View style={styles.actionsMenuOverlay}>
+          <View style={styles.actionsMenuBox}>
+            <View style={styles.actionsMenuHandle} />
+
+            <TouchableOpacity
+              style={styles.actionsMenuItem}
+              onPress={() => {
+                setShowActionsMenu(false);
+                if (selectedMatch) {
+                  const otherId = getOtherUserId(selectedMatch);
+                  router.push({ pathname: '/profile/[id]', params: { id: otherId } });
+                }
+              }}
+            >
+              <Text style={styles.actionsMenuIcon}>👁️</Text>
+              <Text style={styles.actionsMenuLabel}>Voir le profil</Text>
+            </TouchableOpacity>
+
+            {selectedMatch?.status === 'active' && (
+              <>
+                <TouchableOpacity
+                  style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
+                  onPress={() => {
+                    setShowActionsMenu(false);
+                    handleBreakMatch();
+                  }}
+                  disabled={isActioning}
+                >
+                  <Text style={styles.actionsMenuIcon}>🚪</Text>
+                  <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Rompre l'échange</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
+                  onPress={() => {
+                    setShowActionsMenu(false);
+                    handleBlockUser();
+                  }}
+                  disabled={isActioning}
+                >
+                  <Text style={styles.actionsMenuIcon}>🚫</Text>
+                  <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Bloquer</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
+                  onPress={() => {
+                    setShowActionsMenu(false);
+                    setShowReportModal(true);
+                  }}
+                  disabled={isActioning}
+                >
+                  <Text style={styles.actionsMenuIcon}>⚠️</Text>
+                  <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Signaler</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            <TouchableOpacity
+              style={styles.actionsMenuCancel}
+              onPress={() => setShowActionsMenu(false)}
+            >
+              <Text style={styles.actionsMenuCancelText}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Report Modal ─────────────────────────────────────── */}
+      <Modal visible={showReportModal} transparent animationType="fade">
+        <View style={styles.reportModalOverlay}>
+          <View style={styles.reportModalBox}>
+            <View style={styles.reportModalHeader}>
+              <Text style={styles.reportModalTitle}>Signaler cet utilisateur</Text>
+              <TouchableOpacity onPress={() => setShowReportModal(false)}>
+                <Text style={styles.closeX}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.reportModalLabel}>Raison</Text>
+            <View style={styles.reasonsContainer}>
+              {(['HARASSMENT', 'SPAM', 'FAKE', 'INAPPROPRIATE_CONTENT', 'MINOR', 'OTHER'] as ReportReason[]).map(reason => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[styles.reasonBtn, reportReason === reason && styles.reasonBtnActive]}
+                  onPress={() => setReportReason(reason)}
+                >
+                  <Text style={[styles.reasonBtnText, reportReason === reason && styles.reasonBtnTextActive]}>
+                    {reason === 'HARASSMENT' && 'Harcèlement'}
+                    {reason === 'SPAM' && 'Spam'}
+                    {reason === 'FAKE' && 'Faux profil'}
+                    {reason === 'INAPPROPRIATE_CONTENT' && 'Contenu inapproprié'}
+                    {reason === 'MINOR' && 'Mineur'}
+                    {reason === 'OTHER' && 'Autre'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.reportModalLabel}>Détails (optionnel)</Text>
+            <TextInput
+              style={styles.reportDetailsInput}
+              placeholder="Décrivez le problème..."
+              placeholderTextColor="#8B6F47"
+              value={reportDetails}
+              onChangeText={setReportDetails}
+              multiline
+              numberOfLines={3}
+            />
+
+            <View style={styles.reportModalButtons}>
+              <TouchableOpacity
+                style={[styles.reportCancelBtn, isActioning && styles.btnDisabled]}
+                onPress={() => setShowReportModal(false)}
+                disabled={isActioning}
+              >
+                <Text style={styles.reportCancelBtnText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.reportSubmitBtn, isActioning && styles.btnDisabled]}
+                onPress={handleReportSubmit}
+                disabled={isActioning}
+              >
+                <Text style={styles.reportSubmitBtnText}>
+                  {isActioning ? 'Envoi...' : 'Envoyer'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
       {/* ── Jeu des 3 questions ─────────────────────────────────── */}
@@ -1464,6 +1685,158 @@ const styles = StyleSheet.create({
   },
   sendBtnText:     { fontSize: 18, color: '#FFF' },
   sendBtnDisabled: { opacity: 0.4 },
+
+  menuBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  menuBtnText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFF8E7',
+  },
+
+  actionsMenuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  actionsMenuBox: {
+    backgroundColor: '#FEFAF0',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 28,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  actionsMenuHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: '#D4B896',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  actionsMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: '#F5EFDA',
+    gap: 12,
+  },
+  actionsMenuItemDanger: {
+    backgroundColor: '#FFE5E5',
+  },
+  actionsMenuIcon: {
+    fontSize: 20,
+  },
+  actionsMenuLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2C1A0E',
+    flex: 1,
+  },
+  actionsMenuLabelDanger: {
+    color: '#9C2F45',
+  },
+  actionsMenuCancel: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginTop: 8,
+    backgroundColor: '#E8D9C6',
+    alignItems: 'center',
+  },
+  actionsMenuCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#5A3A1A',
+  },
+  btnDisabled: { opacity: 0.5 },
+
+  reportModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  reportModalBox: {
+    backgroundColor: '#FEFAF0',
+    borderRadius: 14,
+    padding: 16,
+    width: '100%',
+    maxWidth: 380,
+  },
+  reportModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  reportModalTitle: { fontSize: 16, fontWeight: '700', color: '#2C1A0E' },
+  reportModalLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3A2818',
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  reasonsContainer: {
+    gap: 6,
+  },
+  reasonBtn: {
+    borderWidth: 1,
+    borderColor: '#D4B896',
+    borderRadius: 6,
+    padding: 10,
+    alignItems: 'center',
+  },
+  reasonBtnActive: {
+    backgroundColor: '#FFE5E5',
+    borderColor: '#9C2F45',
+  },
+  reasonBtnText: { fontSize: 12, color: '#5A3A1A', fontWeight: '500' },
+  reasonBtnTextActive: { color: '#9C2F45', fontWeight: '700' },
+  reportDetailsInput: {
+    borderWidth: 1,
+    borderColor: '#D4B896',
+    borderRadius: 6,
+    padding: 10,
+    fontSize: 12,
+    color: '#2C1A0E',
+    marginTop: 8,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  reportModalButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  reportCancelBtn: {
+    flex: 1,
+    backgroundColor: '#E8D9C6',
+    borderRadius: 6,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  reportCancelBtnText: { color: '#5A3A1A', fontWeight: '600', fontSize: 13 },
+  reportSubmitBtn: {
+    flex: 1,
+    backgroundColor: '#9C2F45',
+    borderRadius: 6,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  reportSubmitBtnText: { color: '#FFF', fontWeight: '600', fontSize: 13 },
 
   relationBanner: {
     flexDirection: 'row',

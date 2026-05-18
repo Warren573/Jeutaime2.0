@@ -65,6 +65,19 @@ function isExpiredError(err: unknown): boolean {
   return msg.toLowerCase().includes('expir');
 }
 
+function isInsufficientCoinsError(err: unknown): boolean {
+  const status = (err as any)?.statusCode ?? (err as any)?.status ?? 0;
+  return status === 402;
+}
+
+function getErrorMessage(err: unknown): string {
+  const error = err as any;
+  if (isInsufficientCoinsError(error)) {
+    return `Pièces insuffisantes — il t'en faut ${ENTRY_COST} 🪙`;
+  }
+  return error?.message ?? 'Une erreur est survenue';
+}
+
 export default function CardGame({ onEnd }: Props) {
   const loadWallet = useStore((s) => s.loadWallet);
   const isAuthenticated = useStore((s) => s.isAuthenticated);
@@ -93,7 +106,11 @@ export default function CardGame({ onEnd }: Props) {
       );
       setPhase('playing');
     } catch (err: any) {
-      Alert.alert('Erreur', err?.message ?? 'Impossible de démarrer la partie.');
+      if (isExpiredError(err)) {
+        setPhase('expired');
+      } else {
+        Alert.alert('Erreur', getErrorMessage(err));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -142,7 +159,7 @@ export default function CardGame({ onEnd }: Props) {
       }
     } catch (err: any) {
       if (isExpiredError(err)) { setPhase('expired'); return; }
-      Alert.alert('Erreur', err?.message ?? 'Impossible de révéler cette carte.');
+      Alert.alert('Erreur', getErrorMessage(err));
     } finally {
       setPendingIndex(null);
     }
@@ -173,7 +190,7 @@ export default function CardGame({ onEnd }: Props) {
       onEnd(result.gained > 0, result.gained);
     } catch (err: any) {
       if (isExpiredError(err)) { setPhase('expired'); return; }
-      Alert.alert('Erreur', err?.message ?? 'Impossible d\'encaisser.');
+      Alert.alert('Erreur', getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -195,7 +212,7 @@ export default function CardGame({ onEnd }: Props) {
       onEnd(result.won, result.gained);
     } catch (err: any) {
       if (isExpiredError(err)) { setPhase('expired'); return; }
-      Alert.alert('Erreur', err?.message ?? 'Impossible de parier.');
+      Alert.alert('Erreur', getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
