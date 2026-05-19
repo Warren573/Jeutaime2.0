@@ -739,31 +739,23 @@ export default function LettersScreen() {
 
   const handleBlockUser = async () => {
     if (!selectedMatch) return;
-    Alert.alert(
-      'Bloquer cet utilisateur ?',
-      'Vous ne pourrez plus interagir. Le match sera terminé.',
-      [
-        { text: 'Annuler', onPress: () => {}, style: 'cancel' },
-        {
-          text: 'Bloquer',
-          onPress: async () => {
-            setIsActioning(true);
-            try {
-              await blockMatch(selectedMatch.id);
-              await loadMatches();
-              setShowCompose(false);
-              setSelectedMatch(null);
-              Alert.alert('Utilisateur bloqué', "Vous ne verrez plus ses messages.");
-            } catch (err: any) {
-              Alert.alert('Erreur', err?.message ?? 'Impossible de bloquer cet utilisateur.');
-            } finally {
-              setIsActioning(false);
-            }
-          },
-          style: 'destructive',
-        },
-      ],
-    );
+
+    const confirmed = window.confirm('Bloquer cet utilisateur ? Vous ne pourrez plus interagir. Le match sera terminé.');
+    if (!confirmed) return;
+
+    setIsActioning(true);
+    try {
+      await blockMatch(selectedMatch.id);
+      await loadMatches();
+      setShowCompose(false);
+      setSelectedMatch(null);
+      setShowActionsMenu(false);
+      alert('Utilisateur bloqué ! Vous ne verrez plus ses messages.');
+    } catch (err: any) {
+      alert('Erreur : ' + (err?.message ?? 'Impossible de bloquer cet utilisateur.'));
+    } finally {
+      setIsActioning(false);
+    }
   };
 
   const handleReportSubmit = async () => {
@@ -775,9 +767,10 @@ export default function LettersScreen() {
       setShowReportModal(false);
       setReportReason('OTHER');
       setReportDetails('');
-      Alert.alert('Signalement envoyé', 'Merci de votre aide pour maintenir JeuTaime sûr.');
+      setShowActionsMenu(false);
+      alert('Signalement envoyé ! Merci de votre aide pour maintenir JeuTaime sûr.');
     } catch (err: any) {
-      Alert.alert('Erreur', err?.message ?? 'Impossible d\'envoyer le signalement.');
+      alert('Erreur : ' + (err?.message ?? 'Impossible d\'envoyer le signalement.'));
     } finally {
       setIsActioning(false);
     }
@@ -785,29 +778,21 @@ export default function LettersScreen() {
 
   const handleRelance = async () => {
     if (!selectedMatch) return;
-    Alert.alert(
-      'Redémarrer l\'échange ?',
-      'Les deux joueurs devront répondre à nouveau au jeu des questions pour continuer.',
-      [
-        { text: 'Annuler', onPress: () => {}, style: 'cancel' },
-        {
-          text: 'Redémarrer',
-          onPress: async () => {
-            setIsActioning(true);
-            try {
-              await relanceMatch(selectedMatch.id);
-              await loadMatches();
-              setShowActionsMenu(false);
-              Alert.alert('Échange relancé', 'Vous pouvez recommencer à vous écrire!');
-            } catch (err: any) {
-              Alert.alert('Erreur', err?.message ?? 'Impossible de redémarrer l\'échange.');
-            } finally {
-              setIsActioning(false);
-            }
-          },
-        },
-      ],
-    );
+
+    const confirmed = window.confirm('Redémarrer l\'échange ? Les deux joueurs devront répondre à nouveau au jeu des questions pour continuer.');
+    if (!confirmed) return;
+
+    setIsActioning(true);
+    try {
+      await relanceMatch(selectedMatch.id);
+      await loadMatches();
+      setShowActionsMenu(false);
+      alert('Échange relancé ! Vous pouvez recommencer à vous écrire!');
+    } catch (err: any) {
+      alert('Erreur : ' + (err?.message ?? 'Impossible de redémarrer l\'échange.'));
+    } finally {
+      setIsActioning(false);
+    }
   };
 
   const formatTime = (ts: number) => {
