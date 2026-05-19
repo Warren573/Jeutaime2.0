@@ -717,42 +717,24 @@ export default function LettersScreen() {
   };
 
   const handleBreakMatch = async () => {
-    console.log('[DEBUG] handleBreakMatch called');
-    if (!selectedMatch) {
-      console.log('[DEBUG] selectedMatch is null');
-      return;
+    if (!selectedMatch) return;
+
+    const confirmed = window.confirm('Rompre cette relation ? Vous ne pourrez plus vous écrire. Cette action ne peut pas être annulée.');
+    if (!confirmed) return;
+
+    setIsActioning(true);
+    try {
+      await breakMatch(selectedMatch.id);
+      await loadMatches();
+      setShowCompose(false);
+      setSelectedMatch(null);
+      setShowActionsMenu(false);
+      alert('Relation rompue ! Le match a été terminé.');
+    } catch (err: any) {
+      alert('Erreur : ' + (err?.message ?? 'Impossible de rompre le match.'));
+    } finally {
+      setIsActioning(false);
     }
-    console.log('[DEBUG] selectedMatch:', selectedMatch.id, selectedMatch.status);
-    Alert.alert(
-      'Rompre cette relation ?',
-      'Vous ne pourrez plus vous écrire. Cette action ne peut pas être annulée.',
-      [
-        { text: 'Annuler', onPress: () => {}, style: 'cancel' },
-        {
-          text: 'Confirmer',
-          onPress: async () => {
-            console.log('[DEBUG] Confirmer breakMatch');
-            setIsActioning(true);
-            try {
-              console.log('[DEBUG] Calling breakMatch API with:', selectedMatch.id);
-              const result = await breakMatch(selectedMatch.id);
-              console.log('[DEBUG] breakMatch response:', result);
-              await loadMatches();
-              setShowCompose(false);
-              setSelectedMatch(null);
-              setShowActionsMenu(false);
-              Alert.alert('Relation rompue', 'Le match a été terminé.');
-            } catch (err: any) {
-              console.log('[DEBUG] breakMatch error:', err);
-              Alert.alert('Erreur', err?.message ?? 'Impossible de rompre le match.');
-            } finally {
-              setIsActioning(false);
-            }
-          },
-          style: 'destructive',
-        },
-      ],
-    );
   };
 
   const handleBlockUser = async () => {
@@ -1213,7 +1195,8 @@ export default function LettersScreen() {
                 <TouchableOpacity
                   style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
                   onPress={() => {
-                    alert('🔥 BREAK BUTTON WORKS 🔥');
+                    setShowActionsMenu(false);
+                    handleBreakMatch();
                   }}
                   disabled={isActioning}
                 >
