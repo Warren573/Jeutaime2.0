@@ -113,6 +113,14 @@ const EnvelopeCard = ({
   const isActive = matchStatus === 'ACTIVE';
   const canInteract = isActive && questionsValidated;
 
+  console.log('[DEBUG EnvelopeCard]', {
+    matchStatus,
+    isActive,
+    questionsValidated,
+    canInteract,
+    willDisableButton: !canInteract,
+  });
+
   return (
     <Animated.View
       style={[
@@ -178,7 +186,15 @@ const EnvelopeCard = ({
         ) : (
           <TouchableOpacity
             style={[envStyles.actionLeft, !canInteract && envStyles.actionDisabled]}
-            onPress={canInteract ? onOpen : undefined}
+            onPress={() => {
+              console.log('[DEBUG] Lettres button pressed. canInteract:', canInteract);
+              if (canInteract) {
+                console.log('[DEBUG] Calling onOpen()');
+                onOpen();
+              } else {
+                console.log('[DEBUG] Button disabled - canInteract is false');
+              }
+            }}
             activeOpacity={canInteract ? 0.75 : 1}
           >
             <Text style={[envStyles.actionLeftText, !canInteract && envStyles.actionDisabledText]}>
