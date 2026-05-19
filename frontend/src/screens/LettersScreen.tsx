@@ -990,6 +990,24 @@ export default function LettersScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
+      {/* DEBUG MARKER - PR #77 Build Detection */}
+      <View style={{
+        backgroundColor: '#FF6B6B',
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <Text style={{
+          fontSize: 10,
+          fontWeight: 'bold',
+          color: '#FFF',
+          letterSpacing: 1,
+        }}>
+          DEBUG_BUILD_PR77_ACTIVE ✓
+        </Text>
+      </View>
+
       <View style={styles.header}>
         <Text style={styles.headerKicker}>JEUTAIME</Text>
         <Text style={styles.headerTitle}>Boîte aux lettres</Text>
