@@ -129,6 +129,10 @@ enum ReactionType {
   GRIMACE
 }
 
+enum MemoryType {
+  LETTER_EXCHANGE
+}
+
 // ============================================================
 // USER / AUTH
 // ============================================================
@@ -169,6 +173,7 @@ model User {
   blocksAgainst   Block[]         @relation("BlockTo")
   auditLogs       AuditLog[]
   notifications   Notification[]
+  memories        MatchMemory[]
   reactionsGiven    Reaction[]    @relation("ReactionFrom")
   reactionsReceived Reaction[]    @relation("ReactionTo")
   questionAttempts  MatchQuestionAttempt[] @relation("QuestionAttemptResponder")
@@ -322,6 +327,7 @@ model Match {
 
   letters               Letter[]
   questionAttempts      MatchQuestionAttempt[]
+  memories              MatchMemory[]
 
   @@unique([userAId, userBId])
   @@index([status])
@@ -576,6 +582,35 @@ model Reaction {
 
   @@unique([fromId, toId])
   @@index([toId])
+}
+
+// ============================================================
+// SOUVENIRS — Archivage après rupture volontaire
+// Une relation rompue génère un souvenir pour chaque utilisateur
+// Les relations bloquées ne créent jamais de souvenir
+// ============================================================
+
+model MatchMemory {
+  id              String      @id @default(cuid())
+  matchId         String
+  match           Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type            MemoryType
+  otherUserId     String
+  otherUserName   String
+  letterExcerpt   String?     @db.Text
+  totalLetters    Int         @default(0)
+  relationLevel   String?
+
+  status          MatchStatus
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([matchId])
+  @@unique([matchId, userId])
 }
 
 // ============================================================
