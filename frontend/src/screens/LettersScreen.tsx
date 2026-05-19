@@ -98,8 +98,8 @@ const EnvelopeCard = ({
   }, [unread]);
 
   const previewText = () => {
-    if (matchStatus === 'PENDING') return '⏳ En attente d\'acceptation';
-    if (matchStatus === 'BROKEN' || matchStatus === 'BLOCKED') return '🚫 Match terminé';
+    if (matchStatus?.toUpperCase() === 'PENDING') return '⏳ En attente d\'acceptation';
+    if (matchStatus?.toUpperCase() === 'BROKEN' || matchStatus?.toUpperCase() === 'BLOCKED') return '🚫 Match terminé';
     if (!questionsValidated) return '🎮 Jeu des questions à compléter';
     if (letterCount === 0) return myTurn ? '✍️ Écrivez la première lettre !' : '⏳ En attente de la première lettre...';
     if (unread > 0) return '📨 Nouvelle lettre reçue!';
@@ -112,7 +112,7 @@ const EnvelopeCard = ({
     return myTurn ? (lastLetterAt ? formatTime(lastLetterAt) : '') : 'Envoyé';
   };
 
-  const isActive = matchStatus === 'ACTIVE';
+  const isActive = matchStatus?.toUpperCase() === 'ACTIVE';
   const canInteract = isActive && questionsValidated;
   const canReadLetters = isActive; // Can always read if match is active
 
@@ -180,7 +180,7 @@ const EnvelopeCard = ({
       </View>
 
       <View style={envStyles.actionBar}>
-        {matchStatus === 'PENDING' ? (
+        {matchStatus?.toUpperCase() === 'PENDING' ? (
           isInitiator ? (
             <View style={[envStyles.actionLeft, envStyles.actionDisabled]}>
               <Text style={[envStyles.actionLeftText, envStyles.actionDisabledText]}>⏳ En attente</Text>
@@ -1208,7 +1208,7 @@ export default function LettersScreen() {
               <Text style={styles.actionsMenuLabel}>Voir le profil</Text>
             </TouchableOpacity>
 
-            {selectedMatch?.status === 'ACTIVE' && (
+            {selectedMatch?.status?.toUpperCase() === 'ACTIVE' && (
               <>
                 <TouchableOpacity
                   style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
@@ -1248,7 +1248,7 @@ export default function LettersScreen() {
               </>
             )}
 
-            {selectedMatch?.status === 'BROKEN' && (
+            {selectedMatch?.status?.toUpperCase() === 'BROKEN' && (
               <TouchableOpacity
                 style={styles.actionsMenuItem}
                 onPress={() => {
