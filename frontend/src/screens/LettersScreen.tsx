@@ -73,6 +73,8 @@ const EnvelopeCard = ({
 }: EnvelopeCardProps) => {
   const rel = getRelationInfo(letterCount, isPremium);
 
+  console.log('[BRUTAL_DEBUG]', `matchStatus raw value: "${matchStatus}" (type: ${typeof matchStatus})`);
+
   // Petite animation tremblement quand lettre non lue
   const shakeX = useRef(new Animated.Value(0)).current;
   useEffect(() => {
