@@ -690,7 +690,12 @@ export default function LettersScreen() {
   };
 
   const handleBreakMatch = async () => {
-    if (!selectedMatch) return;
+    console.log('[DEBUG] handleBreakMatch called');
+    if (!selectedMatch) {
+      console.log('[DEBUG] selectedMatch is null');
+      return;
+    }
+    console.log('[DEBUG] selectedMatch:', selectedMatch.id, selectedMatch.status);
     Alert.alert(
       'Rompre cette relation ?',
       'Vous ne pourrez plus vous écrire. Cette action ne peut pas être annulée.',
@@ -699,14 +704,19 @@ export default function LettersScreen() {
         {
           text: 'Confirmer',
           onPress: async () => {
+            console.log('[DEBUG] Confirmer breakMatch');
             setIsActioning(true);
             try {
-              await breakMatch(selectedMatch.id);
+              console.log('[DEBUG] Calling breakMatch API with:', selectedMatch.id);
+              const result = await breakMatch(selectedMatch.id);
+              console.log('[DEBUG] breakMatch response:', result);
               await loadMatches();
               setShowCompose(false);
               setSelectedMatch(null);
+              setShowActionsMenu(false);
               Alert.alert('Relation rompue', 'Le match a été terminé.');
             } catch (err: any) {
+              console.log('[DEBUG] breakMatch error:', err);
               Alert.alert('Erreur', err?.message ?? 'Impossible de rompre le match.');
             } finally {
               setIsActioning(false);

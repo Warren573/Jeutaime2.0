@@ -157,10 +157,17 @@ export async function acceptMatch(matchId: string): Promise<MatchDTO> {
 }
 
 export async function breakMatch(matchId: string): Promise<MatchDTO> {
-  const res = await apiFetch(`/matches/${matchId}`, {
-    method: "DELETE",
-  }) as { data: MatchDTO };
-  return res.data;
+  console.log('[DEBUG] breakMatch API call:', matchId);
+  try {
+    const res = await apiFetch(`/matches/${matchId}`, {
+      method: "DELETE",
+    }) as { data: MatchDTO };
+    console.log('[DEBUG] breakMatch API response:', res);
+    return res.data;
+  } catch (err) {
+    console.log('[DEBUG] breakMatch API error:', err);
+    throw err;
+  }
 }
 
 export async function blockMatch(matchId: string): Promise<MatchDTO> {
