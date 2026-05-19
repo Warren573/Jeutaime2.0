@@ -1001,9 +1001,9 @@ export default function LettersScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
-      {/* DEBUG MARKER - PR #77 Build Detection */}
+      {/* DEBUG MARKER - FORCE REDEPLOY */}
       <View style={{
-        backgroundColor: '#FF6B6B',
+        backgroundColor: '#00FF00',
         paddingVertical: 4,
         paddingHorizontal: 8,
         justifyContent: 'center',
@@ -1012,10 +1012,10 @@ export default function LettersScreen() {
         <Text style={{
           fontSize: 10,
           fontWeight: 'bold',
-          color: '#FFF',
+          color: '#000',
           letterSpacing: 1,
         }}>
-          DEBUG_BUILD_PR77_ACTIVE ✓
+          VERCEL_REDEPLOY_FORCE_GREEN ✓
         </Text>
       </View>
 
