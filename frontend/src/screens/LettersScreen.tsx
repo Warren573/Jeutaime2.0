@@ -44,7 +44,7 @@ interface EnvelopeCardProps {
   letterCountB: number;
   isPremium?: boolean;
   questionsValidated: boolean;
-  matchStatus: 'pending' | 'active' | 'broken' | 'blocked';
+  matchStatus: 'PENDING' | 'ACTIVE' | 'BROKEN' | 'BLOCKED';
   isInitiator: boolean;
   onOpen: () => void;
   onPlayQuestions: () => void | Promise<void>;
@@ -96,8 +96,8 @@ const EnvelopeCard = ({
   }, [unread]);
 
   const previewText = () => {
-    if (matchStatus === 'pending') return '⏳ En attente d\'acceptation';
-    if (matchStatus === 'broken' || matchStatus === 'blocked') return '🚫 Match terminé';
+    if (matchStatus === 'PENDING') return '⏳ En attente d\'acceptation';
+    if (matchStatus === 'BROKEN' || matchStatus === 'BLOCKED') return '🚫 Match terminé';
     if (!questionsValidated) return '🎮 Jeu des questions à compléter';
     if (letterCount === 0) return myTurn ? '✍️ Écrivez la première lettre !' : '⏳ En attente de la première lettre...';
     if (unread > 0) return '📨 Nouvelle lettre reçue!';
@@ -110,7 +110,7 @@ const EnvelopeCard = ({
     return myTurn ? (lastLetterAt ? formatTime(lastLetterAt) : '') : 'Envoyé';
   };
 
-  const isActive = matchStatus === 'active';
+  const isActive = matchStatus === 'ACTIVE';
   const canInteract = isActive && questionsValidated;
 
   return (
@@ -161,7 +161,7 @@ const EnvelopeCard = ({
       </View>
 
       <View style={envStyles.actionBar}>
-        {matchStatus === 'pending' ? (
+        {matchStatus === 'PENDING' ? (
           isInitiator ? (
             <View style={[envStyles.actionLeft, envStyles.actionDisabled]}>
               <Text style={[envStyles.actionLeftText, envStyles.actionDisabledText]}>⏳ En attente</Text>
@@ -690,7 +690,12 @@ export default function LettersScreen() {
   };
 
   const handleBreakMatch = async () => {
-    if (!selectedMatch) return;
+    console.log('[DEBUG] handleBreakMatch called');
+    if (!selectedMatch) {
+      console.log('[DEBUG] selectedMatch is null');
+      return;
+    }
+    console.log('[DEBUG] selectedMatch:', selectedMatch.id, selectedMatch.status);
     Alert.alert(
       'Rompre cette relation ?',
       'Vous ne pourrez plus vous écrire. Cette action ne peut pas être annulée.',
@@ -699,14 +704,19 @@ export default function LettersScreen() {
         {
           text: 'Confirmer',
           onPress: async () => {
+            console.log('[DEBUG] Confirmer breakMatch');
             setIsActioning(true);
             try {
-              await breakMatch(selectedMatch.id);
+              console.log('[DEBUG] Calling breakMatch API with:', selectedMatch.id);
+              const result = await breakMatch(selectedMatch.id);
+              console.log('[DEBUG] breakMatch response:', result);
               await loadMatches();
               setShowCompose(false);
               setSelectedMatch(null);
+              setShowActionsMenu(false);
               Alert.alert('Relation rompue', 'Le match a été terminé.');
             } catch (err: any) {
+              console.log('[DEBUG] breakMatch error:', err);
               Alert.alert('Erreur', err?.message ?? 'Impossible de rompre le match.');
             } finally {
               setIsActioning(false);
@@ -1153,7 +1163,7 @@ export default function LettersScreen() {
               <Text style={styles.actionsMenuLabel}>Voir le profil</Text>
             </TouchableOpacity>
 
-            {selectedMatch?.status === 'active' && (
+            {selectedMatch?.status === 'ACTIVE' && (
               <>
                 <TouchableOpacity
                   style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
@@ -1193,7 +1203,7 @@ export default function LettersScreen() {
               </>
             )}
 
-            {selectedMatch?.status === 'broken' && (
+            {selectedMatch?.status === 'BROKEN' && (
               <TouchableOpacity
                 style={styles.actionsMenuItem}
                 onPress={() => {
