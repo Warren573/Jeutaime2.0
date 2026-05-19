@@ -71,3 +71,11 @@ export async function handleBlock(req: AuthedRequest, res: Response) {
   );
   res.json({ data: match });
 }
+
+export async function handleRelance(req: AuthedRequest, res: Response) {
+  const match = await svc.relanceMatch(
+    req.params["id"] as string,
+    req.user.userId,
+  );
+  res.json({ data: match });
+}

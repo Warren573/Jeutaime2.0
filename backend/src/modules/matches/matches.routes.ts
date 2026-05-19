@@ -50,6 +50,9 @@ router.delete("/:id", wrap(matchCtrl.handleBreak));
 // POST /api/matches/:id/block — Bloquer
 router.post("/:id/block", wrap(matchCtrl.handleBlock));
 
+// POST /api/matches/:id/relance — Redémarrer une relation rompue
+router.post("/:id/relance", wrap(matchCtrl.handleRelance));
+
 // POST /api/matches/:id/ghost-relance — Relance anti-ghosting
 router.post(
   "/:id/ghost-relance",
