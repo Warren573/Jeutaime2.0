@@ -112,13 +112,15 @@ const EnvelopeCard = ({
 
   const isActive = matchStatus === 'ACTIVE';
   const canInteract = isActive && questionsValidated;
+  const canReadLetters = isActive; // Can always read if match is active
 
   console.log('[DEBUG EnvelopeCard]', {
     matchStatus,
     isActive,
     questionsValidated,
     canInteract,
-    willDisableButton: !canInteract,
+    canReadLetters,
+    willDisableButton: !canReadLetters,
   });
 
   return (
@@ -185,19 +187,19 @@ const EnvelopeCard = ({
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[envStyles.actionLeft, !canInteract && envStyles.actionDisabled]}
+            style={[envStyles.actionLeft, !canReadLetters && envStyles.actionDisabled]}
             onPress={() => {
-              console.log('[DEBUG] Lettres button pressed. canInteract:', canInteract);
-              if (canInteract) {
+              console.log('[DEBUG] Lettres button pressed. canReadLetters:', canReadLetters);
+              if (canReadLetters) {
                 console.log('[DEBUG] Calling onOpen()');
                 onOpen();
               } else {
-                console.log('[DEBUG] Button disabled - canInteract is false');
+                console.log('[DEBUG] Button disabled - canReadLetters is false');
               }
             }}
-            activeOpacity={canInteract ? 0.75 : 1}
+            activeOpacity={canReadLetters ? 0.75 : 1}
           >
-            <Text style={[envStyles.actionLeftText, !canInteract && envStyles.actionDisabledText]}>
+            <Text style={[envStyles.actionLeftText, !canReadLetters && envStyles.actionDisabledText]}>
               📬 Lettres
             </Text>
           </TouchableOpacity>
