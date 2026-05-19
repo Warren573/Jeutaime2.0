@@ -1213,8 +1213,12 @@ export default function LettersScreen() {
                 <TouchableOpacity
                   style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
                   onPress={() => {
+                    console.log('[BREAK] Button pressed! selectedMatch:', selectedMatch?.id, 'isActioning:', isActioning);
                     setShowActionsMenu(false);
-                    handleBreakMatch();
+                    setTimeout(() => {
+                      console.log('[BREAK] Calling handleBreakMatch after menu close');
+                      handleBreakMatch();
+                    }, 100);
                   }}
                   disabled={isActioning}
                 >
