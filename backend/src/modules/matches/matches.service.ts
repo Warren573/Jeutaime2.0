@@ -556,3 +556,46 @@ export async function blockMatch(matchId: string, userId: string) {
 
   return result;
 }
+
+// ============================================================
+// relanceMatch — redémarrer une relation rompue (BROKEN → ACTIVE)
+// ============================================================
+
+export async function relanceMatch(matchId: string, userId: string) {
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { id: true, userAId: true, userBId: true, status: true },
+  });
+  if (!match) throw new NotFoundError("Match");
+
+  await assertParticipant(match, userId);
+
+  if (match.status === MatchStatus.BLOCKED) {
+    throw new ForbiddenError(
+      "Tu ne peux pas relancer une relation bloquée. Débloque d'abord cet utilisateur.",
+    );
+  }
+
+  if (match.status !== MatchStatus.BROKEN) {
+    throw new BadRequestError(
+      "Ce match ne peut être relancé que s'il est rompu",
+    );
+  }
+
+  const otherUserId = match.userAId === userId ? match.userBId : match.userAId;
+
+  // Vérifier que pas de blocage bidirectionnel
+  await assertNoBlock(userId, otherUserId);
+
+  // Redémarrer : remise en ACTIVE, réinitialiser questionsValidated
+  const updated = await prisma.match.update({
+    where: { id: matchId },
+    data: {
+      status: MatchStatus.ACTIVE,
+      questionsValidated: false,
+    },
+    select: matchSelect,
+  });
+
+  return enrichMatch(updated as never, userId);
+}

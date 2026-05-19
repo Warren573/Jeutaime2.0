@@ -180,6 +180,22 @@ export async function submitMatchAnswers(
     return { ...a, normalizedQuestionId: questionId };
   });
 
+  // Validation 1: Vérifier qu'exactement 3 réponses distinctes sont soumises
+  const submittedQuestionIds = normalizedAnswers.map((a) => a.normalizedQuestionId);
+  const uniqueQuestionIds = new Set(submittedQuestionIds);
+
+  if (uniqueQuestionIds.size !== PROFILE_QUESTIONS_REQUIRED) {
+    throw new BadRequestError(
+      `Tu dois répondre à ${PROFILE_QUESTIONS_REQUIRED} questions distinctes`,
+    );
+  }
+
+  if (submittedQuestionIds.length !== PROFILE_QUESTIONS_REQUIRED) {
+    throw new BadRequestError(
+      `Tu dois répondre à exactement ${PROFILE_QUESTIONS_REQUIRED} questions`,
+    );
+  }
+
   const attempts = normalizedAnswers.map((a) => ({
     matchId,
     responderId: userId,

@@ -18,7 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, Link, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
-import { acceptMatch, breakMatch, blockMatch } from '../api/matches';
+import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matches';
 import { reportUser, type ReportReason } from '../api/profiles';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
@@ -764,6 +764,33 @@ export default function LettersScreen() {
     }
   };
 
+  const handleRelance = async () => {
+    if (!selectedMatch) return;
+    Alert.alert(
+      'Redémarrer l\'échange ?',
+      'Les deux joueurs devront répondre à nouveau au jeu des questions pour continuer.',
+      [
+        { text: 'Annuler', onPress: () => {}, style: 'cancel' },
+        {
+          text: 'Redémarrer',
+          onPress: async () => {
+            setIsActioning(true);
+            try {
+              await relanceMatch(selectedMatch.id);
+              await loadMatches();
+              setShowActionsMenu(false);
+              Alert.alert('Échange relancé', 'Vous pouvez recommencer à vous écrire!');
+            } catch (err: any) {
+              Alert.alert('Erreur', err?.message ?? 'Impossible de redémarrer l\'échange.');
+            } finally {
+              setIsActioning(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const formatTime = (ts: number) => {
     const date = new Date(ts);
     const now = new Date();
@@ -1164,6 +1191,20 @@ export default function LettersScreen() {
                   <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Signaler</Text>
                 </TouchableOpacity>
               </>
+            )}
+
+            {selectedMatch?.status === 'broken' && (
+              <TouchableOpacity
+                style={styles.actionsMenuItem}
+                onPress={() => {
+                  setShowActionsMenu(false);
+                  handleRelance();
+                }}
+                disabled={isActioning}
+              >
+                <Text style={styles.actionsMenuIcon}>🔄</Text>
+                <Text style={styles.actionsMenuLabel}>Redémarrer l'échange</Text>
+              </TouchableOpacity>
             )}
 
             <TouchableOpacity

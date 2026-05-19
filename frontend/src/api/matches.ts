@@ -169,3 +169,10 @@ export async function blockMatch(matchId: string): Promise<MatchDTO> {
   }) as { data: MatchDTO };
   return res.data;
 }
+
+export async function relanceMatch(matchId: string): Promise<MatchDTO> {
+  const res = await apiFetch(`/matches/${matchId}/relance`, {
+    method: "POST",
+  }) as { data: MatchDTO };
+  return res.data;
+}
