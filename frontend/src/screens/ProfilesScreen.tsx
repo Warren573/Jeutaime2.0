@@ -535,7 +535,7 @@ function MailSection({ letters }: { letters: DiscoveryProfile['letters'] }) {
 
 export default function ProfilesScreen() {
   const insets = useSafeAreaInsets();
-  const { likedProfiles, dislikedProfiles, addLike, addDislike, addMatch, currentUser } = useStore();
+  const { likedProfiles, dislikedProfiles, addLike, addDislike, addMatch, currentUser, matches } = useStore();
   const isAuthenticated = useStore((s) => s.isAuthenticated);
   const loadMatches = useStore((s) => s.loadMatches);
   const screenBg = useStore(s => s.screenBackgrounds?.['profiles'] ?? OLD_BG);
@@ -604,7 +604,7 @@ export default function ProfilesScreen() {
   const activeProfiles = isAuthenticated ? apiProfiles : profiles;
 
   const availableProfiles = activeProfiles.filter(
-    (p) => !likedProfiles.includes(p.id) && !dislikedProfiles.includes(p.id)
+    (p) => !likedProfiles.includes(p.id) && !dislikedProfiles.includes(p.id) && !matches.some(m => (m.userAId === p.id || m.userBId === p.id))
   );
   const profile = availableProfiles[currentIndex % Math.max(availableProfiles.length, 1)];
   const profilePos = activeProfiles.findIndex(p => p.id === profile?.id);
@@ -629,6 +629,9 @@ export default function ProfilesScreen() {
         const result = await sendReaction(profile.id, 'SMILE');
         if (result.matchCreated) {
           await loadMatches();
+          const res = await apiFetch('/profiles');
+          const data: Record<string, unknown>[] = Array.isArray(res?.data) ? res.data : [];
+          setApiProfiles(data.map(mapApiDiscoverProfile));
           setShowMatch(profile.name);
           setTimeout(() => setShowMatch(null), 2500);
         }
