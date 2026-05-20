@@ -512,6 +512,7 @@ export default function LettersScreen() {
     addLetter, markLetterRead, markLetterReadApi,
     loadLetters, openAndMarkRead, sendApiLetter, loadQuestions, submitAnswers,
     loadMatches, currentUser, matchPartners, addPoints, duelEntries,
+    removeLike, removeDislike,
   } = useStore();
 
   useFocusEffect(
@@ -725,6 +726,9 @@ export default function LettersScreen() {
     setIsActioning(true);
     try {
       await breakMatch(selectedMatch.id);
+      const otherUserId = selectedMatch.userAId === currentUser?.id ? selectedMatch.userBId : selectedMatch.userAId;
+      removeLike(otherUserId);
+      removeDislike(otherUserId);
       await loadMatches();
       setShowCompose(false);
       setSelectedMatch(null);

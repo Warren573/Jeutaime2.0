@@ -268,7 +268,9 @@ interface StoreState {
   markLetterReadApi: (letterId: string) => Promise<void>;
   addLike: (profileId: string) => void;
   addDislike: (profileId: string) => void;
-  
+  removeLike: (profileId: string) => void;
+  removeDislike: (profileId: string) => void;
+
   // ===== Actions - Messages =====
   addMessage: (salonId: string, message: Message) => void;
   loadMessages: (salonId: string) => Message[];
@@ -488,7 +490,7 @@ export const useStore = create<StoreState>()(
             otherUserId: m.otherUserId,
             canSend: m.canSend,
           })));
-          if (!viewerId || data.length === 0) return;
+          if (!viewerId) return;
 
           const adapted: Match[] = data.map((m) => {
             const isA = m.userAId === viewerId;
@@ -961,7 +963,19 @@ export const useStore = create<StoreState>()(
           dislikedProfiles: [...state.dislikedProfiles, profileId],
         }));
       },
-      
+
+      removeLike: (profileId) => {
+        set((state) => ({
+          likedProfiles: state.likedProfiles.filter(id => id !== profileId),
+        }));
+      },
+
+      removeDislike: (profileId) => {
+        set((state) => ({
+          dislikedProfiles: state.dislikedProfiles.filter(id => id !== profileId),
+        }));
+      },
+
       // ===== Message Actions =====
       addMessage: (salonId, message) => {
         set((state) => ({
