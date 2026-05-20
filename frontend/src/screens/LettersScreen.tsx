@@ -134,9 +134,9 @@ const EnvelopeCard = ({
       ]}
     >
       {/* VISIBLE MARKER */}
-      <View style={{ backgroundColor: '#FF00FF', padding: 2, borderRadius: 2, margin: 4 }}>
-        <Text style={{ fontSize: 8, color: '#FFF', fontWeight: 'bold' }}>
-          CARD_RENDERS:{matchStatus}
+      <View style={{ backgroundColor: '#FF00FF', padding: 6, borderRadius: 2, margin: 4 }}>
+        <Text style={{ fontSize: 14, color: '#FFF', fontWeight: 'bold' }}>
+          STATUS: {matchStatus}
         </Text>
       </View>
 
