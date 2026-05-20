@@ -35,9 +35,6 @@ router.post(
 // GET /api/matches — Liste mes matchs
 router.get("/", wrap(matchCtrl.handleList));
 
-// GET /api/memories — Lister souvenirs (relations rompues/bloquées)
-router.get("/memories", wrap(matchCtrl.handleListMemories));
-
 // GET /api/matches/:id — Détail + canSend
 router.get("/:id", wrap(matchCtrl.handleDetail));
 

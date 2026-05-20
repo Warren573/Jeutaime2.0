@@ -358,11 +358,7 @@ export async function declineMatch(matchId: string, userId: string) {
 export async function breakMatch(matchId: string, userId: string) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
-    include: {
-      userA: { select: { id: true, profile: { select: { pseudo: true } } } },
-      userB: { select: { id: true, profile: { select: { pseudo: true } } } },
-      letters: true,
-    },
+    select: { id: true, userAId: true, userBId: true, status: true },
   });
   if (!match) throw new NotFoundError("Match");
 
@@ -375,46 +371,11 @@ export async function breakMatch(matchId: string, userId: string) {
     throw new BadRequestError("Ce match est déjà rompu ou bloqué");
   }
 
-  const updated = await prisma.match.update({
+  return prisma.match.update({
     where: { id: matchId },
     data: { status: MatchStatus.BROKEN },
     select: matchSelect,
   });
-
-  // Créer MatchMemory pour les 2 utilisateurs
-  const otherUserA = match.userB;
-  const otherUserB = match.userA;
-  const excerpt = match.letters.length > 0 ? match.letters[0].content.substring(0, 200) : null;
-  const totalLetters = match.letters.length;
-
-  await Promise.all([
-    prisma.matchMemory.create({
-      data: {
-        matchId: match.id,
-        userId: match.userAId,
-        type: 'LETTER_EXCHANGE',
-        otherUserId: otherUserB.id,
-        otherUserName: otherUserB.profile?.pseudo || 'Utilisateur',
-        letterExcerpt: excerpt,
-        totalLetters,
-        status: MatchStatus.BROKEN,
-      },
-    }),
-    prisma.matchMemory.create({
-      data: {
-        matchId: match.id,
-        userId: match.userBId,
-        type: 'LETTER_EXCHANGE',
-        otherUserId: otherUserA.id,
-        otherUserName: otherUserA.profile?.pseudo || 'Utilisateur',
-        letterExcerpt: excerpt,
-        totalLetters,
-        status: MatchStatus.BROKEN,
-      },
-    }),
-  ]);
-
-  return updated;
 }
 
 // ============================================================
@@ -636,38 +597,5 @@ export async function relanceMatch(matchId: string, userId: string) {
     select: matchSelect,
   });
 
-  // Supprimer les MatchMemory associées
-  await prisma.matchMemory.deleteMany({
-    where: { matchId },
-  });
-
   return enrichMatch(updated as never, userId);
-}
-
-// ============================================================
-// listMemories — Lister les souvenirs de l'user (relations rompues/bloquées)
-// ============================================================
-
-export async function listMemories(userId: string, pagination: PaginationQuery) {
-  const [total, memories] = await Promise.all([
-    prisma.matchMemory.count({
-      where: { userId },
-    }),
-    prisma.matchMemory.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      skip: (pagination.page - 1) * pagination.perPage,
-      take: pagination.perPage,
-    }),
-  ]);
-
-  return {
-    data: memories,
-    meta: {
-      total,
-      page: pagination.page,
-      perPage: pagination.perPage,
-      pages: Math.ceil(total / pagination.perPage),
-    },
-  };
 }

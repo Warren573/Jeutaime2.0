@@ -497,14 +497,11 @@ interface JournalEntry {
 
 interface Souvenir {
   id: string;
-  matchId: string;
-  type: string;
-  otherUserName: string;
-  letterExcerpt: string | null;
-  totalLetters: number;
-  relationLevel: string | null;
-  createdAt: string;
-  status: string;
+  type: 'match' | 'letter' | 'gift' | 'milestone';
+  title: string;
+  description: string;
+  date: string;
+  emoji: string;
 }
 
 export default function LettersScreen() {
@@ -566,20 +563,24 @@ export default function LettersScreen() {
   const [journalContent, setJournalContent] = useState('');
   const [journalMood, setJournalMood] = useState('😊');
 
-  const [souvenirs, setSouvenirs] = useState<Souvenir[]>([]);
-
-  useEffect(() => {
-    const fetchSouvenirs = async () => {
-      try {
-        const res = await fetch('/api/memories');
-        const json = await res.json();
-        setSouvenirs(json.data || []);
-      } catch (err) {
-        console.error('Error fetching souvenirs:', err);
-      }
-    };
-    fetchSouvenirs();
-  }, []);
+  const [souvenirs] = useState<Souvenir[]>([
+    {
+      id: '1',
+      type: 'milestone',
+      title: 'Inscription',
+      description: 'Tu as rejoint JeuTaime!',
+      date: '2025-03-12',
+      emoji: '🎉',
+    },
+    {
+      id: '2',
+      type: 'match',
+      title: 'Premier Match',
+      description: 'Tu as eu ton premier match!',
+      date: '2025-03-12',
+      emoji: '🌟',
+    },
+  ]);
 
   const visibleTabs = useMemo(() => {
     const tabs: TabType[] = [];
@@ -834,18 +835,11 @@ export default function LettersScreen() {
               </View>
             ) : (
               <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-                {(() => {
-                  const activeMatches = matches.filter(m =>
-                    m.status?.toUpperCase() === 'ACTIVE' ||
-                    m.status?.toUpperCase() === 'PENDING'
-                  );
-                  return (
-                    <>
-                      <Text style={styles.listCount}>
-                        {activeMatches.length} enveloppe{activeMatches.length > 1 ? 's' : ''}
-                      </Text>
+                <Text style={styles.listCount}>
+                  {matches.length} enveloppe{matches.length > 1 ? 's' : ''}
+                </Text>
 
-                      {activeMatches.map((match) => {
+                {matches.map((match) => {
                   const otherName = getOtherName(match);
 
                   return (
@@ -888,10 +882,7 @@ export default function LettersScreen() {
                       formatTime={formatTime}
                     />
                   );
-                      })}
-                    </>
-                  );
-                })()}
+                })}
               </ScrollView>
             )}
           </>
@@ -961,15 +952,11 @@ export default function LettersScreen() {
             ) : (
               souvenirs.map(souvenir => (
                 <View key={souvenir.id} style={styles.souvenirCard}>
-                  <Text style={styles.souvenirEmoji}>💌</Text>
+                  <Text style={styles.souvenirEmoji}>{souvenir.emoji}</Text>
                   <View style={styles.souvenirInfo}>
-                    <Text style={styles.souvenirTitle}>{souvenir.otherUserName}</Text>
-                    <Text style={styles.souvenirDesc} numberOfLines={2}>
-                      {souvenir.letterExcerpt ? `"${souvenir.letterExcerpt}..."` : 'Aucune lettre conservée'}
-                    </Text>
-                    <Text style={styles.souvenirDate}>
-                      {souvenir.totalLetters} lettre{souvenir.totalLetters > 1 ? 's' : ''} • {new Date(souvenir.createdAt).toLocaleDateString('fr-FR')}
-                    </Text>
+                    <Text style={styles.souvenirTitle}>{souvenir.title}</Text>
+                    <Text style={styles.souvenirDesc}>{souvenir.description}</Text>
+                    <Text style={styles.souvenirDate}>{souvenir.date}</Text>
                   </View>
                 </View>
               ))
