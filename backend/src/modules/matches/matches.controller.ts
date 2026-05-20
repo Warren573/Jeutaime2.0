@@ -79,9 +79,3 @@ export async function handleRelance(req: AuthedRequest, res: Response) {
   );
   res.json({ data: match });
 }
-
-export async function handleListMemories(req: AuthedRequest, res: Response) {
-  const pagination = parsePagination(req.query);
-  const result = await svc.listMemories(req.user.userId, pagination);
-  res.json(result);
-}
