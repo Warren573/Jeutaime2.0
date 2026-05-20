@@ -604,7 +604,7 @@ export default function ProfilesScreen() {
   const activeProfiles = isAuthenticated ? apiProfiles : profiles;
 
   const availableProfiles = activeProfiles.filter(
-    (p) => !likedProfiles.includes(p.id) && !dislikedProfiles.includes(p.id) && !matches.some(m => (m.userAId === p.id || m.userBId === p.id))
+    (p) => !likedProfiles.includes(p.id) && !dislikedProfiles.includes(p.id) && !matches.some(m => (m.userAId === p.id || m.userBId === p.id) && (m.status === 'active' || m.status === 'pending'))
   );
   const profile = availableProfiles[currentIndex % Math.max(availableProfiles.length, 1)];
   const profilePos = activeProfiles.findIndex(p => p.id === profile?.id);
