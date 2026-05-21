@@ -133,13 +133,6 @@ const EnvelopeCard = ({
         { transform: [{ translateX: shakeX }] },
       ]}
     >
-      {/* VISIBLE MARKER */}
-      <View style={{ backgroundColor: '#FF00FF', padding: 2, borderRadius: 2, margin: 4 }}>
-        <Text style={{ fontSize: 8, color: '#FFF', fontWeight: 'bold' }}>
-          CARD_RENDERS:{matchStatus}
-        </Text>
-      </View>
-
       <View style={envStyles.flapMini}>
         <View style={envStyles.foldLinesWrap}>
           <View style={[envStyles.foldLine, envStyles.foldLineLL]} />
@@ -839,7 +832,7 @@ export default function LettersScreen() {
                   {matches.length} enveloppe{matches.length > 1 ? 's' : ''}
                 </Text>
 
-                {matches.map((match) => {
+                {matches.filter(m => m.status === 'pending' || m.status === 'active').map((match) => {
                   const otherName = getOtherName(match);
 
                   return (
