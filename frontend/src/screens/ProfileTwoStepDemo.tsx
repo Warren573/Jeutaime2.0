@@ -132,13 +132,16 @@ export default function ProfileTwoStepDemo() {
     setLoading(true);
     setError(null);
     try {
+      console.log(`[ProfileTwoStepDemo] load() called, currentUser=${currentUser?.id}`);
       const result = await discoverProfiles({ pageSize: 50 });
       // Backend already excludes the current user, but filter here as safety net
       const filtered = result.data.filter((p) => p.userId !== currentUser?.id);
+      console.log(`[ProfileTwoStepDemo] discoverProfiles returned ${filtered.length} profiles`);
       setProfiles(filtered);
       setCurrentIndex(0);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de chargement");
+      console.error(`[ProfileTwoStepDemo] load error:`, err);
     } finally {
       setLoading(false);
     }
@@ -156,19 +159,25 @@ export default function ProfileTwoStepDemo() {
   const handleReact = async (type: "SMILE" | "GRIMACE") => {
     if (!profile || reacting) return;
     setReacting(true);
-    console.log("[Sourire] payload →", { toId: profile.userId, type, currentUserId: currentUser?.id });
+    const profileId = profile.userId;
+    const profileName = profile.pseudo;
+    console.log(`[ProfileTwoStepDemo] handleReact: ${type} → ${profileName} (${profileId}), currentUser=${currentUser?.id}`);
     try {
-      const result = await sendReaction(profile.userId, type);
-      console.log("[Sourire] réponse →", result);
+      const result = await sendReaction(profileId, type);
+      console.log(`[ProfileTwoStepDemo] sendReaction result:`, {
+        type: result.type,
+        matchCreated: result.matchCreated,
+        matchId: result.matchId,
+      });
       advance();
       if (type === "SMILE" && result.matchCreated && result.matchId) {
-        console.log("[Match] matchId →", result.matchId, "— chargement des matchs puis navigation vers lettres");
+        console.log("[Match] matchId →", result.matchId, "— loading matches then navigating to letters");
         await loadMatches();
         router.push("/(tabs)/letters");
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi";
-      console.error("[Sourire] erreur →", msg);
+      console.error(`[ProfileTwoStepDemo] handleReact error:`, msg);
       Alert.alert("Erreur", msg);
     } finally {
       setReacting(false);
