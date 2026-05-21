@@ -4,7 +4,7 @@ import { getPhotoUnlockProgress, type PhotoLevel } from "../../policies/photoUnl
 import { buildMeta } from "../../core/utils/pagination";
 import { buildPhotoUrl } from "../photos/photos.urls";
 import { UpdateProfileDto, UpdateQuestionsDto, DiscoveryQuery } from "./profiles.schemas";
-import { Gender, LookingFor, MatchStatus, Prisma } from "@prisma/client";
+import { Gender, LookingFor, MatchStatus, ReactionType, Prisma } from "@prisma/client";
 
 // -----------------------------------------------------------------------
 // Mon profil complet
@@ -274,7 +274,7 @@ async function getExistingMatchUserIds(userId: string): Promise<string[]> {
     prisma.reaction.findMany({
       where: {
         fromId: userId,
-        type: "SMILE",
+        type: ReactionType.SMILE,
       },
       select: { toId: true },
     }),
