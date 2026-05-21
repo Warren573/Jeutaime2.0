@@ -613,8 +613,12 @@ export default function ProfilesScreen() {
   const profileMissingFields = currentUser?.profileMissingFields ?? [];
 
   const handleSmile = async () => {
+    console.log('[SMILE START] Click detected');
     const targetProfile = profile;
-    if (!targetProfile) return;
+    if (!targetProfile) {
+      console.log('[SMILE] No profile');
+      return;
+    }
     if (!canMatch) {
       const msg = profileMissingFields.includes('questions')
         ? "Ajoute tes 3 questions pour pouvoir matcher."
