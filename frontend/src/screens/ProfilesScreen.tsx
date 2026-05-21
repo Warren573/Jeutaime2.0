@@ -622,7 +622,6 @@ export default function ProfilesScreen() {
       return;
     }
     addLike(profile.id);
-    setCurrentIndex((prev) => prev + 1);
 
     if (isAuthenticated) {
       try {
@@ -635,6 +634,7 @@ export default function ProfilesScreen() {
           setShowMatch(profile.name);
           setTimeout(() => setShowMatch(null), 2500);
         }
+        setCurrentIndex((prev) => prev + 1);
       } catch {
         // réaction silencieusement ignorée si réseau indisponible
       }
@@ -664,6 +664,7 @@ export default function ProfilesScreen() {
         setShowMatch(profile.name);
         setTimeout(() => setShowMatch(null), 2500);
       }
+      setCurrentIndex((prev) => prev + 1);
     }
   };
 
