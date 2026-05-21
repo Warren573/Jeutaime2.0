@@ -266,7 +266,7 @@ async function getExistingMatchUserIds(userId: string): Promise<string[]> {
   const matches = await prisma.match.findMany({
     where: {
       OR: [{ userAId: userId }, { userBId: userId }],
-      status: { in: [MatchStatus.ACTIVE, MatchStatus.PENDING] },
+      status: { in: [MatchStatus.ACTIVE, MatchStatus.PENDING, MatchStatus.BROKEN, MatchStatus.BLOCKED, MatchStatus.GHOSTED] },
     },
     select: { userAId: true, userBId: true },
   });
