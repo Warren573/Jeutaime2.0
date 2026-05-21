@@ -626,7 +626,9 @@ export default function ProfilesScreen() {
 
     if (isAuthenticated) {
       try {
+        console.log('[SMILE] Sending reaction for profile:', targetProfile.id);
         const result = await sendReaction(targetProfile.id, 'SMILE');
+        console.log('[SMILE] Response:', result);
         const res = await apiFetch('/profiles');
         const data: Record<string, unknown>[] = Array.isArray(res?.data) ? res.data : [];
         setApiProfiles(data.map(mapApiDiscoverProfile));
@@ -636,11 +638,11 @@ export default function ProfilesScreen() {
           setTimeout(() => setShowMatch(null), 2500);
         }
         setCurrentIndex((prev) => prev + 1);
-      } catch {
-        // réaction silencieusement ignorée si réseau indisponible
+      } catch (err: any) {
+        console.error('[SMILE ERROR]', err?.message || err);
       }
     } else {
-      // dev: match aléatoire
+      console.log('[SMILE] Not authenticated, using dev mode');
       if (Math.random() > 0.5) {
         addMatch({
           id: `match_${Date.now()}`,
