@@ -570,6 +570,11 @@ export default function LettersScreen() {
     return tabs;
   }, []);
 
+  const visibleMatches = useMemo(
+    () => matches.filter(m => m.status === 'pending' || m.status === 'active'),
+    [matches]
+  );
+
   useEffect(() => {
     if (!visibleTabs.includes(activeTab)) {
       setActiveTab(visibleTabs[0] ?? 'souvenirs');
@@ -792,7 +797,6 @@ export default function LettersScreen() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'lettres':
-        const visibleMatches = matches.filter(m => m.status === 'pending' || m.status === 'active');
         return (
           <>
             <TouchableOpacity style={styles.duelBtn} onPress={() => router.push('/duel/create')}>
