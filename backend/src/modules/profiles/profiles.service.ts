@@ -179,6 +179,8 @@ export async function discoverProfiles(viewerId: string, query: DiscoveryQuery) 
 
   const excludeIds = [...new Set([...blockedIds, ...existingMatchIds, viewerId])];
 
+  console.log(`[discoverProfiles] viewerId=${viewerId}, excludeCount=${excludeIds.length}, blocked=${blockedIds.length}, matched=${existingMatchIds.length}`);
+
   // Filtres de date pour l'âge
   let birthDateFilter: Record<string, Date> = {};
   const now = new Date();
@@ -224,6 +226,8 @@ export async function discoverProfiles(viewerId: string, query: DiscoveryQuery) 
       take: pageSize,
     }),
   ]);
+
+  console.log(`[discoverProfiles] returned ${profiles.length}/${total} profiles (page ${page})`);
 
   return {
     data: profiles,
@@ -282,8 +286,11 @@ async function getExistingMatchUserIds(userId: string): Promise<string[]> {
 
   const matchUserIds = matches.flatMap((m) => [m.userAId, m.userBId]).filter((id) => id !== userId);
   const reactionUserIds = reactions.map((r) => r.toId);
+  const result = [...new Set([...matchUserIds, ...reactionUserIds])];
 
-  return [...new Set([...matchUserIds, ...reactionUserIds])];
+  console.log(`[getExistingMatchUserIds] userId=${userId}: ${matchUserIds.length} matches, ${reactionUserIds.length} smile reactions → ${result.length} total`);
+
+  return result;
 }
 
 // -----------------------------------------------------------------------
