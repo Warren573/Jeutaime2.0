@@ -488,7 +488,7 @@ export const useStore = create<StoreState>()(
             otherUserId: m.otherUserId,
             canSend: m.canSend,
           })));
-          if (!viewerId || data.length === 0) return;
+          if (!viewerId) return;
 
           const adapted: Match[] = data.map((m) => {
             const isA = m.userAId === viewerId;
