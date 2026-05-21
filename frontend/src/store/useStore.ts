@@ -354,10 +354,15 @@ export const useStore = create<StoreState>()(
 
       hydrateFromApi: async () => {
         try {
+          console.log('[HYDRATE] Starting hydrateFromApi...');
           const res = await apiFetch('/auth/me');
+          console.log('[HYDRATE] Response from /auth/me:', res);
           const d = res?.data;
           const p = d?.profile;
-          if (!d?.id || !p) return;
+          if (!d?.id || !p) {
+            console.log('[HYDRATE] No data or profile, returning early. d?.id:', d?.id, 'p:', p);
+            return;
+          }
           console.log("HYDRATE_API_RESPONSE", d, p);
           const ageNum = (() => {
             const bd = new Date(p.birthDate ?? '');
