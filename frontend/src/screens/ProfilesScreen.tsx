@@ -627,11 +627,11 @@ export default function ProfilesScreen() {
     if (isAuthenticated) {
       try {
         const result = await sendReaction(targetProfile.id, 'SMILE');
+        const res = await apiFetch('/profiles');
+        const data: Record<string, unknown>[] = Array.isArray(res?.data) ? res.data : [];
+        setApiProfiles(data.map(mapApiDiscoverProfile));
         if (result.matchCreated) {
           await loadMatches();
-          const res = await apiFetch('/profiles');
-          const data: Record<string, unknown>[] = Array.isArray(res?.data) ? res.data : [];
-          setApiProfiles(data.map(mapApiDiscoverProfile));
           setShowMatch(targetProfile.name);
           setTimeout(() => setShowMatch(null), 2500);
         }
