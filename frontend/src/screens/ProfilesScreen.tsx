@@ -604,7 +604,7 @@ export default function ProfilesScreen() {
   const activeProfiles = isAuthenticated ? apiProfiles : profiles;
 
   const availableProfiles = activeProfiles.filter(
-    (p) => !likedProfiles.includes(p.id) && !dislikedProfiles.includes(p.id) && !matches.some(m => (m.userAId === p.id || m.userBId === p.id))
+    (p) => !likedProfiles.includes(p.id) && !dislikedProfiles.includes(p.id) && !matches.some(m => (m.userAId === p.id || m.userBId === p.id) && (m.status === 'active' || m.status === 'pending'))
   );
   const profile = availableProfiles[currentIndex % Math.max(availableProfiles.length, 1)];
   const profilePos = activeProfiles.findIndex(p => p.id === profile?.id);
@@ -622,7 +622,6 @@ export default function ProfilesScreen() {
       return;
     }
     addLike(profile.id);
-    setCurrentIndex((prev) => prev + 1);
 
     if (isAuthenticated) {
       try {
@@ -635,6 +634,7 @@ export default function ProfilesScreen() {
           setShowMatch(profile.name);
           setTimeout(() => setShowMatch(null), 2500);
         }
+        setCurrentIndex((prev) => prev + 1);
       } catch {
         // réaction silencieusement ignorée si réseau indisponible
       }
@@ -664,6 +664,7 @@ export default function ProfilesScreen() {
         setShowMatch(profile.name);
         setTimeout(() => setShowMatch(null), 2500);
       }
+      setCurrentIndex((prev) => prev + 1);
     }
   };
 
