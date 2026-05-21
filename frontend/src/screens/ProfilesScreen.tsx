@@ -635,7 +635,8 @@ export default function ProfilesScreen() {
         console.log('[SMILE] Response:', result);
         const res = await apiFetch('/profiles');
         const data: Record<string, unknown>[] = Array.isArray(res?.data) ? res.data : [];
-        setApiProfiles(data.map(mapApiDiscoverProfile));
+        const filtered = data.filter((p: any) => p.id !== targetProfile.id);
+        setApiProfiles(filtered.map(mapApiDiscoverProfile));
         if (result.matchCreated) {
           await loadMatches();
           setShowMatch(targetProfile.name);
