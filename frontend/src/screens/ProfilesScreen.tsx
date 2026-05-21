@@ -613,7 +613,8 @@ export default function ProfilesScreen() {
   const profileMissingFields = currentUser?.profileMissingFields ?? [];
 
   const handleSmile = async () => {
-    if (!profile) return;
+    const targetProfile = profile;
+    if (!targetProfile) return;
     if (!canMatch) {
       const msg = profileMissingFields.includes('questions')
         ? "Ajoute tes 3 questions pour pouvoir matcher."
@@ -621,17 +622,17 @@ export default function ProfilesScreen() {
       Alert.alert("Match indisponible", msg);
       return;
     }
-    addLike(profile.id);
+    addLike(targetProfile.id);
 
     if (isAuthenticated) {
       try {
-        const result = await sendReaction(profile.id, 'SMILE');
+        const result = await sendReaction(targetProfile.id, 'SMILE');
         if (result.matchCreated) {
           await loadMatches();
           const res = await apiFetch('/profiles');
           const data: Record<string, unknown>[] = Array.isArray(res?.data) ? res.data : [];
           setApiProfiles(data.map(mapApiDiscoverProfile));
-          setShowMatch(profile.name);
+          setShowMatch(targetProfile.name);
           setTimeout(() => setShowMatch(null), 2500);
         }
         setCurrentIndex((prev) => prev + 1);
@@ -644,7 +645,7 @@ export default function ProfilesScreen() {
         addMatch({
           id: `match_${Date.now()}`,
           userAId: currentUser?.id || 'me',
-          userBId: profile.id,
+          userBId: targetProfile.id,
           initiatorId: currentUser?.id || 'me',
           createdAt: Date.now(),
           questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true },
@@ -661,7 +662,7 @@ export default function ProfilesScreen() {
           photoUnlocked: false,
           photoUrl: null,
         });
-        setShowMatch(profile.name);
+        setShowMatch(targetProfile.name);
         setTimeout(() => setShowMatch(null), 2500);
       }
       setCurrentIndex((prev) => prev + 1);
