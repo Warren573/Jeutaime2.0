@@ -1069,6 +1069,8 @@ export const useStore = create<StoreState>()(
         duelEntries: state.duelEntries,
         avatarPngConfig: state.avatarPngConfig,
         showPhotoByDefault: state.showPhotoByDefault,
+        likedProfiles: state.likedProfiles,
+        dislikedProfiles: state.dislikedProfiles,
       }),
     }
   )
