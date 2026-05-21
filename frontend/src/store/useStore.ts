@@ -6,6 +6,11 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Web/RN compatible storage
+const storage = typeof window !== 'undefined'
+  ? { getItem: (k: string) => localStorage.getItem(k), setItem: (k: string, v: string) => localStorage.setItem(k, v), removeItem: (k: string) => localStorage.removeItem(k) }
+  : AsyncStorage;
+
 import type {
   AvatarConfig,
   Match,
@@ -1046,7 +1051,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'jeutaime-storage-v8',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => storage),
       partialize: (state) => ({
         // En dev non-authentifié, coins n'est pas sauvegardé → 50 000 au démarrage
         // Si authentifié, le solde réel est toujours persisté même en dev
