@@ -256,6 +256,10 @@ export default function ProfileTwoStepDemo() {
             </View>
           </View>
 
+          <Text style={{ fontSize: 10, color: "#999", textAlign: "center", marginBottom: 8 }}>
+            PROFILE_TWO_STEP_ACTIVE_9705e4ca
+          </Text>
+
           {/* Profile header: avatar + name/city */}
           <View style={styles.stageOneHeader}>
             <View style={styles.photoCard}>
@@ -322,7 +326,7 @@ export default function ProfileTwoStepDemo() {
               onPress={() => handleReact("SMILE")}
               disabled={reacting}
             >
-              <Text style={styles.actionText}>😊 Sourire</Text>
+              <Text style={styles.actionText}>😊 Sourire TEST</Text>
             </Pressable>
           </View>
 
