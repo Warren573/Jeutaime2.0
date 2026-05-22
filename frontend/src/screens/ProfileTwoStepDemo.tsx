@@ -193,7 +193,7 @@ export default function ProfileTwoStepDemo() {
       const result = await sendReaction(targetProfile.userId, type);
       setLastActionDebug(`API_RESULT type=${type} matchCreated=${result.matchCreated} matchId=${result.matchId ?? 'null'}`);
 
-      if (type === "SMILE" && result.matchId) {
+      if (type === "SMILE" && result.matchCreated && result.matchId) {
         await loadMatches();
         router.push("/(tabs)/letters");
       }
