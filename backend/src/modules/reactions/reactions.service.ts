@@ -95,7 +95,7 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
       toId,
       type,
       createdAt: reaction.createdAt.toISOString(),
-      matchCreated: false,
+      matchCreated: true,
       matchId: existing.id,
     };
   }

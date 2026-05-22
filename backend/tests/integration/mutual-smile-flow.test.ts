@@ -114,6 +114,32 @@ describe('CORE FLOW: Mutual Smile Between Bernard and Doudou', () => {
     console.log('✅ Step 2: Doudou smiled Bernard, matchCreated=true, matchId:', matchId);
   });
 
+  it('Step 2b: Mutual smile with EXISTING match → matchCreated=true + matchId (existing)', async () => {
+    // Same as Step 2 but match already exists in DB
+    (prisma.user.findUnique as any).mockResolvedValueOnce({ id: bernardId, isBanned: false });
+    (prisma.block.findFirst as any).mockResolvedValue(null);
+    (prisma.reaction.upsert as any).mockResolvedValue({
+      id: 'reaction-2b',
+      fromId: doudouId,
+      toId: bernardId,
+      type: 'SMILE',
+      createdAt: new Date(),
+    });
+    (prisma.reaction.findFirst as any).mockResolvedValue({
+      fromId: bernardId,
+      toId: doudouId,
+      type: 'SMILE',
+    });
+    // Match ALREADY exists in DB
+    (prisma.match.findUnique as any).mockResolvedValue({ id: matchId });
+
+    const result = await sendReaction(doudouId, { toId: bernardId, type: 'SMILE' });
+
+    expect(result.matchCreated).toBe(true);
+    expect(result.matchId).toBe(matchId);
+    console.log('✅ Step 2b: Existing match still returns matchCreated=true + matchId for frontend navigation');
+  });
+
   it('Step 3: Match has correct status PENDING', async () => {
     const mockMatch = {
       id: matchId,
