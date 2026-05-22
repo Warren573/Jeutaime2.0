@@ -122,8 +122,9 @@ export default function ProfileTwoStepDemo() {
   const currentUser  = useStore((s) => s.currentUser);
   const loadMatches  = useStore((s) => s.loadMatches);
 
-  const [profiles, setProfiles] = useState<DiscoveryProfileDto[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentProfile, setCurrentProfile] = useState<DiscoveryProfileDto | null>(null);
+  const [remainingProfiles, setRemainingProfiles] = useState<DiscoveryProfileDto[]>([]);
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reacting, setReacting] = useState(false);
@@ -135,30 +136,29 @@ export default function ProfileTwoStepDemo() {
     setError(null);
     try {
       const result = await discoverProfiles({ pageSize: 50 });
-      const filtered = result.data.filter((p) => p.userId !== currentUser.id);
-      setProfiles(filtered);
-      setCurrentIndex(0);
+      const filtered = result.data.filter(
+        (p) => p.userId !== currentUser.id && !removedIds.has(p.userId)
+      );
+      setCurrentProfile(filtered[0] ?? null);
+      setRemainingProfiles(filtered.slice(1));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de chargement");
     } finally {
       setLoading(false);
     }
-  }, [currentUser?.id]);
+  }, [currentUser?.id, removedIds]);
 
   useEffect(() => {
     if (currentUser?.id) {
       load();
     }
-  }, [currentUser?.id, load]);
+  }, [currentUser?.id]);
 
-  const profile = profiles[currentIndex] ?? null;
+  const profile = currentProfile;
   const displayedProfile = profile;
 
-  const advance = () => setCurrentIndex((i) => i + 1);
-  const back    = () => setCurrentIndex((i) => Math.max(0, i - 1));
-
   const handleReact = async (type: "SMILE" | "GRIMACE", targetProfile: DiscoveryProfileDto | null) => {
-    setLastActionDebug(`CLICK ${type} profile=${!!targetProfile} reacting=${reacting} user=${!!currentUser?.id}\nPROFILE_ID=${targetProfile?.userId} PROFILES_LENGTH=${profiles.length}`);
+    setLastActionDebug(`CLICK ${type} profile=${!!targetProfile} reacting=${reacting} user=${!!currentUser?.id}\nPROFILE_ID=${targetProfile?.userId}`);
 
     if (!targetProfile) {
       setLastActionDebug('BLOCKED no profile');
@@ -173,15 +173,21 @@ export default function ProfileTwoStepDemo() {
       return;
     }
 
-    const previousProfiles = profiles;
-    const previousIndex = currentIndex;
+    const previousCurrent = currentProfile;
+    const previousRemaining = remainingProfiles;
+    const previousRemovedIds = removedIds;
 
     setReacting(true);
 
-    const newProfiles = previousProfiles.filter((p) => p.userId !== targetProfile.userId);
-    setLastActionDebug(`REMOVED=${targetProfile.userId} PROFILES_LENGTH=${newProfiles.length}`);
-    setProfiles(newProfiles);
-    setCurrentIndex((idx) => Math.min(idx, Math.max(0, newProfiles.length - 1)));
+    const next = remainingProfiles[0] ?? null;
+    const newRemaining = remainingProfiles.slice(1);
+    const newRemovedIds = new Set(removedIds);
+    newRemovedIds.add(targetProfile.userId);
+
+    setCurrentProfile(next);
+    setRemainingProfiles(newRemaining);
+    setRemovedIds(newRemovedIds);
+    setLastActionDebug(`REMOVED=${targetProfile.userId} NEXT=${next?.userId ?? 'EMPTY'} REMAINING=${newRemaining.length}`);
 
     try {
       const result = await sendReaction(targetProfile.userId, type);
@@ -191,8 +197,9 @@ export default function ProfileTwoStepDemo() {
         router.push("/(tabs)/letters");
       }
     } catch (err) {
-      setProfiles(previousProfiles);
-      setCurrentIndex(previousIndex);
+      setCurrentProfile(previousCurrent);
+      setRemainingProfiles(previousRemaining);
+      setRemovedIds(previousRemovedIds);
       const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi";
       Alert.alert("Erreur", msg);
     } finally {
@@ -261,7 +268,7 @@ export default function ProfileTwoStepDemo() {
             <Text style={styles.topBarTitle}>Découvrir</Text>
             <View style={styles.progressBadge}>
               <Text style={styles.progressBadgeText}>
-                {currentIndex + 1} / {profiles.length}
+                {remainingProfiles.length + 1} restant{remainingProfiles.length > 0 ? 's' : ''}
               </Text>
             </View>
           </View>
@@ -337,18 +344,11 @@ export default function ProfileTwoStepDemo() {
           </View>
 
           {/* Debug display - state info */}
-          <Text style={styles.debugStateText}>PROFILE_ID={profile?.userId} PROFILES_LENGTH={profiles.length}</Text>
+          <Text style={styles.debugStateText}>CURRENT={profile?.userId} REMAINING={remainingProfiles.length} REMOVED_COUNT={removedIds.size}</Text>
 
           {/* Debug display - action info */}
           {lastActionDebug && (
             <Text style={styles.debugText}>{lastActionDebug}</Text>
-          )}
-
-          {/* Back to previous profile */}
-          {currentIndex > 0 && (
-            <Pressable style={styles.secondeChanceWrap} onPress={back}>
-              <Text style={styles.secondeChanceLink}>← Seconde chance</Text>
-            </Pressable>
           )}
         </View>
       </ScrollView>
