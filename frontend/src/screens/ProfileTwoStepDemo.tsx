@@ -127,6 +127,7 @@ export default function ProfileTwoStepDemo() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reacting, setReacting] = useState(false);
+  const [lastActionDebug, setLastActionDebug] = useState('');
 
   const load = useCallback(async () => {
     if (!currentUser?.id) return;
@@ -156,7 +157,20 @@ export default function ProfileTwoStepDemo() {
   const back    = () => setCurrentIndex((i) => Math.max(0, i - 1));
 
   const handleReact = async (type: "SMILE" | "GRIMACE") => {
-    if (!profile || reacting || !currentUser?.id) return;
+    setLastActionDebug(`CLICK ${type} profile=${!!profile} reacting=${reacting} user=${!!currentUser?.id}`);
+
+    if (!profile) {
+      setLastActionDebug('BLOCKED no profile');
+      return;
+    }
+    if (reacting) {
+      setLastActionDebug('BLOCKED reacting');
+      return;
+    }
+    if (!currentUser?.id) {
+      setLastActionDebug('BLOCKED no user');
+      return;
+    }
 
     const targetProfile = profile;
     const previousProfiles = profiles;
@@ -324,6 +338,11 @@ export default function ProfileTwoStepDemo() {
             </Pressable>
           </View>
 
+          {/* Debug display */}
+          {lastActionDebug && (
+            <Text style={styles.debugText}>{lastActionDebug}</Text>
+          )}
+
           {/* Back to previous profile */}
           {currentIndex > 0 && (
             <Pressable style={styles.secondeChanceWrap} onPress={back}>
@@ -484,4 +503,7 @@ const styles = StyleSheet.create({
   // ── Seconde chance ──
   secondeChanceWrap: { alignItems: "center", marginTop: 14, paddingBottom: 4 },
   secondeChanceLink: { fontSize: 15, color: INK_SOFT, fontStyle: "italic", opacity: 0.7 },
+
+  // ── Debug ──
+  debugText: { fontSize: 14, color: "#FF6B6B", fontWeight: "600", marginTop: 16, textAlign: "center", paddingHorizontal: 12 },
 });
