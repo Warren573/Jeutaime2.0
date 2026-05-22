@@ -163,14 +163,14 @@ export default function ProfileTwoStepDemo() {
   const handleReact = async (type: "SMILE" | "GRIMACE") => {
     if (!profile || reacting || !currentUser?.id) return;
     setReacting(true);
-    const profileId = profile.userId;
+    const targetProfile = profile;
     try {
-      const result = await sendReaction(profileId, type);
+      const result = await sendReaction(targetProfile.userId, type);
       if (type === "SMILE" && result.matchCreated && result.matchId) {
         await loadMatches();
         router.push("/(tabs)/letters");
       } else {
-        await load();
+        setProfiles((prev) => prev.filter((p) => p.userId !== targetProfile.userId));
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi";
