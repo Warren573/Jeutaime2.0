@@ -1,16 +1,14 @@
 /**
- * Unit Test (with mocks): Discovery Filtering with SMILE Reactions
+ * Unit Test (with mocks): Discovery Filtering with Reactions
  *
  * Verifies that getExistingMatchUserIds correctly combines:
  * 1. Users with matches (any status)
- * 2. Users with SMILE reactions
- *
- * And that these combined IDs are used to filter discovery results.
+ * 2. Users with ANY reaction (SMILE or GRIMACE)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { prisma } from '../../src/config/prisma';
-import { MatchStatus, ReactionType } from '@prisma/client';
+import { MatchStatus } from '@prisma/client';
 
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
@@ -44,23 +42,16 @@ describe('Discovery Filtering: SMILE Reactions + Matches', () => {
     vi.clearAllMocks();
   });
 
-  it('getExistingMatchUserIds returns both match users AND smile reaction targets', async () => {
-    // Mock: Bernard has a PENDING match with Doudou
+  it('getExistingMatchUserIds returns match users AND ALL reaction targets (SMILE + GRIMACE)', async () => {
     (prisma.match.findMany as any).mockResolvedValue([
-      {
-        userAId: bernardId,
-        userBId: doudouId,
-        status: MatchStatus.PENDING,
-      },
+      { userAId: bernardId, userBId: doudouId, status: MatchStatus.PENDING },
     ]);
 
-    // Mock: Bernard has SMILE reactions to Jordan and Marie
     (prisma.reaction.findMany as any).mockResolvedValue([
       { toId: jordanId },
       { toId: marieId },
     ]);
 
-    // Import and call the logic (simplified from getExistingMatchUserIds)
     const matches = await prisma.match.findMany({
       where: {
         OR: [{ userAId: bernardId }, { userBId: bernardId }],
@@ -70,7 +61,7 @@ describe('Discovery Filtering: SMILE Reactions + Matches', () => {
     });
 
     const reactions = await prisma.reaction.findMany({
-      where: { fromId: bernardId, type: ReactionType.SMILE },
+      where: { fromId: bernardId },
       select: { toId: true },
     });
 
@@ -78,12 +69,10 @@ describe('Discovery Filtering: SMILE Reactions + Matches', () => {
     const reactionUserIds = reactions.map((r) => r.toId);
     const existingUserIds = [...new Set([...matchUserIds, ...reactionUserIds])];
 
-    // Should include Doudou (from match), Jordan (from smile), Marie (from smile)
     expect(existingUserIds).toContain(doudouId);
     expect(existingUserIds).toContain(jordanId);
     expect(existingUserIds).toContain(marieId);
     expect(existingUserIds.length).toBe(3);
-    console.log('✅ getExistingMatchUserIds correctly combines matches and smile reactions');
   });
 
   it('Discovery filters should exclude all users with matches or smiles', async () => {
@@ -119,29 +108,4 @@ describe('Discovery Filtering: SMILE Reactions + Matches', () => {
     console.log('✅ Discovery filtering correctly excludes matched and smiled profiles');
   });
 
-  it('CONCLUSION: Backend discovery filtering logic is correct', () => {
-    console.log(`
-    ╔═══════════════════════════════════════════════════════════╗
-    ║ BACKEND DISCOVERY FILTERING: LOGIC VERIFIED               ║
-    ╚═══════════════════════════════════════════════════════════╝
-
-    ✅ getExistingMatchUserIds combines:
-       - Users with matches (any status)
-       - Users with SMILE reactions
-
-    ✅ discoverProfiles uses this combined list to filter out:
-       - Matched profiles
-       - Smiled profiles
-
-    IMPLICATION:
-    If user reports "profiles reappear after refresh":
-    1. Backend filtering logic is correct (proven)
-    2. Issue must be in:
-       - Frontend API caching (check apiFetch)
-       - Frontend not calling API fresh (check useEffect)
-       - Frontend authentication/token issues
-       - Database query execution (check if reactions actually saved)
-    `);
-    expect(true).toBe(true);
-  });
 });

@@ -129,15 +129,12 @@ export default function ProfileTwoStepDemo() {
   const [reacting, setReacting] = useState(false);
 
   const load = useCallback(async () => {
-    if (!currentUser?.id) {
-      setLoading(false);
-      return;
-    }
+    if (!currentUser?.id) return;
     setLoading(true);
     setError(null);
     try {
       const result = await discoverProfiles({ pageSize: 50 });
-      const filtered = result.data.filter((p) => p.userId !== currentUser?.id);
+      const filtered = result.data.filter((p) => p.userId !== currentUser.id);
       setProfiles(filtered);
       setCurrentIndex(0);
     } catch (err) {
@@ -150,8 +147,6 @@ export default function ProfileTwoStepDemo() {
   useEffect(() => {
     if (currentUser?.id) {
       load();
-    } else {
-      setLoading(true);
     }
   }, [currentUser?.id, load]);
 
@@ -161,18 +156,12 @@ export default function ProfileTwoStepDemo() {
   const back    = () => setCurrentIndex((i) => Math.max(0, i - 1));
 
   const handleReact = async (type: "SMILE" | "GRIMACE") => {
-    if (!profile || reacting || !currentUser?.id) {
-      console.log("[handleReact] BLOCKED:", {
-        noProfile: !profile,
-        isReacting: reacting,
-        noUserId: !currentUser?.id,
-        currentUser: currentUser?.id,
-        profile: profile?.userId,
-      });
-      return;
-    }
+    if (!profile || reacting || !currentUser?.id) return;
 
     const targetProfile = profile;
+    const previousProfiles = profiles;
+    const previousIndex = currentIndex;
+
     setReacting(true);
 
     const newProfiles = profiles.filter((p) => p.userId !== targetProfile.userId);
@@ -184,16 +173,14 @@ export default function ProfileTwoStepDemo() {
 
     try {
       const result = await sendReaction(targetProfile.userId, type);
-      console.log("[handleReact] SUCCESS:", result);
 
       if (type === "SMILE" && result.matchCreated && result.matchId) {
         await loadMatches();
         router.push("/(tabs)/letters");
       }
     } catch (err) {
-      console.log("[handleReact] ERROR:", err);
-      setProfiles(profiles);
-      setCurrentIndex(profiles.indexOf(targetProfile));
+      setProfiles(previousProfiles);
+      setCurrentIndex(previousIndex);
       const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi";
       Alert.alert("Erreur", msg);
     } finally {
@@ -267,10 +254,6 @@ export default function ProfileTwoStepDemo() {
             </View>
           </View>
 
-          <Text style={{ fontSize: 10, color: "#999", textAlign: "center", marginBottom: 8 }}>
-            PROFILE_TWO_STEP_ACTIVE_9705e4ca
-          </Text>
-
           {/* Profile header: avatar + name/city */}
           <View style={styles.stageOneHeader}>
             <View style={styles.photoCard}>
@@ -337,7 +320,7 @@ export default function ProfileTwoStepDemo() {
               onPress={() => handleReact("SMILE")}
               disabled={reacting}
             >
-              <Text style={styles.actionText}>😊 Sourire TEST</Text>
+              <Text style={styles.actionText}>😊 Sourire</Text>
             </Pressable>
           </View>
 

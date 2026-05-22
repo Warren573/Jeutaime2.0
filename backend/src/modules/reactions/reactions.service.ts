@@ -54,8 +54,6 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
     update: { type: type as ReactionType },
   });
 
-  console.log(`[sendReaction] fromId=${fromId}, toId=${toId}, type=${type}, reactionId=${reaction.id}`);
-
   if (type !== "SMILE") {
     return {
       id: reaction.id,
