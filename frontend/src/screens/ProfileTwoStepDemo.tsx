@@ -152,14 +152,15 @@ export default function ProfileTwoStepDemo() {
   }, [currentUser?.id, load]);
 
   const profile = profiles[currentIndex] ?? null;
+  const displayedProfile = profile;
 
   const advance = () => setCurrentIndex((i) => i + 1);
   const back    = () => setCurrentIndex((i) => Math.max(0, i - 1));
 
-  const handleReact = async (type: "SMILE" | "GRIMACE") => {
-    setLastActionDebug(`CLICK ${type} profile=${!!profile} reacting=${reacting} user=${!!currentUser?.id}\nPROFILE_ID=${profile?.userId} PROFILES_LENGTH=${profiles.length}`);
+  const handleReact = async (type: "SMILE" | "GRIMACE", targetProfile: DiscoveryProfileDto | null) => {
+    setLastActionDebug(`CLICK ${type} profile=${!!targetProfile} reacting=${reacting} user=${!!currentUser?.id}\nPROFILE_ID=${targetProfile?.userId} PROFILES_LENGTH=${profiles.length}`);
 
-    if (!profile) {
+    if (!targetProfile) {
       setLastActionDebug('BLOCKED no profile');
       return;
     }
@@ -172,19 +173,15 @@ export default function ProfileTwoStepDemo() {
       return;
     }
 
-    const targetProfile = profile;
     const previousProfiles = profiles;
     const previousIndex = currentIndex;
 
     setReacting(true);
 
-    const newProfiles = profiles.filter((p) => p.userId !== targetProfile.userId);
+    const newProfiles = previousProfiles.filter((p) => p.userId !== targetProfile.userId);
     setLastActionDebug(`REMOVED=${targetProfile.userId} PROFILES_LENGTH=${newProfiles.length}`);
     setProfiles(newProfiles);
-
-    if (currentIndex >= newProfiles.length && newProfiles.length > 0) {
-      setCurrentIndex(newProfiles.length - 1);
-    }
+    setCurrentIndex((idx) => Math.min(idx, Math.max(0, newProfiles.length - 1)));
 
     try {
       const result = await sendReaction(targetProfile.userId, type);
@@ -320,7 +317,7 @@ export default function ProfileTwoStepDemo() {
           <View style={styles.stageOneActions}>
             <Pressable
               style={[styles.actionButton, styles.actionBad, reacting && styles.actionDisabled]}
-              onPress={() => handleReact("GRIMACE")}
+              onPress={() => displayedProfile && handleReact("GRIMACE", displayedProfile)}
               disabled={reacting}
             >
               <Text style={styles.actionText}>😬 Grimace</Text>
@@ -332,7 +329,7 @@ export default function ProfileTwoStepDemo() {
 
             <Pressable
               style={[styles.actionButton, styles.actionGood, reacting && styles.actionDisabled]}
-              onPress={() => handleReact("SMILE")}
+              onPress={() => displayedProfile && handleReact("SMILE", displayedProfile)}
               disabled={reacting}
             >
               <Text style={styles.actionText}>😊 Sourire</Text>
