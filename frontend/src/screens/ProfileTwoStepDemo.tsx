@@ -161,7 +161,16 @@ export default function ProfileTwoStepDemo() {
   const back    = () => setCurrentIndex((i) => Math.max(0, i - 1));
 
   const handleReact = async (type: "SMILE" | "GRIMACE") => {
-    if (!profile || reacting || !currentUser?.id) return;
+    if (!profile || reacting || !currentUser?.id) {
+      console.log("[handleReact] BLOCKED:", {
+        noProfile: !profile,
+        isReacting: reacting,
+        noUserId: !currentUser?.id,
+        currentUser: currentUser?.id,
+        profile: profile?.userId,
+      });
+      return;
+    }
 
     const targetProfile = profile;
     setReacting(true);
@@ -175,12 +184,14 @@ export default function ProfileTwoStepDemo() {
 
     try {
       const result = await sendReaction(targetProfile.userId, type);
+      console.log("[handleReact] SUCCESS:", result);
 
       if (type === "SMILE" && result.matchCreated && result.matchId) {
         await loadMatches();
         router.push("/(tabs)/letters");
       }
     } catch (err) {
+      console.log("[handleReact] ERROR:", err);
       setProfiles(profiles);
       setCurrentIndex(profiles.indexOf(targetProfile));
       const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi";
