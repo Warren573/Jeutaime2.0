@@ -166,7 +166,12 @@ export default function ProfileTwoStepDemo() {
     const targetProfile = profile;
     setReacting(true);
 
-    setProfiles((prev) => prev.filter((p) => p.userId !== targetProfile.userId));
+    const newProfiles = profiles.filter((p) => p.userId !== targetProfile.userId);
+    setProfiles(newProfiles);
+
+    if (currentIndex >= newProfiles.length && newProfiles.length > 0) {
+      setCurrentIndex(newProfiles.length - 1);
+    }
 
     try {
       const result = await sendReaction(targetProfile.userId, type);
@@ -174,11 +179,10 @@ export default function ProfileTwoStepDemo() {
       if (type === "SMILE" && result.matchCreated && result.matchId) {
         await loadMatches();
         router.push("/(tabs)/letters");
-      } else {
-        await load();
       }
     } catch (err) {
-      setProfiles((prev) => [...prev, targetProfile]);
+      setProfiles(profiles);
+      setCurrentIndex(profiles.indexOf(targetProfile));
       const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi";
       Alert.alert("Erreur", msg);
     } finally {
