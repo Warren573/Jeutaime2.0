@@ -194,8 +194,11 @@ export default function ProfileTwoStepDemo() {
       setLastActionDebug(`API_RESULT type=${type} matchCreated=${result.matchCreated} matchId=${result.matchId ?? 'null'}`);
 
       if (type === "SMILE" && result.matchCreated && result.matchId) {
+        setLastActionDebug(`LOADING_MATCHES...`);
         await loadMatches();
+        setLastActionDebug(`LOAD_MATCHES_DONE matchId=${result.matchId}`);
         router.push("/(tabs)/letters");
+        setLastActionDebug(`NAVIGATED_TO_LETTERS`);
       }
     } catch (err) {
       setCurrentProfile(previousCurrent);
