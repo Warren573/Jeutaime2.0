@@ -157,7 +157,7 @@ export default function ProfileTwoStepDemo() {
   const back    = () => setCurrentIndex((i) => Math.max(0, i - 1));
 
   const handleReact = async (type: "SMILE" | "GRIMACE") => {
-    setLastActionDebug(`CLICK ${type} profile=${!!profile} reacting=${reacting} user=${!!currentUser?.id}`);
+    setLastActionDebug(`CLICK ${type} profile=${!!profile} reacting=${reacting} user=${!!currentUser?.id}\nPROFILE_ID=${profile?.userId} PROFILES_LENGTH=${profiles.length}`);
 
     if (!profile) {
       setLastActionDebug('BLOCKED no profile');
@@ -179,6 +179,7 @@ export default function ProfileTwoStepDemo() {
     setReacting(true);
 
     const newProfiles = profiles.filter((p) => p.userId !== targetProfile.userId);
+    setLastActionDebug(`REMOVED=${targetProfile.userId} PROFILES_LENGTH=${newProfiles.length}`);
     setProfiles(newProfiles);
 
     if (currentIndex >= newProfiles.length && newProfiles.length > 0) {
@@ -338,7 +339,10 @@ export default function ProfileTwoStepDemo() {
             </Pressable>
           </View>
 
-          {/* Debug display */}
+          {/* Debug display - state info */}
+          <Text style={styles.debugStateText}>PROFILE_ID={profile?.userId} PROFILES_LENGTH={profiles.length}</Text>
+
+          {/* Debug display - action info */}
           {lastActionDebug && (
             <Text style={styles.debugText}>{lastActionDebug}</Text>
           )}
@@ -505,5 +509,6 @@ const styles = StyleSheet.create({
   secondeChanceLink: { fontSize: 15, color: INK_SOFT, fontStyle: "italic", opacity: 0.7 },
 
   // ── Debug ──
-  debugText: { fontSize: 14, color: "#FF6B6B", fontWeight: "600", marginTop: 16, textAlign: "center", paddingHorizontal: 12 },
+  debugStateText: { fontSize: 13, color: "#FF9800", fontWeight: "600", marginTop: 16, textAlign: "center", paddingHorizontal: 12 },
+  debugText: { fontSize: 13, color: "#FF6B6B", fontWeight: "600", marginTop: 8, textAlign: "center", paddingHorizontal: 12 },
 });
