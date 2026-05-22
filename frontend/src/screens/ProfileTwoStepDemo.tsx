@@ -191,6 +191,7 @@ export default function ProfileTwoStepDemo() {
 
     try {
       const result = await sendReaction(targetProfile.userId, type);
+      setLastActionDebug(`API_RESULT type=${type} matchCreated=${result.matchCreated} matchId=${result.matchId ?? 'null'}`);
 
       if (type === "SMILE" && result.matchCreated && result.matchId) {
         await loadMatches();
@@ -201,6 +202,7 @@ export default function ProfileTwoStepDemo() {
       setRemainingProfiles(previousRemaining);
       setRemovedIds(previousRemovedIds);
       const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi";
+      setLastActionDebug(`API_ERROR ${msg}`);
       Alert.alert("Erreur", msg);
     } finally {
       setReacting(false);
