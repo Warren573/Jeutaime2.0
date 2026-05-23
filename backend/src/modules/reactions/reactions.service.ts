@@ -62,6 +62,7 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
       type,
       createdAt: reaction.createdAt.toISOString(),
       matchCreated: false,
+      debugBranch: "NOT-SMILE",
     };
   }
 
@@ -78,6 +79,7 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
       type,
       createdAt: reaction.createdAt.toISOString(),
       matchCreated: false,
+      debugBranch: "NO-MUTUAL",
     };
   }
 
@@ -97,6 +99,7 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
       createdAt: reaction.createdAt.toISOString(),
       matchCreated: true,
       matchId: existing.id,
+      debugBranch: "EXISTING-MATCH",
     };
   }
 
@@ -136,5 +139,6 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
     createdAt: reaction.createdAt.toISOString(),
     matchCreated: true,
     matchId: match.id,
+    debugBranch: "NEW-MATCH",
   };
 }
