@@ -191,7 +191,7 @@ export default function ProfileTwoStepDemo() {
 
     try {
       const result = await sendReaction(targetProfile.userId, type);
-      setLastActionDebug(`API_RESULT branch=${(result as any).debugBranch ?? 'none'} matchCreated=${result.matchCreated} matchId=${result.matchId ?? 'null'}`);
+      setLastActionDebug(`API_RESULT branch=${result.debugBranch ?? 'none'} matchCreated=${result.matchCreated} matchId=${result.matchId ?? 'null'}`);
 
       if (type === "SMILE" && result.matchCreated && result.matchId) {
         setLastActionDebug(`LOADING_MATCHES...`);

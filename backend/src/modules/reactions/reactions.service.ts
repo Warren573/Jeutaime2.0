@@ -55,6 +55,7 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
   });
 
   if (type !== "SMILE") {
+    console.log("[sendReaction] Branch: NOT-SMILE");
     return {
       id: reaction.id,
       fromId,
@@ -72,6 +73,7 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
   });
 
   if (!mutualSmile) {
+    console.log("[sendReaction] Branch: NO-MUTUAL");
     return {
       id: reaction.id,
       fromId,
@@ -91,6 +93,7 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
   });
 
   if (existing) {
+    console.log("[sendReaction] Branch: EXISTING-MATCH");
     return {
       id: reaction.id,
       fromId,
@@ -131,6 +134,7 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
 
   emitMatchCreated({ matchId: match.id, userAId, userBId, initiatorId: fromId });
 
+  console.log("[sendReaction] Branch: NEW-MATCH");
   return {
     id: reaction.id,
     fromId,
