@@ -17,6 +17,8 @@ import { DEFAULT_AVATAR } from "../avatar/png/defaults";
 import { getRelationInfo } from "../engine/RelationEngine";
 import { discoverProfiles, type DiscoveryProfileDto } from "../api/profiles";
 import { sendReaction } from "../api/reactions";
+import { getBackendVersion, type BackendVersion } from "../api/version";
+import { API_URL } from "../api/client";
 
 // ─── Lookup tables ─────────────────────────────────────────────────────────
 
@@ -130,6 +132,7 @@ export default function ProfileTwoStepDemo() {
   const [reacting, setReacting] = useState(false);
   const [lastActionDebug, setLastActionDebug] = useState('');
   const [rawResponse, setRawResponse] = useState<string>('');
+  const [backendVersion, setBackendVersion] = useState<BackendVersion | null>(null);
 
   const load = useCallback(async () => {
     if (!currentUser?.id) return;
@@ -154,6 +157,10 @@ export default function ProfileTwoStepDemo() {
       load();
     }
   }, [currentUser?.id]);
+
+  useEffect(() => {
+    getBackendVersion().then(setBackendVersion);
+  }, []);
 
   const profile = currentProfile;
   const displayedProfile = profile;
@@ -351,6 +358,12 @@ export default function ProfileTwoStepDemo() {
             </Pressable>
           </View>
 
+          {/* Debug display - backend version info */}
+          <Text style={styles.debugVersionText}>API_URL={API_URL}</Text>
+          {backendVersion && (
+            <Text style={styles.debugVersionText}>BACKEND_VERSION sha={backendVersion.sha.substring(0, 8)} env={backendVersion.environment}</Text>
+          )}
+
           {/* Debug display - state info */}
           <Text style={styles.debugStateText}>CURRENT={profile?.userId} REMAINING={remainingProfiles.length} REMOVED_COUNT={removedIds.size}</Text>
 
@@ -519,7 +532,8 @@ const styles = StyleSheet.create({
   secondeChanceLink: { fontSize: 15, color: INK_SOFT, fontStyle: "italic", opacity: 0.7 },
 
   // ── Debug ──
-  debugStateText: { fontSize: 13, color: "#FF9800", fontWeight: "600", marginTop: 16, textAlign: "center", paddingHorizontal: 12 },
+  debugVersionText: { fontSize: 12, color: "#9C27B0", fontWeight: "700", marginTop: 16, textAlign: "center", paddingHorizontal: 12, backgroundColor: "#F3E5F5", padding: 8, borderRadius: 4 },
+  debugStateText: { fontSize: 13, color: "#FF9800", fontWeight: "600", marginTop: 8, textAlign: "center", paddingHorizontal: 12 },
   debugText: { fontSize: 13, color: "#FF6B6B", fontWeight: "600", marginTop: 8, textAlign: "center", paddingHorizontal: 12 },
   debugRawText: { fontSize: 11, color: "#2196F3", fontWeight: "500", marginTop: 8, fontFamily: "monospace", paddingHorizontal: 12, backgroundColor: "#E3F2FD", padding: 8, borderRadius: 4 },
 });
