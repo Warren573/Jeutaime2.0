@@ -129,6 +129,7 @@ export default function ProfileTwoStepDemo() {
   const [error, setError] = useState<string | null>(null);
   const [reacting, setReacting] = useState(false);
   const [lastActionDebug, setLastActionDebug] = useState('');
+  const [rawResponse, setRawResponse] = useState<string>('');
 
   const load = useCallback(async () => {
     if (!currentUser?.id) return;
@@ -191,7 +192,9 @@ export default function ProfileTwoStepDemo() {
 
     try {
       const result = await sendReaction(targetProfile.userId, type);
-      setLastActionDebug(`API_RESULT branch=${result.debugBranch ?? 'none'} matchCreated=${result.matchCreated} matchId=${result.matchId ?? 'null'}`);
+      const rawStr = JSON.stringify(result, null, 0);
+      setRawResponse(rawStr);
+      setLastActionDebug(`API_RESULT source=${(result as any).source ?? 'unknown'} debugBranch=${result.debugBranch ?? 'none'} matchCreated=${result.matchCreated} matchId=${result.matchId ?? 'null'}`);
 
       if (type === "SMILE" && result.matchCreated && result.matchId) {
         setLastActionDebug(`LOADING_MATCHES...`);
@@ -355,6 +358,11 @@ export default function ProfileTwoStepDemo() {
           {lastActionDebug && (
             <Text style={styles.debugText}>{lastActionDebug}</Text>
           )}
+
+          {/* Debug display - raw API response */}
+          {rawResponse && (
+            <Text style={styles.debugRawText}>RAW_RESPONSE={rawResponse}</Text>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -513,4 +521,5 @@ const styles = StyleSheet.create({
   // ── Debug ──
   debugStateText: { fontSize: 13, color: "#FF9800", fontWeight: "600", marginTop: 16, textAlign: "center", paddingHorizontal: 12 },
   debugText: { fontSize: 13, color: "#FF6B6B", fontWeight: "600", marginTop: 8, textAlign: "center", paddingHorizontal: 12 },
+  debugRawText: { fontSize: 11, color: "#2196F3", fontWeight: "500", marginTop: 8, fontFamily: "monospace", paddingHorizontal: 12, backgroundColor: "#E3F2FD", padding: 8, borderRadius: 4 },
 });

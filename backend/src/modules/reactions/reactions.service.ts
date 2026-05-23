@@ -63,6 +63,7 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
       type,
       createdAt: reaction.createdAt.toISOString(),
       matchCreated: false,
+      source: "reactions.service.sendReaction",
       debugBranch: "NOT-SMILE",
     };
   }
@@ -81,6 +82,7 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
       type,
       createdAt: reaction.createdAt.toISOString(),
       matchCreated: false,
+      source: "reactions.service.sendReaction",
       debugBranch: "NO-MUTUAL",
     };
   }
@@ -102,6 +104,7 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
       createdAt: reaction.createdAt.toISOString(),
       matchCreated: true,
       matchId: existing.id,
+      source: "reactions.service.sendReaction",
       debugBranch: "EXISTING-MATCH",
     };
   }
@@ -143,6 +146,7 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
     createdAt: reaction.createdAt.toISOString(),
     matchCreated: true,
     matchId: match.id,
+    source: "reactions.service.sendReaction",
     debugBranch: "NEW-MATCH",
   };
 }

@@ -10,6 +10,7 @@ export interface ReactionDTO {
   createdAt: string;
   matchCreated: boolean;
   matchId?: string;
+  source?: string;
   debugBranch?: string;
 }
 
