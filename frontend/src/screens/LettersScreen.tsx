@@ -73,8 +73,6 @@ const EnvelopeCard = ({
 }: EnvelopeCardProps) => {
   const rel = getRelationInfo(letterCount, isPremium);
 
-  console.log('[BRUTAL_DEBUG]', `matchStatus raw value: "${matchStatus}" (type: ${typeof matchStatus})`);
-
   // Petite animation tremblement quand lettre non lue
   const shakeX = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -115,15 +113,6 @@ const EnvelopeCard = ({
   const isActive = matchStatus?.toUpperCase() === 'ACTIVE';
   const canInteract = isActive && questionsValidated;
   const canReadLetters = isActive; // Can always read if match is active
-
-  console.log('[DEBUG EnvelopeCard]', {
-    matchStatus,
-    isActive,
-    questionsValidated,
-    canInteract,
-    canReadLetters,
-    willDisableButton: !canReadLetters,
-  });
 
   return (
     <Animated.View
@@ -191,12 +180,8 @@ const EnvelopeCard = ({
           <TouchableOpacity
             style={[envStyles.actionLeft, !canReadLetters && envStyles.actionDisabled]}
             onPress={() => {
-              console.log('[DEBUG] Lettres button pressed. canReadLetters:', canReadLetters);
               if (canReadLetters) {
-                console.log('[DEBUG] Calling onOpen()');
                 onOpen();
-              } else {
-                console.log('[DEBUG] Button disabled - canReadLetters is false');
               }
             }}
             activeOpacity={canReadLetters ? 0.75 : 1}
@@ -585,6 +570,11 @@ export default function LettersScreen() {
     return tabs;
   }, []);
 
+  const visibleMatches = useMemo(
+    () => matches.filter(m => m.status === 'pending' || m.status === 'active'),
+    [matches]
+  );
+
   useEffect(() => {
     if (!visibleTabs.includes(activeTab)) {
       setActiveTab(visibleTabs[0] ?? 'souvenirs');
@@ -818,7 +808,7 @@ export default function LettersScreen() {
               <Text style={styles.duelBtnArrow}>▶</Text>
             </TouchableOpacity>
 
-            {matches.length === 0 ? (
+            {visibleMatches.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyEmoji}>✉️</Text>
                 <Text style={styles.emptyText}>Aucune lettre</Text>
@@ -829,10 +819,14 @@ export default function LettersScreen() {
             ) : (
               <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
                 <Text style={styles.listCount}>
-                  {matches.length} enveloppe{matches.length > 1 ? 's' : ''}
+                  {visibleMatches.length} enveloppe{visibleMatches.length > 1 ? 's' : ''}
                 </Text>
 
-                {matches.filter(m => m.status === 'pending' || m.status === 'active').map((match) => {
+                <Text style={{fontSize: 12, color: '#FF6B6B', marginBottom: 12, paddingHorizontal: 16}}>
+                  DEBUG_MATCHES: RAW={matches.length} VISIBLE={visibleMatches.length} STATUSES=[{matches.map(m => m.status).join(',')}]
+                </Text>
+
+                {visibleMatches.map((match) => {
                   const otherName = getOtherName(match);
 
                   return (
@@ -961,24 +955,6 @@ export default function LettersScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
-      {/* DEBUG MARKER - FORCE REDEPLOY */}
-      <View style={{
-        backgroundColor: '#00FF00',
-        paddingVertical: 4,
-        paddingHorizontal: 8,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}>
-        <Text style={{
-          fontSize: 10,
-          fontWeight: 'bold',
-          color: '#000',
-          letterSpacing: 1,
-        }}>
-          VERCEL_REDEPLOY_FORCE_GREEN ✓
-        </Text>
-      </View>
-
       <View style={styles.header}>
         <Text style={styles.headerKicker}>JEUTAIME</Text>
         <Text style={styles.headerTitle}>Boîte aux lettres</Text>
