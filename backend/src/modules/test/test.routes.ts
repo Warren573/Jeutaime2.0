@@ -27,6 +27,8 @@ router.post(
     const userBId = `test-mutual-b-${timestamp}`;
     const emailA = `test.mutual.a.${timestamp}@jeutaime.test`;
     const emailB = `test.mutual.b.${timestamp}@jeutaime.test`;
+    const pseudoA = `test_mutual_a_${timestamp}`;
+    const pseudoB = `test_mutual_b_${timestamp}`;
     const passwordA = `test-a-${timestamp}`;
     const passwordB = `test-b-${timestamp}`;
 
@@ -56,44 +58,54 @@ router.post(
         },
       });
 
-      // Create User A
+      // Create User A with profile
       const userA = await prisma.user.create({
         data: {
           id: userAId,
           email: emailA,
-          pseudo: `test_mutual_a_${timestamp}`,
-          password: passwordA, // In real app this would be hashed
-          isBanned: false,
-          hasCompletedQuestionnaire: false,
-          birthDate: new Date("1990-01-01"),
-          gender: "AUTRE",
-          interestedIn: ["AUTRE"],
-          city: "Test",
-          bio: "Test account A - mutual smile flow",
-          lookingFor: ["relation"],
-          physicalDesc: "moyenne",
-          avatarConfig: {},
+          passwordHash: passwordA,
+          isVerified: true,
+          role: "USER",
+          profile: {
+            create: {
+              pseudo: pseudoA,
+              birthDate: new Date("1990-01-01"),
+              gender: "AUTRE",
+              interestedIn: ["AUTRE"],
+              city: "Test",
+              bio: "Test account A - mutual smile flow",
+              lookingFor: ["RELATION"],
+              physicalDesc: "moyenne",
+              avatarConfig: {},
+            },
+          },
         },
+        include: { profile: true },
       });
 
-      // Create User B
+      // Create User B with profile
       const userB = await prisma.user.create({
         data: {
           id: userBId,
           email: emailB,
-          pseudo: `test_mutual_b_${timestamp}`,
-          password: passwordB,
-          isBanned: false,
-          hasCompletedQuestionnaire: false,
-          birthDate: new Date("1990-01-01"),
-          gender: "AUTRE",
-          interestedIn: ["AUTRE"],
-          city: "Test",
-          bio: "Test account B - mutual smile flow",
-          lookingFor: ["relation"],
-          physicalDesc: "moyenne",
-          avatarConfig: {},
+          passwordHash: passwordB,
+          isVerified: true,
+          role: "USER",
+          profile: {
+            create: {
+              pseudo: pseudoB,
+              birthDate: new Date("1990-01-01"),
+              gender: "AUTRE",
+              interestedIn: ["AUTRE"],
+              city: "Test",
+              bio: "Test account B - mutual smile flow",
+              lookingFor: ["RELATION"],
+              physicalDesc: "moyenne",
+              avatarConfig: {},
+            },
+          },
         },
+        include: { profile: true },
       });
 
       // Verify virgin state
@@ -118,13 +130,13 @@ router.post(
         virgin: reactions === 0 && matches === 0,
         accountA: {
           email: userA.email,
-          pseudo: userA.pseudo,
+          pseudo: userA.profile?.pseudo,
           password: passwordA, // Only in dev!
           userId: userA.id,
         },
         accountB: {
           email: userB.email,
-          pseudo: userB.pseudo,
+          pseudo: userB.profile?.pseudo,
           password: passwordB, // Only in dev!
           userId: userB.id,
         },
