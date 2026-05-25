@@ -5,6 +5,18 @@ import { prisma } from "../../config/prisma";
 const router = Router();
 
 /**
+ * DEBUG: Verify test router is mounted
+ */
+router.get("/health", (_req: Request, res: Response) => {
+  res.json({
+    status: "test-router-mounted",
+    timestamp: new Date().toISOString(),
+    node_env: process.env.NODE_ENV || "development",
+    message: "If you see this, /api/test routes are available",
+  });
+});
+
+/**
  * TEMPORARY DEV ENDPOINT ONLY
  * POST /api/test/reset-mutual-smile
  *
