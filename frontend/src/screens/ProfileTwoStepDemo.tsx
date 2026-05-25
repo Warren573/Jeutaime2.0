@@ -17,6 +17,8 @@ import { DEFAULT_AVATAR } from "../avatar/png/defaults";
 import { getRelationInfo } from "../engine/RelationEngine";
 import { discoverProfiles, type DiscoveryProfileDto } from "../api/profiles";
 import { sendReaction } from "../api/reactions";
+import { getBackendVersion, type BackendVersion } from "../api/version";
+import { API_URL } from "../api/client";
 
 // ─── Lookup tables ─────────────────────────────────────────────────────────
 
@@ -122,53 +124,98 @@ export default function ProfileTwoStepDemo() {
   const currentUser  = useStore((s) => s.currentUser);
   const loadMatches  = useStore((s) => s.loadMatches);
 
-  const [profiles, setProfiles] = useState<DiscoveryProfileDto[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentProfile, setCurrentProfile] = useState<DiscoveryProfileDto | null>(null);
+  const [remainingProfiles, setRemainingProfiles] = useState<DiscoveryProfileDto[]>([]);
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reacting, setReacting] = useState(false);
+  const [lastActionDebug, setLastActionDebug] = useState('');
+  const [rawResponse, setRawResponse] = useState<string>('');
+  const [backendVersion, setBackendVersion] = useState<BackendVersion | null>(null);
 
   const load = useCallback(async () => {
+    if (!currentUser?.id) return;
     setLoading(true);
     setError(null);
     try {
       const result = await discoverProfiles({ pageSize: 50 });
-      // Backend already excludes the current user, but filter here as safety net
-      const filtered = result.data.filter((p) => p.userId !== currentUser?.id);
-      setProfiles(filtered);
-      setCurrentIndex(0);
+      const filtered = result.data.filter(
+        (p) => p.userId !== currentUser.id && !removedIds.has(p.userId)
+      );
+      setCurrentProfile(filtered[0] ?? null);
+      setRemainingProfiles(filtered.slice(1));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de chargement");
     } finally {
       setLoading(false);
     }
+  }, [currentUser?.id, removedIds]);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      load();
+    }
   }, [currentUser?.id]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    getBackendVersion().then(setBackendVersion);
+  }, []);
 
-  const profile = profiles[currentIndex] ?? null;
+  const profile = currentProfile;
+  const displayedProfile = profile;
 
-  const advance = () => setCurrentIndex((i) => i + 1);
-  const back    = () => setCurrentIndex((i) => Math.max(0, i - 1));
+  const handleReact = async (type: "SMILE" | "GRIMACE", targetProfile: DiscoveryProfileDto | null) => {
+    setLastActionDebug(`CLICK ${type} profile=${!!targetProfile} reacting=${reacting} user=${!!currentUser?.id}\nPROFILE_ID=${targetProfile?.userId}`);
 
-  const handleReact = async (type: "SMILE" | "GRIMACE") => {
-    if (!profile || reacting) return;
+    if (!targetProfile) {
+      setLastActionDebug('BLOCKED no profile');
+      return;
+    }
+    if (reacting) {
+      setLastActionDebug('BLOCKED reacting');
+      return;
+    }
+    if (!currentUser?.id) {
+      setLastActionDebug('BLOCKED no user');
+      return;
+    }
+
+    const previousCurrent = currentProfile;
+    const previousRemaining = remainingProfiles;
+    const previousRemovedIds = removedIds;
+
     setReacting(true);
-    console.log("[Sourire] payload →", { toId: profile.userId, type, currentUserId: currentUser?.id });
+
+    const next = remainingProfiles[0] ?? null;
+    const newRemaining = remainingProfiles.slice(1);
+    const newRemovedIds = new Set(removedIds);
+    newRemovedIds.add(targetProfile.userId);
+
+    setCurrentProfile(next);
+    setRemainingProfiles(newRemaining);
+    setRemovedIds(newRemovedIds);
+    setLastActionDebug(`REMOVED=${targetProfile.userId} NEXT=${next?.userId ?? 'EMPTY'} REMAINING=${newRemaining.length}`);
+
     try {
-      const result = await sendReaction(profile.userId, type);
-      console.log("[Sourire] réponse →", result);
-      advance();
+      const result = await sendReaction(targetProfile.userId, type);
+      const rawStr = JSON.stringify(result, null, 0);
+      setRawResponse(rawStr);
+      setLastActionDebug(`API_RESULT source=${(result as any).source ?? 'unknown'} debugBranch=${result.debugBranch ?? 'none'} matchCreated=${result.matchCreated} matchId=${result.matchId ?? 'null'}`);
+
       if (type === "SMILE" && result.matchCreated && result.matchId) {
-        console.log("[Match] matchId →", result.matchId, "— chargement des matchs puis navigation vers lettres");
+        setLastActionDebug(`LOADING_MATCHES...`);
         await loadMatches();
+        setLastActionDebug(`LOAD_MATCHES_DONE matchId=${result.matchId}`);
         router.push("/(tabs)/letters");
+        setLastActionDebug(`NAVIGATED_TO_LETTERS`);
       }
     } catch (err) {
+      setCurrentProfile(previousCurrent);
+      setRemainingProfiles(previousRemaining);
+      setRemovedIds(previousRemovedIds);
       const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi";
-      console.error("[Sourire] erreur →", msg);
+      setLastActionDebug(`API_ERROR ${msg}`);
       Alert.alert("Erreur", msg);
     } finally {
       setReacting(false);
@@ -236,7 +283,7 @@ export default function ProfileTwoStepDemo() {
             <Text style={styles.topBarTitle}>Découvrir</Text>
             <View style={styles.progressBadge}>
               <Text style={styles.progressBadgeText}>
-                {currentIndex + 1} / {profiles.length}
+                {remainingProfiles.length + 1} restant{remainingProfiles.length > 0 ? 's' : ''}
               </Text>
             </View>
           </View>
@@ -292,7 +339,7 @@ export default function ProfileTwoStepDemo() {
           <View style={styles.stageOneActions}>
             <Pressable
               style={[styles.actionButton, styles.actionBad, reacting && styles.actionDisabled]}
-              onPress={() => handleReact("GRIMACE")}
+              onPress={() => displayedProfile && handleReact("GRIMACE", displayedProfile)}
               disabled={reacting}
             >
               <Text style={styles.actionText}>😬 Grimace</Text>
@@ -304,18 +351,30 @@ export default function ProfileTwoStepDemo() {
 
             <Pressable
               style={[styles.actionButton, styles.actionGood, reacting && styles.actionDisabled]}
-              onPress={() => handleReact("SMILE")}
+              onPress={() => displayedProfile && handleReact("SMILE", displayedProfile)}
               disabled={reacting}
             >
               <Text style={styles.actionText}>😊 Sourire</Text>
             </Pressable>
           </View>
 
-          {/* Back to previous profile */}
-          {currentIndex > 0 && (
-            <Pressable style={styles.secondeChanceWrap} onPress={back}>
-              <Text style={styles.secondeChanceLink}>← Seconde chance</Text>
-            </Pressable>
+          {/* Debug display - backend version info */}
+          <Text style={styles.debugVersionText}>API_URL={API_URL}</Text>
+          {backendVersion && (
+            <Text style={styles.debugVersionText}>BACKEND_VERSION sha={backendVersion.sha.substring(0, 8)} env={backendVersion.environment}</Text>
+          )}
+
+          {/* Debug display - state info */}
+          <Text style={styles.debugStateText}>CURRENT={profile?.userId} REMAINING={remainingProfiles.length} REMOVED_COUNT={removedIds.size}</Text>
+
+          {/* Debug display - action info */}
+          {lastActionDebug && (
+            <Text style={styles.debugText}>{lastActionDebug}</Text>
+          )}
+
+          {/* Debug display - raw API response */}
+          {rawResponse && (
+            <Text style={styles.debugRawText}>RAW_RESPONSE={rawResponse}</Text>
           )}
         </View>
       </ScrollView>
@@ -471,4 +530,10 @@ const styles = StyleSheet.create({
   // ── Seconde chance ──
   secondeChanceWrap: { alignItems: "center", marginTop: 14, paddingBottom: 4 },
   secondeChanceLink: { fontSize: 15, color: INK_SOFT, fontStyle: "italic", opacity: 0.7 },
+
+  // ── Debug ──
+  debugVersionText: { fontSize: 12, color: "#9C27B0", fontWeight: "700", marginTop: 16, textAlign: "center", paddingHorizontal: 12, backgroundColor: "#F3E5F5", padding: 8, borderRadius: 4 },
+  debugStateText: { fontSize: 13, color: "#FF9800", fontWeight: "600", marginTop: 8, textAlign: "center", paddingHorizontal: 12 },
+  debugText: { fontSize: 13, color: "#FF6B6B", fontWeight: "600", marginTop: 8, textAlign: "center", paddingHorizontal: 12 },
+  debugRawText: { fontSize: 11, color: "#2196F3", fontWeight: "500", marginTop: 8, fontFamily: "monospace", paddingHorizontal: 12, backgroundColor: "#E3F2FD", padding: 8, borderRadius: 4 },
 });

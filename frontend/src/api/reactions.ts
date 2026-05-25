@@ -10,6 +10,8 @@ export interface ReactionDTO {
   createdAt: string;
   matchCreated: boolean;
   matchId?: string;
+  source?: string;
+  debugBranch?: string;
 }
 
 /**
@@ -23,6 +25,7 @@ export async function sendReaction(
   const res = await apiFetch("/discover/react", {
     method: "POST",
     body: JSON.stringify({ toId, type }),
-  }) as { data: ReactionDTO };
+  });
+  console.log("[sendReaction] RAW_RESPONSE:", JSON.stringify(res, null, 2));
   return res.data;
 }

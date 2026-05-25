@@ -6,6 +6,11 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Web/RN compatible storage
+const storage = typeof window !== 'undefined'
+  ? { getItem: (k: string) => localStorage.getItem(k), setItem: (k: string, v: string) => localStorage.setItem(k, v), removeItem: (k: string) => localStorage.removeItem(k) }
+  : AsyncStorage;
+
 import type {
   AvatarConfig,
   Match,
@@ -354,10 +359,15 @@ export const useStore = create<StoreState>()(
 
       hydrateFromApi: async () => {
         try {
+          console.log('[HYDRATE] Starting hydrateFromApi...');
           const res = await apiFetch('/auth/me');
+          console.log('[HYDRATE] Response from /auth/me:', res);
           const d = res?.data;
           const p = d?.profile;
-          if (!d?.id || !p) return;
+          if (!d?.id || !p) {
+            console.log('[HYDRATE] No data or profile, returning early. d?.id:', d?.id, 'p:', p);
+            return;
+          }
           console.log("HYDRATE_API_RESPONSE", d, p);
           const ageNum = (() => {
             const bd = new Date(p.birthDate ?? '');
@@ -1041,7 +1051,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'jeutaime-storage-v8',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => storage),
       partialize: (state) => ({
         // En dev non-authentifié, coins n'est pas sauvegardé → 50 000 au démarrage
         // Si authentifié, le solde réel est toujours persisté même en dev
@@ -1059,6 +1069,8 @@ export const useStore = create<StoreState>()(
         duelEntries: state.duelEntries,
         avatarPngConfig: state.avatarPngConfig,
         showPhotoByDefault: state.showPhotoByDefault,
+        likedProfiles: state.likedProfiles,
+        dislikedProfiles: state.dislikedProfiles,
       }),
     }
   )
