@@ -9,85 +9,98 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Trigger Render Deploy
         run: |
-          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
-          echo "Deploy triggered, waiting for Render..."
-          sleep 10
+          echo "Triggering Render deployment..."
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          echo ""
+          echo "Deploy webhook sent. Waiting for Render to process..."
+          sleep 15
 
-      - name: Wait for Render to be READY
-        run: |
-          echo "Polling Render health endpoint..."
-          for i in {1..30}; do
-            RESPONSE=$(curl -s https://jeutaime-staging.onrender.com/api/health/version)
-            echo "Attempt $i: $RESPONSE"
-            if echo "$RESPONSE" | grep -q '"sha"'; then
-              echo "✅ Render is responding"
-              echo "HEALTH_RESPONSE=$RESPONSE" >> $GITHUB_ENV
-              break
-            fi
-            sleep 10
-          done
-
-      - name: Extract and verify SHA
+      - name: Get latest commit SHA
         run: |
           LATEST_SHA=$(git rev-parse --short HEAD)
-          echo "Expected SHA (short): $LATEST_SHA"
+          echo "LATEST_SHA=$LATEST_SHA" >> $GITHUB_ENV
+          echo "Expected SHA: $LATEST_SHA"
+
+      - name: Wait for /api/health/version to respond
+        run: |
+          echo "Polling ${{ secrets.BACKEND_API_URL }}/api/health/version..."
+          BACKEND_URL="${{ secrets.BACKEND_API_URL }}"
+
+          for i in {1..40}; do
+            echo "Attempt $i/40..."
+            RESPONSE=$(curl -s -w "\n%{http_code}" "$BACKEND_URL/api/health/version")
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Got 200 response"
+              echo "HEALTH_RESPONSE=$BODY" >> $GITHUB_ENV
+              break
+            else
+              echo "Got HTTP $HTTP_CODE, retrying in 5s..."
+              sleep 5
+            fi
+          done
+
+      - name: Verify SHA matches
+        run: |
+          if [ -z "${{ env.HEALTH_RESPONSE }}" ]; then
+            echo "❌ FAILED: Could not get health response after 200 seconds"
+            exit 1
+          fi
+
           echo "Health response: ${{ env.HEALTH_RESPONSE }}"
 
-          # Extract SHA from response (first 8 chars)
           RENDER_SHA=$(echo '${{ env.HEALTH_RESPONSE }}' | grep -o '"sha":"[^"]*' | cut -d'"' -f4 | cut -c1-8)
-          echo "Render SHA (short): $RENDER_SHA"
+          EXPECTED_SHA="${{ env.LATEST_SHA }}"
 
-          if [ "$RENDER_SHA" = "$LATEST_SHA" ]; then
-            echo "✅ SHA matches!"
-            echo "SHA_OK=true" >> $GITHUB_ENV
+          echo "Expected SHA: $EXPECTED_SHA"
+          echo "Render SHA:   $RENDER_SHA"
+
+          if [ "$RENDER_SHA" = "$EXPECTED_SHA" ]; then
+            echo "✅ SHA matches! Deployment complete."
           else
-            echo "⚠️ SHA mismatch (may be OK if deploy is slow)"
-            echo "SHA_OK=false" >> $GITHUB_ENV
+            echo "❌ FAILED: SHA mismatch. Render still on old version."
+            exit 1
           fi
 
-      - name: Test /api/test/reset-mutual-smile
+      - name: Test /api/test/reset-mutual-smile endpoint
         run: |
-          echo "Testing reset-mutual-smile endpoint..."
-          RESPONSE=$(curl -s -X POST https://jeutaime-staging.onrender.com/api/test/reset-mutual-smile)
-          echo "Response: $RESPONSE"
+          echo "Testing endpoint: ${{ secrets.BACKEND_API_URL }}/api/test/reset-mutual-smile"
+          BACKEND_URL="${{ secrets.BACKEND_API_URL }}"
 
-          if echo "$RESPONSE" | grep -q '"status":"success"'; then
-            echo "✅ Endpoint returned 200 with success"
-            echo "ENDPOINT_OK=true" >> $GITHUB_ENV
-          elif echo "$RESPONSE" | grep -q '"status":"test-router-mounted"'; then
-            echo "⚠️ Got health response instead"
-            echo "ENDPOINT_OK=false" >> $GITHUB_ENV
-          elif echo "$RESPONSE" | grep -q 'NOT_FOUND\|Route introuvable'; then
-            echo "❌ Endpoint returned 404"
-            echo "ENDPOINT_OK=false" >> $GITHUB_ENV
-          elif echo "$RESPONSE" | grep -q 'Test endpoint disabled'; then
-            echo "❌ Endpoint disabled (NODE_ENV=production)"
-            echo "ENDPOINT_OK=false" >> $GITHUB_ENV
-          else
-            echo "❌ Unexpected response"
-            echo "ENDPOINT_OK=false" >> $GITHUB_ENV
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BACKEND_URL/api/test/reset-mutual-smile")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ FAILED: Expected HTTP 200, got $HTTP_CODE"
+            exit 1
           fi
 
-      - name: Final Result
+          if echo "$BODY" | grep -q '"status":"success"'; then
+            echo "✅ Endpoint returned success"
+          else
+            echo "❌ FAILED: Response missing 'status:success'"
+            exit 1
+          fi
+
+      - name: Success Summary
         run: |
           echo ""
-          echo "========== DEPLOYMENT VERIFICATION =========="
-          echo "✅ Render deploy triggered"
-          echo "✅ Render responding to /api/health/version"
-          if [ "${{ env.SHA_OK }}" = "true" ]; then
-            echo "✅ SHA matches (deployment complete)"
-          else
-            echo "⚠️  SHA may still be updating"
-          fi
-          if [ "${{ env.ENDPOINT_OK }}" = "true" ]; then
-            echo "✅ /api/test/reset-mutual-smile returns 200"
-            echo ""
-            echo "🎉 DEPLOYMENT VERIFIED - ALL SYSTEMS GO"
-          else
-            echo "❌ /api/test/reset-mutual-smile failed"
-            echo ""
-            echo "⚠️  DEPLOYMENT INCOMPLETE OR FAILED"
-          fi
-          echo "=========================================="
+          echo "╔════════════════════════════════════════╗"
+          echo "║  ✅ DEPLOYMENT VERIFIED - ALL SYSTEMS  ║"
+          echo "╠════════════════════════════════════════╣"
+          echo "║  ✅ Render deploy triggered            ║"
+          echo "║  ✅ /api/health/version responding     ║"
+          echo "║  ✅ SHA matches (${{ env.LATEST_SHA }})    ║"
+          echo "║  ✅ /api/test/reset-mutual-smile OK    ║"
+          echo "╚════════════════════════════════════════╝"
+          echo ""
