@@ -16,7 +16,7 @@ import { useStore } from "../store/useStore";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login: storeLogin } = useStore();
+  const { login: storeLogin, authDebug } = useStore();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,20 +24,10 @@ export default function LoginScreen() {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // DEBUG: Login flow diagnostics
-  const [debugLogin, setDebugLogin] = useState<any>({
-    status: "idle",
-    accessTokenReceived: false,
-    refreshTokenReceived: false,
-    jwtExp: null,
-    currentTime: null,
-    tokenExpiredCheck: null,
-    storeUserSet: false,
-    navigationTriggered: false,
-    errorMessage: null,
-    rateLimited: false,
-    tokenDebug: null,
-  });
+  // DEBUG: Login flow status
+  const [debugStatus, setDebugStatus] = useState<"idle" | "calling_login" | "login_returned" | "error">("idle");
+  const [debugError, setDebugError] = useState<string | null>(null);
+  const [debugRateLimited, setDebugRateLimited] = useState(false);
 
   const isFormValid = email.trim().length > 0 && password.trim().length > 0;
 
@@ -46,42 +36,24 @@ export default function LoginScreen() {
 
     try {
       setIsLoading(true);
-      setDebugLogin((prev: any) => ({
-        ...prev,
-        status: "calling_login",
-        errorMessage: null,
-        rateLimited: false,
-        tokenDebug: null,
-      }));
+      setDebugStatus("calling_login");
+      setDebugError(null);
+      setDebugRateLimited(false);
 
-      const result = await storeLogin(email.trim().toLowerCase(), password);
+      await storeLogin(email.trim().toLowerCase(), password);
 
-      // After storeLogin, tokens should be in store and saveSession should have logged debug info
-      // We don't have direct access to tokenDebug here, so we'll show what we can infer
-      setDebugLogin((prev: any) => ({
-        ...prev,
-        status: "login_returned",
-        accessTokenReceived: !!result?.accessToken,
-        refreshTokenReceived: !!result?.refreshToken,
-        storeUserSet: !!result,
-      }));
+      setDebugStatus("login_returned");
 
       // Small delay to see the debug state before navigation
       setTimeout(() => {
-        setDebugLogin((prev: any) => ({ ...prev, navigationTriggered: true }));
         router.replace("/(tabs)");
       }, 500);
     } catch (err: any) {
       const errorMsg = err?.message || "Une erreur est survenue.";
       const isRateLimited = errorMsg?.includes("Trop de tentatives");
-      const isSessionExpired = errorMsg?.includes("Session expirée");
-      setDebugLogin((prev: any) => ({
-        ...prev,
-        status: "error",
-        errorMessage: errorMsg,
-        rateLimited: isRateLimited,
-        tokenExpiredCheck: isSessionExpired,
-      }));
+      setDebugStatus("error");
+      setDebugError(errorMsg);
+      setDebugRateLimited(isRateLimited);
       Alert.alert("Erreur", errorMsg);
     } finally {
       setIsLoading(false);
@@ -154,17 +126,21 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* DEBUG: Login flow diagnostics */}
+          {/* DEBUG: Full auth flow diagnostics */}
           <View style={styles.debugBox}>
             <Text style={styles.debugTitle}>TOKEN DEBUG</Text>
-            <Text style={styles.debugText}>Status: {debugLogin.status}</Text>
-            <Text style={styles.debugText}>AccessToken: {debugLogin.accessTokenReceived ? "✓ YES" : "✗ NO"}</Text>
-            <Text style={styles.debugText}>RefreshToken: {debugLogin.refreshTokenReceived ? "✓ YES" : "✗ NO"}</Text>
-            <Text style={styles.debugText}>Store: {debugLogin.storeUserSet ? "✓ SET" : "✗ NOT"}</Text>
-            <Text style={styles.debugText}>Nav: {debugLogin.navigationTriggered ? "✓ YES" : "✗ NO"}</Text>
-            <Text style={styles.debugText}>RateLimit: {debugLogin.rateLimited ? "✗ YES" : "✓ NO"}</Text>
-            <Text style={styles.debugText}>Expired: {debugLogin.tokenExpiredCheck ? "✗ YES" : "✓ NO"}</Text>
-            {debugLogin.errorMessage && <Text style={styles.debugError}>Error: {debugLogin.errorMessage}</Text>}
+            <Text style={styles.debugText}>Status: {debugStatus}</Text>
+            <Text style={styles.debugText}>AccessToken: {authDebug?.tokenStored ? "✓ YES" : "✗ NO"}</Text>
+            <Text style={styles.debugText}>RefreshToken: {authDebug?.tokenStored ? "✓ YES" : "✗ NO"}</Text>
+            <Text style={styles.debugText}>Store: {authDebug?.tokenStored ? "✓ YES" : "✗ NO"}</Text>
+            <Text style={styles.debugText}>JWT_EXP: {authDebug?.accessTokenExp ?? "—"}</Text>
+            <Text style={styles.debugText}>CURRENT_TIME: {authDebug?.currentTime ?? "—"}</Text>
+            <Text style={styles.debugText}>SECONDS_UNTIL_EXP: {authDebug?.secondsUntilExp ?? "—"}</Text>
+            <Text style={styles.debugText}>TOKEN_EXPIRED_CHECK: {authDebug?.tokenExpired ? "✗ YES" : "✓ NO"}</Text>
+            <Text style={styles.debugText}>FIRST_401_ENDPOINT: {authDebug?.first401Endpoint ?? "—"}</Text>
+            <Text style={styles.debugText}>AUTO_LOGOUT_TRIGGERED: {authDebug?.autoLogoutTriggered ? "✗ YES" : "✓ NO"}</Text>
+            {debugRateLimited && <Text style={styles.debugError}>RateLimit: ✗ YES</Text>}
+            {debugError && <Text style={styles.debugError}>Error: {debugError}</Text>}
           </View>
         </View>
       </KeyboardAvoidingView>

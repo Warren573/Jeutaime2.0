@@ -51,6 +51,18 @@ import {
   type NotificationDto,
 } from '../api/notifications';
 
+// ===== HELPERS =====
+function decodeJWT(token: string): any {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const decoded = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+    return decoded;
+  } catch (e) {
+    return null;
+  }
+}
+
 // ===== DEV MODE =====
 // À mettre à `false` pour le build final
 const DEV_MODE_UNLIMITED_COINS = true;
@@ -196,7 +208,18 @@ interface StoreState {
   currentUser: CurrentUser | null;
   isAuthenticated: boolean;
   matchPartners: Record<string, PartnerProfile>;
-  
+
+  // ===== DEBUG: Auth flow diagnostics =====
+  authDebug: {
+    accessTokenExp?: number;
+    currentTime?: number;
+    secondsUntilExp?: number;
+    tokenExpired?: boolean;
+    first401Endpoint?: string;
+    autoLogoutTriggered?: boolean;
+    tokenStored?: boolean;
+  };
+
   // ===== Economy =====
   coins: number;
   transactions: Transaction[];
@@ -354,6 +377,8 @@ export const useStore = create<StoreState>()(
       },
       unlockedBadges: [],
 
+      authDebug: {},
+
       // ===== User Actions =====
       setCurrentUser: (user) => set({ currentUser: user, isAuthenticated: !!user }),
 
@@ -430,14 +455,41 @@ export const useStore = create<StoreState>()(
           get().setCurrentUser(mappedUser);
           // Charger les vrais matchs, le wallet et le compteur notifs depuis l'API
           await Promise.all([get().loadMatches(), get().loadWallet(), get().loadUnreadCount()]);
-        } catch {
+        } catch (err: any) {
           // token invalide ou réseau — user reste non-authentifié
+          const errorMsg = err?.message || String(err);
+          if (errorMsg.includes("Session expirée")) {
+            set((state) => ({
+              authDebug: {
+                ...state.authDebug,
+                first401Endpoint: "/auth/me",
+                autoLogoutTriggered: true,
+              },
+            }));
+          }
         }
       },
 
       login: async (email, password) => {
         const tokens = await apiLogin({ email, password });
-        await saveSession(tokens);
+        const sessionResult = await saveSession(tokens);
+
+        // DEBUG: Decode and check expiration
+        const accessPayload = decodeJWT(tokens.accessToken);
+        const now = Math.floor(Date.now() / 1000);
+        const accessExp = accessPayload?.exp;
+        const secondsUntilExp = accessExp ? accessExp - now : undefined;
+
+        set({
+          authDebug: {
+            accessTokenExp: accessExp,
+            currentTime: now,
+            secondsUntilExp: secondsUntilExp,
+            tokenExpired: (accessExp ?? 0) < now,
+            tokenStored: true,
+          },
+        });
+
         await get().hydrateFromApi();
       },
 
