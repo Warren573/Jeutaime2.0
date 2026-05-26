@@ -96,10 +96,30 @@ export async function login(dto: LoginDto) {
     },
   });
 
+  console.log("[auth/login] DEBUG user query:", {
+    emailSearched: dto.email,
+    userFound: !!user,
+    userObjectKeys: user ? Object.keys(user) : null,
+  });
+
   if (!user) throw new UnauthorizedError("Email ou mot de passe incorrect");
   if (user.isBanned) throw new UnauthorizedError(`Compte suspendu${user.banReason ? " : " + user.banReason : ""}`);
 
+  console.log("[auth/login] DEBUG password check:", {
+    inputPassword: dto.password,
+    inputPasswordLength: dto.password.length,
+    passwordHashField: user.passwordHash ? "exists" : "null",
+    passwordHashLength: user.passwordHash?.length || 0,
+    passwordHashPrefix: user.passwordHash?.substring(0, 10) || "N/A",
+  });
+
   const valid = await comparePassword(dto.password, user.passwordHash);
+
+  console.log("[auth/login] DEBUG compare result:", {
+    bcryptCompareResult: valid,
+    passwordHashPrefix: user.passwordHash?.substring(0, 10) || "N/A",
+  });
+
   if (!valid) throw new UnauthorizedError("Email ou mot de passe incorrect");
 
   const isPremium = isPremiumActive(user);
