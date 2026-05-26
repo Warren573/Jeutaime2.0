@@ -21,7 +21,7 @@ export interface LoginPayload {
 }
 
 function extractTokens(res: unknown): AuthTokens {
-  const payload = (res as any)?.data?.data || (res as any)?.data;
+  const payload = (res as any)?.data?.data ?? (res as any)?.data;
   const accessToken = payload?.accessToken;
   const refreshToken = payload?.refreshToken;
   if (!accessToken || !refreshToken) {

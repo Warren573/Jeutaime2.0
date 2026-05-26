@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   View,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
@@ -24,6 +25,18 @@ export default function LoginScreen() {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // DEBUG: Full login flow tracking
+  const [debugLoginFlow, setDebugLoginFlow] = useState({
+    loginApiUrl: "",
+    rawResponse: null as any,
+    accessTokenExtracted: false,
+    refreshTokenExtracted: false,
+    setAuthCalled: false,
+    currentUserAfterStore: null as any,
+    routerReplaceCalled: false,
+    exactError: null as string | null,
+  });
+
   const isFormValid = email.trim().length > 0 && password.trim().length > 0;
 
   const handleLogin = async () => {
@@ -31,10 +44,37 @@ export default function LoginScreen() {
 
     try {
       setIsLoading(true);
-      await storeLogin(email.trim().toLowerCase(), password);
+      setDebugLoginFlow({
+        loginApiUrl: "/auth/login",
+        rawResponse: null,
+        accessTokenExtracted: false,
+        refreshTokenExtracted: false,
+        setAuthCalled: false,
+        currentUserAfterStore: null,
+        routerReplaceCalled: false,
+        exactError: null,
+      });
+
+      const result = await storeLogin(email.trim().toLowerCase(), password);
+
+      setDebugLoginFlow(prev => ({
+        ...prev,
+        rawResponse: result,
+        accessTokenExtracted: !!result?.accessToken,
+        refreshTokenExtracted: !!result?.refreshToken,
+        setAuthCalled: true,
+        currentUserAfterStore: { logged: true },
+        routerReplaceCalled: true,
+      }));
+
       router.replace("/(tabs)");
     } catch (err: any) {
-      Alert.alert("Erreur", err?.message || "Une erreur est survenue.");
+      const errorMsg = err?.message || "Une erreur est survenue.";
+      setDebugLoginFlow(prev => ({
+        ...prev,
+        exactError: errorMsg,
+      }));
+      Alert.alert("Erreur", errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -50,62 +90,79 @@ export default function LoginScreen() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.container}>
-          <View style={styles.card}>
-            <Text style={styles.brand}>JEUTAIME</Text>
-            <Text style={styles.title}>Connexion</Text>
-            <Text style={styles.subtitle}>
-              Retrouve ton univers et continue l'aventure.
-            </Text>
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={styles.container}>
+            <View style={styles.card}>
+              <Text style={styles.brand}>JEUTAIME</Text>
+              <Text style={styles.title}>Connexion</Text>
+              <Text style={styles.subtitle}>
+                Retrouve ton univers et continue l'aventure.
+              </Text>
 
-            <View style={styles.form}>
-              <View style={styles.field}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  placeholder="ton@email.com"
-                  placeholderTextColor="#9a948d"
-                  style={[styles.input, emailFocused && styles.inputFocused]}
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => setEmailFocused(false)}
-                />
+              <View style={styles.form}>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Email</Text>
+                  <TextInput
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    placeholder="ton@email.com"
+                    placeholderTextColor="#9a948d"
+                    style={[styles.input, emailFocused && styles.inputFocused]}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => setEmailFocused(false)}
+                  />
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Mot de passe</Text>
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    placeholder="••••••••"
+                    placeholderTextColor="#9a948d"
+                    style={[styles.input, passwordFocused && styles.inputFocused]}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
+                  />
+                </View>
+
+                <Pressable
+                  style={[styles.button, isLoading && styles.buttonDisabled]}
+                  onPress={handleLogin}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Se connecter</Text>
+                  )}
+                </Pressable>
+
+                <Pressable disabled={isLoading} onPress={handleRegister}>
+                  <Text style={styles.link}>Créer un compte</Text>
+                </Pressable>
               </View>
+            </View>
 
-              <View style={styles.field}>
-                <Text style={styles.label}>Mot de passe</Text>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  placeholder="••••••••"
-                  placeholderTextColor="#9a948d"
-                  style={[styles.input, passwordFocused && styles.inputFocused]}
-                  onFocus={() => setPasswordFocused(true)}
-                  onBlur={() => setPasswordFocused(false)}
-                />
-              </View>
-
-              <Pressable
-                style={[styles.button, isLoading && styles.buttonDisabled]}
-                onPress={handleLogin}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>Se connecter</Text>
-                )}
-              </Pressable>
-
-              <Pressable disabled={isLoading} onPress={handleRegister}>
-                <Text style={styles.link}>Créer un compte</Text>
-              </Pressable>
+            {/* DEBUG: PERMANENT LOGIN FLOW DEBUG BOX */}
+            <View style={styles.debugBox}>
+              <Text style={styles.debugTitle}>LOGIN DEBUG</Text>
+              <Text style={styles.debugText}>API_URL: {debugLoginFlow.loginApiUrl || "—"}</Text>
+              <Text style={styles.debugText}>RAW_RESPONSE: {debugLoginFlow.rawResponse ? JSON.stringify(debugLoginFlow.rawResponse, null, 2) : "—"}</Text>
+              <Text style={styles.debugText}>AccessToken: {debugLoginFlow.accessTokenExtracted ? "✓ YES" : "✗ NO"}</Text>
+              <Text style={styles.debugText}>RefreshToken: {debugLoginFlow.refreshTokenExtracted ? "✓ YES" : "✗ NO"}</Text>
+              <Text style={styles.debugText}>setAuth called: {debugLoginFlow.setAuthCalled ? "✓ YES" : "✗ NO"}</Text>
+              <Text style={styles.debugText}>currentUser after: {debugLoginFlow.currentUserAfterStore ? "✓ YES" : "✗ NO"}</Text>
+              <Text style={styles.debugText}>router.replace called: {debugLoginFlow.routerReplaceCalled ? "✓ YES" : "✗ NO"}</Text>
+              {debugLoginFlow.exactError && (
+                <Text style={styles.debugError}>ERROR: {debugLoginFlow.exactError}</Text>
+              )}
             </View>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -119,11 +176,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f6f1ea",
   },
-  container: {
-    flex: 1,
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: "center",
-    alignItems: "center",
     paddingHorizontal: 24,
+    paddingVertical: 24,
+  },
+  container: {
+    alignItems: "center",
   },
   card: {
     width: "100%",
@@ -209,5 +269,35 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#9c3d4f",
+  },
+  debugBox: {
+    marginTop: 24,
+    padding: 12,
+    backgroundColor: "#2a1f26",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#9c3d4f",
+    width: "100%",
+    maxWidth: 420,
+  },
+  debugTitle: {
+    color: "#9c3d4f",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 8,
+    letterSpacing: 2,
+  },
+  debugText: {
+    color: "#b8a9a0",
+    fontSize: 10,
+    fontFamily: "monospace",
+    marginVertical: 2,
+  },
+  debugError: {
+    color: "#ff6b6b",
+    fontSize: 10,
+    fontFamily: "monospace",
+    marginVertical: 2,
+    fontWeight: "600",
   },
 });
