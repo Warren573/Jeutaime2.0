@@ -85,13 +85,77 @@ export async function register(dto: RegisterDto) {
 }
 
 // -----------------------------------------------------------------------
-// Login
+// Login with Full Debug Info (for testing)
 // -----------------------------------------------------------------------
-export async function login(dto: LoginDto) {
-  const dbUrl = process.env.DATABASE_URL || "not-set";
-  const dbHostMatch = dbUrl.match(/host=([^&]+)/);
-  const dbHost = dbHostMatch ? dbHostMatch[1] : "unknown";
+export async function loginWithDebug(dto: LoginDto) {
+  const debug: any = {
+    inputEmail: dto.email,
+    userFound: false,
+    userObjectKeys: null,
+    passwordHashExists: false,
+    passwordHashLength: 0,
+    passwordHashPrefix: null,
+    bcryptCompareResult: null,
+    failureReason: null,
+    failureLineNumber: null,
+  };
 
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: dto.email },
+      select: {
+        id: true, passwordHash: true, role: true, isBanned: true,
+        premiumTier: true, premiumUntil: true, banReason: true,
+      },
+    });
+
+    debug.userFound = !!user;
+    if (user) {
+      debug.userObjectKeys = Object.keys(user);
+      debug.passwordHashExists = !!user.passwordHash;
+      debug.passwordHashLength = user.passwordHash?.length || 0;
+      debug.passwordHashPrefix = user.passwordHash?.substring(0, 10) || null;
+    }
+
+    if (!user) {
+      debug.failureReason = "Email ou mot de passe incorrect";
+      debug.failureLineNumber = 105;
+      return { tokens: null, debug, error: debug.failureReason };
+    }
+
+    if (user.isBanned) {
+      debug.failureReason = `Compte suspendu${user.banReason ? " : " + user.banReason : ""}`;
+      debug.failureLineNumber = 106;
+      return { tokens: null, debug, error: debug.failureReason };
+    }
+
+    const valid = await comparePassword(dto.password, user.passwordHash);
+    debug.bcryptCompareResult = valid;
+
+    if (!valid) {
+      debug.failureReason = "Email ou mot de passe incorrect";
+      debug.failureLineNumber = 122;
+      return { tokens: null, debug, error: debug.failureReason };
+    }
+
+    const isPremium = isPremiumActive(user);
+
+    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+
+    const { access, refresh, tokenId } = buildTokenPair(user.id, user.role, isPremium);
+    await persistRefreshToken(user.id, tokenId, refresh);
+
+    debug.success = true;
+    return { tokens: { accessToken: access, refreshToken: refresh }, debug, error: null };
+  } catch (err) {
+    debug.failureReason = err instanceof Error ? err.message : "Unknown error";
+    return { tokens: null, debug, error: debug.failureReason };
+  }
+}
+
+// -----------------------------------------------------------------------
+// Login
+export async function login(dto: LoginDto) {
   const user = await prisma.user.findUnique({
     where: { email: dto.email },
     select: {
@@ -100,16 +164,29 @@ export async function login(dto: LoginDto) {
     },
   });
 
-  console.log("[auth/login] DEBUG:", {
-    dbHost,
+  console.log("[auth/login] DEBUG user query:", {
     emailSearched: dto.email,
     userFound: !!user,
+    userObjectKeys: user ? Object.keys(user) : null,
   });
 
   if (!user) throw new UnauthorizedError("Email ou mot de passe incorrect");
   if (user.isBanned) throw new UnauthorizedError(`Compte suspendu${user.banReason ? " : " + user.banReason : ""}`);
 
+  console.log("[auth/login] DEBUG password check:", {
+    inputPasswordLength: dto.password.length,
+    passwordHashExists: !!user.passwordHash,
+    passwordHashLength: user.passwordHash?.length || 0,
+    passwordHashPrefix: user.passwordHash?.substring(0, 10) || "N/A",
+  });
+
   const valid = await comparePassword(dto.password, user.passwordHash);
+
+  console.log("[auth/login] DEBUG compare result:", {
+    bcryptCompareResult: valid,
+    passwordHashPrefix: user.passwordHash?.substring(0, 10) || "N/A",
+  });
+
   if (!valid) throw new UnauthorizedError("Email ou mot de passe incorrect");
 
   const isPremium = isPremiumActive(user);

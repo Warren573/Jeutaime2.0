@@ -10,13 +10,15 @@ import {
   Text,
   TextInput,
   View,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
+import { API_URL } from "../api/client";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login: storeLogin, authDebug } = useStore();
+  const { login: storeLogin } = useStore();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,11 +26,17 @@ export default function LoginScreen() {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // DEBUG: Login flow status
-  const [debugStatus, setDebugStatus] = useState<"idle" | "calling_login" | "login_returned" | "error">("idle");
-  const [debugError, setDebugError] = useState<string | null>(null);
-  const [debugRateLimited, setDebugRateLimited] = useState(false);
-  const [debugExtraction, setDebugExtraction] = useState<string | null>(null);
+  // DEBUG: Full login flow tracking
+  const [debugLoginFlow, setDebugLoginFlow] = useState({
+    loginApiUrl: "",
+    rawResponse: null as any,
+    accessTokenExtracted: false,
+    refreshTokenExtracted: false,
+    setAuthCalled: false,
+    currentUserAfterStore: null as any,
+    routerReplaceCalled: false,
+    exactError: null as string | null,
+  });
 
   const isFormValid = email.trim().length > 0 && password.trim().length > 0;
 
@@ -37,32 +45,36 @@ export default function LoginScreen() {
 
     try {
       setIsLoading(true);
-      setDebugStatus("calling_login");
-      setDebugError(null);
-      setDebugRateLimited(false);
-      setDebugExtraction(null);
+      setDebugLoginFlow({
+        loginApiUrl: "/auth/login",
+        rawResponse: null,
+        accessTokenExtracted: false,
+        refreshTokenExtracted: false,
+        setAuthCalled: false,
+        currentUserAfterStore: null,
+        routerReplaceCalled: false,
+        exactError: null,
+      });
 
-      await storeLogin(email.trim().toLowerCase(), password);
+      const result = await storeLogin(email.trim().toLowerCase(), password);
 
-      setDebugStatus("login_returned");
+      setDebugLoginFlow(prev => ({
+        ...prev,
+        rawResponse: result,
+        accessTokenExtracted: !!result?.accessToken,
+        refreshTokenExtracted: !!result?.refreshToken,
+        setAuthCalled: true,
+        currentUserAfterStore: { logged: true },
+        routerReplaceCalled: true,
+      }));
 
-      // Small delay to see the debug state before navigation
-      setTimeout(() => {
-        router.replace("/(tabs)");
-      }, 500);
+      router.replace("/(tabs)");
     } catch (err: any) {
       const errorMsg = err?.message || "Une erreur est survenue.";
-      const isRateLimited = errorMsg?.includes("Trop de tentatives");
-      const isExtractionError = errorMsg?.includes("Tokens manquants");
-
-      setDebugStatus("error");
-      setDebugError(errorMsg);
-      setDebugRateLimited(isRateLimited);
-
-      if (isExtractionError) {
-        setDebugExtraction(errorMsg);
-      }
-
+      setDebugLoginFlow(prev => ({
+        ...prev,
+        exactError: errorMsg,
+      }));
       Alert.alert("Erreur", errorMsg);
     } finally {
       setIsLoading(false);
@@ -79,84 +91,80 @@ export default function LoginScreen() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.container}>
-          <View style={styles.card}>
-            <Text style={styles.brand}>JEUTAIME</Text>
-            <Text style={styles.title}>Connexion</Text>
-            <Text style={styles.subtitle}>
-              Retrouve ton univers et continue l'aventure.
-            </Text>
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={styles.container}>
+            <View style={styles.card}>
+              <Text style={styles.brand}>JEUTAIME</Text>
+              <Text style={styles.title}>Connexion</Text>
+              <Text style={styles.subtitle}>
+                Retrouve ton univers et continue l'aventure.
+              </Text>
 
-            <View style={styles.form}>
-              <View style={styles.field}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  placeholder="ton@email.com"
-                  placeholderTextColor="#9a948d"
-                  style={[styles.input, emailFocused && styles.inputFocused]}
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => setEmailFocused(false)}
-                />
+              <View style={styles.form}>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Email</Text>
+                  <TextInput
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    placeholder="ton@email.com"
+                    placeholderTextColor="#9a948d"
+                    style={[styles.input, emailFocused && styles.inputFocused]}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => setEmailFocused(false)}
+                  />
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Mot de passe</Text>
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    placeholder="••••••••"
+                    placeholderTextColor="#9a948d"
+                    style={[styles.input, passwordFocused && styles.inputFocused]}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
+                  />
+                </View>
+
+                <Pressable
+                  style={[styles.button, isLoading && styles.buttonDisabled]}
+                  onPress={handleLogin}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Se connecter</Text>
+                  )}
+                </Pressable>
+
+                <Pressable disabled={isLoading} onPress={handleRegister}>
+                  <Text style={styles.link}>Créer un compte</Text>
+                </Pressable>
               </View>
+            </View>
 
-              <View style={styles.field}>
-                <Text style={styles.label}>Mot de passe</Text>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  placeholder="••••••••"
-                  placeholderTextColor="#9a948d"
-                  style={[styles.input, passwordFocused && styles.inputFocused]}
-                  onFocus={() => setPasswordFocused(true)}
-                  onBlur={() => setPasswordFocused(false)}
-                />
-              </View>
-
-              <Pressable
-                style={[styles.button, isLoading && styles.buttonDisabled]}
-                onPress={handleLogin}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>Se connecter</Text>
-                )}
-              </Pressable>
-
-              <Pressable disabled={isLoading} onPress={handleRegister}>
-                <Text style={styles.link}>Créer un compte</Text>
-              </Pressable>
+            {/* DEBUG: PERMANENT LOGIN FLOW DEBUG BOX */}
+            <View style={styles.debugBox}>
+              <Text style={styles.debugTitle}>LOGIN DEBUG</Text>
+              <Text style={styles.debugText}>API_BASE: {API_URL}</Text>
+              <Text style={styles.debugText}>API_ENDPOINT: {debugLoginFlow.loginApiUrl || "—"}</Text>
+              <Text style={styles.debugText}>RAW_RESPONSE: {debugLoginFlow.rawResponse ? JSON.stringify(debugLoginFlow.rawResponse, null, 2) : "—"}</Text>
+              <Text style={styles.debugText}>AccessToken: {debugLoginFlow.accessTokenExtracted ? "✓ YES" : "✗ NO"}</Text>
+              <Text style={styles.debugText}>RefreshToken: {debugLoginFlow.refreshTokenExtracted ? "✓ YES" : "✗ NO"}</Text>
+              <Text style={styles.debugText}>setAuth called: {debugLoginFlow.setAuthCalled ? "✓ YES" : "✗ NO"}</Text>
+              <Text style={styles.debugText}>currentUser after: {debugLoginFlow.currentUserAfterStore ? "✓ YES" : "✗ NO"}</Text>
+              <Text style={styles.debugText}>router.replace called: {debugLoginFlow.routerReplaceCalled ? "✓ YES" : "✗ NO"}</Text>
+              {debugLoginFlow.exactError && (
+                <Text style={styles.debugError}>ERROR: {debugLoginFlow.exactError}</Text>
+              )}
             </View>
           </View>
-
-          {/* DEBUG: Full auth flow diagnostics */}
-          <View style={styles.debugBox}>
-            <Text style={styles.debugTitle}>TOKEN DEBUG</Text>
-            <Text style={styles.debugText}>LOGIN_API_URL:</Text>
-            <Text style={styles.debugText}>{authDebug?.loginApiUrl ?? "—"}</Text>
-            <Text style={styles.debugText}>Status: {debugStatus}</Text>
-            <Text style={styles.debugText}>AccessToken: {authDebug?.tokenStored ? "✓ YES" : "✗ NO"}</Text>
-            <Text style={styles.debugText}>RefreshToken: {authDebug?.tokenStored ? "✓ YES" : "✗ NO"}</Text>
-            <Text style={styles.debugText}>Store: {authDebug?.tokenStored ? "✓ YES" : "✗ NO"}</Text>
-            <Text style={styles.debugText}>JWT_EXP: {authDebug?.accessTokenExp ?? "—"}</Text>
-            <Text style={styles.debugText}>CURRENT_TIME: {authDebug?.currentTime ?? "—"}</Text>
-            <Text style={styles.debugText}>SECONDS_UNTIL_EXP: {authDebug?.secondsUntilExp ?? "—"}</Text>
-            <Text style={styles.debugText}>TOKEN_EXPIRED_CHECK: {authDebug?.tokenExpired ? "✗ YES" : "✓ NO"}</Text>
-            <Text style={styles.debugText}>FIRST_401_ENDPOINT: {authDebug?.first401Endpoint ?? "—"}</Text>
-            <Text style={styles.debugText}>AUTO_LOGOUT_TRIGGERED: {authDebug?.autoLogoutTriggered ? "✗ YES" : "✓ NO"}</Text>
-            <Text style={styles.debugText}>RAW_RESPONSE:</Text>
-            <Text style={styles.debugText}>{JSON.stringify(authDebug?.rawLoginResponse, null, 2) ?? "—"}</Text>
-            {debugRateLimited && <Text style={styles.debugError}>RateLimit: ✗ YES</Text>}
-            {debugExtraction && <Text style={styles.debugError}>TokenError: {debugExtraction}</Text>}
-            {debugError && <Text style={styles.debugError}>Error: {debugError}</Text>}
-          </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -170,11 +178,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f6f1ea",
   },
-  container: {
-    flex: 1,
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: "center",
-    alignItems: "center",
     paddingHorizontal: 24,
+    paddingVertical: 24,
+  },
+  container: {
+    alignItems: "center",
   },
   card: {
     width: "100%",
@@ -263,7 +274,7 @@ const styles = StyleSheet.create({
   },
   debugBox: {
     marginTop: 24,
-    padding: 16,
+    padding: 12,
     backgroundColor: "#2a1f26",
     borderRadius: 12,
     borderWidth: 1,
@@ -280,15 +291,15 @@ const styles = StyleSheet.create({
   },
   debugText: {
     color: "#b8a9a0",
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: "monospace",
-    marginVertical: 3,
+    marginVertical: 2,
   },
   debugError: {
     color: "#ff6b6b",
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: "monospace",
-    marginVertical: 3,
+    marginVertical: 2,
     fontWeight: "600",
   },
 });

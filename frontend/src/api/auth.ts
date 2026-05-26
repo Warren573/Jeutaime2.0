@@ -20,51 +20,43 @@ export interface LoginPayload {
   password: string;
 }
 
-// DEBUG: Decode JWT payload without verification
-function decodeJWT(token: string): any {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const decoded = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
-    return decoded;
-  } catch (e) {
-    console.error("[decodeJWT] Failed to decode:", e);
-    return null;
+// Direct fetch for auth endpoints (no Authorization header)
+async function authFetch(path: string, payload: unknown): Promise<unknown> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : null;
+
+  if (!res.ok) {
+    throw new Error(body?.error?.message || body?.message || text || `HTTP ${res.status}`);
   }
+
+  return body;
 }
 
 function extractTokens(res: unknown): AuthTokens {
-  console.log("[extractTokens] Input:", res);
-  const d = (res as { data?: { accessToken?: string; refreshToken?: string } })?.data;
-  console.log("[extractTokens] Extracted data:", d);
-  const accessToken = d?.accessToken;
-  const refreshToken = d?.refreshToken;
-  console.log("[extractTokens] Tokens found:", { accessToken: !!accessToken, refreshToken: !!refreshToken });
+  const payload = (res as any)?.data?.data ?? (res as any)?.data ?? res;
+  const accessToken = payload?.accessToken;
+  const refreshToken = payload?.refreshToken;
   if (!accessToken || !refreshToken) {
-    console.error("[extractTokens] MISSING TOKENS! Response was:", JSON.stringify(res));
-    const errorMsg = `Tokens manquants. Response structure: ${JSON.stringify(Object.keys(res as any))}. Data keys: ${d ? JSON.stringify(Object.keys(d)) : "no data"}`;
-    throw new Error(errorMsg);
+    throw new Error("Tokens manquants dans la réponse du serveur");
   }
   return { accessToken, refreshToken };
 }
 
 export async function login(payload: LoginPayload): Promise<{ tokens: AuthTokens; rawResponse: any; apiUrl: string }> {
   const loginUrl = `${API_URL}/auth/login`;
-  console.log("[auth.login] Calling:", loginUrl);
-  const res = await apiFetch("/auth/login", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  console.log("[auth.login] Raw response:", JSON.stringify(res, null, 2));
+  const res = await authFetch("/auth/login", payload);
   const tokens = extractTokens(res);
   return { tokens, rawResponse: res, apiUrl: loginUrl };
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthTokens> {
-  const res = await apiFetch("/auth/register", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const res = await authFetch("/auth/register", payload);
   return extractTokens(res);
 }
 
@@ -90,41 +82,11 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
   return { accessToken, refreshToken: newRefresh };
 }
 
-export async function saveSession(tokens: AuthTokens): Promise<{ tokenDebug: any }> {
-  console.log("[saveSession] Saving tokens...");
-
-  // DEBUG: Decode and check expiration
-  const accessPayload = decodeJWT(tokens.accessToken);
-  const refreshPayload = decodeJWT(tokens.refreshToken);
-  const now = Math.floor(Date.now() / 1000);
-
-  const tokenDebug = {
-    accessTokenLength: tokens.accessToken.length,
-    refreshTokenLength: tokens.refreshToken.length,
-    accessExp: accessPayload?.exp,
-    refreshExp: refreshPayload?.exp,
-    currentTimestamp: now,
-    accessExpiredNow: (accessPayload?.exp ?? 0) < now,
-    refreshExpiredNow: (refreshPayload?.exp ?? 0) < now,
-    accessExpiresIn: (accessPayload?.exp ?? 0) - now,
-    refreshExpiresIn: (refreshPayload?.exp ?? 0) - now,
-  };
-
-  console.log("[saveSession] Token debug:", tokenDebug);
-
+export async function saveSession(tokens: AuthTokens): Promise<void> {
   await AsyncStorage.multiSet([
     ["auth_token", tokens.accessToken],
     ["auth_refresh_token", tokens.refreshToken],
   ]);
-
-  // Verify tokens were actually stored
-  const verify = await AsyncStorage.multiGet(["auth_token", "auth_refresh_token"]);
-  console.log("[saveSession] Verification - stored tokens:", {
-    accessStored: !!verify[0][1],
-    refreshStored: !!verify[1][1],
-  });
-
-  return { tokenDebug };
 }
 
 export async function clearSession(): Promise<void> {

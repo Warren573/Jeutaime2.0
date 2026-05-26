@@ -30,3 +30,9 @@ __pycache__/
 # Système
 .DS_Store
 Thumbs.db
+
+# Audit documentation
+AUDIT_*.md
+RESUME_*.md
+STRATEGIE_*.md
+INDEX_*.md

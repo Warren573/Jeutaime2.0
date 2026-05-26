@@ -4,7 +4,7 @@ import { getPhotoUnlockProgress, type PhotoLevel } from "../../policies/photoUnl
 import { buildMeta } from "../../core/utils/pagination";
 import { buildPhotoUrl } from "../photos/photos.urls";
 import { UpdateProfileDto, UpdateQuestionsDto, DiscoveryQuery } from "./profiles.schemas";
-import { Gender, LookingFor, MatchStatus, Prisma } from "@prisma/client";
+import { Gender, LookingFor, MatchStatus, ReactionType, Prisma } from "@prisma/client";
 
 // -----------------------------------------------------------------------
 // Mon profil complet
@@ -263,14 +263,23 @@ async function findMatchBetween(userAId: string, userBId: string) {
 }
 
 async function getExistingMatchUserIds(userId: string): Promise<string[]> {
-  const matches = await prisma.match.findMany({
-    where: {
-      OR: [{ userAId: userId }, { userBId: userId }],
-      status: { in: [MatchStatus.ACTIVE, MatchStatus.PENDING] },
-    },
-    select: { userAId: true, userBId: true },
-  });
-  return matches.flatMap((m) => [m.userAId, m.userBId]).filter((id) => id !== userId);
+  const [matches, reactions] = await Promise.all([
+    prisma.match.findMany({
+      where: {
+        OR: [{ userAId: userId }, { userBId: userId }],
+        status: { in: [MatchStatus.ACTIVE, MatchStatus.PENDING, MatchStatus.BROKEN, MatchStatus.BLOCKED, MatchStatus.GHOSTED] },
+      },
+      select: { userAId: true, userBId: true },
+    }),
+    prisma.reaction.findMany({
+      where: { fromId: userId },
+      select: { toId: true },
+    }),
+  ]);
+
+  const matchUserIds = matches.flatMap((m) => [m.userAId, m.userBId]).filter((id) => id !== userId);
+  const reactionUserIds = reactions.map((r) => r.toId);
+  return [...new Set([...matchUserIds, ...reactionUserIds])];
 }
 
 // -----------------------------------------------------------------------

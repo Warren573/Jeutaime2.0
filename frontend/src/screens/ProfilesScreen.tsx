@@ -613,7 +613,12 @@ export default function ProfilesScreen() {
   const profileMissingFields = currentUser?.profileMissingFields ?? [];
 
   const handleSmile = async () => {
-    if (!profile) return;
+    console.log('[SMILE START] Click detected');
+    const targetProfile = profile;
+    if (!targetProfile) {
+      console.log('[SMILE] No profile');
+      return;
+    }
     if (!canMatch) {
       const msg = profileMissingFields.includes('questions')
         ? "Ajoute tes 3 questions pour pouvoir matcher."
@@ -621,30 +626,33 @@ export default function ProfilesScreen() {
       Alert.alert("Match indisponible", msg);
       return;
     }
-    addLike(profile.id);
+    addLike(targetProfile.id);
 
     if (isAuthenticated) {
       try {
-        const result = await sendReaction(profile.id, 'SMILE');
+        console.log('[SMILE] Sending reaction for profile:', targetProfile.id);
+        const result = await sendReaction(targetProfile.id, 'SMILE');
+        console.log('[SMILE] Response:', result);
+        const res = await apiFetch('/profiles');
+        const data: Record<string, unknown>[] = Array.isArray(res?.data) ? res.data : [];
+        const filtered = data.filter((p: any) => p.id !== targetProfile.id);
+        setApiProfiles(filtered.map(mapApiDiscoverProfile));
         if (result.matchCreated) {
           await loadMatches();
-          const res = await apiFetch('/profiles');
-          const data: Record<string, unknown>[] = Array.isArray(res?.data) ? res.data : [];
-          setApiProfiles(data.map(mapApiDiscoverProfile));
-          setShowMatch(profile.name);
+          setShowMatch(targetProfile.name);
           setTimeout(() => setShowMatch(null), 2500);
         }
         setCurrentIndex((prev) => prev + 1);
-      } catch {
-        // réaction silencieusement ignorée si réseau indisponible
+      } catch (err: any) {
+        console.error('[SMILE ERROR]', err?.message || err);
       }
     } else {
-      // dev: match aléatoire
+      console.log('[SMILE] Not authenticated, using dev mode');
       if (Math.random() > 0.5) {
         addMatch({
           id: `match_${Date.now()}`,
           userAId: currentUser?.id || 'me',
-          userBId: profile.id,
+          userBId: targetProfile.id,
           initiatorId: currentUser?.id || 'me',
           createdAt: Date.now(),
           questionValidation: { userACorrect: 2, userBCorrect: 2, isValid: true },
@@ -661,7 +669,7 @@ export default function ProfilesScreen() {
           photoUnlocked: false,
           photoUrl: null,
         });
-        setShowMatch(profile.name);
+        setShowMatch(targetProfile.name);
         setTimeout(() => setShowMatch(null), 2500);
       }
       setCurrentIndex((prev) => prev + 1);

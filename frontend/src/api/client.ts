@@ -138,12 +138,12 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<any
       }
 
       // 401 — attempt token refresh then retry once
-      console.warn(`[apiFetch] Got 401 on ${method} ${path}, attempting token refresh...`);
+      const errorBody = await res.text();
       const newToken = await attemptTokenRefresh();
       if (!newToken) {
-        console.error("[apiFetch] Token refresh failed, clearing session");
         await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]);
-        throw new Error("Session expirée, veuillez vous reconnecter");
+        const err = new Error(`[401] Session expirée. Response: ${errorBody.substring(0, 200)}`);
+        throw err;
       }
       const retryRes = await doFetch(path, options, newToken);
       return await parseResponse(retryRes);
