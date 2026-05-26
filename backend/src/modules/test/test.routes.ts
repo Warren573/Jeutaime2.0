@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { prisma } from "../../config/prisma";
-import { comparePassword } from "../../core/utils/hash";
+import { hashPassword, comparePassword } from "../../core/utils/hash";
 import { signAccessToken, signRefreshToken } from "../../core/utils/jwt";
 import { isPremiumActive } from "../../policies/premium";
 
@@ -55,6 +55,9 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
   const passwordB = `test-b-${timestamp}`;
 
   try {
+    // Hash passwords BEFORE creating users
+    const passwordHashA = await hashPassword(passwordA);
+    const passwordHashB = await hashPassword(passwordB);
     // Delete any existing test data between these IDs (safety cleanup)
     await prisma.reaction.deleteMany({
       where: {
@@ -85,9 +88,9 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       data: {
         id: userAId,
         email: emailA,
-          passwordHash: passwordA,
-          isVerified: true,
-          role: "USER",
+        passwordHash: passwordHashA,
+        isVerified: true,
+        role: "USER",
           profile: {
             create: {
               pseudo: pseudoA,
@@ -110,7 +113,7 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
         data: {
           id: userBId,
           email: emailB,
-          passwordHash: passwordB,
+          passwordHash: passwordHashB,
           isVerified: true,
           role: "USER",
           profile: {
@@ -139,6 +142,10 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
 
       const verifyProfileA = await prisma.profile.findUnique({ where: { userId: userAId } });
       const verifyProfileB = await prisma.profile.findUnique({ where: { userId: userBId } });
+
+      // AUDIT: Verify password hash works immediately after creation
+      const bcryptCompareA = await comparePassword(passwordA, verifyUserAById?.passwordHash || "");
+      const bcryptCompareB = await comparePassword(passwordB, verifyUserBById?.passwordHash || "");
 
       // Verify virgin state
       const reactions = await prisma.reaction.count({
@@ -213,6 +220,14 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
               email_match: verifyUserBByEmail?.email === emailB,
               profile_found: !!verifyProfileB,
             },
+          },
+          password_verification: {
+            plainPasswordA: passwordA,
+            hashPrefixA: passwordHashA.substring(0, 10),
+            bcryptCompareImmediateA: bcryptCompareA,
+            plainPasswordB: passwordB,
+            hashPrefixB: passwordHashB.substring(0, 10),
+            bcryptCompareImmediateB: bcryptCompareB,
           },
         },
       });
