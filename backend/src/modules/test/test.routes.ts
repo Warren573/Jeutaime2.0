@@ -372,4 +372,71 @@ const diagnoseDbHandler = asyncHandler(async (_req: Request, res: Response) => {
 
 router.get("/diagnose-db", diagnoseDbHandler);
 
+/**
+ * TRANSACTIONAL TEST
+ * GET /api/test/write-read-test
+ *
+ * Tests if user creation persists immediately
+ * Creates a test user and reads it back in same request
+ */
+const writeReadTestHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const testId = `test-write-read-${Date.now()}`;
+  const testEmail = `test-write-read-${Date.now()}@test.local`;
+
+  try {
+    // Step 1: Create user
+    console.log("[write-read-test] Step 1: Creating user", { testId, testEmail });
+    const created = await prisma.user.create({
+      data: {
+        id: testId,
+        email: testEmail,
+        passwordHash: "test-hash",
+        role: "USER",
+      },
+    });
+    console.log("[write-read-test] Step 1 SUCCESS: User created", { id: created.id, email: created.email });
+
+    // Step 2: Read it back immediately
+    console.log("[write-read-test] Step 2: Reading user back");
+    const found = await prisma.user.findUnique({
+      where: { email: testEmail },
+      select: { id: true, email: true },
+    });
+    console.log("[write-read-test] Step 2 RESULT:", { found });
+
+    // Step 3: Delete cleanup
+    await prisma.user.deleteMany({
+      where: { id: testId },
+    });
+
+    res.json({
+      status: "success",
+      test: {
+        created_id: created.id,
+        created_email: created.email,
+        read_back_found: !!found,
+        read_back_id: found?.id || null,
+        read_back_email: found?.email || null,
+        write_read_match: found?.id === created.id,
+      },
+    });
+  } catch (error) {
+    console.error("[write-read-test] Error:", error);
+    res.status(500).json({
+      error: "Write-read test failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.get("/write-read-test", writeReadTestHandler);
+
 export default router;
