@@ -273,4 +273,103 @@ const findUserByEmailHandler = asyncHandler(async (req: Request, res: Response) 
 
 router.get("/find-user-by-email", findUserByEmailHandler);
 
+/**
+ * DATABASE CONFIGURATION DIAGNOSTIC
+ * GET /api/test/diagnose-db
+ *
+ * Displays EXACT Prisma configuration at runtime
+ */
+const diagnoseDbHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const dbUrl = process.env.DATABASE_URL || null;
+
+  // Parse DATABASE_URL if present
+  let parsed = {
+    exists: !!dbUrl,
+    length: dbUrl?.length || 0,
+    protocol: null as string | null,
+    user: null as string | null,
+    password: "***",
+    host: null as string | null,
+    port: null as string | null,
+    database: null as string | null,
+    rawUrl: dbUrl ? dbUrl.substring(0, 50) + "..." : null,
+  };
+
+  if (dbUrl) {
+    try {
+      // Format: postgresql://user:password@host:port/database
+      const url = new URL(dbUrl);
+      parsed.protocol = url.protocol;
+      parsed.user = url.username || null;
+      parsed.host = url.hostname || null;
+      parsed.port = url.port || null;
+      parsed.database = url.pathname?.substring(1) || null;
+    } catch (e) {
+      parsed.host = "PARSE_ERROR";
+    }
+  }
+
+  try {
+    // Try to connect and get basic info
+    const result = await prisma.$queryRaw`SELECT current_database(), current_user, version()`;
+    const dbInfo = result[0] as any;
+
+    console.log("[test/diagnose-db] Configuration:", {
+      nodeEnv,
+      dbUrlExists: !!dbUrl,
+      parsedHost: parsed.host,
+      connectedDatabase: dbInfo?.current_database,
+      connectedUser: dbInfo?.current_user,
+    });
+
+    res.json({
+      status: "success",
+      environment: {
+        NODE_ENV: nodeEnv,
+        RENDER_SERVICE_NAME: process.env.RENDER_SERVICE_NAME || "not-set",
+      },
+      database: {
+        url_configured: parsed.exists,
+        url_length: parsed.length,
+        protocol: parsed.protocol,
+        user: parsed.user,
+        host: parsed.host,
+        port: parsed.port,
+        database: parsed.database,
+      },
+      connection: {
+        current_database: dbInfo?.current_database || null,
+        current_user: dbInfo?.current_user || null,
+        postgresql_version: dbInfo?.version ? dbInfo.version.split(",")[0] : null,
+      },
+    });
+  } catch (error) {
+    console.error("[test/diagnose-db] Error:", error);
+    res.status(500).json({
+      status: "error",
+      environment: {
+        NODE_ENV: nodeEnv,
+      },
+      database: {
+        url_configured: parsed.exists,
+        protocol: parsed.protocol,
+        host: parsed.host,
+        port: parsed.port,
+        database: parsed.database,
+      },
+      connection_error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.get("/diagnose-db", diagnoseDbHandler);
+
 export default router;
