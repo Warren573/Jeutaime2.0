@@ -24,6 +24,17 @@ export default function LoginScreen() {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // DEBUG: Login flow diagnostics
+  const [debugLogin, setDebugLogin] = useState<any>({
+    apiUrl: null,
+    status: "idle",
+    responseKeys: null,
+    tokenReceived: false,
+    storeUserSet: false,
+    navigationTriggered: false,
+    errorMessage: null,
+  });
+
   const isFormValid = email.trim().length > 0 && password.trim().length > 0;
 
   const handleLogin = async () => {
@@ -31,10 +42,27 @@ export default function LoginScreen() {
 
     try {
       setIsLoading(true);
-      await storeLogin(email.trim().toLowerCase(), password);
-      router.replace("/(tabs)");
+      setDebugLogin((prev: any) => ({ ...prev, status: "calling_login", responseKeys: null, errorMessage: null }));
+
+      const result = await storeLogin(email.trim().toLowerCase(), password);
+
+      setDebugLogin((prev: any) => ({
+        ...prev,
+        status: "login_returned",
+        responseKeys: result ? Object.keys(result) : null,
+        tokenReceived: !!result?.accessToken,
+        storeUserSet: !!result,
+      }));
+
+      // Small delay to see the debug state before navigation
+      setTimeout(() => {
+        setDebugLogin((prev: any) => ({ ...prev, navigationTriggered: true }));
+        router.replace("/(tabs)");
+      }, 500);
     } catch (err: any) {
-      Alert.alert("Erreur", err?.message || "Une erreur est survenue.");
+      const errorMsg = err?.message || "Une erreur est survenue.";
+      setDebugLogin((prev: any) => ({ ...prev, status: "error", errorMessage: errorMsg }));
+      Alert.alert("Erreur", errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -104,6 +132,17 @@ export default function LoginScreen() {
                 <Text style={styles.link}>Créer un compte</Text>
               </Pressable>
             </View>
+          </View>
+
+          {/* DEBUG: Login flow diagnostics */}
+          <View style={styles.debugBox}>
+            <Text style={styles.debugTitle}>LOGIN DEBUG</Text>
+            <Text style={styles.debugText}>Status: {debugLogin.status}</Text>
+            <Text style={styles.debugText}>Token: {debugLogin.tokenReceived ? "✓ YES" : "✗ NO"}</Text>
+            <Text style={styles.debugText}>Store: {debugLogin.storeUserSet ? "✓ SET" : "✗ NOT"}</Text>
+            <Text style={styles.debugText}>Nav: {debugLogin.navigationTriggered ? "✓ YES" : "✗ NO"}</Text>
+            {debugLogin.responseKeys && <Text style={styles.debugText}>Keys: {debugLogin.responseKeys.join(", ")}</Text>}
+            {debugLogin.errorMessage && <Text style={styles.debugError}>Error: {debugLogin.errorMessage}</Text>}
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -209,5 +248,35 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#9c3d4f",
+  },
+  debugBox: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: "#2a1f26",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#9c3d4f",
+    width: "100%",
+    maxWidth: 420,
+  },
+  debugTitle: {
+    color: "#9c3d4f",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 8,
+    letterSpacing: 2,
+  },
+  debugText: {
+    color: "#b8a9a0",
+    fontSize: 11,
+    fontFamily: "monospace",
+    marginVertical: 3,
+  },
+  debugError: {
+    color: "#ff6b6b",
+    fontSize: 11,
+    fontFamily: "monospace",
+    marginVertical: 3,
+    fontWeight: "600",
   },
 });

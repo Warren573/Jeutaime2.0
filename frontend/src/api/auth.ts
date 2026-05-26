@@ -21,21 +21,32 @@ export interface LoginPayload {
 }
 
 function extractTokens(res: unknown): AuthTokens {
+  console.log("[extractTokens] Input:", res);
   const d = (res as { data?: { accessToken?: string; refreshToken?: string } })?.data;
+  console.log("[extractTokens] Extracted data:", d);
   const accessToken = d?.accessToken;
   const refreshToken = d?.refreshToken;
+  console.log("[extractTokens] Tokens found:", { accessToken: !!accessToken, refreshToken: !!refreshToken });
   if (!accessToken || !refreshToken) {
+    console.error("[extractTokens] MISSING TOKENS! Response was:", JSON.stringify(res));
     throw new Error("Tokens manquants dans la réponse du serveur");
   }
   return { accessToken, refreshToken };
 }
 
 export async function login(payload: LoginPayload): Promise<AuthTokens> {
+  console.log("[auth.login] Calling /auth/login with email:", payload.email);
   const res = await apiFetch("/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
   });
-  return extractTokens(res);
+  console.log("[auth.login] Response received:", JSON.stringify(res, null, 2));
+  try {
+    return extractTokens(res);
+  } catch (err) {
+    console.error("[auth.login] extractTokens failed:", err);
+    throw err;
+  }
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthTokens> {
