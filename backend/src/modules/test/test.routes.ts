@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { prisma } from "../../config/prisma";
+import * as authService from "../auth/auth.service";
 
 const router = Router();
 
@@ -272,5 +273,55 @@ const findUserByEmailHandler = asyncHandler(async (req: Request, res: Response) 
 });
 
 router.get("/find-user-by-email", findUserByEmailHandler);
+
+/**
+ * CALL REAL LOGIN WITH FULL DIAGNOSTICS
+ * GET /api/test/call-real-login?email=...&password=...
+ *
+ * Calls authService.loginWithDebug() and returns ALL diagnostic information
+ * directly in the JSON response - visible in browser.
+ */
+const callRealLoginHandler = asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const email = req.query.email as string;
+  const password = req.query.password as string;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "email and password query parameters required" });
+  }
+
+  try {
+    const result = await authService.loginWithDebug({ email, password });
+
+    if (result.tokens) {
+      return res.json({
+        status: "success",
+        data: result.tokens,
+        _debug: result.debug,
+      });
+    } else {
+      return res.status(401).json({
+        status: "error",
+        error: result.error,
+        _debug: result.debug,
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      error: "Call real login failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.get("/call-real-login", callRealLoginHandler);
 
 export default router;

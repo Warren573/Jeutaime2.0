@@ -85,8 +85,76 @@ export async function register(dto: RegisterDto) {
 }
 
 // -----------------------------------------------------------------------
-// Login
+// Login with Full Debug Info (for testing)
 // -----------------------------------------------------------------------
+export async function loginWithDebug(dto: LoginDto) {
+  const debug: any = {
+    inputEmail: dto.email,
+    userFound: false,
+    userObjectKeys: null,
+    passwordHashExists: false,
+    passwordHashLength: 0,
+    passwordHashPrefix: null,
+    bcryptCompareResult: null,
+    failureReason: null,
+    failureLineNumber: null,
+  };
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: dto.email },
+      select: {
+        id: true, passwordHash: true, role: true, isBanned: true,
+        premiumTier: true, premiumUntil: true, banReason: true,
+      },
+    });
+
+    debug.userFound = !!user;
+    if (user) {
+      debug.userObjectKeys = Object.keys(user);
+      debug.passwordHashExists = !!user.passwordHash;
+      debug.passwordHashLength = user.passwordHash?.length || 0;
+      debug.passwordHashPrefix = user.passwordHash?.substring(0, 10) || null;
+    }
+
+    if (!user) {
+      debug.failureReason = "Email ou mot de passe incorrect";
+      debug.failureLineNumber = 105;
+      return { tokens: null, debug, error: debug.failureReason };
+    }
+
+    if (user.isBanned) {
+      debug.failureReason = `Compte suspendu${user.banReason ? " : " + user.banReason : ""}`;
+      debug.failureLineNumber = 106;
+      return { tokens: null, debug, error: debug.failureReason };
+    }
+
+    const valid = await comparePassword(dto.password, user.passwordHash);
+    debug.bcryptCompareResult = valid;
+
+    if (!valid) {
+      debug.failureReason = "Email ou mot de passe incorrect";
+      debug.failureLineNumber = 122;
+      return { tokens: null, debug, error: debug.failureReason };
+    }
+
+    const isPremium = isPremiumActive(user);
+
+    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+
+    const { access, refresh, tokenId } = buildTokenPair(user.id, user.role, isPremium);
+    await persistRefreshToken(user.id, tokenId, refresh);
+
+    debug.success = true;
+    return { tokens: { accessToken: access, refreshToken: refresh }, debug, error: null };
+  } catch (err) {
+    debug.failureReason = err instanceof Error ? err.message : "Unknown error";
+    return { tokens: null, debug, error: debug.failureReason };
+  }
+}
+
+// -----------------------------------------------------------------------
+// Login
 export async function login(dto: LoginDto) {
   const user = await prisma.user.findUnique({
     where: { email: dto.email },
