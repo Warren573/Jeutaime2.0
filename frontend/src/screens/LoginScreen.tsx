@@ -148,6 +148,8 @@ export default function LoginScreen() {
             <Text style={styles.debugText}>TOKEN_EXPIRED_CHECK: {authDebug?.tokenExpired ? "✗ YES" : "✓ NO"}</Text>
             <Text style={styles.debugText}>FIRST_401_ENDPOINT: {authDebug?.first401Endpoint ?? "—"}</Text>
             <Text style={styles.debugText}>AUTO_LOGOUT_TRIGGERED: {authDebug?.autoLogoutTriggered ? "✗ YES" : "✓ NO"}</Text>
+            <Text style={styles.debugText}>RAW_RESPONSE:</Text>
+            <Text style={styles.debugText}>{JSON.stringify(authDebug?.rawLoginResponse, null, 2) ?? "—"}</Text>
             {debugRateLimited && <Text style={styles.debugError}>RateLimit: ✗ YES</Text>}
             {debugExtraction && <Text style={styles.debugError}>TokenError: {debugExtraction}</Text>}
             {debugError && <Text style={styles.debugError}>Error: {debugError}</Text>}

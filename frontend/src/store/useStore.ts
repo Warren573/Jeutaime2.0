@@ -218,6 +218,7 @@ interface StoreState {
     first401Endpoint?: string;
     autoLogoutTriggered?: boolean;
     tokenStored?: boolean;
+    rawLoginResponse?: any;
   };
 
   // ===== Economy =====
@@ -471,7 +472,10 @@ export const useStore = create<StoreState>()(
       },
 
       login: async (email, password) => {
-        const tokens = await apiLogin({ email, password });
+        const loginResult = await apiLogin({ email, password });
+        const tokens = loginResult.tokens;
+        const rawResponse = loginResult.rawResponse;
+
         const sessionResult = await saveSession(tokens);
 
         // DEBUG: Decode and check expiration
@@ -487,6 +491,7 @@ export const useStore = create<StoreState>()(
             secondsUntilExp: secondsUntilExp,
             tokenExpired: (accessExp ?? 0) < now,
             tokenStored: true,
+            rawLoginResponse: rawResponse,
           },
         });
 

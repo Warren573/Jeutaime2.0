@@ -48,19 +48,15 @@ function extractTokens(res: unknown): AuthTokens {
   return { accessToken, refreshToken };
 }
 
-export async function login(payload: LoginPayload): Promise<AuthTokens> {
+export async function login(payload: LoginPayload): Promise<{ tokens: AuthTokens; rawResponse: any }> {
   console.log("[auth.login] Calling /auth/login with email:", payload.email);
   const res = await apiFetch("/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
   });
-  console.log("[auth.login] Response received:", JSON.stringify(res, null, 2));
-  try {
-    return extractTokens(res);
-  } catch (err) {
-    console.error("[auth.login] extractTokens failed:", err);
-    throw err;
-  }
+  console.log("[auth.login] Raw response:", JSON.stringify(res, null, 2));
+  const tokens = extractTokens(res);
+  return { tokens, rawResponse: res };
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthTokens> {
