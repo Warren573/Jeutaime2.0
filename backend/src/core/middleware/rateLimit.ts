@@ -19,7 +19,34 @@ export const authRateLimit = rateLimit({
   legacyHeaders: false,
   message: { error: { code: "TOO_MANY_REQUESTS", message: "Trop de tentatives d'authentification" } },
   keyGenerator: (req) => req.ip ?? "unknown",
-  skip: () => env.NODE_ENV === "test",
+  skip: (req) => {
+    // Skip rate limit for test environment
+    if (env.NODE_ENV === "test") return true;
+
+    // Skip rate limit for staging + test emails
+    const isStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+    const email = (req.body as any)?.email;
+    const isTestEmail = email && email.includes("@jeutaime.test");
+
+    if (isStaging && isTestEmail) {
+      console.log("[authRateLimit] Skipped for test email on staging:", email);
+      return true;
+    }
+
+    return false;
+  },
+  handler: (req, res, next, options) => {
+    console.log("[authRateLimit] Rate limit triggered for:", (req.body as any)?.email || req.ip);
+    res.status(options.statusCode).json({
+      error: {
+        code: "TOO_MANY_REQUESTS",
+        message: "Trop de tentatives d'authentification",
+      },
+      _debug: {
+        AUTH_RATE_LIMIT_TRIGGERED: true,
+      },
+    });
+  },
 });
 
 /** Limite pour envoi de lettres (20/h/user) */

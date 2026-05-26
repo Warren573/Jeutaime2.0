@@ -33,6 +33,7 @@ export default function LoginScreen() {
     storeUserSet: false,
     navigationTriggered: false,
     errorMessage: null,
+    rateLimited: false,
   });
 
   const isFormValid = email.trim().length > 0 && password.trim().length > 0;
@@ -42,7 +43,7 @@ export default function LoginScreen() {
 
     try {
       setIsLoading(true);
-      setDebugLogin((prev: any) => ({ ...prev, status: "calling_login", responseKeys: null, errorMessage: null }));
+      setDebugLogin((prev: any) => ({ ...prev, status: "calling_login", responseKeys: null, errorMessage: null, rateLimited: false }));
 
       const result = await storeLogin(email.trim().toLowerCase(), password);
 
@@ -61,7 +62,13 @@ export default function LoginScreen() {
       }, 500);
     } catch (err: any) {
       const errorMsg = err?.message || "Une erreur est survenue.";
-      setDebugLogin((prev: any) => ({ ...prev, status: "error", errorMessage: errorMsg }));
+      const isRateLimited = errorMsg?.includes("Trop de tentatives");
+      setDebugLogin((prev: any) => ({
+        ...prev,
+        status: "error",
+        errorMessage: errorMsg,
+        rateLimited: isRateLimited,
+      }));
       Alert.alert("Erreur", errorMsg);
     } finally {
       setIsLoading(false);
@@ -141,6 +148,7 @@ export default function LoginScreen() {
             <Text style={styles.debugText}>Token: {debugLogin.tokenReceived ? "✓ YES" : "✗ NO"}</Text>
             <Text style={styles.debugText}>Store: {debugLogin.storeUserSet ? "✓ SET" : "✗ NOT"}</Text>
             <Text style={styles.debugText}>Nav: {debugLogin.navigationTriggered ? "✓ YES" : "✗ NO"}</Text>
+            <Text style={styles.debugText}>RateLimit: {debugLogin.rateLimited ? "✗ YES" : "✓ NO"}</Text>
             {debugLogin.responseKeys && <Text style={styles.debugText}>Keys: {debugLogin.responseKeys.join(", ")}</Text>}
             {debugLogin.errorMessage && <Text style={styles.debugError}>Error: {debugLogin.errorMessage}</Text>}
           </View>
