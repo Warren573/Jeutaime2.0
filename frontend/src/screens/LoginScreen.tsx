@@ -26,14 +26,17 @@ export default function LoginScreen() {
 
   // DEBUG: Login flow diagnostics
   const [debugLogin, setDebugLogin] = useState<any>({
-    apiUrl: null,
     status: "idle",
-    responseKeys: null,
-    tokenReceived: false,
+    accessTokenReceived: false,
+    refreshTokenReceived: false,
+    jwtExp: null,
+    currentTime: null,
+    tokenExpiredCheck: null,
     storeUserSet: false,
     navigationTriggered: false,
     errorMessage: null,
     rateLimited: false,
+    tokenDebug: null,
   });
 
   const isFormValid = email.trim().length > 0 && password.trim().length > 0;
@@ -43,15 +46,23 @@ export default function LoginScreen() {
 
     try {
       setIsLoading(true);
-      setDebugLogin((prev: any) => ({ ...prev, status: "calling_login", responseKeys: null, errorMessage: null, rateLimited: false }));
+      setDebugLogin((prev: any) => ({
+        ...prev,
+        status: "calling_login",
+        errorMessage: null,
+        rateLimited: false,
+        tokenDebug: null,
+      }));
 
       const result = await storeLogin(email.trim().toLowerCase(), password);
 
+      // After storeLogin, tokens should be in store and saveSession should have logged debug info
+      // We don't have direct access to tokenDebug here, so we'll show what we can infer
       setDebugLogin((prev: any) => ({
         ...prev,
         status: "login_returned",
-        responseKeys: result ? Object.keys(result) : null,
-        tokenReceived: !!result?.accessToken,
+        accessTokenReceived: !!result?.accessToken,
+        refreshTokenReceived: !!result?.refreshToken,
         storeUserSet: !!result,
       }));
 
@@ -63,11 +74,13 @@ export default function LoginScreen() {
     } catch (err: any) {
       const errorMsg = err?.message || "Une erreur est survenue.";
       const isRateLimited = errorMsg?.includes("Trop de tentatives");
+      const isSessionExpired = errorMsg?.includes("Session expirée");
       setDebugLogin((prev: any) => ({
         ...prev,
         status: "error",
         errorMessage: errorMsg,
         rateLimited: isRateLimited,
+        tokenExpiredCheck: isSessionExpired,
       }));
       Alert.alert("Erreur", errorMsg);
     } finally {
@@ -143,13 +156,14 @@ export default function LoginScreen() {
 
           {/* DEBUG: Login flow diagnostics */}
           <View style={styles.debugBox}>
-            <Text style={styles.debugTitle}>LOGIN DEBUG</Text>
+            <Text style={styles.debugTitle}>TOKEN DEBUG</Text>
             <Text style={styles.debugText}>Status: {debugLogin.status}</Text>
-            <Text style={styles.debugText}>Token: {debugLogin.tokenReceived ? "✓ YES" : "✗ NO"}</Text>
+            <Text style={styles.debugText}>AccessToken: {debugLogin.accessTokenReceived ? "✓ YES" : "✗ NO"}</Text>
+            <Text style={styles.debugText}>RefreshToken: {debugLogin.refreshTokenReceived ? "✓ YES" : "✗ NO"}</Text>
             <Text style={styles.debugText}>Store: {debugLogin.storeUserSet ? "✓ SET" : "✗ NOT"}</Text>
             <Text style={styles.debugText}>Nav: {debugLogin.navigationTriggered ? "✓ YES" : "✗ NO"}</Text>
             <Text style={styles.debugText}>RateLimit: {debugLogin.rateLimited ? "✗ YES" : "✓ NO"}</Text>
-            {debugLogin.responseKeys && <Text style={styles.debugText}>Keys: {debugLogin.responseKeys.join(", ")}</Text>}
+            <Text style={styles.debugText}>Expired: {debugLogin.tokenExpiredCheck ? "✗ YES" : "✓ NO"}</Text>
             {debugLogin.errorMessage && <Text style={styles.debugError}>Error: {debugLogin.errorMessage}</Text>}
           </View>
         </View>

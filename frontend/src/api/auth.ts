@@ -20,6 +20,19 @@ export interface LoginPayload {
   password: string;
 }
 
+// DEBUG: Decode JWT payload without verification
+function decodeJWT(token: string): any {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const decoded = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+    return decoded;
+  } catch (e) {
+    console.error("[decodeJWT] Failed to decode:", e);
+    return null;
+  }
+}
+
 function extractTokens(res: unknown): AuthTokens {
   console.log("[extractTokens] Input:", res);
   const d = (res as { data?: { accessToken?: string; refreshToken?: string } })?.data;
@@ -79,11 +92,41 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
   return { accessToken, refreshToken: newRefresh };
 }
 
-export async function saveSession(tokens: AuthTokens): Promise<void> {
+export async function saveSession(tokens: AuthTokens): Promise<{ tokenDebug: any }> {
+  console.log("[saveSession] Saving tokens...");
+
+  // DEBUG: Decode and check expiration
+  const accessPayload = decodeJWT(tokens.accessToken);
+  const refreshPayload = decodeJWT(tokens.refreshToken);
+  const now = Math.floor(Date.now() / 1000);
+
+  const tokenDebug = {
+    accessTokenLength: tokens.accessToken.length,
+    refreshTokenLength: tokens.refreshToken.length,
+    accessExp: accessPayload?.exp,
+    refreshExp: refreshPayload?.exp,
+    currentTimestamp: now,
+    accessExpiredNow: (accessPayload?.exp ?? 0) < now,
+    refreshExpiredNow: (refreshPayload?.exp ?? 0) < now,
+    accessExpiresIn: (accessPayload?.exp ?? 0) - now,
+    refreshExpiresIn: (refreshPayload?.exp ?? 0) - now,
+  };
+
+  console.log("[saveSession] Token debug:", tokenDebug);
+
   await AsyncStorage.multiSet([
     ["auth_token", tokens.accessToken],
     ["auth_refresh_token", tokens.refreshToken],
   ]);
+
+  // Verify tokens were actually stored
+  const verify = await AsyncStorage.multiGet(["auth_token", "auth_refresh_token"]);
+  console.log("[saveSession] Verification - stored tokens:", {
+    accessStored: !!verify[0][1],
+    refreshStored: !!verify[1][1],
+  });
+
+  return { tokenDebug };
 }
 
 export async function clearSession(): Promise<void> {
