@@ -1,0 +1,115 @@
+name: Verify Deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger Render Deploy
+        run: |
+          echo "Triggering Render deployment..."
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          echo ""
+          echo "Deploy webhook sent. Waiting 60s for Render to start processing..."
+          sleep 60
+
+      - name: Get latest commit SHA
+        run: |
+          LATEST_SHA=$(git rev-parse --short HEAD)
+          echo "LATEST_SHA=$LATEST_SHA" >> $GITHUB_ENV
+          echo "Expected SHA: $LATEST_SHA"
+
+      - name: Wait for SHA to match (10 min timeout)
+        run: |
+          echo "Polling ${{ secrets.BACKEND_API_URL }}/api/health/version..."
+          echo "Expected SHA: ${{ env.LATEST_SHA }}"
+          BACKEND_URL="${{ secrets.BACKEND_API_URL }}"
+          RENDER_SHA=""
+
+          # Poll for up to 10 minutes (60 attempts × 10 seconds)
+          for i in {1..60}; do
+            TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+            echo "[$TIMESTAMP] Attempt $i/60..."
+
+            RESPONSE=$(curl -s -w "\n%{http_code}" "$BACKEND_URL/api/health/version")
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              RENDER_SHA=$(echo "$BODY" | grep -o '"sha":"[^"]*' | cut -d'"' -f4 | cut -c1-8)
+              echo "[$TIMESTAMP] ✓ Got 200 | Expected: ${{ env.LATEST_SHA }} | Current: $RENDER_SHA"
+
+              if [ "$RENDER_SHA" = "${{ env.LATEST_SHA }}" ]; then
+                echo "✅ SHA MATCHES! Deployment successful."
+                echo "HEALTH_RESPONSE=$BODY" >> $GITHUB_ENV
+                break
+              fi
+            else
+              echo "[$TIMESTAMP] ✗ Got HTTP $HTTP_CODE | Expected: ${{ env.LATEST_SHA }} | Current: pending"
+            fi
+
+            if [ $i -lt 60 ]; then
+              sleep 10
+            fi
+          done
+
+          if [ -z "${{ env.HEALTH_RESPONSE }}" ]; then
+            echo "❌ FAILED: SHA did not match after 10 minutes"
+            exit 1
+          fi
+
+      - name: Verify SHA match confirmed
+        run: |
+          RENDER_SHA=$(echo '${{ env.HEALTH_RESPONSE }}' | grep -o '"sha":"[^"]*' | cut -d'"' -f4 | cut -c1-8)
+          EXPECTED_SHA="${{ env.LATEST_SHA }}"
+
+          if [ "$RENDER_SHA" != "$EXPECTED_SHA" ]; then
+            echo "❌ FAILED: SHA mismatch detected"
+            echo "Expected: $EXPECTED_SHA"
+            echo "Got: $RENDER_SHA"
+            exit 1
+          fi
+          echo "✅ SHA verified: $RENDER_SHA"
+
+      - name: Test /api/test/reset-mutual-smile endpoint
+        run: |
+          echo "Testing endpoint: ${{ secrets.BACKEND_API_URL }}/api/test/reset-mutual-smile"
+          BACKEND_URL="${{ secrets.BACKEND_API_URL }}"
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BACKEND_URL/api/test/reset-mutual-smile")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ FAILED: Expected HTTP 200, got $HTTP_CODE"
+            exit 1
+          fi
+
+          if echo "$BODY" | grep -q '"status":"success"'; then
+            echo "✅ Endpoint returned success"
+          else
+            echo "❌ FAILED: Response missing 'status:success'"
+            exit 1
+          fi
+
+      - name: Success Summary
+        run: |
+          echo ""
+          echo "╔════════════════════════════════════════╗"
+          echo "║  ✅ DEPLOYMENT VERIFIED - ALL SYSTEMS  ║"
+          echo "╠════════════════════════════════════════╣"
+          echo "║  ✅ Render deploy triggered            ║"
+          echo "║  ✅ /api/health/version responding     ║"
+          echo "║  ✅ SHA matches (${{ env.LATEST_SHA }})    ║"
+          echo "║  ✅ /api/test/reset-mutual-smile OK    ║"
+          echo "╚════════════════════════════════════════╝"
+          echo ""

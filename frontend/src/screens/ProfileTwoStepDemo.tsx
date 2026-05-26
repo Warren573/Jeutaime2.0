@@ -203,7 +203,7 @@ export default function ProfileTwoStepDemo() {
       setRawResponse(rawStr);
       setLastActionDebug(`API_RESULT source=${(result as any).source ?? 'unknown'} debugBranch=${result.debugBranch ?? 'none'} matchCreated=${result.matchCreated} matchId=${result.matchId ?? 'null'}`);
 
-      if (type === "SMILE" && result.matchCreated && result.matchId) {
+      if (type === "SMILE" && result.debugBranch === "NEW-MATCH") {
         setLastActionDebug(`LOADING_MATCHES...`);
         await loadMatches();
         setLastActionDebug(`LOAD_MATCHES_DONE matchId=${result.matchId}`);
