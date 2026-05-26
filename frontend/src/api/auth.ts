@@ -21,9 +21,9 @@ export interface LoginPayload {
 }
 
 function extractTokens(res: unknown): AuthTokens {
-  const d = (res as { data?: { accessToken?: string; refreshToken?: string } })?.data;
-  const accessToken = d?.accessToken;
-  const refreshToken = d?.refreshToken;
+  const payload = (res as any)?.data?.data || (res as any)?.data;
+  const accessToken = payload?.accessToken;
+  const refreshToken = payload?.refreshToken;
   if (!accessToken || !refreshToken) {
     throw new Error("Tokens manquants dans la réponse du serveur");
   }
