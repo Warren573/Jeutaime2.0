@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
+import { API_URL } from "../api/client";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -150,7 +151,8 @@ export default function LoginScreen() {
             {/* DEBUG: PERMANENT LOGIN FLOW DEBUG BOX */}
             <View style={styles.debugBox}>
               <Text style={styles.debugTitle}>LOGIN DEBUG</Text>
-              <Text style={styles.debugText}>API_URL: {debugLoginFlow.loginApiUrl || "—"}</Text>
+              <Text style={styles.debugText}>API_BASE: {API_URL}</Text>
+              <Text style={styles.debugText}>API_ENDPOINT: {debugLoginFlow.loginApiUrl || "—"}</Text>
               <Text style={styles.debugText}>RAW_RESPONSE: {debugLoginFlow.rawResponse ? JSON.stringify(debugLoginFlow.rawResponse, null, 2) : "—"}</Text>
               <Text style={styles.debugText}>AccessToken: {debugLoginFlow.accessTokenExtracted ? "✓ YES" : "✗ NO"}</Text>
               <Text style={styles.debugText}>RefreshToken: {debugLoginFlow.refreshTokenExtracted ? "✓ YES" : "✗ NO"}</Text>
