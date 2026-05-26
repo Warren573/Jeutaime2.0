@@ -35,6 +35,12 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
     return res.status(403).json({ error: "Test endpoint disabled in production" });
   }
 
+  // DEBUG: Database connection info
+  const dbUrl = process.env.DATABASE_URL || "not-set";
+  const dbHostMatch = dbUrl.match(/host=([^&]+)/);
+  const dbHost = dbHostMatch ? dbHostMatch[1] : "unknown";
+  const dbUrlHash = require("crypto").createHash("sha256").update(dbUrl).digest("hex").substring(0, 8);
+
   const timestamp = Date.now();
   const userAId = `test-mutual-a-${timestamp}`;
   const userBId = `test-mutual-b-${timestamp}`;
@@ -138,6 +144,18 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
         },
       });
 
+      // DEBUG: Verify users exist immediately after creation
+      const verifyUserA = await prisma.user.findUnique({ where: { id: userAId } });
+      const verifyUserB = await prisma.user.findUnique({ where: { id: userBId } });
+
+      console.log("[test/reset-mutual-smile] DEBUG:", {
+        dbUrlHash,
+        dbHost,
+        createdUserIds: [userAId, userBId],
+        userAExists: !!verifyUserA,
+        userBExists: !!verifyUserB,
+      });
+
       res.json({
         status: "success",
         virgin: reactions === 0 && matches === 0,
@@ -161,6 +179,13 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
           "5. Find and Smile accountA",
           "6. Verify mutual smile → match created",
         ],
+        _debug: {
+          dbUrlHash,
+          dbHost,
+          userAExists: !!verifyUserA,
+          userBExists: !!verifyUserB,
+          createdIds: [userAId, userBId],
+        },
       });
     } catch (error) {
       console.error("[test/reset-mutual-smile] Error:", error);

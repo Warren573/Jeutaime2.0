@@ -88,12 +88,22 @@ export async function register(dto: RegisterDto) {
 // Login
 // -----------------------------------------------------------------------
 export async function login(dto: LoginDto) {
+  const dbUrl = process.env.DATABASE_URL || "not-set";
+  const dbHostMatch = dbUrl.match(/host=([^&]+)/);
+  const dbHost = dbHostMatch ? dbHostMatch[1] : "unknown";
+
   const user = await prisma.user.findUnique({
     where: { email: dto.email },
     select: {
       id: true, passwordHash: true, role: true, isBanned: true,
       premiumTier: true, premiumUntil: true, banReason: true,
     },
+  });
+
+  console.log("[auth/login] DEBUG:", {
+    dbHost,
+    emailSearched: dto.email,
+    userFound: !!user,
   });
 
   if (!user) throw new UnauthorizedError("Email ou mot de passe incorrect");
