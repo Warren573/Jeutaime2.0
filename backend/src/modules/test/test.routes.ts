@@ -320,7 +320,7 @@ const diagnoseDbHandler = asyncHandler(async (_req: Request, res: Response) => {
   try {
     // Try to connect and get basic info
     const result = await prisma.$queryRaw`SELECT current_database(), current_user, version()`;
-    const dbInfo = result[0] as any;
+    const dbInfo = (result as any[])[0];
 
     console.log("[test/diagnose-db] Configuration:", {
       nodeEnv,
