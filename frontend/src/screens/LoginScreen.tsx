@@ -28,6 +28,7 @@ export default function LoginScreen() {
   const [debugStatus, setDebugStatus] = useState<"idle" | "calling_login" | "login_returned" | "error">("idle");
   const [debugError, setDebugError] = useState<string | null>(null);
   const [debugRateLimited, setDebugRateLimited] = useState(false);
+  const [debugExtraction, setDebugExtraction] = useState<string | null>(null);
 
   const isFormValid = email.trim().length > 0 && password.trim().length > 0;
 
@@ -39,6 +40,7 @@ export default function LoginScreen() {
       setDebugStatus("calling_login");
       setDebugError(null);
       setDebugRateLimited(false);
+      setDebugExtraction(null);
 
       await storeLogin(email.trim().toLowerCase(), password);
 
@@ -51,9 +53,16 @@ export default function LoginScreen() {
     } catch (err: any) {
       const errorMsg = err?.message || "Une erreur est survenue.";
       const isRateLimited = errorMsg?.includes("Trop de tentatives");
+      const isExtractionError = errorMsg?.includes("Tokens manquants");
+
       setDebugStatus("error");
       setDebugError(errorMsg);
       setDebugRateLimited(isRateLimited);
+
+      if (isExtractionError) {
+        setDebugExtraction(errorMsg);
+      }
+
       Alert.alert("Erreur", errorMsg);
     } finally {
       setIsLoading(false);
@@ -140,6 +149,7 @@ export default function LoginScreen() {
             <Text style={styles.debugText}>FIRST_401_ENDPOINT: {authDebug?.first401Endpoint ?? "—"}</Text>
             <Text style={styles.debugText}>AUTO_LOGOUT_TRIGGERED: {authDebug?.autoLogoutTriggered ? "✗ YES" : "✓ NO"}</Text>
             {debugRateLimited && <Text style={styles.debugError}>RateLimit: ✗ YES</Text>}
+            {debugExtraction && <Text style={styles.debugError}>TokenError: {debugExtraction}</Text>}
             {debugError && <Text style={styles.debugError}>Error: {debugError}</Text>}
           </View>
         </View>

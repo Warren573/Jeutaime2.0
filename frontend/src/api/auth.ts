@@ -42,7 +42,8 @@ function extractTokens(res: unknown): AuthTokens {
   console.log("[extractTokens] Tokens found:", { accessToken: !!accessToken, refreshToken: !!refreshToken });
   if (!accessToken || !refreshToken) {
     console.error("[extractTokens] MISSING TOKENS! Response was:", JSON.stringify(res));
-    throw new Error("Tokens manquants dans la réponse du serveur");
+    const errorMsg = `Tokens manquants. Response structure: ${JSON.stringify(Object.keys(res as any))}. Data keys: ${d ? JSON.stringify(Object.keys(d)) : "no data"}`;
+    throw new Error(errorMsg);
   }
   return { accessToken, refreshToken };
 }
