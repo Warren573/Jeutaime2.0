@@ -31,11 +31,20 @@ function extractTokens(res: unknown): AuthTokens {
 }
 
 export async function login(payload: LoginPayload): Promise<AuthTokens> {
-  const res = await apiFetch("/auth/login", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  return extractTokens(res);
+  let res: any;
+  try {
+    res = await apiFetch("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return extractTokens(res);
+  } catch (err: any) {
+    // Capture error and re-throw with context
+    const errorMsg = err?.message || "Une erreur est survenue.";
+    const contextError = new Error(errorMsg);
+    (contextError as any).rawResponse = res;
+    throw contextError;
+  }
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthTokens> {
