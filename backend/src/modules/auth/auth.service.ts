@@ -106,9 +106,8 @@ export async function login(dto: LoginDto) {
   if (user.isBanned) throw new UnauthorizedError(`Compte suspendu${user.banReason ? " : " + user.banReason : ""}`);
 
   console.log("[auth/login] DEBUG password check:", {
-    inputPassword: dto.password,
     inputPasswordLength: dto.password.length,
-    passwordHashField: user.passwordHash ? "exists" : "null",
+    passwordHashExists: !!user.passwordHash,
     passwordHashLength: user.passwordHash?.length || 0,
     passwordHashPrefix: user.passwordHash?.substring(0, 10) || "N/A",
   });
