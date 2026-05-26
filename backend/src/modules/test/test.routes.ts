@@ -4,6 +4,7 @@ import { prisma } from "../../config/prisma";
 import { hashPassword, comparePassword } from "../../core/utils/hash";
 import { signAccessToken, signRefreshToken } from "../../core/utils/jwt";
 import { isPremiumActive } from "../../policies/premium";
+import * as authService from "../auth/auth.service";
 
 const router = Router();
 
@@ -561,5 +562,68 @@ const debugLoginHandler = asyncHandler(async (req: Request, res: Response) => {
 
 router.get("/debug-login", debugLoginHandler);
 router.post("/debug-login", debugLoginHandler);
+
+/**
+ * CALL REAL LOGIN SERVICE
+ * GET /api/test/call-real-login?email=...&password=...
+ *
+ * Calls authService.login() directly (same as /auth/login route)
+ * Returns raw response with complete debugging info
+ */
+const callRealLoginHandler = asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const email = req.query.email as string;
+  const password = req.query.password as string;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "email and password query parameters required" });
+  }
+
+  try {
+    console.log("[call-real-login] Calling authService.login with:", { email });
+
+    // Call SAME service as /auth/login route
+    const tokens = await authService.login({ email, password });
+
+    console.log("[call-real-login] authService.login returned:", {
+      accessTokenLength: tokens.accessToken.length,
+      refreshTokenLength: tokens.refreshToken.length,
+    });
+
+    // Return raw tokens exactly as auth controller would
+    const response = {
+      data: tokens,
+      _debug: {
+        AUTH_RATE_LIMIT_TRIGGERED: false,
+      },
+    };
+
+    console.log("[call-real-login] Returning response structure:", {
+      responseKeys: Object.keys(response),
+      dataKeys: tokens ? Object.keys(tokens) : null,
+    });
+
+    res.json(response);
+  } catch (error) {
+    console.error("[call-real-login] Error:", error);
+    res.status(500).json({
+      status: "error",
+      error: "Call real login failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+      responseKeys: "N/A",
+      dataKeys: "N/A",
+    });
+  }
+});
+
+router.get("/call-real-login", callRealLoginHandler);
 
 export default router;

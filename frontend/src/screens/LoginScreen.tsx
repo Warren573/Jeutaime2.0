@@ -138,6 +138,8 @@ export default function LoginScreen() {
           {/* DEBUG: Full auth flow diagnostics */}
           <View style={styles.debugBox}>
             <Text style={styles.debugTitle}>TOKEN DEBUG</Text>
+            <Text style={styles.debugText}>LOGIN_API_URL:</Text>
+            <Text style={styles.debugText}>{authDebug?.loginApiUrl ?? "—"}</Text>
             <Text style={styles.debugText}>Status: {debugStatus}</Text>
             <Text style={styles.debugText}>AccessToken: {authDebug?.tokenStored ? "✓ YES" : "✗ NO"}</Text>
             <Text style={styles.debugText}>RefreshToken: {authDebug?.tokenStored ? "✓ YES" : "✗ NO"}</Text>

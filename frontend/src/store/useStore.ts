@@ -211,6 +211,7 @@ interface StoreState {
 
   // ===== DEBUG: Auth flow diagnostics =====
   authDebug: {
+    loginApiUrl?: string;
     accessTokenExp?: number;
     currentTime?: number;
     secondsUntilExp?: number;
@@ -475,6 +476,7 @@ export const useStore = create<StoreState>()(
         const loginResult = await apiLogin({ email, password });
         const tokens = loginResult.tokens;
         const rawResponse = loginResult.rawResponse;
+        const apiUrl = loginResult.apiUrl;
 
         const sessionResult = await saveSession(tokens);
 
@@ -486,6 +488,7 @@ export const useStore = create<StoreState>()(
 
         set({
           authDebug: {
+            loginApiUrl: apiUrl,
             accessTokenExp: accessExp,
             currentTime: now,
             secondsUntilExp: secondsUntilExp,

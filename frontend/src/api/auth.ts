@@ -48,15 +48,16 @@ function extractTokens(res: unknown): AuthTokens {
   return { accessToken, refreshToken };
 }
 
-export async function login(payload: LoginPayload): Promise<{ tokens: AuthTokens; rawResponse: any }> {
-  console.log("[auth.login] Calling /auth/login with email:", payload.email);
+export async function login(payload: LoginPayload): Promise<{ tokens: AuthTokens; rawResponse: any; apiUrl: string }> {
+  const loginUrl = `${API_URL}/auth/login`;
+  console.log("[auth.login] Calling:", loginUrl);
   const res = await apiFetch("/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
   });
   console.log("[auth.login] Raw response:", JSON.stringify(res, null, 2));
   const tokens = extractTokens(res);
-  return { tokens, rawResponse: res };
+  return { tokens, rawResponse: res, apiUrl: loginUrl };
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthTokens> {
