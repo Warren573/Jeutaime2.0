@@ -18,6 +18,7 @@ router.get("/health", (_req: Request, res: Response) => {
 
 /**
  * TEMPORARY DEV ENDPOINT ONLY
+ * GET /api/test/reset-mutual-smile
  * POST /api/test/reset-mutual-smile
  *
  * Creates or resets 2 virgin test accounts for mutual smile flow testing.
@@ -25,56 +26,54 @@ router.get("/health", (_req: Request, res: Response) => {
  *
  * SECURITY: Remove this endpoint before production!
  */
-router.post(
-  "/reset-mutual-smile",
-  asyncHandler(async (_req: Request, res: Response) => {
-    // Safety check - only in dev/staging
-    const env = process.env.NODE_ENV || "development";
-    if (env === "production") {
-      return res.status(403).json({ error: "Test endpoint disabled in production" });
-    }
+const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response) => {
+  // Safety check - only in dev/staging
+  const env = process.env.NODE_ENV || "development";
+  if (env === "production") {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
 
-    const timestamp = Date.now();
-    const userAId = `test-mutual-a-${timestamp}`;
-    const userBId = `test-mutual-b-${timestamp}`;
-    const emailA = `test.mutual.a.${timestamp}@jeutaime.test`;
-    const emailB = `test.mutual.b.${timestamp}@jeutaime.test`;
-    const pseudoA = `test_mutual_a_${timestamp}`;
-    const pseudoB = `test_mutual_b_${timestamp}`;
-    const passwordA = `test-a-${timestamp}`;
-    const passwordB = `test-b-${timestamp}`;
+  const timestamp = Date.now();
+  const userAId = `test-mutual-a-${timestamp}`;
+  const userBId = `test-mutual-b-${timestamp}`;
+  const emailA = `test.mutual.a.${timestamp}@jeutaime.test`;
+  const emailB = `test.mutual.b.${timestamp}@jeutaime.test`;
+  const pseudoA = `test_mutual_a_${timestamp}`;
+  const pseudoB = `test_mutual_b_${timestamp}`;
+  const passwordA = `test-a-${timestamp}`;
+  const passwordB = `test-b-${timestamp}`;
 
-    try {
-      // Delete any existing test data between these IDs (safety cleanup)
-      await prisma.reaction.deleteMany({
-        where: {
-          OR: [
-            { fromId: userAId, toId: userBId },
-            { fromId: userBId, toId: userAId },
-          ],
-        },
-      });
+  try {
+    // Delete any existing test data between these IDs (safety cleanup)
+    await prisma.reaction.deleteMany({
+      where: {
+        OR: [
+          { fromId: userAId, toId: userBId },
+          { fromId: userBId, toId: userAId },
+        ],
+      },
+    });
 
-      const [sortedA, sortedB] = userAId < userBId ? [userAId, userBId] : [userBId, userAId];
-      await prisma.match.deleteMany({
-        where: {
-          userAId: sortedA,
-          userBId: sortedB,
-        },
-      });
+    const [sortedA, sortedB] = userAId < userBId ? [userAId, userBId] : [userBId, userAId];
+    await prisma.match.deleteMany({
+      where: {
+        userAId: sortedA,
+        userBId: sortedB,
+      },
+    });
 
-      // Delete existing users if they exist
-      await prisma.user.deleteMany({
-        where: {
-          OR: [{ id: userAId }, { id: userBId }],
-        },
-      });
+    // Delete existing users if they exist
+    await prisma.user.deleteMany({
+      where: {
+        OR: [{ id: userAId }, { id: userBId }],
+      },
+    });
 
-      // Create User A with profile
-      const userA = await prisma.user.create({
-        data: {
-          id: userAId,
-          email: emailA,
+    // Create User A with profile
+    const userA = await prisma.user.create({
+      data: {
+        id: userAId,
+        email: emailA,
           passwordHash: passwordA,
           isVerified: true,
           role: "USER",
@@ -168,7 +167,9 @@ router.post(
         message: error instanceof Error ? error.message : "Unknown error",
       });
     }
-  }),
-);
+});
+
+router.get("/reset-mutual-smile", resetMutualSmileHandler);
+router.post("/reset-mutual-smile", resetMutualSmileHandler);
 
 export default router;
