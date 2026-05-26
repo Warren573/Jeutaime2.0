@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { prisma } from "../../config/prisma";
+import { hashPassword } from "../../core/utils/hash";
 import * as authService from "../auth/auth.service";
 
 const router = Router();
@@ -53,6 +54,10 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
   const passwordB = `test-b-${timestamp}`;
 
   try {
+    // Hash passwords BEFORE creating users
+    const passwordHashA = await hashPassword(passwordA);
+    const passwordHashB = await hashPassword(passwordB);
+
     // Delete any existing test data between these IDs (safety cleanup)
     await prisma.reaction.deleteMany({
       where: {
@@ -83,7 +88,7 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       data: {
         id: userAId,
         email: emailA,
-        passwordHash: passwordA,
+        passwordHash: passwordHashA,
         isVerified: true,
         role: "USER",
         profile: {
@@ -108,7 +113,7 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       data: {
         id: userBId,
         email: emailB,
-        passwordHash: passwordB,
+        passwordHash: passwordHashB,
         isVerified: true,
         role: "USER",
         profile: {
