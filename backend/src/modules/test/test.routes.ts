@@ -127,6 +127,16 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
         include: { profile: true },
       });
 
+      // AUDIT: Immediate verification after creation (same request)
+      const verifyUserAById = await prisma.user.findUnique({ where: { id: userAId } });
+      const verifyUserBById = await prisma.user.findUnique({ where: { id: userBId } });
+
+      const verifyUserAByEmail = await prisma.user.findUnique({ where: { email: emailA } });
+      const verifyUserBByEmail = await prisma.user.findUnique({ where: { email: emailB } });
+
+      const verifyProfileA = await prisma.profile.findUnique({ where: { userId: userAId } });
+      const verifyProfileB = await prisma.profile.findUnique({ where: { userId: userBId } });
+
       // Verify virgin state
       const reactions = await prisma.reaction.count({
         where: {
@@ -144,16 +154,18 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
         },
       });
 
-      // DEBUG: Verify users exist immediately after creation
-      const verifyUserA = await prisma.user.findUnique({ where: { id: userAId } });
-      const verifyUserB = await prisma.user.findUnique({ where: { id: userBId } });
-
-      console.log("[test/reset-mutual-smile] DEBUG:", {
-        dbUrlHash,
+      console.log("[test/reset-mutual-smile] AUDIT:", {
         dbHost,
         createdUserIds: [userAId, userBId],
-        userAExists: !!verifyUserA,
-        userBExists: !!verifyUserB,
+        emailsCreated: [emailA, emailB],
+        verification: {
+          userAById: !!verifyUserAById,
+          userAByEmail: !!verifyUserAByEmail,
+          profileA: !!verifyProfileA,
+          userBById: !!verifyUserBById,
+          userBByEmail: !!verifyUserBByEmail,
+          profileB: !!verifyProfileB,
+        },
       });
 
       res.json({
@@ -180,11 +192,25 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
           "6. Verify mutual smile → match created",
         ],
         _debug: {
-          dbUrlHash,
           dbHost,
-          userAExists: !!verifyUserA,
-          userBExists: !!verifyUserB,
-          createdIds: [userAId, userBId],
+          createdUserAId: userAId,
+          createdUserBId: userBId,
+          emailACreated: emailA,
+          emailBCreated: emailB,
+          immediate_verification: {
+            userA: {
+              found_by_id: !!verifyUserAById,
+              found_by_email: !!verifyUserAByEmail,
+              email_match: verifyUserAByEmail?.email === emailA,
+              profile_found: !!verifyProfileA,
+            },
+            userB: {
+              found_by_id: !!verifyUserBById,
+              found_by_email: !!verifyUserBByEmail,
+              email_match: verifyUserBByEmail?.email === emailB,
+              profile_found: !!verifyProfileB,
+            },
+          },
         },
       });
     } catch (error) {
@@ -371,72 +397,5 @@ const diagnoseDbHandler = asyncHandler(async (_req: Request, res: Response) => {
 });
 
 router.get("/diagnose-db", diagnoseDbHandler);
-
-/**
- * TRANSACTIONAL TEST
- * GET /api/test/write-read-test
- *
- * Tests if user creation persists immediately
- * Creates a test user and reads it back in same request
- */
-const writeReadTestHandler = asyncHandler(async (_req: Request, res: Response) => {
-  const nodeEnv = process.env.NODE_ENV || "development";
-  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
-  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
-
-  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
-    return res.status(403).json({ error: "Test endpoint disabled in production" });
-  }
-
-  const testId = `test-write-read-${Date.now()}`;
-  const testEmail = `test-write-read-${Date.now()}@test.local`;
-
-  try {
-    // Step 1: Create user
-    console.log("[write-read-test] Step 1: Creating user", { testId, testEmail });
-    const created = await prisma.user.create({
-      data: {
-        id: testId,
-        email: testEmail,
-        passwordHash: "test-hash",
-        role: "USER",
-      },
-    });
-    console.log("[write-read-test] Step 1 SUCCESS: User created", { id: created.id, email: created.email });
-
-    // Step 2: Read it back immediately
-    console.log("[write-read-test] Step 2: Reading user back");
-    const found = await prisma.user.findUnique({
-      where: { email: testEmail },
-      select: { id: true, email: true },
-    });
-    console.log("[write-read-test] Step 2 RESULT:", { found });
-
-    // Step 3: Delete cleanup
-    await prisma.user.deleteMany({
-      where: { id: testId },
-    });
-
-    res.json({
-      status: "success",
-      test: {
-        created_id: created.id,
-        created_email: created.email,
-        read_back_found: !!found,
-        read_back_id: found?.id || null,
-        read_back_email: found?.email || null,
-        write_read_match: found?.id === created.id,
-      },
-    });
-  } catch (error) {
-    console.error("[write-read-test] Error:", error);
-    res.status(500).json({
-      error: "Write-read test failed",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
-});
-
-router.get("/write-read-test", writeReadTestHandler);
 
 export default router;
