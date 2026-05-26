@@ -20,8 +20,26 @@ export interface LoginPayload {
   password: string;
 }
 
+// Direct fetch for auth endpoints (no Authorization header)
+async function authFetch(path: string, payload: unknown): Promise<unknown> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : null;
+
+  if (!res.ok) {
+    throw new Error(body?.error?.message || body?.message || text || `HTTP ${res.status}`);
+  }
+
+  return body;
+}
+
 function extractTokens(res: unknown): AuthTokens {
-  const payload = (res as any)?.data?.data ?? (res as any)?.data;
+  const payload = (res as any)?.data?.data ?? (res as any)?.data ?? res;
   const accessToken = payload?.accessToken;
   const refreshToken = payload?.refreshToken;
   if (!accessToken || !refreshToken) {
@@ -30,28 +48,15 @@ function extractTokens(res: unknown): AuthTokens {
   return { accessToken, refreshToken };
 }
 
-export async function login(payload: LoginPayload): Promise<AuthTokens> {
-  let res: any;
-  try {
-    res = await apiFetch("/auth/login", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    return extractTokens(res);
-  } catch (err: any) {
-    // Capture error and re-throw with context
-    const errorMsg = err?.message || "Une erreur est survenue.";
-    const contextError = new Error(errorMsg);
-    (contextError as any).rawResponse = res;
-    throw contextError;
-  }
+export async function login(payload: LoginPayload): Promise<{ tokens: AuthTokens; rawResponse: any; apiUrl: string }> {
+  const loginUrl = `${API_URL}/auth/login`;
+  const res = await authFetch("/auth/login", payload);
+  const tokens = extractTokens(res);
+  return { tokens, rawResponse: res, apiUrl: loginUrl };
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthTokens> {
-  const res = await apiFetch("/auth/register", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const res = await authFetch("/auth/register", payload);
   return extractTokens(res);
 }
 

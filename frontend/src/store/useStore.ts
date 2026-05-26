@@ -436,8 +436,8 @@ export const useStore = create<StoreState>()(
       },
 
       login: async (email, password) => {
-        const tokens = await apiLogin({ email, password });
-        await saveSession(tokens);
+        const result = await apiLogin({ email, password });
+        await saveSession(result.tokens);
         await get().hydrateFromApi();
       },
 
