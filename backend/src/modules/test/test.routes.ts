@@ -199,4 +199,78 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
 router.get("/reset-mutual-smile", resetMutualSmileHandler);
 router.post("/reset-mutual-smile", resetMutualSmileHandler);
 
+/**
+ * DIAGNOSTIC ENDPOINT
+ * GET /api/test/find-user-by-email?email=...
+ *
+ * Diagnose database connectivity and user existence.
+ * Helps verify if users created by reset-mutual-smile can be found by auth/login.
+ */
+const findUserByEmailHandler = asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const email = req.query.email as string;
+  if (!email) {
+    return res.status(400).json({ error: "email query parameter required" });
+  }
+
+  // DEBUG: Database connection info
+  const dbUrl = process.env.DATABASE_URL || "not-set";
+  const dbHostMatch = dbUrl.match(/host=([^&]+)/);
+  const dbHost = dbHostMatch ? dbHostMatch[1] : "unknown";
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        isVerified: true,
+        passwordHash: true,
+        profile: {
+          select: {
+            id: true,
+            pseudo: true,
+          },
+        },
+      },
+    });
+
+    console.log("[test/find-user-by-email] DEBUG:", {
+      dbHost,
+      emailSearched: email,
+      userFound: !!user,
+      userId: user?.id,
+    });
+
+    res.json({
+      status: "success",
+      _debug: {
+        dbHost,
+        emailSearched: email,
+        userFound: !!user,
+        userId: user?.id || null,
+        hasProfile: !!user?.profile,
+        profilePseudo: user?.profile?.pseudo || null,
+        isVerified: user?.isVerified || null,
+        passwordHashExists: !!user?.passwordHash,
+      },
+    });
+  } catch (error) {
+    console.error("[test/find-user-by-email] Error:", error);
+    res.status(500).json({
+      error: "Failed to search user",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.get("/find-user-by-email", findUserByEmailHandler);
+
 export default router;
