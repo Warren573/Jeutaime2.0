@@ -764,25 +764,62 @@ const identifyOrphanProfilesHandler = asyncHandler(async (req: Request, res: Res
           },
         });
 
+        // Pattern analysis
+        const isTestEmail = user?.email?.includes(".test") || false;
+        const isTestBio = profile.bio?.toLowerCase().includes("test") || false;
+        const isTestPseudo = profile.pseudo?.toLowerCase().includes("test") || false;
+        const isTestUserId = (user?.id || "").toLowerCase().includes("test");
+
+        const isTestAccount = isTestEmail || isTestBio || isTestPseudo || isTestUserId;
+
+        const reason = isTestAccount
+          ? [
+              isTestEmail && "email has .test",
+              isTestBio && "bio contains 'test'",
+              isTestPseudo && "pseudo contains 'test'",
+              isTestUserId && "userId contains 'test'",
+            ]
+              .filter(Boolean)
+              .join(", ")
+          : "no test patterns";
+
         return {
           profileId: profile.id,
-          userId: profile.userId,
-          pseudo: profile.pseudo,
+          userId: user?.id,
           email: user?.email,
+          pseudo: profile.pseudo,
+          bio: profile.bio,
+          city: profile.city,
           isBanned: user?.isBanned,
           showInDiscovery: user?.settings?.showInDiscovery,
           createdAt: user?.createdAt,
           reactionCount: reactions,
           matchCount: matches,
-          isTestAccount: profile.pseudo?.startsWith("test_") || profile.userId?.startsWith("test-"),
+          isTestAccount,
+          testReason: reason,
         };
       })
     );
 
+    const testAccounts = results.filter((r) => r.isTestAccount);
+    const realAccounts = results.filter((r) => !r.isTestAccount);
+
     res.json({
       status: "success",
       profilesFound: results.length,
+      testAccountsFound: testAccounts.length,
+      realAccountsFound: realAccounts.length,
       profiles: results,
+      testUserIds: testAccounts.map((r) => r.userId),
+      summary: {
+        allTestPatterns: testAccounts.length === results.length,
+        message:
+          testAccounts.length === results.length
+            ? "All profiles are test accounts - safe to delete"
+            : realAccounts.length > 0
+              ? "⚠️ MIXED: Some profiles are real accounts - investigate before deleting"
+              : "No test patterns found - investigate before deleting",
+      },
     });
   } catch (error) {
     console.error("[test/identify-orphan-profiles] Error:", error);
