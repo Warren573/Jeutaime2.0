@@ -134,6 +134,16 @@ export default function ProfileTwoStepDemo() {
   const [rawResponse, setRawResponse] = useState<string>('');
   const [backendVersion, setBackendVersion] = useState<BackendVersion | null>(null);
 
+  // Clear discovery on user change
+  useEffect(() => {
+    setCurrentProfile(null);
+    setRemainingProfiles([]);
+    setRemovedIds(new Set());
+    setCurrentProfile(null);
+    setError(null);
+    setLastActionDebug('');
+  }, [currentUser?.id]);
+
   const load = useCallback(async () => {
     if (!currentUser?.id) return;
     setLoading(true);
@@ -178,6 +188,11 @@ export default function ProfileTwoStepDemo() {
     }
     if (!currentUser?.id) {
       setLastActionDebug('BLOCKED no user');
+      return;
+    }
+    if (targetProfile.userId === currentUser.id) {
+      setLastActionDebug('BLOCKED_SELF_PROFILE');
+      Alert.alert('Erreur', 'Tu ne peux pas réagir à ton propre profil');
       return;
     }
 
