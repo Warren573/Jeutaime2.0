@@ -1,0 +1,185 @@
+name: Test Mutual Smile Flow
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: Backend API URL
+        required: false
+        default: http://192.168.0.40:3000/api
+
+jobs:
+  test-mutual-smile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test mutual smile flow
+        run: |
+          set -e
+
+          API_URL="${{ github.event.inputs.api_url }}"
+          echo "=== Starting Mutual Smile Test ==="
+          echo "API_URL: $API_URL"
+
+          # Step 1: Reset mutual smile - get test accounts
+          echo ""
+          echo "=== Step 1: Reset mutual smile ==="
+          RESET_RESPONSE=$(curl -s -X POST "$API_URL/test/reset-mutual-smile" \
+            -H "Content-Type: application/json")
+          echo "Reset response:"
+          echo "$RESET_RESPONSE" | jq .
+
+          EMAIL_A=$(echo "$RESET_RESPONSE" | jq -r '.accountA.email')
+          PASSWORD_A=$(echo "$RESET_RESPONSE" | jq -r '.accountA.password')
+          USER_ID_A=$(echo "$RESET_RESPONSE" | jq -r '.accountA.userId')
+
+          EMAIL_B=$(echo "$RESET_RESPONSE" | jq -r '.accountB.email')
+          PASSWORD_B=$(echo "$RESET_RESPONSE" | jq -r '.accountB.password')
+          USER_ID_B=$(echo "$RESET_RESPONSE" | jq -r '.accountB.userId')
+
+          echo "Account A: email=$EMAIL_A userId=$USER_ID_A"
+          echo "Account B: email=$EMAIL_B userId=$USER_ID_B"
+
+          # Step 2: Login accountA
+          echo ""
+          echo "=== Step 2: Login accountA ==="
+          LOGIN_A=$(curl -s -X POST "$API_URL/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL_A\",\"password\":\"$PASSWORD_A\"}")
+          echo "Login A response:"
+          echo "$LOGIN_A" | jq .
+
+          TOKEN_A=$(echo "$LOGIN_A" | jq -r '.data.accessToken // .accessToken')
+          echo "Token A: ${TOKEN_A:0:20}..."
+
+          if [ "$TOKEN_A" = "null" ] || [ -z "$TOKEN_A" ]; then
+            echo "ERROR: Failed to get token for account A"
+            exit 1
+          fi
+
+          # Step 3: Login accountB
+          echo ""
+          echo "=== Step 3: Login accountB ==="
+          LOGIN_B=$(curl -s -X POST "$API_URL/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL_B\",\"password\":\"$PASSWORD_B\"}")
+          echo "Login B response:"
+          echo "$LOGIN_B" | jq .
+
+          TOKEN_B=$(echo "$LOGIN_B" | jq -r '.data.accessToken // .accessToken')
+          echo "Token B: ${TOKEN_B:0:20}..."
+
+          if [ "$TOKEN_B" = "null" ] || [ -z "$TOKEN_B" ]; then
+            echo "ERROR: Failed to get token for account B"
+            exit 1
+          fi
+
+          # Step 4: A smiles at B
+          echo ""
+          echo "=== Step 4: A smiles at B ==="
+          echo "Payload: { toId: $USER_ID_B, type: SMILE }"
+
+          SMILE_A=$(curl -s -X POST "$API_URL/discover/react" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"toId\":\"$USER_ID_B\",\"type\":\"SMILE\"}")
+          echo "Smile A response:"
+          echo "$SMILE_A" | jq .
+
+          DEBUG_BRANCH_A=$(echo "$SMILE_A" | jq -r '.data.debugBranch // .debugBranch // "MISSING"')
+          MATCH_CREATED_A=$(echo "$SMILE_A" | jq -r '.data.matchCreated // .matchCreated // "MISSING"')
+          FROM_ID_A=$(echo "$SMILE_A" | jq -r '.data.fromId // .fromId // "MISSING"')
+          TO_ID_A=$(echo "$SMILE_A" | jq -r '.data.toId // .toId // "MISSING"')
+
+          echo ""
+          echo "Step 4 Results:"
+          echo "  debugBranch: $DEBUG_BRANCH_A (expected: NO-MUTUAL)"
+          echo "  matchCreated: $MATCH_CREATED_A (expected: false)"
+          echo "  fromId: $FROM_ID_A (expected: $USER_ID_A)"
+          echo "  toId: $TO_ID_A (expected: $USER_ID_B)"
+
+          if [ "$DEBUG_BRANCH_A" != "NO-MUTUAL" ]; then
+            echo "ERROR: Expected debugBranch=NO-MUTUAL but got $DEBUG_BRANCH_A"
+            exit 1
+          fi
+
+          if [ "$MATCH_CREATED_A" != "false" ]; then
+            echo "ERROR: Expected matchCreated=false but got $MATCH_CREATED_A"
+            exit 1
+          fi
+
+          # Step 5: B smiles at A (should detect mutual)
+          echo ""
+          echo "=== Step 5: B smiles at A (mutual smile) ==="
+          echo "Payload: { toId: $USER_ID_A, type: SMILE }"
+
+          SMILE_B=$(curl -s -X POST "$API_URL/discover/react" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"toId\":\"$USER_ID_A\",\"type\":\"SMILE\"}")
+          echo "Smile B response:"
+          echo "$SMILE_B" | jq .
+
+          DEBUG_BRANCH_B=$(echo "$SMILE_B" | jq -r '.data.debugBranch // .debugBranch // "MISSING"')
+          MATCH_CREATED_B=$(echo "$SMILE_B" | jq -r '.data.matchCreated // .matchCreated // "MISSING"')
+          MATCH_ID=$(echo "$SMILE_B" | jq -r '.data.matchId // .matchId // "MISSING"')
+          FROM_ID_B=$(echo "$SMILE_B" | jq -r '.data.fromId // .fromId // "MISSING"')
+          TO_ID_B=$(echo "$SMILE_B" | jq -r '.data.toId // .toId // "MISSING"')
+
+          echo ""
+          echo "Step 5 Results:"
+          echo "  debugBranch: $DEBUG_BRANCH_B (expected: NEW-MATCH)"
+          echo "  matchCreated: $MATCH_CREATED_B (expected: true)"
+          echo "  matchId: $MATCH_ID (expected: present)"
+          echo "  fromId: $FROM_ID_B (expected: $USER_ID_B)"
+          echo "  toId: $TO_ID_B (expected: $USER_ID_A)"
+
+          if [ "$DEBUG_BRANCH_B" != "NEW-MATCH" ]; then
+            echo "ERROR: Expected debugBranch=NEW-MATCH but got $DEBUG_BRANCH_B"
+            exit 1
+          fi
+
+          if [ "$MATCH_CREATED_B" != "true" ]; then
+            echo "ERROR: Expected matchCreated=true but got $MATCH_CREATED_B"
+            exit 1
+          fi
+
+          if [ "$MATCH_ID" = "MISSING" ] || [ "$MATCH_ID" = "null" ] || [ -z "$MATCH_ID" ]; then
+            echo "ERROR: Expected matchId to be present but got $MATCH_ID"
+            exit 1
+          fi
+
+          # Step 6: Verify match visible for both
+          echo ""
+          echo "=== Step 6: Verify match visible for both accounts ==="
+
+          MATCHES_A=$(curl -s -X GET "$API_URL/matches" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Matches for A:"
+          echo "$MATCHES_A" | jq .
+
+          MATCHES_B=$(curl -s -X GET "$API_URL/matches" \
+            -H "Authorization: Bearer $TOKEN_B")
+          echo "Matches for B:"
+          echo "$MATCHES_B" | jq .
+
+          MATCH_FOUND_A=$(echo "$MATCHES_A" | jq ".data[] | select(.id == \"$MATCH_ID\")" | jq -r '.id // empty')
+          MATCH_FOUND_B=$(echo "$MATCHES_B" | jq ".data[] | select(.id == \"$MATCH_ID\")" | jq -r '.id // empty')
+
+          echo ""
+          echo "Step 6 Results:"
+          echo "  Match visible for A: $([ -n "$MATCH_FOUND_A" ] && echo 'YES' || echo 'NO')"
+          echo "  Match visible for B: $([ -n "$MATCH_FOUND_B" ] && echo 'YES' || echo 'NO')"
+
+          if [ -z "$MATCH_FOUND_A" ]; then
+            echo "ERROR: Match not visible for account A"
+            exit 1
+          fi
+
+          if [ -z "$MATCH_FOUND_B" ]; then
+            echo "ERROR: Match not visible for account B"
+            exit 1
+          fi
+
+          echo ""
+          echo "=== ✅ ALL TESTS PASSED ==="
+          echo "Mutual smile flow is working correctly!"
