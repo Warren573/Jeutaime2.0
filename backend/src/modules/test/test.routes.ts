@@ -550,4 +550,146 @@ const discoveryDebugHandler = asyncHandler(async (req: Request, res: Response) =
 
 router.get("/discovery-debug", discoveryDebugHandler);
 
+/**
+ * DANGEROUS STAGING CLEANUP ENDPOINT
+ * POST /api/test/cleanup-staging-debug-data
+ *
+ * STAGING ONLY - Cleans up test data and broken matches.
+ * - Deletes all test-mutual-* users and their data
+ * - Deletes all profiles matching test_mutual_%
+ * - Deletes all BROKEN/GHOSTED/BLOCKED matches (all users)
+ * - Returns counts of deleted records
+ */
+const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+
+  // SAFETY: Only allow in staging or development with explicit flag
+  if (!isRenderStaging && nodeEnv !== "development") {
+    return res.status(403).json({ error: "Cleanup endpoint only available in staging/development" });
+  }
+
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  try {
+    const counts = {
+      testMutualUsersDeleted: 0,
+      testProfilesDeleted: 0,
+      reactionsDeleted: 0,
+      matchesDeleted: 0,
+      lettersDeleted: 0,
+      refreshTokensDeleted: 0,
+      walletsDeleted: 0,
+      settingsDeleted: 0,
+      photosDeleted: 0,
+      petsDeleted: 0,
+      blocksDeleted: 0,
+      brokenMatchesDeleted: 0,
+    };
+
+    // 1. Find test-mutual-* users
+    const testMutualUsers = await prisma.user.findMany({
+      where: { id: { startsWith: "test-mutual-" } },
+      select: { id: true },
+    });
+    const testMutualIds = testMutualUsers.map((u) => u.id);
+    counts.testMutualUsersDeleted = testMutualIds.length;
+
+    console.log(`[cleanup-staging] Found ${testMutualIds.length} test-mutual-* users`);
+
+    // 2. Find test_mutual_% profiles (by pseudo pattern)
+    const testProfiles = await prisma.profile.findMany({
+      where: { pseudo: { startsWith: "test_mutual_" } },
+      select: { userId: true },
+    });
+    const testProfileUserIds = testProfiles.map((p) => p.userId);
+    counts.testProfilesDeleted = testProfiles.length;
+
+    console.log(`[cleanup-staging] Found ${testProfiles.length} test_mutual_% profiles`);
+
+    // All users to clean (test-mutual + test profiles)
+    const allTestUserIds = [...new Set([...testMutualIds, ...testProfileUserIds])];
+
+    if (allTestUserIds.length > 0) {
+      // Delete test users and their data
+      counts.reactionsDeleted = await prisma.reaction.deleteMany({
+        where: {
+          OR: [{ fromId: { in: allTestUserIds } }, { toId: { in: allTestUserIds } }],
+        },
+      }).then((r) => r.count);
+
+      counts.matchesDeleted = await prisma.match.deleteMany({
+        where: {
+          OR: [{ userAId: { in: allTestUserIds } }, { userBId: { in: allTestUserIds } }],
+        },
+      }).then((r) => r.count);
+
+      counts.lettersDeleted = await prisma.letter.deleteMany({
+        where: {
+          OR: [{ fromUserId: { in: allTestUserIds } }, { toUserId: { in: allTestUserIds } }],
+        },
+      }).then((r) => r.count);
+
+      counts.blocksDeleted = await prisma.block.deleteMany({
+        where: {
+          OR: [{ fromId: { in: allTestUserIds } }, { toId: { in: allTestUserIds } }],
+        },
+      }).then((r) => r.count);
+
+      counts.refreshTokensDeleted = await prisma.refreshToken.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      }).then((r) => r.count);
+
+      counts.photosDeleted = await prisma.photo.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      }).then((r) => r.count);
+
+      counts.petsDeleted = await prisma.pet.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      }).then((r) => r.count);
+
+      counts.walletsDeleted = await prisma.wallet.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      }).then((r) => r.count);
+
+      counts.settingsDeleted = await prisma.userSettings.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      }).then((r) => r.count);
+
+      // Delete profiles and users
+      await prisma.profile.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      await prisma.user.deleteMany({
+        where: { id: { in: allTestUserIds } },
+      });
+    }
+
+    // 3. Delete BROKEN/GHOSTED/BLOCKED matches (ALL users, for data integrity)
+    counts.brokenMatchesDeleted = await prisma.match.deleteMany({
+      where: { status: { in: ["BROKEN", "GHOSTED", "BLOCKED"] } },
+    }).then((r) => r.count);
+
+    console.log("[cleanup-staging] Cleanup complete:", counts);
+
+    res.json({
+      status: "success",
+      message: "Staging data cleanup completed",
+      counts,
+    });
+  } catch (error) {
+    console.error("[cleanup-staging] Error:", error);
+    res.status(500).json({
+      error: "Cleanup failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.post("/cleanup-staging-debug-data", cleanupStagingHandler);
+
 export default router;

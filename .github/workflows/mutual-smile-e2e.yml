@@ -16,6 +16,14 @@ jobs:
           echo "API_URL: $API_URL"
           echo ""
 
+          # Step 0: Cleanup staging data
+          echo "=== Step 0: Cleanup staging debug data ==="
+          CLEANUP=$(curl -s -X POST "$API_URL/test/cleanup-staging-debug-data" \
+            -H "Content-Type: application/json")
+          echo "Cleanup response:"
+          echo "$CLEANUP" | jq .
+          echo ""
+
           # Step 1: Reset mutual smile
           echo "=== Step 1: Reset mutual smile ==="
           RESET=$(curl -s -X POST "$API_URL/test/reset-mutual-smile" \
