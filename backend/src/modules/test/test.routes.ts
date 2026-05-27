@@ -58,30 +58,81 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
     const passwordHashA = await hashPassword(passwordA);
     const passwordHashB = await hashPassword(passwordB);
 
-    // Delete any existing test data between these IDs (safety cleanup)
-    await prisma.reaction.deleteMany({
-      where: {
-        OR: [
-          { fromId: userAId, toId: userBId },
-          { fromId: userBId, toId: userAId },
-        ],
-      },
+    // Find ALL existing test-mutual-* users (cleanup from previous runs)
+    const existingTestUsers = await prisma.user.findMany({
+      where: { id: { startsWith: "test-mutual-" } },
+      select: { id: true },
     });
+    const allTestUserIds = existingTestUsers.map((u) => u.id);
 
+    console.log(`[test/reset-mutual-smile] Found ${allTestUserIds.length} existing test-mutual-* users, cleaning up...`);
+
+    // Delete ALL related data in correct order (respecting FK constraints)
+    if (allTestUserIds.length > 0) {
+      // Delete relations that reference these users
+      await prisma.reaction.deleteMany({
+        where: {
+          OR: [{ fromId: { in: allTestUserIds } }, { toId: { in: allTestUserIds } }],
+        },
+      });
+
+      // Delete matches where either userA or userB is a test user
+      await prisma.match.deleteMany({
+        where: {
+          OR: [{ userAId: { in: allTestUserIds } }, { userBId: { in: allTestUserIds } }],
+        },
+      });
+
+      // Delete letters
+      await prisma.letter.deleteMany({
+        where: {
+          OR: [{ fromUserId: { in: allTestUserIds } }, { toUserId: { in: allTestUserIds } }],
+        },
+      });
+
+      // Delete blocks
+      await prisma.block.deleteMany({
+        where: {
+          OR: [{ fromId: { in: allTestUserIds } }, { toId: { in: allTestUserIds } }],
+        },
+      });
+
+      // Delete other user-related data
+      await prisma.refreshToken.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      await prisma.photo.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      await prisma.pet.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      // Delete wallet, settings, profile (these may cascade but be explicit)
+      await prisma.wallet.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      await prisma.userSettings.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      await prisma.profile.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      // Finally delete users
+      await prisma.user.deleteMany({
+        where: { id: { in: allTestUserIds } },
+      });
+
+      console.log(`[test/reset-mutual-smile] Cleaned up ${allTestUserIds.length} test-mutual-* users`);
+    }
+
+    // Pre-sort userIds for match queries (userAId < userBId alphabetically)
     const [sortedA, sortedB] = userAId < userBId ? [userAId, userBId] : [userBId, userAId];
-    await prisma.match.deleteMany({
-      where: {
-        userAId: sortedA,
-        userBId: sortedB,
-      },
-    });
-
-    // Delete existing users if they exist
-    await prisma.user.deleteMany({
-      where: {
-        OR: [{ id: userAId }, { id: userBId }],
-      },
-    });
 
     // Create User A with profile, settings, and wallet
     const userA = await prisma.$transaction(async (tx) => {
@@ -236,6 +287,7 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       _debug: {
         dbUrlHash,
         dbHost,
+        oldTestAccountsCleaned: allTestUserIds.length,
         userAExists: !!verifyUserA,
         userBExists: !!verifyUserB,
         createdIds: [userAId, userBId],
@@ -399,17 +451,21 @@ const discoveryDebugHandler = asyncHandler(async (req: Request, res: Response) =
     return res.status(403).json({ error: "Test endpoint disabled in production" });
   }
 
-  const viewerId = req.query.viewerId as string;
-  const targetId = req.query.targetId as string;
+  const viewerId = req.query.viewerId as string | undefined;
+  const targetId = req.query.targetId as string | undefined;
 
   if (!viewerId || !targetId) {
     return res.status(400).json({ error: "viewerId and targetId query parameters required" });
   }
 
+  // After guard, we know they're strings (TypeScript won't infer from guard, so we cast)
+  const vId = viewerId as string;
+  const tId = targetId as string;
+
   try {
     // 1. Check if target exists
     const targetUser = await prisma.user.findUnique({
-      where: { id: targetId },
+      where: { id: tId },
       select: {
         id: true,
         isBanned: true,
@@ -428,15 +484,15 @@ const discoveryDebugHandler = asyncHandler(async (req: Request, res: Response) =
     const block = await prisma.block.findMany({
       where: {
         OR: [
-          { fromId: viewerId, toId: targetId },
-          { fromId: targetId, toId: viewerId },
+          { fromId: vId, toId: tId },
+          { fromId: tId, toId: vId },
         ],
       },
     });
     const excludedByBlock = block.length > 0;
 
     // 3. Check if excluded by existing match
-    const [a, b] = [viewerId, targetId].sort();
+    const [a, b] = [vId, tId].sort() as [string, string];
     const match = await prisma.match.findUnique({
       where: { userAId_userBId: { userAId: a, userBId: b } },
       select: { id: true, status: true },
@@ -444,7 +500,7 @@ const discoveryDebugHandler = asyncHandler(async (req: Request, res: Response) =
     const excludedByExistingMatch = !!match;
 
     // 4. Check if excluded by viewerId itself
-    const excludedByViewerId = viewerId === targetId;
+    const excludedByViewerId = vId === tId;
 
     // 5. Would it pass the discovery WHERE clause?
     const wouldPassDiscoveryWhere =
@@ -460,8 +516,8 @@ const discoveryDebugHandler = asyncHandler(async (req: Request, res: Response) =
     res.json({
       status: "success",
       _debug: {
-        viewerId,
-        targetId,
+        viewerId: vId,
+        targetId: tId,
         targetExists,
         targetHasProfile,
         targetHasSettings,
