@@ -953,12 +953,23 @@ export default function LettersScreen() {
     }
   };
 
+  const filteredMatches = matches.filter(m => m.status === 'pending' || m.status === 'active');
+  const debugMatchStatuses = matches.map(m => `${m.id.substring(0, 8)}:${m.status}`).join(' | ');
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <View style={styles.header}>
         <Text style={styles.headerKicker}>JEUTAIME</Text>
         <Text style={styles.headerTitle}>Boîte aux lettres</Text>
         <Text style={styles.headerSubtitle}>Correspondances privées</Text>
+      </View>
+
+      {/* DEBUG: Match visibility info */}
+      <View style={{ backgroundColor: '#1a1a2e', padding: 8, marginHorizontal: 12, marginVertical: 8, borderRadius: 6 }}>
+        <Text style={{ fontSize: 10, color: '#4ade80', fontFamily: 'monospace', marginBottom: 4 }}>DEBUG LETTERS</Text>
+        <Text style={{ fontSize: 9, color: '#60a5fa', fontFamily: 'monospace' }}>LOAD_MATCHES_RAW_COUNT={matches.length}</Text>
+        <Text style={{ fontSize: 9, color: '#60a5fa', fontFamily: 'monospace' }}>LOAD_MATCHES_VISIBLE_COUNT={filteredMatches.length}</Text>
+        <Text style={{ fontSize: 9, color: '#fbbf24', fontFamily: 'monospace' }}>STATUSES={debugMatchStatuses || 'none'}</Text>
       </View>
 
       <View style={styles.tabsContainer}>

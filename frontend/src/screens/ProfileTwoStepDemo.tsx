@@ -204,11 +204,37 @@ export default function ProfileTwoStepDemo() {
       setLastActionDebug(`API_RESULT source=${(result as any).source ?? 'unknown'} debugBranch=${result.debugBranch ?? 'none'} matchCreated=${result.matchCreated} matchId=${result.matchId ?? 'null'}`);
 
       if (type === "SMILE" && result.debugBranch === "NEW-MATCH") {
-        setLastActionDebug(`LOADING_MATCHES...`);
+        setLastActionDebug(
+          `NEW_MATCH_RECEIVED=true matchId=${result.matchId}\n` +
+          `LOADING_MATCHES...`
+        );
+        const storeStateBefore = require('../store/useStore').useStore.getState();
+        const matchCountBefore = storeStateBefore.matches?.length ?? 0;
+
         await loadMatches();
-        setLastActionDebug(`LOAD_MATCHES_DONE matchId=${result.matchId}`);
+
+        const storeStateAfter = require('../store/useStore').useStore.getState();
+        const matchesAfter = storeStateAfter.matches ?? [];
+        const matchCountAfter = matchesAfter.length;
+        const newMatch = matchesAfter.find(m => m.id === result.matchId);
+
+        setLastActionDebug(
+          `NEW_MATCH_RECEIVED=true\n` +
+          `LOAD_MATCHES_RAW_COUNT=${matchCountAfter}\n` +
+          `LOAD_MATCHES_VISIBLE_COUNT=${matchesAfter.filter(m => m.status === 'pending' || m.status === 'active').length}\n` +
+          `MATCH_FOUND=${!!newMatch}\n` +
+          `MATCH_STATUS=${newMatch?.status ?? 'NOT_FOUND'}\n` +
+          `NAVIGATING_TO_LETTERS...`
+        );
         router.push("/(tabs)/letters");
-        setLastActionDebug(`NAVIGATED_TO_LETTERS`);
+        setLastActionDebug(
+          `NEW_MATCH_RECEIVED=true\n` +
+          `LOAD_MATCHES_RAW_COUNT=${matchCountAfter}\n` +
+          `LOAD_MATCHES_VISIBLE_COUNT=${matchesAfter.filter(m => m.status === 'pending' || m.status === 'active').length}\n` +
+          `MATCH_FOUND=${!!newMatch}\n` +
+          `MATCH_STATUS=${newMatch?.status ?? 'NOT_FOUND'}\n` +
+          `NAVIGATED_TO_LETTERS=true`
+        );
       }
     } catch (err) {
       setCurrentProfile(previousCurrent);
