@@ -91,10 +91,9 @@ jobs:
           echo "Has B: $DISCOVERY_A_HAS_B"
           echo ""
 
-          # HARD FAIL: Discovery A count MUST be exactly 1
           if [ "$DISCOVERY_A_COUNT" != "1" ]; then
-            echo "❌ ERROR: Expected Discovery A count = 1, got $DISCOVERY_A_COUNT"
-            echo "Discovery A IDs: $DISCOVERY_A_IDS"
+            echo "ERROR: Discovery A count should be 1, got $DISCOVERY_A_COUNT"
+            echo "$DISCOVERY_A" | jq .
             exit 1
           fi
 
@@ -119,10 +118,9 @@ jobs:
           echo "Has A: $DISCOVERY_B_HAS_A"
           echo ""
 
-          # HARD FAIL: Discovery B count MUST be exactly 1
           if [ "$DISCOVERY_B_COUNT" != "1" ]; then
-            echo "❌ ERROR: Expected Discovery B count = 1, got $DISCOVERY_B_COUNT"
-            echo "Discovery B IDs: $DISCOVERY_B_IDS"
+            echo "ERROR: Discovery B count should be 1, got $DISCOVERY_B_COUNT"
+            echo "$DISCOVERY_B" | jq .
             exit 1
           fi
 
