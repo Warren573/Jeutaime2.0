@@ -83,7 +83,7 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       },
     });
 
-    // Create User A with profile and settings
+    // Create User A with profile, settings, and wallet
     const userA = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
@@ -110,13 +110,24 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       });
 
       await tx.userSettings.create({
-        data: { userId: newUser.id },
+        data: {
+          userId: newUser.id,
+          showInDiscovery: true,
+          showPhotoByDefault: true,
+        },
+      });
+
+      await tx.wallet.create({
+        data: {
+          userId: newUser.id,
+          coins: 100,
+        },
       });
 
       return newUser;
     });
 
-    // Create User B with profile and settings
+    // Create User B with profile, settings, and wallet
     const userB = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
@@ -143,7 +154,18 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       });
 
       await tx.userSettings.create({
-        data: { userId: newUser.id },
+        data: {
+          userId: newUser.id,
+          showInDiscovery: true,
+          showPhotoByDefault: true,
+        },
+      });
+
+      await tx.wallet.create({
+        data: {
+          userId: newUser.id,
+          coins: 100,
+        },
       });
 
       return newUser;
@@ -166,9 +188,13 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       },
     });
 
-    // DEBUG: Verify users exist immediately after creation
+    // DEBUG: Verify users, settings, and wallets exist
     const verifyUserA = await prisma.user.findUnique({ where: { id: userAId } });
     const verifyUserB = await prisma.user.findUnique({ where: { id: userBId } });
+    const settingsA = await prisma.userSettings.findUnique({ where: { userId: userAId } });
+    const settingsB = await prisma.userSettings.findUnique({ where: { userId: userBId } });
+    const walletA = await prisma.wallet.findUnique({ where: { userId: userAId } });
+    const walletB = await prisma.wallet.findUnique({ where: { userId: userBId } });
 
     console.log("[test/reset-mutual-smile] DEBUG:", {
       dbUrlHash,
@@ -176,6 +202,12 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       createdUserIds: [userAId, userBId],
       userAExists: !!verifyUserA,
       userBExists: !!verifyUserB,
+      userAHasSettings: !!settingsA,
+      userBHasSettings: !!settingsB,
+      userAShowInDiscovery: settingsA?.showInDiscovery,
+      userBShowInDiscovery: settingsB?.showInDiscovery,
+      userAHasWallet: !!walletA,
+      userBHasWallet: !!walletB,
     });
 
     res.json({
@@ -207,6 +239,12 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
         userAExists: !!verifyUserA,
         userBExists: !!verifyUserB,
         createdIds: [userAId, userBId],
+        userAHasSettings: !!settingsA,
+        userBHasSettings: !!settingsB,
+        userAShowInDiscovery: settingsA?.showInDiscovery ?? false,
+        userBShowInDiscovery: settingsB?.showInDiscovery ?? false,
+        userAHasWallet: !!walletA,
+        userBHasWallet: !!walletB,
       },
     });
   } catch (error) {
