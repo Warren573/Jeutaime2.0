@@ -91,12 +91,24 @@ jobs:
           echo "Has B: $DISCOVERY_A_HAS_B"
           echo ""
 
-          # STRICT ASSERT: Discovery count must be exactly 1
-          if [ "$DISCOVERY_A_COUNT" != "1" ]; then
-            echo "❌ ERROR: Discovery A count should be 1, but got $DISCOVERY_A_COUNT"
-            echo "Profile IDs in discovery: $DISCOVERY_A_IDS"
+          # CRITICAL: Hard fail if count != 1
+          echo "Validating Discovery A count..."
+          if [ -z "$DISCOVERY_A_COUNT" ]; then
+            echo "❌ CRITICAL FAIL: DISCOVERY_A_COUNT is empty!"
             exit 1
           fi
+          if [ "$DISCOVERY_A_COUNT" = "null" ]; then
+            echo "❌ CRITICAL FAIL: DISCOVERY_A_COUNT is null!"
+            exit 1
+          fi
+          DISCOVERY_A_COUNT_INT=$(echo "$DISCOVERY_A_COUNT" | tr -d ' ')
+          if [ "$DISCOVERY_A_COUNT_INT" -ne 1 ]; then
+            echo "❌ CRITICAL FAIL: Discovery A count must be exactly 1, got $DISCOVERY_A_COUNT_INT"
+            echo "Profiles in discovery: $DISCOVERY_A_IDS"
+            exit 1
+          fi
+          echo "✅ Discovery A count validated: 1"
+          echo ""
 
           if [ "$DISCOVERY_A_HAS_B" != "true" ]; then
             echo "⚠️  WARNING: Account A cannot see Account B in discovery"
@@ -119,12 +131,24 @@ jobs:
           echo "Has A: $DISCOVERY_B_HAS_A"
           echo ""
 
-          # STRICT ASSERT: Discovery count must be exactly 1
-          if [ "$DISCOVERY_B_COUNT" != "1" ]; then
-            echo "❌ ERROR: Discovery B count should be 1, but got $DISCOVERY_B_COUNT"
-            echo "Profile IDs in discovery: $DISCOVERY_B_IDS"
+          # CRITICAL: Hard fail if count != 1
+          echo "Validating Discovery B count..."
+          if [ -z "$DISCOVERY_B_COUNT" ]; then
+            echo "❌ CRITICAL FAIL: DISCOVERY_B_COUNT is empty!"
             exit 1
           fi
+          if [ "$DISCOVERY_B_COUNT" = "null" ]; then
+            echo "❌ CRITICAL FAIL: DISCOVERY_B_COUNT is null!"
+            exit 1
+          fi
+          DISCOVERY_B_COUNT_INT=$(echo "$DISCOVERY_B_COUNT" | tr -d ' ')
+          if [ "$DISCOVERY_B_COUNT_INT" -ne 1 ]; then
+            echo "❌ CRITICAL FAIL: Discovery B count must be exactly 1, got $DISCOVERY_B_COUNT_INT"
+            echo "Profiles in discovery: $DISCOVERY_B_IDS"
+            exit 1
+          fi
+          echo "✅ Discovery B count validated: 1"
+          echo ""
 
           if [ "$DISCOVERY_B_HAS_A" != "true" ]; then
             echo "⚠️  WARNING: Account B cannot see Account A in discovery"
