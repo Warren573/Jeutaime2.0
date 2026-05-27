@@ -610,8 +610,16 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
 
     console.log(`[cleanup-staging] Found ${testProfiles.length} test_mutual_% profiles`);
 
-    // All users to clean (test-mutual + test profiles)
-    const allTestUserIds = [...new Set([...testMutualIds, ...testProfileUserIds])];
+    // 3. Find users with email containing ".test" (test email pattern)
+    const testEmailUsers = await prisma.user.findMany({
+      where: { email: { contains: ".test" } },
+      select: { id: true },
+    });
+    const testEmailUserIds = testEmailUsers.map((u) => u.id);
+    console.log(`[cleanup-staging] Found ${testEmailUserIds.length} users with .test email pattern`);
+
+    // All users to clean (test-mutual + test profiles + test emails)
+    const allTestUserIds = [...new Set([...testMutualIds, ...testProfileUserIds, ...testEmailUserIds])];
 
     if (allTestUserIds.length > 0) {
       // Delete test users and their data
