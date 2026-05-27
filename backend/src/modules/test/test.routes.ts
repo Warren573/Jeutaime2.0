@@ -692,4 +692,99 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
 
 router.post("/cleanup-staging-debug-data", cleanupStagingHandler);
 
+/**
+ * DIAGNOSTIC ENDPOINT
+ * GET /api/test/identify-orphan-profiles
+ *
+ * Identify mysterious profiles that are still visible in discovery.
+ * Pass comma-separated profile IDs: ?profileIds=cmp6wyz62000111ip6f7t8uge,cmp6yvp0h000511ip6beq6xqr,...
+ */
+const identifyOrphanProfilesHandler = asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const profileIdsParam = req.query.profileIds as string | undefined;
+  if (!profileIdsParam) {
+    return res.status(400).json({ error: "profileIds query parameter required (comma-separated)" });
+  }
+
+  const profileIds = profileIdsParam.split(",").map((id) => id.trim());
+
+  try {
+    const profiles = await prisma.profile.findMany({
+      where: { id: { in: profileIds } },
+      select: {
+        id: true,
+        userId: true,
+        pseudo: true,
+        gender: true,
+        city: true,
+        birthDate: true,
+        bio: true,
+      },
+    });
+
+    const results = await Promise.all(
+      profiles.map(async (profile) => {
+        const user = await prisma.user.findUnique({
+          where: { id: profile.userId },
+          select: {
+            id: true,
+            email: true,
+            isBanned: true,
+            createdAt: true,
+            settings: { select: { showInDiscovery: true } },
+          },
+        });
+
+        // Check if user has reactions
+        const reactions = await prisma.reaction.count({
+          where: {
+            OR: [{ fromId: profile.userId }, { toId: profile.userId }],
+          },
+        });
+
+        // Check if user has matches
+        const matches = await prisma.match.count({
+          where: {
+            OR: [{ userAId: profile.userId }, { userBId: profile.userId }],
+          },
+        });
+
+        return {
+          profileId: profile.id,
+          userId: profile.userId,
+          pseudo: profile.pseudo,
+          email: user?.email,
+          isBanned: user?.isBanned,
+          showInDiscovery: user?.settings?.showInDiscovery,
+          createdAt: user?.createdAt,
+          reactionCount: reactions,
+          matchCount: matches,
+          isTestAccount: profile.pseudo?.startsWith("test_") || profile.userId?.startsWith("test-"),
+        };
+      })
+    );
+
+    res.json({
+      status: "success",
+      profilesFound: results.length,
+      profiles: results,
+    });
+  } catch (error) {
+    console.error("[test/identify-orphan-profiles] Error:", error);
+    res.status(500).json({
+      error: "Identify orphan profiles failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.get("/identify-orphan-profiles", identifyOrphanProfilesHandler);
+
 export default router;
