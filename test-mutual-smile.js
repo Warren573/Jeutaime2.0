@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const API_URL = process.env.API_URL || "https://jeutaime-staging.onrender.com/api";
+const API_URL = process.env.API_URL || "http://192.168.0.40:3000/api";
 
 async function test() {
   console.log("=== Starting Mutual Smile Test ===");
