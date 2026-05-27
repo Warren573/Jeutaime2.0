@@ -91,6 +91,13 @@ jobs:
           echo "Has B: $DISCOVERY_A_HAS_B"
           echo ""
 
+          # STRICT ASSERT: Discovery count must be exactly 1
+          if [ "$DISCOVERY_A_COUNT" != "1" ]; then
+            echo "❌ ERROR: Discovery A count should be 1, but got $DISCOVERY_A_COUNT"
+            echo "Profile IDs in discovery: $DISCOVERY_A_IDS"
+            exit 1
+          fi
+
           if [ "$DISCOVERY_A_HAS_B" != "true" ]; then
             echo "⚠️  WARNING: Account A cannot see Account B in discovery"
             echo "Running discovery debug for A→B..."
@@ -111,6 +118,13 @@ jobs:
           echo "Discovery B IDs: $DISCOVERY_B_IDS"
           echo "Has A: $DISCOVERY_B_HAS_A"
           echo ""
+
+          # STRICT ASSERT: Discovery count must be exactly 1
+          if [ "$DISCOVERY_B_COUNT" != "1" ]; then
+            echo "❌ ERROR: Discovery B count should be 1, but got $DISCOVERY_B_COUNT"
+            echo "Profile IDs in discovery: $DISCOVERY_B_IDS"
+            exit 1
+          fi
 
           if [ "$DISCOVERY_B_HAS_A" != "true" ]; then
             echo "⚠️  WARNING: Account B cannot see Account A in discovery"

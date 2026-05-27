@@ -618,8 +618,31 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
     const testEmailUserIds = testEmailUsers.map((u) => u.id);
     console.log(`[cleanup-staging] Found ${testEmailUserIds.length} users with .test email pattern`);
 
-    // All users to clean (test-mutual + test profiles + test emails)
-    const allTestUserIds = [...new Set([...testMutualIds, ...testProfileUserIds, ...testEmailUserIds])];
+    // 4. Known orphan profile IDs that should be deleted (hardcoded based on discovery issues)
+    const orphanProfileIds = [
+      "cmp6wyz62000111ip6f7t8uge",
+      "cmp6yvp0h000511ip6beq6xqr",
+      "cmpdrwja80001iy9qc9sb1vkh",
+    ];
+
+    const orphanProfiles = await prisma.profile.findMany({
+      where: { id: { in: orphanProfileIds } },
+      select: { userId: true },
+    });
+    const orphanProfileUserIds = orphanProfiles.map((p) => p.userId);
+    console.log(
+      `[cleanup-staging] Found ${orphanProfileUserIds.length} orphan profiles to delete`
+    );
+
+    // All users to clean (test-mutual + test profiles + test emails + orphans)
+    const allTestUserIds = [
+      ...new Set([
+        ...testMutualIds,
+        ...testProfileUserIds,
+        ...testEmailUserIds,
+        ...orphanProfileUserIds,
+      ]),
+    ];
 
     if (allTestUserIds.length > 0) {
       // Delete test users and their data
@@ -876,7 +899,27 @@ const verifyMutualSmileDiscoveryHandler = asyncHandler(async (_req: Request, res
     const testEmailUserIds = testEmailUsers.map((u) => u.id);
     cleanupCounts.testEmailUsersDeleted = testEmailUserIds.length;
 
-    const allTestUserIds = [...new Set([...testMutualIds, ...testProfileUserIds, ...testEmailUserIds])];
+    // Known orphan profile IDs (hardcoded)
+    const orphanProfileIds = [
+      "cmp6wyz62000111ip6f7t8uge",
+      "cmp6yvp0h000511ip6beq6xqr",
+      "cmpdrwja80001iy9qc9sb1vkh",
+    ];
+
+    const orphanProfiles = await prisma.profile.findMany({
+      where: { id: { in: orphanProfileIds } },
+      select: { userId: true },
+    });
+    const orphanProfileUserIds = orphanProfiles.map((p) => p.userId);
+
+    const allTestUserIds = [
+      ...new Set([
+        ...testMutualIds,
+        ...testProfileUserIds,
+        ...testEmailUserIds,
+        ...orphanProfileUserIds,
+      ]),
+    ];
 
     if (allTestUserIds.length > 0) {
       await prisma.reaction.deleteMany({
