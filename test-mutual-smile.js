@@ -11,8 +11,14 @@ async function test() {
     console.log("=== Step 1: Reset mutual smile ===");
     const resetRes = await fetch(`${API_URL}/test/reset-mutual-smile`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
-    const resetData = await resetRes.json();
+    const resetText = await resetRes.text();
+    console.log(`Status: ${resetRes.status}`);
+    console.log(`Response: ${resetText}`);
+    const resetData = JSON.parse(resetText);
     console.log(JSON.stringify(resetData, null, 2));
 
     const emailA = resetData.accountA.email;
