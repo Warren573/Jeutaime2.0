@@ -588,6 +588,7 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
       petsDeleted: 0,
       blocksDeleted: 0,
       brokenMatchesDeleted: 0,
+      orphanDiscoveryProfilesDeleted: 0,
     };
 
     // 1. Find test-mutual-* users
@@ -618,7 +619,7 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
     const testEmailUserIds = testEmailUsers.map((u) => u.id);
     console.log(`[cleanup-staging] Found ${testEmailUserIds.length} users with .test email pattern`);
 
-    // 4. Known orphan profile IDs that should be deleted (hardcoded based on discovery issues)
+    // 4. CRITICAL: Known orphan profile IDs that MUST be deleted directly by ID
     const orphanProfileIds = [
       "cmp6wyz62000111ip6f7t8uge",
       "cmp6yvp0h000511ip6beq6xqr",
@@ -627,12 +628,19 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
 
     const orphanProfiles = await prisma.profile.findMany({
       where: { id: { in: orphanProfileIds } },
-      select: { userId: true },
+      select: { id: true, userId: true },
     });
     const orphanProfileUserIds = orphanProfiles.map((p) => p.userId);
+    counts.orphanDiscoveryProfilesDeleted = orphanProfiles.length;
+
     console.log(
-      `[cleanup-staging] Found ${orphanProfileUserIds.length} orphan profiles to delete`
+      `[cleanup-staging] Found ${orphanProfiles.length} orphan discovery profiles`
     );
+    if (orphanProfileUserIds.length > 0) {
+      console.log(
+        `[cleanup-staging] Orphan userIds to delete: ${orphanProfileUserIds.join(", ")}`
+      );
+    }
 
     // All users to clean (test-mutual + test profiles + test emails + orphans)
     const allTestUserIds = [
@@ -699,6 +707,14 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
         where: { id: { in: allTestUserIds } },
       });
     }
+
+    // CRITICAL: Delete orphan profiles DIRECTLY by ID (regardless of conditions)
+    console.log(
+      `[cleanup-staging] Deleting ${orphanProfileIds.length} orphan profile IDs directly...`
+    );
+    await prisma.profile.deleteMany({
+      where: { id: { in: orphanProfileIds } },
+    });
 
     // 3. Delete BROKEN/GHOSTED/BLOCKED matches (ALL users, for data integrity)
     counts.brokenMatchesDeleted = await prisma.match.deleteMany({
@@ -908,7 +924,7 @@ const verifyMutualSmileDiscoveryHandler = asyncHandler(async (_req: Request, res
 
     const orphanProfiles = await prisma.profile.findMany({
       where: { id: { in: orphanProfileIds } },
-      select: { userId: true },
+      select: { id: true, userId: true },
     });
     const orphanProfileUserIds = orphanProfiles.map((p) => p.userId);
 
@@ -974,6 +990,11 @@ const verifyMutualSmileDiscoveryHandler = asyncHandler(async (_req: Request, res
         where: { id: { in: allTestUserIds } },
       });
     }
+
+    // CRITICAL: Delete orphan profiles DIRECTLY by ID
+    await prisma.profile.deleteMany({
+      where: { id: { in: orphanProfileIds } },
+    });
 
     cleanupCounts.brokenMatchesDeleted = await prisma.match
       .deleteMany({
