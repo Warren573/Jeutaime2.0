@@ -795,4 +795,259 @@ const identifyOrphanProfilesHandler = asyncHandler(async (req: Request, res: Res
 
 router.get("/identify-orphan-profiles", identifyOrphanProfilesHandler);
 
+/**
+ * COMPLETE TEST VERIFICATION ENDPOINT
+ * GET /api/test/verify-mutual-smile-discovery
+ *
+ * Complete verification: cleanup → reset → check discovery counts
+ * Returns: Discovery A count (should be 1), Discovery B count (should be 1)
+ */
+const verifyMutualSmileDiscoveryHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  try {
+    // Step 1: Cleanup
+    const cleanupCounts = {
+      testMutualUsersDeleted: 0,
+      testEmailUsersDeleted: 0,
+      brokenMatchesDeleted: 0,
+    };
+
+    const testMutualUsers = await prisma.user.findMany({
+      where: { id: { startsWith: "test-mutual-" } },
+      select: { id: true },
+    });
+    const testMutualIds = testMutualUsers.map((u) => u.id);
+    cleanupCounts.testMutualUsersDeleted = testMutualIds.length;
+
+    const testProfiles = await prisma.profile.findMany({
+      where: { pseudo: { startsWith: "test_mutual_" } },
+      select: { userId: true },
+    });
+    const testProfileUserIds = testProfiles.map((p) => p.userId);
+
+    const testEmailUsers = await prisma.user.findMany({
+      where: { email: { contains: ".test" } },
+      select: { id: true },
+    });
+    const testEmailUserIds = testEmailUsers.map((u) => u.id);
+    cleanupCounts.testEmailUsersDeleted = testEmailUserIds.length;
+
+    const allTestUserIds = [...new Set([...testMutualIds, ...testProfileUserIds, ...testEmailUserIds])];
+
+    if (allTestUserIds.length > 0) {
+      await prisma.reaction.deleteMany({
+        where: {
+          OR: [{ fromId: { in: allTestUserIds } }, { toId: { in: allTestUserIds } }],
+        },
+      });
+
+      await prisma.match.deleteMany({
+        where: {
+          OR: [{ userAId: { in: allTestUserIds } }, { userBId: { in: allTestUserIds } }],
+        },
+      });
+
+      await prisma.letter.deleteMany({
+        where: {
+          OR: [{ fromUserId: { in: allTestUserIds } }, { toUserId: { in: allTestUserIds } }],
+        },
+      });
+
+      await prisma.block.deleteMany({
+        where: {
+          OR: [{ fromId: { in: allTestUserIds } }, { toId: { in: allTestUserIds } }],
+        },
+      });
+
+      await prisma.refreshToken.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      await prisma.photo.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      await prisma.pet.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      await prisma.wallet.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      await prisma.userSettings.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      await prisma.profile.deleteMany({
+        where: { userId: { in: allTestUserIds } },
+      });
+
+      await prisma.user.deleteMany({
+        where: { id: { in: allTestUserIds } },
+      });
+    }
+
+    cleanupCounts.brokenMatchesDeleted = await prisma.match
+      .deleteMany({
+        where: { status: { in: ["BROKEN", "GHOSTED", "BLOCKED"] } },
+      })
+      .then((r) => r.count);
+
+    // Step 2: Create fresh test accounts
+    const timestamp = Date.now();
+    const userAId = `test-mutual-a-${timestamp}`;
+    const userBId = `test-mutual-b-${timestamp}`;
+    const emailA = `test.mutual.a.${timestamp}@jeutaime.test`;
+    const emailB = `test.mutual.b.${timestamp}@jeutaime.test`;
+    const pseudoA = `test_mutual_a_${timestamp}`;
+    const pseudoB = `test_mutual_b_${timestamp}`;
+
+    const passwordHashA = await hashPassword(`test-a-${timestamp}`);
+    const passwordHashB = await hashPassword(`test-b-${timestamp}`);
+
+    const userA = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          id: userAId,
+          email: emailA,
+          passwordHash: passwordHashA,
+          isVerified: true,
+          role: "USER",
+          profile: {
+            create: {
+              pseudo: pseudoA,
+              birthDate: new Date("1990-01-01"),
+              gender: "AUTRE",
+              interestedIn: ["AUTRE"],
+              city: "Test",
+              bio: "Test account A - mutual smile flow",
+              lookingFor: ["RELATION"],
+              physicalDesc: "moyenne",
+              avatarConfig: {},
+            },
+          },
+        },
+        include: { profile: true },
+      });
+
+      await tx.userSettings.create({
+        data: {
+          userId: newUser.id,
+          showInDiscovery: true,
+          showPhotoByDefault: true,
+        },
+      });
+
+      await tx.wallet.create({
+        data: {
+          userId: newUser.id,
+          coins: 100,
+        },
+      });
+
+      return newUser;
+    });
+
+    const userB = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          id: userBId,
+          email: emailB,
+          passwordHash: passwordHashB,
+          isVerified: true,
+          role: "USER",
+          profile: {
+            create: {
+              pseudo: pseudoB,
+              birthDate: new Date("1990-01-01"),
+              gender: "AUTRE",
+              interestedIn: ["AUTRE"],
+              city: "Test",
+              bio: "Test account B - mutual smile flow",
+              lookingFor: ["RELATION"],
+              physicalDesc: "moyenne",
+              avatarConfig: {},
+            },
+          },
+        },
+        include: { profile: true },
+      });
+
+      await tx.userSettings.create({
+        data: {
+          userId: newUser.id,
+          showInDiscovery: true,
+          showPhotoByDefault: true,
+        },
+      });
+
+      await tx.wallet.create({
+        data: {
+          userId: newUser.id,
+          coins: 100,
+        },
+      });
+
+      return newUser;
+    });
+
+    // Step 3: Check discovery for both accounts
+    const discoveryA = await prisma.profile.count({
+      where: {
+        userId: { notIn: [userAId, userBId] },
+        user: { isBanned: false, settings: { showInDiscovery: true } },
+      },
+    });
+
+    const discoveryB = await prisma.profile.count({
+      where: {
+        userId: { notIn: [userAId, userBId] },
+        user: { isBanned: false, settings: { showInDiscovery: true } },
+      },
+    });
+
+    const verdict = discoveryA === 1 && discoveryB === 1 ? "✅ PASS" : "⚠️ FAIL";
+
+    res.json({
+      status: "success",
+      verdict,
+      cleanup: cleanupCounts,
+      testAccounts: {
+        userA: {
+          id: userA.id,
+          email: userA.email,
+          pseudo: userA.profile?.pseudo,
+        },
+        userB: {
+          id: userB.id,
+          email: userB.email,
+          pseudo: userB.profile?.pseudo,
+        },
+      },
+      discovery: {
+        countA: discoveryA,
+        countB: discoveryB,
+        expected: 1,
+        verdict,
+      },
+    });
+  } catch (error) {
+    console.error("[test/verify-mutual-smile-discovery] Error:", error);
+    res.status(500).json({
+      error: "Verification failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.get("/verify-mutual-smile-discovery", verifyMutualSmileDiscoveryHandler);
+
 export default router;
