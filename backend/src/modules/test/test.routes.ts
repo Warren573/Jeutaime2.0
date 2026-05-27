@@ -383,4 +383,115 @@ const callRealLoginHandler = asyncHandler(async (req: Request, res: Response) =>
 
 router.get("/call-real-login", callRealLoginHandler);
 
+/**
+ * DIAGNOSTIC ENDPOINT
+ * GET /api/test/discovery-debug?viewerId=...&targetId=...
+ *
+ * Debug why targetId is not visible to viewerId in discovery.
+ * Returns all exclusion reasons.
+ */
+const discoveryDebugHandler = asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const viewerId = req.query.viewerId as string;
+  const targetId = req.query.targetId as string;
+
+  if (!viewerId || !targetId) {
+    return res.status(400).json({ error: "viewerId and targetId query parameters required" });
+  }
+
+  try {
+    // 1. Check if target exists
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetId },
+      select: {
+        id: true,
+        isBanned: true,
+        profile: { select: { id: true } },
+        settings: { select: { showInDiscovery: true } },
+      },
+    });
+
+    const targetExists = !!targetUser;
+    const targetHasProfile = !!targetUser?.profile;
+    const targetHasSettings = !!targetUser?.settings;
+    const targetShowInDiscovery = targetUser?.settings?.showInDiscovery ?? false;
+    const targetIsBanned = targetUser?.isBanned ?? false;
+
+    // 2. Check if excluded by block
+    const block = await prisma.block.findMany({
+      where: {
+        OR: [
+          { fromId: viewerId, toId: targetId },
+          { fromId: targetId, toId: viewerId },
+        ],
+      },
+    });
+    const excludedByBlock = block.length > 0;
+
+    // 3. Check if excluded by existing match
+    const [a, b] = [viewerId, targetId].sort();
+    const match = await prisma.match.findUnique({
+      where: { userAId_userBId: { userAId: a, userBId: b } },
+      select: { id: true, status: true },
+    });
+    const excludedByExistingMatch = !!match;
+
+    // 4. Check if excluded by viewerId itself
+    const excludedByViewerId = viewerId === targetId;
+
+    // 5. Would it pass the discovery WHERE clause?
+    const wouldPassDiscoveryWhere =
+      targetExists &&
+      targetHasProfile &&
+      targetHasSettings &&
+      targetShowInDiscovery &&
+      !targetIsBanned &&
+      !excludedByBlock &&
+      !excludedByExistingMatch &&
+      !excludedByViewerId;
+
+    res.json({
+      status: "success",
+      _debug: {
+        viewerId,
+        targetId,
+        targetExists,
+        targetHasProfile,
+        targetHasSettings,
+        targetShowInDiscovery,
+        targetIsBanned,
+        excludedByBlock,
+        excludedByExistingMatch: excludedByExistingMatch ? { status: match?.status } : false,
+        excludedByViewerId,
+        wouldPassDiscoveryWhere,
+        reasons: [
+          !targetExists && "target user does not exist",
+          !targetHasProfile && "target has no profile",
+          !targetHasSettings && "target has no settings",
+          !targetShowInDiscovery && "target showInDiscovery=false",
+          targetIsBanned && "target is banned",
+          excludedByBlock && "excluded by block",
+          excludedByExistingMatch && "excluded by existing match",
+          excludedByViewerId && "viewer excluded self",
+        ].filter(Boolean),
+      },
+    });
+  } catch (error) {
+    console.error("[test/discovery-debug] Error:", error);
+    res.status(500).json({
+      error: "Discovery debug failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.get("/discovery-debug", discoveryDebugHandler);
+
 export default router;

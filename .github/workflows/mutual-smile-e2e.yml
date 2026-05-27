@@ -70,7 +70,49 @@ jobs:
           echo "Token B acquired"
           echo ""
 
-          # Step 4: A smiles at B
+          # Step 4: Discovery Debug - A sees B
+          echo "=== Step 4: Discovery Debug - A should see B ==="
+          DISCOVERY_A=$(curl -s "$API_URL/profiles?pageSize=50" \
+            -H "Authorization: Bearer $TOKEN_A")
+          DISCOVERY_A_COUNT=$(echo "$DISCOVERY_A" | jq '.data | length')
+          DISCOVERY_A_IDS=$(echo "$DISCOVERY_A" | jq -r '.data[].userId' | tr '\n' ',' | sed 's/,$//')
+          DISCOVERY_A_HAS_B=$(echo "$DISCOVERY_A" | jq ".data[] | select(.userId == \"$USER_ID_B\") | .userId" | grep -q "$USER_ID_B" && echo "true" || echo "false")
+
+          echo "Discovery A count: $DISCOVERY_A_COUNT"
+          echo "Discovery A IDs: $DISCOVERY_A_IDS"
+          echo "Has B: $DISCOVERY_A_HAS_B"
+          echo ""
+
+          if [ "$DISCOVERY_A_HAS_B" != "true" ]; then
+            echo "⚠️  WARNING: Account A cannot see Account B in discovery"
+            echo "Running discovery debug for A→B..."
+            DEBUG_AB=$(curl -s "$API_URL/test/discovery-debug?viewerId=$USER_ID_A&targetId=$USER_ID_B")
+            echo "$DEBUG_AB" | jq .
+            echo ""
+          fi
+
+          # Step 5: Discovery Debug - B sees A
+          echo "=== Step 5: Discovery Debug - B should see A ==="
+          DISCOVERY_B=$(curl -s "$API_URL/profiles?pageSize=50" \
+            -H "Authorization: Bearer $TOKEN_B")
+          DISCOVERY_B_COUNT=$(echo "$DISCOVERY_B" | jq '.data | length')
+          DISCOVERY_B_IDS=$(echo "$DISCOVERY_B" | jq -r '.data[].userId' | tr '\n' ',' | sed 's/,$//')
+          DISCOVERY_B_HAS_A=$(echo "$DISCOVERY_B" | jq ".data[] | select(.userId == \"$USER_ID_A\") | .userId" | grep -q "$USER_ID_A" && echo "true" || echo "false")
+
+          echo "Discovery B count: $DISCOVERY_B_COUNT"
+          echo "Discovery B IDs: $DISCOVERY_B_IDS"
+          echo "Has A: $DISCOVERY_B_HAS_A"
+          echo ""
+
+          if [ "$DISCOVERY_B_HAS_A" != "true" ]; then
+            echo "⚠️  WARNING: Account B cannot see Account A in discovery"
+            echo "Running discovery debug for B→A..."
+            DEBUG_BA=$(curl -s "$API_URL/test/discovery-debug?viewerId=$USER_ID_B&targetId=$USER_ID_A")
+            echo "$DEBUG_BA" | jq .
+            echo ""
+          fi
+
+          # Step 6: A smiles at B
           echo "=== Step 4: A smiles at B ==="
           SMILE_A=$(curl -s -X POST "$API_URL/discover/react" \
             -H "Content-Type: application/json" \
