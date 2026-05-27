@@ -83,54 +83,70 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       },
     });
 
-    // Create User A with profile
-    const userA = await prisma.user.create({
-      data: {
-        id: userAId,
-        email: emailA,
-        passwordHash: passwordHashA,
-        isVerified: true,
-        role: "USER",
-        profile: {
-          create: {
-            pseudo: pseudoA,
-            birthDate: new Date("1990-01-01"),
-            gender: "AUTRE",
-            interestedIn: ["AUTRE"],
-            city: "Test",
-            bio: "Test account A - mutual smile flow",
-            lookingFor: ["RELATION"],
-            physicalDesc: "moyenne",
-            avatarConfig: {},
+    // Create User A with profile and settings
+    const userA = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          id: userAId,
+          email: emailA,
+          passwordHash: passwordHashA,
+          isVerified: true,
+          role: "USER",
+          profile: {
+            create: {
+              pseudo: pseudoA,
+              birthDate: new Date("1990-01-01"),
+              gender: "AUTRE",
+              interestedIn: ["AUTRE"],
+              city: "Test",
+              bio: "Test account A - mutual smile flow",
+              lookingFor: ["RELATION"],
+              physicalDesc: "moyenne",
+              avatarConfig: {},
+            },
           },
         },
-      },
-      include: { profile: true },
+        include: { profile: true },
+      });
+
+      await tx.userSettings.create({
+        data: { userId: newUser.id },
+      });
+
+      return newUser;
     });
 
-    // Create User B with profile
-    const userB = await prisma.user.create({
-      data: {
-        id: userBId,
-        email: emailB,
-        passwordHash: passwordHashB,
-        isVerified: true,
-        role: "USER",
-        profile: {
-          create: {
-            pseudo: pseudoB,
-            birthDate: new Date("1990-01-01"),
-            gender: "AUTRE",
-            interestedIn: ["AUTRE"],
-            city: "Test",
-            bio: "Test account B - mutual smile flow",
-            lookingFor: ["RELATION"],
-            physicalDesc: "moyenne",
-            avatarConfig: {},
+    // Create User B with profile and settings
+    const userB = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          id: userBId,
+          email: emailB,
+          passwordHash: passwordHashB,
+          isVerified: true,
+          role: "USER",
+          profile: {
+            create: {
+              pseudo: pseudoB,
+              birthDate: new Date("1990-01-01"),
+              gender: "AUTRE",
+              interestedIn: ["AUTRE"],
+              city: "Test",
+              bio: "Test account B - mutual smile flow",
+              lookingFor: ["RELATION"],
+              physicalDesc: "moyenne",
+              avatarConfig: {},
+            },
           },
         },
-      },
-      include: { profile: true },
+        include: { profile: true },
+      });
+
+      await tx.userSettings.create({
+        data: { userId: newUser.id },
+      });
+
+      return newUser;
     });
 
     // Verify virgin state
