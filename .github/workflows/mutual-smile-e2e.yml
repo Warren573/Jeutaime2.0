@@ -93,8 +93,7 @@ jobs:
 
           if [ "$DISCOVERY_A_COUNT" != "1" ]; then
             echo "ERROR: Discovery A count should be 1, got $DISCOVERY_A_COUNT"
-            echo "$DISCOVERY_A" | jq .
-            false
+            exit 1
           fi
 
           if [ "$DISCOVERY_A_HAS_B" != "true" ]; then
@@ -120,8 +119,7 @@ jobs:
 
           if [ "$DISCOVERY_B_COUNT" != "1" ]; then
             echo "ERROR: Discovery B count should be 1, got $DISCOVERY_B_COUNT"
-            echo "$DISCOVERY_B" | jq .
-            false
+            exit 1
           fi
 
           if [ "$DISCOVERY_B_HAS_A" != "true" ]; then
