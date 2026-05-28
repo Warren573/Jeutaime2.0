@@ -626,22 +626,107 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
       "cmpdrwja80001iy9qc9sb1vkh",
     ];
 
-    console.log(`[cleanup-staging] Looking for orphan profiles: ${orphanProfileIds.join(", ")}`);
+    console.log(`[cleanup-staging] ORPHAN: Looking for profiles: ${orphanProfileIds.join(", ")}`);
 
+    // Find orphan profiles by ID
     const orphanProfiles = await prisma.profile.findMany({
       where: { id: { in: orphanProfileIds } },
-      select: { id: true, userId: true },
+      select: { id: true, userId: true, pseudo: true },
     });
+
+    console.log(`[cleanup-staging] ORPHAN: Found by ID: ${orphanProfiles.length} profiles`);
+    console.log(`[cleanup-staging] ORPHAN: Details: ${JSON.stringify(orphanProfiles)}`);
+
+    // Get userIds from found profiles
     const orphanProfileUserIds = orphanProfiles.map((p) => p.userId);
     counts.orphanDiscoveryProfilesDeleted = orphanProfiles.length;
 
-    console.log(
-      `[cleanup-staging] Found ${orphanProfiles.length} orphan discovery profiles`
-    );
-    console.log(`[cleanup-staging] Orphan profiles found: ${JSON.stringify(orphanProfiles)}`);
     if (orphanProfileUserIds.length > 0) {
       console.log(
-        `[cleanup-staging] Orphan userIds to delete: ${orphanProfileUserIds.join(", ")}`
+        `[cleanup-staging] ORPHAN: Will delete userIds: ${orphanProfileUserIds.join(", ")}`
+      );
+
+      // Delete all data related to these userIds
+      const orphanReactionsDeleted = await prisma.reaction.deleteMany({
+        where: {
+          OR: [
+            { fromId: { in: orphanProfileUserIds } },
+            { toId: { in: orphanProfileUserIds } },
+          ],
+        },
+      }).then((r) => r.count);
+
+      const orphanMatchesDeleted = await prisma.match.deleteMany({
+        where: {
+          OR: [
+            { userAId: { in: orphanProfileUserIds } },
+            { userBId: { in: orphanProfileUserIds } },
+          ],
+        },
+      }).then((r) => r.count);
+
+      const orphanLettersDeleted = await prisma.letter.deleteMany({
+        where: {
+          OR: [
+            { fromUserId: { in: orphanProfileUserIds } },
+            { toUserId: { in: orphanProfileUserIds } },
+          ],
+        },
+      }).then((r) => r.count);
+
+      const orphanBlocksDeleted = await prisma.block.deleteMany({
+        where: {
+          OR: [
+            { fromId: { in: orphanProfileUserIds } },
+            { toId: { in: orphanProfileUserIds } },
+          ],
+        },
+      }).then((r) => r.count);
+
+      const orphanTokensDeleted = await prisma.refreshToken.deleteMany({
+        where: { userId: { in: orphanProfileUserIds } },
+      }).then((r) => r.count);
+
+      const orphanPhotosDeleted = await prisma.photo.deleteMany({
+        where: { userId: { in: orphanProfileUserIds } },
+      }).then((r) => r.count);
+
+      const orphanPetsDeleted = await prisma.pet.deleteMany({
+        where: { userId: { in: orphanProfileUserIds } },
+      }).then((r) => r.count);
+
+      const orphanWalletsDeleted = await prisma.wallet.deleteMany({
+        where: { userId: { in: orphanProfileUserIds } },
+      }).then((r) => r.count);
+
+      const orphanSettingsDeleted = await prisma.userSettings.deleteMany({
+        where: { userId: { in: orphanProfileUserIds } },
+      }).then((r) => r.count);
+
+      console.log(
+        `[cleanup-staging] ORPHAN: Deleted related data - reactions: ${orphanReactionsDeleted}, matches: ${orphanMatchesDeleted}, letters: ${orphanLettersDeleted}, blocks: ${orphanBlocksDeleted}, tokens: ${orphanTokensDeleted}, photos: ${orphanPhotosDeleted}, pets: ${orphanPetsDeleted}, wallets: ${orphanWalletsDeleted}, settings: ${orphanSettingsDeleted}`
+      );
+
+      // Delete profiles
+      const profilesDeleted = await prisma.profile.deleteMany({
+        where: { userId: { in: orphanProfileUserIds } },
+      }).then((r) => r.count);
+
+      console.log(
+        `[cleanup-staging] ORPHAN: Deleted ${profilesDeleted} profiles by userId`
+      );
+
+      // Delete users
+      const usersDeleted = await prisma.user.deleteMany({
+        where: { id: { in: orphanProfileUserIds } },
+      }).then((r) => r.count);
+
+      console.log(
+        `[cleanup-staging] ORPHAN: Deleted ${usersDeleted} users`
+      );
+    } else {
+      console.log(
+        `[cleanup-staging] ORPHAN: No orphan profiles found to delete`
       );
     }
 
