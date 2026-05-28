@@ -610,20 +610,26 @@ const discoveryDebugHandler = asyncHandler(async (req: Request, res: Response) =
 router.get("/discovery-debug", discoveryDebugHandler);
 
 /**
- * DANGEROUS STAGING CLEANUP ENDPOINT
+ * DANGEROUS STAGING/DEV CLEANUP ENDPOINT
  * POST /api/test/cleanup-staging-debug-data
  *
- * STAGING ONLY - Cleans up test data and broken matches.
- * - Deletes all test-mutual-* users and their data
- * - Deletes all profiles matching test_mutual_%
- * - Deletes all BROKEN/GHOSTED/BLOCKED matches (all users)
- * - Returns counts of deleted records
+ * STAGING & DEVELOPMENT ONLY - Prepares discovery for test by:
+ * 1. Deletes all test-mutual-* users and their data (temporary test accounts)
+ * 2. Deletes all profiles matching test_mutual_% pattern
+ * 3. Deletes all users with .test email pattern
+ * 4. Hides ALL other profiles from discovery (showInDiscovery=false)
+ *    - Keeps REAL staging accounts in DB but invisible
+ *    - Only test-mutual-* created by reset-mutual-smile are visible
+ * 5. Deletes all BROKEN/GHOSTED/BLOCKED matches
+ *
+ * This ensures Discovery shows ONLY the fresh test accounts.
+ * NEVER RUNS ON PRODUCTION.
  */
 const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) => {
   const nodeEnv = process.env.NODE_ENV || "development";
   const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
 
-  // SAFETY: Only allow in staging or development with explicit flag
+  // SAFETY: Only allow in staging or development
   if (!isRenderStaging && nodeEnv !== "development") {
     return res.status(403).json({ error: "Cleanup endpoint only available in staging/development" });
   }
@@ -658,10 +664,10 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
       petsDeleted: 0,
       blocksDeleted: 0,
       brokenMatchesDeleted: 0,
-      orphanDiscoveryProfilesDeleted: 0,
+      profilesHiddenFromDiscovery: 0,
     };
 
-    // 1. Find test-mutual-* users
+    // 1. Find test-mutual-* users (temporary test accounts to DELETE)
     const testMutualUsers = await prisma.user.findMany({
       where: { id: { startsWith: "test-mutual-" } },
       select: { id: true },
@@ -689,128 +695,19 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
     const testEmailUserIds = testEmailUsers.map((u) => u.id);
     console.log(`[cleanup-staging] Found ${testEmailUserIds.length} users with .test email pattern`);
 
-    // 4. CRITICAL: Known orphan profile IDs that MUST be deleted directly by ID
-    const orphanProfileIds = [
-      "cmp6wyz62000111ip6f7t8uge",
-      "cmp6yvp0h000511ip6beq6xqr",
-      "cmpdrwja80001iy9qc9sb1vkh",
-    ];
-
-    console.log(`[cleanup-staging] ORPHAN: Looking for profiles: ${orphanProfileIds.join(", ")}`);
-
-    // Find orphan profiles by ID
-    const orphanProfiles = await prisma.profile.findMany({
-      where: { id: { in: orphanProfileIds } },
-      select: { id: true, userId: true, pseudo: true },
-    });
-
-    console.log(`[cleanup-staging] ORPHAN: Found by ID: ${orphanProfiles.length} profiles`);
-    console.log(`[cleanup-staging] ORPHAN: Details: ${JSON.stringify(orphanProfiles)}`);
-
-    // Get userIds from found profiles
-    const orphanProfileUserIds = orphanProfiles.map((p) => p.userId);
-    counts.orphanDiscoveryProfilesDeleted = orphanProfiles.length;
-
-    if (orphanProfileUserIds.length > 0) {
-      console.log(
-        `[cleanup-staging] ORPHAN: Will delete userIds: ${orphanProfileUserIds.join(", ")}`
-      );
-
-      // Delete all data related to these userIds
-      const orphanReactionsDeleted = await prisma.reaction.deleteMany({
-        where: {
-          OR: [
-            { fromId: { in: orphanProfileUserIds } },
-            { toId: { in: orphanProfileUserIds } },
-          ],
-        },
-      }).then((r) => r.count);
-
-      const orphanMatchesDeleted = await prisma.match.deleteMany({
-        where: {
-          OR: [
-            { userAId: { in: orphanProfileUserIds } },
-            { userBId: { in: orphanProfileUserIds } },
-          ],
-        },
-      }).then((r) => r.count);
-
-      const orphanLettersDeleted = await prisma.letter.deleteMany({
-        where: {
-          OR: [
-            { fromUserId: { in: orphanProfileUserIds } },
-            { toUserId: { in: orphanProfileUserIds } },
-          ],
-        },
-      }).then((r) => r.count);
-
-      const orphanBlocksDeleted = await prisma.block.deleteMany({
-        where: {
-          OR: [
-            { fromId: { in: orphanProfileUserIds } },
-            { toId: { in: orphanProfileUserIds } },
-          ],
-        },
-      }).then((r) => r.count);
-
-      const orphanTokensDeleted = await prisma.refreshToken.deleteMany({
-        where: { userId: { in: orphanProfileUserIds } },
-      }).then((r) => r.count);
-
-      const orphanPhotosDeleted = await prisma.photo.deleteMany({
-        where: { userId: { in: orphanProfileUserIds } },
-      }).then((r) => r.count);
-
-      const orphanPetsDeleted = await prisma.pet.deleteMany({
-        where: { userId: { in: orphanProfileUserIds } },
-      }).then((r) => r.count);
-
-      const orphanWalletsDeleted = await prisma.wallet.deleteMany({
-        where: { userId: { in: orphanProfileUserIds } },
-      }).then((r) => r.count);
-
-      const orphanSettingsDeleted = await prisma.userSettings.deleteMany({
-        where: { userId: { in: orphanProfileUserIds } },
-      }).then((r) => r.count);
-
-      console.log(
-        `[cleanup-staging] ORPHAN: Deleted related data - reactions: ${orphanReactionsDeleted}, matches: ${orphanMatchesDeleted}, letters: ${orphanLettersDeleted}, blocks: ${orphanBlocksDeleted}, tokens: ${orphanTokensDeleted}, photos: ${orphanPhotosDeleted}, pets: ${orphanPetsDeleted}, wallets: ${orphanWalletsDeleted}, settings: ${orphanSettingsDeleted}`
-      );
-
-      // Delete profiles
-      const profilesDeleted = await prisma.profile.deleteMany({
-        where: { userId: { in: orphanProfileUserIds } },
-      }).then((r) => r.count);
-
-      console.log(
-        `[cleanup-staging] ORPHAN: Deleted ${profilesDeleted} profiles by userId`
-      );
-
-      // Delete users
-      const usersDeleted = await prisma.user.deleteMany({
-        where: { id: { in: orphanProfileUserIds } },
-      }).then((r) => r.count);
-
-      console.log(
-        `[cleanup-staging] ORPHAN: Deleted ${usersDeleted} users`
-      );
-    } else {
-      console.log(
-        `[cleanup-staging] ORPHAN: No orphan profiles found to delete`
-      );
-    }
-
-    // All users to clean (test-mutual + test profiles + test emails + orphans)
+    // All test users to DELETE (test-mutual + test profiles + test emails)
     const allTestUserIds = [
       ...new Set([
         ...testMutualIds,
         ...testProfileUserIds,
         ...testEmailUserIds,
-        ...orphanProfileUserIds,
       ]),
     ];
 
+    // 4. DELETE all test users and their data
     if (allTestUserIds.length > 0) {
+      console.log(`[cleanup-staging] Deleting ${allTestUserIds.length} test users...`);
+
       // Delete test users and their data
       counts.reactionsDeleted = await prisma.reaction.deleteMany({
         where: {
@@ -864,17 +761,34 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
       await prisma.user.deleteMany({
         where: { id: { in: allTestUserIds } },
       });
+
+      console.log(`[cleanup-staging] Deleted ${allTestUserIds.length} test users and their data`);
     }
 
-    // CRITICAL: Delete orphan profiles DIRECTLY by ID (regardless of conditions)
-    console.log(
-      `[cleanup-staging] Deleting ${orphanProfileIds.length} orphan profile IDs directly...`
-    );
-    await prisma.profile.deleteMany({
-      where: { id: { in: orphanProfileIds } },
+    // 5. HIDE ALL OTHER PROFILES FROM DISCOVERY
+    // Set showInDiscovery=false for all profiles EXCEPT test-mutual-*
+    const stagingProfiles = await prisma.profile.findMany({
+      where: {
+        userId: {
+          NOT: { startsWith: "test-mutual-" },
+        },
+      },
+      select: { userId: true },
     });
 
-    // 3. Delete BROKEN/GHOSTED/BLOCKED matches (ALL users, for data integrity)
+    const stagingUserIds = stagingProfiles.map((p) => p.userId);
+    console.log(`[cleanup-staging] Found ${stagingUserIds.length} staging/real profiles to hide from discovery`);
+
+    if (stagingUserIds.length > 0) {
+      counts.profilesHiddenFromDiscovery = await prisma.userSettings.updateMany({
+        where: { userId: { in: stagingUserIds } },
+        data: { showInDiscovery: false },
+      }).then((r) => r.count);
+
+      console.log(`[cleanup-staging] Hidden ${counts.profilesHiddenFromDiscovery} profiles from discovery`);
+    }
+
+    // 6. Delete BROKEN/GHOSTED/BLOCKED matches (ALL users, for data integrity)
     counts.brokenMatchesDeleted = await prisma.match.deleteMany({
       where: { status: { in: ["BROKEN", "GHOSTED", "BLOCKED"] } },
     }).then((r) => r.count);
@@ -883,7 +797,7 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
 
     res.json({
       status: "success",
-      message: "Staging data cleanup completed",
+      message: "Staging data cleanup completed - discovery reset for test accounts only",
       counts,
       _version: {
         commitSha,
