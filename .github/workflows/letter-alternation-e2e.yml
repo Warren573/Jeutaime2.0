@@ -11,6 +11,12 @@ jobs:
         run: |
           set -e
 
+          echo ""
+          echo "████████████████████████████████████████████████████████████"
+          echo "WORKFLOW DEBUG VERSION: questions-debug-v1"
+          echo "████████████████████████████████████████████████████████████"
+          echo ""
+
           API_URL="https://jeutaime-staging.onrender.com/api"
           echo "=== Letter Alternation E2E Test ==="
           echo "API_URL: $API_URL"
