@@ -1560,8 +1560,81 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
 
     console.log(`[test/letter-alternation] ✓ Match accepted by A, status is now ACTIVE`);
 
-    // 4. A sends first letter (SHOULD SUCCEED - initiator can send first)
-    console.log("[test/letter-alternation] Step 4: A sends first letter...");
+    // 4. Before sending letters, both users must answer 3 validation questions
+    // A submits answers
+    console.log("[test/letter-alternation] Step 4a: A submits question answers...");
+    const questionsA = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/questions`,
+      {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${userA.id}` },
+      }
+    ).then((r) => r.json() as Promise<any>);
+
+    const answersA = questionsA.data?.questions?.map((q: any) => ({
+      profileQuestionId: q.profileQuestionId || q.id,
+      answer: "Test answer for question",
+    })) || [];
+
+    if (answersA.length < 3) {
+      throw new Error(`[FAIL] Expected 3 questions for A, got ${answersA.length}`);
+    }
+
+    const submitA = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/questions/answers`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userA.id}`,
+        },
+        body: JSON.stringify({ answers: answersA }),
+      }
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
+
+    if (submitA.error) {
+      throw new Error(`[FAIL] A should be able to submit answers. Response: ${JSON.stringify(submitA)}`);
+    }
+    console.log(`[test/letter-alternation] ✓ A submitted answers`);
+
+    // B submits answers
+    console.log("[test/letter-alternation] Step 4b: B submits question answers...");
+    const questionsB = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/questions`,
+      {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${userB.id}` },
+      }
+    ).then((r) => r.json() as Promise<any>);
+
+    const answersB = questionsB.data?.questions?.map((q: any) => ({
+      profileQuestionId: q.profileQuestionId || q.id,
+      answer: "Test answer for question",
+    })) || [];
+
+    if (answersB.length < 3) {
+      throw new Error(`[FAIL] Expected 3 questions for B, got ${answersB.length}`);
+    }
+
+    const submitB = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/questions/answers`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userB.id}`,
+        },
+        body: JSON.stringify({ answers: answersB }),
+      }
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
+
+    if (submitB.error) {
+      throw new Error(`[FAIL] B should be able to submit answers. Response: ${JSON.stringify(submitB)}`);
+    }
+    console.log(`[test/letter-alternation] ✓ B submitted answers`);
+
+    // 5. A sends first letter (SHOULD SUCCEED - initiator can send first)
+    console.log("[test/letter-alternation] Step 5: A sends first letter...");
     const letter1Response = await fetch(
       `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
       {
@@ -1583,7 +1656,7 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
     console.log(`[test/letter-alternation] ✓ A sent first letter: ${letter1Response.data.id}`);
 
     // 5. A tries to send second letter (SHOULD FAIL - must wait for B)
-    console.log("[test/letter-alternation] Step 5: A tries to send second letter (should FAIL)...");
+    console.log("[test/letter-alternation] Step 6: A tries to send second letter (should FAIL)...");
     const letter2Response = await fetch(
       `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
       {
@@ -1609,7 +1682,7 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
     console.log(`[test/letter-alternation] ✓ A correctly blocked from sending twice`);
 
     // 6. B responds (SHOULD SUCCEED - must respond to A's letter)
-    console.log("[test/letter-alternation] Step 6: B sends response...");
+    console.log("[test/letter-alternation] Step 7: B sends response...");
     const letter3Response = await fetch(
       `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
       {
@@ -1631,7 +1704,7 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
     console.log(`[test/letter-alternation] ✓ B sent response: ${letter3Response.data.id}`);
 
     // 7. A sends again (SHOULD SUCCEED - turn is now A's)
-    console.log("[test/letter-alternation] Step 7: A sends second letter after B's response...");
+    console.log("[test/letter-alternation] Step 8: A sends second letter after B's response...");
     const letter4Response = await fetch(
       `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
       {
@@ -1653,7 +1726,7 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
     console.log(`[test/letter-alternation] ✓ A sent second letter: ${letter4Response.data.id}`);
 
     // 8. Cleanup test accounts
-    console.log("[test/letter-alternation] Step 8: Cleaning up test accounts...");
+    console.log("[test/letter-alternation] Step 9: Cleaning up test accounts...");
     await Promise.all([
       prisma.letter.deleteMany({ where: { OR: [{ fromUserId: userA.id }, { toUserId: userA.id }] } }),
       prisma.letter.deleteMany({ where: { OR: [{ fromUserId: userB.id }, { toUserId: userB.id }] } }),
@@ -1668,10 +1741,12 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
       status: "success",
       message: "Letter alternation system working correctly",
       test_results: {
-        step1_first_letter_sent: "✅ A can send first letter",
-        step2_alternation_blocked: "✅ A blocked from sending twice",
-        step3_response_allowed: "✅ B can respond",
-        step4_turn_alternates: "✅ A can send after B responds",
+        step1_match_accepted: "✅ Match accepted by non-initiator (A)",
+        step2_questions_answered: "✅ Both A & B answered validation questions",
+        step3_first_letter_sent: "✅ A can send first letter",
+        step4_alternation_blocked: "✅ A blocked from sending twice",
+        step5_response_allowed: "✅ B can respond",
+        step6_turn_alternates: "✅ A can send after B responds",
       },
     });
   } catch (error) {

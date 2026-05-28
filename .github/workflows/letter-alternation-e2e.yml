@@ -197,8 +197,54 @@ jobs:
           echo "✅ A accepted match (non-initiator), status is now ACTIVE"
           echo ""
 
-          # Step 11: A sends first letter (MUST SUCCEED - A initiated match)
-          echo "=== Step 11: A sends first letter ==="
+          # Step 11: Both users must answer 3 validation questions before sending letters
+          echo "=== Step 11: A submits question answers ==="
+          QUESTIONS_A=$(curl -s "$API_URL/matches/$MATCH_ID/questions" \
+            -H "Authorization: Bearer $TOKEN_A")
+
+          # Extract question IDs
+          Q_IDS=$(echo "$QUESTIONS_A" | jq -r '.data.questions[]?.profileQuestionId // .data.questions[]?.id' | tr '\n' '|' | sed 's/|$//')
+
+          # Build answers array
+          ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.data.questions[]? | {profileQuestionId: (.profileQuestionId // .id), answer: "Test answer"}]')
+
+          SUBMIT_A=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"answers\": $ANSWERS_A}")
+
+          if [ -z "$(echo "$SUBMIT_A" | jq -r '.error // empty')" ]; then
+            echo "✅ A submitted answers"
+          else
+            echo "ERROR: A should be able to submit answers"
+            echo "$SUBMIT_A" | jq .
+            exit 1
+          fi
+          echo ""
+
+          # Step 12: B submits question answers
+          echo "=== Step 12: B submits question answers ==="
+          QUESTIONS_B=$(curl -s "$API_URL/matches/$MATCH_ID/questions" \
+            -H "Authorization: Bearer $TOKEN_B")
+
+          ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.data.questions[]? | {profileQuestionId: (.profileQuestionId // .id), answer: "Test answer"}]')
+
+          SUBMIT_B=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"answers\": $ANSWERS_B}")
+
+          if [ -z "$(echo "$SUBMIT_B" | jq -r '.error // empty')" ]; then
+            echo "✅ B submitted answers"
+          else
+            echo "ERROR: B should be able to submit answers"
+            echo "$SUBMIT_B" | jq .
+            exit 1
+          fi
+          echo ""
+
+          # Step 13: A sends first letter (MUST SUCCEED - A initiated match)
+          echo "=== Step 13: A sends first letter ==="
           LETTER_1=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_A" \
@@ -216,7 +262,7 @@ jobs:
           echo ""
 
           # Step 10: A tries to send SECOND letter (MUST FAIL - alternation rule)
-          echo "=== Step 12: A tries to send SECOND letter (SHOULD FAIL) ==="
+          echo "=== Step 14: A tries to send SECOND letter (SHOULD FAIL) ==="
           LETTER_2=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_A" \
@@ -242,7 +288,7 @@ jobs:
           echo ""
 
           # Step 11: B sends response (MUST SUCCEED - it's B's turn)
-          echo "=== Step 13: B sends response ==="
+          echo "=== Step 15: B sends response ==="
           LETTER_3=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_B" \
@@ -260,7 +306,7 @@ jobs:
           echo ""
 
           # Step 12: A sends again (MUST SUCCEED - it's now A's turn)
-          echo "=== Step 14: A sends SECOND letter after B's response ==="
+          echo "=== Step 16: A sends SECOND letter after B's response ==="
           LETTER_4=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_A" \
@@ -278,7 +324,7 @@ jobs:
           echo ""
 
           # Step 13: B tries to send TWICE (MUST FAIL)
-          echo "=== Step 15: B tries to send TWICE (SHOULD FAIL) ==="
+          echo "=== Step 17: B tries to send TWICE (SHOULD FAIL) ==="
           LETTER_5=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_B" \
@@ -308,11 +354,14 @@ jobs:
           echo "  ✅ Match created after mutual smile (status=PENDING, initiatorId=B)"
           echo "  ✅ Match debug endpoint shows correct initiatorId"
           echo "  ✅ A (non-initiator) accepts match (status→ACTIVE)"
-          echo "  ✅ A can send first letter after acceptance"
+          echo "  ✅ A & B submit validation question answers"
+          echo "  ✅ A can send first letter after validation"
           echo "  ✅ A blocked from sending twice (alternation enforced)"
           echo "  ✅ B can respond (B's turn)"
           echo "  ✅ A can send after B responds (turn alternated)"
           echo "  ✅ B blocked from sending twice"
           echo ""
-          echo "All turn-by-turn rules and match lifecycle are working correctly!"
-          echo "Business rule: Non-initiator must accept PENDING match to activate it."
+          echo "All business rules validated:"
+          echo "  1. Match acceptance (non-initiator only)"
+          echo "  2. Question validation requirement"
+          echo "  3. Letter alternation (turn-by-turn enforcement)"
