@@ -574,6 +574,17 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
     return res.status(403).json({ error: "Test endpoint disabled in production" });
   }
 
+  // VERSION CHECK - This proves which commit is running
+  const commitSha = (() => {
+    try {
+      const { execSync } = require("child_process");
+      return execSync("git rev-parse HEAD", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+    } catch {
+      return "unknown";
+    }
+  })();
+  console.log(`🔍 [VERSION] cleanup endpoint called - commit: ${commitSha}`);
+
   try {
     const counts = {
       testMutualUsersDeleted: 0,
@@ -815,6 +826,9 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
       status: "success",
       message: "Staging data cleanup completed",
       counts,
+      _version: {
+        commitSha,
+      },
     });
   } catch (error) {
     console.error("[cleanup-staging] Error:", error);

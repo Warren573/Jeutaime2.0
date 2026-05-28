@@ -8,11 +8,23 @@ import {
   expireCardGamesJob,
   startScheduler,
 } from "./jobs";
+import { execSync } from "child_process";
 
 // Enregistrement des handlers d'événements (doit être importé avant tout)
 import "./events/handlers";
 
+function getCommitSha() {
+  try {
+    return execSync("git rev-parse HEAD", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
 async function main() {
+  const commitSha = getCommitSha();
+  console.log(`\n🔍 [VERSION] Backend startup - commit SHA: ${commitSha}\n`);
+
   // Vérifier la connexion DB avant de démarrer
   await prisma.$connect();
   logger.info("Base de données connectée");
