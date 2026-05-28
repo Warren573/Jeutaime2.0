@@ -205,8 +205,19 @@ jobs:
           # Extract question IDs
           Q_IDS=$(echo "$QUESTIONS_A" | jq -r '.data.questions[]?.profileQuestionId // .data.questions[]?.id' | tr '\n' '|' | sed 's/|$//')
 
-          # Build answers array
-          ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.data.questions[]? | {profileQuestionId: (.profileQuestionId // .id), answer: "Test answer"}]')
+          # Build answers array with CORRECT ANSWERS from question response
+          ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.data.questions[]? | {profileQuestionId: (.profileQuestionId // .id), answer: .answer}]')
+
+          echo "QUESTIONS_A:"
+          echo "$QUESTIONS_A" | jq .
+          echo "ANSWERS_A:"
+          echo "$ANSWERS_A" | jq .
+          ANSWERS_A_COUNT=$(echo "$ANSWERS_A" | jq 'length')
+          echo "ANSWERS_A_COUNT: $ANSWERS_A_COUNT"
+          if [ "$ANSWERS_A_COUNT" != "3" ]; then
+            echo "ERROR: Expected 3 answers, got $ANSWERS_A_COUNT"
+            exit 1
+          fi
 
           SUBMIT_A=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
             -H "Content-Type: application/json" \
@@ -227,7 +238,18 @@ jobs:
           QUESTIONS_B=$(curl -s "$API_URL/matches/$MATCH_ID/questions" \
             -H "Authorization: Bearer $TOKEN_B")
 
-          ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.data.questions[]? | {profileQuestionId: (.profileQuestionId // .id), answer: "Test answer"}]')
+          ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.data.questions[]? | {profileQuestionId: (.profileQuestionId // .id), answer: .answer}]')
+
+          echo "QUESTIONS_B:"
+          echo "$QUESTIONS_B" | jq .
+          echo "ANSWERS_B:"
+          echo "$ANSWERS_B" | jq .
+          ANSWERS_B_COUNT=$(echo "$ANSWERS_B" | jq 'length')
+          echo "ANSWERS_B_COUNT: $ANSWERS_B_COUNT"
+          if [ "$ANSWERS_B_COUNT" != "3" ]; then
+            echo "ERROR: Expected 3 answers, got $ANSWERS_B_COUNT"
+            exit 1
+          fi
 
           SUBMIT_B=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
             -H "Content-Type: application/json" \
