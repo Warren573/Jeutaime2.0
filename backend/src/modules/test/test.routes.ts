@@ -1409,4 +1409,251 @@ const debugDiscoveryProfilesHandler = asyncHandler(async (_req: Request, res: Re
 
 router.get("/debug-discovery-profiles", debugDiscoveryProfilesHandler);
 
+/**
+ * TEST ENDPOINT: LETTER ALTERNATION SYSTEM
+ * POST /api/test/test-letter-alternation
+ *
+ * Tests the letter turn-by-turn system after mutual smile:
+ * 1. Create match between two test accounts
+ * 2. Verify initiator can send first letter
+ * 3. Verify initiator CANNOT send second letter before response
+ * 4. Verify non-initiator can respond
+ * 5. Verify initiator can send after response
+ *
+ * FAILS with hard error if alternation rules are broken.
+ */
+const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  try {
+    console.log("[test/letter-alternation] Starting letter alternation test...");
+
+    // 1. Create two fresh test accounts
+    const timestamp = Date.now();
+    const userAId = `test-letter-a-${timestamp}`;
+    const userBId = `test-letter-b-${timestamp}`;
+    const emailA = `test.letter.a.${timestamp}@jeutaime.test`;
+    const emailB = `test.letter.b.${timestamp}@jeutaime.test`;
+    const pseudoA = `test_letter_a_${timestamp}`;
+    const pseudoB = `test_letter_b_${timestamp}`;
+    const passwordA = `test-a-${timestamp}`;
+    const passwordB = `test-b-${timestamp}`;
+
+    const { hashPassword } = await import("../../core/utils/hash");
+    const passwordHashA = await hashPassword(passwordA);
+    const passwordHashB = await hashPassword(passwordB);
+
+    console.log("[test/letter-alternation] Creating test users...");
+
+    // Create users in transaction
+    const [userA, userB] = await Promise.all([
+      prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            id: userAId,
+            email: emailA,
+            passwordHash: passwordHashA,
+            isVerified: true,
+            profile: {
+              create: {
+                pseudo: pseudoA,
+                gender: "MALE",
+                birthDate: new Date("1990-01-01"),
+              },
+            },
+            settings: {
+              create: {
+                showInDiscovery: true,
+                showPhotoByDefault: true,
+              },
+            },
+            wallet: {
+              create: {
+                coins: 100,
+              },
+            },
+          },
+          include: { profile: true },
+        });
+        return newUser;
+      }),
+      prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            id: userBId,
+            email: emailB,
+            passwordHash: passwordHashB,
+            isVerified: true,
+            profile: {
+              create: {
+                pseudo: pseudoB,
+                gender: "FEMALE",
+                birthDate: new Date("1995-01-01"),
+              },
+            },
+            settings: {
+              create: {
+                showInDiscovery: true,
+                showPhotoByDefault: true,
+              },
+            },
+            wallet: {
+              create: {
+                coins: 100,
+              },
+            },
+          },
+          include: { profile: true },
+        });
+        return newUser;
+      }),
+    ]);
+
+    console.log(`[test/letter-alternation] Created users: ${userA.id}, ${userB.id}`);
+
+    // 2. Create a match (A initiated the mutual smile)
+    console.log("[test/letter-alternation] Creating match...");
+    const match = await prisma.match.create({
+      data: {
+        userAId: userA.id,
+        userBId: userB.id,
+        status: "ACTIVE",
+        initiatorId: userA.id, // A initiated the smile
+      },
+    });
+
+    console.log(`[test/letter-alternation] Match created: ${match.id}`);
+
+    // 3. A sends first letter (SHOULD SUCCEED - initiator can send first)
+    console.log("[test/letter-alternation] A sends first letter...");
+    const letter1Response = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userA.id}`, // Mock token for test
+        },
+        body: JSON.stringify({
+          content: "Hello B, this is the first message from A",
+        }),
+      }
+    ).then((r) => r.json());
+
+    if (!letter1Response.data?.id) {
+      throw new Error(`[FAIL] A should be able to send first letter. Response: ${JSON.stringify(letter1Response)}`);
+    }
+
+    console.log(`[test/letter-alternation] ✓ A sent first letter: ${letter1Response.data.id}`);
+
+    // 4. A tries to send second letter (SHOULD FAIL - must wait for B)
+    console.log("[test/letter-alternation] A tries to send second letter (should FAIL)...");
+    const letter2Response = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userA.id}`,
+        },
+        body: JSON.stringify({
+          content: "A tries to send again without waiting",
+        }),
+      }
+    ).then((r) => r.json());
+
+    if (letter2Response.data?.id) {
+      throw new Error(`[FAIL] A should NOT be able to send second letter before B responds. Got: ${letter2Response.data.id}`);
+    }
+
+    if (!letter2Response.error) {
+      throw new Error(`[FAIL] Expected error when A sends twice. Response: ${JSON.stringify(letter2Response)}`);
+    }
+
+    console.log(`[test/letter-alternation] ✓ A correctly blocked from sending twice`);
+
+    // 5. B responds (SHOULD SUCCEED - must respond to A's letter)
+    console.log("[test/letter-alternation] B sends response...");
+    const letter3Response = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userB.id}`,
+        },
+        body: JSON.stringify({
+          content: "Hello A, this is B's response",
+        }),
+      }
+    ).then((r) => r.json());
+
+    if (!letter3Response.data?.id) {
+      throw new Error(`[FAIL] B should be able to respond. Response: ${JSON.stringify(letter3Response)}`);
+    }
+
+    console.log(`[test/letter-alternation] ✓ B sent response: ${letter3Response.data.id}`);
+
+    // 6. A sends again (SHOULD SUCCEED - turn is now A's)
+    console.log("[test/letter-alternation] A sends second letter after B's response...");
+    const letter4Response = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userA.id}`,
+        },
+        body: JSON.stringify({
+          content: "Thanks B, here is my second message",
+        }),
+      }
+    ).then((r) => r.json());
+
+    if (!letter4Response.data?.id) {
+      throw new Error(`[FAIL] A should be able to send after B responds. Response: ${JSON.stringify(letter4Response)}`);
+    }
+
+    console.log(`[test/letter-alternation] ✓ A sent second letter: ${letter4Response.data.id}`);
+
+    // 7. Cleanup test accounts
+    console.log("[test/letter-alternation] Cleaning up test accounts...");
+    await Promise.all([
+      prisma.letter.deleteMany({ where: { OR: [{ fromUserId: userA.id }, { toUserId: userA.id }] } }),
+      prisma.letter.deleteMany({ where: { OR: [{ fromUserId: userB.id }, { toUserId: userB.id }] } }),
+      prisma.match.deleteMany({ where: { OR: [{ userAId: userA.id }, { userBId: userA.id }] } }),
+      prisma.profile.deleteMany({ where: { userId: { in: [userA.id, userB.id] } } }),
+      prisma.user.deleteMany({ where: { id: { in: [userA.id, userB.id] } } }),
+    ]);
+
+    console.log("[test/letter-alternation] Test PASSED ✅");
+
+    res.json({
+      status: "success",
+      message: "Letter alternation system working correctly",
+      test_results: {
+        step1_first_letter_sent: "✅ A can send first letter",
+        step2_alternation_blocked: "✅ A blocked from sending twice",
+        step3_response_allowed: "✅ B can respond",
+        step4_turn_alternates: "✅ A can send after B responds",
+      },
+    });
+  } catch (error) {
+    console.error("[test/letter-alternation] Test FAILED:", error);
+    res.status(400).json({
+      status: "fail",
+      error: "Letter alternation test failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.post("/test-letter-alternation", testLetterAlternationHandler);
+
 export default router;
