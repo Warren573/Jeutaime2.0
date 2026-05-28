@@ -91,8 +91,9 @@ jobs:
           echo "Has B: $DISCOVERY_A_HAS_B"
           echo ""
 
+          # CRITICAL VALIDATION: Discovery A count MUST be 1
           if [ "$DISCOVERY_A_COUNT" != "1" ]; then
-            echo "ERROR: Discovery A count should be 1, got $DISCOVERY_A_COUNT"
+            echo "❌❌❌ CRITICAL FAIL: Discovery A count = $DISCOVERY_A_COUNT, expected 1"
             exit 1
           fi
 
@@ -117,8 +118,9 @@ jobs:
           echo "Has A: $DISCOVERY_B_HAS_A"
           echo ""
 
+          # CRITICAL VALIDATION: Discovery B count MUST be 1
           if [ "$DISCOVERY_B_COUNT" != "1" ]; then
-            echo "ERROR: Discovery B count should be 1, got $DISCOVERY_B_COUNT"
+            echo "❌❌❌ CRITICAL FAIL: Discovery B count = $DISCOVERY_B_COUNT, expected 1"
             exit 1
           fi
 
