@@ -1414,6 +1414,7 @@ const debugDiscoveryProfilesHandler = asyncHandler(async (_req: Request, res: Re
         id: true,
         userId: true,
         pseudo: true,
+        createdAt: true,
         user: {
           select: {
             id: true,
