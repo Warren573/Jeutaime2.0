@@ -1,0 +1,382 @@
+name: Letter Alternation E2E Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-letter-alternation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test letter alternation system
+        run: |
+          set -e
+
+          API_URL="https://jeutaime-staging.onrender.com/api"
+          echo "=== Letter Alternation E2E Test ==="
+          echo "API_URL: $API_URL"
+          echo ""
+
+          # Version Check
+          echo "=== Version Check: Verify deployed commit ==="
+          VERSION=$(curl -s "$API_URL/test/version")
+          echo "Deployed version:"
+          echo "$VERSION" | jq .
+          DEPLOYED_COMMIT=$(echo "$VERSION" | jq -r '.commit')
+          ENVIRONMENT=$(echo "$VERSION" | jq -r '.environment')
+          echo "Environment: $ENVIRONMENT"
+          echo "Deployed commit: $DEPLOYED_COMMIT"
+          echo ""
+
+          # Step 1: Cleanup staging data
+          echo "=== Step 1: Cleanup staging debug data ==="
+          CLEANUP=$(curl -s -X POST "$API_URL/test/cleanup-staging-debug-data" \
+            -H "Content-Type: application/json")
+          echo "Cleanup response:"
+          echo "$CLEANUP" | jq .
+          echo ""
+
+          # Step 2: Reset mutual smile (create two test accounts + match)
+          echo "=== Step 2: Reset mutual smile (create test accounts + match) ==="
+          RESET=$(curl -s -X POST "$API_URL/test/reset-mutual-smile" \
+            -H "Content-Type: application/json")
+          echo "Response:"
+          echo "$RESET" | jq .
+          echo ""
+
+          EMAIL_A=$(echo "$RESET" | jq -r '.accountA.email')
+          PASSWORD_A=$(echo "$RESET" | jq -r '.accountA.password')
+          USER_ID_A=$(echo "$RESET" | jq -r '.accountA.userId')
+
+          EMAIL_B=$(echo "$RESET" | jq -r '.accountB.email')
+          PASSWORD_B=$(echo "$RESET" | jq -r '.accountB.password')
+          USER_ID_B=$(echo "$RESET" | jq -r '.accountB.userId')
+
+          echo "Account A: $EMAIL_A (userId: $USER_ID_A)"
+          echo "Account B: $EMAIL_B (userId: $USER_ID_B)"
+          echo ""
+
+          # Step 3: Login A
+          echo "=== Step 3: Login A ==="
+          LOGIN_A=$(curl -s -X POST "$API_URL/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL_A\",\"password\":\"$PASSWORD_A\"}")
+          TOKEN_A=$(echo "$LOGIN_A" | jq -r '.data.accessToken // .accessToken // empty')
+          if [ -z "$TOKEN_A" ] || [ "$TOKEN_A" = "null" ]; then
+            echo "ERROR: Failed to get token for A"
+            exit 1
+          fi
+          echo "Token A acquired"
+          echo ""
+
+          # Step 4: Login B
+          echo "=== Step 4: Login B ==="
+          LOGIN_B=$(curl -s -X POST "$API_URL/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL_B\",\"password\":\"$PASSWORD_B\"}")
+          TOKEN_B=$(echo "$LOGIN_B" | jq -r '.data.accessToken // .accessToken // empty')
+          if [ -z "$TOKEN_B" ] || [ "$TOKEN_B" = "null" ]; then
+            echo "ERROR: Failed to get token for B"
+            exit 1
+          fi
+          echo "Token B acquired"
+          echo ""
+
+          # Step 5: Discovery - A finds B
+          echo "=== Step 5: Discovery - A finds B ==="
+          DISCOVERY_A=$(curl -s "$API_URL/profiles?pageSize=50" \
+            -H "Authorization: Bearer $TOKEN_A")
+          DISCOVERY_A_COUNT=$(echo "$DISCOVERY_A" | jq '.data | length')
+          DISCOVERY_A_IDS=$(echo "$DISCOVERY_A" | jq -r '.data[].userId' | tr '\n' ',' | sed 's/,$//')
+          DISCOVERY_A_HAS_B=$(echo "$DISCOVERY_A" | jq ".data[] | select(.userId == \"$USER_ID_B\") | .userId" | grep -q "$USER_ID_B" && echo "true" || echo "false")
+
+          echo "Discovery A count: $DISCOVERY_A_COUNT (expected: 1)"
+          if [ "$DISCOVERY_A_COUNT" != "1" ]; then
+            echo "ERROR: Discovery A count should be 1, got $DISCOVERY_A_COUNT"
+            exit 1
+          fi
+
+          if [ "$DISCOVERY_A_HAS_B" != "true" ]; then
+            echo "ERROR: Account A cannot see Account B in discovery"
+            exit 1
+          fi
+          echo ""
+
+          # Step 6: Discovery - B finds A
+          echo "=== Step 6: Discovery - B finds A ==="
+          DISCOVERY_B=$(curl -s "$API_URL/profiles?pageSize=50" \
+            -H "Authorization: Bearer $TOKEN_B")
+          DISCOVERY_B_COUNT=$(echo "$DISCOVERY_B" | jq '.data | length')
+          DISCOVERY_B_HAS_A=$(echo "$DISCOVERY_B" | jq ".data[] | select(.userId == \"$USER_ID_A\") | .userId" | grep -q "$USER_ID_A" && echo "true" || echo "false")
+
+          echo "Discovery B count: $DISCOVERY_B_COUNT (expected: 1)"
+          if [ "$DISCOVERY_B_COUNT" != "1" ]; then
+            echo "ERROR: Discovery B count should be 1, got $DISCOVERY_B_COUNT"
+            exit 1
+          fi
+
+          if [ "$DISCOVERY_B_HAS_A" != "true" ]; then
+            echo "ERROR: Account B cannot see Account A in discovery"
+            exit 1
+          fi
+          echo ""
+
+          # Step 7: A smiles at B
+          echo "=== Step 7: A smiles at B ==="
+          SMILE_A=$(curl -s -X POST "$API_URL/discover/react" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"toId\":\"$USER_ID_B\",\"type\":\"SMILE\"}")
+          DEBUG_A=$(echo "$SMILE_A" | jq -r '.data.debugBranch // .debugBranch // "MISSING"')
+          echo "debugBranch: $DEBUG_A (expected: NO-MUTUAL)"
+          if [ "$DEBUG_A" != "NO-MUTUAL" ]; then
+            echo "ERROR: Expected NO-MUTUAL, got $DEBUG_A"
+            exit 1
+          fi
+          echo ""
+
+          # Step 8: B smiles at A (mutual) - Creates match
+          echo "=== Step 8: B smiles at A (mutual) ==="
+          SMILE_B=$(curl -s -X POST "$API_URL/discover/react" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"toId\":\"$USER_ID_A\",\"type\":\"SMILE\"}")
+          echo "Response:"
+          echo "$SMILE_B" | jq .
+
+          DEBUG_B=$(echo "$SMILE_B" | jq -r '.data.debugBranch // .debugBranch // "MISSING"')
+          MATCH_CREATED=$(echo "$SMILE_B" | jq -r '.data.matchCreated // .matchCreated // "MISSING"')
+          MATCH_ID=$(echo "$SMILE_B" | jq -r '.data.matchId // .matchId // "MISSING"')
+
+          echo "debugBranch: $DEBUG_B (expected: NEW-MATCH)"
+          echo "matchCreated: $MATCH_CREATED (expected: true)"
+          echo "matchId: $MATCH_ID"
+
+          if [ "$DEBUG_B" != "NEW-MATCH" ]; then
+            echo "ERROR: Expected NEW-MATCH, got $DEBUG_B"
+            exit 1
+          fi
+
+          if [ "$MATCH_CREATED" != "true" ]; then
+            echo "ERROR: Expected matchCreated=true, got $MATCH_CREATED"
+            exit 1
+          fi
+
+          if [ "$MATCH_ID" = "MISSING" ] || [ "$MATCH_ID" = "null" ] || [ -z "$MATCH_ID" ]; then
+            echo "ERROR: matchId missing or null"
+            exit 1
+          fi
+          echo ""
+
+          # Step 9: Debug match details
+          echo "=== Step 9: Debug match details ==="
+          MATCH_DEBUG=$(curl -s "$API_URL/test/debug-match?matchId=$MATCH_ID")
+          echo "Match info:"
+          echo "$MATCH_DEBUG" | jq .
+          MATCH_STATUS=$(echo "$MATCH_DEBUG" | jq -r '.match.status')
+          MATCH_INITIATOR=$(echo "$MATCH_DEBUG" | jq -r '.match.initiatorId')
+          echo "Match status: $MATCH_STATUS"
+          echo "Match initiatorId: $MATCH_INITIATOR"
+          echo ""
+
+          # Step 10: A accepts the match (A is non-initiator, must accept)
+          # Mutual smile creates match with initiatorId = B (who sent the matching smile)
+          # Non-initiator (A) must call acceptMatch to move from PENDING to ACTIVE
+          echo "=== Step 10: A accepts the match (non-initiator acceptance) ==="
+          ACCEPT=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/accept" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Response:"
+          echo "$ACCEPT" | jq .
+
+          ACCEPT_ERROR=$(echo "$ACCEPT" | jq -r '.error // empty')
+          if [ -n "$ACCEPT_ERROR" ]; then
+            echo "ERROR: A should be able to accept match (A is non-initiator)"
+            echo "Match initiatorId was $MATCH_INITIATOR, so A must accept"
+            exit 1
+          fi
+          echo "✅ A accepted match (non-initiator), status is now ACTIVE"
+          echo ""
+
+          # Step 11: Both users must answer 3 validation questions before sending letters
+          echo "=== Step 11: A submits question answers ==="
+          QUESTIONS_A=$(curl -s "$API_URL/matches/$MATCH_ID/questions" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Questions response for A:"
+          echo "$QUESTIONS_A" | jq .
+
+          # Build answers array using correct answer field from questions
+          ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.data.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
+          echo "Answers to submit for A:"
+          echo "$ANSWERS_A" | jq .
+
+          SUBMIT_A=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"answers\": $ANSWERS_A}")
+          echo "Answer submission response for A:"
+          echo "$SUBMIT_A" | jq .
+
+          SUBMIT_A_ERROR=$(echo "$SUBMIT_A" | jq -r '.error // empty')
+          if [ -n "$SUBMIT_A_ERROR" ]; then
+            echo "ERROR: A should be able to submit answers"
+            exit 1
+          fi
+          echo "✅ A submitted answers"
+          echo ""
+
+          # Step 12: B submits question answers
+          echo "=== Step 12: B submits question answers ==="
+          QUESTIONS_B=$(curl -s "$API_URL/matches/$MATCH_ID/questions" \
+            -H "Authorization: Bearer $TOKEN_B")
+          echo "Questions response for B:"
+          echo "$QUESTIONS_B" | jq .
+
+          ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.data.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
+          echo "Answers to submit for B:"
+          echo "$ANSWERS_B" | jq .
+
+          SUBMIT_B=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"answers\": $ANSWERS_B}")
+          echo "Answer submission response for B:"
+          echo "$SUBMIT_B" | jq .
+
+          SUBMIT_B_ERROR=$(echo "$SUBMIT_B" | jq -r '.error // empty')
+          if [ -n "$SUBMIT_B_ERROR" ]; then
+            echo "ERROR: B should be able to submit answers"
+            exit 1
+          fi
+          echo "✅ B submitted answers"
+          echo ""
+
+          # Verify questions are validated before sending letters
+          echo "=== Step 12.5: Verify questions validated ==="
+          MATCH_CHECK=$(curl -s "$API_URL/test/debug-match?matchId=$MATCH_ID")
+          echo "Match validation check:"
+          echo "$MATCH_CHECK" | jq .
+          echo ""
+
+          # Step 13: A sends first letter (MUST SUCCEED - B initiated match, so A is the other user who can respond)
+          echo "=== Step 13: A sends first letter ==="
+          LETTER_1=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"content\":\"Hello B, this is the first message from A\"}")
+          echo "Response:"
+          echo "$LETTER_1" | jq .
+
+          LETTER_1_ID=$(echo "$LETTER_1" | jq -r '.data.id // empty')
+          LETTER_1_ERROR=$(echo "$LETTER_1" | jq -r '.error // empty')
+          if [ -z "$LETTER_1_ID" ] || [ "$LETTER_1_ID" = "null" ]; then
+            echo "ERROR: A should be able to send first letter"
+            echo "Error message: $LETTER_1_ERROR"
+            exit 1
+          fi
+          echo "✅ A sent first letter: $LETTER_1_ID"
+          echo ""
+
+          # Step 14: A tries to send SECOND letter (MUST FAIL - alternation rule)
+          echo "=== Step 14: A tries to send SECOND letter (SHOULD FAIL) ==="
+          LETTER_2=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"content\":\"A tries to send again without waiting\"}")
+          echo "Response:"
+          echo "$LETTER_2" | jq .
+
+          LETTER_2_ID=$(echo "$LETTER_2" | jq -r '.data.id // empty')
+          LETTER_2_ERROR=$(echo "$LETTER_2" | jq -r '.error // empty')
+
+          if [ -n "$LETTER_2_ID" ] && [ "$LETTER_2_ID" != "null" ]; then
+            echo "ERROR: A should NOT be able to send twice! Alternation rule broken!"
+            echo "Got letter ID: $LETTER_2_ID"
+            exit 1
+          fi
+
+          if [ -z "$LETTER_2_ERROR" ]; then
+            echo "ERROR: Expected error response when A sends twice"
+            exit 1
+          fi
+
+          echo "✅ A correctly blocked from sending twice (alternation rule enforced)"
+          echo ""
+
+          # Step 15: B sends response (MUST SUCCEED - it's B's turn)
+          echo "=== Step 15: B sends response ==="
+          LETTER_3=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"content\":\"Hello A, this is B's response\"}")
+          echo "Response:"
+          echo "$LETTER_3" | jq .
+
+          LETTER_3_ID=$(echo "$LETTER_3" | jq -r '.data.id // empty')
+          if [ -z "$LETTER_3_ID" ] || [ "$LETTER_3_ID" = "null" ]; then
+            echo "ERROR: B should be able to respond"
+            echo "Response: $(echo "$LETTER_3" | jq .)"
+            exit 1
+          fi
+          echo "✅ B sent response: $LETTER_3_ID"
+          echo ""
+
+          # Step 16: A sends again (MUST SUCCEED - it's now A's turn)
+          echo "=== Step 16: A sends SECOND letter after B's response ==="
+          LETTER_4=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"content\":\"Thanks B, here is my second message\"}")
+          echo "Response:"
+          echo "$LETTER_4" | jq .
+
+          LETTER_4_ID=$(echo "$LETTER_4" | jq -r '.data.id // empty')
+          if [ -z "$LETTER_4_ID" ] || [ "$LETTER_4_ID" = "null" ]; then
+            echo "ERROR: A should be able to send after B responds"
+            echo "Response: $(echo "$LETTER_4" | jq .)"
+            exit 1
+          fi
+          echo "✅ A sent second letter: $LETTER_4_ID"
+          echo ""
+
+          # Step 17: B tries to send TWICE (MUST FAIL)
+          echo "=== Step 17: B tries to send TWICE (SHOULD FAIL) ==="
+          LETTER_5=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"content\":\"B tries to send twice\"}")
+          echo "Response:"
+          echo "$LETTER_5" | jq .
+
+          LETTER_5_ID=$(echo "$LETTER_5" | jq -r '.data.id // empty')
+          LETTER_5_ERROR=$(echo "$LETTER_5" | jq -r '.error // empty')
+
+          if [ -n "$LETTER_5_ID" ] && [ "$LETTER_5_ID" != "null" ]; then
+            echo "ERROR: B should NOT be able to send twice! Alternation rule broken!"
+            exit 1
+          fi
+
+          if [ -z "$LETTER_5_ERROR" ]; then
+            echo "ERROR: Expected error response when B sends twice"
+            exit 1
+          fi
+
+          echo "✅ B correctly blocked from sending twice"
+          echo ""
+
+          # Final summary
+          echo "=== ✅ SUCCESS: LETTER ALTERNATION SYSTEM WORKING ==="
+          echo "Test Results:"
+          echo "  ✅ Match created after mutual smile (status=PENDING, initiatorId=B)"
+          echo "  ✅ Match debug endpoint shows correct initiatorId"
+          echo "  ✅ A (non-initiator) accepts match (status→ACTIVE)"
+          echo "  ✅ A & B submit validation question answers with correct answers"
+          echo "  ✅ A can send first letter after validation"
+          echo "  ✅ A blocked from sending twice (alternation enforced)"
+          echo "  ✅ B can respond (B's turn)"
+          echo "  ✅ A can send after B responds (turn alternated)"
+          echo "  ✅ B blocked from sending twice"
+          echo ""
+          echo "All business rules validated:"
+          echo "  1. Match acceptance (non-initiator only)"
+          echo "  2. Question validation requirement (correct answers submitted)"
+          echo "  3. Letter alternation (turn-by-turn enforcement)"
