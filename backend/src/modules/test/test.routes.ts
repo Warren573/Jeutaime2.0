@@ -1540,8 +1540,27 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
 
     console.log(`[test/letter-alternation] Match created: ${match.id}`);
 
-    // 3. A sends first letter (SHOULD SUCCEED - initiator can send first)
-    console.log("[test/letter-alternation] A sends first letter...");
+    // 3. Match doit être accepté par B avant d'envoyer des lettres
+    console.log("[test/letter-alternation] B accepts the match...");
+    const acceptResponse = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/accept`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userB.id}`,
+        },
+      }
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
+
+    if (acceptResponse.error) {
+      throw new Error(`[FAIL] B should be able to accept match. Response: ${JSON.stringify(acceptResponse)}`);
+    }
+
+    console.log(`[test/letter-alternation] ✓ Match accepted by B, status is now ACTIVE`);
+
+    // 4. A sends first letter (SHOULD SUCCEED - initiator can send first)
+    console.log("[test/letter-alternation] Step 4: A sends first letter...");
     const letter1Response = await fetch(
       `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
       {
@@ -1562,8 +1581,8 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
 
     console.log(`[test/letter-alternation] ✓ A sent first letter: ${letter1Response.data.id}`);
 
-    // 4. A tries to send second letter (SHOULD FAIL - must wait for B)
-    console.log("[test/letter-alternation] A tries to send second letter (should FAIL)...");
+    // 5. A tries to send second letter (SHOULD FAIL - must wait for B)
+    console.log("[test/letter-alternation] Step 5: A tries to send second letter (should FAIL)...");
     const letter2Response = await fetch(
       `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
       {
@@ -1588,8 +1607,8 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
 
     console.log(`[test/letter-alternation] ✓ A correctly blocked from sending twice`);
 
-    // 5. B responds (SHOULD SUCCEED - must respond to A's letter)
-    console.log("[test/letter-alternation] B sends response...");
+    // 6. B responds (SHOULD SUCCEED - must respond to A's letter)
+    console.log("[test/letter-alternation] Step 6: B sends response...");
     const letter3Response = await fetch(
       `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
       {
@@ -1610,8 +1629,8 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
 
     console.log(`[test/letter-alternation] ✓ B sent response: ${letter3Response.data.id}`);
 
-    // 6. A sends again (SHOULD SUCCEED - turn is now A's)
-    console.log("[test/letter-alternation] A sends second letter after B's response...");
+    // 7. A sends again (SHOULD SUCCEED - turn is now A's)
+    console.log("[test/letter-alternation] Step 7: A sends second letter after B's response...");
     const letter4Response = await fetch(
       `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
       {
@@ -1632,8 +1651,8 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
 
     console.log(`[test/letter-alternation] ✓ A sent second letter: ${letter4Response.data.id}`);
 
-    // 7. Cleanup test accounts
-    console.log("[test/letter-alternation] Cleaning up test accounts...");
+    // 8. Cleanup test accounts
+    console.log("[test/letter-alternation] Step 8: Cleaning up test accounts...");
     await Promise.all([
       prisma.letter.deleteMany({ where: { OR: [{ fromUserId: userA.id }, { toUserId: userA.id }] } }),
       prisma.letter.deleteMany({ where: { OR: [{ fromUserId: userB.id }, { toUserId: userB.id }] } }),
