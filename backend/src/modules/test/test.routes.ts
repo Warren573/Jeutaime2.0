@@ -1379,4 +1379,119 @@ const identifyOrphanProfilesExactHandler = asyncHandler(async (_req: Request, re
 
 router.get("/identify-orphan-exact", identifyOrphanProfilesExactHandler);
 
+/**
+ * DEBUG DISCOVERY PROFILES
+ * GET /api/test/debug-discovery-profiles
+ *
+ * Returns EXACT profiles visible in Discovery (showInDiscovery=true)
+ * with all join info to understand the data structure.
+ *
+ * This shows why orphan profiles are still visible in Discovery
+ * and why cleanup can't find them.
+ */
+const debugDiscoveryProfilesHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  try {
+    console.log("[debug-discovery] Starting discovery profiles debug...");
+
+    // Get all profiles where user.settings.showInDiscovery = true
+    const discoveryProfiles = await prisma.profile.findMany({
+      where: {
+        user: {
+          settings: {
+            showInDiscovery: true,
+          },
+        },
+      },
+      select: {
+        id: true,
+        userId: true,
+        pseudo: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            createdAt: true,
+            isBanned: true,
+            settings: {
+              select: {
+                showInDiscovery: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    console.log(`[debug-discovery] Found ${discoveryProfiles.length} profiles with showInDiscovery=true`);
+
+    // Count all profiles by showInDiscovery flag
+    const countByFlag = await prisma.userSettings.groupBy({
+      by: ["showInDiscovery"],
+      _count: {
+        userId: true,
+      },
+    });
+
+    // Map the results to proper format with all requested fields
+    const formattedProfiles = discoveryProfiles.map((profile) => ({
+      profile_id: profile.id,
+      profile_userId: profile.userId,
+      user_id: profile.user.id,
+      email: profile.user.email,
+      pseudo: profile.pseudo,
+      showInDiscovery: profile.user.settings?.showInDiscovery,
+      createdAt: profile.user.createdAt.toISOString(),
+      isBanned: profile.user.isBanned,
+    }));
+
+    // Check for the specific orphan IDs
+    const orphanIds = [
+      "cmp6yvp0h000511ip6beq6xqr",
+      "cmp6wyz62000111ip6f7t8uge",
+      "cmpdrwja80001iy9qc9sb1vkh",
+    ];
+
+    const orphansInDiscovery = formattedProfiles.filter((p) => orphanIds.includes(p.profile_id));
+
+    console.log(`[debug-discovery] Orphan profiles in discovery: ${orphansInDiscovery.length}`);
+    orphansInDiscovery.forEach((p) => {
+      console.log(`[debug-discovery] ORPHAN FOUND: ${p.profile_id} | ${p.email} | ${p.pseudo}`);
+    });
+
+    res.json({
+      status: "success",
+      message: "Discovery profiles debug",
+      counts: {
+        total_discovery_profiles: formattedProfiles.length,
+        profiles_by_showInDiscovery_flag: countByFlag,
+        orphans_in_discovery: orphansInDiscovery.length,
+      },
+      tables_used: [
+        "Profile",
+        "User",
+        "UserSettings",
+      ],
+      discovery_profiles: formattedProfiles,
+      orphans_found: orphansInDiscovery,
+    });
+  } catch (error) {
+    console.error("[debug-discovery] Error:", error);
+    res.status(500).json({
+      error: "Debug failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.get("/debug-discovery-profiles", debugDiscoveryProfilesHandler);
+
 export default router;
