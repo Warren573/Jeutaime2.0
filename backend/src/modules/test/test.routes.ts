@@ -1151,4 +1151,157 @@ const verifyMutualSmileDiscoveryHandler = asyncHandler(async (_req: Request, res
 
 router.get("/verify-mutual-smile-discovery", verifyMutualSmileDiscoveryHandler);
 
+// Version endpoint - returns deployed commit info
+router.get("/version", (_req: Request, res: Response) => {
+  const { execSync } = require("child_process");
+
+  try {
+    const commit = execSync("git rev-parse HEAD", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+    const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+    const buildTime = new Date().toISOString();
+    const dbUrlHash = (process.env.DATABASE_URL || "").substring(0, 20);
+
+    res.json({
+      environment: process.env.NODE_ENV || "unknown",
+      commit,
+      branch,
+      buildTime,
+      dbUrlHash,
+    });
+  } catch (error) {
+    console.error("[test/version] Error:", error);
+    res.status(500).json({
+      error: "Failed to get version info",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+// Debug match endpoint - returns match details with initiatorId and validation status
+router.get("/debug-match", async (req: Request, res: Response) => {
+  try {
+    const { matchId } = req.query as { matchId?: string };
+
+    if (!matchId) {
+      return res.status(400).json({
+        error: "matchId query parameter is required",
+      });
+    }
+
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      include: {
+        letters: {
+          select: { id: true, fromUserId: true, sentAt: true },
+          orderBy: { sentAt: "desc" },
+          take: 5,
+        },
+      },
+    });
+
+    if (!match) {
+      return res.status(404).json({
+        error: "Match not found",
+        matchId,
+      });
+    }
+
+    res.json({
+      match: {
+        id: match.id,
+        status: match.status,
+        initiatorId: match.initiatorId,
+        questionsValidated: match.questionsValidated,
+        userAId: match.userAId,
+        userBId: match.userBId,
+        lastLetterBy: match.lastLetterBy,
+        letterCountA: match.letterCountA,
+        letterCountB: match.letterCountB,
+        lastLetterSenderId: match.letters[0]?.fromUserId || null,
+        letterCount: match.letters.length,
+      },
+    });
+  } catch (error) {
+    console.error("[test/debug-match] Error:", error);
+    res.status(500).json({
+      error: "Failed to debug match",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+// Debug match questions endpoint - returns question structure and expected format
+router.get("/debug-match-questions", async (req: Request, res: Response) => {
+  try {
+    const { matchId } = req.query as { matchId?: string };
+
+    if (!matchId) {
+      return res.status(400).json({
+        error: "matchId query parameter is required",
+      });
+    }
+
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: { userAId: true, userBId: true },
+    });
+
+    if (!match) {
+      return res.status(404).json({
+        error: "Match not found",
+        matchId,
+      });
+    }
+
+    // For testing purposes, return questions for the first user
+    const userProfile = await prisma.profile.findUnique({
+      where: { userId: match.userAId },
+      include: {
+        questions: true,
+      },
+    });
+
+    if (!userProfile) {
+      return res.status(404).json({
+        error: "User profile not found",
+      });
+    }
+
+    const questions = userProfile.questions.map((q) => ({
+      profileQuestionId: q.id,
+      questionText: q.questionText,
+      answer: q.answer,
+      wrongAnswers: q.wrongAnswers,
+    }));
+
+    res.json({
+      matchId,
+      userA: match.userAId,
+      userB: match.userBId,
+      questionsCount: questions.length,
+      expectedSubmissionFormat: {
+        method: "POST",
+        endpoint: `/api/matches/${matchId}/questions/answers`,
+        body: {
+          answers: [
+            {
+              profileQuestionId: "example-id",
+              answer: "example answer",
+            },
+          ],
+        },
+      },
+      data: {
+        questions,
+      },
+    });
+  } catch (error) {
+    console.error("[test/debug-match-questions] Error:", error);
+    res.status(500).json({
+      error: "Failed to debug match questions",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
 export default router;
