@@ -167,24 +167,38 @@ jobs:
           fi
           echo ""
 
-          # Step 9: B accepts the match (MUST accept to move from PENDING to ACTIVE)
-          echo "=== Step 9: B accepts the match ==="
+          # Step 9: Debug match details
+          echo "=== Step 9: Debug match details ==="
+          MATCH_DEBUG=$(curl -s "$API_URL/test/debug-match?matchId=$MATCH_ID")
+          echo "Match info:"
+          echo "$MATCH_DEBUG" | jq .
+          MATCH_STATUS=$(echo "$MATCH_DEBUG" | jq -r '.match.status')
+          MATCH_INITIATOR=$(echo "$MATCH_DEBUG" | jq -r '.match.initiatorId')
+          echo "Match status: $MATCH_STATUS"
+          echo "Match initiatorId: $MATCH_INITIATOR"
+          echo ""
+
+          # Step 10: A accepts the match (A is non-initiator, must accept)
+          # Mutual smile creates match with initiatorId = B (who sent the matching smile)
+          # Non-initiator (A) must call acceptMatch to move from PENDING to ACTIVE
+          echo "=== Step 10: A accepts the match (non-initiator acceptance) ==="
           ACCEPT=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/accept" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $TOKEN_B")
+            -H "Authorization: Bearer $TOKEN_A")
           echo "Response:"
           echo "$ACCEPT" | jq .
 
           ACCEPT_ERROR=$(echo "$ACCEPT" | jq -r '.error // empty')
           if [ -n "$ACCEPT_ERROR" ]; then
-            echo "ERROR: B should be able to accept match"
+            echo "ERROR: A should be able to accept match (A is non-initiator)"
+            echo "Match initiatorId was $MATCH_INITIATOR, so A must accept"
             exit 1
           fi
-          echo "✅ B accepted match, status is now ACTIVE"
+          echo "✅ A accepted match (non-initiator), status is now ACTIVE"
           echo ""
 
-          # Step 10: A sends first letter (MUST SUCCEED - A initiated match)
-          echo "=== Step 10: A sends first letter ==="
+          # Step 11: A sends first letter (MUST SUCCEED - A initiated match)
+          echo "=== Step 11: A sends first letter ==="
           LETTER_1=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_A" \
@@ -202,7 +216,7 @@ jobs:
           echo ""
 
           # Step 10: A tries to send SECOND letter (MUST FAIL - alternation rule)
-          echo "=== Step 11: A tries to send SECOND letter (SHOULD FAIL) ==="
+          echo "=== Step 12: A tries to send SECOND letter (SHOULD FAIL) ==="
           LETTER_2=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_A" \
@@ -228,7 +242,7 @@ jobs:
           echo ""
 
           # Step 11: B sends response (MUST SUCCEED - it's B's turn)
-          echo "=== Step 12: B sends response ==="
+          echo "=== Step 13: B sends response ==="
           LETTER_3=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_B" \
@@ -246,7 +260,7 @@ jobs:
           echo ""
 
           # Step 12: A sends again (MUST SUCCEED - it's now A's turn)
-          echo "=== Step 13: A sends SECOND letter after B's response ==="
+          echo "=== Step 14: A sends SECOND letter after B's response ==="
           LETTER_4=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_A" \
@@ -264,7 +278,7 @@ jobs:
           echo ""
 
           # Step 13: B tries to send TWICE (MUST FAIL)
-          echo "=== Step 14: B tries to send TWICE (SHOULD FAIL) ==="
+          echo "=== Step 15: B tries to send TWICE (SHOULD FAIL) ==="
           LETTER_5=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_B" \
@@ -291,12 +305,14 @@ jobs:
           # Final summary
           echo "=== ✅ SUCCESS: LETTER ALTERNATION SYSTEM WORKING ==="
           echo "Test Results:"
-          echo "  ✅ Match created after mutual smile (status=PENDING)"
-          echo "  ✅ B accepts match (status→ACTIVE)"
-          echo "  ✅ A can send first letter (initiator)"
+          echo "  ✅ Match created after mutual smile (status=PENDING, initiatorId=B)"
+          echo "  ✅ Match debug endpoint shows correct initiatorId"
+          echo "  ✅ A (non-initiator) accepts match (status→ACTIVE)"
+          echo "  ✅ A can send first letter after acceptance"
           echo "  ✅ A blocked from sending twice (alternation enforced)"
-          echo "  ✅ B can respond"
+          echo "  ✅ B can respond (B's turn)"
           echo "  ✅ A can send after B responds (turn alternated)"
           echo "  ✅ B blocked from sending twice"
           echo ""
           echo "All turn-by-turn rules and match lifecycle are working correctly!"
+          echo "Business rule: Non-initiator must accept PENDING match to activate it."

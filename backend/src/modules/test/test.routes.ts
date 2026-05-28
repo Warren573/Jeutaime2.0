@@ -1540,24 +1540,25 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
 
     console.log(`[test/letter-alternation] Match created: ${match.id}`);
 
-    // 3. Match doit être accepté par B avant d'envoyer des lettres
-    console.log("[test/letter-alternation] B accepts the match...");
+    // 3. Match lifecycle: B (initiator of smile → match creator) was created with status PENDING
+    // A (non-initiator) must accept the match to move it to ACTIVE status
+    console.log("[test/letter-alternation] A accepts the match (A is non-initiator)...");
     const acceptResponse = await fetch(
       `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/accept`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${userB.id}`,
+          "Authorization": `Bearer ${userA.id}`,
         },
       }
     ).then((r) => r.json() as Promise<LetterTestResponse>);
 
     if (acceptResponse.error) {
-      throw new Error(`[FAIL] B should be able to accept match. Response: ${JSON.stringify(acceptResponse)}`);
+      throw new Error(`[FAIL] A should be able to accept match (A is non-initiator). Response: ${JSON.stringify(acceptResponse)}`);
     }
 
-    console.log(`[test/letter-alternation] ✓ Match accepted by B, status is now ACTIVE`);
+    console.log(`[test/letter-alternation] ✓ Match accepted by A, status is now ACTIVE`);
 
     // 4. A sends first letter (SHOULD SUCCEED - initiator can send first)
     console.log("[test/letter-alternation] Step 4: A sends first letter...");
@@ -1684,5 +1685,67 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
 });
 
 router.post("/test-letter-alternation", testLetterAlternationHandler);
+
+/**
+ * DEBUG ENDPOINT: Match Details
+ * GET /api/test/debug-match?matchId=...
+ *
+ * Returns full match details to understand lifecycle and acceptance rules.
+ */
+const debugMatchHandler = asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const matchId = req.query.matchId as string;
+  if (!matchId) {
+    return res.status(400).json({ error: "matchId query parameter required" });
+  }
+
+  try {
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: {
+        id: true,
+        userAId: true,
+        userBId: true,
+        initiatorId: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    if (!match) {
+      return res.status(404).json({ error: "Match not found" });
+    }
+
+    res.json({
+      status: "success",
+      match: {
+        id: match.id,
+        userAId: match.userAId,
+        userBId: match.userBId,
+        initiatorId: match.initiatorId,
+        status: match.status,
+        createdAt: match.createdAt.toISOString(),
+        note: match.initiatorId === match.userAId
+          ? "User A is initiator - User B must accept"
+          : "User B is initiator - User A must accept",
+      },
+    });
+  } catch (error) {
+    console.error("[debug-match] Error:", error);
+    res.status(500).json({
+      error: "Debug failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.get("/debug-match", debugMatchHandler);
 
 export default router;
