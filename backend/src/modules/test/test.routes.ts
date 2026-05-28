@@ -3,8 +3,33 @@ import { asyncHandler } from "../../core/utils/asyncHandler";
 import { prisma } from "../../config/prisma";
 import { hashPassword } from "../../core/utils/hash";
 import * as authService from "../auth/auth.service";
+import { execSync } from "child_process";
 
 const router = Router();
+
+// Capture build time at module load
+const BUILD_TIME = new Date().toISOString();
+
+function getCommitSha() {
+  try {
+    return execSync("git rev-parse HEAD", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim().substring(0, 7);
+  } catch {
+    return "unknown";
+  }
+}
+
+function getBranch() {
+  try {
+    return execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+function getDbUrlHash() {
+  const dbUrl = process.env.DATABASE_URL || "not-set";
+  return require("crypto").createHash("sha256").update(dbUrl).digest("hex").substring(0, 8);
+}
 
 /**
  * DEBUG: Verify test router is mounted
@@ -15,6 +40,40 @@ router.get("/health", (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     node_env: process.env.NODE_ENV || "development",
     message: "If you see this, /api/test routes are available",
+  });
+});
+
+/**
+ * VERSION ENDPOINT
+ * GET /api/test/version
+ *
+ * Returns exact deployment version information:
+ * - environment (staging, production, development)
+ * - commit SHA (7 chars)
+ * - branch
+ * - buildTime (when this module loaded)
+ * - dbUrlHash (first 8 chars of sha256 of DATABASE_URL)
+ *
+ * This proves which code version is running on the server.
+ */
+router.get("/version", (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const renderService = process.env.RENDER_SERVICE_NAME || "none";
+
+  let environment = "development";
+  if (nodeEnv === "production") environment = "production";
+  if (renderService === "jeutaime-staging") environment = "staging";
+
+  res.json({
+    environment,
+    commit: getCommitSha(),
+    branch: getBranch(),
+    buildTime: BUILD_TIME,
+    dbUrlHash: getDbUrlHash(),
+    _debug: {
+      nodeEnv,
+      renderService,
+    },
   });
 });
 

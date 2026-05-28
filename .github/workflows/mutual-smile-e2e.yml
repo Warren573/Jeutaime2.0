@@ -16,6 +16,17 @@ jobs:
           echo "API_URL: $API_URL"
           echo ""
 
+          # Version Check: Prove which commit is deployed
+          echo "=== Version Check: Verify deployed commit ==="
+          VERSION=$(curl -s "$API_URL/test/version")
+          echo "Deployed version:"
+          echo "$VERSION" | jq .
+          DEPLOYED_COMMIT=$(echo "$VERSION" | jq -r '.commit')
+          ENVIRONMENT=$(echo "$VERSION" | jq -r '.environment')
+          echo "Environment: $ENVIRONMENT"
+          echo "Deployed commit: $DEPLOYED_COMMIT"
+          echo ""
+
           # Step 0: Cleanup staging data
           echo "=== Step 0: Cleanup staging debug data ==="
           CLEANUP=$(curl -s -X POST "$API_URL/test/cleanup-staging-debug-data" \
