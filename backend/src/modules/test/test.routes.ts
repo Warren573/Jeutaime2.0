@@ -770,7 +770,7 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
     const stagingProfiles = await prisma.profile.findMany({
       where: {
         userId: {
-          NOT: { startsWith: "test-mutual-" },
+          not: { startsWith: "test-mutual-" },
         },
       },
       select: { userId: true },
