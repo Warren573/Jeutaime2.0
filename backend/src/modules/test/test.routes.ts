@@ -1422,6 +1422,14 @@ router.get("/debug-discovery-profiles", debugDiscoveryProfilesHandler);
  *
  * FAILS with hard error if alternation rules are broken.
  */
+
+// Type for letter endpoint responses
+type LetterTestResponse = {
+  data?: { id?: string };
+  error?: string;
+  message?: string;
+};
+
 const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Response) => {
   const nodeEnv = process.env.NODE_ENV || "development";
   const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
@@ -1463,7 +1471,8 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
             profile: {
               create: {
                 pseudo: pseudoA,
-                gender: "MALE",
+                gender: "HOMME",
+                city: "Paris",
                 birthDate: new Date("1990-01-01"),
               },
             },
@@ -1493,7 +1502,8 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
             profile: {
               create: {
                 pseudo: pseudoB,
-                gender: "FEMALE",
+                gender: "FEMME",
+                city: "Lyon",
                 birthDate: new Date("1995-01-01"),
               },
             },
@@ -1544,7 +1554,7 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
           content: "Hello B, this is the first message from A",
         }),
       }
-    ).then((r) => r.json());
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
 
     if (!letter1Response.data?.id) {
       throw new Error(`[FAIL] A should be able to send first letter. Response: ${JSON.stringify(letter1Response)}`);
@@ -1566,7 +1576,7 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
           content: "A tries to send again without waiting",
         }),
       }
-    ).then((r) => r.json());
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
 
     if (letter2Response.data?.id) {
       throw new Error(`[FAIL] A should NOT be able to send second letter before B responds. Got: ${letter2Response.data.id}`);
@@ -1592,7 +1602,7 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
           content: "Hello A, this is B's response",
         }),
       }
-    ).then((r) => r.json());
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
 
     if (!letter3Response.data?.id) {
       throw new Error(`[FAIL] B should be able to respond. Response: ${JSON.stringify(letter3Response)}`);
@@ -1614,7 +1624,7 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
           content: "Thanks B, here is my second message",
         }),
       }
-    ).then((r) => r.json());
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
 
     if (!letter4Response.data?.id) {
       throw new Error(`[FAIL] A should be able to send after B responds. Response: ${JSON.stringify(letter4Response)}`);
