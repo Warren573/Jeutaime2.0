@@ -202,27 +202,54 @@ jobs:
           QUESTIONS_A=$(curl -s "$API_URL/matches/$MATCH_ID/questions" \
             -H "Authorization: Bearer $TOKEN_A")
 
+          echo ""
+          echo "=== DEBUG QUESTIONS ==="
+          echo "QUESTIONS_A RAW:"
+          echo "$QUESTIONS_A"
+          echo ""
+
+          echo "QUESTIONS_A PARSED:"
+          echo "$QUESTIONS_A" | jq .
+          echo ""
+
+          echo "=== BUILD ANSWERS ==="
+
           # Extract question IDs
           Q_IDS=$(echo "$QUESTIONS_A" | jq -r '.data.questions[]?.profileQuestionId // .data.questions[]?.id' | tr '\n' '|' | sed 's/|$//')
 
           # Build answers array with CORRECT ANSWERS from question response
           ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.data.questions[]? | {profileQuestionId: (.profileQuestionId // .id), answer: .answer}]')
 
-          echo "QUESTIONS_A:"
-          echo "$QUESTIONS_A" | jq .
-          echo "ANSWERS_A:"
+          echo "ANSWERS_A RAW:"
+          echo "$ANSWERS_A"
+          echo ""
+
+          echo "ANSWERS_A PARSED:"
           echo "$ANSWERS_A" | jq .
+          echo ""
+
           ANSWERS_A_COUNT=$(echo "$ANSWERS_A" | jq 'length')
+
           echo "ANSWERS_A_COUNT: $ANSWERS_A_COUNT"
+          echo ""
+
           if [ "$ANSWERS_A_COUNT" != "3" ]; then
-            echo "ERROR: Expected 3 answers, got $ANSWERS_A_COUNT"
+            echo "ERROR: Expected exactly 3 answers, got $ANSWERS_A_COUNT"
             exit 1
           fi
+
+          echo "=== SUBMIT PAYLOAD ==="
+          echo "{\"answers\": $ANSWERS_A}" | jq .
+          echo ""
 
           SUBMIT_A=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_A" \
             -d "{\"answers\": $ANSWERS_A}")
+
+          echo "=== SUBMIT RESPONSE ==="
+          echo "$SUBMIT_A" | jq .
+          echo ""
 
           if [ -z "$(echo "$SUBMIT_A" | jq -r '.error // empty')" ]; then
             echo "✅ A submitted answers"
@@ -238,23 +265,50 @@ jobs:
           QUESTIONS_B=$(curl -s "$API_URL/matches/$MATCH_ID/questions" \
             -H "Authorization: Bearer $TOKEN_B")
 
+          echo ""
+          echo "=== DEBUG QUESTIONS ==="
+          echo "QUESTIONS_B RAW:"
+          echo "$QUESTIONS_B"
+          echo ""
+
+          echo "QUESTIONS_B PARSED:"
+          echo "$QUESTIONS_B" | jq .
+          echo ""
+
+          echo "=== BUILD ANSWERS ==="
+
           ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.data.questions[]? | {profileQuestionId: (.profileQuestionId // .id), answer: .answer}]')
 
-          echo "QUESTIONS_B:"
-          echo "$QUESTIONS_B" | jq .
-          echo "ANSWERS_B:"
+          echo "ANSWERS_B RAW:"
+          echo "$ANSWERS_B"
+          echo ""
+
+          echo "ANSWERS_B PARSED:"
           echo "$ANSWERS_B" | jq .
+          echo ""
+
           ANSWERS_B_COUNT=$(echo "$ANSWERS_B" | jq 'length')
+
           echo "ANSWERS_B_COUNT: $ANSWERS_B_COUNT"
+          echo ""
+
           if [ "$ANSWERS_B_COUNT" != "3" ]; then
-            echo "ERROR: Expected 3 answers, got $ANSWERS_B_COUNT"
+            echo "ERROR: Expected exactly 3 answers, got $ANSWERS_B_COUNT"
             exit 1
           fi
+
+          echo "=== SUBMIT PAYLOAD ==="
+          echo "{\"answers\": $ANSWERS_B}" | jq .
+          echo ""
 
           SUBMIT_B=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_B" \
             -d "{\"answers\": $ANSWERS_B}")
+
+          echo "=== SUBMIT RESPONSE ==="
+          echo "$SUBMIT_B" | jq .
+          echo ""
 
           if [ -z "$(echo "$SUBMIT_B" | jq -r '.error // empty')" ]; then
             echo "✅ B submitted answers"
