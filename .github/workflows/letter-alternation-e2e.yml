@@ -199,26 +199,53 @@ jobs:
 
           # Step 11: Both users must answer 3 validation questions before sending letters
           echo "=== Step 11: A submits question answers ==="
+
+          # Get debug info about questions
+          echo "=== Step 11.0: Debug match questions ==="
+          DEBUG_QUESTIONS=$(curl -s "$API_URL/test/debug-match-questions?matchId=$MATCH_ID")
+          echo "Debug questions response:"
+          echo "$DEBUG_QUESTIONS" | jq .
+          echo ""
+
+          # Get questions for A
           QUESTIONS_A=$(curl -s "$API_URL/matches/$MATCH_ID/questions" \
             -H "Authorization: Bearer $TOKEN_A")
           echo "Questions response for A:"
           echo "$QUESTIONS_A" | jq .
+          echo ""
 
           # Build answers array using correct answer field from questions
           ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.data.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
+          ANSWERS_A_COUNT=$(echo "$ANSWERS_A" | jq 'length')
+
           echo "Answers to submit for A:"
           echo "$ANSWERS_A" | jq .
+          echo "Answers count: $ANSWERS_A_COUNT (expected: 3)"
+          echo ""
+
+          # Hard fail if answer count is wrong
+          if [ "$ANSWERS_A_COUNT" != "3" ]; then
+            echo "ERROR: Expected 3 answers, got $ANSWERS_A_COUNT"
+            exit 1
+          fi
+
+          # Show full payload being sent
+          PAYLOAD_A="{\"answers\": $ANSWERS_A}"
+          echo "Full payload for A:"
+          echo "$PAYLOAD_A" | jq .
+          echo ""
 
           SUBMIT_A=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_A" \
-            -d "{\"answers\": $ANSWERS_A}")
+            -d "$PAYLOAD_A")
           echo "Answer submission response for A:"
           echo "$SUBMIT_A" | jq .
 
           SUBMIT_A_ERROR=$(echo "$SUBMIT_A" | jq -r '.error // empty')
           if [ -n "$SUBMIT_A_ERROR" ]; then
             echo "ERROR: A should be able to submit answers"
+            echo "Error was: $SUBMIT_A_ERROR"
             exit 1
           fi
           echo "✅ A submitted answers"
@@ -230,21 +257,39 @@ jobs:
             -H "Authorization: Bearer $TOKEN_B")
           echo "Questions response for B:"
           echo "$QUESTIONS_B" | jq .
+          echo ""
 
           ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.data.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
+          ANSWERS_B_COUNT=$(echo "$ANSWERS_B" | jq 'length')
+
           echo "Answers to submit for B:"
           echo "$ANSWERS_B" | jq .
+          echo "Answers count: $ANSWERS_B_COUNT (expected: 3)"
+          echo ""
+
+          # Hard fail if answer count is wrong
+          if [ "$ANSWERS_B_COUNT" != "3" ]; then
+            echo "ERROR: Expected 3 answers, got $ANSWERS_B_COUNT"
+            exit 1
+          fi
+
+          # Show full payload being sent
+          PAYLOAD_B="{\"answers\": $ANSWERS_B}"
+          echo "Full payload for B:"
+          echo "$PAYLOAD_B" | jq .
+          echo ""
 
           SUBMIT_B=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_B" \
-            -d "{\"answers\": $ANSWERS_B}")
+            -d "$PAYLOAD_B")
           echo "Answer submission response for B:"
           echo "$SUBMIT_B" | jq .
 
           SUBMIT_B_ERROR=$(echo "$SUBMIT_B" | jq -r '.error // empty')
           if [ -n "$SUBMIT_B_ERROR" ]; then
             echo "ERROR: B should be able to submit answers"
+            echo "Error was: $SUBMIT_B_ERROR"
             exit 1
           fi
           echo "✅ B submitted answers"
@@ -255,6 +300,15 @@ jobs:
           MATCH_CHECK=$(curl -s "$API_URL/test/debug-match?matchId=$MATCH_ID")
           echo "Match validation check:"
           echo "$MATCH_CHECK" | jq .
+
+          QUESTIONS_VALIDATED=$(echo "$MATCH_CHECK" | jq -r '.match.questionsValidated')
+          echo "questionsValidated: $QUESTIONS_VALIDATED (expected: true)"
+
+          if [ "$QUESTIONS_VALIDATED" != "true" ]; then
+            echo "ERROR: Questions should be validated after submission"
+            exit 1
+          fi
+          echo "✅ Questions are validated"
           echo ""
 
           # Step 13: A sends first letter (MUST SUCCEED - B initiated match, so A is the other user who can respond)
