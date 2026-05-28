@@ -626,6 +626,8 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
       "cmpdrwja80001iy9qc9sb1vkh",
     ];
 
+    console.log(`[cleanup-staging] Looking for orphan profiles: ${orphanProfileIds.join(", ")}`);
+
     const orphanProfiles = await prisma.profile.findMany({
       where: { id: { in: orphanProfileIds } },
       select: { id: true, userId: true },
@@ -636,6 +638,7 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
     console.log(
       `[cleanup-staging] Found ${orphanProfiles.length} orphan discovery profiles`
     );
+    console.log(`[cleanup-staging] Orphan profiles found: ${JSON.stringify(orphanProfiles)}`);
     if (orphanProfileUserIds.length > 0) {
       console.log(
         `[cleanup-staging] Orphan userIds to delete: ${orphanProfileUserIds.join(", ")}`
