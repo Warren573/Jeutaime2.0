@@ -1151,4 +1151,71 @@ const verifyMutualSmileDiscoveryHandler = asyncHandler(async (_req: Request, res
 
 router.get("/verify-mutual-smile-discovery", verifyMutualSmileDiscoveryHandler);
 
+/**
+ * DIAGNOSTIC: Identify the 3 known orphan profiles
+ */
+const identifyOrphanProfilesExactHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  // Known orphan profile IDs
+  const orphanProfileIds = [
+    "cmp6yvp0h000511ip6beq6xqr",
+    "cmp6wyz62000111ip6f7t8uge",
+    "cmpdrwja80001iy9qc9sb1vkh",
+  ];
+
+  try {
+    const profiles = await prisma.profile.findMany({
+      where: { id: { in: orphanProfileIds } },
+      select: {
+        id: true,
+        userId: true,
+        pseudo: true,
+      },
+    });
+
+    const results = await Promise.all(
+      profiles.map(async (profile) => {
+        const user = await prisma.user.findUnique({
+          where: { id: profile.userId },
+          select: {
+            email: true,
+            createdAt: true,
+            settings: { select: { showInDiscovery: true } },
+          },
+        });
+
+        return {
+          profileId: profile.id,
+          userId: profile.userId,
+          email: user?.email,
+          pseudo: profile.pseudo,
+          createdAt: user?.createdAt,
+          showInDiscovery: user?.settings?.showInDiscovery,
+        };
+      })
+    );
+
+    res.json({
+      status: "success",
+      orphanProfiles: results,
+      userIdsToDelete: results.map((r) => r.userId),
+    });
+  } catch (error) {
+    console.error("[test/identify-orphan-exact] Error:", error);
+    res.status(500).json({
+      error: "Failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.get("/identify-orphan-exact", identifyOrphanProfilesExactHandler);
+
 export default router;
