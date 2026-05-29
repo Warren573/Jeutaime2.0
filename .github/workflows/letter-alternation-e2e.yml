@@ -206,7 +206,14 @@ jobs:
           # Step 11: Both users must answer 3 validation questions before sending letters
           echo "=== Step 11: A submits question answers ==="
 
+          echo ""
+          echo "############################################################"
+          echo "############ STEP 11 DEBUG REACHED #########################"
+          echo "############################################################"
+          echo ""
+
           echo "BBBBB_STEP_11_START_BBBBB"
+          echo ""
 
           QUESTIONS_A=$(curl -s "$API_URL/matches/$MATCH_ID/questions" \
             -H "Authorization: Bearer $TOKEN_A")
