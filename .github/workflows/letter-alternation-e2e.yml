@@ -470,29 +470,47 @@ jobs:
           echo "✅ A sent second letter: $LETTER_4_ID"
           echo ""
 
-          # Step 13: B tries to send TWICE (MUST FAIL)
-          echo "=== Step 17: B tries to send TWICE (SHOULD FAIL) ==="
+          # Step 17: B sends after A's response (MUST SUCCEED - it's B's turn)
+          echo "=== Step 17: B sends letter after A's response ==="
           LETTER_5=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_B" \
-            -d "{\"content\":\"B tries to send twice\"}")
+            -d "{\"content\":\"B responds to A's second message\"}")
           echo "Response:"
           echo "$LETTER_5" | jq .
 
           LETTER_5_ID=$(echo "$LETTER_5" | jq -r '.data.id // empty')
-          LETTER_5_ERROR=$(echo "$LETTER_5" | jq -r '.error // empty')
+          if [ -z "$LETTER_5_ID" ] || [ "$LETTER_5_ID" = "null" ]; then
+            echo "ERROR: B should be able to send after A responds"
+            echo "Response: $(echo "$LETTER_5" | jq .)"
+            exit 1
+          fi
+          echo "✅ B sent letter: $LETTER_5_ID"
+          echo ""
 
-          if [ -n "$LETTER_5_ID" ] && [ "$LETTER_5_ID" != "null" ]; then
-            echo "ERROR: B should NOT be able to send twice! Alternation rule broken!"
+          # Step 18: B tries to send TWICE (MUST FAIL - alternation violation)
+          echo "=== Step 18: B tries to send TWICE immediately (SHOULD FAIL) ==="
+          LETTER_6=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"content\":\"B tries to send without waiting for A\"}")
+          echo "Response:"
+          echo "$LETTER_6" | jq .
+
+          LETTER_6_ID=$(echo "$LETTER_6" | jq -r '.data.id // empty')
+          LETTER_6_ERROR=$(echo "$LETTER_6" | jq -r '.error // empty')
+
+          if [ -n "$LETTER_6_ID" ] && [ "$LETTER_6_ID" != "null" ]; then
+            echo "ERROR: B should NOT be able to send twice in a row! Alternation rule broken!"
             exit 1
           fi
 
-          if [ -z "$LETTER_5_ERROR" ]; then
-            echo "ERROR: Expected error response when B sends twice"
+          if [ -z "$LETTER_6_ERROR" ]; then
+            echo "ERROR: Expected error response when B sends twice in a row"
             exit 1
           fi
 
-          echo "✅ B correctly blocked from sending twice"
+          echo "✅ B correctly blocked from sending twice in a row (alternation enforced)"
           echo ""
 
           # Final summary
@@ -506,9 +524,10 @@ jobs:
           echo "  ✅ A blocked from sending twice (alternation enforced)"
           echo "  ✅ B can respond (B's turn)"
           echo "  ✅ A can send after B responds (turn alternated)"
-          echo "  ✅ B blocked from sending twice"
+          echo "  ✅ B can send after A responds (turn alternated)"
+          echo "  ✅ B blocked from sending twice in a row (alternation enforced)"
           echo ""
           echo "All business rules validated:"
           echo "  1. Match acceptance (non-initiator only)"
           echo "  2. Question validation requirement"
-          echo "  3. Letter alternation (turn-by-turn enforcement)"
+          echo "  3. Letter alternation (strict turn-by-turn enforcement)"
