@@ -270,8 +270,8 @@ jobs:
           echo "BBBBB_STEP_11_START_BBBBB"
           echo ""
 
-          QUESTIONS_A=$(curl -s "$API_URL/matches/$MATCH_ID/questions" \
-            -H "Authorization: Bearer $TOKEN_A")
+          # Fetch questions WITH answers from test endpoint (staging only)
+          QUESTIONS_A=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
 
           echo "QUESTIONS_A_RESPONSE_RAW:"
           echo "$QUESTIONS_A"
@@ -285,11 +285,9 @@ jobs:
           echo "QUESTIONS_A_RAW_END"
           echo ""
 
-          # Extract question IDs
-          Q_IDS=$(echo "$QUESTIONS_A" | jq -r '.data.questions[]?.profileQuestionId // .data.questions[]?.id' | tr '\n' '|' | sed 's/|$//')
-
-          # Build answers array with CORRECT ANSWERS from question response
-          ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.data.questions[]? | {profileQuestionId: (.profileQuestionId // .id), answer: .answer}]')
+          # Build answers array with CORRECT ANSWERS from test endpoint
+          # Test endpoint returns: { userA: { questions: [{ profileQuestionId, answer, ... }] } }
+          ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.userA.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
 
           echo "ANSWERS_A_RAW_START"
           echo "$ANSWERS_A"
@@ -335,17 +333,21 @@ jobs:
           # Step 12: B submits question answers
           echo "=== Step 12: B submits question answers ==="
 
+          echo "STEP_12_REACHED"
+          echo ""
           echo "BBBBB_STEP_12_START_BBBBB"
 
-          QUESTIONS_B=$(curl -s "$API_URL/matches/$MATCH_ID/questions" \
-            -H "Authorization: Bearer $TOKEN_B")
+          # Fetch questions WITH answers from test endpoint (staging only)
+          QUESTIONS_B=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
 
           echo "QUESTIONS_B_RAW_START"
           echo "$QUESTIONS_B"
           echo "QUESTIONS_B_RAW_END"
           echo ""
 
-          ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.data.questions[]? | {profileQuestionId: (.profileQuestionId // .id), answer: .answer}]')
+          # Build answers array with CORRECT ANSWERS from test endpoint
+          # Test endpoint returns: { userB: { questions: [{ profileQuestionId, answer, ... }] } }
+          ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.userB.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
 
           echo "ANSWERS_B_RAW_START"
           echo "$ANSWERS_B"
