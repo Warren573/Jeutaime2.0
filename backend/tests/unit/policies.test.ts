@@ -23,10 +23,16 @@ describe("letterAlternation", () => {
     ).toBe(true);
   });
 
-  it("l'autre ne peut PAS envoyer la première lettre", () => {
+  it("l'autre PEUT envoyer la première lettre (règle modifiée)", () => {
     expect(
       canSendLetter({ lastLetterBy: null, senderId: otherId, initiatorId }),
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it("n'importe qui peut envoyer première lettre (questionsValidated après)", () => {
+    expect(
+      canSendLetter({ lastLetterBy: null, senderId: "user-X", initiatorId }),
+    ).toBe(true);
   });
 
   it("après lettre de A, B peut répondre", () => {

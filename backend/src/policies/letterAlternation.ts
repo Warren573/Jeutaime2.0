@@ -13,7 +13,7 @@ export interface AlternationContext {
  * Vérifie si l'expéditeur peut envoyer la prochaine lettre.
  *
  * Règles :
- * - Aucune lettre encore : seul l'initiateur peut envoyer
+ * - Aucune lettre encore : n'IMPORTE QUI peut envoyer (après validation questions)
  * - Dernière lettre envoyée par A → B doit répondre (et vice-versa)
  * - Impossible d'envoyer deux fois de suite
  *
@@ -21,21 +21,12 @@ export interface AlternationContext {
  */
 export function assertCanSendLetter(ctx: AlternationContext): void {
   if (ctx.lastLetterBy === null) {
-    // Première lettre : seul l'initiateur
-    if (ctx.senderId !== ctx.initiatorId) {
-      console.log("[assertCanSendLetter] FIRST LETTER REJECTED:", {
-        reason: "senderId !== initiatorId",
-        senderId: ctx.senderId,
-        initiatorId: ctx.initiatorId,
-        lastLetterBy: ctx.lastLetterBy,
-      });
-      throw new LetterAlternationError();
-    }
-    console.log("[assertCanSendLetter] FIRST LETTER ALLOWED (sender is initiator)");
+    // Première lettre : n'IMPORTE QUI peut envoyer (questionsValidated = true doit être vérifié par appelant)
+    console.log("[assertCanSendLetter] FIRST LETTER ALLOWED (questionsValidated should be checked by caller)");
     return;
   }
 
-  // Alternation stricte
+  // Alternation stricte : pas deux fois de suite
   if (ctx.lastLetterBy === ctx.senderId) {
     console.log("[assertCanSendLetter] ALTERNATION VIOLATION REJECTED:", {
       reason: "Trying to send twice in a row",
