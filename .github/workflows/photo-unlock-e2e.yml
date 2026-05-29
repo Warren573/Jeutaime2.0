@@ -1,0 +1,352 @@
+name: Photo Unlock E2E Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-photo-unlock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test photo unlock progression
+        run: |
+          set -e
+
+          API_URL="https://jeutaime-staging.onrender.com/api"
+          echo "=== Photo Unlock E2E Test ==="
+          echo "API_URL: $API_URL"
+          echo ""
+
+          # Version Check: Prove which commit is deployed
+          echo "=== Version Check: Verify deployed commit ==="
+          VERSION=$(curl -s "$API_URL/test/version")
+          echo "Deployed version:"
+          echo "$VERSION" | jq .
+          DEPLOYED_COMMIT=$(echo "$VERSION" | jq -r '.commit')
+          ENVIRONMENT=$(echo "$VERSION" | jq -r '.environment')
+          echo "Environment: $ENVIRONMENT"
+          echo "Deployed commit: $DEPLOYED_COMMIT"
+          echo ""
+
+          # Step 0: Cleanup staging data
+          echo "=== Step 0: Cleanup staging debug data ==="
+          CLEANUP=$(curl -s -X POST "$API_URL/test/cleanup-staging-debug-data" \
+            -H "Content-Type: application/json")
+          echo "Cleanup response:"
+          echo "$CLEANUP" | jq .
+          echo ""
+
+          # Step 1: Reset mutual smile
+          echo "=== Step 1: Reset mutual smile ==="
+          RESET=$(curl -s -X POST "$API_URL/test/reset-mutual-smile" \
+            -H "Content-Type: application/json")
+          echo "Response:"
+          echo "$RESET" | jq .
+          echo ""
+
+          EMAIL_A=$(echo "$RESET" | jq -r '.accountA.email')
+          PASSWORD_A=$(echo "$RESET" | jq -r '.accountA.password')
+          USER_ID_A=$(echo "$RESET" | jq -r '.accountA.userId')
+
+          EMAIL_B=$(echo "$RESET" | jq -r '.accountB.email')
+          PASSWORD_B=$(echo "$RESET" | jq -r '.accountB.password')
+          USER_ID_B=$(echo "$RESET" | jq -r '.accountB.userId')
+
+          echo "Account A: $EMAIL_A (userId: $USER_ID_A)"
+          echo "Account B: $EMAIL_B (userId: $USER_ID_B)"
+          echo ""
+
+          # Step 2: Login A
+          echo "=== Step 2: Login A ==="
+          LOGIN_A=$(curl -s -X POST "$API_URL/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL_A\",\"password\":\"$PASSWORD_A\"}")
+          echo "Response:"
+          echo "$LOGIN_A" | jq .
+          echo ""
+
+          TOKEN_A=$(echo "$LOGIN_A" | jq -r '.data.accessToken // .accessToken // empty')
+          if [ -z "$TOKEN_A" ] || [ "$TOKEN_A" = "null" ]; then
+            echo "ERROR: Failed to get token for A"
+            exit 1
+          fi
+          echo "Token A acquired"
+          echo ""
+
+          # Step 3: Login B
+          echo "=== Step 3: Login B ==="
+          LOGIN_B=$(curl -s -X POST "$API_URL/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL_B\",\"password\":\"$PASSWORD_B\"}")
+          echo "Response:"
+          echo "$LOGIN_B" | jq .
+          echo ""
+
+          TOKEN_B=$(echo "$LOGIN_B" | jq -r '.data.accessToken // .accessToken // empty')
+          if [ -z "$TOKEN_B" ] || [ "$TOKEN_B" = "null" ]; then
+            echo "ERROR: Failed to get token for B"
+            exit 1
+          fi
+          echo "Token B acquired"
+          echo ""
+
+          # Step 4: Discovery - A sees B
+          echo "=== Step 4: Discovery - A should see B ==="
+          DISCOVERY_A=$(curl -s "$API_URL/profiles?pageSize=50" \
+            -H "Authorization: Bearer $TOKEN_A")
+          DISCOVERY_A_COUNT=$(echo "$DISCOVERY_A" | jq '.data | length')
+          DISCOVERY_A_HAS_B=$(echo "$DISCOVERY_A" | jq ".data[] | select(.userId == \"$USER_ID_B\") | .userId" | grep -q "$USER_ID_B" && echo "true" || echo "false")
+
+          echo "Discovery A count: $DISCOVERY_A_COUNT"
+          echo "Has B: $DISCOVERY_A_HAS_B"
+          echo ""
+
+          if [ "$DISCOVERY_A_COUNT" != "1" ]; then
+            echo "ERROR: Discovery A count should be 1, got $DISCOVERY_A_COUNT"
+            exit 1
+          fi
+
+          if [ "$DISCOVERY_A_HAS_B" != "true" ]; then
+            echo "ERROR: Account A cannot see Account B in discovery"
+            exit 1
+          fi
+
+          # Step 5: Discovery - B sees A
+          echo "=== Step 5: Discovery - B should see A ==="
+          DISCOVERY_B=$(curl -s "$API_URL/profiles?pageSize=50" \
+            -H "Authorization: Bearer $TOKEN_B")
+          DISCOVERY_B_COUNT=$(echo "$DISCOVERY_B" | jq '.data | length')
+          DISCOVERY_B_HAS_A=$(echo "$DISCOVERY_B" | jq ".data[] | select(.userId == \"$USER_ID_A\") | .userId" | grep -q "$USER_ID_A" && echo "true" || echo "false")
+
+          echo "Discovery B count: $DISCOVERY_B_COUNT"
+          echo "Has A: $DISCOVERY_B_HAS_A"
+          echo ""
+
+          if [ "$DISCOVERY_B_COUNT" != "1" ]; then
+            echo "ERROR: Discovery B count should be 1, got $DISCOVERY_B_COUNT"
+            exit 1
+          fi
+
+          if [ "$DISCOVERY_B_HAS_A" != "true" ]; then
+            echo "ERROR: Account B cannot see Account A in discovery"
+            exit 1
+          fi
+
+          # Step 6: A smiles at B
+          echo "=== Step 6: A smiles at B ==="
+          SMILE_A=$(curl -s -X POST "$API_URL/discover/react" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"toId\":\"$USER_ID_B\",\"type\":\"SMILE\"}")
+          echo "Response:"
+          echo "$SMILE_A" | jq .
+          echo ""
+
+          # Step 7: B smiles at A (mutual)
+          echo "=== Step 7: B smiles at A (mutual) ==="
+          SMILE_B=$(curl -s -X POST "$API_URL/discover/react" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"toId\":\"$USER_ID_A\",\"type\":\"SMILE\"}")
+          echo "Response:"
+          echo "$SMILE_B" | jq .
+
+          MATCH_ID=$(echo "$SMILE_B" | jq -r '.data.matchId // .matchId // empty')
+          if [ -z "$MATCH_ID" ] || [ "$MATCH_ID" = "null" ]; then
+            echo "ERROR: Match ID missing after mutual smile"
+            exit 1
+          fi
+
+          echo "Match created: $MATCH_ID"
+          echo ""
+
+          # Step 8: A accepts the match
+          echo "=== Step 8: A accepts the match ==="
+          ACCEPT=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/accept" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Response:"
+          echo "$ACCEPT" | jq .
+          echo ""
+
+          # Step 9: A submits question answers
+          echo "=== Step 9: A submits question answers ==="
+          QUESTIONS_A=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
+          ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.userB.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
+
+          SUBMIT_A=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"answers\": $ANSWERS_A}")
+          echo "Response:"
+          echo "$SUBMIT_A" | jq .
+          echo ""
+
+          # Step 10: B submits question answers
+          echo "=== Step 10: B submits question answers ==="
+          QUESTIONS_B=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
+          ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.userA.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
+
+          SUBMIT_B=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"answers\": $ANSWERS_B}")
+          echo "Response:"
+          echo "$SUBMIT_B" | jq .
+          echo ""
+
+          # ============================================================
+          # PHOTO UNLOCK TESTS
+          # ============================================================
+
+          echo "=== Photo Unlock Progression Tests ==="
+          echo "Setup complete. Starting letter exchange to test photo unlock..."
+          echo ""
+
+          # Helper function to check photo unlock level
+          check_photo_unlock() {
+            local step=$1
+            local token=$2
+            local expected_level=$3
+            local expected_total=$4
+            local user=$5
+
+            MATCH_INFO=$(curl -s "$API_URL/matches/$MATCH_ID" \
+              -H "Authorization: Bearer $token")
+
+            LEVEL=$(echo "$MATCH_INFO" | jq '.data.photoUnlock.level')
+            TOTAL=$(echo "$MATCH_INFO" | jq '.data.photoUnlock.totalLetters')
+            NEXT=$(echo "$MATCH_INFO" | jq '.data.photoUnlock.nextLevelAt')
+            PROGRESS=$(echo "$MATCH_INFO" | jq '.data.photoUnlock.progressPercent')
+
+            echo "Step $step ($user):"
+            echo "  letterCount: $TOTAL (expected: $expected_total)"
+            echo "  photoUnlock.level: $LEVEL (expected: $expected_level)"
+            echo "  nextLevelAt: $NEXT"
+            echo "  progressPercent: $PROGRESS%"
+
+            if [ "$LEVEL" != "$expected_level" ]; then
+              echo "  ❌ ERROR: Expected level $expected_level, got $LEVEL at total=$TOTAL letters"
+              echo "  Full response:"
+              echo "$MATCH_INFO" | jq '.data.photoUnlock'
+              exit 1
+            fi
+
+            if [ "$TOTAL" != "$expected_total" ]; then
+              echo "  ❌ ERROR: Expected total $expected_total, got $TOTAL letters"
+              exit 1
+            fi
+
+            echo "  ✅ PASS"
+            echo ""
+          }
+
+          # Initial state: 0 letters, level 0
+          echo "--- Initial State: 0 letters, Level 0 ---"
+          check_photo_unlock "INIT" "$TOKEN_A" "0" "0" "A"
+
+          # Send letters up to 10 total
+          echo "--- Phase 1: Build to 3 letters (Level 1) ---"
+
+          # Letter 1: A sends
+          echo "Letter 1: A sends to B"
+          LETTER_1=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"content\":\"First message from A (1/10)\"}")
+          echo "Response:"
+          echo "$LETTER_1" | jq .
+          check_photo_unlock "1A" "$TOKEN_A" "0" "1" "A"
+
+          # Letter 2: B sends
+          echo "Letter 2: B sends to A"
+          LETTER_2=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"content\":\"First message from B (2/10)\"}")
+          echo "Response:"
+          echo "$LETTER_2" | jq .
+          check_photo_unlock "2B" "$TOKEN_B" "0" "2" "B"
+
+          # Letter 3: A sends → REACH LEVEL 1
+          echo "Letter 3: A sends to B → Should reach Level 1"
+          LETTER_3=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"content\":\"Second message from A (3/10)\"}")
+          echo "Response:"
+          echo "$LETTER_3" | jq .
+          check_photo_unlock "3A-LEVEL1" "$TOKEN_A" "1" "3" "A"
+
+          echo "--- Phase 2: Build to 6 letters (Level 2) ---"
+
+          # Letter 4: B sends
+          echo "Letter 4: B sends to A"
+          LETTER_4=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"content\":\"Second message from B (4/10)\"}")
+          check_photo_unlock "4B" "$TOKEN_B" "1" "4" "B"
+
+          # Letter 5: A sends
+          echo "Letter 5: A sends to B"
+          LETTER_5=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"content\":\"Third message from A (5/10)\"}")
+          check_photo_unlock "5A" "$TOKEN_A" "1" "5" "A"
+
+          # Letter 6: B sends → REACH LEVEL 2
+          echo "Letter 6: B sends to A → Should reach Level 2"
+          LETTER_6=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"content\":\"Third message from B (6/10)\"}")
+          check_photo_unlock "6B-LEVEL2" "$TOKEN_B" "2" "6" "B"
+
+          echo "--- Phase 3: Build to 10 letters (Level 3) ---"
+
+          # Letter 7: A sends
+          echo "Letter 7: A sends to B"
+          LETTER_7=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"content\":\"Fourth message from A (7/10)\"}")
+          check_photo_unlock "7A" "$TOKEN_A" "2" "7" "A"
+
+          # Letter 8: B sends
+          echo "Letter 8: B sends to A"
+          LETTER_8=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"content\":\"Fourth message from B (8/10)\"}")
+          check_photo_unlock "8B" "$TOKEN_B" "2" "8" "B"
+
+          # Letter 9: A sends
+          echo "Letter 9: A sends to B"
+          LETTER_9=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"content\":\"Fifth message from A (9/10)\"}")
+          check_photo_unlock "9A" "$TOKEN_A" "2" "9" "A"
+
+          # Letter 10: B sends → REACH LEVEL 3
+          echo "Letter 10: B sends to A → Should reach Level 3 (FULLY UNLOCKED)"
+          LETTER_10=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"content\":\"Fifth message from B (10/10)\"}")
+          check_photo_unlock "10B-LEVEL3" "$TOKEN_B" "3" "10" "B"
+
+          # Final verification from A
+          echo "--- Final Verification: A checks Level 3 ---"
+          check_photo_unlock "FINAL-A" "$TOKEN_A" "3" "10" "A"
+
+          # Final summary
+          echo "=== ✅ SUCCESS: PHOTO UNLOCK PROGRESSION WORKING ==="
+          echo "Test Results:"
+          echo "  ✅ Level 0 @ 0 letters (initial)"
+          echo "  ✅ Level 1 @ 3 letters (silhouette unlocked)"
+          echo "  ✅ Level 2 @ 6 letters (slight blur unlocked)"
+          echo "  ✅ Level 3 @ 10 letters (full photo unlocked)"
+          echo ""
+          echo "All photo unlock thresholds validated ✓"
