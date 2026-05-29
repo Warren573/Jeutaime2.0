@@ -1890,7 +1890,7 @@ const debugMatchHandler = asyncHandler(async (req: Request, res: Response) => {
 router.get("/debug-match", debugMatchHandler);
 
 // Test endpoint: Get match questions WITH correct answers (staging/test only)
-router.get("/match-questions/:matchId", async (req: Request, res: Response) => {
+router.get("/match-questions", async (req: Request, res: Response) => {
   const nodeEnv = process.env.NODE_ENV || "development";
   const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
   const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
