@@ -1,0 +1,472 @@
+name: Premium / Wallet E2E Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-premium-wallet:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test Premium & Wallet system
+        run: |
+          set -e
+
+          API_URL="https://jeutaime-staging.onrender.com/api"
+          echo "=== Premium / Wallet E2E Test ==="
+          echo "API_URL: $API_URL"
+          echo ""
+
+          # Version Check: Prove which commit is deployed
+          echo "=== Version Check: Verify deployed commit ==="
+          VERSION=$(curl -s "$API_URL/test/version")
+          echo "Deployed version:"
+          echo "$VERSION" | jq .
+          DEPLOYED_COMMIT=$(echo "$VERSION" | jq -r '.commit')
+          ENVIRONMENT=$(echo "$VERSION" | jq -r '.environment')
+          echo "Environment: $ENVIRONMENT"
+          echo "Deployed commit: $DEPLOYED_COMMIT"
+          echo ""
+
+          # Step 0: Cleanup staging data
+          echo "=== Step 0: Cleanup staging debug data ==="
+          CLEANUP=$(curl -s -X POST "$API_URL/test/cleanup-staging-debug-data" \
+            -H "Content-Type: application/json")
+          echo "Cleanup response:"
+          echo "$CLEANUP" | jq .
+          echo ""
+
+          # Step 1: Reset mutual smile (create two test accounts with 100 coins each)
+          echo "=== Step 1: Reset mutual smile ==="
+          RESET=$(curl -s -X POST "$API_URL/test/reset-mutual-smile" \
+            -H "Content-Type: application/json")
+          echo "Response:"
+          echo "$RESET" | jq .
+          echo ""
+
+          EMAIL_A=$(echo "$RESET" | jq -r '.accountA.email')
+          PASSWORD_A=$(echo "$RESET" | jq -r '.accountA.password')
+          USER_ID_A=$(echo "$RESET" | jq -r '.accountA.userId')
+
+          EMAIL_B=$(echo "$RESET" | jq -r '.accountB.email')
+          PASSWORD_B=$(echo "$RESET" | jq -r '.accountB.password')
+          USER_ID_B=$(echo "$RESET" | jq -r '.accountB.userId')
+
+          echo "Account A: $EMAIL_A (userId: $USER_ID_A)"
+          echo "Account B: $EMAIL_B (userId: $USER_ID_B)"
+          echo ""
+
+          # Step 2: Login A
+          echo "=== Step 2: Login A ==="
+          LOGIN_A=$(curl -s -X POST "$API_URL/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL_A\",\"password\":\"$PASSWORD_A\"}")
+          echo "Response:"
+          echo "$LOGIN_A" | jq .
+          echo ""
+
+          TOKEN_A=$(echo "$LOGIN_A" | jq -r '.data.accessToken // .accessToken // empty')
+          if [ -z "$TOKEN_A" ] || [ "$TOKEN_A" = "null" ]; then
+            echo "ERROR: Failed to get token for A"
+            exit 1
+          fi
+          echo "✅ Token A acquired"
+          echo ""
+
+          # Step 3: Login B
+          echo "=== Step 3: Login B ==="
+          LOGIN_B=$(curl -s -X POST "$API_URL/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL_B\",\"password\":\"$PASSWORD_B\"}")
+          echo "Response:"
+          echo "$LOGIN_B" | jq .
+          echo ""
+
+          TOKEN_B=$(echo "$LOGIN_B" | jq -r '.data.accessToken // .accessToken // empty')
+          if [ -z "$TOKEN_B" ] || [ "$TOKEN_B" = "null" ]; then
+            echo "ERROR: Failed to get token for B"
+            exit 1
+          fi
+          echo "✅ Token B acquired"
+          echo ""
+
+          # ============================================================
+          # WALLET TESTS
+          # ============================================================
+
+          echo "=== WALLET TESTS ==="
+          echo ""
+
+          # Step 4: Verify initial wallet state (100 coins)
+          echo "=== Step 4: Get wallet A (initial state) ==="
+          WALLET_A=$(curl -s "$API_URL/wallet/me" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Response:"
+          echo "$WALLET_A" | jq .
+          echo ""
+
+          COINS_INITIAL=$(echo "$WALLET_A" | jq -r '.data.coins')
+          LAST_BONUS=$(echo "$WALLET_A" | jq -r '.data.lastDailyBonus')
+
+          echo "Initial coins: $COINS_INITIAL (expected: 100)"
+          echo "lastDailyBonus: $LAST_BONUS (expected: null)"
+
+          if [ "$COINS_INITIAL" != "100" ]; then
+            echo "❌ ERROR: Initial coins should be 100, got $COINS_INITIAL"
+            exit 1
+          fi
+
+          echo "✅ Wallet initialized correctly"
+          echo ""
+
+          # Step 5: Claim daily bonus (FREE user - 20 coins)
+          echo "=== Step 5: Claim daily bonus as FREE user ==="
+          BONUS_1=$(curl -s -X POST "$API_URL/wallet/me/daily-bonus" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Response:"
+          echo "$BONUS_1" | jq .
+          echo ""
+
+          BONUS_AMOUNT=$(echo "$BONUS_1" | jq -r '.data.amount')
+          COINS_AFTER_BONUS=$(echo "$BONUS_1" | jq -r '.data.wallet.coins')
+          BONUS_TXN_TYPE=$(echo "$BONUS_1" | jq -r '.data.transaction.type')
+          BONUS_TXN_AMOUNT=$(echo "$BONUS_1" | jq -r '.data.transaction.amount')
+
+          echo "Bonus amount: $BONUS_AMOUNT (expected: 20)"
+          echo "Coins after bonus: $COINS_AFTER_BONUS (expected: 120)"
+          echo "Transaction type: $BONUS_TXN_TYPE (expected: DAILY_BONUS)"
+          echo "Transaction amount: $BONUS_TXN_AMOUNT (expected: 20)"
+
+          if [ "$BONUS_AMOUNT" != "20" ]; then
+            echo "❌ ERROR: FREE user daily bonus should be 20, got $BONUS_AMOUNT"
+            exit 1
+          fi
+
+          if [ "$COINS_AFTER_BONUS" != "120" ]; then
+            echo "❌ ERROR: Coins after bonus should be 120, got $COINS_AFTER_BONUS"
+            exit 1
+          fi
+
+          if [ "$BONUS_TXN_TYPE" != "DAILY_BONUS" ]; then
+            echo "❌ ERROR: Transaction type should be DAILY_BONUS, got $BONUS_TXN_TYPE"
+            exit 1
+          fi
+
+          echo "✅ Daily bonus claimed correctly (FREE: 20 coins)"
+          echo ""
+
+          # Step 6: Try to claim bonus again (should fail - same UTC day)
+          echo "=== Step 6: Try to claim bonus again (same UTC day) ==="
+          BONUS_DUPLICATE=$(curl -s -X POST "$API_URL/wallet/me/daily-bonus" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Response:"
+          echo "$BONUS_DUPLICATE" | jq .
+          echo ""
+
+          BONUS_ERROR=$(echo "$BONUS_DUPLICATE" | jq -r '.error // empty')
+          if [ -z "$BONUS_ERROR" ] || [ "$BONUS_ERROR" = "null" ]; then
+            echo "❌ ERROR: Should not allow duplicate bonus claim same day"
+            exit 1
+          fi
+
+          echo "✅ Duplicate bonus correctly rejected"
+          echo ""
+
+          # ============================================================
+          # PREMIUM TESTS
+          # ============================================================
+
+          echo "=== PREMIUM TESTS ==="
+          echo ""
+
+          # Step 7: Get premium plans
+          echo "=== Step 7: Get premium plans ==="
+          PLANS=$(curl -s "$API_URL/premium/plans" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Response:"
+          echo "$PLANS" | jq .
+          echo ""
+
+          PLAN_COUNT=$(echo "$PLANS" | jq '.data | length')
+          if [ "$PLAN_COUNT" != "3" ]; then
+            echo "❌ ERROR: Should have 3 plans, got $PLAN_COUNT"
+            exit 1
+          fi
+
+          echo "✅ Plans available: $PLAN_COUNT (monthly, quarterly, yearly)"
+          echo ""
+
+          # Step 8: Check premium status (should be FREE)
+          echo "=== Step 8: Check premium status (before subscription) ==="
+          STATUS_BEFORE=$(curl -s "$API_URL/premium/me" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Response:"
+          echo "$STATUS_BEFORE" | jq .
+          echo ""
+
+          TIER_BEFORE=$(echo "$STATUS_BEFORE" | jq -r '.data.tier')
+          ACTIVE_BEFORE=$(echo "$STATUS_BEFORE" | jq -r '.data.active')
+
+          echo "Tier: $TIER_BEFORE (expected: FREE)"
+          echo "Active: $ACTIVE_BEFORE (expected: false)"
+
+          if [ "$TIER_BEFORE" != "FREE" ] || [ "$ACTIVE_BEFORE" != "false" ]; then
+            echo "❌ ERROR: Should be FREE/inactive before subscription"
+            exit 1
+          fi
+
+          echo "✅ Premium status correct (FREE, inactive)"
+          echo ""
+
+          # Step 9: Try to subscribe without enough coins (should fail)
+          echo "=== Step 9: Try subscribe with insufficient coins (should fail) ==="
+          SUB_INSUFFICIENT=$(curl -s -X POST "$API_URL/premium/subscribe" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"planId\":\"monthly\",\"paymentMethod\":\"coins\"}")
+          echo "Response:"
+          echo "$SUB_INSUFFICIENT" | jq .
+          echo ""
+
+          SUB_ERROR=$(echo "$SUB_INSUFFICIENT" | jq -r '.error // empty')
+          if [ -z "$SUB_ERROR" ] || [ "$SUB_ERROR" = "null" ]; then
+            echo "❌ ERROR: Should fail with insufficient coins"
+            exit 1
+          fi
+
+          echo "✅ Insufficient coins error correctly returned"
+          echo ""
+
+          # Step 10: Set wallet coins to allow monthly subscription (500 coins needed)
+          echo "=== Step 10: Set wallet A to 600 coins (for monthly subscription) ==="
+          SET_COINS=$(curl -s -X POST "$API_URL/test/set-wallet-coins" \
+            -H "Content-Type: application/json" \
+            -d "{\"userId\":\"$USER_ID_A\",\"coins\":600}")
+          echo "Response:"
+          echo "$SET_COINS" | jq .
+          echo ""
+
+          SET_COINS_SUCCESS=$(echo "$SET_COINS" | jq -r '.success')
+          SET_COINS_VALUE=$(echo "$SET_COINS" | jq -r '.coins')
+
+          if [ "$SET_COINS_SUCCESS" != "true" ] || [ "$SET_COINS_VALUE" != "600" ]; then
+            echo "❌ ERROR: Failed to set wallet coins"
+            exit 1
+          fi
+
+          echo "✅ Wallet coins set to 600"
+          echo ""
+
+          # Step 11: Subscribe to monthly premium (500 coins)
+          echo "=== Step 11: Subscribe to monthly premium ==="
+          SUB_MONTHLY=$(curl -s -X POST "$API_URL/premium/subscribe" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"planId\":\"monthly\",\"paymentMethod\":\"coins\"}")
+          echo "Response:"
+          echo "$SUB_MONTHLY" | jq .
+          echo ""
+
+          SUB_TIER=$(echo "$SUB_MONTHLY" | jq -r '.data.status.tier')
+          SUB_ACTIVE=$(echo "$SUB_MONTHLY" | jq -r '.data.status.active')
+          SUB_COINS_SPENT=$(echo "$SUB_MONTHLY" | jq -r '.data.coinsSpent')
+          SUB_PLAN=$(echo "$SUB_MONTHLY" | jq -r '.data.plan.id')
+          SUB_PAYMENT=$(echo "$SUB_MONTHLY" | jq -r '.data.paymentMethod')
+
+          echo "Status tier: $SUB_TIER (expected: PREMIUM)"
+          echo "Status active: $SUB_ACTIVE (expected: true)"
+          echo "Coins spent: $SUB_COINS_SPENT (expected: 500)"
+          echo "Plan: $SUB_PLAN (expected: monthly)"
+          echo "Payment method: $SUB_PAYMENT (expected: coins)"
+
+          if [ "$SUB_TIER" != "PREMIUM" ] || [ "$SUB_ACTIVE" != "true" ]; then
+            echo "❌ ERROR: Should be PREMIUM/active after subscription"
+            exit 1
+          fi
+
+          if [ "$SUB_COINS_SPENT" != "500" ]; then
+            echo "❌ ERROR: Should spend 500 coins, got $SUB_COINS_SPENT"
+            exit 1
+          fi
+
+          echo "✅ Monthly premium subscription successful"
+          echo ""
+
+          # Step 12: Verify wallet coins decreased (600 - 500 = 100)
+          echo "=== Step 12: Verify wallet coins after subscription ==="
+          WALLET_AFTER_SUB=$(curl -s "$API_URL/wallet/me" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Response:"
+          echo "$WALLET_AFTER_SUB" | jq .
+          echo ""
+
+          COINS_AFTER_SUB=$(echo "$WALLET_AFTER_SUB" | jq -r '.data.coins')
+          echo "Coins after subscription: $COINS_AFTER_SUB (expected: 100)"
+
+          if [ "$COINS_AFTER_SUB" != "100" ]; then
+            echo "❌ ERROR: Coins should be 100 after 500 coin debit, got $COINS_AFTER_SUB"
+            exit 1
+          fi
+
+          echo "✅ Wallet coins correctly debited (600 - 500 = 100)"
+          echo ""
+
+          # Step 13: Reset lastDailyBonus to allow immediate bonus claim (test next UTC day scenario)
+          echo "=== Step 13: Reset lastDailyBonus (simulate next UTC day) ==="
+          RESET_BONUS=$(curl -s -X POST "$API_URL/test/set-wallet-lastbonus" \
+            -H "Content-Type: application/json" \
+            -d "{\"userId\":\"$USER_ID_A\",\"lastBonusAt\":null}")
+          echo "Response:"
+          echo "$RESET_BONUS" | jq .
+          echo ""
+
+          RESET_SUCCESS=$(echo "$RESET_BONUS" | jq -r '.success')
+          if [ "$RESET_SUCCESS" != "true" ]; then
+            echo "❌ ERROR: Failed to reset lastDailyBonus"
+            exit 1
+          fi
+
+          echo "✅ lastDailyBonus reset (can claim again)"
+          echo ""
+
+          # Step 14: Claim daily bonus as PREMIUM user (50 coins)
+          echo "=== Step 14: Claim daily bonus as PREMIUM user ==="
+          BONUS_PREMIUM=$(curl -s -X POST "$API_URL/wallet/me/daily-bonus" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Response:"
+          echo "$BONUS_PREMIUM" | jq .
+          echo ""
+
+          BONUS_PREMIUM_AMOUNT=$(echo "$BONUS_PREMIUM" | jq -r '.data.amount')
+          COINS_AFTER_PREMIUM_BONUS=$(echo "$BONUS_PREMIUM" | jq -r '.data.wallet.coins')
+          PREMIUM_BONUS_IS_PREMIUM=$(echo "$BONUS_PREMIUM" | jq -r '.data.transaction.meta.isPremium')
+
+          echo "Bonus amount: $BONUS_PREMIUM_AMOUNT (expected: 50)"
+          echo "Coins after bonus: $COINS_AFTER_PREMIUM_BONUS (expected: 150)"
+          echo "Is premium: $PREMIUM_BONUS_IS_PREMIUM (expected: true)"
+
+          if [ "$BONUS_PREMIUM_AMOUNT" != "50" ]; then
+            echo "❌ ERROR: PREMIUM user daily bonus should be 50, got $BONUS_PREMIUM_AMOUNT"
+            exit 1
+          fi
+
+          if [ "$COINS_AFTER_PREMIUM_BONUS" != "150" ]; then
+            echo "❌ ERROR: Coins after premium bonus should be 150, got $COINS_AFTER_PREMIUM_BONUS"
+            exit 1
+          fi
+
+          echo "✅ PREMIUM daily bonus correct (50 coins)"
+          echo ""
+
+          # Step 15: Check transaction history (should have 3 transactions)
+          echo "=== Step 15: Check transaction history ==="
+          TXNS=$(curl -s "$API_URL/wallet/me/transactions?page=1&pageSize=10" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Response:"
+          echo "$TXNS" | jq .
+          echo ""
+
+          TXN_COUNT=$(echo "$TXNS" | jq '.data | length')
+          echo "Transaction count: $TXN_COUNT (expected: 3)"
+
+          # Verify each transaction
+          TXN_0_TYPE=$(echo "$TXNS" | jq -r '.data[0].type')
+          TXN_0_AMOUNT=$(echo "$TXNS" | jq -r '.data[0].amount')
+          TXN_1_TYPE=$(echo "$TXNS" | jq -r '.data[1].type')
+          TXN_1_AMOUNT=$(echo "$TXNS" | jq -r '.data[1].amount')
+          TXN_2_TYPE=$(echo "$TXNS" | jq -r '.data[2].type')
+          TXN_2_AMOUNT=$(echo "$TXNS" | jq -r '.data[2].amount')
+
+          echo "Transaction 0 (most recent): type=$TXN_0_TYPE, amount=$TXN_0_AMOUNT (expected: DAILY_BONUS, 50)"
+          echo "Transaction 1: type=$TXN_1_TYPE, amount=$TXN_1_AMOUNT (expected: PREMIUM_PURCHASE, -500)"
+          echo "Transaction 2: type=$TXN_2_TYPE, amount=$TXN_2_AMOUNT (expected: DAILY_BONUS, 20)"
+
+          if [ "$TXN_0_TYPE" != "DAILY_BONUS" ] || [ "$TXN_0_AMOUNT" != "50" ]; then
+            echo "❌ ERROR: First transaction should be DAILY_BONUS 50"
+            exit 1
+          fi
+
+          if [ "$TXN_1_TYPE" != "PREMIUM_PURCHASE" ] || [ "$TXN_1_AMOUNT" != "-500" ]; then
+            echo "❌ ERROR: Second transaction should be PREMIUM_PURCHASE -500"
+            exit 1
+          fi
+
+          if [ "$TXN_2_TYPE" != "DAILY_BONUS" ] || [ "$TXN_2_AMOUNT" != "20" ]; then
+            echo "❌ ERROR: Third transaction should be DAILY_BONUS 20"
+            exit 1
+          fi
+
+          echo "✅ Transaction history correct (3 transactions in order)"
+          echo ""
+
+          # Step 16: Verify transaction balance progression
+          echo "=== Step 16: Verify transaction balance progression ==="
+          TXN_2_BALANCE=$(echo "$TXNS" | jq -r '.data[2].balance')
+          TXN_1_BALANCE=$(echo "$TXNS" | jq -r '.data[1].balance')
+          TXN_0_BALANCE=$(echo "$TXNS" | jq -r '.data[0].balance')
+
+          echo "Transaction 2 balance: $TXN_2_BALANCE (expected: 120 after +20)"
+          echo "Transaction 1 balance: $TXN_1_BALANCE (expected: 100 after -500)"
+          echo "Transaction 0 balance: $TXN_0_BALANCE (expected: 150 after +50)"
+
+          if [ "$TXN_2_BALANCE" != "120" ] || [ "$TXN_1_BALANCE" != "100" ] || [ "$TXN_0_BALANCE" != "150" ]; then
+            echo "❌ ERROR: Balance progression incorrect"
+            exit 1
+          fi
+
+          echo "✅ Balance progression correct (100→120→100→150)"
+          echo ""
+
+          # Step 17: Cancel premium subscription
+          echo "=== Step 17: Cancel premium subscription ==="
+          CANCEL=$(curl -s -X POST "$API_URL/premium/cancel" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Response:"
+          echo "$CANCEL" | jq .
+          echo ""
+
+          CANCEL_TIER=$(echo "$CANCEL" | jq -r '.data.tier')
+          CANCEL_ACTIVE=$(echo "$CANCEL" | jq -r '.data.active')
+
+          echo "Tier after cancel: $CANCEL_TIER (expected: FREE)"
+          echo "Active after cancel: $CANCEL_ACTIVE (expected: false)"
+
+          if [ "$CANCEL_TIER" != "FREE" ] || [ "$CANCEL_ACTIVE" != "false" ]; then
+            echo "❌ ERROR: Should be FREE/inactive after cancel"
+            exit 1
+          fi
+
+          echo "✅ Premium cancelled successfully (immediate effect)"
+          echo ""
+
+          # Step 18: Try to cancel again (should fail)
+          echo "=== Step 18: Try to cancel again (should fail) ==="
+          CANCEL_DUPLICATE=$(curl -s -X POST "$API_URL/premium/cancel" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Response:"
+          echo "$CANCEL_DUPLICATE" | jq .
+          echo ""
+
+          CANCEL_ERROR=$(echo "$CANCEL_DUPLICATE" | jq -r '.error // empty')
+          if [ -z "$CANCEL_ERROR" ] || [ "$CANCEL_ERROR" = "null" ]; then
+            echo "❌ ERROR: Should fail when cancelling non-active premium"
+            exit 1
+          fi
+
+          echo "✅ Duplicate cancel correctly rejected"
+          echo ""
+
+          # Final summary
+          echo "=== ✅ SUCCESS: PREMIUM / WALLET SYSTEM WORKING ==="
+          echo "Test Results:"
+          echo "  ✅ Initial wallet balance = 100 coins"
+          echo "  ✅ Daily bonus (FREE) = 20 coins"
+          echo "  ✅ Duplicate bonus blocked (same UTC day)"
+          echo "  ✅ Insufficient coins error on subscription"
+          echo "  ✅ Monthly premium subscription = 500 coins"
+          echo "  ✅ Daily bonus (PREMIUM) = 50 coins"
+          echo "  ✅ Premium status transitions (FREE→PREMIUM→FREE)"
+          echo "  ✅ Transaction history preserved (3 transactions)"
+          echo "  ✅ Balance progression correct (atomic transactions)"
+          echo "  ✅ Cancel immediate (no grace period)"
+          echo ""
+          echo "Premium/Wallet system validated ✓"
