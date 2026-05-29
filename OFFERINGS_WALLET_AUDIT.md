@@ -216,7 +216,7 @@ Voir **PREMIUM_WALLET_AUDIT.md** — Offerings débite via `debitWallet()`.
 
 ## III. Règles Métier (Business Rules)
 
-### 1. Offering Catalog (16 offerings seedées)
+### 1. Offering Catalog (15 offerings seedées)
 
 | ID | Emoji | Nom | Cost | Category | Duration | SalonOnly | Note |
 |-------|-------|------|------|----------|----------|-----------|------|

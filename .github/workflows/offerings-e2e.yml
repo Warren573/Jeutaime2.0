@@ -62,6 +62,10 @@ jobs:
               exit 1
             fi
 
+            if [ "$SEED_FINAL" != "15" ]; then
+              echo "⚠️  WARNING: Seed returned finalEnabledCount=$SEED_FINAL, expected 15"
+            fi
+
             echo "✅ Offerings seeded (now: $SEED_FINAL)"
             echo ""
           else
@@ -161,10 +165,10 @@ jobs:
           echo ""
 
           CATALOG_COUNT=$(echo "$CATALOG" | jq '.data | length')
-          echo "Total offerings: $CATALOG_COUNT (expected: 16)"
+          echo "Total offerings: $CATALOG_COUNT (expected: 15)"
 
-          if [ "$CATALOG_COUNT" != "16" ]; then
-            echo "❌ ERROR: Expected 16 offerings, got $CATALOG_COUNT"
+          if [ "$CATALOG_COUNT" != "15" ]; then
+            echo "❌ ERROR: Expected 15 offerings, got $CATALOG_COUNT"
             exit 1
           fi
 
@@ -426,7 +430,7 @@ jobs:
           # Final summary
           echo "=== ✅ SUCCESS: OFFERINGS / WALLET SYSTEM WORKING ==="
           echo "Test Results:"
-          echo "  ✅ Catalog loaded (16 offerings)"
+          echo "  ✅ Catalog loaded (15 offerings)"
           echo "  ✅ Initial wallets verified (100 each)"
           echo "  ✅ Valid offering sent (A→B, 20 coins)"
           echo "  ✅ Sender wallet debited (100 → 80)"
