@@ -1,0 +1,406 @@
+name: Offerings / Wallet E2E Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-offerings-wallet:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test Offerings & Wallet integration
+        run: |
+          set -e
+
+          API_URL="https://jeutaime-staging.onrender.com/api"
+          echo "=== Offerings / Wallet E2E Test ==="
+          echo "API_URL: $API_URL"
+          echo ""
+
+          # Version Check: Prove which commit is deployed
+          echo "=== Version Check: Verify deployed commit ==="
+          VERSION=$(curl -s "$API_URL/test/version")
+          echo "Deployed version:"
+          echo "$VERSION" | jq .
+          DEPLOYED_COMMIT=$(echo "$VERSION" | jq -r '.commit')
+          ENVIRONMENT=$(echo "$VERSION" | jq -r '.environment')
+          echo "Environment: $ENVIRONMENT"
+          echo "Deployed commit: $DEPLOYED_COMMIT"
+          echo ""
+
+          # Step 0: Cleanup staging data
+          echo "=== Step 0: Cleanup staging debug data ==="
+          CLEANUP=$(curl -s -X POST "$API_URL/test/cleanup-staging-debug-data" \
+            -H "Content-Type: application/json")
+          echo "Cleanup response:"
+          echo "$CLEANUP" | jq .
+          echo ""
+
+          # Step 1: Reset mutual smile (create two test accounts with 100 coins each)
+          echo "=== Step 1: Reset mutual smile ==="
+          RESET=$(curl -s -X POST "$API_URL/test/reset-mutual-smile" \
+            -H "Content-Type: application/json")
+          echo "Response:"
+          echo "$RESET" | jq .
+          echo ""
+
+          EMAIL_A=$(echo "$RESET" | jq -r '.accountA.email')
+          PASSWORD_A=$(echo "$RESET" | jq -r '.accountA.password')
+          USER_ID_A=$(echo "$RESET" | jq -r '.accountA.userId')
+
+          EMAIL_B=$(echo "$RESET" | jq -r '.accountB.email')
+          PASSWORD_B=$(echo "$RESET" | jq -r '.accountB.password')
+          USER_ID_B=$(echo "$RESET" | jq -r '.accountB.userId')
+
+          echo "Account A: $EMAIL_A (userId: $USER_ID_A)"
+          echo "Account B: $EMAIL_B (userId: $USER_ID_B)"
+          echo ""
+
+          # Step 2: Login A
+          echo "=== Step 2: Login A ==="
+          LOGIN_A=$(curl -s -X POST "$API_URL/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL_A\",\"password\":\"$PASSWORD_A\"}")
+          echo "Response:"
+          echo "$LOGIN_A" | jq .
+          echo ""
+
+          TOKEN_A=$(echo "$LOGIN_A" | jq -r '.data.accessToken // .accessToken // empty')
+          if [ -z "$TOKEN_A" ] || [ "$TOKEN_A" = "null" ]; then
+            echo "ERROR: Failed to get token for A"
+            exit 1
+          fi
+          echo "✅ Token A acquired"
+          echo ""
+
+          # Step 3: Login B
+          echo "=== Step 3: Login B ==="
+          LOGIN_B=$(curl -s -X POST "$API_URL/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL_B\",\"password\":\"$PASSWORD_B\"}")
+          echo "Response:"
+          echo "$LOGIN_B" | jq .
+          echo ""
+
+          TOKEN_B=$(echo "$LOGIN_B" | jq -r '.data.accessToken // .accessToken // empty')
+          if [ -z "$TOKEN_B" ] || [ "$TOKEN_B" = "null" ]; then
+            echo "ERROR: Failed to get token for B"
+            exit 1
+          fi
+          echo "✅ Token B acquired"
+          echo ""
+
+          # ============================================================
+          # OFFERINGS WALLET TESTS
+          # ============================================================
+
+          echo "=== OFFERINGS / WALLET TESTS ==="
+          echo ""
+
+          # Step 4: Get initial wallet state for both users
+          echo "=== Step 4: Get initial wallet state ==="
+          WALLET_A_BEFORE=$(curl -s "$API_URL/wallet/me" \
+            -H "Authorization: Bearer $TOKEN_A")
+          WALLET_B_BEFORE=$(curl -s "$API_URL/wallet/me" \
+            -H "Authorization: Bearer $TOKEN_B")
+
+          COINS_A_BEFORE=$(echo "$WALLET_A_BEFORE" | jq -r '.data.coins')
+          COINS_B_BEFORE=$(echo "$WALLET_B_BEFORE" | jq -r '.data.coins')
+
+          echo "Wallet A before: $COINS_A_BEFORE coins (expected: 100)"
+          echo "Wallet B before: $COINS_B_BEFORE coins (expected: 100)"
+          echo ""
+
+          if [ "$COINS_A_BEFORE" != "100" ] || [ "$COINS_B_BEFORE" != "100" ]; then
+            echo "❌ ERROR: Initial coins should be 100 each"
+            exit 1
+          fi
+
+          echo "✅ Initial wallets verified (100 each)"
+          echo ""
+
+          # Step 5: Get offerings catalog
+          echo "=== Step 5: Get offerings catalog ==="
+          CATALOG=$(curl -s "$API_URL/offerings/catalog" \
+            -H "Authorization: Bearer $TOKEN_A")
+          echo "Catalog response (showing first 3):"
+          echo "$CATALOG" | jq '.data[0:3]'
+          echo ""
+
+          CATALOG_COUNT=$(echo "$CATALOG" | jq '.data | length')
+          echo "Total offerings: $CATALOG_COUNT (expected: 16)"
+
+          if [ "$CATALOG_COUNT" != "16" ]; then
+            echo "❌ ERROR: Expected 16 offerings, got $CATALOG_COUNT"
+            exit 1
+          fi
+
+          # Extract Café (off_cafe, cost 20) and Champagne (off_champagne, cost 200) IDs
+          CAFE_ID=$(echo "$CATALOG" | jq -r '.data[] | select(.id=="off_cafe") | .id')
+          CAFE_COST=$(echo "$CATALOG" | jq -r '.data[] | select(.id=="off_cafe") | .cost')
+          CHAMPAGNE_ID=$(echo "$CATALOG" | jq -r '.data[] | select(.id=="off_champagne") | .id')
+          CHAMPAGNE_COST=$(echo "$CATALOG" | jq -r '.data[] | select(.id=="off_champagne") | .cost')
+
+          echo "Café: id=$CAFE_ID, cost=$CAFE_COST (expected: off_cafe, 20)"
+          echo "Champagne: id=$CHAMPAGNE_ID, cost=$CHAMPAGNE_COST (expected: off_champagne, 200)"
+
+          if [ "$CAFE_ID" != "off_cafe" ] || [ "$CAFE_COST" != "20" ]; then
+            echo "❌ ERROR: Café offering not found or wrong cost"
+            exit 1
+          fi
+
+          echo "✅ Offerings catalog verified"
+          echo ""
+
+          # Step 6: A sends valid offering to B (Café, 20 coins)
+          echo "=== Step 6: A sends Café (20 coins) to B ==="
+          SEND_RESPONSE=$(curl -s -X POST "$API_URL/offerings/send" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"offeringId\":\"$CAFE_ID\",\"toUserId\":\"$USER_ID_B\"}")
+
+          echo "Send response:"
+          echo "$SEND_RESPONSE" | jq .
+          echo ""
+
+          OFFERING_SENT_ID=$(echo "$SEND_RESPONSE" | jq -r '.data.id // empty')
+          OFFERING_FROM=$(echo "$SEND_RESPONSE" | jq -r '.data.fromUserId // empty')
+          OFFERING_TO=$(echo "$SEND_RESPONSE" | jq -r '.data.toUserId // empty')
+          OFFERING_COST=$(echo "$SEND_RESPONSE" | jq -r '.data.offering.cost // empty')
+          HTTP_STATUS=$(echo "$SEND_RESPONSE" | jq -r '.data.id // .error' | grep -q "error" && echo "failed" || echo "201")
+
+          echo "Offering sent ID: $OFFERING_SENT_ID"
+          echo "From: $OFFERING_FROM, To: $OFFERING_TO, Cost: $OFFERING_COST"
+
+          if [ -z "$OFFERING_SENT_ID" ] || [ "$OFFERING_SENT_ID" = "null" ]; then
+            echo "❌ ERROR: Offering not created"
+            echo "Full response: $(echo "$SEND_RESPONSE" | jq .)"
+            exit 1
+          fi
+
+          echo "✅ Offering sent successfully (id: $OFFERING_SENT_ID)"
+          echo ""
+
+          # Step 7: Verify wallet A is debited by 20
+          echo "=== Step 7: Verify wallet A debited by 20 coins ==="
+          WALLET_A_AFTER=$(curl -s "$API_URL/wallet/me" \
+            -H "Authorization: Bearer $TOKEN_A")
+
+          COINS_A_AFTER=$(echo "$WALLET_A_AFTER" | jq -r '.data.coins')
+          COINS_DEBITED=$((COINS_A_BEFORE - COINS_A_AFTER))
+
+          echo "Wallet A after: $COINS_A_AFTER coins"
+          echo "Coins debited: $COINS_DEBITED (expected: 20)"
+
+          if [ "$COINS_A_AFTER" != "80" ]; then
+            echo "❌ ERROR: A coins should be 80 (100-20), got $COINS_A_AFTER"
+            exit 1
+          fi
+
+          if [ "$COINS_DEBITED" != "20" ]; then
+            echo "❌ ERROR: Should have debited exactly 20, debited $COINS_DEBITED"
+            exit 1
+          fi
+
+          echo "✅ Wallet A correctly debited (100 → 80)"
+          echo ""
+
+          # Step 8: Verify wallet B is unchanged (NO credit to receiver)
+          echo "=== Step 8: Verify wallet B unchanged (no receiver credit) ==="
+          WALLET_B_AFTER=$(curl -s "$API_URL/wallet/me" \
+            -H "Authorization: Bearer $TOKEN_B")
+
+          COINS_B_AFTER=$(echo "$WALLET_B_AFTER" | jq -r '.data.coins')
+
+          echo "Wallet B after: $COINS_B_AFTER coins (expected: unchanged at 100)"
+
+          if [ "$COINS_B_AFTER" != "$COINS_B_BEFORE" ]; then
+            echo "❌ ERROR: B coins should be unchanged ($COINS_B_BEFORE), got $COINS_B_AFTER"
+            exit 1
+          fi
+
+          echo "✅ Wallet B unchanged (receiver gets no credit, only visibility)"
+          echo ""
+
+          # Step 9: Verify transaction history
+          echo "=== Step 9: Verify transaction history ==="
+          TXNS_A=$(curl -s "$API_URL/wallet/me/transactions?page=1&pageSize=10" \
+            -H "Authorization: Bearer $TOKEN_A")
+
+          echo "Transactions A:"
+          echo "$TXNS_A" | jq .
+          echo ""
+
+          TXN_COUNT=$(echo "$TXNS_A" | jq '.data | length')
+          TXN_0_TYPE=$(echo "$TXNS_A" | jq -r '.data[0].type // empty')
+          TXN_0_AMOUNT=$(echo "$TXNS_A" | jq -r '.data[0].amount // empty')
+          TXN_0_BALANCE=$(echo "$TXNS_A" | jq -r '.data[0].balance // empty')
+
+          echo "Most recent transaction:"
+          echo "  Type: $TXN_0_TYPE (expected: OFFERING_SENT)"
+          echo "  Amount: $TXN_0_AMOUNT (expected: -20, signed)"
+          echo "  Balance: $TXN_0_BALANCE (expected: 80)"
+
+          if [ "$TXN_0_TYPE" != "OFFERING_SENT" ]; then
+            echo "❌ ERROR: Transaction type should be OFFERING_SENT, got $TXN_0_TYPE"
+            exit 1
+          fi
+
+          if [ "$TXN_0_AMOUNT" != "-20" ]; then
+            echo "❌ ERROR: Transaction amount should be -20 (signed), got $TXN_0_AMOUNT"
+            exit 1
+          fi
+
+          if [ "$TXN_0_BALANCE" != "80" ]; then
+            echo "❌ ERROR: Balance after should be 80, got $TXN_0_BALANCE"
+            exit 1
+          fi
+
+          echo "✅ Transaction history correct (OFFERING_SENT, -20, balance=80)"
+          echo ""
+
+          # Step 10: B receives the offering
+          echo "=== Step 10: B lists received offerings ==="
+          RECEIVED=$(curl -s "$API_URL/offerings/received?onlyActive=true&page=1&pageSize=10" \
+            -H "Authorization: Bearer $TOKEN_B")
+
+          echo "Received offerings:"
+          echo "$RECEIVED" | jq .
+          echo ""
+
+          RECEIVED_COUNT=$(echo "$RECEIVED" | jq '.data | length')
+          RECEIVED_0_ID=$(echo "$RECEIVED" | jq -r '.data[0].id // empty')
+          RECEIVED_0_FROM=$(echo "$RECEIVED" | jq -r '.data[0].fromUserId // empty')
+          RECEIVED_0_OFFERING=$(echo "$RECEIVED" | jq -r '.data[0].offering.name // empty')
+
+          echo "Received count: $RECEIVED_COUNT (expected: 1)"
+          echo "First offering:"
+          echo "  ID: $RECEIVED_0_ID (expected: $OFFERING_SENT_ID)"
+          echo "  From: $RECEIVED_0_FROM (expected: $USER_ID_A)"
+          echo "  Offering: $RECEIVED_0_OFFERING (expected: Café)"
+
+          if [ "$RECEIVED_COUNT" != "1" ]; then
+            echo "❌ ERROR: B should have received 1 offering, got $RECEIVED_COUNT"
+            exit 1
+          fi
+
+          if [ "$RECEIVED_0_ID" != "$OFFERING_SENT_ID" ]; then
+            echo "❌ ERROR: Offering ID mismatch (sent: $OFFERING_SENT_ID, received: $RECEIVED_0_ID)"
+            exit 1
+          fi
+
+          if [ "$RECEIVED_0_FROM" != "$USER_ID_A" ]; then
+            echo "❌ ERROR: Offering should be from A, got $RECEIVED_0_FROM"
+            exit 1
+          fi
+
+          echo "✅ B correctly sees received offering from A"
+          echo ""
+
+          # ============================================================
+          # ERROR HANDLING TESTS
+          # ============================================================
+
+          echo "=== ERROR HANDLING TESTS ==="
+          echo ""
+
+          # Step 11: Set A coins to insufficient amount
+          echo "=== Step 11: Set A coins to 5 (insufficient for Champagne 200) ==="
+          SET_COINS=$(curl -s -X POST "$API_URL/test/set-wallet-coins" \
+            -H "Content-Type: application/json" \
+            -d "{\"userId\":\"$USER_ID_A\",\"coins\":5}")
+
+          echo "Set coins response:"
+          echo "$SET_COINS" | jq .
+          echo ""
+
+          SET_SUCCESS=$(echo "$SET_COINS" | jq -r '.success')
+          SET_COINS_VALUE=$(echo "$SET_COINS" | jq -r '.coins')
+
+          if [ "$SET_SUCCESS" != "true" ] || [ "$SET_COINS_VALUE" != "5" ]; then
+            echo "❌ ERROR: Failed to set coins to 5"
+            exit 1
+          fi
+
+          echo "✅ A coins set to 5"
+          echo ""
+
+          # Step 12: A tries to send expensive offering (Champagne 200)
+          echo "=== Step 12: A tries to send Champagne (200 coins) with only 5 coins ==="
+          SEND_INSUFFICIENT=$(curl -s -X POST "$API_URL/offerings/send" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"offeringId\":\"$CHAMPAGNE_ID\",\"toUserId\":\"$USER_ID_B\"}")
+
+          echo "Send response (should fail):"
+          echo "$SEND_INSUFFICIENT" | jq .
+          echo ""
+
+          INSUFFICIENT_ERROR=$(echo "$SEND_INSUFFICIENT" | jq -r '.error // empty')
+          INSUFFICIENT_DATA=$(echo "$SEND_INSUFFICIENT" | jq -r '.data // empty')
+
+          echo "Error: $INSUFFICIENT_ERROR"
+          echo "Data: $INSUFFICIENT_DATA"
+
+          if [ -z "$INSUFFICIENT_ERROR" ] || [ "$INSUFFICIENT_ERROR" = "null" ]; then
+            if [ ! -z "$INSUFFICIENT_DATA" ] && [ "$INSUFFICIENT_DATA" != "null" ]; then
+              echo "❌ ERROR: Should fail with NotEnoughCoinsError, but succeeded"
+              exit 1
+            fi
+          fi
+
+          echo "✅ Send correctly blocked with insufficient coins"
+          echo ""
+
+          # Step 13: Verify A coins still 5 (no debit on failure)
+          echo "=== Step 13: Verify A coins still 5 (no debit on failure) ==="
+          WALLET_A_FINAL=$(curl -s "$API_URL/wallet/me" \
+            -H "Authorization: Bearer $TOKEN_A")
+
+          COINS_A_FINAL=$(echo "$WALLET_A_FINAL" | jq -r '.data.coins')
+
+          echo "Wallet A final: $COINS_A_FINAL coins (expected: 5, unchanged)"
+
+          if [ "$COINS_A_FINAL" != "5" ]; then
+            echo "❌ ERROR: A coins should still be 5, got $COINS_A_FINAL"
+            exit 1
+          fi
+
+          echo "✅ Wallet A unchanged after failed send (atomic protection)"
+          echo ""
+
+          # Step 14: Self-offering test
+          echo "=== Step 14: A tries to send offering to self ==="
+          SEND_SELF=$(curl -s -X POST "$API_URL/offerings/send" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"offeringId\":\"$CAFE_ID\",\"toUserId\":\"$USER_ID_A\"}")
+
+          echo "Send-to-self response (should fail):"
+          echo "$SEND_SELF" | jq .
+          echo ""
+
+          SELF_ERROR=$(echo "$SEND_SELF" | jq -r '.error // empty')
+
+          if [ -z "$SELF_ERROR" ] || [ "$SELF_ERROR" = "null" ]; then
+            echo "❌ ERROR: Should fail with BadRequestError for self-offering"
+            exit 1
+          fi
+
+          echo "✅ Self-offering correctly blocked"
+          echo ""
+
+          # Final summary
+          echo "=== ✅ SUCCESS: OFFERINGS / WALLET SYSTEM WORKING ==="
+          echo "Test Results:"
+          echo "  ✅ Catalog loaded (16 offerings)"
+          echo "  ✅ Initial wallets verified (100 each)"
+          echo "  ✅ Valid offering sent (A→B, 20 coins)"
+          echo "  ✅ Sender wallet debited (100 → 80)"
+          echo "  ✅ Receiver wallet unchanged (no credit, only visibility)"
+          echo "  ✅ Transaction logged (type=OFFERING_SENT, amount=-20)"
+          echo "  ✅ Receiver sees offering via /received"
+          echo "  ✅ Insufficient coins error correctly handled"
+          echo "  ✅ Wallet not debited on failed send (atomic)"
+          echo "  ✅ Self-offering blocked"
+          echo ""
+          echo "Offerings/Wallet integration validated ✓"
