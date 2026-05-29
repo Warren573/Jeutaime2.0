@@ -4,6 +4,7 @@ import { prisma } from "../../config/prisma";
 import { hashPassword } from "../../core/utils/hash";
 import * as authService from "../auth/auth.service";
 import { execSync } from "child_process";
+import { OfferingCategory, SalonKind } from "@prisma/client";
 
 const router = Router();
 
@@ -2139,6 +2140,174 @@ router.post("/set-wallet-lastbonus", asyncHandler(async (req: Request, res: Resp
     console.error("[test/set-wallet-lastbonus] Error:", error);
     res.status(500).json({
       error: "Failed to set wallet lastDailyBonus",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}));
+
+/**
+ * GET /api/test/debug-offerings-catalog
+ *
+ * STAGING & DEVELOPMENT ONLY - Debug endpoint to inspect offerings catalog state.
+ * Returns total count, enabled count, first 5 IDs, and diagnostic info.
+ */
+router.get("/debug-offerings-catalog", asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+
+  if (!isRenderStaging && nodeEnv !== "development") {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  try {
+    // Count all offerings (regardless of enabled status)
+    const totalCount = await prisma.offeringCatalog.count();
+
+    // Count enabled offerings only
+    const enabledCount = await prisma.offeringCatalog.count({
+      where: { enabled: true },
+    });
+
+    // Get first 5 enabled offerings
+    const firstFive = await prisma.offeringCatalog.findMany({
+      where: { enabled: true },
+      take: 5,
+      orderBy: [{ category: "asc" }, { stackPriority: "desc" }, { cost: "asc" }],
+      select: { id: true, name: true, cost: true, enabled: true },
+    });
+
+    // Get count by category
+    const byCategory = await Promise.all(
+      Object.values(OfferingCategory).map(async (cat) => ({
+        category: cat,
+        count: await prisma.offeringCatalog.count({ where: { category: cat as OfferingCategory } }),
+      }))
+    );
+
+    // Get disabled offerings
+    const disabledCount = await prisma.offeringCatalog.count({
+      where: { enabled: false },
+    });
+    const disabledOfferings = await prisma.offeringCatalog.findMany({
+      where: { enabled: false },
+      select: { id: true, name: true, enabled: true },
+    });
+
+    console.log(`[test/debug-offerings-catalog] Total: ${totalCount}, Enabled: ${enabledCount}, Disabled: ${disabledCount}`);
+
+    res.json({
+      diagnostic: {
+        totalCount,
+        enabledCount,
+        disabledCount,
+        byCategory,
+        firstFiveEnabled: firstFive,
+        disabledOfferings,
+        message: enabledCount === 0 ? "⚠️ NO OFFERINGS - catalog is empty!" : "✅ Offerings present",
+      },
+    });
+  } catch (error) {
+    console.error("[test/debug-offerings-catalog] Error:", error);
+    res.status(500).json({
+      error: "Debug failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}));
+
+/**
+ * POST /api/test/seed-offerings-catalog
+ *
+ * STAGING & DEVELOPMENT ONLY - Idempotently seed the 16 offerings catalog.
+ * If offerings already exist, updates them. If not, creates them.
+ * Safe to call multiple times.
+ */
+router.post("/seed-offerings-catalog", asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+
+  if (!isRenderStaging && nodeEnv !== "development") {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  try {
+    const offerings = [
+      // Boissons
+      { id: "off_cafe",          emoji: "☕",  name: "Café",              cost: 20,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null as SalonKind | null },
+      { id: "off_the",           emoji: "🍵",  name: "Thé",               cost: 15,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null },
+      { id: "off_jus",           emoji: "🥤",  name: "Jus de fruits",     cost: 25,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null },
+      { id: "off_champagne",     emoji: "🥂",  name: "Champagne",         cost: 200, category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 2, salonOnly: null },
+      { id: "off_biere",         emoji: "🍺",  name: "Bière pression",    cost: 30,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: SalonKind.METAL },
+      // Nourriture
+      { id: "off_croissant",     emoji: "🥐",  name: "Croissant",         cost: 25,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null },
+      { id: "off_macaron",       emoji: "🍪",  name: "Macaron",           cost: 40,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null },
+      { id: "off_gateau",        emoji: "🎂",  name: "Gâteau d'anniversaire", cost: 120, category: OfferingCategory.NOURRITURE, durationMs: null,  stackPriority: 2, salonOnly: null },
+      { id: "off_eclair",        emoji: "⚡",  name: "Éclairs",           cost: 35,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: SalonKind.METAL },
+      // Symboliques
+      { id: "off_rose",          emoji: "🌹",  name: "Rose rouge",        cost: 50,  category: OfferingCategory.SYMBOLIQUE, durationMs: 86400000,  stackPriority: 3, salonOnly: null },
+      { id: "off_bouquet",       emoji: "💐",  name: "Bouquet de fleurs", cost: 100, category: OfferingCategory.SYMBOLIQUE, durationMs: 86400000,  stackPriority: 3, salonOnly: null },
+      { id: "off_coeur",         emoji: "💝",  name: "Coeur en or",       cost: 150, category: OfferingCategory.SYMBOLIQUE, durationMs: 86400000,  stackPriority: 4, salonOnly: null },
+      { id: "off_guitare",       emoji: "🎸",  name: "Guitare cassée",    cost: 80,  category: OfferingCategory.SYMBOLIQUE, durationMs: null,      stackPriority: 2, salonOnly: SalonKind.METAL },
+      // Humour
+      { id: "off_tarte",         emoji: "🥧",  name: "Tarte à la crème",  cost: 30,  category: OfferingCategory.HUMOUR,     durationMs: null,      stackPriority: 1, salonOnly: null },
+      { id: "off_chaussette",    emoji: "🧦",  name: "Chaussette dépareillée", cost: 10, category: OfferingCategory.HUMOUR, durationMs: null,     stackPriority: 0, salonOnly: null },
+    ];
+
+    let created = 0;
+    let updated = 0;
+
+    for (const off of offerings) {
+      const result = await prisma.offeringCatalog.upsert({
+        where: { id: off.id },
+        update: {
+          emoji: off.emoji,
+          name: off.name,
+          cost: off.cost,
+          category: off.category,
+          durationMs: off.durationMs,
+          stackPriority: off.stackPriority,
+          salonOnly: off.salonOnly,
+          enabled: true,
+        },
+        create: {
+          id: off.id,
+          emoji: off.emoji,
+          name: off.name,
+          cost: off.cost,
+          category: off.category,
+          durationMs: off.durationMs,
+          stackPriority: off.stackPriority,
+          salonOnly: off.salonOnly,
+          enabled: true,
+        },
+      });
+
+      // Check if this was a create or update (hacky but works)
+      const wasCreated = !await prisma.offeringCatalog.findUnique({
+        where: { id: off.id },
+        select: { id: true },
+      }).then(() => true).catch(() => false);
+
+      if (wasCreated) created++;
+      else updated++;
+    }
+
+    const finalCount = await prisma.offeringCatalog.count({
+      where: { enabled: true },
+    });
+
+    console.log(`[test/seed-offerings-catalog] Seeded ${offerings.length} offerings (final count: ${finalCount})`);
+
+    res.json({
+      success: true,
+      seeded: offerings.length,
+      finalEnabledCount: finalCount,
+      message: `Catalog seeded/updated with ${offerings.length} offerings`,
+    });
+  } catch (error) {
+    console.error("[test/seed-offerings-catalog] Error:", error);
+    res.status(500).json({
+      error: "Seed failed",
       message: error instanceof Error ? error.message : "Unknown error",
     });
   }
