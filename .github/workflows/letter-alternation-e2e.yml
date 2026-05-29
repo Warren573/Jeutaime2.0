@@ -13,6 +13,7 @@ jobs:
 
           echo ""
           echo "████████████████████████████████████████████████████████████"
+          echo "WORKFLOW FILE VERSION: step-markers-v2"
           echo "WORKFLOW DEBUG VERSION: questions-debug-v1"
           echo "████████████████████████████████████████████████████████████"
           echo ""
@@ -89,8 +90,18 @@ jobs:
 
           # Step 5: Discovery - A finds B
           echo "=== Step 5: Discovery - A finds B ==="
+          echo "STEP_05_REACHED"
+
           DISCOVERY_A=$(curl -s "$API_URL/profiles?pageSize=50" \
             -H "Authorization: Bearer $TOKEN_A")
+
+          echo "DISCOVERY_A_RESPONSE_RAW:"
+          echo "$DISCOVERY_A"
+          echo ""
+          echo "DISCOVERY_A_RESPONSE_PARSED:"
+          echo "$DISCOVERY_A" | jq . || { echo "ERROR: Failed to parse DISCOVERY_A at STEP_05"; exit 1; }
+          echo ""
+
           DISCOVERY_A_COUNT=$(echo "$DISCOVERY_A" | jq '.data | length')
           DISCOVERY_A_IDS=$(echo "$DISCOVERY_A" | jq -r '.data[].userId' | tr '\n' ',' | sed 's/,$//')
           DISCOVERY_A_HAS_B=$(echo "$DISCOVERY_A" | jq ".data[] | select(.userId == \"$USER_ID_B\") | .userId" | grep -q "$USER_ID_B" && echo "true" || echo "false")
@@ -109,8 +120,18 @@ jobs:
 
           # Step 6: Discovery - B finds A
           echo "=== Step 6: Discovery - B finds A ==="
+          echo "STEP_06_REACHED"
+
           DISCOVERY_B=$(curl -s "$API_URL/profiles?pageSize=50" \
             -H "Authorization: Bearer $TOKEN_B")
+
+          echo "DISCOVERY_B_RESPONSE_RAW:"
+          echo "$DISCOVERY_B"
+          echo ""
+          echo "DISCOVERY_B_RESPONSE_PARSED:"
+          echo "$DISCOVERY_B" | jq . || { echo "ERROR: Failed to parse DISCOVERY_B at STEP_06"; exit 1; }
+          echo ""
+
           DISCOVERY_B_COUNT=$(echo "$DISCOVERY_B" | jq '.data | length')
           DISCOVERY_B_HAS_A=$(echo "$DISCOVERY_B" | jq ".data[] | select(.userId == \"$USER_ID_A\") | .userId" | grep -q "$USER_ID_A" && echo "true" || echo "false")
 
@@ -128,10 +149,20 @@ jobs:
 
           # Step 7: A smiles at B
           echo "=== Step 7: A smiles at B ==="
+          echo "STEP_07_REACHED"
+
           SMILE_A=$(curl -s -X POST "$API_URL/discover/react" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_A" \
             -d "{\"toId\":\"$USER_ID_B\",\"type\":\"SMILE\"}")
+
+          echo "SMILE_A_RESPONSE_RAW:"
+          echo "$SMILE_A"
+          echo ""
+          echo "SMILE_A_RESPONSE_PARSED:"
+          echo "$SMILE_A" | jq . || { echo "ERROR: Failed to parse SMILE_A at STEP_07"; exit 1; }
+          echo ""
+
           DEBUG_A=$(echo "$SMILE_A" | jq -r '.data.debugBranch // .debugBranch // "MISSING"')
           echo "debugBranch: $DEBUG_A (expected: NO-MUTUAL)"
           if [ "$DEBUG_A" != "NO-MUTUAL" ]; then
@@ -142,12 +173,19 @@ jobs:
 
           # Step 8: B smiles at A (mutual) - Creates match
           echo "=== Step 8: B smiles at A (mutual) ==="
+          echo "STEP_08_REACHED"
+
           SMILE_B=$(curl -s -X POST "$API_URL/discover/react" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_B" \
             -d "{\"toId\":\"$USER_ID_A\",\"type\":\"SMILE\"}")
-          echo "Response:"
-          echo "$SMILE_B" | jq .
+
+          echo "SMILE_B_RESPONSE_RAW:"
+          echo "$SMILE_B"
+          echo ""
+          echo "SMILE_B_RESPONSE_PARSED:"
+          echo "$SMILE_B" | jq . || { echo "ERROR: Failed to parse SMILE_B at STEP_08"; exit 1; }
+          echo ""
 
           DEBUG_B=$(echo "$SMILE_B" | jq -r '.data.debugBranch // .debugBranch // "MISSING"')
           MATCH_CREATED=$(echo "$SMILE_B" | jq -r '.data.matchCreated // .matchCreated // "MISSING"')
@@ -175,9 +213,17 @@ jobs:
 
           # Step 9: Debug match details
           echo "=== Step 9: Debug match details ==="
+          echo "STEP_09_REACHED"
+
           MATCH_DEBUG=$(curl -s "$API_URL/test/debug-match?matchId=$MATCH_ID")
-          echo "Match info:"
-          echo "$MATCH_DEBUG" | jq .
+
+          echo "MATCH_DEBUG_RESPONSE_RAW:"
+          echo "$MATCH_DEBUG"
+          echo ""
+          echo "MATCH_DEBUG_RESPONSE_PARSED:"
+          echo "$MATCH_DEBUG" | jq . || { echo "ERROR: Failed to parse MATCH_DEBUG at STEP_09"; exit 1; }
+          echo ""
+
           MATCH_STATUS=$(echo "$MATCH_DEBUG" | jq -r '.match.status')
           MATCH_INITIATOR=$(echo "$MATCH_DEBUG" | jq -r '.match.initiatorId')
           echo "Match status: $MATCH_STATUS"
@@ -188,11 +234,18 @@ jobs:
           # Mutual smile creates match with initiatorId = B (who sent the matching smile)
           # Non-initiator (A) must call acceptMatch to move from PENDING to ACTIVE
           echo "=== Step 10: A accepts the match (non-initiator acceptance) ==="
+          echo "STEP_10_REACHED"
+
           ACCEPT=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/accept" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_A")
-          echo "Response:"
-          echo "$ACCEPT" | jq .
+
+          echo "ACCEPT_RESPONSE_RAW:"
+          echo "$ACCEPT"
+          echo ""
+          echo "ACCEPT_RESPONSE_PARSED:"
+          echo "$ACCEPT" | jq . || { echo "ERROR: Failed to parse ACCEPT at STEP_10"; exit 1; }
+          echo ""
 
           ACCEPT_ERROR=$(echo "$ACCEPT" | jq -r '.error // empty')
           if [ -n "$ACCEPT_ERROR" ]; then
@@ -212,11 +265,20 @@ jobs:
           echo "############################################################"
           echo ""
 
+          echo "STEP_11_REACHED"
+          echo ""
           echo "BBBBB_STEP_11_START_BBBBB"
           echo ""
 
           QUESTIONS_A=$(curl -s "$API_URL/matches/$MATCH_ID/questions" \
             -H "Authorization: Bearer $TOKEN_A")
+
+          echo "QUESTIONS_A_RESPONSE_RAW:"
+          echo "$QUESTIONS_A"
+          echo ""
+          echo "QUESTIONS_A_RESPONSE_PARSED:"
+          echo "$QUESTIONS_A" | jq . || { echo "ERROR: Failed to parse QUESTIONS_A at STEP_11"; exit 1; }
+          echo ""
 
           echo "QUESTIONS_A_RAW_START"
           echo "$QUESTIONS_A"
