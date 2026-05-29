@@ -1889,4 +1889,93 @@ const debugMatchHandler = asyncHandler(async (req: Request, res: Response) => {
 
 router.get("/debug-match", debugMatchHandler);
 
+// Test endpoint: Get match questions WITH correct answers (staging/test only)
+router.get("/match-questions/:matchId", async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  try {
+    const { matchId } = req.query as { matchId?: string };
+
+    if (!matchId) {
+      return res.status(400).json({
+        error: "matchId query parameter is required",
+      });
+    }
+
+    const match = await prisma.match.findUnique({
+      where: { id: matchId as string },
+      select: { userAId: true, userBId: true, status: true },
+    });
+
+    if (!match) {
+      return res.status(404).json({
+        error: "Match not found",
+        matchId,
+      });
+    }
+
+    // Return questions from both users (for test debugging)
+    const profileA = await prisma.profile.findUnique({
+      where: { userId: match.userAId },
+      select: { id: true },
+    });
+
+    const profileB = await prisma.profile.findUnique({
+      where: { userId: match.userBId },
+      select: { id: true },
+    });
+
+    const questionsA = await prisma.profileQuestion.findMany({
+      where: { profileId: profileA?.id },
+      select: { id: true, questionId: true, questionText: true, answer: true, wrongAnswers: true },
+    });
+
+    const questionsB = await prisma.profileQuestion.findMany({
+      where: { profileId: profileB?.id },
+      select: { id: true, questionId: true, questionText: true, answer: true, wrongAnswers: true },
+    });
+
+    res.json({
+      matchId,
+      message: "DEBUG ENDPOINT: Shows correct answers for testing",
+      userA: {
+        userId: match.userAId,
+        profileId: profileA?.id,
+        questionsCount: questionsA.length,
+        questions: questionsA.map((q) => ({
+          profileQuestionId: q.id,
+          questionId: q.questionId,
+          questionText: q.questionText,
+          answer: q.answer,
+          wrongAnswers: q.wrongAnswers,
+        })),
+      },
+      userB: {
+        userId: match.userBId,
+        profileId: profileB?.id,
+        questionsCount: questionsB.length,
+        questions: questionsB.map((q) => ({
+          profileQuestionId: q.id,
+          questionId: q.questionId,
+          questionText: q.questionText,
+          answer: q.answer,
+          wrongAnswers: q.wrongAnswers,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error("[test/match-questions] Error:", error);
+    res.status(500).json({
+      error: "Failed to get match questions",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
 export default router;
