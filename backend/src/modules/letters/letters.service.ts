@@ -85,6 +85,18 @@ export async function sendLetter(matchId: string, senderId: string, dto: SendLet
   await assertNoBlock(senderId, receiverId);
 
   // Vérifier l'alternation stricte
+  console.log("[sendLetter] DEBUG LETTER ALTERNATION CHECK:", {
+    matchId,
+    senderId,
+    userAId: match.userAId,
+    userBId: match.userBId,
+    initiatorId: match.initiatorId,
+    lastLetterBy: match.lastLetterBy,
+    letterCountA: match.letterCountA,
+    letterCountB: match.letterCountB,
+    questionsValidated: match.questionsValidated,
+    status: match.status,
+  });
   assertCanSendLetter({
     lastLetterBy: match.lastLetterBy,
     senderId,

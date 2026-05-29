@@ -23,15 +23,28 @@ export function assertCanSendLetter(ctx: AlternationContext): void {
   if (ctx.lastLetterBy === null) {
     // Première lettre : seul l'initiateur
     if (ctx.senderId !== ctx.initiatorId) {
+      console.log("[assertCanSendLetter] FIRST LETTER REJECTED:", {
+        reason: "senderId !== initiatorId",
+        senderId: ctx.senderId,
+        initiatorId: ctx.initiatorId,
+        lastLetterBy: ctx.lastLetterBy,
+      });
       throw new LetterAlternationError();
     }
+    console.log("[assertCanSendLetter] FIRST LETTER ALLOWED (sender is initiator)");
     return;
   }
 
   // Alternation stricte
   if (ctx.lastLetterBy === ctx.senderId) {
+    console.log("[assertCanSendLetter] ALTERNATION VIOLATION REJECTED:", {
+      reason: "Trying to send twice in a row",
+      senderId: ctx.senderId,
+      lastLetterBy: ctx.lastLetterBy,
+    });
     throw new LetterAlternationError();
   }
+  console.log("[assertCanSendLetter] ALTERNATION CHECK PASSED");
 }
 
 /**
