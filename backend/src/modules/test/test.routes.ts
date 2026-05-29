@@ -1978,4 +1978,170 @@ router.get("/match-questions", async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/test/set-wallet-coins
+ *
+ * STAGING & DEVELOPMENT ONLY - Sets wallet balance to exact value for deterministic testing.
+ * Allows E2E tests to set up premium subscription scenarios without waiting for daily bonuses.
+ *
+ * Body:
+ *   {
+ *     "userId": "string",
+ *     "coins": number (>= 0)
+ *   }
+ *
+ * Response:
+ *   {
+ *     "success": true,
+ *     "userId": "...",
+ *     "coins": number,
+ *     "message": "Wallet coins updated"
+ *   }
+ *
+ * Errors:
+ *   - 403 if production (not Render staging)
+ *   - 400 if userId or coins missing/invalid
+ *   - 404 if wallet not found
+ */
+router.post("/set-wallet-coins", asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+
+  // SAFETY: Only allow in staging or development
+  if (!isRenderStaging && nodeEnv !== "development") {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  try {
+    const { userId, coins } = req.body;
+
+    // Validate inputs
+    if (!userId || typeof userId !== "string") {
+      return res.status(400).json({ error: "userId is required (string)" });
+    }
+
+    if (coins === undefined || typeof coins !== "number" || coins < 0) {
+      return res.status(400).json({ error: "coins is required (non-negative number)" });
+    }
+
+    // Update wallet
+    const wallet = await prisma.wallet.update({
+      where: { userId },
+      data: { coins },
+    });
+
+    console.log(`[test/set-wallet-coins] Updated userId=${userId} to coins=${coins}`);
+
+    res.json({
+      success: true,
+      userId,
+      coins: wallet.coins,
+      message: "Wallet coins updated",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Record to update not found")) {
+      return res.status(404).json({
+        error: "Wallet not found",
+        message: error.message,
+      });
+    }
+    console.error("[test/set-wallet-coins] Error:", error);
+    res.status(500).json({
+      error: "Failed to set wallet coins",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}));
+
+/**
+ * POST /api/test/set-wallet-lastbonus
+ *
+ * STAGING & DEVELOPMENT ONLY - Sets lastDailyBonus timestamp to test daily bonus constraint.
+ * Allows testing "bonus claimed today" vs "can claim next UTC day" without waiting 24h.
+ *
+ * Body:
+ *   {
+ *     "userId": "string",
+ *     "lastBonusAt": "ISO 8601 string" or null to reset
+ *   }
+ *
+ * Examples:
+ *   - Set to yesterday: "2026-05-28T14:23:45.000Z"
+ *   - Reset (allow claim): lastBonusAt: null
+ *   - Set to future (prevent claim): "2026-05-30T14:23:45.000Z"
+ *
+ * Response:
+ *   {
+ *     "success": true,
+ *     "userId": "...",
+ *     "lastDailyBonus": "ISO 8601 string" or null,
+ *     "message": "Wallet lastDailyBonus updated"
+ *   }
+ *
+ * Errors:
+ *   - 403 if production (not Render staging)
+ *   - 400 if userId missing or lastBonusAt invalid ISO string
+ *   - 404 if wallet not found
+ */
+router.post("/set-wallet-lastbonus", asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+
+  // SAFETY: Only allow in staging or development
+  if (!isRenderStaging && nodeEnv !== "development") {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  try {
+    const { userId, lastBonusAt } = req.body;
+
+    // Validate inputs
+    if (!userId || typeof userId !== "string") {
+      return res.status(400).json({ error: "userId is required (string)" });
+    }
+
+    // lastBonusAt can be null or valid ISO string
+    let parsedDate: Date | null = null;
+    if (lastBonusAt !== null && lastBonusAt !== undefined) {
+      if (typeof lastBonusAt !== "string") {
+        return res.status(400).json({ error: "lastBonusAt must be ISO 8601 string or null" });
+      }
+      parsedDate = new Date(lastBonusAt);
+      if (isNaN(parsedDate.getTime())) {
+        return res.status(400).json({
+          error: "Invalid ISO 8601 date",
+          example: "2026-05-28T14:23:45.000Z",
+        });
+      }
+    }
+
+    // Update wallet
+    const wallet = await prisma.wallet.update({
+      where: { userId },
+      data: { lastDailyBonus: parsedDate },
+    });
+
+    console.log(`[test/set-wallet-lastbonus] Updated userId=${userId} to lastDailyBonus=${parsedDate?.toISOString() ?? "null"}`);
+
+    res.json({
+      success: true,
+      userId,
+      lastDailyBonus: wallet.lastDailyBonus,
+      message: "Wallet lastDailyBonus updated",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Record to update not found")) {
+      return res.status(404).json({
+        error: "Wallet not found",
+        message: error.message,
+      });
+    }
+    console.error("[test/set-wallet-lastbonus] Error:", error);
+    res.status(500).json({
+      error: "Failed to set wallet lastDailyBonus",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}));
+
 export default router;
