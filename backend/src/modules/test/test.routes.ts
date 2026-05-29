@@ -3,8 +3,33 @@ import { asyncHandler } from "../../core/utils/asyncHandler";
 import { prisma } from "../../config/prisma";
 import { hashPassword } from "../../core/utils/hash";
 import * as authService from "../auth/auth.service";
+import { execSync } from "child_process";
 
 const router = Router();
+
+// Capture build time at module load
+const BUILD_TIME = new Date().toISOString();
+
+function getCommitSha() {
+  try {
+    return execSync("git rev-parse HEAD", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim().substring(0, 7);
+  } catch {
+    return "unknown";
+  }
+}
+
+function getBranch() {
+  try {
+    return execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+function getDbUrlHash() {
+  const dbUrl = process.env.DATABASE_URL || "not-set";
+  return require("crypto").createHash("sha256").update(dbUrl).digest("hex").substring(0, 8);
+}
 
 /**
  * DEBUG: Verify test router is mounted
@@ -15,6 +40,40 @@ router.get("/health", (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     node_env: process.env.NODE_ENV || "development",
     message: "If you see this, /api/test routes are available",
+  });
+});
+
+/**
+ * VERSION ENDPOINT
+ * GET /api/test/version
+ *
+ * Returns exact deployment version information:
+ * - environment (staging, production, development)
+ * - commit SHA (7 chars)
+ * - branch
+ * - buildTime (when this module loaded)
+ * - dbUrlHash (first 8 chars of sha256 of DATABASE_URL)
+ *
+ * This proves which code version is running on the server.
+ */
+router.get("/version", (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const renderService = process.env.RENDER_SERVICE_NAME || "none";
+
+  let environment = "development";
+  if (nodeEnv === "production") environment = "production";
+  if (renderService === "jeutaime-staging") environment = "staging";
+
+  res.json({
+    environment,
+    commit: getCommitSha(),
+    branch: getBranch(),
+    buildTime: BUILD_TIME,
+    dbUrlHash: getDbUrlHash(),
+    _debug: {
+      nodeEnv,
+      renderService,
+    },
   });
 });
 
@@ -154,6 +213,28 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
               lookingFor: ["RELATION"],
               physicalDesc: "moyenne",
               avatarConfig: {},
+              questions: {
+                create: [
+                  {
+                    questionId: "test_q1",
+                    questionText: "Quel est votre hobby préféré?",
+                    answer: "Lire des livres",
+                    wrongAnswers: ["Regarder la télé", "Jouer aux jeux vidéo"],
+                  },
+                  {
+                    questionId: "test_q2",
+                    questionText: "Quel type de vacances préférez-vous?",
+                    answer: "À la montagne",
+                    wrongAnswers: ["À la plage", "En ville"],
+                  },
+                  {
+                    questionId: "test_q3",
+                    questionText: "Quel est votre repas préféré?",
+                    answer: "Pâtes",
+                    wrongAnswers: ["Pizza", "Sushi"],
+                  },
+                ],
+              },
             },
           },
         },
@@ -198,6 +279,28 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
               lookingFor: ["RELATION"],
               physicalDesc: "moyenne",
               avatarConfig: {},
+              questions: {
+                create: [
+                  {
+                    questionId: "test_q1",
+                    questionText: "Quel est votre hobby préféré?",
+                    answer: "Lire des livres",
+                    wrongAnswers: ["Regarder la télé", "Jouer aux jeux vidéo"],
+                  },
+                  {
+                    questionId: "test_q2",
+                    questionText: "Quel type de vacances préférez-vous?",
+                    answer: "À la montagne",
+                    wrongAnswers: ["À la plage", "En ville"],
+                  },
+                  {
+                    questionId: "test_q3",
+                    questionText: "Quel est votre repas préféré?",
+                    answer: "Pâtes",
+                    wrongAnswers: ["Pizza", "Sushi"],
+                  },
+                ],
+              },
             },
           },
         },
@@ -220,6 +323,28 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       });
 
       return newUser;
+    });
+
+    // Verify ProfileQuestions were created
+    const profileQuestionsA = await prisma.profileQuestion.findMany({
+      where: { profileId: userA.profile?.id },
+      select: { id: true, questionText: true },
+    });
+
+    const profileQuestionsB = await prisma.profileQuestion.findMany({
+      where: { profileId: userB.profile?.id },
+      select: { id: true, questionText: true },
+    });
+
+    console.log("[test/reset-mutual-smile] ProfileQuestions created:", {
+      userAId: userA.id,
+      profileAId: userA.profile?.id,
+      profileQuestionsACount: profileQuestionsA.length,
+      profileQuestionsA: profileQuestionsA.map((q) => ({ id: q.id, text: q.questionText })),
+      userBId: userB.id,
+      profileBId: userB.profile?.id,
+      profileQuestionsBCount: profileQuestionsB.length,
+      profileQuestionsB: profileQuestionsB.map((q) => ({ id: q.id, text: q.questionText })),
     });
 
     // Verify virgin state
@@ -551,20 +676,26 @@ const discoveryDebugHandler = asyncHandler(async (req: Request, res: Response) =
 router.get("/discovery-debug", discoveryDebugHandler);
 
 /**
- * DANGEROUS STAGING CLEANUP ENDPOINT
+ * DANGEROUS STAGING/DEV CLEANUP ENDPOINT
  * POST /api/test/cleanup-staging-debug-data
  *
- * STAGING ONLY - Cleans up test data and broken matches.
- * - Deletes all test-mutual-* users and their data
- * - Deletes all profiles matching test_mutual_%
- * - Deletes all BROKEN/GHOSTED/BLOCKED matches (all users)
- * - Returns counts of deleted records
+ * STAGING & DEVELOPMENT ONLY - Prepares discovery for test by:
+ * 1. Deletes all test-mutual-* users and their data (temporary test accounts)
+ * 2. Deletes all profiles matching test_mutual_% pattern
+ * 3. Deletes all users with .test email pattern
+ * 4. Hides ALL other profiles from discovery (showInDiscovery=false)
+ *    - Keeps REAL staging accounts in DB but invisible
+ *    - Only test-mutual-* created by reset-mutual-smile are visible
+ * 5. Deletes all BROKEN/GHOSTED/BLOCKED matches
+ *
+ * This ensures Discovery shows ONLY the fresh test accounts.
+ * NEVER RUNS ON PRODUCTION.
  */
 const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) => {
   const nodeEnv = process.env.NODE_ENV || "development";
   const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
 
-  // SAFETY: Only allow in staging or development with explicit flag
+  // SAFETY: Only allow in staging or development
   if (!isRenderStaging && nodeEnv !== "development") {
     return res.status(403).json({ error: "Cleanup endpoint only available in staging/development" });
   }
@@ -573,6 +704,17 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
   if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
     return res.status(403).json({ error: "Test endpoint disabled in production" });
   }
+
+  // VERSION CHECK - This proves which commit is running
+  const commitSha = (() => {
+    try {
+      const { execSync } = require("child_process");
+      return execSync("git rev-parse HEAD", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+    } catch {
+      return "unknown";
+    }
+  })();
+  console.log(`🔍 [VERSION] cleanup endpoint called - commit: ${commitSha}`);
 
   try {
     const counts = {
@@ -588,10 +730,10 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
       petsDeleted: 0,
       blocksDeleted: 0,
       brokenMatchesDeleted: 0,
-      orphanDiscoveryProfilesDeleted: 0,
+      profilesHiddenFromDiscovery: 0,
     };
 
-    // 1. Find test-mutual-* users
+    // 1. Find test-mutual-* users (temporary test accounts to DELETE)
     const testMutualUsers = await prisma.user.findMany({
       where: { id: { startsWith: "test-mutual-" } },
       select: { id: true },
@@ -619,40 +761,19 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
     const testEmailUserIds = testEmailUsers.map((u) => u.id);
     console.log(`[cleanup-staging] Found ${testEmailUserIds.length} users with .test email pattern`);
 
-    // 4. CRITICAL: Known orphan profile IDs that MUST be deleted directly by ID
-    const orphanProfileIds = [
-      "cmp6wyz62000111ip6f7t8uge",
-      "cmp6yvp0h000511ip6beq6xqr",
-      "cmpdrwja80001iy9qc9sb1vkh",
-    ];
-
-    const orphanProfiles = await prisma.profile.findMany({
-      where: { id: { in: orphanProfileIds } },
-      select: { id: true, userId: true },
-    });
-    const orphanProfileUserIds = orphanProfiles.map((p) => p.userId);
-    counts.orphanDiscoveryProfilesDeleted = orphanProfiles.length;
-
-    console.log(
-      `[cleanup-staging] Found ${orphanProfiles.length} orphan discovery profiles`
-    );
-    if (orphanProfileUserIds.length > 0) {
-      console.log(
-        `[cleanup-staging] Orphan userIds to delete: ${orphanProfileUserIds.join(", ")}`
-      );
-    }
-
-    // All users to clean (test-mutual + test profiles + test emails + orphans)
+    // All test users to DELETE (test-mutual + test profiles + test emails)
     const allTestUserIds = [
       ...new Set([
         ...testMutualIds,
         ...testProfileUserIds,
         ...testEmailUserIds,
-        ...orphanProfileUserIds,
       ]),
     ];
 
+    // 4. DELETE all test users and their data
     if (allTestUserIds.length > 0) {
+      console.log(`[cleanup-staging] Deleting ${allTestUserIds.length} test users...`);
+
       // Delete test users and their data
       counts.reactionsDeleted = await prisma.reaction.deleteMany({
         where: {
@@ -706,17 +827,34 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
       await prisma.user.deleteMany({
         where: { id: { in: allTestUserIds } },
       });
+
+      console.log(`[cleanup-staging] Deleted ${allTestUserIds.length} test users and their data`);
     }
 
-    // CRITICAL: Delete orphan profiles DIRECTLY by ID (regardless of conditions)
-    console.log(
-      `[cleanup-staging] Deleting ${orphanProfileIds.length} orphan profile IDs directly...`
-    );
-    await prisma.profile.deleteMany({
-      where: { id: { in: orphanProfileIds } },
+    // 5. HIDE ALL OTHER PROFILES FROM DISCOVERY
+    // Set showInDiscovery=false for all profiles EXCEPT test-mutual-*
+    const stagingProfiles = await prisma.profile.findMany({
+      where: {
+        userId: {
+          not: { startsWith: "test-mutual-" },
+        },
+      },
+      select: { userId: true },
     });
 
-    // 3. Delete BROKEN/GHOSTED/BLOCKED matches (ALL users, for data integrity)
+    const stagingUserIds = stagingProfiles.map((p) => p.userId);
+    console.log(`[cleanup-staging] Found ${stagingUserIds.length} staging/real profiles to hide from discovery`);
+
+    if (stagingUserIds.length > 0) {
+      counts.profilesHiddenFromDiscovery = await prisma.userSettings.updateMany({
+        where: { userId: { in: stagingUserIds } },
+        data: { showInDiscovery: false },
+      }).then((r) => r.count);
+
+      console.log(`[cleanup-staging] Hidden ${counts.profilesHiddenFromDiscovery} profiles from discovery`);
+    }
+
+    // 6. Delete BROKEN/GHOSTED/BLOCKED matches (ALL users, for data integrity)
     counts.brokenMatchesDeleted = await prisma.match.deleteMany({
       where: { status: { in: ["BROKEN", "GHOSTED", "BLOCKED"] } },
     }).then((r) => r.count);
@@ -725,8 +863,11 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
 
     res.json({
       status: "success",
-      message: "Staging data cleanup completed",
+      message: "Staging data cleanup completed - discovery reset for test accounts only",
       counts,
+      _version: {
+        commitSha,
+      },
     });
   } catch (error) {
     console.error("[cleanup-staging] Error:", error);
@@ -1151,87 +1292,613 @@ const verifyMutualSmileDiscoveryHandler = asyncHandler(async (_req: Request, res
 
 router.get("/verify-mutual-smile-discovery", verifyMutualSmileDiscoveryHandler);
 
-// Version endpoint - returns deployed commit info
-router.get("/version", (_req: Request, res: Response) => {
-  const { execSync } = require("child_process");
+/**
+ * DIAGNOSTIC: Identify the 3 known orphan profiles
+ */
+const identifyOrphanProfilesExactHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  // Known orphan profile IDs
+  const orphanProfileIds = [
+    "cmp6yvp0h000511ip6beq6xqr",
+    "cmp6wyz62000111ip6f7t8uge",
+    "cmpdrwja80001iy9qc9sb1vkh",
+  ];
 
   try {
-    const commit = execSync("git rev-parse HEAD", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
-    const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }).trim();
-    const buildTime = new Date().toISOString();
-    const dbUrlHash = (process.env.DATABASE_URL || "").substring(0, 20);
+    const profiles = await prisma.profile.findMany({
+      where: { id: { in: orphanProfileIds } },
+      select: {
+        id: true,
+        userId: true,
+        pseudo: true,
+      },
+    });
+
+    const results = await Promise.all(
+      profiles.map(async (profile) => {
+        const user = await prisma.user.findUnique({
+          where: { id: profile.userId },
+          select: {
+            email: true,
+            createdAt: true,
+            settings: { select: { showInDiscovery: true } },
+          },
+        });
+
+        return {
+          profileId: profile.id,
+          userId: profile.userId,
+          email: user?.email,
+          pseudo: profile.pseudo,
+          createdAt: user?.createdAt,
+          showInDiscovery: user?.settings?.showInDiscovery,
+        };
+      })
+    );
 
     res.json({
-      environment: process.env.NODE_ENV || "unknown",
-      commit,
-      branch,
-      buildTime,
-      dbUrlHash,
+      status: "success",
+      orphanProfiles: results,
+      userIdsToDelete: results.map((r) => r.userId),
     });
   } catch (error) {
-    console.error("[test/version] Error:", error);
+    console.error("[test/identify-orphan-exact] Error:", error);
     res.status(500).json({
-      error: "Failed to get version info",
+      error: "Failed",
       message: error instanceof Error ? error.message : "Unknown error",
     });
   }
 });
 
-// Debug match endpoint - returns match details with initiatorId and validation status
-router.get("/debug-match", async (req: Request, res: Response) => {
+router.get("/identify-orphan-exact", identifyOrphanProfilesExactHandler);
+
+/**
+ * DEBUG DISCOVERY PROFILES
+ * GET /api/test/debug-discovery-profiles
+ *
+ * Returns EXACT profiles visible in Discovery (showInDiscovery=true)
+ * with all join info to understand the data structure.
+ *
+ * This shows why orphan profiles are still visible in Discovery
+ * and why cleanup can't find them.
+ */
+const debugDiscoveryProfilesHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
   try {
-    const { matchId } = req.query as { matchId?: string };
+    console.log("[debug-discovery] Starting discovery profiles debug...");
 
-    if (!matchId) {
-      return res.status(400).json({
-        error: "matchId query parameter is required",
-      });
-    }
-
-    const match = await prisma.match.findUnique({
-      where: { id: matchId },
-      include: {
-        letters: {
-          select: { id: true, fromUserId: true, sentAt: true },
-          orderBy: { sentAt: "desc" },
-          take: 5,
+    // Get all profiles where user.settings.showInDiscovery = true
+    const discoveryProfiles = await prisma.profile.findMany({
+      where: {
+        user: {
+          settings: {
+            showInDiscovery: true,
+          },
         },
       },
+      select: {
+        id: true,
+        userId: true,
+        pseudo: true,
+        createdAt: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            createdAt: true,
+            isBanned: true,
+            settings: {
+              select: {
+                showInDiscovery: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
     });
 
-    if (!match) {
-      return res.status(404).json({
-        error: "Match not found",
-        matchId,
-      });
-    }
+    console.log(`[debug-discovery] Found ${discoveryProfiles.length} profiles with showInDiscovery=true`);
 
-    res.json({
-      match: {
-        id: match.id,
-        status: match.status,
-        initiatorId: match.initiatorId,
-        questionsValidated: match.questionsValidated,
-        userAId: match.userAId,
-        userBId: match.userBId,
-        lastLetterBy: match.lastLetterBy,
-        letterCountA: match.letterCountA,
-        letterCountB: match.letterCountB,
-        lastLetterSenderId: match.letters[0]?.fromUserId || null,
-        letterCount: match.letters.length,
+    // Count all profiles by showInDiscovery flag
+    const countByFlag = await prisma.userSettings.groupBy({
+      by: ["showInDiscovery"],
+      _count: {
+        userId: true,
       },
     });
+
+    // Map the results to proper format with all requested fields
+    const formattedProfiles = discoveryProfiles.map((profile) => ({
+      profile_id: profile.id,
+      profile_userId: profile.userId,
+      user_id: profile.user.id,
+      email: profile.user.email,
+      pseudo: profile.pseudo,
+      showInDiscovery: profile.user.settings?.showInDiscovery,
+      createdAt: profile.user.createdAt.toISOString(),
+      isBanned: profile.user.isBanned,
+    }));
+
+    // Check for the specific orphan IDs
+    const orphanIds = [
+      "cmp6yvp0h000511ip6beq6xqr",
+      "cmp6wyz62000111ip6f7t8uge",
+      "cmpdrwja80001iy9qc9sb1vkh",
+    ];
+
+    const orphansInDiscovery = formattedProfiles.filter((p) => orphanIds.includes(p.profile_id));
+
+    console.log(`[debug-discovery] Orphan profiles in discovery: ${orphansInDiscovery.length}`);
+    orphansInDiscovery.forEach((p) => {
+      console.log(`[debug-discovery] ORPHAN FOUND: ${p.profile_id} | ${p.email} | ${p.pseudo}`);
+    });
+
+    res.json({
+      status: "success",
+      message: "Discovery profiles debug",
+      counts: {
+        total_discovery_profiles: formattedProfiles.length,
+        profiles_by_showInDiscovery_flag: countByFlag,
+        orphans_in_discovery: orphansInDiscovery.length,
+      },
+      tables_used: [
+        "Profile",
+        "User",
+        "UserSettings",
+      ],
+      discovery_profiles: formattedProfiles,
+      orphans_found: orphansInDiscovery,
+    });
   } catch (error) {
-    console.error("[test/debug-match] Error:", error);
+    console.error("[debug-discovery] Error:", error);
     res.status(500).json({
-      error: "Failed to debug match",
+      error: "Debug failed",
       message: error instanceof Error ? error.message : "Unknown error",
     });
   }
 });
 
-// Debug match questions endpoint - returns question structure and expected format
-router.get("/debug-match-questions", async (req: Request, res: Response) => {
+router.get("/debug-discovery-profiles", debugDiscoveryProfilesHandler);
+
+/**
+ * TEST ENDPOINT: LETTER ALTERNATION SYSTEM
+ * POST /api/test/test-letter-alternation
+ *
+ * Tests the letter turn-by-turn system after mutual smile:
+ * 1. Create match between two test accounts
+ * 2. Verify initiator can send first letter
+ * 3. Verify initiator CANNOT send second letter before response
+ * 4. Verify non-initiator can respond
+ * 5. Verify initiator can send after response
+ *
+ * FAILS with hard error if alternation rules are broken.
+ */
+
+// Type for letter endpoint responses
+type LetterTestResponse = {
+  data?: { id?: string };
+  error?: string;
+  message?: string;
+};
+
+const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  try {
+    console.log("[test/letter-alternation] Starting letter alternation test...");
+
+    // 1. Create two fresh test accounts
+    const timestamp = Date.now();
+    const userAId = `test-letter-a-${timestamp}`;
+    const userBId = `test-letter-b-${timestamp}`;
+    const emailA = `test.letter.a.${timestamp}@jeutaime.test`;
+    const emailB = `test.letter.b.${timestamp}@jeutaime.test`;
+    const pseudoA = `test_letter_a_${timestamp}`;
+    const pseudoB = `test_letter_b_${timestamp}`;
+    const passwordA = `test-a-${timestamp}`;
+    const passwordB = `test-b-${timestamp}`;
+
+    const { hashPassword } = await import("../../core/utils/hash");
+    const passwordHashA = await hashPassword(passwordA);
+    const passwordHashB = await hashPassword(passwordB);
+
+    console.log("[test/letter-alternation] Creating test users...");
+
+    // Create users in transaction
+    const [userA, userB] = await Promise.all([
+      prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            id: userAId,
+            email: emailA,
+            passwordHash: passwordHashA,
+            isVerified: true,
+            profile: {
+              create: {
+                pseudo: pseudoA,
+                gender: "HOMME",
+                city: "Paris",
+                birthDate: new Date("1990-01-01"),
+              },
+            },
+            settings: {
+              create: {
+                showInDiscovery: true,
+                showPhotoByDefault: true,
+              },
+            },
+            wallet: {
+              create: {
+                coins: 100,
+              },
+            },
+          },
+          include: { profile: true },
+        });
+        return newUser;
+      }),
+      prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            id: userBId,
+            email: emailB,
+            passwordHash: passwordHashB,
+            isVerified: true,
+            profile: {
+              create: {
+                pseudo: pseudoB,
+                gender: "FEMME",
+                city: "Lyon",
+                birthDate: new Date("1995-01-01"),
+              },
+            },
+            settings: {
+              create: {
+                showInDiscovery: true,
+                showPhotoByDefault: true,
+              },
+            },
+            wallet: {
+              create: {
+                coins: 100,
+              },
+            },
+          },
+          include: { profile: true },
+        });
+        return newUser;
+      }),
+    ]);
+
+    console.log(`[test/letter-alternation] Created users: ${userA.id}, ${userB.id}`);
+
+    // 2. Create a match (A initiated the mutual smile)
+    console.log("[test/letter-alternation] Creating match...");
+    const match = await prisma.match.create({
+      data: {
+        userAId: userA.id,
+        userBId: userB.id,
+        status: "ACTIVE",
+        initiatorId: userA.id, // A initiated the smile
+      },
+    });
+
+    console.log(`[test/letter-alternation] Match created: ${match.id}`);
+
+    // 3. Match lifecycle: B (initiator of smile → match creator) was created with status PENDING
+    // A (non-initiator) must accept the match to move it to ACTIVE status
+    console.log("[test/letter-alternation] A accepts the match (A is non-initiator)...");
+    const acceptResponse = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/accept`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userA.id}`,
+        },
+      }
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
+
+    if (acceptResponse.error) {
+      throw new Error(`[FAIL] A should be able to accept match (A is non-initiator). Response: ${JSON.stringify(acceptResponse)}`);
+    }
+
+    console.log(`[test/letter-alternation] ✓ Match accepted by A, status is now ACTIVE`);
+
+    // 4. Before sending letters, both users must answer 3 validation questions
+    // A submits answers
+    console.log("[test/letter-alternation] Step 4a: A submits question answers...");
+    const questionsA = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/questions`,
+      {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${userA.id}` },
+      }
+    ).then((r) => r.json() as Promise<any>);
+
+    const answersA = questionsA.data?.questions?.map((q: any) => ({
+      profileQuestionId: q.profileQuestionId || q.id,
+      answer: "Test answer for question",
+    })) || [];
+
+    if (answersA.length < 3) {
+      throw new Error(`[FAIL] Expected 3 questions for A, got ${answersA.length}`);
+    }
+
+    const submitA = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/questions/answers`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userA.id}`,
+        },
+        body: JSON.stringify({ answers: answersA }),
+      }
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
+
+    if (submitA.error) {
+      throw new Error(`[FAIL] A should be able to submit answers. Response: ${JSON.stringify(submitA)}`);
+    }
+    console.log(`[test/letter-alternation] ✓ A submitted answers`);
+
+    // B submits answers
+    console.log("[test/letter-alternation] Step 4b: B submits question answers...");
+    const questionsB = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/questions`,
+      {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${userB.id}` },
+      }
+    ).then((r) => r.json() as Promise<any>);
+
+    const answersB = questionsB.data?.questions?.map((q: any) => ({
+      profileQuestionId: q.profileQuestionId || q.id,
+      answer: "Test answer for question",
+    })) || [];
+
+    if (answersB.length < 3) {
+      throw new Error(`[FAIL] Expected 3 questions for B, got ${answersB.length}`);
+    }
+
+    const submitB = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/questions/answers`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userB.id}`,
+        },
+        body: JSON.stringify({ answers: answersB }),
+      }
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
+
+    if (submitB.error) {
+      throw new Error(`[FAIL] B should be able to submit answers. Response: ${JSON.stringify(submitB)}`);
+    }
+    console.log(`[test/letter-alternation] ✓ B submitted answers`);
+
+    // 5. A sends first letter (SHOULD SUCCEED - initiator can send first)
+    console.log("[test/letter-alternation] Step 5: A sends first letter...");
+    const letter1Response = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userA.id}`, // Mock token for test
+        },
+        body: JSON.stringify({
+          content: "Hello B, this is the first message from A",
+        }),
+      }
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
+
+    if (!letter1Response.data?.id) {
+      throw new Error(`[FAIL] A should be able to send first letter. Response: ${JSON.stringify(letter1Response)}`);
+    }
+
+    console.log(`[test/letter-alternation] ✓ A sent first letter: ${letter1Response.data.id}`);
+
+    // 5. A tries to send second letter (SHOULD FAIL - must wait for B)
+    console.log("[test/letter-alternation] Step 6: A tries to send second letter (should FAIL)...");
+    const letter2Response = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userA.id}`,
+        },
+        body: JSON.stringify({
+          content: "A tries to send again without waiting",
+        }),
+      }
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
+
+    if (letter2Response.data?.id) {
+      throw new Error(`[FAIL] A should NOT be able to send second letter before B responds. Got: ${letter2Response.data.id}`);
+    }
+
+    if (!letter2Response.error) {
+      throw new Error(`[FAIL] Expected error when A sends twice. Response: ${JSON.stringify(letter2Response)}`);
+    }
+
+    console.log(`[test/letter-alternation] ✓ A correctly blocked from sending twice`);
+
+    // 6. B responds (SHOULD SUCCEED - must respond to A's letter)
+    console.log("[test/letter-alternation] Step 7: B sends response...");
+    const letter3Response = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userB.id}`,
+        },
+        body: JSON.stringify({
+          content: "Hello A, this is B's response",
+        }),
+      }
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
+
+    if (!letter3Response.data?.id) {
+      throw new Error(`[FAIL] B should be able to respond. Response: ${JSON.stringify(letter3Response)}`);
+    }
+
+    console.log(`[test/letter-alternation] ✓ B sent response: ${letter3Response.data.id}`);
+
+    // 7. A sends again (SHOULD SUCCEED - turn is now A's)
+    console.log("[test/letter-alternation] Step 8: A sends second letter after B's response...");
+    const letter4Response = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/matches/${match.id}/letters`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userA.id}`,
+        },
+        body: JSON.stringify({
+          content: "Thanks B, here is my second message",
+        }),
+      }
+    ).then((r) => r.json() as Promise<LetterTestResponse>);
+
+    if (!letter4Response.data?.id) {
+      throw new Error(`[FAIL] A should be able to send after B responds. Response: ${JSON.stringify(letter4Response)}`);
+    }
+
+    console.log(`[test/letter-alternation] ✓ A sent second letter: ${letter4Response.data.id}`);
+
+    // 8. Cleanup test accounts
+    console.log("[test/letter-alternation] Step 9: Cleaning up test accounts...");
+    await Promise.all([
+      prisma.letter.deleteMany({ where: { OR: [{ fromUserId: userA.id }, { toUserId: userA.id }] } }),
+      prisma.letter.deleteMany({ where: { OR: [{ fromUserId: userB.id }, { toUserId: userB.id }] } }),
+      prisma.match.deleteMany({ where: { OR: [{ userAId: userA.id }, { userBId: userA.id }] } }),
+      prisma.profile.deleteMany({ where: { userId: { in: [userA.id, userB.id] } } }),
+      prisma.user.deleteMany({ where: { id: { in: [userA.id, userB.id] } } }),
+    ]);
+
+    console.log("[test/letter-alternation] Test PASSED ✅");
+
+    res.json({
+      status: "success",
+      message: "Letter alternation system working correctly",
+      test_results: {
+        step1_match_accepted: "✅ Match accepted by non-initiator (A)",
+        step2_questions_answered: "✅ Both A & B answered validation questions",
+        step3_first_letter_sent: "✅ A can send first letter",
+        step4_alternation_blocked: "✅ A blocked from sending twice",
+        step5_response_allowed: "✅ B can respond",
+        step6_turn_alternates: "✅ A can send after B responds",
+      },
+    });
+  } catch (error) {
+    console.error("[test/letter-alternation] Test FAILED:", error);
+    res.status(400).json({
+      status: "fail",
+      error: "Letter alternation test failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.post("/test-letter-alternation", testLetterAlternationHandler);
+
+/**
+ * DEBUG ENDPOINT: Match Details
+ * GET /api/test/debug-match?matchId=...
+ *
+ * Returns full match details to understand lifecycle and acceptance rules.
+ */
+const debugMatchHandler = asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const matchId = req.query.matchId as string;
+  if (!matchId) {
+    return res.status(400).json({ error: "matchId query parameter required" });
+  }
+
+  try {
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: {
+        id: true,
+        userAId: true,
+        userBId: true,
+        initiatorId: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    if (!match) {
+      return res.status(404).json({ error: "Match not found" });
+    }
+
+    res.json({
+      status: "success",
+      match: {
+        id: match.id,
+        userAId: match.userAId,
+        userBId: match.userBId,
+        initiatorId: match.initiatorId,
+        status: match.status,
+        createdAt: match.createdAt.toISOString(),
+        note: match.initiatorId === match.userAId
+          ? "User A is initiator - User B must accept"
+          : "User B is initiator - User A must accept",
+      },
+    });
+  } catch (error) {
+    console.error("[debug-match] Error:", error);
+    res.status(500).json({
+      error: "Debug failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+router.get("/debug-match", debugMatchHandler);
+
+// Test endpoint: Get match questions WITH correct answers (staging/test only)
+router.get("/match-questions", async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
   try {
     const { matchId } = req.query as { matchId?: string };
 
@@ -1242,8 +1909,8 @@ router.get("/debug-match-questions", async (req: Request, res: Response) => {
     }
 
     const match = await prisma.match.findUnique({
-      where: { id: matchId },
-      select: { userAId: true, userBId: true },
+      where: { id: matchId as string },
+      select: { userAId: true, userBId: true, status: true },
     });
 
     if (!match) {
@@ -1253,52 +1920,59 @@ router.get("/debug-match-questions", async (req: Request, res: Response) => {
       });
     }
 
-    // For testing purposes, return questions for the first user
-    const userProfile = await prisma.profile.findUnique({
+    // Return questions from both users (for test debugging)
+    const profileA = await prisma.profile.findUnique({
       where: { userId: match.userAId },
-      include: {
-        questions: true,
-      },
+      select: { id: true },
     });
 
-    if (!userProfile) {
-      return res.status(404).json({
-        error: "User profile not found",
-      });
-    }
+    const profileB = await prisma.profile.findUnique({
+      where: { userId: match.userBId },
+      select: { id: true },
+    });
 
-    const questions = userProfile.questions.map((q) => ({
-      profileQuestionId: q.id,
-      questionText: q.questionText,
-      answer: q.answer,
-      wrongAnswers: q.wrongAnswers,
-    }));
+    const questionsA = await prisma.profileQuestion.findMany({
+      where: { profileId: profileA?.id },
+      select: { id: true, questionId: true, questionText: true, answer: true, wrongAnswers: true },
+    });
+
+    const questionsB = await prisma.profileQuestion.findMany({
+      where: { profileId: profileB?.id },
+      select: { id: true, questionId: true, questionText: true, answer: true, wrongAnswers: true },
+    });
 
     res.json({
       matchId,
-      userA: match.userAId,
-      userB: match.userBId,
-      questionsCount: questions.length,
-      expectedSubmissionFormat: {
-        method: "POST",
-        endpoint: `/api/matches/${matchId}/questions/answers`,
-        body: {
-          answers: [
-            {
-              profileQuestionId: "example-id",
-              answer: "example answer",
-            },
-          ],
-        },
+      message: "DEBUG ENDPOINT: Shows correct answers for testing",
+      userA: {
+        userId: match.userAId,
+        profileId: profileA?.id,
+        questionsCount: questionsA.length,
+        questions: questionsA.map((q) => ({
+          profileQuestionId: q.id,
+          questionId: q.questionId,
+          questionText: q.questionText,
+          answer: q.answer,
+          wrongAnswers: q.wrongAnswers,
+        })),
       },
-      data: {
-        questions,
+      userB: {
+        userId: match.userBId,
+        profileId: profileB?.id,
+        questionsCount: questionsB.length,
+        questions: questionsB.map((q) => ({
+          profileQuestionId: q.id,
+          questionId: q.questionId,
+          questionText: q.questionText,
+          answer: q.answer,
+          wrongAnswers: q.wrongAnswers,
+        })),
       },
     });
   } catch (error) {
-    console.error("[test/debug-match-questions] Error:", error);
+    console.error("[test/match-questions] Error:", error);
     res.status(500).json({
-      error: "Failed to debug match questions",
+      error: "Failed to get match questions",
       message: error instanceof Error ? error.message : "Unknown error",
     });
   }
