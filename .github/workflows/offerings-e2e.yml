@@ -35,6 +35,40 @@ jobs:
           echo "$CLEANUP" | jq .
           echo ""
 
+          # Step 0.5: Debug offerings catalog state
+          echo "=== Step 0.5: Debug offerings catalog state ==="
+          DEBUG=$(curl -s "$API_URL/test/debug-offerings-catalog")
+          echo "Debug response:"
+          echo "$DEBUG" | jq .
+          echo ""
+
+          DEBUG_ENABLED=$(echo "$DEBUG" | jq -r '.diagnostic.enabledCount')
+          echo "Offerings in DB (enabled): $DEBUG_ENABLED"
+
+          # Step 0.6: Seed offerings if empty
+          if [ "$DEBUG_ENABLED" -eq "0" ]; then
+            echo "=== Step 0.6: Catalog empty, seeding offerings ==="
+            SEED=$(curl -s -X POST "$API_URL/test/seed-offerings-catalog" \
+              -H "Content-Type: application/json")
+            echo "Seed response:"
+            echo "$SEED" | jq .
+            echo ""
+
+            SEED_SUCCESS=$(echo "$SEED" | jq -r '.success')
+            SEED_FINAL=$(echo "$SEED" | jq -r '.finalEnabledCount')
+
+            if [ "$SEED_SUCCESS" != "true" ]; then
+              echo "❌ ERROR: Seed failed"
+              exit 1
+            fi
+
+            echo "✅ Offerings seeded (now: $SEED_FINAL)"
+            echo ""
+          else
+            echo "✅ Offerings already in DB ($DEBUG_ENABLED), skipping seed"
+            echo ""
+          fi
+
           # Step 1: Reset mutual smile (create two test accounts with 100 coins each)
           echo "=== Step 1: Reset mutual smile ==="
           RESET=$(curl -s -X POST "$API_URL/test/reset-mutual-smile" \
