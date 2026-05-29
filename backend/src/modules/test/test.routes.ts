@@ -213,6 +213,28 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
               lookingFor: ["RELATION"],
               physicalDesc: "moyenne",
               avatarConfig: {},
+              questions: {
+                create: [
+                  {
+                    questionId: "test_q1",
+                    questionText: "Quel est votre hobby préféré?",
+                    answer: "Lire des livres",
+                    wrongAnswers: ["Regarder la télé", "Jouer aux jeux vidéo"],
+                  },
+                  {
+                    questionId: "test_q2",
+                    questionText: "Quel type de vacances préférez-vous?",
+                    answer: "À la montagne",
+                    wrongAnswers: ["À la plage", "En ville"],
+                  },
+                  {
+                    questionId: "test_q3",
+                    questionText: "Quel est votre repas préféré?",
+                    answer: "Pâtes",
+                    wrongAnswers: ["Pizza", "Sushi"],
+                  },
+                ],
+              },
             },
           },
         },
@@ -257,6 +279,28 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
               lookingFor: ["RELATION"],
               physicalDesc: "moyenne",
               avatarConfig: {},
+              questions: {
+                create: [
+                  {
+                    questionId: "test_q1",
+                    questionText: "Quel est votre hobby préféré?",
+                    answer: "Lire des livres",
+                    wrongAnswers: ["Regarder la télé", "Jouer aux jeux vidéo"],
+                  },
+                  {
+                    questionId: "test_q2",
+                    questionText: "Quel type de vacances préférez-vous?",
+                    answer: "À la montagne",
+                    wrongAnswers: ["À la plage", "En ville"],
+                  },
+                  {
+                    questionId: "test_q3",
+                    questionText: "Quel est votre repas préféré?",
+                    answer: "Pâtes",
+                    wrongAnswers: ["Pizza", "Sushi"],
+                  },
+                ],
+              },
             },
           },
         },
@@ -279,6 +323,28 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       });
 
       return newUser;
+    });
+
+    // Verify ProfileQuestions were created
+    const profileQuestionsA = await prisma.profileQuestion.findMany({
+      where: { profileId: userA.profile?.id },
+      select: { id: true, questionText: true },
+    });
+
+    const profileQuestionsB = await prisma.profileQuestion.findMany({
+      where: { profileId: userB.profile?.id },
+      select: { id: true, questionText: true },
+    });
+
+    console.log("[test/reset-mutual-smile] ProfileQuestions created:", {
+      userAId: userA.id,
+      profileAId: userA.profile?.id,
+      profileQuestionsACount: profileQuestionsA.length,
+      profileQuestionsA: profileQuestionsA.map((q) => ({ id: q.id, text: q.questionText })),
+      userBId: userB.id,
+      profileBId: userB.profile?.id,
+      profileQuestionsBCount: profileQuestionsB.length,
+      profileQuestionsB: profileQuestionsB.map((q) => ({ id: q.id, text: q.questionText })),
     });
 
     // Verify virgin state
