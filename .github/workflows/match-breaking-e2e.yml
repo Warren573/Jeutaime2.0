@@ -163,23 +163,28 @@ jobs:
             -H "Authorization: Bearer $TOKEN_A")
 
           STATUS_BEFORE=$(echo "$MATCH_BEFORE" | jq -r '.data.status')
+          CURRENT_SIDE=$(echo "$MATCH_BEFORE" | jq -r '.data.currentUserSide')
+          LAST_LETTER_BY=$(echo "$MATCH_BEFORE" | jq -r '.data.lastLetterBy')
+          LETTER_COUNT_A=$(echo "$MATCH_BEFORE" | jq -r '.data.letterCountA')
+          LETTER_COUNT_B=$(echo "$MATCH_BEFORE" | jq -r '.data.letterCountB')
           CAN_SEND_BEFORE=$(echo "$MATCH_BEFORE" | jq -r '.data.canSend')
+          CAN_SEND_REASON=$(echo "$MATCH_BEFORE" | jq -r '.data.canSendReason // .data.reason // "N/A"')
 
-          echo "Before breaking:"
+          echo "Before breaking (viewed as $CURRENT_SIDE):"
           echo "  match.status: $STATUS_BEFORE (expected: ACTIVE)"
-          echo "  canSend: $CAN_SEND_BEFORE (expected: true)"
+          echo "  currentUserSide: $CURRENT_SIDE"
+          echo "  lastLetterBy: $LAST_LETTER_BY"
+          echo "  letterCountA: $LETTER_COUNT_A"
+          echo "  letterCountB: $LETTER_COUNT_B"
+          echo "  canSend: $CAN_SEND_BEFORE"
+          echo "  canSendReason: $CAN_SEND_REASON (Note: false if not their turn)"
 
           if [ "$STATUS_BEFORE" != "ACTIVE" ]; then
             echo "  ❌ ERROR: Status should be ACTIVE, got $STATUS_BEFORE"
             exit 1
           fi
 
-          if [ "$CAN_SEND_BEFORE" != "true" ]; then
-            echo "  ❌ ERROR: canSend should be true, got $CAN_SEND_BEFORE"
-            exit 1
-          fi
-
-          echo "  ✅ PASS"
+          echo "  ✅ Match is ACTIVE (ready to break)"
           echo ""
 
           # Step 10: A breaks the match
@@ -214,11 +219,21 @@ jobs:
             -H "Authorization: Bearer $TOKEN_A")
 
           STATUS_AFTER=$(echo "$MATCH_AFTER" | jq -r '.data.status')
+          CURRENT_SIDE_AFTER=$(echo "$MATCH_AFTER" | jq -r '.data.currentUserSide')
+          LAST_LETTER_BY_AFTER=$(echo "$MATCH_AFTER" | jq -r '.data.lastLetterBy')
+          LETTER_COUNT_A_AFTER=$(echo "$MATCH_AFTER" | jq -r '.data.letterCountA')
+          LETTER_COUNT_B_AFTER=$(echo "$MATCH_AFTER" | jq -r '.data.letterCountB')
           CAN_SEND_AFTER=$(echo "$MATCH_AFTER" | jq -r '.data.canSend')
+          CAN_SEND_REASON_AFTER=$(echo "$MATCH_AFTER" | jq -r '.data.canSendReason // .data.reason // "N/A"')
 
-          echo "After breaking:"
+          echo "After breaking (viewed as $CURRENT_SIDE_AFTER):"
           echo "  match.status: $STATUS_AFTER (expected: BROKEN)"
-          echo "  canSend: $CAN_SEND_AFTER (expected: false)"
+          echo "  currentUserSide: $CURRENT_SIDE_AFTER"
+          echo "  lastLetterBy: $LAST_LETTER_BY_AFTER"
+          echo "  letterCountA: $LETTER_COUNT_A_AFTER"
+          echo "  letterCountB: $LETTER_COUNT_B_AFTER"
+          echo "  canSend: $CAN_SEND_AFTER (expected: false, reason: MATCH_NOT_ACTIVE)"
+          echo "  canSendReason: $CAN_SEND_REASON_AFTER"
 
           if [ "$STATUS_AFTER" != "BROKEN" ]; then
             echo "  ❌ ERROR: Status should remain BROKEN, got $STATUS_AFTER"
@@ -226,10 +241,11 @@ jobs:
           fi
 
           if [ "$CAN_SEND_AFTER" != "false" ]; then
-            echo "  ⚠️  WARNING: canSend is $CAN_SEND_AFTER (expected false, but testing actual behavior)"
+            echo "  ❌ ERROR: canSend should be false after breaking, got $CAN_SEND_AFTER"
+            exit 1
           fi
 
-          echo "  ✅ PASS"
+          echo "  ✅ Match is BROKEN (status persisted, canSend=false)"
           echo ""
 
           # Step 12: A tries to send letter after breaking (SHOULD FAIL)
