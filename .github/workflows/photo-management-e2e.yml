@@ -434,13 +434,18 @@ jobs:
             -H "Authorization: Bearer $TOKEN_B")
           echo "Response:"
           echo "$A_PHOTOS" | jq .
-          PHOTO_DATA=$(echo "$A_PHOTOS" | jq '.data.photos[0] // empty')
-          if [ -z "$PHOTO_DATA" ]; then
-            echo "⚠ Note: No photos returned (may be access level 0)"
+
+          # Handle both old format (.data.photos[]) and new format (.data[])
+          PHOTOS_COUNT=$(echo "$A_PHOTOS" | jq 'if (.data | type) == "array" then (.data | length) else (.data.photos | length // 0) end')
+          LEVEL=$(echo "$A_PHOTOS" | jq -r '.meta.level // .data.level // 0')
+          UNLOCKED=$(echo "$A_PHOTOS" | jq -r '.meta.unlocked // false')
+
+          echo "Photos count: $PHOTOS_COUNT, Access level: $LEVEL, Unlocked: $UNLOCKED"
+
+          if [ "$PHOTOS_COUNT" = "0" ]; then
+            echo "⚠ Note: No photos visible at access level $LEVEL (unlocked=$UNLOCKED)"
           else
-            VARIANT=$(echo "$A_PHOTOS" | jq -r '.data.photos[0].variant // "unknown"')
-            LEVEL=$(echo "$A_PHOTOS" | jq -r '.data.level // 0')
-            echo "Access level: $LEVEL"
+            VARIANT=$(echo "$A_PHOTOS" | jq -r 'if (.data | type) == "array" then .data[0].variant else .data.photos[0].variant end // "unknown"')
             echo "First photo variant: $VARIANT (expected: blurred, blurMedium, or original based on level)"
             echo "✅ PASS: B can view A's photos with access control"
           fi
