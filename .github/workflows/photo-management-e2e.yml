@@ -16,6 +16,13 @@ jobs:
           echo "API_URL: $API_URL"
           echo ""
 
+          # Helper: print photo list details for debugging
+          print_photo_list() {
+            local photos=$1
+            echo "Photo list structure:"
+            echo "$photos" | jq '.data[] | {id: .id, position: .position, isPrimary: .isPrimary}'
+          }
+
           # Version Check
           echo "=== Version Check: Verify deployed commit ==="
           VERSION=$(curl -s "$API_URL/test/version")
@@ -135,6 +142,7 @@ jobs:
             -H "Authorization: Bearer $TOKEN_A")
           echo "My photos response:"
           echo "$MY_PHOTOS" | jq .
+          print_photo_list "$MY_PHOTOS"
           PHOTO_COUNT=$(echo "$MY_PHOTOS" | jq '.data | length')
           echo "Photo count: $PHOTO_COUNT (expect: 1)"
 
@@ -180,6 +188,7 @@ jobs:
             -H "Authorization: Bearer $TOKEN_A")
           PHOTO_COUNT=$(echo "$MY_PHOTOS" | jq '.data | length')
           echo "Photo count: $PHOTO_COUNT (expect: 2)"
+          print_photo_list "$MY_PHOTOS"
 
           if [ "$PHOTO_COUNT" != "2" ]; then
             echo "❌ FAIL: Should have 2 photos"
@@ -228,6 +237,8 @@ jobs:
           echo "=== Step 11: Verify reordered list ==="
           MY_PHOTOS=$(curl -s -X GET "$API_URL/photos/me" \
             -H "Authorization: Bearer $TOKEN_A")
+          echo "After PATCH position changes, full list:"
+          print_photo_list "$MY_PHOTOS"
           FIRST_ID=$(echo "$MY_PHOTOS" | jq -r '.data[0].id')
           SECOND_ID=$(echo "$MY_PHOTOS" | jq -r '.data[1].id')
           echo "Order in list: [$FIRST_ID, $SECOND_ID]"
@@ -262,6 +273,7 @@ jobs:
           echo "=== Step 13: Verify photo 1 demoted ==="
           MY_PHOTOS=$(curl -s -X GET "$API_URL/photos/me" \
             -H "Authorization: Bearer $TOKEN_A")
+          print_photo_list "$MY_PHOTOS"
           PHOTO_1_CHECK=$(echo "$MY_PHOTOS" | jq -r ".data[] | select(.id == \"$PHOTO_1_ID\") | .isPrimary")
           echo "Photo 1 isPrimary: $PHOTO_1_CHECK (expect: false)"
 
@@ -294,6 +306,7 @@ jobs:
           echo "=== Step 15: Verify photo 1 promoted to primary ==="
           MY_PHOTOS=$(curl -s -X GET "$API_URL/photos/me" \
             -H "Authorization: Bearer $TOKEN_A")
+          print_photo_list "$MY_PHOTOS"
           PHOTO_COUNT=$(echo "$MY_PHOTOS" | jq '.data | length')
           REMAINING_PRIMARY=$(echo "$MY_PHOTOS" | jq -r '.data[0].isPrimary')
           echo "Photo count: $PHOTO_COUNT (expect: 1)"
