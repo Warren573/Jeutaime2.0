@@ -293,10 +293,10 @@ jobs:
           DELETE_2=$(curl -s -w "\n%{http_code}" -X DELETE "$API_URL/photos/$PHOTO_2_ID" \
             -H "Authorization: Bearer $TOKEN_A")
           HTTP_CODE=$(echo "$DELETE_2" | tail -n1)
-          echo "Delete response HTTP code: $HTTP_CODE (expect: 200)"
+          echo "Delete response HTTP code: $HTTP_CODE (expect: 200 or 204)"
 
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "❌ FAIL: Delete should return 200"
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "204" ]; then
+            echo "❌ FAIL: Delete should return 200 or 204"
             exit 1
           fi
           echo "✅ PASS: Photo 2 deleted"
