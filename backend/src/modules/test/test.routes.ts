@@ -150,6 +150,13 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
         },
       });
 
+      // Delete offerings sent
+      await prisma.offeringSent.deleteMany({
+        where: {
+          OR: [{ fromUserId: { in: allTestUserIds } }, { toUserId: { in: allTestUserIds } }],
+        },
+      });
+
       // Delete blocks
       await prisma.block.deleteMany({
         where: {
@@ -724,6 +731,7 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
       reactionsDeleted: 0,
       matchesDeleted: 0,
       lettersDeleted: 0,
+      offeringsSentDeleted: 0,
       refreshTokensDeleted: 0,
       walletsDeleted: 0,
       settingsDeleted: 0,
@@ -789,6 +797,12 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
       }).then((r) => r.count);
 
       counts.lettersDeleted = await prisma.letter.deleteMany({
+        where: {
+          OR: [{ fromUserId: { in: allTestUserIds } }, { toUserId: { in: allTestUserIds } }],
+        },
+      }).then((r) => r.count);
+
+      counts.offeringsSentDeleted = await prisma.offeringSent.deleteMany({
         where: {
           OR: [{ fromUserId: { in: allTestUserIds } }, { toUserId: { in: allTestUserIds } }],
         },
