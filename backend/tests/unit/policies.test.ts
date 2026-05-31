@@ -65,32 +65,24 @@ describe("letterAlternation", () => {
 // ============================================================
 
 describe("photoUnlock", () => {
-  it("getPhotoLevel Free : level 0 avec 0-2 lettres", () => {
+  it("getPhotoLevel Free : level 0 avec < 10 lettres", () => {
     expect(getPhotoLevel({ totalLetters: 0, viewerIsPremium: false })).toBe(0);
     expect(getPhotoLevel({ totalLetters: 1, viewerIsPremium: false })).toBe(0);
-    expect(getPhotoLevel({ totalLetters: 2, viewerIsPremium: false })).toBe(0);
+    expect(getPhotoLevel({ totalLetters: 9, viewerIsPremium: false })).toBe(0);
   });
 
-  it("getPhotoLevel Free : level 1 avec 3-5 lettres", () => {
-    expect(getPhotoLevel({ totalLetters: 3, viewerIsPremium: false })).toBe(1);
-    expect(getPhotoLevel({ totalLetters: 5, viewerIsPremium: false })).toBe(1);
-  });
-
-  it("getPhotoLevel Free : level 2 avec 6-9 lettres", () => {
-    expect(getPhotoLevel({ totalLetters: 6, viewerIsPremium: false })).toBe(2);
-    expect(getPhotoLevel({ totalLetters: 9, viewerIsPremium: false })).toBe(2);
-  });
-
-  it("getPhotoLevel Free : level 3 avec 10+ lettres", () => {
+  it("getPhotoLevel Free : level 3 avec >= 10 lettres", () => {
     expect(getPhotoLevel({ totalLetters: 10, viewerIsPremium: false })).toBe(3);
     expect(getPhotoLevel({ totalLetters: 50, viewerIsPremium: false })).toBe(3);
   });
 
-  it("getPhotoLevel Premium : level 1 avec 1 lettre", () => {
-    expect(getPhotoLevel({ totalLetters: 1, viewerIsPremium: true })).toBe(1);
+  it("getPhotoLevel Premium : level 0 avec < 3 lettres", () => {
+    expect(getPhotoLevel({ totalLetters: 0, viewerIsPremium: true })).toBe(0);
+    expect(getPhotoLevel({ totalLetters: 1, viewerIsPremium: true })).toBe(0);
+    expect(getPhotoLevel({ totalLetters: 2, viewerIsPremium: true })).toBe(0);
   });
 
-  it("getPhotoLevel Premium : level 3 avec 3+ lettres", () => {
+  it("getPhotoLevel Premium : level 3 avec >= 3 lettres", () => {
     expect(getPhotoLevel({ totalLetters: 3, viewerIsPremium: true })).toBe(3);
     expect(getPhotoLevel({ totalLetters: 100, viewerIsPremium: true })).toBe(3);
   });
@@ -99,26 +91,18 @@ describe("photoUnlock", () => {
     expect(getPhotoVariant(0)).toBe(null);
   });
 
-  it("getPhotoVariant niveau 1 = blurred", () => {
-    expect(getPhotoVariant(1)).toBe("blurred");
-  });
-
-  it("getPhotoVariant niveau 2 = medium", () => {
-    expect(getPhotoVariant(2)).toBe("medium");
-  });
-
   it("getPhotoVariant niveau 3 = original", () => {
     expect(getPhotoVariant(3)).toBe("original");
   });
 
-  it("getPhotoUnlockProgress Free : level 1 à 5 lettres", () => {
+  it("getPhotoUnlockProgress Free : level 0 à 5 lettres", () => {
     const progress = getPhotoUnlockProgress({
       totalLetters: 5,
       viewerIsPremium: false,
     });
-    expect(progress.level).toBe(1);
+    expect(progress.level).toBe(0);
     expect(progress.totalLetters).toBe(5);
-    expect(progress.nextLevelAt).toBe(6);
+    expect(progress.nextLevelAt).toBe(10);
   });
 
   it("getPhotoUnlockProgress Premium : level 3 à 3 lettres", () => {
