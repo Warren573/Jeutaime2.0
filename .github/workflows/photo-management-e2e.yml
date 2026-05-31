@@ -41,22 +41,33 @@ jobs:
             -H "Content-Type: application/json")
           echo "Reset response:"
           echo "$RESET" | jq .
-          USER_A=$(echo "$RESET" | jq -r '.data.userA.id')
-          USER_B=$(echo "$RESET" | jq -r '.data.userB.id')
-          PSEUDO_A=$(echo "$RESET" | jq -r '.data.userA.pseudo')
-          PSEUDO_B=$(echo "$RESET" | jq -r '.data.userB.pseudo')
-          echo "User A: $USER_A ($PSEUDO_A)"
-          echo "User B: $USER_B ($PSEUDO_B)"
+          EMAIL_A=$(echo "$RESET" | jq -r '.accountA.email')
+          PASSWORD_A=$(echo "$RESET" | jq -r '.accountA.password')
+          USER_A=$(echo "$RESET" | jq -r '.accountA.userId')
+          PSEUDO_A=$(echo "$RESET" | jq -r '.accountA.pseudo')
+
+          EMAIL_B=$(echo "$RESET" | jq -r '.accountB.email')
+          PASSWORD_B=$(echo "$RESET" | jq -r '.accountB.password')
+          USER_B=$(echo "$RESET" | jq -r '.accountB.userId')
+          PSEUDO_B=$(echo "$RESET" | jq -r '.accountB.pseudo')
+
+          echo "User A: $USER_A ($PSEUDO_A / $EMAIL_A)"
+          echo "User B: $USER_B ($PSEUDO_B / $EMAIL_B)"
           echo ""
 
           # Step 2: Login as user A
           echo "=== Step 2: Login as user A ==="
           LOGIN_A=$(curl -s -X POST "$API_URL/auth/login" \
             -H "Content-Type: application/json" \
-            -d "{\"pseudo\": \"$PSEUDO_A\", \"password\": \"password\"}")
+            -d "{\"email\": \"$EMAIL_A\", \"password\": \"$PASSWORD_A\"}")
           echo "Login response:"
           echo "$LOGIN_A" | jq .
-          TOKEN_A=$(echo "$LOGIN_A" | jq -r '.data.access_token')
+          TOKEN_A=$(echo "$LOGIN_A" | jq -r '.data.accessToken // .accessToken // empty')
+
+          if [ -z "$TOKEN_A" ] || [ "$TOKEN_A" = "null" ]; then
+            echo "❌ FAIL: Failed to get token for user A"
+            exit 1
+          fi
           echo "Token A: ${TOKEN_A:0:20}..."
           echo ""
 
@@ -64,10 +75,15 @@ jobs:
           echo "=== Step 3: Login as user B ==="
           LOGIN_B=$(curl -s -X POST "$API_URL/auth/login" \
             -H "Content-Type: application/json" \
-            -d "{\"pseudo\": \"$PSEUDO_B\", \"password\": \"password\"}")
+            -d "{\"email\": \"$EMAIL_B\", \"password\": \"$PASSWORD_B\"}")
           echo "Login response:"
           echo "$LOGIN_B" | jq .
-          TOKEN_B=$(echo "$LOGIN_B" | jq -r '.data.access_token')
+          TOKEN_B=$(echo "$LOGIN_B" | jq -r '.data.accessToken // .accessToken // empty')
+
+          if [ -z "$TOKEN_B" ] || [ "$TOKEN_B" = "null" ]; then
+            echo "❌ FAIL: Failed to get token for user B"
+            exit 1
+          fi
           echo "Token B: ${TOKEN_B:0:20}..."
           echo ""
 
