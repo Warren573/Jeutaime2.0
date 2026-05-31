@@ -466,23 +466,28 @@ jobs:
           fi
           echo ""
 
-          # Step 24: B tries to view A's photos again (should be 403)
+          # Step 24: B tries to view A's photos again (should be 403 or 200 with no photos)
           echo "=== Step 24: B tries to view A's photos after block ==="
           A_PHOTOS_BLOCKED=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/photos/user/$USER_A" \
             -H "Authorization: Bearer $TOKEN_B")
           HTTP_CODE=$(echo "$A_PHOTOS_BLOCKED" | tail -n1)
-          echo "HTTP code: $HTTP_CODE (expect: 403 if block endpoint exists, or 0 if no photos due to block)"
+          BODY=$(echo "$A_PHOTOS_BLOCKED" | head -n -1)
+          echo "HTTP code: $HTTP_CODE (expect: 403 or 200)"
 
-          # 403 indicates blocked access, 200 with empty data indicates no access
+          # Handle both old format (.data.photos[]) and new format (.data[])
+          PHOTOS_COUNT=$(echo "$BODY" | jq 'if (.data | type) == "array" then (.data | length) else (.data.photos | length // 0) end')
+
           if [ "$HTTP_CODE" = "403" ]; then
             echo "✅ PASS: B blocked from viewing A's photos"
           elif [ "$HTTP_CODE" = "200" ]; then
-            PHOTOS_COUNT=$(echo "$A_PHOTOS_BLOCKED" | head -n -1 | jq '.data.photos | length // 0')
             if [ "$PHOTOS_COUNT" = "0" ]; then
-              echo "✅ PASS: B sees no photos after block (access denied)"
+              echo "✅ PASS: B sees no photos after block/access denied"
             else
-              echo "⚠ Note: Photos still visible after block (may be expected behavior)"
+              echo "⚠ Note: Photos still visible after block/access check (may be expected behavior)"
             fi
+          else
+            echo "❌ FAIL: Unexpected HTTP code after block/access check: $HTTP_CODE"
+            exit 1
           fi
           echo ""
 
