@@ -91,19 +91,23 @@ jobs:
           echo "=== PHASE 1: UPLOAD & LIST ==="
           echo ""
 
-          # Step 4: Create a small test image (1x1 PNG)
+          # Step 4: Create a small test image (1x1 PNG) on disk
           echo "=== Step 4: Create test image ==="
           # Base64-encoded 1x1 transparent PNG (minimal valid image)
           PNG_B64="iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-          PNG_DATA=$(echo "$PNG_B64" | base64 -d)
-          echo "Test image created (PNG, ~35 bytes)"
+          echo "$PNG_B64" | base64 -d > /tmp/test_photo.png
+
+          # Diagnostic: Verify file written correctly
+          echo "File info:"
+          file /tmp/test_photo.png
+          ls -lh /tmp/test_photo.png
           echo ""
 
           # Step 5: Upload first photo as user A
           echo "=== Step 5: Upload first photo as user A ==="
           PHOTO_1=$(curl -s -X POST "$API_URL/photos/me" \
             -H "Authorization: Bearer $TOKEN_A" \
-            -F "photo=@-;type=image/png;filename=photo1.png" <<< "$PNG_DATA")
+            -F "photo=@/tmp/test_photo.png;type=image/png")
           echo "Upload response:"
           echo "$PHOTO_1" | jq .
           PHOTO_1_ID=$(echo "$PHOTO_1" | jq -r '.data.id')
@@ -149,7 +153,7 @@ jobs:
           echo "=== Step 7: Upload second photo as user A ==="
           PHOTO_2=$(curl -s -X POST "$API_URL/photos/me" \
             -H "Authorization: Bearer $TOKEN_A" \
-            -F "photo=@-;type=image/png;filename=photo2.png" <<< "$PNG_DATA")
+            -F "photo=@/tmp/test_photo.png;type=image/png")
           echo "Upload response:"
           echo "$PHOTO_2" | jq .
           PHOTO_2_ID=$(echo "$PHOTO_2" | jq -r '.data.id')
@@ -344,7 +348,7 @@ jobs:
             echo "Uploading photo $i..."
             PHOTO_N=$(curl -s -X POST "$API_URL/photos/me" \
               -H "Authorization: Bearer $TOKEN_A" \
-              -F "photo=@-;type=image/png;filename=photo$i.png" <<< "$PNG_DATA")
+              -F "photo=@/tmp/test_photo.png;type=image/png")
             PHOTO_N_ID=$(echo "$PHOTO_N" | jq -r '.data.id // empty')
             if [ -z "$PHOTO_N_ID" ]; then
               echo "❌ FAIL: Photo $i upload failed"
@@ -373,7 +377,7 @@ jobs:
           echo "=== Step 20: Try to upload 7th photo (exceeds limit) ==="
           PHOTO_7=$(curl -s -w "\n%{http_code}" -X POST "$API_URL/photos/me" \
             -H "Authorization: Bearer $TOKEN_A" \
-            -F "photo=@-;type=image/png;filename=photo7.png" <<< "$PNG_DATA")
+            -F "photo=@/tmp/test_photo.png;type=image/png")
           HTTP_CODE=$(echo "$PHOTO_7" | tail -n1)
           echo "Upload response HTTP code: $HTTP_CODE (expect: 422)"
 
