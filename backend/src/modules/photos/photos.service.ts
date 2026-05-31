@@ -81,8 +81,8 @@ export async function listMyPhotos(userId: string): Promise<PhotoDto[]> {
   const photos = await prisma.photo.findMany({
     where: { userId },
     orderBy: [
-      { isPrimary: "desc" },
       { position: "asc" },
+      { isPrimary: "desc" },
       { createdAt: "asc" },
       { id: "asc" },
     ],
@@ -149,8 +149,8 @@ export async function listPhotosForViewer(params: {
   const photos = await prisma.photo.findMany({
     where: { userId: targetUserId },
     orderBy: [
-      { isPrimary: "desc" },
       { position: "asc" },
+      { isPrimary: "desc" },
       { createdAt: "asc" },
       { id: "asc" },
     ],
