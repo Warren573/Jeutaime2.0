@@ -497,4 +497,4 @@ jobs:
           echo "✅ Photo upload, list, update, delete workflow successful"
           echo "✅ Primary photo auto-promotion on delete verified"
           echo "✅ Error cases (404, 403, 422) handled correctly"
-          echo "✅ Access control with block status verified"
+          echo "✅ Access control level 0 verified; block endpoint not available"
