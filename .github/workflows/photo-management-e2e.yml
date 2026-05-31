@@ -284,79 +284,12 @@ jobs:
           echo "✅ PASS: Photo 1 correctly demoted"
           echo ""
 
-          # === PHASE 3: DELETE WITH PRIMARY PROMOTION ===
-          echo "=== PHASE 3: DELETE WITH PRIMARY PROMOTION ==="
+          # === PHASE 3: UPLOAD TO REACH LIMIT ===
+          echo "=== PHASE 3: UPLOAD TO REACH LIMIT ==="
           echo ""
 
-          # Step 14: Delete photo 2 (was primary)
-          echo "=== Step 14: Delete photo 2 (was primary) ==="
-          DELETE_2=$(curl -s -w "\n%{http_code}" -X DELETE "$API_URL/photos/$PHOTO_2_ID" \
-            -H "Authorization: Bearer $TOKEN_A")
-          HTTP_CODE=$(echo "$DELETE_2" | tail -n1)
-          echo "Delete response HTTP code: $HTTP_CODE (expect: 200 or 204)"
-
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "204" ]; then
-            echo "❌ FAIL: Delete should return 200 or 204"
-            exit 1
-          fi
-          echo "✅ PASS: Photo 2 deleted"
-          echo ""
-
-          # Step 15: Verify photo 1 promoted to primary
-          echo "=== Step 15: Verify photo 1 promoted to primary ==="
-          MY_PHOTOS=$(curl -s -X GET "$API_URL/photos/me" \
-            -H "Authorization: Bearer $TOKEN_A")
-          print_photo_list "$MY_PHOTOS"
-          PHOTO_COUNT=$(echo "$MY_PHOTOS" | jq '.data | length')
-          REMAINING_PRIMARY=$(echo "$MY_PHOTOS" | jq -r '.data[0].isPrimary')
-          echo "Photo count: $PHOTO_COUNT (expect: 1)"
-          echo "Remaining photo isPrimary: $REMAINING_PRIMARY (expect: true)"
-
-          if [ "$PHOTO_COUNT" != "1" ]; then
-            echo "❌ FAIL: Should have 1 photo"
-            exit 1
-          fi
-          if [ "$REMAINING_PRIMARY" != "true" ]; then
-            echo "❌ FAIL: Remaining photo should be promoted to primary"
-            exit 1
-          fi
-          echo "✅ PASS: Photo 1 promoted to primary"
-          echo ""
-
-          # === PHASE 4: ERROR CASES ===
-          echo "=== PHASE 4: ERROR CASES ==="
-          echo ""
-
-          # Step 16: Try to delete same photo twice (404)
-          echo "=== Step 16: Try to delete photo 2 again (already deleted) ==="
-          DELETE_2_AGAIN=$(curl -s -w "\n%{http_code}" -X DELETE "$API_URL/photos/$PHOTO_2_ID" \
-            -H "Authorization: Bearer $TOKEN_A")
-          HTTP_CODE=$(echo "$DELETE_2_AGAIN" | tail -n1)
-          echo "Delete response HTTP code: $HTTP_CODE (expect: 404)"
-
-          if [ "$HTTP_CODE" != "404" ]; then
-            echo "❌ FAIL: Should return 404 NotFoundError"
-            exit 1
-          fi
-          echo "✅ PASS: Correctly returns 404 on double delete"
-          echo ""
-
-          # Step 17: Try to delete photo as wrong user (403)
-          echo "=== Step 17: Try to delete photo 1 as user B (not owner) ==="
-          DELETE_WRONG_USER=$(curl -s -w "\n%{http_code}" -X DELETE "$API_URL/photos/$PHOTO_1_ID" \
-            -H "Authorization: Bearer $TOKEN_B")
-          HTTP_CODE=$(echo "$DELETE_WRONG_USER" | tail -n1)
-          echo "Delete response HTTP code: $HTTP_CODE (expect: 403)"
-
-          if [ "$HTTP_CODE" != "403" ]; then
-            echo "❌ FAIL: Should return 403 ForbiddenError"
-            exit 1
-          fi
-          echo "✅ PASS: Correctly returns 403 for non-owner"
-          echo ""
-
-          # Step 18: Upload 6 photos to reach limit
-          echo "=== Step 18: Upload photos to reach max limit (6) ==="
+          # Step 14: Upload photos 3-6 to have 6 total before delete test
+          echo "=== Step 14: Upload photos to reach max limit (6) ==="
           for i in {3..6}; do
             echo "Uploading photo $i..."
             PHOTO_N=$(curl -s -X POST "$API_URL/photos/me" \
@@ -372,8 +305,8 @@ jobs:
           done
           echo ""
 
-          # Step 19: Verify we have exactly 6 photos
-          echo "=== Step 19: Verify 6 photos uploaded ==="
+          # Step 15: Verify we have exactly 6 photos
+          echo "=== Step 15: Verify 6 photos uploaded ==="
           MY_PHOTOS=$(curl -s -X GET "$API_URL/photos/me" \
             -H "Authorization: Bearer $TOKEN_A")
           PHOTO_COUNT=$(echo "$MY_PHOTOS" | jq '.data | length')
@@ -386,8 +319,8 @@ jobs:
           echo "✅ PASS: Reached max limit (6 photos)"
           echo ""
 
-          # Step 20: Try to upload 7th photo (422 UnprocessableError - limit exceeded)
-          echo "=== Step 20: Try to upload 7th photo (exceeds limit) ==="
+          # Step 16: Try to upload 7th photo (422 UnprocessableError - limit exceeded)
+          echo "=== Step 16: Try to upload 7th photo (exceeds limit) ==="
           PHOTO_7=$(curl -s -w "\n%{http_code}" -X POST "$API_URL/photos/me" \
             -H "Authorization: Bearer $TOKEN_A" \
             -F "photo=@/tmp/test_photo.png;type=image/png")
@@ -401,8 +334,79 @@ jobs:
           echo "✅ PASS: Correctly rejects 7th photo (limit exceeded)"
           echo ""
 
-          # === PHASE 5: ACCESS CONTROL ===
-          echo "=== PHASE 5: ACCESS CONTROL ==="
+          # === PHASE 4: DELETE WITH PRIMARY PROMOTION ===
+          echo "=== PHASE 4: DELETE WITH PRIMARY PROMOTION ==="
+          echo ""
+
+          # Step 17: Delete photo 2 (was primary)
+          echo "=== Step 17: Delete photo 2 (was primary) ==="
+          DELETE_2=$(curl -s -w "\n%{http_code}" -X DELETE "$API_URL/photos/$PHOTO_2_ID" \
+            -H "Authorization: Bearer $TOKEN_A")
+          HTTP_CODE=$(echo "$DELETE_2" | tail -n1)
+          echo "Delete response HTTP code: $HTTP_CODE (expect: 200 or 204)"
+
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "204" ]; then
+            echo "❌ FAIL: Delete should return 200 or 204"
+            exit 1
+          fi
+          echo "✅ PASS: Photo 2 deleted"
+          echo ""
+
+          # Step 18: Verify photo 1 promoted to primary and count is 5
+          echo "=== Step 18: Verify photo 1 promoted to primary (5 photos remain) ==="
+          MY_PHOTOS=$(curl -s -X GET "$API_URL/photos/me" \
+            -H "Authorization: Bearer $TOKEN_A")
+          print_photo_list "$MY_PHOTOS"
+          PHOTO_COUNT=$(echo "$MY_PHOTOS" | jq '.data | length')
+          FIRST_PHOTO_PRIMARY=$(echo "$MY_PHOTOS" | jq -r '.data[0].isPrimary')
+          echo "Photo count: $PHOTO_COUNT (expect: 5)"
+          echo "First photo isPrimary: $FIRST_PHOTO_PRIMARY (expect: true)"
+
+          if [ "$PHOTO_COUNT" != "5" ]; then
+            echo "❌ FAIL: Should have 5 photos (6 - 1 deleted)"
+            exit 1
+          fi
+          if [ "$FIRST_PHOTO_PRIMARY" != "true" ]; then
+            echo "❌ FAIL: Photo 1 should be promoted to primary"
+            exit 1
+          fi
+          echo "✅ PASS: Photo 1 promoted to primary with 5 photos remaining"
+          echo ""
+
+          # === PHASE 5: ERROR CASES ===
+          echo "=== PHASE 5: ERROR CASES ==="
+          echo ""
+
+          # Step 19: Try to delete same photo twice (404)
+          echo "=== Step 19: Try to delete photo 2 again (already deleted) ==="
+          DELETE_2_AGAIN=$(curl -s -w "\n%{http_code}" -X DELETE "$API_URL/photos/$PHOTO_2_ID" \
+            -H "Authorization: Bearer $TOKEN_A")
+          HTTP_CODE=$(echo "$DELETE_2_AGAIN" | tail -n1)
+          echo "Delete response HTTP code: $HTTP_CODE (expect: 404)"
+
+          if [ "$HTTP_CODE" != "404" ]; then
+            echo "❌ FAIL: Should return 404 NotFoundError"
+            exit 1
+          fi
+          echo "✅ PASS: Correctly returns 404 on double delete"
+          echo ""
+
+          # Step 20: Try to delete photo as wrong user (403)
+          echo "=== Step 20: Try to delete photo 1 as user B (not owner) ==="
+          DELETE_WRONG_USER=$(curl -s -w "\n%{http_code}" -X DELETE "$API_URL/photos/$PHOTO_1_ID" \
+            -H "Authorization: Bearer $TOKEN_B")
+          HTTP_CODE=$(echo "$DELETE_WRONG_USER" | tail -n1)
+          echo "Delete response HTTP code: $HTTP_CODE (expect: 403)"
+
+          if [ "$HTTP_CODE" != "403" ]; then
+            echo "❌ FAIL: Should return 403 ForbiddenError"
+            exit 1
+          fi
+          echo "✅ PASS: Correctly returns 403 for non-owner"
+          echo ""
+
+          # === PHASE 6: ACCESS CONTROL ===
+          echo "=== PHASE 6: ACCESS CONTROL ==="
           echo ""
 
           # Step 21: Make A and B have mutual smile (enable access)
