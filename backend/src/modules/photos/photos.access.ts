@@ -7,8 +7,6 @@ export type PhotoAccessReason =
   | "BLOCKED"
   | "NO_MATCH"
   | "LEVEL_0"
-  | "LEVEL_1"
-  | "LEVEL_2"
   | "LEVEL_3";
 
 export interface PhotoAccessContext {
@@ -40,9 +38,9 @@ export function resolvePhotoAccess(ctx: PhotoAccessContext): PhotoAccessResult {
   const totalLetters = match.letterCountA + match.letterCountB;
   const level = getPhotoLevel({ totalLetters, viewerIsPremium });
   const variant = getPhotoVariant(level);
-  const allowed = level > 0;
+  const allowed = level === 3;
 
-  const reason: PhotoAccessReason = allowed ? `LEVEL_${level}` : "LEVEL_0";
+  const reason: PhotoAccessReason = allowed ? "LEVEL_3" : "LEVEL_0";
 
   return {
     allowed,

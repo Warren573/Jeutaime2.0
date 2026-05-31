@@ -1,25 +1,25 @@
-name: Photo Progressive Unlock E2E Test
+name: Photo Binary Unlock E2E Test
 
 on:
   workflow_dispatch:
 
 jobs:
-  test-photo-progressive-unlock:
+  test-photo-binary-unlock:
     runs-on: ubuntu-latest
     steps:
-      - name: Test Photo Progressive Unlock by Letter Exchange
+      - name: Test Photo Binary Unlock System
         run: |
           set -e
 
           API_URL="https://jeutaime-staging.onrender.com/api"
-          echo "=== Photo Progressive Unlock E2E Test ==="
+          echo "=== Photo Binary Unlock E2E Test ==="
           echo "API_URL: $API_URL"
           echo ""
-          echo "Test strategy: FREE user progression (3→6→10 letters)"
-          echo "  Level 0: 0-2 letters → variant null"
-          echo "  Level 1: 3-5 letters → variant blurred"
-          echo "  Level 2: 6-9 letters → variant medium"
-          echo "  Level 3: 10+ letters → variant original"
+          echo "Binary system: Photo visible on profile only after threshold"
+          echo "  Level 0: < threshold → Avatar only"
+          echo "  Level 3: >= threshold → Original photo"
+          echo "  FREE threshold: 10 letters"
+          echo "  PREMIUM threshold: 3 letters"
           echo ""
 
           # Version Check
@@ -85,12 +85,12 @@ jobs:
           echo "Photo uploaded: $PHOTO_ID"
           echo ""
 
-          # === PHASE 1: LEVEL 0 (0-2 letters) ===
-          echo "=== PHASE 1: LEVEL 0 (0-2 letters) — No photos visible ==="
+          # === PHASE 1: LEVEL 0 (< threshold) ===
+          echo "=== PHASE 1: LEVEL 0 (< 10 letters) — Avatar only ==="
           echo ""
 
-          # Step 5: B tries to view A's photos (should be empty)
-          echo "=== Step 5: B tries to view A's photos (0 letters) ==="
+          # Step 5: B tries to view A's photos at level 0 (should be empty)
+          echo "=== Step 5: B views A's photos (0 letters) ==="
           PHOTOS_0=$(curl -s -X GET "$API_URL/photos/user/$USER_A" \
             -H "Authorization: Bearer $TOKEN_B")
           PHOTOS_COUNT=$(echo "$PHOTOS_0" | jq 'if (.data | type) == "array" then (.data | length) else (.data.photos | length // 0) end')
@@ -102,7 +102,7 @@ jobs:
             echo "❌ FAIL: Should see 0 photos at level 0"
             exit 1
           fi
-          echo "✅ PASS: Level 0 - no photos visible"
+          echo "✅ PASS: Level 0 - no photos visible, avatar only"
           echo ""
 
           # Step 6: B tries to access photo file directly (should be 403)
@@ -119,13 +119,13 @@ jobs:
           echo "✅ PASS: File access denied at level 0"
           echo ""
 
-          # === PHASE 2: LEVEL 1 (3-5 letters) ===
-          echo "=== PHASE 2: LEVEL 1 (3-5 letters) — Blurred visible ==="
+          # === PHASE 2: LEVEL 3 (>= threshold) ===
+          echo "=== PHASE 2: LEVEL 3 (>= 10 letters) — Full photo ==="
           echo ""
 
-          # Step 7: Exchange 3 letters to reach level 1
-          echo "=== Step 7: Exchange 3 letters (A→B, B→A, A→B) ==="
-          for i in 1 2 3; do
+          # Step 7: Exchange 10 letters to reach level 3 (threshold)
+          echo "=== Step 7: Exchange 10 letters to reach threshold ==="
+          for i in 1 2 3 4 5 6 7 8 9 10; do
             if [ $((i % 2)) -eq 1 ]; then
               curl -s -X POST "$API_URL/letters/send" \
                 -H "Authorization: Bearer $TOKEN_A" \
@@ -138,125 +138,11 @@ jobs:
                 -d "{\"toUserId\": \"$USER_A\", \"content\": \"Letter $i\"}" > /dev/null
             fi
           done
-          echo "3 letters exchanged"
+          echo "10 letters exchanged (threshold reached)"
           echo ""
 
-          # Step 8: B checks level (should be 1 now)
-          echo "=== Step 8: B views A's photos (3 letters) ==="
-          PHOTOS_1=$(curl -s -X GET "$API_URL/photos/user/$USER_A" \
-            -H "Authorization: Bearer $TOKEN_B")
-          PHOTOS_COUNT=$(echo "$PHOTOS_1" | jq 'if (.data | type) == "array" then (.data | length) else (.data.photos | length // 0) end')
-          LEVEL=$(echo "$PHOTOS_1" | jq -r '.meta.level // .data.level // 0')
-          VARIANT=$(echo "$PHOTOS_1" | jq -r 'if (.data | type) == "array" then (.data[0].variant // "none") else (.data.photos[0].variant // "none") end // "none"')
-          echo "Photos visible: $PHOTOS_COUNT (expect: 1)"
-          echo "Level: $LEVEL (expect: 1)"
-          echo "Variant: $VARIANT (expect: blurred)"
-
-          if [ "$PHOTOS_COUNT" != "1" ]; then
-            echo "❌ FAIL: Should see 1 photo at level 1"
-            exit 1
-          fi
-          if [ "$VARIANT" != "blurred" ]; then
-            echo "⚠ Note: Expected variant 'blurred', got '$VARIANT'"
-          fi
-          echo "✅ PASS: Level 1 - blurred variant visible"
-          echo ""
-
-          # Step 9: B tries to access original (should be 403, gets blurred or forbidden)
-          echo "=== Step 9: B tries to access /original (3 letters) ==="
-          FILE_BLURRED=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/photos/file/$PHOTO_ID/original" \
-            -H "Authorization: Bearer $TOKEN_B")
-          HTTP_CODE=$(echo "$FILE_BLURRED" | tail -n1)
-          echo "HTTP code: $HTTP_CODE (expect: 403, original not allowed at level 1)"
-
-          if [ "$HTTP_CODE" != "403" ]; then
-            echo "⚠ Note: Expected 403 at level 1 for /original, got $HTTP_CODE"
-          else
-            echo "✅ PASS: /original blocked at level 1"
-          fi
-          echo ""
-
-          # === PHASE 3: LEVEL 2 (6-9 letters) ===
-          echo "=== PHASE 3: LEVEL 2 (6-9 letters) — Medium blur visible ==="
-          echo ""
-
-          # Step 10: Exchange 3 more letters (total 6) to reach level 2
-          echo "=== Step 10: Exchange 3 more letters (B→A, A→B, B→A) ==="
-          for i in 4 5 6; do
-            if [ $((i % 2)) -eq 0 ]; then
-              curl -s -X POST "$API_URL/letters/send" \
-                -H "Authorization: Bearer $TOKEN_A" \
-                -H "Content-Type: application/json" \
-                -d "{\"toUserId\": \"$USER_B\", \"content\": \"Letter $i\"}" > /dev/null
-            else
-              curl -s -X POST "$API_URL/letters/send" \
-                -H "Authorization: Bearer $TOKEN_B" \
-                -H "Content-Type: application/json" \
-                -d "{\"toUserId\": \"$USER_A\", \"content\": \"Letter $i\"}" > /dev/null
-            fi
-          done
-          echo "6 letters total exchanged"
-          echo ""
-
-          # Step 11: B checks level (should be 2 now)
-          echo "=== Step 11: B views A's photos (6 letters) ==="
-          PHOTOS_2=$(curl -s -X GET "$API_URL/photos/user/$USER_A" \
-            -H "Authorization: Bearer $TOKEN_B")
-          PHOTOS_COUNT=$(echo "$PHOTOS_2" | jq 'if (.data | type) == "array" then (.data | length) else (.data.photos | length // 0) end')
-          LEVEL=$(echo "$PHOTOS_2" | jq -r '.meta.level // .data.level // 0')
-          VARIANT=$(echo "$PHOTOS_2" | jq -r 'if (.data | type) == "array" then (.data[0].variant // "none") else (.data.photos[0].variant // "none") end // "none"')
-          echo "Photos visible: $PHOTOS_COUNT (expect: 1)"
-          echo "Level: $LEVEL (expect: 2)"
-          echo "Variant: $VARIANT (expect: medium)"
-
-          if [ "$PHOTOS_COUNT" != "1" ]; then
-            echo "❌ FAIL: Should see 1 photo at level 2"
-            exit 1
-          fi
-          if [ "$VARIANT" != "medium" ]; then
-            echo "⚠ Note: Expected variant 'medium', got '$VARIANT'"
-          fi
-          echo "✅ PASS: Level 2 - medium variant visible"
-          echo ""
-
-          # Step 12: B tries to access original (should still be 403 at level 2)
-          echo "=== Step 12: B tries to access /original (6 letters) ==="
-          FILE_MEDIUM=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/photos/file/$PHOTO_ID/original" \
-            -H "Authorization: Bearer $TOKEN_B")
-          HTTP_CODE=$(echo "$FILE_MEDIUM" | tail -n1)
-          echo "HTTP code: $HTTP_CODE (expect: 403, original not allowed at level 2)"
-
-          if [ "$HTTP_CODE" != "403" ]; then
-            echo "⚠ Note: Expected 403 at level 2 for /original, got $HTTP_CODE"
-          else
-            echo "✅ PASS: /original blocked at level 2"
-          fi
-          echo ""
-
-          # === PHASE 4: LEVEL 3 (10+ letters) ===
-          echo "=== PHASE 4: LEVEL 3 (10+ letters) — Original visible ==="
-          echo ""
-
-          # Step 13: Exchange 4 more letters (total 10) to reach level 3
-          echo "=== Step 13: Exchange 4 more letters (A→B, B→A, A→B, B→A) ==="
-          for i in 7 8 9 10; do
-            if [ $((i % 2)) -eq 1 ]; then
-              curl -s -X POST "$API_URL/letters/send" \
-                -H "Authorization: Bearer $TOKEN_A" \
-                -H "Content-Type: application/json" \
-                -d "{\"toUserId\": \"$USER_B\", \"content\": \"Letter $i\"}" > /dev/null
-            else
-              curl -s -X POST "$API_URL/letters/send" \
-                -H "Authorization: Bearer $TOKEN_B" \
-                -H "Content-Type: application/json" \
-                -d "{\"toUserId\": \"$USER_A\", \"content\": \"Letter $i\"}" > /dev/null
-            fi
-          done
-          echo "10 letters total exchanged"
-          echo ""
-
-          # Step 14: B checks level (should be 3 now)
-          echo "=== Step 14: B views A's photos (10 letters) ==="
+          # Step 8: B checks level (should be 3 now)
+          echo "=== Step 8: B views A's photos (10 letters, threshold) ==="
           PHOTOS_3=$(curl -s -X GET "$API_URL/photos/user/$USER_A" \
             -H "Authorization: Bearer $TOKEN_B")
           PHOTOS_COUNT=$(echo "$PHOTOS_3" | jq 'if (.data | type) == "array" then (.data | length) else (.data.photos | length // 0) end')
@@ -271,17 +157,18 @@ jobs:
             exit 1
           fi
           if [ "$VARIANT" != "original" ]; then
-            echo "⚠ Note: Expected variant 'original', got '$VARIANT'"
+            echo "❌ FAIL: Expected variant 'original', got '$VARIANT'"
+            exit 1
           fi
-          echo "✅ PASS: Level 3 - original variant visible"
+          echo "✅ PASS: Level 3 - full photo visible with original variant"
           echo ""
 
-          # Step 15: B CAN NOW access /original (should be 200)
-          echo "=== Step 15: B accesses /original (10 letters) ==="
-          FILE_ORIGINAL=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/photos/file/$PHOTO_ID/original" \
+          # Step 9: B CAN NOW access /original file (should be 200)
+          echo "=== Step 9: B accesses /original file (10 letters, threshold) ==="
+          FILE_200=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/photos/file/$PHOTO_ID/original" \
             -H "Authorization: Bearer $TOKEN_B")
-          HTTP_CODE=$(echo "$FILE_ORIGINAL" | tail -n1)
-          BODY_SIZE=$(echo "$FILE_ORIGINAL" | head -n -1 | wc -c)
+          HTTP_CODE=$(echo "$FILE_200" | tail -n1)
+          BODY_SIZE=$(echo "$FILE_200" | head -n -1 | wc -c)
           echo "HTTP code: $HTTP_CODE (expect: 200)"
           echo "Response size: $BODY_SIZE bytes"
 
@@ -298,8 +185,6 @@ jobs:
 
           # === SUMMARY ===
           echo "=== TEST SUMMARY ==="
-          echo "✅ Level 0 (0 letters): No photos, file access 403"
-          echo "✅ Level 1 (3 letters): Blurred variant visible, /original 403"
-          echo "✅ Level 2 (6 letters): Medium variant visible, /original 403"
-          echo "✅ Level 3 (10 letters): Original variant visible, /original 200"
-          echo "✅ Progressive unlock working correctly"
+          echo "✅ Level 0 (< 10 letters): No photos visible, avatar only, /original returns 403"
+          echo "✅ Level 3 (>= 10 letters): Photos visible on profile, original variant, /original returns 200"
+          echo "✅ Binary unlock system working correctly"

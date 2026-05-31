@@ -87,32 +87,14 @@ export async function processAndWrite(params: {
   const absBlurMedium = path.join(dir, path.basename(blurMediumPath));
 
   try {
-    // Original : downsize, strip EXIF
+    // Original : downsize, strip EXIF (binary system: only generate original)
     await sharp(inputBuffer)
       .rotate()
       .resize({ width: PHOTO_ORIGINAL_MAX_WIDTH, height: PHOTO_ORIGINAL_MAX_WIDTH, fit: "inside", withoutEnlargement: true })
       .webp({ quality: PHOTO_WEBP_QUALITY })
       .toFile(absOriginal);
-
-    // blurStrong (level 1) : forte anonymisation
-    await sharp(inputBuffer)
-      .rotate()
-      .resize({ width: PHOTO_BLURRED_MAX_WIDTH, height: PHOTO_BLURRED_MAX_WIDTH, fit: "inside", withoutEnlargement: true })
-      .blur(PHOTO_BLUR_SIGMA)
-      .webp({ quality: PHOTO_BLURRED_WEBP_QUALITY })
-      .toFile(absBlurred);
-
-    // blurMedium (level 2) : légèrement flouté, silhouette visible
-    await sharp(inputBuffer)
-      .rotate()
-      .resize({ width: PHOTO_BLURRED_MAX_WIDTH, height: PHOTO_BLURRED_MAX_WIDTH, fit: "inside", withoutEnlargement: true })
-      .blur(PHOTO_BLUR_MEDIUM_SIGMA)
-      .webp({ quality: PHOTO_BLURRED_WEBP_QUALITY })
-      .toFile(absBlurMedium);
   } catch (e) {
     await safeUnlink(absOriginal);
-    await safeUnlink(absBlurred);
-    await safeUnlink(absBlurMedium);
     throw new UnprocessableError("Traitement de l'image échoué");
   }
 

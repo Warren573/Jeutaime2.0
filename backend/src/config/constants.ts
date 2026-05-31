@@ -6,19 +6,10 @@
 export const MATCH_LIMIT_FREE = 5;     // validé
 export const MATCH_LIMIT_PREMIUM = 20; // validé
 
-// --- Révélation progressive des photos ---
-/** Seuils de révélation par niveau (total lettres, symétrique) */
-export const PHOTO_THRESHOLDS_FREE = {
-  level1: 3,  // Silhouette / ultra flou
-  level2: 6,  // Flou léger
-  level3: 10, // Photo nette
-} as const;
-
-export const PHOTO_THRESHOLDS_PREMIUM = {
-  level1: 1,  // Silhouette / ultra flou
-  level2: 2,  // Flou léger
-  level3: 3,  // Photo nette
-} as const;
+// --- Révélation photos (binaire) ---
+/** Seuils de déblocage complet (total lettres, symétrique, profil uniquement) */
+export const PHOTO_THRESHOLD_FREE = 10;       // FREE: photo visible après 10 lettres
+export const PHOTO_THRESHOLD_PREMIUM = 3;     // PREMIUM: photo visible après 3 lettres
 
 // --- Upload photos ---
 /** Nombre maximal de photos par utilisateur */

@@ -6,30 +6,27 @@
 // et futures fonctionnalités (cadeaux, mini-jeux, salon privé).
 // ============================================================
 
-export type RelationLevel = 0 | 1 | 2 | 3;
+export type RelationLevel = 0 | 3;
 
-export type PhotoVisibility = 'avatar' | 'blurred' | 'medium' | 'revealed';
+export type PhotoVisibility = 'avatar' | 'revealed';
 
 // ── Seuils (total de lettres dans le thread, des deux côtés) ─
+// Binary system: photo visible only after threshold
 export const RELATION_THRESHOLDS = {
-  normal:  { level1: 3,  level2: 6,  level3: 10 },
-  premium: { level1: 1,  level2: 2,  level3: 3  },
+  normal:  { threshold: 10 },
+  premium: { threshold: 3  },
 } as const;
 
 // ── Labels affichés dans l'UI ────────────────────────────────
 const LEVEL_META: Record<RelationLevel, { label: string; stars: string }> = {
   0: { label: 'En attente', stars: ''        },
-  1: { label: 'Découverte', stars: '⭐'     },
-  2: { label: 'Connexion',  stars: '⭐⭐'   },
   3: { label: 'Révélation', stars: '⭐⭐⭐' },
 };
 
 // ── Fonctionnalités débloquées par niveau ────────────────────
 // Extensible pour les futures features (cadeaux, jeux duo, salon)
 export const LEVEL_UNLOCKS: Record<RelationLevel, string[]> = {
-  0: [],
-  1: ['letters'],
-  2: ['letters', 'photo_blur'],
+  0: ['letters'],
   3: ['letters', 'photo_reveal', 'avatar_toggle'],
   // À venir : 'gifts', 'duo_games', 'private_salon', 'pierre_papier_ciseaux'
 };
@@ -41,17 +38,11 @@ export function getRelationLevel(
   isPremium = false,
 ): RelationLevel {
   const t = isPremium ? RELATION_THRESHOLDS.premium : RELATION_THRESHOLDS.normal;
-  if (letterCount >= t.level3) return 3;
-  if (letterCount >= t.level2) return 2;
-  if (letterCount >= t.level1) return 1;
-  return 0;
+  return letterCount >= t.threshold ? 3 : 0;
 }
 
 export function getPhotoVisibility(level: RelationLevel): PhotoVisibility {
-  if (level === 3) return 'revealed';
-  if (level === 2) return 'medium';
-  if (level === 1) return 'blurred';
-  return 'avatar';
+  return level === 3 ? 'revealed' : 'avatar';
 }
 
 export interface RelationInfo {
@@ -76,30 +67,12 @@ export function getRelationInfo(
   let progressPercent = 100;
 
   if (level === 0) {
-    const remaining = t.level1 - letterCount;
-    progressPercent = Math.round((letterCount / t.level1) * 100);
+    const remaining = t.threshold - letterCount;
+    progressPercent = Math.round((letterCount / t.threshold) * 100);
     progressText =
       remaining === 1
-        ? '💌 Encore 1 lettre pour débuter'
-        : `💌 Encore ${remaining} lettres pour débuter`;
-  } else if (level === 1) {
-    const tierStart = t.level1;
-    const tierEnd   = t.level2;
-    progressPercent = Math.round(((letterCount - tierStart) / (tierEnd - tierStart)) * 100);
-    const remaining = tierEnd - letterCount;
-    progressText =
-      remaining === 1
-        ? '💌 Encore 1 lettre pour approfondir la relation'
-        : `💌 Encore ${remaining} lettres pour approfondir la relation`;
-  } else if (level === 2) {
-    const tierStart = t.level2;
-    const tierEnd   = t.level3;
-    progressPercent = Math.round(((letterCount - tierStart) / (tierEnd - tierStart)) * 100);
-    const remaining = tierEnd - letterCount;
-    progressText =
-      remaining === 1
-        ? '💌 Encore 1 lettre pour la révélation'
-        : `💌 Encore ${remaining} lettres pour la révélation`;
+        ? '💌 Encore 1 lettre pour révéler la photo'
+        : `💌 Encore ${remaining} lettres pour révéler la photo`;
   }
 
   return {
