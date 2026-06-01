@@ -141,8 +141,8 @@ export async function listPhotosForViewer(params: {
   const level = access.level ?? 0;
   const variant = access.variant ?? null;
 
-  // Level 0 = pas de photos, retourner liste vide
-  if (level === 0) {
+  // Binary system: photos visible only if level === 3 (threshold reached)
+  if (level !== 3) {
     return { photos: [], unlocked: false, level: 0 };
   }
 
@@ -164,9 +164,9 @@ export async function listPhotosForViewer(params: {
   });
 
   return {
-    photos: photos.map((p) => toDto(p, variant || "original")),
-    unlocked: level === 3,
-    level,
+    photos: photos.map((p) => toDto(p, "original")),
+    unlocked: true,
+    level: 3,
   };
 }
 
@@ -390,21 +390,12 @@ export async function resolvePhotoForStream(params: {
     }
   }
 
-  let absolutePath: string;
-
-  switch (access.variant) {
-    case "blurred":
-      absolutePath = resolveStoredPath(photo.blurredPath);
-      break;
-    case "medium":
-      absolutePath = resolveStoredPath(photo.blurMediumPath || photo.blurredPath);
-      break;
-    case "original":
-      absolutePath = resolveStoredPath(photo.originalPath);
-      break;
-    default:
-      throw new ForbiddenError("Variante de photo invalide");
+  // Binary system: only serve original at level 3
+  if (access.level !== 3) {
+    throw new ForbiddenError("Photo non accessible à ce stade");
   }
+
+  const absolutePath = resolveStoredPath(photo.originalPath);
 
   return { absolutePath, ownerId: photo.userId };
 }
