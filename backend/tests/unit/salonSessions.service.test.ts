@@ -1,9 +1,45 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import * as salonSessionsService from "../../src/modules/salon-sessions/salonSessions.service";
-import { prisma } from "../../src/config/prisma";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NotFoundError, ConflictError } from "../../src/core/errors";
 
-vi.mock("../../src/config/prisma");
+// Mock the Prisma module with factory function to avoid hoisting issues
+vi.mock("../../src/config/prisma", () => {
+  return {
+    prisma: {
+      salonSession: {
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        updateMany: vi.fn(),
+        delete: vi.fn(),
+      },
+      salonSessionParticipant: {
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        updateMany: vi.fn(),
+        delete: vi.fn(),
+      },
+      salonEncounter: {
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        upsert: vi.fn(),
+        updateMany: vi.fn(),
+        delete: vi.fn(),
+      },
+    },
+  };
+});
+
+// Now import the service AFTER mocking
+import * as salonSessionsService from "../../src/modules/salon-sessions/salonSessions.service";
+import { prisma } from "../../src/config/prisma";
 
 describe("SalonSessions Service", () => {
   const mockUserId = "user-1";
@@ -11,6 +47,10 @@ describe("SalonSessions Service", () => {
   const salonKind = "PISCINE";
 
   beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
     vi.clearAllMocks();
   });
 
@@ -37,10 +77,12 @@ describe("SalonSessions Service", () => {
         id: mockSessionId,
         salonKind,
         status: "ACTIVE",
+        startedAt: new Date(),
         expiresAt: futureDate,
         participants: [
           {
             userId: mockUserId,
+            joinedAt: new Date(),
             user: {
               profile: { pseudo: "User1", gender: "HOMME", avatarConfig: null },
             },
@@ -76,20 +118,27 @@ describe("SalonSessions Service", () => {
       (prisma.salonSession.findUnique as any).mockResolvedValueOnce({
         id: mockSessionId,
         salonKind,
+        status: "ACTIVE",
+        startedAt: new Date(),
+        expiresAt: futureDate,
         participants: [
           {
             userId: "user-1",
-            user: { profile: { pseudo: "User1" } },
+            joinedAt: new Date(),
+            user: { profile: { pseudo: "User1", gender: "HOMME" } },
           },
           {
             userId: "user-2",
-            user: { profile: { pseudo: "User2" } },
+            joinedAt: new Date(),
+            user: { profile: { pseudo: "User2", gender: "FEMME" } },
           },
           {
             userId: mockUserId,
-            user: { profile: { pseudo: "User3" } },
+            joinedAt: new Date(),
+            user: { profile: { pseudo: "User3", gender: "AUTRE" } },
           },
         ],
+        salon: { kind: salonKind, name: "Piscine" },
       });
 
       const result = await salonSessionsService.joinSession(mockUserId, salonKind);
