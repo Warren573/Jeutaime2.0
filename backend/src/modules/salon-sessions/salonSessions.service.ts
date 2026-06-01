@@ -1,0 +1,366 @@
+import { prisma } from "../../config/prisma";
+import { NotFoundError, BadRequestError, ConflictError } from "../../core/errors";
+import type {
+  GetActiveSessionsResponse,
+  GetSessionDetailResponse,
+  JoinSessionResponse,
+  LeaveSessionResponse,
+  GetPreviousEncountersResponse,
+} from "./salonSessions.schemas";
+
+// ============================================================
+// Get active sessions for a salon
+// ============================================================
+export async function getActiveSessionsForSalon(
+  salonKind: string,
+): Promise<GetActiveSessionsResponse> {
+  const now = new Date();
+
+  const sessions = await prisma.salonSession.findMany({
+    where: {
+      salonKind: salonKind as any,
+      status: "ACTIVE",
+      expiresAt: {
+        gt: now,
+      },
+    },
+    include: {
+      participants: {
+        where: { status: "ACTIVE" },
+        select: {
+          userId: true,
+          user: {
+            select: {
+              id: true,
+              profile: {
+                select: {
+                  pseudo: true,
+                  gender: true,
+                  avatarConfig: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { startedAt: "asc" },
+  });
+
+  return {
+    sessions: sessions.map((s) => ({
+      id: s.id,
+      participantCount: s.participants.length,
+      participants: s.participants.map((p) => ({
+        userId: p.userId,
+        pseudo: p.user.profile?.pseudo || "Unknown",
+        gender: p.user.profile?.gender,
+        avatarConfig: p.user.profile?.avatarConfig,
+      })),
+      isFull: s.participants.length >= 4,
+      startedAt: s.startedAt.toISOString(),
+      expiresAt: s.expiresAt.toISOString(),
+    })),
+  };
+}
+
+// ============================================================
+// Get session detail
+// ============================================================
+export async function getSessionDetail(
+  sessionId: string,
+): Promise<GetSessionDetailResponse> {
+  const session = await prisma.salonSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      participants: {
+        where: { status: "ACTIVE" },
+        select: {
+          userId: true,
+          joinedAt: true,
+          user: {
+            select: {
+              id: true,
+              profile: {
+                select: {
+                  pseudo: true,
+                  gender: true,
+                  avatarConfig: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      salon: {
+        select: {
+          kind: true,
+          name: true,
+        },
+      },
+    },
+  });
+
+  if (!session) {
+    throw new NotFoundError("SalonSession");
+  }
+
+  return {
+    id: session.id,
+    salonKind: session.salonKind,
+    salonName: session.salon.name,
+    status: session.status,
+    participantCount: session.participants.length,
+    participants: session.participants.map((p) => ({
+      userId: p.userId,
+      pseudo: p.user.profile?.pseudo || "Unknown",
+      gender: p.user.profile?.gender,
+      avatarConfig: p.user.profile?.avatarConfig,
+      joinedAt: p.joinedAt.toISOString(),
+    })),
+    startedAt: session.startedAt.toISOString(),
+    expiresAt: session.expiresAt.toISOString(),
+  };
+}
+
+// ============================================================
+// Join session (FIFO logic)
+// ============================================================
+export async function joinSession(
+  userId: string,
+  salonKind: string,
+): Promise<JoinSessionResponse> {
+  const now = new Date();
+
+  // Check if user already in an active session for this salon
+  const existingParticipation = await prisma.salonSessionParticipant.findFirst({
+    where: {
+      userId,
+      status: "ACTIVE",
+      session: {
+        salonKind: salonKind as any,
+        status: "ACTIVE",
+        expiresAt: { gt: now },
+      },
+    },
+    select: { sessionId: true },
+  });
+
+  if (existingParticipation) {
+    throw new ConflictError("User already in an active session for this salon");
+  }
+
+  // Find first active session with < 4 participants
+  const availableSession = await prisma.salonSession.findFirst({
+    where: {
+      salonKind: salonKind as any,
+      status: "ACTIVE",
+      expiresAt: { gt: now },
+    },
+    include: {
+      participants: {
+        where: { status: "ACTIVE" },
+        select: { id: true },
+      },
+    },
+    orderBy: { startedAt: "asc" },
+  });
+
+  let sessionId: string;
+
+  if (availableSession && availableSession.participants.length < 4) {
+    // Join existing session
+    sessionId = availableSession.id;
+  } else {
+    // Create new session (7 days from now)
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const newSession = await prisma.salonSession.create({
+      data: {
+        salonKind: salonKind as any,
+        expiresAt: sevenDaysFromNow,
+        status: "ACTIVE",
+      },
+    });
+    sessionId = newSession.id;
+  }
+
+  // Add participant
+  await prisma.salonSessionParticipant.create({
+    data: {
+      sessionId,
+      userId,
+      status: "ACTIVE",
+    },
+  });
+
+  // Return session detail
+  return getSessionDetail(sessionId);
+}
+
+// ============================================================
+// Leave session
+// ============================================================
+export async function leaveSession(
+  sessionId: string,
+  userId: string,
+): Promise<LeaveSessionResponse> {
+  const participant = await prisma.salonSessionParticipant.findUnique({
+    where: {
+      sessionId_userId: { sessionId, userId },
+    },
+  });
+
+  if (!participant) {
+    throw new NotFoundError("SalonSessionParticipant");
+  }
+
+  if (participant.status === "LEFT") {
+    throw new BadRequestError("User already left this session");
+  }
+
+  // Mark as left
+  await prisma.salonSessionParticipant.update({
+    where: {
+      sessionId_userId: { sessionId, userId },
+    },
+    data: {
+      status: "LEFT",
+      leftAt: new Date(),
+    },
+  });
+
+  return { success: true };
+}
+
+// ============================================================
+// Get current session (helper)
+// ============================================================
+export async function getCurrentSession(
+  userId: string,
+  salonKind: string,
+): Promise<string | null> {
+  const now = new Date();
+
+  const participant = await prisma.salonSessionParticipant.findFirst({
+    where: {
+      userId,
+      status: "ACTIVE",
+      session: {
+        salonKind: salonKind as any,
+        status: "ACTIVE",
+        expiresAt: { gt: now },
+      },
+    },
+    select: { sessionId: true },
+  });
+
+  return participant?.sessionId ?? null;
+}
+
+// ============================================================
+// Get previous encounters (meeting memory)
+// ============================================================
+export async function getPreviousEncounters(
+  userId: string,
+  salonKind: string,
+): Promise<GetPreviousEncountersResponse> {
+  const encounters = await prisma.salonEncounter.findMany({
+    where: {
+      session: {
+        salonKind: salonKind as any,
+      },
+      OR: [{ user1Id: userId }, { user2Id: userId }],
+    },
+    include: {
+      user1: {
+        select: {
+          id: true,
+          profile: {
+            select: {
+              pseudo: true,
+              gender: true,
+              avatarConfig: true,
+            },
+          },
+        },
+      },
+      user2: {
+        select: {
+          id: true,
+          profile: {
+            select: {
+              pseudo: true,
+              gender: true,
+              avatarConfig: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: { metAt: "desc" },
+  });
+
+  const otherUsers = encounters.map((e) => {
+    const other = e.user1Id === userId ? e.user2 : e.user1;
+    return {
+      userId: other.id,
+      pseudo: other.profile?.pseudo || "Unknown",
+      gender: other.profile?.gender,
+      avatarConfig: other.profile?.avatarConfig,
+      metAt: (e.user1Id === userId ? e.metAt : e.metAt).toISOString(),
+    };
+  });
+
+  return {
+    encounters: otherUsers,
+  };
+}
+
+// ============================================================
+// Record encounter (tracking pairs)
+// ============================================================
+export async function recordEncounter(
+  sessionId: string,
+  user1Id: string,
+  user2Id: string,
+): Promise<void> {
+  // Ensure consistent ordering (user1Id < user2Id)
+  const [orderedUser1, orderedUser2] =
+    user1Id < user2Id ? [user1Id, user2Id] : [user2Id, user1Id];
+
+  // Upsert to handle idempotency
+  await prisma.salonEncounter.upsert({
+    where: {
+      sessionId_user1Id_user2Id: {
+        sessionId,
+        user1Id: orderedUser1,
+        user2Id: orderedUser2,
+      },
+    },
+    update: {}, // Do nothing if already exists
+    create: {
+      sessionId,
+      user1Id: orderedUser1,
+      user2Id: orderedUser2,
+    },
+  });
+}
+
+// ============================================================
+// Expire old sessions (cron job)
+// ============================================================
+export async function expireOldSessions(): Promise<{ expired: number }> {
+  const now = new Date();
+
+  const result = await prisma.salonSession.updateMany({
+    where: {
+      status: "ACTIVE",
+      expiresAt: { lte: now },
+    },
+    data: {
+      status: "EXPIRED",
+    },
+  });
+
+  return { expired: result.count };
+}

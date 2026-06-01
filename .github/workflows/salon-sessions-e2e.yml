@@ -1,0 +1,63 @@
+name: Salon Sessions E2E Tests
+
+on:
+  push:
+    branches: [main, claude/serene-allen-*]
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/src/modules/salon-sessions/**"
+      - "backend/prisma/migrations/*salon_sessions*"
+      - ".github/workflows/salon-sessions-e2e.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: jeutaime_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: "backend/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Setup database
+        working-directory: backend
+        env:
+          DATABASE_URL: "postgresql://test:test@localhost:5432/jeutaime_test"
+        run: npx prisma migrate deploy
+
+      - name: Run unit tests
+        working-directory: backend
+        run: npm run test:unit -- tests/unit/salonSessions.service.test.ts
+
+      - name: Run integration tests
+        working-directory: backend
+        env:
+          DATABASE_URL: "postgresql://test:test@localhost:5432/jeutaime_test"
+        run: npm run test:integration -- tests/integration/salonSessions.e2e.test.ts
+
+      - name: Report results
+        if: always()
+        run: echo "Salon Sessions E2E tests completed"

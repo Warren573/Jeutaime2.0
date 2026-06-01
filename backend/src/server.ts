@@ -6,6 +6,7 @@ import {
   createPurgeExpiredRefreshTokensJob,
   demoteExpiredPremiumJob,
   expireCardGamesJob,
+  expireSalonSessionsJob,
   startScheduler,
 } from "./jobs";
 import { execSync } from "child_process";
@@ -53,6 +54,7 @@ async function main() {
       jobs: [
         demoteExpiredPremiumJob,
         expireCardGamesJob,
+        expireSalonSessionsJob,
         createPurgeExpiredRefreshTokensJob({
           graceMs: env.REFRESH_TOKEN_PURGE_GRACE_MS,
         }),
