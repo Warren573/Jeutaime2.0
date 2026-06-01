@@ -409,27 +409,61 @@ jobs:
           echo "=== PHASE 6: ACCESS CONTROL ==="
           echo ""
 
-          # Step 21: Make A and B have mutual smile (enable access)
-          echo "=== Step 21: Setup mutual smile between A & B ==="
-          # A sends letter to B
-          LETTER_AB=$(curl -s -X POST "$API_URL/letters/send" \
+          # Step 21: Setup mutual smile and unlock photo via 10 letters
+          echo "=== Step 21: Create match and exchange 10 letters ==="
+
+          # A smiles at B
+          curl -s -X POST "$API_URL/discover/react" \
             -H "Authorization: Bearer $TOKEN_A" \
             -H "Content-Type: application/json" \
-            -d "{\"toUserId\": \"$USER_B\", \"content\": \"Hello B\"}")
-          LETTER_AB_ID=$(echo "$LETTER_AB" | jq -r '.data.id // empty')
-          echo "Letter A→B sent: $LETTER_AB_ID"
+            -d "{\"toId\": \"$USER_B\", \"type\": \"SMILE\"}" > /dev/null
 
-          # B sends letter to A
-          LETTER_BA=$(curl -s -X POST "$API_URL/letters/send" \
+          # B smiles at A (creates match)
+          SMILE_B=$(curl -s -X POST "$API_URL/discover/react" \
             -H "Authorization: Bearer $TOKEN_B" \
             -H "Content-Type: application/json" \
-            -d "{\"toUserId\": \"$USER_A\", \"content\": \"Hello A\"}")
-          LETTER_BA_ID=$(echo "$LETTER_BA" | jq -r '.data.id // empty')
-          echo "Letter B→A sent: $LETTER_BA_ID"
+            -d "{\"toId\": \"$USER_A\", \"type\": \"SMILE\"}")
+          MATCH_ID=$(echo "$SMILE_B" | jq -r '.data.matchId // empty')
+          echo "Match ID: $MATCH_ID"
+
+          # A accepts the match
+          curl -s -X POST "$API_URL/matches/$MATCH_ID/accept" \
+            -H "Authorization: Bearer $TOKEN_A" > /dev/null
+
+          # A and B answer questions
+          QUESTIONS_A=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
+          ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.userB.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
+          curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"answers\": $ANSWERS_A}" > /dev/null
+
+          QUESTIONS_B=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
+          ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.userA.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
+          curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"answers\": $ANSWERS_B}" > /dev/null
+
+          # Exchange 10 letters to unlock photos (binary system: needs 10 letters for level 3)
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if [ $((i % 2)) -eq 1 ]; then
+              SENDER=$TOKEN_A
+              SENDER_NAME="A"
+            else
+              SENDER=$TOKEN_B
+              SENDER_NAME="B"
+            fi
+            curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+              -H "Authorization: Bearer $SENDER" \
+              -H "Content-Type: application/json" \
+              -d "{\"content\": \"Letter $i from $SENDER_NAME\"}" > /dev/null
+          done
+          echo "10 letters exchanged - photos unlocked at level 3"
           echo ""
 
-          # Step 22: B tries to view A's photos (should see blurred variant due to photoUnlock)
-          echo "=== Step 22: B views A's photos (with match, should see blurred) ==="
+          # Step 22: B views A's photos (should see 1 original photo at level 3)
+          echo "=== Step 22: B views A's photos (binary unlock at level 3) ==="
           A_PHOTOS=$(curl -s -X GET "$API_URL/photos/user/$USER_A" \
             -H "Authorization: Bearer $TOKEN_B")
           echo "Response:"
@@ -438,17 +472,27 @@ jobs:
           # Handle both old format (.data.photos[]) and new format (.data[])
           PHOTOS_COUNT=$(echo "$A_PHOTOS" | jq 'if (.data | type) == "array" then (.data | length) else (.data.photos | length // 0) end')
           LEVEL=$(echo "$A_PHOTOS" | jq -r '.meta.level // .data.level // 0')
-          UNLOCKED=$(echo "$A_PHOTOS" | jq -r '.meta.unlocked // false')
 
-          echo "Photos count: $PHOTOS_COUNT, Access level: $LEVEL, Unlocked: $UNLOCKED"
+          echo "Photos count: $PHOTOS_COUNT (expect: 1), Access level: $LEVEL (expect: 3)"
 
-          if [ "$PHOTOS_COUNT" = "0" ]; then
-            echo "⚠ Note: No photos visible at access level $LEVEL (unlocked=$UNLOCKED)"
-          else
-            VARIANT=$(echo "$A_PHOTOS" | jq -r 'if (.data | type) == "array" then .data[0].variant else .data.photos[0].variant end // "unknown"')
-            echo "First photo variant: $VARIANT (expected: blurred, blurMedium, or original based on level)"
-            echo "✅ PASS: B can view A's photos with access control"
+          if [ "$PHOTOS_COUNT" != "1" ]; then
+            echo "❌ FAIL: Should see 1 photo at level 3 (binary unlock)"
+            exit 1
           fi
+
+          if [ "$LEVEL" != "3" ]; then
+            echo "❌ FAIL: Access level should be 3 (binary system)"
+            exit 1
+          fi
+
+          VARIANT=$(echo "$A_PHOTOS" | jq -r 'if (.data | type) == "array" then .data[0].variant else .data.photos[0].variant end // "unknown"')
+          echo "Photo variant: $VARIANT (expect: original)"
+
+          if [ "$VARIANT" != "original" ]; then
+            echo "⚠ Note: Expected variant=original in binary system, got: $VARIANT"
+          fi
+
+          echo "✅ PASS: B can view A's original photo at level 3"
           echo ""
 
           # Step 23: Block B from A's perspective

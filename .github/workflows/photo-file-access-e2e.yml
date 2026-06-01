@@ -153,41 +153,73 @@ jobs:
           echo "=== PHASE 4: ACCESS CONTROL WITH MATCH ==="
           echo ""
 
-          # Step 9: Create mutual smile (A and B exchange letters)
-          echo "=== Step 9: Create mutual smile between A and B ==="
-          LETTER_AB=$(curl -s -X POST "$API_URL/letters/send" \
+          # Step 9: Create mutual smile and exchange 10 letters for photo unlock
+          echo "=== Step 9: Create match and exchange 10 letters ==="
+
+          # A smiles at B
+          curl -s -X POST "$API_URL/discover/react" \
             -H "Authorization: Bearer $TOKEN_A" \
             -H "Content-Type: application/json" \
-            -d "{\"toUserId\": \"$USER_B\", \"content\": \"Hello B\"}")
-          LETTER_AB_ID=$(echo "$LETTER_AB" | jq -r '.data.id // empty')
+            -d "{\"toId\": \"$USER_B\", \"type\": \"SMILE\"}" > /dev/null
 
-          LETTER_BA=$(curl -s -X POST "$API_URL/letters/send" \
+          # B smiles at A (creates match)
+          SMILE_B=$(curl -s -X POST "$API_URL/discover/react" \
             -H "Authorization: Bearer $TOKEN_B" \
             -H "Content-Type: application/json" \
-            -d "{\"toUserId\": \"$USER_A\", \"content\": \"Hello A\"}")
-          LETTER_BA_ID=$(echo "$LETTER_BA" | jq -r '.data.id // empty')
+            -d "{\"toId\": \"$USER_A\", \"type\": \"SMILE\"}")
+          MATCH_ID=$(echo "$SMILE_B" | jq -r '.data.matchId // empty')
 
-          echo "Mutual letters sent"
+          # A accepts the match
+          curl -s -X POST "$API_URL/matches/$MATCH_ID/accept" \
+            -H "Authorization: Bearer $TOKEN_A" > /dev/null
+
+          # A and B answer questions
+          QUESTIONS_A=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
+          ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.userB.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
+          curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"answers\": $ANSWERS_A}" > /dev/null
+
+          QUESTIONS_B=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
+          ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.userA.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
+          curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"answers\": $ANSWERS_B}" > /dev/null
+
+          # Exchange 10 letters to unlock photos (binary system)
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if [ $((i % 2)) -eq 1 ]; then
+              SENDER=$TOKEN_A
+            else
+              SENDER=$TOKEN_B
+            fi
+            curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+              -H "Authorization: Bearer $SENDER" \
+              -H "Content-Type: application/json" \
+              -d "{\"content\": \"Letter $i\"}" > /dev/null
+          done
+
+          echo "Mutual match created and 10 letters exchanged - photos unlocked"
           echo ""
 
-          # Step 10: User B tries to access A's photo with match (should get blurred or access level variant)
-          echo "=== Step 10: User B accesses A's photo (with match) ==="
+          # Step 10: User B accesses A's photo file (should be accessible at level 3 with original variant)
+          echo "=== Step 10: User B accesses A's photo file (with match, level 3) ==="
           WITH_MATCH=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/photos/file/$PHOTO_ID/original" \
             -H "Authorization: Bearer $TOKEN_B")
           HTTP_CODE=$(echo "$WITH_MATCH" | tail -n1)
-          echo "HTTP code: $HTTP_CODE (expect: 403 if level 0, or 200 if level >= 1)"
+          echo "HTTP code: $HTTP_CODE (expect: 200 after 10 letters)"
 
-          if [ "$HTTP_CODE" = "403" ]; then
-            echo "✅ PASS: Access still forbidden (level 0 after match)"
-          elif [ "$HTTP_CODE" = "200" ]; then
+          if [ "$HTTP_CODE" = "200" ]; then
             BODY_SIZE=$(echo "$WITH_MATCH" | head -n -1 | wc -c)
             if [ "$BODY_SIZE" -lt 50 ]; then
               echo "❌ FAIL: Response should contain image data"
               exit 1
             fi
-            echo "✅ PASS: Access granted with appropriate variant (level >= 1)"
+            echo "✅ PASS: Access granted at level 3 (original variant)"
           else
-            echo "❌ FAIL: Unexpected HTTP code: $HTTP_CODE"
+            echo "❌ FAIL: Expected 200 after match and letter exchange, got $HTTP_CODE"
             exit 1
           fi
           echo ""
