@@ -25,9 +25,18 @@ async function main() {
   const commitSha = getCommitSha();
   console.log(`\n🔍 [VERSION] Backend startup - commit SHA: ${commitSha}\n`);
 
-  // Vérifier la connexion DB avant de démarrer
-  await prisma.$connect();
-  logger.info("Base de données connectée");
+  // Vérifier la connexion DB avant de démarrer (avec timeout)
+  try {
+    const connectPromise = prisma.$connect();
+    const timeoutPromise = new Promise((_resolve, reject) =>
+      setTimeout(() => reject(new Error("Prisma connect timeout after 30s")), 30_000)
+    );
+    await Promise.race([connectPromise, timeoutPromise]);
+    logger.info("Base de données connectée");
+  } catch (err) {
+    logger.error({ err }, "Impossible de connecter à la base de données");
+    throw err;
+  }
 
   const server = app.listen(env.PORT, "0.0.0.0", () => {
     logger.info(
