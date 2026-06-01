@@ -85,6 +85,50 @@ jobs:
           echo "Match ID: $MATCH_ID"
           echo ""
 
+          # Accept match and validate questions
+          echo "=== Accept match and validate questions ==="
+
+          # A accepts the match
+          echo "A accepts the match..."
+          curl -s -X POST "$API_URL/matches/$MATCH_ID/accept" \
+            -H "Authorization: Bearer $TOKEN_A" > /dev/null
+          echo "Done"
+          echo ""
+
+          # A submits question answers
+          echo "A submits question answers..."
+          QUESTIONS_A=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
+          ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.userB.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
+          curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -d "{\"answers\": $ANSWERS_A}" > /dev/null
+          echo "Done"
+          echo ""
+
+          # B submits question answers
+          echo "B submits question answers..."
+          QUESTIONS_B=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
+          ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.userA.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
+          curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -d "{\"answers\": $ANSWERS_B}" > /dev/null
+          echo "Done"
+          echo ""
+
+          # Verify questions are validated
+          echo "Verify questions are validated..."
+          MATCH_CHECK=$(curl -s -X GET "$API_URL/matches/$MATCH_ID" \
+            -H "Authorization: Bearer $TOKEN_A")
+          QUESTIONS_VALIDATED=$(echo "$MATCH_CHECK" | jq -r '.data.questionsValidated')
+          echo "questionsValidated: $QUESTIONS_VALIDATED"
+          if [ "$QUESTIONS_VALIDATED" != "true" ]; then
+            echo "❌ ERROR: Questions should be validated"
+            exit 1
+          fi
+          echo ""
+
           # Send 10 letters via POST /matches/:matchId/letters
           echo "=== Sending 10 letters via POST /matches/:matchId/letters ==="
           for i in 1 2 3 4 5 6 7 8 9 10; do
