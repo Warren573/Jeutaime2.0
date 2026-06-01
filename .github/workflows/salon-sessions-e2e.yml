@@ -2,17 +2,6 @@ name: Salon Sessions E2E Tests
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - "claude/serene-allen-*"
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "backend/src/modules/salon-sessions/**"
-      - "backend/prisma/migrations/*salon_sessions*"
-      - ".github/workflows/salon-sessions-e2e.yml"
 
 jobs:
   test:
