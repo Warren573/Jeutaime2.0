@@ -1,4 +1,5 @@
-import type { Request, Response } from "express";
+import type { Response } from "express";
+import type { AuthedRequest } from "../../core/types";
 import * as salonSessionsService from "./salonSessions.service";
 import {
   GetActiveSessionsResponseSchema,
@@ -11,8 +12,8 @@ import {
 // ============================================================
 // GET /api/salon-sessions/active/:salonKind
 // ============================================================
-export async function getActiveSessions(req: Request, res: Response) {
-  const { salonKind } = req.params;
+export async function getActiveSessions(req: AuthedRequest, res: Response) {
+  const salonKind = req.params["salonKind"] as string;
 
   const data = await salonSessionsService.getActiveSessionsForSalon(salonKind);
   const validated = GetActiveSessionsResponseSchema.parse(data);
@@ -23,8 +24,8 @@ export async function getActiveSessions(req: Request, res: Response) {
 // ============================================================
 // GET /api/salon-sessions/:id
 // ============================================================
-export async function getSessionDetail(req: Request, res: Response) {
-  const { id } = req.params;
+export async function getSessionDetail(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
 
   const data = await salonSessionsService.getSessionDetail(id);
   const validated = GetSessionDetailResponseSchema.parse(data);
@@ -35,9 +36,9 @@ export async function getSessionDetail(req: Request, res: Response) {
 // ============================================================
 // POST /api/salon-sessions/join/:salonKind
 // ============================================================
-export async function joinSession(req: Request, res: Response) {
-  const { salonKind } = req.params;
-  const userId = req.user.id;
+export async function joinSession(req: AuthedRequest, res: Response) {
+  const salonKind = req.params["salonKind"] as string;
+  const userId = req.user.userId;
 
   const data = await salonSessionsService.joinSession(userId, salonKind);
   const validated = JoinSessionResponseSchema.parse(data);
@@ -48,9 +49,9 @@ export async function joinSession(req: Request, res: Response) {
 // ============================================================
 // POST /api/salon-sessions/:id/leave
 // ============================================================
-export async function leaveSession(req: Request, res: Response) {
-  const { id } = req.params;
-  const userId = req.user.id;
+export async function leaveSession(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const userId = req.user.userId;
 
   const data = await salonSessionsService.leaveSession(id, userId);
   const validated = LeaveSessionResponseSchema.parse(data);
@@ -61,9 +62,9 @@ export async function leaveSession(req: Request, res: Response) {
 // ============================================================
 // GET /api/salon-sessions/encounters/:salonKind
 // ============================================================
-export async function getPreviousEncounters(req: Request, res: Response) {
-  const { salonKind } = req.params;
-  const userId = req.user.id;
+export async function getPreviousEncounters(req: AuthedRequest, res: Response) {
+  const salonKind = req.params["salonKind"] as string;
+  const userId = req.user.userId;
 
   const data = await salonSessionsService.getPreviousEncounters(
     userId,
