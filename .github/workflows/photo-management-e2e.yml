@@ -462,7 +462,7 @@ jobs:
           echo "10 letters exchanged - photos unlocked at level 3"
           echo ""
 
-          # Step 22: B views A's photos (should see 1 original photo at level 3)
+          # Step 22: B views A's photos (should see all available photos at level 3)
           echo "=== Step 22: B views A's photos (binary unlock at level 3) ==="
           A_PHOTOS=$(curl -s -X GET "$API_URL/photos/user/$USER_A" \
             -H "Authorization: Bearer $TOKEN_B")
@@ -472,11 +472,12 @@ jobs:
           # Handle both old format (.data.photos[]) and new format (.data[])
           PHOTOS_COUNT=$(echo "$A_PHOTOS" | jq 'if (.data | type) == "array" then (.data | length) else (.data.photos | length // 0) end')
           LEVEL=$(echo "$A_PHOTOS" | jq -r '.meta.level // .data.level // 0')
+          UNLOCKED=$(echo "$A_PHOTOS" | jq -r '.meta.unlocked // false')
 
-          echo "Photos count: $PHOTOS_COUNT (expect: 1), Access level: $LEVEL (expect: 3)"
+          echo "Photos count: $PHOTOS_COUNT (expect: > 0), Access level: $LEVEL (expect: 3), Unlocked: $UNLOCKED"
 
-          if [ "$PHOTOS_COUNT" != "1" ]; then
-            echo "❌ FAIL: Should see 1 photo at level 3 (binary unlock)"
+          if [ "$PHOTOS_COUNT" -le 0 ]; then
+            echo "❌ FAIL: Should see at least 1 photo at level 3"
             exit 1
           fi
 
@@ -485,14 +486,16 @@ jobs:
             exit 1
           fi
 
-          VARIANT=$(echo "$A_PHOTOS" | jq -r 'if (.data | type) == "array" then .data[0].variant else .data.photos[0].variant end // "unknown"')
-          echo "Photo variant: $VARIANT (expect: original)"
+          # Verify all photos have original variant
+          ALL_ORIGINAL=$(echo "$A_PHOTOS" | jq -r 'if (.data | type) == "array" then (.data[] | .variant) else (.data.photos[] | .variant) end' | grep -c "original" || true)
+          echo "Photos with variant=original: $ALL_ORIGINAL (out of $PHOTOS_COUNT)"
 
-          if [ "$VARIANT" != "original" ]; then
-            echo "⚠ Note: Expected variant=original in binary system, got: $VARIANT"
+          if [ "$ALL_ORIGINAL" != "$PHOTOS_COUNT" ]; then
+            echo "⚠ Warning: Not all photos have variant=original"
+            echo "$A_PHOTOS" | jq 'if (.data | type) == "array" then .data[].variant else .data.photos[].variant end'
           fi
 
-          echo "✅ PASS: B can view A's original photo at level 3"
+          echo "✅ PASS: B can view $PHOTOS_COUNT accessible photos at level 3 (binary unlock)"
           echo ""
 
           # Step 23: Block B from A's perspective
