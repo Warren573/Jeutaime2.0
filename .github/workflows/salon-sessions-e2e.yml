@@ -1,10 +1,14 @@
 name: Salon Sessions E2E Tests
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main, claude/serene-allen-*]
+    branches:
+      - main
+      - "claude/serene-allen-*"
   pull_request:
-    branches: [main]
+    branches:
+      - main
     paths:
       - "backend/src/modules/salon-sessions/**"
       - "backend/prisma/migrations/*salon_sessions*"
