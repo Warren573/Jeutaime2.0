@@ -500,16 +500,14 @@ jobs:
 
           # Step 23: Block B from A's perspective
           echo "=== Step 23: A blocks B ==="
-          BLOCK=$(curl -s -X POST "$API_URL/blocks/create" \
-            -H "Authorization: Bearer $TOKEN_A" \
-            -H "Content-Type: application/json" \
-            -d "{\"blockedUserId\": \"$USER_B\"}")
-          BLOCK_ID=$(echo "$BLOCK" | jq -r '.data.id // empty')
-          if [ -z "$BLOCK_ID" ]; then
-            echo "⚠ Note: Block creation may have failed (endpoint may differ)"
+          BLOCK=$(curl -s -X POST "$API_URL/profiles/$USER_B/block" \
+            -H "Authorization: Bearer $TOKEN_A")
+          BLOCK_MSG=$(echo "$BLOCK" | jq -r '.data.message // empty')
+          if [ -z "$BLOCK_MSG" ] || [ "$BLOCK_MSG" = "null" ]; then
+            echo "⚠ Note: Block creation may have failed"
             echo "Response: $(echo "$BLOCK" | jq .)"
           else
-            echo "Block created: $BLOCK_ID"
+            echo "✅ Block created: $BLOCK_MSG"
           fi
           echo ""
 
