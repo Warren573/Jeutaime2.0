@@ -1,4 +1,4 @@
-name: Photo Binary Unlock E2E Test
+name: Photo Binary Unlock E2E Test (Fixed)
 
 on:
   workflow_dispatch:
@@ -7,17 +7,17 @@ jobs:
   test-photo-binary-unlock:
     runs-on: ubuntu-latest
     steps:
-      - name: Test Photo Binary Unlock System
+      - name: Test Photo Binary Unlock System with Proper Letter Counting
         run: |
           set -e
 
           API_URL="https://jeutaime-staging.onrender.com/api"
-          echo "=== Photo Binary Unlock E2E Test ==="
+          echo "=== Photo Binary Unlock E2E Test (Fixed) ==="
           echo "API_URL: $API_URL"
           echo ""
           echo "Binary system: Photo visible on profile only after threshold"
-          echo "  Level 0: < threshold → Avatar only"
-          echo "  Level 3: >= threshold → Original photo"
+          echo "  Level 0: < threshold → Avatar only, photos hidden"
+          echo "  Level 3: >= threshold → Original photo visible on profile"
           echo "  FREE threshold: 10 letters"
           echo "  PREMIUM threshold: 3 letters"
           echo ""
@@ -30,14 +30,14 @@ jobs:
           echo ""
 
           # Step 0: Cleanup
-          echo "=== Step 0: Cleanup ==="
+          echo "=== Step 0: Cleanup staging data ==="
           curl -s -X POST "$API_URL/test/cleanup-staging-debug-data" \
             -H "Content-Type: application/json" > /dev/null
           echo "Staging cleanup done"
           echo ""
 
-          # Step 1: Create users A (photo owner) and B (viewer)
-          echo "=== Step 1: Create users A (owner) and B (viewer) ==="
+          # Step 1: Create test accounts A (photo owner) and B (viewer)
+          echo "=== Step 1: Create test accounts via reset-mutual-smile ==="
           RESET=$(curl -s -X POST "$API_URL/test/reset-mutual-smile" \
             -H "Content-Type: application/json")
           EMAIL_A=$(echo "$RESET" | jq -r '.accountA.email')
@@ -46,8 +46,8 @@ jobs:
           EMAIL_B=$(echo "$RESET" | jq -r '.accountB.email')
           PASSWORD_B=$(echo "$RESET" | jq -r '.accountB.password')
           USER_B=$(echo "$RESET" | jq -r '.accountB.userId')
-          echo "User A (owner): $USER_A"
-          echo "User B (viewer): $USER_B"
+          echo "Account A: $USER_A"
+          echo "Account B: $USER_B"
           echo ""
 
           # Step 2: Login both users
@@ -66,7 +66,7 @@ jobs:
             echo "❌ FAIL: Login failed"
             exit 1
           fi
-          echo "Both users logged in"
+          echo "Both users logged in successfully"
           echo ""
 
           # Step 3: Create test image
@@ -76,7 +76,7 @@ jobs:
           echo "Test image created"
           echo ""
 
-          # Step 4: User A uploads photo
+          # Step 4: User A uploads a photo
           echo "=== Step 4: User A uploads photo ==="
           PHOTO=$(curl -s -X POST "$API_URL/photos/me" \
             -H "Authorization: Bearer $TOKEN_A" \
@@ -85,31 +85,80 @@ jobs:
           echo "Photo uploaded: $PHOTO_ID"
           echo ""
 
-          # === PHASE 1: LEVEL 0 (< threshold) ===
+          # Step 5: Create MUTUAL SMILE to establish a MATCH
+          echo "=== Step 5: Create mutual smile (A → B) ==="
+          SMILE_AB=$(curl -s -X POST "$API_URL/discover/react" \
+            -H "Authorization: Bearer $TOKEN_A" \
+            -H "Content-Type: application/json" \
+            -d "{\"toId\": \"$USER_B\", \"type\": \"SMILE\"}")
+          echo "User A smiled at User B"
+          echo ""
+
+          echo "=== Step 6: Create mutual smile (B → A) ==="
+          SMILE_BA=$(curl -s -X POST "$API_URL/discover/react" \
+            -H "Authorization: Bearer $TOKEN_B" \
+            -H "Content-Type: application/json" \
+            -d "{\"toId\": \"$USER_A\", \"type\": \"SMILE\"}")
+          echo "User B smiled at User A → Mutual match created"
+          echo ""
+
+          # Step 7: Get match details to extract matchId
+          echo "=== Step 7: Get match details ==="
+          MATCHES=$(curl -s -X GET "$API_URL/matches" \
+            -H "Authorization: Bearer $TOKEN_B")
+          MATCH_ID=$(echo "$MATCHES" | jq -r '.data[0].id // empty')
+
+          if [ -z "$MATCH_ID" ]; then
+            echo "❌ FAIL: Could not find match after mutual smile"
+            echo "Matches response: $MATCHES"
+            exit 1
+          fi
+
+          echo "Match ID: $MATCH_ID"
+          echo ""
+
+          # Verify initial photoUnlock state (should be level 0)
+          echo "=== Step 8: Verify initial photoUnlock state (level 0) ==="
+          MATCH_DETAIL=$(curl -s -X GET "$API_URL/matches/$MATCH_ID" \
+            -H "Authorization: Bearer $TOKEN_B")
+          INITIAL_LEVEL=$(echo "$MATCH_DETAIL" | jq -r '.data.photoUnlock.level // 0')
+          INITIAL_TOTAL=$(echo "$MATCH_DETAIL" | jq -r '.data.photoUnlock.totalLetters // 0')
+          LETTER_COUNT_A=$(echo "$MATCH_DETAIL" | jq -r '.data.letterCountA // 0')
+          LETTER_COUNT_B=$(echo "$MATCH_DETAIL" | jq -r '.data.letterCountB // 0')
+
+          echo "Initial photoUnlock.level: $INITIAL_LEVEL (expect: 0)"
+          echo "Initial totalLetters: $INITIAL_TOTAL (expect: 0)"
+          echo "Initial letterCountA: $LETTER_COUNT_A"
+          echo "Initial letterCountB: $LETTER_COUNT_B"
+
+          if [ "$INITIAL_LEVEL" != "0" ]; then
+            echo "⚠ Warning: Expected initial level 0, got $INITIAL_LEVEL"
+          fi
+          echo ""
+
+          # === PHASE 1: LEVEL 0 (< 10 letters) - Avatar only ===
           echo "=== PHASE 1: LEVEL 0 (< 10 letters) — Avatar only ==="
           echo ""
 
-          # Step 5: B tries to view A's photos at level 0 (should be empty)
-          echo "=== Step 5: B views A's photos (0 letters) ==="
+          # Step 9: Verify no photos visible at level 0
+          echo "=== Step 9: B views A's photos at level 0 (0 letters) ==="
           PHOTOS_0=$(curl -s -X GET "$API_URL/photos/user/$USER_A" \
             -H "Authorization: Bearer $TOKEN_B")
           PHOTOS_COUNT=$(echo "$PHOTOS_0" | jq 'if (.data | type) == "array" then (.data | length) else (.data.photos | length // 0) end')
-          LEVEL=$(echo "$PHOTOS_0" | jq -r '.meta.level // .data.level // 0')
           echo "Photos visible: $PHOTOS_COUNT (expect: 0)"
-          echo "Level: $LEVEL (expect: 0)"
 
           if [ "$PHOTOS_COUNT" != "0" ]; then
             echo "❌ FAIL: Should see 0 photos at level 0"
             exit 1
           fi
-          echo "✅ PASS: Level 0 - no photos visible, avatar only"
+          echo "✅ PASS: Level 0 - no photos visible"
           echo ""
 
-          # Step 6: B tries to access photo file directly (should be 403)
-          echo "=== Step 6: B tries to access photo file (0 letters) ==="
-          FILE_403=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/photos/file/$PHOTO_ID/original" \
+          # Step 10: Try to access photo file directly at level 0 (should be 403)
+          echo "=== Step 10: B tries to access /original at level 0 (should be 403) ==="
+          FILE_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/photos/file/$PHOTO_ID/original" \
             -H "Authorization: Bearer $TOKEN_B")
-          HTTP_CODE=$(echo "$FILE_403" | tail -n1)
+          HTTP_CODE=$(echo "$FILE_RESPONSE" | tail -n1)
           echo "HTTP code: $HTTP_CODE (expect: 403)"
 
           if [ "$HTTP_CODE" != "403" ]; then
@@ -119,56 +168,109 @@ jobs:
           echo "✅ PASS: File access denied at level 0"
           echo ""
 
-          # === PHASE 2: LEVEL 3 (>= threshold) ===
-          echo "=== PHASE 2: LEVEL 3 (>= 10 letters) — Full photo ==="
+          # === PHASE 2: Exchange 10 letters using CORRECT endpoint ===
+          echo "=== PHASE 2: Exchange 10 letters via POST /matches/:matchId/letters ==="
           echo ""
 
-          # Step 7: Exchange 10 letters to reach level 3 (threshold)
-          echo "=== Step 7: Exchange 10 letters to reach threshold ==="
           for i in 1 2 3 4 5 6 7 8 9 10; do
             if [ $((i % 2)) -eq 1 ]; then
-              curl -s -X POST "$API_URL/letters/send" \
-                -H "Authorization: Bearer $TOKEN_A" \
-                -H "Content-Type: application/json" \
-                -d "{\"toUserId\": \"$USER_B\", \"content\": \"Letter $i\"}" > /dev/null
+              SENDER_TOKEN=$TOKEN_A
+              SENDER_NAME="A"
             else
-              curl -s -X POST "$API_URL/letters/send" \
-                -H "Authorization: Bearer $TOKEN_B" \
-                -H "Content-Type: application/json" \
-                -d "{\"toUserId\": \"$USER_A\", \"content\": \"Letter $i\"}" > /dev/null
+              SENDER_TOKEN=$TOKEN_B
+              SENDER_NAME="B"
+            fi
+
+            echo "Step $((10 + i)): User $SENDER_NAME sends letter $i"
+            LETTER=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
+              -H "Authorization: Bearer $SENDER_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"content\": \"Letter $i from $SENDER_NAME\"}")
+
+            LETTER_ID=$(echo "$LETTER" | jq -r '.data.id // empty')
+            if [ -z "$LETTER_ID" ]; then
+              echo "❌ FAIL: Letter $i send failed"
+              echo "Response: $LETTER"
+              exit 1
+            fi
+
+            # Log match state after letter
+            MATCH_STATE=$(curl -s -X GET "$API_URL/matches/$MATCH_ID" \
+              -H "Authorization: Bearer $TOKEN_B")
+            CURRENT_LEVEL=$(echo "$MATCH_STATE" | jq -r '.data.photoUnlock.level // 0')
+            CURRENT_TOTAL=$(echo "$MATCH_STATE" | jq -r '.data.photoUnlock.totalLetters // 0')
+            LETTER_COUNT_A=$(echo "$MATCH_STATE" | jq -r '.data.letterCountA // 0')
+            LETTER_COUNT_B=$(echo "$MATCH_STATE" | jq -r '.data.letterCountB // 0')
+
+            echo "  → Letter sent. Match state: level=$CURRENT_LEVEL, totalLetters=$CURRENT_TOTAL, A=$LETTER_COUNT_A, B=$LETTER_COUNT_B"
+
+            # Verify totalLetters increased
+            if [ "$CURRENT_TOTAL" != "$i" ]; then
+              echo "❌ FAIL: Expected totalLetters=$i, got $CURRENT_TOTAL"
+              exit 1
             fi
           done
-          echo "10 letters exchanged (threshold reached)"
+
+          echo "✅ All 10 letters sent successfully"
           echo ""
 
-          # Step 8: B checks level (should be 3 now)
-          echo "=== Step 8: B views A's photos (10 letters, threshold) ==="
+          # === PHASE 3: Verify threshold reached (level 3) ===
+          echo "=== PHASE 3: LEVEL 3 (>= 10 letters) — Full photo visible ==="
+          echo ""
+
+          # Step 21: Verify photoUnlock.level is now 3
+          echo "=== Step 21: Verify photoUnlock state at 10 letters ==="
+          MATCH_FINAL=$(curl -s -X GET "$API_URL/matches/$MATCH_ID" \
+            -H "Authorization: Bearer $TOKEN_B")
+          FINAL_LEVEL=$(echo "$MATCH_FINAL" | jq -r '.data.photoUnlock.level // 0')
+          FINAL_TOTAL=$(echo "$MATCH_FINAL" | jq -r '.data.photoUnlock.totalLetters // 0')
+
+          echo "Final photoUnlock.level: $FINAL_LEVEL (expect: 3)"
+          echo "Final totalLetters: $FINAL_TOTAL (expect: 10)"
+
+          if [ "$FINAL_LEVEL" != "3" ]; then
+            echo "❌ FAIL: Expected level 3, got $FINAL_LEVEL"
+            exit 1
+          fi
+
+          if [ "$FINAL_TOTAL" != "10" ]; then
+            echo "❌ FAIL: Expected totalLetters 10, got $FINAL_TOTAL"
+            exit 1
+          fi
+
+          echo "✅ PASS: PhotoUnlock level = 3, totalLetters = 10"
+          echo ""
+
+          # Step 22: B views A's photos at level 3 (should see 1 original photo)
+          echo "=== Step 22: B views A's photos (10 letters, threshold reached) ==="
           PHOTOS_3=$(curl -s -X GET "$API_URL/photos/user/$USER_A" \
             -H "Authorization: Bearer $TOKEN_B")
           PHOTOS_COUNT=$(echo "$PHOTOS_3" | jq 'if (.data | type) == "array" then (.data | length) else (.data.photos | length // 0) end')
-          LEVEL=$(echo "$PHOTOS_3" | jq -r '.meta.level // .data.level // 0')
           VARIANT=$(echo "$PHOTOS_3" | jq -r 'if (.data | type) == "array" then (.data[0].variant // "none") else (.data.photos[0].variant // "none") end // "none"')
+
           echo "Photos visible: $PHOTOS_COUNT (expect: 1)"
-          echo "Level: $LEVEL (expect: 3)"
           echo "Variant: $VARIANT (expect: original)"
 
           if [ "$PHOTOS_COUNT" != "1" ]; then
             echo "❌ FAIL: Should see 1 photo at level 3"
             exit 1
           fi
+
           if [ "$VARIANT" != "original" ]; then
             echo "❌ FAIL: Expected variant 'original', got '$VARIANT'"
             exit 1
           fi
-          echo "✅ PASS: Level 3 - full photo visible with original variant"
+
+          echo "✅ PASS: Level 3 - 1 original photo visible"
           echo ""
 
-          # Step 9: B CAN NOW access /original file (should be 200)
-          echo "=== Step 9: B accesses /original file (10 letters, threshold) ==="
-          FILE_200=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/photos/file/$PHOTO_ID/original" \
+          # Step 23: B can NOW access /original file (should be 200)
+          echo "=== Step 23: B accesses /original file (10 letters, threshold reached) ==="
+          FILE_FINAL=$(curl -s -w "\n%{http_code}" -X GET "$API_URL/photos/file/$PHOTO_ID/original" \
             -H "Authorization: Bearer $TOKEN_B")
-          HTTP_CODE=$(echo "$FILE_200" | tail -n1)
-          BODY_SIZE=$(echo "$FILE_200" | head -n -1 | wc -c)
+          HTTP_CODE=$(echo "$FILE_FINAL" | tail -n1)
+          BODY_SIZE=$(echo "$FILE_FINAL" | head -n -1 | wc -c)
+
           echo "HTTP code: $HTTP_CODE (expect: 200)"
           echo "Response size: $BODY_SIZE bytes"
 
@@ -176,15 +278,20 @@ jobs:
             echo "❌ FAIL: Should return 200 at level 3"
             exit 1
           fi
+
           if [ "$BODY_SIZE" -lt 50 ]; then
             echo "❌ FAIL: Response should contain image data"
             exit 1
           fi
+
           echo "✅ PASS: /original accessible at level 3"
           echo ""
 
-          # === SUMMARY ===
+          # === TEST SUMMARY ===
           echo "=== TEST SUMMARY ==="
-          echo "✅ Level 0 (< 10 letters): No photos visible, avatar only, /original returns 403"
-          echo "✅ Level 3 (>= 10 letters): Photos visible on profile, original variant, /original returns 200"
+          echo "✅ Created mutual match between users"
+          echo "✅ Level 0 (0-9 letters): No photos visible, /original returns 403"
+          echo "✅ Sent 10 letters via correct endpoint (POST /matches/:matchId/letters)"
+          echo "✅ Verified letter counts incremented correctly"
+          echo "✅ Level 3 (>= 10 letters): Photos visible, variant=original, /original returns 200"
           echo "✅ Binary unlock system working correctly"
