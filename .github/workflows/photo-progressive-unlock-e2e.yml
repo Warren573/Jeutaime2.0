@@ -1,4 +1,4 @@
-name: Photo Binary Unlock E2E Test (Debug)
+name: Photo Binary Unlock E2E Test
 
 on:
   workflow_dispatch:
@@ -7,31 +7,23 @@ jobs:
   test-photo-binary-unlock:
     runs-on: ubuntu-latest
     steps:
-      - name: Test Photo Binary Unlock with Full Debug
+      - name: Test Photo Binary Unlock System
         run: |
           set -e
 
           API_URL="https://jeutaime-staging.onrender.com/api"
-          echo "=== Photo Binary Unlock E2E Test (Debug) ==="
-          echo "API_URL: $API_URL"
+          echo "=== Photo Binary Unlock E2E Test ==="
           echo ""
 
-          # Version Check
-          echo "=== Version Check ==="
-          VERSION=$(curl -s "$API_URL/test/version")
-          DEPLOYED_COMMIT=$(echo "$VERSION" | jq -r '.commit')
-          echo "Deployed commit: $DEPLOYED_COMMIT"
-          echo ""
-
-          # Step 0: Cleanup
-          echo "=== Step 0: Cleanup staging data ==="
+          # Cleanup
+          echo "=== Cleanup ==="
           curl -s -X POST "$API_URL/test/cleanup-staging-debug-data" \
             -H "Content-Type: application/json" > /dev/null
-          echo "Cleanup done"
+          echo "Done"
           echo ""
 
-          # Step 1: Create test accounts
-          echo "=== Step 1: Create test accounts ==="
+          # Create accounts
+          echo "=== Create test accounts ==="
           RESET=$(curl -s -X POST "$API_URL/test/reset-mutual-smile" \
             -H "Content-Type: application/json")
           EMAIL_A=$(echo "$RESET" | jq -r '.accountA.email')
@@ -44,8 +36,8 @@ jobs:
           echo "User B: $USER_B"
           echo ""
 
-          # Step 2: Login
-          echo "=== Step 2: Login users ==="
+          # Login
+          echo "=== Login ==="
           LOGIN_A=$(curl -s -X POST "$API_URL/auth/login" \
             -H "Content-Type: application/json" \
             -d "{\"email\": \"$EMAIL_A\", \"password\": \"$PASSWORD_A\"}")
@@ -56,31 +48,22 @@ jobs:
             -d "{\"email\": \"$EMAIL_B\", \"password\": \"$PASSWORD_B\"}")
           TOKEN_B=$(echo "$LOGIN_B" | jq -r '.data.accessToken // .accessToken // empty')
 
-          if [ -z "$TOKEN_A" ] || [ -z "$TOKEN_B" ]; then
-            echo "❌ FAIL: Login failed"
-            exit 1
-          fi
-          echo "Both users logged in"
+          echo "Logged in"
           echo ""
 
-          # Step 3: Create test image
-          echo "=== Step 3: Create test image ==="
+          # Upload photo
+          echo "=== Upload photo ==="
           PNG_B64="iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
           echo "$PNG_B64" | base64 -d > /tmp/test_photo.png
-          echo "Test image created"
-          echo ""
-
-          # Step 4: User A uploads photo
-          echo "=== Step 4: User A uploads photo ==="
           PHOTO=$(curl -s -X POST "$API_URL/photos/me" \
             -H "Authorization: Bearer $TOKEN_A" \
             -F "photo=@/tmp/test_photo.png;type=image/png")
           PHOTO_ID=$(echo "$PHOTO" | jq -r '.data.id')
-          echo "Photo uploaded: $PHOTO_ID"
+          echo "Photo: $PHOTO_ID"
           echo ""
 
-          # Step 5-6: Create mutual smile
-          echo "=== Step 5-6: Create mutual smile ==="
+          # Mutual smile
+          echo "=== Create mutual smile ==="
           curl -s -X POST "$API_URL/discover/react" \
             -H "Authorization: Bearer $TOKEN_A" \
             -H "Content-Type: application/json" \
@@ -91,95 +74,19 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"toId\": \"$USER_A\", \"type\": \"SMILE\"}" > /dev/null
 
-          echo "Mutual smile created"
+          echo "Match created"
           echo ""
 
-          # Step 7: Get match details
-          echo "=== Step 7: Get match and extract matchId ==="
+          # Get matchId
+          echo "=== Get match ==="
           MATCHES=$(curl -s -X GET "$API_URL/matches" \
             -H "Authorization: Bearer $TOKEN_B")
           MATCH_ID=$(echo "$MATCHES" | jq -r '.data[0].id // empty')
-
-          if [ -z "$MATCH_ID" ]; then
-            echo "❌ FAIL: No match found"
-            echo "Response: $MATCHES"
-            exit 1
-          fi
-
           echo "Match ID: $MATCH_ID"
           echo ""
 
-          # Step 8: Check match state BEFORE doing anything
-          echo "=== Step 8: Check match state (initial) ==="
-          MATCH=$(curl -s -X GET "$API_URL/matches/$MATCH_ID" \
-            -H "Authorization: Bearer $TOKEN_B")
-
-          echo "Full match response:"
-          echo "$MATCH" | jq '.'
-          echo ""
-
-          # Extract key fields
-          QUESTIONS_VALIDATED=$(echo "$MATCH" | jq -r '.data.questionsValidated // false')
-          CAN_SEND=$(echo "$MATCH" | jq -r '.data.canSend // false')
-          CAN_SEND_REASON=$(echo "$MATCH" | jq -r '.data.canSendReason // "none"')
-          LETTER_COUNT_A=$(echo "$MATCH" | jq -r '.data.letterCountA // 0')
-          LETTER_COUNT_B=$(echo "$MATCH" | jq -r '.data.letterCountB // 0')
-          MATCH_STATUS=$(echo "$MATCH" | jq -r '.data.status // "unknown"')
-          PHOTO_LEVEL=$(echo "$MATCH" | jq -r '.data.photoUnlock.level // 0')
-          PHOTO_TOTAL=$(echo "$MATCH" | jq -r '.data.photoUnlock.totalLetters // 0')
-
-          echo "questionsValidated: $QUESTIONS_VALIDATED"
-          echo "canSend: $CAN_SEND"
-          echo "canSendReason: $CAN_SEND_REASON"
-          echo "letterCountA: $LETTER_COUNT_A"
-          echo "letterCountB: $LETTER_COUNT_B"
-          echo "status: $MATCH_STATUS"
-          echo "photoUnlock.level: $PHOTO_LEVEL"
-          echo "photoUnlock.totalLetters: $PHOTO_TOTAL"
-          echo ""
-
-          # Step 9: If questions not validated, validate them
-          if [ "$QUESTIONS_VALIDATED" != "true" ]; then
-            echo "=== Step 9: Questions not validated - validating now ==="
-
-            # Get questions
-            QUESTIONS=$(curl -s -X GET "$API_URL/matches/$MATCH_ID/questions" \
-              -H "Authorization: Bearer $TOKEN_B")
-            echo "Questions response:"
-            echo "$QUESTIONS" | jq '.'
-
-            # Extract question IDs and submit answers
-            QUESTION_IDS=$(echo "$QUESTIONS" | jq -r '.data.questions[].profileQuestionId')
-
-            # Build answers JSON
-            ANSWERS_JSON="["
-            FIRST=true
-            for QID in $QUESTION_IDS; do
-              if [ "$FIRST" = false ]; then
-                ANSWERS_JSON="$ANSWERS_JSON,"
-              fi
-              ANSWERS_JSON="$ANSWERS_JSON{\"profileQuestionId\": \"$QID\", \"answer\": \"test\"}"
-              FIRST=false
-            done
-            ANSWERS_JSON="$ANSWERS_JSON]"
-
-            echo "Submitting answers: $ANSWERS_JSON"
-            ANSWER_RESPONSE=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
-              -H "Authorization: Bearer $TOKEN_B" \
-              -H "Content-Type: application/json" \
-              -d "{\"answers\": $ANSWERS_JSON}")
-
-            echo "Answer response:"
-            echo "$ANSWER_RESPONSE" | jq '.'
-            echo ""
-          fi
-
-          # Step 10: Send 10 letters and log state after each
-          echo "=== Step 10: Send 10 letters via POST /matches/:matchId/letters ==="
-          echo ""
-
-          TOTAL_BEFORE=$(echo "$MATCH" | jq -r '.data.photoUnlock.totalLetters // 0')
-
+          # Send 10 letters via POST /matches/:matchId/letters
+          echo "=== Sending 10 letters via POST /matches/:matchId/letters ==="
           for i in 1 2 3 4 5 6 7 8 9 10; do
             if [ $((i % 2)) -eq 1 ]; then
               SENDER_TOKEN=$TOKEN_A
@@ -189,83 +96,77 @@ jobs:
               SENDER_NAME="B"
             fi
 
-            echo "Sending letter $i from $SENDER_NAME..."
             LETTER=$(curl -s -X POST "$API_URL/matches/$MATCH_ID/letters" \
               -H "Authorization: Bearer $SENDER_TOKEN" \
               -H "Content-Type: application/json" \
-              -d "{\"content\": \"Test letter $i from $SENDER_NAME\"}")
+              -d "{\"content\": \"Letter $i from $SENDER_NAME\"}")
 
             LETTER_ID=$(echo "$LETTER" | jq -r '.data.id // empty')
             if [ -z "$LETTER_ID" ]; then
-              echo "  ❌ FAIL: Letter send failed"
-              echo "  Response: $LETTER"
+              echo "❌ FAIL: Letter $i send failed"
+              echo "Response: $LETTER"
               exit 1
             fi
-            echo "  ✓ Letter $i sent: $LETTER_ID"
-
-            # Check match state after each letter
-            MATCH_AFTER=$(curl -s -X GET "$API_URL/matches/$MATCH_ID" \
-              -H "Authorization: Bearer $TOKEN_B")
-
-            AFTER_A=$(echo "$MATCH_AFTER" | jq -r '.data.letterCountA // 0')
-            AFTER_B=$(echo "$MATCH_AFTER" | jq -r '.data.letterCountB // 0')
-            AFTER_TOTAL=$(echo "$MATCH_AFTER" | jq -r '.data.photoUnlock.totalLetters // 0')
-            AFTER_LEVEL=$(echo "$MATCH_AFTER" | jq -r '.data.photoUnlock.level // 0')
-
-            echo "    Match state: letterCountA=$AFTER_A, letterCountB=$AFTER_B, totalLetters=$AFTER_TOTAL, level=$AFTER_LEVEL"
-
-            if [ "$AFTER_TOTAL" != "$i" ]; then
-              echo "  ⚠️  WARNING: Expected totalLetters=$i, got $AFTER_TOTAL"
-            fi
+            echo "Letter $i from $SENDER_NAME: ✓"
           done
-
           echo ""
-          echo "=== Step 11: Final match state check ==="
-          MATCH_FINAL=$(curl -s -X GET "$API_URL/matches/$MATCH_ID" \
+
+          # ========== MANDATORY DEBUG/ASSERT BLOCK ==========
+          echo "=== MANDATORY ASSERTION: Verify 10 letters were counted ==="
+
+          MATCH_INFO=$(curl -s -X GET "$API_URL/matches/$MATCH_ID" \
             -H "Authorization: Bearer $TOKEN_B")
 
-          FINAL_A=$(echo "$MATCH_FINAL" | jq -r '.data.letterCountA // 0')
-          FINAL_B=$(echo "$MATCH_FINAL" | jq -r '.data.letterCountB // 0')
-          FINAL_TOTAL=$(echo "$MATCH_FINAL" | jq -r '.data.photoUnlock.totalLetters // 0')
-          FINAL_LEVEL=$(echo "$MATCH_FINAL" | jq -r '.data.photoUnlock.level // 0')
-
-          echo "FINAL MATCH STATE:"
-          echo "  letterCountA: $FINAL_A"
-          echo "  letterCountB: $FINAL_B"
-          echo "  photoUnlock.totalLetters: $FINAL_TOTAL (expect: 10)"
-          echo "  photoUnlock.level: $FINAL_LEVEL (expect: 3)"
+          echo "Match data:"
+          echo "$MATCH_INFO" | jq '.data | {letterCountA, letterCountB, questionsValidated, photoUnlock}'
           echo ""
 
-          if [ "$FINAL_LEVEL" != "3" ]; then
-            echo "❌ FAIL: Expected level 3, got $FINAL_LEVEL"
+          TOTAL=$(echo "$MATCH_INFO" | jq -r '.data.photoUnlock.totalLetters // "null"')
+          LEVEL=$(echo "$MATCH_INFO" | jq -r '.data.photoUnlock.level // "null"')
+          LETTER_COUNT_A=$(echo "$MATCH_INFO" | jq -r '.data.letterCountA // "null"')
+          LETTER_COUNT_B=$(echo "$MATCH_INFO" | jq -r '.data.letterCountB // "null"')
+
+          echo "Assertion values:"
+          echo "  totalLetters: $TOTAL (expect: 10)"
+          echo "  level: $LEVEL (expect: 3)"
+          echo "  letterCountA: $LETTER_COUNT_A"
+          echo "  letterCountB: $LETTER_COUNT_B"
+          echo ""
+
+          if [ "$TOTAL" != "10" ]; then
+            echo "❌ FAIL: totalLetters is $TOTAL, expected 10"
             exit 1
           fi
 
-          if [ "$FINAL_TOTAL" != "10" ]; then
-            echo "❌ FAIL: Expected totalLetters 10, got $FINAL_TOTAL"
+          if [ "$LEVEL" != "3" ]; then
+            echo "❌ FAIL: photoUnlock.level is $LEVEL, expected 3"
             exit 1
           fi
 
-          echo "✅ PASS: Level 3 confirmed"
+          echo "✅ Match state verified: totalLetters=10, level=3"
           echo ""
 
-          # Step 12: Check photos
-          echo "=== Step 12: Check photos visibility ==="
+          # ========== ONLY THEN check photos ==========
+          echo "=== Check photo visibility ==="
           PHOTOS=$(curl -s -X GET "$API_URL/photos/user/$USER_A" \
             -H "Authorization: Bearer $TOKEN_B")
 
           PHOTOS_COUNT=$(echo "$PHOTOS" | jq 'if (.data | type) == "array" then (.data | length) else (.data.photos | length // 0) end')
+          LEVEL_FROM_PHOTOS=$(echo "$PHOTOS" | jq -r '.meta.level // .data.level // "none"')
 
           echo "Photos visible: $PHOTOS_COUNT (expect: 1)"
+          echo "Level from photos API: $LEVEL_FROM_PHOTOS"
+          echo ""
 
-          if [ "$PHOTOS_COUNT" = "1" ]; then
-            echo "✅ PASS: Photos visible"
-          else
-            echo "❌ FAIL: No photos visible despite level 3"
-            echo "Photos response: $PHOTOS"
+          if [ "$PHOTOS_COUNT" != "1" ]; then
+            echo "❌ FAIL: Should see 1 photo at level 3"
+            echo "Full photos response:"
+            echo "$PHOTOS" | jq '.'
             exit 1
           fi
 
-          echo ""
-          echo "=== TEST COMPLETE ==="
-          echo "✅ Binary unlock system validated"
+          echo "✅ TEST PASSED"
+          echo "  ✓ 10 letters sent via POST /matches/:matchId/letters"
+          echo "  ✓ photoUnlock.level = 3"
+          echo "  ✓ photoUnlock.totalLetters = 10"
+          echo "  ✓ 1 photo visible with correct access"
