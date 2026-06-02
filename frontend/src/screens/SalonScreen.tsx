@@ -55,6 +55,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SalonParticipant } from '../data/salonsData';
 import { useStore, Message } from '../store/useStore';
 import { allOfferings, allPowers } from '../data/offerings';
+import { OfferingBadge } from '../components/OfferingBadge';
+import { ConsumptionActionButton } from '../components/ConsumptionActionButton';
 import {
   listSalons,
   listMessages as apiListMessages,
@@ -244,10 +246,22 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
         </Text>
       )}
       {showBadges && participant.offerings && participant.offerings.length > 0 && (
-        <View style={styles.badgesRow}>
-          {participant.offerings.slice(-3).map((o, idx) => (
-            <Text key={idx} style={styles.badgeEmoji}>{o.emoji}</Text>
-          ))}
+        <View style={styles.badgesColumn}>
+          <View style={styles.badgesRow}>
+            {participant.offerings.slice(-3).map((o, idx) => (
+              <OfferingBadge key={idx} offering={o} size={28} />
+            ))}
+          </View>
+          {/* Bouton d'action pour le premier offering visible (si consommable) */}
+          {participant.offerings.length > 0 && (
+            <ConsumptionActionButton
+              offering={participant.offerings[0]}
+              userId={participant.id}
+              onSuccess={() => {
+                // Optionnel: refresh offerings
+              }}
+            />
+          )}
         </View>
       )}
     </TouchableOpacity>
@@ -1339,10 +1353,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
   },
+  badgesColumn: {
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
   badgesRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 4,
+    gap: 4,
   },
   badgeEmoji: {
     fontSize: 14,
