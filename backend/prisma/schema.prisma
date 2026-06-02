@@ -130,6 +130,23 @@ enum ReactionType {
 }
 
 // ============================================================
+// BOUTEILLE À LA MER (Chantier 1 - V1)
+// ============================================================
+
+enum BottleStatus {
+  FLOATING    // En attente de réception
+  ACCEPTED    // Acceptée par un utilisateur
+  EXPIRED     // 30 jours écoulés
+}
+
+enum BottleReceiptStatus {
+  PENDING     // En attente de réponse
+  ACCEPTED    // Acceptée
+  REFUSED     // Refusée
+  TAKEN       // Prise par quelqu'un d'autre
+}
+
+// ============================================================
 // USER / AUTH
 // ============================================================
 
@@ -177,6 +194,12 @@ model User {
   salonSessionParticipants SalonSessionParticipant[]
   encounters1       SalonEncounter[]  @relation("Encounter1")
   encounters2       SalonEncounter[]  @relation("Encounter2")
+
+  bottlesSent       MessageInABottle[] @relation("BottleSender")
+  bottlesAccepted   MessageInABottle[] @relation("BottleAcceptedBy")
+  bottleReceipts    BottleReceipt[]
+  anonymousMessages AnonymousMessage[]
+  bottleSuspension  BottleSuspension?
 
   @@index([email])
   @@index([isBanned])
@@ -552,6 +575,70 @@ model SalonMessage {
   createdAt DateTime @default(now())
 
   @@index([salonId, createdAt])
+}
+
+// ============================================================
+// BOUTEILLE À LA MER (V1)
+// ============================================================
+
+model MessageInABottle {
+  id            String                @id @default(cuid())
+  senderId      String
+  sender        User                  @relation("BottleSender", fields: [senderId], references: [id], onDelete: Cascade)
+  message       String                @db.Text
+  targetGender  String                // "HOMME" | "FEMME" | "AUTRE"
+  ageMin        Int
+  ageMax        Int
+  status        BottleStatus          @default(FLOATING)
+  acceptedById  String?
+  acceptedBy    User?                 @relation("BottleAcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
+  acceptedAt    DateTime?
+  createdAt     DateTime              @default(now())
+  expiresAt     DateTime              // 30 jours
+
+  receipts      BottleReceipt[]
+  messages      AnonymousMessage[]
+
+  @@index([status, expiresAt])
+  @@index([senderId, status])
+}
+
+model BottleReceipt {
+  id          String              @id @default(cuid())
+  bottleId    String
+  bottle      MessageInABottle    @relation(fields: [bottleId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   User                @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  status      BottleReceiptStatus @default(PENDING)
+  createdAt   DateTime            @default(now())
+  actionAt    DateTime?
+
+  @@unique([bottleId, recipientId])
+  @@index([recipientId, status])
+}
+
+model AnonymousMessage {
+  id        String            @id @default(cuid())
+  bottleId  String
+  bottle    MessageInABottle  @relation(fields: [bottleId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User              @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content   String            @db.Text
+  createdAt DateTime          @default(now())
+
+  @@index([bottleId, createdAt])
+}
+
+model BottleSuspension {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason    String   @db.Text
+  reportCount Int    @default(1)
+  startedAt DateTime @default(now())
+  endsAt    DateTime // 7 jours
+
+  @@index([userId, endsAt])
 }
 
 // ============================================================
