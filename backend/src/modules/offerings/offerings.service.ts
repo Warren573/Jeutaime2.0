@@ -312,9 +312,10 @@ export async function listReceived(
   ]);
 
   // Défense en profondeur : on refiltre via la policy (parité avec magies).
+  // Filtrer aussi consumptionCount < 3 (disparition après 3 consommations)
   const items = (onlyActive
-    ? rows.filter((r) => isOfferingActive(r, now))
-    : rows
+    ? rows.filter((r) => isOfferingActive(r, now) && r.consumptionCount < 3)
+    : rows.filter((r) => r.consumptionCount < 3)
   ).map((r) => toSentDto(r, now));
 
   return {
@@ -378,20 +379,23 @@ export async function listSalonOfferings(
     },
   });
 
-  return rows.map((r) => ({
-    id: r.id,
-    offeringId: r.offeringId,
-    emoji: r.offering.emoji,
-    name: r.offering.name,
-    fromUserId: r.fromUserId,
-    fromPseudo: r.fromUser.profile?.pseudo ?? "Anonyme",
-    toUserId: r.toUserId,
-    toPseudo: r.toUser.profile?.pseudo ?? "Anonyme",
-    salonId: salonId,
-    createdAt: r.createdAt,
-    expiresAt: r.expiresAt,
-    isActive: isOfferingActive(r, now),
-    consumptionCount: r.consumptionCount,
-    currentStage: getCurrentStage(r.consumptionCount),
-  }));
+  // Filtrer consumptionCount >= 3 (offrande disparue après 3 consommations)
+  return rows
+    .filter((r) => r.consumptionCount < 3)
+    .map((r) => ({
+      id: r.id,
+      offeringId: r.offeringId,
+      emoji: r.offering.emoji,
+      name: r.offering.name,
+      fromUserId: r.fromUserId,
+      fromPseudo: r.fromUser.profile?.pseudo ?? "Anonyme",
+      toUserId: r.toUserId,
+      toPseudo: r.toUser.profile?.pseudo ?? "Anonyme",
+      salonId: salonId,
+      createdAt: r.createdAt,
+      expiresAt: r.expiresAt,
+      isActive: isOfferingActive(r, now),
+      consumptionCount: r.consumptionCount,
+      currentStage: getCurrentStage(r.consumptionCount),
+    }));
 }

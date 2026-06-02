@@ -3,16 +3,18 @@ import { prisma } from "@config/prisma";
 import {
   consumeOffering,
   getCurrentStage,
+  listSalonOfferings,
+  listReceived,
 } from "@modules/offerings/offerings.service";
 import { ConsumptionMode } from "@prisma/client";
 import { ForbiddenError, NotFoundError } from "@core/errors";
 
 describe("Offerings Consumption MVP", () => {
-  let testOfferingId: string;
-  let sharedOfferingId: string;
-  let user1Id: string;
-  let user2Id: string;
-  let user3Id: string;
+  let testOfferingId: string = "";
+  let sharedOfferingId: string = "";
+  let user1Id: string = "";
+  let user2Id: string = "";
+  let user3Id: string = "";
 
   beforeAll(async () => {
     // Create test users
@@ -61,12 +63,17 @@ describe("Offerings Consumption MVP", () => {
 
   afterAll(async () => {
     // Cleanup test users and offerings
-    await prisma.offeringSent.deleteMany({
-      where: { fromUserId: { in: [user1Id, user2Id, user3Id] } },
-    });
-    await prisma.user.deleteMany({
-      where: { id: { in: [user1Id, user2Id, user3Id] } },
-    });
+    if (user1Id || user2Id || user3Id) {
+      const userIds = [user1Id, user2Id, user3Id].filter(Boolean);
+      if (userIds.length > 0) {
+        await prisma.offeringSent.deleteMany({
+          where: { fromUserId: { in: userIds } },
+        });
+        await prisma.user.deleteMany({
+          where: { id: { in: userIds } },
+        });
+      }
+    }
   });
 
   describe("getCurrentStage", () => {
@@ -275,6 +282,121 @@ describe("Offerings Consumption MVP", () => {
       });
 
       await expect(consumeOffering(sent.id, user1Id)).rejects.toThrow(ForbiddenError);
+    });
+  });
+
+  describe("Disparition (consumptionCount >= 3)", () => {
+    let testSalonId: string = "";
+
+    beforeAll(async () => {
+      // Use existing salon (from seed data) for disappearance tests
+      const salon = await prisma.salon.findFirst({
+        where: { kind: "METAL" },
+      });
+      if (!salon) {
+        throw new Error("Test salon METAL not found in seed data");
+      }
+      testSalonId = salon.id;
+    });
+
+    afterAll(async () => {
+      // Cleanup test offerings in salon
+      if (testSalonId) {
+        await prisma.offeringSent.deleteMany({
+          where: { salonId: testSalonId },
+        });
+      }
+    });
+
+    it("should exclude consumptionCount = 3 from listSalonOfferings", async () => {
+      // Create offering with consumptionCount = 2 (stage 3, visible)
+      const visible = await prisma.offeringSent.create({
+        data: {
+          offeringId: sharedOfferingId,
+          fromUserId: user1Id,
+          toUserId: user2Id,
+          salonId: testSalonId,
+          consumptionCount: 2,
+        },
+      });
+
+      // Create offering with consumptionCount = 3 (disappeared, should not appear)
+      const disappeared = await prisma.offeringSent.create({
+        data: {
+          offeringId: sharedOfferingId,
+          fromUserId: user1Id,
+          toUserId: user3Id,
+          salonId: testSalonId,
+          consumptionCount: 3,
+        },
+      });
+
+      const result = await listSalonOfferings(testSalonId);
+
+      // Should have only 1 offering (the one with consumptionCount = 2)
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(visible.id);
+      expect(result[0].consumptionCount).toBe(2);
+      expect(result[0].currentStage).toBe(3);
+
+      // Verify disappeared one is NOT in the list
+      const ids = result.map((o) => o.id);
+      expect(ids).not.toContain(disappeared.id);
+    });
+
+    it("should exclude consumptionCount = 3 from listReceived", async () => {
+      // Create offering with consumptionCount = 2 (stage 3, visible)
+      const visible = await prisma.offeringSent.create({
+        data: {
+          offeringId: sharedOfferingId,
+          fromUserId: user2Id,
+          toUserId: user1Id,
+          salonId: null,
+          consumptionCount: 2,
+        },
+      });
+
+      // Create offering with consumptionCount = 3 (disappeared, should not appear)
+      const disappeared = await prisma.offeringSent.create({
+        data: {
+          offeringId: sharedOfferingId,
+          fromUserId: user3Id,
+          toUserId: user1Id,
+          salonId: null,
+          consumptionCount: 3,
+        },
+      });
+
+      const result = await listReceived(user1Id, {
+        onlyActive: false,
+        page: 1,
+        pageSize: 100,
+      });
+
+      // Should have at least the visible offering, but not the disappeared one
+      const visibleIds = result.items.map((o) => o.id);
+      expect(visibleIds).toContain(visible.id);
+      expect(visibleIds).not.toContain(disappeared.id);
+    });
+
+    it("should keep stage2 (consumptionCount = 2) visible with currentStage = 3", async () => {
+      const sent = await prisma.offeringSent.create({
+        data: {
+          offeringId: sharedOfferingId,
+          fromUserId: user1Id,
+          toUserId: user2Id,
+          salonId: testSalonId,
+          consumptionCount: 2,
+        },
+      });
+
+      const result = await listSalonOfferings(testSalonId);
+      const offering = result.find((o) => o.id === sent.id);
+
+      expect(offering).toBeDefined();
+      expect(offering?.consumptionCount).toBe(2);
+      expect(offering?.currentStage).toBe(3); // 2 + 1 = 3 (capped)
+      expect(offering?.consumptionCount < 3).toBe(true); // Visible because < 3
     });
   });
 });
