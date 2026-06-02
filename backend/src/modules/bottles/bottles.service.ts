@@ -19,6 +19,20 @@ export async function createBottle(
   ageMin: number,
   ageMax: number,
 ): Promise<MessageInABottle> {
+  // Check max 3 pending bottles per user
+  const pendingCount = await prisma.messageInABottle.count({
+    where: {
+      senderId,
+      status: "FLOATING",
+    },
+  });
+
+  if (pendingCount >= 3) {
+    throw new Error(
+      "Maximum 3 pending bottles allowed. Accept or refuse existing bottles first.",
+    );
+  }
+
   const bottle = await prisma.messageInABottle.create({
     data: {
       senderId,
@@ -48,6 +62,10 @@ export async function createBottle(
 async function findCompatibleRecipients(
   bottle: MessageInABottle,
 ): Promise<User[]> {
+  const now = new Date();
+  const minBirthDate = addDays(now, -365 * bottle.ageMax - 365);
+  const maxBirthDate = addDays(now, -365 * bottle.ageMin);
+
   const users = await prisma.user.findMany({
     where: {
       isBanned: false,
@@ -60,8 +78,8 @@ async function findCompatibleRecipients(
           },
           {
             birthDate: {
-              lte: addDays(new Date(), -365 * bottle.ageMin),
-              gte: addDays(new Date(), -365 * bottle.ageMax),
+              gte: minBirthDate,
+              lte: maxBirthDate,
             },
           },
         ],
@@ -69,7 +87,6 @@ async function findCompatibleRecipients(
       NOT: {
         id: bottle.senderId,
       },
-      bottleSuspension: null,
     },
     include: {
       bottleSuspension: true,
@@ -78,7 +95,7 @@ async function findCompatibleRecipients(
 
   return users.filter((user) => {
     if (!user.bottleSuspension) return true;
-    return user.bottleSuspension.endsAt <= new Date();
+    return user.bottleSuspension.endsAt <= now;
   });
 }
 

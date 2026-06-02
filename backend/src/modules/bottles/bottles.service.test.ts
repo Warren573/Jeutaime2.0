@@ -1,0 +1,299 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { prisma } from "../../core/database";
+import * as bottlesService from "./bottles.service";
+import { addDays, subYears } from "date-fns";
+
+vi.mock("../../core/database", () => ({
+  prisma: {
+    messageInABottle: {
+      create: vi.fn(),
+      update: vi.fn(),
+      findMany: vi.fn(),
+    },
+    bottleReceipt: {
+      createMany: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      findMany: vi.fn(),
+    },
+    anonymousMessage: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+    },
+    bottleSuspension: {
+      upsert: vi.fn(),
+    },
+    user: {
+      findMany: vi.fn(),
+    },
+    $transaction: vi.fn(),
+  },
+}));
+
+describe("BottleService", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("createBottle", () => {
+    it("should create bottle with 30-day expiration", async () => {
+      const now = new Date();
+      const mockBottle = {
+        id: "bottle1",
+        senderId: "user1",
+        message: "Hello!",
+        targetGender: "FEMME",
+        ageMin: 25,
+        ageMax: 35,
+        status: "FLOATING",
+        acceptedById: null,
+        acceptedAt: null,
+        createdAt: now,
+        expiresAt: addDays(now, 30),
+      };
+
+      vi.mocked(prisma.messageInABottle.create).mockResolvedValue(mockBottle as any);
+      vi.mocked(prisma.user.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.bottleReceipt.createMany).mockResolvedValue({ count: 0 });
+
+      const result = await bottlesService.createBottle(
+        "user1",
+        "Hello!",
+        "FEMME",
+        25,
+        35,
+      );
+
+      expect(result.id).toBe("bottle1");
+      expect(result.expiresAt).toEqual(addDays(now, 30));
+      expect(prisma.messageInABottle.create).toHaveBeenCalledWith({
+        data: {
+          senderId: "user1",
+          message: "Hello!",
+          targetGender: "FEMME",
+          ageMin: 25,
+          ageMax: 35,
+          expiresAt: expect.any(Date),
+        },
+      });
+    });
+
+    it("should create receipts for compatible recipients", async () => {
+      const mockBottle = {
+        id: "bottle1",
+        senderId: "user1",
+        message: "Hello!",
+        targetGender: "FEMME",
+        ageMin: 25,
+        ageMax: 35,
+        status: "FLOATING",
+        acceptedById: null,
+        acceptedAt: null,
+        createdAt: new Date(),
+        expiresAt: addDays(new Date(), 30),
+      };
+
+      const mockUsers = [
+        { id: "user2", bottleSuspension: null },
+        { id: "user3", bottleSuspension: null },
+      ];
+
+      vi.mocked(prisma.messageInABottle.create).mockResolvedValue(mockBottle as any);
+      vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any);
+      vi.mocked(prisma.bottleReceipt.createMany).mockResolvedValue({ count: 2 });
+
+      await bottlesService.createBottle(
+        "user1",
+        "Hello!",
+        "FEMME",
+        25,
+        35,
+      );
+
+      expect(prisma.bottleReceipt.createMany).toHaveBeenCalledWith({
+        data: [
+          { bottleId: "bottle1", recipientId: "user2" },
+          { bottleId: "bottle1", recipientId: "user3" },
+        ],
+      });
+    });
+  });
+
+  describe("acceptBottle", () => {
+    it("should accept bottle and mark others as TAKEN", async () => {
+      const mockBottle = {
+        id: "bottle1",
+        senderId: "user1",
+        message: "Hello!",
+        targetGender: "FEMME",
+        ageMin: 25,
+        ageMax: 35,
+        status: "ACCEPTED",
+        acceptedById: "user2",
+        acceptedAt: new Date(),
+        createdAt: new Date(),
+        expiresAt: addDays(new Date(), 30),
+      };
+
+      const mockTx = {
+        messageInABottle: {
+          update: vi.fn().mockResolvedValue(mockBottle),
+        },
+        bottleReceipt: {
+          update: vi.fn().mockResolvedValue({}),
+          updateMany: vi.fn().mockResolvedValue({ count: 2 }),
+        },
+      };
+
+      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
+        return fn(mockTx as any);
+      });
+
+      const result = await bottlesService.acceptBottle("bottle1", "user2");
+
+      expect(result.status).toBe("ACCEPTED");
+      expect(result.acceptedById).toBe("user2");
+      expect(mockTx.bottleReceipt.updateMany).toHaveBeenCalledWith({
+        where: {
+          bottleId: "bottle1",
+          recipientId: { not: "user2" },
+          status: "PENDING",
+        },
+        data: {
+          status: "TAKEN",
+          actionAt: expect.any(Date),
+        },
+      });
+    });
+  });
+
+  describe("refuseBottle", () => {
+    it("should refuse bottle with REFUSED status", async () => {
+      const mockReceipt = {
+        id: "receipt1",
+        bottleId: "bottle1",
+        recipientId: "user2",
+        status: "REFUSED",
+        createdAt: new Date(),
+        actionAt: new Date(),
+      };
+
+      vi.mocked(prisma.bottleReceipt.update).mockResolvedValue(mockReceipt as any);
+
+      const result = await bottlesService.refuseBottle("bottle1", "user2");
+
+      expect(result.status).toBe("REFUSED");
+      expect(prisma.bottleReceipt.update).toHaveBeenCalledWith({
+        where: {
+          bottleId_recipientId: {
+            bottleId: "bottle1",
+            recipientId: "user2",
+          },
+        },
+        data: {
+          status: "REFUSED",
+          actionAt: expect.any(Date),
+        },
+      });
+    });
+  });
+
+  describe("getMessages", () => {
+    it("should retrieve messages in chronological order", async () => {
+      const mockMessages = [
+        {
+          id: "msg1",
+          bottleId: "bottle1",
+          senderId: "user2",
+          content: "First message",
+          createdAt: new Date("2026-01-01"),
+        },
+        {
+          id: "msg2",
+          bottleId: "bottle1",
+          senderId: "user1",
+          content: "Reply",
+          createdAt: new Date("2026-01-02"),
+        },
+      ];
+
+      vi.mocked(prisma.anonymousMessage.findMany).mockResolvedValue(mockMessages as any);
+
+      const result = await bottlesService.getMessages("bottle1");
+
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe("msg1");
+      expect(result[1].id).toBe("msg2");
+      expect(prisma.anonymousMessage.findMany).toHaveBeenCalledWith({
+        where: { bottleId: "bottle1" },
+        orderBy: { createdAt: "asc" },
+      });
+    });
+  });
+
+  describe("postMessage", () => {
+    it("should create anonymous message", async () => {
+      const mockMessage = {
+        id: "msg1",
+        bottleId: "bottle1",
+        senderId: "user2",
+        content: "Hello from acceptor!",
+        createdAt: new Date(),
+      };
+
+      vi.mocked(prisma.anonymousMessage.create).mockResolvedValue(mockMessage as any);
+
+      const result = await bottlesService.postMessage(
+        "bottle1",
+        "user2",
+        "Hello from acceptor!",
+      );
+
+      expect(result.id).toBe("msg1");
+      expect(result.content).toBe("Hello from acceptor!");
+      expect(prisma.anonymousMessage.create).toHaveBeenCalledWith({
+        data: {
+          bottleId: "bottle1",
+          senderId: "user2",
+          content: "Hello from acceptor!",
+        },
+      });
+    });
+  });
+
+  describe("reportAndSuspend", () => {
+    it("should increment report count and update suspension", async () => {
+      const mockSuspension = {
+        id: "susp1",
+        userId: "user1",
+        reason: "Inappropriate content",
+        reportCount: 2,
+        startedAt: new Date(),
+        endsAt: addDays(new Date(), 7),
+      };
+
+      vi.mocked(prisma.bottleSuspension.upsert).mockResolvedValue(mockSuspension as any);
+
+      await bottlesService.reportAndSuspend(
+        "bottle1",
+        "user1",
+        "Inappropriate content",
+      );
+
+      expect(prisma.bottleSuspension.upsert).toHaveBeenCalledWith({
+        where: { userId: "user1" },
+        update: {
+          reportCount: { increment: 1 },
+          reason: "Inappropriate content",
+        },
+        create: {
+          userId: "user1",
+          reason: "Inappropriate content",
+          reportCount: 1,
+          startedAt: expect.any(Date),
+          endsAt: expect.any(Date),
+        },
+      });
+    });
+  });
+});
