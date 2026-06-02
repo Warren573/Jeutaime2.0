@@ -81,6 +81,8 @@ export interface SalonOfferingDTO {
   isActive: boolean;
   consumptionCount: number;
   currentStage: number;
+  consumptionMode: "PRIVATE" | "SHARED";
+  lastConsumedBy: string | null;
 }
 
 export async function getSalonOfferings(salonId: string): Promise<SalonOfferingDTO[]> {
