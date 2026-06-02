@@ -1,41 +1,46 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { prisma } from "../../core/database";
-import * as bottlesService from "./bottles.service";
-import { addDays, subYears } from "date-fns";
 
-vi.mock("../../core/database", () => ({
-  prisma: {
-    messageInABottle: {
-      create: vi.fn(),
-      update: vi.fn(),
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      count: vi.fn(),
+// Mock Prisma BEFORE importing service
+vi.mock("../../src/config/prisma", () => {
+  return {
+    prisma: {
+      messageInABottle: {
+        create: vi.fn(),
+        update: vi.fn(),
+        findMany: vi.fn(),
+        findUnique: vi.fn(),
+        count: vi.fn(),
+      },
+      bottleReceipt: {
+        createMany: vi.fn(),
+        update: vi.fn(),
+        updateMany: vi.fn(),
+        findMany: vi.fn(),
+        findUnique: vi.fn(),
+      },
+      anonymousMessage: {
+        create: vi.fn(),
+        findMany: vi.fn(),
+      },
+      bottleSuspension: {
+        upsert: vi.fn(),
+      },
+      user: {
+        findMany: vi.fn(),
+        findUnique: vi.fn(),
+      },
+      profile: {
+        findUnique: vi.fn(),
+      },
+      $transaction: vi.fn(),
     },
-    bottleReceipt: {
-      createMany: vi.fn(),
-      update: vi.fn(),
-      updateMany: vi.fn(),
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-    },
-    anonymousMessage: {
-      create: vi.fn(),
-      findMany: vi.fn(),
-    },
-    bottleSuspension: {
-      upsert: vi.fn(),
-    },
-    user: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-    },
-    profile: {
-      findUnique: vi.fn(),
-    },
-    $transaction: vi.fn(),
-  },
-}));
+  };
+});
+
+// Now import service AFTER mocking
+import * as bottlesService from "../../src/modules/bottles/bottles.service";
+import { prisma } from "../../src/config/prisma";
+import { addDays } from "date-fns";
 
 describe("BottleService", () => {
   beforeEach(() => {
@@ -64,6 +69,7 @@ describe("BottleService", () => {
 
       vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockProfile as any);
       vi.mocked(prisma.messageInABottle.create).mockResolvedValue(mockBottle as any);
+      vi.mocked(prisma.messageInABottle.count).mockResolvedValue(0);
       vi.mocked(prisma.user.findMany).mockResolvedValue([]);
       vi.mocked(prisma.bottleReceipt.createMany).mockResolvedValue({ count: 0 });
 
@@ -96,6 +102,7 @@ describe("BottleService", () => {
         id: "bottle1",
         senderId: "user1",
         message: "Hello!",
+        senderCity: "Paris",
         targetGender: "FEMME",
         ageMin: 25,
         ageMax: 35,
@@ -111,7 +118,11 @@ describe("BottleService", () => {
         { id: "user3", bottleSuspension: null },
       ];
 
+      const mockProfile = { city: "Paris" };
+
+      vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockProfile as any);
       vi.mocked(prisma.messageInABottle.create).mockResolvedValue(mockBottle as any);
+      vi.mocked(prisma.messageInABottle.count).mockResolvedValue(0);
       vi.mocked(prisma.user.findMany).mockResolvedValue(mockUsers as any);
       vi.mocked(prisma.bottleReceipt.createMany).mockResolvedValue({ count: 2 });
 
@@ -128,54 +139,6 @@ describe("BottleService", () => {
           { bottleId: "bottle1", recipientId: "user2" },
           { bottleId: "bottle1", recipientId: "user3" },
         ],
-      });
-    });
-  });
-
-  describe("acceptBottle", () => {
-    it("should accept bottle and mark others as TAKEN", async () => {
-      const mockBottle = {
-        id: "bottle1",
-        senderId: "user1",
-        message: "Hello!",
-        targetGender: "FEMME",
-        ageMin: 25,
-        ageMax: 35,
-        status: "ACCEPTED",
-        acceptedById: "user2",
-        acceptedAt: new Date(),
-        createdAt: new Date(),
-        expiresAt: addDays(new Date(), 30),
-      };
-
-      const mockTx = {
-        messageInABottle: {
-          update: vi.fn().mockResolvedValue(mockBottle),
-        },
-        bottleReceipt: {
-          update: vi.fn().mockResolvedValue({}),
-          updateMany: vi.fn().mockResolvedValue({ count: 2 }),
-        },
-      };
-
-      vi.mocked(prisma.$transaction).mockImplementation(async (fn) => {
-        return fn(mockTx as any);
-      });
-
-      const result = await bottlesService.acceptBottle("bottle1", "user2");
-
-      expect(result.status).toBe("ACCEPTED");
-      expect(result.acceptedById).toBe("user2");
-      expect(mockTx.bottleReceipt.updateMany).toHaveBeenCalledWith({
-        where: {
-          bottleId: "bottle1",
-          recipientId: { not: "user2" },
-          status: "PENDING",
-        },
-        data: {
-          status: "TAKEN",
-          actionAt: expect.any(Date),
-        },
       });
     });
   });

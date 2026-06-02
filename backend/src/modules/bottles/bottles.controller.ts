@@ -1,6 +1,6 @@
 import type { Response } from "express";
 import type { AuthedRequest } from "../../core/types";
-import { prisma } from "../../core/database";
+import { prisma } from "../../config/prisma";
 import * as bottlesService from "./bottles.service";
 import {
   CreateBottleBodySchema,

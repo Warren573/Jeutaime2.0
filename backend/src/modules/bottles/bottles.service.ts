@@ -1,4 +1,4 @@
-import { prisma } from "../../core/database";
+import { prisma } from "../../config/prisma";
 import type {
   MessageInABottle,
   BottleReceipt,
