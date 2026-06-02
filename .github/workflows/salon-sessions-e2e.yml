@@ -2,6 +2,12 @@ name: Salon Sessions E2E Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch or ref to test'
+        required: false
+        default: 'claude/serene-allen-Sm5Ot'
+        type: string
 
 jobs:
   test:
@@ -23,6 +29,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
