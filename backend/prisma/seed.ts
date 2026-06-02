@@ -4,7 +4,7 @@
  * + crée un compte de test pour le développement
  * npm run prisma:seed
  */
-import { PrismaClient, SalonKind, OfferingCategory, MagieType, Gender } from "@prisma/client";
+import { PrismaClient, SalonKind, OfferingCategory, MagieType, Gender, ConsumptionMode } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -18,7 +18,7 @@ const TEST_USER = {
   password: "Test1234!",
   pseudo:   "TestUser",
   birthDate: new Date("1995-06-15T00:00:00.000Z"),
-  gender:   Gender.male,
+  gender:   Gender.HOMME,
   city:     "Paris",
 } as const;
 
@@ -89,28 +89,12 @@ const questionCatalog = [
 ];
 
 // ============================================================
-// CATALOGUE OFFRANDES (aligné sur frontend/src/data/offerings.ts)
+// CATALOGUE OFFRANDES (MVP - 3 items uniquement pour validation)
 // ============================================================
 const offeringCatalog = [
-  // Boissons
-  { id: "off_cafe",          emoji: "☕",  name: "Café",              cost: 20,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null },
-  { id: "off_the",           emoji: "🍵",  name: "Thé",               cost: 15,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null },
-  { id: "off_jus",           emoji: "🥤",  name: "Jus de fruits",     cost: 25,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null },
-  { id: "off_champagne",     emoji: "🥂",  name: "Champagne",         cost: 200, category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 2, salonOnly: null },
-  { id: "off_biere",         emoji: "🍺",  name: "Bière pression",    cost: 30,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: SalonKind.METAL },
-  // Nourriture
-  { id: "off_croissant",     emoji: "🥐",  name: "Croissant",         cost: 25,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null },
-  { id: "off_macaron",       emoji: "🍪",  name: "Macaron",           cost: 40,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null },
-  { id: "off_gateau",        emoji: "🎂",  name: "Gâteau d'anniversaire", cost: 120, category: OfferingCategory.NOURRITURE, durationMs: null,  stackPriority: 2, salonOnly: null },
-  { id: "off_eclair",        emoji: "⚡",  name: "Éclairs",           cost: 35,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: SalonKind.METAL },
-  // Symboliques
-  { id: "off_rose",          emoji: "🌹",  name: "Rose rouge",        cost: 50,  category: OfferingCategory.SYMBOLIQUE, durationMs: 86400000,  stackPriority: 3, salonOnly: null },
-  { id: "off_bouquet",       emoji: "💐",  name: "Bouquet de fleurs", cost: 100, category: OfferingCategory.SYMBOLIQUE, durationMs: 86400000,  stackPriority: 3, salonOnly: null },
-  { id: "off_coeur",         emoji: "💝",  name: "Coeur en or",       cost: 150, category: OfferingCategory.SYMBOLIQUE, durationMs: 86400000,  stackPriority: 4, salonOnly: null },
-  { id: "off_guitare",       emoji: "🎸",  name: "Guitare cassée",    cost: 80,  category: OfferingCategory.SYMBOLIQUE, durationMs: null,      stackPriority: 2, salonOnly: SalonKind.METAL },
-  // Humour
-  { id: "off_tarte",         emoji: "🥧",  name: "Tarte à la crème",  cost: 30,  category: OfferingCategory.HUMOUR,     durationMs: null,      stackPriority: 1, salonOnly: null },
-  { id: "off_chaussette",    emoji: "🧦",  name: "Chaussette dépareillée", cost: 10, category: OfferingCategory.HUMOUR, durationMs: null,     stackPriority: 0, salonOnly: null },
+  { id: "off_biere",         emoji: "🍺",  name: "Bière pression",    cost: 30,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_rose",          emoji: "🌹",  name: "Rose rouge",        cost: 50,  category: OfferingCategory.SYMBOLIQUE, durationMs: 86400000,  stackPriority: 3, salonOnly: null, consumptionMode: ConsumptionMode.PRIVATE },
+  { id: "off_hamburger",     emoji: "🍔",  name: "Hamburger",         cost: 35,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
 ] as const;
 
 // ============================================================
@@ -191,11 +175,11 @@ async function main() {
   for (const off of offeringCatalog) {
     await prisma.offeringCatalog.upsert({
       where: { id: off.id },
-      update: { emoji: off.emoji, name: off.name, cost: off.cost, category: off.category, durationMs: off.durationMs, stackPriority: off.stackPriority, salonOnly: off.salonOnly },
-      create: { id: off.id, emoji: off.emoji, name: off.name, cost: off.cost, category: off.category, durationMs: off.durationMs, stackPriority: off.stackPriority, salonOnly: off.salonOnly },
+      update: { emoji: off.emoji, name: off.name, cost: off.cost, category: off.category, durationMs: off.durationMs, stackPriority: off.stackPriority, salonOnly: off.salonOnly, consumptionMode: off.consumptionMode },
+      create: { id: off.id, emoji: off.emoji, name: off.name, cost: off.cost, category: off.category, durationMs: off.durationMs, stackPriority: off.stackPriority, salonOnly: off.salonOnly, consumptionMode: off.consumptionMode },
     });
   }
-  console.log(`✅ ${offeringCatalog.length} offrandes seedées`);
+  console.log(`✅ ${offeringCatalog.length} offrandes seedées (MVP)`);
 
   // -- Catalogue magies --
   for (const mag of magieCatalog) {

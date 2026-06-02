@@ -84,6 +84,11 @@ enum MagieType {
   WEATHER
 }
 
+enum ConsumptionMode {
+  PRIVATE
+  SHARED
+}
+
 enum SalonKind {
   PISCINE
   CAFE_DE_PARIS
@@ -405,31 +410,35 @@ model CoinTransaction {
 // ============================================================
 
 model OfferingCatalog {
-  id            String           @id
-  emoji         String
-  name          String
-  cost          Int
-  category      OfferingCategory
-  durationMs    Int?
-  stackPriority Int              @default(0)
-  salonOnly     SalonKind?
-  enabled       Boolean          @default(true)
+  id              String           @id
+  emoji           String
+  name            String
+  cost            Int
+  category        OfferingCategory
+  durationMs      Int?
+  stackPriority   Int              @default(0)
+  salonOnly       SalonKind?
+  enabled         Boolean          @default(true)
+  consumptionMode ConsumptionMode  @default(SHARED)
 
   sentOfferings OfferingSent[]
 }
 
 model OfferingSent {
-  id         String          @id @default(cuid())
-  offeringId String
-  offering   OfferingCatalog @relation(fields: [offeringId], references: [id])
-  fromUserId String
-  toUserId   String
-  fromUser   User            @relation("OfferingFrom", fields: [fromUserId], references: [id])
-  toUser     User            @relation("OfferingTo",   fields: [toUserId],   references: [id])
-  salonId    String?
-  salon      Salon?          @relation(fields: [salonId], references: [id])
-  expiresAt  DateTime?
-  createdAt  DateTime        @default(now())
+  id              String          @id @default(cuid())
+  offeringId      String
+  offering        OfferingCatalog @relation(fields: [offeringId], references: [id])
+  fromUserId      String
+  toUserId        String
+  fromUser        User            @relation("OfferingFrom", fields: [fromUserId], references: [id])
+  toUser          User            @relation("OfferingTo",   fields: [toUserId],   references: [id])
+  salonId         String?
+  salon           Salon?          @relation(fields: [salonId], references: [id])
+  expiresAt       DateTime?
+  createdAt       DateTime        @default(now())
+  consumptionCount Int            @default(0)
+  lastConsumedAt  DateTime?
+  lastConsumedBy  String?
 
   @@index([toUserId])
   @@index([salonId])

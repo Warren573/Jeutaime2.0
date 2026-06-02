@@ -9,6 +9,7 @@ export interface OfferingCatalogItemDTO {
   durationMs: number | null;
   stackPriority: number;
   salonOnly: string;
+  consumptionMode: "PRIVATE" | "SHARED";
 }
 
 export interface OfferingSentDTO {
@@ -21,6 +22,10 @@ export interface OfferingSentDTO {
   createdAt: string;
   expiresAt: string | null;
   isActive: boolean;
+  consumptionCount: number;
+  currentStage: number;
+  lastConsumedAt: string | null;
+  lastConsumedBy: string | null;
 }
 
 export interface ListReceivedResponseDTO {
@@ -74,11 +79,24 @@ export interface SalonOfferingDTO {
   createdAt: string;
   expiresAt: string | null;
   isActive: boolean;
+  consumptionCount: number;
+  currentStage: number;
 }
 
 export async function getSalonOfferings(salonId: string): Promise<SalonOfferingDTO[]> {
   const res = (await apiFetch(`/offerings/salon/${salonId}`)) as {
     data: SalonOfferingDTO[];
   };
+  return res.data;
+}
+
+export async function consumeOffering(
+  offeringId: string,
+  action: string,
+): Promise<OfferingSentDTO> {
+  const res = (await apiFetch(`/offerings/${offeringId}/consume`, {
+    method: "POST",
+    body: JSON.stringify({ action }),
+  })) as { data: OfferingSentDTO };
   return res.data;
 }

@@ -4,6 +4,7 @@ import * as svc from "./offerings.service";
 import type {
   ListReceivedQueryDto,
   SendOfferingDto,
+  ConsumeOfferingBodyDto,
 } from "./offerings.schemas";
 
 // GET /api/offerings/catalog
@@ -37,4 +38,12 @@ export async function handleListSalonOfferings(
   const salonId = req.params["salonId"] as string;
   const data = await svc.listSalonOfferings(salonId);
   res.json({ data });
+}
+
+// POST /api/offerings/:offeringId/consume
+export async function handleConsume(req: AuthedRequest, res: Response) {
+  const offeringId = req.params["offeringId"] as string;
+  const body = req.body as ConsumeOfferingBodyDto;
+  const data = await svc.consumeOffering(offeringId, req.user.userId);
+  res.json({ success: true, data });
 }

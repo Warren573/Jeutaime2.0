@@ -7,6 +7,8 @@ import {
   ListReceivedQuerySchema,
   SalonOfferingsParamsSchema,
   SendOfferingSchema,
+  ConsumeOfferingParamsSchema,
+  ConsumeOfferingBodySchema,
 } from "./offerings.schemas";
 import * as ctrl from "./offerings.controller";
 
@@ -36,6 +38,14 @@ router.get(
   "/salon/:salonId",
   validate(SalonOfferingsParamsSchema, "params"),
   wrap(ctrl.handleListSalonOfferings),
+);
+
+// POST /api/offerings/:offeringId/consume
+router.post(
+  "/:offeringId/consume",
+  validate(ConsumeOfferingParamsSchema, "params"),
+  validate(ConsumeOfferingBodySchema),
+  wrap(ctrl.handleConsume),
 );
 
 export default router;

@@ -1,0 +1,2 @@
+-- Add createdAt to Salon table
+ALTER TABLE "Salon" ADD COLUMN "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
