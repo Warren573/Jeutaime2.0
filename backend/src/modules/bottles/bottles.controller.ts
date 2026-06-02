@@ -40,6 +40,9 @@ export async function createBottle(req: AuthedRequest, res: Response) {
 export async function getInbox(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
 
+  // Lazy evaluation: ensure receipts exist for compatible floating bottles
+  await bottlesService.ensureReceiptsForFloatingBottles(userId);
+
   const receipts = await prisma.bottleReceipt.findMany({
     where: {
       recipientId: userId,

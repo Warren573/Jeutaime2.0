@@ -33,10 +33,19 @@ export async function createBottle(
     );
   }
 
+  // Get sender's city from profile
+  const senderProfile = await prisma.profile.findUnique({
+    where: { userId: senderId },
+    select: { city: true },
+  });
+
+  const senderCity = senderProfile?.city || "Unknown";
+
   const bottle = await prisma.messageInABottle.create({
     data: {
       senderId,
       message,
+      senderCity,
       targetGender,
       ageMin,
       ageMax,
@@ -154,6 +163,7 @@ export async function refuseBottle(
   bottleId: string,
   userId: string,
 ): Promise<BottleReceipt> {
+  // Mark receipt as refused
   const receipt = await prisma.bottleReceipt.update({
     where: {
       bottleId_recipientId: {
@@ -166,6 +176,37 @@ export async function refuseBottle(
       actionAt: new Date(),
     },
   });
+
+  // Republish to new compatible users (max 3-5 to avoid spam)
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+
+  if (!bottle) return receipt;
+
+  // Get all existing receipts (don't re-target these users)
+  const existingReceipts = await prisma.bottleReceipt.findMany({
+    where: { bottleId },
+    select: { recipientId: true },
+  });
+  const existingUserIds = new Set(existingReceipts.map((r) => r.recipientId));
+
+  // Find all compatible users
+  const allCompatible = await findCompatibleRecipients(bottle);
+
+  // Filter: only those NOT yet targeted, limit to 3 new users
+  const newTargets = allCompatible
+    .filter((user) => !existingUserIds.has(user.id))
+    .slice(0, 3); // Max 3 new targets per refusal
+
+  if (newTargets.length > 0) {
+    await prisma.bottleReceipt.createMany({
+      data: newTargets.map((user) => ({
+        bottleId,
+        recipientId: user.id,
+      })),
+    });
+  }
 
   return receipt;
 }
@@ -195,6 +236,99 @@ export async function postMessage(
   });
 
   return message;
+}
+
+// ============================================================
+// Inbox Management (with lazy evaluation)
+// ============================================================
+
+export async function ensureReceiptsForFloatingBottles(
+  userId: string,
+): Promise<void> {
+  // Find FLOATING bottles this user doesn't yet have a receipt for
+  const floatingBottles = await prisma.messageInABottle.findMany({
+    where: {
+      status: "FLOATING",
+      expiresAt: { gt: new Date() },
+      senderId: { not: userId },
+      NOT: {
+        receipts: {
+          some: {
+            recipientId: userId,
+          },
+        },
+      },
+    },
+  });
+
+  // For each, check if user is compatible and create receipt if yes
+  for (const bottle of floatingBottles) {
+    const isCompatible = await isUserCompatibleWithBottle(userId, bottle);
+    if (isCompatible) {
+      // Check again if receipt exists (race condition check)
+      const existingReceipt = await prisma.bottleReceipt.findUnique({
+        where: {
+          bottleId_recipientId: {
+            bottleId: bottle.id,
+            recipientId: userId,
+          },
+        },
+      });
+
+      if (!existingReceipt) {
+        await prisma.bottleReceipt.create({
+          data: {
+            bottleId: bottle.id,
+            recipientId: userId,
+          },
+        });
+      }
+    }
+  }
+}
+
+async function isUserCompatibleWithBottle(
+  userId: string,
+  bottle: MessageInABottle,
+): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      profile: true,
+      bottleSuspension: true,
+    },
+  });
+
+  if (!user || !user.profile || user.isBanned) {
+    return false;
+  }
+
+  // Check suspension
+  if (
+    user.bottleSuspension &&
+    user.bottleSuspension.endsAt > new Date()
+  ) {
+    return false;
+  }
+
+  // Check gender match
+  if (!user.profile.interestedIn.includes(bottle.targetGender)) {
+    return false;
+  }
+
+  // Check age match
+  const now = new Date();
+  const minBirthDate = addDays(now, -365 * bottle.ageMax - 365);
+  const maxBirthDate = addDays(now, -365 * bottle.ageMin);
+
+  if (
+    user.profile.birthDate < minBirthDate ||
+    user.profile.birthDate > maxBirthDate
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 // ============================================================

@@ -11,6 +11,7 @@ export interface BottleDTO {
   id: string;
   senderId: string;
   message: string;
+  senderCity: string;
   targetGender: string;
   ageMin: number;
   ageMax: number;
@@ -24,6 +25,7 @@ export interface BottleDTO {
 export interface InboxBottleDTO {
   id: string;
   message: string;
+  senderCity: string;
   targetGender: string;
   status: "FLOATING" | "ACCEPTED" | "EXPIRED";
   createdAt: string;

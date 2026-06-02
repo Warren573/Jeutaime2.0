@@ -16,6 +16,7 @@ export const CreateBottleResponseSchema = z.object({
   id: z.string(),
   senderId: z.string(),
   message: z.string(),
+  senderCity: z.string(),
   targetGender: z.string(),
   ageMin: z.number(),
   ageMax: z.number(),
@@ -34,6 +35,7 @@ export type CreateBottleResponse = z.infer<typeof CreateBottleResponseSchema>;
 export const InboxBottleSchema = z.object({
   id: z.string(),
   message: z.string(),
+  senderCity: z.string(),
   targetGender: z.string(),
   status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED"]),
   createdAt: z.string().datetime(),

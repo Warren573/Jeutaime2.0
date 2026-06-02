@@ -586,6 +586,7 @@ model MessageInABottle {
   senderId      String
   sender        User                  @relation("BottleSender", fields: [senderId], references: [id], onDelete: Cascade)
   message       String                @db.Text
+  senderCity    String                // Ville du sender au moment du create
   targetGender  String                // "HOMME" | "FEMME" | "AUTRE"
   ageMin        Int
   ageMax        Int

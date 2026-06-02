@@ -9,12 +9,15 @@ vi.mock("../../core/database", () => ({
       create: vi.fn(),
       update: vi.fn(),
       findMany: vi.fn(),
+      findUnique: vi.fn(),
+      count: vi.fn(),
     },
     bottleReceipt: {
       createMany: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn(),
       findMany: vi.fn(),
+      findUnique: vi.fn(),
     },
     anonymousMessage: {
       create: vi.fn(),
@@ -25,6 +28,10 @@ vi.mock("../../core/database", () => ({
     },
     user: {
       findMany: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    profile: {
+      findUnique: vi.fn(),
     },
     $transaction: vi.fn(),
   },
@@ -36,12 +43,13 @@ describe("BottleService", () => {
   });
 
   describe("createBottle", () => {
-    it("should create bottle with 30-day expiration", async () => {
+    it("should create bottle with 30-day expiration and senderCity", async () => {
       const now = new Date();
       const mockBottle = {
         id: "bottle1",
         senderId: "user1",
         message: "Hello!",
+        senderCity: "Paris",
         targetGender: "FEMME",
         ageMin: 25,
         ageMax: 35,
@@ -52,6 +60,9 @@ describe("BottleService", () => {
         expiresAt: addDays(now, 30),
       };
 
+      const mockProfile = { city: "Paris" };
+
+      vi.mocked(prisma.profile.findUnique).mockResolvedValue(mockProfile as any);
       vi.mocked(prisma.messageInABottle.create).mockResolvedValue(mockBottle as any);
       vi.mocked(prisma.user.findMany).mockResolvedValue([]);
       vi.mocked(prisma.bottleReceipt.createMany).mockResolvedValue({ count: 0 });
@@ -65,11 +76,13 @@ describe("BottleService", () => {
       );
 
       expect(result.id).toBe("bottle1");
+      expect(result.senderCity).toBe("Paris");
       expect(result.expiresAt).toEqual(addDays(now, 30));
       expect(prisma.messageInABottle.create).toHaveBeenCalledWith({
         data: {
           senderId: "user1",
           message: "Hello!",
+          senderCity: "Paris",
           targetGender: "FEMME",
           ageMin: 25,
           ageMax: 35,
@@ -168,7 +181,7 @@ describe("BottleService", () => {
   });
 
   describe("refuseBottle", () => {
-    it("should refuse bottle with REFUSED status", async () => {
+    it("should refuse bottle and republish to new compatibles (max 3)", async () => {
       const mockReceipt = {
         id: "receipt1",
         bottleId: "bottle1",
@@ -178,22 +191,49 @@ describe("BottleService", () => {
         actionAt: new Date(),
       };
 
+      const mockBottle = {
+        id: "bottle1",
+        senderId: "user1",
+        message: "Hello!",
+        senderCity: "Paris",
+        targetGender: "FEMME",
+        ageMin: 25,
+        ageMax: 35,
+        status: "FLOATING",
+        acceptedById: null,
+        acceptedAt: null,
+        createdAt: new Date(),
+        expiresAt: addDays(new Date(), 30),
+      };
+
+      const mockExistingReceipts = [
+        { recipientId: "user2" },
+        { recipientId: "user3" },
+      ];
+
+      const mockNewCompatibles = [
+        { id: "user4" },
+        { id: "user5" },
+        { id: "user6" },
+        { id: "user7" },
+      ];
+
       vi.mocked(prisma.bottleReceipt.update).mockResolvedValue(mockReceipt as any);
+      vi.mocked(prisma.messageInABottle.findUnique).mockResolvedValue(mockBottle as any);
+      vi.mocked(prisma.bottleReceipt.findMany).mockResolvedValue(mockExistingReceipts as any);
+      vi.mocked(prisma.user.findMany).mockResolvedValue(mockNewCompatibles as any);
+      vi.mocked(prisma.bottleReceipt.createMany).mockResolvedValue({ count: 3 });
 
       const result = await bottlesService.refuseBottle("bottle1", "user2");
 
       expect(result.status).toBe("REFUSED");
-      expect(prisma.bottleReceipt.update).toHaveBeenCalledWith({
-        where: {
-          bottleId_recipientId: {
-            bottleId: "bottle1",
-            recipientId: "user2",
-          },
-        },
-        data: {
-          status: "REFUSED",
-          actionAt: expect.any(Date),
-        },
+      // Verify createMany was called for new targets (max 3)
+      expect(prisma.bottleReceipt.createMany).toHaveBeenCalledWith({
+        data: [
+          { bottleId: "bottle1", recipientId: "user4" },
+          { bottleId: "bottle1", recipientId: "user5" },
+          { bottleId: "bottle1", recipientId: "user6" },
+        ],
       });
     });
   });
