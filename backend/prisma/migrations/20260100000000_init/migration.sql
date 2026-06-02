@@ -312,7 +312,6 @@ CREATE TABLE "ProfileQuestion" (
     "questionId" TEXT NOT NULL,
     "questionText" TEXT,
     "answer" TEXT NOT NULL,
-    "wrongAnswers" TEXT[] NOT NULL DEFAULT '{}',
 
     CONSTRAINT "ProfileQuestion_pkey" PRIMARY KEY ("id")
 );
