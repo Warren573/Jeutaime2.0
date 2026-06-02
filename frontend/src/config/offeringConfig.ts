@@ -18,14 +18,14 @@ export const OFFERING_CONFIG: Record<string, OfferingConfig> = {
     label: 'Boire',
     consumptionMode: 'SHARED',
   },
-  off_rose: {
-    id: 'off_rose',
-    action: 'ADMIRER',
-    label: 'Admirer',
-    consumptionMode: 'PRIVATE',
+  off_fraises: {
+    id: 'off_fraises',
+    action: 'MANGER',
+    label: 'Manger',
+    consumptionMode: 'SHARED',
   },
-  off_hamburger: {
-    id: 'off_hamburger',
+  off_bonbons: {
+    id: 'off_bonbons',
     action: 'MANGER',
     label: 'Manger',
     consumptionMode: 'SHARED',

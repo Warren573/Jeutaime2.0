@@ -93,8 +93,8 @@ const questionCatalog = [
 // ============================================================
 const offeringCatalog = [
   { id: "off_biere",         emoji: "🍺",  name: "Bière pression",    cost: 30,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
-  { id: "off_rose",          emoji: "🌹",  name: "Rose rouge",        cost: 50,  category: OfferingCategory.SYMBOLIQUE, durationMs: 86400000,  stackPriority: 3, salonOnly: null, consumptionMode: ConsumptionMode.PRIVATE },
-  { id: "off_hamburger",     emoji: "🍔",  name: "Hamburger",         cost: 35,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_fraises",       emoji: "🍓",  name: "Fraises",           cost: 35,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_bonbons",       emoji: "🍬",  name: "Bonbons",           cost: 20,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
 ] as const;
 
 // ============================================================
