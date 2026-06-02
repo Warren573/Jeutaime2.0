@@ -247,21 +247,28 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
       )}
       {showBadges && participant.offerings && participant.offerings.length > 0 && (
         <View style={styles.badgesColumn}>
-          <View style={styles.badgesRow}>
-            {participant.offerings.slice(-3).map((o, idx) => (
-              <OfferingBadge key={idx} offering={o} size={28} />
-            ))}
-          </View>
-          {/* Bouton d'action pour le premier offering visible (si consommable) */}
-          {participant.offerings.length > 0 && (
-            <ConsumptionActionButton
-              offering={participant.offerings[0]}
-              userId={participant.id}
-              onSuccess={() => {
-                // Optionnel: refresh offerings
-              }}
-            />
-          )}
+          {(() => {
+            const visibleOfferings = participant.offerings.slice(-3);
+            return (
+              <>
+                <View style={styles.badgesRow}>
+                  {visibleOfferings.map((o, idx) => (
+                    <OfferingBadge key={idx} offering={o} size={28} />
+                  ))}
+                </View>
+                {visibleOfferings.map((o, idx) => (
+                  <ConsumptionActionButton
+                    key={`action-${idx}`}
+                    offering={o}
+                    userId={participant.id}
+                    onSuccess={() => {
+                      // Optionnel: refresh offerings
+                    }}
+                  />
+                ))}
+              </>
+            );
+          })()}
         </View>
       )}
     </TouchableOpacity>
