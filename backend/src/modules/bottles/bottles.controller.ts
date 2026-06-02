@@ -46,11 +46,21 @@ export async function getInbox(req: AuthedRequest, res: Response) {
       status: "PENDING",
     },
     include: {
-      bottle: true,
+      bottle: {
+        where: {
+          status: "FLOATING",
+          expiresAt: {
+            gt: new Date(),
+          },
+        },
+      },
     },
   });
 
-  const bottles = receipts.map((r) => r.bottle);
+  const bottles = receipts
+    .filter((r) => r.bottle !== null)
+    .map((r) => r.bottle);
+
   const validated = GetInboxResponseSchema.parse({ bottles });
 
   res.json({ data: validated });
@@ -63,6 +73,26 @@ export async function acceptBottle(req: AuthedRequest, res: Response) {
   AcceptBottleBodySchema.parse(req.body);
   const bottleId = req.params["id"] as string;
   const userId = req.user.userId;
+
+  // Verify receipt exists and is PENDING
+  const receipt = await prisma.bottleReceipt.findUnique({
+    where: {
+      bottleId_recipientId: {
+        bottleId,
+        recipientId: userId,
+      },
+    },
+  });
+
+  if (!receipt) {
+    return res.status(404).json({ error: "Receipt not found" });
+  }
+
+  if (receipt.status !== "PENDING") {
+    return res
+      .status(400)
+      .json({ error: "Can only accept pending bottles" });
+  }
 
   const bottle = await bottlesService.acceptBottle(bottleId, userId);
   const validated = AcceptBottleResponseSchema.parse(bottle);
@@ -78,6 +108,26 @@ export async function refuseBottle(req: AuthedRequest, res: Response) {
   const bottleId = req.params["id"] as string;
   const userId = req.user.userId;
 
+  // Verify receipt exists and is PENDING
+  const receipt = await prisma.bottleReceipt.findUnique({
+    where: {
+      bottleId_recipientId: {
+        bottleId,
+        recipientId: userId,
+      },
+    },
+  });
+
+  if (!receipt) {
+    return res.status(404).json({ error: "Receipt not found" });
+  }
+
+  if (receipt.status !== "PENDING") {
+    return res
+      .status(400)
+      .json({ error: "Can only refuse pending bottles" });
+  }
+
   await bottlesService.refuseBottle(bottleId, userId);
 
   res.json({ data: { success: true } });
@@ -88,6 +138,20 @@ export async function refuseBottle(req: AuthedRequest, res: Response) {
 // ============================================================
 export async function getMessages(req: AuthedRequest, res: Response) {
   const bottleId = req.params["id"] as string;
+  const userId = req.user.userId;
+
+  // Verify user is sender or acceptor
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+
+  if (!bottle) {
+    return res.status(404).json({ error: "Bottle not found" });
+  }
+
+  if (bottle.senderId !== userId && bottle.acceptedById !== userId) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
 
   const messages = await bottlesService.getMessages(bottleId);
   const validated = GetBottleMessagesResponseSchema.parse({ messages });
@@ -102,6 +166,19 @@ export async function postMessage(req: AuthedRequest, res: Response) {
   const body = PostBottleMessageBodySchema.parse(req.body);
   const bottleId = req.params["id"] as string;
   const userId = req.user.userId;
+
+  // Verify user is sender or acceptor
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+
+  if (!bottle) {
+    return res.status(404).json({ error: "Bottle not found" });
+  }
+
+  if (bottle.senderId !== userId && bottle.acceptedById !== userId) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
 
   const message = await bottlesService.postMessage(
     bottleId,
