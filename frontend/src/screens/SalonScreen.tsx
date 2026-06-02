@@ -52,14 +52,18 @@ function getTransfoImage(
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { salonsData, SalonParticipant } from '../data/salonsData';
+import { SalonParticipant } from '../data/salonsData';
 import { useStore, Message } from '../store/useStore';
 import { allOfferings, allPowers } from '../data/offerings';
 import {
   listSalons,
   listMessages as apiListMessages,
   postMessage as apiPostMessage,
+  getActiveSessions,
+  joinSession,
+  leaveSession,
   type SalonMessageDTO,
+  type SalonSessionDTO,
 } from '../api/salons';
 import {
   getOfferingsCatalog,
@@ -273,7 +277,11 @@ export default function SalonScreen() {
   // Récupérer le salon
   const rawSalonId = params.id as string;
   const salonId = rawSalonId === 'cafe-paris' ? 'cafe_paris' : (rawSalonId || 'cafe_paris');
-  const salon = salonsData.find(s => s.id === salonId);
+
+  // Salon metadata (layout, gradient, etc.) - ainda usamos estrutura local mas carregaremos quando auth
+  const [salonMeta, setSalonMeta] = useState<any>(null);
+  const [activeSessions, setActiveSessions] = useState<SalonSessionDTO[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   // États
   const [messageInput, setMessageInput] = useState('');
@@ -387,52 +395,69 @@ export default function SalonScreen() {
 
   // Participants : depuis les auteurs récents de l'API (une seule fois au premier load)
   // puis fallback mock si non authentifié
+  // Carregar SalonSessions ativas e entrar em uma sessão
   useEffect(() => {
-    if (isAuthenticated && apiMessages.length > 0 && !participantsReady.current) {
-      participantsReady.current = true;
-      const cutoff = Date.now() - 30 * 60 * 1000;
-      const seen = new Map<string, SalonParticipant & { isMe?: boolean }>();
-      for (const msg of apiMessages) {
-        if (new Date(msg.createdAt).getTime() > cutoff && !seen.has(msg.userId)) {
-          seen.set(msg.userId, {
-            id: msg.userId,
-            name: msg.pseudo,
-            gender: (msg.gender === 'FEMME' ? 'F' : 'M') as 'M' | 'F',
-            age: msg.age ?? 25,
-            online: true,
-            offerings: [],
-          });
+    if (!isAuthenticated) return;
+    const kind = SLUG_TO_KIND[salonId];
+    if (!kind) return;
+
+    (async () => {
+      try {
+        const sessions = await getActiveSessions(kind);
+        setActiveSessions(sessions);
+        if (sessions.length > 0) {
+          setCurrentSessionId(sessions[0].id);
+        } else {
+          const newSession = await joinSession(kind);
+          setCurrentSessionId(newSession.id);
+          setActiveSessions([newSession]);
         }
+      } catch (e) {
+        // Silent
       }
-      // Toujours inclure l'utilisateur courant avec son vrai ID
-      const myId = currentUser?.id ?? 'me';
-      seen.set(myId, {
-        id: myId,
-        name: currentUser?.name || 'Vous',
-        gender: (currentUser?.gender ?? 'M') as 'M' | 'F',
-        age: currentUser?.age ?? 25,
+    })();
+  }, [isAuthenticated, salonId]);
+
+  // Atualizar participants a partir da SalonSession ativa (dados REAIS)
+  useEffect(() => {
+    if (!isAuthenticated || activeSessions.length === 0 || !currentSessionId) return;
+    if (participantsReady.current) return;
+
+    participantsReady.current = true;
+    const session = activeSessions.find(s => s.id === currentSessionId) || activeSessions[0];
+    if (!session) return;
+
+    const seen = new Map<string, SalonParticipant & { isMe?: boolean }>();
+    for (const p of session.participants) {
+      const gender = p.gender === 'FEMME' || p.gender === 'F' ? 'F' : 'M';
+      const isCurrentUser = p.userId === currentUser?.id;
+      seen.set(p.userId, {
+        id: p.userId,
+        name: p.pseudo,
+        gender,
+        age: 25,
+        online: true,
+        offerings: [],
+        avatarConfig: isCurrentUser ? avatarPngConfig : p.avatarConfig,
+        isMe: isCurrentUser,
+      } as SalonParticipant & { isMe?: boolean; avatarConfig?: object });
+    }
+
+    if (!seen.has(currentUser?.id ?? 'me') && currentUser?.id) {
+      seen.set(currentUser.id, {
+        id: currentUser.id,
+        name: currentUser.name || 'Você',
+        gender: (currentUser.gender ?? 'M') as 'M' | 'F',
+        age: currentUser.age ?? 25,
         online: true,
         offerings: [],
         isMe: true,
         avatarConfig: avatarPngConfig,
       } as SalonParticipant & { isMe: boolean; avatarConfig: object });
-      setParticipants(Array.from(seen.values()));
-    } else if (!isAuthenticated && salon && !participantsReady.current) {
-      setParticipants([
-        ...salon.participants,
-        {
-          id: currentUser?.id ?? 'me',
-          name: currentUser?.name || 'Vous',
-          gender: currentUser?.gender || 'M',
-          age: currentUser?.age || 25,
-          online: true,
-          offerings: [],
-          isMe: true,
-          avatarConfig: avatarPngConfig,
-        } as SalonParticipant & { isMe: boolean; avatarConfig: object },
-      ]);
     }
-  }, [isAuthenticated, apiMessages, salon, currentUser, avatarPngConfig]);
+
+    setParticipants(Array.from(seen.values()));
+  }, [isAuthenticated, activeSessions, currentSessionId, currentUser, avatarPngConfig]);
 
   // Mettre à jour les badges d'offrandes de TOUS les participants depuis le salon
   useEffect(() => {
@@ -816,6 +841,17 @@ export default function SalonScreen() {
     });
   }, [magiesCatalog, targetActiveCasts]);
 
+  // Salon metadata (layout, gradient, emoji, etc.) — dados estáticos, não participantes
+  const salonMetadata: Record<string, any> = {
+    piscine: { emoji: '🏊', name: 'Piscine', layout: 'vertical', gradient: ['#4FC3F7', '#0288D1'] },
+    cafe_paris: { emoji: '☕', name: 'Café de Paris', layout: 'horizontal', gradient: ['#8D6E63', '#5D4037'] },
+    pirates: { emoji: '🏴‍☠️', name: 'Île des pirates', layout: 'horizontal', gradient: ['#FFD54F', '#5D4037'] },
+    theatre: { emoji: '🎭', name: 'Théâtre improvisé', layout: 'vertical', gradient: ['#CE93D8', '#7B1FA2'] },
+    cocktails: { emoji: '🍸', name: 'Bar à cocktails', layout: 'horizontal', gradient: ['#F48FB1', '#C2185B'] },
+    metal: { emoji: '🤘', name: 'Métal', layout: 'horizontal', gradient: ['#424242', '#212121'] },
+  };
+
+  const salon = salonMetadata[salonId];
   if (!salon) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
