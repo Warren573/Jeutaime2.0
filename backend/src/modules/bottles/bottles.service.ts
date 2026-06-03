@@ -82,7 +82,7 @@ async function findCompatibleRecipients(
         AND: [
           {
             interestedIn: {
-              hasSome: [bottle.targetGender],
+              hasSome: [bottle.targetGender as any],
             },
           },
           {

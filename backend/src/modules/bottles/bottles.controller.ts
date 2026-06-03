@@ -49,19 +49,12 @@ export async function getInbox(req: AuthedRequest, res: Response) {
       status: "PENDING",
     },
     include: {
-      bottle: {
-        where: {
-          status: "FLOATING",
-          expiresAt: {
-            gt: new Date(),
-          },
-        },
-      },
+      bottle: true,
     },
   });
 
   const bottles = receipts
-    .filter((r) => r.bottle !== null)
+    .filter((r) => r.bottle !== null && r.bottle.status === "FLOATING" && (r.bottle.expiresAt === null || r.bottle.expiresAt > new Date()))
     .map((r) => r.bottle);
 
   const validated = GetInboxResponseSchema.parse({ bottles });
