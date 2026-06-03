@@ -33,6 +33,7 @@ import reactionsRoutes from "./modules/reactions/reactions.routes";
 import cardGameRoutes from "./modules/card-game/card-game.routes";
 import bottlesRoutes from "./modules/bottles/bottles.routes";
 import testRoutes from "./modules/test/test.routes";
+import debugRoutes from "./modules/debug/debug.routes";
 
 const app = express();
 
@@ -97,6 +98,9 @@ app.use(`${api}/bottles`, bottlesRoutes);
 
 // Temporary dev routes (remove before production)
 app.use(`${api}/test`, testRoutes);
+
+// Debug routes (staging only)
+app.use(`${api}/debug`, debugRoutes);
 
 // Admin (ADMIN/MOD role required — enforced inside each router)
 app.use(`${api}/admin/salons`, adminSalonsRoutes);
