@@ -8,12 +8,21 @@ import type {
   GetPreviousEncountersResponse,
 } from "./salonSessions.schemas";
 
+// Helper: Validate salonKind
+function validateSalonKind(salonKind: string): void {
+  const validKinds = ["PISCINE", "CAFE_DE_PARIS", "ILE_PIRATES", "THEATRE", "BAR_COCKTAILS", "METAL"];
+  if (!validKinds.includes(salonKind)) {
+    throw new BadRequestError(`Invalid salonKind: ${salonKind}`);
+  }
+}
+
 // ============================================================
 // Get active sessions for a salon
 // ============================================================
 export async function getActiveSessionsForSalon(
   salonKind: string,
 ): Promise<GetActiveSessionsResponse> {
+  validateSalonKind(salonKind);
   const now = new Date();
 
   const sessions = await prisma.salonSession.findMany({
@@ -130,7 +139,17 @@ export async function joinSession(
   userId: string,
   salonKind: string,
 ): Promise<JoinSessionResponse> {
+  validateSalonKind(salonKind);
   const now = new Date();
+
+  // Verify Salon exists
+  const salon = await prisma.salon.findUnique({
+    where: { kind: salonKind as any },
+  });
+
+  if (!salon) {
+    throw new NotFoundError(`Salon not found for kind: ${salonKind}`);
+  }
 
   // Check if user already in an active session for this salon
   const existingParticipation = await prisma.salonSessionParticipant.findFirst({
@@ -239,6 +258,7 @@ export async function getCurrentSession(
   userId: string,
   salonKind: string,
 ): Promise<string | null> {
+  validateSalonKind(salonKind);
   const now = new Date();
 
   const participant = await prisma.salonSessionParticipant.findFirst({
@@ -264,6 +284,7 @@ export async function getPreviousEncounters(
   userId: string,
   salonKind: string,
 ): Promise<GetPreviousEncountersResponse> {
+  validateSalonKind(salonKind);
   const encounters = await prisma.salonEncounter.findMany({
     where: {
       session: {

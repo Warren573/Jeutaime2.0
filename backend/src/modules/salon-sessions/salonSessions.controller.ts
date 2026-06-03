@@ -15,10 +15,14 @@ import {
 export async function getActiveSessions(req: AuthedRequest, res: Response) {
   const salonKind = req.params["salonKind"] as string;
 
-  const data = await salonSessionsService.getActiveSessionsForSalon(salonKind);
-  const validated = GetActiveSessionsResponseSchema.parse(data);
-
-  res.json({ data: validated });
+  try {
+    const data = await salonSessionsService.getActiveSessionsForSalon(salonKind);
+    const validated = GetActiveSessionsResponseSchema.parse(data);
+    res.json({ data: validated });
+  } catch (err) {
+    console.error(`[DEBUG-SALON-SESSIONS] getActiveSessions error - salonKind: ${salonKind}`, err);
+    throw err;
+  }
 }
 
 // ============================================================
@@ -40,10 +44,14 @@ export async function joinSession(req: AuthedRequest, res: Response) {
   const salonKind = req.params["salonKind"] as string;
   const userId = req.user.userId;
 
-  const data = await salonSessionsService.joinSession(userId, salonKind);
-  const validated = JoinSessionResponseSchema.parse(data);
-
-  res.status(201).json({ data: validated });
+  try {
+    const data = await salonSessionsService.joinSession(userId, salonKind);
+    const validated = JoinSessionResponseSchema.parse(data);
+    res.status(201).json({ data: validated });
+  } catch (err) {
+    console.error(`[DEBUG-SALON-SESSIONS] joinSession error - salonKind: ${salonKind}, userId: ${userId}`, err);
+    throw err;
+  }
 }
 
 // ============================================================
