@@ -108,6 +108,9 @@ app.use(`${api}/admin/audit-log`, adminAuditRoutes);
 // Public stream de fichiers admin (URLs opaques, no auth)
 app.use(`${api}/files`, publicFilesRouter);
 
+console.log(`[DEBUG-APP] API_PREFIX: ${api}`);
+console.log(`[DEBUG-APP] Salon-sessions routes registered at: ${api}/salon-sessions`);
+
 // 404
 app.use((_req, res) => {
   res.status(404).json({ error: { code: "NOT_FOUND", message: "Route introuvable" } });

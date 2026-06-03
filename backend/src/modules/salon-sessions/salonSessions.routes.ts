@@ -8,6 +8,8 @@ import { JoinSessionBodySchema, LeaveSessionBodySchema } from "./salonSessions.s
 
 const router = Router();
 
+console.log(`[DEBUG-SALON-SESSIONS] Routes being registered`);
+
 router.use(requireAuth as never);
 
 const wrap = (
