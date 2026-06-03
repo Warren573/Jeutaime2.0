@@ -312,7 +312,7 @@ async function isUserCompatibleWithBottle(
   }
 
   // Check gender match
-  if (!user.profile.interestedIn.includes(bottle.targetGender)) {
+  if (!user.profile.interestedIn.includes(bottle.targetGender as any)) {
     return false;
   }
 
