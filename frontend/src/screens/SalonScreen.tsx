@@ -299,6 +299,11 @@ export default function SalonScreen() {
   const rawSalonId = params.id as string;
   const salonId = rawSalonId === 'cafe-paris' ? 'cafe_paris' : (rawSalonId || 'cafe_paris');
 
+  // DEBUG: Log basic session info
+  console.log(`[DEBUG-SALON] salonId: ${salonId}`);
+  console.log(`[DEBUG-AUTH] isAuthenticated: ${isAuthenticated}, currentUser.id: ${currentUser?.id}`);
+  console.log(`[DEBUG-USER] currentUser: ${JSON.stringify(currentUser ? { id: currentUser.id, name: currentUser.name, gender: currentUser.gender } : null)}`);
+
   // Salon metadata (layout, gradient, etc.) - ainda usamos estrutura local mas carregaremos quando auth
   const [salonMeta, setSalonMeta] = useState<any>(null);
   const [activeSessions, setActiveSessions] = useState<SalonSessionDTO[]>([]);
@@ -420,35 +425,56 @@ export default function SalonScreen() {
   useEffect(() => {
     if (!isAuthenticated) return;
     const kind = SLUG_TO_KIND[salonId];
-    if (!kind) return;
+    console.log(`[DEBUG-SESSION] kind from SLUG_TO_KIND[${salonId}]: ${kind}`);
+    if (!kind) {
+      console.log(`[DEBUG-SESSION] kind is undefined, returning`);
+      return;
+    }
 
     (async () => {
       try {
+        console.log(`[DEBUG-SESSION] calling getActiveSessions(${kind})`);
         const sessions = await getActiveSessions(kind);
-        setActiveSessions(sessions);
+        console.log(`[DEBUG-SESSION] getActiveSessions returned ${sessions.length} sessions`);
         if (sessions.length > 0) {
+          console.log(`[DEBUG-SESSION] found active session, using first one: ${sessions[0].id}`);
           setCurrentSessionId(sessions[0].id);
+          setActiveSessions(sessions);
         } else {
+          console.log(`[DEBUG-SESSION] no sessions, calling joinSession(${kind})`);
           const newSession = await joinSession(kind);
+          console.log(`[DEBUG-SESSION] joinSession returned session: ${newSession.id}, participants: ${newSession.participants.length}`);
           setCurrentSessionId(newSession.id);
           setActiveSessions([newSession]);
         }
       } catch (e) {
-        // Silent
+        console.error(`[DEBUG-SESSION] ERROR: ${e}`);
       }
     })();
   }, [isAuthenticated, salonId]);
 
   // Atualizar participants a partir da SalonSession ativa (dados REAIS)
   useEffect(() => {
-    if (!isAuthenticated || activeSessions.length === 0 || !currentSessionId) return;
-    if (participantsReady.current) return;
+    console.log(`[DEBUG-PARTICIPANTS-EFFECT] activated, activeSessions.length=${activeSessions.length}, currentSessionId=${currentSessionId}`);
+    if (!isAuthenticated || activeSessions.length === 0 || !currentSessionId) {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT] condition failed: isAuth=${isAuthenticated}, sessions=${activeSessions.length}, sessionId=${currentSessionId}`);
+      return;
+    }
+    if (participantsReady.current) {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT] already initialized, skipping`);
+      return;
+    }
 
     participantsReady.current = true;
     const session = activeSessions.find(s => s.id === currentSessionId) || activeSessions[0];
-    if (!session) return;
+    console.log(`[DEBUG-PARTICIPANTS-EFFECT] found session: ${session?.id}, participants: ${session?.participants.length}`);
+    if (!session) {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT] no session found`);
+      return;
+    }
 
     const seen = new Map<string, SalonParticipant & { isMe?: boolean }>();
+    console.log(`[DEBUG-PARTICIPANTS-EFFECT] mapping ${session.participants.length} from API`);
     for (const p of session.participants) {
       const gender = p.gender === 'FEMME' || p.gender === 'F' ? 'F' : 'M';
       const isCurrentUser = p.userId === currentUser?.id;
@@ -465,6 +491,7 @@ export default function SalonScreen() {
     }
 
     if (!seen.has(currentUser?.id ?? 'me') && currentUser?.id) {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT] adding currentUser fallback: ${currentUser.id}`);
       seen.set(currentUser.id, {
         id: currentUser.id,
         name: currentUser.name || 'Você',
@@ -475,9 +502,16 @@ export default function SalonScreen() {
         isMe: true,
         avatarConfig: avatarPngConfig,
       } as SalonParticipant & { isMe: boolean; avatarConfig: object });
+    } else {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT] NOT adding fallback: seen.has=${seen.has(currentUser?.id ?? 'me')}, currentUser?.id=${currentUser?.id}`);
     }
 
-    setParticipants(Array.from(seen.values()));
+    const finalParticipants = Array.from(seen.values());
+    console.log(`[DEBUG-PARTICIPANTS-EFFECT] final participants count: ${finalParticipants.length}`);
+    finalParticipants.forEach((p, i) => {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT]   [${i}] id=${p.id}, name=${p.name}, isMe=${(p as any).isMe}`);
+    });
+    setParticipants(finalParticipants);
   }, [isAuthenticated, activeSessions, currentSessionId, currentUser, avatarPngConfig]);
 
   // Mettre à jour les badges d'offrandes de TOUS les participants depuis le salon
