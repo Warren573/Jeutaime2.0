@@ -138,124 +138,123 @@ const petCatalog = [
 // MAIN
 // ============================================================
 async function main() {
-  console.log("🌱 Démarrage du seed JeuTaime...\n");
+  try {
+    console.log("🌱 [SEED-START] Démarrage du seed JeuTaime...\n");
 
-  // -- Salons --
-  // Phase 5 : on assigne un `order` stable (index du tableau) pour
-  // garantir un affichage déterministe côté public. `backgroundType`
-  // reste à "gradient" (default) car le seed fournit `gradient`.
-  // `isActive` par défaut true. `primaryColor` initialisée avec
-  // gradient.start pour donner à l'admin une base exploitable.
-  for (let i = 0; i < salons.length; i++) {
-    const salon = salons[i]!;
-    await prisma.salon.upsert({
-      where: { kind: salon.kind },
-      update: {
-        name: salon.name,
-        description: salon.description,
-        magicAction: salon.magicAction,
-        gradient: salon.gradient,
-        order: i,
-      },
-      create: {
-        kind: salon.kind,
-        name: salon.name,
-        description: salon.description,
-        magicAction: salon.magicAction,
-        gradient: salon.gradient,
-        order: i,
-        primaryColor: salon.gradient.start,
-        secondaryColor: salon.gradient.end,
-      },
-    });
-  }
-  console.log(`✅ ${salons.length} salons seedés`);
-
-  // -- Catalogue offrandes --
-  for (const off of offeringCatalog) {
-    await prisma.offeringCatalog.upsert({
-      where: { id: off.id },
-      update: { emoji: off.emoji, name: off.name, cost: off.cost, category: off.category, durationMs: off.durationMs, stackPriority: off.stackPriority, salonOnly: off.salonOnly, consumptionMode: off.consumptionMode },
-      create: { id: off.id, emoji: off.emoji, name: off.name, cost: off.cost, category: off.category, durationMs: off.durationMs, stackPriority: off.stackPriority, salonOnly: off.salonOnly, consumptionMode: off.consumptionMode },
-    });
-  }
-  console.log(`✅ ${offeringCatalog.length} offrandes seedées (MVP)`);
-
-  // -- Catalogue magies --
-  for (const mag of magieCatalog) {
-    await prisma.magieCatalog.upsert({
-      where: { id: mag.id },
-      update: { emoji: mag.emoji, name: mag.name, cost: mag.cost, durationSec: mag.durationSec, type: mag.type, breakConditionId: mag.breakConditionId },
-      create: { id: mag.id, emoji: mag.emoji, name: mag.name, cost: mag.cost, durationSec: mag.durationSec, type: mag.type, breakConditionId: mag.breakConditionId },
-    });
-  }
-  console.log(`✅ ${magieCatalog.length} magies seedées`);
-
-  // -- Catalogue animaux --
-  for (const pet of petCatalog) {
-    await prisma.petCatalog.upsert({
-      where: { id: pet.id },
-      update: { name: pet.name, emoji: pet.emoji, cost: pet.cost },
-      create: { id: pet.id, name: pet.name, emoji: pet.emoji, cost: pet.cost },
-    });
-  }
-  console.log(`✅ ${petCatalog.length} animaux seedés`);
-
-  // -- Questions de validation (stockées dans un JSON seedé, pas en table dédiée) --
-  // On les exporte en JSON pour que le service puisse les utiliser
-  // Elles ne sont pas en table car le catalogue peut évoluer sans migration
-  console.log(`✅ ${questionCatalog.length} questions disponibles (catalogue JSON embarqué)`);
-
-  // -- Compte de test --
-  const existingTest = await prisma.user.findUnique({
-    where: { email: TEST_USER.email },
-    select: { id: true },
-  });
-
-  if (existingTest) {
-    console.log(`ℹ️  Compte test déjà existant (${TEST_USER.email})`);
-  } else {
-    const passwordHash = await bcrypt.hash(TEST_USER.password, 10);
-
-    await prisma.$transaction(async (tx) => {
-      const testUser = await tx.user.create({
-        data: { email: TEST_USER.email, passwordHash, isVerified: true },
-      });
-
-      await tx.profile.create({
-        data: {
-          userId:      testUser.id,
-          pseudo:      TEST_USER.pseudo,
-          birthDate:   TEST_USER.birthDate,
-          gender:      TEST_USER.gender,
-          city:        TEST_USER.city,
-          interestedIn: [],
-          lookingFor:  [],
-          interests:   [],
-          bio:         "Compte de test JeuTaime 🧪",
+    // -- Salons --
+    console.log("[SEED] Processing salons...");
+    for (let i = 0; i < salons.length; i++) {
+      const salon = salons[i]!;
+      await prisma.salon.upsert({
+        where: { kind: salon.kind },
+        update: {
+          name: salon.name,
+          description: salon.description,
+          magicAction: salon.magicAction,
+          gradient: salon.gradient,
+          order: i,
+        },
+        create: {
+          kind: salon.kind,
+          name: salon.name,
+          description: salon.description,
+          magicAction: salon.magicAction,
+          gradient: salon.gradient,
+          order: i,
+          primaryColor: salon.gradient.start,
+          secondaryColor: salon.gradient.end,
         },
       });
+    }
+    console.log(`✅ [SEED-SALONS] ${salons.length} salons seedés`);
 
-      await tx.wallet.create({
-        data: { userId: testUser.id, coins: 9999 },
+    // -- Catalogue offrandes --
+    console.log("[SEED] Processing offerings...");
+    for (const off of offeringCatalog) {
+      await prisma.offeringCatalog.upsert({
+        where: { id: off.id },
+        update: { emoji: off.emoji, name: off.name, cost: off.cost, category: off.category, durationMs: off.durationMs, stackPriority: off.stackPriority, salonOnly: off.salonOnly, consumptionMode: off.consumptionMode },
+        create: { id: off.id, emoji: off.emoji, name: off.name, cost: off.cost, category: off.category, durationMs: off.durationMs, stackPriority: off.stackPriority, salonOnly: off.salonOnly, consumptionMode: off.consumptionMode },
       });
+    }
+    console.log(`✅ [SEED-OFFERINGS] ${offeringCatalog.length} offrandes seedées (MVP)`);
 
-      await tx.userSettings.create({
-        data: { userId: testUser.id },
+    // -- Catalogue magies --
+    console.log("[SEED] Processing magies...");
+    for (const mag of magieCatalog) {
+      await prisma.magieCatalog.upsert({
+        where: { id: mag.id },
+        update: { emoji: mag.emoji, name: mag.name, cost: mag.cost, durationSec: mag.durationSec, type: mag.type, breakConditionId: mag.breakConditionId },
+        create: { id: mag.id, emoji: mag.emoji, name: mag.name, cost: mag.cost, durationSec: mag.durationSec, type: mag.type, breakConditionId: mag.breakConditionId },
       });
+    }
+    console.log(`✅ [SEED-MAGIES] ${magieCatalog.length} magies seedées`);
+
+    // -- Catalogue animaux --
+    console.log("[SEED] Processing pets...");
+    for (const pet of petCatalog) {
+      await prisma.petCatalog.upsert({
+        where: { id: pet.id },
+        update: { name: pet.name, emoji: pet.emoji, cost: pet.cost },
+        create: { id: pet.id, name: pet.name, emoji: pet.emoji, cost: pet.cost },
+      });
+    }
+    console.log(`✅ [SEED-PETS] ${petCatalog.length} animaux seedés`);
+
+    // -- Questions de validation (stockées dans un JSON seedé, pas en table dédiée) --
+    // On les exporte en JSON pour que le service puisse les utiliser
+    // Elles ne sont pas en table car le catalogue peut évoluer sans migration
+    console.log(`✅ [SEED-QUESTIONS] ${questionCatalog.length} questions disponibles (catalogue JSON embarqué)`);
+
+    // -- Compte de test --
+    console.log("[SEED] Processing test account...");
+    const existingTest = await prisma.user.findUnique({
+      where: { email: TEST_USER.email },
+      select: { id: true },
     });
 
-    console.log(`✅ Compte test créé → ${TEST_USER.email} / ${TEST_USER.password}`);
-  }
+    if (existingTest) {
+      console.log(`ℹ️  [SEED-TEST] Compte test déjà existant (${TEST_USER.email})`);
+    } else {
+      const passwordHash = await bcrypt.hash(TEST_USER.password, 10);
 
-  console.log("\n🎉 Seed terminé avec succès !");
-}
+      await prisma.$transaction(async (tx) => {
+        const testUser = await tx.user.create({
+          data: { email: TEST_USER.email, passwordHash, isVerified: true },
+        });
 
-main()
-  .catch((err) => {
-    console.error("❌ Erreur seed :", err);
+        await tx.profile.create({
+          data: {
+            userId:      testUser.id,
+            pseudo:      TEST_USER.pseudo,
+            birthDate:   TEST_USER.birthDate,
+            gender:      TEST_USER.gender,
+            city:        TEST_USER.city,
+            interestedIn: [],
+            lookingFor:  [],
+            interests:   [],
+            bio:         "Compte de test JeuTaime 🧪",
+          },
+        });
+
+        await tx.wallet.create({
+          data: { userId: testUser.id, coins: 9999 },
+        });
+
+        await tx.userSettings.create({
+          data: { userId: testUser.id },
+        });
+      });
+
+      console.log(`✅ [SEED-TEST] Compte test créé → ${TEST_USER.email} / ${TEST_USER.password}`);
+    }
+
+    console.log("\n🎉 [SEED-SUCCESS] Seed terminé avec succès !");
+    process.exit(0);
+  } catch (err) {
+    console.error("❌ [SEED-ERROR] Erreur seed :", err);
     process.exit(1);
-  })
-  .finally(async () => {
+  } finally {
     await prisma.$disconnect();
-  });
+  }
+}
