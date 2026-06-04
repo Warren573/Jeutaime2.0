@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "prisma generate && tsc --project tsconfig.json",
-    "start": "echo '[SEED] Starting...' && prisma migrate deploy && echo '[SEED] Running seed command...' && prisma db seed && echo '[SEED] Database seeding completed successfully' && node dist/server.js || (echo '[SEED] ERROR - Seed failed, aborting startup' && exit 1)",
-    "start:render": "npm run build && echo '[MIGRATE] Starting migrations...' && prisma migrate deploy && echo '[MIGRATE] Migrations complete. Starting seed...' && prisma db seed && echo '[SEED] Database seeding completed successfully' && echo '[STARTUP] Starting server...' && node dist/server.js || (echo '[ERROR] Startup failed' && exit 1)",
+    "start": "echo '[SEED] Starting...' && prisma migrate deploy && echo '[SEED] Running seed command...' && node prisma/seed.js && echo '[SEED] Database seeding completed successfully' && node dist/server.js || (echo '[SEED] ERROR - Seed failed, aborting startup' && exit 1)",
+    "start:render": "npm run build && echo '[MIGRATE] Starting migrations...' && prisma migrate deploy && echo '[MIGRATE] Migrations complete. Starting seed...' && node prisma/seed.js && echo '[SEED] Database seeding completed successfully' && echo '[STARTUP] Starting server...' && node dist/server.js || (echo '[ERROR] Startup failed' && exit 1)",
     "setup:local": "prisma generate && prisma db push",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
