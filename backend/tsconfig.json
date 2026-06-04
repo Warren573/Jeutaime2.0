@@ -17,6 +17,7 @@
     "sourceMap": true,
     "skipLibCheck": true,
     "ignoreDeprecations": "6.0",
+    "types": ["node"],
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
     "baseUrl": ".",
