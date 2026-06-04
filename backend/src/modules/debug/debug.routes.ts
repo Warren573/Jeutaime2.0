@@ -10,4 +10,10 @@ router.get(
   asyncHandler((_req, res: Response) => controller.getStagingStatus(_req, res)),
 );
 
+// GET /api/debug/staging/seed-source — Show what seed.ts defines vs what DB has
+router.get(
+  "/staging/seed-source",
+  asyncHandler((_req, res: Response) => controller.getSeedSource(_req, res)),
+);
+
 export default router;

@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { execSync } from "child_process";
 import { Prisma } from "@prisma/client";
+import { SalonKind, OfferingCategory, MagieType } from "@prisma/client";
 
 function getCommitSha(): string {
   try {
@@ -9,6 +10,82 @@ function getCommitSha(): string {
     return "unknown";
   }
 }
+
+// Exact same data as in seed.ts (must match exactly)
+const salonsData = [
+  {
+    kind: SalonKind.PISCINE,
+    name: "La Piscine",
+    description: "Un espace aquatique pour des rencontres rafraîchissantes",
+    magicAction: "plonger",
+    gradient: { start: "#4FACFE", end: "#00F2FE" },
+  },
+  {
+    kind: SalonKind.CAFE_DE_PARIS,
+    name: "Café de Paris",
+    description: "L'élégance parisienne pour des discussions raffinées",
+    magicAction: "trinquer",
+    gradient: { start: "#F093FB", end: "#F5576C" },
+  },
+  {
+    kind: SalonKind.ILE_PIRATES,
+    name: "Île des Pirates",
+    description: "L'aventure et le mystère au bout des flots",
+    magicAction: "embarquer",
+    gradient: { start: "#4E54C8", end: "#8F94FB" },
+  },
+  {
+    kind: SalonKind.THEATRE,
+    name: "Le Théâtre",
+    description: "Le grand spectacle de la vie et des émotions",
+    magicAction: "monter sur scène",
+    gradient: { start: "#667EEA", end: "#764BA2" },
+  },
+  {
+    kind: SalonKind.BAR_COCKTAILS,
+    name: "Bar à Cocktails",
+    description: "Des saveurs et des bulles pour une ambiance festive",
+    magicAction: "shaker",
+    gradient: { start: "#FA709A", end: "#FEE140" },
+  },
+  {
+    kind: SalonKind.METAL,
+    name: "Le Métal",
+    description: "Pour les âmes rebelles et les esprits libres",
+    magicAction: "headbanger",
+    gradient: { start: "#434343", end: "#000000" },
+  },
+];
+
+const magiesData = [
+  { id: "mag_grenouille", emoji: "🐸", name: "Transformation Grenouille", cost: 100, durationSec: 120, type: MagieType.TRANSFORMATION, breakConditionId: "kiss" },
+  { id: "mag_ane", emoji: "🫏", name: "Transformation Âne", cost: 80, durationSec: 90, type: MagieType.TRANSFORMATION, breakConditionId: "compliment" },
+  { id: "mag_fantome", emoji: "👻", name: "Transformation Fantôme", cost: 120, durationSec: 60, type: MagieType.TRANSFORMATION, breakConditionId: "water" },
+  { id: "mag_pirate", emoji: "🏴‍☠️", name: "Transformation Pirate", cost: 90, durationSec: 90, type: MagieType.TRANSFORMATION, breakConditionId: "dance" },
+  { id: "mag_statue", emoji: "🗿", name: "Transformation Statue", cost: 110, durationSec: 120, type: MagieType.TRANSFORMATION, breakConditionId: "compliment" },
+  { id: "mag_poule", emoji: "🐔", name: "Transformation Poule", cost: 70, durationSec: 60, type: MagieType.TRANSFORMATION, breakConditionId: "laughter" },
+  { id: "mag_invisibilite", emoji: "🫥", name: "Invisibilité", cost: 150, durationSec: 120, type: MagieType.VISUAL_EFFECT, breakConditionId: "laughter" },
+  { id: "mag_rockstar", emoji: "🎸", name: "Rockstar", cost: 130, durationSec: 90, type: MagieType.VISUAL_EFFECT, breakConditionId: "music" },
+  { id: "mag_bisou", emoji: "💋", name: "Bisou (anti-grenouille)", cost: 20, durationSec: 0, type: MagieType.TRANSFORMATION, breakConditionId: null },
+  { id: "mag_compliment", emoji: "👏", name: "Compliment", cost: 30, durationSec: 0, type: MagieType.TRANSFORMATION, breakConditionId: null },
+  { id: "mag_eau", emoji: "💧", name: "Eau bénite", cost: 20, durationSec: 0, type: MagieType.TRANSFORMATION, breakConditionId: null },
+  { id: "mag_danse", emoji: "💃", name: "Danse", cost: 25, durationSec: 0, type: MagieType.TRANSFORMATION, breakConditionId: null },
+  { id: "mag_rire", emoji: "😂", name: "Fou rire", cost: 20, durationSec: 0, type: MagieType.TRANSFORMATION, breakConditionId: null },
+  { id: "mag_musique", emoji: "🎵", name: "Mélodie apaisante", cost: 25, durationSec: 0, type: MagieType.VISUAL_EFFECT, breakConditionId: null },
+];
+
+const petsData = [
+  { id: "pet_chat", name: "Chat", emoji: "🐱", cost: 300 },
+  { id: "pet_chien", name: "Chien", emoji: "🐶", cost: 400 },
+  { id: "pet_lapin", name: "Lapin", emoji: "🐰", cost: 350 },
+  { id: "pet_renard", name: "Renard", emoji: "🦊", cost: 600 },
+  { id: "pet_ours", name: "Ours", emoji: "🐻", cost: 800 },
+  { id: "pet_dragon", name: "Dragon", emoji: "🐲", cost: 2000 },
+  { id: "pet_licorne", name: "Licorne", emoji: "🦄", cost: 5000 },
+  { id: "pet_pingouin", name: "Pingouin", emoji: "🐧", cost: 500 },
+  { id: "pet_tigre", name: "Tigre", emoji: "🐯", cost: 1200 },
+  { id: "pet_koala", name: "Koala", emoji: "🐨", cost: 700 },
+];
 
 export async function getStagingStatus() {
   const [salons, offerings, magies, pets, migrations] = await Promise.all([
@@ -53,6 +130,36 @@ export async function getStagingStatus() {
         id: m.id,
         finished_at: m.finished_at,
       })),
+    },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export async function getSeedSource() {
+  return {
+    seedDefinition: {
+      salons: {
+        count: salonsData.length,
+        records: salonsData.map((s) => ({ kind: s.kind, name: s.name })),
+      },
+      magies: {
+        count: magiesData.length,
+        records: magiesData.map((m) => ({ id: m.id, name: m.name })),
+      },
+      pets: {
+        count: petsData.length,
+        records: petsData.map((p) => ({ id: p.id, name: p.name })),
+      },
+    },
+    seedExecution: {
+      seedFilePath: "/app/prisma/seed.ts or ./prisma/seed.ts",
+      seedCommand: "prisma db seed",
+      prismaSeedScript: "ts-node prisma/seed.ts",
+      packageJsonSeed: { seed: "ts-node prisma/seed.ts" },
+    },
+    notes: {
+      critical: "If seedDefinition counts don't match database counts, seed didn't execute.",
+      issue: "migrations.count = 1 suggests DB never received full migration. Check if prisma migrate deploy completed.",
     },
     timestamp: new Date().toISOString(),
   };

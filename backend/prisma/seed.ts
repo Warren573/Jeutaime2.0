@@ -139,9 +139,11 @@ const petCatalog = [
 // ============================================================
 async function main() {
   try {
+    console.log("[SEED] start");
     console.log("🌱 [SEED-START] Démarrage du seed JeuTaime...\n");
 
     // -- Salons --
+    console.log("[SEED] seeding salons");
     console.log("[SEED] Processing salons...");
     for (let i = 0; i < salons.length; i++) {
       const salon = salons[i]!;
@@ -169,6 +171,7 @@ async function main() {
     console.log(`✅ [SEED-SALONS] ${salons.length} salons seedés`);
 
     // -- Catalogue offrandes --
+    console.log("[SEED] seeding offerings");
     console.log("[SEED] Processing offerings...");
     for (const off of offeringCatalog) {
       await prisma.offeringCatalog.upsert({
@@ -180,6 +183,7 @@ async function main() {
     console.log(`✅ [SEED-OFFERINGS] ${offeringCatalog.length} offrandes seedées (MVP)`);
 
     // -- Catalogue magies --
+    console.log("[SEED] seeding magies");
     console.log("[SEED] Processing magies...");
     for (const mag of magieCatalog) {
       await prisma.magieCatalog.upsert({
@@ -191,6 +195,7 @@ async function main() {
     console.log(`✅ [SEED-MAGIES] ${magieCatalog.length} magies seedées`);
 
     // -- Catalogue animaux --
+    console.log("[SEED] seeding pets");
     console.log("[SEED] Processing pets...");
     for (const pet of petCatalog) {
       await prisma.petCatalog.upsert({
@@ -249,6 +254,7 @@ async function main() {
       console.log(`✅ [SEED-TEST] Compte test créé → ${TEST_USER.email} / ${TEST_USER.password}`);
     }
 
+    console.log("[SEED] completed");
     console.log("\n🎉 [SEED-SUCCESS] Seed terminé avec succès !");
     process.exit(0);
   } catch (err) {
