@@ -26,5 +26,5 @@ FROM (
     ('BAR_COCKTAILS', 'Bar à Cocktails', 'Des saveurs et des bulles pour une ambiance festive', 'shaker', '{"start":"#FA709A","end":"#FEE140"}'::jsonb, true, 4, '#FA709A', '#FEE140'),
     ('METAL', 'Le Métal', 'Pour les âmes rebelles et les esprits libres', 'headbanger', '{"start":"#434343","end":"#000000"}'::jsonb, true, 5, '#434343', '#000000')
 ) AS data(kind, name, description, "magicAction", gradient, "isActive", "order", "primaryColor", "secondaryColor")
-WHERE NOT EXISTS (SELECT 1 FROM "Salon" WHERE kind = data.kind::salonkind)
+WHERE NOT EXISTS (SELECT 1 FROM "Salon" WHERE kind = data.kind::"SalonKind")
 ON CONFLICT (kind) DO NOTHING;
