@@ -139,3 +139,17 @@ export async function getPreviousEncounters(
   )) as { data: { encounters: EncounterDTO[] } };
   return res.data.encounters;
 }
+
+export interface CurrentSalonSessionDTO {
+  sessionId: string;
+  salonKind: string;
+  salonId: string;
+  salonName: string;
+}
+
+export async function getCurrentSalonSession(): Promise<CurrentSalonSessionDTO | null> {
+  const res = (await apiFetch(
+    `/salon-sessions/current`,
+  )) as { data: CurrentSalonSessionDTO | null };
+  return res.data;
+}

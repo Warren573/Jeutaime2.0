@@ -82,3 +82,14 @@ export async function getPreviousEncounters(req: AuthedRequest, res: Response) {
 
   res.json({ data: validated });
 }
+
+// ============================================================
+// GET /api/salon-sessions/current
+// ============================================================
+export async function getCurrentActiveSession(req: AuthedRequest, res: Response) {
+  const userId = req.user.userId;
+
+  const data = await salonSessionsService.getCurrentActiveSession(userId);
+
+  res.json({ data });
+}

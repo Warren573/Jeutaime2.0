@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { salonsData } from '../data/salonsData';
 import { useStore } from '../store/useStore';
+import { getCurrentSalonSession } from '../api/salons';
 
 const { width } = Dimensions.get('window');
 
@@ -22,6 +23,23 @@ export default function SalonsListScreen() {
   const screenBg = useStore(s => s.screenBackgrounds?.['salons'] ?? '#FFF8E7');
   const currentUser = useStore(s => s.currentUser);
   const canEnterSalon = currentUser?.canEnterSalon ?? true;
+  const { currentSessionId, currentSalonKind, currentSalonId, currentSalonName, setCurrentSalonSession, isAuthenticated } = useStore();
+
+  // Load current session on mount
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const loadCurrentSession = async () => {
+      try {
+        const session = await getCurrentSalonSession();
+        if (session) {
+          setCurrentSalonSession(session.sessionId, session.salonKind, session.salonId, session.salonName);
+        }
+      } catch (e) {
+        console.error('Failed to load current session:', e);
+      }
+    };
+    loadCurrentSession();
+  }, [isAuthenticated, setCurrentSalonSession]);
 
   const handleSalonPress = (salon: typeof salonsData[0]) => {
     if (!canEnterSalon) {
@@ -35,6 +53,20 @@ export default function SalonsListScreen() {
       );
       return;
     }
+
+    // If user is in a different salon, warn them
+    if (currentSessionId && currentSalonId !== salon.id) {
+      Alert.alert(
+        'Salon actif',
+        `Vous êtes actuellement dans ${currentSalonName}. Quittez ce salon avant d'en rejoindre un autre.`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Retourner à mon salon', onPress: () => router.push(`/salon/${currentSalonId}`) },
+        ],
+      );
+      return;
+    }
+
     router.push(`/salon/${salon.id}`);
   };
 
@@ -48,6 +80,18 @@ export default function SalonsListScreen() {
         <Text style={styles.headerTitle}>👥 Salons</Text>
         <Text style={styles.headerSubtitle}>Rejoignez une discussion</Text>
       </View>
+
+      {/* Current session banner */}
+      {currentSessionId && currentSalonName && (
+        <View style={[styles.gateBanner, { backgroundColor: '#D4EDDA', borderColor: '#C3E6CB' }]}>
+          <Text style={[styles.gateBannerText, { color: '#155724' }]}>
+            🟢 Vous êtes actuellement dans : <Text style={{ fontWeight: '700' }}>{currentSalonName}</Text>
+          </Text>
+          <TouchableOpacity onPress={() => router.push(`/salon/${currentSalonId}`)}>
+            <Text style={[styles.gateBannerBtnText, { color: '#155724' }]}>Retourner au salon →</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Gate banner */}
       {!canEnterSalon && (

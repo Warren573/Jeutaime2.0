@@ -16,6 +16,14 @@ const wrap = (
   fn: (req: AuthedRequest, res: Response) => Promise<void>,
 ) => asyncHandler((req, res, next) => fn(req as AuthedRequest, res).catch(next));
 
+// GET /api/salon-sessions/current — get current active session (if any)
+router.get(
+  "/current",
+  wrap(async (req, res) => {
+    await controller.getCurrentActiveSession(req as AuthedRequest, res);
+  }),
+);
+
 // GET /api/salon-sessions/active/:salonKind — get all active sessions for a salon
 router.get(
   "/active/:salonKind",

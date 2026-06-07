@@ -302,6 +302,58 @@ export async function getCurrentSession(
 }
 
 // ============================================================
+// Get current active session (any salon)
+// ============================================================
+export interface CurrentActiveSessionResponse {
+  sessionId: string;
+  salonKind: string;
+  salonId: string;
+  salonName: string;
+}
+
+export async function getCurrentActiveSession(
+  userId: string,
+): Promise<CurrentActiveSessionResponse | null> {
+  const now = new Date();
+
+  const participant = await prisma.salonSessionParticipant.findFirst({
+    where: {
+      userId,
+      status: "ACTIVE",
+      session: {
+        status: "ACTIVE",
+        expiresAt: { gt: now },
+      },
+    },
+    include: {
+      session: {
+        select: {
+          id: true,
+          salonKind: true,
+          salon: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!participant) {
+    return null;
+  }
+
+  return {
+    sessionId: participant.session.id,
+    salonKind: participant.session.salonKind,
+    salonId: participant.session.salon.id,
+    salonName: participant.session.salon.name,
+  };
+}
+
+// ============================================================
 // Get previous encounters (meeting memory)
 // ============================================================
 export async function getPreviousEncounters(

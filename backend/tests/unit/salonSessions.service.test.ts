@@ -286,4 +286,59 @@ describe("SalonSessions Service", () => {
       expect(prisma.salonEncounter.upsert).toHaveBeenCalled();
     });
   });
+
+  describe("getCurrentActiveSession", () => {
+    it("should return null when user has no active session", async () => {
+      (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce(null);
+
+      const result = await salonSessionsService.getCurrentActiveSession(mockUserId);
+
+      expect(result).toBeNull();
+    });
+
+    it("should return current active session when user is in one", async () => {
+      const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce({
+        sessionId: mockSessionId,
+        session: {
+          id: mockSessionId,
+          salonKind,
+          salon: {
+            id: "salon-1",
+            name: "La Piscine",
+          },
+        },
+      });
+
+      const result = await salonSessionsService.getCurrentActiveSession(mockUserId);
+
+      expect(result).toEqual({
+        sessionId: mockSessionId,
+        salonKind,
+        salonId: "salon-1",
+        salonName: "La Piscine",
+      });
+    });
+
+    it("should return null when session is expired", async () => {
+      (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce(null);
+
+      const result = await salonSessionsService.getCurrentActiveSession(mockUserId);
+
+      expect(result).toBeNull();
+      expect(prisma.salonSessionParticipant.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: mockUserId,
+            status: "ACTIVE",
+            session: expect.objectContaining({
+              status: "ACTIVE",
+              expiresAt: { gt: expect.any(Date) },
+            }),
+          }),
+        }),
+      );
+    });
+  });
 });

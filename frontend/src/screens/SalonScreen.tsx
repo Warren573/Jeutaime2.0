@@ -64,6 +64,7 @@ import {
   getActiveSessions,
   joinSession,
   leaveSession,
+  getCurrentSalonSession,
   type SalonMessageDTO,
   type SalonSessionDTO,
 } from '../api/salons';
@@ -293,7 +294,7 @@ export default function SalonScreen() {
   const flatListRef = useRef<FlatList>(null);
   // Timers de transformation (un par participant) — nettoyés automatiquement
   const transfoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const { currentUser, isAuthenticated, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig, loadWallet } = useStore();
+  const { currentUser, isAuthenticated, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig, loadWallet, setCurrentSalonSession, clearCurrentSalonSession } = useStore();
 
   // Récupérer le salon
   const rawSalonId = params.id as string;
@@ -446,12 +447,14 @@ export default function SalonScreen() {
           console.log(`[DEBUG-SESSION] joinSession returned session: ${newSession.id}, participants: ${newSession.participants.length}`);
           setCurrentSessionId(newSession.id);
           setActiveSessions([newSession]);
+          // Persist to store
+          setCurrentSalonSession(newSession.id, newSession.salonKind, newSession.salonId, newSession.salonName);
         }
       } catch (e) {
         console.error(`[DEBUG-SESSION] ERROR: ${e}`);
       }
     })();
-  }, [isAuthenticated, salonId]);
+  }, [isAuthenticated, salonId, setCurrentSalonSession]);
 
   // Atualizar participants a partir da SalonSession ativa (dados REAIS)
   useEffect(() => {

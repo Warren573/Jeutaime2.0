@@ -301,6 +301,14 @@ interface StoreState {
   // ===== Photo preference (top-level so hydrateFromApi can never overwrite it) =====
   showPhotoByDefault: boolean;
   setShowPhotoByDefault: (val: boolean) => void;
+
+  // ===== Salon Session (persistent) =====
+  currentSessionId: string | null;
+  currentSalonKind: string | null;
+  currentSalonId: string | null;
+  currentSalonName: string | null;
+  setCurrentSalonSession: (sessionId: string, salonKind: string, salonId: string, salonName: string) => void;
+  clearCurrentSalonSession: () => void;
 }
 
 // ==================== STORE ====================
@@ -353,6 +361,12 @@ export const useStore = create<StoreState>()(
         storiesCompleted: 0,
       },
       unlockedBadges: [],
+
+      // ===== Salon Session =====
+      currentSessionId: null,
+      currentSalonKind: null,
+      currentSalonId: null,
+      currentSalonName: null,
 
       // ===== User Actions =====
       setCurrentUser: (user) => set({ currentUser: user, isAuthenticated: !!user }),
@@ -1048,6 +1062,23 @@ export const useStore = create<StoreState>()(
           }));
         } catch { }
       },
+
+      // ===== Salon Session Actions =====
+      setCurrentSalonSession: (sessionId, salonKind, salonId, salonName) =>
+        set({
+          currentSessionId: sessionId,
+          currentSalonKind: salonKind,
+          currentSalonId: salonId,
+          currentSalonName: salonName,
+        }),
+
+      clearCurrentSalonSession: () =>
+        set({
+          currentSessionId: null,
+          currentSalonKind: null,
+          currentSalonId: null,
+          currentSalonName: null,
+        }),
     }),
     {
       name: 'jeutaime-storage-v8',
@@ -1071,6 +1102,10 @@ export const useStore = create<StoreState>()(
         showPhotoByDefault: state.showPhotoByDefault,
         likedProfiles: state.likedProfiles,
         dislikedProfiles: state.dislikedProfiles,
+        currentSessionId: state.currentSessionId,
+        currentSalonKind: state.currentSalonKind,
+        currentSalonId: state.currentSalonId,
+        currentSalonName: state.currentSalonName,
       }),
     }
   )
