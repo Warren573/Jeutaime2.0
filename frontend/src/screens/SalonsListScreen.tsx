@@ -17,6 +17,16 @@ import { getCurrentSalonSession } from '../api/salons';
 
 const { width } = Dimensions.get('window');
 
+// Mapping backend salonKind → frontend slug
+const KIND_TO_SLUG: Record<string, string> = {
+  'PISCINE': 'piscine',
+  'CAFE_DE_PARIS': 'cafe_paris',
+  'ILE_PIRATES': 'pirates',
+  'THEATRE': 'theatre',
+  'BAR_COCKTAILS': 'cocktails',
+  'METAL': 'metal',
+};
+
 export default function SalonsListScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -55,13 +65,14 @@ export default function SalonsListScreen() {
     }
 
     // If user is in a different salon, warn them
-    if (currentSessionId && currentSalonId !== salon.id) {
+    if (currentSessionId && currentSalonKind && currentSalonId !== salon.id) {
+      const currentSlug = KIND_TO_SLUG[currentSalonKind];
       Alert.alert(
         'Salon actif',
         `Vous êtes actuellement dans ${currentSalonName}. Quittez ce salon avant d'en rejoindre un autre.`,
         [
           { text: 'Annuler', style: 'cancel' },
-          { text: 'Retourner à mon salon', onPress: () => router.push(`/salon/${currentSalonId}`) },
+          { text: 'Retourner à mon salon', onPress: () => router.push(`/salon/${currentSlug}`) },
         ],
       );
       return;
@@ -82,12 +93,12 @@ export default function SalonsListScreen() {
       </View>
 
       {/* Current session banner */}
-      {currentSessionId && currentSalonName && (
+      {currentSessionId && currentSalonName && currentSalonKind && (
         <View style={[styles.gateBanner, { backgroundColor: '#D4EDDA', borderColor: '#C3E6CB' }]}>
           <Text style={[styles.gateBannerText, { color: '#155724' }]}>
             🟢 Vous êtes actuellement dans : <Text style={{ fontWeight: '700' }}>{currentSalonName}</Text>
           </Text>
-          <TouchableOpacity onPress={() => router.push(`/salon/${currentSalonId}`)}>
+          <TouchableOpacity onPress={() => router.push(`/salon/${KIND_TO_SLUG[currentSalonKind]}`)}>
             <Text style={[styles.gateBannerBtnText, { color: '#155724' }]}>Retourner au salon →</Text>
           </TouchableOpacity>
         </View>
