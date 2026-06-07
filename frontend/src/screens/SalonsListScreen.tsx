@@ -45,6 +45,7 @@ export default function SalonsListScreen() {
     try {
       console.log('[COUNTERS] Loading counters from backend...');
       const backendCounters = await getSalonCounters();
+      console.log('[COUNTERS] RAW BACKEND RESPONSE:', JSON.stringify(backendCounters, null, 2));
 
       // Map backend salonKind to frontend salon.id
       const counters: Record<string, number> = {};
@@ -52,11 +53,14 @@ export default function SalonsListScreen() {
         const salonKind = Object.entries(KIND_TO_SLUG).find(([_, slug]) => slug === salon.id)?.[0];
         if (!salonKind) {
           counters[salon.id] = 0;
+          console.log(`[COUNTERS-MAPPING] ${salon.id}: NO MAPPING (kind not found) → 0`);
           continue;
         }
-        counters[salon.id] = backendCounters[salonKind] ?? 0;
-        console.log(`[COUNTERS] ${salon.name}: ${counters[salon.id]} participants`);
+        const backendValue = backendCounters[salonKind] ?? 0;
+        counters[salon.id] = backendValue;
+        console.log(`[COUNTERS-MAPPING] ${salon.id}: kind="${salonKind}" → backend[${salonKind}]=${backendValue} → final=${counters[salon.id]}`);
       }
+      console.log('[COUNTERS-FINAL] All counters mapped:', JSON.stringify(counters, null, 2));
       setSalonCounters(counters);
     } catch (e) {
       console.error('[COUNTERS] Failed to load counters:', e);
@@ -183,15 +187,29 @@ export default function SalonsListScreen() {
           <View style={styles.activeSalonButtons}>
             <TouchableOpacity
               onPress={() => {
+                console.log('[BANNER-RETURN] currentSalonKind:', currentSalonKind);
+                console.log('[BANNER-RETURN] currentSalonName:', currentSalonName);
+                console.log('[BANNER-RETURN] currentSalonId:', currentSalonId);
+                console.log('[BANNER-RETURN] KIND_TO_SLUG:', KIND_TO_SLUG);
+
                 let slug = KIND_TO_SLUG[currentSalonKind];
+                console.log('[BANNER-RETURN] slug from KIND_TO_SLUG[' + currentSalonKind + ']:', slug);
+
                 if (!slug) {
                   const salonByName = salonsData.find(s =>
                     s.name.toLowerCase() === currentSalonName.toLowerCase()
                   );
                   slug = salonByName?.id;
+                  console.log('[BANNER-RETURN] fallback: searched by name, found:', salonByName?.id);
                 }
+
+                console.log('[BANNER-RETURN] final slug:', slug);
                 if (slug) {
-                  router.push(`/salon/${slug}`);
+                  const route = `/salon/${slug}`;
+                  console.log('[BANNER-RETURN] pushing route:', route);
+                  router.push(route);
+                } else {
+                  console.error('[BANNER-RETURN] FAILED: slug is empty/undefined');
                 }
               }}
               style={styles.returnButton}
