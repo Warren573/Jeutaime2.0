@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -14,7 +14,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { salonsData } from '../data/salonsData';
 import { useStore } from '../store/useStore';
-import { getCurrentSalonSession } from '../api/salons';
+import { getCurrentSalonSession, leaveSession } from '../api/salons';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const { width } = Dimensions.get('window');
 
@@ -34,7 +35,9 @@ export default function SalonsListScreen() {
   const screenBg = useStore(s => s.screenBackgrounds?.['salons'] ?? '#FFF8E7');
   const currentUser = useStore(s => s.currentUser);
   const canEnterSalon = currentUser?.canEnterSalon ?? true;
-  const { currentSessionId, currentSalonKind, currentSalonId, currentSalonName, setCurrentSalonSession, isAuthenticated } = useStore();
+  const { currentSessionId, currentSalonKind, currentSalonId, currentSalonName, setCurrentSalonSession, clearCurrentSalonSession, isAuthenticated } = useStore();
+
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
 
   // Helper to load current session
   const loadCurrentSession = useCallback(async () => {
@@ -63,6 +66,22 @@ export default function SalonsListScreen() {
       loadCurrentSession();
     }, [loadCurrentSession])
   );
+
+  const handleLeaveSession = async () => {
+    if (!currentSessionId) return;
+
+    try {
+      console.log('[LEAVE-FROM-LIST] User confirmed, calling leaveSession...');
+      await leaveSession(currentSessionId);
+      clearCurrentSalonSession();
+      console.log('[LEAVE-FROM-LIST] Session left, refreshing list...');
+      await loadCurrentSession();
+      setShowLeaveModal(false);
+    } catch (e) {
+      console.error('[LEAVE-FROM-LIST] Error:', e);
+      Alert.alert('Erreur', 'Impossible de quitter le salon. Veuillez réessayer.');
+    }
+  };
 
   const handleSalonPress = (salon: typeof salonsData[0]) => {
     if (!canEnterSalon) {
@@ -115,35 +134,36 @@ export default function SalonsListScreen() {
 
       {/* Current session banner */}
       {currentSessionId && currentSalonName && currentSalonKind && (
-        <View style={[styles.gateBanner, { backgroundColor: '#D4EDDA', borderColor: '#C3E6CB' }]}>
-          <Text style={[styles.gateBannerText, { color: '#155724' }]}>
+        <View style={[styles.activeSalonBanner]}>
+          <Text style={styles.activeSalonText}>
             🟢 Vous êtes actuellement dans : <Text style={{ fontWeight: '700' }}>{currentSalonName}</Text>
           </Text>
-          <TouchableOpacity onPress={() => {
-            // Method 1: Use KIND_TO_SLUG mapping
-            let slug = KIND_TO_SLUG[currentSalonKind];
+          <View style={styles.activeSalonButtons}>
+            <TouchableOpacity
+              onPress={() => {
+                let slug = KIND_TO_SLUG[currentSalonKind];
+                if (!slug) {
+                  const salonByName = salonsData.find(s =>
+                    s.name.toLowerCase() === currentSalonName.toLowerCase()
+                  );
+                  slug = salonByName?.id;
+                }
+                if (slug) {
+                  router.push(`/salon/${slug}`);
+                }
+              }}
+              style={styles.returnButton}
+            >
+              <Text style={styles.returnButtonText}>Retourner au salon</Text>
+            </TouchableOpacity>
 
-            // Method 2: Fallback - find by name in salonsData
-            if (!slug) {
-              const salonByName = salonsData.find(s =>
-                s.name.toLowerCase() === currentSalonName.toLowerCase()
-              );
-              slug = salonByName?.id;
-              console.log(`[DEBUG-RETURN] Fallback: recherche par nom, trouvé: ${salonByName?.name} → slug: ${slug}`);
-            }
-
-            console.log(`[DEBUG-RETURN] currentSalonKind: ${currentSalonKind}, slug final: ${slug}`);
-
-            if (slug) {
-              router.push(`/salon/${slug}`);
-            } else {
-              console.error(`[ERROR-RETURN] Impossible de trouver le slug pour salonKind: ${currentSalonKind}, salonName: ${currentSalonName}`);
-              console.error(`[ERROR-RETURN] KIND_TO_SLUG:`, KIND_TO_SLUG);
-              console.error(`[ERROR-RETURN] salonsData:`, salonsData.map(s => ({ id: s.id, name: s.name })));
-            }
-          }}>
-            <Text style={[styles.gateBannerBtnText, { color: '#155724' }]}>Retourner au salon →</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowLeaveModal(true)}
+              style={styles.leaveButtonList}
+            >
+              <Text style={styles.leaveButtonListText}>Quitter le salon</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -205,6 +225,18 @@ export default function SalonsListScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* Leave confirmation modal */}
+      <ConfirmationModal
+        visible={showLeaveModal}
+        title="Quitter le salon ?"
+        message="Vous pourrez rejoindre un autre salon après votre départ."
+        cancelText="Annuler"
+        confirmText="Quitter"
+        onCancel={() => setShowLeaveModal(false)}
+        onConfirm={handleLeaveSession}
+        isDangerous={true}
+      />
     </View>
   );
 }
@@ -340,5 +372,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#856404',
+  },
+  activeSalonBanner: {
+    backgroundColor: '#D4EDDA',
+    borderRadius: 12,
+    margin: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#C3E6CB',
+  },
+  activeSalonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#155724',
+    marginBottom: 14,
+    lineHeight: 20,
+  },
+  activeSalonButtons: {
+    gap: 10,
+  },
+  returnButton: {
+    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#667eea',
+    alignItems: 'center',
+  },
+  returnButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#667eea',
+  },
+  leaveButtonList: {
+    backgroundColor: '#E74C3C',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  leaveButtonListText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFF',
   },
 });

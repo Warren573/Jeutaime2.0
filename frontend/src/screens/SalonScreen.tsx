@@ -110,6 +110,7 @@ const BREAK_CONDITION_TO_ANTISPELL: Readonly<Record<string, string>> = {
 };
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE } from '../avatar/png/defaults';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 // ============================================
 // COMPOSANT AVATAR AVEC ANIMATION BREATHING
@@ -297,7 +298,7 @@ export default function SalonScreen() {
   const { currentUser, isAuthenticated, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig, loadWallet, setCurrentSalonSession, clearCurrentSalonSession, currentSessionId, currentSalonKind } = useStore();
 
   // Gestion de la sortie du salon
-  const handleLeaveSession = async () => {
+  const handleLeaveSession = () => {
     console.log('[LEAVE-CLICK] Quitter clicked, screenSessionId:', screenSessionId);
 
     if (!screenSessionId) {
@@ -306,34 +307,22 @@ export default function SalonScreen() {
       return;
     }
 
-    // Use native confirm on web, Alert on mobile
-    const confirmLeave = typeof window !== 'undefined' && typeof window.confirm === 'function'
-      ? window.confirm('Êtes-vous sûr de vouloir quitter ce salon ?')
-      : new Promise(resolve => {
-          Alert.alert(
-            'Quitter le salon',
-            'Êtes-vous sûr de vouloir quitter ce salon ?',
-            [
-              { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Quitter', style: 'destructive', onPress: () => resolve(true) },
-            ]
-          );
-        });
+    setShowLeaveModal(true);
+  };
+
+  const handleConfirmLeave = async () => {
+    if (!screenSessionId) return;
 
     try {
-      const shouldLeave = await Promise.resolve(confirmLeave);
-      if (!shouldLeave) {
-        console.log('[LEAVE-CLICK] User cancelled');
-        return;
-      }
-
       console.log('[LEAVE-CLICK] User confirmed, calling leaveSession...');
       await leaveSession(screenSessionId);
       clearCurrentSalonSession();
       console.log('[LEAVE-CLICK] Session left, navigating back...');
+      setShowLeaveModal(false);
       router.back();
     } catch (e) {
       console.error('[LEAVE-CLICK] Error:', e);
+      setShowLeaveModal(false);
       Alert.alert('Erreur', 'Impossible de quitter le salon. Veuillez réessayer.');
     }
   };
@@ -358,6 +347,7 @@ export default function SalonScreen() {
   const [messageInput, setMessageInput] = useState('');
   const [showOfferingsModal, setShowOfferingsModal] = useState(false);
   const [showPowersModal, setShowPowersModal] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<SalonParticipant | null>(null);
   const [recentInteractions, setRecentInteractions] = useState<Array<{
     id: string;
@@ -1279,6 +1269,17 @@ export default function SalonScreen() {
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
+
+      <ConfirmationModal
+        visible={showLeaveModal}
+        title="Quitter le salon ?"
+        message="Vous pourrez rejoindre un autre salon après votre départ."
+        cancelText="Annuler"
+        confirmText="Quitter"
+        onCancel={() => setShowLeaveModal(false)}
+        onConfirm={handleConfirmLeave}
+        isDangerous={true}
+      />
     </View>
   );
 }
