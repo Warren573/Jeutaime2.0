@@ -64,9 +64,17 @@ export default function SalonsListScreen() {
       return;
     }
 
-    // If user is in a different salon, warn them
-    if (currentSessionId && currentSalonKind && currentSalonId !== salon.id) {
+    // If user is in a salon, check if it's the same one or different
+    if (currentSessionId && currentSalonKind) {
       const currentSlug = KIND_TO_SLUG[currentSalonKind];
+
+      // Same salon: just open it (idempotent)
+      if (currentSlug === salon.id) {
+        router.push(`/salon/${salon.id}`);
+        return;
+      }
+
+      // Different salon: block and offer to return to current
       Alert.alert(
         'Salon actif',
         `Vous êtes actuellement dans ${currentSalonName}. Quittez ce salon avant d'en rejoindre un autre.`,
