@@ -26,6 +26,19 @@ export async function getActiveSessions(req: AuthedRequest, res: Response) {
 }
 
 // ============================================================
+// GET /api/salon-sessions/counters
+// ============================================================
+export async function getSalonCounters(req: AuthedRequest, res: Response) {
+  try {
+    const counters = await salonSessionsService.getSalonCountersForAllKinds();
+    res.json({ data: counters });
+  } catch (err) {
+    console.error(`[DEBUG-SALON-SESSIONS] getSalonCounters error`, err);
+    throw err;
+  }
+}
+
+// ============================================================
 // GET /api/salon-sessions/:id
 // ============================================================
 export async function getSessionDetail(req: AuthedRequest, res: Response) {

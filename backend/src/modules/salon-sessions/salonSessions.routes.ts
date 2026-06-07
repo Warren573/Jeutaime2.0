@@ -24,6 +24,14 @@ router.get(
   }),
 );
 
+// GET /api/salon-sessions/counters — get participant counts for all salons
+router.get(
+  "/counters",
+  wrap(async (req, res) => {
+    await controller.getSalonCounters(req as AuthedRequest, res);
+  }),
+);
+
 // GET /api/salon-sessions/active/:salonKind — get all active sessions for a salon
 router.get(
   "/active/:salonKind",

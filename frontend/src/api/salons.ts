@@ -104,6 +104,13 @@ export async function getActiveSessions(
   return res.data.sessions;
 }
 
+export async function getSalonCounters(): Promise<Record<string, number>> {
+  const res = (await apiFetch(
+    `/salon-sessions/counters`,
+  )) as { data: Record<string, number> };
+  return res.data;
+}
+
 export async function getSessionDetail(
   sessionId: string,
 ): Promise<SalonSessionDetailDTO> {

@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { salonsData } from '../data/salonsData';
 import { useStore } from '../store/useStore';
-import { getCurrentSalonSession, leaveSession, getActiveSessions } from '../api/salons';
+import { getCurrentSalonSession, leaveSession, getSalonCounters } from '../api/salons';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 const { width } = Dimensions.get('window');
@@ -42,24 +42,30 @@ export default function SalonsListScreen() {
 
   // Load real participant counts from backend
   const loadSalonCounters = useCallback(async () => {
-    const counters: Record<string, number> = {};
     try {
+      console.log('[COUNTERS] Loading counters from backend...');
+      const backendCounters = await getSalonCounters();
+
+      // Map backend salonKind to frontend salon.id
+      const counters: Record<string, number> = {};
       for (const salon of salonsData) {
         const salonKind = Object.entries(KIND_TO_SLUG).find(([_, slug]) => slug === salon.id)?.[0];
-        if (!salonKind) continue;
-
-        try {
-          const sessions = await getActiveSessions(salonKind);
-          const totalParticipants = sessions.reduce((sum, session) => sum + session.participantCount, 0);
-          counters[salon.id] = totalParticipants;
-          console.log(`[COUNTERS] ${salon.name} (${salonKind}): ${totalParticipants} participants`);
-        } catch (e) {
-          console.error(`[COUNTERS] Failed to load counters for ${salonKind}:`, e);
+        if (!salonKind) {
           counters[salon.id] = 0;
+          continue;
         }
+        counters[salon.id] = backendCounters[salonKind] ?? 0;
+        console.log(`[COUNTERS] ${salon.name}: ${counters[salon.id]} participants`);
       }
-    } finally {
       setSalonCounters(counters);
+    } catch (e) {
+      console.error('[COUNTERS] Failed to load counters:', e);
+      // Fallback: set all to 0
+      const fallback: Record<string, number> = {};
+      for (const salon of salonsData) {
+        fallback[salon.id] = 0;
+      }
+      setSalonCounters(fallback);
     }
   }, []);
 

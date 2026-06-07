@@ -74,6 +74,41 @@ export async function getActiveSessionsForSalon(
 }
 
 // ============================================================
+// Get participant counts for all salon kinds
+// ============================================================
+export async function getSalonCountersForAllKinds(): Promise<Record<string, number>> {
+  const now = new Date();
+  const salonKinds = ["PISCINE", "CAFE_DE_PARIS", "ILE_PIRATES", "THEATRE", "BAR_COCKTAILS", "METAL"] as const;
+
+  // Query all salons at once for efficiency
+  const sessions = await prisma.salonSession.findMany({
+    where: {
+      salonKind: { in: salonKinds as any[] },
+      status: "ACTIVE",
+      expiresAt: { gt: now },
+    },
+    include: {
+      participants: {
+        where: { status: "ACTIVE" },
+        select: { userId: true },
+      },
+    },
+  });
+
+  // Aggregate counts by salonKind
+  const counters: Record<string, number> = {};
+  for (const kind of salonKinds) {
+    counters[kind] = 0;
+  }
+
+  for (const session of sessions) {
+    counters[session.salonKind] += session.participants.length;
+  }
+
+  return counters;
+}
+
+// ============================================================
 // Get session detail
 // ============================================================
 export async function getSessionDetail(
