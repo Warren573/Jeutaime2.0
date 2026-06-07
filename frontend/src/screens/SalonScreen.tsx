@@ -298,29 +298,44 @@ export default function SalonScreen() {
 
   // Gestion de la sortie du salon
   const handleLeaveSession = async () => {
-    if (!screenSessionId) return;
+    console.log('[LEAVE-CLICK] Quitter clicked, screenSessionId:', screenSessionId);
 
-    Alert.alert(
-      'Quitter le salon',
-      'Êtes-vous sûr de vouloir quitter ce salon ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Quitter',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await leaveSession(screenSessionId);
-              clearCurrentSalonSession();
-              router.back();
-            } catch (e) {
-              console.error('Failed to leave session:', e);
-              Alert.alert('Erreur', 'Impossible de quitter le salon. Veuillez réessayer.');
-            }
-          },
-        },
-      ],
-    );
+    if (!screenSessionId) {
+      console.warn('[LEAVE-CLICK] screenSessionId is null/undefined');
+      Alert.alert('Erreur', 'Impossible de quitter: aucune session active.');
+      return;
+    }
+
+    // Use native confirm on web, Alert on mobile
+    const confirmLeave = typeof window !== 'undefined' && typeof window.confirm === 'function'
+      ? window.confirm('Êtes-vous sûr de vouloir quitter ce salon ?')
+      : new Promise(resolve => {
+          Alert.alert(
+            'Quitter le salon',
+            'Êtes-vous sûr de vouloir quitter ce salon ?',
+            [
+              { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Quitter', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    try {
+      const shouldLeave = await Promise.resolve(confirmLeave);
+      if (!shouldLeave) {
+        console.log('[LEAVE-CLICK] User cancelled');
+        return;
+      }
+
+      console.log('[LEAVE-CLICK] User confirmed, calling leaveSession...');
+      await leaveSession(screenSessionId);
+      clearCurrentSalonSession();
+      console.log('[LEAVE-CLICK] Session left, navigating back...');
+      router.back();
+    } catch (e) {
+      console.error('[LEAVE-CLICK] Error:', e);
+      Alert.alert('Erreur', 'Impossible de quitter le salon. Veuillez réessayer.');
+    }
   };
 
   // Récupérer le salon
