@@ -310,7 +310,7 @@ export default function SalonScreen() {
   // Salon metadata (layout, gradient, etc.) - ainda usamos estrutura local mas carregaremos quando auth
   const [salonMeta, setSalonMeta] = useState<any>(null);
   const [activeSessions, setActiveSessions] = useState<SalonSessionDTO[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [screenSessionId, setScreenSessionId] = useState<string | null>(null);
 
   // États
   const [messageInput, setMessageInput] = useState('');
@@ -441,13 +441,13 @@ export default function SalonScreen() {
         console.log(`[DEBUG-SESSION] getActiveSessions returned ${sessions.length} sessions`);
         if (sessions.length > 0) {
           console.log(`[DEBUG-SESSION] found active session, using first one: ${sessions[0].id}`);
-          setCurrentSessionId(sessions[0].id);
+          setScreenSessionId(sessions[0].id);
           setActiveSessions(sessions);
         } else {
           console.log(`[DEBUG-SESSION] no sessions, calling joinSession(${kind})`);
           const newSession = await joinSession(kind);
           console.log(`[DEBUG-SESSION] joinSession returned session: ${newSession.id}, participants: ${newSession.participants.length}`);
-          setCurrentSessionId(newSession.id);
+          setScreenSessionId(newSession.id);
           setActiveSessions([newSession]);
           // Persist to store
           setCurrentSalonSession(newSession.id, newSession.salonKind, newSession.salonId, newSession.salonName);
@@ -460,9 +460,9 @@ export default function SalonScreen() {
 
   // Atualizar participants a partir da SalonSession ativa (dados REAIS)
   useEffect(() => {
-    console.log(`[DEBUG-PARTICIPANTS-EFFECT] activated, activeSessions.length=${activeSessions.length}, currentSessionId=${currentSessionId}`);
-    if (!isAuthenticated || activeSessions.length === 0 || !currentSessionId) {
-      console.log(`[DEBUG-PARTICIPANTS-EFFECT] condition failed: isAuth=${isAuthenticated}, sessions=${activeSessions.length}, sessionId=${currentSessionId}`);
+    console.log(`[DEBUG-PARTICIPANTS-EFFECT] activated, activeSessions.length=${activeSessions.length}, currentSessionId=${screenSessionId}`);
+    if (!isAuthenticated || activeSessions.length === 0 || !screenSessionId) {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT] condition failed: isAuth=${isAuthenticated}, sessions=${activeSessions.length}, sessionId=${screenSessionId}`);
       return;
     }
     if (participantsReady.current) {
@@ -471,7 +471,7 @@ export default function SalonScreen() {
     }
 
     participantsReady.current = true;
-    const session = activeSessions.find(s => s.id === currentSessionId) || activeSessions[0];
+    const session = activeSessions.find(s => s.id === screenSessionId) || activeSessions[0];
     console.log(`[DEBUG-PARTICIPANTS-EFFECT] found session: ${session?.id}, participants: ${session?.participants.length}`);
     if (!session) {
       console.log(`[DEBUG-PARTICIPANTS-EFFECT] no session found`);
@@ -517,7 +517,7 @@ export default function SalonScreen() {
       console.log(`[DEBUG-PARTICIPANTS-EFFECT]   [${i}] id=${p.id}, name=${p.name}, isMe=${(p as any).isMe}`);
     });
     setParticipants(finalParticipants);
-  }, [isAuthenticated, activeSessions, currentSessionId, currentUser, avatarPngConfig]);
+  }, [isAuthenticated, activeSessions, screenSessionId, currentUser, avatarPngConfig]);
 
   // Mettre à jour les badges d'offrandes de TOUS les participants depuis le salon
   useEffect(() => {
@@ -915,7 +915,7 @@ export default function SalonScreen() {
   if (!salon) {
     console.error(`[ERROR-SALON] Salon introuvable pour salonId: ${salonId}`);
     console.error(`[ERROR-SALON] rawSalonId reçu: ${rawSalonId}`);
-    console.error(`[ERROR-SALON] Store: currentSalonKind=${currentSessionId}, currentSalonId=${currentSessionId}, currentSalonName=${currentSalonName}`);
+    console.error(`[ERROR-SALON] Store: currentSalonKind=${currentSalonKind}, currentSalonId=${currentSessionId}, currentSalonName=${currentSalonName}`);
     console.error(`[ERROR-SALON] Keys disponibles dans salonMetadata:`, Object.keys(salonMetadata));
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
