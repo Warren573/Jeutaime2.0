@@ -296,6 +296,33 @@ export default function SalonScreen() {
   const transfoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const { currentUser, isAuthenticated, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig, loadWallet, setCurrentSalonSession, clearCurrentSalonSession, currentSessionId, currentSalonKind } = useStore();
 
+  // Gestion de la sortie du salon
+  const handleLeaveSession = async () => {
+    if (!screenSessionId) return;
+
+    Alert.alert(
+      'Quitter le salon',
+      'Êtes-vous sûr de vouloir quitter ce salon ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Quitter',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await leaveSession(screenSessionId);
+              clearCurrentSalonSession();
+              router.back();
+            } catch (e) {
+              console.error('Failed to leave session:', e);
+              Alert.alert('Erreur', 'Impossible de quitter le salon. Veuillez réessayer.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   // Récupérer le salon
   const rawSalonId = params.id as string;
   const salonId = rawSalonId === 'cafe-paris' ? 'cafe_paris' : (rawSalonId || 'cafe_paris');
@@ -953,9 +980,9 @@ export default function SalonScreen() {
           <Text style={styles.headerEmoji}>{salon.emoji}</Text>
           <Text style={styles.headerTitle} numberOfLines={1}>{salon.name}</Text>
         </View>
-        <View style={styles.coinsDisplay}>
-          <Text style={styles.coinsText}>💰 {coins}</Text>
-        </View>
+        <TouchableOpacity onPress={handleLeaveSession} style={styles.leaveButton}>
+          <Text style={styles.leaveText}>Quitter</Text>
+        </TouchableOpacity>
       </LinearGradient>
 
       {/* Barre des participants - GRANDE sur toute la largeur */}
@@ -1069,6 +1096,9 @@ export default function SalonScreen() {
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.landscapeTitle}>{salon.emoji} {salon.name}</Text>
+        <TouchableOpacity onPress={handleLeaveSession} style={styles.leaveButton}>
+          <Text style={styles.leaveText}>Quitter</Text>
+        </TouchableOpacity>
         <Text style={styles.coinsText}>💰 {coins}</Text>
       </LinearGradient>
 
@@ -1271,6 +1301,14 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 24,
+    color: '#FFF',
+    fontWeight: '600',
+  },
+  leaveButton: {
+    padding: 8,
+  },
+  leaveText: {
+    fontSize: 13,
     color: '#FFF',
     fontWeight: '600',
   },

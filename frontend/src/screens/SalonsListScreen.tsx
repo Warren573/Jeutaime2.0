@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -35,21 +36,33 @@ export default function SalonsListScreen() {
   const canEnterSalon = currentUser?.canEnterSalon ?? true;
   const { currentSessionId, currentSalonKind, currentSalonId, currentSalonName, setCurrentSalonSession, isAuthenticated } = useStore();
 
+  // Helper to load current session
+  const loadCurrentSession = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const session = await getCurrentSalonSession();
+      if (session) {
+        setCurrentSalonSession(session.sessionId, session.salonKind, session.salonId, session.salonName);
+      } else {
+        // Session was cleared (user quit)
+        setCurrentSalonSession('', '', '', '');
+      }
+    } catch (e) {
+      console.error('Failed to load current session:', e);
+    }
+  }, [isAuthenticated, setCurrentSalonSession]);
+
   // Load current session on mount
   useEffect(() => {
-    if (!isAuthenticated) return;
-    const loadCurrentSession = async () => {
-      try {
-        const session = await getCurrentSalonSession();
-        if (session) {
-          setCurrentSalonSession(session.sessionId, session.salonKind, session.salonId, session.salonName);
-        }
-      } catch (e) {
-        console.error('Failed to load current session:', e);
-      }
-    };
     loadCurrentSession();
-  }, [isAuthenticated, setCurrentSalonSession]);
+  }, [loadCurrentSession]);
+
+  // Reload current session when screen is focused (e.g., after returning from salon)
+  useFocusEffect(
+    useCallback(() => {
+      loadCurrentSession();
+    }, [loadCurrentSession])
+  );
 
   const handleSalonPress = (salon: typeof salonsData[0]) => {
     if (!canEnterSalon) {
