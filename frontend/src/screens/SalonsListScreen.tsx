@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { salonsData } from '../data/salonsData';
 import { useStore } from '../store/useStore';
-import { getCurrentSalonSession, leaveSession } from '../api/salons';
+import { getCurrentSalonSession, leaveSession, getActiveSessions } from '../api/salons';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 const { width } = Dimensions.get('window');
@@ -38,6 +38,30 @@ export default function SalonsListScreen() {
   const { currentSessionId, currentSalonKind, currentSalonId, currentSalonName, setCurrentSalonSession, clearCurrentSalonSession, isAuthenticated } = useStore();
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [salonCounters, setSalonCounters] = useState<Record<string, number>>({});
+
+  // Load real participant counts from backend
+  const loadSalonCounters = useCallback(async () => {
+    const counters: Record<string, number> = {};
+    try {
+      for (const salon of salonsData) {
+        const salonKind = Object.entries(KIND_TO_SLUG).find(([_, slug]) => slug === salon.id)?.[0];
+        if (!salonKind) continue;
+
+        try {
+          const sessions = await getActiveSessions(salonKind);
+          const totalParticipants = sessions.reduce((sum, session) => sum + session.participantCount, 0);
+          counters[salon.id] = totalParticipants;
+          console.log(`[COUNTERS] ${salon.name} (${salonKind}): ${totalParticipants} participants`);
+        } catch (e) {
+          console.error(`[COUNTERS] Failed to load counters for ${salonKind}:`, e);
+          counters[salon.id] = 0;
+        }
+      }
+    } finally {
+      setSalonCounters(counters);
+    }
+  }, []);
 
   // Helper to load current session
   const loadCurrentSession = useCallback(async () => {
@@ -65,6 +89,18 @@ export default function SalonsListScreen() {
     useCallback(() => {
       loadCurrentSession();
     }, [loadCurrentSession])
+  );
+
+  // Load salon counters on mount
+  useEffect(() => {
+    loadSalonCounters();
+  }, [loadSalonCounters]);
+
+  // Reload salon counters when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadSalonCounters();
+    }, [loadSalonCounters])
   );
 
   const handleLeaveSession = async () => {
@@ -214,7 +250,7 @@ export default function SalonsListScreen() {
                 <View style={styles.salonStats}>
                   <View style={styles.participantsBadge}>
                     <Text style={styles.participantsCount}>
-                      {salon.participants.filter(p => p.online).length}
+                      {salonCounters[salon.id] ?? 0}
                     </Text>
                     <Text style={styles.participantsLabel}>en ligne</Text>
                   </View>
