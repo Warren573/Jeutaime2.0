@@ -5,6 +5,9 @@ import { NotFoundError, ConflictError } from "../../src/core/errors";
 vi.mock("../../src/config/prisma", () => {
   return {
     prisma: {
+      salon: {
+        findUnique: vi.fn(),
+      },
       salonSession: {
         findMany: vi.fn(),
         findFirst: vi.fn(),
@@ -58,6 +61,11 @@ describe("SalonSessions Service", () => {
     it("should create a new session when none available with capacity", async () => {
       const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+      (prisma.salon.findUnique as any).mockResolvedValueOnce({
+        kind: salonKind,
+        name: "Piscine",
+      });
+      (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce(null);
       (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce(null);
       (prisma.salonSession.findFirst as any).mockResolvedValueOnce(null);
       (prisma.salonSession.create as any).mockResolvedValueOnce({
@@ -101,6 +109,11 @@ describe("SalonSessions Service", () => {
     it("should join existing session with capacity", async () => {
       const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+      (prisma.salon.findUnique as any).mockResolvedValueOnce({
+        kind: salonKind,
+        name: "Piscine",
+      });
+      (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce(null);
       (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce(null);
       (prisma.salonSession.findFirst as any).mockResolvedValueOnce({
         id: mockSessionId,
@@ -147,9 +160,60 @@ describe("SalonSessions Service", () => {
       expect(prisma.salonSession.create).not.toHaveBeenCalled();
     });
 
-    it("should throw ConflictError if user already in active session", async () => {
+    it("should return existing session if user already in this salon (idempotent)", async () => {
+      const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      // Mock salon exists
+      (prisma.salon.findUnique as any).mockResolvedValueOnce({
+        kind: salonKind,
+        name: "Piscine",
+      });
+      // First findFirst call: user is already in this salon
       (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce({
         sessionId: mockSessionId,
+      });
+      // Subsequent findUnique call for getSessionDetail
+      (prisma.salonSession.findUnique as any).mockResolvedValueOnce({
+        id: mockSessionId,
+        salonKind,
+        status: "ACTIVE",
+        startedAt: new Date(),
+        expiresAt: futureDate,
+        participants: [
+          {
+            userId: mockUserId,
+            joinedAt: new Date(),
+            user: {
+              profile: { pseudo: "User1", gender: "HOMME", avatarConfig: null },
+            },
+          },
+        ],
+        salon: { kind: salonKind, name: "Piscine" },
+      });
+
+      const result = await salonSessionsService.joinSession(mockUserId, salonKind);
+
+      // Should return the session instead of throwing error (idempotent)
+      expect(result.id).toBe(mockSessionId);
+      expect(result.participantCount).toBe(1);
+    });
+
+    it("should throw ConflictError if user already in a different salon", async () => {
+      const otherSalonKind = "CAFE_DE_PARIS";
+
+      // Mock salon exists
+      (prisma.salon.findUnique as any).mockResolvedValueOnce({
+        kind: salonKind,
+        name: "Piscine",
+      });
+      // First findFirst call: user is NOT in this salon
+      (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce(null);
+      // Second findFirst call: user IS in a different salon
+      (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce({
+        id: "participant-other",
+        sessionId: "other-session-id",
+        userId: mockUserId,
+        status: "ACTIVE",
       });
 
       await expect(

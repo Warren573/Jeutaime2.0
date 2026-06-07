@@ -166,7 +166,31 @@ export async function joinSession(
   });
 
   if (existingParticipation) {
-    throw new ConflictError("User already in an active session for this salon");
+    // User already in this salon — return session detail instead of error
+    // (idempotent behavior: rejoin returns same session)
+    return getSessionDetail(existingParticipation.sessionId);
+  }
+
+  // Enforce rule: User cannot be in more than one salon at a time
+  // Check if user is in an active session for a DIFFERENT salon
+  const differentSalonParticipation = await prisma.salonSessionParticipant.findFirst({
+    where: {
+      userId,
+      status: "ACTIVE",
+      session: {
+        status: "ACTIVE",
+        expiresAt: { gt: now },
+        NOT: {
+          salonKind: salonKind as any,
+        },
+      },
+    },
+  });
+
+  if (differentSalonParticipation) {
+    throw new ConflictError(
+      "Vous êtes déjà dans un salon. Quittez-le avant d'en rejoindre un autre."
+    );
   }
 
   // Find first active session with < 4 participants
