@@ -98,7 +98,29 @@ export default function SalonsListScreen() {
           <Text style={[styles.gateBannerText, { color: '#155724' }]}>
             🟢 Vous êtes actuellement dans : <Text style={{ fontWeight: '700' }}>{currentSalonName}</Text>
           </Text>
-          <TouchableOpacity onPress={() => router.push(`/salon/${KIND_TO_SLUG[currentSalonKind]}`)}>
+          <TouchableOpacity onPress={() => {
+            // Method 1: Use KIND_TO_SLUG mapping
+            let slug = KIND_TO_SLUG[currentSalonKind];
+
+            // Method 2: Fallback - find by name in salonsData
+            if (!slug) {
+              const salonByName = salonsData.find(s =>
+                s.name.toLowerCase() === currentSalonName.toLowerCase()
+              );
+              slug = salonByName?.id;
+              console.log(`[DEBUG-RETURN] Fallback: recherche par nom, trouvé: ${salonByName?.name} → slug: ${slug}`);
+            }
+
+            console.log(`[DEBUG-RETURN] currentSalonKind: ${currentSalonKind}, slug final: ${slug}`);
+
+            if (slug) {
+              router.push(`/salon/${slug}`);
+            } else {
+              console.error(`[ERROR-RETURN] Impossible de trouver le slug pour salonKind: ${currentSalonKind}, salonName: ${currentSalonName}`);
+              console.error(`[ERROR-RETURN] KIND_TO_SLUG:`, KIND_TO_SLUG);
+              console.error(`[ERROR-RETURN] salonsData:`, salonsData.map(s => ({ id: s.id, name: s.name })));
+            }
+          }}>
             <Text style={[styles.gateBannerBtnText, { color: '#155724' }]}>Retourner au salon →</Text>
           </TouchableOpacity>
         </View>

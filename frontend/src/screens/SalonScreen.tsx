@@ -294,7 +294,7 @@ export default function SalonScreen() {
   const flatListRef = useRef<FlatList>(null);
   // Timers de transformation (un par participant) — nettoyés automatiquement
   const transfoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const { currentUser, isAuthenticated, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig, loadWallet, setCurrentSalonSession, clearCurrentSalonSession } = useStore();
+  const { currentUser, isAuthenticated, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig, loadWallet, setCurrentSalonSession, clearCurrentSalonSession, currentSessionId, currentSalonKind } = useStore();
 
   // Récupérer le salon
   const rawSalonId = params.id as string;
@@ -304,6 +304,8 @@ export default function SalonScreen() {
   console.log(`[DEBUG-SALON] salonId: ${salonId}`);
   console.log(`[DEBUG-AUTH] isAuthenticated: ${isAuthenticated}, currentUser.id: ${currentUser?.id}`);
   console.log(`[DEBUG-USER] currentUser: ${JSON.stringify(currentUser ? { id: currentUser.id, name: currentUser.name, gender: currentUser.gender } : null)}`);
+  console.log(`[DEBUG-SALON-NAVIGATION] rawSalonId: ${rawSalonId}, salonId après mapping: ${salonId}`);
+  console.log(`[DEBUG-STORE] currentSessionId: ${currentSessionId}, currentSalonKind: ${currentSalonKind}`);
 
   // Salon metadata (layout, gradient, etc.) - ainda usamos estrutura local mas carregaremos quando auth
   const [salonMeta, setSalonMeta] = useState<any>(null);
@@ -911,6 +913,10 @@ export default function SalonScreen() {
 
   const salon = salonMetadata[salonId];
   if (!salon) {
+    console.error(`[ERROR-SALON] Salon introuvable pour salonId: ${salonId}`);
+    console.error(`[ERROR-SALON] rawSalonId reçu: ${rawSalonId}`);
+    console.error(`[ERROR-SALON] Store: currentSalonKind=${currentSessionId}, currentSalonId=${currentSessionId}, currentSalonName=${currentSalonName}`);
+    console.error(`[ERROR-SALON] Keys disponibles dans salonMetadata:`, Object.keys(salonMetadata));
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <Text style={styles.errorText}>Salon introuvable</Text>
