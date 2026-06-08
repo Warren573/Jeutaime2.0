@@ -74,4 +74,20 @@ router.get(
   }),
 );
 
+// DEBUG: GET /api/salon-sessions/debug/salons — check all salons in DB
+router.get(
+  "/debug/salons",
+  wrap(async (req, res) => {
+    await controller.debugGetAllSalons(req as AuthedRequest, res);
+  }),
+);
+
+// DEBUG: POST /api/salon-sessions/debug/reseed — reseed all 7 salons
+router.post(
+  "/debug/reseed",
+  wrap(async (req, res) => {
+    await controller.debugReseedSalons(req as AuthedRequest, res);
+  }),
+);
+
 export default router;

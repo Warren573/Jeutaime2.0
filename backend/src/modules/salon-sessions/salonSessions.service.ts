@@ -179,6 +179,8 @@ export async function joinSession(
   userId: string,
   salonKind: string,
 ): Promise<JoinSessionResponse> {
+  console.log(`[JOIN-SESSION-START] userId: ${userId}, salonKind: ${salonKind}`);
+
   validateSalonKind(salonKind);
   const now = new Date();
 
@@ -186,6 +188,8 @@ export async function joinSession(
   const salon = await prisma.salon.findUnique({
     where: { kind: salonKind as any },
   });
+
+  console.log(`[JOIN-SESSION] Salon lookup: kind=${salonKind}, found=${!!salon}, name=${salon?.name || 'NOT_FOUND'}`);
 
   if (!salon) {
     throw new NotFoundError(`Salon not found for kind: ${salonKind}`);
@@ -206,8 +210,7 @@ export async function joinSession(
   });
 
   if (existingParticipation) {
-    // User already in this salon — return session detail instead of error
-    // (idempotent behavior: rejoin returns same session)
+    console.log(`[JOIN-SESSION] User already in this salon: sessionId=${existingParticipation.sessionId}`);
     return getSessionDetail(existingParticipation.sessionId);
   }
 
@@ -228,9 +231,11 @@ export async function joinSession(
   });
 
   if (differentSalonParticipation) {
-    throw new ConflictError(
-      "Vous êtes déjà dans un salon. Quittez-le avant d'en rejoindre un autre."
-    );
+    console.log(`[JOIN-SESSION] User already in different salon, auto-quitting old session`);
+    await prisma.salonSessionParticipant.update({
+      where: { id: differentSalonParticipation.id },
+      data: { status: "LEFT", leftAt: now },
+    });
   }
 
   // Find first active session with < 4 participants
@@ -252,10 +257,9 @@ export async function joinSession(
   let sessionId: string;
 
   if (availableSession && availableSession.participants.length < 4) {
-    // Join existing session
     sessionId = availableSession.id;
+    console.log(`[JOIN-SESSION] Joining existing session: sessionId=${sessionId}, currentParticipants=${availableSession.participants.length}`);
   } else {
-    // Create new session (7 days from now)
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const newSession = await prisma.salonSession.create({
       data: {
@@ -265,9 +269,11 @@ export async function joinSession(
       },
     });
     sessionId = newSession.id;
+    console.log(`[JOIN-SESSION] Created new session: sessionId=${sessionId}, salonKind=${salonKind}`);
   }
 
   // Add participant
+  console.log(`[JOIN-SESSION] Creating participant: sessionId=${sessionId}, userId=${userId}`);
   await prisma.salonSessionParticipant.create({
     data: {
       sessionId,
@@ -275,9 +281,12 @@ export async function joinSession(
       status: "ACTIVE",
     },
   });
+  console.log(`[JOIN-SESSION] Participant created successfully`);
 
   // Return session detail
-  return getSessionDetail(sessionId);
+  const response = await getSessionDetail(sessionId);
+  console.log(`[JOIN-SESSION-END] Returning session: id=${response.id}, participants=${response.participants.length}`);
+  return response;
 }
 
 // ============================================================
@@ -500,4 +509,68 @@ export async function expireOldSessions(): Promise<{ expired: number }> {
   });
 
   return { expired: result.count };
+}
+
+// ============================================================
+// DEBUG: Get all salons
+// ============================================================
+export async function getAllSalons() {
+  const salons = await prisma.salon.findMany({
+    orderBy: { order: "asc" },
+  });
+  return {
+    count: salons.length,
+    salons: salons.map((s) => ({
+      kind: s.kind,
+      name: s.name,
+      order: s.order,
+    })),
+  };
+}
+
+// ============================================================
+// DEBUG: Reseed salons (ensure all 7 exist)
+// ============================================================
+export async function reseedSalons() {
+  const salonKinds = ["PISCINE", "CAFE_DE_PARIS", "ILE_PIRATES", "THEATRE", "BAR_COCKTAILS", "METAL", "PSY"] as const;
+
+  const salonData = [
+    { kind: "PISCINE", name: "La Piscine", description: "Un espace aquatique pour des rencontres rafraîchissantes", magicAction: "plonger", gradStart: "#4FACFE", gradEnd: "#00F2FE" },
+    { kind: "CAFE_DE_PARIS", name: "Café de Paris", description: "L'élégance parisienne pour des discussions raffinées", magicAction: "trinquer", gradStart: "#F093FB", gradEnd: "#F5576C" },
+    { kind: "ILE_PIRATES", name: "Île des Pirates", description: "L'aventure et le mystère au bout des flots", magicAction: "embarquer", gradStart: "#4E54C8", gradEnd: "#8F94FB" },
+    { kind: "THEATRE", name: "Le Théâtre", description: "Le grand spectacle de la vie et des émotions", magicAction: "monter sur scène", gradStart: "#667EEA", gradEnd: "#764BA2" },
+    { kind: "BAR_COCKTAILS", name: "Bar à Cocktails", description: "Des saveurs et des bulles pour une ambiance festive", magicAction: "shaker", gradStart: "#FA709A", gradEnd: "#FEE140" },
+    { kind: "METAL", name: "Le Métal", description: "Pour les âmes rebelles et les esprits libres", magicAction: "headbanger", gradStart: "#434343", gradEnd: "#000000" },
+    { kind: "PSY", name: "Cabinet du Psy", description: "On y sert des mojitos aussi", magicAction: "analyser", gradStart: "#00BCD4", gradEnd: "#0097A7" },
+  ];
+
+  let created = 0;
+  for (let i = 0; i < salonData.length; i++) {
+    const s = salonData[i]!;
+    await prisma.salon.upsert({
+      where: { kind: s.kind as any },
+      update: {
+        name: s.name,
+        description: s.description,
+        magicAction: s.magicAction,
+        primaryColor: s.gradStart,
+        secondaryColor: s.gradEnd,
+        order: i,
+      },
+      create: {
+        kind: s.kind as any,
+        name: s.name,
+        description: s.description,
+        magicAction: s.magicAction,
+        primaryColor: s.gradStart,
+        secondaryColor: s.gradEnd,
+        gradient: { start: s.gradStart, end: s.gradEnd },
+        order: i,
+        isActive: true,
+      },
+    });
+    created++;
+  }
+
+  return { reseeded: created, salons: salonData.map(s => s.kind) };
 }

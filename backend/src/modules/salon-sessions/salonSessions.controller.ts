@@ -106,3 +106,19 @@ export async function getCurrentActiveSession(req: AuthedRequest, res: Response)
 
   res.json({ data });
 }
+
+// ============================================================
+// DEBUG: GET /api/salon-sessions/debug/salons
+// ============================================================
+export async function debugGetAllSalons(req: AuthedRequest, res: Response) {
+  const salons = await salonSessionsService.getAllSalons();
+  res.json({ data: salons });
+}
+
+// ============================================================
+// DEBUG: POST /api/salon-sessions/debug/reseed
+// ============================================================
+export async function debugReseedSalons(req: AuthedRequest, res: Response) {
+  const result = await salonSessionsService.reseedSalons();
+  res.json({ data: result });
+}
