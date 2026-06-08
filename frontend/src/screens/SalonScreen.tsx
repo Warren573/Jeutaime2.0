@@ -461,9 +461,9 @@ export default function SalonScreen() {
   useEffect(() => {
     if (!isAuthenticated) return;
     const kind = SLUG_TO_KIND[salonId];
-    console.log(`[DEBUG-SESSION] kind from SLUG_TO_KIND[${salonId}]: ${kind}`);
+    console.log(`[DEBUG-SESSION] Opening salon: slug=${salonId}, kind=${kind}, authenticated=${isAuthenticated}`);
     if (!kind) {
-      console.log(`[DEBUG-SESSION] kind is undefined, returning`);
+      console.warn(`[DEBUG-SESSION] kind is undefined for slug=${salonId}, returning`);
       return;
     }
 
@@ -471,13 +471,25 @@ export default function SalonScreen() {
       try {
         console.log(`[DEBUG-SESSION] calling joinSession(${kind})`);
         const session = await joinSession(kind);
-        console.log(`[DEBUG-SESSION] joinSession returned session: ${session.id}, participants: ${session.participants.length}`);
+        console.log(`[DEBUG-SESSION] joinSession returned:`, {
+          id: session.id,
+          salonKind: session.salonKind,
+          salonId: session.salonId,
+          salonName: session.salonName,
+          participants: session.participants?.length || 0,
+          status: session.status,
+        });
         setScreenSessionId(session.id);
         setActiveSessions([session]);
         // Persist to store
         setCurrentSalonSession(session.id, session.salonKind, session.salonId, session.salonName);
+        console.log(`[DEBUG-SESSION] Session stored in Zustand`);
       } catch (e) {
-        console.error(`[DEBUG-SESSION] ERROR: ${e}`);
+        console.error(`[DEBUG-SESSION] ERROR calling joinSession:`, {
+          kind,
+          error: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined,
+        });
       }
     })();
   }, [isAuthenticated, salonId, setCurrentSalonSession]);

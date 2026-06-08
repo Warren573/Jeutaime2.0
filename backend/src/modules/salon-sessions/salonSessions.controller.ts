@@ -111,7 +111,9 @@ export async function getCurrentActiveSession(req: AuthedRequest, res: Response)
 // DEBUG: GET /api/salon-sessions/debug/salons
 // ============================================================
 export async function debugGetAllSalons(req: AuthedRequest, res: Response) {
+  console.log(`[DEBUG-ENDPOINT] /debug/salons called by userId: ${req.user.userId}`);
   const salons = await salonSessionsService.getAllSalons();
+  console.log(`[DEBUG-ENDPOINT] /debug/salons returning:`, salons);
   res.json({ data: salons });
 }
 
