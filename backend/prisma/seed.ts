@@ -4,7 +4,7 @@
  * + crée un compte de test pour le développement
  * npm run prisma:seed
  */
-import { PrismaClient, SalonKind, OfferingCategory, MagieType, Gender } from "@prisma/client";
+import { PrismaClient, SalonKind, OfferingCategory, MagieType, Gender, ConsumptionMode } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -18,7 +18,7 @@ const TEST_USER = {
   password: "Test1234!",
   pseudo:   "TestUser",
   birthDate: new Date("1995-06-15T00:00:00.000Z"),
-  gender:   Gender.male,
+  gender:   Gender.HOMME,
   city:     "Paris",
 } as const;
 
@@ -68,6 +68,13 @@ const salons = [
     magicAction: "headbanger",
     gradient: { start: "#434343", end: "#000000" },
   },
+  {
+    kind: SalonKind.PSY,
+    name: "Cabinet du Psy",
+    description: "On y sert des mojitos aussi",
+    magicAction: "analyser",
+    gradient: { start: "#00BCD4", end: "#0097A7" },
+  },
 ] as const;
 
 // ============================================================
@@ -89,28 +96,12 @@ const questionCatalog = [
 ];
 
 // ============================================================
-// CATALOGUE OFFRANDES (aligné sur frontend/src/data/offerings.ts)
+// CATALOGUE OFFRANDES (MVP - 3 items uniquement pour validation)
 // ============================================================
 const offeringCatalog = [
-  // Boissons
-  { id: "off_cafe",          emoji: "☕",  name: "Café",              cost: 20,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null },
-  { id: "off_the",           emoji: "🍵",  name: "Thé",               cost: 15,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null },
-  { id: "off_jus",           emoji: "🥤",  name: "Jus de fruits",     cost: 25,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null },
-  { id: "off_champagne",     emoji: "🥂",  name: "Champagne",         cost: 200, category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 2, salonOnly: null },
-  { id: "off_biere",         emoji: "🍺",  name: "Bière pression",    cost: 30,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: SalonKind.METAL },
-  // Nourriture
-  { id: "off_croissant",     emoji: "🥐",  name: "Croissant",         cost: 25,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null },
-  { id: "off_macaron",       emoji: "🍪",  name: "Macaron",           cost: 40,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null },
-  { id: "off_gateau",        emoji: "🎂",  name: "Gâteau d'anniversaire", cost: 120, category: OfferingCategory.NOURRITURE, durationMs: null,  stackPriority: 2, salonOnly: null },
-  { id: "off_eclair",        emoji: "⚡",  name: "Éclairs",           cost: 35,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: SalonKind.METAL },
-  // Symboliques
-  { id: "off_rose",          emoji: "🌹",  name: "Rose rouge",        cost: 50,  category: OfferingCategory.SYMBOLIQUE, durationMs: 86400000,  stackPriority: 3, salonOnly: null },
-  { id: "off_bouquet",       emoji: "💐",  name: "Bouquet de fleurs", cost: 100, category: OfferingCategory.SYMBOLIQUE, durationMs: 86400000,  stackPriority: 3, salonOnly: null },
-  { id: "off_coeur",         emoji: "💝",  name: "Coeur en or",       cost: 150, category: OfferingCategory.SYMBOLIQUE, durationMs: 86400000,  stackPriority: 4, salonOnly: null },
-  { id: "off_guitare",       emoji: "🎸",  name: "Guitare cassée",    cost: 80,  category: OfferingCategory.SYMBOLIQUE, durationMs: null,      stackPriority: 2, salonOnly: SalonKind.METAL },
-  // Humour
-  { id: "off_tarte",         emoji: "🥧",  name: "Tarte à la crème",  cost: 30,  category: OfferingCategory.HUMOUR,     durationMs: null,      stackPriority: 1, salonOnly: null },
-  { id: "off_chaussette",    emoji: "🧦",  name: "Chaussette dépareillée", cost: 10, category: OfferingCategory.HUMOUR, durationMs: null,     stackPriority: 0, salonOnly: null },
+  { id: "off_biere",         emoji: "🍺",  name: "Bière pression",    cost: 30,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_fraises",       emoji: "🍓",  name: "Fraises",           cost: 35,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_bonbons",       emoji: "🍬",  name: "Bonbons",           cost: 20,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
 ] as const;
 
 // ============================================================
@@ -154,124 +145,129 @@ const petCatalog = [
 // MAIN
 // ============================================================
 async function main() {
-  console.log("🌱 Démarrage du seed JeuTaime...\n");
+  try {
+    console.log("[SEED] start");
+    console.log("🌱 [SEED-START] Démarrage du seed JeuTaime...\n");
 
-  // -- Salons --
-  // Phase 5 : on assigne un `order` stable (index du tableau) pour
-  // garantir un affichage déterministe côté public. `backgroundType`
-  // reste à "gradient" (default) car le seed fournit `gradient`.
-  // `isActive` par défaut true. `primaryColor` initialisée avec
-  // gradient.start pour donner à l'admin une base exploitable.
-  for (let i = 0; i < salons.length; i++) {
-    const salon = salons[i]!;
-    await prisma.salon.upsert({
-      where: { kind: salon.kind },
-      update: {
-        name: salon.name,
-        description: salon.description,
-        magicAction: salon.magicAction,
-        gradient: salon.gradient,
-        order: i,
-      },
-      create: {
-        kind: salon.kind,
-        name: salon.name,
-        description: salon.description,
-        magicAction: salon.magicAction,
-        gradient: salon.gradient,
-        order: i,
-        primaryColor: salon.gradient.start,
-        secondaryColor: salon.gradient.end,
-      },
-    });
-  }
-  console.log(`✅ ${salons.length} salons seedés`);
-
-  // -- Catalogue offrandes --
-  for (const off of offeringCatalog) {
-    await prisma.offeringCatalog.upsert({
-      where: { id: off.id },
-      update: { emoji: off.emoji, name: off.name, cost: off.cost, category: off.category, durationMs: off.durationMs, stackPriority: off.stackPriority, salonOnly: off.salonOnly },
-      create: { id: off.id, emoji: off.emoji, name: off.name, cost: off.cost, category: off.category, durationMs: off.durationMs, stackPriority: off.stackPriority, salonOnly: off.salonOnly },
-    });
-  }
-  console.log(`✅ ${offeringCatalog.length} offrandes seedées`);
-
-  // -- Catalogue magies --
-  for (const mag of magieCatalog) {
-    await prisma.magieCatalog.upsert({
-      where: { id: mag.id },
-      update: { emoji: mag.emoji, name: mag.name, cost: mag.cost, durationSec: mag.durationSec, type: mag.type, breakConditionId: mag.breakConditionId },
-      create: { id: mag.id, emoji: mag.emoji, name: mag.name, cost: mag.cost, durationSec: mag.durationSec, type: mag.type, breakConditionId: mag.breakConditionId },
-    });
-  }
-  console.log(`✅ ${magieCatalog.length} magies seedées`);
-
-  // -- Catalogue animaux --
-  for (const pet of petCatalog) {
-    await prisma.petCatalog.upsert({
-      where: { id: pet.id },
-      update: { name: pet.name, emoji: pet.emoji, cost: pet.cost },
-      create: { id: pet.id, name: pet.name, emoji: pet.emoji, cost: pet.cost },
-    });
-  }
-  console.log(`✅ ${petCatalog.length} animaux seedés`);
-
-  // -- Questions de validation (stockées dans un JSON seedé, pas en table dédiée) --
-  // On les exporte en JSON pour que le service puisse les utiliser
-  // Elles ne sont pas en table car le catalogue peut évoluer sans migration
-  console.log(`✅ ${questionCatalog.length} questions disponibles (catalogue JSON embarqué)`);
-
-  // -- Compte de test --
-  const existingTest = await prisma.user.findUnique({
-    where: { email: TEST_USER.email },
-    select: { id: true },
-  });
-
-  if (existingTest) {
-    console.log(`ℹ️  Compte test déjà existant (${TEST_USER.email})`);
-  } else {
-    const passwordHash = await bcrypt.hash(TEST_USER.password, 10);
-
-    await prisma.$transaction(async (tx) => {
-      const testUser = await tx.user.create({
-        data: { email: TEST_USER.email, passwordHash, isVerified: true },
-      });
-
-      await tx.profile.create({
-        data: {
-          userId:      testUser.id,
-          pseudo:      TEST_USER.pseudo,
-          birthDate:   TEST_USER.birthDate,
-          gender:      TEST_USER.gender,
-          city:        TEST_USER.city,
-          interestedIn: [],
-          lookingFor:  [],
-          interests:   [],
-          bio:         "Compte de test JeuTaime 🧪",
+    // -- Salons --
+    console.log("[SEED] seeding salons");
+    console.log("[SEED] Processing salons...");
+    for (let i = 0; i < salons.length; i++) {
+      const salon = salons[i]!;
+      await prisma.salon.upsert({
+        where: { kind: salon.kind },
+        update: {
+          name: salon.name,
+          description: salon.description,
+          magicAction: salon.magicAction,
+          gradient: salon.gradient,
+          order: i,
+        },
+        create: {
+          kind: salon.kind,
+          name: salon.name,
+          description: salon.description,
+          magicAction: salon.magicAction,
+          gradient: salon.gradient,
+          order: i,
+          primaryColor: salon.gradient.start,
+          secondaryColor: salon.gradient.end,
         },
       });
+    }
+    console.log(`✅ [SEED-SALONS] ${salons.length} salons seedés`);
 
-      await tx.wallet.create({
-        data: { userId: testUser.id, coins: 9999 },
+    // -- Catalogue offrandes --
+    console.log("[SEED] seeding offerings");
+    console.log("[SEED] Processing offerings...");
+    for (const off of offeringCatalog) {
+      await prisma.offeringCatalog.upsert({
+        where: { id: off.id },
+        update: { emoji: off.emoji, name: off.name, cost: off.cost, category: off.category, durationMs: off.durationMs, stackPriority: off.stackPriority, salonOnly: off.salonOnly, consumptionMode: off.consumptionMode },
+        create: { id: off.id, emoji: off.emoji, name: off.name, cost: off.cost, category: off.category, durationMs: off.durationMs, stackPriority: off.stackPriority, salonOnly: off.salonOnly, consumptionMode: off.consumptionMode },
       });
+    }
+    console.log(`✅ [SEED-OFFERINGS] ${offeringCatalog.length} offrandes seedées (MVP)`);
 
-      await tx.userSettings.create({
-        data: { userId: testUser.id },
+    // -- Catalogue magies --
+    console.log("[SEED] seeding magies");
+    console.log("[SEED] Processing magies...");
+    for (const mag of magieCatalog) {
+      await prisma.magieCatalog.upsert({
+        where: { id: mag.id },
+        update: { emoji: mag.emoji, name: mag.name, cost: mag.cost, durationSec: mag.durationSec, type: mag.type, breakConditionId: mag.breakConditionId },
+        create: { id: mag.id, emoji: mag.emoji, name: mag.name, cost: mag.cost, durationSec: mag.durationSec, type: mag.type, breakConditionId: mag.breakConditionId },
       });
+    }
+    console.log(`✅ [SEED-MAGIES] ${magieCatalog.length} magies seedées`);
+
+    // -- Catalogue animaux --
+    console.log("[SEED] seeding pets");
+    console.log("[SEED] Processing pets...");
+    for (const pet of petCatalog) {
+      await prisma.petCatalog.upsert({
+        where: { id: pet.id },
+        update: { name: pet.name, emoji: pet.emoji, cost: pet.cost },
+        create: { id: pet.id, name: pet.name, emoji: pet.emoji, cost: pet.cost },
+      });
+    }
+    console.log(`✅ [SEED-PETS] ${petCatalog.length} animaux seedés`);
+
+    // -- Questions de validation (stockées dans un JSON seedé, pas en table dédiée) --
+    // On les exporte en JSON pour que le service puisse les utiliser
+    // Elles ne sont pas en table car le catalogue peut évoluer sans migration
+    console.log(`✅ [SEED-QUESTIONS] ${questionCatalog.length} questions disponibles (catalogue JSON embarqué)`);
+
+    // -- Compte de test --
+    console.log("[SEED] Processing test account...");
+    const existingTest = await prisma.user.findUnique({
+      where: { email: TEST_USER.email },
+      select: { id: true },
     });
 
-    console.log(`✅ Compte test créé → ${TEST_USER.email} / ${TEST_USER.password}`);
-  }
+    if (existingTest) {
+      console.log(`ℹ️  [SEED-TEST] Compte test déjà existant (${TEST_USER.email})`);
+    } else {
+      const passwordHash = await bcrypt.hash(TEST_USER.password, 10);
 
-  console.log("\n🎉 Seed terminé avec succès !");
-}
+      await prisma.$transaction(async (tx) => {
+        const testUser = await tx.user.create({
+          data: { email: TEST_USER.email, passwordHash, isVerified: true },
+        });
 
-main()
-  .catch((err) => {
-    console.error("❌ Erreur seed :", err);
+        await tx.profile.create({
+          data: {
+            userId:      testUser.id,
+            pseudo:      TEST_USER.pseudo,
+            birthDate:   TEST_USER.birthDate,
+            gender:      TEST_USER.gender,
+            city:        TEST_USER.city,
+            interestedIn: [],
+            lookingFor:  [],
+            interests:   [],
+            bio:         "Compte de test JeuTaime 🧪",
+          },
+        });
+
+        await tx.wallet.create({
+          data: { userId: testUser.id, coins: 9999 },
+        });
+
+        await tx.userSettings.create({
+          data: { userId: testUser.id },
+        });
+      });
+
+      console.log(`✅ [SEED-TEST] Compte test créé → ${TEST_USER.email} / ${TEST_USER.password}`);
+    }
+
+    console.log("[SEED] completed");
+    console.log("\n🎉 [SEED-SUCCESS] Seed terminé avec succès !");
+    process.exit(0);
+  } catch (err) {
+    console.error("❌ [SEED-ERROR] Erreur seed :", err);
     process.exit(1);
-  })
-  .finally(async () => {
+  } finally {
     await prisma.$disconnect();
-  });
+  }
+}

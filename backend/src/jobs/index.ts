@@ -13,6 +13,7 @@
 import { demoteExpiredPremiumJob } from "./demoteExpiredPremium";
 import { purgeExpiredRefreshTokensJob } from "./purgeExpiredRefreshTokens";
 import { expireCardGamesJob } from "./expireCardGames";
+import { expireSalonSessionsJob } from "./expireSalonSessions";
 import type { Job } from "./types";
 
 // Re-exports publics
@@ -23,6 +24,7 @@ export {
   demoteExpiredPremiumJob,
   purgeExpiredRefreshTokensJob,
   expireCardGamesJob,
+  expireSalonSessionsJob,
 };
 export {
   createPurgeExpiredRefreshTokensJob,
@@ -36,4 +38,5 @@ export const ALL_JOBS: readonly Job[] = [
   demoteExpiredPremiumJob,
   purgeExpiredRefreshTokensJob,
   expireCardGamesJob,
+  expireSalonSessionsJob,
 ];

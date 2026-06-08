@@ -40,3 +40,21 @@ export const SalonOfferingsParamsSchema = z
   .strict();
 
 export type SalonOfferingsParamsDto = z.infer<typeof SalonOfferingsParamsSchema>;
+
+// ============================================================
+// POST /api/offerings/:offeringId/consume
+// ============================================================
+export const ConsumeOfferingParamsSchema = z
+  .object({
+    offeringId: z.string().min(1).max(64),
+  })
+  .strict();
+
+export const ConsumeOfferingBodySchema = z
+  .object({
+    action: z.string().min(1).max(64),
+  })
+  .strict();
+
+export type ConsumeOfferingParamsDto = z.infer<typeof ConsumeOfferingParamsSchema>;
+export type ConsumeOfferingBodyDto = z.infer<typeof ConsumeOfferingBodySchema>;

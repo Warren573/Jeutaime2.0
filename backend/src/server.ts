@@ -6,6 +6,7 @@ import {
   createPurgeExpiredRefreshTokensJob,
   demoteExpiredPremiumJob,
   expireCardGamesJob,
+  expireSalonSessionsJob,
   startScheduler,
 } from "./jobs";
 import { execSync } from "child_process";
@@ -38,6 +39,17 @@ async function main() {
     throw err;
   }
 
+  // DEBUG: Afficher les salons au démarrage
+  try {
+    const salons = await prisma.salon.findMany({ select: { kind: true, name: true, isActive: true }, orderBy: { order: "asc" } });
+    console.log(`[STARTUP-SALONS] Found ${salons.length} salons:`, salons.map(s => `${s.kind}(${s.name})`).join(", "));
+    if (!salons.find(s => s.kind === "PSY")) {
+      console.warn(`[STARTUP-SALONS] ⚠️  PSY salon NOT FOUND in database!`);
+    }
+  } catch (err) {
+    console.error(`[STARTUP-SALONS] Error loading salons:`, err);
+  }
+
   const server = app.listen(env.PORT, "0.0.0.0", () => {
     logger.info(
       { port: env.PORT, env: env.NODE_ENV, prefix: env.API_PREFIX, host: "0.0.0.0" },
@@ -53,6 +65,7 @@ async function main() {
       jobs: [
         demoteExpiredPremiumJob,
         expireCardGamesJob,
+        expireSalonSessionsJob,
         createPurgeExpiredRefreshTokensJob({
           graceMs: env.REFRESH_TOKEN_PURGE_GRACE_MS,
         }),

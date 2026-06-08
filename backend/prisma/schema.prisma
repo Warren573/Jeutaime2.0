@@ -84,6 +84,11 @@ enum MagieType {
   WEATHER
 }
 
+enum ConsumptionMode {
+  PRIVATE
+  SHARED
+}
+
 enum SalonKind {
   PISCINE
   CAFE_DE_PARIS
@@ -91,6 +96,7 @@ enum SalonKind {
   THEATRE
   BAR_COCKTAILS
   METAL
+  PSY
 }
 
 enum ReportStatus {
@@ -127,6 +133,23 @@ enum NotificationType {
 enum ReactionType {
   SMILE
   GRIMACE
+}
+
+// ============================================================
+// BOUTEILLE À LA MER (Chantier 1 - V1)
+// ============================================================
+
+enum BottleStatus {
+  FLOATING    // En attente de réception
+  ACCEPTED    // Acceptée par un utilisateur
+  EXPIRED     // 30 jours écoulés
+}
+
+enum BottleReceiptStatus {
+  PENDING     // En attente de réponse
+  ACCEPTED    // Acceptée
+  REFUSED     // Refusée
+  TAKEN       // Prise par quelqu'un d'autre
 }
 
 // ============================================================
@@ -174,6 +197,15 @@ model User {
   questionAttempts  MatchQuestionAttempt[] @relation("QuestionAttemptResponder")
   cardGameSessions  CardGameSession[]
   pushTokens        PushToken[]
+  salonSessionParticipants SalonSessionParticipant[]
+  encounters1       SalonEncounter[]  @relation("Encounter1")
+  encounters2       SalonEncounter[]  @relation("Encounter2")
+
+  bottlesSent       MessageInABottle[] @relation("BottleSender")
+  bottlesAccepted   MessageInABottle[] @relation("BottleAcceptedBy")
+  bottleReceipts    BottleReceipt[]
+  anonymousMessages AnonymousMessage[]
+  bottleSuspension  BottleSuspension?
 
   @@index([email])
   @@index([isBanned])
@@ -379,31 +411,35 @@ model CoinTransaction {
 // ============================================================
 
 model OfferingCatalog {
-  id            String           @id
-  emoji         String
-  name          String
-  cost          Int
-  category      OfferingCategory
-  durationMs    Int?
-  stackPriority Int              @default(0)
-  salonOnly     SalonKind?
-  enabled       Boolean          @default(true)
+  id              String           @id
+  emoji           String
+  name            String
+  cost            Int
+  category        OfferingCategory
+  durationMs      Int?
+  stackPriority   Int              @default(0)
+  salonOnly       SalonKind?
+  enabled         Boolean          @default(true)
+  consumptionMode ConsumptionMode  @default(SHARED)
 
   sentOfferings OfferingSent[]
 }
 
 model OfferingSent {
-  id         String          @id @default(cuid())
-  offeringId String
-  offering   OfferingCatalog @relation(fields: [offeringId], references: [id])
-  fromUserId String
-  toUserId   String
-  fromUser   User            @relation("OfferingFrom", fields: [fromUserId], references: [id])
-  toUser     User            @relation("OfferingTo",   fields: [toUserId],   references: [id])
-  salonId    String?
-  salon      Salon?          @relation(fields: [salonId], references: [id])
-  expiresAt  DateTime?
-  createdAt  DateTime        @default(now())
+  id              String          @id @default(cuid())
+  offeringId      String
+  offering        OfferingCatalog @relation(fields: [offeringId], references: [id])
+  fromUserId      String
+  toUserId        String
+  fromUser        User            @relation("OfferingFrom", fields: [fromUserId], references: [id])
+  toUser          User            @relation("OfferingTo",   fields: [toUserId],   references: [id])
+  salonId         String?
+  salon           Salon?          @relation(fields: [salonId], references: [id])
+  expiresAt       DateTime?
+  createdAt       DateTime        @default(now())
+  consumptionCount Int            @default(0)
+  lastConsumedAt  DateTime?
+  lastConsumedBy  String?
 
   @@index([toUserId])
   @@index([salonId])
@@ -445,6 +481,64 @@ model MagieCast {
 }
 
 // ============================================================
+// SALON SESSIONS (Chantier 1)
+// ============================================================
+
+enum SalonSessionStatus {
+  ACTIVE
+  EXPIRED
+}
+
+enum SalonSessionParticipantStatus {
+  ACTIVE
+  LEFT
+}
+
+model SalonSession {
+  id            String                      @id @default(cuid())
+  salonKind     SalonKind
+  salon         Salon                       @relation(fields: [salonKind], references: [kind])
+  startedAt     DateTime                    @default(now())
+  expiresAt     DateTime                    // 7 days from startedAt
+  status        SalonSessionStatus          @default(ACTIVE)
+  isPrivate     Boolean                     @default(false) // V1.1+: for private salons
+  ownerId       String?                     // V1.1+: creator for private sessions
+
+  participants  SalonSessionParticipant[]
+  encounters    SalonEncounter[]
+
+  @@index([salonKind, status, expiresAt])
+}
+
+model SalonSessionParticipant {
+  id        String                          @id @default(cuid())
+  sessionId String
+  session   SalonSession                    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User                            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    SalonSessionParticipantStatus   @default(ACTIVE)
+  joinedAt  DateTime                        @default(now())
+  leftAt    DateTime?
+
+  @@unique([sessionId, userId])
+  @@index([userId, status])
+}
+
+model SalonEncounter {
+  id        String           @id @default(cuid())
+  sessionId String
+  session   SalonSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user1Id   String
+  user1     User             @relation("Encounter1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2Id   String
+  user2     User             @relation("Encounter2", fields: [user2Id], references: [id], onDelete: Cascade)
+  metAt     DateTime         @default(now())
+
+  @@unique([sessionId, user1Id, user2Id])
+  @@index([sessionId])
+}
+
+// ============================================================
 // SALONS
 // ============================================================
 
@@ -474,6 +568,7 @@ model Salon {
   messages   SalonMessage[]
   offerings  OfferingSent[]
   magies     MagieCast[]
+  sessions   SalonSession[]
 
   @@index([isActive, order])
 }
@@ -490,6 +585,71 @@ model SalonMessage {
   createdAt DateTime @default(now())
 
   @@index([salonId, createdAt])
+}
+
+// ============================================================
+// BOUTEILLE À LA MER (V1)
+// ============================================================
+
+model MessageInABottle {
+  id            String                @id @default(cuid())
+  senderId      String
+  sender        User                  @relation("BottleSender", fields: [senderId], references: [id], onDelete: Cascade)
+  message       String                @db.Text
+  senderCity    String                // Ville du sender au moment du create
+  targetGender  String                // "HOMME" | "FEMME" | "AUTRE"
+  ageMin        Int
+  ageMax        Int
+  status        BottleStatus          @default(FLOATING)
+  acceptedById  String?
+  acceptedBy    User?                 @relation("BottleAcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
+  acceptedAt    DateTime?
+  createdAt     DateTime              @default(now())
+  expiresAt     DateTime              // 30 jours
+
+  receipts      BottleReceipt[]
+  messages      AnonymousMessage[]
+
+  @@index([status, expiresAt])
+  @@index([senderId, status])
+}
+
+model BottleReceipt {
+  id          String              @id @default(cuid())
+  bottleId    String
+  bottle      MessageInABottle    @relation(fields: [bottleId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   User                @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  status      BottleReceiptStatus @default(PENDING)
+  createdAt   DateTime            @default(now())
+  actionAt    DateTime?
+
+  @@unique([bottleId, recipientId])
+  @@index([recipientId, status])
+}
+
+model AnonymousMessage {
+  id        String            @id @default(cuid())
+  bottleId  String
+  bottle    MessageInABottle  @relation(fields: [bottleId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User              @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content   String            @db.Text
+  createdAt DateTime          @default(now())
+
+  @@index([bottleId, createdAt])
+}
+
+model BottleSuspension {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason    String   @db.Text
+  reportCount Int    @default(1)
+  startedAt DateTime @default(now())
+  endsAt    DateTime // 7 jours
+
+  @@index([userId, endsAt])
 }
 
 // ============================================================

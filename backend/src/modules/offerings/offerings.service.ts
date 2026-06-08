@@ -4,6 +4,7 @@ import {
   OfferingSent,
   Prisma,
   SalonKind,
+  ConsumptionMode,
 } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import {
@@ -37,6 +38,7 @@ export interface OfferingCatalogDto {
   durationMs: number | null;
   stackPriority: number;
   salonOnly: OfferingCatalog["salonOnly"];
+  consumptionMode: ConsumptionMode;
 }
 
 export interface OfferingSentDto {
@@ -49,6 +51,10 @@ export interface OfferingSentDto {
   createdAt: Date;
   expiresAt: Date | null;
   isActive: boolean;
+  consumptionCount: number;
+  currentStage: number;
+  lastConsumedAt: Date | null;
+  lastConsumedBy: string | null;
 }
 
 export interface ListReceivedResponse {
@@ -61,6 +67,10 @@ export interface ListReceivedResponse {
 
 type OfferingSentWithCatalog = OfferingSent & { offering: OfferingCatalog };
 
+export function getCurrentStage(consumptionCount: number): number {
+  return Math.min(consumptionCount + 1, 3);
+}
+
 function toCatalogDto(c: OfferingCatalog): OfferingCatalogDto {
   return {
     id: c.id,
@@ -71,13 +81,15 @@ function toCatalogDto(c: OfferingCatalog): OfferingCatalogDto {
     durationMs: c.durationMs,
     stackPriority: c.stackPriority,
     salonOnly: c.salonOnly,
+    consumptionMode: c.consumptionMode,
   };
 }
 
-function toSentDto(
+export function toSentDto(
   row: OfferingSentWithCatalog,
   now: Date,
 ): OfferingSentDto {
+  const currentStage = getCurrentStage(row.consumptionCount);
   return {
     id: row.id,
     offeringId: row.offeringId,
@@ -88,6 +100,10 @@ function toSentDto(
     createdAt: row.createdAt,
     expiresAt: row.expiresAt,
     isActive: isOfferingActive(row, now),
+    consumptionCount: row.consumptionCount,
+    currentStage,
+    lastConsumedAt: row.lastConsumedAt,
+    lastConsumedBy: row.lastConsumedBy,
   };
 }
 
@@ -213,6 +229,58 @@ export async function sendOffering(
 }
 
 // ============================================================
+// consumeOffering — consommer une offrande via une action
+// ============================================================
+export async function consumeOffering(
+  offeringId: string,
+  actorId: string,
+): Promise<OfferingSentDto> {
+  const now = new Date();
+
+  // Fetch the offering with catalog info
+  const offering = await prisma.offeringSent.findUnique({
+    where: { id: offeringId },
+    include: { offering: true },
+  });
+
+  if (!offering) throw new NotFoundError("Offrande");
+
+  // Check PRIVATE vs SHARED consumption mode
+  if (offering.offering.consumptionMode === ConsumptionMode.PRIVATE) {
+    if (actorId !== offering.toUserId) {
+      throw new ForbiddenError(
+        "Seul le destinataire peut consommer cette offrande",
+      );
+    }
+  }
+
+  // Check if expired
+  if (offering.expiresAt && now > offering.expiresAt) {
+    throw new ForbiddenError("Cette offrande a expiré");
+  }
+
+  // Check if already fully consumed (stage 3 means consumptionCount >= 3)
+  if (offering.consumptionCount >= 3) {
+    throw new ForbiddenError(
+      "Cette offrande a déjà complètement disparue",
+    );
+  }
+
+  // Atomic increment via Prisma
+  const updated = await prisma.offeringSent.update({
+    where: { id: offeringId },
+    data: {
+      consumptionCount: { increment: 1 },
+      lastConsumedAt: now,
+      lastConsumedBy: actorId,
+    },
+    include: { offering: true },
+  });
+
+  return toSentDto(updated, now);
+}
+
+// ============================================================
 // listReceived — cadeaux reçus par un user, paginé
 // ============================================================
 export async function listReceived(
@@ -244,9 +312,10 @@ export async function listReceived(
   ]);
 
   // Défense en profondeur : on refiltre via la policy (parité avec magies).
+  // Filtrer aussi consumptionCount < 3 (disparition après 3 consommations)
   const items = (onlyActive
-    ? rows.filter((r) => isOfferingActive(r, now))
-    : rows
+    ? rows.filter((r) => isOfferingActive(r, now) && r.consumptionCount < 3)
+    : rows.filter((r) => r.consumptionCount < 3)
   ).map((r) => toSentDto(r, now));
 
   return {
@@ -274,6 +343,10 @@ export interface SalonOfferingDto {
   createdAt: Date;
   expiresAt: Date | null;
   isActive: boolean;
+  consumptionCount: number;
+  currentStage: number;
+  consumptionMode: ConsumptionMode;
+  lastConsumedBy: string | null;
 }
 
 // ============================================================
@@ -302,24 +375,31 @@ export async function listSalonOfferings(
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: 100,
     include: {
-      offering: { select: { emoji: true, name: true } },
+      offering: { select: { emoji: true, name: true, consumptionMode: true } },
       fromUser: { select: { profile: { select: { pseudo: true } } } },
       toUser: { select: { profile: { select: { pseudo: true } } } },
     },
   });
 
-  return rows.map((r) => ({
-    id: r.id,
-    offeringId: r.offeringId,
-    emoji: r.offering.emoji,
-    name: r.offering.name,
-    fromUserId: r.fromUserId,
-    fromPseudo: r.fromUser.profile?.pseudo ?? "Anonyme",
-    toUserId: r.toUserId,
-    toPseudo: r.toUser.profile?.pseudo ?? "Anonyme",
-    salonId: salonId,
-    createdAt: r.createdAt,
-    expiresAt: r.expiresAt,
-    isActive: isOfferingActive(r, now),
-  }));
+  // Filtrer consumptionCount >= 3 (offrande disparue après 3 consommations)
+  return rows
+    .filter((r) => r.consumptionCount < 3)
+    .map((r) => ({
+      id: r.id,
+      offeringId: r.offeringId,
+      emoji: r.offering.emoji,
+      name: r.offering.name,
+      fromUserId: r.fromUserId,
+      fromPseudo: r.fromUser.profile?.pseudo ?? "Anonyme",
+      toUserId: r.toUserId,
+      toPseudo: r.toUser.profile?.pseudo ?? "Anonyme",
+      salonId: salonId,
+      createdAt: r.createdAt,
+      expiresAt: r.expiresAt,
+      isActive: isOfferingActive(r, now),
+      consumptionCount: r.consumptionCount,
+      currentStage: getCurrentStage(r.consumptionCount),
+      consumptionMode: r.offering.consumptionMode,
+      lastConsumedBy: r.lastConsumedBy,
+    }));
 }

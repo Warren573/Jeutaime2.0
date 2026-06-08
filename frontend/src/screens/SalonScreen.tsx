@@ -52,14 +52,21 @@ function getTransfoImage(
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { salonsData, SalonParticipant } from '../data/salonsData';
+import { SalonParticipant } from '../data/salonsData';
 import { useStore, Message } from '../store/useStore';
 import { allOfferings, allPowers } from '../data/offerings';
+import { OfferingBadge } from '../components/OfferingBadge';
+import { ConsumptionActionButton } from '../components/ConsumptionActionButton';
 import {
   listSalons,
   listMessages as apiListMessages,
   postMessage as apiPostMessage,
+  getActiveSessions,
+  joinSession,
+  leaveSession,
+  getCurrentSalonSession,
   type SalonMessageDTO,
+  type SalonSessionDTO,
 } from '../api/salons';
 import {
   getOfferingsCatalog,
@@ -90,6 +97,7 @@ const SLUG_TO_KIND: Record<string, string> = {
   theatre: 'THEATRE',
   cocktails: 'BAR_COCKTAILS',
   metal: 'METAL',
+  psy: 'PSY',
 };
 
 // Miroir du backend : breakConditionId → id de l'anti-sort
@@ -103,6 +111,7 @@ const BREAK_CONDITION_TO_ANTISPELL: Readonly<Record<string, string>> = {
 };
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE } from '../avatar/png/defaults';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 // ============================================
 // COMPOSANT AVATAR AVEC ANIMATION BREATHING
@@ -240,10 +249,29 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
         </Text>
       )}
       {showBadges && participant.offerings && participant.offerings.length > 0 && (
-        <View style={styles.badgesRow}>
-          {participant.offerings.slice(-3).map((o, idx) => (
-            <Text key={idx} style={styles.badgeEmoji}>{o.emoji}</Text>
-          ))}
+        <View style={styles.badgesColumn}>
+          {(() => {
+            const visibleOfferings = participant.offerings.slice(-3);
+            return (
+              <>
+                <View style={styles.badgesRow}>
+                  {visibleOfferings.map((o, idx) => (
+                    <OfferingBadge key={idx} offering={o} size={28} />
+                  ))}
+                </View>
+                {visibleOfferings.map((o, idx) => (
+                  <ConsumptionActionButton
+                    key={`action-${idx}`}
+                    offering={o}
+                    userId={participant.id}
+                    onSuccess={() => {
+                      // Optionnel: refresh offerings
+                    }}
+                  />
+                ))}
+              </>
+            );
+          })()}
         </View>
       )}
     </TouchableOpacity>
@@ -268,17 +296,59 @@ export default function SalonScreen() {
   const flatListRef = useRef<FlatList>(null);
   // Timers de transformation (un par participant) — nettoyés automatiquement
   const transfoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const { currentUser, isAuthenticated, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig, loadWallet } = useStore();
+  const { currentUser, isAuthenticated, coins, removeCoins, addMessage, messagesBySalon, loadMessages, avatarPngConfig, loadWallet, setCurrentSalonSession, clearCurrentSalonSession, currentSessionId, currentSalonKind } = useStore();
+
+  // Gestion de la sortie du salon
+  const handleLeaveSession = () => {
+    console.log('[LEAVE-CLICK] Quitter clicked, screenSessionId:', screenSessionId);
+
+    if (!screenSessionId) {
+      console.warn('[LEAVE-CLICK] screenSessionId is null/undefined');
+      Alert.alert('Erreur', 'Impossible de quitter: aucune session active.');
+      return;
+    }
+
+    setShowLeaveModal(true);
+  };
+
+  const handleConfirmLeave = async () => {
+    if (!screenSessionId) return;
+
+    try {
+      console.log('[LEAVE-CLICK] User confirmed, calling leaveSession...');
+      await leaveSession(screenSessionId);
+      clearCurrentSalonSession();
+      console.log('[LEAVE-CLICK] Session left, navigating back...');
+      setShowLeaveModal(false);
+      router.back();
+    } catch (e) {
+      console.error('[LEAVE-CLICK] Error:', e);
+      setShowLeaveModal(false);
+      Alert.alert('Erreur', 'Impossible de quitter le salon. Veuillez réessayer.');
+    }
+  };
 
   // Récupérer le salon
   const rawSalonId = params.id as string;
   const salonId = rawSalonId === 'cafe-paris' ? 'cafe_paris' : (rawSalonId || 'cafe_paris');
-  const salon = salonsData.find(s => s.id === salonId);
+
+  // DEBUG: Log basic session info
+  console.log(`[DEBUG-SALON] salonId: ${salonId}`);
+  console.log(`[DEBUG-AUTH] isAuthenticated: ${isAuthenticated}, currentUser.id: ${currentUser?.id}`);
+  console.log(`[DEBUG-USER] currentUser: ${JSON.stringify(currentUser ? { id: currentUser.id, name: currentUser.name, gender: currentUser.gender } : null)}`);
+  console.log(`[DEBUG-SALON-NAVIGATION] rawSalonId: ${rawSalonId}, salonId après mapping: ${salonId}`);
+  console.log(`[DEBUG-STORE] currentSessionId: ${currentSessionId}, currentSalonKind: ${currentSalonKind}`);
+
+  // Salon metadata (layout, gradient, etc.) - ainda usamos estrutura local mas carregaremos quando auth
+  const [salonMeta, setSalonMeta] = useState<any>(null);
+  const [activeSessions, setActiveSessions] = useState<SalonSessionDTO[]>([]);
+  const [screenSessionId, setScreenSessionId] = useState<string | null>(null);
 
   // États
   const [messageInput, setMessageInput] = useState('');
   const [showOfferingsModal, setShowOfferingsModal] = useState(false);
   const [showPowersModal, setShowPowersModal] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<SalonParticipant | null>(null);
   const [recentInteractions, setRecentInteractions] = useState<Array<{
     id: string;
@@ -387,52 +457,103 @@ export default function SalonScreen() {
 
   // Participants : depuis les auteurs récents de l'API (une seule fois au premier load)
   // puis fallback mock si non authentifié
+  // Carregar SalonSessions ativas e entrar em uma sessão
   useEffect(() => {
-    if (isAuthenticated && apiMessages.length > 0 && !participantsReady.current) {
-      participantsReady.current = true;
-      const cutoff = Date.now() - 30 * 60 * 1000;
-      const seen = new Map<string, SalonParticipant & { isMe?: boolean }>();
-      for (const msg of apiMessages) {
-        if (new Date(msg.createdAt).getTime() > cutoff && !seen.has(msg.userId)) {
-          seen.set(msg.userId, {
-            id: msg.userId,
-            name: msg.pseudo,
-            gender: (msg.gender === 'FEMME' ? 'F' : 'M') as 'M' | 'F',
-            age: msg.age ?? 25,
-            online: true,
-            offerings: [],
-          });
-        }
+    if (!isAuthenticated) return;
+    const kind = SLUG_TO_KIND[salonId];
+    console.log(`[DEBUG-SESSION] Opening salon: slug=${salonId}, kind=${kind}, authenticated=${isAuthenticated}`);
+    if (!kind) {
+      console.warn(`[DEBUG-SESSION] kind is undefined for slug=${salonId}, returning`);
+      return;
+    }
+
+    (async () => {
+      try {
+        console.log(`[DEBUG-SESSION] calling joinSession(${kind})`);
+        const session = await joinSession(kind);
+        console.log(`[DEBUG-SESSION] joinSession returned:`, {
+          id: session.id,
+          salonKind: session.salonKind,
+          salonId: session.salonId,
+          salonName: session.salonName,
+          participants: session.participants?.length || 0,
+          status: session.status,
+        });
+        setScreenSessionId(session.id);
+        setActiveSessions([session]);
+        // Persist to store
+        setCurrentSalonSession(session.id, session.salonKind, session.salonId, session.salonName);
+        console.log(`[DEBUG-SESSION] Session stored in Zustand`);
+      } catch (e) {
+        console.error(`[DEBUG-SESSION] ERROR calling joinSession:`, {
+          kind,
+          error: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined,
+        });
       }
-      // Toujours inclure l'utilisateur courant avec son vrai ID
-      const myId = currentUser?.id ?? 'me';
-      seen.set(myId, {
-        id: myId,
-        name: currentUser?.name || 'Vous',
-        gender: (currentUser?.gender ?? 'M') as 'M' | 'F',
-        age: currentUser?.age ?? 25,
+    })();
+  }, [isAuthenticated, salonId, setCurrentSalonSession]);
+
+  // Atualizar participants a partir da SalonSession ativa (dados REAIS)
+  useEffect(() => {
+    console.log(`[DEBUG-PARTICIPANTS-EFFECT] activated, activeSessions.length=${activeSessions.length}, currentSessionId=${screenSessionId}`);
+    if (!isAuthenticated || activeSessions.length === 0 || !screenSessionId) {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT] condition failed: isAuth=${isAuthenticated}, sessions=${activeSessions.length}, sessionId=${screenSessionId}`);
+      return;
+    }
+    if (participantsReady.current) {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT] already initialized, skipping`);
+      return;
+    }
+
+    participantsReady.current = true;
+    const session = activeSessions.find(s => s.id === screenSessionId) || activeSessions[0];
+    console.log(`[DEBUG-PARTICIPANTS-EFFECT] found session: ${session?.id}, participants: ${session?.participants.length}`);
+    if (!session) {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT] no session found`);
+      return;
+    }
+
+    const seen = new Map<string, SalonParticipant & { isMe?: boolean }>();
+    console.log(`[DEBUG-PARTICIPANTS-EFFECT] mapping ${session.participants.length} from API`);
+    for (const p of session.participants) {
+      const gender = p.gender === 'FEMME' || p.gender === 'F' ? 'F' : 'M';
+      const isCurrentUser = p.userId === currentUser?.id;
+      seen.set(p.userId, {
+        id: p.userId,
+        name: p.pseudo,
+        gender,
+        age: 25,
+        online: true,
+        offerings: [],
+        avatarConfig: isCurrentUser ? avatarPngConfig : p.avatarConfig,
+        isMe: isCurrentUser,
+      } as SalonParticipant & { isMe?: boolean; avatarConfig?: object });
+    }
+
+    if (!seen.has(currentUser?.id ?? 'me') && currentUser?.id) {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT] adding currentUser fallback: ${currentUser.id}`);
+      seen.set(currentUser.id, {
+        id: currentUser.id,
+        name: currentUser.name || 'Você',
+        gender: (currentUser.gender ?? 'M') as 'M' | 'F',
+        age: currentUser.age ?? 25,
         online: true,
         offerings: [],
         isMe: true,
         avatarConfig: avatarPngConfig,
       } as SalonParticipant & { isMe: boolean; avatarConfig: object });
-      setParticipants(Array.from(seen.values()));
-    } else if (!isAuthenticated && salon && !participantsReady.current) {
-      setParticipants([
-        ...salon.participants,
-        {
-          id: currentUser?.id ?? 'me',
-          name: currentUser?.name || 'Vous',
-          gender: currentUser?.gender || 'M',
-          age: currentUser?.age || 25,
-          online: true,
-          offerings: [],
-          isMe: true,
-          avatarConfig: avatarPngConfig,
-        } as SalonParticipant & { isMe: boolean; avatarConfig: object },
-      ]);
+    } else {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT] NOT adding fallback: seen.has=${seen.has(currentUser?.id ?? 'me')}, currentUser?.id=${currentUser?.id}`);
     }
-  }, [isAuthenticated, apiMessages, salon, currentUser, avatarPngConfig]);
+
+    const finalParticipants = Array.from(seen.values());
+    console.log(`[DEBUG-PARTICIPANTS-EFFECT] final participants count: ${finalParticipants.length}`);
+    finalParticipants.forEach((p, i) => {
+      console.log(`[DEBUG-PARTICIPANTS-EFFECT]   [${i}] id=${p.id}, name=${p.name}, isMe=${(p as any).isMe}`);
+    });
+    setParticipants(finalParticipants);
+  }, [isAuthenticated, activeSessions, screenSessionId, currentUser, avatarPngConfig]);
 
   // Mettre à jour les badges d'offrandes de TOUS les participants depuis le salon
   useEffect(() => {
@@ -816,7 +937,23 @@ export default function SalonScreen() {
     });
   }, [magiesCatalog, targetActiveCasts]);
 
+  // Salon metadata (layout, gradient, emoji, etc.) — dados estáticos, não participantes
+  const salonMetadata: Record<string, any> = {
+    piscine: { emoji: '🏊', name: 'Piscine', layout: 'vertical', gradient: ['#4FC3F7', '#0288D1'] },
+    cafe_paris: { emoji: '☕', name: 'Café de Paris', layout: 'horizontal', gradient: ['#8D6E63', '#5D4037'] },
+    pirates: { emoji: '🏴‍☠️', name: 'Île des pirates', layout: 'horizontal', gradient: ['#FFD54F', '#5D4037'] },
+    theatre: { emoji: '🎭', name: 'Théâtre improvisé', layout: 'vertical', gradient: ['#CE93D8', '#7B1FA2'] },
+    cocktails: { emoji: '🍸', name: 'Bar à cocktails', layout: 'horizontal', gradient: ['#F48FB1', '#C2185B'] },
+    metal: { emoji: '🤘', name: 'Métal', layout: 'horizontal', gradient: ['#424242', '#212121'] },
+    psy: { emoji: '🛋️', name: 'Cabinet du Psy', layout: 'vertical', gradient: ['#00BCD4', '#0097A7'] },
+  };
+
+  const salon = salonMetadata[salonId];
   if (!salon) {
+    console.error(`[ERROR-SALON] Salon introuvable pour salonId: ${salonId}`);
+    console.error(`[ERROR-SALON] rawSalonId reçu: ${rawSalonId}`);
+    console.error(`[ERROR-SALON] Store: currentSalonKind=${currentSalonKind}, currentSalonId=${currentSessionId}, currentSalonName=${currentSalonName}`);
+    console.error(`[ERROR-SALON] Keys disponibles dans salonMetadata:`, Object.keys(salonMetadata));
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <Text style={styles.errorText}>Salon introuvable</Text>
@@ -853,9 +990,9 @@ export default function SalonScreen() {
           <Text style={styles.headerEmoji}>{salon.emoji}</Text>
           <Text style={styles.headerTitle} numberOfLines={1}>{salon.name}</Text>
         </View>
-        <View style={styles.coinsDisplay}>
-          <Text style={styles.coinsText}>💰 {coins}</Text>
-        </View>
+        <TouchableOpacity onPress={handleLeaveSession} style={styles.leaveButton}>
+          <Text style={styles.leaveText}>Quitter</Text>
+        </TouchableOpacity>
       </LinearGradient>
 
       {/* Barre des participants - GRANDE sur toute la largeur */}
@@ -969,6 +1106,9 @@ export default function SalonScreen() {
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.landscapeTitle}>{salon.emoji} {salon.name}</Text>
+        <TouchableOpacity onPress={handleLeaveSession} style={styles.leaveButton}>
+          <Text style={styles.leaveText}>Quitter</Text>
+        </TouchableOpacity>
         <Text style={styles.coinsText}>💰 {coins}</Text>
       </LinearGradient>
 
@@ -1134,6 +1274,17 @@ export default function SalonScreen() {
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
+
+      <ConfirmationModal
+        visible={showLeaveModal}
+        title="Quitter le salon ?"
+        message="Vous pourrez rejoindre un autre salon après votre départ."
+        cancelText="Annuler"
+        confirmText="Quitter"
+        onCancel={() => setShowLeaveModal(false)}
+        onConfirm={handleConfirmLeave}
+        isDangerous={true}
+      />
     </View>
   );
 }
@@ -1171,6 +1322,14 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 24,
+    color: '#FFF',
+    fontWeight: '600',
+  },
+  leaveButton: {
+    padding: 8,
+  },
+  leaveText: {
+    fontSize: 13,
     color: '#FFF',
     fontWeight: '600',
   },
@@ -1303,10 +1462,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
   },
+  badgesColumn: {
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
   badgesRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 4,
+    gap: 4,
   },
   badgeEmoji: {
     fontSize: 14,

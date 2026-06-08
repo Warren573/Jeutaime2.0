@@ -34,6 +34,16 @@ const envSchema = z.object({
 
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
+  // ----- Debug (Staging diagnostics) -----
+  STAGING_DEBUG: z
+    .string()
+    .default("false")
+    .transform((v) => v.toLowerCase() === "true"),
+  ALLOW_DEBUG_ENDPOINTS: z
+    .string()
+    .default("false")
+    .transform((v) => v.toLowerCase() === "true"),
+
   // ----- Scheduler (Phase 9 — Events / Cron) -----
   // Opt-in : off par défaut pour rester compatible avec dev/tests/local.
   ENABLE_SCHEDULER: z
