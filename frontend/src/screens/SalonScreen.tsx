@@ -101,6 +101,29 @@ const SLUG_TO_KIND: Record<string, string> = {
   psy: 'PSY',
 };
 
+// Helper: Format message time
+function formatMessageTime(createdAt: string): { time: string; dateSeparator?: string } {
+  const msgDate = new Date(createdAt);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const msgDateOnly = new Date(msgDate.getFullYear(), msgDate.getMonth(), msgDate.getDate());
+
+  const time = msgDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  let dateSeparator: string | undefined;
+  if (msgDateOnly.getTime() === today.getTime()) {
+    dateSeparator = 'Aujourd\'hui';
+  } else if (msgDateOnly.getTime() === yesterday.getTime()) {
+    dateSeparator = 'Hier';
+  } else if (msgDateOnly.getTime() < yesterday.getTime()) {
+    dateSeparator = msgDate.toLocaleDateString('fr-FR', { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+
+  return { time, dateSeparator };
+}
+
 // Miroir du backend : breakConditionId → id de l'anti-sort
 const BREAK_CONDITION_TO_ANTISPELL: Readonly<Record<string, string>> = {
   kiss: 'mag_bisou',
@@ -367,6 +390,8 @@ export default function SalonScreen() {
   const [apiSalonId, setApiSalonId] = useState<string | null>(null);
   // Messages chargés depuis l'API
   const [apiMessages, setApiMessages] = useState<SalonMessageDTO[]>([]);
+  // Persistent system messages (welcome, etc) - not overwritten by polling
+  const systemMessages = useRef<Map<string, SalonMessageDTO>>(new Map());
   // Flag : participants déjà initialisés depuis l'API (pour ne pas écraser les badges locaux)
   const participantsReady = useRef(false);
   // Track initial + greeted participants to avoid duplicate welcome messages
@@ -458,7 +483,6 @@ export default function SalonScreen() {
       ]);
 
       // Update all state
-      setApiMessages(msgs);
       setActiveSessions([session]);
       setSalonOfferings(offers);
       setSalonMagies(magies);
@@ -479,9 +503,9 @@ export default function SalonScreen() {
           const greeting = hour >= 18 ? 'bonsoir' : 'bonjour';
           const welcomeMsg = `Bienvenue à ${participant.pseudo}, dites-lui ${greeting} 👋`;
 
-          // Add system message
+          // Add system message to persistent store
           const systemMsg: SalonMessageDTO = {
-            id: `system_${Date.now()}`,
+            id: `system_${participant.userId}_${Date.now()}`,
             salonId: apiSalonId,
             userId: 'system',
             pseudo: '🎪 Système',
@@ -491,10 +515,21 @@ export default function SalonScreen() {
             createdAt: new Date().toISOString(),
           };
 
-          setApiMessages(prev => [...prev, systemMsg]);
+          systemMessages.current.set(systemMsg.id, systemMsg);
           greetedParticipantIds.current.add(participant.userId);
         }
       }
+
+      // Merge API messages with persistent system messages
+      const allMessages = [...msgs];
+      for (const sysMsg of systemMessages.current.values()) {
+        if (!allMessages.some(m => m.id === sysMsg.id)) {
+          allMessages.push(sysMsg);
+        }
+      }
+      // Sort by creation time
+      allMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      setApiMessages(allMessages);
 
       // Update seen participants
       seenParticipantIds.current = currentParticipantIds;
@@ -1107,26 +1142,43 @@ export default function SalonScreen() {
         style={styles.messagesList}
         contentContainerStyle={styles.messagesContent}
         onContentSizeChange={scrollToEnd}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const isOwn = item.userId === 'me' || item.userId === currentUser?.id;
           const isSystem = item.type !== 'message';
-          
-          if (isSystem) {
-            return (
-              <View style={styles.systemMessage}>
-                <Text style={styles.systemText}>{item.giftData?.emoji} {item.content || item.text}</Text>
-              </View>
-            );
-          }
+          const { time, dateSeparator } = formatMessageTime(new Date(item.timestamp).toISOString());
+
+          // Check if we need to show date separator
+          const prevItem = index > 0 ? messages[index - 1] : null;
+          const prevDate = prevItem ? formatMessageTime(new Date(prevItem.timestamp).toISOString()).dateSeparator : undefined;
+          const showDateSeparator = dateSeparator && (dateSeparator !== prevDate);
 
           return (
-            <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
-              {!isOwn && <Text style={styles.messageSender}>{item.userName || item.username}</Text>}
-              <View style={[styles.messageBubble, isOwn && styles.messageBubbleOwn]}>
-                <Text style={[styles.messageText, isOwn && styles.messageTextOwn]}>
-                  {item.content || item.text}
-                </Text>
-              </View>
+            <View>
+              {showDateSeparator && (
+                <View style={styles.dateSeparator}>
+                  <Text style={styles.dateSeparatorText}>{dateSeparator}</Text>
+                </View>
+              )}
+              {isSystem ? (
+                <View style={styles.systemMessage}>
+                  <Text style={styles.systemText}>{item.content || item.text}</Text>
+                </View>
+              ) : (
+                <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
+                  {!isOwn && <Text style={styles.messageSender}>{item.userName || item.username}</Text>}
+                  <View style={[styles.messageBubble, isOwn && styles.messageBubbleOwn]}>
+                    <Text style={[styles.messageText, isOwn && styles.messageTextOwn]}>
+                      {item.content || item.text}
+                    </Text>
+                    <Text style={[styles.messageTime, isOwn && styles.messageTimeOwn]}>
+                      {time}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          );
+        }}
             </View>
           );
         }}
@@ -1615,6 +1667,24 @@ const styles = StyleSheet.create({
     color: '#667eea',
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  dateSeparator: {
+    alignItems: 'center',
+    marginVertical: 12,
+    paddingHorizontal: 16,
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    color: '#999',
+    fontWeight: '500',
+  },
+  messageTime: {
+    fontSize: 11,
+    color: '#AAA',
+    marginTop: 2,
+  },
+  messageTimeOwn: {
+    color: '#AAA',
   },
   emptyMessages: {
     alignItems: 'center',
