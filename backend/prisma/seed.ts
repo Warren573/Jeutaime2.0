@@ -68,6 +68,13 @@ const salons = [
     magicAction: "headbanger",
     gradient: { start: "#434343", end: "#000000" },
   },
+  {
+    kind: SalonKind.PSY,
+    name: "Cabinet du Psy",
+    description: "On y sert des mojitos aussi",
+    magicAction: "analyser",
+    gradient: { start: "#00BCD4", end: "#0097A7" },
+  },
 ] as const;
 
 // ============================================================

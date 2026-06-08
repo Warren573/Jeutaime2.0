@@ -97,6 +97,7 @@ const SLUG_TO_KIND: Record<string, string> = {
   theatre: 'THEATRE',
   cocktails: 'BAR_COCKTAILS',
   metal: 'METAL',
+  psy: 'PSY',
 };
 
 // Miroir du backend : breakConditionId → id de l'anti-sort
@@ -941,6 +942,7 @@ export default function SalonScreen() {
     theatre: { emoji: '🎭', name: 'Théâtre improvisé', layout: 'vertical', gradient: ['#CE93D8', '#7B1FA2'] },
     cocktails: { emoji: '🍸', name: 'Bar à cocktails', layout: 'horizontal', gradient: ['#F48FB1', '#C2185B'] },
     metal: { emoji: '🤘', name: 'Métal', layout: 'horizontal', gradient: ['#424242', '#212121'] },
+    psy: { emoji: '🛋️', name: 'Cabinet du Psy', layout: 'vertical', gradient: ['#00BCD4', '#0097A7'] },
   };
 
   const salon = salonMetadata[salonId];

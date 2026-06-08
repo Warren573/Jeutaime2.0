@@ -129,4 +129,16 @@ export const salonsData: Salon[] = [
       { id: 'p2', name: 'Thomas', gender: 'M', age: 31, online: false },
     ],
   },
+  {
+    id: 'psy',
+    icon: '🛋️',
+    emoji: '🛋️',
+    name: 'Cabinet du Psy',
+    desc: 'On y sert des mojitos aussi',
+    type: 'standard',
+    layout: 'vertical',
+    gradient: ['#00BCD4', '#0097A7'],
+    maxParticipants: 8,
+    participants: [],
+  },
 ];

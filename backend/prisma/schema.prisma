@@ -96,6 +96,7 @@ enum SalonKind {
   THEATRE
   BAR_COCKTAILS
   METAL
+  PSY
 }
 
 enum ReportStatus {

@@ -27,6 +27,7 @@ const KIND_TO_SLUG: Record<string, string> = {
   'THEATRE': 'theatre',
   'BAR_COCKTAILS': 'cocktails',
   'METAL': 'metal',
+  'PSY': 'psy',
 };
 
 export default function SalonsListScreen() {

@@ -10,7 +10,7 @@ import type {
 
 // Helper: Validate salonKind
 function validateSalonKind(salonKind: string): void {
-  const validKinds = ["PISCINE", "CAFE_DE_PARIS", "ILE_PIRATES", "THEATRE", "BAR_COCKTAILS", "METAL"];
+  const validKinds = ["PISCINE", "CAFE_DE_PARIS", "ILE_PIRATES", "THEATRE", "BAR_COCKTAILS", "METAL", "PSY"];
   if (!validKinds.includes(salonKind)) {
     throw new BadRequestError(`Invalid salonKind: ${salonKind}`);
   }
@@ -78,7 +78,7 @@ export async function getActiveSessionsForSalon(
 // ============================================================
 export async function getSalonCountersForAllKinds(): Promise<Record<string, number>> {
   const now = new Date();
-  const salonKinds = ["PISCINE", "CAFE_DE_PARIS", "ILE_PIRATES", "THEATRE", "BAR_COCKTAILS", "METAL"] as const;
+  const salonKinds = ["PISCINE", "CAFE_DE_PARIS", "ILE_PIRATES", "THEATRE", "BAR_COCKTAILS", "METAL", "PSY"] as const;
 
   // Query all salons at once for efficiency
   const sessions = await prisma.salonSession.findMany({
