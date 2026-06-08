@@ -469,22 +469,13 @@ export default function SalonScreen() {
 
     (async () => {
       try {
-        console.log(`[DEBUG-SESSION] calling getActiveSessions(${kind})`);
-        const sessions = await getActiveSessions(kind);
-        console.log(`[DEBUG-SESSION] getActiveSessions returned ${sessions.length} sessions`);
-        if (sessions.length > 0) {
-          console.log(`[DEBUG-SESSION] found active session, using first one: ${sessions[0].id}`);
-          setScreenSessionId(sessions[0].id);
-          setActiveSessions(sessions);
-        } else {
-          console.log(`[DEBUG-SESSION] no sessions, calling joinSession(${kind})`);
-          const newSession = await joinSession(kind);
-          console.log(`[DEBUG-SESSION] joinSession returned session: ${newSession.id}, participants: ${newSession.participants.length}`);
-          setScreenSessionId(newSession.id);
-          setActiveSessions([newSession]);
-          // Persist to store
-          setCurrentSalonSession(newSession.id, newSession.salonKind, newSession.salonId, newSession.salonName);
-        }
+        console.log(`[DEBUG-SESSION] calling joinSession(${kind})`);
+        const session = await joinSession(kind);
+        console.log(`[DEBUG-SESSION] joinSession returned session: ${session.id}, participants: ${session.participants.length}`);
+        setScreenSessionId(session.id);
+        setActiveSessions([session]);
+        // Persist to store
+        setCurrentSalonSession(session.id, session.salonKind, session.salonId, session.salonName);
       } catch (e) {
         console.error(`[DEBUG-SESSION] ERROR: ${e}`);
       }

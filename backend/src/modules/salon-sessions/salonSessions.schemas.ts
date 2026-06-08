@@ -38,6 +38,7 @@ export type GetActiveSessionsResponse = z.infer<
 // ============================================================
 export const GetSessionDetailResponseSchema = z.object({
   id: z.string(),
+  salonId: z.string(),
   salonKind: z.string(),
   salonName: z.string(),
   status: z.enum(["ACTIVE", "EXPIRED"]),

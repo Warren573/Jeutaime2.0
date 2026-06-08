@@ -102,8 +102,9 @@ export async function getSalonCountersForAllKinds(): Promise<Record<string, numb
   }
 
   for (const session of sessions) {
-    if (counters[session.salonKind] !== undefined) {
-      counters[session.salonKind] += session.participants.length;
+    const salonKind = session.salonKind;
+    if (salonKind && counters[salonKind] !== undefined) {
+      counters[salonKind]! += session.participants.length;
     }
   }
 
@@ -140,6 +141,7 @@ export async function getSessionDetail(
       },
       salon: {
         select: {
+          id: true,
           kind: true,
           name: true,
         },
@@ -153,6 +155,7 @@ export async function getSessionDetail(
 
   return {
     id: session.id,
+    salonId: session.salon.id,
     salonKind: session.salonKind,
     salonName: session.salon.name,
     status: session.status,
