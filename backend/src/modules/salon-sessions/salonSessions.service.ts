@@ -272,16 +272,21 @@ export async function joinSession(
     console.log(`[JOIN-SESSION] Created new session: sessionId=${sessionId}, salonKind=${salonKind}`);
   }
 
-  // Add participant
-  console.log(`[JOIN-SESSION] Creating participant: sessionId=${sessionId}, userId=${userId}`);
-  await prisma.salonSessionParticipant.create({
-    data: {
+  // Upsert participant: create if not exists, reactivate if LEFT
+  console.log(`[JOIN-SESSION] Upserting participant: sessionId=${sessionId}, userId=${userId}`);
+  const participant = await prisma.salonSessionParticipant.upsert({
+    where: { sessionId_userId: { sessionId, userId } },
+    update: {
+      status: "ACTIVE",
+      leftAt: null,
+    },
+    create: {
       sessionId,
       userId,
       status: "ACTIVE",
     },
   });
-  console.log(`[JOIN-SESSION] Participant created successfully`);
+  console.log(`[JOIN-SESSION] Participant upserted successfully: participantId=${participant.id}, status=${participant.status}`);
 
   // Return session detail
   const response = await getSessionDetail(sessionId);
