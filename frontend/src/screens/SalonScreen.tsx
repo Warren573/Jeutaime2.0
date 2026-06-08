@@ -369,6 +369,9 @@ export default function SalonScreen() {
   const [apiMessages, setApiMessages] = useState<SalonMessageDTO[]>([]);
   // Flag : participants déjà initialisés depuis l'API (pour ne pas écraser les badges locaux)
   const participantsReady = useRef(false);
+  // Track initial + greeted participants to avoid duplicate welcome messages
+  const seenParticipantIds = useRef<Set<string>>(new Set());
+  const greetedParticipantIds = useRef<Set<string>>(new Set());
 
   // Offrandes reçues par le user courant (backend, sondées toutes les 15s)
   const [myReceivedOfferings, setMyReceivedOfferings] = useState<OfferingSentDTO[]>([]);
@@ -439,6 +442,67 @@ export default function SalonScreen() {
       .catch(() => {});
   }, [screenSessionId]);
 
+  // Consolidated salon content polling (messages + participants + offrandes + magies)
+  const loadSalonContent = useCallback(async () => {
+    if (!apiSalonId || !screenSessionId || !isAuthenticated || !currentUser?.id) return;
+
+    try {
+      // Load all in parallel
+      const [msgs, session, offers, magies, myOffers, activeMag] = await Promise.all([
+        apiListMessages(apiSalonId),
+        getSessionDetail(screenSessionId),
+        getSalonOfferings(apiSalonId),
+        getSalonMagies(apiSalonId),
+        getReceivedOfferings(1, 50, true),
+        getActiveMagies(currentUser.id),
+      ]);
+
+      // Update all state
+      setApiMessages(msgs);
+      setActiveSessions([session]);
+      setSalonOfferings(offers);
+      setSalonMagies(magies);
+      setMyReceivedOfferings(myOffers);
+      setActiveMagiesOnMe(activeMag);
+      participantsReady.current = false;
+
+      // Detect new participants and create welcome message
+      const currentParticipantIds = new Set(session.participants.map(p => p.userId));
+
+      for (const participant of session.participants) {
+        // Skip if we haven't greeted yet AND this is a new participant (not in initial set)
+        if (!greetedParticipantIds.current.has(participant.userId) &&
+            !seenParticipantIds.current.has(participant.userId)) {
+
+          // Create welcome message
+          const hour = new Date().getHours();
+          const greeting = hour >= 18 ? 'bonsoir' : 'bonjour';
+          const welcomeMsg = `Bienvenue à ${participant.pseudo}, dites-lui ${greeting} 👋`;
+
+          // Add system message
+          const systemMsg: SalonMessageDTO = {
+            id: `system_${Date.now()}`,
+            salonId: apiSalonId,
+            userId: 'system',
+            pseudo: '🎪 Système',
+            gender: 'M',
+            kind: 'system',
+            content: welcomeMsg,
+            createdAt: new Date().toISOString(),
+          };
+
+          setApiMessages(prev => [...prev, systemMsg]);
+          greetedParticipantIds.current.add(participant.userId);
+        }
+      }
+
+      // Update seen participants
+      seenParticipantIds.current = currentParticipantIds;
+    } catch (err) {
+      console.error('[SALON-CONTENT] Error loading content:', err);
+    }
+  }, [apiSalonId, screenSessionId, isAuthenticated, currentUser?.id]);
+
   // Sondage offrandes reçues + magies actives sur moi + données salon
   const refreshMagiesAndOfferings = useCallback(async () => {
     if (!isAuthenticated || !currentUser?.id) return;
@@ -458,32 +522,14 @@ export default function SalonScreen() {
     }
   }, [isAuthenticated, currentUser?.id, apiSalonId]);
 
-  // Poll messages every 3 seconds
+  // Consolidated polling: messages + participants + offrandes + magies every 3 seconds
   useEffect(() => {
-    loadApiMessages();
+    loadSalonContent();
     const interval = setInterval(() => {
-      loadApiMessages();
+      loadSalonContent();
     }, 3000);
     return () => clearInterval(interval);
-  }, [loadApiMessages]);
-
-  // Poll participants/session every 5 seconds
-  useEffect(() => {
-    loadSessionParticipants();
-    const interval = setInterval(() => {
-      loadSessionParticipants();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [loadSessionParticipants]);
-
-  // Poll offrandes/magies every 15 seconds
-  useEffect(() => {
-    refreshMagiesAndOfferings();
-    const interval = setInterval(() => {
-      refreshMagiesAndOfferings();
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [refreshMagiesAndOfferings]);
+  }, [loadSalonContent]);
 
   // Participants : depuis les auteurs récents de l'API (une seule fois au premier load)
   // puis fallback mock si non authentifié
@@ -692,8 +738,8 @@ export default function SalonScreen() {
         setApiMessages((prev) => [...prev, msg]);
         setMessageInput('');
         scrollToEnd();
-        // Refresh messages immediately after sending
-        loadApiMessages();
+        // Refresh all salon content immediately after sending
+        loadSalonContent();
       } catch {
         alert('Message non envoyé. Vérifie ta connexion.');
       }
@@ -725,8 +771,8 @@ export default function SalonScreen() {
       try {
         await sendOffering({ offeringId: item.id, toUserId: selectedPlayer.id, salonId: apiSalonId });
         await loadWallet();
-        // Refresh immédiat pour que le badge apparaisse sur le bon avatar
-        getSalonOfferings(apiSalonId).then(setSalonOfferings).catch(() => {});
+        // Refresh all content immediately
+        loadSalonContent();
       } catch (e: any) {
         const msg: string = e?.message ?? '';
         if (/insuffisant|insufficient|coins/i.test(msg)) {
@@ -794,8 +840,8 @@ export default function SalonScreen() {
         const castResult = await castSpell({ magieId: item.id, toUserId: targetId, salonId: apiSalonId });
         sentCastsRef.current.set(targetId, castResult);
         await loadWallet();
-        // Refresh immédiat des sorts salon pour que les autres voient la transformation
-        getSalonMagies(apiSalonId).then(setSalonMagies).catch(() => {});
+        // Refresh all content immediately
+        loadSalonContent();
         // Appliquer transformation locale à partir du résultat backend
         const durationMs = castResult.magie.durationSec * 1000;
         const expiresAt = Date.now() + durationMs;
