@@ -62,6 +62,7 @@ import {
   listMessages as apiListMessages,
   postMessage as apiPostMessage,
   getActiveSessions,
+  getSessionDetail,
   joinSession,
   leaveSession,
   getCurrentSalonSession,
@@ -418,13 +419,25 @@ export default function SalonScreen() {
       .catch(() => {});
   }, [salonId, isAuthenticated]);
 
-  // Chargement messages API + polling 15s
+  // Chargement messages API + polling 3s
   const loadApiMessages = useCallback(() => {
     if (!apiSalonId) return;
     apiListMessages(apiSalonId)
       .then((msgs) => setApiMessages(msgs))
       .catch(() => {});
   }, [apiSalonId]);
+
+  // Load session participants/details for polling
+  const loadSessionParticipants = useCallback(() => {
+    if (!screenSessionId) return;
+    getSessionDetail(screenSessionId)
+      .then((session) => {
+        setActiveSessions([session]);
+        // Force refresh of participants next render
+        participantsReady.current = false;
+      })
+      .catch(() => {});
+  }, [screenSessionId]);
 
   // Sondage offrandes reçues + magies actives sur moi + données salon
   const refreshMagiesAndOfferings = useCallback(async () => {
@@ -445,15 +458,32 @@ export default function SalonScreen() {
     }
   }, [isAuthenticated, currentUser?.id, apiSalonId]);
 
+  // Poll messages every 3 seconds
   useEffect(() => {
     loadApiMessages();
-    refreshMagiesAndOfferings();
     const interval = setInterval(() => {
       loadApiMessages();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [loadApiMessages]);
+
+  // Poll participants/session every 5 seconds
+  useEffect(() => {
+    loadSessionParticipants();
+    const interval = setInterval(() => {
+      loadSessionParticipants();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [loadSessionParticipants]);
+
+  // Poll offrandes/magies every 15 seconds
+  useEffect(() => {
+    refreshMagiesAndOfferings();
+    const interval = setInterval(() => {
       refreshMagiesAndOfferings();
     }, 15000);
     return () => clearInterval(interval);
-  }, [loadApiMessages, refreshMagiesAndOfferings]);
+  }, [refreshMagiesAndOfferings]);
 
   // Participants : depuis les auteurs récents de l'API (une seule fois au premier load)
   // puis fallback mock si non authentifié
@@ -662,6 +692,8 @@ export default function SalonScreen() {
         setApiMessages((prev) => [...prev, msg]);
         setMessageInput('');
         scrollToEnd();
+        // Refresh messages immediately after sending
+        loadApiMessages();
       } catch {
         alert('Message non envoyé. Vérifie ta connexion.');
       }

@@ -114,6 +114,14 @@ export default function SalonsListScreen() {
     }, [loadSalonCounters])
   );
 
+  // Poll salon counters every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadSalonCounters();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [loadSalonCounters]);
+
   const handleLeaveSession = async () => {
     if (!currentSessionId) return;
 
@@ -123,6 +131,7 @@ export default function SalonsListScreen() {
       clearCurrentSalonSession();
       console.log('[LEAVE-FROM-LIST] Session left, refreshing list...');
       await loadCurrentSession();
+      await loadSalonCounters();
       setShowLeaveModal(false);
     } catch (e) {
       console.error('[LEAVE-FROM-LIST] Error:', e);
