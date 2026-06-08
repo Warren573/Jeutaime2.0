@@ -62,6 +62,7 @@ import {
   listMessages as apiListMessages,
   postMessage as apiPostMessage,
   getActiveSessions,
+  getSessionDetail,
   joinSession,
   leaveSession,
   getCurrentSalonSession,
@@ -99,6 +100,29 @@ const SLUG_TO_KIND: Record<string, string> = {
   metal: 'METAL',
   psy: 'PSY',
 };
+
+// Helper: Format message time
+function formatMessageTime(createdAt: string): { time: string; dateSeparator?: string } {
+  const msgDate = new Date(createdAt);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const msgDateOnly = new Date(msgDate.getFullYear(), msgDate.getMonth(), msgDate.getDate());
+
+  const time = msgDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  let dateSeparator: string | undefined;
+  if (msgDateOnly.getTime() === today.getTime()) {
+    dateSeparator = 'Aujourd\'hui';
+  } else if (msgDateOnly.getTime() === yesterday.getTime()) {
+    dateSeparator = 'Hier';
+  } else if (msgDateOnly.getTime() < yesterday.getTime()) {
+    dateSeparator = msgDate.toLocaleDateString('fr-FR', { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+
+  return { time, dateSeparator };
+}
 
 // Miroir du backend : breakConditionId → id de l'anti-sort
 const BREAK_CONDITION_TO_ANTISPELL: Readonly<Record<string, string>> = {
@@ -418,13 +442,56 @@ export default function SalonScreen() {
       .catch(() => {});
   }, [salonId, isAuthenticated]);
 
-  // Chargement messages API + polling 15s
+  // Chargement messages API + polling 3s
   const loadApiMessages = useCallback(() => {
     if (!apiSalonId) return;
     apiListMessages(apiSalonId)
       .then((msgs) => setApiMessages(msgs))
       .catch(() => {});
   }, [apiSalonId]);
+
+  // Load session participants/details for polling
+  const loadSessionParticipants = useCallback(() => {
+    if (!screenSessionId) return;
+    getSessionDetail(screenSessionId)
+      .then((session) => {
+        setActiveSessions([session]);
+        // Force refresh of participants next render
+        participantsReady.current = false;
+      })
+      .catch(() => {});
+  }, [screenSessionId]);
+
+  // Consolidated salon content polling (messages + participants + offrandes + magies)
+  const loadSalonContent = useCallback(async () => {
+    if (!apiSalonId || !screenSessionId || !isAuthenticated || !currentUser?.id) return;
+
+    try {
+      // Load all in parallel
+      const [msgs, session, offers, magies, myOffers, activeMag] = await Promise.all([
+        apiListMessages(apiSalonId),
+        getSessionDetail(screenSessionId),
+        getSalonOfferings(apiSalonId),
+        getSalonMagies(apiSalonId),
+        getReceivedOfferings(1, 50, true),
+        getActiveMagies(currentUser.id),
+      ]);
+
+      // Update all state
+      setActiveSessions([session]);
+      setSalonOfferings(offers);
+      setSalonMagies(magies);
+      setMyReceivedOfferings(myOffers);
+      setActiveMagiesOnMe(activeMag);
+      participantsReady.current = false;
+
+      // Set messages from API (now includes system messages created by backend)
+      msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      setApiMessages(msgs);
+    } catch (err) {
+      console.error('[SALON-CONTENT] Error loading content:', err);
+    }
+  }, [apiSalonId, screenSessionId, isAuthenticated, currentUser?.id]);
 
   // Sondage offrandes reçues + magies actives sur moi + données salon
   const refreshMagiesAndOfferings = useCallback(async () => {
@@ -445,15 +512,14 @@ export default function SalonScreen() {
     }
   }, [isAuthenticated, currentUser?.id, apiSalonId]);
 
+  // Consolidated polling: messages + participants + offrandes + magies every 3 seconds
   useEffect(() => {
-    loadApiMessages();
-    refreshMagiesAndOfferings();
+    loadSalonContent();
     const interval = setInterval(() => {
-      loadApiMessages();
-      refreshMagiesAndOfferings();
-    }, 15000);
+      loadSalonContent();
+    }, 3000);
     return () => clearInterval(interval);
-  }, [loadApiMessages, refreshMagiesAndOfferings]);
+  }, [loadSalonContent]);
 
   // Participants : depuis les auteurs récents de l'API (une seule fois au premier load)
   // puis fallback mock si non authentifié
@@ -662,6 +728,8 @@ export default function SalonScreen() {
         setApiMessages((prev) => [...prev, msg]);
         setMessageInput('');
         scrollToEnd();
+        // Refresh all salon content immediately after sending
+        loadSalonContent();
       } catch {
         alert('Message non envoyé. Vérifie ta connexion.');
       }
@@ -693,8 +761,8 @@ export default function SalonScreen() {
       try {
         await sendOffering({ offeringId: item.id, toUserId: selectedPlayer.id, salonId: apiSalonId });
         await loadWallet();
-        // Refresh immédiat pour que le badge apparaisse sur le bon avatar
-        getSalonOfferings(apiSalonId).then(setSalonOfferings).catch(() => {});
+        // Refresh all content immediately
+        loadSalonContent();
       } catch (e: any) {
         const msg: string = e?.message ?? '';
         if (/insuffisant|insufficient|coins/i.test(msg)) {
@@ -762,8 +830,8 @@ export default function SalonScreen() {
         const castResult = await castSpell({ magieId: item.id, toUserId: targetId, salonId: apiSalonId });
         sentCastsRef.current.set(targetId, castResult);
         await loadWallet();
-        // Refresh immédiat des sorts salon pour que les autres voient la transformation
-        getSalonMagies(apiSalonId).then(setSalonMagies).catch(() => {});
+        // Refresh all content immediately
+        loadSalonContent();
         // Appliquer transformation locale à partir du résultat backend
         const durationMs = castResult.magie.durationSec * 1000;
         const expiresAt = Date.now() + durationMs;
@@ -1029,26 +1097,43 @@ export default function SalonScreen() {
         style={styles.messagesList}
         contentContainerStyle={styles.messagesContent}
         onContentSizeChange={scrollToEnd}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const isOwn = item.userId === 'me' || item.userId === currentUser?.id;
           const isSystem = item.type !== 'message';
-          
-          if (isSystem) {
-            return (
-              <View style={styles.systemMessage}>
-                <Text style={styles.systemText}>{item.giftData?.emoji} {item.content || item.text}</Text>
-              </View>
-            );
-          }
+          const { time, dateSeparator } = formatMessageTime(new Date(item.timestamp).toISOString());
+
+          // Check if we need to show date separator
+          const prevItem = index > 0 ? messages[index - 1] : null;
+          const prevDate = prevItem ? formatMessageTime(new Date(prevItem.timestamp).toISOString()).dateSeparator : undefined;
+          const showDateSeparator = dateSeparator && (dateSeparator !== prevDate);
 
           return (
-            <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
-              {!isOwn && <Text style={styles.messageSender}>{item.userName || item.username}</Text>}
-              <View style={[styles.messageBubble, isOwn && styles.messageBubbleOwn]}>
-                <Text style={[styles.messageText, isOwn && styles.messageTextOwn]}>
-                  {item.content || item.text}
-                </Text>
-              </View>
+            <View>
+              {showDateSeparator && (
+                <View style={styles.dateSeparator}>
+                  <Text style={styles.dateSeparatorText}>{dateSeparator}</Text>
+                </View>
+              )}
+              {isSystem ? (
+                <View style={styles.systemMessage}>
+                  <Text style={styles.systemText}>{item.content || item.text}</Text>
+                </View>
+              ) : (
+                <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
+                  {!isOwn && <Text style={styles.messageSender}>{item.userName || item.username}</Text>}
+                  <View style={[styles.messageBubble, isOwn && styles.messageBubbleOwn]}>
+                    <Text style={[styles.messageText, isOwn && styles.messageTextOwn]}>
+                      {item.content || item.text}
+                    </Text>
+                    <Text style={[styles.messageTime, isOwn && styles.messageTimeOwn]}>
+                      {time}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          );
+        }}
             </View>
           );
         }}
@@ -1537,6 +1622,24 @@ const styles = StyleSheet.create({
     color: '#667eea',
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  dateSeparator: {
+    alignItems: 'center',
+    marginVertical: 12,
+    paddingHorizontal: 16,
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    color: '#999',
+    fontWeight: '500',
+  },
+  messageTime: {
+    fontSize: 11,
+    color: '#AAA',
+    marginTop: 2,
+  },
+  messageTimeOwn: {
+    color: '#AAA',
   },
   emptyMessages: {
     alignItems: 'center',

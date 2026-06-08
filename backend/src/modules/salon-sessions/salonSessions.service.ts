@@ -288,6 +288,44 @@ export async function joinSession(
   });
   console.log(`[JOIN-SESSION] Participant upserted successfully: participantId=${participant.id}, status=${participant.status}`);
 
+  // Create welcome system message
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { profile: { select: { pseudo: true } } },
+    });
+    const pseudo = user?.profile?.pseudo || "Unknown";
+    const hour = new Date().getHours();
+    const greeting = hour >= 18 ? "bonsoir" : "bonjour";
+    const welcomeContent = `Bienvenue à ${pseudo}, dites-lui ${greeting} 👋`;
+
+    // Check if welcome message for this user already exists in this session
+    const existingWelcome = await prisma.salonMessage.findFirst({
+      where: {
+        salonId: salon.id,
+        userId,
+        kind: "system",
+        content: { contains: pseudo },
+      },
+    });
+
+    if (!existingWelcome) {
+      await prisma.salonMessage.create({
+        data: {
+          salonId: salon.id,
+          userId,
+          kind: "system",
+          content: welcomeContent,
+        },
+      });
+      console.log(`[JOIN-SESSION] Welcome message created for ${pseudo}`);
+    } else {
+      console.log(`[JOIN-SESSION] Welcome message already exists for ${pseudo}`);
+    }
+  } catch (err) {
+    console.error(`[JOIN-SESSION] Failed to create welcome message:`, err);
+  }
+
   // Return session detail
   const response = await getSessionDetail(sessionId);
   console.log(`[JOIN-SESSION-END] Returning session: id=${response.id}, participants=${response.participants.length}`);
