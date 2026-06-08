@@ -1134,9 +1134,6 @@ export default function SalonScreen() {
             </View>
           );
         }}
-            </View>
-          );
-        }}
         ListEmptyComponent={
           <View style={styles.emptyMessages}>
             <Text style={styles.emptyEmoji}>💬</Text>
