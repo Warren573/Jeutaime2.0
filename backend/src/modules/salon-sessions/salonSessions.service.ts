@@ -83,7 +83,7 @@ export async function getSalonCountersForAllKinds(): Promise<Record<string, numb
   // Query all salons at once for efficiency
   const sessions = await prisma.salonSession.findMany({
     where: {
-      salonKind: { in: salonKinds as any[] },
+      salonKind: { in: [...salonKinds] },
       status: "ACTIVE",
       expiresAt: { gt: now },
     },
@@ -102,7 +102,9 @@ export async function getSalonCountersForAllKinds(): Promise<Record<string, numb
   }
 
   for (const session of sessions) {
-    counters[session.salonKind] += session.participants.length;
+    if (counters[session.salonKind] !== undefined) {
+      counters[session.salonKind] += session.participants.length;
+    }
   }
 
   return counters;
