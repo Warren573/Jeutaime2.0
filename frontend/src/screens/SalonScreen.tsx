@@ -384,6 +384,9 @@ export default function SalonScreen() {
     timestamp: number;
   }>>([]);
 
+  // Modal target selection (in test mode, can select self even with others present)
+  const [modalTargetId, setModalTargetId] = useState<string | null>(null);
+
   // Participants
   const [participants, setParticipants] = useState<(SalonParticipant & { isMe?: boolean })[]>([]);
 
@@ -766,11 +769,20 @@ export default function SalonScreen() {
 
   // Envoyer une offrande
   const handleSendOffering = async (item: any) => {
-    const target = effectiveSelectedPlayer;
+    // Determine target from modal selection or fallback
+    let target = null;
+    if (modalTargetId) {
+      target = participants.find(p => p.id === modalTargetId);
+    }
+    if (!target) {
+      target = effectiveSelectedPlayer;
+    }
     if (!target) return;
 
     const targetUserId = target.id;
-    console.log(`[DEBUG-OFFERING] targetUserId=${targetUserId}, isSelf=${target.isMe}, offering=${item.name}`);
+    const isSelf = target.id === currentUser?.id;
+    console.log(`[DEBUG-TARGET] selectedTargetId=${modalTargetId}, selectedTargetName=${target.name}, isSelf=${isSelf}`);
+    console.log(`[DEBUG-OFFERING] targetUserId=${targetUserId}, isSelf=${isSelf}, offering=${item.name}`);
 
     if (isAuthenticated && apiSalonId) {
       try {
@@ -838,15 +850,25 @@ export default function SalonScreen() {
 
     setShowOfferingsModal(false);
     setSelectedPlayer(null);
+    setModalTargetId(null);
   };
 
   // Envoyer un pouvoir
   const handleSendPower = async (item: any) => {
-    const target = effectiveSelectedPlayer;
+    // Determine target from modal selection or fallback
+    let target = null;
+    if (modalTargetId) {
+      target = participants.find(p => p.id === modalTargetId);
+    }
+    if (!target) {
+      target = effectiveSelectedPlayer;
+    }
     if (!target) return;
 
     const targetId = target.id;
-    console.log(`[DEBUG-SPELL] targetUserId=${targetId}, isSelf=${target.isMe}, spell=${item.name}`);
+    const isSelf = target.id === currentUser?.id;
+    console.log(`[DEBUG-TARGET] selectedTargetId=${modalTargetId}, selectedTargetName=${target.name}, isSelf=${isSelf}`);
+    console.log(`[DEBUG-SPELL] targetUserId=${targetId}, isSelf=${isSelf}, spell=${item.name}`);
 
     const isBackendSpell = isAuthenticated && magiesCatalog && !item.cancels;
 
@@ -919,7 +941,6 @@ export default function SalonScreen() {
       }
     }
 
-    const isSelf = target.id === currentUser?.id;
     setRecentInteractions(prev => [{
       id: Date.now().toString(),
       from: currentUser?.name || 'Vous',
@@ -950,6 +971,7 @@ export default function SalonScreen() {
 
     setShowPowersModal(false);
     setSelectedPlayer(null);
+    setModalTargetId(null);
   };
 
   // Casser un sort actif via le backend
@@ -1358,20 +1380,72 @@ export default function SalonScreen() {
   // MODALS
   // ============================================
   const renderOfferingsModal = () => {
-    const target = effectiveSelectedPlayer;
+    // Get all possible targets: self + other participants
+    const possibleTargets = [
+      { id: currentUser?.id || '', name: 'Moi-même', isMe: true },
+      ...participants.filter(p => !p.isMe).map(p => ({ id: p.id, name: p.name, isMe: false }))
+    ];
+
+    const isModalTargetMode = isTestMode() || participants.filter(p => !p.isMe).length === 0;
+
+    // Determine target from modal selection, fallback to effectiveSelectedPlayer, or default to first possible target
+    let target = null;
+    if (modalTargetId) {
+      target = participants.find(p => p.id === modalTargetId) ||
+               (currentUser?.id === modalTargetId ? currentUser : null);
+    }
+    if (!target && possibleTargets.length === 1) {
+      // Auto-select when only one target available (self)
+      target = possibleTargets[0];
+    }
+    if (!target) {
+      target = effectiveSelectedPlayer;
+    }
+
     if (target) {
       console.log(`[DEBUG-OFFERING-MODAL] targetName=${target.name}, targetUserId=${target.id}`);
     }
+
     return (
     <Modal visible={showOfferingsModal} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>🎁 Offrir à {target?.name}</Text>
-            <TouchableOpacity onPress={() => setShowOfferingsModal(false)}>
+            <TouchableOpacity onPress={() => { setShowOfferingsModal(false); setModalTargetId(null); }}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Target selector - shown in test mode or when alone */}
+          {isModalTargetMode && (
+            <View style={styles.targetSelectorContainer}>
+              <Text style={styles.targetSelectorLabel}>Cible :</Text>
+              <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.targetSelectorScroll}>
+                {possibleTargets.map((t) => (
+                  <TouchableOpacity
+                    key={t.id}
+                    style={[
+                      styles.targetSelectorButton,
+                      modalTargetId === t.id && styles.targetSelectorButtonActive,
+                    ]}
+                    onPress={() => {
+                      console.log(`[DEBUG-TARGET] Selecting target=${t.name}, targetId=${t.id}`);
+                      setModalTargetId(t.id);
+                    }}
+                  >
+                    <Text style={[
+                      styles.targetSelectorButtonText,
+                      modalTargetId === t.id && styles.targetSelectorButtonTextActive,
+                    ]}>
+                      {t.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           <ScrollView style={styles.offeringsGrid} contentContainerStyle={styles.offeringsGridContent}>
             {displayOfferings.map((item) => (
               <TouchableOpacity
@@ -1394,20 +1468,72 @@ export default function SalonScreen() {
   };
 
   const renderPowersModal = () => {
-    const target = effectiveSelectedPlayer;
+    // Get all possible targets: self + other participants
+    const possibleTargets = [
+      { id: currentUser?.id || '', name: 'Moi-même', isMe: true },
+      ...participants.filter(p => !p.isMe).map(p => ({ id: p.id, name: p.name, isMe: false }))
+    ];
+
+    const isModalTargetMode = isTestMode() || participants.filter(p => !p.isMe).length === 0;
+
+    // Determine target from modal selection, fallback to effectiveSelectedPlayer, or default to first possible target
+    let target = null;
+    if (modalTargetId) {
+      target = participants.find(p => p.id === modalTargetId) ||
+               (currentUser?.id === modalTargetId ? currentUser : null);
+    }
+    if (!target && possibleTargets.length === 1) {
+      // Auto-select when only one target available (self)
+      target = possibleTargets[0];
+    }
+    if (!target) {
+      target = effectiveSelectedPlayer;
+    }
+
     if (target) {
       console.log(`[DEBUG-POWERS-MODAL] targetName=${target.name}, targetUserId=${target.id}`);
     }
+
     return (
     <Modal visible={showPowersModal} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>✨ Magie sur {target?.name}</Text>
-            <TouchableOpacity onPress={() => { setShowPowersModal(false); setTargetActiveCasts([]); }}>
+            <TouchableOpacity onPress={() => { setShowPowersModal(false); setTargetActiveCasts([]); setModalTargetId(null); }}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Target selector - shown in test mode or when alone */}
+          {isModalTargetMode && (
+            <View style={styles.targetSelectorContainer}>
+              <Text style={styles.targetSelectorLabel}>Cible :</Text>
+              <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.targetSelectorScroll}>
+                {possibleTargets.map((t) => (
+                  <TouchableOpacity
+                    key={t.id}
+                    style={[
+                      styles.targetSelectorButton,
+                      modalTargetId === t.id && styles.targetSelectorButtonActive,
+                    ]}
+                    onPress={() => {
+                      console.log(`[DEBUG-TARGET] Selecting target=${t.name}, targetId=${t.id}`);
+                      setModalTargetId(t.id);
+                    }}
+                  >
+                    <Text style={[
+                      styles.targetSelectorButtonText,
+                      modalTargetId === t.id && styles.targetSelectorButtonTextActive,
+                    ]}>
+                      {t.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           <ScrollView style={styles.offeringsGrid} contentContainerStyle={styles.offeringsGridContent}>
             {/* Section : casser un sort actif */}
             {breakOptions.length > 0 && (
@@ -2018,5 +2144,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#DAA520',
+  },
+  targetSelectorContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8D5B7',
+    backgroundColor: '#FFF',
+  },
+  targetSelectorLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#3A2818',
+    marginBottom: 8,
+  },
+  targetSelectorScroll: {
+    maxHeight: 40,
+  },
+  targetSelectorButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F0E6',
+    borderWidth: 1,
+    borderColor: '#E8D5B7',
+  },
+  targetSelectorButtonActive: {
+    backgroundColor: '#E8B4B8',
+    borderColor: '#D48A8E',
+  },
+  targetSelectorButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#3A2818',
+  },
+  targetSelectorButtonTextActive: {
+    color: '#FFF',
   },
 });
