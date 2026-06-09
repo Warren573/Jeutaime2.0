@@ -82,6 +82,8 @@ export interface ParticipantDTO {
   gender?: string;
   avatarConfig?: unknown;
   joinedAt?: string;
+  drinkLevel?: number;
+  eatLevel?: number;
 }
 
 export interface SalonSessionDetailDTO extends SalonSessionDTO {

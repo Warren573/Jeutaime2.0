@@ -125,6 +125,8 @@ export async function getSessionDetail(
         select: {
           userId: true,
           joinedAt: true,
+          drinkLevel: true,
+          eatLevel: true,
           user: {
             select: {
               id: true,
@@ -166,6 +168,8 @@ export async function getSessionDetail(
       gender: p.user.profile?.gender,
       avatarConfig: p.user.profile?.avatarConfig,
       joinedAt: p.joinedAt.toISOString(),
+      drinkLevel: p.drinkLevel,
+      eatLevel: p.eatLevel,
     })),
     startedAt: session.startedAt.toISOString(),
     expiresAt: session.expiresAt.toISOString(),

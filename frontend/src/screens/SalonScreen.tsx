@@ -103,6 +103,18 @@ const SLUG_TO_KIND: Record<string, string> = {
   psy: 'PSY',
 };
 
+// Helper: Get emoji for drink level
+function getDrinkEmoji(level: number): string {
+  const emojis = ['', '🍷', '🍺', '🍹', '🤢', '🎉'];
+  return emojis[Math.max(0, Math.min(level, 5))] || '';
+}
+
+// Helper: Get emoji for eat level
+function getEatEmoji(level: number): string {
+  const emojis = ['', '🥐', '🍽️', '😋', '🤰', '🎪'];
+  return emojis[Math.max(0, Math.min(level, 5))] || '';
+}
+
 // Helper: Format message time
 function formatMessageTime(createdAt: string): { time: string; dateSeparator?: string } {
   const msgDate = new Date(createdAt);
@@ -495,6 +507,16 @@ export default function SalonScreen() {
       setMyReceivedOfferings(myOffers);
       setActiveMagiesOnMe(activeMag);
       participantsReady.current = false;
+
+      // Extract action levels from participants
+      const newActionLevels: Record<string, { drinkLevel: number; eatLevel: number }> = {};
+      session.participants.forEach(p => {
+        newActionLevels[p.userId] = {
+          drinkLevel: p.drinkLevel || 0,
+          eatLevel: p.eatLevel || 0,
+        };
+      });
+      setActionLevels(newActionLevels);
 
       // Set messages from API (now includes system messages created by backend)
       msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -1137,6 +1159,22 @@ export default function SalonScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Action levels display row */}
+        <View style={styles.actionLevelsRow}>
+          {participants.map((p) => {
+            const levels = actionLevels[p.id] || { drinkLevel: 0, eatLevel: 0 };
+            const drinkEmoji = getDrinkEmoji(levels.drinkLevel);
+            const eatEmoji = getEatEmoji(levels.eatLevel);
+            return (
+              <View key={`levels-${p.id}`} style={styles.actionLevelsBadge}>
+                {drinkEmoji && <Text style={styles.levelEmoji}>{drinkEmoji}</Text>}
+                {eatEmoji && <Text style={styles.levelEmoji}>{eatEmoji}</Text>}
+              </View>
+            );
+          })}
+        </View>
+
         {selectedPlayer && (
           <Text style={styles.selectedHint}>✓ {selectedPlayer.name} sélectionné(e)</Text>
         )}
@@ -1536,6 +1574,28 @@ const styles = StyleSheet.create({
     color: '#667eea',
     fontWeight: '600',
     marginTop: 8,
+  },
+
+  // Action levels
+  actionLevelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    marginTop: 4,
+    minHeight: 24,
+  },
+  actionLevelsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    minWidth: 40,
+    minHeight: 24,
+  },
+  levelEmoji: {
+    fontSize: 16,
+    textAlign: 'center',
   },
 
   // Avatar

@@ -9,6 +9,8 @@ export const ParticipantDtoSchema = z.object({
   gender: z.enum(["HOMME", "FEMME", "AUTRE"]).optional(),
   avatarConfig: z.any().optional(),
   joinedAt: z.string().datetime().optional(),
+  drinkLevel: z.number().optional().default(0),
+  eatLevel: z.number().optional().default(0),
 });
 
 export type ParticipantDto = z.infer<typeof ParticipantDtoSchema>;
