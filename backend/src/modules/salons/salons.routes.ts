@@ -42,13 +42,18 @@ router.get(
 // Paramètre optionnel: sessionId pour filtrer par session
 router.get(
   "/:id/messages",
+  (req, res, next) => {
+    console.log(`[GET-MESSAGES-RAW] path=${req.path}, query=`, JSON.stringify(req.query));
+    console.log(`[GET-MESSAGES-RAW] salonId=${req.params.id}`);
+    next();
+  },
   validate(ListSalonMessagesQuerySchema, "query"),
   wrap(async (req, res) => {
     const id = req.params["id"] as string;
     const { limit, sessionId } = req.query as unknown as ListSalonMessagesQuery;
-    console.log(`[GET-MESSAGES] salonId=${id}, limit=${limit}, sessionId=${sessionId}`);
+    console.log(`[GET-MESSAGES-SUCCESS] salonId=${id}, limit=${limit}, sessionId=${sessionId}`);
     const data = await svc.listMessages(id, limit, sessionId);
-    console.log(`[GET-MESSAGES] returning ${data.length} messages`);
+    console.log(`[GET-MESSAGES-SUCCESS] returning ${data.length} messages`);
     res.json({ data });
   }),
 );
