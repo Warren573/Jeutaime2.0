@@ -89,6 +89,7 @@ import {
   type MagieCastDTO,
   type SalonMagieDTO,
 } from '../api/magies';
+import { isTestMode } from '../core/testMode';
 
 // Correspondance slug frontend → kind backend
 const SLUG_TO_KIND: Record<string, string> = {
@@ -410,6 +411,16 @@ export default function SalonScreen() {
   const [offeringsCatalog, setOfferingsCatalog] = useState<OfferingCatalogItemDTO[]>([]);
   const [magiesCatalog, setMagiesCatalog] = useState<MagieCatalogDTO | null>(null);
 
+  // Action levels tracking: userId -> { drinkLevel, eatLevel }
+  const [actionLevels, setActionLevels] = useState<Record<string, { drinkLevel: number; eatLevel: number }>>({});
+
+  // Test mode: allow self-targeting when alone
+  const allowSelfTarget = isTestMode() && participants.length === 0;
+  const effectiveSelectedPlayer = selectedPlayer || (allowSelfTarget && currentUser ? {
+    id: currentUser.id,
+    name: currentUser.name || 'Moi',
+    isMe: true,
+  } as any : null);
   useEffect(() => {
     if (!isAuthenticated) return;
     getOfferingsCatalog().then(setOfferingsCatalog).catch(() => {});
@@ -755,11 +766,12 @@ export default function SalonScreen() {
 
   // Envoyer une offrande
   const handleSendOffering = async (item: any) => {
-    if (!selectedPlayer) return;
+    const target = effectiveSelectedPlayer;
+    if (!target) return;
 
     if (isAuthenticated && apiSalonId) {
       try {
-        await sendOffering({ offeringId: item.id, toUserId: selectedPlayer.id, salonId: apiSalonId });
+        await sendOffering({ offeringId: item.id, toUserId: target.id, salonId: apiSalonId });
         await loadWallet();
         // Refresh all content immediately
         loadSalonContent();
@@ -767,6 +779,8 @@ export default function SalonScreen() {
         const msg: string = e?.message ?? '';
         if (/insuffisant|insufficient|coins/i.test(msg)) {
           alert('Pas assez de pièces !');
+        } else if (/toi-même/i.test(msg)) {
+          alert('En mode test, vous pouvez vous cibler.');
         } else {
           alert('Offrande non envoyée. Réessaie.');
         }
@@ -780,7 +794,7 @@ export default function SalonScreen() {
     }
 
     setParticipants(prev => prev.map(p => {
-      if (p.id === selectedPlayer.id) {
+      if (p.id === target.id) {
         return {
           ...p,
           offerings: [...(p.offerings || []), { emoji: item.emoji, from: currentUser?.name || 'Vous', timestamp: Date.now() }].slice(-6),
@@ -789,10 +803,11 @@ export default function SalonScreen() {
       return p;
     }));
 
+    const isSelf = target.id === currentUser?.id;
     setRecentInteractions(prev => [{
       id: Date.now().toString(),
       from: currentUser?.name || 'Vous',
-      to: selectedPlayer.name,
+      to: isSelf ? 'Moi' : target.name,
       emoji: item.emoji,
       name: item.name,
       timestamp: Date.now(),
@@ -804,8 +819,12 @@ export default function SalonScreen() {
       userId: 'system',
       userName: 'Système',
       username: 'Système',
-      content: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} à ${selectedPlayer.name}!`,
-      text: `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} à ${selectedPlayer.name}!`,
+      content: isSelf
+        ? `${currentUser?.name || 'Vous'} s'offre ${item.emoji}!`
+        : `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} à ${target.name}!`,
+      text: isSelf
+        ? `${currentUser?.name || 'Vous'} s'offre ${item.emoji}!`
+        : `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} à ${target.name}!`,
       timestamp: Date.now(),
       type: 'offering',
       isSystem: true,
@@ -819,9 +838,10 @@ export default function SalonScreen() {
 
   // Envoyer un pouvoir
   const handleSendPower = async (item: any) => {
-    if (!selectedPlayer) return;
+    const target = effectiveSelectedPlayer;
+    if (!target) return;
 
-    const targetId = selectedPlayer.id;
+    const targetId = target.id;
     const isBackendSpell = isAuthenticated && magiesCatalog && !item.cancels;
 
     if (isBackendSpell && apiSalonId) {
@@ -850,6 +870,8 @@ export default function SalonScreen() {
         const msg: string = e?.message ?? '';
         if (/insuffisant|insufficient|coins/i.test(msg)) {
           alert('Pas assez de pièces !');
+        } else if (/toi-même/i.test(msg)) {
+          alert('En mode test, vous pouvez vous cibler.');
         } else {
           alert('Sort non lancé. Réessaie.');
         }
@@ -890,10 +912,11 @@ export default function SalonScreen() {
       }
     }
 
+    const isSelf = target.id === currentUser?.id;
     setRecentInteractions(prev => [{
       id: Date.now().toString(),
       from: currentUser?.name || 'Vous',
-      to: selectedPlayer.name,
+      to: isSelf ? 'Moi' : target.name,
       emoji: item.emoji,
       name: item.name,
       timestamp: Date.now(),
@@ -905,8 +928,12 @@ export default function SalonScreen() {
       userId: 'system',
       userName: 'Système',
       username: 'Système',
-      content: `${currentUser?.name || 'Vous'} a lancé ${item.emoji} sur ${selectedPlayer.name}!`,
-      text: `${currentUser?.name || 'Vous'} a lancé ${item.emoji} sur ${selectedPlayer.name}!`,
+      content: isSelf
+        ? `${currentUser?.name || 'Vous'} s'est transformé(e) en ${item.name}!`
+        : `${currentUser?.name || 'Vous'} a lancé ${item.emoji} sur ${target.name}!`,
+      text: isSelf
+        ? `${currentUser?.name || 'Vous'} s'est transformé(e) en ${item.name}!`
+        : `${currentUser?.name || 'Vous'} a lancé ${item.emoji} sur ${target.name}!`,
       timestamp: Date.now(),
       type: 'power',
       isSystem: true,
@@ -1099,6 +1126,9 @@ export default function SalonScreen() {
         {selectedPlayer && (
           <Text style={styles.selectedHint}>✓ {selectedPlayer.name} sélectionné(e)</Text>
         )}
+        {allowSelfTarget && !selectedPlayer && currentUser && (
+          <Text style={styles.testHint}>💡 Test mode: en solo, vous pouvez vous cibler</Text>
+        )}
       </View>
 
       {/* Zone de messages */}
@@ -1156,15 +1186,27 @@ export default function SalonScreen() {
 
       {/* Barre d'input */}
       <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <TouchableOpacity 
-          style={[styles.actionButton, !selectedPlayer && styles.actionButtonDisabled]}
-          onPress={() => selectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')}
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={handleDrink}
+        >
+          <Text style={styles.actionEmoji}>🍷</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={handleEat}
+        >
+          <Text style={styles.actionEmoji}>🥐</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionButton, !effectiveSelectedPlayer && styles.actionButtonDisabled]}
+          onPress={() => effectiveSelectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')}
         >
           <Text style={styles.actionEmoji}>🎁</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionButton, !selectedPlayer && styles.actionButtonDisabled]}
-          onPress={() => selectedPlayer ? openPowersModal() : alert('Sélectionnez d\'abord un participant!')}
+          style={[styles.actionButton, !effectiveSelectedPlayer && styles.actionButtonDisabled]}
+          onPress={() => effectiveSelectedPlayer ? openPowersModal() : alert('Sélectionnez d\'abord un participant!')}
         >
           <Text style={styles.actionEmoji}>✨</Text>
         </TouchableOpacity>
@@ -1494,6 +1536,13 @@ const styles = StyleSheet.create({
     color: '#667eea',
     fontWeight: '600',
     marginTop: 8,
+  },
+  testHint: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#FF9800',
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 
   // Avatar
