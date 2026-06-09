@@ -1099,12 +1099,12 @@ export default function SalonScreen() {
         onContentSizeChange={scrollToEnd}
         renderItem={({ item, index }) => {
           const isOwn = item.userId === 'me' || item.userId === currentUser?.id;
-          const isSystem = item.type !== 'message';
-          const { time, dateSeparator } = formatMessageTime(new Date(item.timestamp).toISOString());
+          const isSystem = item.kind === 'system';
+          const { time, dateSeparator } = formatMessageTime(item.createdAt);
 
           // Check if we need to show date separator
           const prevItem = index > 0 ? messages[index - 1] : null;
-          const prevDate = prevItem ? formatMessageTime(new Date(prevItem.timestamp).toISOString()).dateSeparator : undefined;
+          const prevDate = prevItem ? formatMessageTime(prevItem.createdAt).dateSeparator : undefined;
           const showDateSeparator = dateSeparator && (dateSeparator !== prevDate);
 
           return (
