@@ -17,6 +17,7 @@ export type SendSalonMessageDto = z.infer<typeof SendSalonMessageSchema>;
 export const ListSalonMessagesQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(200).default(50),
+    sessionId: z.string().optional(),
   })
   .strict();
 

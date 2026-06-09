@@ -45,8 +45,10 @@ router.get(
   validate(ListSalonMessagesQuerySchema, "query"),
   wrap(async (req, res) => {
     const id = req.params["id"] as string;
-    const { limit, sessionId } = req.query as unknown as ListSalonMessagesQuery & { sessionId?: string };
+    const { limit, sessionId } = req.query as unknown as ListSalonMessagesQuery;
+    console.log(`[GET-MESSAGES] salonId=${id}, limit=${limit}, sessionId=${sessionId}`);
     const data = await svc.listMessages(id, limit, sessionId);
+    console.log(`[GET-MESSAGES] returning ${data.length} messages`);
     res.json({ data });
   }),
 );
