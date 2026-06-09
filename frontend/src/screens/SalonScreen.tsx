@@ -1357,12 +1357,17 @@ export default function SalonScreen() {
   // ============================================
   // MODALS
   // ============================================
-  const renderOfferingsModal = () => (
+  const renderOfferingsModal = () => {
+    const target = effectiveSelectedPlayer;
+    if (target) {
+      console.log(`[DEBUG-OFFERING-MODAL] targetName=${target.name}, targetUserId=${target.id}`);
+    }
+    return (
     <Modal visible={showOfferingsModal} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>🎁 Offrir à {selectedPlayer?.name}</Text>
+            <Text style={styles.modalTitle}>🎁 Offrir à {target?.name}</Text>
             <TouchableOpacity onPress={() => setShowOfferingsModal(false)}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
@@ -1386,13 +1391,19 @@ export default function SalonScreen() {
       </View>
     </Modal>
   );
+  };
 
-  const renderPowersModal = () => (
+  const renderPowersModal = () => {
+    const target = effectiveSelectedPlayer;
+    if (target) {
+      console.log(`[DEBUG-POWERS-MODAL] targetName=${target.name}, targetUserId=${target.id}`);
+    }
+    return (
     <Modal visible={showPowersModal} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>✨ Magie sur {selectedPlayer?.name}</Text>
+            <Text style={styles.modalTitle}>✨ Magie sur {target?.name}</Text>
             <TouchableOpacity onPress={() => { setShowPowersModal(false); setTargetActiveCasts([]); }}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
@@ -1443,6 +1454,7 @@ export default function SalonScreen() {
       </View>
     </Modal>
   );
+  };
 
   return (
     <View style={{ flex: 1 }}>
