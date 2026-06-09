@@ -390,13 +390,8 @@ export default function SalonScreen() {
   const [apiSalonId, setApiSalonId] = useState<string | null>(null);
   // Messages chargés depuis l'API
   const [apiMessages, setApiMessages] = useState<SalonMessageDTO[]>([]);
-  // Persistent system messages (welcome, etc) - not overwritten by polling
-  const systemMessages = useRef<Map<string, SalonMessageDTO>>(new Map());
   // Flag : participants déjà initialisés depuis l'API (pour ne pas écraser les badges locaux)
   const participantsReady = useRef(false);
-  // Track initial + greeted participants to avoid duplicate welcome messages
-  const seenParticipantIds = useRef<Set<string>>(new Set());
-  const greetedParticipantIds = useRef<Set<string>>(new Set());
 
   // Offrandes reçues par le user courant (backend, sondées toutes les 15s)
   const [myReceivedOfferings, setMyReceivedOfferings] = useState<OfferingSentDTO[]>([]);
@@ -474,7 +469,7 @@ export default function SalonScreen() {
     try {
       // Load all in parallel
       const [msgs, session, offers, magies, myOffers, activeMag] = await Promise.all([
-        apiListMessages(apiSalonId),
+        apiListMessages(apiSalonId, 50, screenSessionId),
         getSessionDetail(screenSessionId),
         getSalonOfferings(apiSalonId),
         getSalonMagies(apiSalonId),
@@ -490,49 +485,9 @@ export default function SalonScreen() {
       setActiveMagiesOnMe(activeMag);
       participantsReady.current = false;
 
-      // Detect new participants and create welcome message
-      const currentParticipantIds = new Set(session.participants.map(p => p.userId));
-
-      for (const participant of session.participants) {
-        // Skip if we haven't greeted yet AND this is a new participant (not in initial set)
-        if (!greetedParticipantIds.current.has(participant.userId) &&
-            !seenParticipantIds.current.has(participant.userId)) {
-
-          // Create welcome message
-          const hour = new Date().getHours();
-          const greeting = hour >= 18 ? 'bonsoir' : 'bonjour';
-          const welcomeMsg = `Bienvenue à ${participant.pseudo}, dites-lui ${greeting} 👋`;
-
-          // Add system message to persistent store
-          const systemMsg: SalonMessageDTO = {
-            id: `system_${participant.userId}_${Date.now()}`,
-            salonId: apiSalonId,
-            userId: 'system',
-            pseudo: '🎪 Système',
-            gender: 'M',
-            kind: 'system',
-            content: welcomeMsg,
-            createdAt: new Date().toISOString(),
-          };
-
-          systemMessages.current.set(systemMsg.id, systemMsg);
-          greetedParticipantIds.current.add(participant.userId);
-        }
-      }
-
-      // Merge API messages with persistent system messages
-      const allMessages = [...msgs];
-      for (const sysMsg of systemMessages.current.values()) {
-        if (!allMessages.some(m => m.id === sysMsg.id)) {
-          allMessages.push(sysMsg);
-        }
-      }
-      // Sort by creation time
-      allMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-      setApiMessages(allMessages);
-
-      // Update seen participants
-      seenParticipantIds.current = currentParticipantIds;
+      // Set messages from API (now includes system messages created by backend)
+      msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      setApiMessages(msgs);
     } catch (err) {
       console.error('[SALON-CONTENT] Error loading content:', err);
     }
@@ -1144,12 +1099,12 @@ export default function SalonScreen() {
         onContentSizeChange={scrollToEnd}
         renderItem={({ item, index }) => {
           const isOwn = item.userId === 'me' || item.userId === currentUser?.id;
-          const isSystem = item.type !== 'message';
-          const { time, dateSeparator } = formatMessageTime(new Date(item.timestamp).toISOString());
+          const isSystem = item.kind === 'system';
+          const { time, dateSeparator } = formatMessageTime(item.createdAt);
 
           // Check if we need to show date separator
           const prevItem = index > 0 ? messages[index - 1] : null;
-          const prevDate = prevItem ? formatMessageTime(new Date(prevItem.timestamp).toISOString()).dateSeparator : undefined;
+          const prevDate = prevItem ? formatMessageTime(prevItem.createdAt).dateSeparator : undefined;
           const showDateSeparator = dateSeparator && (dateSeparator !== prevDate);
 
           return (
@@ -1176,9 +1131,6 @@ export default function SalonScreen() {
                   </View>
                 </View>
               )}
-            </View>
-          );
-        }}
             </View>
           );
         }}

@@ -272,6 +272,25 @@ export async function joinSession(
     console.log(`[JOIN-SESSION] Created new session: sessionId=${sessionId}, salonKind=${salonKind}`);
   }
 
+  // Check if participant exists before upsert
+  const existingParticipant = await prisma.salonSessionParticipant.findUnique({
+    where: { sessionId_userId: { sessionId, userId } },
+  });
+
+  console.log(
+    `[JOIN-SESSION] Existing participant: ${
+      existingParticipant
+        ? `id=${existingParticipant.id}, status=${existingParticipant.status}`
+        : "NONE"
+    }`,
+  );
+
+  // Determine if we should create a welcome message:
+  // - If participant doesn't exist (new join to this session)
+  // - If participant exists but status=LEFT (reactivation in this session)
+  const shouldCreateWelcome =
+    !existingParticipant || existingParticipant.status === "LEFT";
+
   // Upsert participant: create if not exists, reactivate if LEFT
   console.log(`[JOIN-SESSION] Upserting participant: sessionId=${sessionId}, userId=${userId}`);
   const participant = await prisma.salonSessionParticipant.upsert({
@@ -286,7 +305,74 @@ export async function joinSession(
       status: "ACTIVE",
     },
   });
-  console.log(`[JOIN-SESSION] Participant upserted successfully: participantId=${participant.id}, status=${participant.status}`);
+  console.log(
+    `[JOIN-SESSION] Participant upserted: id=${participant.id}, status=${participant.status}, shouldCreateWelcome=${shouldCreateWelcome}`,
+  );
+
+  // Create welcome system message for new joins or reactivations
+  if (shouldCreateWelcome) {
+    try {
+      // Get user info
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { profile: { select: { pseudo: true } } },
+      });
+      const pseudo = user?.profile?.pseudo || "Unknown";
+
+      // Check if welcome message already exists for this user in this session
+      const existingWelcome = await prisma.salonMessage.findFirst({
+        where: {
+          salonId: salon.id,
+          sessionId,
+          userId,
+          kind: "system",
+          meta: { path: ["type"], equals: "welcome" },
+        },
+      });
+
+      if (existingWelcome) {
+        console.log(
+          `[WELCOME-MESSAGE] already exists: id=${existingWelcome.id}, sessionId=${sessionId}, userId=${userId}`,
+        );
+      } else {
+        // Create the welcome message
+        const hour = new Date().getHours();
+        const greeting = hour >= 18 ? "bonsoir" : "bonjour";
+        const welcomeContent = `👋 Bienvenue à ${pseudo}, dites-lui ${greeting}`;
+
+        console.log(
+          `[WELCOME-MESSAGE] creating: sessionId=${sessionId}, salonId=${salon.id}, userId=${userId}, pseudo=${pseudo}`,
+        );
+
+        const msg = await prisma.salonMessage.create({
+          data: {
+            salonId: salon.id,
+            sessionId,
+            userId,
+            kind: "system",
+            content: welcomeContent,
+            meta: { type: "welcome", joinedUserId: userId, sessionId },
+          },
+        });
+
+        console.log(
+          `[WELCOME-MESSAGE] created: id=${msg.id}, sessionId=${msg.sessionId}, salonId=${msg.salonId}, kind=${msg.kind}`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        `[WELCOME-MESSAGE] ERROR:`,
+        err instanceof Error ? err.message : err,
+      );
+      if (err instanceof Error && err.stack) {
+        console.error(err.stack);
+      }
+    }
+  } else {
+    console.log(
+      `[JOIN-SESSION] Skipping welcome message (participant already ACTIVE)`,
+    );
+  }
 
   // Return session detail
   const response = await getSessionDetail(sessionId);

@@ -42,10 +42,13 @@ export async function getSalon(id: string): Promise<SalonDTO> {
 export async function listMessages(
   salonId: string,
   limit = 50,
+  sessionId?: string,
 ): Promise<SalonMessageDTO[]> {
-  const res = (await apiFetch(
-    `/salons/${salonId}/messages?limit=${limit}`,
-  )) as { data: SalonMessageDTO[] };
+  let url = `/salons/${salonId}/messages?limit=${limit}`;
+  if (sessionId) {
+    url += `&sessionId=${sessionId}`;
+  }
+  const res = (await apiFetch(url)) as { data: SalonMessageDTO[] };
   return res.data;
 }
 

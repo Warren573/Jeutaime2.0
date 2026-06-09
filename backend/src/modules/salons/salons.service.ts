@@ -110,10 +110,12 @@ export interface SalonMessagePublicDto {
 
 // ============================================================
 // listMessages — derniers N messages, ordre chronologique
+// Filtre par sessionId si fourni, sinon tous les messages du salon
 // ============================================================
 export async function listMessages(
   salonId: string,
   limit = 50,
+  sessionId?: string,
 ): Promise<SalonMessagePublicDto[]> {
   const salon = await prisma.salon.findUnique({
     where: { id: salonId },
@@ -121,9 +123,15 @@ export async function listMessages(
   });
   if (!salon || !salon.isActive) throw new NotFoundError("Salon");
 
+  // Build where clause: always filter by salonId, optionally by sessionId
+  const where: any = { salonId };
+  if (sessionId) {
+    where.sessionId = sessionId;
+  }
+
   // DESC pour récupérer les N derniers, puis on inverse pour l'ordre chrono
   const rows = await prisma.salonMessage.findMany({
-    where: { salonId },
+    where,
     orderBy: { createdAt: "desc" },
     take: limit,
     include: {
@@ -159,13 +167,34 @@ export async function postMessage(
 ): Promise<SalonMessagePublicDto> {
   const salon = await prisma.salon.findUnique({
     where: { id: salonId },
-    select: { id: true, isActive: true },
+    select: { id: true, isActive: true, kind: true },
   });
   if (!salon || !salon.isActive) throw new NotFoundError("Salon");
 
+  // Find current session for this user in this salon
+  const now = new Date();
+  const currentSession = await prisma.salonSessionParticipant.findFirst({
+    where: {
+      userId,
+      status: "ACTIVE",
+      session: {
+        salonKind: salon.kind as any,
+        status: "ACTIVE",
+        expiresAt: { gt: now },
+      },
+    },
+    select: { sessionId: true },
+  });
+
   const [row, profile] = await Promise.all([
     prisma.salonMessage.create({
-      data: { salonId, userId, kind: "message", content },
+      data: {
+        salonId,
+        sessionId: currentSession?.sessionId || null,
+        userId,
+        kind: "message",
+        content
+      },
     }),
     prisma.profile.findUnique({
       where: { userId },
