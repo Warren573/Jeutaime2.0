@@ -117,11 +117,20 @@ export async function listMessages(
   limit = 50,
   sessionId?: string,
 ): Promise<SalonMessagePublicDto[]> {
+  console.log(`[LIST-MESSAGES] ===== SERVICE START =====`);
+  console.log(`[LIST-MESSAGES] salonId=${salonId}, limit=${limit}, sessionId=${sessionId}`);
+
   const salon = await prisma.salon.findUnique({
     where: { id: salonId },
     select: { id: true, isActive: true },
   });
-  if (!salon || !salon.isActive) throw new NotFoundError("Salon");
+
+  console.log(`[LIST-MESSAGES] salon found: ${!!salon}, isActive: ${salon?.isActive}`);
+
+  if (!salon || !salon.isActive) {
+    console.log(`[LIST-MESSAGES] salon not found or not active`);
+    throw new NotFoundError("Salon");
+  }
 
   // Build where clause: always filter by salonId, optionally by sessionId
   const where: any = { salonId };

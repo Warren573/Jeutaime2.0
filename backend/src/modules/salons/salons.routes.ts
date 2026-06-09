@@ -30,21 +30,27 @@ router.get(
 
 // GET /api/salons/:id/messages — derniers messages du salon
 // Paramètre optionnel: sessionId pour filtrer par session
-// IMPORTANT: Must come BEFORE /:id to avoid being matched by it
 router.get(
   "/:id/messages",
   (req, res, next) => {
-    console.log(`[GET-MESSAGES-RAW] path=${req.path}, query=`, JSON.stringify(req.query));
-    console.log(`[GET-MESSAGES-RAW] salonId=${req.params.id}`);
+    console.log(`\n[GET-MESSAGES] ===== REQUEST START =====`);
+    console.log(`[GET-MESSAGES] path: ${req.path}`);
+    console.log(`[GET-MESSAGES] params: ${JSON.stringify(req.params)}`);
+    console.log(`[GET-MESSAGES] query: ${JSON.stringify(req.query)}`);
+    console.log(`[GET-MESSAGES] url: ${req.originalUrl}`);
     next();
   },
   validate(ListSalonMessagesQuerySchema, "query"),
   wrap(async (req, res) => {
+    console.log(`[GET-MESSAGES] ===== HANDLER START =====`);
     const id = req.params["id"] as string;
-    const { limit, sessionId } = req.query as unknown as ListSalonMessagesQuery;
-    console.log(`[GET-MESSAGES-SUCCESS] salonId=${id}, limit=${limit}, sessionId=${sessionId}`);
+    const query = req.query as unknown as ListSalonMessagesQuery;
+    console.log(`[GET-MESSAGES] after validation - id=${id}`);
+    console.log(`[GET-MESSAGES] after validation - query=${JSON.stringify(query)}`);
+    const { limit, sessionId } = query;
+    console.log(`[GET-MESSAGES] calling listMessages(${id}, ${limit}, ${sessionId})`);
     const data = await svc.listMessages(id, limit, sessionId);
-    console.log(`[GET-MESSAGES-SUCCESS] returning ${data.length} messages`);
+    console.log(`[GET-MESSAGES] success - returning ${data.length} messages`);
     res.json({ data });
   }),
 );
