@@ -800,9 +800,13 @@ export default function SalonScreen() {
     const target = effectiveSelectedPlayer;
     if (!target) return;
 
+    const targetUserId = target.id;
+    console.log(`[DEBUG-OFFERING] targetUserId=${targetUserId}, isSelf=${target.isMe}, offering=${item.name}`);
+
     if (isAuthenticated && apiSalonId) {
       try {
-        await sendOffering({ offeringId: item.id, toUserId: target.id, salonId: apiSalonId });
+        console.log(`[DEBUG-OFFERING-API] Calling sendOffering with toUserId=${targetUserId}`);
+        await sendOffering({ offeringId: item.id, toUserId: targetUserId, salonId: apiSalonId });
         await loadWallet();
         // Refresh all content immediately
         loadSalonContent();
@@ -873,11 +877,14 @@ export default function SalonScreen() {
     if (!target) return;
 
     const targetId = target.id;
+    console.log(`[DEBUG-SPELL] targetUserId=${targetId}, isSelf=${target.isMe}, spell=${item.name}`);
+
     const isBackendSpell = isAuthenticated && magiesCatalog && !item.cancels;
 
     if (isBackendSpell && apiSalonId) {
       // ── Chemin backend : cast réel via API ───────────────────────────────
       try {
+        console.log(`[DEBUG-SPELL-API] Calling castSpell with toUserId=${targetId}`);
         const castResult = await castSpell({ magieId: item.id, toUserId: targetId, salonId: apiSalonId });
         sentCastsRef.current.set(targetId, castResult);
         await loadWallet();
@@ -1051,9 +1058,17 @@ export default function SalonScreen() {
 
   // Ouvrir le modal magie — sorts actifs sur la cible depuis salonMagies (ou fetch frais en fallback)
   const openPowersModal = useCallback(async () => {
-    if (!selectedPlayer) return;
-    if (isAuthenticated && selectedPlayer.transformation && selectedPlayer.transformationExpiresAt && Date.now() < selectedPlayer.transformationExpiresAt) {
-      const fromSalon = salonMagies.filter(m => m.toUserId === selectedPlayer.id);
+    const target = effectiveSelectedPlayer;
+    if (!target) {
+      console.log('[DEBUG-POWERS] No target selected, returning');
+      return;
+    }
+
+    const targetUserId = target.id;
+    console.log(`[DEBUG-POWERS] Opening modal for targetUserId=${targetUserId}, isSelf=${target.isMe}`);
+
+    if (isAuthenticated && target.transformation && target.transformationExpiresAt && Date.now() < target.transformationExpiresAt) {
+      const fromSalon = salonMagies.filter(m => m.toUserId === targetUserId);
       if (fromSalon.length > 0) {
         // Mapper SalonMagieDTO → MagieCastDTO (shape attendue par breakOptions)
         setTargetActiveCasts(fromSalon.map(m => ({
@@ -1079,7 +1094,7 @@ export default function SalonScreen() {
       } else {
         // Fallback : fetch frais si salonMagies n'a pas encore chargé
         try {
-          const casts = await getActiveMagies(selectedPlayer.id);
+          const casts = await getActiveMagies(targetUserId);
           setTargetActiveCasts(casts);
         } catch {
           setTargetActiveCasts([]);
@@ -1089,7 +1104,7 @@ export default function SalonScreen() {
       setTargetActiveCasts([]);
     }
     setShowPowersModal(true);
-  }, [isAuthenticated, selectedPlayer, salonMagies]);
+  }, [isAuthenticated, effectiveSelectedPlayer, salonMagies]);
 
   // Options de rupture disponibles pour la cible sélectionnée
   const breakOptions = useMemo(() => {
@@ -1278,13 +1293,19 @@ export default function SalonScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, !effectiveSelectedPlayer && styles.actionButtonDisabled]}
-          onPress={() => effectiveSelectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')}
+          onPress={() => {
+            console.log(`[DEBUG-OFFERING-PORTRAIT] effectiveSelectedPlayer=${effectiveSelectedPlayer?.id}`);
+            effectiveSelectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')
+          }}
         >
           <Text style={styles.actionEmoji}>🎁</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, !effectiveSelectedPlayer && styles.actionButtonDisabled]}
-          onPress={() => effectiveSelectedPlayer ? openPowersModal() : alert('Sélectionnez d\'abord un participant!')}
+          onPress={() => {
+            console.log(`[DEBUG-POWERS-PORTRAIT] effectiveSelectedPlayer=${effectiveSelectedPlayer?.id}`);
+            effectiveSelectedPlayer ? openPowersModal() : alert('Sélectionnez d\'abord un participant!')
+          }}
         >
           <Text style={styles.actionEmoji}>✨</Text>
         </TouchableOpacity>
@@ -1365,24 +1386,30 @@ export default function SalonScreen() {
             )}
           </ScrollView>
 
-          {selectedPlayer && (
+          {effectiveSelectedPlayer && (
             <View style={styles.selectedBanner}>
-              <Text style={styles.selectedBannerText}>🎯 {selectedPlayer.name}</Text>
+              <Text style={styles.selectedBannerText}>🎯 {effectiveSelectedPlayer.name}</Text>
             </View>
           )}
 
           {/* Boutons d'action */}
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
-              style={[styles.bigActionButton, styles.giftButton, !selectedPlayer && styles.bigActionButtonDisabled]}
-              onPress={() => selectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')}
+              style={[styles.bigActionButton, styles.giftButton, !effectiveSelectedPlayer && styles.bigActionButtonDisabled]}
+              onPress={() => {
+                console.log(`[DEBUG-OFFERING-LANDSCAPE] effectiveSelectedPlayer=${effectiveSelectedPlayer?.id}`);
+                effectiveSelectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')
+              }}
             >
               <Text style={styles.bigActionEmoji}>🎁</Text>
               <Text style={styles.bigActionText}>Offrir</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.bigActionButton, styles.magicButton, !selectedPlayer && styles.bigActionButtonDisabled]}
-              onPress={() => selectedPlayer ? openPowersModal() : alert('Sélectionnez d\'abord un participant!')}
+              style={[styles.bigActionButton, styles.magicButton, !effectiveSelectedPlayer && styles.bigActionButtonDisabled]}
+              onPress={() => {
+                console.log(`[DEBUG-POWERS-LANDSCAPE] effectiveSelectedPlayer=${effectiveSelectedPlayer?.id}`);
+                effectiveSelectedPlayer ? openPowersModal() : alert('Sélectionnez d\'abord un participant!')
+              }}
             >
               <Text style={styles.bigActionEmoji}>✨</Text>
               <Text style={styles.bigActionText}>Magie</Text>
