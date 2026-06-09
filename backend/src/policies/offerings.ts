@@ -11,9 +11,11 @@
  *   - Un offering peut être restreint à un salon précis via
  *     `salonOnly: SalonKind` — il est alors uniquement envoyable
  *     depuis ce type de salon.
+ *   - En mode test/dev, self-targeting est autorisé pour déboguer.
  */
 import { SalonKind } from "@prisma/client";
 import { BadRequestError, NotFoundError } from "../core/errors";
+import { isTestMode } from "../core/testMode";
 
 // ============================================================
 // Types minimaux — structural typing
@@ -143,14 +145,15 @@ export function isOfferingActive(
 
 /**
  * Interdit d'envoyer un cadeau à soi-même (abus anti-farm).
+ * Permis en mode test/dev pour déboguer.
  *
- * @throws BadRequestError si actor === target
+ * @throws BadRequestError si actor === target (sauf en test mode)
  */
 export function assertNotSelfOffering(
   fromUserId: string,
   toUserId: string,
 ): void {
-  if (fromUserId === toUserId) {
+  if (fromUserId === toUserId && !isTestMode()) {
     throw new BadRequestError(
       "Tu ne peux pas t'envoyer un cadeau à toi-même",
     );

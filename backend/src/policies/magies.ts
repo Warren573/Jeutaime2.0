@@ -12,6 +12,7 @@
  *                         (POST /api/magies/:id/break).
  */
 import { BadRequestError } from "../core/errors";
+import { isTestMode } from "../core/testMode";
 import { BREAK_CONDITION_TO_ANTISPELL } from "../modules/magies/magies.constants";
 
 // ============================================================
@@ -144,11 +145,17 @@ export function assertAntiSpellBreaksCondition(
 // assertNotSelfCast — interdiction de se caster un sort à soi-même
 // ============================================================
 
+/**
+ * Interdit de se lancer un sort à soi-même (abus anti-farm).
+ * Permis en mode test/dev pour déboguer.
+ *
+ * @throws BadRequestError si actor === target (sauf en test mode)
+ */
 export function assertNotSelfCast(
   actorId: string,
   targetId: string,
 ): void {
-  if (actorId === targetId) {
+  if (actorId === targetId && !isTestMode()) {
     throw new BadRequestError(
       "Tu ne peux pas te lancer un sort à toi-même",
     );
