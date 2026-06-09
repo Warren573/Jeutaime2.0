@@ -12,19 +12,12 @@ import { isPremiumActive } from "../../policies/premium";
  * Injecte `req.user: AuthPayload` si le token est valide.
  */
 export const requireAuth = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
-  console.log(`[AUTH] ===== REQUEST RECEIVED =====`);
-  console.log(`[AUTH] path: ${req.path}`);
-  console.log(`[AUTH] method: ${req.method}`);
-  console.log(`[AUTH] url: ${req.originalUrl}`);
-
   const authedReq = req as AuthedRequest;
   const authHeader = authedReq.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
-    console.log(`[AUTH] missing or invalid token`);
     throw new UnauthorizedError("Token manquant");
   }
 
-  console.log(`[AUTH] token found, verifying...`);
   const token = authHeader.slice(7);
   const payload = verifyAccessToken(token);
 
@@ -35,15 +28,12 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
   });
 
   if (!user) {
-    console.log(`[AUTH] user not found`);
     throw new UnauthorizedError("Utilisateur introuvable");
   }
   if (user.isBanned) {
-    console.log(`[AUTH] user is banned`);
     throw new ForbiddenError("Ton compte est banni");
   }
 
-  console.log(`[AUTH] user verified: ${user.id}`);
   authedReq.user = {
     userId: user.id,
     role: user.role,
