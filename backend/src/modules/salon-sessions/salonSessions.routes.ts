@@ -4,7 +4,9 @@ import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
 import type { AuthedRequest } from "../../core/types";
 import * as controller from "./salonSessions.controller";
+import * as actionsSvc from "../salon-actions/salonActions.service";
 import { JoinSessionBodySchema, LeaveSessionBodySchema } from "./salonSessions.schemas";
+import { DrinkActionSchema, EatActionSchema } from "../salon-actions/salonActions.schemas";
 
 const router = Router();
 
@@ -40,14 +42,6 @@ router.get(
   }),
 );
 
-// GET /api/salon-sessions/:id — get session detail
-router.get(
-  "/:id",
-  wrap(async (req, res) => {
-    await controller.getSessionDetail(req as AuthedRequest, res);
-  }),
-);
-
 // POST /api/salon-sessions/join/:salonKind — join a session
 router.post(
   "/join/:salonKind",
@@ -57,12 +51,40 @@ router.post(
   }),
 );
 
-// POST /api/salon-sessions/:id/leave — leave a session
+// POST /api/salon-sessions/:sessionId/leave — leave a session
 router.post(
-  "/:id/leave",
+  "/:sessionId/leave",
   validate(LeaveSessionBodySchema),
   wrap(async (req, res) => {
     await controller.leaveSession(req as AuthedRequest, res);
+  }),
+);
+
+// POST /api/salon-sessions/:sessionId/drink — perform drink action
+router.post(
+  "/:sessionId/drink",
+  validate(DrinkActionSchema),
+  wrap(async (req, res) => {
+    const sessionId = req.params['sessionId'] as string;
+    const userId = (req as AuthedRequest).user.userId;
+    const userPseudo = (req as AuthedRequest).user.pseudo;
+
+    const result = await actionsSvc.performDrinkAction(sessionId, userId, userPseudo);
+    res.json(result);
+  }),
+);
+
+// POST /api/salon-sessions/:sessionId/eat — perform eat action
+router.post(
+  "/:sessionId/eat",
+  validate(EatActionSchema),
+  wrap(async (req, res) => {
+    const sessionId = req.params['sessionId'] as string;
+    const userId = (req as AuthedRequest).user.userId;
+    const userPseudo = (req as AuthedRequest).user.pseudo;
+
+    const result = await actionsSvc.performEatAction(sessionId, userId, userPseudo);
+    res.json(result);
   }),
 );
 
@@ -71,6 +93,15 @@ router.get(
   "/encounters/:salonKind",
   wrap(async (req, res) => {
     await controller.getPreviousEncounters(req as AuthedRequest, res);
+  }),
+);
+
+// GET /api/salon-sessions/:id — get session detail
+// IMPORTANT: Must come LAST after all more specific routes
+router.get(
+  "/:id",
+  wrap(async (req, res) => {
+    await controller.getSessionDetail(req as AuthedRequest, res);
   }),
 );
 

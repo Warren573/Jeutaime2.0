@@ -521,6 +521,12 @@ model SalonSessionParticipant {
   joinedAt  DateTime                        @default(now())
   leftAt    DateTime?
 
+  // Salon social actions
+  drinkLevel         Int                     @default(0)
+  drinkLastActionAt  DateTime?
+  eatLevel           Int                     @default(0)
+  eatLastActionAt    DateTime?
+
   @@unique([sessionId, userId])
   @@index([userId, status])
 }

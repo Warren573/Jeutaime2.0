@@ -66,6 +66,8 @@ import {
   joinSession,
   leaveSession,
   getCurrentSalonSession,
+  performDrinkAction,
+  performEatAction,
   type SalonMessageDTO,
   type SalonSessionDTO,
 } from '../api/salons';
@@ -415,6 +417,9 @@ export default function SalonScreen() {
   // Catalogues backend (chargés une fois quand authentifié)
   const [offeringsCatalog, setOfferingsCatalog] = useState<OfferingCatalogItemDTO[]>([]);
   const [magiesCatalog, setMagiesCatalog] = useState<MagieCatalogDTO | null>(null);
+
+  // Action levels tracking: userId -> { drinkLevel, eatLevel }
+  const [actionLevels, setActionLevels] = useState<Record<string, { drinkLevel: number; eatLevel: number }>>({});
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -955,6 +960,48 @@ export default function SalonScreen() {
     }
   };
 
+  // Perform drink action
+  const handleDrink = async () => {
+    if (!screenSessionId) return;
+    try {
+      const result = await performDrinkAction(screenSessionId);
+      if (result.success && currentUser?.id) {
+        setActionLevels(prev => ({
+          ...prev,
+          [currentUser.id]: {
+            ...prev[currentUser.id],
+            drinkLevel: result.level || 0,
+          },
+        }));
+        // Refresh messages to show the system message
+        loadSalonContent();
+      }
+    } catch (e) {
+      console.error('[DRINK-ACTION] Error:', e);
+    }
+  };
+
+  // Perform eat action
+  const handleEat = async () => {
+    if (!screenSessionId) return;
+    try {
+      const result = await performEatAction(screenSessionId);
+      if (result.success && currentUser?.id) {
+        setActionLevels(prev => ({
+          ...prev,
+          [currentUser.id]: {
+            ...prev[currentUser.id],
+            eatLevel: result.level || 0,
+          },
+        }));
+        // Refresh messages to show the system message
+        loadSalonContent();
+      }
+    } catch (e) {
+      console.error('[EAT-ACTION] Error:', e);
+    }
+  };
+
   // Ouvrir le modal magie — sorts actifs sur la cible depuis salonMagies (ou fetch frais en fallback)
   const openPowersModal = useCallback(async () => {
     if (!selectedPlayer) return;
@@ -1151,7 +1198,19 @@ export default function SalonScreen() {
 
       {/* Barre d'input */}
       <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <TouchableOpacity 
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={handleDrink}
+        >
+          <Text style={styles.actionEmoji}>🍷</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={handleEat}
+        >
+          <Text style={styles.actionEmoji}>🥐</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.actionButton, !selectedPlayer && styles.actionButtonDisabled]}
           onPress={() => selectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')}
         >
