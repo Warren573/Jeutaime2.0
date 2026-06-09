@@ -28,18 +28,9 @@ router.get(
   }),
 );
 
-// GET /api/salons/:id — détail d'un salon actif
-router.get(
-  "/:id",
-  wrap(async (req, res) => {
-    const id = req.params["id"] as string;
-    const data = await svc.getActiveById(id);
-    res.json({ data });
-  }),
-);
-
 // GET /api/salons/:id/messages — derniers messages du salon
 // Paramètre optionnel: sessionId pour filtrer par session
+// IMPORTANT: Must come BEFORE /:id to avoid being matched by it
 router.get(
   "/:id/messages",
   (req, res, next) => {
@@ -59,6 +50,7 @@ router.get(
 );
 
 // POST /api/salons/:id/messages — envoyer un message dans le salon
+// IMPORTANT: Must come BEFORE /:id to avoid being matched by it
 router.post(
   "/:id/messages",
   validate(SendSalonMessageSchema),
@@ -66,6 +58,17 @@ router.post(
     const id = req.params["id"] as string;
     const { content } = req.body as SendSalonMessageDto;
     const data = await svc.postMessage(id, req.user.userId, content);
+    res.json({ data });
+  }),
+);
+
+// GET /api/salons/:id — détail d'un salon actif
+// IMPORTANT: Must come LAST after all more specific routes
+router.get(
+  "/:id",
+  wrap(async (req, res) => {
+    const id = req.params["id"] as string;
+    const data = await svc.getActiveById(id);
     res.json({ data });
   }),
 );
