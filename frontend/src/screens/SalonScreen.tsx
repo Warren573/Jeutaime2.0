@@ -469,7 +469,7 @@ export default function SalonScreen() {
     try {
       // Load all in parallel
       const [msgs, session, offers, magies, myOffers, activeMag] = await Promise.all([
-        apiListMessages(apiSalonId),
+        apiListMessages(apiSalonId, 50, screenSessionId),
         getSessionDetail(screenSessionId),
         getSalonOfferings(apiSalonId),
         getSalonMagies(apiSalonId),

@@ -326,6 +326,7 @@ export async function joinSession(
       const msg = await prisma.salonMessage.create({
         data: {
           salonId: salon.id,
+          sessionId, // Link to current session
           userId, // The joining user
           kind: "system",
           content: welcomeContent,
@@ -333,7 +334,7 @@ export async function joinSession(
         },
       });
       console.log(
-        `[JOIN-SESSION] Welcome message created: id=${msg.id}, salonId=${msg.salonId}, kind=${msg.kind}, content="${msg.content}"`,
+        `[JOIN-SESSION] Welcome message created: id=${msg.id}, sessionId=${msg.sessionId}, salonId=${msg.salonId}, kind=${msg.kind}, content="${msg.content}"`,
       );
     } catch (err) {
       console.error(

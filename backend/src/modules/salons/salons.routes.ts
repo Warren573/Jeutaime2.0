@@ -39,13 +39,14 @@ router.get(
 );
 
 // GET /api/salons/:id/messages — derniers messages du salon
+// Paramètre optionnel: sessionId pour filtrer par session
 router.get(
   "/:id/messages",
   validate(ListSalonMessagesQuerySchema, "query"),
   wrap(async (req, res) => {
     const id = req.params["id"] as string;
-    const { limit } = req.query as unknown as ListSalonMessagesQuery;
-    const data = await svc.listMessages(id, limit);
+    const { limit, sessionId } = req.query as unknown as ListSalonMessagesQuery & { sessionId?: string };
+    const data = await svc.listMessages(id, limit, sessionId);
     res.json({ data });
   }),
 );
