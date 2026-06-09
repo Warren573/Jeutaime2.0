@@ -104,6 +104,12 @@ const SLUG_TO_KIND: Record<string, string> = {
 // Helper: Format message time
 function formatMessageTime(createdAt: string): { time: string; dateSeparator?: string } {
   const msgDate = new Date(createdAt);
+
+  // Handle invalid dates
+  if (isNaN(msgDate.getTime())) {
+    return { time: '', dateSeparator: undefined };
+  }
+
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today);
@@ -1116,6 +1122,7 @@ export default function SalonScreen() {
               )}
               {isSystem ? (
                 <View style={styles.systemMessage}>
+                  <Text style={styles.systemLabel}>🤖 JeuTaime</Text>
                   <Text style={styles.systemText}>{item.content || item.text}</Text>
                 </View>
               ) : (
@@ -1608,17 +1615,25 @@ const styles = StyleSheet.create({
   },
   systemMessage: {
     alignSelf: 'center',
-    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-    paddingHorizontal: 16,
+    backgroundColor: 'rgba(102, 126, 234, 0.08)',
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 16,
-    marginVertical: 8,
+    borderRadius: 12,
+    marginVertical: 12,
+    maxWidth: '85%',
+  },
+  systemLabel: {
+    fontSize: 12,
+    color: '#667eea',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 4,
   },
   systemText: {
-    fontSize: 13,
-    color: '#667eea',
-    fontStyle: 'italic',
+    fontSize: 12,
+    color: '#8B7BA3',
     textAlign: 'center',
+    lineHeight: 16,
   },
   dateSeparator: {
     alignItems: 'center',
