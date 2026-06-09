@@ -434,8 +434,8 @@ export default function SalonScreen() {
   // Action levels tracking: userId -> { drinkLevel, eatLevel }
   const [actionLevels, setActionLevels] = useState<Record<string, { drinkLevel: number; eatLevel: number }>>({});
 
-  // Test mode: allow self-targeting when alone
-  const allowSelfTarget = isTestMode() && participants.length === 0;
+  // Test mode: allow self-targeting when alone (excluding self from count)
+  const allowSelfTarget = isTestMode() && participants.filter(p => !p.isMe).length === 0;
   const effectiveSelectedPlayer = selectedPlayer || (allowSelfTarget && currentUser ? {
     id: currentUser.id,
     name: currentUser.name || 'Moi',
