@@ -663,6 +663,11 @@ export default function SalonScreen() {
     finalParticipants.forEach((p, i) => {
       console.log(`[DEBUG-PARTICIPANTS-EFFECT]   [${i}] id=${p.id}, name=${p.name}, isMe=${(p as any).isMe}`);
     });
+    console.log('[TARGET] PARTICIPANTS LOADED:', {
+      count: finalParticipants.length,
+      names: finalParticipants.map(p => p.name),
+      selectedPlayerBefore: selectedPlayer?.name || null,
+    });
     setParticipants(finalParticipants);
   }, [isAuthenticated, activeSessions, screenSessionId, currentUser, avatarPngConfig]);
 
@@ -879,6 +884,7 @@ export default function SalonScreen() {
     addMessage(salonId, sysMsg);
 
     setShowOfferingsModal(false);
+    console.log('[TARGET] POST-OFFERING: Resetting selectedPlayer to null');
     setSelectedPlayer(null);
     setModalTargetId(null);
   };
@@ -1000,6 +1006,7 @@ export default function SalonScreen() {
     addMessage(salonId, sysMsg);
 
     setShowPowersModal(false);
+    console.log('[TARGET] POST-POWER: Resetting selectedPlayer to null');
     setSelectedPlayer(null);
     setModalTargetId(null);
   };
@@ -1235,7 +1242,19 @@ export default function SalonScreen() {
                 styles.participantItem,
                 selectedPlayer?.id === p.id && styles.participantSelected
               ]}
-              onPress={() => !p.isMe && setSelectedPlayer(selectedPlayer?.id === p.id ? null : p)}
+              onPress={() => !p.isMe && setSelectedPlayer(prev => {
+                const next = selectedPlayer?.id === p.id ? null : p;
+                console.log('[TARGET] Click participant', {
+                  clicked: p.name,
+                  wasSelected: selectedPlayer?.id === p.id,
+                  newSelectedPlayer: next?.name || null,
+                  effectiveSelectedPlayer: (selectedPlayer || (allowSelfTarget && currentUser ? currentUser : null))?.name,
+                  participants: participants.map(x => x.name),
+                  allowSelfTarget,
+                  isTestMode: isTestMode(),
+                });
+                return next;
+              })}
             >
               <AnimatedAvatar 
                 participant={p} 
@@ -1413,7 +1432,19 @@ export default function SalonScreen() {
                   participant={p}
                   size={avatarSizeLandscape}
                   showBadges={true}
-                  onPress={() => !p.isMe && setSelectedPlayer(selectedPlayer?.id === p.id ? null : p)}
+                  onPress={() => !p.isMe && setSelectedPlayer(prev => {
+                const next = selectedPlayer?.id === p.id ? null : p;
+                console.log('[TARGET] Click participant', {
+                  clicked: p.name,
+                  wasSelected: selectedPlayer?.id === p.id,
+                  newSelectedPlayer: next?.name || null,
+                  effectiveSelectedPlayer: (selectedPlayer || (allowSelfTarget && currentUser ? currentUser : null))?.name,
+                  participants: participants.map(x => x.name),
+                  allowSelfTarget,
+                  isTestMode: isTestMode(),
+                });
+                return next;
+              })}
                   isSelected={selectedPlayer?.id === p.id}
                 />
               </View>
@@ -1444,6 +1475,13 @@ export default function SalonScreen() {
 
           {effectiveSelectedPlayer && (
             <View style={styles.selectedBanner}>
+              {console.log('[TARGET] BANNER RENDER:', {
+                selectedPlayer: selectedPlayer?.name || null,
+                effectiveSelectedPlayer: effectiveSelectedPlayer.name,
+                allowSelfTarget,
+                isTestMode: isTestMode(),
+                participantCount: participants.length,
+              }) || null}
               <Text style={styles.selectedBannerText}>🎯 {effectiveSelectedPlayer.name}</Text>
             </View>
           )}
