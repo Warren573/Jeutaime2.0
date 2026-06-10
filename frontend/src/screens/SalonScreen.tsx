@@ -1078,8 +1078,20 @@ export default function SalonScreen() {
   };
 
   // Ouvrir le modal magie — sorts actifs sur la cible depuis salonMagies (ou fetch frais en fallback)
-  const openPowersModal = useCallback(async () => {
-    const target = effectiveSelectedPlayer;
+  const openPowersModal = useCallback(async (targetId?: string) => {
+    let target = null;
+
+    // En mode test, permettre l'ouverture avec une cible spécifique (y compris soi-même)
+    if (targetId) {
+      if (targetId === currentUser?.id) {
+        target = { id: currentUser.id, name: currentUser.name, isMe: true };
+      } else {
+        target = participants.find(p => p.id === targetId);
+      }
+    } else {
+      target = effectiveSelectedPlayer;
+    }
+
     if (!target) {
       console.log('[DEBUG-POWERS] No target selected, returning');
       return;
@@ -1313,19 +1325,28 @@ export default function SalonScreen() {
           <Text style={styles.actionEmoji}>🥐</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionButton, !effectiveSelectedPlayer && styles.actionButtonDisabled]}
+          style={[styles.actionButton, !effectiveSelectedPlayer && !isTestMode() && styles.actionButtonDisabled]}
           onPress={() => {
-            console.log(`[DEBUG-OFFERING-PORTRAIT] effectiveSelectedPlayer=${effectiveSelectedPlayer?.id}`);
-            effectiveSelectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')
+            if (isTestMode() || effectiveSelectedPlayer) {
+              setModalTargetId(isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : undefined);
+              setShowOfferingsModal(true);
+            } else {
+              alert('Sélectionnez d\'abord un participant!')
+            }
           }}
         >
           <Text style={styles.actionEmoji}>🎁</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionButton, !effectiveSelectedPlayer && styles.actionButtonDisabled]}
+          style={[styles.actionButton, !effectiveSelectedPlayer && !isTestMode() && styles.actionButtonDisabled]}
           onPress={() => {
-            console.log(`[DEBUG-POWERS-PORTRAIT] effectiveSelectedPlayer=${effectiveSelectedPlayer?.id}`);
-            effectiveSelectedPlayer ? openPowersModal() : alert('Sélectionnez d\'abord un participant!')
+            if (isTestMode() || effectiveSelectedPlayer) {
+              const targetId = isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : undefined;
+              setModalTargetId(targetId);
+              openPowersModal(targetId);
+            } else {
+              alert('Sélectionnez d\'abord un participant!')
+            }
           }}
         >
           <Text style={styles.actionEmoji}>✨</Text>
@@ -1416,20 +1437,29 @@ export default function SalonScreen() {
           {/* Boutons d'action */}
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
-              style={[styles.bigActionButton, styles.giftButton, !effectiveSelectedPlayer && styles.bigActionButtonDisabled]}
+              style={[styles.bigActionButton, styles.giftButton, !effectiveSelectedPlayer && !isTestMode() && styles.bigActionButtonDisabled]}
               onPress={() => {
-                console.log(`[DEBUG-OFFERING-LANDSCAPE] effectiveSelectedPlayer=${effectiveSelectedPlayer?.id}`);
-                effectiveSelectedPlayer ? setShowOfferingsModal(true) : alert('Sélectionnez d\'abord un participant!')
+                if (isTestMode() || effectiveSelectedPlayer) {
+                  setModalTargetId(isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : undefined);
+                  setShowOfferingsModal(true);
+                } else {
+                  alert('Sélectionnez d\'abord un participant!')
+                }
               }}
             >
               <Text style={styles.bigActionEmoji}>🎁</Text>
               <Text style={styles.bigActionText}>Offrir</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.bigActionButton, styles.magicButton, !effectiveSelectedPlayer && styles.bigActionButtonDisabled]}
+              style={[styles.bigActionButton, styles.magicButton, !effectiveSelectedPlayer && !isTestMode() && styles.bigActionButtonDisabled]}
               onPress={() => {
-                console.log(`[DEBUG-POWERS-LANDSCAPE] effectiveSelectedPlayer=${effectiveSelectedPlayer?.id}`);
-                effectiveSelectedPlayer ? openPowersModal() : alert('Sélectionnez d\'abord un participant!')
+                if (isTestMode() || effectiveSelectedPlayer) {
+                  const targetId = isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : undefined;
+                  setModalTargetId(targetId);
+                  openPowersModal(targetId);
+                } else {
+                  alert('Sélectionnez d\'abord un participant!')
+                }
               }}
             >
               <Text style={styles.bigActionEmoji}>✨</Text>
