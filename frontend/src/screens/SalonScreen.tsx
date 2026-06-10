@@ -66,6 +66,8 @@ import {
   joinSession,
   leaveSession,
   getCurrentSalonSession,
+  performDrinkAction,
+  performEatAction,
   type SalonMessageDTO,
   type SalonSessionDTO,
 } from '../api/salons';
@@ -765,6 +767,62 @@ export default function SalonScreen() {
     addMessage(salonId, newMessage);
     setMessageInput('');
     scrollToEnd();
+  };
+
+  // Perform drink action
+  const handleDrink = async () => {
+    console.log(`[DEBUG-DRINK] screenSessionId=${screenSessionId}, currentUser=${currentUser?.id}`);
+    if (!screenSessionId) {
+      console.error('[DEBUG-DRINK] Missing screenSessionId!');
+      alert('Erreur: screenSessionId manquant');
+      return;
+    }
+    try {
+      console.log(`[DEBUG-DRINK] Calling performDrinkAction(${screenSessionId})`);
+      const result = await performDrinkAction(screenSessionId);
+      console.log(`[DEBUG-DRINK] Response:`, result);
+      if (result.success && currentUser?.id) {
+        setActionLevels(prev => ({
+          ...prev,
+          [currentUser.id]: {
+            ...prev[currentUser.id],
+            drinkLevel: result.level || 0,
+          },
+        }));
+        // Refresh messages to show the system message
+        loadSalonContent();
+      }
+    } catch (e) {
+      console.error('[DRINK-ACTION] Error:', e);
+    }
+  };
+
+  // Perform eat action
+  const handleEat = async () => {
+    console.log(`[DEBUG-EAT] screenSessionId=${screenSessionId}, currentUser=${currentUser?.id}`);
+    if (!screenSessionId) {
+      console.error('[DEBUG-EAT] Missing screenSessionId!');
+      alert('Erreur: screenSessionId manquant');
+      return;
+    }
+    try {
+      console.log(`[DEBUG-EAT] Calling performEatAction(${screenSessionId})`);
+      const result = await performEatAction(screenSessionId);
+      console.log(`[DEBUG-EAT] Response:`, result);
+      if (result.success && currentUser?.id) {
+        setActionLevels(prev => ({
+          ...prev,
+          [currentUser.id]: {
+            ...prev[currentUser.id],
+            eatLevel: result.level || 0,
+          },
+        }));
+        // Refresh messages to show the system message
+        loadSalonContent();
+      }
+    } catch (e) {
+      console.error('[EAT-ACTION] Error:', e);
+    }
   };
 
   // Envoyer une offrande

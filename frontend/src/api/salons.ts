@@ -163,3 +163,19 @@ export async function getCurrentSalonSession(): Promise<CurrentSalonSessionDTO |
   )) as { data: CurrentSalonSessionDTO | null };
   return res.data;
 }
+
+export async function performDrinkAction(sessionId: string): Promise<{ success: boolean; level?: number }> {
+  const res = (await apiFetch(`/salon-sessions/${sessionId}/drink`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })) as { data: { success: boolean; level?: number } };
+  return res.data;
+}
+
+export async function performEatAction(sessionId: string): Promise<{ success: boolean; level?: number }> {
+  const res = (await apiFetch(`/salon-sessions/${sessionId}/eat`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })) as { data: { success: boolean; level?: number } };
+  return res.data;
+}
