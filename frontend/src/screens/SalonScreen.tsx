@@ -823,6 +823,7 @@ export default function SalonScreen() {
     if (isAuthenticated && apiSalonId) {
       try {
         console.log(`[DEBUG-OFFERING-API] Calling sendOffering with toUserId=${targetUserId}`);
+        console.log('[SEND-OFFERING]', targetUserId);
         await sendOffering({ offeringId: item.id, toUserId: targetUserId, salonId: apiSalonId });
         await loadWallet();
         // Refresh all content immediately
@@ -912,6 +913,7 @@ export default function SalonScreen() {
       // ── Chemin backend : cast réel via API ───────────────────────────────
       try {
         console.log(`[DEBUG-SPELL-API] Calling castSpell with toUserId=${targetId}`);
+        console.log('[SEND-POWER]', targetId);
         const castResult = await castSpell({ magieId: item.id, toUserId: targetId, salonId: apiSalonId });
         sentCastsRef.current.set(targetId, castResult);
         await loadWallet();
