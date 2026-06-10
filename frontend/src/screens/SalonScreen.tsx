@@ -795,12 +795,13 @@ export default function SalonScreen() {
         const msg: string = e?.message ?? '';
         if (/insuffisant|insufficient|coins/i.test(msg)) {
           alert('Pas assez de pièces !');
+          return;
         } else if (/toi-même/i.test(msg)) {
-          alert('En mode test, vous pouvez vous cibler.');
+          // En mode test, allow self-targeting silently - continue with local UI update
         } else {
           alert('Offrande non envoyée. Réessaie.');
+          return;
         }
-        return;
       }
     } else {
       if (!removeCoins(item.cost)) {
@@ -898,12 +899,13 @@ export default function SalonScreen() {
         const msg: string = e?.message ?? '';
         if (/insuffisant|insufficient|coins/i.test(msg)) {
           alert('Pas assez de pièces !');
+          return;
         } else if (/toi-même/i.test(msg)) {
-          alert('En mode test, vous pouvez vous cibler.');
+          // En mode test, allow self-casting silently - continue with local UI update
         } else {
           alert('Sort non lancé. Réessaie.');
+          return;
         }
-        return;
       }
     } else {
       // ── Chemin local : mode non authentifié ou anti-sort local ───────────
