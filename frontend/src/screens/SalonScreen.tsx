@@ -850,7 +850,6 @@ export default function SalonScreen() {
       return p;
     }));
 
-    const isSelf = target.id === currentUser?.id;
     setRecentInteractions(prev => [{
       id: Date.now().toString(),
       from: currentUser?.name || 'Vous',
