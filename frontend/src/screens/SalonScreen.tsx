@@ -1097,8 +1097,8 @@ export default function SalonScreen() {
 
     // En mode test, permettre l'ouverture avec une cible spécifique (y compris soi-même)
     if (targetId) {
-      if (targetId === currentUser?.id) {
-        target = { id: currentUser.id, name: currentUser.name, isMe: true };
+      if (targetId === currentUser?.id || (targetId === '' && !currentUser?.id)) {
+        target = { id: currentUser?.id || '', name: currentUser?.name || 'Moi-même', isMe: true };
       } else {
         target = participants.find(p => p.id === targetId);
       }
@@ -1342,7 +1342,7 @@ export default function SalonScreen() {
           style={[styles.actionButton, !effectiveSelectedPlayer && !isTestMode() && styles.actionButtonDisabled]}
           onPress={() => {
             if (isTestMode() || effectiveSelectedPlayer) {
-              setModalTargetId(isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : undefined);
+              setModalTargetId(isTestMode() ? (currentUser?.id || '') : undefined);
               setShowOfferingsModal(true);
             } else {
               alert('Sélectionnez d\'abord un participant!')
@@ -1355,7 +1355,7 @@ export default function SalonScreen() {
           style={[styles.actionButton, !effectiveSelectedPlayer && !isTestMode() && styles.actionButtonDisabled]}
           onPress={() => {
             if (isTestMode() || effectiveSelectedPlayer) {
-              const targetId = isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : undefined;
+              const targetId = isTestMode() ? currentUser?.id : undefined;
               setModalTargetId(targetId);
               openPowersModal(targetId);
             } else {
@@ -1454,7 +1454,7 @@ export default function SalonScreen() {
               style={[styles.bigActionButton, styles.giftButton, !effectiveSelectedPlayer && !isTestMode() && styles.bigActionButtonDisabled]}
               onPress={() => {
                 if (isTestMode() || effectiveSelectedPlayer) {
-                  setModalTargetId(isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : undefined);
+                  setModalTargetId(isTestMode() ? currentUser?.id : undefined);
                   setShowOfferingsModal(true);
                 } else {
                   alert('Sélectionnez d\'abord un participant!')
@@ -1468,7 +1468,7 @@ export default function SalonScreen() {
               style={[styles.bigActionButton, styles.magicButton, !effectiveSelectedPlayer && !isTestMode() && styles.bigActionButtonDisabled]}
               onPress={() => {
                 if (isTestMode() || effectiveSelectedPlayer) {
-                  const targetId = isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : undefined;
+                  const targetId = isTestMode() ? (currentUser?.id || '') : undefined;
                   setModalTargetId(targetId);
                   openPowersModal(targetId);
                 } else {
