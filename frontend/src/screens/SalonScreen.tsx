@@ -789,8 +789,8 @@ export default function SalonScreen() {
         console.log(`[DEBUG-OFFERING-API] Calling sendOffering with toUserId=${targetUserId}`);
         await sendOffering({ offeringId: item.id, toUserId: targetUserId, salonId: apiSalonId });
         await loadWallet();
-        // Refresh all content immediately
-        loadSalonContent();
+        // Do NOT call loadSalonContent() immediately - let the normal polling (every 2s) handle it
+        // to avoid race condition where new offering hasn't persisted yet
       } catch (e: any) {
         const msg: string = e?.message ?? '';
         if (/insuffisant|insufficient|coins/i.test(msg)) {
@@ -879,8 +879,7 @@ export default function SalonScreen() {
         const castResult = await castSpell({ magieId: item.id, toUserId: targetId, salonId: apiSalonId });
         sentCastsRef.current.set(targetId, castResult);
         await loadWallet();
-        // Refresh all content immediately
-        loadSalonContent();
+        // Do NOT call loadSalonContent() immediately - let the normal polling (every 2s) handle it
         // Appliquer transformation locale à partir du résultat backend
         const durationMs = castResult.magie.durationSec * 1000;
         const expiresAt = Date.now() + durationMs;
