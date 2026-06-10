@@ -1073,7 +1073,19 @@ export default function SalonScreen() {
                 styles.participantItem,
                 selectedPlayer?.id === p.id && styles.participantSelected
               ]}
-              onPress={() => !p.isMe && setSelectedPlayer(selectedPlayer?.id === p.id ? null : p)}
+              onPress={() => setSelectedPlayer(prev => {
+                const next = selectedPlayer?.id === p.id ? null : p;
+                console.log('[TARGET] Click participant', {
+                  clicked: p.name,
+                  wasSelected: selectedPlayer?.id === p.id,
+                  newSelectedPlayer: next?.name || null,
+                  effectiveSelectedPlayer: (selectedPlayer || (allowSelfTarget && currentUser ? currentUser : null))?.name,
+                  participants: participants.map(x => x.name),
+                  allowSelfTarget,
+                  isTestMode: isTestMode(),
+                });
+                return next;
+              })}
             >
               <AnimatedAvatar 
                 participant={p} 
@@ -1204,7 +1216,19 @@ export default function SalonScreen() {
                   participant={p}
                   size={avatarSizeLandscape}
                   showBadges={true}
-                  onPress={() => !p.isMe && setSelectedPlayer(selectedPlayer?.id === p.id ? null : p)}
+                  onPress={() => setSelectedPlayer(prev => {
+                    const next = selectedPlayer?.id === p.id ? null : p;
+                    console.log('[TARGET] Click participant', {
+                      clicked: p.name,
+                      wasSelected: selectedPlayer?.id === p.id,
+                      newSelectedPlayer: next?.name || null,
+                      effectiveSelectedPlayer: (selectedPlayer || (allowSelfTarget && currentUser ? currentUser : null))?.name,
+                      participants: participants.map(x => x.name),
+                      allowSelfTarget,
+                      isTestMode: isTestMode(),
+                    });
+                    return next;
+                  })}
                   isSelected={selectedPlayer?.id === p.id}
                 />
               </View>
