@@ -1037,9 +1037,16 @@ export default function SalonScreen() {
 
   // Perform drink action
   const handleDrink = async () => {
-    if (!screenSessionId) return;
+    console.log(`[DEBUG-DRINK] screenSessionId=${screenSessionId}, currentUser=${currentUser?.id}`);
+    if (!screenSessionId) {
+      console.error('[DEBUG-DRINK] Missing screenSessionId!');
+      alert('Erreur: screenSessionId manquant');
+      return;
+    }
     try {
+      console.log(`[DEBUG-DRINK] Calling performDrinkAction(${screenSessionId})`);
       const result = await performDrinkAction(screenSessionId);
+      console.log(`[DEBUG-DRINK] Response:`, result);
       if (result.success && currentUser?.id) {
         setActionLevels(prev => ({
           ...prev,
@@ -1058,9 +1065,16 @@ export default function SalonScreen() {
 
   // Perform eat action
   const handleEat = async () => {
-    if (!screenSessionId) return;
+    console.log(`[DEBUG-EAT] screenSessionId=${screenSessionId}, currentUser=${currentUser?.id}`);
+    if (!screenSessionId) {
+      console.error('[DEBUG-EAT] Missing screenSessionId!');
+      alert('Erreur: screenSessionId manquant');
+      return;
+    }
     try {
+      console.log(`[DEBUG-EAT] Calling performEatAction(${screenSessionId})`);
       const result = await performEatAction(screenSessionId);
+      console.log(`[DEBUG-EAT] Response:`, result);
       if (result.success && currentUser?.id) {
         setActionLevels(prev => ({
           ...prev,
@@ -1507,6 +1521,9 @@ export default function SalonScreen() {
         <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>🎁 Offrir à {target?.name}</Text>
+            <Text style={{fontSize: 9, color: '#666', position: 'absolute', top: 0, left: 0}}>
+              DEBUG: test={isTestMode()?'Y':'N'} selector={isModalTargetMode?'Y':'N'} modalId={modalTargetId?.substring(0,8)} targets={possibleTargets.length}
+            </Text>
             <TouchableOpacity onPress={() => { setShowOfferingsModal(false); setModalTargetId(null); }}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
@@ -1595,6 +1612,9 @@ export default function SalonScreen() {
         <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>✨ Magie sur {target?.name}</Text>
+            <Text style={{fontSize: 9, color: '#666', position: 'absolute', top: 0, left: 0}}>
+              DEBUG: test={isTestMode()?'Y':'N'} selector={isModalTargetMode?'Y':'N'} modalId={modalTargetId?.substring(0,8)} targets={possibleTargets.length}
+            </Text>
             <TouchableOpacity onPress={() => { setShowPowersModal(false); setTargetActiveCasts([]); setModalTargetId(null); }}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
