@@ -16,8 +16,20 @@ export async function handleCatalog(_req: AuthedRequest, res: Response) {
 // POST /api/offerings/send
 export async function handleSend(req: AuthedRequest, res: Response) {
   const dto = req.body as SendOfferingDto;
-  const data = await svc.sendOffering(req.user.userId, dto);
-  res.status(201).json({ data });
+  console.log('[OFFERING-BODY]', { fromUserId: req.user.userId, ...dto });
+  try {
+    const data = await svc.sendOffering(req.user.userId, dto);
+    res.status(201).json({ data });
+  } catch (error: any) {
+    console.error('[OFFERING-SEND-ERROR]', {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      requestBody: dto,
+      errorType: error?.constructor?.name,
+    });
+    throw error;
+  }
 }
 
 // GET /api/offerings/received

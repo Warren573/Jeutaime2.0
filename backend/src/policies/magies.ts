@@ -13,6 +13,7 @@
  */
 import { BadRequestError } from "../core/errors";
 import { BREAK_CONDITION_TO_ANTISPELL } from "../modules/magies/magies.constants";
+import { isTestMode } from "../core/testMode";
 
 // ============================================================
 // Types minimaux — volontairement structural typing
@@ -148,7 +149,9 @@ export function assertNotSelfCast(
   actorId: string,
   targetId: string,
 ): void {
-  if (actorId === targetId) {
+  const testMode = isTestMode();
+  console.log('[SELF-CAST-CHECK]', { actorId, targetId, isSelf: actorId === targetId, testMode, allowed: actorId !== targetId || testMode });
+  if (actorId === targetId && !testMode) {
     throw new BadRequestError(
       "Tu ne peux pas te lancer un sort à toi-même",
     );

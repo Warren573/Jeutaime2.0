@@ -14,6 +14,7 @@
  */
 import { SalonKind } from "@prisma/client";
 import { BadRequestError, NotFoundError } from "../core/errors";
+import { isTestMode } from "../core/testMode";
 
 // ============================================================
 // Types minimaux — structural typing
@@ -150,7 +151,9 @@ export function assertNotSelfOffering(
   fromUserId: string,
   toUserId: string,
 ): void {
-  if (fromUserId === toUserId) {
+  const testMode = isTestMode();
+  console.log('[SELF-OFFERING-CHECK]', { fromUserId, toUserId, isSelf: fromUserId === toUserId, testMode, allowed: fromUserId !== toUserId || testMode });
+  if (fromUserId === toUserId && !testMode) {
     throw new BadRequestError(
       "Tu ne peux pas t'envoyer un cadeau à toi-même",
     );

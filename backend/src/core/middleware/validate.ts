@@ -11,12 +11,19 @@ type Target = "body" | "params" | "query";
  */
 export function validate(schema: ZodSchema, target: Target = "body") {
   return (req: Request, _res: Response, next: NextFunction) => {
+    console.log(`[VALIDATE-${target.toUpperCase()}]`, { target, data: req[target] });
     const result = schema.safeParse(req[target]);
     if (!result.success) {
       const details = (result.error as ZodError).issues.map((i) => ({
         field: i.path.join("."),
         message: i.message,
+        code: i.code,
       }));
+      console.error(`[VALIDATE-ERROR-${target.toUpperCase()}]`, {
+        message: "Données invalides",
+        details,
+        receivedData: req[target],
+      });
       return next(new BadRequestError("Données invalides", details));
     }
     // Remplacer les données par les données transformées/coercées par Zod
