@@ -16,6 +16,7 @@ export async function handleCatalog(_req: AuthedRequest, res: Response) {
 // POST /api/offerings/send
 export async function handleSend(req: AuthedRequest, res: Response) {
   const dto = req.body as SendOfferingDto;
+  console.log('[OFFERING-BODY]', { fromUserId: req.user.userId, ...dto });
   const data = await svc.sendOffering(req.user.userId, dto);
   res.status(201).json({ data });
 }

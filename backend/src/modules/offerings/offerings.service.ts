@@ -131,38 +131,54 @@ export async function sendOffering(
   dto: SendOfferingDto,
 ): Promise<OfferingSentDto> {
   // 1. Sanity checks hors DB
+  console.log('[VALIDATION-1] assertNotSelfOffering');
   assertNotSelfOffering(fromUserId, dto.toUserId);
 
   // 2. Lectures hors transaction : catalog, target, salon
+  console.log('[VALIDATION-2] checking catalog existence');
   const catalog = await prisma.offeringCatalog.findUnique({
     where: { id: dto.offeringId },
   });
-  if (!catalog) throw new NotFoundError("Offering");
+  if (!catalog) {
+    console.error('[ERROR-400] Offering not found');
+    throw new NotFoundError("Offering");
+  }
+  console.log('[VALIDATION-3] assertOfferingUsable');
   assertOfferingUsable(catalog);
 
+  console.log('[VALIDATION-4] checking target user');
   const target = await prisma.user.findUnique({
     where: { id: dto.toUserId },
     select: { id: true, isBanned: true },
   });
-  if (!target) throw new NotFoundError("Destinataire");
+  if (!target) {
+    console.error('[ERROR-400] Target user not found');
+    throw new NotFoundError("Destinataire");
+  }
   if (target.isBanned) {
+    console.error('[ERROR-403] Target user is banned');
     throw new ForbiddenError(
       "Impossible d'envoyer un cadeau à un utilisateur banni",
     );
   }
 
   // Charger le salon si fourni
+  console.log('[VALIDATION-5] checking salon if provided', { salonId: dto.salonId });
   let salon: { id: string; isActive: boolean; kind: SalonKind } | null = null;
   if (dto.salonId !== undefined) {
     const s = await prisma.salon.findUnique({
       where: { id: dto.salonId },
       select: { id: true, isActive: true, kind: true },
     });
-    if (!s || !s.isActive) throw new NotFoundError("Salon");
+    if (!s || !s.isActive) {
+      console.error('[ERROR-400] Salon not found or inactive');
+      throw new NotFoundError("Salon");
+    }
     salon = s;
   }
 
   // Cohérence salonOnly
+  console.log('[VALIDATION-6] assertSalonOnlyRespected');
   assertSalonOnlyRespected(
     catalog.salonOnly,
     salon ? { isActive: salon.isActive, kind: salon.kind } : null,
@@ -172,13 +188,19 @@ export async function sendOffering(
   const expiresAt = computeOfferingExpiry(now, catalog.durationMs);
 
   // 3. Transaction : débit wallet + CoinTransaction + OfferingSent
+  console.log('[VALIDATION-7] entering transaction for wallet debit');
   const result = await prisma.$transaction(async (tx) => {
+    console.log('[VALIDATION-8] fetching wallet');
     const wallet = await tx.wallet.findUnique({
       where: { userId: fromUserId },
     });
-    if (!wallet) throw new NotFoundError("Wallet");
+    if (!wallet) {
+      console.error('[ERROR-400] Wallet not found');
+      throw new NotFoundError("Wallet");
+    }
 
     // Pure : throws NotEnoughCoinsError si fonds insuffisants
+    console.log('[VALIDATION-9] computing debit balance', { coins: wallet.coins, cost: catalog.cost });
     const newBalance = computeDebitBalance(wallet.coins, catalog.cost);
 
     await tx.wallet.update({
