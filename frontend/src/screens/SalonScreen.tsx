@@ -1247,7 +1247,7 @@ export default function SalonScreen() {
                 styles.participantItem,
                 selectedPlayer?.id === p.id && styles.participantSelected
               ]}
-              onPress={() => !p.isMe && setSelectedPlayer(prev => {
+              onPress={() => setSelectedPlayer(prev => {
                 const next = selectedPlayer?.id === p.id ? null : p;
                 console.log('[TARGET] Click participant', {
                   clicked: p.name,
@@ -1442,7 +1442,7 @@ export default function SalonScreen() {
                   participant={p}
                   size={avatarSizeLandscape}
                   showBadges={true}
-                  onPress={() => !p.isMe && setSelectedPlayer(prev => {
+                  onPress={() => setSelectedPlayer(prev => {
                 const next = selectedPlayer?.id === p.id ? null : p;
                 console.log('[TARGET] Click participant', {
                   clicked: p.name,
