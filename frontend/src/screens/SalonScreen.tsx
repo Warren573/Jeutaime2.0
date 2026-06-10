@@ -1232,6 +1232,11 @@ export default function SalonScreen() {
         </TouchableOpacity>
       </LinearGradient>
 
+      {/* DEBUG PANEL - DIAGNOSTIC */}
+      <View style={{backgroundColor: '#f0f0f0', padding: 8, borderBottomWidth: 1, borderBottomColor: '#ddd'}}>
+        <Text style={{fontSize: 10, color: '#333', fontFamily: 'monospace'}}>TEST MODE: {isTestMode() ? 'YES' : 'NO'} | TARGETS: {participants.length} | USER: {currentUser?.id?.substring(0,8) || 'none'} | MODAL: {modalTargetId?.substring(0,8) || 'null'}</Text>
+      </View>
+
       {/* Barre des participants - GRANDE sur toute la largeur */}
       <View style={styles.participantStrip}>
         <View style={styles.participantsRow}>
@@ -1421,6 +1426,11 @@ export default function SalonScreen() {
         </TouchableOpacity>
         <Text style={styles.coinsText}>💰 {coins}</Text>
       </LinearGradient>
+
+      {/* DEBUG PANEL - DIAGNOSTIC */}
+      <View style={{backgroundColor: '#f0f0f0', padding: 6, borderBottomWidth: 1, borderBottomColor: '#ddd'}}>
+        <Text style={{fontSize: 9, color: '#333', fontFamily: 'monospace'}}>TEST: {isTestMode() ? 'Y' : 'N'} | TARGETS: {participants.length} | USER: {currentUser?.id?.substring(0,8) || '?'} | MODAL: {modalTargetId?.substring(0,8) || '—'}</Text>
+      </View>
 
       <View style={styles.landscapeContent}>
         {/* Zone des avatars (gauche) - GRANDE */}
