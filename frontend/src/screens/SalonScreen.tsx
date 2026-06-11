@@ -1814,6 +1814,9 @@ export default function SalonScreen() {
 
   return (
     <View style={{ flex: 1 }}>
+      <Text style={{ position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: '#FF0000', color: '#FFF', padding: 5, textAlign: 'center', fontSize: 10, fontWeight: 'bold', zIndex: 9999 }}>
+        DEBUG PANEL ACTIVE - SHA ef63c977
+      </Text>
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
