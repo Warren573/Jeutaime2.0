@@ -1513,6 +1513,33 @@ export default function SalonScreen() {
               </View>
             ))}
           </View>
+
+          {/* Debug panel - test mode only */}
+          {isTestMode() && (
+            <View style={{ backgroundColor: '#222', padding: 10, marginTop: 10, borderRadius: 5, borderWidth: 1, borderColor: '#666' }}>
+              <Text style={{ color: '#0f0', fontSize: 10, fontFamily: 'monospace', marginBottom: 4 }}>
+                ME ID: {currentUser?.id?.substring(0, 8) || 'N/A'}
+              </Text>
+              <Text style={{ color: '#0f0', fontSize: 10, fontFamily: 'monospace', marginBottom: 4 }}>
+                selectedTargetId: {selectedPlayer?.id?.substring(0, 8) || 'none'}
+              </Text>
+              <Text style={{ color: '#0f0', fontSize: 10, fontFamily: 'monospace', marginBottom: 4 }}>
+                lastSpellTargetId: {sentCastsRef.current.size > 0 ? Array.from(sentCastsRef.current.keys())[0]?.substring(0, 8) : 'none'}
+              </Text>
+              <Text style={{ color: '#0f0', fontSize: 10, fontFamily: 'monospace', marginBottom: 4 }}>
+                activeMagiesOnMe: {activeMagiesOnMe.length}
+              </Text>
+              <Text style={{ color: '#0f0', fontSize: 10, fontFamily: 'monospace', marginBottom: 4 }}>
+                salonMagies self-target: {salonMagies.filter(m => m.toUserId === currentUser?.id).length}
+              </Text>
+              <Text style={{ color: '#0f0', fontSize: 10, fontFamily: 'monospace', marginBottom: 4 }}>
+                currentUser.transformation: {participants.find(p => p.id === currentUser?.id)?.transformation || 'none'}
+              </Text>
+              <Text style={{ color: '#0f0', fontSize: 10, fontFamily: 'monospace' }}>
+                participant.isMe.transformation: {participants.find(p => (p as any).isMe)?.transformation || 'none'}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Zone des interactions (droite) */}
