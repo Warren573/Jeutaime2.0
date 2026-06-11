@@ -1814,12 +1814,32 @@ export default function SalonScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Text style={{ position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: '#FF0000', color: '#FFF', padding: 5, textAlign: 'center', fontSize: 10, fontWeight: 'bold', zIndex: 9999 }}>
-        DEBUG PANEL ACTIVE - SHA ef63c977
-      </Text>
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
+
+      {/* Debug Panel - Always visible */}
+      <View style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        padding: 8,
+        maxHeight: 120,
+      }}>
+        <Text style={{ color: '#0f0', fontSize: 9, fontFamily: 'monospace', lineHeight: 12 }}>
+          ME ID = {currentUser?.id?.substring(0, 12) || 'N/A'}{'\n'}
+          selectedTargetId = {selectedPlayer?.id?.substring(0, 12) || 'none'}{'\n'}
+          lastSpellTargetId = {Array.from(sentCastsRef.current.keys())[0]?.substring(0, 12) || 'none'}{'\n'}
+          activeMagiesOnMe = {activeMagiesOnMe.length}{'\n'}
+          salonMagies self-target = {salonMagies.filter(m => m.toUserId === currentUser?.id).length}{'\n'}
+          participant.isMe.transformation = {participants.find(p => (p as any).isMe)?.transformation || 'none'}{'\n'}
+          participant.isMe.avatar = {participants.find(p => (p as any).isMe)?.avatarConfig?.skin || 'default'}{'\n'}
+          selectedPlayer.name = {selectedPlayer?.name || 'none'}{'\n'}
+          selectedPlayer.id = {selectedPlayer?.id?.substring(0, 12) || 'none'}
+        </Text>
+      </View>
 
       <ConfirmationModal
         visible={showLeaveModal}
