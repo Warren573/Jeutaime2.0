@@ -420,6 +420,14 @@ export default function SalonScreen() {
   const lastSpellTypeRef = useRef<string | null>(null);
   const lastSpellTargetIdRef = useRef<string | null>(null);
   const lastSpellTargetNameRef = useRef<string | null>(null);
+  // handleSendPower execution tracing
+  const handleSendPowerCalledRef = useRef<boolean>(false);
+  const selectedTargetIdAtCallRef = useRef<string | null>(null);
+  const spellIdRef = useRef<string | null>(null);
+  const requestBodyRef = useRef<any>(null);
+  const responseStatusRef = useRef<string | null>(null);
+  const responseBodyRef = useRef<any>(null);
+  const errorRef = useRef<string | null>(null);
   // Sorts actifs sur la cible sélectionnée (chargés à l'ouverture du modal magie)
   const [targetActiveCasts, setTargetActiveCasts] = useState<MagieCastDTO[]>([]);
 
@@ -1019,6 +1027,10 @@ export default function SalonScreen() {
 
   // Envoyer un pouvoir
   const handleSendPower = async (item: any) => {
+    // Mark function called
+    handleSendPowerCalledRef.current = true;
+    errorRef.current = null;
+
     // Determine target from modal selection or fallback
     let target = null;
     if (modalTargetId) {
@@ -1031,6 +1043,12 @@ export default function SalonScreen() {
 
     const targetId = target.id;
     const isSelf = target.id === currentUser?.id;
+
+    // Store pre-API call values
+    selectedTargetIdAtCallRef.current = targetId;
+    spellIdRef.current = item.id;
+    requestBodyRef.current = { magieId: item.id, toUserId: targetId, salonId: apiSalonId };
+
     console.log(`[DEBUG-TARGET] selectedTargetId=${modalTargetId}, selectedTargetName=${target.name}, isSelf=${isSelf}`);
     console.log(`[DEBUG-SPELL] targetUserId=${targetId}, isSelf=${isSelf}, spell=${item.name}`);
 
@@ -1041,6 +1059,9 @@ export default function SalonScreen() {
       try {
         console.log(`[DEBUG-SPELL-API] Calling castSpell with toUserId=${targetId}`);
         const castResult = await castSpell({ magieId: item.id, toUserId: targetId, salonId: apiSalonId });
+        // Store post-API call response
+        responseStatusRef.current = 'success';
+        responseBodyRef.current = castResult;
         console.log('[SPELL-CAST-RESULT] Backend response:', {
           isSelf,
           castId: castResult.id,
@@ -1080,6 +1101,9 @@ export default function SalonScreen() {
         }, durationMs);
       } catch (e: any) {
         const msg: string = e?.message ?? '';
+        responseStatusRef.current = 'error';
+        responseBodyRef.current = { message: msg, error: e };
+        errorRef.current = msg;
         if (/insuffisant|insufficient|coins/i.test(msg)) {
           alert('Pas assez de pièces !');
           return;
@@ -1834,33 +1858,36 @@ export default function SalonScreen() {
         position: 'absolute',
         top: 160,
         left: 10,
-        width: 320,
-        maxHeight: 300,
+        width: 340,
+        maxHeight: 400,
         backgroundColor: 'rgba(0, 0, 0, 0.85)',
         padding: 8,
         borderRadius: 4,
         borderWidth: 1,
         borderColor: '#0f0',
+        overflow: 'hidden',
       }}>
-        <Text style={{ color: '#0f0', fontSize: 8, fontFamily: 'monospace', lineHeight: 11 }}>
+        <Text style={{ color: '#0f0', fontSize: 7, fontFamily: 'monospace', lineHeight: 10 }}>
           BUILD_SHA = "8dcba8ec"{'\n'}
           DEBUG_VERSION = "8dcba8ec"{'\n'}
           {'\n'}
+          === handleSendPower ==={'\n'}
+          handleSendPowerCalled = {handleSendPowerCalledRef.current ? 'true' : 'false'}{'\n'}
+          selectedTargetIdAtCall = {selectedTargetIdAtCallRef.current?.substring(0, 12) || 'none'}{'\n'}
+          spellId = {spellIdRef.current || 'none'}{'\n'}
+          requestBody = {requestBodyRef.current ? JSON.stringify(requestBodyRef.current).substring(0, 40) : 'none'}{'\n'}
+          responseStatus = {responseStatusRef.current || 'none'}{'\n'}
+          responseBody = {responseBodyRef.current?.id?.substring(0, 12) || 'none'}{'\n'}
+          error = {errorRef.current || 'none'}{'\n'}
+          {'\n'}
+          === Data ==={'\n'}
           ME ID = {currentUser?.id?.substring(0, 12) || 'N/A'}{'\n'}
           selectedTargetId = {selectedPlayer?.id?.substring(0, 12) || 'none'}{'\n'}
-          {'\n'}
           salonMagies.length = {salonMagies.length}{'\n'}
           activeMagiesOnMe.length = {activeMagiesOnMe.length}{'\n'}
-          {'\n'}
           lastSpellType = {lastSpellTypeRef.current || 'none'}{'\n'}
           lastSpellTargetId = {lastSpellTargetIdRef.current?.substring(0, 12) || 'none'}{'\n'}
-          lastSpellTargetName = {lastSpellTargetNameRef.current || 'none'}{'\n'}
-          lastSpellResult = {lastSpellResultRef.current?.id?.substring(0, 12) || 'none'}{'\n'}
-          {'\n'}
-          salonMagies self-target = {salonMagies.filter(m => m.toUserId === currentUser?.id).length}{'\n'}
-          participant.isMe.transformation = {participants.find(p => (p as any).isMe)?.transformation || 'none'}{'\n'}
-          selectedPlayer.name = {selectedPlayer?.name || 'none'}{'\n'}
-          selectedPlayer.id = {selectedPlayer?.id?.substring(0, 12) || 'none'}
+          participant.isMe.transformation = {participants.find(p => (p as any).isMe)?.transformation || 'none'}
         </Text>
       </View>
 
