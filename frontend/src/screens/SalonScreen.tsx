@@ -725,15 +725,22 @@ export default function SalonScreen() {
           transformationExpiresAt: new Date(topCast.expiresAt).getTime(),
         };
       }
-      console.log('[TRANSFORMATION-APPLY-ME] Clearing transformation from current user');
-      return { ...p, transformation: null, transformationExpiresAt: undefined };
+      // If activeMagiesOnMe is empty, keep existing transformation (don't erase it)
+      // Only erase if no local timer is running (local transformation has expired)
+      if (p.transformation && !transfoTimers.current[myId]) {
+        console.log('[TRANSFORMATION-APPLY-ME] Clearing transformation from current user (no timer)');
+        return { ...p, transformation: null, transformationExpiresAt: undefined };
+      }
+      console.log('[TRANSFORMATION-APPLY-ME] Keeping existing transformation (local timer in progress)');
+      return p;
     }));
   }, [activeMagiesOnMe, currentUser?.id, isAuthenticated]);
 
   // Appliquer les transformations de TOUS les participants depuis le salon
-  // (hors user courant géré par activeMagiesOnMe pour éviter les conflits)
+  // Y compris user courant si activeMagiesOnMe est vide (self-target fallback)
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !currentUser?.id) return;
+    const myId = currentUser.id;
     const byTarget = new Map<string, SalonMagieDTO>();
     for (const m of salonMagies) {
       if (!byTarget.has(m.toUserId)) byTarget.set(m.toUserId, m); // premier = expirant le plus tôt
@@ -749,10 +756,35 @@ export default function SalonScreen() {
       })),
     });
     setParticipants(prev => prev.map(p => {
+      // For current user: apply self-target magies from salonMagies only if activeMagiesOnMe is empty
       if ((p as any).isMe) {
-        console.log('[TRANSFORMATION-APPLY-OTHERS] Skipping current user (handled by activeMagiesOnMe):', { userId: p.id });
-        return p; // user courant : géré par activeMagiesOnMe
+        if (activeMagiesOnMe.length > 0) {
+          console.log('[TRANSFORMATION-APPLY-OTHERS] Skipping current user (handled by activeMagiesOnMe):', { userId: p.id });
+          return p; // activeMagiesOnMe is the source of truth for self-targets
+        }
+        // If activeMagiesOnMe is empty, apply self-target magie from salonMagies if present
+        const selfTargetMagie = byTarget.get(myId);
+        if (selfTargetMagie) {
+          console.log('[TRANSFORMATION-APPLY-OTHERS] Applying self-target magie from salonMagies:', { userId: p.id, magieId: selfTargetMagie.magieId });
+          if (transfoTimers.current[myId]) {
+            clearTimeout(transfoTimers.current[myId]);
+            delete transfoTimers.current[myId];
+          }
+          return {
+            ...p,
+            transformation: selfTargetMagie.magieId,
+            transformationExpiresAt: new Date(selfTargetMagie.expiresAt).getTime(),
+          };
+        }
+        // No self-target magie and no activeMagiesOnMe - keep existing transformation if timer is running
+        if (p.transformation && !transfoTimers.current[myId]) {
+          console.log('[TRANSFORMATION-APPLY-OTHERS] Clearing self-target transformation (no timer):', { userId: p.id });
+          return { ...p, transformation: null, transformationExpiresAt: undefined };
+        }
+        console.log('[TRANSFORMATION-APPLY-OTHERS] Keeping self-target transformation (local timer in progress):', { userId: p.id });
+        return p;
       }
+      // For other participants: apply transformation from salonMagies
       const cast = byTarget.get(p.id);
       if (cast) {
         // Le backend confirme un sort actif — annuler le timer local si présent
@@ -774,7 +806,7 @@ export default function SalonScreen() {
       }
       return p;
     }));
-  }, [salonMagies, isAuthenticated]);
+  }, [salonMagies, activeMagiesOnMe, isAuthenticated, currentUser?.id]);
 
   // Source des messages : API si authentifié, store local sinon
   const messages: Message[] = isAuthenticated && apiMessages.length > 0
