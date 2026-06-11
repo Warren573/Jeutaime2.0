@@ -415,6 +415,11 @@ export default function SalonScreen() {
   const [activeMagiesOnMe, setActiveMagiesOnMe] = useState<MagieCastDTO[]>([]);
   // Sorts envoyés par le user courant (castId trackés pour break spell)
   const sentCastsRef = useRef<Map<string, MagieCastDTO>>(new Map());
+  // Last spell result tracking
+  const lastSpellResultRef = useRef<any>(null);
+  const lastSpellTypeRef = useRef<string | null>(null);
+  const lastSpellTargetIdRef = useRef<string | null>(null);
+  const lastSpellTargetNameRef = useRef<string | null>(null);
   // Sorts actifs sur la cible sélectionnée (chargés à l'ouverture du modal magie)
   const [targetActiveCasts, setTargetActiveCasts] = useState<MagieCastDTO[]>([]);
 
@@ -1044,6 +1049,12 @@ export default function SalonScreen() {
           expiresAt: castResult.expiresAt,
           durationSec: castResult.magie.durationSec,
         });
+        // Store for debug panel visibility
+        lastSpellResultRef.current = castResult;
+        lastSpellTypeRef.current = 'success';
+        lastSpellTargetIdRef.current = targetId;
+        lastSpellTargetNameRef.current = target.name;
+        console.log('[SPELL-SENT] Full response data:', JSON.stringify(castResult, null, 2));
         sentCastsRef.current.set(targetId, castResult);
         await loadWallet();
         // Do NOT call loadSalonContent() immediately - let the normal polling (every 2s) handle it
@@ -1824,20 +1835,27 @@ export default function SalonScreen() {
         top: 160,
         left: 10,
         width: 320,
+        maxHeight: 300,
         backgroundColor: 'rgba(0, 0, 0, 0.85)',
         padding: 8,
         borderRadius: 4,
         borderWidth: 1,
         borderColor: '#0f0',
       }}>
-        <Text style={{ color: '#0f0', fontSize: 9, fontFamily: 'monospace', lineHeight: 12 }}>
+        <Text style={{ color: '#0f0', fontSize: 8, fontFamily: 'monospace', lineHeight: 11 }}>
           ME ID = {currentUser?.id?.substring(0, 12) || 'N/A'}{'\n'}
           selectedTargetId = {selectedPlayer?.id?.substring(0, 12) || 'none'}{'\n'}
-          lastSpellTargetId = {Array.from(sentCastsRef.current.keys())[0]?.substring(0, 12) || 'none'}{'\n'}
-          activeMagiesOnMe = {activeMagiesOnMe.length}{'\n'}
+          {'\n'}
+          salonMagies.length = {salonMagies.length}{'\n'}
+          activeMagiesOnMe.length = {activeMagiesOnMe.length}{'\n'}
+          {'\n'}
+          lastSpellType = {lastSpellTypeRef.current || 'none'}{'\n'}
+          lastSpellTargetId = {lastSpellTargetIdRef.current?.substring(0, 12) || 'none'}{'\n'}
+          lastSpellTargetName = {lastSpellTargetNameRef.current || 'none'}{'\n'}
+          lastSpellResult = {lastSpellResultRef.current?.id?.substring(0, 12) || 'none'}{'\n'}
+          {'\n'}
           salonMagies self-target = {salonMagies.filter(m => m.toUserId === currentUser?.id).length}{'\n'}
           participant.isMe.transformation = {participants.find(p => (p as any).isMe)?.transformation || 'none'}{'\n'}
-          participant.isMe.avatar = {participants.find(p => (p as any).isMe)?.avatarConfig?.skin || 'default'}{'\n'}
           selectedPlayer.name = {selectedPlayer?.name || 'none'}{'\n'}
           selectedPlayer.id = {selectedPlayer?.id?.substring(0, 12) || 'none'}
         </Text>
