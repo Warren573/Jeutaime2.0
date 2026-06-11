@@ -640,27 +640,44 @@ export default function SalonScreen() {
   // Mettre à jour les badges d'offrandes de TOUS les participants depuis le salon
   useEffect(() => {
     if (!isAuthenticated || salonOfferings.length === 0) return;
-    setParticipants(prev => prev.map(p => {
-      const forP = salonOfferings.filter(o => o.toUserId === p.id).slice(-6);
-      if (forP.length === 0) return p;
-      // Merge backend offerings with existing local offerings
-      // Local offerings added by handleSendOffering might have stale data before backend confirms
-      const backendEmojis = new Set(forP.map(o => o.emoji));
-      // Keep local offerings only if they're NOT in the backend response
-      const localOfferings = (p.offerings || []).filter(local =>
-        !backendEmojis.has(local.emoji)
-      );
-      const backendOfferings = forP.map(o => ({
-        emoji: o.emoji,
-        from: o.fromPseudo,
-        timestamp: new Date(o.createdAt).getTime(),
-      }));
-      const merged = [...localOfferings, ...backendOfferings].slice(-6);
-      return {
-        ...p,
-        offerings: merged,
-      };
-    }));
+    console.log(`[OFFERINGS-DEBUG] salonOfferings count: ${salonOfferings.length}`);
+    salonOfferings.forEach((o, i) => {
+      console.log(`[OFFERINGS-DEBUG]   [${i}] id=${o.id}, emoji=${o.emoji}, from=${o.fromPseudo} (${o.fromUserId}), to=${o.toPseudo} (${o.toUserId})`);
+    });
+
+    setParticipants(prev => {
+      const updated = prev.map(p => {
+        const forP = salonOfferings.filter(o => o.toUserId === p.id).slice(-6);
+        console.log(`[OFFERINGS-MAPPING] participant id=${p.id}, isMe=${(p as any).isMe}, name=${p.name}: found ${forP.length} offerings`);
+        forP.forEach((o, i) => {
+          console.log(`[OFFERINGS-MAPPING]   [${i}] emoji=${o.emoji}, from=${o.fromPseudo} (${o.fromUserId})`);
+        });
+
+        if (forP.length === 0) {
+          if ((p.offerings || []).length > 0) {
+            console.log(`[OFFERINGS-MAPPING] participant ${p.id} has local offerings but none in backend: keeping local`);
+          }
+          return p;
+        }
+        // Merge backend offerings with existing local offerings
+        const backendEmojis = new Set(forP.map(o => o.emoji));
+        const localOfferings = (p.offerings || []).filter(local =>
+          !backendEmojis.has(local.emoji)
+        );
+        const backendOfferings = forP.map(o => ({
+          emoji: o.emoji,
+          from: o.fromPseudo,
+          timestamp: new Date(o.createdAt).getTime(),
+        }));
+        const merged = [...localOfferings, ...backendOfferings].slice(-6);
+        console.log(`[OFFERINGS-MAPPING] participant ${p.id}: local=${localOfferings.length}, backend=${backendOfferings.length}, merged=${merged.length}`);
+        return {
+          ...p,
+          offerings: merged,
+        };
+      });
+      return updated;
+    });
   }, [salonOfferings, isAuthenticated]);
 
   // Appliquer la transformation active (provenant du backend) sur le user courant
