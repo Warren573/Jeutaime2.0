@@ -1843,6 +1843,9 @@ export default function SalonScreen() {
         borderColor: '#0f0',
       }}>
         <Text style={{ color: '#0f0', fontSize: 8, fontFamily: 'monospace', lineHeight: 11 }}>
+          BUILD_SHA = "8dcba8ec"{'\n'}
+          DEBUG_VERSION = "8dcba8ec"{'\n'}
+          {'\n'}
           ME ID = {currentUser?.id?.substring(0, 12) || 'N/A'}{'\n'}
           selectedTargetId = {selectedPlayer?.id?.substring(0, 12) || 'none'}{'\n'}
           {'\n'}
