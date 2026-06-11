@@ -428,6 +428,14 @@ export default function SalonScreen() {
   const responseStatusRef = useRef<string | null>(null);
   const responseBodyRef = useRef<any>(null);
   const errorRef = useRef<string | null>(null);
+  // handleSendOffering execution tracing
+  const handleSendOfferingCalledRef = useRef<boolean>(false);
+  const offeringTargetIdAtCallRef = useRef<string | null>(null);
+  const offeringIdRef = useRef<string | null>(null);
+  const offeringRequestBodyRef = useRef<any>(null);
+  const offeringResponseStatusRef = useRef<string | null>(null);
+  const offeringResponseBodyRef = useRef<any>(null);
+  const offeringErrorRef = useRef<string | null>(null);
   // Sorts actifs sur la cible sélectionnée (chargés à l'ouverture du modal magie)
   const [targetActiveCasts, setTargetActiveCasts] = useState<MagieCastDTO[]>([]);
 
@@ -941,6 +949,10 @@ export default function SalonScreen() {
 
   // Envoyer une offrande
   const handleSendOffering = async (item: any) => {
+    // Mark function called
+    handleSendOfferingCalledRef.current = true;
+    offeringErrorRef.current = null;
+
     // Determine target from modal selection or fallback
     let target = null;
     if (modalTargetId) {
@@ -953,18 +965,31 @@ export default function SalonScreen() {
 
     const targetUserId = target.id;
     const isSelf = target.id === currentUser?.id;
+
+    // Store pre-API call values
+    offeringTargetIdAtCallRef.current = targetUserId;
+    offeringIdRef.current = item.id;
+    offeringRequestBodyRef.current = { offeringId: item.id, toUserId: targetUserId, salonId: apiSalonId };
+
     console.log(`[DEBUG-TARGET] selectedTargetId=${modalTargetId}, selectedTargetName=${target.name}, isSelf=${isSelf}`);
     console.log(`[DEBUG-OFFERING] targetUserId=${targetUserId}, isSelf=${isSelf}, offering=${item.name}`);
 
     if (isAuthenticated && apiSalonId) {
       try {
         console.log(`[DEBUG-OFFERING-API] Calling sendOffering with toUserId=${targetUserId}`);
-        await sendOffering({ offeringId: item.id, toUserId: targetUserId, salonId: apiSalonId });
+        const offeringResult = await sendOffering({ offeringId: item.id, toUserId: targetUserId, salonId: apiSalonId });
+        // Store post-API call response
+        offeringResponseStatusRef.current = 'success';
+        offeringResponseBodyRef.current = offeringResult;
+        console.log('[OFFERING-SENT] Full response data:', JSON.stringify(offeringResult, null, 2));
         await loadWallet();
         // Do NOT call loadSalonContent() immediately - let the normal polling (every 2s) handle it
         // to avoid race condition where new offering hasn't persisted yet
       } catch (e: any) {
         const msg: string = e?.message ?? '';
+        offeringResponseStatusRef.current = 'error';
+        offeringResponseBodyRef.current = { message: msg, error: e };
+        offeringErrorRef.current = msg;
         if (/insuffisant|insufficient|coins/i.test(msg)) {
           alert('Pas assez de pièces !');
           return;
@@ -1875,10 +1900,15 @@ export default function SalonScreen() {
           handleSendPowerCalled = {handleSendPowerCalledRef.current ? 'true' : 'false'}{'\n'}
           selectedTargetIdAtCall = {selectedTargetIdAtCallRef.current?.substring(0, 12) || 'none'}{'\n'}
           spellId = {spellIdRef.current || 'none'}{'\n'}
-          requestBody = {requestBodyRef.current ? JSON.stringify(requestBodyRef.current).substring(0, 40) : 'none'}{'\n'}
           responseStatus = {responseStatusRef.current || 'none'}{'\n'}
-          responseBody = {responseBodyRef.current?.id?.substring(0, 12) || 'none'}{'\n'}
           error = {errorRef.current || 'none'}{'\n'}
+          {'\n'}
+          === handleSendOffering ==={'\n'}
+          handleSendOfferingCalled = {handleSendOfferingCalledRef.current ? 'true' : 'false'}{'\n'}
+          offeringTargetIdAtCall = {offeringTargetIdAtCallRef.current?.substring(0, 12) || 'none'}{'\n'}
+          offeringId = {offeringIdRef.current || 'none'}{'\n'}
+          offeringResponseStatus = {offeringResponseStatusRef.current || 'none'}{'\n'}
+          offeringError = {offeringErrorRef.current || 'none'}{'\n'}
           {'\n'}
           === Data ==={'\n'}
           ME ID = {currentUser?.id?.substring(0, 12) || 'N/A'}{'\n'}
