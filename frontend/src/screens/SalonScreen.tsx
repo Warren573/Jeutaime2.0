@@ -399,6 +399,12 @@ export default function SalonScreen() {
   // Flag : participants déjà initialisés depuis l'API (pour ne pas écraser les badges locaux)
   const participantsReady = useRef(false);
 
+  // Reset participants when entering a new salon session
+  useEffect(() => {
+    console.log(`[DEBUG-SALON-CHANGE] screenSessionId changed: ${screenSessionId}`);
+    participantsReady.current = false;
+  }, [screenSessionId]);
+
   // Offrandes reçues par le user courant (backend, sondées toutes les 15s)
   const [myReceivedOfferings, setMyReceivedOfferings] = useState<OfferingSentDTO[]>([]);
   // Offrandes du salon entier (clé pour les badges de tous les participants)
