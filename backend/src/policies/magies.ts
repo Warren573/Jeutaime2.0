@@ -150,8 +150,18 @@ export function assertNotSelfCast(
   targetId: string,
 ): void {
   const testMode = isTestMode();
-  console.log('[SELF-CAST-CHECK]', { actorId, targetId, isSelf: actorId === targetId, testMode, allowed: actorId !== targetId || testMode });
-  if (actorId === targetId && !testMode) {
+  const isSelf = actorId === targetId;
+  console.log('[SELF-CAST-CHECK]', {
+    actorId,
+    targetId,
+    isSelf,
+    testMode,
+    allowed: !isSelf || testMode,
+    'process.env.JEUTAIME_TEST_MODE': process.env.JEUTAIME_TEST_MODE,
+    'process.env.NODE_ENV': process.env.NODE_ENV,
+    'isTestMode()': testMode,
+  });
+  if (isSelf && !testMode) {
     throw new BadRequestError(
       "Tu ne peux pas te lancer un sort à toi-même",
     );

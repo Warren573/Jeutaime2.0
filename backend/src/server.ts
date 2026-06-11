@@ -10,6 +10,7 @@ import {
   startScheduler,
 } from "./jobs";
 import { execSync } from "child_process";
+import { isTestMode } from "./core/testMode";
 
 // Enregistrement des handlers d'événements (doit être importé avant tout)
 import "./events/handlers";
@@ -25,6 +26,13 @@ function getCommitSha() {
 async function main() {
   const commitSha = getCommitSha();
   console.log(`\n🔍 [VERSION] Backend startup - commit SHA: ${commitSha}\n`);
+
+  // Diagnostic: Test mode detection
+  console.log('[TEST-MODE-STARTUP]', {
+    NODE_ENV: process.env.NODE_ENV,
+    JEUTAIME_TEST_MODE: process.env.JEUTAIME_TEST_MODE,
+    isTestMode: isTestMode(),
+  });
 
   // Vérifier la connexion DB avant de démarrer (avec timeout)
   try {
