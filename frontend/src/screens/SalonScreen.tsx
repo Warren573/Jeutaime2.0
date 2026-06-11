@@ -1818,15 +1818,17 @@ export default function SalonScreen() {
       {renderOfferingsModal()}
       {renderPowersModal()}
 
-      {/* Debug Panel - Always visible */}
+      {/* Debug Panel - Top left, never covers buttons */}
       <View style={{
         position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        top: 160,
+        left: 10,
+        width: 320,
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
         padding: 8,
-        maxHeight: 120,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: '#0f0',
       }}>
         <Text style={{ color: '#0f0', fontSize: 9, fontFamily: 'monospace', lineHeight: 12 }}>
           ME ID = {currentUser?.id?.substring(0, 12) || 'N/A'}{'\n'}
