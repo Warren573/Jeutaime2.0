@@ -1878,13 +1878,13 @@ export default function SalonScreen() {
       {renderOfferingsModal()}
       {renderPowersModal()}
 
-      {/* Debug Panel - Top left, never covers buttons */}
+      {/* Debug Panel - Bottom, doesn't cover participants */}
       <View style={{
         position: 'absolute',
-        top: 160,
+        bottom: 10,
         left: 10,
         width: 340,
-        maxHeight: 400,
+        maxHeight: 300,
         backgroundColor: 'rgba(0, 0, 0, 0.85)',
         padding: 8,
         borderRadius: 4,
