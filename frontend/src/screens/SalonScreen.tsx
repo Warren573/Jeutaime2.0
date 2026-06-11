@@ -643,18 +643,18 @@ export default function SalonScreen() {
     setParticipants(prev => prev.map(p => {
       const forP = salonOfferings.filter(o => o.toUserId === p.id).slice(-6);
       if (forP.length === 0) return p;
-      // Merge backend offerings with existing local offerings, giving priority to local ones
-      // Local offerings (added by handleSendOffering) have emoji, from, timestamp
-      // Backend offerings have emoji, from (fromPseudo), timestamp, createdAt
+      // Merge backend offerings with existing local offerings
+      // Local offerings added by handleSendOffering might have stale data before backend confirms
+      const backendEmojis = new Set(forP.map(o => o.emoji));
+      // Keep local offerings only if they're NOT in the backend response
+      const localOfferings = (p.offerings || []).filter(local =>
+        !backendEmojis.has(local.emoji)
+      );
       const backendOfferings = forP.map(o => ({
         emoji: o.emoji,
         from: o.fromPseudo,
         timestamp: new Date(o.createdAt).getTime(),
       }));
-      // Keep local offerings that aren't yet in backend response
-      const localOfferings = (p.offerings || []).filter(local =>
-        !backendOfferings.some(b => b.emoji === local.emoji && Math.abs(b.timestamp - local.timestamp) < 1000)
-      );
       const merged = [...localOfferings, ...backendOfferings].slice(-6);
       return {
         ...p,
