@@ -505,6 +505,12 @@ export default function SalonScreen() {
       setSalonMagies(magies);
       setMyReceivedOfferings(myOffers);
       setActiveMagiesOnMe(activeMag);
+      console.log('[MAGIES-DEBUG] loadSalonContent loaded:', {
+        salonMagiesCount: magies.length,
+        activeMagiesOnMeCount: activeMag.length,
+        salonMagies: magies.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.actorId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
+        activeMagiesOnMe: activeMag.map(m => ({ id: m.id, magieId: m.magieId, expiresAt: m.expiresAt })),
+      });
       // DO NOT reset participantsReady.current here - it would destroy local UI state
       // (offerings added by handleSendOffering, avatar changes, etc).
       // Participants are initialized once in the effect at line ~580 and should stay stable.
@@ -531,6 +537,12 @@ export default function SalonScreen() {
       setActiveMagiesOnMe(magies);
       setSalonOfferings(salonOff);
       setSalonMagies(salonMag);
+      console.log('[MAGIES-DEBUG] polling refreshed:', {
+        salonMagiesCount: salonMag.length,
+        activeMagiesOnMeCount: magies.length,
+        salonMagies: salonMag.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.actorId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
+        activeMagiesOnMe: magies.map(m => ({ id: m.id, magieId: m.magieId, expiresAt: m.expiresAt })),
+      });
     } catch {
       // silent — ne pas bloquer l'UI si le backend est indisponible
     }
@@ -693,6 +705,12 @@ export default function SalonScreen() {
     if (!isAuthenticated || !currentUser?.id) return;
     const myId = currentUser.id;
     const topCast = activeMagiesOnMe[0]; // trié par expiresAt asc
+    console.log('[TRANSFORMATION-APPLY-ME] activeMagiesOnMe changed:', {
+      myId,
+      activeMagiesOnMeCount: activeMagiesOnMe.length,
+      topCast: topCast ? { id: topCast.id, magieId: topCast.magieId, expiresAt: topCast.expiresAt } : null,
+      willApplyTransformation: !!topCast,
+    });
     setParticipants(prev => prev.map(p => {
       if (p.id !== myId) return p;
       if (topCast) {
@@ -700,12 +718,14 @@ export default function SalonScreen() {
           clearTimeout(transfoTimers.current[myId]);
           delete transfoTimers.current[myId];
         }
+        console.log('[TRANSFORMATION-APPLY-ME] Applying transformation to current user:', { magieId: topCast.magieId });
         return {
           ...p,
           transformation: topCast.magieId,
           transformationExpiresAt: new Date(topCast.expiresAt).getTime(),
         };
       }
+      console.log('[TRANSFORMATION-APPLY-ME] Clearing transformation from current user');
       return { ...p, transformation: null, transformationExpiresAt: undefined };
     }));
   }, [activeMagiesOnMe, currentUser?.id, isAuthenticated]);
@@ -718,8 +738,21 @@ export default function SalonScreen() {
     for (const m of salonMagies) {
       if (!byTarget.has(m.toUserId)) byTarget.set(m.toUserId, m); // premier = expirant le plus tôt
     }
+    console.log('[TRANSFORMATION-APPLY-OTHERS] salonMagies changed:', {
+      salonMagiesCount: salonMagies.length,
+      byTargetMap: Array.from(byTarget.entries()).map(([toUserId, m]) => ({
+        toUserId,
+        castId: m.castId,
+        magieId: m.magieId,
+        actorId: m.actorId,
+        expiresAt: m.expiresAt,
+      })),
+    });
     setParticipants(prev => prev.map(p => {
-      if ((p as any).isMe) return p; // user courant : géré par activeMagiesOnMe
+      if ((p as any).isMe) {
+        console.log('[TRANSFORMATION-APPLY-OTHERS] Skipping current user (handled by activeMagiesOnMe):', { userId: p.id });
+        return p; // user courant : géré par activeMagiesOnMe
+      }
       const cast = byTarget.get(p.id);
       if (cast) {
         // Le backend confirme un sort actif — annuler le timer local si présent
@@ -727,6 +760,7 @@ export default function SalonScreen() {
           clearTimeout(transfoTimers.current[p.id]);
           delete transfoTimers.current[p.id];
         }
+        console.log('[TRANSFORMATION-APPLY-OTHERS] Applying transformation:', { userId: p.id, magieId: cast.magieId });
         return {
           ...p,
           transformation: cast.magieId,
@@ -735,6 +769,7 @@ export default function SalonScreen() {
       }
       // Pas de sort actif côté backend — effacer uniquement si aucun timer local en cours
       if (p.transformation && !transfoTimers.current[p.id]) {
+        console.log('[TRANSFORMATION-APPLY-OTHERS] Clearing transformation:', { userId: p.id });
         return { ...p, transformation: null, transformationExpiresAt: undefined };
       }
       return p;
@@ -969,6 +1004,14 @@ export default function SalonScreen() {
       try {
         console.log(`[DEBUG-SPELL-API] Calling castSpell with toUserId=${targetId}`);
         const castResult = await castSpell({ magieId: item.id, toUserId: targetId, salonId: apiSalonId });
+        console.log('[SPELL-CAST-RESULT] Backend response:', {
+          isSelf,
+          castId: castResult.id,
+          magieId: castResult.magieId,
+          targetId,
+          expiresAt: castResult.expiresAt,
+          durationSec: castResult.magie.durationSec,
+        });
         sentCastsRef.current.set(targetId, castResult);
         await loadWallet();
         // Do NOT call loadSalonContent() immediately - let the normal polling (every 2s) handle it
@@ -976,6 +1019,12 @@ export default function SalonScreen() {
         const durationMs = castResult.magie.durationSec * 1000;
         const expiresAt = Date.now() + durationMs;
         if (transfoTimers.current[targetId]) clearTimeout(transfoTimers.current[targetId]);
+        console.log('[SPELL-LOCAL-UPDATE] Applying local transformation:', {
+          isSelf,
+          targetId,
+          magieId: castResult.magieId,
+          expiresAt,
+        });
         setParticipants(prev => prev.map(p =>
           p.id === targetId ? { ...p, transformation: castResult.magieId, transformationExpiresAt: expiresAt } : p
         ));
