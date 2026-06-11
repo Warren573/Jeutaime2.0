@@ -499,7 +499,9 @@ export default function SalonScreen() {
       setSalonMagies(magies);
       setMyReceivedOfferings(myOffers);
       setActiveMagiesOnMe(activeMag);
-      participantsReady.current = false;
+      // DO NOT reset participantsReady.current here - it would destroy local UI state
+      // (offerings added by handleSendOffering, avatar changes, etc).
+      // Participants are initialized once in the effect at line ~580 and should stay stable.
 
       // Set messages from API (now includes system messages created by backend)
       msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
