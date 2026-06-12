@@ -706,9 +706,15 @@ export default function SalonScreen() {
           !backendEmojis.has(local.emoji)
         );
         const backendOfferings = forP.map(o => ({
+          id: o.id,
+          offeringId: o.offeringId,
           emoji: o.emoji,
           from: o.fromPseudo,
           timestamp: new Date(o.createdAt).getTime(),
+          isActive: o.isActive,
+          consumptionCount: o.consumptionCount,
+          consumptionMode: o.consumptionMode,
+          toUserId: o.toUserId,
         }));
         const merged = [...localOfferings, ...backendOfferings].slice(-6);
         console.log(`[OFFERINGS-MAPPING] participant ${p.id}: local=${localOfferings.length}, backend=${backendOfferings.length}, merged=${merged.length}`);
