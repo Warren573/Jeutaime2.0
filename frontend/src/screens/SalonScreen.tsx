@@ -649,7 +649,7 @@ export default function SalonScreen() {
         age: 25,
         online: true,
         offerings: [],
-        avatarConfig: isCurrentUser ? currentUser?.avatarConfig : p.avatarConfig,
+        avatarConfig: isCurrentUser ? avatarPngConfig : p.avatarConfig,
         isMe: isCurrentUser,
       } as SalonParticipant & { isMe?: boolean; avatarConfig?: object });
     }
@@ -664,7 +664,7 @@ export default function SalonScreen() {
         online: true,
         offerings: [],
         isMe: true,
-        avatarConfig: currentUser?.avatarConfig,
+        avatarConfig: avatarPngConfig,
       } as SalonParticipant & { isMe: boolean; avatarConfig: object });
     } else {
       console.log(`[DEBUG-PARTICIPANTS-EFFECT] NOT adding fallback: seen.has=${seen.has(currentUser?.id ?? 'me')}, currentUser?.id=${currentUser?.id}`);
