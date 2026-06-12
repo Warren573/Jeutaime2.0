@@ -649,7 +649,7 @@ export default function SalonScreen() {
         age: 25,
         online: true,
         offerings: [],
-        avatarConfig: isCurrentUser ? avatarPngConfig : p.avatarConfig,
+        avatarConfig: isCurrentUser ? currentUser?.avatarConfig : p.avatarConfig,
         isMe: isCurrentUser,
       } as SalonParticipant & { isMe?: boolean; avatarConfig?: object });
     }
@@ -664,7 +664,7 @@ export default function SalonScreen() {
         online: true,
         offerings: [],
         isMe: true,
-        avatarConfig: avatarPngConfig,
+        avatarConfig: currentUser?.avatarConfig,
       } as SalonParticipant & { isMe: boolean; avatarConfig: object });
     } else {
       console.log(`[DEBUG-PARTICIPANTS-EFFECT] NOT adding fallback: seen.has=${seen.has(currentUser?.id ?? 'me')}, currentUser?.id=${currentUser?.id}`);
@@ -1877,49 +1877,6 @@ export default function SalonScreen() {
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
-
-      {/* Debug Panel - Bottom, doesn't cover participants */}
-      <View style={{
-        position: 'absolute',
-        bottom: 10,
-        left: 10,
-        width: 340,
-        maxHeight: 300,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        padding: 8,
-        borderRadius: 4,
-        borderWidth: 1,
-        borderColor: '#0f0',
-        overflow: 'hidden',
-      }}>
-        <Text style={{ color: '#0f0', fontSize: 7, fontFamily: 'monospace', lineHeight: 10 }}>
-          BUILD_SHA = "8dcba8ec"{'\n'}
-          DEBUG_VERSION = "8dcba8ec"{'\n'}
-          {'\n'}
-          === handleSendPower ==={'\n'}
-          handleSendPowerCalled = {handleSendPowerCalledRef.current ? 'true' : 'false'}{'\n'}
-          selectedTargetIdAtCall = {selectedTargetIdAtCallRef.current?.substring(0, 12) || 'none'}{'\n'}
-          spellId = {spellIdRef.current || 'none'}{'\n'}
-          responseStatus = {responseStatusRef.current || 'none'}{'\n'}
-          error = {errorRef.current || 'none'}{'\n'}
-          {'\n'}
-          === handleSendOffering ==={'\n'}
-          handleSendOfferingCalled = {handleSendOfferingCalledRef.current ? 'true' : 'false'}{'\n'}
-          offeringTargetIdAtCall = {offeringTargetIdAtCallRef.current?.substring(0, 12) || 'none'}{'\n'}
-          offeringId = {offeringIdRef.current || 'none'}{'\n'}
-          offeringResponseStatus = {offeringResponseStatusRef.current || 'none'}{'\n'}
-          offeringError = {offeringErrorRef.current || 'none'}{'\n'}
-          {'\n'}
-          === Data ==={'\n'}
-          ME ID = {currentUser?.id?.substring(0, 12) || 'N/A'}{'\n'}
-          selectedTargetId = {selectedPlayer?.id?.substring(0, 12) || 'none'}{'\n'}
-          salonMagies.length = {salonMagies.length}{'\n'}
-          activeMagiesOnMe.length = {activeMagiesOnMe.length}{'\n'}
-          lastSpellType = {lastSpellTypeRef.current || 'none'}{'\n'}
-          lastSpellTargetId = {lastSpellTargetIdRef.current?.substring(0, 12) || 'none'}{'\n'}
-          participant.isMe.transformation = {participants.find(p => (p as any).isMe)?.transformation || 'none'}
-        </Text>
-      </View>
 
       <ConfirmationModal
         visible={showLeaveModal}
