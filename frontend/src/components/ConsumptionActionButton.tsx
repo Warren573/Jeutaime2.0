@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, Alert, View } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
 import { consumeOffering, type SalonOfferingDTO } from '../api/offerings';
 
 interface ConsumptionActionButtonProps {
@@ -49,7 +49,6 @@ export function ConsumptionActionButton({
   userId,
   onSuccess,
 }: ConsumptionActionButtonProps) {
-  const [feedbackText, setFeedbackText] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const action = OFFERING_ACTIONS[offering.offeringId];
@@ -68,22 +67,19 @@ export function ConsumptionActionButton({
   const handlePress = async () => {
     if (!action) return;
 
-    // TEMPORARY: Show click feedback visually (no backend call)
-    const notification = getNotificationMessage(action);
-    setFeedbackText(`✓ CLIC DÉTECTÉ\n${notification.title}`);
-
-    // Clear feedback after 2 seconds
-    setTimeout(() => setFeedbackText(null), 2000);
+    setLoading(true);
+    try {
+      const updated = await consumeOffering(offering.id, action);
+      onSuccess?.(updated);
+      const notification = getNotificationMessage(action);
+      Alert.alert(notification.title, notification.body);
+    } catch (e: any) {
+      const msg = e?.message || 'Erreur lors de la consommation';
+      Alert.alert('Erreur', msg);
+    } finally {
+      setLoading(false);
+    }
   };
-
-  // Show feedback if available, otherwise show button
-  if (feedbackText) {
-    return (
-      <View style={styles.feedbackBox}>
-        <Text style={styles.feedbackText}>{feedbackText}</Text>
-      </View>
-    );
-  }
 
   return (
     <TouchableOpacity
@@ -112,21 +108,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#5D4037',
-  },
-  feedbackBox: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(76, 175, 80, 0.3)',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#4CAF50',
-  },
-  feedbackText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2E7D32',
-    textAlign: 'center',
   },
 });
