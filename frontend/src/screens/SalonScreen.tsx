@@ -672,6 +672,7 @@ export default function SalonScreen() {
           consumptionCount: o.consumptionCount,
           consumptionMode: o.consumptionMode,
           toUserId: o.toUserId,
+          currentStage: 1,
         }));
         const merged = [...localOfferings, ...backendOfferings].slice(-6);
         return {
