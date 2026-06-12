@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, Alert, View } from 'react-native';
 import { consumeOffering, type SalonOfferingDTO } from '../api/offerings';
 
 interface ConsumptionActionButtonProps {
@@ -49,13 +49,9 @@ export function ConsumptionActionButton({
   userId,
   onSuccess,
 }: ConsumptionActionButtonProps) {
+  const [feedbackText, setFeedbackText] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Ne pas afficher si:
-  // 1. Offrande expirée
-  // 2. Offrande disparue (consumptionCount >= 3)
-  // 3. Offrande PRIVATE et userId != toUserId
-  // 4. Aucune action définie pour cette offrande
   const action = OFFERING_ACTIONS[offering.offeringId];
   const label = OFFERING_LABELS[offering.offeringId];
 
@@ -65,35 +61,29 @@ export function ConsumptionActionButton({
     (offering.consumptionMode === 'SHARED' || userId === offering.toUserId) &&
     !!action;
 
-  console.log(`[CONSUMPTION-BUTTON] rendering: offeringId=${offering.offeringId}, canConsume=${canConsume}, conditions: isActive=${offering.isActive}, count=${offering.consumptionCount}<3, mode=${offering.consumptionMode}, action=${action}`);
-
   if (!canConsume) {
-    console.log(`[CONSUMPTION-BUTTON] NOT RENDERED: ${offering.offeringId} (canConsume=false)`);
     return null;
   }
 
-  console.log(`[CONSUMPTION-BUTTON] RENDERED: ${offering.offeringId} label="${label}"`);
-
   const handlePress = async () => {
-    console.log(`[CONSUMPTION-PRESS] clicked: offeringId=${offering.offeringId}, action=${action}`);
     if (!action) return;
 
-    setLoading(true);
-    try {
-      console.log(`[CONSUMPTION-PRESS] calling consumeOffering with action=${action}`);
-      const updated = await consumeOffering(offering.id, action);
-      onSuccess?.(updated);
-      const notification = getNotificationMessage(action);
-      console.log(`[CONSUMPTION-SUCCESS] showing alert: ${notification.title}`);
-      Alert.alert(notification.title, notification.body);
-    } catch (e: any) {
-      const msg = e?.message || 'Erreur lors de la consommation';
-      console.log(`[CONSUMPTION-ERROR] ${msg}`);
-      Alert.alert('Erreur', msg);
-    } finally {
-      setLoading(false);
-    }
+    // TEMPORARY: Show click feedback visually (no backend call)
+    const notification = getNotificationMessage(action);
+    setFeedbackText(`✓ CLIC DÉTECTÉ\n${notification.title}`);
+
+    // Clear feedback after 2 seconds
+    setTimeout(() => setFeedbackText(null), 2000);
   };
+
+  // Show feedback if available, otherwise show button
+  if (feedbackText) {
+    return (
+      <View style={styles.feedbackBox}>
+        <Text style={styles.feedbackText}>{feedbackText}</Text>
+      </View>
+    );
+  }
 
   return (
     <TouchableOpacity
@@ -122,5 +112,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#5D4037',
+  },
+  feedbackBox: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(76, 175, 80, 0.3)',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+  },
+  feedbackText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2E7D32',
+    textAlign: 'center',
   },
 });

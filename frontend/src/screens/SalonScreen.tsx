@@ -286,19 +286,16 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
                     <OfferingBadge key={idx} offering={o} size={28} />
                   ))}
                 </View>
-                {visibleOfferings.map((o, idx) => {
-                  console.log(`[SALONSCREEN] rendering ConsumptionActionButton ${idx}: offeringId=${o.offeringId}, emoji=${o.emoji}, isActive=${o.isActive}, consumptionCount=${o.consumptionCount}`);
-                  return (
-                    <ConsumptionActionButton
-                      key={`action-${idx}`}
-                      offering={o}
-                      userId={participant.id}
-                      onSuccess={() => {
-                        // Optionnel: refresh offerings
-                      }}
-                    />
-                  );
-                })}
+                {visibleOfferings.map((o, idx) => (
+                  <ConsumptionActionButton
+                    key={`action-${idx}`}
+                    offering={o}
+                    userId={participant.id}
+                    onSuccess={() => {
+                      // Optionnel: refresh offerings
+                    }}
+                  />
+                ))}
               </>
             );
           })()}
