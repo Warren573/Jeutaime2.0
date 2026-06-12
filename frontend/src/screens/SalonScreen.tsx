@@ -308,8 +308,6 @@ export default function SalonScreen() {
   // Détection de l'orientation - plus fiable
   const isLandscape = width > height;
   
-  // Debug orientation
-  console.log(`📱 Orientation: ${isLandscape ? 'PAYSAGE' : 'PORTRAIT'} (${width}x${height})`);
 
   const flatListRef = useRef<FlatList>(null);
   // Timers de transformation (un par participant) — nettoyés automatiquement
@@ -318,10 +316,8 @@ export default function SalonScreen() {
 
   // Gestion de la sortie du salon
   const handleLeaveSession = () => {
-    console.log('[LEAVE-CLICK] Quitter clicked, screenSessionId:', screenSessionId);
 
     if (!screenSessionId) {
-      console.warn('[LEAVE-CLICK] screenSessionId is null/undefined');
       Alert.alert('Erreur', 'Impossible de quitter: aucune session active.');
       return;
     }
@@ -333,14 +329,11 @@ export default function SalonScreen() {
     if (!screenSessionId) return;
 
     try {
-      console.log('[LEAVE-CLICK] User confirmed, calling leaveSession...');
       await leaveSession(screenSessionId);
       clearCurrentSalonSession();
-      console.log('[LEAVE-CLICK] Session left, navigating back...');
       setShowLeaveModal(false);
       router.back();
     } catch (e) {
-      console.error('[LEAVE-CLICK] Error:', e);
       setShowLeaveModal(false);
       Alert.alert('Erreur', 'Impossible de quitter le salon. Veuillez réessayer.');
     }
@@ -350,12 +343,6 @@ export default function SalonScreen() {
   const rawSalonId = params.id as string;
   const salonId = rawSalonId === 'cafe-paris' ? 'cafe_paris' : (rawSalonId || 'cafe_paris');
 
-  // DEBUG: Log basic session info
-  console.log(`[DEBUG-SALON] salonId: ${salonId}`);
-  console.log(`[DEBUG-AUTH] isAuthenticated: ${isAuthenticated}, currentUser.id: ${currentUser?.id}`);
-  console.log(`[DEBUG-USER] currentUser: ${JSON.stringify(currentUser ? { id: currentUser.id, name: currentUser.name, gender: currentUser.gender } : null)}`);
-  console.log(`[DEBUG-SALON-NAVIGATION] rawSalonId: ${rawSalonId}, salonId après mapping: ${salonId}`);
-  console.log(`[DEBUG-STORE] currentSessionId: ${currentSessionId}, currentSalonKind: ${currentSalonKind}`);
 
   // Salon metadata (layout, gradient, etc.) - ainda usamos estrutura local mas carregaremos quando auth
   const [salonMeta, setSalonMeta] = useState<any>(null);
@@ -392,7 +379,6 @@ export default function SalonScreen() {
 
   // Reset participants when entering a new salon session
   useEffect(() => {
-    console.log(`[DEBUG-SALON-CHANGE] screenSessionId changed: ${screenSessionId}`);
     participantsReady.current = false;
   }, [screenSessionId]);
 
@@ -531,7 +517,6 @@ export default function SalonScreen() {
       msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       setApiMessages(msgs);
     } catch (err) {
-      console.error('[SALON-CONTENT] Error loading content:', err);
     }
   }, [apiSalonId, screenSessionId, isAuthenticated, currentUser?.id]);
 
@@ -575,15 +560,12 @@ export default function SalonScreen() {
   useEffect(() => {
     if (!isAuthenticated) return;
     const kind = SLUG_TO_KIND[salonId];
-    console.log(`[DEBUG-SESSION] Opening salon: slug=${salonId}, kind=${kind}, authenticated=${isAuthenticated}`);
     if (!kind) {
-      console.warn(`[DEBUG-SESSION] kind is undefined for slug=${salonId}, returning`);
       return;
     }
 
     (async () => {
       try {
-        console.log(`[DEBUG-SESSION] calling joinSession(${kind})`);
         const session = await joinSession(kind);
         console.log(`[DEBUG-SESSION] joinSession returned:`, {
           id: session.id,
@@ -597,7 +579,6 @@ export default function SalonScreen() {
         setActiveSessions([session]);
         // Persist to store
         setCurrentSalonSession(session.id, session.salonKind, session.salonId, session.salonName);
-        console.log(`[DEBUG-SESSION] Session stored in Zustand`);
       } catch (e) {
         console.error(`[DEBUG-SESSION] ERROR calling joinSession:`, {
           kind,
@@ -610,26 +591,20 @@ export default function SalonScreen() {
 
   // Atualizar participants a partir da SalonSession ativa (dados REAIS)
   useEffect(() => {
-    console.log(`[DEBUG-PARTICIPANTS-EFFECT] activated, activeSessions.length=${activeSessions.length}, currentSessionId=${screenSessionId}`);
     if (!isAuthenticated || activeSessions.length === 0 || !screenSessionId) {
-      console.log(`[DEBUG-PARTICIPANTS-EFFECT] condition failed: isAuth=${isAuthenticated}, sessions=${activeSessions.length}, sessionId=${screenSessionId}`);
       return;
     }
     if (participantsReady.current) {
-      console.log(`[DEBUG-PARTICIPANTS-EFFECT] already initialized, skipping`);
       return;
     }
 
     participantsReady.current = true;
     const session = activeSessions.find(s => s.id === screenSessionId) || activeSessions[0];
-    console.log(`[DEBUG-PARTICIPANTS-EFFECT] found session: ${session?.id}, participants: ${session?.participants.length}`);
     if (!session) {
-      console.log(`[DEBUG-PARTICIPANTS-EFFECT] no session found`);
       return;
     }
 
     const seen = new Map<string, SalonParticipant & { isMe?: boolean }>();
-    console.log(`[DEBUG-PARTICIPANTS-EFFECT] mapping ${session.participants.length} from API`);
     for (const p of session.participants) {
       const gender = p.gender === 'FEMME' || p.gender === 'F' ? 'F' : 'M';
       const isCurrentUser = p.userId === currentUser?.id;
@@ -646,7 +621,6 @@ export default function SalonScreen() {
     }
 
     if (!seen.has(currentUser?.id ?? 'me') && currentUser?.id) {
-      console.log(`[DEBUG-PARTICIPANTS-EFFECT] adding currentUser fallback: ${currentUser.id}`);
       seen.set(currentUser.id, {
         id: currentUser.id,
         name: currentUser.name || 'Você',
@@ -658,13 +632,10 @@ export default function SalonScreen() {
         avatarConfig: avatarPngConfig,
       } as SalonParticipant & { isMe: boolean; avatarConfig: object });
     } else {
-      console.log(`[DEBUG-PARTICIPANTS-EFFECT] NOT adding fallback: seen.has=${seen.has(currentUser?.id ?? 'me')}, currentUser?.id=${currentUser?.id}`);
     }
 
     const finalParticipants = Array.from(seen.values());
-    console.log(`[DEBUG-PARTICIPANTS-EFFECT] final participants count: ${finalParticipants.length}`);
     finalParticipants.forEach((p, i) => {
-      console.log(`[DEBUG-PARTICIPANTS-EFFECT]   [${i}] id=${p.id}, name=${p.name}, isMe=${(p as any).isMe}`);
     });
     setParticipants(finalParticipants);
   }, [isAuthenticated, activeSessions, screenSessionId, currentUser, avatarPngConfig]);
@@ -672,22 +643,17 @@ export default function SalonScreen() {
   // Mettre à jour les badges d'offrandes de TOUS les participants depuis le salon
   useEffect(() => {
     if (!isAuthenticated || salonOfferings.length === 0) return;
-    console.log(`[OFFERINGS-DEBUG] salonOfferings count: ${salonOfferings.length}`);
     salonOfferings.forEach((o, i) => {
-      console.log(`[OFFERINGS-DEBUG]   [${i}] id=${o.id}, emoji=${o.emoji}, from=${o.fromPseudo} (${o.fromUserId}), to=${o.toPseudo} (${o.toUserId})`);
     });
 
     setParticipants(prev => {
       const updated = prev.map(p => {
         const forP = salonOfferings.filter(o => o.toUserId === p.id).slice(-6);
-        console.log(`[OFFERINGS-MAPPING] participant id=${p.id}, isMe=${(p as any).isMe}, name=${p.name}: found ${forP.length} offerings`);
         forP.forEach((o, i) => {
-          console.log(`[OFFERINGS-MAPPING]   [${i}] emoji=${o.emoji}, from=${o.fromPseudo} (${o.fromUserId})`);
         });
 
         if (forP.length === 0) {
           if ((p.offerings || []).length > 0) {
-            console.log(`[OFFERINGS-MAPPING] participant ${p.id} has local offerings but none in backend: keeping local`);
           }
           return p;
         }
@@ -708,7 +674,6 @@ export default function SalonScreen() {
           toUserId: o.toUserId,
         }));
         const merged = [...localOfferings, ...backendOfferings].slice(-6);
-        console.log(`[OFFERINGS-MAPPING] participant ${p.id}: local=${localOfferings.length}, backend=${backendOfferings.length}, merged=${merged.length}`);
         return {
           ...p,
           offerings: merged,
@@ -736,7 +701,6 @@ export default function SalonScreen() {
           clearTimeout(transfoTimers.current[myId]);
           delete transfoTimers.current[myId];
         }
-        console.log('[TRANSFORMATION-APPLY-ME] Applying transformation to current user:', { magieId: topCast.magieId });
         return {
           ...p,
           transformation: topCast.magieId,
@@ -746,10 +710,8 @@ export default function SalonScreen() {
       // If activeMagiesOnMe is empty, keep existing transformation (don't erase it)
       // Only erase if no local timer is running (local transformation has expired)
       if (p.transformation && !transfoTimers.current[myId]) {
-        console.log('[TRANSFORMATION-APPLY-ME] Clearing transformation from current user (no timer)');
         return { ...p, transformation: null, transformationExpiresAt: undefined };
       }
-      console.log('[TRANSFORMATION-APPLY-ME] Keeping existing transformation (local timer in progress)');
       return p;
     }));
   }, [activeMagiesOnMe, currentUser?.id, isAuthenticated]);
@@ -777,13 +739,11 @@ export default function SalonScreen() {
       // For current user: apply self-target magies from salonMagies only if activeMagiesOnMe is empty
       if ((p as any).isMe) {
         if (activeMagiesOnMe.length > 0) {
-          console.log('[TRANSFORMATION-APPLY-OTHERS] Skipping current user (handled by activeMagiesOnMe):', { userId: p.id });
           return p; // activeMagiesOnMe is the source of truth for self-targets
         }
         // If activeMagiesOnMe is empty, apply self-target magie from salonMagies if present
         const selfTargetMagie = byTarget.get(myId);
         if (selfTargetMagie) {
-          console.log('[TRANSFORMATION-APPLY-OTHERS] Applying self-target magie from salonMagies:', { userId: p.id, magieId: selfTargetMagie.magieId });
           if (transfoTimers.current[myId]) {
             clearTimeout(transfoTimers.current[myId]);
             delete transfoTimers.current[myId];
@@ -796,10 +756,8 @@ export default function SalonScreen() {
         }
         // No self-target magie and no activeMagiesOnMe - keep existing transformation if timer is running
         if (p.transformation && !transfoTimers.current[myId]) {
-          console.log('[TRANSFORMATION-APPLY-OTHERS] Clearing self-target transformation (no timer):', { userId: p.id });
           return { ...p, transformation: null, transformationExpiresAt: undefined };
         }
-        console.log('[TRANSFORMATION-APPLY-OTHERS] Keeping self-target transformation (local timer in progress):', { userId: p.id });
         return p;
       }
       // For other participants: apply transformation from salonMagies
@@ -810,7 +768,6 @@ export default function SalonScreen() {
           clearTimeout(transfoTimers.current[p.id]);
           delete transfoTimers.current[p.id];
         }
-        console.log('[TRANSFORMATION-APPLY-OTHERS] Applying transformation:', { userId: p.id, magieId: cast.magieId });
         return {
           ...p,
           transformation: cast.magieId,
@@ -819,7 +776,6 @@ export default function SalonScreen() {
       }
       // Pas de sort actif côté backend — effacer uniquement si aucun timer local en cours
       if (p.transformation && !transfoTimers.current[p.id]) {
-        console.log('[TRANSFORMATION-APPLY-OTHERS] Clearing transformation:', { userId: p.id });
         return { ...p, transformation: null, transformationExpiresAt: undefined };
       }
       return p;
@@ -890,16 +846,12 @@ export default function SalonScreen() {
 
   // Perform drink action
   const handleDrink = async () => {
-    console.log(`[DEBUG-DRINK] screenSessionId=${screenSessionId}, currentUser=${currentUser?.id}`);
     if (!screenSessionId) {
-      console.error('[DEBUG-DRINK] Missing screenSessionId!');
       alert('Erreur: screenSessionId manquant');
       return;
     }
     try {
-      console.log(`[DEBUG-DRINK] Calling performDrinkAction(${screenSessionId})`);
       const result = await performDrinkAction(screenSessionId);
-      console.log(`[DEBUG-DRINK] Response:`, result);
       if (result.success && currentUser?.id) {
         setActionLevels(prev => ({
           ...prev,
@@ -912,22 +864,17 @@ export default function SalonScreen() {
         loadSalonContent();
       }
     } catch (e) {
-      console.error('[DRINK-ACTION] Error:', e);
     }
   };
 
   // Perform eat action
   const handleEat = async () => {
-    console.log(`[DEBUG-EAT] screenSessionId=${screenSessionId}, currentUser=${currentUser?.id}`);
     if (!screenSessionId) {
-      console.error('[DEBUG-EAT] Missing screenSessionId!');
       alert('Erreur: screenSessionId manquant');
       return;
     }
     try {
-      console.log(`[DEBUG-EAT] Calling performEatAction(${screenSessionId})`);
       const result = await performEatAction(screenSessionId);
-      console.log(`[DEBUG-EAT] Response:`, result);
       if (result.success && currentUser?.id) {
         setActionLevels(prev => ({
           ...prev,
@@ -940,7 +887,6 @@ export default function SalonScreen() {
         loadSalonContent();
       }
     } catch (e) {
-      console.error('[EAT-ACTION] Error:', e);
     }
   };
 
@@ -968,17 +914,13 @@ export default function SalonScreen() {
     offeringIdRef.current = item.id;
     offeringRequestBodyRef.current = { offeringId: item.id, toUserId: targetUserId, salonId: apiSalonId };
 
-    console.log(`[DEBUG-TARGET] selectedTargetId=${modalTargetId}, selectedTargetName=${target.name}, isSelf=${isSelf}`);
-    console.log(`[DEBUG-OFFERING] targetUserId=${targetUserId}, isSelf=${isSelf}, offering=${item.name}`);
 
     if (isAuthenticated && apiSalonId) {
       try {
-        console.log(`[DEBUG-OFFERING-API] Calling sendOffering with toUserId=${targetUserId}`);
         const offeringResult = await sendOffering({ offeringId: item.id, toUserId: targetUserId, salonId: apiSalonId });
         // Store post-API call response
         offeringResponseStatusRef.current = 'success';
         offeringResponseBodyRef.current = offeringResult;
-        console.log('[OFFERING-SENT] Full response data:', JSON.stringify(offeringResult, null, 2));
         await loadWallet();
         // Do NOT call loadSalonContent() immediately - let the normal polling (every 2s) handle it
         // to avoid race condition where new offering hasn't persisted yet
@@ -1071,15 +1013,12 @@ export default function SalonScreen() {
     spellIdRef.current = item.id;
     requestBodyRef.current = { magieId: item.id, toUserId: targetId, salonId: apiSalonId };
 
-    console.log(`[DEBUG-TARGET] selectedTargetId=${modalTargetId}, selectedTargetName=${target.name}, isSelf=${isSelf}`);
-    console.log(`[DEBUG-SPELL] targetUserId=${targetId}, isSelf=${isSelf}, spell=${item.name}`);
 
     const isBackendSpell = isAuthenticated && magiesCatalog && !item.cancels;
 
     if (isBackendSpell && apiSalonId) {
       // ── Chemin backend : cast réel via API ───────────────────────────────
       try {
-        console.log(`[DEBUG-SPELL-API] Calling castSpell with toUserId=${targetId}`);
         const castResult = await castSpell({ magieId: item.id, toUserId: targetId, salonId: apiSalonId });
         // Store post-API call response
         responseStatusRef.current = 'success';
@@ -1097,7 +1036,6 @@ export default function SalonScreen() {
         lastSpellTypeRef.current = 'success';
         lastSpellTargetIdRef.current = targetId;
         lastSpellTargetNameRef.current = target.name;
-        console.log('[SPELL-SENT] Full response data:', JSON.stringify(castResult, null, 2));
         sentCastsRef.current.set(targetId, castResult);
         await loadWallet();
         // Do NOT call loadSalonContent() immediately - let the normal polling (every 2s) handle it
@@ -1251,12 +1189,10 @@ export default function SalonScreen() {
     }
 
     if (!target) {
-      console.log('[DEBUG-POWERS] No target selected, returning');
       return;
     }
 
     const targetUserId = target.id;
-    console.log(`[DEBUG-POWERS] Opening modal for targetUserId=${targetUserId}, isSelf=${target.isMe}`);
 
     if (isAuthenticated && target.transformation && target.transformationExpiresAt && Date.now() < target.transformationExpiresAt) {
       const fromSalon = salonMagies.filter(m => m.toUserId === targetUserId);
@@ -1324,10 +1260,6 @@ export default function SalonScreen() {
 
   const salon = salonMetadata[salonId];
   if (!salon) {
-    console.error(`[ERROR-SALON] Salon introuvable pour salonId: ${salonId}`);
-    console.error(`[ERROR-SALON] rawSalonId reçu: ${rawSalonId}`);
-    console.error(`[ERROR-SALON] Store: currentSalonKind=${currentSalonKind}, currentSalonId=${currentSessionId}, currentSalonName=${currentSalonName}`);
-    console.error(`[ERROR-SALON] Keys disponibles dans salonMetadata:`, Object.keys(salonMetadata));
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <Text style={styles.errorText}>Salon introuvable</Text>
@@ -1690,7 +1622,6 @@ export default function SalonScreen() {
     }
 
     if (target) {
-      console.log(`[DEBUG-OFFERING-MODAL] targetName=${target.name}, targetUserId=${target.id}`);
     }
 
     return (
@@ -1717,7 +1648,6 @@ export default function SalonScreen() {
                       modalTargetId === t.id && styles.targetSelectorButtonActive,
                     ]}
                     onPress={() => {
-                      console.log(`[DEBUG-TARGET] Selecting target=${t.name}, targetId=${t.id}`);
                       setModalTargetId(t.id);
                     }}
                   >
@@ -1778,7 +1708,6 @@ export default function SalonScreen() {
     }
 
     if (target) {
-      console.log(`[DEBUG-POWERS-MODAL] targetName=${target.name}, targetUserId=${target.id}`);
     }
 
     return (
@@ -1805,7 +1734,6 @@ export default function SalonScreen() {
                       modalTargetId === t.id && styles.targetSelectorButtonActive,
                     ]}
                     onPress={() => {
-                      console.log(`[DEBUG-TARGET] Selecting target=${t.name}, targetId=${t.id}`);
                       setModalTargetId(t.id);
                     }}
                   >
