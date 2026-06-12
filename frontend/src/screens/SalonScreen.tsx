@@ -210,71 +210,74 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
     : null;
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.avatarWrapper}>
-      {/* Cercle avatar — wrapper non-clippé pour le point en ligne */}
-      <View style={{ width: size, height: size }}>
-        <Animated.View style={[
-          styles.avatarContainer,
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            overflow: 'hidden',
-            transform: [{ scale: isTransformed ? poofScale : breathAnim }],
-          },
-          isSelected && styles.avatarSelected,
-        ]}>
-          {isTransformed && activePower ? (
-            /* ── Mode REPLACE : image ou emoji de transformation ── */
-            <Animated.View style={[
-              styles.transfoContainer,
-              { opacity: poofOp },
-            ]}>
-              {(() => {
-                const img = getTransfoImage(
-                  activePower.id,
-                  participant.transformationExpiresAt ?? 0,
-                  activePower.duration,
-                );
-                return img ? (
-                  <Image
-                    source={img}
-                    style={{ width: size, height: size }}
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <Text style={[styles.transfoEmoji, { fontSize: size * 0.52 }]}>
-                    {activePower.emoji}
-                  </Text>
-                );
-              })()}
-            </Animated.View>
-          ) : (
-            /* ── Mode NORMAL : avatar ── */
-            <Avatar size={size - 8} {...(avatarConfig as any)} />
+    <>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.avatarWrapper}>
+        {/* Cercle avatar — wrapper non-clippé pour le point en ligne */}
+        <View style={{ width: size, height: size }}>
+          <Animated.View style={[
+            styles.avatarContainer,
+            {
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              overflow: 'hidden',
+              transform: [{ scale: isTransformed ? poofScale : breathAnim }],
+            },
+            isSelected && styles.avatarSelected,
+          ]}>
+            {isTransformed && activePower ? (
+              /* ── Mode REPLACE : image ou emoji de transformation ── */
+              <Animated.View style={[
+                styles.transfoContainer,
+                { opacity: poofOp },
+              ]}>
+                {(() => {
+                  const img = getTransfoImage(
+                    activePower.id,
+                    participant.transformationExpiresAt ?? 0,
+                    activePower.duration,
+                  );
+                  return img ? (
+                    <Image
+                      source={img}
+                      style={{ width: size, height: size }}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Text style={[styles.transfoEmoji, { fontSize: size * 0.52 }]}>
+                      {activePower.emoji}
+                    </Text>
+                  );
+                })()}
+              </Animated.View>
+            ) : (
+              /* ── Mode NORMAL : avatar ── */
+              <Avatar size={size - 8} {...(avatarConfig as any)} />
+            )}
+          </Animated.View>
+          {participant.online && (
+            <View style={[styles.onlineDot, { width: size * 0.2, height: size * 0.2, borderRadius: size * 0.1 }]} />
           )}
-        </Animated.View>
-        {participant.online && (
-          <View style={[styles.onlineDot, { width: size * 0.2, height: size * 0.2, borderRadius: size * 0.1 }]} />
-        )}
-      </View>
-
-      {participant.isMe && (
-        <View style={styles.meBadge}>
-          <Text style={styles.meBadgeText}>Moi</Text>
         </View>
-      )}
-      {showName && (
-        <Text style={[styles.avatarName, { maxWidth: size + 20 }]} numberOfLines={1}>
-          {participant.name}
-        </Text>
-      )}
-      {/* Indice de rupture du sort */}
-      {isTransformed && activePower?.breakHint && (
-        <Text style={[styles.breakHint, { maxWidth: size + 30 }]} numberOfLines={2}>
-          {activePower.breakHint}
-        </Text>
-      )}
+
+        {participant.isMe && (
+          <View style={styles.meBadge}>
+            <Text style={styles.meBadgeText}>Moi</Text>
+          </View>
+        )}
+        {showName && (
+          <Text style={[styles.avatarName, { maxWidth: size + 20 }]} numberOfLines={1}>
+            {participant.name}
+          </Text>
+        )}
+        {/* Indice de rupture du sort */}
+        {isTransformed && activePower?.breakHint && (
+          <Text style={[styles.breakHint, { maxWidth: size + 30 }]} numberOfLines={2}>
+            {activePower.breakHint}
+          </Text>
+        )}
+      </TouchableOpacity>
+
       {showBadges && participant.offerings && participant.offerings.length > 0 && (
         <View style={styles.badgesColumn}>
           {(() => {
@@ -289,7 +292,7 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
           })()}
         </View>
       )}
-    </TouchableOpacity>
+    </>
   );
 };
 
