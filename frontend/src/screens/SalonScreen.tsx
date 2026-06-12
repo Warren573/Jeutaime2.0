@@ -1559,8 +1559,9 @@ export default function SalonScreen() {
             </View>
           )}
 
-          {/* Boutons d'action */}
-          <View style={styles.actionButtonsRow}>
+          {/* Boutons d'action - visibles seulement en mode paysage */}
+          {isLandscape && (
+            <View style={styles.actionButtonsRow}>
             <TouchableOpacity
               style={[styles.bigActionButton, styles.giftButton, !effectiveSelectedPlayer && !isTestMode() && styles.bigActionButtonDisabled]}
               onPress={() => {
@@ -1590,7 +1591,13 @@ export default function SalonScreen() {
               <Text style={styles.bigActionEmoji}>✨</Text>
               <Text style={styles.bigActionText}>Magie</Text>
             </TouchableOpacity>
-          </View>
+            </View>
+          )}
+
+          {/* TEST: Vérifier si le clic fonctionne */}
+          <TouchableOpacity onPress={() => Alert.alert('TEST', 'CLIC DÉTECTÉ SUR TEST')}>
+            <Text style={{ padding: 8, backgroundColor: '#f0f0f0', color: '#000', textAlign: 'center' }}>TEST CLIC</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
