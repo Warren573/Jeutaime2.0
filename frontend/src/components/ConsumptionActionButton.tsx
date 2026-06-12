@@ -10,19 +10,39 @@ interface ConsumptionActionButtonProps {
 
 /**
  * Mapping offeringId → action + libellé
- * MVP only: Bière (Boire), Rose (Admirer), Hamburger (Manger)
+ * MVP: Bière (Boire), Fraises/Bonbons (Manger), Rose (Admirer), Hamburger (Manger)
  */
 const OFFERING_ACTIONS: Record<string, string> = {
   off_biere: 'BOIRE',
+  off_fraises: 'MANGER',
+  off_bonbons: 'MANGER',
   off_rose: 'ADMIRER',
   off_hamburger: 'MANGER',
 };
 
 const OFFERING_LABELS: Record<string, string> = {
   off_biere: 'Boire',
+  off_fraises: 'Manger',
+  off_bonbons: 'Manger',
   off_rose: 'Admirer',
   off_hamburger: 'Manger',
 };
+
+/**
+ * Message de notification personnalisé selon l'action
+ */
+function getNotificationMessage(action: string): { title: string; body: string } {
+  switch (action) {
+    case 'BOIRE':
+      return { title: 'Glouglou 🍻', body: 'Vous avez savouré cette boisson.' };
+    case 'MANGER':
+      return { title: 'Miam 😋', body: 'Vous avez dégusté cette nourriture.' };
+    case 'ADMIRER':
+      return { title: 'C\'est magnifique 🌹', body: 'Vous avez apprécié ce cadeau.' };
+    default:
+      return { title: 'Consommé! 🎉', body: 'Vous avez consommé cette offrande.' };
+  }
+}
 
 export function ConsumptionActionButton({
   offering,
@@ -56,7 +76,8 @@ export function ConsumptionActionButton({
     try {
       const updated = await consumeOffering(offering.id, action);
       onSuccess?.(updated);
-      Alert.alert(`${label}! 🎉`, `Vous avez consommé cette offrande.`);
+      const notification = getNotificationMessage(action);
+      Alert.alert(notification.title, notification.body);
     } catch (e: any) {
       const msg = e?.message || 'Erreur lors de la consommation';
       Alert.alert('Erreur', msg);
