@@ -1878,6 +1878,18 @@ export default function SalonScreen() {
       {renderOfferingsModal()}
       {renderPowersModal()}
 
+      {/* Build indicator - diagnostic only */}
+      <Text style={{
+        position: 'absolute',
+        bottom: 5,
+        right: 5,
+        fontSize: 9,
+        color: '#999',
+        fontFamily: 'monospace',
+      }}>
+        BUILD = 217dd0e2
+      </Text>
+
       <ConfirmationModal
         visible={showLeaveModal}
         title="Quitter le salon ?"
