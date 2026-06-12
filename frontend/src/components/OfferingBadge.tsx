@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image, Text, StyleSheet } from 'react-native';
+import { View, Image, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SalonOfferingDTO } from '../api/offerings';
 
 interface OfferingBadgeProps {
@@ -21,8 +21,25 @@ export function OfferingBadge({ offering, size = 28 }: OfferingBadgeProps) {
 
   const [fallback, setFallback] = React.useState(false);
 
+  const handlePress = () => {
+    // Déterminer le message basé sur offeringId
+    let title = 'Consommé!';
+    let body = 'Vous avez consommé cette offrande.';
+
+    if (offering.offeringId === 'off_biere') {
+      title = 'Glouglou 🍻';
+      body = 'Vous avez savouré cette boisson.';
+    } else if (offering.offeringId === 'off_fraises' || offering.offeringId === 'off_bonbons') {
+      title = 'Miam 😋';
+      body = 'Vous avez dégusté cette nourriture.';
+    }
+
+    Alert.alert(title, body);
+  };
+
   return (
-    <View
+    <TouchableOpacity
+      onPress={handlePress}
       style={[
         styles.badge,
         {
@@ -49,7 +66,7 @@ export function OfferingBadge({ offering, size = 28 }: OfferingBadgeProps) {
           {offering.emoji}
         </Text>
       ) : null}
-    </View>
+    </TouchableOpacity>
   );
 }
 

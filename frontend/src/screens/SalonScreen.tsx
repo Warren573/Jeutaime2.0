@@ -280,23 +280,11 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
           {(() => {
             const visibleOfferings = participant.offerings.slice(-3);
             return (
-              <>
-                <View style={styles.badgesRow}>
-                  {visibleOfferings.map((o, idx) => (
-                    <OfferingBadge key={idx} offering={o} size={28} />
-                  ))}
-                </View>
+              <View style={styles.badgesRow}>
                 {visibleOfferings.map((o, idx) => (
-                  <ConsumptionActionButton
-                    key={`action-${idx}`}
-                    offering={o}
-                    userId={participant.id}
-                    onSuccess={() => {
-                      // Optionnel: refresh offerings
-                    }}
-                  />
+                  <OfferingBadge key={idx} offering={o} size={28} />
                 ))}
-              </>
+              </View>
             );
           })()}
         </View>
