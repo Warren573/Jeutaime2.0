@@ -65,21 +65,30 @@ export function ConsumptionActionButton({
     (offering.consumptionMode === 'SHARED' || userId === offering.toUserId) &&
     !!action;
 
+  console.log(`[CONSUMPTION-BUTTON] rendering: offeringId=${offering.offeringId}, canConsume=${canConsume}, conditions: isActive=${offering.isActive}, count=${offering.consumptionCount}<3, mode=${offering.consumptionMode}, action=${action}`);
+
   if (!canConsume) {
+    console.log(`[CONSUMPTION-BUTTON] NOT RENDERED: ${offering.offeringId} (canConsume=false)`);
     return null;
   }
 
+  console.log(`[CONSUMPTION-BUTTON] RENDERED: ${offering.offeringId} label="${label}"`);
+
   const handlePress = async () => {
+    console.log(`[CONSUMPTION-PRESS] clicked: offeringId=${offering.offeringId}, action=${action}`);
     if (!action) return;
 
     setLoading(true);
     try {
+      console.log(`[CONSUMPTION-PRESS] calling consumeOffering with action=${action}`);
       const updated = await consumeOffering(offering.id, action);
       onSuccess?.(updated);
       const notification = getNotificationMessage(action);
+      console.log(`[CONSUMPTION-SUCCESS] showing alert: ${notification.title}`);
       Alert.alert(notification.title, notification.body);
     } catch (e: any) {
       const msg = e?.message || 'Erreur lors de la consommation';
+      console.log(`[CONSUMPTION-ERROR] ${msg}`);
       Alert.alert('Erreur', msg);
     } finally {
       setLoading(false);
