@@ -285,7 +285,13 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
             return (
               <View style={styles.badgesRow}>
                 {visibleOfferings.map((o, idx) => (
-                  <OfferingBadge key={idx} offering={o} size={28} />
+                  o.offeringId === 'off_biere' ? (
+                    <TouchableOpacity key={idx} onPress={() => Alert.alert('TEST', 'CLIC BIÈRE')} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(212,168,122,0.1)', borderWidth: 1, borderColor: 'rgba(212,168,122,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 16 }}>🍺</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <OfferingBadge key={idx} offering={o} size={28} />
+                  )
                 ))}
               </View>
             );
@@ -1593,11 +1599,6 @@ export default function SalonScreen() {
             </TouchableOpacity>
             </View>
           )}
-
-          {/* TEST: Vérifier si le clic fonctionne */}
-          <TouchableOpacity onPress={() => Alert.alert('TEST', 'CLIC DÉTECTÉ SUR TEST')}>
-            <Text style={{ padding: 8, backgroundColor: '#f0f0f0', color: '#000', textAlign: 'center' }}>TEST CLIC</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </View>
