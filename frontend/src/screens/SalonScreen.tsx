@@ -285,13 +285,7 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
             return (
               <View style={styles.badgesRow}>
                 {visibleOfferings.map((o, idx) => (
-                  o.offeringId === 'off_biere' ? (
-                    <TouchableOpacity key={idx} onPress={() => Alert.alert('TEST', 'CLIC BIÈRE')} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(212,168,122,0.1)', borderWidth: 1, borderColor: 'rgba(212,168,122,0.3)', alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 16 }}>🍺</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <OfferingBadge key={idx} offering={o} size={28} />
-                  )
+                  <OfferingBadge key={idx} offering={o} size={28} />
                 ))}
               </View>
             );
@@ -1597,6 +1591,18 @@ export default function SalonScreen() {
               <Text style={styles.bigActionEmoji}>✨</Text>
               <Text style={styles.bigActionText}>Magie</Text>
             </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Boutons consommation - visibles seulement en portrait */}
+          {!isLandscape && (
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, paddingTop: 12 }}>
+              <TouchableOpacity onPress={() => Alert.alert('Glouglou 🍻', 'Vous avez savouré cette boisson.')} style={{ flex: 1, padding: 10, backgroundColor: 'rgba(212,168,122,0.3)', borderRadius: 8, alignItems: 'center' }}>
+                <Text style={{ fontSize: 20 }}>🍷</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => Alert.alert('Miam 😋', 'Vous avez dégusté cette nourriture.')} style={{ flex: 1, padding: 10, backgroundColor: 'rgba(212,168,122,0.3)', borderRadius: 8, alignItems: 'center' }}>
+                <Text style={{ fontSize: 20 }}>🥐</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
