@@ -1827,7 +1827,7 @@ export default function SalonScreen() {
         color: '#999',
         fontFamily: 'monospace',
       }}>
-        BUILD = ca6fc506
+        BUILD = 54952e94
         FEATURE = 82ea4fba
       </Text>
 
