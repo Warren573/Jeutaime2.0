@@ -1,5 +1,5 @@
 import { prisma } from "../../config/prisma";
-import { NotFoundError, BadRequestError, ConflictError } from "../../core/errors";
+import { NotFoundError, BadRequestError, ConflictError, ForbiddenError } from "../../core/errors";
 import type {
   GetActiveSessionsResponse,
   GetSessionDetailResponse,
@@ -7,6 +7,7 @@ import type {
   LeaveSessionResponse,
   GetPreviousEncountersResponse,
 } from "./salonSessions.schemas";
+import { consumeOffering } from "../offerings/offerings.service";
 
 // Helper: Validate salonKind
 function validateSalonKind(salonKind: string): void {
@@ -625,7 +626,7 @@ export async function getAllSalons() {
 export async function performDrinkAction(
   sessionId: string,
   userId: string,
-): Promise<{ success: boolean; level: number }> {
+): Promise<{ success: boolean; level: number; offeringConsumed?: boolean }> {
   // Verify user is a participant in the session
   const participant = await prisma.salonSessionParticipant.findUnique({
     where: {
@@ -670,7 +671,49 @@ export async function performDrinkAction(
     // Don't fail if message creation fails
   }
 
-  return { success: true, level: Date.now() };
+  // Try to consume an offering in this salon
+  let offeringConsumed = false;
+  try {
+    const offerings = await prisma.offeringSent.findMany({
+      where: {
+        salonId: session.salon.id,
+        consumptionCount: { lt: 3 },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    // Find first consumable offering (either SHARED or PRIVATE to this user)
+    let consumable = null;
+    for (const offering of offerings) {
+      const catalogOffering = await prisma.offering.findUnique({
+        where: { id: offering.offeringId },
+        select: { consumptionMode: true },
+      });
+
+      if (catalogOffering?.consumptionMode === "SHARED") {
+        consumable = offering;
+        break;
+      } else if (catalogOffering?.consumptionMode === "PRIVATE" && offering.toUserId === userId) {
+        consumable = offering;
+        break;
+      }
+    }
+
+    if (consumable) {
+      try {
+        await consumeOffering(consumable.id, userId);
+        offeringConsumed = true;
+      } catch (err) {
+        // If consumption fails (expired, already consumed, forbidden), log but don't fail the action
+        console.error(`[DRINK-ACTION] Could not consume offering: ${err}`);
+      }
+    }
+  } catch (err) {
+    console.error(`[DRINK-ACTION] Error finding offerings: ${err}`);
+  }
+
+  return { success: true, level: Date.now(), offeringConsumed };
 }
 
 // ============================================================
@@ -679,7 +722,7 @@ export async function performDrinkAction(
 export async function performEatAction(
   sessionId: string,
   userId: string,
-): Promise<{ success: boolean; level: number }> {
+): Promise<{ success: boolean; level: number; offeringConsumed?: boolean }> {
   // Verify user is a participant in the session
   const participant = await prisma.salonSessionParticipant.findUnique({
     where: {
@@ -724,7 +767,49 @@ export async function performEatAction(
     // Don't fail if message creation fails
   }
 
-  return { success: true, level: Date.now() };
+  // Try to consume an offering in this salon
+  let offeringConsumed = false;
+  try {
+    const offerings = await prisma.offeringSent.findMany({
+      where: {
+        salonId: session.salon.id,
+        consumptionCount: { lt: 3 },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    // Find first consumable offering (either SHARED or PRIVATE to this user)
+    let consumable = null;
+    for (const offering of offerings) {
+      const catalogOffering = await prisma.offering.findUnique({
+        where: { id: offering.offeringId },
+        select: { consumptionMode: true },
+      });
+
+      if (catalogOffering?.consumptionMode === "SHARED") {
+        consumable = offering;
+        break;
+      } else if (catalogOffering?.consumptionMode === "PRIVATE" && offering.toUserId === userId) {
+        consumable = offering;
+        break;
+      }
+    }
+
+    if (consumable) {
+      try {
+        await consumeOffering(consumable.id, userId);
+        offeringConsumed = true;
+      } catch (err) {
+        // If consumption fails (expired, already consumed, forbidden), log but don't fail the action
+        console.error(`[EAT-ACTION] Could not consume offering: ${err}`);
+      }
+    }
+  } catch (err) {
+    console.error(`[EAT-ACTION] Error finding offerings: ${err}`);
+  }
+
+  return { success: true, level: Date.now(), offeringConsumed };
 }
 
 // ============================================================
