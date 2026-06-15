@@ -1827,7 +1827,7 @@ export default function SalonScreen() {
         color: '#999',
         fontFamily: 'monospace',
       }}>
-        BUILD = 217dd0e2
+        BUILD = 82ea4fba
       </Text>
 
       <ConfirmationModal
