@@ -124,3 +124,35 @@ export async function debugReseedSalons(req: AuthedRequest, res: Response) {
   const result = await salonSessionsService.reseedSalons();
   res.json({ data: result });
 }
+
+// ============================================================
+// POST /api/salon-sessions/:sessionId/drink
+// ============================================================
+export async function performDrinkAction(req: AuthedRequest, res: Response) {
+  const sessionId = req.params["sessionId"] as string;
+  const userId = req.user.userId;
+
+  try {
+    const result = await salonSessionsService.performDrinkAction(sessionId, userId);
+    res.json({ data: result });
+  } catch (err) {
+    console.error(`[DEBUG-SALON-SESSIONS] performDrinkAction error - sessionId: ${sessionId}, userId: ${userId}`, err);
+    throw err;
+  }
+}
+
+// ============================================================
+// POST /api/salon-sessions/:sessionId/eat
+// ============================================================
+export async function performEatAction(req: AuthedRequest, res: Response) {
+  const sessionId = req.params["sessionId"] as string;
+  const userId = req.user.userId;
+
+  try {
+    const result = await salonSessionsService.performEatAction(sessionId, userId);
+    res.json({ data: result });
+  } catch (err) {
+    console.error(`[DEBUG-SALON-SESSIONS] performEatAction error - sessionId: ${sessionId}, userId: ${userId}`, err);
+    throw err;
+  }
+}

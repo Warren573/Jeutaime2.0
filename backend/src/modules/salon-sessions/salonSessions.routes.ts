@@ -90,4 +90,20 @@ router.post(
   }),
 );
 
+// POST /api/salon-sessions/:sessionId/drink — perform drink action
+router.post(
+  "/:sessionId/drink",
+  wrap(async (req, res) => {
+    await controller.performDrinkAction(req as AuthedRequest, res);
+  }),
+);
+
+// POST /api/salon-sessions/:sessionId/eat — perform eat action
+router.post(
+  "/:sessionId/eat",
+  wrap(async (req, res) => {
+    await controller.performEatAction(req as AuthedRequest, res);
+  }),
+);
+
 export default router;

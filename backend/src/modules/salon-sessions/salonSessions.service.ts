@@ -620,6 +620,114 @@ export async function getAllSalons() {
 }
 
 // ============================================================
+// Perform drink action
+// ============================================================
+export async function performDrinkAction(
+  sessionId: string,
+  userId: string,
+): Promise<{ success: boolean; level: number }> {
+  // Verify user is a participant in the session
+  const participant = await prisma.salonSessionParticipant.findUnique({
+    where: {
+      sessionId_userId: { sessionId, userId },
+    },
+  });
+
+  if (!participant || participant.status !== "ACTIVE") {
+    throw new BadRequestError("User is not an active participant in this session");
+  }
+
+  // Get session and salon info
+  const session = await prisma.salonSession.findUnique({
+    where: { id: sessionId },
+    select: { salonKind: true, salonId: true },
+  });
+
+  if (!session) {
+    throw new NotFoundError("Session not found");
+  }
+
+  // Get user info for message
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { profile: { select: { pseudo: true } } },
+  });
+  const pseudo = user?.profile?.pseudo || "Unknown";
+
+  // Create system message
+  try {
+    await prisma.salonMessage.create({
+      data: {
+        salonId: session.salonId,
+        sessionId,
+        userId,
+        kind: "system",
+        content: `Glouglou 🍻 ${pseudo} a bu une boisson`,
+      },
+    });
+  } catch (err) {
+    console.error(`[DRINK-ACTION] Error creating message: ${err}`);
+    // Don't fail if message creation fails
+  }
+
+  return { success: true, level: Date.now() };
+}
+
+// ============================================================
+// Perform eat action
+// ============================================================
+export async function performEatAction(
+  sessionId: string,
+  userId: string,
+): Promise<{ success: boolean; level: number }> {
+  // Verify user is a participant in the session
+  const participant = await prisma.salonSessionParticipant.findUnique({
+    where: {
+      sessionId_userId: { sessionId, userId },
+    },
+  });
+
+  if (!participant || participant.status !== "ACTIVE") {
+    throw new BadRequestError("User is not an active participant in this session");
+  }
+
+  // Get session and salon info
+  const session = await prisma.salonSession.findUnique({
+    where: { id: sessionId },
+    select: { salonKind: true, salonId: true },
+  });
+
+  if (!session) {
+    throw new NotFoundError("Session not found");
+  }
+
+  // Get user info for message
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { profile: { select: { pseudo: true } } },
+  });
+  const pseudo = user?.profile?.pseudo || "Unknown";
+
+  // Create system message
+  try {
+    await prisma.salonMessage.create({
+      data: {
+        salonId: session.salonId,
+        sessionId,
+        userId,
+        kind: "system",
+        content: `Miam 😋 ${pseudo} a mangé quelque chose`,
+      },
+    });
+  } catch (err) {
+    console.error(`[EAT-ACTION] Error creating message: ${err}`);
+    // Don't fail if message creation fails
+  }
+
+  return { success: true, level: Date.now() };
+}
+
+// ============================================================
 // DEBUG: Reseed salons (ensure all 7 exist)
 // ============================================================
 export async function reseedSalons() {
