@@ -1397,7 +1397,7 @@ export default function SalonScreen() {
         }
       />
 
-      {/* Barre d'input */}
+      {/* Barre d'input - portrait only has drink/eat buttons */}
       <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <TouchableOpacity
           style={styles.actionButton}
@@ -1410,33 +1410,6 @@ export default function SalonScreen() {
           onPress={handleEat}
         >
           <Text style={styles.actionEmoji}>🥐</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, !effectiveSelectedPlayer && !isTestMode() && styles.actionButtonDisabled]}
-          onPress={() => {
-            if (isTestMode() || effectiveSelectedPlayer) {
-              setModalTargetId(isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : undefined);
-              setShowOfferingsModal(true);
-            } else {
-              alert('Sélectionnez d\'abord un participant!')
-            }
-          }}
-        >
-          <Text style={styles.actionEmoji}>🎁</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, !effectiveSelectedPlayer && !isTestMode() && styles.actionButtonDisabled]}
-          onPress={() => {
-            if (isTestMode() || effectiveSelectedPlayer) {
-              const targetId = isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : undefined;
-              setModalTargetId(targetId);
-              openPowersModal(targetId);
-            } else {
-              alert('Sélectionnez d\'abord un participant!')
-            }
-          }}
-        >
-          <Text style={styles.actionEmoji}>✨</Text>
         </TouchableOpacity>
         <TextInput
           style={styles.textInput}
@@ -1561,8 +1534,7 @@ export default function SalonScreen() {
           )}
 
           {/* Boutons d'action - visibles seulement en mode paysage */}
-          {isLandscape && (
-            <View style={styles.actionButtonsRow}>
+          <View style={styles.actionButtonsRow}>
             <TouchableOpacity
               style={[styles.bigActionButton, styles.giftButton, !effectiveSelectedPlayer && !isTestMode() && styles.bigActionButtonDisabled]}
               onPress={() => {
@@ -1592,20 +1564,7 @@ export default function SalonScreen() {
               <Text style={styles.bigActionEmoji}>✨</Text>
               <Text style={styles.bigActionText}>Magie</Text>
             </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Boutons consommation - visibles seulement en portrait */}
-          {!isLandscape && (
-            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, paddingTop: 12 }}>
-              <TouchableOpacity onPress={() => Alert.alert('Glouglou 🍻', 'Vous avez savouré cette boisson.')} style={{ flex: 1, padding: 10, backgroundColor: 'rgba(212,168,122,0.3)', borderRadius: 8, alignItems: 'center' }}>
-                <Text style={{ fontSize: 20 }}>🍷</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => Alert.alert('Miam 😋', 'Vous avez dégusté cette nourriture.')} style={{ flex: 1, padding: 10, backgroundColor: 'rgba(212,168,122,0.3)', borderRadius: 8, alignItems: 'center' }}>
-                <Text style={{ fontSize: 20 }}>🥐</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          </View>
         </View>
       </View>
     </View>
