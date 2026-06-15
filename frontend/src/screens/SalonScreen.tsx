@@ -15,6 +15,7 @@ import {
   Animated,
   Dimensions,
   Image,
+  Alert,
 } from 'react-native';
 
 // Transformations multi-étapes : power id → [étape1, étape2, étape3, ...]
