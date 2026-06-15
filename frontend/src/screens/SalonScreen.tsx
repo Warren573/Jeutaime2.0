@@ -485,9 +485,14 @@ export default function SalonScreen() {
 
   // Consolidated salon content polling (messages + participants + offrandes + magies)
   const loadSalonContent = useCallback(async () => {
-    if (!apiSalonId || !screenSessionId || !isAuthenticated || !currentUser?.id) return;
+    console.log('[LOAD-AUDIT] loadSalonContent called');
+    if (!apiSalonId || !screenSessionId || !isAuthenticated || !currentUser?.id) {
+      console.log('[LOAD-AUDIT] SKIP: missing params', { apiSalonId, screenSessionId, isAuthenticated, userId: currentUser?.id });
+      return;
+    }
 
     try {
+      console.log('[LOAD-AUDIT] Loading salon data...');
       // Load all in parallel
       const [msgs, session, offers, magies, myOffers, activeMag] = await Promise.all([
         apiListMessages(apiSalonId, 50, screenSessionId),
@@ -499,6 +504,7 @@ export default function SalonScreen() {
       ]);
 
       // Update all state
+      console.log('[LOAD-AUDIT] Updating state...');
       setActiveSessions([session]);
       setSalonOfferings(offers);
       setSalonMagies(magies);
@@ -517,7 +523,9 @@ export default function SalonScreen() {
       // Set messages from API (now includes system messages created by backend)
       msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       setApiMessages(msgs);
+      console.log('[LOAD-AUDIT] Complete. Messages:', msgs.length);
     } catch (err) {
+      console.log('[LOAD-AUDIT] ERROR:', err);
     }
   }, [apiSalonId, screenSessionId, isAuthenticated, currentUser?.id]);
 
@@ -848,13 +856,22 @@ export default function SalonScreen() {
 
   // Perform drink action
   const handleDrink = async () => {
+    console.log('[DRINK-AUDIT] STEP 1: Handler called');
+    console.log('[DRINK-AUDIT] screenSessionId:', screenSessionId);
+    console.log('[DRINK-AUDIT] currentUser.id:', currentUser?.id);
+
     if (!screenSessionId) {
+      console.log('[DRINK-AUDIT] FAIL: screenSessionId missing');
       alert('Erreur: screenSessionId manquant');
       return;
     }
     try {
+      console.log('[DRINK-AUDIT] STEP 2: Calling performDrinkAction');
       const result = await performDrinkAction(screenSessionId);
+      console.log('[DRINK-AUDIT] STEP 3: API Response:', result);
+
       if (result.success && currentUser?.id) {
+        console.log('[DRINK-AUDIT] STEP 4: Success! Setting actionLevels');
         setActionLevels(prev => ({
           ...prev,
           [currentUser.id]: {
@@ -862,22 +879,36 @@ export default function SalonScreen() {
             drinkLevel: result.level || 0,
           },
         }));
+        console.log('[DRINK-AUDIT] STEP 5: Calling loadSalonContent');
         // Refresh messages to show the system message
         loadSalonContent();
+        console.log('[DRINK-AUDIT] STEP 6: Complete');
+      } else {
+        console.log('[DRINK-AUDIT] FAIL: result.success=', result.success, 'currentUser.id=', currentUser?.id);
       }
     } catch (e) {
+      console.log('[DRINK-AUDIT] FAIL: Exception thrown:', e);
     }
   };
 
   // Perform eat action
   const handleEat = async () => {
+    console.log('[EAT-AUDIT] STEP 1: Handler called');
+    console.log('[EAT-AUDIT] screenSessionId:', screenSessionId);
+    console.log('[EAT-AUDIT] currentUser.id:', currentUser?.id);
+
     if (!screenSessionId) {
+      console.log('[EAT-AUDIT] FAIL: screenSessionId missing');
       alert('Erreur: screenSessionId manquant');
       return;
     }
     try {
+      console.log('[EAT-AUDIT] STEP 2: Calling performEatAction');
       const result = await performEatAction(screenSessionId);
+      console.log('[EAT-AUDIT] STEP 3: API Response:', result);
+
       if (result.success && currentUser?.id) {
+        console.log('[EAT-AUDIT] STEP 4: Success! Setting actionLevels');
         setActionLevels(prev => ({
           ...prev,
           [currentUser.id]: {
@@ -885,10 +916,15 @@ export default function SalonScreen() {
             eatLevel: result.level || 0,
           },
         }));
+        console.log('[EAT-AUDIT] STEP 5: Calling loadSalonContent');
         // Refresh messages to show the system message
         loadSalonContent();
+        console.log('[EAT-AUDIT] STEP 6: Complete');
+      } else {
+        console.log('[EAT-AUDIT] FAIL: result.success=', result.success, 'currentUser.id=', currentUser?.id);
       }
     } catch (e) {
+      console.log('[EAT-AUDIT] FAIL: Exception thrown:', e);
     }
   };
 
