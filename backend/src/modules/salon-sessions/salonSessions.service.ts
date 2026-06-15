@@ -679,23 +679,23 @@ export async function performDrinkAction(
         salonId: session.salonId,
         consumptionCount: { lt: 3 },
       },
+      include: {
+        offering: {
+          select: { consumptionMode: true },
+        },
+      },
       orderBy: { createdAt: "desc" },
       take: 10,
     });
 
     // Find first consumable offering (either SHARED or PRIVATE to this user)
     let consumable = null;
-    for (const offering of offerings) {
-      const catalogOffering = await prisma.offering.findUnique({
-        where: { id: offering.offeringId },
-        select: { consumptionMode: true },
-      });
-
-      if (catalogOffering?.consumptionMode === "SHARED") {
-        consumable = offering;
+    for (const offeringSent of offerings) {
+      if (offeringSent.offering.consumptionMode === "SHARED") {
+        consumable = offeringSent;
         break;
-      } else if (catalogOffering?.consumptionMode === "PRIVATE" && offering.toUserId === userId) {
-        consumable = offering;
+      } else if (offeringSent.offering.consumptionMode === "PRIVATE" && offeringSent.toUserId === userId) {
+        consumable = offeringSent;
         break;
       }
     }
@@ -775,23 +775,23 @@ export async function performEatAction(
         salonId: session.salonId,
         consumptionCount: { lt: 3 },
       },
+      include: {
+        offering: {
+          select: { consumptionMode: true },
+        },
+      },
       orderBy: { createdAt: "desc" },
       take: 10,
     });
 
     // Find first consumable offering (either SHARED or PRIVATE to this user)
     let consumable = null;
-    for (const offering of offerings) {
-      const catalogOffering = await prisma.offering.findUnique({
-        where: { id: offering.offeringId },
-        select: { consumptionMode: true },
-      });
-
-      if (catalogOffering?.consumptionMode === "SHARED") {
-        consumable = offering;
+    for (const offeringSent of offerings) {
+      if (offeringSent.offering.consumptionMode === "SHARED") {
+        consumable = offeringSent;
         break;
-      } else if (catalogOffering?.consumptionMode === "PRIVATE" && offering.toUserId === userId) {
-        consumable = offering;
+      } else if (offeringSent.offering.consumptionMode === "PRIVATE" && offeringSent.toUserId === userId) {
+        consumable = offeringSent;
         break;
       }
     }
