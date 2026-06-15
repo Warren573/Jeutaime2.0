@@ -676,7 +676,7 @@ export async function performDrinkAction(
   try {
     const offerings = await prisma.offeringSent.findMany({
       where: {
-        salonId: session.salon.id,
+        salonId: session.salonId,
         consumptionCount: { lt: 3 },
       },
       orderBy: { createdAt: "desc" },
@@ -772,7 +772,7 @@ export async function performEatAction(
   try {
     const offerings = await prisma.offeringSent.findMany({
       where: {
-        salonId: session.salon.id,
+        salonId: session.salonId,
         consumptionCount: { lt: 3 },
       },
       orderBy: { createdAt: "desc" },
