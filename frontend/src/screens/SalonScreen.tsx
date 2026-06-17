@@ -667,9 +667,10 @@ export default function SalonScreen() {
           return p;
         }
         // Merge backend offerings with existing local offerings
-        const backendEmojis = new Set(forP.map(o => o.emoji));
+        // Remove local offerings that exist in backend (by offeringId) so backend always takes precedence
+        const backendOfferingIds = new Set(forP.map(o => o.offeringId));
         const localOfferings = (p.offerings || []).filter(local =>
-          !backendEmojis.has(local.emoji)
+          !backendOfferingIds.has(local.offeringId)
         );
         const backendOfferings = forP.map(o => ({
           id: o.id,
