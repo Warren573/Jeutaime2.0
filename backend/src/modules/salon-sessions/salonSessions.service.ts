@@ -701,6 +701,7 @@ export async function performDrinkAction(
   // Create system message only if offering was actually consumed
   if (offeringConsumed) {
     try {
+      console.log("[CONSUME-MESSAGE-CREATE] DRINK", { action: "DRINK", offeringConsumed, sessionId, userId });
       await prisma.salonMessage.create({
         data: {
           salonId: session.salonId,
@@ -710,10 +711,13 @@ export async function performDrinkAction(
           content: `Glouglou 🍻 ${pseudo} a bu une boisson`,
         },
       });
+      console.log("[CONSUME-MESSAGE-CREATE] DRINK created successfully");
     } catch (err) {
       console.error(`[DRINK-ACTION] Error creating message: ${err}`);
       // Don't fail if message creation fails
     }
+  } else {
+    console.log("[CONSUME-MESSAGE-CREATE] DRINK skipped", { action: "DRINK", offeringConsumed: false, sessionId, userId });
   }
 
   return { success: true, level: Date.now(), offeringConsumed };
@@ -800,6 +804,7 @@ export async function performEatAction(
   // Create system message only if offering was actually consumed
   if (offeringConsumed) {
     try {
+      console.log("[CONSUME-MESSAGE-CREATE] EAT", { action: "EAT", offeringConsumed, sessionId, userId });
       await prisma.salonMessage.create({
         data: {
           salonId: session.salonId,
@@ -809,10 +814,13 @@ export async function performEatAction(
           content: `Miam 😋 ${pseudo} a mangé quelque chose`,
         },
       });
+      console.log("[CONSUME-MESSAGE-CREATE] EAT created successfully");
     } catch (err) {
       console.error(`[EAT-ACTION] Error creating message: ${err}`);
       // Don't fail if message creation fails
     }
+  } else {
+    console.log("[CONSUME-MESSAGE-CREATE] EAT skipped", { action: "EAT", offeringConsumed: false, sessionId, userId });
   }
 
   return { success: true, level: Date.now(), offeringConsumed };
