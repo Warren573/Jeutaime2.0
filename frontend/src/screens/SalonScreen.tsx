@@ -485,7 +485,7 @@ export default function SalonScreen() {
 
   // Consolidated salon content polling (messages + participants + offrandes + magies)
   const loadSalonContent = useCallback(async () => {
-    console.log('[LOAD-AUDIT] loadSalonContent called');
+    console.log('[LOAD SALON] loadSalonContent called', { caller: new Error().stack?.split('\n')[2] });
     if (!apiSalonId || !screenSessionId || !isAuthenticated || !currentUser?.id) {
       console.log('[LOAD-AUDIT] SKIP: missing params', { apiSalonId, screenSessionId, isAuthenticated, userId: currentUser?.id });
       return;
@@ -522,8 +522,13 @@ export default function SalonScreen() {
 
       // Set messages from API (now includes system messages created by backend)
       msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      const glouglou = msgs.filter(m => m.content?.includes('Glouglou')).length;
+      const miam = msgs.filter(m => m.content?.includes('Miam')).length;
+      console.log('[SET MESSAGES] Setting', msgs.length, 'messages. Glouglou count:', glouglou, 'Miam count:', miam);
+      if (glouglou > 0 || miam > 0) {
+        console.log('[SET MESSAGES] FOUND GLOUGLOU/MIAM:', msgs.filter(m => m.content?.includes('Glouglou') || m.content?.includes('Miam')).map(m => ({ id: m.id, content: m.content, createdAt: m.createdAt })));
+      }
       setApiMessages(msgs);
-      console.log('[LOAD-AUDIT] Complete. Messages:', msgs.length);
     } catch (err) {
       console.log('[LOAD-AUDIT] ERROR:', err);
     }
@@ -556,11 +561,16 @@ export default function SalonScreen() {
 
   // Consolidated polling: messages + participants + offrandes + magies every 3 seconds
   useEffect(() => {
+    console.log('[POLLING] Starting 3s polling interval');
     loadSalonContent();
     const interval = setInterval(() => {
+      console.log('[POLLING] 3s interval tick - calling loadSalonContent');
       loadSalonContent();
     }, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      console.log('[POLLING] Clearing interval');
+      clearInterval(interval);
+    };
   }, [loadSalonContent]);
 
   // Participants : depuis les auteurs récents de l'API (une seule fois au premier load)
@@ -839,26 +849,24 @@ export default function SalonScreen() {
 
   // Perform drink action
   const handleDrink = async () => {
-    console.log('[DRINK-AUDIT] STEP 1: Handler called');
-    console.log('[DRINK-AUDIT] screenSessionId:', screenSessionId);
-    console.log('[DRINK-AUDIT] currentUser.id:', currentUser?.id);
+    console.log('[DRINK CLICK] Handler called', { screenSessionId, userId: currentUser?.id });
 
     if (!screenSessionId) {
-      console.log('[DRINK-AUDIT] FAIL: screenSessionId missing');
       alert('Erreur: screenSessionId manquant');
       return;
     }
     try {
-      console.log('[DRINK-AUDIT] STEP 2: Calling performDrinkAction');
+      console.log('[DRINK CLICK] Calling performDrinkAction');
       const result = await performDrinkAction(screenSessionId);
-      console.log('[DRINK-AUDIT] STEP 3: API Response:', result);
+      console.log('[DRINK RESPONSE]', { success: result.success, offeringConsumed: result.offeringConsumed, level: result.level });
 
       if (result.success && currentUser?.id) {
         if (!result.offeringConsumed) {
+          console.log('[DRINK RESPONSE] NO offering consumed - showing alert, NOT calling loadSalonContent');
           alert('Rien à boire, commandez d\'abord.');
           return;
         }
-        console.log('[DRINK-AUDIT] STEP 4: Success! Setting actionLevels');
+        console.log('[DRINK RESPONSE] Offering consumed - proceeding with state update');
         setActionLevels(prev => ({
           ...prev,
           [currentUser.id]: {
@@ -866,15 +874,11 @@ export default function SalonScreen() {
             drinkLevel: result.level || 0,
           },
         }));
-        console.log('[DRINK-AUDIT] STEP 5: Calling loadSalonContent');
-        // Refresh messages to show the system message
+        console.log('[DRINK CLICK] Calling loadSalonContent after successful consumption');
         loadSalonContent();
-        console.log('[DRINK-AUDIT] STEP 6: Complete');
-      } else {
-        console.log('[DRINK-AUDIT] FAIL: result.success=', result.success, 'currentUser.id=', currentUser?.id);
       }
     } catch (e) {
-      console.log('[DRINK-AUDIT] FAIL: Exception thrown:', e);
+      console.log('[DRINK CLICK] Exception:', e);
     }
   };
 
