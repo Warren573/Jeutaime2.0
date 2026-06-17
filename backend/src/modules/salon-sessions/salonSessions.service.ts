@@ -655,23 +655,7 @@ export async function performDrinkAction(
   });
   const pseudo = user?.profile?.pseudo || "Unknown";
 
-  // Create system message
-  try {
-    await prisma.salonMessage.create({
-      data: {
-        salonId: session.salonId,
-        sessionId,
-        userId,
-        kind: "system",
-        content: `Glouglou 🍻 ${pseudo} a bu une boisson`,
-      },
-    });
-  } catch (err) {
-    console.error(`[DRINK-ACTION] Error creating message: ${err}`);
-    // Don't fail if message creation fails
-  }
-
-  // Try to consume an offering in this salon
+  // Try to consume a beverage offering in this salon
   let offeringConsumed = false;
   try {
     const offerings = await prisma.offeringSent.findMany({
@@ -681,16 +665,17 @@ export async function performDrinkAction(
       },
       include: {
         offering: {
-          select: { consumptionMode: true },
+          select: { consumptionMode: true, category: true },
         },
       },
       orderBy: { createdAt: "desc" },
       take: 10,
     });
 
-    // Find first consumable offering (either SHARED or PRIVATE to this user)
+    // Find first consumable BEVERAGE offering (either SHARED or PRIVATE to this user)
     let consumable = null;
     for (const offeringSent of offerings) {
+      if (offeringSent.offering.category !== "BOISSON") continue;
       if (offeringSent.offering.consumptionMode === "SHARED") {
         consumable = offeringSent;
         break;
@@ -711,6 +696,24 @@ export async function performDrinkAction(
     }
   } catch (err) {
     console.error(`[DRINK-ACTION] Error finding offerings: ${err}`);
+  }
+
+  // Create system message only if offering was actually consumed
+  if (offeringConsumed) {
+    try {
+      await prisma.salonMessage.create({
+        data: {
+          salonId: session.salonId,
+          sessionId,
+          userId,
+          kind: "system",
+          content: `Glouglou 🍻 ${pseudo} a bu une boisson`,
+        },
+      });
+    } catch (err) {
+      console.error(`[DRINK-ACTION] Error creating message: ${err}`);
+      // Don't fail if message creation fails
+    }
   }
 
   return { success: true, level: Date.now(), offeringConsumed };
@@ -751,23 +754,7 @@ export async function performEatAction(
   });
   const pseudo = user?.profile?.pseudo || "Unknown";
 
-  // Create system message
-  try {
-    await prisma.salonMessage.create({
-      data: {
-        salonId: session.salonId,
-        sessionId,
-        userId,
-        kind: "system",
-        content: `Miam 😋 ${pseudo} a mangé quelque chose`,
-      },
-    });
-  } catch (err) {
-    console.error(`[EAT-ACTION] Error creating message: ${err}`);
-    // Don't fail if message creation fails
-  }
-
-  // Try to consume an offering in this salon
+  // Try to consume a food offering in this salon
   let offeringConsumed = false;
   try {
     const offerings = await prisma.offeringSent.findMany({
@@ -777,16 +764,17 @@ export async function performEatAction(
       },
       include: {
         offering: {
-          select: { consumptionMode: true },
+          select: { consumptionMode: true, category: true },
         },
       },
       orderBy: { createdAt: "desc" },
       take: 10,
     });
 
-    // Find first consumable offering (either SHARED or PRIVATE to this user)
+    // Find first consumable FOOD offering (either SHARED or PRIVATE to this user)
     let consumable = null;
     for (const offeringSent of offerings) {
+      if (offeringSent.offering.category !== "NOURRITURE") continue;
       if (offeringSent.offering.consumptionMode === "SHARED") {
         consumable = offeringSent;
         break;
@@ -807,6 +795,24 @@ export async function performEatAction(
     }
   } catch (err) {
     console.error(`[EAT-ACTION] Error finding offerings: ${err}`);
+  }
+
+  // Create system message only if offering was actually consumed
+  if (offeringConsumed) {
+    try {
+      await prisma.salonMessage.create({
+        data: {
+          salonId: session.salonId,
+          sessionId,
+          userId,
+          kind: "system",
+          content: `Miam 😋 ${pseudo} a mangé quelque chose`,
+        },
+      });
+    } catch (err) {
+      console.error(`[EAT-ACTION] Error creating message: ${err}`);
+      // Don't fail if message creation fails
+    }
   }
 
   return { success: true, level: Date.now(), offeringConsumed };
