@@ -684,7 +684,7 @@ export default function SalonScreen() {
           toUserId: o.toUserId,
           currentStage: 1,
         }));
-        const merged = [...localOfferings, ...backendOfferings].slice(-6);
+        const merged = backendOfferings.length > 0 ? backendOfferings.slice(-6) : localOfferings.slice(-6);
         return {
           ...p,
           offerings: merged,
