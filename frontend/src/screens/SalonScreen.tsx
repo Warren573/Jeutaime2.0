@@ -854,6 +854,10 @@ export default function SalonScreen() {
       console.log('[DRINK-AUDIT] STEP 3: API Response:', result);
 
       if (result.success && currentUser?.id) {
+        if (!result.offeringConsumed) {
+          alert('Rien à boire, commandez d\'abord.');
+          return;
+        }
         console.log('[DRINK-AUDIT] STEP 4: Success! Setting actionLevels');
         setActionLevels(prev => ({
           ...prev,
@@ -891,6 +895,10 @@ export default function SalonScreen() {
       console.log('[EAT-AUDIT] STEP 3: API Response:', result);
 
       if (result.success && currentUser?.id) {
+        if (!result.offeringConsumed) {
+          alert('Rien à manger, commandez d\'abord.');
+          return;
+        }
         console.log('[EAT-AUDIT] STEP 4: Success! Setting actionLevels');
         setActionLevels(prev => ({
           ...prev,
