@@ -651,27 +651,10 @@ export default function SalonScreen() {
 
   // Mettre à jour les badges d'offrandes de TOUS les participants depuis le salon
   useEffect(() => {
-    if (!isAuthenticated || salonOfferings.length === 0) return;
-    salonOfferings.forEach((o, i) => {
-    });
-
+    if (!isAuthenticated) return;
     setParticipants(prev => {
       const updated = prev.map(p => {
         const forP = salonOfferings.filter(o => o.toUserId === p.id).slice(-6);
-        forP.forEach((o, i) => {
-        });
-
-        if (forP.length === 0) {
-          if ((p.offerings || []).length > 0) {
-          }
-          return p;
-        }
-        // Merge backend offerings with existing local offerings
-        // Remove local offerings that exist in backend (by offeringId) so backend always takes precedence
-        const backendOfferingIds = new Set(forP.map(o => o.offeringId));
-        const localOfferings = (p.offerings || []).filter(local =>
-          !backendOfferingIds.has(local.offeringId)
-        );
         const backendOfferings = forP.map(o => ({
           id: o.id,
           offeringId: o.offeringId,
@@ -682,12 +665,11 @@ export default function SalonScreen() {
           consumptionCount: o.consumptionCount,
           consumptionMode: o.consumptionMode,
           toUserId: o.toUserId,
-          currentStage: 1,
+          currentStage: o.currentStage,
         }));
-        const merged = backendOfferings.length > 0 ? backendOfferings.slice(-6) : localOfferings.slice(-6);
         return {
           ...p,
-          offerings: merged,
+          offerings: backendOfferings,
         };
       });
       return updated;
@@ -961,8 +943,8 @@ export default function SalonScreen() {
         offeringResponseStatusRef.current = 'success';
         offeringResponseBodyRef.current = offeringResult;
         await loadWallet();
-        // Do NOT call loadSalonContent() immediately - let the normal polling (every 2s) handle it
-        // to avoid race condition where new offering hasn't persisted yet
+        // Backend is now source of truth - fetch updated offerings
+        await loadSalonContent();
       } catch (e: any) {
         const msg: string = e?.message ?? '';
         offeringResponseStatusRef.current = 'error';
@@ -984,16 +966,6 @@ export default function SalonScreen() {
         return;
       }
     }
-
-    setParticipants(prev => prev.map(p => {
-      if (p.id === target.id) {
-        return {
-          ...p,
-          offerings: [...(p.offerings || []), { emoji: item.emoji, from: currentUser?.name || 'Vous', timestamp: Date.now() }].slice(-6),
-        };
-      }
-      return p;
-    }));
 
     setRecentInteractions(prev => [{
       id: Date.now().toString(),
