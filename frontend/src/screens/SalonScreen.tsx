@@ -849,9 +849,11 @@ export default function SalonScreen() {
 
   // Perform drink action
   const handleDrink = async () => {
+    console.error('[DRINK CLICK] DRINK CLICKED - FIRST LOG');
     console.log('[DRINK CLICK] Handler called', { screenSessionId, userId: currentUser?.id });
 
     if (!screenSessionId) {
+      console.error('[DRINK CLICK] No screenSessionId');
       alert('Erreur: screenSessionId manquant');
       return;
     }
@@ -862,7 +864,7 @@ export default function SalonScreen() {
 
       if (result.success && currentUser?.id) {
         if (!result.offeringConsumed) {
-          console.log('[DRINK RESPONSE] NO offering consumed - showing alert, NOT calling loadSalonContent');
+          console.error('[DRINK RESPONSE] NO offering consumed - offeringConsumed is FALSE');
           alert('Rien à boire, commandez d\'abord.');
           return;
         }
@@ -878,32 +880,32 @@ export default function SalonScreen() {
         loadSalonContent();
       }
     } catch (e) {
-      console.log('[DRINK CLICK] Exception:', e);
+      console.error('[DRINK CLICK] Exception caught:', e);
     }
   };
 
   // Perform eat action
   const handleEat = async () => {
-    console.log('[EAT-AUDIT] STEP 1: Handler called');
-    console.log('[EAT-AUDIT] screenSessionId:', screenSessionId);
-    console.log('[EAT-AUDIT] currentUser.id:', currentUser?.id);
+    console.error('[EAT CLICK] EAT CLICKED - FIRST LOG');
+    console.log('[EAT CLICK] Handler called', { screenSessionId, userId: currentUser?.id });
 
     if (!screenSessionId) {
-      console.log('[EAT-AUDIT] FAIL: screenSessionId missing');
+      console.error('[EAT CLICK] No screenSessionId');
       alert('Erreur: screenSessionId manquant');
       return;
     }
     try {
-      console.log('[EAT-AUDIT] STEP 2: Calling performEatAction');
+      console.log('[EAT CLICK] Calling performEatAction');
       const result = await performEatAction(screenSessionId);
-      console.log('[EAT-AUDIT] STEP 3: API Response:', result);
+      console.log('[EAT RESPONSE]', { success: result.success, offeringConsumed: result.offeringConsumed, level: result.level });
 
       if (result.success && currentUser?.id) {
         if (!result.offeringConsumed) {
+          console.error('[EAT RESPONSE] NO offering consumed - offeringConsumed is FALSE');
           alert('Rien à manger, commandez d\'abord.');
           return;
         }
-        console.log('[EAT-AUDIT] STEP 4: Success! Setting actionLevels');
+        console.log('[EAT RESPONSE] Offering consumed - proceeding with state update');
         setActionLevels(prev => ({
           ...prev,
           [currentUser.id]: {
@@ -911,15 +913,11 @@ export default function SalonScreen() {
             eatLevel: result.level || 0,
           },
         }));
-        console.log('[EAT-AUDIT] STEP 5: Calling loadSalonContent');
-        // Refresh messages to show the system message
+        console.log('[EAT CLICK] Calling loadSalonContent after successful consumption');
         loadSalonContent();
-        console.log('[EAT-AUDIT] STEP 6: Complete');
-      } else {
-        console.log('[EAT-AUDIT] FAIL: result.success=', result.success, 'currentUser.id=', currentUser?.id);
       }
     } catch (e) {
-      console.log('[EAT-AUDIT] FAIL: Exception thrown:', e);
+      console.error('[EAT CLICK] Exception caught:', e);
     }
   };
 
