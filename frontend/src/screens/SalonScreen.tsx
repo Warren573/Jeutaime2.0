@@ -423,6 +423,7 @@ export default function SalonScreen() {
 
   // Action levels tracking: userId -> { drinkLevel, eatLevel }
   const [actionLevels, setActionLevels] = useState<Record<string, { drinkLevel: number; eatLevel: number }>>({});
+  const [debugLastAction, setDebugLastAction] = useState("");
 
   // Test mode: allow self-targeting when alone (excluding self from count)
   const allowSelfTarget = isTestMode() && participants.filter(p => !p.isMe).length === 0;
@@ -849,6 +850,7 @@ export default function SalonScreen() {
 
   // Perform drink action
   const handleDrink = async () => {
+    setDebugLastAction("DRINK CLICK " + new Date().toISOString());
     console.error('[DRINK CLICK] DRINK CLICKED - FIRST LOG');
     console.log('[DRINK CLICK] Handler called', { screenSessionId, userId: currentUser?.id });
 
@@ -886,6 +888,7 @@ export default function SalonScreen() {
 
   // Perform eat action
   const handleEat = async () => {
+    setDebugLastAction("EAT CLICK " + new Date().toISOString());
     console.error('[EAT CLICK] EAT CLICKED - FIRST LOG');
     console.log('[EAT CLICK] Handler called', { screenSessionId, userId: currentUser?.id });
 
@@ -1796,6 +1799,21 @@ export default function SalonScreen() {
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
+
+      {/* Debug last action - diagnostic only */}
+      {debugLastAction && (
+        <Text style={{
+          position: 'absolute',
+          bottom: 35,
+          right: 5,
+          fontSize: 10,
+          color: '#ff0000',
+          fontFamily: 'monospace',
+          fontWeight: 'bold',
+        }}>
+          {debugLastAction}
+        </Text>
+      )}
 
       {/* Build indicator - diagnostic only */}
       <Text style={{
