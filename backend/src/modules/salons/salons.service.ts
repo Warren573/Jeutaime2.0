@@ -215,3 +215,31 @@ export async function postMessage(
     createdAt: row.createdAt.toISOString(),
   };
 }
+
+// ============================================================
+// Admin: Clean test messages (temporary)
+// ============================================================
+export async function cleanTestMessages(): Promise<{ deletedCount: number }> {
+  console.log("[CLEAN] Cleaning test Glouglou/Miam messages from live DB...");
+
+  const miam = await prisma.salonMessage.deleteMany({
+    where: {
+      content: {
+        contains: "Miam",
+      },
+    },
+  });
+
+  const glouglou = await prisma.salonMessage.deleteMany({
+    where: {
+      content: {
+        contains: "Glouglou",
+      },
+    },
+  });
+
+  const totalDeleted = miam.count + glouglou.count;
+  console.log(`[CLEAN] Deleted ${miam.count} Miam + ${glouglou.count} Glouglou = ${totalDeleted} messages`);
+
+  return { deletedCount: totalDeleted };
+}

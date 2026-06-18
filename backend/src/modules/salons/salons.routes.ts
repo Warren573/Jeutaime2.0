@@ -19,6 +19,15 @@ const wrap = (
   fn: (req: AuthedRequest, res: Response) => Promise<void>,
 ) => asyncHandler((req, res, next) => fn(req as AuthedRequest, res).catch(next));
 
+// ADMIN: POST /api/admin/clean-test-messages — delete test Glouglou/Miam messages
+router.post(
+  "/admin/clean-test-messages",
+  wrap(async (_req, res) => {
+    const result = await svc.cleanTestMessages();
+    res.json({ success: true, deletedCount: result.deletedCount });
+  }),
+);
+
 // GET /api/salons — liste des salons actifs, ordre stable
 router.get(
   "/",
