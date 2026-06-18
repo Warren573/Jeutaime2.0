@@ -424,6 +424,7 @@ export default function SalonScreen() {
   // Action levels tracking: userId -> { drinkLevel, eatLevel }
   const [actionLevels, setActionLevels] = useState<Record<string, { drinkLevel: number; eatLevel: number }>>({});
   const [debugLastAction, setDebugLastAction] = useState("");
+  const [actionNotice, setActionNotice] = useState("");
 
   // Test mode: allow self-targeting when alone (excluding self from count)
   const allowSelfTarget = isTestMode() && participants.filter(p => !p.isMe).length === 0;
@@ -867,7 +868,8 @@ export default function SalonScreen() {
       if (result.success && currentUser?.id) {
         if (!result.offeringConsumed) {
           console.error('[DRINK RESPONSE] NO offering consumed - offeringConsumed is FALSE');
-          alert('Rien à boire, commandez d\'abord.');
+          setActionNotice('Rien à boire, commandez d\'abord.');
+          setTimeout(() => setActionNotice(''), 2000);
           return;
         }
         console.log('[DRINK RESPONSE] Offering consumed - proceeding with state update');
@@ -905,7 +907,8 @@ export default function SalonScreen() {
       if (result.success && currentUser?.id) {
         if (!result.offeringConsumed) {
           console.error('[EAT RESPONSE] NO offering consumed - offeringConsumed is FALSE');
-          alert('Rien à manger, commandez d\'abord.');
+          setActionNotice('Rien à manger, commandez d\'abord.');
+          setTimeout(() => setActionNotice(''), 2000);
           return;
         }
         console.log('[EAT RESPONSE] Offering consumed - proceeding with state update');
@@ -1418,6 +1421,25 @@ export default function SalonScreen() {
           </View>
         }
       />
+
+      {/* Action notice toast */}
+      {actionNotice && (
+        <View style={{
+          backgroundColor: '#ff6b6b',
+          padding: 12,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <Text style={{
+            color: '#fff',
+            fontSize: 14,
+            fontWeight: '600',
+            textAlign: 'center',
+          }}>
+            {actionNotice}
+          </Text>
+        </View>
+      )}
 
       {/* Barre d'input - portrait only has drink/eat buttons */}
       <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
