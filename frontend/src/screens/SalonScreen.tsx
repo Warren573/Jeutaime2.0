@@ -1808,6 +1808,7 @@ export default function SalonScreen() {
         color: '#999',
         fontFamily: 'monospace',
       }}>
+        AUDIT_LOGS_ACTIVE = 2a1e03c2
         BUILD = 54952e94
         FEATURE = 82ea4fba
       </Text>
