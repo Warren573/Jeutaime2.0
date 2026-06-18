@@ -851,7 +851,7 @@ export default function SalonScreen() {
 
   // Perform drink action
   const handleDrink = async () => {
-    setDebugLastAction("DRINK CLICK " + new Date().toISOString());
+    setDebugLastAction("DRINK_STEP_1_CLICK " + new Date().toISOString());
     console.error('[DRINK CLICK] DRINK CLICKED - FIRST LOG');
     console.log('[DRINK CLICK] Handler called', { screenSessionId, userId: currentUser?.id });
 
@@ -861,17 +861,21 @@ export default function SalonScreen() {
       return;
     }
     try {
+      setDebugLastAction("DRINK_STEP_2_BEFORE_API " + new Date().toISOString());
       console.log('[DRINK CLICK] Calling performDrinkAction');
       const result = await performDrinkAction(screenSessionId);
+      setDebugLastAction("DRINK_STEP_3_AFTER_API " + new Date().toISOString());
       console.log('[DRINK RESPONSE]', { success: result.success, offeringConsumed: result.offeringConsumed, level: result.level });
 
       if (result.success && currentUser?.id) {
         if (!result.offeringConsumed) {
+          setDebugLastAction("DRINK_STEP_4_CONSUMED_FALSE " + new Date().toISOString());
           console.error('[DRINK RESPONSE] NO offering consumed - offeringConsumed is FALSE');
           setActionNotice('Rien à boire, commandez d\'abord.');
           setTimeout(() => setActionNotice(''), 2000);
           return;
         }
+        setDebugLastAction("DRINK_STEP_5_CONSUMED_TRUE " + new Date().toISOString());
         console.log('[DRINK RESPONSE] Offering consumed - proceeding with state update');
         setActionLevels(prev => ({
           ...prev,
@@ -884,13 +888,14 @@ export default function SalonScreen() {
         loadSalonContent();
       }
     } catch (e) {
+      setDebugLastAction("DRINK_STEP_ERROR " + new Date().toISOString());
       console.error('[DRINK CLICK] Exception caught:', e);
     }
   };
 
   // Perform eat action
   const handleEat = async () => {
-    setDebugLastAction("EAT CLICK " + new Date().toISOString());
+    setDebugLastAction("EAT_STEP_1_CLICK " + new Date().toISOString());
     console.error('[EAT CLICK] EAT CLICKED - FIRST LOG');
     console.log('[EAT CLICK] Handler called', { screenSessionId, userId: currentUser?.id });
 
@@ -900,17 +905,21 @@ export default function SalonScreen() {
       return;
     }
     try {
+      setDebugLastAction("EAT_STEP_2_BEFORE_API " + new Date().toISOString());
       console.log('[EAT CLICK] Calling performEatAction');
       const result = await performEatAction(screenSessionId);
+      setDebugLastAction("EAT_STEP_3_AFTER_API " + new Date().toISOString());
       console.log('[EAT RESPONSE]', { success: result.success, offeringConsumed: result.offeringConsumed, level: result.level });
 
       if (result.success && currentUser?.id) {
         if (!result.offeringConsumed) {
+          setDebugLastAction("EAT_STEP_4_CONSUMED_FALSE " + new Date().toISOString());
           console.error('[EAT RESPONSE] NO offering consumed - offeringConsumed is FALSE');
           setActionNotice('Rien à manger, commandez d\'abord.');
           setTimeout(() => setActionNotice(''), 2000);
           return;
         }
+        setDebugLastAction("EAT_STEP_5_CONSUMED_TRUE " + new Date().toISOString());
         console.log('[EAT RESPONSE] Offering consumed - proceeding with state update');
         setActionLevels(prev => ({
           ...prev,
@@ -923,6 +932,7 @@ export default function SalonScreen() {
         loadSalonContent();
       }
     } catch (e) {
+      setDebugLastAction("EAT_STEP_ERROR " + new Date().toISOString());
       console.error('[EAT CLICK] Exception caught:', e);
     }
   };
