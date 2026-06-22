@@ -1807,21 +1807,6 @@ export default function SalonScreen() {
       {renderOfferingsModal()}
       {renderPowersModal()}
 
-      {/* Debug last action - diagnostic only */}
-      {debugLastAction && (
-        <Text style={{
-          position: 'absolute',
-          bottom: 35,
-          right: 5,
-          fontSize: 10,
-          color: '#ff0000',
-          fontFamily: 'monospace',
-          fontWeight: 'bold',
-        }}>
-          {debugLastAction}
-        </Text>
-      )}
-
       {/* Build indicator - diagnostic only */}
       <Text style={{
         position: 'absolute',
