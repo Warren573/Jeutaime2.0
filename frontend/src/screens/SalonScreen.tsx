@@ -58,6 +58,8 @@ import { useStore, Message } from '../store/useStore';
 import { allOfferings, allPowers } from '../data/offerings';
 import { OfferingBadge } from '../components/OfferingBadge';
 import { ConsumptionActionButton } from '../components/ConsumptionActionButton';
+import { ParticipantProfileModal } from '../components/ParticipantProfileModal';
+import { sendSmile } from '../api/interactions';
 import {
   listSalons,
   listMessages as apiListMessages,
@@ -355,6 +357,8 @@ export default function SalonScreen() {
   const [showOfferingsModal, setShowOfferingsModal] = useState(false);
   const [showPowersModal, setShowPowersModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [selectedParticipantForProfile, setSelectedParticipantForProfile] = useState<SalonParticipant | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<SalonParticipant | null>(null);
   const [recentInteractions, setRecentInteractions] = useState<Array<{
     id: string;
@@ -1154,6 +1158,26 @@ export default function SalonScreen() {
     setModalTargetId(null);
   };
 
+  // Envoyer un sourire à un participant
+  const handleSendSmile = async (toUserId: string) => {
+    try {
+      await sendSmile(toUserId);
+      const userName = selectedParticipantForProfile?.name || 'X';
+      setActionNotice(`💚 Sourire envoyé à ${userName}!`);
+      setTimeout(() => setActionNotice(''), 2000);
+      setShowProfileModal(false);
+    } catch (e) {
+      setActionNotice('Erreur lors de l\'envoi du sourire');
+      setTimeout(() => setActionNotice(''), 2000);
+    }
+  };
+
+  // Ouvrir la fiche profil d'un participant
+  const handleOpenProfileModal = (participant: SalonParticipant) => {
+    setSelectedParticipantForProfile(participant);
+    setShowProfileModal(true);
+  };
+
   // Casser un sort actif via le backend
   const handleBreakSpell = async (cast: MagieCastDTO, antiSpell: MagieCatalogItemDTO) => {
     try {
@@ -1323,19 +1347,22 @@ export default function SalonScreen() {
                 styles.participantItem,
                 selectedPlayer?.id === p.id && styles.participantSelected
               ]}
-              onPress={() => setSelectedPlayer(prev => {
-                const next = selectedPlayer?.id === p.id ? null : p;
-                console.log('[TARGET] Click participant', {
-                  clicked: p.name,
-                  wasSelected: selectedPlayer?.id === p.id,
-                  newSelectedPlayer: next?.name || null,
-                  effectiveSelectedPlayer: (selectedPlayer || (allowSelfTarget && currentUser ? currentUser : null))?.name,
-                  participants: participants.map(x => x.name),
-                  allowSelfTarget,
-                  isTestMode: isTestMode(),
+              onPress={() => {
+                setSelectedPlayer(prev => {
+                  const next = selectedPlayer?.id === p.id ? null : p;
+                  console.log('[TARGET] Click participant', {
+                    clicked: p.name,
+                    wasSelected: selectedPlayer?.id === p.id,
+                    newSelectedPlayer: next?.name || null,
+                    effectiveSelectedPlayer: (selectedPlayer || (allowSelfTarget && currentUser ? currentUser : null))?.name,
+                    participants: participants.map(x => x.name),
+                    allowSelfTarget,
+                    isTestMode: isTestMode(),
+                  });
+                  return next;
                 });
-                return next;
-              })}
+                handleOpenProfileModal(p);
+              }}
             >
               <AnimatedAvatar 
                 participant={p} 
@@ -1488,19 +1515,22 @@ export default function SalonScreen() {
                   participant={p}
                   size={avatarSizeLandscape}
                   showBadges={true}
-                  onPress={() => setSelectedPlayer(prev => {
-                    const next = selectedPlayer?.id === p.id ? null : p;
-                    console.log('[TARGET] Click participant', {
-                      clicked: p.name,
-                      wasSelected: selectedPlayer?.id === p.id,
-                      newSelectedPlayer: next?.name || null,
-                      effectiveSelectedPlayer: (selectedPlayer || (allowSelfTarget && currentUser ? currentUser : null))?.name,
-                      participants: participants.map(x => x.name),
-                      allowSelfTarget,
-                      isTestMode: isTestMode(),
+                  onPress={() => {
+                    setSelectedPlayer(prev => {
+                      const next = selectedPlayer?.id === p.id ? null : p;
+                      console.log('[TARGET] Click participant', {
+                        clicked: p.name,
+                        wasSelected: selectedPlayer?.id === p.id,
+                        newSelectedPlayer: next?.name || null,
+                        effectiveSelectedPlayer: (selectedPlayer || (allowSelfTarget && currentUser ? currentUser : null))?.name,
+                        participants: participants.map(x => x.name),
+                        allowSelfTarget,
+                        isTestMode: isTestMode(),
+                      });
+                      return next;
                     });
-                    return next;
-                  })}
+                    handleOpenProfileModal(p);
+                  }}
                   isSelected={selectedPlayer?.id === p.id}
                 />
               </View>
@@ -1801,11 +1831,24 @@ export default function SalonScreen() {
   );
   };
 
+  const renderParticipantProfileModal = () => (
+    <ParticipantProfileModal
+      visible={showProfileModal}
+      participant={selectedParticipantForProfile}
+      onClose={() => setShowProfileModal(false)}
+      onSendSmile={handleSendSmile}
+      onOpenReport={(p) => {
+        console.log('Phase 2: Report participant', p);
+      }}
+    />
+  );
+
   return (
     <View style={{ flex: 1 }}>
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
+      {renderParticipantProfileModal()}
 
       {/* Build indicator - diagnostic only */}
       <Text style={{
