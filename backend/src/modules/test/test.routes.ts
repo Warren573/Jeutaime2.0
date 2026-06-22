@@ -2530,4 +2530,215 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
   }
 }));
 
+/**
+ * TEMPORARY STAGING-ONLY ENDPOINT
+ * GET /api/test/reset-test-users
+ *
+ * Same functionality as POST but accessible via browser/Safari on iPhone
+ * ONLY AVAILABLE ON RENDER STAGING - removed before production
+ *
+ * Use this link on iPhone:
+ * https://jeutaime-staging.onrender.com/api/test/reset-test-users
+ */
+router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  // SAFETY: Only allow on Render staging, NOT on production even with allow flag
+  if (!isRenderStaging) {
+    return res.status(403).json({
+      error: "GET reset-test-users only available on Render staging",
+      environment: {
+        nodeEnv,
+        renderService: process.env.RENDER_SERVICE_NAME,
+        allowTestEndpoints,
+      },
+    });
+  }
+
+  const PRESERVE_USERS = [
+    "test@jeutaime.com",
+    "doudou453@hotmail.fr",
+  ];
+
+  const NEW_TEST_USERS = [
+    { email: "testuser2@jeutaime.test", pseudo: "testuser2", gender: "HOMME" as Gender, city: "Lyon", bio: "Passionné par les voyages et les rencontres authentiques" },
+    { email: "testuser3@jeutaime.test", pseudo: "testuser3", gender: "FEMME" as Gender, city: "Marseille", bio: "Amoureuse de musique, de culture et de belles discussions" },
+    { email: "testuser4@jeutaime.test", pseudo: "testuser4", gender: "HOMME" as Gender, city: "Toulouse", bio: "Sportif, aventurier, j'aime les gens authentiques" },
+    { email: "testuser5@jeutaime.test", pseudo: "testuser5", gender: "FEMME" as Gender, city: "Bordeaux", bio: "Créative, artiste, toujours en quête d'inspiration" },
+    { email: "testuser6@jeutaime.test", pseudo: "testuser6", gender: "HOMME" as Gender, city: "Nice", bio: "Entrepreneur passionné, aimant discuter de projets et rêves" },
+    { email: "testuser7@jeutaime.test", pseudo: "testuser7", gender: "FEMME" as Gender, city: "Nantes", bio: "Professionnelle dynamique cherchant une relation sérieuse" },
+    { email: "testuser8@jeutaime.test", pseudo: "testuser8", gender: "HOMME" as Gender, city: "Strasbourg", bio: "Curieux de nature, j'aime apprendre et partager" },
+    { email: "testuser9@jeutaime.test", pseudo: "testuser9", gender: "FEMME" as Gender, city: "Lille", bio: "Optimiste, rieuse, amie sincère avant tout" },
+    { email: "testuser10@jeutaime.test", pseudo: "testuser10", gender: "HOMME" as Gender, city: "Rennes", bio: "Amoureux de la nature et des rencontres sincères" },
+    { email: "testuser11@jeutaime.test", pseudo: "testuser11", gender: "FEMME" as Gender, city: "Montpellier", bio: "Passionnée par la vie, toujours souriante et enthousiaste" },
+  ];
+
+  try {
+    console.log("[test/reset-test-users GET] Starting reset from browser...");
+
+    // 1. Find test-mutual-* users
+    const testMutualUsers = await prisma.user.findMany({
+      where: {
+        OR: [
+          { id: { startsWith: "test-mutual-a-" } },
+          { id: { startsWith: "test-mutual-b-" } },
+        ],
+      },
+      select: { id: true, email: true },
+    });
+
+    const userIdsToDelete = testMutualUsers.map((u) => u.id);
+    console.log(`[test/reset-test-users GET] Found ${userIdsToDelete.length} test-mutual-* accounts to delete`);
+
+    // 2. Verify preserve users exist
+    const preservedUsers = await prisma.user.findMany({
+      where: { email: { in: PRESERVE_USERS } },
+      select: { id: true, email: true },
+    });
+
+    if (preservedUsers.length !== PRESERVE_USERS.length) {
+      const missing = PRESERVE_USERS.filter(
+        (email) => !preservedUsers.find((u) => u.email === email)
+      );
+      throw new Error(`Missing preservation users: ${missing.join(", ")}`);
+    }
+
+    console.log(`[test/reset-test-users GET] Verified ${preservedUsers.length} preserve accounts`);
+
+    // 3. Delete old test accounts
+    if (userIdsToDelete.length > 0) {
+      await prisma.reaction.deleteMany({
+        where: { OR: [{ fromId: { in: userIdsToDelete } }, { toId: { in: userIdsToDelete } }] },
+      });
+      await prisma.match.deleteMany({
+        where: {
+          OR: [{ userAId: { in: userIdsToDelete } }, { userBId: { in: userIdsToDelete } }],
+        },
+      });
+      await prisma.letter.deleteMany({
+        where: {
+          OR: [{ fromUserId: { in: userIdsToDelete } }, { toUserId: { in: userIdsToDelete } }],
+        },
+      });
+      await prisma.offeringSent.deleteMany({
+        where: {
+          OR: [{ fromUserId: { in: userIdsToDelete } }, { toUserId: { in: userIdsToDelete } }],
+        },
+      });
+      await prisma.block.deleteMany({
+        where: {
+          OR: [{ fromId: { in: userIdsToDelete } }, { toId: { in: userIdsToDelete } }],
+        },
+      });
+      await prisma.refreshToken.deleteMany({
+        where: { userId: { in: userIdsToDelete } },
+      });
+      await prisma.photo.deleteMany({
+        where: { userId: { in: userIdsToDelete } },
+      });
+      await prisma.pet.deleteMany({
+        where: { userId: { in: userIdsToDelete } },
+      });
+      await prisma.wallet.deleteMany({
+        where: { userId: { in: userIdsToDelete } },
+      });
+      await prisma.userSettings.deleteMany({
+        where: { userId: { in: userIdsToDelete } },
+      });
+      await prisma.profile.deleteMany({
+        where: { userId: { in: userIdsToDelete } },
+      });
+      await prisma.user.deleteMany({
+        where: { id: { in: userIdsToDelete } },
+      });
+
+      console.log(`[test/reset-test-users GET] Deleted ${userIdsToDelete.length} test accounts`);
+    }
+
+    // 4. Create new test users
+    const created = [];
+    for (const testUser of NEW_TEST_USERS) {
+      const passwordHash = await hashPassword(`${testUser.pseudo}-2024`);
+
+      const newUser = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: testUser.email,
+            passwordHash,
+            isVerified: true,
+            role: "USER",
+            profile: {
+              create: {
+                pseudo: testUser.pseudo,
+                gender: testUser.gender,
+                birthDate: new Date("1990-01-01"),
+                city: testUser.city,
+                bio: testUser.bio,
+                interestedIn: [],
+                lookingFor: ["RELATION"],
+                interests: [],
+                physicalDesc: "moyenne",
+                avatarConfig: {},
+              },
+            },
+          },
+        });
+
+        await tx.userSettings.create({
+          data: {
+            userId: user.id,
+            showInDiscovery: true,
+            showPhotoByDefault: true,
+          },
+        });
+
+        await tx.wallet.create({
+          data: {
+            userId: user.id,
+            coins: 100,
+          },
+        });
+
+        return user;
+      });
+
+      created.push({
+        email: newUser.email,
+        pseudo: testUser.pseudo,
+        userId: newUser.id,
+      });
+    }
+
+    console.log(`[test/reset-test-users GET] Created ${created.length} new test accounts`);
+
+    res.json({
+      status: "success",
+      message: "Test users reset completed (via GET from browser)",
+      method: "GET",
+      environment: "Render Staging Only",
+      summary: {
+        deleted: userIdsToDelete.length,
+        preserved: preservedUsers.length,
+        created: created.length,
+        total: preservedUsers.length + created.length,
+      },
+      preserved_users: preservedUsers.map((u) => ({ email: u.email, id: u.id })),
+      created_users: created.map((u) => ({
+        email: u.email,
+        pseudo: u.pseudo,
+        password: `${u.pseudo}-2024`,
+        userId: u.userId,
+      })),
+    });
+  } catch (error) {
+    console.error("[test/reset-test-users GET] Error:", error);
+    res.status(500).json({
+      error: "Reset failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}));
+
 export default router;
