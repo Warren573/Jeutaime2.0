@@ -42,7 +42,7 @@ jobs:
             BODY=$(echo "$RESPONSE" | sed '$d')
 
             if [ "$HTTP_CODE" = "200" ]; then
-              RENDER_SHA=$(echo "$BODY" | grep -o '"sha":"[^"]*' | cut -d'"' -f4 | cut -c1-8)
+              RENDER_SHA=$(echo "$BODY" | grep -o '"sha":"[^"]*' | cut -d'"' -f4 | cut -c1-7)
               echo "[$TIMESTAMP] ✓ Got 200 | Expected: ${{ env.LATEST_SHA }} | Current: $RENDER_SHA"
 
               if [ "$RENDER_SHA" = "${{ env.LATEST_SHA }}" ]; then
@@ -66,7 +66,7 @@ jobs:
 
       - name: Verify SHA match confirmed
         run: |
-          RENDER_SHA=$(echo '${{ env.HEALTH_RESPONSE }}' | grep -o '"sha":"[^"]*' | cut -d'"' -f4 | cut -c1-8)
+          RENDER_SHA=$(echo '${{ env.HEALTH_RESPONSE }}' | grep -o '"sha":"[^"]*' | cut -d'"' -f4 | cut -c1-7)
           EXPECTED_SHA="${{ env.LATEST_SHA }}"
 
           if [ "$RENDER_SHA" != "$EXPECTED_SHA" ]; then
