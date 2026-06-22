@@ -4,7 +4,7 @@ import { prisma } from "../../config/prisma";
 import { hashPassword } from "../../core/utils/hash";
 import * as authService from "../auth/auth.service";
 import { execSync } from "child_process";
-import { OfferingCategory, SalonKind } from "@prisma/client";
+import { OfferingCategory, SalonKind, Gender } from "@prisma/client";
 
 const router = Router();
 
@@ -2322,6 +2322,209 @@ router.post("/seed-offerings-catalog", asyncHandler(async (req: Request, res: Re
     console.error("[test/seed-offerings-catalog] Error:", error);
     res.status(500).json({
       error: "Seed failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}));
+
+/**
+ * POST /api/test/reset-test-users
+ *
+ * STAGING & DEVELOPMENT ONLY
+ *
+ * Resets test user population:
+ * 1. Deletes old test-mutual-a/b temporary accounts
+ * 2. Preserves: TestUser (test@jeutaime.com) and Doudou (doudou453@hotmail.fr)
+ * 3. Creates 10 new test accounts with complete profiles
+ *
+ * Returns summary of operations performed.
+ */
+router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const PRESERVE_USERS = [
+    "test@jeutaime.com",
+    "doudou453@hotmail.fr",
+  ];
+
+  const NEW_TEST_USERS = [
+    { email: "testuser2@jeutaime.test", pseudo: "testuser2", gender: "HOMME" as Gender, city: "Lyon", bio: "Passionné par les voyages et les rencontres authentiques" },
+    { email: "testuser3@jeutaime.test", pseudo: "testuser3", gender: "FEMME" as Gender, city: "Marseille", bio: "Amoureuse de musique, de culture et de belles discussions" },
+    { email: "testuser4@jeutaime.test", pseudo: "testuser4", gender: "HOMME" as Gender, city: "Toulouse", bio: "Sportif, aventurier, j'aime les gens authentiques" },
+    { email: "testuser5@jeutaime.test", pseudo: "testuser5", gender: "FEMME" as Gender, city: "Bordeaux", bio: "Créative, artiste, toujours en quête d'inspiration" },
+    { email: "testuser6@jeutaime.test", pseudo: "testuser6", gender: "HOMME" as Gender, city: "Nice", bio: "Entrepreneur passionné, aimant discuter de projets et rêves" },
+    { email: "testuser7@jeutaime.test", pseudo: "testuser7", gender: "FEMME" as Gender, city: "Nantes", bio: "Professionnelle dynamique cherchant une relation sérieuse" },
+    { email: "testuser8@jeutaime.test", pseudo: "testuser8", gender: "HOMME" as Gender, city: "Strasbourg", bio: "Curieux de nature, j'aime apprendre et partager" },
+    { email: "testuser9@jeutaime.test", pseudo: "testuser9", gender: "FEMME" as Gender, city: "Lille", bio: "Optimiste, rieuse, amie sincère avant tout" },
+    { email: "testuser10@jeutaime.test", pseudo: "testuser10", gender: "HOMME" as Gender, city: "Rennes", bio: "Amoureux de la nature et des rencontres sincères" },
+    { email: "testuser11@jeutaime.test", pseudo: "testuser11", gender: "FEMME" as Gender, city: "Montpellier", bio: "Passionnée par la vie, toujours souriante et enthousiaste" },
+  ];
+
+  try {
+    console.log("[test/reset-test-users] Starting reset...");
+
+    // 1. Find test-mutual-* users
+    const testMutualUsers = await prisma.user.findMany({
+      where: {
+        OR: [
+          { id: { startsWith: "test-mutual-a-" } },
+          { id: { startsWith: "test-mutual-b-" } },
+        ],
+      },
+      select: { id: true, email: true },
+    });
+
+    const userIdsToDelete = testMutualUsers.map((u) => u.id);
+    console.log(`[test/reset-test-users] Found ${userIdsToDelete.length} test-mutual-* accounts to delete`);
+
+    // 2. Verify preserve users exist
+    const preservedUsers = await prisma.user.findMany({
+      where: { email: { in: PRESERVE_USERS } },
+      select: { id: true, email: true },
+    });
+
+    if (preservedUsers.length !== PRESERVE_USERS.length) {
+      const missing = PRESERVE_USERS.filter(
+        (email) => !preservedUsers.find((u) => u.email === email)
+      );
+      throw new Error(`Missing preservation users: ${missing.join(", ")}`);
+    }
+
+    console.log(`[test/reset-test-users] Verified ${preservedUsers.length} preserve accounts`);
+
+    // 3. Delete old test accounts
+    if (userIdsToDelete.length > 0) {
+      await prisma.reaction.deleteMany({
+        where: { OR: [{ fromId: { in: userIdsToDelete } }, { toId: { in: userIdsToDelete } }] },
+      });
+      await prisma.match.deleteMany({
+        where: {
+          OR: [{ userAId: { in: userIdsToDelete } }, { userBId: { in: userIdsToDelete } }],
+        },
+      });
+      await prisma.letter.deleteMany({
+        where: {
+          OR: [{ fromUserId: { in: userIdsToDelete } }, { toUserId: { in: userIdsToDelete } }],
+        },
+      });
+      await prisma.offeringSent.deleteMany({
+        where: {
+          OR: [{ fromUserId: { in: userIdsToDelete } }, { toUserId: { in: userIdsToDelete } }],
+        },
+      });
+      await prisma.block.deleteMany({
+        where: {
+          OR: [{ fromId: { in: userIdsToDelete } }, { toId: { in: userIdsToDelete } }],
+        },
+      });
+      await prisma.refreshToken.deleteMany({
+        where: { userId: { in: userIdsToDelete } },
+      });
+      await prisma.photo.deleteMany({
+        where: { userId: { in: userIdsToDelete } },
+      });
+      await prisma.pet.deleteMany({
+        where: { userId: { in: userIdsToDelete } },
+      });
+      await prisma.wallet.deleteMany({
+        where: { userId: { in: userIdsToDelete } },
+      });
+      await prisma.userSettings.deleteMany({
+        where: { userId: { in: userIdsToDelete } },
+      });
+      await prisma.profile.deleteMany({
+        where: { userId: { in: userIdsToDelete } },
+      });
+      await prisma.user.deleteMany({
+        where: { id: { in: userIdsToDelete } },
+      });
+
+      console.log(`[test/reset-test-users] Deleted ${userIdsToDelete.length} test accounts`);
+    }
+
+    // 4. Create new test users
+    const created = [];
+    for (const testUser of NEW_TEST_USERS) {
+      const passwordHash = await hashPassword(`${testUser.pseudo}-2024`);
+
+      const newUser = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: testUser.email,
+            passwordHash,
+            isVerified: true,
+            role: "USER",
+            profile: {
+              create: {
+                pseudo: testUser.pseudo,
+                gender: testUser.gender,
+                birthDate: new Date("1990-01-01"),
+                city: testUser.city,
+                bio: testUser.bio,
+                interestedIn: [],
+                lookingFor: ["RELATION"],
+                interests: [],
+                physicalDesc: "moyenne",
+                avatarConfig: {},
+              },
+            },
+          },
+        });
+
+        await tx.userSettings.create({
+          data: {
+            userId: user.id,
+            showInDiscovery: true,
+            showPhotoByDefault: true,
+          },
+        });
+
+        await tx.wallet.create({
+          data: {
+            userId: user.id,
+            coins: 100,
+          },
+        });
+
+        return user;
+      });
+
+      created.push({
+        email: newUser.email,
+        pseudo: testUser.pseudo,
+        userId: newUser.id,
+      });
+    }
+
+    console.log(`[test/reset-test-users] Created ${created.length} new test accounts`);
+
+    res.json({
+      status: "success",
+      message: "Test users reset completed",
+      summary: {
+        deleted: userIdsToDelete.length,
+        preserved: preservedUsers.length,
+        created: created.length,
+        total: preservedUsers.length + created.length,
+      },
+      preserved_users: preservedUsers.map((u) => ({ email: u.email, id: u.id })),
+      created_users: created.map((u) => ({
+        email: u.email,
+        pseudo: u.pseudo,
+        password: `${u.pseudo}-2024`,
+        userId: u.userId,
+      })),
+    });
+  } catch (error) {
+    console.error("[test/reset-test-users] Error:", error);
+    res.status(500).json({
+      error: "Reset failed",
       message: error instanceof Error ? error.message : "Unknown error",
     });
   }
