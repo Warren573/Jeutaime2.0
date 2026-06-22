@@ -11,7 +11,7 @@ import {
 import { SalonParticipant } from '../data/salonsData';
 import { getPublicProfile, type PublicProfileResponse } from '../api/profiles';
 import { Avatar } from '../avatar/png/Avatar';
-import { DEFAULT_AVATAR_MALE, DEFAULT_AVATAR_FEMALE } from '../avatar/png/defaults';
+import { DEFAULT_AVATAR, DEFAULT_AVATAR_MALE, DEFAULT_AVATAR_FEMALE } from '../avatar/png/defaults';
 
 interface ParticipantProfileModalProps {
   visible: boolean;
@@ -71,7 +71,9 @@ export const ParticipantProfileModal: React.FC<ParticipantProfileModalProps> = (
 
   const avatarConfig = participant && (participant as any).avatarConfig
     ? (participant as any).avatarConfig
-    : (participant.gender === 'F' ? DEFAULT_AVATAR_FEMALE : DEFAULT_AVATAR_MALE);
+    : (participant.gender === 'F' ? DEFAULT_AVATAR_FEMALE
+      : participant.gender === 'M' ? DEFAULT_AVATAR_MALE
+      : DEFAULT_AVATAR);
 
   return (
     <Modal visible={visible} animationType="slide" transparent>

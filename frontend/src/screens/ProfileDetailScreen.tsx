@@ -24,7 +24,7 @@ import {
 } from '../api/profiles';
 import { blockMatch } from '../api/matches';
 import { Avatar } from '../avatar/png/Avatar';
-import { DEFAULT_AVATAR, type AvatarConfig } from '../avatar/png/defaults';
+import { DEFAULT_AVATAR, DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE, type AvatarConfig } from '../avatar/png/defaults';
 import { useStore } from '../store/useStore';
 
 function makePhotoUrl(url: string): string {
@@ -240,7 +240,9 @@ export default function ProfileDetailScreen() {
   const avatarDef =
     profile.avatarConfig && Object.keys(profile.avatarConfig).length > 0
       ? (profile.avatarConfig as unknown as AvatarConfig)
-      : DEFAULT_AVATAR;
+      : (profile.gender === 'F' ? DEFAULT_AVATAR_FEMALE
+        : profile.gender === 'M' ? DEFAULT_AVATAR_MALE
+        : DEFAULT_AVATAR);
 
   const publicPhotos = profileData?.photos ?? [];
   const photos = isOwnProfile ? ownPhotos : publicPhotos;
