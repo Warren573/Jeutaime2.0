@@ -2369,35 +2369,8 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
   try {
     console.log("[test/reset-test-users] Starting reset...");
 
-    // 1. Find test-mutual-* users
-    const testMutualUsers = await prisma.user.findMany({
-      where: {
-        OR: [
-          { id: { startsWith: "test-mutual-a-" } },
-          { id: { startsWith: "test-mutual-b-" } },
-        ],
-      },
-      select: { id: true, email: true },
-    });
-
-    const userIdsToDelete = testMutualUsers.map((u) => u.id);
-    console.log(`[test/reset-test-users] Found ${userIdsToDelete.length} test-mutual-* accounts to delete`);
-
-    // 1b. Also find and delete old testuser2-testuser11 if they exist
-    const oldTestUsers = await prisma.user.findMany({
-      where: {
-        email: { in: ["testuser2@jeutaime.test", "testuser3@jeutaime.test", "testuser4@jeutaime.test", "testuser5@jeutaime.test", "testuser6@jeutaime.test", "testuser7@jeutaime.test", "testuser8@jeutaime.test", "testuser9@jeutaime.test", "testuser10@jeutaime.test", "testuser11@jeutaime.test"] },
-      },
-      select: { id: true, email: true },
-    });
-
-    const oldTestUserIds = oldTestUsers.map((u) => u.id);
-    if (oldTestUserIds.length > 0) {
-      console.log(`[test/reset-test-users] Found ${oldTestUserIds.length} old testuser2-testuser11 accounts to delete`);
-      userIdsToDelete.push(...oldTestUserIds);
-    }
-
-    // 2. Verify preserve users exist
+    // PRESERVE_USERS must exist and won't be deleted
+    const PRESERVE_USER_IDS = new Set();
     const preservedUsers = await prisma.user.findMany({
       where: { email: { in: PRESERVE_USERS } },
       select: { id: true, email: true },
@@ -2410,9 +2383,24 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
       throw new Error(`Missing preservation users: ${missing.join(", ")}`);
     }
 
+    preservedUsers.forEach((u) => PRESERVE_USER_IDS.add(u.id));
     console.log(`[test/reset-test-users] Verified ${preservedUsers.length} preserve accounts`);
 
-    // 3. Delete old test accounts
+    // Find ALL test accounts (test-mutual-*, testuser*, all .test emails) EXCEPT preserve users
+    const allTestUsers = await prisma.user.findMany({
+      where: {
+        AND: [
+          { email: { contains: ".test" } },
+          { id: { notIn: Array.from(PRESERVE_USER_IDS) as string[] } },
+        ],
+      },
+      select: { id: true, email: true },
+    });
+
+    const userIdsToDelete = allTestUsers.map((u) => u.id);
+    console.log(`[test/reset-test-users] Found ${userIdsToDelete.length} test accounts to delete: ${allTestUsers.map((u) => u.email).join(", ")}`);
+
+    // Delete test accounts
     if (userIdsToDelete.length > 0) {
       await prisma.reaction.deleteMany({
         where: { OR: [{ fromId: { in: userIdsToDelete } }, { toId: { in: userIdsToDelete } }] },
@@ -2592,35 +2580,8 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
   try {
     console.log("[test/reset-test-users GET] Starting reset from browser...");
 
-    // 1. Find test-mutual-* users
-    const testMutualUsers = await prisma.user.findMany({
-      where: {
-        OR: [
-          { id: { startsWith: "test-mutual-a-" } },
-          { id: { startsWith: "test-mutual-b-" } },
-        ],
-      },
-      select: { id: true, email: true },
-    });
-
-    const userIdsToDelete = testMutualUsers.map((u) => u.id);
-    console.log(`[test/reset-test-users GET] Found ${userIdsToDelete.length} test-mutual-* accounts to delete`);
-
-    // 1b. Also find and delete old testuser2-testuser11 if they exist
-    const oldTestUsers = await prisma.user.findMany({
-      where: {
-        email: { in: ["testuser2@jeutaime.test", "testuser3@jeutaime.test", "testuser4@jeutaime.test", "testuser5@jeutaime.test", "testuser6@jeutaime.test", "testuser7@jeutaime.test", "testuser8@jeutaime.test", "testuser9@jeutaime.test", "testuser10@jeutaime.test", "testuser11@jeutaime.test"] },
-      },
-      select: { id: true, email: true },
-    });
-
-    const oldTestUserIds = oldTestUsers.map((u) => u.id);
-    if (oldTestUserIds.length > 0) {
-      console.log(`[test/reset-test-users GET] Found ${oldTestUserIds.length} old testuser2-testuser11 accounts to delete`);
-      userIdsToDelete.push(...oldTestUserIds);
-    }
-
-    // 2. Verify preserve users exist
+    // PRESERVE_USERS must exist and won't be deleted
+    const PRESERVE_USER_IDS = new Set();
     const preservedUsers = await prisma.user.findMany({
       where: { email: { in: PRESERVE_USERS } },
       select: { id: true, email: true },
@@ -2633,9 +2594,24 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
       throw new Error(`Missing preservation users: ${missing.join(", ")}`);
     }
 
+    preservedUsers.forEach((u) => PRESERVE_USER_IDS.add(u.id));
     console.log(`[test/reset-test-users GET] Verified ${preservedUsers.length} preserve accounts`);
 
-    // 3. Delete old test accounts
+    // Find ALL test accounts (test-mutual-*, testuser*, all .test emails) EXCEPT preserve users
+    const allTestUsers = await prisma.user.findMany({
+      where: {
+        AND: [
+          { email: { contains: ".test" } },
+          { id: { notIn: Array.from(PRESERVE_USER_IDS) as string[] } },
+        ],
+      },
+      select: { id: true, email: true },
+    });
+
+    const userIdsToDelete = allTestUsers.map((u) => u.id);
+    console.log(`[test/reset-test-users GET] Found ${userIdsToDelete.length} test accounts to delete: ${allTestUsers.map((u) => u.email).join(", ")}`);
+
+    // Delete test accounts
     if (userIdsToDelete.length > 0) {
       await prisma.reaction.deleteMany({
         where: { OR: [{ fromId: { in: userIdsToDelete } }, { toId: { in: userIdsToDelete } }] },
