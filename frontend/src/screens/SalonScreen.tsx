@@ -426,6 +426,27 @@ export default function SalonScreen() {
   const [debugLastAction, setDebugLastAction] = useState("");
   const [actionNotice, setActionNotice] = useState("");
 
+  // Debug trace tracking for handleDrink and handleEat
+  const [debugTrace, setDebugTrace] = useState<{
+    actionType: 'drink' | 'eat' | null;
+    step1_onPress: { executed: boolean; timestamp: string } | null;
+    step2_handler: { executed: boolean; timestamp: string } | null;
+    step3_sessionId: { value: string; timestamp: string } | null;
+    step4_apiCall: { executed: boolean; timestamp: string } | null;
+    step5_apiResponse: { executed: boolean; data: any; timestamp: string } | null;
+    step6_offeringConsumed: { value: boolean; timestamp: string } | null;
+    step7_loadSalonContent: { executed: boolean; timestamp: string } | null;
+  }>({
+    actionType: null,
+    step1_onPress: null,
+    step2_handler: null,
+    step3_sessionId: null,
+    step4_apiCall: null,
+    step5_apiResponse: null,
+    step6_offeringConsumed: null,
+    step7_loadSalonContent: null,
+  });
+
   // Test mode: allow self-targeting when alone (excluding self from count)
   const allowSelfTarget = isTestMode() && participants.filter(p => !p.isMe).length === 0;
   const effectiveSelectedPlayer = selectedPlayer || (allowSelfTarget && currentUser ? {
@@ -851,7 +872,13 @@ export default function SalonScreen() {
 
   // Perform drink action
   const handleDrink = async () => {
-    setDebugLastAction("DRINK_STEP_1_CLICK " + new Date().toISOString());
+    const now = new Date().toISOString();
+    setDebugTrace(prev => ({
+      ...prev,
+      actionType: 'drink',
+      step1_onPress: { executed: true, timestamp: now },
+    }));
+    setDebugLastAction("DRINK_STEP_1_CLICK " + now);
     console.error('[DRINK CLICK] DRINK CLICKED - FIRST LOG');
     console.log('[DRINK CLICK] Handler called', { screenSessionId, userId: currentUser?.id });
 
@@ -860,22 +887,54 @@ export default function SalonScreen() {
       alert('Erreur: screenSessionId manquant');
       return;
     }
+
+    const step2Time = new Date().toISOString();
+    setDebugTrace(prev => ({
+      ...prev,
+      step2_handler: { executed: true, timestamp: step2Time },
+    }));
+    setDebugLastAction("DRINK_STEP_2_BEFORE_API " + step2Time);
+
+    const step3Time = new Date().toISOString();
+    setDebugTrace(prev => ({
+      ...prev,
+      step3_sessionId: { value: screenSessionId, timestamp: step3Time },
+    }));
+
     try {
-      setDebugLastAction("DRINK_STEP_2_BEFORE_API " + new Date().toISOString());
       console.log('[DRINK CLICK] Calling performDrinkAction');
+      const step4Time = new Date().toISOString();
+      setDebugTrace(prev => ({
+        ...prev,
+        step4_apiCall: { executed: true, timestamp: step4Time },
+      }));
+      setDebugLastAction("DRINK_STEP_2_BEFORE_API " + step4Time);
+
       const result = await performDrinkAction(screenSessionId);
-      setDebugLastAction("DRINK_STEP_3_AFTER_API " + new Date().toISOString());
+
+      const step5Time = new Date().toISOString();
+      setDebugTrace(prev => ({
+        ...prev,
+        step5_apiResponse: { executed: true, data: result, timestamp: step5Time },
+      }));
+      setDebugLastAction("DRINK_STEP_3_AFTER_API " + step5Time);
       console.log('[DRINK RESPONSE]', { success: result.success, offeringConsumed: result.offeringConsumed, level: result.level });
 
       if (result.success && currentUser?.id) {
+        const step6Time = new Date().toISOString();
+        setDebugTrace(prev => ({
+          ...prev,
+          step6_offeringConsumed: { value: result.offeringConsumed || false, timestamp: step6Time },
+        }));
+
         if (!result.offeringConsumed) {
-          setDebugLastAction("DRINK_STEP_4_CONSUMED_FALSE " + new Date().toISOString());
+          setDebugLastAction("DRINK_STEP_4_CONSUMED_FALSE " + step6Time);
           console.error('[DRINK RESPONSE] NO offering consumed - offeringConsumed is FALSE');
           setActionNotice('Rien à boire, commandez d\'abord.');
           setTimeout(() => setActionNotice(''), 2000);
           return;
         }
-        setDebugLastAction("DRINK_STEP_5_CONSUMED_TRUE " + new Date().toISOString());
+        setDebugLastAction("DRINK_STEP_5_CONSUMED_TRUE " + step6Time);
         console.log('[DRINK RESPONSE] Offering consumed - proceeding with state update');
         setActionLevels(prev => ({
           ...prev,
@@ -883,6 +942,12 @@ export default function SalonScreen() {
             ...prev[currentUser.id],
             drinkLevel: result.level || 0,
           },
+        }));
+
+        const step7Time = new Date().toISOString();
+        setDebugTrace(prev => ({
+          ...prev,
+          step7_loadSalonContent: { executed: true, timestamp: step7Time },
         }));
         console.log('[DRINK CLICK] Calling loadSalonContent after successful consumption');
         loadSalonContent();
@@ -895,7 +960,13 @@ export default function SalonScreen() {
 
   // Perform eat action
   const handleEat = async () => {
-    setDebugLastAction("EAT_STEP_1_CLICK " + new Date().toISOString());
+    const now = new Date().toISOString();
+    setDebugTrace(prev => ({
+      ...prev,
+      actionType: 'eat',
+      step1_onPress: { executed: true, timestamp: now },
+    }));
+    setDebugLastAction("EAT_STEP_1_CLICK " + now);
     console.error('[EAT CLICK] EAT CLICKED - FIRST LOG');
     console.log('[EAT CLICK] Handler called', { screenSessionId, userId: currentUser?.id });
 
@@ -904,22 +975,54 @@ export default function SalonScreen() {
       alert('Erreur: screenSessionId manquant');
       return;
     }
+
+    const step2Time = new Date().toISOString();
+    setDebugTrace(prev => ({
+      ...prev,
+      step2_handler: { executed: true, timestamp: step2Time },
+    }));
+    setDebugLastAction("EAT_STEP_2_BEFORE_API " + step2Time);
+
+    const step3Time = new Date().toISOString();
+    setDebugTrace(prev => ({
+      ...prev,
+      step3_sessionId: { value: screenSessionId, timestamp: step3Time },
+    }));
+
     try {
-      setDebugLastAction("EAT_STEP_2_BEFORE_API " + new Date().toISOString());
       console.log('[EAT CLICK] Calling performEatAction');
+      const step4Time = new Date().toISOString();
+      setDebugTrace(prev => ({
+        ...prev,
+        step4_apiCall: { executed: true, timestamp: step4Time },
+      }));
+      setDebugLastAction("EAT_STEP_2_BEFORE_API " + step4Time);
+
       const result = await performEatAction(screenSessionId);
-      setDebugLastAction("EAT_STEP_3_AFTER_API " + new Date().toISOString());
+
+      const step5Time = new Date().toISOString();
+      setDebugTrace(prev => ({
+        ...prev,
+        step5_apiResponse: { executed: true, data: result, timestamp: step5Time },
+      }));
+      setDebugLastAction("EAT_STEP_3_AFTER_API " + step5Time);
       console.log('[EAT RESPONSE]', { success: result.success, offeringConsumed: result.offeringConsumed, level: result.level });
 
       if (result.success && currentUser?.id) {
+        const step6Time = new Date().toISOString();
+        setDebugTrace(prev => ({
+          ...prev,
+          step6_offeringConsumed: { value: result.offeringConsumed || false, timestamp: step6Time },
+        }));
+
         if (!result.offeringConsumed) {
-          setDebugLastAction("EAT_STEP_4_CONSUMED_FALSE " + new Date().toISOString());
+          setDebugLastAction("EAT_STEP_4_CONSUMED_FALSE " + step6Time);
           console.error('[EAT RESPONSE] NO offering consumed - offeringConsumed is FALSE');
           setActionNotice('Rien à manger, commandez d\'abord.');
           setTimeout(() => setActionNotice(''), 2000);
           return;
         }
-        setDebugLastAction("EAT_STEP_5_CONSUMED_TRUE " + new Date().toISOString());
+        setDebugLastAction("EAT_STEP_5_CONSUMED_TRUE " + step6Time);
         console.log('[EAT RESPONSE] Offering consumed - proceeding with state update');
         setActionLevels(prev => ({
           ...prev,
@@ -927,6 +1030,12 @@ export default function SalonScreen() {
             ...prev[currentUser.id],
             eatLevel: result.level || 0,
           },
+        }));
+
+        const step7Time = new Date().toISOString();
+        setDebugTrace(prev => ({
+          ...prev,
+          step7_loadSalonContent: { executed: true, timestamp: step7Time },
         }));
         console.log('[EAT CLICK] Calling loadSalonContent after successful consumption');
         loadSalonContent();
@@ -1448,6 +1557,50 @@ export default function SalonScreen() {
           }}>
             {actionNotice}
           </Text>
+        </View>
+      )}
+
+      {/* DEBUG TRACE PANEL - persistent visible trace */}
+      {debugTrace.actionType && (
+        <View style={{
+          backgroundColor: '#1a1a1a',
+          borderTopWidth: 2,
+          borderTopColor: debugTrace.actionType === 'drink' ? '#8899ff' : '#ffaa33',
+          padding: 10,
+          maxHeight: 140,
+        }}>
+          <Text style={{
+            color: debugTrace.actionType === 'drink' ? '#8899ff' : '#ffaa33',
+            fontSize: 12,
+            fontWeight: 'bold',
+            marginBottom: 6,
+            fontFamily: 'monospace',
+          }}>
+            🔍 TRACE: {debugTrace.actionType.toUpperCase()}
+          </Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 110 }}>
+            <Text style={{ color: debugTrace.step1_onPress ? '#00ff00' : '#666', fontSize: 11, fontFamily: 'monospace', marginBottom: 3 }}>
+              {debugTrace.step1_onPress ? '✓' : '○'} STEP 1: onPress received ({debugTrace.step1_onPress?.timestamp.split('T')[1].substring(0, 12)})
+            </Text>
+            <Text style={{ color: debugTrace.step2_handler ? '#00ff00' : '#666', fontSize: 11, fontFamily: 'monospace', marginBottom: 3 }}>
+              {debugTrace.step2_handler ? '✓' : '○'} STEP 2: handler entered ({debugTrace.step2_handler?.timestamp.split('T')[1].substring(0, 12)})
+            </Text>
+            <Text style={{ color: debugTrace.step3_sessionId ? '#00ff00' : '#666', fontSize: 11, fontFamily: 'monospace', marginBottom: 3 }}>
+              {debugTrace.step3_sessionId ? '✓' : '○'} STEP 3: sessionId = {debugTrace.step3_sessionId?.value?.substring(0, 8) || 'null'} ({debugTrace.step3_sessionId?.timestamp.split('T')[1].substring(0, 12)})
+            </Text>
+            <Text style={{ color: debugTrace.step4_apiCall ? '#00ff00' : '#666', fontSize: 11, fontFamily: 'monospace', marginBottom: 3 }}>
+              {debugTrace.step4_apiCall ? '✓' : '○'} STEP 4: API called ({debugTrace.step4_apiCall?.timestamp.split('T')[1].substring(0, 12)})
+            </Text>
+            <Text style={{ color: debugTrace.step5_apiResponse ? '#00ff00' : '#666', fontSize: 11, fontFamily: 'monospace', marginBottom: 3 }}>
+              {debugTrace.step5_apiResponse ? '✓' : '○'} STEP 5: API response received ({debugTrace.step5_apiResponse?.timestamp.split('T')[1].substring(0, 12)})
+            </Text>
+            <Text style={{ color: debugTrace.step6_offeringConsumed ? '#00ff00' : '#666', fontSize: 11, fontFamily: 'monospace', marginBottom: 3 }}>
+              {debugTrace.step6_offeringConsumed ? '✓' : '○'} STEP 6: offeringConsumed = {debugTrace.step6_offeringConsumed?.value ? 'true' : 'false'} ({debugTrace.step6_offeringConsumed?.timestamp.split('T')[1].substring(0, 12)})
+            </Text>
+            <Text style={{ color: debugTrace.step7_loadSalonContent ? '#00ff00' : '#666', fontSize: 11, fontFamily: 'monospace' }}>
+              {debugTrace.step7_loadSalonContent ? '✓' : '○'} STEP 7: loadSalonContent called ({debugTrace.step7_loadSalonContent?.timestamp.split('T')[1].substring(0, 12)})
+            </Text>
+          </ScrollView>
         </View>
       )}
 
