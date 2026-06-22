@@ -31,6 +31,7 @@ jobs:
           echo "Expected SHA: ${{ env.LATEST_SHA }}"
           BACKEND_URL="${{ secrets.BACKEND_API_URL }}"
           RENDER_SHA=""
+          MATCH_FOUND=false
 
           # Poll for up to 10 minutes (60 attempts × 10 seconds)
           for i in {1..60}; do
@@ -48,6 +49,7 @@ jobs:
               if [ "$RENDER_SHA" = "${{ env.LATEST_SHA }}" ]; then
                 echo "✅ SHA MATCHES! Deployment successful."
                 echo "HEALTH_RESPONSE=$BODY" >> $GITHUB_ENV
+                MATCH_FOUND=true
                 break
               fi
             else
@@ -59,7 +61,7 @@ jobs:
             fi
           done
 
-          if [ -z "${{ env.HEALTH_RESPONSE }}" ]; then
+          if [ "$MATCH_FOUND" != "true" ]; then
             echo "❌ FAILED: SHA did not match after 10 minutes"
             exit 1
           fi
