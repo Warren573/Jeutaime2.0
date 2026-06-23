@@ -263,6 +263,28 @@ async function main() {
             interests: [],
             physicalDesc: "moyenne",
             avatarConfig: {},
+            questions: {
+              create: [
+                {
+                  questionId: "q_01",
+                  questionText: "Quel est ton souvenir d'enfance le plus marquant ?",
+                  answer: "Un beau souvenir en famille",
+                  wrongAnswers: ["Une mauvaise expérience", "Je n'en ai pas"],
+                },
+                {
+                  questionId: "q_02",
+                  questionText: "Si tu pouvais vivre dans n'importe quelle époque, laquelle choisirais-tu ?",
+                  answer: "L'époque actuelle",
+                  wrongAnswers: ["Le passé", "Le futur lointain"],
+                },
+                {
+                  questionId: "q_03",
+                  questionText: "Quelle est la chose la plus folle que tu aies jamais faite ?",
+                  answer: "Voyager seul",
+                  wrongAnswers: ["Rien de folle", "Je suis trop prudent"],
+                },
+              ],
+            },
           },
         },
         settings: {

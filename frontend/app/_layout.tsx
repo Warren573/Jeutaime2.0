@@ -61,6 +61,22 @@ export default function RootLayout() {
     if (!isAuthenticated) return;
     // canDiscover=undefined means unknown (old account, backend didn't return it) — don't gate
     if (canDiscover !== false) return;
+
+    // DEBUG LOG
+    console.log("[profile-gate] REDIRECT TRIGGERED", {
+      userId: useStore((s) => s.currentUser?.id),
+      email: useStore((s) => s.currentUser?.email),
+      pseudo: useStore((s) => s.currentUser?.pseudo),
+      bio: useStore((s) => s.currentUser?.bio?.substring(0, 30)),
+      interestedIn: useStore((s) => s.currentUser?.interestedIn),
+      lookingFor: useStore((s) => s.currentUser?.lookingFor),
+      physicalDesc: useStore((s) => s.currentUser?.physicalDesc),
+      questionsCount: (useStore((s) => s.currentUser?.apiQuestions) ?? []).length,
+      canDiscover,
+      profileMissingFields: useStore((s) => s.currentUser?.profileMissingFields),
+      pathname,
+    });
+
     if (PROFILE_GATE_EXCLUDED.some((p) => pathname.startsWith(p))) return;
     router.replace('/create-profile');
   }, [isHydrated, isAuthenticated, canDiscover, pathname]);
