@@ -2452,8 +2452,9 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
 
     // 4. Create new test users
     const created = [];
+    const STANDARD_PASSWORD = "Test2024!";
+    const passwordHash = await hashPassword(STANDARD_PASSWORD);
     for (const testUser of NEW_TEST_USERS) {
-      const passwordHash = await hashPassword(`${testUser.pseudo}-2024`);
 
       const newUser = await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
@@ -2519,7 +2520,7 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
       created_users: created.map((u) => ({
         email: u.email,
         pseudo: u.pseudo,
-        password: `${u.pseudo}-2024`,
+        password: STANDARD_PASSWORD,
         userId: u.userId,
       })),
     });
@@ -2663,14 +2664,14 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
 
     // 4. Create new test users
     const created = [];
+    const STANDARD_PASSWORD = "Test2024!";
+    const passwordHashGET = await hashPassword(STANDARD_PASSWORD);
     for (const testUser of NEW_TEST_USERS) {
-      const passwordHash = await hashPassword(`${testUser.pseudo}-2024`);
-
       const newUser = await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
           data: {
             email: testUser.email,
-            passwordHash,
+            passwordHash: passwordHashGET,
             isVerified: true,
             role: "USER",
             profile: {
@@ -2732,7 +2733,7 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
       created_users: created.map((u) => ({
         email: u.email,
         pseudo: u.pseudo,
-        password: `${u.pseudo}-2024`,
+        password: STANDARD_PASSWORD,
         userId: u.userId,
       })),
     });
