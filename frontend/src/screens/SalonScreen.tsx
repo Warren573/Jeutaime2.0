@@ -1374,10 +1374,7 @@ export default function SalonScreen() {
           ))}
         </View>
         {selectedPlayer && (
-          <Text style={styles.selectedHint}>✓ {selectedPlayer.name} sélectionné(e)</Text>
-        )}
-        {allowSelfTarget && !selectedPlayer && currentUser && (
-          <Text style={styles.testHint}>💡 Test mode: en solo, vous pouvez vous cibler</Text>
+          <Text style={styles.selectedHint}>{selectedPlayer.name}</Text>
         )}
       </View>
 
@@ -1605,7 +1602,6 @@ export default function SalonScreen() {
                 }
               }}
             >
-              <Text style={styles.bigActionEmoji}>🎁</Text>
               <Text style={styles.bigActionText}>Offrir</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1620,7 +1616,6 @@ export default function SalonScreen() {
                 }
               }}
             >
-              <Text style={styles.bigActionEmoji}>✨</Text>
               <Text style={styles.bigActionText}>Magie</Text>
             </TouchableOpacity>
           </View>
@@ -1663,7 +1658,7 @@ export default function SalonScreen() {
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>🎁 Offrir à {target?.name}</Text>
+            <Text style={styles.modalTitle}>Offrir à {target?.name}</Text>
             <TouchableOpacity onPress={() => { setShowOfferingsModal(false); setModalTargetId(null); }}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
@@ -1749,7 +1744,7 @@ export default function SalonScreen() {
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { maxHeight: isLandscape ? '90%' : '70%' }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>✨ Magie sur {target?.name}</Text>
+            <Text style={styles.modalTitle}>Magie sur {target?.name}</Text>
             <TouchableOpacity onPress={() => { setShowPowersModal(false); setTargetActiveCasts([]); setModalTargetId(null); }}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
@@ -2331,12 +2326,8 @@ const styles = StyleSheet.create({
   magicButton: {
     backgroundColor: '#9C27B0',
   },
-  bigActionEmoji: {
-    fontSize: 18,
-    marginRight: 6,
-  },
   bigActionText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFF',
   },
