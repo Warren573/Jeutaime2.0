@@ -59,7 +59,6 @@ import { allOfferings, allPowers } from '../data/offerings';
 import { OfferingBadge } from '../components/OfferingBadge';
 import { ConsumptionActionButton } from '../components/ConsumptionActionButton';
 import { ParticipantProfileModal } from '../components/ParticipantProfileModal';
-import { ParticipantActionsMenu } from '../components/ParticipantActionsMenu';
 import { sendSmile } from '../api/interactions';
 import {
   listSalons,
@@ -359,9 +358,7 @@ export default function SalonScreen() {
   const [showPowersModal, setShowPowersModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showParticipantActionsMenu, setShowParticipantActionsMenu] = useState(false);
   const [selectedParticipantForProfile, setSelectedParticipantForProfile] = useState<SalonParticipant | null>(null);
-  const [selectedParticipantForActions, setSelectedParticipantForActions] = useState<SalonParticipant | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<SalonParticipant | null>(null);
   const [recentInteractions, setRecentInteractions] = useState<Array<{
     id: string;
@@ -1176,67 +1173,10 @@ export default function SalonScreen() {
   };
 
   // Ouvrir le menu d'actions d'un participant
-  const handleOpenParticipantMenu = (participant: SalonParticipant) => {
-    setSelectedParticipantForActions(participant);
-    setShowParticipantActionsMenu(true);
-  };
-
-  // Naviguer vers la fiche profil complète d'un participant
-  const handleViewParticipantProfile = () => {
-    if (selectedParticipantForActions) {
-      router.push(`/profile/${selectedParticipantForActions.id}`);
-    }
-  };
-
-  // Ouvrir le modal Offrir depuis le menu d'actions
-  const handleOffrirFromMenu = () => {
-    if (selectedParticipantForActions) {
-      setSelectedPlayer(selectedParticipantForActions);
-      setShowOfferingsModal(true);
-    }
-  };
-
-  // Ouvrir le modal Magie depuis le menu d'actions
-  const handleMagieFromMenu = () => {
-    if (selectedParticipantForActions) {
-      setSelectedPlayer(selectedParticipantForActions);
-      openPowersModal(selectedParticipantForActions.id);
-    }
-  };
-
-  // Envoyer directement une offrande depuis le menu
-  const handleSendOfferingDirect = async (offeringId: string) => {
-    if (!selectedParticipantForActions || !apiSalonId) return;
-    try {
-      await sendOffering({
-        offeringId,
-        toUserId: selectedParticipantForActions.id,
-        salonId: apiSalonId,
-      });
-      setActionNotice(`Offrande envoyée!`);
-      setTimeout(() => setActionNotice(''), 2000);
-      await Promise.all([loadWallet(), refreshMagiesAndOfferings()]);
-    } catch (e) {
-      setActionNotice('Erreur lors de l\'envoi');
-      setTimeout(() => setActionNotice(''), 2000);
-    }
-  };
-
-  // Envoyer directement une magie depuis le menu
-  const handleSendMagieDirect = async (magieId: string) => {
-    if (!selectedParticipantForActions || !apiSalonId) return;
-    try {
-      await castSpell({
-        magieId,
-        toUserId: selectedParticipantForActions.id,
-        salonId: apiSalonId,
-      });
-      setActionNotice(`Magie lancée!`);
-      setTimeout(() => setActionNotice(''), 2000);
-      await Promise.all([loadWallet(), refreshMagiesAndOfferings()]);
-    } catch (e) {
-      setActionNotice('Erreur lors de l\'envoi');
-      setTimeout(() => setActionNotice(''), 2000);
+  // Naviguer vers la fiche profil complète du participant sélectionné
+  const handleViewSelectedProfile = () => {
+    if (selectedPlayer) {
+      router.push(`/profile/${selectedPlayer.id}`);
     }
   };
 
@@ -1412,18 +1352,8 @@ export default function SalonScreen() {
               onPress={() => {
                 setSelectedPlayer(prev => {
                   const next = selectedPlayer?.id === p.id ? null : p;
-                  console.log('[TARGET] Click participant', {
-                    clicked: p.name,
-                    wasSelected: selectedPlayer?.id === p.id,
-                    newSelectedPlayer: next?.name || null,
-                    effectiveSelectedPlayer: (selectedPlayer || (allowSelfTarget && currentUser ? currentUser : null))?.name,
-                    participants: participants.map(x => x.name),
-                    allowSelfTarget,
-                    isTestMode: isTestMode(),
-                  });
                   return next;
                 });
-                handleOpenParticipantMenu(p);
               }}
             >
               <AnimatedAvatar 
@@ -1512,6 +1442,46 @@ export default function SalonScreen() {
         </View>
       )}
 
+      {/* Action buttons zone - visible only if someone is selected */}
+      {selectedPlayer && !selectedPlayer.isMe && (
+        <View style={styles.selectedActionsZone}>
+          <View style={styles.selectedBannerPortrait}>
+            <Text style={styles.selectedBannerTextPortrait}>{selectedPlayer.name}</Text>
+          </View>
+          <View style={styles.actionsButtonsRow}>
+            <TouchableOpacity
+              style={[styles.portraitActionButton, styles.portraitProfileButton]}
+              onPress={handleViewSelectedProfile}
+            >
+              <Text style={styles.portraitActionButtonText}>👤</Text>
+              <Text style={styles.portraitActionButtonLabel}>Profil</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.portraitActionButton, styles.portraitOfferingButton]}
+              onPress={() => {
+                setSelectedPlayer(selectedPlayer);
+                setModalTargetId(selectedPlayer.id);
+                setShowOfferingsModal(true);
+              }}
+            >
+              <Text style={styles.portraitActionButtonText}>🎁</Text>
+              <Text style={styles.portraitActionButtonLabel}>Offrir</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.portraitActionButton, styles.portraitMagieButton]}
+              onPress={() => {
+                setSelectedPlayer(selectedPlayer);
+                setModalTargetId(selectedPlayer.id);
+                openPowersModal(selectedPlayer.id);
+              }}
+            >
+              <Text style={styles.portraitActionButtonText}>✨</Text>
+              <Text style={styles.portraitActionButtonLabel}>Magie</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Barre d'input - portrait only has drink/eat buttons */}
       <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <TouchableOpacity
@@ -1577,18 +1547,8 @@ export default function SalonScreen() {
                   onPress={() => {
                     setSelectedPlayer(prev => {
                       const next = selectedPlayer?.id === p.id ? null : p;
-                      console.log('[TARGET] Click participant', {
-                        clicked: p.name,
-                        wasSelected: selectedPlayer?.id === p.id,
-                        newSelectedPlayer: next?.name || null,
-                        effectiveSelectedPlayer: (selectedPlayer || (allowSelfTarget && currentUser ? currentUser : null))?.name,
-                        participants: participants.map(x => x.name),
-                        allowSelfTarget,
-                        isTestMode: isTestMode(),
-                      });
                       return next;
                     });
-                    handleOpenParticipantMenu(p);
                   }}
                   isSelected={selectedPlayer?.id === p.id}
                 />
@@ -1651,8 +1611,7 @@ export default function SalonScreen() {
             </View>
           )}
 
-          {/* Boutons d'action - visibles seulement en mode paysage et menu fermé */}
-          {!showParticipantActionsMenu && (
+          {/* Boutons d'action - visibles seulement en mode paysage */}
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
               style={[styles.bigActionButton, styles.giftButton, !effectiveSelectedPlayer && !isTestMode() && styles.bigActionButtonDisabled]}
@@ -1682,7 +1641,6 @@ export default function SalonScreen() {
               <Text style={styles.bigActionText}>Magie</Text>
             </TouchableOpacity>
           </View>
-          )}
         </View>
       </View>
     </View>
@@ -1890,18 +1848,6 @@ export default function SalonScreen() {
   );
   };
 
-  const renderParticipantActionsMenu = () => (
-    <ParticipantActionsMenu
-      visible={showParticipantActionsMenu}
-      participant={selectedParticipantForActions}
-      coins={coins}
-      onClose={() => setShowParticipantActionsMenu(false)}
-      onViewProfile={handleViewParticipantProfile}
-      onSendOffering={handleSendOfferingDirect}
-      onSendMagie={handleSendMagieDirect}
-    />
-  );
-
   const renderParticipantProfileModal = () => (
     <ParticipantProfileModal
       visible={showProfileModal}
@@ -1919,7 +1865,6 @@ export default function SalonScreen() {
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
-      {renderParticipantActionsMenu()}
       {renderParticipantProfileModal()}
 
       <ConfirmationModal
@@ -2509,5 +2454,62 @@ const styles = StyleSheet.create({
   },
   targetSelectorButtonTextActive: {
     color: '#FFF',
+  },
+
+  // Portrait mode selected actions zone
+  selectedActionsZone: {
+    backgroundColor: '#FFF8E7',
+    borderTopWidth: 1,
+    borderTopColor: '#E8D5B7',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  selectedBannerPortrait: {
+    backgroundColor: '#E8B4B8',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  selectedBannerTextPortrait: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  actionsButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: 8,
+  },
+  portraitActionButton: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  portraitProfileButton: {
+    backgroundColor: '#F0E6D2',
+    borderColor: '#D4C4B0',
+  },
+  portraitOfferingButton: {
+    backgroundColor: '#F5E6D3',
+    borderColor: '#E8D5B7',
+  },
+  portraitMagieButton: {
+    backgroundColor: '#E8D5FF',
+    borderColor: '#D4C4E8',
+  },
+  portraitActionButtonText: {
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  portraitActionButtonLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3A2818',
   },
 });
