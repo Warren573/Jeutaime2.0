@@ -254,7 +254,7 @@ async function main() {
             birthDate: new Date("1990-01-01"),
             city: testUser.city,
             bio: testUser.bio,
-            interestedIn: [],
+            interestedIn: ["FEMME", "HOMME", "AUTRE"],
             lookingFor: ["RELATION"],
             interests: [],
             physicalDesc: "moyenne",
