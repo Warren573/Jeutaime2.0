@@ -1946,25 +1946,18 @@ const styles = StyleSheet.create({
   },
   participantItem: {
     alignItems: 'center',
-    padding: 4,
+    padding: 6,
     borderRadius: 12,
   },
   participantSelected: {
-    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+    backgroundColor: 'rgba(102, 126, 234, 0.15)',
   },
   selectedHint: {
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 13,
     color: '#667eea',
     fontWeight: '600',
     marginTop: 8,
-  },
-  testHint: {
-    textAlign: 'center',
-    fontSize: 11,
-    color: '#FF9800',
-    fontStyle: 'italic',
-    marginTop: 4,
   },
 
   // Avatar
@@ -2313,9 +2306,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginHorizontal: 4,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginHorizontal: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   bigActionButtonDisabled: {
     opacity: 0.5,
