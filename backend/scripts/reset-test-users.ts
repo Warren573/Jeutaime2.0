@@ -110,30 +110,34 @@ async function main() {
   // Step 1: Find test users to delete
   console.log("📋 Étape 1: Identification des comptes à supprimer...\n");
 
-  const testMutualUsers = await prisma.user.findMany({
+  // Get IDs of preserved users to exclude them
+  const preservedUsers = await prisma.user.findMany({
+    where: { email: { in: PRESERVE_USERS } },
+    select: { id: true, email: true },
+  });
+
+  const preservedUserIds = new Set(preservedUsers.map((u) => u.id));
+
+  // Find ALL test accounts to delete (anything with .test email, excluding preserved users)
+  const testUsersToDelete = await prisma.user.findMany({
     where: {
-      OR: [
-        { id: { startsWith: "test-mutual-a-" } },
-        { id: { startsWith: "test-mutual-b-" } },
+      AND: [
+        { email: { contains: ".test" } },
+        { id: { notIn: Array.from(preservedUserIds) } },
       ],
     },
     select: { id: true, email: true },
   });
 
-  console.log(`   Trouvés: ${testMutualUsers.length} comptes test-mutual-*`);
-  testMutualUsers.forEach((u) => {
+  console.log(`   Trouvés: ${testUsersToDelete.length} comptes test à supprimer`);
+  testUsersToDelete.forEach((u) => {
     console.log(`   - ${u.email} (${u.id})`);
   });
 
-  const userIdsToDelete = testMutualUsers.map((u) => u.id);
+  const userIdsToDelete = testUsersToDelete.map((u) => u.id);
 
   // Step 2: Verify preservation users exist
   console.log("\n🔒 Étape 2: Vérification des comptes à conserver...\n");
-
-  const preservedUsers = await prisma.user.findMany({
-    where: { email: { in: PRESERVE_USERS } },
-    select: { id: true, email: true },
-  });
 
   console.log(`   Conservés: ${preservedUsers.length}/${PRESERVE_USERS.length}`);
   preservedUsers.forEach((u) => {
@@ -153,7 +157,7 @@ async function main() {
 
   if (userIdsToDelete.length > 0) {
     console.log(`   ${userIdsToDelete.length} compte(s) à supprimer:`);
-    testMutualUsers.forEach((u) => {
+    testUsersToDelete.forEach((u) => {
       console.log(`   - ${u.email}`);
     });
 
