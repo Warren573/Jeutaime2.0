@@ -1205,6 +1205,42 @@ export default function SalonScreen() {
     }
   };
 
+  // Envoyer directement une offrande depuis le menu
+  const handleSendOfferingDirect = async (offeringId: string) => {
+    if (!selectedParticipantForActions || !apiSalonId) return;
+    try {
+      await sendOffering({
+        offeringId,
+        toUserId: selectedParticipantForActions.id,
+        salonId: apiSalonId,
+      });
+      setActionNotice(`Offrande envoyée!`);
+      setTimeout(() => setActionNotice(''), 2000);
+      await Promise.all([loadWallet(), refreshMagiesAndOfferings()]);
+    } catch (e) {
+      setActionNotice('Erreur lors de l\'envoi');
+      setTimeout(() => setActionNotice(''), 2000);
+    }
+  };
+
+  // Envoyer directement une magie depuis le menu
+  const handleSendMagieDirect = async (magieId: string) => {
+    if (!selectedParticipantForActions || !apiSalonId) return;
+    try {
+      await castSpell({
+        magieId,
+        toUserId: selectedParticipantForActions.id,
+        salonId: apiSalonId,
+      });
+      setActionNotice(`Magie lancée!`);
+      setTimeout(() => setActionNotice(''), 2000);
+      await Promise.all([loadWallet(), refreshMagiesAndOfferings()]);
+    } catch (e) {
+      setActionNotice('Erreur lors de l\'envoi');
+      setTimeout(() => setActionNotice(''), 2000);
+    }
+  };
+
   // Casser un sort actif via le backend
   const handleBreakSpell = async (cast: MagieCastDTO, antiSpell: MagieCatalogItemDTO) => {
     try {
@@ -1616,7 +1652,8 @@ export default function SalonScreen() {
             </View>
           )}
 
-          {/* Boutons d'action - visibles seulement en mode paysage */}
+          {/* Boutons d'action - visibles seulement en mode paysage et menu fermé */}
+          {!showParticipantActionsMenu && (
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
               style={[styles.bigActionButton, styles.giftButton, !effectiveSelectedPlayer && !isTestMode() && styles.bigActionButtonDisabled]}
@@ -1646,6 +1683,7 @@ export default function SalonScreen() {
               <Text style={styles.bigActionText}>Magie</Text>
             </TouchableOpacity>
           </View>
+          )}
         </View>
       </View>
     </View>
@@ -1857,10 +1895,11 @@ export default function SalonScreen() {
     <ParticipantActionsMenu
       visible={showParticipantActionsMenu}
       participant={selectedParticipantForActions}
+      coins={coins}
       onClose={() => setShowParticipantActionsMenu(false)}
       onViewProfile={handleViewParticipantProfile}
-      onOffrir={handleOffrirFromMenu}
-      onMagie={handleMagieFromMenu}
+      onSendOffering={handleSendOfferingDirect}
+      onSendMagie={handleSendMagieDirect}
     />
   );
 
