@@ -360,7 +360,9 @@ export default function SalonScreen() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [selectedParticipantForProfile, setSelectedParticipantForProfile] = useState<SalonParticipant | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<SalonParticipant | null>(null);
-  const [targetAllParticipants, setTargetAllParticipants] = useState(false);
+  const [showProfileTargetMenu, setShowProfileTargetMenu] = useState(false);
+  const [showOfferingTargetMenu, setShowOfferingTargetMenu] = useState(false);
+  const [showMagieTargetMenu, setShowMagieTargetMenu] = useState(false);
   const [recentInteractions, setRecentInteractions] = useState<Array<{
     id: string;
     from: string;
@@ -1175,12 +1177,6 @@ export default function SalonScreen() {
 
   // Ouvrir le menu d'actions d'un participant
   // Naviguer vers la fiche profil complète du participant sélectionné
-  const handleViewSelectedProfile = () => {
-    if (selectedPlayer) {
-      router.push(`/profile/${selectedPlayer.id}`);
-    }
-  };
-
   // Casser un sort actif via le backend
   const handleBreakSpell = async (cast: MagieCastDTO, antiSpell: MagieCatalogItemDTO) => {
     try {
@@ -1344,31 +1340,19 @@ export default function SalonScreen() {
       <View style={styles.participantStrip}>
         <View style={styles.participantsRow}>
           {participants.map((p) => (
-            <TouchableOpacity
+            <View
               key={p.id}
-              style={[
-                styles.participantItem,
-                selectedPlayer?.id === p.id && styles.participantSelected
-              ]}
-              onPress={() => {
-                setSelectedPlayer(prev => {
-                  const next = selectedPlayer?.id === p.id ? null : p;
-                  return next;
-                });
-              }}
+              style={styles.participantItem}
             >
-              <AnimatedAvatar 
-                participant={p} 
-                size={avatarSizePortrait} 
-                isSelected={selectedPlayer?.id === p.id}
+              <AnimatedAvatar
+                participant={p}
+                size={avatarSizePortrait}
+                isSelected={false}
                 showBadges={true}
               />
-            </TouchableOpacity>
+            </View>
           ))}
         </View>
-        {selectedPlayer && (
-          <Text style={styles.selectedHint}>{selectedPlayer.name}</Text>
-        )}
       </View>
 
       {/* Zone de messages */}
@@ -1440,46 +1424,6 @@ export default function SalonScreen() {
           }}>
             {actionNotice}
           </Text>
-        </View>
-      )}
-
-      {/* Action buttons zone - visible only if someone is selected */}
-      {selectedPlayer && !selectedPlayer.isMe && (
-        <View style={styles.selectedActionsZone}>
-          <View style={styles.selectedBannerPortrait}>
-            <Text style={styles.selectedBannerTextPortrait}>{selectedPlayer.name}</Text>
-          </View>
-          <View style={styles.actionsButtonsRow}>
-            <TouchableOpacity
-              style={[styles.portraitActionButton, styles.portraitProfileButton]}
-              onPress={handleViewSelectedProfile}
-            >
-              <Text style={styles.portraitActionButtonText}>👤</Text>
-              <Text style={styles.portraitActionButtonLabel}>Profil</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.portraitActionButton, styles.portraitOfferingButton]}
-              onPress={() => {
-                setSelectedPlayer(selectedPlayer);
-                setModalTargetId(selectedPlayer.id);
-                setShowOfferingsModal(true);
-              }}
-            >
-              <Text style={styles.portraitActionButtonText}>🎁</Text>
-              <Text style={styles.portraitActionButtonLabel}>Offrir</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.portraitActionButton, styles.portraitMagieButton]}
-              onPress={() => {
-                setSelectedPlayer(selectedPlayer);
-                setModalTargetId(selectedPlayer.id);
-                openPowersModal(selectedPlayer.id);
-              }}
-            >
-              <Text style={styles.portraitActionButtonText}>✨</Text>
-              <Text style={styles.portraitActionButtonLabel}>Magie</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       )}
 
@@ -1606,104 +1550,23 @@ export default function SalonScreen() {
             )}
           </ScrollView>
 
-          {/* Target selector - show who the actions will apply to */}
-          <View style={styles.targetSelectorZone}>
-            <Text style={styles.targetSelectorLabel}>Cible :</Text>
-            <View style={styles.targetSelectorButtons}>
-              {selectedPlayer && (
-                <TouchableOpacity
-                  style={[
-                    styles.targetSelectorButton,
-                    !targetAllParticipants && styles.targetSelectorButtonActive,
-                  ]}
-                  onPress={() => setTargetAllParticipants(false)}
-                >
-                  <Text style={[
-                    styles.targetSelectorButtonText,
-                    !targetAllParticipants && styles.targetSelectorButtonTextActive,
-                  ]}>
-                    {selectedPlayer.name}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={[
-                  styles.targetSelectorButton,
-                  targetAllParticipants && styles.targetSelectorButtonActive,
-                ]}
-                onPress={() => setTargetAllParticipants(true)}
-              >
-                <Text style={[
-                  styles.targetSelectorButtonText,
-                  targetAllParticipants && styles.targetSelectorButtonTextActive,
-                ]}>
-                  Tous
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {effectiveSelectedPlayer && !targetAllParticipants && (
-            <View style={styles.selectedBanner}>
-              <Text style={styles.selectedBannerText}>🎯 {effectiveSelectedPlayer.name}</Text>
-            </View>
-          )}
-
           {/* Boutons d'action - visibles seulement en mode paysage */}
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
-              style={[styles.bigActionButton, styles.profileButton, !effectiveSelectedPlayer && !isTestMode() && styles.bigActionButtonDisabled]}
-              onPress={() => {
-                if (effectiveSelectedPlayer && effectiveSelectedPlayer.id !== currentUser?.id) {
-                  router.push(`/profile/${effectiveSelectedPlayer.id}`);
-                }
-              }}
-              disabled={!effectiveSelectedPlayer || effectiveSelectedPlayer.id === currentUser?.id}
+              style={[styles.bigActionButton, styles.profileButton]}
+              onPress={() => setShowProfileTargetMenu(true)}
             >
               <Text style={styles.bigActionText}>👤 Profil</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.bigActionButton,
-                styles.giftButton,
-                (targetAllParticipants || (!effectiveSelectedPlayer && !isTestMode())) && styles.bigActionButtonDisabled
-              ]}
-              onPress={() => {
-                if (targetAllParticipants) {
-                  alert('Offrir à tous : bientôt disponible');
-                  return;
-                }
-                if (isTestMode() || effectiveSelectedPlayer) {
-                  setModalTargetId(isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : effectiveSelectedPlayer?.id);
-                  setShowOfferingsModal(true);
-                } else {
-                  alert('Sélectionnez d\'abord un participant!')
-                }
-              }}
-              disabled={targetAllParticipants || (!effectiveSelectedPlayer && !isTestMode())}
+              style={[styles.bigActionButton, styles.giftButton]}
+              onPress={() => setShowOfferingTargetMenu(true)}
             >
               <Text style={styles.bigActionText}>🎁 Offrir</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.bigActionButton,
-                styles.magicButton,
-                (targetAllParticipants || (!effectiveSelectedPlayer && !isTestMode())) && styles.bigActionButtonDisabled
-              ]}
-              onPress={() => {
-                if (targetAllParticipants) {
-                  alert('Magie sur tous : bientôt disponible');
-                  return;
-                }
-                if (isTestMode() || effectiveSelectedPlayer) {
-                  const targetId = isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : effectiveSelectedPlayer?.id;
-                  setModalTargetId(targetId);
-                  openPowersModal(targetId);
-                } else {
-                  alert('Sélectionnez d\'abord un participant!')
-                }
-              }}
-              disabled={targetAllParticipants || (!effectiveSelectedPlayer && !isTestMode())}
+              style={[styles.bigActionButton, styles.magicButton]}
+              onPress={() => setShowMagieTargetMenu(true)}
             >
               <Text style={styles.bigActionText}>✨ Magie</Text>
             </TouchableOpacity>
@@ -1927,12 +1790,153 @@ export default function SalonScreen() {
     />
   );
 
+  // Target selector menus
+  const renderProfileTargetMenu = () => {
+    const otherParticipants = participants.filter(p => !p.isMe);
+
+    return (
+      <Modal visible={showProfileTargetMenu} animationType="fade" transparent>
+        <View style={styles.menuOverlay}>
+          <TouchableOpacity
+            style={styles.menuBackdrop}
+            onPress={() => setShowProfileTargetMenu(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.menu}>
+            <Text style={styles.menuTitle}>Voir le profil de :</Text>
+            <ScrollView style={styles.menuList}>
+              {otherParticipants.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.menuItem}
+                  onPress={() => {
+                    router.push(`/profile/${p.id}`);
+                    setShowProfileTargetMenu(false);
+                  }}
+                >
+                  <Text style={styles.menuItemText}>{p.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.menuCloseButton}
+              onPress={() => setShowProfileTargetMenu(false)}
+            >
+              <Text style={styles.menuCloseButtonText}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderOfferingTargetMenu = () => {
+    const otherParticipants = participants.filter(p => !p.isMe);
+
+    return (
+      <Modal visible={showOfferingTargetMenu} animationType="fade" transparent>
+        <View style={styles.menuOverlay}>
+          <TouchableOpacity
+            style={styles.menuBackdrop}
+            onPress={() => setShowOfferingTargetMenu(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.menu}>
+            <Text style={styles.menuTitle}>Offrir à :</Text>
+            <ScrollView style={styles.menuList}>
+              {otherParticipants.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setModalTargetId(p.id);
+                    setShowOfferingsModal(true);
+                    setShowOfferingTargetMenu(false);
+                  }}
+                >
+                  <Text style={styles.menuItemText}>{p.name}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={[styles.menuItem, styles.menuItemAll]}
+                onPress={() => {
+                  alert('Offrir à tous : bientôt disponible');
+                  setShowOfferingTargetMenu(false);
+                }}
+              >
+                <Text style={[styles.menuItemText, styles.menuItemAllText]}>Tous les participants</Text>
+              </TouchableOpacity>
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.menuCloseButton}
+              onPress={() => setShowOfferingTargetMenu(false)}
+            >
+              <Text style={styles.menuCloseButtonText}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderMagieTargetMenu = () => {
+    const otherParticipants = participants.filter(p => !p.isMe);
+
+    return (
+      <Modal visible={showMagieTargetMenu} animationType="fade" transparent>
+        <View style={styles.menuOverlay}>
+          <TouchableOpacity
+            style={styles.menuBackdrop}
+            onPress={() => setShowMagieTargetMenu(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.menu}>
+            <Text style={styles.menuTitle}>Magie sur :</Text>
+            <ScrollView style={styles.menuList}>
+              {otherParticipants.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setModalTargetId(p.id);
+                    openPowersModal(p.id);
+                    setShowMagieTargetMenu(false);
+                  }}
+                >
+                  <Text style={styles.menuItemText}>{p.name}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={[styles.menuItem, styles.menuItemAll]}
+                onPress={() => {
+                  alert('Magie sur tous : bientôt disponible');
+                  setShowMagieTargetMenu(false);
+                }}
+              >
+                <Text style={[styles.menuItemText, styles.menuItemAllText]}>Tous les participants</Text>
+              </TouchableOpacity>
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.menuCloseButton}
+              onPress={() => setShowMagieTargetMenu(false)}
+            >
+              <Text style={styles.menuCloseButtonText}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
     <View style={{ flex: 1 }}>
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
       {renderParticipantProfileModal()}
+      {renderProfileTargetMenu()}
+      {renderOfferingTargetMenu()}
+      {renderMagieTargetMenu()}
 
       <ConfirmationModal
         visible={showLeaveModal}
@@ -2584,6 +2588,77 @@ const styles = StyleSheet.create({
   profileButton: {
     backgroundColor: '#E8D5C4',
     borderColor: '#D4C4B0',
+  },
+
+  // Target selector menus
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  menuBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  menu: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    maxWidth: 300,
+    maxHeight: '70%',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#3A2818',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8D5B7',
+  },
+  menuList: {
+    maxHeight: 300,
+  },
+  menuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F0E6',
+  },
+  menuItemAll: {
+    backgroundColor: '#F5E6D3',
+    borderBottomColor: '#E8D5B7',
+  },
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3A2818',
+  },
+  menuItemAllText: {
+    fontWeight: '600',
+  },
+  menuCloseButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F5F0E6',
+    borderTopWidth: 1,
+    borderTopColor: '#E8D5B7',
+    alignItems: 'center',
+  },
+  menuCloseButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#667eea',
   },
 
   // Target selector zone
