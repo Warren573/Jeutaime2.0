@@ -59,6 +59,7 @@ import { allOfferings, allPowers } from '../data/offerings';
 import { OfferingBadge } from '../components/OfferingBadge';
 import { ConsumptionActionButton } from '../components/ConsumptionActionButton';
 import { ParticipantProfileModal } from '../components/ParticipantProfileModal';
+import { ParticipantActionsMenu } from '../components/ParticipantActionsMenu';
 import { sendSmile } from '../api/interactions';
 import {
   listSalons,
@@ -358,7 +359,9 @@ export default function SalonScreen() {
   const [showPowersModal, setShowPowersModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showParticipantActionsMenu, setShowParticipantActionsMenu] = useState(false);
   const [selectedParticipantForProfile, setSelectedParticipantForProfile] = useState<SalonParticipant | null>(null);
+  const [selectedParticipantForActions, setSelectedParticipantForActions] = useState<SalonParticipant | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<SalonParticipant | null>(null);
   const [recentInteractions, setRecentInteractions] = useState<Array<{
     id: string;
@@ -1172,10 +1175,34 @@ export default function SalonScreen() {
     }
   };
 
-  // Ouvrir la fiche profil d'un participant
-  const handleOpenProfileModal = (participant: SalonParticipant) => {
-    setSelectedParticipantForProfile(participant);
-    setShowProfileModal(true);
+  // Ouvrir le menu d'actions d'un participant
+  const handleOpenParticipantMenu = (participant: SalonParticipant) => {
+    setSelectedParticipantForActions(participant);
+    setShowParticipantActionsMenu(true);
+  };
+
+  // Ouvrir la fiche profil d'un participant (depuis le menu d'actions)
+  const handleViewParticipantProfile = () => {
+    if (selectedParticipantForActions) {
+      setSelectedParticipantForProfile(selectedParticipantForActions);
+      setShowProfileModal(true);
+    }
+  };
+
+  // Ouvrir le modal Offrir depuis le menu d'actions
+  const handleOffrirFromMenu = () => {
+    if (selectedParticipantForActions) {
+      setSelectedPlayer(selectedParticipantForActions);
+      setShowOfferingsModal(true);
+    }
+  };
+
+  // Ouvrir le modal Magie depuis le menu d'actions
+  const handleMagieFromMenu = () => {
+    if (selectedParticipantForActions) {
+      setSelectedPlayer(selectedParticipantForActions);
+      openPowersModal(selectedParticipantForActions.id);
+    }
   };
 
   // Casser un sort actif via le backend
@@ -1361,7 +1388,7 @@ export default function SalonScreen() {
                   });
                   return next;
                 });
-                handleOpenProfileModal(p);
+                handleOpenParticipantMenu(p);
               }}
             >
               <AnimatedAvatar 
@@ -1526,7 +1553,7 @@ export default function SalonScreen() {
                       });
                       return next;
                     });
-                    handleOpenProfileModal(p);
+                    handleOpenParticipantMenu(p);
                   }}
                   isSelected={selectedPlayer?.id === p.id}
                 />
@@ -1826,6 +1853,17 @@ export default function SalonScreen() {
   );
   };
 
+  const renderParticipantActionsMenu = () => (
+    <ParticipantActionsMenu
+      visible={showParticipantActionsMenu}
+      participant={selectedParticipantForActions}
+      onClose={() => setShowParticipantActionsMenu(false)}
+      onViewProfile={handleViewParticipantProfile}
+      onOffrir={handleOffrirFromMenu}
+      onMagie={handleMagieFromMenu}
+    />
+  );
+
   const renderParticipantProfileModal = () => (
     <ParticipantProfileModal
       visible={showProfileModal}
@@ -1843,6 +1881,7 @@ export default function SalonScreen() {
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
+      {renderParticipantActionsMenu()}
       {renderParticipantProfileModal()}
 
       <ConfirmationModal
