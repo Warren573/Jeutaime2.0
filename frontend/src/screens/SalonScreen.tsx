@@ -360,6 +360,7 @@ export default function SalonScreen() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [selectedParticipantForProfile, setSelectedParticipantForProfile] = useState<SalonParticipant | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<SalonParticipant | null>(null);
+  const [targetAllParticipants, setTargetAllParticipants] = useState(false);
   const [recentInteractions, setRecentInteractions] = useState<Array<{
     id: string;
     from: string;
@@ -1605,7 +1606,44 @@ export default function SalonScreen() {
             )}
           </ScrollView>
 
-          {effectiveSelectedPlayer && (
+          {/* Target selector - show who the actions will apply to */}
+          <View style={styles.targetSelectorZone}>
+            <Text style={styles.targetSelectorLabel}>Cible :</Text>
+            <View style={styles.targetSelectorButtons}>
+              {selectedPlayer && (
+                <TouchableOpacity
+                  style={[
+                    styles.targetSelectorButton,
+                    !targetAllParticipants && styles.targetSelectorButtonActive,
+                  ]}
+                  onPress={() => setTargetAllParticipants(false)}
+                >
+                  <Text style={[
+                    styles.targetSelectorButtonText,
+                    !targetAllParticipants && styles.targetSelectorButtonTextActive,
+                  ]}>
+                    {selectedPlayer.name}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[
+                  styles.targetSelectorButton,
+                  targetAllParticipants && styles.targetSelectorButtonActive,
+                ]}
+                onPress={() => setTargetAllParticipants(true)}
+              >
+                <Text style={[
+                  styles.targetSelectorButtonText,
+                  targetAllParticipants && styles.targetSelectorButtonTextActive,
+                ]}>
+                  Tous
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {effectiveSelectedPlayer && !targetAllParticipants && (
             <View style={styles.selectedBanner}>
               <Text style={styles.selectedBannerText}>🎯 {effectiveSelectedPlayer.name}</Text>
             </View>
@@ -1614,31 +1652,60 @@ export default function SalonScreen() {
           {/* Boutons d'action - visibles seulement en mode paysage */}
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
-              style={[styles.bigActionButton, styles.giftButton, !effectiveSelectedPlayer && !isTestMode() && styles.bigActionButtonDisabled]}
+              style={[styles.bigActionButton, styles.profileButton, !effectiveSelectedPlayer && !isTestMode() && styles.bigActionButtonDisabled]}
               onPress={() => {
+                if (effectiveSelectedPlayer && effectiveSelectedPlayer.id !== currentUser?.id) {
+                  router.push(`/profile/${effectiveSelectedPlayer.id}`);
+                }
+              }}
+              disabled={!effectiveSelectedPlayer || effectiveSelectedPlayer.id === currentUser?.id}
+            >
+              <Text style={styles.bigActionText}>👤 Profil</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.bigActionButton,
+                styles.giftButton,
+                (targetAllParticipants || (!effectiveSelectedPlayer && !isTestMode())) && styles.bigActionButtonDisabled
+              ]}
+              onPress={() => {
+                if (targetAllParticipants) {
+                  alert('Offrir à tous : bientôt disponible');
+                  return;
+                }
                 if (isTestMode() || effectiveSelectedPlayer) {
-                  setModalTargetId(isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : undefined);
+                  setModalTargetId(isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : effectiveSelectedPlayer?.id);
                   setShowOfferingsModal(true);
                 } else {
                   alert('Sélectionnez d\'abord un participant!')
                 }
               }}
+              disabled={targetAllParticipants || (!effectiveSelectedPlayer && !isTestMode())}
             >
-              <Text style={styles.bigActionText}>Offrir</Text>
+              <Text style={styles.bigActionText}>🎁 Offrir</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.bigActionButton, styles.magicButton, !effectiveSelectedPlayer && !isTestMode() && styles.bigActionButtonDisabled]}
+              style={[
+                styles.bigActionButton,
+                styles.magicButton,
+                (targetAllParticipants || (!effectiveSelectedPlayer && !isTestMode())) && styles.bigActionButtonDisabled
+              ]}
               onPress={() => {
+                if (targetAllParticipants) {
+                  alert('Magie sur tous : bientôt disponible');
+                  return;
+                }
                 if (isTestMode() || effectiveSelectedPlayer) {
-                  const targetId = isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : undefined;
+                  const targetId = isTestMode() && !effectiveSelectedPlayer ? currentUser?.id : effectiveSelectedPlayer?.id;
                   setModalTargetId(targetId);
                   openPowersModal(targetId);
                 } else {
                   alert('Sélectionnez d\'abord un participant!')
                 }
               }}
+              disabled={targetAllParticipants || (!effectiveSelectedPlayer && !isTestMode())}
             >
-              <Text style={styles.bigActionText}>Magie</Text>
+              <Text style={styles.bigActionText}>✨ Magie</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -2511,5 +2578,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#3A2818',
+  },
+
+  // Landscape action button styles
+  profileButton: {
+    backgroundColor: '#E8D5C4',
+    borderColor: '#D4C4B0',
+  },
+
+  // Target selector zone
+  targetSelectorZone: {
+    backgroundColor: '#FFF8E7',
+    borderTopWidth: 1,
+    borderTopColor: '#E8D5B7',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  targetSelectorLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#3A2818',
+    marginBottom: 6,
+  },
+  targetSelectorButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  targetSelectorButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: '#F5F0E6',
+    borderWidth: 1,
+    borderColor: '#E8D5B7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  targetSelectorButtonActive: {
+    backgroundColor: '#E8B4B8',
+    borderColor: '#D48A8E',
+  },
+  targetSelectorButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#3A2818',
+  },
+  targetSelectorButtonTextActive: {
+    color: '#FFF',
   },
 });
