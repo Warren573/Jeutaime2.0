@@ -1181,11 +1181,10 @@ export default function SalonScreen() {
     setShowParticipantActionsMenu(true);
   };
 
-  // Ouvrir la fiche profil d'un participant (depuis le menu d'actions)
+  // Naviguer vers la fiche profil complète d'un participant
   const handleViewParticipantProfile = () => {
     if (selectedParticipantForActions) {
-      setSelectedParticipantForProfile(selectedParticipantForActions);
-      setShowProfileModal(true);
+      router.push(`/profile/${selectedParticipantForActions.id}`);
     }
   };
 

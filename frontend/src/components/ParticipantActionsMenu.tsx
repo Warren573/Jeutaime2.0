@@ -24,11 +24,11 @@ interface ParticipantActionsMenuProps {
   onSendMagie: (magieId: string) => void;
 }
 
-// Featured offerings for quick access
-const FEATURED_OFFERINGS = ['rose', 'chocolat', 'champagne', 'diamant', 'bouquet'];
+// Compact offerings selection - max 6 items
+const FEATURED_OFFERINGS = ['rose', 'chocolat', 'champagne', 'bouquet', 'diamant', 'fleur'].slice(0, 6);
 
-// Featured magies for quick access (transformations + select cancellers)
-const FEATURED_MAGIES = ['grenouille', 'ane', 'fantome', 'pirate', 'rockstar', 'break_kiss'];
+// Compact magies selection - max 6 items
+const FEATURED_MAGIES = ['grenouille', 'ane', 'fantome', 'pirate', 'rockstar', 'break_kiss'].slice(0, 6);
 
 export const ParticipantActionsMenu: React.FC<ParticipantActionsMenuProps> = ({
   visible,
@@ -53,6 +53,8 @@ export const ParticipantActionsMenu: React.FC<ParticipantActionsMenuProps> = ({
   const featuredMagies = [...transformations, ...cancellers].filter(m => FEATURED_MAGIES.includes(m.id));
 
   const canAfford = (cost: number) => coins >= cost;
+  const displayOfferings = featuredOfferings.slice(0, 6);
+  const displayMagies = featuredMagies.slice(0, 6);
 
   return (
     <Modal visible={visible} animationType="fade" transparent>
@@ -66,7 +68,7 @@ export const ParticipantActionsMenu: React.FC<ParticipantActionsMenuProps> = ({
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
-            <Avatar size={70} {...(avatarConfig as any)} />
+            <Avatar size={50} {...(avatarConfig as any)} />
             <Text style={styles.name}>{participant.name}</Text>
           </View>
 
@@ -116,9 +118,9 @@ export const ParticipantActionsMenu: React.FC<ParticipantActionsMenuProps> = ({
 
             {activeTab === 'offrir' && (
               <View style={styles.gridContent}>
-                {featuredOfferings.length > 0 ? (
+                {displayOfferings.length > 0 ? (
                   <View style={styles.grid}>
-                    {featuredOfferings.map(offering => (
+                    {displayOfferings.map(offering => (
                       <View key={offering.id} style={styles.gridItem}>
                         <Text style={styles.itemEmoji}>{offering.emoji}</Text>
                         <Text style={styles.itemName}>{offering.name}</Text>
@@ -150,9 +152,9 @@ export const ParticipantActionsMenu: React.FC<ParticipantActionsMenuProps> = ({
 
             {activeTab === 'magie' && (
               <View style={styles.gridContent}>
-                {featuredMagies.length > 0 ? (
+                {displayMagies.length > 0 ? (
                   <View style={styles.grid}>
-                    {featuredMagies.map(magie => (
+                    {displayMagies.map(magie => (
                       <View key={magie.id} style={styles.gridItem}>
                         <Text style={styles.itemEmoji}>{magie.emoji}</Text>
                         <Text style={styles.itemName}>{magie.name}</Text>
@@ -202,7 +204,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
   },
   closeArea: {
     position: 'absolute',
@@ -213,30 +215,30 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: '#FFF',
-    borderRadius: 24,
+    borderRadius: 20,
     width: '100%',
-    maxHeight: '85%',
-    maxWidth: 480,
+    maxHeight: '55%',
+    maxWidth: 400,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
     overflow: 'hidden',
   },
   header: {
     alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    backgroundColor: 'linear-gradient(135deg, #FFF8E7 0%, #FFF 100%)',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFF8E7',
     borderBottomWidth: 1,
     borderBottomColor: '#F0E6D2',
   },
   name: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
     color: '#3A2818',
-    marginTop: 12,
+    marginTop: 8,
   },
   tabs: {
     flexDirection: 'row',
@@ -246,8 +248,8 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',
     alignItems: 'center',
@@ -257,7 +259,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
   },
   tabText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: '#999',
   },
@@ -265,71 +267,71 @@ const styles = StyleSheet.create({
     color: '#667eea',
   },
   content: {
-    minHeight: 200,
-    maxHeight: 350,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    maxHeight: 200,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
   },
   profileContent: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
     alignItems: 'center',
   },
   primaryButton: {
     backgroundColor: '#667eea',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    borderRadius: 10,
     width: '100%',
     alignItems: 'center',
   },
   primaryButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#FFF',
   },
   gridContent: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
   },
   gridItem: {
-    width: '31%',
+    width: '48%',
     backgroundColor: '#F5F0E6',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E8D5B7',
   },
   itemEmoji: {
-    fontSize: 28,
-    marginBottom: 6,
+    fontSize: 20,
+    marginBottom: 4,
   },
   itemName: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: '#3A2818',
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
+    lineHeight: 12,
   },
   itemCost: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#DAA520',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   sendButton: {
     backgroundColor: '#667eea',
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: 6,
     width: '100%',
     alignItems: 'center',
   },
@@ -338,32 +340,32 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   sendButtonText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#FFF',
   },
   emptyText: {
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 12,
     color: '#999',
-    marginVertical: 20,
+    marginVertical: 12,
   },
   coinsDisplay: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
     textAlign: 'center',
-    marginTop: 16,
-    paddingVertical: 8,
+    marginTop: 8,
+    paddingVertical: 6,
   },
   closeButton: {
     backgroundColor: '#F5F0E6',
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: '#E8D5B7',
     alignItems: 'center',
   },
   closeButtonText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: '#666',
   },
