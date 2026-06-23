@@ -62,6 +62,8 @@ export const ParticipantProfileModal: React.FC<ParticipantProfileModalProps> = (
     setSmileLoading(true);
     try {
       await onSendSmile(participant.id);
+      // Auto-close after smile sent (better UX)
+      onClose();
     } finally {
       setSmileLoading(false);
     }
@@ -79,13 +81,14 @@ export const ParticipantProfileModal: React.FC<ParticipantProfileModalProps> = (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
         <View style={styles.container}>
-          {/* Header */}
+          {/* Header with visual dismiss indicator */}
+          <View style={styles.dismissIndicator} />
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeText}>✕</Text>
+              <Text style={styles.closeText}>✕ Fermer</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Profil</Text>
-            <View style={{ width: 40 }} />
+            <View style={{ width: 60 }} />
           </View>
 
           {/* Content */}
@@ -207,15 +210,24 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
   container: {
-    flex: 1,
+    maxHeight: '75%',
     backgroundColor: '#fff',
-    marginTop: 60,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     display: 'flex',
     flexDirection: 'column',
+  },
+  dismissIndicator: {
+    height: 4,
+    width: 40,
+    backgroundColor: '#ddd',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 8,
   },
   header: {
     flexDirection: 'row',
