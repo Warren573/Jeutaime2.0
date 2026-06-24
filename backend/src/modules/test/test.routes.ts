@@ -2452,8 +2452,9 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
 
     // 4. Create new test users
     const created = [];
+    const STANDARD_PASSWORD = "Test2024!";
+    const passwordHash = await hashPassword(STANDARD_PASSWORD);
     for (const testUser of NEW_TEST_USERS) {
-      const passwordHash = await hashPassword(`${testUser.pseudo}-2024`);
 
       const newUser = await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
@@ -2469,11 +2470,33 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
                 birthDate: new Date("1990-01-01"),
                 city: testUser.city,
                 bio: testUser.bio,
-                interestedIn: [],
+                interestedIn: ["FEMME", "HOMME", "AUTRE"],
                 lookingFor: ["RELATION"],
                 interests: [],
                 physicalDesc: "moyenne",
                 avatarConfig: {},
+                questions: {
+                  create: [
+                    {
+                      questionId: "q_01",
+                      questionText: "Quel est ton souvenir d'enfance le plus marquant ?",
+                      answer: "Un beau souvenir en famille",
+                      wrongAnswers: ["Une mauvaise expérience", "Je n'en ai pas"],
+                    },
+                    {
+                      questionId: "q_02",
+                      questionText: "Si tu pouvais vivre dans n'importe quelle époque, laquelle choisirais-tu ?",
+                      answer: "L'époque actuelle",
+                      wrongAnswers: ["Le passé", "Le futur lointain"],
+                    },
+                    {
+                      questionId: "q_03",
+                      questionText: "Quelle est la chose la plus folle que tu aies jamais faite ?",
+                      answer: "Voyager seul",
+                      wrongAnswers: ["Rien de folle", "Je suis trop prudent"],
+                    },
+                  ],
+                },
               },
             },
           },
@@ -2519,7 +2542,7 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
       created_users: created.map((u) => ({
         email: u.email,
         pseudo: u.pseudo,
-        password: `${u.pseudo}-2024`,
+        password: STANDARD_PASSWORD,
         userId: u.userId,
       })),
     });
@@ -2663,14 +2686,14 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
 
     // 4. Create new test users
     const created = [];
+    const STANDARD_PASSWORD = "Test2024!";
+    const passwordHashGET = await hashPassword(STANDARD_PASSWORD);
     for (const testUser of NEW_TEST_USERS) {
-      const passwordHash = await hashPassword(`${testUser.pseudo}-2024`);
-
       const newUser = await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
           data: {
             email: testUser.email,
-            passwordHash,
+            passwordHash: passwordHashGET,
             isVerified: true,
             role: "USER",
             profile: {
@@ -2680,11 +2703,33 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
                 birthDate: new Date("1990-01-01"),
                 city: testUser.city,
                 bio: testUser.bio,
-                interestedIn: [],
+                interestedIn: ["FEMME", "HOMME", "AUTRE"],
                 lookingFor: ["RELATION"],
                 interests: [],
                 physicalDesc: "moyenne",
                 avatarConfig: {},
+                questions: {
+                  create: [
+                    {
+                      questionId: "q_01",
+                      questionText: "Quel est ton souvenir d'enfance le plus marquant ?",
+                      answer: "Un beau souvenir en famille",
+                      wrongAnswers: ["Une mauvaise expérience", "Je n'en ai pas"],
+                    },
+                    {
+                      questionId: "q_02",
+                      questionText: "Si tu pouvais vivre dans n'importe quelle époque, laquelle choisirais-tu ?",
+                      answer: "L'époque actuelle",
+                      wrongAnswers: ["Le passé", "Le futur lointain"],
+                    },
+                    {
+                      questionId: "q_03",
+                      questionText: "Quelle est la chose la plus folle que tu aies jamais faite ?",
+                      answer: "Voyager seul",
+                      wrongAnswers: ["Rien de folle", "Je suis trop prudent"],
+                    },
+                  ],
+                },
               },
             },
           },
@@ -2732,7 +2777,7 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
       created_users: created.map((u) => ({
         email: u.email,
         pseudo: u.pseudo,
-        password: `${u.pseudo}-2024`,
+        password: STANDARD_PASSWORD,
         userId: u.userId,
       })),
     });
