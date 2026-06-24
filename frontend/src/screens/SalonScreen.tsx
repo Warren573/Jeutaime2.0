@@ -207,32 +207,34 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
 
   const isTestUser = participant.name?.includes('TestUser') || participant.name?.includes('testuser');
 
-  // DEBUG LOG
+  // DEBUG LOG - Proof that pseudo and avatar come from same userId
+  const resolveLog = {
+    participantId: participant.id,
+    pseudo: participant.name,
+    gender: participant.gender,
+    isMe: (participant as any).isMe,
+    currentUserId: participant.id === 'me' ? 'is-me' : participant.id,
+    receivedAvatarConfig: participant.avatarConfig,
+    receivedAvatarConfigType: typeof participant.avatarConfig,
+    receivedAvatarConfigEmpty: !participant.avatarConfig || (typeof participant.avatarConfig === 'object' && Object.keys(participant.avatarConfig as any).length === 0),
+    avatarResolutionSource: resolution.source,
+    avatarResolutionUserId: resolution.userId,
+    avatarResolutionGender: resolution.gender,
+    resolvedAvatarHair: (avatarConfig as any).hair,
+    resolvedAvatarPilosite: (avatarConfig as any).pilosite,
+    resolvedAvatarEarrings: (avatarConfig as any).earrings,
+    matchVerification: {
+      pseudoMatches: participant.name !== undefined,
+      userIdMatches: participant.id === resolution.userId,
+      genderMatches: participant.gender === resolution.gender,
+    },
+  };
+
   if (isTestUser) {
-    console.log(`[AnimatedAvatar-DEBUG-TESTUSER] Rendering:`, {
-      pseudo: participant.name,
-      participantId: participant.id,
-      isMe: participant.isMe,
-      gender: participant.gender,
-      receivedAvatarConfig: participant.avatarConfig,
-      receivedAvatarConfigKeys: participant.avatarConfig ? Object.keys(participant.avatarConfig as any) : [],
-      receivedAvatarConfigEmpty: !participant.avatarConfig || Object.keys(participant.avatarConfig as any).length === 0,
-      avatarSource: resolution.source,
-      resolvedConfig: avatarConfig,
-      resolvedConfigKeys: Object.keys(avatarConfig),
-    });
+    console.log(`[AnimatedAvatar-MAPPING-PROOF] Verifying pseudo/avatar match:`, resolveLog);
   }
 
-  console.log(`[AnimatedAvatar] Rendering:`, {
-    pseudo: participant.name,
-    participantId: participant.id,
-    isMe: participant.isMe,
-    gender: participant.gender,
-    receivedAvatarConfig: participant.avatarConfig,
-    avatarSource: resolution.source,
-    avatarResolvedKey: `${participant.id}-${resolution.source}`,
-    resolvedConfig: avatarConfig,
-  });
+  console.log(`[AnimatedAvatar-RENDER] ${participant.name}:`, resolveLog);
 
   // Transformation active ?
   const isTransformed = !!(
@@ -1426,19 +1428,42 @@ export default function SalonScreen() {
       {/* Barre des participants - GRANDE sur toute la largeur */}
       <View style={styles.participantStrip}>
         <View style={styles.participantsRow}>
-          {participants.map((p) => (
-            <View
-              key={p.id}
-              style={styles.participantItem}
-            >
-              <AnimatedAvatar
-                participant={p}
-                size={avatarSizePortrait}
-                isSelected={false}
-                showBadges={true}
-              />
-            </View>
-          ))}
+          {participants.map((p, index) => {
+            // Log detailed mapping for each participant
+            const mappingLog = {
+              renderIndex: index,
+              keyReact: p.id,
+              participantId: p.id,
+              participantUserId: p.id,
+              pseudo: p.name,
+              gender: p.gender,
+              isMe: (p as any).isMe,
+              currentUserId: currentUser?.id,
+              isCurrentUserMatch: p.id === currentUser?.id,
+              avatarConfigReceived: p.avatarConfig,
+              avatarConfigEmpty: !p.avatarConfig || (typeof p.avatarConfig === 'object' && Object.keys(p.avatarConfig as any).length === 0),
+              avatarConfigKeys: p.avatarConfig ? Object.keys(p.avatarConfig as any) : [],
+            };
+
+            const isTestUser = p.name?.includes('TestUser') || p.name?.includes('testuser');
+            if (isTestUser || index === 0) {
+              console.log(`[SalonScreen-RENDER-MAPPING] Index=${index}:`, mappingLog);
+            }
+
+            return (
+              <View
+                key={p.id}
+                style={styles.participantItem}
+              >
+                <AnimatedAvatar
+                  participant={p}
+                  size={avatarSizePortrait}
+                  isSelected={false}
+                  showBadges={true}
+                />
+              </View>
+            );
+          })}
         </View>
       </View>
 
