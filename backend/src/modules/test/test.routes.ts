@@ -2840,7 +2840,7 @@ router.post("/fix-empty-avatar-configs", asyncHandler(async (req: Request, res: 
       where: {
         OR: [
           { avatarConfig: null },
-          { avatarConfig: {} },
+          { avatarConfig: { equals: {} } },
         ],
       },
       select: {
