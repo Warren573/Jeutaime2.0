@@ -2822,6 +2822,78 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
 }));
 
 /**
+ * FIX ENDPOINT: Regenerate avatarConfig for users with empty configs
+ * POST /api/test/fix-empty-avatar-configs
+ */
+router.post("/fix-empty-avatar-configs", asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  try {
+    // Find all profiles with empty avatarConfig
+    const profilesWithEmptyConfig = await prisma.profile.findMany({
+      where: {
+        OR: [
+          { avatarConfig: null },
+          { avatarConfig: {} },
+        ],
+      },
+      select: {
+        id: true,
+        userId: true,
+        pseudo: true,
+        gender: true,
+        avatarConfig: true,
+      },
+    });
+
+    console.log(`[fix-empty-avatar-configs] Found ${profilesWithEmptyConfig.length} profiles with empty avatarConfig`);
+
+    const updated = [];
+    for (const profile of profilesWithEmptyConfig) {
+      const newConfig = getDefaultAvatarConfig(profile.gender as any);
+
+      const updatedProfile = await prisma.profile.update({
+        where: { id: profile.id },
+        data: { avatarConfig: newConfig },
+        select: { userId: true, pseudo: true, gender: true, avatarConfig: true },
+      });
+
+      console.log(`[fix-empty-avatar-configs] Updated profile:`, {
+        userId: updatedProfile.userId,
+        pseudo: updatedProfile.pseudo,
+        gender: updatedProfile.gender,
+        newAvatarConfig: updatedProfile.avatarConfig,
+      });
+
+      updated.push({
+        userId: updatedProfile.userId,
+        pseudo: updatedProfile.pseudo,
+        gender: updatedProfile.gender,
+        newAvatarConfig: updatedProfile.avatarConfig,
+      });
+    }
+
+    res.json({
+      status: "success",
+      message: `Fixed ${updated.length} profiles with empty avatarConfig`,
+      updated,
+    });
+  } catch (error) {
+    console.error("[fix-empty-avatar-configs] Error:", error);
+    res.status(500).json({
+      error: "Fix failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}));
+
+/**
  * DEBUG ENDPOINT: Compare avatar of a user in profile vs salon
  * GET /api/test/debug-avatar?email=testuser@jeutaime.test&salonKind=PISCINE
  */
