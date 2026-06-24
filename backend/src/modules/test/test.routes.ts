@@ -2821,4 +2821,114 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
   }
 }));
 
+/**
+ * DEBUG ENDPOINT: Compare avatar of a user in profile vs salon
+ * GET /api/test/debug-avatar?email=testuser@jeutaime.test&salonKind=PISCINE
+ */
+router.get("/debug-avatar", asyncHandler(async (req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const { email, salonKind } = req.query;
+  if (!email || !salonKind) {
+    return res.status(400).json({ error: "Missing email or salonKind query parameter" });
+  }
+
+  try {
+    // 1. Get user profile avatar
+    const user = await prisma.user.findUnique({
+      where: { email: String(email) },
+      select: {
+        id: true,
+        email: true,
+        profile: {
+          select: {
+            pseudo: true,
+            gender: true,
+            avatarConfig: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: `User not found: ${email}` });
+    }
+
+    const profileAvatarConfig = user.profile?.avatarConfig;
+
+    // 2. Get user avatar from salon session
+    const now = new Date();
+    const salonSession = await prisma.salonSession.findFirst({
+      where: {
+        salonKind: String(salonKind) as any,
+        status: "ACTIVE",
+        expiresAt: { gt: now },
+      },
+      include: {
+        participants: {
+          where: {
+            userId: user.id,
+            status: "ACTIVE",
+          },
+          select: {
+            userId: true,
+            user: {
+              select: {
+                profile: {
+                  select: {
+                    pseudo: true,
+                    gender: true,
+                    avatarConfig: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const salonParticipant = salonSession?.participants[0];
+    const salonAvatarConfig = salonParticipant?.user.profile?.avatarConfig;
+
+    res.json({
+      user: {
+        userId: user.id,
+        email: user.email,
+        pseudo: user.profile?.pseudo,
+        gender: user.profile?.gender,
+      },
+      profile: {
+        avatarConfig: profileAvatarConfig,
+        isEmpty: !profileAvatarConfig || Object.keys(profileAvatarConfig).length === 0,
+        keys: profileAvatarConfig ? Object.keys(profileAvatarConfig) : [],
+      },
+      salon: {
+        kind: salonKind,
+        inSession: !!salonParticipant,
+        avatarConfig: salonAvatarConfig,
+        isEmpty: !salonAvatarConfig || Object.keys(salonAvatarConfig).length === 0,
+        keys: salonAvatarConfig ? Object.keys(salonAvatarConfig) : [],
+      },
+      comparison: {
+        profileAndSalonMatch: JSON.stringify(profileAvatarConfig) === JSON.stringify(salonAvatarConfig),
+        profileIsEmpty: !profileAvatarConfig || Object.keys(profileAvatarConfig).length === 0,
+        salonIsEmpty: !salonAvatarConfig || Object.keys(salonAvatarConfig).length === 0,
+      },
+    });
+  } catch (error) {
+    console.error("[debug-avatar] Error:", error);
+    res.status(500).json({
+      error: "Debug failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}));
+
 export default router;

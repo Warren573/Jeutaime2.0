@@ -205,7 +205,24 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
   );
   const avatarConfig = resolution.config;
 
+  const isTestUser = participant.name?.includes('TestUser') || participant.name?.includes('testuser');
+
   // DEBUG LOG
+  if (isTestUser) {
+    console.log(`[AnimatedAvatar-DEBUG-TESTUSER] Rendering:`, {
+      pseudo: participant.name,
+      participantId: participant.id,
+      isMe: participant.isMe,
+      gender: participant.gender,
+      receivedAvatarConfig: participant.avatarConfig,
+      receivedAvatarConfigKeys: participant.avatarConfig ? Object.keys(participant.avatarConfig as any) : [],
+      receivedAvatarConfigEmpty: !participant.avatarConfig || Object.keys(participant.avatarConfig as any).length === 0,
+      avatarSource: resolution.source,
+      resolvedConfig: avatarConfig,
+      resolvedConfigKeys: Object.keys(avatarConfig),
+    });
+  }
+
   console.log(`[AnimatedAvatar] Rendering:`, {
     pseudo: participant.name,
     participantId: participant.id,
@@ -654,7 +671,7 @@ export default function SalonScreen() {
       currentUserPseudo: currentUser?.name,
       currentUserGender: currentUser?.gender,
       serverParticipantsCount: session.participants.length,
-      serverParticipantIds: session.participants.map(p => ({ userId: p.userId, pseudo: p.pseudo })),
+      serverParticipantIds: session.participants.map(p => ({ userId: p.userId, pseudo: p.pseudo, gender: p.gender, hasAvatarConfig: !!p.avatarConfig, avatarConfigKeys: p.avatarConfig ? Object.keys(p.avatarConfig) : [] })),
     });
 
     const seen = new Map<string, SalonParticipant & { isMe?: boolean }>();
@@ -662,6 +679,22 @@ export default function SalonScreen() {
       const gender = p.gender === 'FEMME' || p.gender === 'F' ? 'F' : 'M';
       const isCurrentUser = p.userId === currentUser?.id;
       const avatarToUse = p.avatarConfig; // Use server avatar, even for current user
+
+      const isTestUser = p.pseudo?.includes('TestUser') || p.pseudo?.includes('testuser');
+
+      if (isTestUser) {
+        console.log(`[SalonScreen-DEBUG-TESTUSER] Processing:`, {
+          pseudo: p.pseudo,
+          userId: p.userId,
+          gender: p.gender,
+          rawGender: p.gender,
+          mappedGender: gender,
+          serverAvatarConfig: p.avatarConfig,
+          avatarConfigType: typeof p.avatarConfig,
+          avatarConfigKeys: p.avatarConfig ? Object.keys(p.avatarConfig) : [],
+          avatarConfigEmpty: !p.avatarConfig || Object.keys(p.avatarConfig).length === 0,
+        });
+      }
 
       console.log(`[SalonScreen-ParticipantsMapping] Processing participant:`, {
         userId: p.userId,
