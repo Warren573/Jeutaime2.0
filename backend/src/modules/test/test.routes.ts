@@ -4,7 +4,7 @@ import { prisma } from "../../config/prisma";
 import { hashPassword } from "../../core/utils/hash";
 import * as authService from "../auth/auth.service";
 import { execSync } from "child_process";
-import { OfferingCategory, SalonKind, Gender } from "@prisma/client";
+import { OfferingCategory, SalonKind, Gender, Prisma } from "@prisma/client";
 
 const router = Router();
 
@@ -2839,7 +2839,7 @@ router.post("/fix-empty-avatar-configs", asyncHandler(async (req: Request, res: 
     const profilesWithEmptyConfig = await prisma.profile.findMany({
       where: {
         OR: [
-          { avatarConfig: null },
+          { avatarConfig: { equals: Prisma.JsonNull } },
           { avatarConfig: { equals: {} } },
         ],
       },
