@@ -14,6 +14,7 @@ import { Image } from "expo-image";
 import { useStore } from "../store/useStore";
 import { Avatar } from "../avatar/png/Avatar";
 import { DEFAULT_AVATAR, DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE } from "../avatar/png/defaults";
+import { resolveAvatarConfig } from "../avatar/resolveAvatarConfig";
 import { getRelationInfo } from "../engine/RelationEngine";
 import { discoverProfiles, type DiscoveryProfileDto } from "../api/profiles";
 import { sendReaction } from "../api/reactions";
@@ -302,10 +303,13 @@ export default function ProfileTwoStepDemo() {
 
   // ── Derived display values ──
   const age = computeAge(profile.birthDate ?? undefined);
-  const avatarConfig = (profile.avatarConfig as Record<string, unknown>)
-    ?? (profile.gender === 'F' ? DEFAULT_AVATAR_FEMALE
-      : profile.gender === 'M' ? DEFAULT_AVATAR_MALE
-      : DEFAULT_AVATAR);
+  const avatarResolution = resolveAvatarConfig(
+    profile.userId,
+    profile.avatarConfig,
+    profile.gender,
+    'ProfileTwoStepDemo'
+  );
+  const avatarConfig = avatarResolution.config;
   const physique = profile.physicalDesc
     ? PHYSIQUE_LABEL[profile.physicalDesc] ?? { emoji: "✨", label: profile.physicalDesc }
     : null;

@@ -141,6 +141,7 @@ const BREAK_CONDITION_TO_ANTISPELL: Readonly<Record<string, string>> = {
 };
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE } from '../avatar/png/defaults';
+import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 // ============================================
@@ -196,19 +197,21 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
     }
   }, [participant.transformation]);
 
-  const useFallback = !participant.avatarConfig;
-  const avatarConfig = participant.avatarConfig
-    ?? (participant.gender === 'F' ? DEFAULT_AVATAR_FEMALE : DEFAULT_AVATAR_MALE);
+  const resolution = resolveAvatarConfig(
+    participant.id,
+    participant.avatarConfig,
+    participant.gender,
+    'SalonScreen.AnimatedAvatar'
+  );
+  const avatarConfig = resolution.config;
 
   // DEBUG LOG
   console.log(`[AnimatedAvatar] Rendering:`, {
     pseudo: participant.name,
     userId: participant.id,
     isMe: participant.isMe,
-    receivedAvatarConfig: participant.avatarConfig,
-    usedAvatarConfig: avatarConfig,
-    usedFallback: useFallback,
-    fallbackUsed: useFallback ? (participant.gender === 'F' ? 'DEFAULT_AVATAR_FEMALE' : 'DEFAULT_AVATAR_MALE') : 'none',
+    avatarSource: resolution.source,
+    avatarResolvedKey: `${participant.id}-${resolution.source}`,
   });
 
   // Transformation active ?
@@ -648,17 +651,6 @@ export default function SalonScreen() {
       const gender = p.gender === 'FEMME' || p.gender === 'F' ? 'F' : 'M';
       const isCurrentUser = p.userId === currentUser?.id;
       const avatarToUse = isCurrentUser ? avatarPngConfig : p.avatarConfig;
-
-      // DEBUG LOG
-      console.log(`[SalonScreen] Participant avatar config:`, {
-        pseudo: p.pseudo,
-        userId: p.userId,
-        isMe: isCurrentUser,
-        serverAvatarConfig: p.avatarConfig,
-        usedAvatarConfig: avatarToUse,
-        hasFallback: !avatarToUse,
-        gender,
-      });
 
       seen.set(p.userId, {
         id: p.userId,

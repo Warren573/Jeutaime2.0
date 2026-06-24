@@ -25,6 +25,7 @@ import {
 import { blockMatch } from '../api/matches';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR, DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE, type AvatarConfig } from '../avatar/png/defaults';
+import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import { useStore } from '../store/useStore';
 
 function makePhotoUrl(url: string): string {
@@ -237,12 +238,13 @@ export default function ProfileDetailScreen() {
     );
   }
 
-  const avatarDef =
-    profile.avatarConfig && Object.keys(profile.avatarConfig).length > 0
-      ? (profile.avatarConfig as unknown as AvatarConfig)
-      : (profile.gender === 'F' ? DEFAULT_AVATAR_FEMALE
-        : profile.gender === 'M' ? DEFAULT_AVATAR_MALE
-        : DEFAULT_AVATAR);
+  const avatarResolution = resolveAvatarConfig(
+    profile.userId,
+    profile.avatarConfig,
+    profile.gender,
+    'ProfileDetailScreen'
+  );
+  const avatarDef = avatarResolution.config;
 
   const publicPhotos = profileData?.photos ?? [];
   const photos = isOwnProfile ? ownPhotos : publicPhotos;
