@@ -208,10 +208,13 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
   // DEBUG LOG
   console.log(`[AnimatedAvatar] Rendering:`, {
     pseudo: participant.name,
-    userId: participant.id,
+    participantId: participant.id,
     isMe: participant.isMe,
+    gender: participant.gender,
+    receivedAvatarConfig: participant.avatarConfig,
     avatarSource: resolution.source,
     avatarResolvedKey: `${participant.id}-${resolution.source}`,
+    resolvedConfig: avatarConfig,
   });
 
   // Transformation active ?
@@ -646,11 +649,28 @@ export default function SalonScreen() {
       return;
     }
 
+    console.log(`[SalonScreen-ParticipantsMapping] Starting mapping:`, {
+      currentUserId: currentUser?.id,
+      currentUserPseudo: currentUser?.name,
+      currentUserGender: currentUser?.gender,
+      serverParticipantsCount: session.participants.length,
+      serverParticipantIds: session.participants.map(p => ({ userId: p.userId, pseudo: p.pseudo })),
+    });
+
     const seen = new Map<string, SalonParticipant & { isMe?: boolean }>();
     for (const p of session.participants) {
       const gender = p.gender === 'FEMME' || p.gender === 'F' ? 'F' : 'M';
       const isCurrentUser = p.userId === currentUser?.id;
-      const avatarToUse = isCurrentUser ? avatarPngConfig : p.avatarConfig;
+      const avatarToUse = p.avatarConfig; // Use server avatar, even for current user
+
+      console.log(`[SalonScreen-ParticipantsMapping] Processing participant:`, {
+        userId: p.userId,
+        pseudo: p.pseudo,
+        gender: p.gender,
+        isCurrentUser,
+        serverAvatarConfig: p.avatarConfig,
+        willUseAvatar: avatarToUse,
+      });
 
       seen.set(p.userId, {
         id: p.userId,
@@ -665,6 +685,12 @@ export default function SalonScreen() {
     }
 
     if (!seen.has(currentUser?.id ?? 'me') && currentUser?.id) {
+      console.log(`[SalonScreen-ParticipantsMapping] Current user NOT in server participants, adding manually:`, {
+        userId: currentUser.id,
+        pseudo: currentUser.name,
+        gender: currentUser.gender,
+      });
+
       seen.set(currentUser.id, {
         id: currentUser.id,
         name: currentUser.name || 'Você',
@@ -673,14 +699,25 @@ export default function SalonScreen() {
         online: true,
         offerings: [],
         isMe: true,
-        avatarConfig: avatarPngConfig,
-      } as SalonParticipant & { isMe: boolean; avatarConfig: object });
+        avatarConfig: currentUser.profile?.avatarConfig ?? avatarPngConfig,
+      } as SalonParticipant & { isMe: boolean; avatarConfig?: object });
     } else {
+      console.log(`[SalonScreen-ParticipantsMapping] Current user IS in server participants`);
     }
 
     const finalParticipants = Array.from(seen.values());
-    finalParticipants.forEach((p, i) => {
+
+    console.log(`[SalonScreen-ParticipantsMapping] Final mapping:`, {
+      totalParticipants: finalParticipants.length,
+      participants: finalParticipants.map(p => ({
+        id: p.id,
+        name: p.name,
+        isMe: p.isMe,
+        gender: p.gender,
+        avatarConfig: p.avatarConfig,
+      })),
     });
+
     setParticipants(finalParticipants);
   }, [isAuthenticated, activeSessions, screenSessionId, currentUser, avatarPngConfig]);
 
