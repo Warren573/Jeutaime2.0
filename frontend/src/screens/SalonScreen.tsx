@@ -196,8 +196,20 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
     }
   }, [participant.transformation]);
 
+  const useFallback = !participant.avatarConfig;
   const avatarConfig = participant.avatarConfig
     ?? (participant.gender === 'F' ? DEFAULT_AVATAR_FEMALE : DEFAULT_AVATAR_MALE);
+
+  // DEBUG LOG
+  console.log(`[AnimatedAvatar] Rendering:`, {
+    pseudo: participant.name,
+    userId: participant.id,
+    isMe: participant.isMe,
+    receivedAvatarConfig: participant.avatarConfig,
+    usedAvatarConfig: avatarConfig,
+    usedFallback: useFallback,
+    fallbackUsed: useFallback ? (participant.gender === 'F' ? 'DEFAULT_AVATAR_FEMALE' : 'DEFAULT_AVATAR_MALE') : 'none',
+  });
 
   // Transformation active ?
   const isTransformed = !!(
@@ -635,6 +647,19 @@ export default function SalonScreen() {
     for (const p of session.participants) {
       const gender = p.gender === 'FEMME' || p.gender === 'F' ? 'F' : 'M';
       const isCurrentUser = p.userId === currentUser?.id;
+      const avatarToUse = isCurrentUser ? avatarPngConfig : p.avatarConfig;
+
+      // DEBUG LOG
+      console.log(`[SalonScreen] Participant avatar config:`, {
+        pseudo: p.pseudo,
+        userId: p.userId,
+        isMe: isCurrentUser,
+        serverAvatarConfig: p.avatarConfig,
+        usedAvatarConfig: avatarToUse,
+        hasFallback: !avatarToUse,
+        gender,
+      });
+
       seen.set(p.userId, {
         id: p.userId,
         name: p.pseudo,
@@ -642,7 +667,7 @@ export default function SalonScreen() {
         age: 25,
         online: true,
         offerings: [],
-        avatarConfig: isCurrentUser ? avatarPngConfig : p.avatarConfig,
+        avatarConfig: avatarToUse,
         isMe: isCurrentUser,
       } as SalonParticipant & { isMe?: boolean; avatarConfig?: object });
     }

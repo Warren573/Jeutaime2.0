@@ -14,6 +14,37 @@ import { hashPassword } from "../src/core/utils/hash";
 
 const prisma = new PrismaClient();
 
+// Helper function to generate gender-appropriate avatarConfig
+function getDefaultAvatarConfig(gender: Gender): any {
+  const baseConfig = {
+    body: 'body_default',
+    head: 'head_default',
+    clothes: null,
+    nose: 'nose_01',
+    mouth: 'mouth_01',
+    effects: [],
+    transformation: null,
+  };
+
+  if (gender === Gender.FEMME) {
+    return {
+      ...baseConfig,
+      pilosite: null,
+      hair: 'hair_01',
+      earrings: 'earrings_01',
+      accessory: null,
+    };
+  } else {
+    return {
+      ...baseConfig,
+      pilosite: 'beard_01',
+      hair: 'hair_02',
+      earrings: null,
+      accessory: null,
+    };
+  }
+}
+
 const PRESERVE_USERS = [
   "test@jeutaime.com",
   "doudou453@hotmail.fr",
@@ -262,7 +293,7 @@ async function main() {
             lookingFor: ["RELATION"],
             interests: [],
             physicalDesc: "moyenne",
-            avatarConfig: {},
+            avatarConfig: getDefaultAvatarConfig(testUser.gender),
             questions: {
               create: [
                 {

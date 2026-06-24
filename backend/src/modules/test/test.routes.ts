@@ -32,6 +32,37 @@ function getDbUrlHash() {
   return require("crypto").createHash("sha256").update(dbUrl).digest("hex").substring(0, 8);
 }
 
+// Helper function to generate gender-appropriate avatarConfig
+function getDefaultAvatarConfig(gender: Gender): any {
+  const baseConfig = {
+    body: 'body_default',
+    head: 'head_default',
+    clothes: null,
+    nose: 'nose_01',
+    mouth: 'mouth_01',
+    effects: [],
+    transformation: null,
+  };
+
+  if (gender === Gender.FEMME) {
+    return {
+      ...baseConfig,
+      pilosite: null,
+      hair: 'hair_01',
+      earrings: 'earrings_01',
+      accessory: null,
+    };
+  } else {
+    return {
+      ...baseConfig,
+      pilosite: 'beard_01',
+      hair: 'hair_02',
+      earrings: null,
+      accessory: null,
+    };
+  }
+}
+
 /**
  * DEBUG: Verify test router is mounted
  */
@@ -2474,7 +2505,7 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
                 lookingFor: ["RELATION"],
                 interests: [],
                 physicalDesc: "moyenne",
-                avatarConfig: {},
+                avatarConfig: getDefaultAvatarConfig(testUser.gender),
                 questions: {
                   create: [
                     {
@@ -2707,7 +2738,7 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
                 lookingFor: ["RELATION"],
                 interests: [],
                 physicalDesc: "moyenne",
-                avatarConfig: {},
+                avatarConfig: getDefaultAvatarConfig(testUser.gender),
                 questions: {
                   create: [
                     {
