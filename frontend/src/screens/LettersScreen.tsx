@@ -26,6 +26,7 @@ import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import { FEATURES } from '../config/features';
 import { getRelationInfo } from '../engine/RelationEngine';
+import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W - 32;
@@ -46,6 +47,8 @@ interface EnvelopeCardProps {
   questionsValidated: boolean;
   matchStatus: 'PENDING' | 'ACTIVE' | 'BROKEN' | 'BLOCKED';
   isInitiator: boolean;
+  avatarConfig?: Record<string, unknown>;
+  gender?: string;
   onOpen: () => void;
   onPlayQuestions: () => void | Promise<void>;
   onAccept: () => void | Promise<void>;
@@ -66,6 +69,8 @@ const EnvelopeCard = ({
   questionsValidated,
   matchStatus,
   isInitiator,
+  avatarConfig,
+  gender,
   onOpen,
   onPlayQuestions,
   onAccept,
@@ -138,7 +143,10 @@ const EnvelopeCard = ({
       <View style={envStyles.divider} />
 
       <View style={envStyles.infoRow}>
-        <Avatar size={42} {...DEFAULT_AVATAR} />
+        {(() => {
+          const avatarResolution = resolveAvatarConfig(otherUserId, avatarConfig, gender, 'LettersScreen');
+          return <Avatar size={42} {...avatarResolution.config} />;
+        })()}
         <View style={envStyles.texts}>
           <View style={envStyles.nameRow}>
             <Text style={envStyles.name}>{otherName}</Text>
@@ -827,13 +835,15 @@ export default function LettersScreen() {
                 </Text>
 
                 {visibleMatches.map((match) => {
+                  const otherUserId = getOtherUserId(match);
                   const otherName = getOtherName(match);
+                  const partnerProfile = matchPartners[otherUserId];
 
                   return (
                     <EnvelopeCard
                       key={match.id}
                       matchId={match.id}
-                      otherUserId={getOtherUserId(match)}
+                      otherUserId={otherUserId}
                       otherName={otherName}
                       lastLetterAt={match.lastLetterAt}
                       unread={match.hasUnreadIncomingLetter ? 1 : 0}
@@ -841,6 +851,8 @@ export default function LettersScreen() {
                       letterCount={match.letterCount}
                       letterCountA={match.letterCountA}
                       letterCountB={match.letterCountB}
+                      avatarConfig={partnerProfile?.avatarConfig}
+                      gender={partnerProfile?.gender || 'HOMME'}
                       isPremium={currentUser?.isPremium}
                       questionsValidated={match.questionsValidated}
                       matchStatus={match.status}
