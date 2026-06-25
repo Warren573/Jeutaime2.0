@@ -200,3 +200,10 @@ export async function reportUser(targetId: string, reason: ReportReason, details
     body: JSON.stringify({ targetId, reason, details }),
   });
 }
+
+export async function saveAvatarConfig(avatarConfig: Record<string, unknown>): Promise<void> {
+  await apiFetch('/profiles/me', {
+    method: 'PATCH',
+    body: JSON.stringify({ avatarConfig }),
+  });
+}

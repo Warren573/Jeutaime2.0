@@ -27,6 +27,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 
@@ -39,6 +40,7 @@ import type {
 } from '../avatar/png/editor/AvatarOptionItem';
 import { theme, journal } from '../styles/theme';
 import { useStore } from '../store/useStore';
+import { saveAvatarConfig } from '../api/profiles';
 
 // ─── Données des catégories ───────────────────────────────────────────────────
 
@@ -168,24 +170,40 @@ const CATEGORIES: CategoryConfig[] = [
 // ─── Écran ────────────────────────────────────────────────────────────────────
 
 export function AvatarEditorScreen() {
-  const { currentUser, avatarPngConfig, updateAvatarPngConfig } = useStore();
+  const { currentUser, avatarPngConfig, updateAvatarPngConfig, hydrateFromApi } = useStore();
 
   // Initialisation depuis le store (config sauvegardée ou DEFAULT_AVATAR)
   const [config, setConfig] = useState<AvatarConfig>(() => avatarPngConfig);
   const [bio, setBio]       = useState('');
   const [saved, setSaved]   = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleSelect = useCallback((layer: AvatarLayerKey, id: string | null) => {
     setConfig(prev => ({ ...prev, [layer]: id }));
     setSaved(false);
   }, []);
 
-  const handleSave = useCallback(() => {
-    updateAvatarPngConfig(config);
-    // TODO: persister bio → store / API
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }, [config, updateAvatarPngConfig]);
+  const handleSave = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      // 1. Mettre à jour le local store
+      updateAvatarPngConfig(config);
+
+      // 2. Sauvegarder à la base de données
+      await saveAvatarConfig(config);
+
+      // 3. Recharger le profil depuis l'API pour synchroniser currentUser.avatarConfig
+      await hydrateFromApi();
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error('[AvatarEditorScreen] Error saving avatar:', error);
+      setSaved(false);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [config, updateAvatarPngConfig, hydrateFromApi]);
 
   const displayName = currentUser?.name ?? 'Mon avatar';
 
@@ -209,12 +227,17 @@ export function AvatarEditorScreen() {
 
         <TouchableOpacity
           onPress={handleSave}
+          disabled={isSaving}
           style={styles.headerSide}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Text style={[styles.saveLabel, saved && styles.saveLabelDone]}>
-            {saved ? 'Sauvé ✓' : 'Sauver'}
-          </Text>
+          {isSaving ? (
+            <ActivityIndicator size="small" color={journal.accentPrimary} />
+          ) : (
+            <Text style={[styles.saveLabel, saved && styles.saveLabelDone]}>
+              {saved ? 'Sauvé ✓' : 'Sauver'}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
 
