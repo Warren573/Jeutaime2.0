@@ -951,6 +951,16 @@ export default function SalonScreen() {
       return;
     }
 
+    // CRITICAL: Boire/manger ALWAYS target currentUser, never selectedPlayer
+    console.log('[ACTION_SELF_CHECK-DRINK]', {
+      action: 'DRINK',
+      actorUserId: currentUser?.id,
+      targetUserId: currentUser?.id,
+      selectedPlayerId: selectedPlayer?.id,
+      currentUserId: currentUser?.id,
+      selectedPlayerIdMatchesCurrent: selectedPlayer?.id === currentUser?.id,
+    });
+
     try {
       const result = await performDrinkAction(screenSessionId);
 
@@ -961,6 +971,7 @@ export default function SalonScreen() {
           return;
         }
 
+        // FORCE: Always update currentUser.id, NEVER selectedPlayer.id
         setActionLevels(prev => ({
           ...prev,
           [currentUser.id]: {
@@ -983,6 +994,16 @@ export default function SalonScreen() {
       return;
     }
 
+    // CRITICAL: Boire/manger ALWAYS target currentUser, never selectedPlayer
+    console.log('[ACTION_SELF_CHECK-EAT]', {
+      action: 'EAT',
+      actorUserId: currentUser?.id,
+      targetUserId: currentUser?.id,
+      selectedPlayerId: selectedPlayer?.id,
+      currentUserId: currentUser?.id,
+      selectedPlayerIdMatchesCurrent: selectedPlayer?.id === currentUser?.id,
+    });
+
     try {
       const result = await performEatAction(screenSessionId);
 
@@ -993,6 +1014,7 @@ export default function SalonScreen() {
           return;
         }
 
+        // FORCE: Always update currentUser.id, NEVER selectedPlayer.id
         setActionLevels(prev => ({
           ...prev,
           [currentUser.id]: {

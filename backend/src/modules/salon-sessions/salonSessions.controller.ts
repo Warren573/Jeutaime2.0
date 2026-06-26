@@ -132,6 +132,15 @@ export async function performDrinkAction(req: AuthedRequest, res: Response) {
   const sessionId = req.params["sessionId"] as string;
   const userId = req.user.userId;
 
+  // CRITICAL: Log self-targeting verification
+  console.log('[ACTION_SELF_CHECK-DRINK-BACKEND]', {
+    action: 'DRINK',
+    sessionId,
+    actorUserId: userId,
+    targetUserId: userId,
+    authenticatedUserId: req.user.userId,
+  });
+
   try {
     const result = await salonSessionsService.performDrinkAction(sessionId, userId);
     res.json({ data: result });
@@ -147,6 +156,15 @@ export async function performDrinkAction(req: AuthedRequest, res: Response) {
 export async function performEatAction(req: AuthedRequest, res: Response) {
   const sessionId = req.params["sessionId"] as string;
   const userId = req.user.userId;
+
+  // CRITICAL: Log self-targeting verification
+  console.log('[ACTION_SELF_CHECK-EAT-BACKEND]', {
+    action: 'EAT',
+    sessionId,
+    actorUserId: userId,
+    targetUserId: userId,
+    authenticatedUserId: req.user.userId,
+  });
 
   try {
     const result = await salonSessionsService.performEatAction(sessionId, userId);
