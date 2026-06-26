@@ -465,8 +465,6 @@ export default function SalonScreen() {
   const [offeringsCatalog, setOfferingsCatalog] = useState<OfferingCatalogItemDTO[]>([]);
   const [magiesCatalog, setMagiesCatalog] = useState<MagieCatalogDTO | null>(null);
 
-  // Action levels tracking: userId -> { drinkLevel, eatLevel }
-  const [actionLevels, setActionLevels] = useState<Record<string, { drinkLevel: number; eatLevel: number }>>({});
   const [actionNotice, setActionNotice] = useState("");
 
   // Test mode: allow self-targeting when alone (excluding self from count)
@@ -951,16 +949,6 @@ export default function SalonScreen() {
       return;
     }
 
-    // CRITICAL: Boire/manger ALWAYS target currentUser, never selectedPlayer
-    console.log('[ACTION_SELF_CHECK-DRINK]', {
-      action: 'DRINK',
-      actorUserId: currentUser?.id,
-      targetUserId: currentUser?.id,
-      selectedPlayerId: selectedPlayer?.id,
-      currentUserId: currentUser?.id,
-      selectedPlayerIdMatchesCurrent: selectedPlayer?.id === currentUser?.id,
-    });
-
     try {
       const result = await performDrinkAction(screenSessionId);
 
@@ -970,15 +958,6 @@ export default function SalonScreen() {
           setTimeout(() => setActionNotice(''), 2000);
           return;
         }
-
-        // FORCE: Always update currentUser.id, NEVER selectedPlayer.id
-        setActionLevels(prev => ({
-          ...prev,
-          [currentUser.id]: {
-            ...prev[currentUser.id],
-            drinkLevel: result.level || 0,
-          },
-        }));
 
         loadSalonContent();
       }
@@ -994,16 +973,6 @@ export default function SalonScreen() {
       return;
     }
 
-    // CRITICAL: Boire/manger ALWAYS target currentUser, never selectedPlayer
-    console.log('[ACTION_SELF_CHECK-EAT]', {
-      action: 'EAT',
-      actorUserId: currentUser?.id,
-      targetUserId: currentUser?.id,
-      selectedPlayerId: selectedPlayer?.id,
-      currentUserId: currentUser?.id,
-      selectedPlayerIdMatchesCurrent: selectedPlayer?.id === currentUser?.id,
-    });
-
     try {
       const result = await performEatAction(screenSessionId);
 
@@ -1013,15 +982,6 @@ export default function SalonScreen() {
           setTimeout(() => setActionNotice(''), 2000);
           return;
         }
-
-        // FORCE: Always update currentUser.id, NEVER selectedPlayer.id
-        setActionLevels(prev => ({
-          ...prev,
-          [currentUser.id]: {
-            ...prev[currentUser.id],
-            eatLevel: result.level || 0,
-          },
-        }));
 
         loadSalonContent();
       }
