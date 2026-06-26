@@ -1943,7 +1943,13 @@ export default function SalonScreen() {
   };
 
   const renderOfferingTargetMenu = () => {
-    const otherParticipants = participants.filter(p => !p.isMe);
+    // Allow targeting self + all other participants
+    const allTargets = [
+      ...participants.map(p => ({
+        ...p,
+        displayName: p.isMe ? 'Moi-même' : p.name
+      }))
+    ];
 
     return (
       <Modal visible={showOfferingTargetMenu} animationType="fade" transparent>
@@ -1956,7 +1962,7 @@ export default function SalonScreen() {
           <View style={styles.menu}>
             <Text style={styles.menuTitle}>Offrir à :</Text>
             <ScrollView style={styles.menuList}>
-              {otherParticipants.map((p) => (
+              {allTargets.map((p) => (
                 <TouchableOpacity
                   key={p.id}
                   style={styles.menuItem}
@@ -1966,7 +1972,7 @@ export default function SalonScreen() {
                     setShowOfferingTargetMenu(false);
                   }}
                 >
-                  <Text style={styles.menuItemText}>{p.name}</Text>
+                  <Text style={styles.menuItemText}>{p.displayName}</Text>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity
@@ -1992,7 +1998,13 @@ export default function SalonScreen() {
   };
 
   const renderMagieTargetMenu = () => {
-    const otherParticipants = participants.filter(p => !p.isMe);
+    // Allow targeting self + all other participants
+    const allTargets = [
+      ...participants.map(p => ({
+        ...p,
+        displayName: p.isMe ? 'Moi-même' : p.name
+      }))
+    ];
 
     return (
       <Modal visible={showMagieTargetMenu} animationType="fade" transparent>
@@ -2005,7 +2017,7 @@ export default function SalonScreen() {
           <View style={styles.menu}>
             <Text style={styles.menuTitle}>Magie sur :</Text>
             <ScrollView style={styles.menuList}>
-              {otherParticipants.map((p) => (
+              {allTargets.map((p) => (
                 <TouchableOpacity
                   key={p.id}
                   style={styles.menuItem}
@@ -2015,7 +2027,7 @@ export default function SalonScreen() {
                     setShowMagieTargetMenu(false);
                   }}
                 >
-                  <Text style={styles.menuItemText}>{p.name}</Text>
+                  <Text style={styles.menuItemText}>{p.displayName}</Text>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity
