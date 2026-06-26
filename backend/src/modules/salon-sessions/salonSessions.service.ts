@@ -662,6 +662,15 @@ export async function performDrinkAction(
       where: {
         salonId: session.salon.id,
         consumptionCount: { lt: 3 },
+        // CRITICAL: Only offerings from ACTIVE participants in THIS session
+        fromUser: {
+          salonSessionParticipants: {
+            some: {
+              sessionId: sessionId,
+              status: "ACTIVE",
+            },
+          },
+        },
       },
       include: {
         offering: {
@@ -743,6 +752,15 @@ export async function performEatAction(
       where: {
         salonId: session.salon.id,
         consumptionCount: { lt: 3 },
+        // CRITICAL: Only offerings from ACTIVE participants in THIS session
+        fromUser: {
+          salonSessionParticipants: {
+            some: {
+              sessionId: sessionId,
+              status: "ACTIVE",
+            },
+          },
+        },
       },
       include: {
         offering: {
