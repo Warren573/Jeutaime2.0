@@ -108,18 +108,6 @@ const SLUG_TO_KIND: Record<string, string> = {
   psy: 'PSY',
 };
 
-// Helper: Get emoji for drink level
-function getDrinkEmoji(level: number): string {
-  const emojis = ['', '🍷', '🍺', '🍹', '🤢', '🎉'];
-  return emojis[Math.max(0, Math.min(level, 5))] || '';
-}
-
-// Helper: Get emoji for eat level
-function getEatEmoji(level: number): string {
-  const emojis = ['', '🥐', '🍽️', '😋', '🤰', '🎪'];
-  return emojis[Math.max(0, Math.min(level, 5))] || '';
-}
-
 // Helper: Format message time
 function formatMessageTime(createdAt: string): { time: string; dateSeparator?: string } {
   const msgDate = new Date(createdAt);
@@ -440,8 +428,6 @@ export default function SalonScreen() {
   const [offeringsCatalog, setOfferingsCatalog] = useState<OfferingCatalogItemDTO[]>([]);
   const [magiesCatalog, setMagiesCatalog] = useState<MagieCatalogDTO | null>(null);
 
-  // Action levels tracking: userId -> { drinkLevel, eatLevel }
-  const [actionLevels, setActionLevels] = useState<Record<string, { drinkLevel: number; eatLevel: number }>>({});
   const [actionNotice, setActionNotice] = useState("");
 
   // Test mode: allow self-targeting when alone (excluding self from count)
@@ -884,44 +870,20 @@ export default function SalonScreen() {
       return;
     }
 
-    // CRITICAL: Boire/manger ALWAYS target currentUser, never selectedPlayer
-    console.log('[ACTION_SELF_CHECK-DRINK]', {
-      action: 'DRINK',
-      actorUserId: currentUser?.id,
-      targetUserId: currentUser?.id,
-      selectedPlayerId: selectedPlayer?.id,
-      currentUserId: currentUser?.id,
-      selectedPlayerIdMatchesCurrent: selectedPlayer?.id === currentUser?.id,
-    });
 
     try {
-      console.log('[DRINK-API-CALL] Calling performDrinkAction with sessionId:', screenSessionId);
       const result = await performDrinkAction(screenSessionId);
-      console.log('[DRINK-API-RESPONSE]', result);
 
       if (result.success && currentUser?.id) {
         if (!result.offeringConsumed) {
-          console.log('[DRINK-NO-OFFERING] No offering consumed');
           setActionNotice('Rien à boire, commandez d\'abord.');
           setTimeout(() => setActionNotice(''), 2000);
           return;
         }
 
-        // FORCE: Always update currentUser.id, NEVER selectedPlayer.id
-        console.log('[DRINK-UPDATING-ACTIONLEVELS]', { userId: currentUser.id, level: result.level });
-        setActionLevels(prev => ({
-          ...prev,
-          [currentUser.id]: {
-            ...prev[currentUser.id],
-            drinkLevel: result.level || 0,
-          },
-        }));
-
-        console.log('[DRINK-CALLING-LOADSALONCONTENT]');
         loadSalonContent();
       }
     } catch (e) {
-      console.error('[DRINK-ERROR]', e);
       // Silently handle error - user will see no response
     }
   };
@@ -933,44 +895,20 @@ export default function SalonScreen() {
       return;
     }
 
-    // CRITICAL: Boire/manger ALWAYS target currentUser, never selectedPlayer
-    console.log('[ACTION_SELF_CHECK-EAT]', {
-      action: 'EAT',
-      actorUserId: currentUser?.id,
-      targetUserId: currentUser?.id,
-      selectedPlayerId: selectedPlayer?.id,
-      currentUserId: currentUser?.id,
-      selectedPlayerIdMatchesCurrent: selectedPlayer?.id === currentUser?.id,
-    });
 
     try {
-      console.log('[EAT-API-CALL] Calling performEatAction with sessionId:', screenSessionId);
       const result = await performEatAction(screenSessionId);
-      console.log('[EAT-API-RESPONSE]', result);
 
       if (result.success && currentUser?.id) {
         if (!result.offeringConsumed) {
-          console.log('[EAT-NO-OFFERING] No offering consumed');
           setActionNotice('Rien à manger, commandez d\'abord.');
           setTimeout(() => setActionNotice(''), 2000);
           return;
         }
 
-        // FORCE: Always update currentUser.id, NEVER selectedPlayer.id
-        console.log('[EAT-UPDATING-ACTIONLEVELS]', { userId: currentUser.id, level: result.level });
-        setActionLevels(prev => ({
-          ...prev,
-          [currentUser.id]: {
-            ...prev[currentUser.id],
-            eatLevel: result.level || 0,
-          },
-        }));
-
-        console.log('[EAT-CALLING-LOADSALONCONTENT]');
         loadSalonContent();
       }
     } catch (e) {
-      console.error('[EAT-ERROR]', e);
       // Silently handle error - user will see no response
     }
   };
@@ -1506,27 +1444,6 @@ export default function SalonScreen() {
         </View>
         {selectedPlayer && (
           <Text style={styles.selectedHint}>{selectedPlayer.name}</Text>
-        )}
-
-        {/* Action levels display row - ONLY for currentUser to prevent showing effect on selectedPlayer */}
-        {currentUser?.id && actionLevels[currentUser.id] && (
-          (actionLevels[currentUser.id].drinkLevel > 0 || actionLevels[currentUser.id].eatLevel > 0) && (
-            <View style={styles.actionLevelsRow}>
-              {participants.map((p) => {
-                // CRITICAL: Only render for currentUser, never for selectedPlayer or others
-                if (p.id !== currentUser?.id) return null;
-                const levels = actionLevels[p.id] || { drinkLevel: 0, eatLevel: 0 };
-                const drinkEmoji = getDrinkEmoji(levels.drinkLevel);
-                const eatEmoji = getEatEmoji(levels.eatLevel);
-                return (
-                  <View key={`levels-${p.id}`} style={styles.actionLevelsBadge}>
-                    {drinkEmoji && <Text style={styles.levelEmoji}>{drinkEmoji}</Text>}
-                    {eatEmoji && <Text style={styles.levelEmoji}>{eatEmoji}</Text>}
-                  </View>
-                );
-              })}
-            </View>
-          )
         )}
       </View>
 
@@ -2125,28 +2042,6 @@ const styles = StyleSheet.create({
     color: '#667eea',
     fontWeight: '600',
     marginTop: 8,
-  },
-
-  // Action levels
-  actionLevelsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    marginTop: 4,
-    minHeight: 24,
-  },
-  actionLevelsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    minWidth: 40,
-    minHeight: 24,
-  },
-  levelEmoji: {
-    fontSize: 16,
-    textAlign: 'center',
   },
 
   // Avatar
