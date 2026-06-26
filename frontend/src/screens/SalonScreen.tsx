@@ -108,6 +108,18 @@ const SLUG_TO_KIND: Record<string, string> = {
   psy: 'PSY',
 };
 
+// Helper: Get emoji for drink level
+function getDrinkEmoji(level: number): string {
+  const emojis = ['', '🍷', '🍺', '🍹', '🤢', '🎉'];
+  return emojis[Math.max(0, Math.min(level, 5))] || '';
+}
+
+// Helper: Get emoji for eat level
+function getEatEmoji(level: number): string {
+  const emojis = ['', '🥐', '🍽️', '😋', '🤰', '🎪'];
+  return emojis[Math.max(0, Math.min(level, 5))] || '';
+}
+
 // Helper: Format message time
 function formatMessageTime(createdAt: string): { time: string; dateSeparator?: string } {
   const msgDate = new Date(createdAt);
@@ -1495,6 +1507,27 @@ export default function SalonScreen() {
         {selectedPlayer && (
           <Text style={styles.selectedHint}>{selectedPlayer.name}</Text>
         )}
+
+        {/* Action levels display row - ONLY for currentUser to prevent showing effect on selectedPlayer */}
+        {currentUser?.id && actionLevels[currentUser.id] && (
+          (actionLevels[currentUser.id].drinkLevel > 0 || actionLevels[currentUser.id].eatLevel > 0) && (
+            <View style={styles.actionLevelsRow}>
+              {participants.map((p) => {
+                // CRITICAL: Only render for currentUser, never for selectedPlayer or others
+                if (p.id !== currentUser?.id) return null;
+                const levels = actionLevels[p.id] || { drinkLevel: 0, eatLevel: 0 };
+                const drinkEmoji = getDrinkEmoji(levels.drinkLevel);
+                const eatEmoji = getEatEmoji(levels.eatLevel);
+                return (
+                  <View key={`levels-${p.id}`} style={styles.actionLevelsBadge}>
+                    {drinkEmoji && <Text style={styles.levelEmoji}>{drinkEmoji}</Text>}
+                    {eatEmoji && <Text style={styles.levelEmoji}>{eatEmoji}</Text>}
+                  </View>
+                );
+              })}
+            </View>
+          )
+        )}
       </View>
 
       {/* Zone de messages */}
@@ -2092,6 +2125,28 @@ const styles = StyleSheet.create({
     color: '#667eea',
     fontWeight: '600',
     marginTop: 8,
+  },
+
+  // Action levels
+  actionLevelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    marginTop: 4,
+    minHeight: 24,
+  },
+  actionLevelsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    minWidth: 40,
+    minHeight: 24,
+  },
+  levelEmoji: {
+    fontSize: 16,
+    textAlign: 'center',
   },
 
   // Avatar
