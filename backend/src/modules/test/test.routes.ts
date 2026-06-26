@@ -291,7 +291,7 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       await tx.wallet.create({
         data: {
           userId: newUser.id,
-          coins: 100,
+          coins: 1000,
         },
       });
 
@@ -357,7 +357,7 @@ const resetMutualSmileHandler = asyncHandler(async (_req: Request, res: Response
       await tx.wallet.create({
         data: {
           userId: newUser.id,
-          coins: 100,
+          coins: 1000,
         },
       });
 
@@ -1237,7 +1237,7 @@ const verifyMutualSmileDiscoveryHandler = asyncHandler(async (_req: Request, res
       await tx.wallet.create({
         data: {
           userId: newUser.id,
-          coins: 100,
+          coins: 1000,
         },
       });
 
@@ -1280,7 +1280,7 @@ const verifyMutualSmileDiscoveryHandler = asyncHandler(async (_req: Request, res
       await tx.wallet.create({
         data: {
           userId: newUser.id,
-          coins: 100,
+          coins: 1000,
         },
       });
 
@@ -1596,7 +1596,7 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
             },
             wallet: {
               create: {
-                coins: 100,
+                coins: 1000,
               },
             },
           },
@@ -1627,7 +1627,7 @@ const testLetterAlternationHandler = asyncHandler(async (_req: Request, res: Res
             },
             wallet: {
               create: {
-                coins: 100,
+                coins: 1000,
               },
             },
           },
@@ -2544,7 +2544,7 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
         await tx.wallet.create({
           data: {
             userId: user.id,
-            coins: 100,
+            coins: 1000,
           },
         });
 
@@ -2777,7 +2777,7 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
         await tx.wallet.create({
           data: {
             userId: user.id,
-            coins: 100,
+            coins: 1000,
           },
         });
 
