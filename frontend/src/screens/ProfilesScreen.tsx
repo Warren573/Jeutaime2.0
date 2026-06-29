@@ -22,7 +22,7 @@ import type { Match } from '../shared/types';
 import { AvatarDefinition } from '../avatar/types/avatarTypes';
 import { MOCK_PROFILE_AVATARS } from '../avatar/data/mockAvatars';
 import { Avatar } from '../avatar/png/Avatar';
-import { DEFAULT_AVATAR } from '../avatar/png/defaults';
+import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import { useFeature } from '../components/FeatureGate';
 import { apiFetch } from '../api/client';
 import { sendReaction } from '../api/reactions';
@@ -336,13 +336,19 @@ function Masthead({
 
 /** À la une — bloc titre du profil */
 function FrontPage({ profile }: { profile: DiscoveryProfile }) {
+  const avatarResolution = resolveAvatarConfig(
+    profile.id,
+    profile.avatarDef as any,
+    undefined,
+    'ProfilesScreen'
+  );
   return (
     <View style={np.frontPage}>
       {/* Photo + Headline */}
       <View style={np.frontRow}>
         {/* Portrait encadré — avatar SVG */}
         <View style={np.portraitWrapper}>
-          <Avatar size={96} {...DEFAULT_AVATAR} />
+          <Avatar size={96} {...avatarResolution.config} />
           <Text style={np.portraitCaption}>Portrait</Text>
         </View>
 

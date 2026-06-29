@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
+import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import { apiFetch } from '../api/client';
 
 // ─── Description physique avec humour ────────────────────────────────────────
@@ -451,17 +452,27 @@ export function EditProfileScreen() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
         {/* ── Avatar ── */}
-        <TouchableOpacity
-          style={styles.avatarSection}
-          onPress={() => router.push({ pathname: '/avatar-builder' })}
-          activeOpacity={0.8}
-        >
-          <Avatar size={110} {...avatarPngConfig} />
-          <View style={styles.avatarEditBadge}>
-            <Text style={styles.avatarEditIcon}>🎨</Text>
-          </View>
-          <Text style={styles.avatarEditHint}>Modifier mon avatar</Text>
-        </TouchableOpacity>
+        {(() => {
+          const avatarResolution = resolveAvatarConfig(
+            currentUser?.id || 'unknown',
+            currentUser?.avatarConfig,
+            currentUser?.gender,
+            'EditProfileScreen'
+          );
+          return (
+            <TouchableOpacity
+              style={styles.avatarSection}
+              onPress={() => router.push({ pathname: '/avatar-builder' })}
+              activeOpacity={0.8}
+            >
+                  <Avatar size={110} {...avatarResolution.config} />
+              <View style={styles.avatarEditBadge}>
+                <Text style={styles.avatarEditIcon}>🎨</Text>
+              </View>
+              <Text style={styles.avatarEditHint}>Modifier mon avatar</Text>
+            </TouchableOpacity>
+          );
+        })()}
 
         {(() => {
           const bioWords = bio.trim() ? bio.trim().split(/\s+/).length : 0;

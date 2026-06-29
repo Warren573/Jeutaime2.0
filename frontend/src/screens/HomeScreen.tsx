@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
-import { DEFAULT_AVATAR } from '../avatar/png/defaults';
+import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 
 const J = {
   bgMain:          '#F5F1E8',
@@ -37,6 +37,7 @@ export default function HomeScreen() {
     points,
     matches,
     letters,
+    matchPartners,
     getCurrentTitle,
     pet,
   } = useStore();
@@ -195,6 +196,13 @@ export default function HomeScreen() {
               const unread = conv.filter(
                 l => l.toUserId === (currentUser?.id || 'me') && !l.readAt,
               ).length;
+              const partner = matchPartners[otherId];
+              const avatarResolution = resolveAvatarConfig(
+                otherId,
+                partner?.avatarConfig,
+                undefined,
+                'HomeScreen'
+              );
 
               return (
                 <TouchableOpacity
@@ -203,7 +211,7 @@ export default function HomeScreen() {
                   onPress={() => router.push('/(tabs)/letters' as any)}
                   activeOpacity={0.8}
                 >
-                  <Avatar size={40} {...DEFAULT_AVATAR} />
+                  <Avatar size={40} {...avatarResolution.config} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.mailName}>{otherId}</Text>
                     <Text style={styles.mailSub}>Correspondance privée</Text>

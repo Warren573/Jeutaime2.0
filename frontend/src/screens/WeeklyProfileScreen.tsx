@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
-import { DEFAULT_AVATAR } from '../avatar/png/defaults';
+import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 
 interface WeeklyWinner {
   id: string;
@@ -84,15 +84,22 @@ export default function WeeklyProfileScreen() {
     addPoints(2);
   };
 
-  const ProfileCard = ({ profile, isWinner = false }: { profile: WeeklyWinner | Candidate; isWinner?: boolean }) => (
-    <View style={[styles.profileCard, isWinner && styles.winnerCard]}>
-      {isWinner && (
-        <View style={styles.crownBadge}>
-          <Text style={styles.crownEmoji}>👑</Text>
-          <Text style={styles.crownText}>GAGNANT{profile.gender === 'F' ? 'E' : ''}</Text>
-        </View>
-      )}
-      <Avatar size={80} {...DEFAULT_AVATAR} />
+  const ProfileCard = ({ profile, isWinner = false }: { profile: WeeklyWinner | Candidate; isWinner?: boolean }) => {
+    const avatarResolution = resolveAvatarConfig(
+      profile.id,
+      (profile as any).avatarConfig,
+      profile.gender === 'F' ? 'FEMME' : 'HOMME',
+      'WeeklyProfileScreen'
+    );
+    return (
+      <View style={[styles.profileCard, isWinner && styles.winnerCard]}>
+        {isWinner && (
+          <View style={styles.crownBadge}>
+            <Text style={styles.crownEmoji}>👑</Text>
+            <Text style={styles.crownText}>GAGNANT{profile.gender === 'F' ? 'E' : ''}</Text>
+          </View>
+        )}
+        <Avatar size={80} {...avatarResolution.config} />
       <Text style={styles.profileName}>{profile.name}, {profile.age}</Text>
       <Text style={styles.profileCity}>📍 {profile.city}</Text>
       <View style={styles.bioBox}>
@@ -112,7 +119,8 @@ export default function WeeklyProfileScreen() {
         </View>
       )}
     </View>
-  );
+    );
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../src/store/useStore';
 import { Avatar } from '../src/avatar/png/Avatar';
+import { resolveAvatarConfig } from '../src/avatar/resolveAvatarConfig';
 import { RELATION_THRESHOLDS } from '../src/engine/RelationEngine';
 import { API_URL } from '../src/api/client';
 import {
@@ -181,7 +182,15 @@ export default function MyPhotosScreen() {
               <View style={styles.previewBlock}>
                 <Text style={styles.previewLabel}>🎭 Avatar</Text>
                 <View style={styles.previewFrame}>
-                  <Avatar size={72} {...avatarPngConfig} />
+                  {(() => {
+                    const avatarResolution = resolveAvatarConfig(
+                      currentUser?.id || 'unknown',
+                      currentUser?.avatarConfig,
+                      currentUser?.gender,
+                      'MyPhotosScreen'
+                    );
+                    return <Avatar size={72} {...avatarResolution.config} />;
+                  })()}
                 </View>
               </View>
 
