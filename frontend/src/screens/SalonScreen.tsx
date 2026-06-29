@@ -2036,15 +2036,6 @@ export default function SalonScreen() {
                   <Text style={styles.menuItemText}>{p.displayName}</Text>
                 </TouchableOpacity>
               ))}
-              <TouchableOpacity
-                style={[styles.menuItem, styles.menuItemAll]}
-                onPress={() => {
-                  alert('Magie sur tous : bientôt disponible');
-                  setShowMagieTargetMenu(false);
-                }}
-              >
-                <Text style={[styles.menuItemText, styles.menuItemAllText]}>Tous les participants</Text>
-              </TouchableOpacity>
             </ScrollView>
             <TouchableOpacity
               style={styles.menuCloseButton}
