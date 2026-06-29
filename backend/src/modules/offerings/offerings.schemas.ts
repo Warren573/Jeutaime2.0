@@ -14,6 +14,18 @@ export const SendOfferingSchema = z
 export type SendOfferingDto = z.infer<typeof SendOfferingSchema>;
 
 // ============================================================
+// POST /api/offerings/send-to-session (Tournée générale)
+// ============================================================
+export const SendOfferingToSessionSchema = z
+  .object({
+    offeringId: z.string().min(1).max(64),
+    sessionId: z.string().min(1).max(64),
+  })
+  .strict();
+
+export type SendOfferingToSessionDto = z.infer<typeof SendOfferingToSessionSchema>;
+
+// ============================================================
 // GET /api/offerings/received
 // ============================================================
 export const ListReceivedQuerySchema = z

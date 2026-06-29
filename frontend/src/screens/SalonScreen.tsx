@@ -79,6 +79,7 @@ import {
   getReceivedOfferings,
   getSalonOfferings,
   sendOffering,
+  sendOfferingToSession,
   type OfferingCatalogItemDTO,
   type OfferingSentDTO,
   type SalonOfferingDTO,
@@ -996,7 +997,29 @@ export default function SalonScreen() {
     handleSendOfferingCalledRef.current = true;
     offeringErrorRef.current = null;
 
-    // Determine target from modal selection or fallback
+    // Check if this is "Tournée générale!" mode
+    if (modalTargetId === '__ALL_SESSION__') {
+      if (!isAuthenticated || !screenSessionId) return;
+
+      try {
+        await sendOfferingToSession({ offeringId: item.id, sessionId: screenSessionId });
+        offeringResponseStatusRef.current = 'success';
+        await loadWallet();
+        await loadSalonContent();
+        setShowOfferingsModal(false);
+      } catch (e: any) {
+        const msg: string = e?.message ?? '';
+        offeringErrorRef.current = msg;
+        if (/insuffisant|insufficient|coins/i.test(msg)) {
+          alert('Pas assez de pièces pour une tournée générale !');
+        } else {
+          alert('Tournée générale échouée. Réessaie.');
+        }
+      }
+      return;
+    }
+
+    // Regular single-target offering
     let target = null;
     if (modalTargetId) {
       target = participants.find(p => p.id === modalTargetId);
@@ -1960,11 +1983,12 @@ export default function SalonScreen() {
               <TouchableOpacity
                 style={[styles.menuItem, styles.menuItemAll]}
                 onPress={() => {
-                  alert('Offrir à tous : bientôt disponible');
+                  setShowOfferingsModal(true);
                   setShowOfferingTargetMenu(false);
+                  setModalTargetId('__ALL_SESSION__');
                 }}
               >
-                <Text style={[styles.menuItemText, styles.menuItemAllText]}>Tous les participants</Text>
+                <Text style={[styles.menuItemText, styles.menuItemAllText]}>Tournée générale !</Text>
               </TouchableOpacity>
             </ScrollView>
             <TouchableOpacity

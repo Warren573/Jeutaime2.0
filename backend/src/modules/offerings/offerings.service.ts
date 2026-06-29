@@ -10,6 +10,7 @@ import { prisma } from "../../config/prisma";
 import {
   ForbiddenError,
   NotFoundError,
+  BadRequestError,
 } from "../../core/errors";
 import {
   assertNotSelfOffering,
@@ -23,6 +24,7 @@ import { emitOfferingSent } from "../../events";
 import type {
   ListReceivedQueryDto,
   SendOfferingDto,
+  SendOfferingToSessionDto,
 } from "./offerings.schemas";
 
 // ============================================================
@@ -248,6 +250,133 @@ export async function sendOffering(
   });
 
   return toSentDto(result, now);
+}
+
+// ============================================================
+// sendOfferingToSession — Tournée générale (to all active session participants)
+// ============================================================
+export async function sendOfferingToSession(
+  fromUserId: string,
+  dto: SendOfferingToSessionDto,
+): Promise<{ success: boolean; count: number }> {
+  const { offeringId, sessionId } = dto;
+
+  // 1. Validate offering catalog
+  const catalog = await prisma.offeringCatalog.findUnique({
+    where: { id: offeringId },
+  });
+  if (!catalog) {
+    throw new NotFoundError("Offering");
+  }
+  assertOfferingUsable(catalog);
+
+  // 2. Validate session and get active participants
+  const session = await prisma.salonSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      salon: true,
+      participants: {
+        where: { status: "ACTIVE" },
+        include: { user: { select: { id: true, isBanned: true } } },
+      },
+    },
+  });
+  if (!session) {
+    throw new NotFoundError("Session");
+  }
+
+  // 3. Verify sender is active participant in this session
+  const senderIsParticipant = session.participants.some(p => p.userId === fromUserId && p.status === "ACTIVE");
+  if (!senderIsParticipant) {
+    throw new BadRequestError("User is not an active participant in this session");
+  }
+
+  // 4. Filter out banned users and get valid recipients
+  const recipients = session.participants
+    .map(p => p.user)
+    .filter(u => !u.isBanned)
+    .map(u => u.id);
+
+  if (recipients.length === 0) {
+    throw new BadRequestError("No valid recipients in this session");
+  }
+
+  // 5. Check salon-only restrictions
+  assertSalonOnlyRespected(
+    catalog.salonOnly,
+    { isActive: session.salon.isActive, kind: session.salon.kind }
+  );
+
+  // 6. Calculate total cost and validate wallet
+  const totalCost = catalog.cost * recipients.length;
+  const now = new Date();
+  const expiresAt = computeOfferingExpiry(now, catalog.durationMs);
+
+  // 7. Transaction: debit wallet once and create OfferingSent for each recipient
+  const result = await prisma.$transaction(async (tx) => {
+    const wallet = await tx.wallet.findUnique({
+      where: { userId: fromUserId },
+    });
+    if (!wallet) {
+      throw new NotFoundError("Wallet");
+    }
+
+    const newBalance = computeDebitBalance(wallet.coins, totalCost);
+
+    // Debit wallet once for all recipients
+    await tx.wallet.update({
+      where: { userId: fromUserId },
+      data: { coins: newBalance },
+    });
+
+    // Single coin transaction for the batch
+    await tx.coinTransaction.create({
+      data: {
+        walletId: fromUserId,
+        type: CoinTxnType.OFFERING_SENT,
+        amount: -totalCost,
+        balance: newBalance,
+        meta: {
+          offeringId: catalog.id,
+          sessionId: sessionId,
+          recipientCount: recipients.length,
+          toUserIds: recipients,
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    // Create OfferingSent for each recipient
+    const sent = await Promise.all(
+      recipients.map(toUserId =>
+        tx.offeringSent.create({
+          data: {
+            offeringId: catalog.id,
+            fromUserId,
+            toUserId,
+            salonId: session.salon.id,
+            expiresAt,
+          },
+        })
+      )
+    );
+
+    return { count: sent.length };
+  });
+
+  // Emit events for each offering sent
+  recipients.forEach(toUserId => {
+    emitOfferingSent({
+      offeringSentId: `batch-${sessionId}-${offeringId}`,
+      offeringId: catalog.id,
+      fromUserId,
+      toUserId,
+      salonId: session.salon.id,
+      cost: catalog.cost,
+      expiresAt,
+    });
+  });
+
+  return { success: true, count: result.count };
 }
 
 // ============================================================

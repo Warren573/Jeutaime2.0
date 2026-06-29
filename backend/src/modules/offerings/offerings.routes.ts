@@ -7,6 +7,7 @@ import {
   ListReceivedQuerySchema,
   SalonOfferingsParamsSchema,
   SendOfferingSchema,
+  SendOfferingToSessionSchema,
   ConsumeOfferingParamsSchema,
   ConsumeOfferingBodySchema,
 } from "./offerings.schemas";
@@ -25,6 +26,9 @@ router.get("/catalog", wrap(ctrl.handleCatalog));
 
 // POST /api/offerings/send
 router.post("/send", validate(SendOfferingSchema), wrap(ctrl.handleSend));
+
+// POST /api/offerings/send-to-session (Tournée générale)
+router.post("/send-to-session", validate(SendOfferingToSessionSchema), wrap(ctrl.handleSendToSession));
 
 // GET /api/offerings/received
 router.get(

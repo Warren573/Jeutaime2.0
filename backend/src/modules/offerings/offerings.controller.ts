@@ -4,6 +4,7 @@ import * as svc from "./offerings.service";
 import type {
   ListReceivedQueryDto,
   SendOfferingDto,
+  SendOfferingToSessionDto,
   ConsumeOfferingBodyDto,
 } from "./offerings.schemas";
 
@@ -22,6 +23,25 @@ export async function handleSend(req: AuthedRequest, res: Response) {
     res.status(201).json({ data });
   } catch (error: any) {
     console.error('[OFFERING-SEND-ERROR]', {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      requestBody: dto,
+      errorType: error?.constructor?.name,
+    });
+    throw error;
+  }
+}
+
+// POST /api/offerings/send-to-session (Tournée générale)
+export async function handleSendToSession(req: AuthedRequest, res: Response) {
+  const dto = req.body as SendOfferingToSessionDto;
+  console.log('[OFFERING-TO-SESSION]', { fromUserId: req.user.userId, ...dto });
+  try {
+    const data = await svc.sendOfferingToSession(req.user.userId, dto);
+    res.status(201).json({ data });
+  } catch (error: any) {
+    console.error('[OFFERING-TO-SESSION-ERROR]', {
       message: error?.message,
       code: error?.code,
       details: error?.details,

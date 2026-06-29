@@ -55,6 +55,17 @@ export async function sendOffering(payload: {
   return res.data;
 }
 
+export async function sendOfferingToSession(payload: {
+  offeringId: string;
+  sessionId: string;
+}): Promise<{ success: boolean; count: number }> {
+  const res = (await apiFetch("/offerings/send-to-session", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })) as { data: { success: boolean; count: number } };
+  return res.data;
+}
+
 export async function getReceivedOfferings(
   page = 1,
   pageSize = 20,
