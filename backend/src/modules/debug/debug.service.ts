@@ -165,3 +165,211 @@ export async function getSeedSource() {
   };
 }
 
+// ============================================================
+// Reset Test Users
+// ============================================================
+export async function resetTestUsers() {
+  const preservedEmails = [
+    "test@jeutaime.com",
+    "doudou453@hotmail.fr",
+  ];
+
+  // Delete test users EXCEPT preserved ones
+  const testUserEmails = [
+    "testuser2@jeutaime.test",
+    "testuser3@jeutaime.test",
+    "testuser4@jeutaime.test",
+    "testuser5@jeutaime.test",
+    "testuser6@jeutaime.test",
+    "testuser7@jeutaime.test",
+    "testuser8@jeutaime.test",
+    "testuser9@jeutaime.test",
+    "testuser10@jeutaime.test",
+    "testuser11@jeutaime.test",
+  ];
+
+  // Delete old test users
+  await prisma.user.deleteMany({
+    where: {
+      email: { in: testUserEmails },
+    },
+  });
+
+  // Recreate test users testuser2-testuser11
+  const createdUsers = [];
+  for (let i = 2; i <= 11; i++) {
+    const email = `testuser${i}@jeutaime.test`;
+    const pseudo = `testuser${i}`;
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash: "$2b$10$YourHashedPasswordHere", // Dummy hash
+        isVerified: true,
+        profile: {
+          create: {
+            pseudo,
+            birthDate: new Date("1995-01-01"),
+            gender: "HOMME",
+            city: "Paris",
+          },
+        },
+        wallet: {
+          create: {
+            coins: 1000,
+          },
+        },
+      },
+    });
+    createdUsers.push({ id: user.id, email, pseudo });
+  }
+
+  return {
+    success: true,
+    message: "Test users reset",
+    preserved: preservedEmails,
+    created: createdUsers,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+// ============================================================
+// Reset Test Matches
+// ============================================================
+export async function resetTestMatches() {
+  // Get test user IDs
+  const testUsers = await prisma.user.findMany({
+    where: {
+      email: { endsWith: "@jeutaime.test" },
+    },
+    select: { id: true },
+  });
+
+  const testUserIds = testUsers.map((u) => u.id);
+
+  if (testUserIds.length === 0) {
+    return {
+      success: true,
+      message: "No test users found",
+      matchesDeleted: 0,
+      reactionsDeleted: 0,
+      lettersDeleted: 0,
+    };
+  }
+
+  // Delete matches involving test users
+  const matchesDeleted = await prisma.match.deleteMany({
+    where: {
+      OR: [
+        { userAId: { in: testUserIds } },
+        { userBId: { in: testUserIds } },
+      ],
+    },
+  });
+
+  // Delete reactions involving test users
+  const reactionsDeleted = await prisma.reaction.deleteMany({
+    where: {
+      OR: [
+        { fromId: { in: testUserIds } },
+        { toId: { in: testUserIds } },
+      ],
+    },
+  });
+
+  return {
+    success: true,
+    message: "Test matches reset",
+    matchesDeleted: matchesDeleted.count,
+    reactionsDeleted: reactionsDeleted.count,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+// ============================================================
+// Reset Test Salons
+// ============================================================
+export async function resetTestSalons() {
+  // Delete all session data
+  const sessionsDeleted = await prisma.salonSession.deleteMany({});
+
+  // Delete all messages in salons
+  const messagesDeleted = await prisma.salonMessage.deleteMany({});
+
+  // Delete all offerings sent (but keep catalog)
+  const offeringsSent = await prisma.offeringSent.deleteMany({});
+
+  // Delete all magies cast
+  const magiesCast = await prisma.magieCast.deleteMany({});
+
+  // Delete all encounters
+  const encountersDeleted = await prisma.salonEncounter.deleteMany({});
+
+  return {
+    success: true,
+    message: "Test salons reset",
+    sessionsDeleted: sessionsDeleted.count,
+    messagesDeleted: messagesDeleted.count,
+    offeringsSentDeleted: offeringsSent.count,
+    magiesCastDeleted: magiesCast.count,
+    encountersDeleted: encountersDeleted.count,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+// ============================================================
+// Reset Test Coins
+// ============================================================
+export async function resetTestCoins() {
+  const testAccounts = [
+    "test@jeutaime.com",
+    "doudou453@hotmail.fr",
+    "testuser2@jeutaime.test",
+    "testuser3@jeutaime.test",
+    "testuser4@jeutaime.test",
+    "testuser5@jeutaime.test",
+    "testuser6@jeutaime.test",
+    "testuser7@jeutaime.test",
+    "testuser8@jeutaime.test",
+    "testuser9@jeutaime.test",
+    "testuser10@jeutaime.test",
+    "testuser11@jeutaime.test",
+  ];
+
+  // Find all test users
+  const testUsers = await prisma.user.findMany({
+    where: {
+      OR: [
+        { email: { in: testAccounts } },
+        { email: { contains: "test_mutual_" } },
+        { email: { endsWith: "@jeutaime.test" } },
+      ],
+    },
+    select: { id: true, email: true },
+  });
+
+  const userIds = testUsers.map((u) => u.id);
+  const updatedCount = userIds.length;
+
+  // Reset all wallets to exactly 1000 coins
+  for (const userId of userIds) {
+    await prisma.wallet.upsert({
+      where: { userId },
+      create: {
+        userId,
+        coins: 1000,
+      },
+      update: {
+        coins: 1000,
+      },
+    });
+  }
+
+  return {
+    success: true,
+    message: "Test coins reset to 1000",
+    accountsUpdated: updatedCount,
+    accounts: testUsers.map((u) => u.email),
+    timestamp: new Date().toISOString(),
+  };
+}
+
