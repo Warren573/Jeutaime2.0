@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { titles } from '../data/gameData';
 import { Avatar } from '../avatar/png/Avatar';
+import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,10 +104,18 @@ function SectionCard({
 export default function SettingsScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
-  const { currentUser, coins, points, getCurrentTitle, pet, avatarPngConfig, logout } = useStore();
+  const { currentUser, coins, points, getCurrentTitle, pet, logout } = useStore();
   const isAuthenticated = useStore(s => s.isAuthenticated);
   const screenBg = useStore(s => s.screenBackgrounds?.['settings'] ?? '#FFF8E7');
   const title = getCurrentTitle();
+
+  const avatarResolution = resolveAvatarConfig(
+    currentUser?.id || 'unknown',
+    currentUser?.avatarConfig,
+    currentUser?.gender,
+    'SettingsScreen'
+  );
+  const profileAvatarConfig = avatarResolution.config;
 
   const canDiscover = currentUser?.canDiscover;
   const hasQuestions = (currentUser?.apiQuestions?.length ?? 0) > 0;
@@ -269,7 +278,7 @@ export default function SettingsScreen() {
       >
         {/* ── Carte profil ─────────────────────────────────────────────────── */}
         <TouchableOpacity style={styles.profileCard} onPress={() => nav('/edit-profile')}>
-          <Avatar size={80} {...avatarPngConfig} />
+          <Avatar size={80} {...profileAvatarConfig} />
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{currentUser?.name || 'Joueur'}</Text>
             <Text style={styles.profileCity}>📍 {(currentUser as any)?.city || 'Paris'}</Text>
