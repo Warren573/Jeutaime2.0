@@ -733,7 +733,7 @@ export default function SalonScreen() {
         online: true,
         offerings: [],
         isMe: true,
-        avatarConfig: currentUser.profile?.avatarConfig ?? avatarPngConfig,
+        avatarConfig: currentUser.avatarConfig,
       } as SalonParticipant & { isMe: boolean; avatarConfig?: object });
     } else {
       console.log(`[SalonScreen-ParticipantsMapping] Current user IS in server participants`);
