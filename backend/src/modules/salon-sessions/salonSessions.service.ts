@@ -685,10 +685,14 @@ export async function performDrinkAction(
     let consumable = null;
     for (const offeringSent of offerings) {
       if (offeringSent.offering.category !== "BOISSON") continue;
+
+      // CRITICAL: Only the intended recipient (toUserId) can consume
+      if (offeringSent.toUserId !== userId) continue;
+
       if (offeringSent.offering.consumptionMode === "SHARED") {
         consumable = offeringSent;
         break;
-      } else if (offeringSent.offering.consumptionMode === "PRIVATE" && offeringSent.toUserId === userId) {
+      } else if (offeringSent.offering.consumptionMode === "PRIVATE") {
         consumable = offeringSent;
         break;
       }
@@ -775,10 +779,14 @@ export async function performEatAction(
     let consumable = null;
     for (const offeringSent of offerings) {
       if (offeringSent.offering.category !== "NOURRITURE") continue;
+
+      // CRITICAL: Only the intended recipient (toUserId) can consume
+      if (offeringSent.toUserId !== userId) continue;
+
       if (offeringSent.offering.consumptionMode === "SHARED") {
         consumable = offeringSent;
         break;
-      } else if (offeringSent.offering.consumptionMode === "PRIVATE" && offeringSent.toUserId === userId) {
+      } else if (offeringSent.offering.consumptionMode === "PRIVATE") {
         consumable = offeringSent;
         break;
       }
