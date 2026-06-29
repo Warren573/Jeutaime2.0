@@ -3,6 +3,7 @@ import { asyncHandler } from "../../core/utils/asyncHandler";
 import { prisma } from "../../config/prisma";
 import { hashPassword } from "../../core/utils/hash";
 import * as authService from "../auth/auth.service";
+import * as debugService from "../debug/debug.service";
 import { execSync } from "child_process";
 import { OfferingCategory, SalonKind, Gender, Prisma } from "@prisma/client";
 
@@ -3073,5 +3074,77 @@ router.get("/debug-avatar", asyncHandler(async (req: Request, res: Response) => 
     });
   }
 }));
+
+/**
+ * GET /api/test/reset-test-matches — Reset test matches
+ * POST /api/test/reset-test-matches — Execute reset
+ *
+ * STAGING & DEVELOPMENT ONLY - Deletes all matches and reactions
+ * involving test users (@jeutaime.test emails).
+ * Safe to call multiple times.
+ */
+const resetTestMatchesHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const data = await debugService.resetTestMatches();
+  res.json({ data });
+});
+
+router.get("/reset-test-matches", resetTestMatchesHandler);
+router.post("/reset-test-matches", resetTestMatchesHandler);
+
+/**
+ * GET /api/test/reset-test-salons — Reset test salons
+ * POST /api/test/reset-test-salons — Execute reset
+ *
+ * STAGING & DEVELOPMENT ONLY - Deletes all salon session data, messages,
+ * offerings sent, magies cast, and encounters. Keeps catalogs intact.
+ * Safe to call multiple times.
+ */
+const resetTestSalonsHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const data = await debugService.resetTestSalons();
+  res.json({ data });
+});
+
+router.get("/reset-test-salons", resetTestSalonsHandler);
+router.post("/reset-test-salons", resetTestSalonsHandler);
+
+/**
+ * GET /api/test/reset-test-coins — Reset test coins
+ * POST /api/test/reset-test-coins — Execute reset
+ *
+ * STAGING & DEVELOPMENT ONLY - Sets ALL test account wallets to exactly 1000 coins
+ * via upsert (creates if missing, updates if exists).
+ * Safe to call multiple times.
+ */
+const resetTestCoinsHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const nodeEnv = process.env.NODE_ENV || "development";
+  const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+  const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+  if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+    return res.status(403).json({ error: "Test endpoint disabled in production" });
+  }
+
+  const data = await debugService.resetTestCoins();
+  res.json({ data });
+});
+
+router.get("/reset-test-coins", resetTestCoinsHandler);
+router.post("/reset-test-coins", resetTestCoinsHandler);
 
 export default router;
