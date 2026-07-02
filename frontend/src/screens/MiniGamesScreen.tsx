@@ -110,7 +110,7 @@ export default function MiniGamesScreen() {
             style={styles.gameCard}
             onPress={() => {
               if (game.id === 'bottle') { router.push('/bottle'); }
-              else if (game.id === 'adoption') { router.push('/pet'); }
+              else if (game.id === 'adoption') { router.push('/refuge'); }
               else if (game.id === 'classement') { router.push('/badges'); }
               else { setCurrentGame(game.id); }
             }}

@@ -100,7 +100,7 @@ export default function HomeScreen() {
             <View style={{ flex: 1 }}>
               {lastReceived ? (
                 <>
-                  <Text style={styles.featureTitle}>{lastReceived.fromUserId} t'a écrit</Text>
+                  <Text style={styles.featureTitle}>{lastReceived.fromUserId} t&apos;a écrit</Text>
                   <Text style={styles.featureText} numberOfLines={2}>
                     {lastReceived.content}
                   </Text>
@@ -155,7 +155,7 @@ export default function HomeScreen() {
         <View style={styles.quickRow}>
           {[
             { emoji: '🎯', label: 'Activités', route: '/games' },
-            { emoji: '🐾', label: 'Animal', route: '/pet' },
+            { emoji: '🐾', label: 'Animal', route: '/refuge' },
             { emoji: '🌟', label: 'Badges', route: '/badges' },
           ].map(a => (
             <TouchableOpacity

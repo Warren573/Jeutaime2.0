@@ -201,7 +201,7 @@ export default function SettingsScreen() {
         { icon: '🖼️', label: 'Arrière-plans des écrans',  route: '/background-picker' },
         { icon: '🏷️', label: 'Mon titre',                  route: '/my-title' },
         { icon: '🌟', label: 'Mes badges',                 route: '/badges' },
-        { icon: '🐾', label: 'Mon Animal',                 route: '/pet', badge: pet?.petEmoji ?? null },
+        { icon: '🐾', label: 'Mon Animal',                 route: '/refuge', badge: pet?.petEmoji ?? null },
       ],
     },
     {
