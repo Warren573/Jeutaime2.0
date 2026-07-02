@@ -207,6 +207,9 @@ model User {
   anonymousMessages AnonymousMessage[]
   bottleSuspension  BottleSuspension?
 
+  refugeAsAdopte    RefugeSession[]   @relation("RefugeAdopte")
+  refugeAsAdoptant  RefugeSession[]   @relation("RefugeAdoptant")
+
   @@index([email])
   @@index([isBanned])
 }
@@ -837,4 +840,114 @@ model CardGameSession {
 
   @@index([userId, status])
   @@index([status, expiresAt])
+}
+
+// ============================================================
+// LE REFUGE — Jeu anonyme 7 jours (Chantier 2)
+// ============================================================
+
+enum RefugeAnimalType {
+  HAMSTER
+  LAPIN
+  CHAT
+  CHIEN
+  RENARD
+  PINGOUIN
+  IGUANE
+  PANDA
+  LICORNE
+  DRAGON
+}
+
+enum RefugeAnimalCategory {
+  SIMPLE
+  RARE
+  EXOTIQUE
+}
+
+enum RefugeAnimalSexe {
+  MALE
+  FEMELLE
+  NEUTRE
+}
+
+enum RefugeAcceptedSexe {
+  HOMME
+  FEMME
+  HOMME_FEMME
+}
+
+enum RefugeAction {
+  NOURRIR
+  JOUER
+  CARESSER
+  LAVER
+}
+
+enum RefugeSessionStatus {
+  CREATION
+  WAITING_FOR_ADOPTANT
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum RefugePreexistingLinkType {
+  MATCH
+  LETTER
+  SALON
+  PRIVATE_MESSAGE
+}
+
+model RefugeSession {
+  id                        String                      @id @default(cuid())
+
+  // Rôles
+  adopteId                  String
+  adopte                    User                        @relation("RefugeAdopte", fields: [adopteId], references: [id], onDelete: Cascade)
+  adoptantId                String?
+  adoptant                  User?                       @relation("RefugeAdoptant", fields: [adoptantId], references: [id], onDelete: SetNull)
+
+  // Animal masque
+  animalType                RefugeAnimalType
+  animalCategory            RefugeAnimalCategory
+  animalSexe                RefugeAnimalSexe
+  acceptedSexe              RefugeAcceptedSexe
+
+  // Timeline
+  createdAt                 DateTime                    @default(now())
+  startedAt                 DateTime?                   // quand adoptant rejoint
+  endsAt                    DateTime?                   // createdAt + 7 jours
+
+  // État
+  status                    RefugeSessionStatus         @default(CREATION)
+  lastAdopteActivityAt      DateTime                    @default(now())
+  lastAdoptantActivityAt    DateTime?
+  inactivityAlertSentAt     DateTime?                   // 24h
+  finalAlertSentAt          DateTime?                   // 48h
+  preexistingLinkType       RefugePreexistingLinkType?
+
+  // Relations
+  dailyChoices              RefugeDailyChoice[]
+
+  // Index
+  @@unique([adopteId, adoptantId])
+  @@index([status, endsAt])
+  @@index([adopteId])
+  @@index([adoptantId])
+  @@index([status, createdAt])
+}
+
+model RefugeDailyChoice {
+  id                String          @id @default(cuid())
+  refugeSessionId   String
+  refugeSession     RefugeSession   @relation(fields: [refugeSessionId], references: [id], onDelete: Cascade)
+  dayNumber         Int             // 1-7
+  action1           RefugeAction
+  action2           RefugeAction
+  submittedAt       DateTime        @default(now())
+
+  // Index
+  @@unique([refugeSessionId, dayNumber])
+  @@index([refugeSessionId, dayNumber])
 }
