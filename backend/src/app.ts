@@ -32,6 +32,7 @@ import adminAuditRoutes from "./modules/admin/audit/adminAudit.routes";
 import reactionsRoutes from "./modules/reactions/reactions.routes";
 import cardGameRoutes from "./modules/card-game/card-game.routes";
 import bottlesRoutes from "./modules/bottles/bottles.routes";
+import refugeRoutes from "./modules/refuge/refuge.routes";
 import testRoutes from "./modules/test/test.routes";
 import debugRoutes from "./modules/debug/debug.routes";
 
@@ -95,6 +96,7 @@ app.use(`${api}/notifications`, notificationsRoutes);
 app.use(`${api}/discover`, reactionsRoutes);
 app.use(`${api}/card-game`, cardGameRoutes);
 app.use(`${api}/bottles`, bottlesRoutes);
+app.use(`${api}/refuge`, refugeRoutes);
 
 // Temporary dev routes (remove before production)
 app.use(`${api}/test`, testRoutes);
