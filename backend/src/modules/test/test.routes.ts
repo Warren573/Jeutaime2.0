@@ -3147,4 +3147,142 @@ const resetTestCoinsHandler = asyncHandler(async (_req: Request, res: Response) 
 router.get("/reset-test-coins", resetTestCoinsHandler);
 router.post("/reset-test-coins", resetTestCoinsHandler);
 
+/**
+ * GET /api/test/refuge-propose-testuser2
+ *
+ * STAGING & DEVELOPMENT ONLY - Creates a refuge proposal with testuser2 as Adopté.
+ * Uses a hardcoded example animal configuration.
+ */
+router.get(
+  "/refuge-propose-testuser2",
+  asyncHandler(async (_req: Request, res: Response) => {
+    const nodeEnv = process.env.NODE_ENV || "development";
+    const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+    const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+    if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+      return res.status(403).json({ error: "Test endpoint disabled in production" });
+    }
+
+    try {
+      // Find testuser2
+      const testuser2 = await prisma.user.findUnique({
+        where: { email: "testuser2@jeutaime.test" },
+        select: { id: true },
+      });
+
+      if (!testuser2) {
+        return res.status(404).json({ error: "testuser2 not found" });
+      }
+
+      // Import RefugeService
+      const { RefugeService } = await import("../refuge/refuge.service");
+
+      // Create refuge proposal
+      const refugeSession = await RefugeService.proposeAsAdopte(testuser2.id, {
+        animalType: "CHAT",
+        animalCategory: "SIMPLE",
+        animalSexe: "FEMELLE",
+        acceptedSexe: "HOMME_FEMME",
+      });
+
+      res.status(201).json({
+        success: true,
+        data: refugeSession,
+        message: "Refuge proposé par testuser2",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erreur lors de la création du refuge" });
+    }
+  })
+);
+
+/**
+ * GET /api/test/refuge-available
+ *
+ * STAGING & DEVELOPMENT ONLY - Lists all available refuges.
+ */
+router.get(
+  "/refuge-available",
+  asyncHandler(async (_req: Request, res: Response) => {
+    const nodeEnv = process.env.NODE_ENV || "development";
+    const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+    const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+    if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+      return res.status(403).json({ error: "Test endpoint disabled in production" });
+    }
+
+    try {
+      // Import RefugeService
+      const { RefugeService } = await import("../refuge/refuge.service");
+
+      // Get available refuges
+      const refuges = await RefugeService.getAvailableRefuges();
+
+      res.status(200).json({
+        success: true,
+        data: refuges,
+        count: refuges.length,
+        message: "Refuges disponibles",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erreur lors de la récupération des refuges" });
+    }
+  })
+);
+
+/**
+ * GET /api/test/refuge-adopt-testuser3
+ *
+ * STAGING & DEVELOPMENT ONLY - Adopts the first available refuge with testuser3.
+ */
+router.get(
+  "/refuge-adopt-testuser3",
+  asyncHandler(async (_req: Request, res: Response) => {
+    const nodeEnv = process.env.NODE_ENV || "development";
+    const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+    const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+    if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+      return res.status(403).json({ error: "Test endpoint disabled in production" });
+    }
+
+    try {
+      // Find testuser3
+      const testuser3 = await prisma.user.findUnique({
+        where: { email: "testuser3@jeutaime.test" },
+        select: { id: true },
+      });
+
+      if (!testuser3) {
+        return res.status(404).json({ error: "testuser3 not found" });
+      }
+
+      // Import RefugeService
+      const { RefugeService } = await import("../refuge/refuge.service");
+
+      // Get first available refuge
+      const availableRefuges = await RefugeService.getAvailableRefuges();
+
+      if (availableRefuges.length === 0) {
+        return res.status(404).json({ error: "No available refuges to adopt" });
+      }
+
+      const refugeToAdopt = availableRefuges[0]!;
+
+      // Adopt the refuge
+      const adoptedRefuge = await RefugeService.adoptRefuge(testuser3.id, refugeToAdopt.id);
+
+      res.status(200).json({
+        success: true,
+        data: adoptedRefuge,
+        message: "Refuge adopté par testuser3",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erreur lors de l'adoption du refuge" });
+    }
+  })
+);
+
 export default router;
