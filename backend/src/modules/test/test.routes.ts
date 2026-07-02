@@ -3285,4 +3285,177 @@ router.get(
   })
 );
 
+/**
+ * GET /api/test/refuge-session
+ *
+ * STAGING & DEVELOPMENT ONLY - Get the first active refuge session
+ */
+router.get(
+  "/refuge-session",
+  asyncHandler(async (_req: Request, res: Response) => {
+    const nodeEnv = process.env.NODE_ENV || "development";
+    const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+    const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+    if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+      return res.status(403).json({ error: "Test endpoint disabled in production" });
+    }
+
+    try {
+      const { RefugeService } = await import("../refuge/refuge.service");
+
+      // Get first ACTIVE refuge session
+      const activeSession = await prisma.refugeSession.findFirst({
+        where: {
+          status: "ACTIVE",
+        },
+        include: {
+          adopte: { select: { id: true } },
+          adoptant: { select: { id: true } },
+        },
+      });
+
+      if (!activeSession) {
+        return res.status(404).json({ error: "No active refuge session found" });
+      }
+
+      // Use first user from session to get session details
+      const userId = activeSession.adoptant?.id || activeSession.adopte.id;
+      const sessionWithMetadata = await RefugeService.getRefugeSession(activeSession.id, userId);
+
+      res.status(200).json({
+        success: true,
+        data: sessionWithMetadata,
+        message: "Active refuge session retrieved",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erreur lors de la récupération de la session" });
+    }
+  })
+);
+
+/**
+ * GET /api/test/refuge-daily-choice-testuser2
+ *
+ * STAGING & DEVELOPMENT ONLY - testuser2 (Adopté) submits daily choices for day 1
+ */
+router.get(
+  "/refuge-daily-choice-testuser2",
+  asyncHandler(async (_req: Request, res: Response) => {
+    const nodeEnv = process.env.NODE_ENV || "development";
+    const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+    const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+    if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+      return res.status(403).json({ error: "Test endpoint disabled in production" });
+    }
+
+    try {
+      const testuser2 = await prisma.user.findUnique({
+        where: { email: "testuser2@jeutaime.test" },
+        select: { id: true },
+      });
+
+      if (!testuser2) {
+        return res.status(404).json({ error: "testuser2 not found" });
+      }
+
+      const { RefugeService } = await import("../refuge/refuge.service");
+
+      // Get first refuge where testuser2 is Adopté
+      const refugeSession = await prisma.refugeSession.findFirst({
+        where: {
+          adopteId: testuser2.id,
+          status: "ACTIVE",
+        },
+      });
+
+      if (!refugeSession) {
+        return res.status(404).json({ error: "No active refuge for testuser2" });
+      }
+
+      // Submit daily choice for day 1
+      const dailyChoice = await RefugeService.submitDailyChoice(
+        refugeSession.id,
+        testuser2.id,
+        1,
+        {
+          action1: "NOURRIR",
+          action2: "JOUER",
+        }
+      );
+
+      res.status(201).json({
+        success: true,
+        data: dailyChoice,
+        message: "Daily choice submitted by testuser2",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erreur lors de la soumission des choix quotidiens" });
+    }
+  })
+);
+
+/**
+ * GET /api/test/refuge-guess-testuser3
+ *
+ * STAGING & DEVELOPMENT ONLY - testuser3 (Adoptant) submits guesses for day 1
+ */
+router.get(
+  "/refuge-guess-testuser3",
+  asyncHandler(async (_req: Request, res: Response) => {
+    const nodeEnv = process.env.NODE_ENV || "development";
+    const isRenderStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+    const allowTestEndpoints = process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+    if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+      return res.status(403).json({ error: "Test endpoint disabled in production" });
+    }
+
+    try {
+      const testuser3 = await prisma.user.findUnique({
+        where: { email: "testuser3@jeutaime.test" },
+        select: { id: true },
+      });
+
+      if (!testuser3) {
+        return res.status(404).json({ error: "testuser3 not found" });
+      }
+
+      const { RefugeService } = await import("../refuge/refuge.service");
+
+      // Get first refuge where testuser3 is Adoptant
+      const refugeSession = await prisma.refugeSession.findFirst({
+        where: {
+          adoptantId: testuser3.id,
+          status: "ACTIVE",
+        },
+      });
+
+      if (!refugeSession) {
+        return res.status(404).json({ error: "No active refuge for testuser3" });
+      }
+
+      // Submit guesses for day 1
+      const guess = await RefugeService.submitGuess(
+        refugeSession.id,
+        testuser3.id,
+        1,
+        {
+          guessedAction1: "CARESSER",
+          guessedAction2: "LAVER",
+        }
+      );
+
+      res.status(201).json({
+        success: true,
+        data: guess,
+        message: "Guesses submitted by testuser3",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Erreur lors de la soumission des devinettes" });
+    }
+  })
+);
+
 export default router;

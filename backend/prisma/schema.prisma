@@ -929,6 +929,7 @@ model RefugeSession {
 
   // Relations
   dailyChoices              RefugeDailyChoice[]
+  guesses                   RefugeGuess[]
 
   // Index
   @@unique([adopteId, adoptantId])
@@ -945,6 +946,20 @@ model RefugeDailyChoice {
   dayNumber         Int             // 1-7
   action1           RefugeAction
   action2           RefugeAction
+  submittedAt       DateTime        @default(now())
+
+  // Index
+  @@unique([refugeSessionId, dayNumber])
+  @@index([refugeSessionId, dayNumber])
+}
+
+model RefugeGuess {
+  id                String          @id @default(cuid())
+  refugeSessionId   String
+  refugeSession     RefugeSession   @relation(fields: [refugeSessionId], references: [id], onDelete: Cascade)
+  dayNumber         Int             // 1-7
+  guessedAction1    RefugeAction
+  guessedAction2    RefugeAction
   submittedAt       DateTime        @default(now())
 
   // Index

@@ -282,6 +282,92 @@ export class RefugeService {
   }
 
   // ============================================================
+  // Devinettes — L'Adoptant devine les 2 actions de l'Adopté
+  // ============================================================
+
+  static async submitGuess(
+    refugeSessionId: string,
+    adoptantId: string,
+    dayNumber: number,
+    input: { guessedAction1: RefugeAction; guessedAction2: RefugeAction }
+  ): Promise<any> {
+    // Récupérer la session
+    const refugeSession = await prisma.refugeSession.findUnique({
+      where: { id: refugeSessionId },
+    });
+
+    if (!refugeSession) {
+      throw new NotFoundError("Refuge non trouvé");
+    }
+
+    // Vérifier que l'utilisateur est l'Adoptant
+    if (adoptantId !== refugeSession.adoptantId) {
+      throw new ForbiddenError("Seul l'Adoptant peut soumettre des devinettes");
+    }
+
+    // Vérifier que le refuge est actif
+    if (!canSubmitDailyChoice(refugeSession.status)) {
+      throw new ConflictError("Ce refuge n'est pas actif");
+    }
+
+    // Vérifier que le jour est valide
+    if (!isValidDay(dayNumber)) {
+      throw new BadRequestError(`Le jour doit être entre 1 et ${REFUGE_DURATION_DAYS}`);
+    }
+
+    // Vérifier que le refuge n'est pas expiré
+    if (isRefugeExpired(refugeSession.endsAt)) {
+      throw new ConflictError("Ce refuge a expiré");
+    }
+
+    // Vérifier que les 2 devinettes sont différentes
+    if (!validateActionsAreDifferent(input.guessedAction1, input.guessedAction2)) {
+      throw new BadRequestError("Les 2 devinettes doivent être différentes");
+    }
+
+    // Vérifier qu'il n'y a pas déjà une devinette pour ce jour
+    const existingGuess = await prisma.refugeGuess.findUnique({
+      where: {
+        refugeSessionId_dayNumber: {
+          refugeSessionId,
+          dayNumber,
+        },
+      },
+    });
+
+    if (existingGuess) {
+      throw new ConflictError(`Les devinettes pour le jour ${dayNumber} ont déjà été soumises`);
+    }
+
+    // Créer la devinette
+    const guess = await prisma.refugeGuess.create({
+      data: {
+        refugeSessionId,
+        dayNumber,
+        guessedAction1: input.guessedAction1,
+        guessedAction2: input.guessedAction2,
+      },
+    });
+
+    // Mettre à jour lastAdoptantActivityAt
+    await prisma.refugeSession.update({
+      where: { id: refugeSessionId },
+      data: {
+        lastAdoptantActivityAt: new Date(),
+      },
+    });
+
+    return {
+      id: guess.id,
+      refugeSessionId: guess.refugeSessionId,
+      dayNumber: guess.dayNumber,
+      guessedAction1: guess.guessedAction1,
+      guessedAction2: guess.guessedAction2,
+      submittedAt: guess.submittedAt,
+    };
+  }
+
+  // ============================================================
   // Révélation préparatoire (sans cron)
   // ============================================================
 

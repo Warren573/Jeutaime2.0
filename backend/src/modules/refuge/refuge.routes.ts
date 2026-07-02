@@ -2,7 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
-import { ProposeRefugeSchema, AdoptRefugeSchema } from "./refuge.schemas";
+import { ProposeRefugeSchema, AdoptRefugeSchema, DailyChoiceSchema, GuessSchema } from "./refuge.schemas";
 import { RefugeController } from "./refuge.controller";
 import type { AuthedRequest } from "../../core/types";
 
@@ -30,5 +30,17 @@ router.get("/available", wrap(RefugeController.getAvailable));
 // POST /api/refuge/adopt
 // Adoptant adopte un refuge disponible
 router.post("/adopt", validate(AdoptRefugeSchema), wrap(RefugeController.adopt));
+
+// GET /api/refuge/session/:sessionId
+// Récupère une session Refuge avec métadonnées
+router.get("/session/:sessionId", wrap(RefugeController.getSession));
+
+// POST /api/refuge/daily-choice
+// Adopté soumet ses 2 actions pour le jour
+router.post("/daily-choice", validate(DailyChoiceSchema), wrap(RefugeController.submitDailyChoice));
+
+// POST /api/refuge/guess
+// Adoptant soumet ses devinettes pour le jour
+router.post("/guess", validate(GuessSchema), wrap(RefugeController.submitGuess));
 
 export default router;
