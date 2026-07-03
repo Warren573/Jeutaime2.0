@@ -867,6 +867,15 @@ export default function SalonScreen() {
           clearTimeout(transfoTimers.current[p.id]);
           delete transfoTimers.current[p.id];
         }
+        console.log('[BACKEND-TRANSFORMATION-APPLY]', {
+          targetId: p.id,
+          targetName: p.name,
+          castId: cast.castId,
+          magieId: cast.magieId,
+          actorId: cast.actorId,
+          expiresAt: cast.expiresAt,
+          currentUserId: currentUser?.id,
+        });
         return {
           ...p,
           transformation: cast.magieId,
@@ -875,6 +884,7 @@ export default function SalonScreen() {
       }
       // Pas de sort actif côté backend — effacer uniquement si aucun timer local en cours
       if (p.transformation && !transfoTimers.current[p.id]) {
+        console.log('[BACKEND-TRANSFORMATION-CLEAR]', { targetId: p.id, targetName: p.name });
         return { ...p, transformation: null, transformationExpiresAt: undefined };
       }
       return p;
@@ -950,6 +960,7 @@ export default function SalonScreen() {
       return;
     }
 
+
     try {
       const result = await performDrinkAction(screenSessionId);
 
@@ -973,6 +984,7 @@ export default function SalonScreen() {
       alert('Erreur: screenSessionId manquant');
       return;
     }
+
 
     try {
       const result = await performEatAction(screenSessionId);
@@ -1159,8 +1171,11 @@ export default function SalonScreen() {
         console.log('[SPELL-LOCAL-UPDATE] Applying local transformation:', {
           isSelf,
           targetId,
+          targetName: target?.name,
           magieId: castResult.magieId,
           expiresAt,
+          selectedPlayerId: selectedPlayer?.id,
+          currentUserId: currentUser?.id,
         });
         setParticipants(prev => prev.map(p =>
           p.id === targetId ? { ...p, transformation: castResult.magieId, transformationExpiresAt: expiresAt } : p
@@ -1197,11 +1212,21 @@ export default function SalonScreen() {
       if (item.type === 'transformation') {
         const durationMs = (item.durationMs ?? item.duration * 1000) as number;
         const expiresAt  = Date.now() + durationMs;
+        console.log('[LOCAL-TRANSFORMATION-APPLY]', {
+          itemId: item.id,
+          itemType: item.type,
+          targetId,
+          targetName: participants.find(p => p.id === targetId)?.name,
+          currentUserId: currentUser?.id,
+          selectedPlayerId: selectedPlayer?.id,
+          durationMs,
+        });
         if (transfoTimers.current[targetId]) clearTimeout(transfoTimers.current[targetId]);
         setParticipants(prev => prev.map(p =>
           p.id === targetId ? { ...p, transformation: item.id, transformationExpiresAt: expiresAt } : p
         ));
         transfoTimers.current[targetId] = setTimeout(() => {
+          console.log('[LOCAL-TRANSFORMATION-CLEAR]', { itemId: item.id, targetId });
           setParticipants(prev => prev.map(p =>
             p.id === targetId ? { ...p, transformation: null, transformationExpiresAt: undefined } : p
           ));

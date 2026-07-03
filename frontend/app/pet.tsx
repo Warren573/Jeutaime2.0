@@ -7,7 +7,6 @@ export default function PetPage() {
   const state = useRouteGuard('refuge');
 
   useEffect(() => {
-    // Rediriger vers le nouveau Refuge
     if (state !== 'loading') {
       router.replace('/refuge');
     }

@@ -1,157 +1,93 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-} from "react-native";
+import React, { useState, useRef, useEffect } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Animated, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect, useRouter } from "expo-router";
-import { refugeApi, RefugeSession } from "../api/refuge-api";
+import { useRouter } from "expo-router";
+
+const ANIMALS_AVAILABLE = [
+  { id: 1, name: "Chat", emoji: "🐱", age: "8 semaines" },
+  { id: 2, name: "Chien", emoji: "🐕", age: "6 mois" },
+  { id: 3, name: "Lapin", emoji: "🐰", age: "4 semaines" },
+  { id: 4, name: "Hamster", emoji: "🐹", age: "12 semaines" },
+  { id: 5, name: "Oiseau", emoji: "🦜", age: "1 an" },
+];
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export function RefugeAdoptantScreen() {
   const router = useRouter();
-  const [refuges, setRefuges] = useState<RefugeSession[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [adopting, setAdopting] = useState<string | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const pan = useRef(new Animated.ValueXY()).current;
 
-  const loadRefuges = async () => {
-    try {
-      const data = await refugeApi.getAvailable();
-      setRefuges(data);
-    } catch (error) {
-      Alert.alert(
-        "Erreur",
-        error instanceof Error ? error.message : "Erreur lors du chargement"
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: Animated.event([null, { dx: pan.x }], {
+        useNativeDriver: false,
+      }),
+      onPanResponderRelease: (e, { dx }) => {
+        if (dx > 50 && currentIndex > 0) {
+          setCurrentIndex(currentIndex - 1);
+          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+        } else if (dx < -50 && currentIndex < ANIMALS_AVAILABLE.length - 1) {
+          setCurrentIndex(currentIndex + 1);
+          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+        } else {
+          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+        }
+      },
+    })
+  ).current;
+
+  const handleAdopt = () => {
+    const animal = ANIMALS_AVAILABLE[currentIndex];
+    // TODO: Call API to adopt animal
+    // For now, go back to refuge home
+    router.replace("/refuge");
   };
 
-  useEffect(() => {
-    loadRefuges();
-  }, []);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      loadRefuges();
-    }, [])
-  );
-
-  const handleAdopt = async (refugeSessionId: string) => {
-    setAdopting(refugeSessionId);
-    try {
-      const session = await refugeApi.adopt(refugeSessionId);
-      Alert.alert("Succès", "Refuge adopté ! La session commence maintenant.", [
-        {
-          text: "OK",
-          onPress: () => {
-            router.push(`/refuge/session?sessionId=${session.id}`);
-          },
-        },
-      ]);
-    } catch (error) {
-      Alert.alert(
-        "Erreur",
-        error instanceof Error ? error.message : "Erreur lors de l'adoption"
-      );
-    } finally {
-      setAdopting(null);
-    }
-  };
-
-  const renderRefugeCard = ({ item }: { item: RefugeSession }) => {
-    const timeLeft = new Date(item.endsAt || "").getTime() - Date.now();
-    const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
-
-    return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <View>
-            <Text style={styles.animalName}>
-              {item.animalType} {item.animalCategory}
-            </Text>
-            <Text style={styles.animalMeta}>
-              {item.animalSexe === "Mâle" ? "♂️" : "♀️"} •{" "}
-              {item.acceptedSexe === "HOMME_FEMME"
-                ? "Tous"
-                : item.acceptedSexe === "HOMME"
-                  ? "Hommes"
-                  : "Femmes"}
-            </Text>
-          </View>
-          <Text style={styles.timer}>⏱️ {hoursLeft}h</Text>
-        </View>
-
-        <Text style={styles.adoptePseudo}>
-          Par: Adopté #{item.adopteId.substring(0, 8)}
-        </Text>
-
-        <TouchableOpacity
-          style={[
-            styles.adoptButton,
-            adopting === item.id && styles.adoptButtonDisabled,
-          ]}
-          onPress={() => handleAdopt(item.id)}
-          disabled={adopting === item.id}
-        >
-          {adopting === item.id ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text style={styles.adoptButtonText}>Adopter 💚</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#2196F3" />
-          <Text style={styles.loadingText}>Chargement des refuges...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const animal = ANIMALS_AVAILABLE[currentIndex];
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Refuges Disponibles 🔍</Text>
+        <Text style={styles.title}>Une créature vous attend</Text>
         <Text style={styles.subtitle}>
-          {refuges.length} refuge{refuges.length !== 1 ? "s" : ""}
+          {currentIndex + 1} / {ANIMALS_AVAILABLE.length}
         </Text>
       </View>
 
-      {refuges.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyEmoji}>🏠</Text>
-          <Text style={styles.emptyTitle}>Aucun refuge disponible</Text>
-          <Text style={styles.emptyText}>
-            Revenez plus tard pour trouver un refuge à adopter !
-          </Text>
+      <Animated.View
+        style={[
+          styles.cardContainer,
+          { transform: [{ translateX: pan.x }] },
+        ]}
+        {...panResponder.panHandlers}
+      >
+        <View style={styles.card}>
+          <Text style={styles.emoji}>{animal.emoji}</Text>
+          <Text style={styles.animalName}>{animal.name}</Text>
+          <Text style={styles.animalAge}>{animal.age}</Text>
         </View>
-      ) : (
-        <FlatList
-          data={refuges}
-          keyExtractor={(item) => item.id}
-          renderItem={renderRefugeCard}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={loadRefuges} />
-          }
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+      </Animated.View>
+
+      <Text style={styles.hint}>Glissez pour découvrir d&apos;autres créatures</Text>
+
+      <View style={styles.dotsContainer}>
+        {ANIMALS_AVAILABLE.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.dot,
+              index === currentIndex ? styles.dotActive : styles.dotInactive,
+            ]}
+          />
+        ))}
+      </View>
+
+      <TouchableOpacity style={styles.adoptButton} onPress={handleAdopt}>
+        <Text style={styles.adoptButtonText}>Adopter ce {animal.name.toLowerCase()}</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -159,108 +95,96 @@ export function RefugeAdoptantScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#FFF8E7",
+    padding: 20,
+    justifyContent: "space-between",
   },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    alignItems: "center",
+    marginBottom: 24,
   },
   title: {
     fontSize: 28,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 4,
+    fontWeight: "900",
+    color: "#2D1F0E",
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#999",
+    color: "#8B6F47",
   },
-  centerContent: {
+  cardContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#666",
-  },
-  listContent: {
-    padding: 12,
-  },
   card: {
+    width: 220,
+    height: 280,
     backgroundColor: "white",
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  emoji: {
+    fontSize: 100,
+    marginBottom: 16,
+  },
+  animalName: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#2D1F0E",
+    marginBottom: 8,
+  },
+  animalAge: {
+    fontSize: 14,
+    color: "#FF9800",
+    fontWeight: "600",
+  },
+  hint: {
+    fontSize: 12,
+    color: "#999",
+    textAlign: "center",
+    fontStyle: "italic",
+    marginBottom: 24,
+  },
+  dotsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 24,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  dotActive: {
+    backgroundColor: "#FF9800",
+    width: 24,
+  },
+  dotInactive: {
+    backgroundColor: "#DDD",
+  },
+  adoptButton: {
+    backgroundColor: "#B4D7FF",
+    paddingVertical: 16,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  animalName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 4,
-  },
-  animalMeta: {
-    fontSize: 14,
-    color: "#666",
-  },
-  timer: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FF6B6B",
-  },
-  adoptePseudo: {
-    fontSize: 13,
-    color: "#999",
-    marginBottom: 12,
-  },
-  adoptButton: {
-    backgroundColor: "#2196F3",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  adoptButtonDisabled: {
-    opacity: 0.6,
+    elevation: 2,
   },
   adoptButtonText: {
-    color: "white",
     fontSize: 16,
-    fontWeight: "bold",
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-  },
-  emptyEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
+    fontWeight: "700",
+    color: "#2D1F0E",
   },
 });
