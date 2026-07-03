@@ -154,7 +154,7 @@ export default function HomeScreen() {
         <View style={styles.quickRow}>
           {[
             { emoji: '🎯', label: 'Activités', route: '/games' },
-            { emoji: '🐾', label: 'Animal', route: '/pet' },
+            { emoji: '🐾', label: 'Animal', route: '/refuge' },
             { emoji: '🌟', label: 'Badges', route: '/badges' },
           ].map(a => (
             <TouchableOpacity

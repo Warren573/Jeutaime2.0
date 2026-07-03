@@ -1,8 +1,10 @@
-import { useRouteGuard } from '../src/components/FeatureGate';
-import PetScreen from '../src/screens/PetScreen';
+import { useEffect } from 'react';
+import { useRouter } from 'expo-router';
 
 export default function PetPage() {
-  const state = useRouteGuard('refuge');
-  if (state === 'hidden') return null; // redirection en cours
-  return <PetScreen />;
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/refuge');
+  }, [router]);
+  return null;
 }
