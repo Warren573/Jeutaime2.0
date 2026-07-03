@@ -99,7 +99,7 @@ export default function HomeScreen() {
             <View style={{ flex: 1 }}>
               {lastReceived ? (
                 <>
-                  <Text style={styles.featureTitle}>{lastReceived.fromUserId} t'a écrit</Text>
+                  <Text style={styles.featureTitle}>{lastReceived.fromUserId} t&apos;a écrit</Text>
                   <Text style={styles.featureText} numberOfLines={2}>
                     {lastReceived.content}
                   </Text>
