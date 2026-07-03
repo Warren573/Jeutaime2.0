@@ -38,11 +38,11 @@ export function RefugeHomeScreen() {
 
             <TouchableOpacity
               style={[styles.button, styles.buttonChercher]}
-              onPress={() => router.push("/refuge/adoptant/step1")}
+              onPress={() => router.push("/refuge/adoptant")}
             >
               <Text style={styles.buttonIcon}>🔍</Text>
-              <Text style={styles.buttonTitle}>Chercher un refuge</Text>
-              <Text style={styles.buttonDesc}>Trouvez votre créature pour 7 jours</Text>
+              <Text style={styles.buttonTitle}>Adopter une créature</Text>
+              <Text style={styles.buttonDesc}>Découvrez une créature et adoptez-la</Text>
             </TouchableOpacity>
           </View>
         </View>
