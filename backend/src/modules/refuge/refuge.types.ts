@@ -1,4 +1,4 @@
-import { RefugeAnimalType, RefugeAnimalCategory, RefugeAnimalSexe, RefugeAcceptedSexe, RefugeAction, RefugeSessionStatus, RefugePreexistingLinkType } from "@prisma/client";
+import { RefugeAnimalType, RefugeAnimalCategory, RefugeAnimalSexe, RefugeAcceptedSexe, RefugeAction, RefugeSessionStatus, RefugePreexistingLinkType, RefugeBackground } from "@prisma/client";
 
 // ============================================================
 // Résultats métier pour Refuge
@@ -17,6 +17,7 @@ export interface RefugeSessionDTO {
   startedAt: Date | null;
   endsAt: Date | null;
   preexistingLinkType: RefugePreexistingLinkType | null;
+  background: RefugeBackground;
 }
 
 export interface RefugeSessionWithMetadata extends RefugeSessionDTO {

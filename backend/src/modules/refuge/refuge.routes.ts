@@ -35,6 +35,10 @@ router.post("/adopt", validate(AdoptRefugeSchema), wrap(RefugeController.adopt))
 // Récupère une session Refuge avec métadonnées
 router.get("/session/:sessionId", wrap(RefugeController.getSession));
 
+// PATCH /api/refuge/session/:sessionId/background
+// Mettre à jour le fond d'ambiance
+router.patch("/session/:sessionId/background", wrap(RefugeController.updateBackground));
+
 // POST /api/refuge/daily-choice
 // Adopté soumet ses 2 actions pour le jour
 router.post("/daily-choice", validate(DailyChoiceSchema), wrap(RefugeController.submitDailyChoice));

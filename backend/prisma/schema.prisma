@@ -899,6 +899,15 @@ enum RefugePreexistingLinkType {
   PRIVATE_MESSAGE
 }
 
+enum RefugeBackground {
+  FORET
+  PLAGE
+  NEIGE
+  AUTOMNE
+  MONTAGNE
+  NUIT_ETOILEE
+}
+
 model RefugeSession {
   id                        String                      @id @default(cuid())
 
@@ -926,6 +935,9 @@ model RefugeSession {
   inactivityAlertSentAt     DateTime?                   // 24h
   finalAlertSentAt          DateTime?                   // 48h
   preexistingLinkType       RefugePreexistingLinkType?
+
+  // Esthétique
+  background                RefugeBackground            @default(FORET)
 
   // Relations
   dailyChoices              RefugeDailyChoice[]

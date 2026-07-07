@@ -10,8 +10,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { refugeApi, RefugeSession } from "../api/refuge-api";
 import { useStore } from "../store/useStore";
+import { BackgroundPicker } from "../modules/refuge/components/BackgroundPicker";
+import { BACKGROUND_DEFINITIONS } from "../modules/refuge/refugeBackgrounds";
 
 interface SessionWithMetadata extends RefugeSession {
   currentDay?: number;
@@ -28,6 +31,8 @@ export function RefugeSessionScreen() {
 
   const [session, setSession] = useState<SessionWithMetadata | null>(null);
   const [loading, setLoading] = useState(true);
+  const [backgroundModalVisible, setBackgroundModalVisible] = useState(false);
+  const [updatingBackground, setUpdatingBackground] = useState(false);
 
   const loadSession = async () => {
     try {
@@ -41,6 +46,23 @@ export function RefugeSessionScreen() {
       router.back();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateBackground = async (background: string) => {
+    if (!session) return;
+    try {
+      setUpdatingBackground(true);
+      const updated = await refugeApi.updateBackground(session.id, background);
+      setSession({ ...session, ...updated } as SessionWithMetadata);
+      setBackgroundModalVisible(false);
+    } catch (error) {
+      Alert.alert(
+        "Erreur",
+        error instanceof Error ? error.message : "Erreur lors de la mise à jour"
+      );
+    } finally {
+      setUpdatingBackground(false);
     }
   };
 
@@ -64,9 +86,19 @@ export function RefugeSessionScreen() {
   const statusText = session.status === "ACTIVE" ? "Active" : session.status;
   const animalSexEmoji = session.animalSexe === "Mâle" ? "♂️" : "♀️";
 
+  const backgroundDef =
+    BACKGROUND_DEFINITIONS[session.background as keyof typeof BACKGROUND_DEFINITIONS] ||
+    BACKGROUND_DEFINITIONS.FORET;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+    <LinearGradient
+      colors={backgroundDef.colors}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
+      <SafeAreaView style={styles.safeAreaContainer}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -86,8 +118,18 @@ export function RefugeSessionScreen() {
             </Text>
             <Text style={styles.subtitle}>{session.animalCategory}</Text>
           </View>
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>{statusText}</Text>
+          <View style={styles.headerRight}>
+            {isAdopte && (
+              <TouchableOpacity
+                style={styles.backgroundButton}
+                onPress={() => setBackgroundModalVisible(true)}
+              >
+                <Text style={styles.backgroundButtonText}>🎨</Text>
+              </TouchableOpacity>
+            )}
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusText}>{statusText}</Text>
+            </View>
           </View>
         </View>
 
@@ -171,14 +213,25 @@ export function RefugeSessionScreen() {
           <Text style={styles.backButtonText}>← Retour</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+
+      <BackgroundPicker
+        visible={backgroundModalVisible}
+        currentBackground={session.background}
+        onSelect={handleUpdateBackground}
+        onClose={() => setBackgroundModalVisible(false)}
+        isLoading={updatingBackground}
+      />
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+  },
+  safeAreaContainer: {
+    flex: 1,
   },
   content: {
     flex: 1,
@@ -197,6 +250,21 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     marginBottom: 20,
+  },
+  headerRight: {
+    alignItems: "flex-end",
+    gap: 12,
+  },
+  backgroundButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#E8F5E9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backgroundButtonText: {
+    fontSize: 24,
   },
   animalEmoji: {
     fontSize: 48,

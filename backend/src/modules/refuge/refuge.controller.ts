@@ -130,6 +130,47 @@ export class RefugeController {
   }
 
   // ============================================================
+  // PATCH /api/refuge/session/:sessionId/background
+  // ============================================================
+
+  static async updateBackground(req: AuthedRequest, res: Response): Promise<void> {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Non authentifié" });
+      return;
+    }
+
+    const sessionId = req.params.sessionId as string;
+    const { background } = req.body as { background: string };
+
+    if (!sessionId) {
+      res.status(400).json({ error: "sessionId requis" });
+      return;
+    }
+
+    if (!background) {
+      res.status(400).json({ error: "background requis" });
+      return;
+    }
+
+    try {
+      const refugeSession = await RefugeService.updateBackground(sessionId, userId, background as any);
+
+      res.status(200).json({
+        success: true,
+        data: refugeSession,
+        message: "Fond d'ambiance mis à jour",
+      });
+    } catch (error: any) {
+      if (error.statusCode) {
+        res.status(error.statusCode).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Erreur interne" });
+      }
+    }
+  }
+
+  // ============================================================
   // POST /api/refuge/daily-choice
   // ============================================================
 

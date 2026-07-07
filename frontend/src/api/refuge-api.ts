@@ -13,6 +13,7 @@ export interface RefugeSession {
   startedAt: string | null;
   endsAt: string | null;
   preexistingLinkType: string | null;
+  background: string;
 }
 
 export interface ProposeRefugeRequest {
@@ -55,6 +56,18 @@ export const refugeApi = {
   // Récupérer une session Refuge spécifique
   async getSession(sessionId: string): Promise<RefugeSession> {
     const response = await apiFetch(`/refuge/session/${sessionId}`);
+    return response?.data;
+  },
+
+  // Mettre à jour le fond d'ambiance
+  async updateBackground(
+    sessionId: string,
+    background: string
+  ): Promise<RefugeSession> {
+    const response = await apiFetch(`/refuge/session/${sessionId}/background`, {
+      method: "PATCH",
+      body: JSON.stringify({ background }),
+    });
     return response?.data;
   },
 };

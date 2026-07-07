@@ -1,6 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
-import { RefugeSessionStatus, RefugeAction, Gender } from "@prisma/client";
+import { RefugeSessionStatus, RefugeAction, Gender, RefugeBackground } from "@prisma/client";
 import type { RefugeSessionDTO, RefugeSessionWithMetadata, RefugeDailyChoiceDTO, RefugeProposalInput, RefugeDailyChoiceInput } from "./refuge.types";
 import {
   calculateRefugeEndsAt,
@@ -156,6 +156,40 @@ export class RefugeService {
         status: RefugeSessionStatus.ACTIVE,
         startedAt: now,
         lastAdoptantActivityAt: now,
+      },
+    });
+
+    return this.mapToDTO(updatedRefuge);
+  }
+
+  // ============================================================
+  // Esthétique — Mettre à jour le fond d'ambiance
+  // ============================================================
+
+  static async updateBackground(
+    refugeSessionId: string,
+    adopteId: string,
+    background: RefugeBackground
+  ): Promise<RefugeSessionDTO> {
+    // Récupérer la session
+    const refugeSession = await prisma.refugeSession.findUnique({
+      where: { id: refugeSessionId },
+    });
+
+    if (!refugeSession) {
+      throw new NotFoundError("Refuge non trouvé");
+    }
+
+    // Vérifier que l'utilisateur est l'Adopté
+    if (adopteId !== refugeSession.adopteId) {
+      throw new ForbiddenError("Seul l'Adopté peut modifier le fond d'ambiance");
+    }
+
+    // Mettre à jour le fond
+    const updatedRefuge = await prisma.refugeSession.update({
+      where: { id: refugeSessionId },
+      data: {
+        background,
       },
     });
 
@@ -437,6 +471,7 @@ export class RefugeService {
       startedAt: refugeSession.startedAt,
       endsAt: refugeSession.endsAt,
       preexistingLinkType: refugeSession.preexistingLinkType,
+      background: refugeSession.background,
     };
   }
 
