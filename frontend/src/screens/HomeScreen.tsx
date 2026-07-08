@@ -48,14 +48,26 @@ export default function HomeScreen() {
 
   // Smart routing pour le bouton Animal
   const handleAnimalPress = async () => {
+    console.log("🔍 [HomeScreen] handleAnimalPress() called from Home/La Une > Animal button");
     try {
+      console.log("📡 [HomeScreen] Calling refugeApi.getActive()...");
       const activeSession = await refugeApi.getActive();
+      console.log("✅ [HomeScreen] refugeApi.getActive() returned:", activeSession);
+      console.log("🔍 [HomeScreen] activeSession details:", {
+        id: activeSession?.id,
+        adopteId: activeSession?.adopteId,
+        status: activeSession?.status,
+      });
       if (activeSession) {
+        console.log("📍 [HomeScreen] Route CHOSEN: /refuge?sessionId=" + activeSession.id);
         router.push(`/refuge?sessionId=${activeSession.id}`);
       } else {
+        console.log("📍 [HomeScreen] Route CHOSEN: /refuge/adopte/step1 (no active session)");
         router.push('/refuge/adopte/step1');
       }
-    } catch {
+    } catch (error) {
+      console.error("❌ [HomeScreen] ERROR in handleAnimalPress():", error);
+      console.log("📍 [HomeScreen] Route CHOSEN (on error): /refuge/adopte/step1");
       router.push('/refuge/adopte/step1');
     }
   };
