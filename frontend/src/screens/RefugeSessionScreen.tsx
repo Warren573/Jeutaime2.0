@@ -36,7 +36,9 @@ export function RefugeSessionScreen() {
 
   const loadSession = async () => {
     try {
-      const data = await refugeApi.getSession(sessionId);
+      // Si pas de sessionId (par ex. sur /refuge direct), utiliser un demo sessionId
+      const idToLoad = sessionId || "demo";
+      const data = await refugeApi.getSession(idToLoad);
       setSession(data as SessionWithMetadata);
     } catch (error) {
       Alert.alert(
