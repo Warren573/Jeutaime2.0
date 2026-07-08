@@ -6,11 +6,14 @@ import {
   TouchableOpacity,
   Dimensions,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { miniGames } from '../data/gameData';
+import { refugeApi } from '../api/refuge-api';
 
 // Import des jeux
 import CardGame from './games/CardGame';
@@ -54,6 +57,20 @@ export default function MiniGamesScreen() {
     facile: '#4CAF50',
     moyen: '#FF9800',
     difficile: '#F44336',
+  };
+
+  const handleAdoptionPress = async () => {
+    try {
+      const activeSession = await refugeApi.getActive();
+      if (activeSession) {
+        router.push(`/refuge?sessionId=${activeSession.id}`);
+      } else {
+        router.push('/refuge/adopte/step1');
+      }
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de vérifier votre session Refuge');
+      router.push('/refuge/adopte/step1');
+    }
   };
 
   if (result) {
@@ -110,7 +127,7 @@ export default function MiniGamesScreen() {
             style={styles.gameCard}
             onPress={() => {
               if (game.id === 'bottle') { router.push('/bottle'); }
-              else if (game.id === 'adoption') { router.push('/refuge'); }
+              else if (game.id === 'adoption') { handleAdoptionPress(); }
               else if (game.id === 'classement') { router.push('/badges'); }
               else { setCurrentGame(game.id); }
             }}
