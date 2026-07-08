@@ -89,8 +89,9 @@ export function RefugeSessionScreen() {
   const statusText = session.status === "ACTIVE" ? "Active" : session.status;
   const animalSexEmoji = session.animalSexe === "Mâle" ? "♂️" : "♀️";
 
+  const backgroundId = session.background || 'default';
   const backgroundDef =
-    REFUGE_BACKGROUNDS[session.background as keyof typeof REFUGE_BACKGROUNDS] ||
+    REFUGE_BACKGROUNDS[backgroundId as keyof typeof REFUGE_BACKGROUNDS] ||
     REFUGE_BACKGROUNDS.default;
 
   return (
@@ -220,7 +221,7 @@ export function RefugeSessionScreen() {
 
       {backgroundModalVisible && (
         <BackgroundPicker
-          currentBackground={session.background}
+          currentBackground={backgroundId}
           onSelectBackground={handleUpdateBackground}
           isLoading={updatingBackground}
         />
