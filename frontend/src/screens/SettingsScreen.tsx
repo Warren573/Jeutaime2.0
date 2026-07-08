@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { refugeApi } from '../api/refuge-api';
 import { titles } from '../data/gameData';
 import { Avatar } from '../avatar/png/Avatar';
 import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
@@ -120,6 +121,20 @@ export default function SettingsScreen() {
   const canDiscover = currentUser?.canDiscover;
   const hasQuestions = (currentUser?.apiQuestions?.length ?? 0) > 0;
 
+  // Smart routing pour "Mon Animal"
+  const handleAnimalPress = async () => {
+    try {
+      const activeSession = await refugeApi.getActive();
+      if (activeSession) {
+        router.push(`/refuge?sessionId=${activeSession.id}`);
+      } else {
+        router.push('/refuge/adopte/step1');
+      }
+    } catch {
+      router.push('/refuge/adopte/step1');
+    }
+  };
+
   // Progression vers prochain titre
   const currentTitleData = titles.find(t => t.level === title.level);
   const nextTitle        = titles.find(t => t.level === title.level + 1);
@@ -201,7 +216,7 @@ export default function SettingsScreen() {
         { icon: '🖼️', label: 'Arrière-plans des écrans',  route: '/background-picker' },
         { icon: '🏷️', label: 'Mon titre',                  route: '/my-title' },
         { icon: '🌟', label: 'Mes badges',                 route: '/badges' },
-        { icon: '🐾', label: 'Mon Animal',                 route: '/refuge', badge: pet?.petEmoji ?? null },
+        { icon: '🐾', label: 'Mon Animal',                 action: handleAnimalPress, badge: pet?.petEmoji ?? null },
       ],
     },
     {

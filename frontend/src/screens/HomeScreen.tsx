@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { refugeApi } from '../api/refuge-api';
 import { Avatar } from '../avatar/png/Avatar';
 import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 
@@ -44,6 +45,20 @@ export default function HomeScreen() {
 
   const screenBg = useStore(s => s.screenBackgrounds?.['home'] ?? J.bgMain);
   const title    = getCurrentTitle();
+
+  // Smart routing pour le bouton Animal
+  const handleAnimalPress = async () => {
+    try {
+      const activeSession = await refugeApi.getActive();
+      if (activeSession) {
+        router.push(`/refuge?sessionId=${activeSession.id}`);
+      } else {
+        router.push('/refuge/adopte/step1');
+      }
+    } catch {
+      router.push('/refuge/adopte/step1');
+    }
+  };
 
   // Dernière lettre reçue
   const lastReceived = [...letters]
@@ -155,13 +170,13 @@ export default function HomeScreen() {
         <View style={styles.quickRow}>
           {[
             { emoji: '🎯', label: 'Activités', route: '/games' },
-            { emoji: '🐾', label: 'Animal', route: '/refuge' },
+            { emoji: '🐾', label: 'Animal' },
             { emoji: '🌟', label: 'Badges', route: '/badges' },
           ].map(a => (
             <TouchableOpacity
               key={a.label}
               style={styles.quickBtn}
-              onPress={() => router.push(a.route as any)}
+              onPress={() => a.label === 'Animal' ? handleAnimalPress() : router.push((a as any).route)}
               activeOpacity={0.8}
             >
               <Text style={styles.quickEmoji}>{a.emoji}</Text>
