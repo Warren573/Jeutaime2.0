@@ -1,10 +1,15 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export function RefugeSessionScreen() {
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-      <Text style={{ fontSize: 24, fontWeight: 'bold' }}>REFUGE TEST OK</Text>
-    </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <View style={{ padding: 20 }}>
+          {/* Contenu sera ajouté progressivement */}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
