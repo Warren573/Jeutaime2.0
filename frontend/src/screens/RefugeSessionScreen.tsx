@@ -67,6 +67,12 @@ export function RefugeSessionScreen() {
   const statusText = session.status === "ACTIVE" ? "Actif" : session.status;
   const animalSexEmoji = session.animalSexe === "Mâle" ? "♂️" : "♀️";
 
+  console.log('[RefugeSessionScreen] Rendering with session:', {
+    sessionId: session.id,
+    animalType: session.animalType,
+    status: session.status,
+  });
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
