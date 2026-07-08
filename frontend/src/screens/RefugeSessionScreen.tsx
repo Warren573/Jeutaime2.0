@@ -10,11 +10,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import { refugeApi, RefugeSession } from "../api/refuge-api";
 import { useStore } from "../store/useStore";
-import { BackgroundPicker } from "../components/BackgroundPicker";
-import { REFUGE_BACKGROUNDS } from "../data/refugeBackgrounds";
 
 interface SessionWithMetadata extends RefugeSession {
   currentDay?: number;
@@ -31,13 +28,11 @@ export function RefugeSessionScreen() {
 
   const [session, setSession] = useState<SessionWithMetadata | null>(null);
   const [loading, setLoading] = useState(true);
-  const [backgroundModalVisible, setBackgroundModalVisible] = useState(false);
-  const [updatingBackground, setUpdatingBackground] = useState(false);
 
   const loadSession = async () => {
     try {
       if (!sessionId) {
-        throw new Error("Session ID manquant - redirection vers l'onboarding");
+        throw new Error("Session ID manquant");
       }
       const data = await refugeApi.getSession(sessionId);
       setSession(data as SessionWithMetadata);
@@ -49,23 +44,6 @@ export function RefugeSessionScreen() {
       router.push("/refuge");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleUpdateBackground = async (background: string) => {
-    if (!session) return;
-    try {
-      setUpdatingBackground(true);
-      const updated = await refugeApi.updateBackground(session.id, background);
-      setSession({ ...session, ...updated } as SessionWithMetadata);
-      setBackgroundModalVisible(false);
-    } catch (error) {
-      Alert.alert(
-        "Erreur",
-        error instanceof Error ? error.message : "Erreur lors de la mise à jour"
-      );
-    } finally {
-      setUpdatingBackground(false);
     }
   };
 
@@ -86,23 +64,12 @@ export function RefugeSessionScreen() {
 
   const isAdopte = currentUser?.id === session.adopteId;
   const isAdoptant = currentUser?.id === session.adoptantId;
-  const statusText = session.status === "ACTIVE" ? "Active" : session.status;
+  const statusText = session.status === "ACTIVE" ? "Actif" : session.status;
   const animalSexEmoji = session.animalSexe === "Mâle" ? "♂️" : "♀️";
 
-  const backgroundId = session.background || 'default';
-  const backgroundDef =
-    REFUGE_BACKGROUNDS[backgroundId as keyof typeof REFUGE_BACKGROUNDS] ||
-    REFUGE_BACKGROUNDS.default;
-
   return (
-    <LinearGradient
-      colors={backgroundDef.gradient}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.container}
-    >
-      <SafeAreaView style={styles.safeAreaContainer}>
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -122,18 +89,8 @@ export function RefugeSessionScreen() {
             </Text>
             <Text style={styles.subtitle}>{session.animalCategory}</Text>
           </View>
-          <View style={styles.headerRight}>
-            {isAdopte && (
-              <TouchableOpacity
-                style={styles.backgroundButton}
-                onPress={() => setBackgroundModalVisible(true)}
-              >
-                <Text style={styles.backgroundButtonText}>🎨</Text>
-              </TouchableOpacity>
-            )}
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>{statusText}</Text>
-            </View>
+          <View style={styles.statusBadge}>
+            <Text style={styles.statusText}>{statusText}</Text>
           </View>
         </View>
 
@@ -147,7 +104,7 @@ export function RefugeSessionScreen() {
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>Votre rôle</Text>
             <Text style={styles.infoValue}>
-              {isAdopte ? "🎭 Adopté" : isAdoptant ? "🔍 Adoptant" : "Spectateur"}
+              {isAdopte ? "🎭 Adopté" : isAdoptant ? "🔍 Adoptant" : "👁️ Spectateur"}
             </Text>
           </View>
 
@@ -171,19 +128,19 @@ export function RefugeSessionScreen() {
         {/* Role-specific Info */}
         {isAdopte && (
           <View style={styles.roleCard}>
-            <Text style={styles.roleCardTitle}>🎭 Vous êtes l&apos;Adopté</Text>
+            <Text style={styles.roleCardTitle}>🎭 Vous êtes l'Adopté</Text>
             <Text style={styles.roleCardText}>
               Vous proposez ce refuge et cachez vos 2 actions chaque jour.
-              L&apos;Adoptant tentera de deviner vos actions.
+              L'Adoptant tentera de deviner vos actions.
             </Text>
           </View>
         )}
 
         {isAdoptant && (
           <View style={styles.roleCard}>
-            <Text style={styles.roleCardTitle}>🔍 Vous êtes l&apos;Adoptant</Text>
+            <Text style={styles.roleCardTitle}>🔍 Vous êtes l'Adoptant</Text>
             <Text style={styles.roleCardText}>
-              Vous avez adopté ce refuge. Chaque jour, l&apos;Adopté choisit 2
+              Vous avez adopté ce refuge. Chaque jour, l'Adopté choisit 2
               actions - vous devez les deviner !
             </Text>
           </View>
@@ -193,8 +150,8 @@ export function RefugeSessionScreen() {
           <View style={styles.roleCard}>
             <Text style={styles.roleCardTitle}>👁️ Mode Spectateur</Text>
             <Text style={styles.roleCardText}>
-              Vous regardez cette session, mais n&apos;êtes ni l&apos;Adopté ni
-              l&apos;Adoptant.
+              Vous regardez cette session, mais n'êtes ni l'Adopté ni
+              l'Adoptant.
             </Text>
           </View>
         )}
@@ -205,7 +162,8 @@ export function RefugeSessionScreen() {
           <Text style={styles.comingSoonText}>
             • Jeu quotidien (actions et devinettes){"\n"}
             • Révélation et scoring{"\n"}
-            • Notifications
+            • Notifications{"\n"}
+            • Sélection des fonds
           </Text>
         </View>
 
@@ -217,29 +175,17 @@ export function RefugeSessionScreen() {
           <Text style={styles.backButtonText}>← Retour</Text>
         </TouchableOpacity>
       </ScrollView>
-      </SafeAreaView>
-
-      {backgroundModalVisible && (
-        <BackgroundPicker
-          currentBackground={backgroundId}
-          onSelectBackground={handleUpdateBackground}
-          isLoading={updatingBackground}
-        />
-      )}
-    </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#F8F4ED",
   },
-  safeAreaContainer: {
+  scroll: {
     flex: 1,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
   },
   centerContent: {
     flex: 1,
@@ -254,21 +200,8 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     marginBottom: 20,
-  },
-  headerRight: {
-    alignItems: "flex-end",
-    gap: 12,
-  },
-  backgroundButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#E8F5E9",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  backgroundButtonText: {
-    fontSize: 24,
+    marginHorizontal: 16,
+    marginTop: 16,
   },
   animalEmoji: {
     fontSize: 48,
@@ -300,6 +233,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 12,
     marginBottom: 20,
+    paddingHorizontal: 16,
   },
   infoCard: {
     flex: 1,
@@ -324,6 +258,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
+    marginHorizontal: 16,
     borderLeftWidth: 4,
     borderLeftColor: "#2196F3",
   },
@@ -343,6 +278,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
+    marginHorizontal: 16,
     borderLeftWidth: 4,
     borderLeftColor: "#FF9800",
   },
@@ -362,6 +298,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
+    marginHorizontal: 16,
     marginBottom: 40,
   },
   backButtonText: {
