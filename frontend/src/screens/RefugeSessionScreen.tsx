@@ -81,12 +81,12 @@ export function RefugeSessionScreen() {
       console.log("✅ setSession() called with:", data);
     } catch (error) {
       console.error("❌ ERROR in loadSession():", error);
-      console.log("📍 Route CHOSEN (on error):", "/refuge/adopte/step1");
+      console.log("📍 Route CHOSEN (on error):", "/refuge");
       Alert.alert(
         "Erreur",
         error instanceof Error ? error.message : "Erreur lors du chargement"
       );
-      router.push("/refuge/adopte/step1");
+      router.push("/refuge");
     } finally {
       setLoading(false);
     }

@@ -62,13 +62,13 @@ export default function HomeScreen() {
         console.log("📍 [HomeScreen] Route CHOSEN: /refuge?sessionId=" + activeSession.id);
         router.push(`/refuge?sessionId=${activeSession.id}`);
       } else {
-        console.log("📍 [HomeScreen] Route CHOSEN: /refuge/adopte/step1 (no active session)");
-        router.push('/refuge/adopte/step1');
+        console.log("📍 [HomeScreen] Route CHOSEN: /refuge (no active session)");
+        router.push('/refuge');
       }
     } catch (error) {
       console.error("❌ [HomeScreen] ERROR in handleAnimalPress():", error);
-      console.log("📍 [HomeScreen] Route CHOSEN (on error): /refuge/adopte/step1");
-      router.push('/refuge/adopte/step1');
+      console.log("📍 [HomeScreen] Route CHOSEN (on error): /refuge");
+      router.push('/refuge');
     }
   };
 

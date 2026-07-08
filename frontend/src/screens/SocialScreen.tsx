@@ -62,7 +62,7 @@ type CurrentView = "cards" | "story" | null;
 export default function SocialScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { addPoints, incrementStat } = useStore();
+  const { addPoints, incrementStat, currentUser } = useStore();
   const loadWallet = useStore((s) => s.loadWallet);
   const screenBg = useStore((s) => s.screenBackgrounds?.["social"] ?? "#FFF8E7");
   const [currentView, setCurrentView] = useState<CurrentView>(null);
@@ -107,16 +107,16 @@ export default function SocialScreen() {
           console.log("🎫 Using sessionId:", activeSession.id);
           router.push(route);
         } else {
-          const route = "/refuge/adopte/step1";
+          const route = "/refuge";
           console.log("📍 Route CHOSEN (no active session):", route);
-          console.log("🎫 No sessionId - starting onboarding");
+          console.log("🎫 No sessionId - showing refuge home");
           router.push(route);
         }
       } catch (error) {
         console.error("❌ ERROR in handleAdoptionPress:", error);
-        console.log("📍 Route CHOSEN (on error):", "/refuge/adopte/step1");
+        console.log("📍 Route CHOSEN (on error):", "/refuge");
         Alert.alert("Erreur", "Impossible de vérifier votre session Refuge");
-        router.push("/refuge/adopte/step1");
+        router.push("/refuge");
       }
       return;
     }

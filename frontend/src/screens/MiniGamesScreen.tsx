@@ -65,11 +65,11 @@ export default function MiniGamesScreen() {
       if (activeSession) {
         router.push(`/refuge?sessionId=${activeSession.id}`);
       } else {
-        router.push('/refuge/adopte/step1');
+        router.push('/refuge');
       }
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de vérifier votre session Refuge');
-      router.push('/refuge/adopte/step1');
+      router.push('/refuge');
     }
   };
 
