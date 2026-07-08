@@ -36,16 +36,17 @@ export function RefugeSessionScreen() {
 
   const loadSession = async () => {
     try {
-      // Si pas de sessionId (par ex. sur /refuge direct), utiliser un demo sessionId
-      const idToLoad = sessionId || "demo";
-      const data = await refugeApi.getSession(idToLoad);
+      if (!sessionId) {
+        throw new Error("Session ID manquant - redirection vers l'onboarding");
+      }
+      const data = await refugeApi.getSession(sessionId);
       setSession(data as SessionWithMetadata);
     } catch (error) {
       Alert.alert(
         "Erreur",
         error instanceof Error ? error.message : "Erreur lors du chargement"
       );
-      router.back();
+      router.push("/refuge/adopte/step1");
     } finally {
       setLoading(false);
     }
