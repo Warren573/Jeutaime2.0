@@ -14,7 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { refugeApi, RefugeSession } from "../api/refuge-api";
 import { useStore } from "../store/useStore";
 import { BackgroundPicker } from "../components/BackgroundPicker";
-import { BACKGROUND_DEFINITIONS } from "../data/refugeBackgrounds";
+import { REFUGE_BACKGROUNDS } from "../data/refugeBackgrounds";
 
 interface SessionWithMetadata extends RefugeSession {
   currentDay?: number;
@@ -90,8 +90,8 @@ export function RefugeSessionScreen() {
   const animalSexEmoji = session.animalSexe === "Mâle" ? "♂️" : "♀️";
 
   const backgroundDef =
-    BACKGROUND_DEFINITIONS[session.background as keyof typeof BACKGROUND_DEFINITIONS] ||
-    BACKGROUND_DEFINITIONS.FORET;
+    REFUGE_BACKGROUNDS[session.background as keyof typeof REFUGE_BACKGROUNDS] ||
+    REFUGE_BACKGROUNDS.default;
 
   return (
     <LinearGradient
