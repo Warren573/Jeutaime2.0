@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
+import { refugeApi } from "../api/refuge-api";
 
 const ANIMAL_EMOJIS: Record<string, string> = {
   Chat: "🐱",
@@ -25,17 +26,26 @@ export function RefugeAdopteStep4() {
 
   const handleConfirm = async () => {
     setIsSubmitting(true);
-    // TODO: Call API to create refuge adoption
-    // For now, just navigate to home after a brief delay
-    setTimeout(() => {
+    try {
+      const refugeSession = await refugeApi.propose({
+        animalType: selectedAnimal.toUpperCase(),
+        animalCategory: "SIMPLE",
+        animalSexe: "NEUTRE",
+        acceptedSexe: "HOMME_FEMME",
+      });
+
       useStore.setState({
         selectedAnimal: null,
         selectedAge: null,
         refugeHousingType: null,
         refugeNotes: "",
       });
-      router.replace("/");
-    }, 800);
+
+      router.push(`/refuge?sessionId=${refugeSession.id}`);
+    } catch (error: any) {
+      Alert.alert("Erreur", error?.message || "Impossible de créer le refuge");
+      setIsSubmitting(false);
+    }
   };
 
   if (!selectedAnimal || !selectedAge || !refugeHousingType) {
