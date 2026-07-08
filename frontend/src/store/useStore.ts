@@ -2,14 +2,23 @@
 // STORE PRINCIPAL JEUTAIME - Zustand
 // ============================================
 
+console.log("🔧 [useStore.ts] Module loading started");
+
 import { create } from 'zustand';
+console.log("✅ [useStore.ts] Line 5: create imported from zustand");
+
 import { persist, createJSONStorage } from 'zustand/middleware';
+console.log("✅ [useStore.ts] Line 6: persist, createJSONStorage imported");
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
+console.log("✅ [useStore.ts] Line 7: AsyncStorage imported");
 
 // Web/RN compatible storage
+console.log("🔍 [useStore.ts] Line 10: Creating storage object - typeof window:", typeof window);
 const storage = typeof window !== 'undefined'
   ? { getItem: (k: string) => localStorage.getItem(k), setItem: (k: string, v: string) => localStorage.setItem(k, v), removeItem: (k: string) => localStorage.removeItem(k) }
   : AsyncStorage;
+console.log("✅ [useStore.ts] Line 12: storage object created successfully, storage type:", typeof storage);
 
 import type {
   AvatarConfig,
@@ -26,23 +35,42 @@ import type {
 } from '../shared/types';
 
 import type { AvatarDefinition } from '../avatar/types/avatarTypes';
+console.log("✅ [useStore.ts] Line 28: AvatarDefinition type imported");
+
 import type { AvatarConfig as PngAvatarConfig } from '../avatar/png/defaults';
+console.log("✅ [useStore.ts] Line 29: AvatarConfig type imported");
+
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
+console.log("✅ [useStore.ts] Line 30: DEFAULT_AVATAR imported");
+
 import * as EconomyEngine from '../engine/EconomyEngine';
+console.log("✅ [useStore.ts] Line 31: EconomyEngine imported");
+
 import * as ProgressionEngine from '../engine/ProgressionEngine';
+console.log("✅ [useStore.ts] Line 32: ProgressionEngine imported");
+
 import * as PetEngine from '../engine/PetEngine';
+console.log("✅ [useStore.ts] Line 33: PetEngine imported");
+
 import { apiFetch } from '../api/client';
+console.log("✅ [useStore.ts] Line 34: apiFetch imported");
 import { login as apiLogin, register as apiRegister, logout as apiLogout, saveSession, clearSession as clearApiSession, type RegisterPayload } from '../api/auth';
+console.log("✅ [useStore.ts] Line 35: auth functions imported");
+
 import {
   listMatches, listLetters, sendLetter,
   markLetterRead as apiMarkLetterRead,
   getMatchQuestions, submitMatchAnswers,
   type MatchDTO, type LetterDTO, type MatchQuestionsDTO, type MatchAnswersResultDTO,
 } from '../api/matches';
+console.log("✅ [useStore.ts] Line 36: matches functions imported");
+
 import {
   getWallet as apiGetWallet,
   claimDailyBonus as apiClaimDailyBonus,
 } from '../api/wallet';
+console.log("✅ [useStore.ts] Line 42: wallet functions imported");
+
 import {
   getNotifications as apiGetNotifications,
   getUnreadCount as apiGetUnreadCount,
@@ -50,12 +78,15 @@ import {
   markAllNotificationsRead as apiMarkAllNotificationsRead,
   type NotificationDto,
 } from '../api/notifications';
+console.log("✅ [useStore.ts] Line 46: notifications functions imported");
 
 // ===== DEV MODE =====
 // À mettre à `false` pour le build final
 const DEV_MODE_UNLIMITED_COINS = true;
 const DEV_MODE_INITIAL_COINS = DEV_MODE_UNLIMITED_COINS ? 50000 : 500;
+console.log("✅ [useStore.ts] Line 56-57: DEV MODE constants created");
 
+console.log("🔍 [useStore.ts] Line 59: About to create DEV_INITIAL_USER object...");
 const DEV_INITIAL_USER = {
   id: 'dev-local',
   name: 'Sophie',
@@ -110,6 +141,7 @@ const DEV_INITIAL_USER = {
     },
   ],
 };
+console.log("✅ [useStore.ts] Line 143: DEV_INITIAL_USER object created successfully");
 
 // Type pour les messages de salon (temporaire, sera déplacé vers les types)
 export interface Message {
@@ -313,9 +345,13 @@ interface StoreState {
 
 // ==================== STORE ====================
 
+console.log("🔍 [useStore.ts] Line 348: About to create store with create()...");
+
 export const useStore = create<StoreState>()(
-  persist(
-    (set, get) => ({
+  (() => {
+    console.log("🔍 [useStore.ts] Line 349: Inside create(), about to call persist()...");
+    return persist(
+      (set, get) => ({
       // ===== Initial State =====
       currentUser: DEV_INITIAL_USER,
       isAuthenticated: false,
@@ -1108,8 +1144,11 @@ export const useStore = create<StoreState>()(
         currentSalonName: state.currentSalonName,
       }),
     }
-  )
+  );
+  })()
 );
+console.log("✅ [useStore.ts] Line 1148: useStore created successfully!");
 
 // Export par défaut pour compatibilité
 export default useStore;
+console.log("✅ [useStore.ts] Module loading completed - useStore exported");

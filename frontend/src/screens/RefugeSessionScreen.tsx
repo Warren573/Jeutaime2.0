@@ -1,4 +1,8 @@
+console.log("🔧 [RefugeSessionScreen.tsx] Module loading started");
+
 import React, { useState, useEffect } from "react";
+console.log("✅ [RefugeSessionScreen.tsx] React imported");
+
 import {
   View,
   Text,
@@ -8,13 +12,29 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
+console.log("✅ [RefugeSessionScreen.tsx] react-native components imported");
+
 import { SafeAreaView } from "react-native-safe-area-context";
+console.log("✅ [RefugeSessionScreen.tsx] SafeAreaView imported");
+
 import { useLocalSearchParams, useRouter } from "expo-router";
+console.log("✅ [RefugeSessionScreen.tsx] expo-router hooks imported");
+
 import { LinearGradient } from "expo-linear-gradient";
+console.log("✅ [RefugeSessionScreen.tsx] LinearGradient imported");
+
 import { refugeApi, RefugeSession } from "../api/refuge-api";
+console.log("✅ [RefugeSessionScreen.tsx] refugeApi imported");
+
 import { useStore } from "../store/useStore";
+console.log("✅ [RefugeSessionScreen.tsx] useStore imported - THIS IS CRITICAL");
+
 import { BackgroundPicker } from "../modules/refuge/components/BackgroundPicker";
+console.log("✅ [RefugeSessionScreen.tsx] BackgroundPicker imported");
+
 import { BACKGROUND_DEFINITIONS } from "../modules/refuge/refugeBackgrounds";
+console.log("✅ [RefugeSessionScreen.tsx] BACKGROUND_DEFINITIONS imported");
+console.log("🔧 [RefugeSessionScreen.tsx] Module loading completed");
 
 interface SessionWithMetadata extends RefugeSession {
   currentDay?: number;
