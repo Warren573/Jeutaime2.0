@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { refugeApi } from '../src/api/refuge-api';
+import { refugeApi } from '../api/refuge-api';
 
 export function RefugeSessionScreen() {
   const params = useLocalSearchParams();
