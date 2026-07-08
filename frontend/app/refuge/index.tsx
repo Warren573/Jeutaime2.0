@@ -1,5 +1,6 @@
-import { RefugeSessionScreen } from '../../src/screens/RefugeSessionScreen';
+import React from 'react';
+import { RefugeMainScreen } from '../../src/screens/RefugeMainScreen';
 
 export default function RefugePage() {
-  return <RefugeSessionScreen />;
+  return <RefugeMainScreen />;
 }

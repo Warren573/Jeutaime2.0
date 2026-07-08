@@ -36,7 +36,6 @@ export function RefugeMainScreen() {
   const params = useLocalSearchParams();
   const sessionId = typeof params.sessionId === "string" ? params.sessionId : null;
 
-  const { selectedAnimal, refugeSessionActive } = useStore();
   const { currentAction, isActing, triggerAction } = useRefugeAction();
   const { logAction } = useRefugeActionLog();
   const { animalSize } = getResponsiveValues();
@@ -180,12 +179,14 @@ export function RefugeMainScreen() {
       >
         {/* Companion with Shadow */}
         <View style={styles.companionWrapper}>
-          <AnimalIllustration
-            animal={selectedAnimal as any}
-            size={animalSize}
-            action={currentAction}
-            isActing={isActing}
-          />
+          {refugeSession.companion?.animalType && (
+            <AnimalIllustration
+              animal={refugeSession.companion.animalType as any}
+              size={animalSize}
+              action={currentAction}
+              isActing={isActing}
+            />
+          )}
           {/* Ground Shadow */}
           <View style={[styles.groundShadow, { width: animalSize * 0.6 }]} />
         </View>
