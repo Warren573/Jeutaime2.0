@@ -50,7 +50,15 @@ export function RefugeSessionScreen() {
       console.log("📡 Calling refugeApi.getSession()...");
       const data = await refugeApi.getSession(sessionId);
       console.log("✅ Session loaded successfully:", data);
+      console.log("🔍 Session data type:", typeof data);
+      console.log("🔍 Session.background:", data?.background, "type:", typeof data?.background);
+      console.log("🔍 Session.pet:", data?.pet, "type:", typeof data?.pet);
+      console.log("🔍 Session.owner:", data?.owner, "type:", typeof data?.owner);
+      console.log("🔍 Session.animalType:", data?.animalType, "type:", typeof data?.animalType);
+      console.log("🔍 Session.status:", data?.status, "type:", typeof data?.status);
+      console.log("🔍 All session keys:", data ? Object.keys(data) : "NO DATA");
       setSession(data as SessionWithMetadata);
+      console.log("✅ setSession() called with:", data);
     } catch (error) {
       console.error("❌ ERROR in loadSession():", error);
       console.log("📍 Route CHOSEN (on error):", "/refuge/adopte/step1");
@@ -87,6 +95,7 @@ export function RefugeSessionScreen() {
   }, [sessionId]);
 
   if (loading || !session) {
+    console.log("📍 RENDER: Loading or no session - showing spinner");
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContent}>
@@ -96,15 +105,31 @@ export function RefugeSessionScreen() {
     );
   }
 
-  const isAdopte = currentUser?.id === session.adopteId;
-  const isAdoptant = currentUser?.id === session.adoptantId;
-  const statusText = session.status === "ACTIVE" ? "Active" : session.status;
-  const animalSexEmoji = session.animalSexe === "Mâle" ? "♂️" : "♀️";
+  console.log("📍 RENDER: Session exists, preparing UI");
+  console.log("✅ Session at render:", session);
+  console.log("✅ session.background value:", session?.background);
+  console.log("✅ session.animalType value:", session?.animalType);
+  console.log("✅ session.status value:", session?.status);
+
+  const isAdopte = currentUser?.id === session?.adopteId;
+  const isAdoptant = currentUser?.id === session?.adoptantId;
+  const statusText = session?.status === "ACTIVE" ? "Active" : session?.status;
+  const animalSexEmoji = session?.animalSexe === "Mâle" ? "♂️" : "♀️";
+
+  console.log("✅ Computed values - isAdopte:", isAdopte, "isAdoptant:", isAdoptant);
+
+  if (!session?.background) {
+    console.warn("⚠️ WARNING: session.background is undefined or null");
+  }
 
   const backgroundDef =
-    BACKGROUND_DEFINITIONS[session.background as keyof typeof BACKGROUND_DEFINITIONS] ||
+    BACKGROUND_DEFINITIONS[session?.background as keyof typeof BACKGROUND_DEFINITIONS] ||
     BACKGROUND_DEFINITIONS.FORET;
 
+  console.log("✅ backgroundDef:", backgroundDef?.name || "DEFAULT");
+  console.log("📍 ABOUT TO RENDER: Main JSX");
+
+  console.log("📍 Rendering LinearGradient...");
   return (
     <LinearGradient
       colors={backgroundDef.colors}
@@ -118,20 +143,31 @@ export function RefugeSessionScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.animalEmoji}>
-              {session.animalType === "Chat"
-                ? "🐱"
-                : session.animalType === "Chien"
-                  ? "🐕"
-                  : session.animalType === "Lapin"
-                    ? "🐰"
-                    : session.animalType === "Hamster"
-                      ? "🐹"
-                      : "🦜"}
+              {(() => {
+                console.log("📍 In animalEmoji ternary - session.animalType:", session?.animalType);
+                return session?.animalType === "Chat"
+                  ? "🐱"
+                  : session?.animalType === "Chien"
+                    ? "🐕"
+                    : session?.animalType === "Lapin"
+                      ? "🐰"
+                      : session?.animalType === "Hamster"
+                        ? "🐹"
+                        : "🦜";
+              })()}
             </Text>
             <Text style={styles.title}>
-              {session.animalType} {animalSexEmoji}
+              {(() => {
+                console.log("📍 In title - session.animalType:", session?.animalType, "animalSexEmoji:", animalSexEmoji);
+                return `${session?.animalType} ${animalSexEmoji}`;
+              })()}
             </Text>
-            <Text style={styles.subtitle}>{session.animalCategory}</Text>
+            <Text style={styles.subtitle}>
+              {(() => {
+                console.log("📍 In subtitle - session.animalCategory:", session?.animalCategory);
+                return session?.animalCategory;
+              })()}
+            </Text>
           </View>
           <View style={styles.headerRight}>
             {isAdopte && (
@@ -152,34 +188,54 @@ export function RefugeSessionScreen() {
         <View style={styles.infoGrid}>
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>Jour courant</Text>
-            <Text style={styles.infoValue}>{session.currentDay || 1}/7</Text>
+            <Text style={styles.infoValue}>
+              {(() => {
+                console.log("📍 currentDay - value:", session?.currentDay, "type:", typeof session?.currentDay);
+                return `${session?.currentDay || 1}/7`;
+              })()}
+            </Text>
           </View>
 
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>Votre rôle</Text>
             <Text style={styles.infoValue}>
-              {isAdopte ? "🎭 Adopté" : isAdoptant ? "🔍 Adoptant" : "Spectateur"}
+              {(() => {
+                console.log("📍 roleValue - isAdopte:", isAdopte, "isAdoptant:", isAdoptant);
+                return isAdopte ? "🎭 Adopté" : isAdoptant ? "🔍 Adoptant" : "Spectateur";
+              })()}
             </Text>
           </View>
 
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>Accepte</Text>
             <Text style={styles.infoValue}>
-              {session.acceptedSexe === "HOMME_FEMME"
-                ? "Tous"
-                : session.acceptedSexe === "HOMME"
-                  ? "Hommes"
-                  : "Femmes"}
+              {(() => {
+                console.log("📍 acceptedSexe - value:", session?.acceptedSexe, "type:", typeof session?.acceptedSexe);
+                return session?.acceptedSexe === "HOMME_FEMME"
+                  ? "Tous"
+                  : session?.acceptedSexe === "HOMME"
+                    ? "Hommes"
+                    : "Femmes";
+              })()}
             </Text>
           </View>
 
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>Temps restant</Text>
-            <Text style={styles.infoValue}>{session.timeRemaining || "7j"}</Text>
+            <Text style={styles.infoValue}>
+              {(() => {
+                console.log("📍 timeRemaining - value:", session?.timeRemaining, "type:", typeof session?.timeRemaining);
+                return session?.timeRemaining || "7j";
+              })()}
+            </Text>
           </View>
         </View>
 
         {/* Role-specific Info */}
+        {(() => {
+          console.log("📍 Before role-specific render - isAdopte:", isAdopte, "isAdoptant:", isAdoptant);
+          return null;
+        })()}
         {isAdopte && (
           <View style={styles.roleCard}>
             <Text style={styles.roleCardTitle}>🎭 Vous êtes l&apos;Adopté</Text>
@@ -230,13 +286,21 @@ export function RefugeSessionScreen() {
       </ScrollView>
       </SafeAreaView>
 
+      {(() => {
+        console.log("📍 Before BackgroundPicker - session.background:", session?.background, "type:", typeof session?.background);
+        return null;
+      })()}
       <BackgroundPicker
         visible={backgroundModalVisible}
-        currentBackground={session.background}
+        currentBackground={session?.background || "FORET"}
         onSelect={handleUpdateBackground}
         onClose={() => setBackgroundModalVisible(false)}
         isLoading={updatingBackground}
       />
+      {(() => {
+        console.log("✅ RENDER COMPLETED SUCCESSFULLY");
+        return null;
+      })()}
     </LinearGradient>
   );
 }
