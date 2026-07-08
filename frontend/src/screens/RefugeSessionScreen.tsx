@@ -13,8 +13,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { refugeApi, RefugeSession } from "../api/refuge-api";
 import { useStore } from "../store/useStore";
-import { BackgroundPicker } from "../modules/refuge/components/BackgroundPicker";
-import { BACKGROUND_DEFINITIONS } from "../modules/refuge/refugeBackgrounds";
+import { BackgroundPicker } from "../components/BackgroundPicker";
+import { BACKGROUND_DEFINITIONS } from "../data/refugeBackgrounds";
 
 interface SessionWithMetadata extends RefugeSession {
   currentDay?: number;
@@ -218,13 +218,13 @@ export function RefugeSessionScreen() {
       </ScrollView>
       </SafeAreaView>
 
-      <BackgroundPicker
-        visible={backgroundModalVisible}
-        currentBackground={session.background}
-        onSelect={handleUpdateBackground}
-        onClose={() => setBackgroundModalVisible(false)}
-        isLoading={updatingBackground}
-      />
+      {backgroundModalVisible && (
+        <BackgroundPicker
+          currentBackground={session.background}
+          onSelectBackground={handleUpdateBackground}
+          isLoading={updatingBackground}
+        />
+      )}
     </LinearGradient>
   );
 }
