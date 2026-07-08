@@ -10,9 +10,7 @@ import {
 import {
   REFUGE_BACKGROUNDS,
   RefugeBackgroundType,
-  getBackgroundLabel,
 } from '../data/refugeBackgrounds';
-import { BouncyButton } from './BouncyButton';
 
 interface BackgroundPickerProps {
   currentBackground: RefugeBackgroundType | string;
@@ -27,6 +25,14 @@ export function BackgroundPicker({
 }: BackgroundPickerProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  if (!REFUGE_BACKGROUNDS) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.error}>Erreur: Données manquantes</Text>
+      </View>
+    );
+  }
+
   const handleSelect = async (background: RefugeBackgroundType) => {
     setIsSubmitting(true);
     try {
@@ -36,7 +42,7 @@ export function BackgroundPicker({
     }
   };
 
-  const backgrounds = REFUGE_BACKGROUNDS ? Object.values(REFUGE_BACKGROUNDS) : [];
+  const backgrounds = Object.values(REFUGE_BACKGROUNDS);
 
   return (
     <View style={styles.container}>
@@ -48,7 +54,6 @@ export function BackgroundPicker({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        scrollEventThrottle={16}
         contentContainerStyle={styles.scrollContent}
         style={styles.scroll}
       >
@@ -56,18 +61,19 @@ export function BackgroundPicker({
           const isSelected = currentBackground === background.id;
 
           return (
-            <BouncyButton
+            <Pressable
               key={background.id}
+              onPress={() => handleSelect(background.id)}
+              disabled={isSubmitting || isLoading}
               style={[
                 styles.backgroundButton,
                 {
                   backgroundColor: background.gradient[0],
                   borderColor: isSelected ? '#2D1F0E' : '#E0D5C8',
                   borderWidth: isSelected ? 3 : 2,
+                  opacity: isSubmitting || isLoading ? 0.6 : 1,
                 },
               ]}
-              onPress={() => handleSelect(background.id)}
-              disabled={isSubmitting || isLoading}
             >
               <View style={styles.buttonContent}>
                 <Text style={styles.emoji}>{background.emoji}</Text>
@@ -78,7 +84,7 @@ export function BackgroundPicker({
                   </View>
                 )}
               </View>
-            </BouncyButton>
+            </Pressable>
           );
         })}
       </ScrollView>
@@ -178,6 +184,11 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 11,
     color: '#A89A7E',
+    textAlign: 'center',
+  },
+  error: {
+    fontSize: 14,
+    color: '#d32f2f',
     textAlign: 'center',
   },
 });
