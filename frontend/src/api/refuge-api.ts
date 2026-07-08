@@ -73,7 +73,16 @@ export const refugeApi = {
 
   // Récupérer la session Refuge active de l'utilisateur courant
   async getActive(): Promise<RefugeSession | null> {
-    const response = await apiFetch("/refuge/active");
-    return response?.data || null;
+    console.log("🔌 API: GET /refuge/active");
+    try {
+      const response = await apiFetch("/refuge/active");
+      console.log("📥 API Response:", response);
+      const result = response?.data || null;
+      console.log("✅ API getActive() result:", result);
+      return result;
+    } catch (error) {
+      console.error("❌ API ERROR in getActive():", error);
+      throw error;
+    }
   },
 };

@@ -176,19 +176,26 @@ export class RefugeController {
 
   static async getActive(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?.userId;
+    console.log("🔌 BACKEND: GET /refuge/active");
+    console.log("👤 userId from auth:", userId);
+
     if (!userId) {
+      console.log("❌ NO AUTH - returning 401");
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
 
     try {
+      console.log("🔄 Calling RefugeService.getActiveRefugeSession()...");
       const activeSession = await RefugeService.getActiveRefugeSession(userId);
+      console.log("✅ Active session found:", activeSession);
 
       res.status(200).json({
         success: true,
         data: activeSession,
       });
     } catch (error: any) {
+      console.error("❌ ERROR in getActive():", error);
       if (error.statusCode) {
         res.status(error.statusCode).json({ error: error.message });
       } else {

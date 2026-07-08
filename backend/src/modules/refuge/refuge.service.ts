@@ -320,6 +320,7 @@ export class RefugeService {
   // ============================================================
 
   static async getActiveRefugeSession(userId: string): Promise<RefugeSessionDTO | null> {
+    console.log("🔍 SERVICE: getActiveRefugeSession() for userId:", userId);
     const activeSession = await prisma.refugeSession.findFirst({
       where: {
         OR: [
@@ -329,7 +330,17 @@ export class RefugeService {
       },
     });
 
-    return activeSession ? this.mapToDTO(activeSession) : null;
+    console.log("📊 Query result - activeSession:", activeSession ? "FOUND" : "NOT FOUND");
+    if (activeSession) {
+      console.log("  - Session ID:", activeSession.id);
+      console.log("  - Status:", activeSession.status);
+      console.log("  - AdopteId:", activeSession.adopteId);
+      console.log("  - AdoptantId:", activeSession.adoptantId);
+    }
+
+    const result = activeSession ? this.mapToDTO(activeSession) : null;
+    console.log("✅ SERVICE returning:", result);
+    return result;
   }
 
   // ============================================================

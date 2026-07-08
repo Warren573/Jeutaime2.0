@@ -29,19 +29,31 @@ export function RefugeSessionScreen() {
   const { currentUser } = useStore();
   const sessionId = Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId;
 
+  console.log("=== REFUGESESSIONSCREEN RENDER ===");
+  console.log("📍 Screen: RefugeSessionScreen");
+  console.log("📋 Raw params:", params);
+  console.log("🎫 Parsed sessionId:", sessionId);
+  console.log("👤 currentUser:", { userId: currentUser?.id, username: currentUser?.pseudo });
+
   const [session, setSession] = useState<SessionWithMetadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [backgroundModalVisible, setBackgroundModalVisible] = useState(false);
   const [updatingBackground, setUpdatingBackground] = useState(false);
 
   const loadSession = async () => {
+    console.log("🔄 loadSession() called");
     try {
       if (!sessionId) {
+        console.log("❌ NO SESSION ID - throwing error");
         throw new Error("Session ID manquant - redirection vers l'onboarding");
       }
+      console.log("📡 Calling refugeApi.getSession()...");
       const data = await refugeApi.getSession(sessionId);
+      console.log("✅ Session loaded successfully:", data);
       setSession(data as SessionWithMetadata);
     } catch (error) {
+      console.error("❌ ERROR in loadSession():", error);
+      console.log("📍 Route CHOSEN (on error):", "/refuge/adopte/step1");
       Alert.alert(
         "Erreur",
         error instanceof Error ? error.message : "Erreur lors du chargement"
