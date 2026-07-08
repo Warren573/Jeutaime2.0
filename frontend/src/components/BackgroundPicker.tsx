@@ -36,6 +36,8 @@ export function BackgroundPicker({
     }
   };
 
+  const backgrounds = REFUGE_BACKGROUNDS ? Object.values(REFUGE_BACKGROUNDS) : [];
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Choisir l'ambiance</Text>
@@ -50,7 +52,7 @@ export function BackgroundPicker({
         contentContainerStyle={styles.scrollContent}
         style={styles.scroll}
       >
-        {Object.values(REFUGE_BACKGROUNDS).map((background) => {
+        {backgrounds.map((background) => {
           const isSelected = currentBackground === background.id;
 
           return (
