@@ -1,9 +1,9 @@
 import { useRouteGuard } from '../../src/components/FeatureGate';
-import { RefugeMainScreen } from '../../src/screens/RefugeMainScreen';
+import { RefugeSessionScreen } from '../../src/screens/RefugeSessionScreen';
 
 export default function RefugePage() {
   const state = useRouteGuard('refuge');
   console.log('[REFUGE ROUTE GUARD]', state);
   if (state === 'hidden') return null;
-  return <RefugeMainScreen />;
+  return <RefugeSessionScreen />;
 }
