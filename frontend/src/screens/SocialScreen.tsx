@@ -91,7 +91,7 @@ export default function SocialScreen() {
     }
 
     if (id === "adoption" && FEATURES.refuge !== "hidden") {
-      router.push("/refuge");
+      router.push("/refuge/adopte/step1");
       return;
     }
 
