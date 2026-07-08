@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ScrollView, Text } from 'react-native';
 
-export default function RefugeSessionScreen() {
+export function RefugeSessionScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
