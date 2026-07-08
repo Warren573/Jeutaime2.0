@@ -143,6 +143,7 @@ export function RefugeMainScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={{ flex: 1, pointerEvents: showBackgroundPicker ? "none" : "auto" }}>
       {/* Header */}
       <View style={styles.header}>
         <BouncyButton
@@ -307,6 +308,7 @@ export function RefugeMainScreen() {
           </View>
         )}
       </ScrollView>
+      </View>
 
       {/* Background Picker Modal */}
       <Modal
