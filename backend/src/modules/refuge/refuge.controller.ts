@@ -171,6 +171,33 @@ export class RefugeController {
   }
 
   // ============================================================
+  // GET /api/refuge/active
+  // ============================================================
+
+  static async getActive(req: AuthedRequest, res: Response): Promise<void> {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Non authentifié" });
+      return;
+    }
+
+    try {
+      const activeSession = await RefugeService.getActiveRefugeSession(userId);
+
+      res.status(200).json({
+        success: true,
+        data: activeSession,
+      });
+    } catch (error: any) {
+      if (error.statusCode) {
+        res.status(error.statusCode).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Erreur interne" });
+      }
+    }
+  }
+
+  // ============================================================
   // POST /api/refuge/daily-choice
   // ============================================================
 

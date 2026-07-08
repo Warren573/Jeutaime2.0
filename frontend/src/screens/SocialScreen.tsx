@@ -6,10 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
+import { refugeApi } from "../api/refuge-api";
 import CardGame from "./games/CardGame";
 import StoryGame from "./games/StoryGame";
 import { FEATURES } from "../config/features";
@@ -84,14 +87,24 @@ export default function SocialScreen() {
     }
   }, [gamesHidden, currentView]);
 
-  const handlePress = (id: string) => {
+  const handlePress = async (id: string) => {
     if (id === "salons" && FEATURES.salons !== "hidden") {
       router.push("/salons-list");
       return;
     }
 
     if (id === "adoption" && FEATURES.refuge !== "hidden") {
-      router.push("/refuge/adopte/step1");
+      try {
+        const activeSession = await refugeApi.getActive();
+        if (activeSession) {
+          router.push(`/refuge?sessionId=${activeSession.id}`);
+        } else {
+          router.push("/refuge/adopte/step1");
+        }
+      } catch (error) {
+        Alert.alert("Erreur", "Impossible de vérifier votre session Refuge");
+        router.push("/refuge/adopte/step1");
+      }
       return;
     }
 

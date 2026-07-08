@@ -27,6 +27,10 @@ router.post("/propose", validate(ProposeRefugeSchema), wrap(RefugeController.pro
 // Adoptant voit la liste des refuges disponibles
 router.get("/available", wrap(RefugeController.getAvailable));
 
+// GET /api/refuge/active
+// Récupère la session Refuge active de l'utilisateur courant
+router.get("/active", wrap(RefugeController.getActive));
+
 // POST /api/refuge/adopt
 // Adoptant adopte un refuge disponible
 router.post("/adopt", validate(AdoptRefugeSchema), wrap(RefugeController.adopt));

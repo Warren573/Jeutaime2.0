@@ -70,4 +70,10 @@ export const refugeApi = {
     });
     return response?.data;
   },
+
+  // Récupérer la session Refuge active de l'utilisateur courant
+  async getActive(): Promise<RefugeSession | null> {
+    const response = await apiFetch("/refuge/active");
+    return response?.data || null;
+  },
 };

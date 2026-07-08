@@ -316,6 +316,23 @@ export class RefugeService {
   }
 
   // ============================================================
+  // Récupération — Session active de l'utilisateur courant
+  // ============================================================
+
+  static async getActiveRefugeSession(userId: string): Promise<RefugeSessionDTO | null> {
+    const activeSession = await prisma.refugeSession.findFirst({
+      where: {
+        OR: [
+          { adopteId: userId, status: RefugeSessionStatus.ACTIVE },
+          { adoptantId: userId, status: RefugeSessionStatus.ACTIVE },
+        ],
+      },
+    });
+
+    return activeSession ? this.mapToDTO(activeSession) : null;
+  }
+
+  // ============================================================
   // Devinettes — L'Adoptant devine les 2 actions de l'Adopté
   // ============================================================
 
