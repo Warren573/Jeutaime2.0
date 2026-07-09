@@ -2432,6 +2432,9 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
     const userIdsToDelete = allTestUsers.map((u) => u.id);
     console.log(`[test/reset-test-users] Found ${userIdsToDelete.length} test accounts to delete: ${allTestUsers.map((u) => u.email).join(", ")}`);
 
+    // Track Refuge sessions abandoned
+    let refugeSessionsAbandoned = 0;
+
     // Delete test accounts
     if (userIdsToDelete.length > 0) {
       await prisma.reaction.deleteMany({
@@ -2480,6 +2483,30 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
       });
 
       console.log(`[test/reset-test-users] Deleted ${userIdsToDelete.length} test accounts`);
+
+      // Abandon Refuge sessions (user as adopte or adoptant)
+      const refugeSessionsAsAdopte = await prisma.refugeSession.findMany({
+        where: { adopteId: { in: userIdsToDelete } },
+        select: { id: true },
+      });
+      const refugeSessionsAsAdoptant = await prisma.refugeSession.findMany({
+        where: { adoptantId: { in: userIdsToDelete } },
+        select: { id: true },
+      });
+
+      const allRefugeSessionIds = [
+        ...refugeSessionsAsAdopte.map((s) => s.id),
+        ...refugeSessionsAsAdoptant.map((s) => s.id),
+      ];
+
+      if (allRefugeSessionIds.length > 0) {
+        const abandonResult = await prisma.refugeSession.updateMany({
+          where: { id: { in: allRefugeSessionIds } },
+          data: { status: "ABANDONED" },
+        });
+        refugeSessionsAbandoned = abandonResult.count;
+        console.log(`[test/reset-test-users] Abandoned ${refugeSessionsAbandoned} Refuge sessions`);
+      }
     }
 
     // 4. Create new test users
@@ -2569,6 +2596,7 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
         preserved: preservedUsers.length,
         created: created.length,
         total: preservedUsers.length + created.length,
+        refugeSessionsAbandoned,
       },
       preserved_users: preservedUsers.map((u) => ({ email: u.email, id: u.id })),
       created_users: created.map((u) => ({
@@ -2666,6 +2694,9 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
     const userIdsToDelete = allTestUsers.map((u) => u.id);
     console.log(`[test/reset-test-users GET] Found ${userIdsToDelete.length} test accounts to delete: ${allTestUsers.map((u) => u.email).join(", ")}`);
 
+    // Track Refuge sessions abandoned
+    let refugeSessionsAbandoned = 0;
+
     // Delete test accounts
     if (userIdsToDelete.length > 0) {
       await prisma.reaction.deleteMany({
@@ -2714,6 +2745,30 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
       });
 
       console.log(`[test/reset-test-users GET] Deleted ${userIdsToDelete.length} test accounts`);
+
+      // Abandon Refuge sessions (user as adopte or adoptant)
+      const refugeSessionsAsAdopte = await prisma.refugeSession.findMany({
+        where: { adopteId: { in: userIdsToDelete } },
+        select: { id: true },
+      });
+      const refugeSessionsAsAdoptant = await prisma.refugeSession.findMany({
+        where: { adoptantId: { in: userIdsToDelete } },
+        select: { id: true },
+      });
+
+      const allRefugeSessionIds = [
+        ...refugeSessionsAsAdopte.map((s) => s.id),
+        ...refugeSessionsAsAdoptant.map((s) => s.id),
+      ];
+
+      if (allRefugeSessionIds.length > 0) {
+        const abandonResult = await prisma.refugeSession.updateMany({
+          where: { id: { in: allRefugeSessionIds } },
+          data: { status: "ABANDONED" },
+        });
+        refugeSessionsAbandoned = abandonResult.count;
+        console.log(`[test/reset-test-users GET] Abandoned ${refugeSessionsAbandoned} Refuge sessions`);
+      }
     }
 
     // 4. Create new test users
@@ -2804,6 +2859,7 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
         preserved: preservedUsers.length,
         created: created.length,
         total: preservedUsers.length + created.length,
+        refugeSessionsAbandoned,
       },
       preserved_users: preservedUsers.map((u) => ({ email: u.email, id: u.id })),
       created_users: created.map((u) => ({
