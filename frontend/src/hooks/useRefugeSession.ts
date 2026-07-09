@@ -36,6 +36,30 @@ export function useRefugeSession(sessionId: string | null) {
 
   const { currentUser } = useStore();
 
+  // Mapping interne: UI values → enum backend
+  const mapActionToBackend = (action: string): string => {
+    const mapping: Record<string, string> = {
+      feed: "NOURRIR",
+      play: "JOUER",
+      pet: "CARESSER",
+      wash: "LAVER",
+    };
+    return mapping[action] || action;
+  };
+
+  const mapBackgroundToBackend = (background: string): string => {
+    const mapping: Record<string, string> = {
+      default: "FORET", // Default → FORET
+      forêt: "FORET",
+      plage: "PLAGE",
+      neige: "NEIGE",
+      automne: "AUTOMNE",
+      montagne: "MONTAGNE",
+      nuit_étoilée: "NUIT_ETOILEE",
+    };
+    return mapping[background] || background;
+  };
+
   // Récupérer le statut de la session via refugeApi
   const fetchSessionStatus = useCallback(async () => {
     if (!sessionId) return;
@@ -83,20 +107,26 @@ export function useRefugeSession(sessionId: string | null) {
       if (!sessionId || actions.length < 2 || guesses.length < 2) return false;
 
       try {
+        // Mapper actions UI vers enums backend avant envoi
+        const backendAction1 = mapActionToBackend(actions[0]);
+        const backendAction2 = mapActionToBackend(actions[1]);
+        const backendGuess1 = mapActionToBackend(guesses[0]);
+        const backendGuess2 = mapActionToBackend(guesses[1]);
+
         // Soumettre les actions de l'Adopté
         await refugeApi.submitDailyChoice(
           sessionId,
           state.currentDay,
-          actions[0],
-          actions[1]
+          backendAction1,
+          backendAction2
         );
 
         // Soumettre les devinettes de l'Adoptant
         await refugeApi.submitGuess(
           sessionId,
           state.currentDay,
-          guesses[0],
-          guesses[1]
+          backendGuess1,
+          backendGuess2
         );
 
         // Rafraîchir le statut
@@ -127,9 +157,12 @@ export function useRefugeSession(sessionId: string | null) {
       if (!sessionId) return false;
 
       try {
+        // Mapper background vers enum backend
+        const backendBackground = mapBackgroundToBackend(background);
+
         const updatedSession = await refugeApi.updateBackground(
           sessionId,
-          background
+          backendBackground
         );
 
         // Mettre à jour l'état local avec la réponse du serveur

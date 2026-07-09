@@ -396,7 +396,8 @@ const styles = StyleSheet.create({
 
   /* Refuge Zone */
   refugeZone: {
-    flex: 1,
+    flex: 0.5,
+    maxHeight: 350,
     marginHorizontal: 12,
     marginBottom: 12,
     alignItems: "center",
