@@ -14,6 +14,11 @@ export interface RefugeSession {
   endsAt: string | null;
   preexistingLinkType: string | null;
   background: string;
+  // Metadata optionnelle (retournée par getSession)
+  currentDay?: number;
+  timeRemaining?: { days: number; hours: number };
+  isActive?: boolean;
+  isCompleted?: boolean;
 }
 
 export interface ProposeRefugeRequest {
@@ -84,5 +89,38 @@ export const refugeApi = {
       console.error("❌ API ERROR in getActive():", error);
       throw error;
     }
+  },
+
+  // Récupérer le statut de la session (alias pour getSession)
+  async getSessionStatus(sessionId: string): Promise<RefugeSession> {
+    return this.getSession(sessionId);
+  },
+
+  // Soumettre les 2 actions quotidiennes de l'Adopté
+  async submitDailyChoice(
+    sessionId: string,
+    dayNumber: number,
+    action1: string,
+    action2: string
+  ): Promise<any> {
+    const response = await apiFetch("/refuge/daily-choice", {
+      method: "POST",
+      body: JSON.stringify({ sessionId, dayNumber, action1, action2 }),
+    });
+    return response?.data;
+  },
+
+  // Soumettre les 2 devinettes quotidiennes de l'Adoptant
+  async submitGuess(
+    sessionId: string,
+    dayNumber: number,
+    guessedAction1: string,
+    guessedAction2: string
+  ): Promise<any> {
+    const response = await apiFetch("/refuge/guess", {
+      method: "POST",
+      body: JSON.stringify({ sessionId, dayNumber, guessedAction1, guessedAction2 }),
+    });
+    return response?.data;
   },
 };

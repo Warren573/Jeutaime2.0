@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useStore } from "../store/useStore";
+import { refugeApi } from "../api/refuge-api";
 
 interface RefugeSessionState {
   sessionId: string | null;
@@ -36,45 +36,26 @@ export function useRefugeSession(sessionId: string | null) {
 
   const { currentUser } = useStore();
 
-  // Fonction helper pour obtenir le token
-  const getAuthHeaders = useCallback(async () => {
-    const token = await AsyncStorage.getItem("auth_token");
-    return {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-  }, []);
-
-  // Récupérer le statut de la session
+  // Récupérer le statut de la session via refugeApi
   const fetchSessionStatus = useCallback(async () => {
     if (!sessionId) return;
 
     setState((prev) => ({ ...prev, isLoading: true }));
 
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(
-        `/api/refuge/sessions/${sessionId}/status`,
-        {
-          method: "GET",
-          headers,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch session status");
-      }
-
-      const data = await response.json();
+      const data = await refugeApi.getSessionStatus(sessionId);
       setState((prev) => ({
         ...prev,
-        sessionId: data.sessionId,
-        currentDay: data.currentDay,
-        status: data.status,
-        canAttemptToday: data.canAttemptToday,
-        todaySubmitted: data.todaySubmitted,
-        hearts: data.hearts,
-        companion: data.companion || null,
+        sessionId: data.id,
+        currentDay: data.currentDay || 1,
+        status: data.status as any,
+        canAttemptToday: true,
+        todaySubmitted: false,
+        hearts: prev.hearts,
+        companion: {
+          animalType: data.animalType,
+          background: data.background,
+        },
         isLoading: false,
         error: null,
       }));
@@ -85,7 +66,7 @@ export function useRefugeSession(sessionId: string | null) {
         error: err.message || "Unknown error",
       }));
     }
-  }, [sessionId, getAuthHeaders]);
+  }, [sessionId]);
 
   // Charger le statut au montage
   useEffect(() => {
@@ -96,25 +77,27 @@ export function useRefugeSession(sessionId: string | null) {
     return () => clearInterval(interval);
   }, [fetchSessionStatus]);
 
-  // Soumettre la tentative quotidienne
+  // Soumettre les actions quotidiennes et les devinettes
   const submitAttempt = useCallback(
     async (actions: string[], guesses: string[]) => {
-      if (!sessionId) return false;
+      if (!sessionId || actions.length < 2 || guesses.length < 2) return false;
 
       try {
-        const headers = await getAuthHeaders();
-        const response = await fetch(
-          `/api/refuge/sessions/${sessionId}/attempt`,
-          {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ actions, guesses }),
-          }
+        // Soumettre les actions de l'Adopté
+        await refugeApi.submitDailyChoice(
+          sessionId,
+          state.currentDay,
+          actions[0],
+          actions[1]
         );
 
-        if (!response.ok) {
-          throw new Error("Failed to submit attempt");
-        }
+        // Soumettre les devinettes de l'Adoptant
+        await refugeApi.submitGuess(
+          sessionId,
+          state.currentDay,
+          guesses[0],
+          guesses[1]
+        );
 
         // Rafraîchir le statut
         await fetchSessionStatus();
@@ -127,64 +110,35 @@ export function useRefugeSession(sessionId: string | null) {
         return false;
       }
     },
-    [sessionId, getAuthHeaders, fetchSessionStatus]
+    [sessionId, state.currentDay, fetchSessionStatus]
   );
 
-  // Révéler les profils
+  // Révéler les profils (endpoint pas encore implémenté côté backend)
   const revealProfiles = useCallback(async () => {
-    if (!sessionId) return null;
+    console.warn(
+      "⚠️ revealProfiles() n'a pas d'endpoint backend — non implémenté"
+    );
+    return null;
+  }, []);
 
-    try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(
-        `/api/refuge/sessions/${sessionId}/reveal`,
-        {
-          method: "POST",
-          headers,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to reveal profiles");
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (err) {
-      setState((prev) => ({
-        ...prev,
-        error: "Erreur lors du dévoilement",
-      }));
-      return null;
-    }
-  }, [sessionId, getAuthHeaders]);
-
-  // Changer le fond d'ambiance
+  // Changer le fond d'ambiance via refugeApi
   const changeBackground = useCallback(
     async (background: string) => {
       if (!sessionId) return false;
 
       try {
-        const headers = await getAuthHeaders();
-        const response = await fetch(
-          `/api/refuge/companions/${sessionId}/background`,
-          {
-            method: "PUT",
-            headers,
-            body: JSON.stringify({ background }),
-          }
+        const updatedSession = await refugeApi.updateBackground(
+          sessionId,
+          background
         );
 
-        if (!response.ok) {
-          throw new Error("Failed to change background");
-        }
-
-        // Mettre à jour l'état local
+        // Mettre à jour l'état local avec la réponse du serveur
         setState((prev) => ({
           ...prev,
-          companion: prev.companion
-            ? { ...prev.companion, background }
-            : null,
+          companion: {
+            animalType: updatedSession.animalType,
+            background: updatedSession.background,
+          },
         }));
 
         return true;
@@ -196,7 +150,7 @@ export function useRefugeSession(sessionId: string | null) {
         return false;
       }
     },
-    [sessionId, getAuthHeaders]
+    [sessionId]
   );
 
   return {
