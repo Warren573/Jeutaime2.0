@@ -13,6 +13,7 @@ export default function RefugePage() {
   const [loading, setLoading] = useState(!sessionIdParam);
   const [sessionId, setSessionId] = useState<string | null>(sessionIdParam);
 
+  // Load or fetch active session
   useEffect(() => {
     if (sessionIdParam) {
       // Session ID provided in params - go straight to game
@@ -38,6 +39,14 @@ export default function RefugePage() {
     fetchActiveSession();
   }, [sessionIdParam]);
 
+  // Navigate to game route when session found
+  useEffect(() => {
+    if (sessionId) {
+      router.replace(`/refuge/${sessionId}`);
+    }
+  }, [sessionId, router]);
+
+  // Show loading while fetching or navigating
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -48,12 +57,8 @@ export default function RefugePage() {
     );
   }
 
-  // If session ID exists, navigate to game route
+  // If session ID exists, show loading while navigating to game
   if (sessionId) {
-    React.useEffect(() => {
-      router.replace(`/refuge/${sessionId}`);
-    }, [sessionId, router]);
-    // Show loading while navigating
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContent}>
