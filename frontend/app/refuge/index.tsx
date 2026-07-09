@@ -57,6 +57,9 @@ export default function RefugePage() {
   // No active session - show landing screen with choices
   return (
     <SafeAreaView style={styles.container}>
+      <Text style={{ fontSize: 24, color: 'red', padding: 20 }}>
+        ✅ REFUGE INDEX 39a52cf7 - LANDING SCREEN ACTIVE
+      </Text>
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.emoji}>🏠</Text>
