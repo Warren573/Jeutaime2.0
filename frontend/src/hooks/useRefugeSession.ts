@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useStore } from "../store/useStore";
-import { refugeApi } from "../api/refuge-api";
 
 interface RefugeSessionState {
   sessionId: string | null;
@@ -36,50 +36,45 @@ export function useRefugeSession(sessionId: string | null) {
 
   const { currentUser } = useStore();
 
-  // Mapping interne: UI values → enum backend
-  const mapActionToBackend = (action: string): string => {
-    const mapping: Record<string, string> = {
-      feed: "NOURRIR",
-      play: "JOUER",
-      pet: "CARESSER",
-      wash: "LAVER",
+  // Fonction helper pour obtenir le token
+  const getAuthHeaders = useCallback(async () => {
+    const token = await AsyncStorage.getItem("auth_token");
+    return {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
-    return mapping[action] || action;
-  };
+  }, []);
 
-  const mapBackgroundToBackend = (background: string): string => {
-    const mapping: Record<string, string> = {
-      default: "FORET", // Default → FORET
-      forêt: "FORET",
-      plage: "PLAGE",
-      neige: "NEIGE",
-      automne: "AUTOMNE",
-      montagne: "MONTAGNE",
-      nuit_étoilée: "NUIT_ETOILEE",
-    };
-    return mapping[background] || background;
-  };
-
-  // Récupérer le statut de la session via refugeApi
+  // Récupérer le statut de la session
   const fetchSessionStatus = useCallback(async () => {
     if (!sessionId) return;
 
     setState((prev) => ({ ...prev, isLoading: true }));
 
     try {
-      const data = await refugeApi.getSessionStatus(sessionId);
+      const headers = await getAuthHeaders();
+      const response = await fetch(
+        `/api/refuge/sessions/${sessionId}/status`,
+        {
+          method: "GET",
+          headers,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch session status");
+      }
+
+      const data = await response.json();
       setState((prev) => ({
         ...prev,
-        sessionId: data.sessionId || data.id,
-        currentDay: data.currentDay || 1,
+        sessionId: data.sessionId,
+        currentDay: data.currentDay,
         status: data.status,
-        canAttemptToday: data.canAttemptToday ?? true,
-        todaySubmitted: data.todaySubmitted ?? false,
-        hearts: data.hearts || prev.hearts,
-        companion: {
-          animalType: data.animalType,
-          background: data.background,
-        },
+        canAttemptToday: data.canAttemptToday,
+        todaySubmitted: data.todaySubmitted,
+        hearts: data.hearts,
+        companion: data.companion || null,
         isLoading: false,
         error: null,
       }));
@@ -90,7 +85,7 @@ export function useRefugeSession(sessionId: string | null) {
         error: err.message || "Unknown error",
       }));
     }
-  }, [sessionId]);
+  }, [sessionId, getAuthHeaders]);
 
   // Charger le statut au montage
   useEffect(() => {
@@ -101,33 +96,25 @@ export function useRefugeSession(sessionId: string | null) {
     return () => clearInterval(interval);
   }, [fetchSessionStatus]);
 
-  // Soumettre les actions quotidiennes et les devinettes
+  // Soumettre la tentative quotidienne
   const submitAttempt = useCallback(
     async (actions: string[], guesses: string[]) => {
-      if (!sessionId || actions.length < 2 || guesses.length < 2) return false;
+      if (!sessionId) return false;
 
       try {
-        // Mapper actions UI vers enums backend avant envoi
-        const backendAction1 = mapActionToBackend(actions[0]);
-        const backendAction2 = mapActionToBackend(actions[1]);
-        const backendGuess1 = mapActionToBackend(guesses[0]);
-        const backendGuess2 = mapActionToBackend(guesses[1]);
-
-        // Soumettre les actions de l'Adopté
-        await refugeApi.submitDailyChoice(
-          sessionId,
-          state.currentDay,
-          backendAction1,
-          backendAction2
+        const headers = await getAuthHeaders();
+        const response = await fetch(
+          `/api/refuge/sessions/${sessionId}/attempt`,
+          {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ actions, guesses }),
+          }
         );
 
-        // Soumettre les devinettes de l'Adoptant
-        await refugeApi.submitGuess(
-          sessionId,
-          state.currentDay,
-          backendGuess1,
-          backendGuess2
-        );
+        if (!response.ok) {
+          throw new Error("Failed to submit attempt");
+        }
 
         // Rafraîchir le statut
         await fetchSessionStatus();
@@ -140,38 +127,64 @@ export function useRefugeSession(sessionId: string | null) {
         return false;
       }
     },
-    [sessionId, state.currentDay, fetchSessionStatus]
+    [sessionId, getAuthHeaders, fetchSessionStatus]
   );
 
-  // Révéler les profils (endpoint pas encore implémenté côté backend)
+  // Révéler les profils
   const revealProfiles = useCallback(async () => {
-    console.warn(
-      "⚠️ revealProfiles() n'a pas d'endpoint backend — non implémenté"
-    );
-    return null;
-  }, []);
+    if (!sessionId) return null;
 
-  // Changer le fond d'ambiance via refugeApi
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(
+        `/api/refuge/sessions/${sessionId}/reveal`,
+        {
+          method: "POST",
+          headers,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to reveal profiles");
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: "Erreur lors du dévoilement",
+      }));
+      return null;
+    }
+  }, [sessionId, getAuthHeaders]);
+
+  // Changer le fond d'ambiance
   const changeBackground = useCallback(
     async (background: string) => {
       if (!sessionId) return false;
 
       try {
-        // Mapper background vers enum backend
-        const backendBackground = mapBackgroundToBackend(background);
-
-        const updatedSession = await refugeApi.updateBackground(
-          sessionId,
-          backendBackground
+        const headers = await getAuthHeaders();
+        const response = await fetch(
+          `/api/refuge/companions/${sessionId}/background`,
+          {
+            method: "PUT",
+            headers,
+            body: JSON.stringify({ background }),
+          }
         );
 
-        // Mettre à jour l'état local avec la réponse du serveur
+        if (!response.ok) {
+          throw new Error("Failed to change background");
+        }
+
+        // Mettre à jour l'état local
         setState((prev) => ({
           ...prev,
-          companion: {
-            animalType: updatedSession.animalType,
-            background: updatedSession.background,
-          },
+          companion: prev.companion
+            ? { ...prev.companion, background }
+            : null,
         }));
 
         return true;
@@ -183,7 +196,7 @@ export function useRefugeSession(sessionId: string | null) {
         return false;
       }
     },
-    [sessionId]
+    [sessionId, getAuthHeaders]
   );
 
   return {
