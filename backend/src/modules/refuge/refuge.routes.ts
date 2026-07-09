@@ -51,4 +51,14 @@ router.post("/daily-choice", validate(DailyChoiceSchema), wrap(RefugeController.
 // Adoptant soumet ses devinettes pour le jour
 router.post("/guess", validate(GuessSchema), wrap(RefugeController.submitGuess));
 
+// ============================================================
+// DEV MODE ROUTES - Time Travel (only if REFUGE_DEV_TIME_TRAVEL=true)
+// ============================================================
+
+// POST /api/dev/refuge/:sessionId/set-day
+// DEV: Jump to specific day (1-7) for testing
+if (process.env.REFUGE_DEV_TIME_TRAVEL === "true" && process.env.NODE_ENV !== "production") {
+  router.post("/dev/:sessionId/set-day", wrap(RefugeController.devSetDay));
+}
+
 export default router;

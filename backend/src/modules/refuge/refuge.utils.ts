@@ -112,3 +112,19 @@ export function canAttemptTodayForDay(dayNumber: number, dailyChoices: any[]): b
 export function todaySubmittedForDay(dayNumber: number, guesses: any[]): boolean {
   return guesses.some((g) => g.dayNumber === dayNumber);
 }
+
+// ============================================================
+// DEV MODE - Time Travel (pour tester les 7 jours rapidement)
+// ============================================================
+
+export function calculateStartedAtForDay(createdAt: Date, targetDay: number): Date {
+  if (targetDay < 1 || targetDay > REFUGE_DURATION_DAYS) {
+    throw new Error(`Invalid day: ${targetDay}. Must be between 1 and ${REFUGE_DURATION_DAYS}`);
+  }
+
+  // Pour le jour N, on simule que la session a démarré (N-1) jours ago
+  const daysAgo = targetDay - 1;
+  const startedAt = new Date(createdAt);
+  startedAt.setDate(startedAt.getDate() + daysAgo);
+  return startedAt;
+}

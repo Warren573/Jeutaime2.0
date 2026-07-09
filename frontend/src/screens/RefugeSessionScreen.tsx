@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { refugeApi, RefugeSession } from "../api/refuge-api";
 import { useStore } from "../store/useStore";
+import { RefugeDevTimeTravel } from "../components/RefugeDevTimeTravel";
 
 interface SessionWithMetadata extends RefugeSession {
   currentDay?: number;
@@ -161,6 +162,13 @@ export function RefugeSessionScreen() {
             </Text>
           </View>
         )}
+
+        {/* DEV Mode - Time Travel */}
+        <RefugeDevTimeTravel
+          sessionId={session.id}
+          currentDay={session.currentDay || 1}
+          onDayChanged={() => loadSession()}
+        />
 
         {/* Coming Soon */}
         <View style={styles.comingSoonCard}>

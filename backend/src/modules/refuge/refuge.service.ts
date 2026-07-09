@@ -14,6 +14,7 @@ import {
   calculateHearts,
   canAttemptTodayForDay,
   todaySubmittedForDay,
+  calculateStartedAtForDay,
 } from "./refuge.utils";
 
 // ============================================================
@@ -539,5 +540,71 @@ export class RefugeService {
     if (adoptantGender === Gender.HOMME) return ["HOMME", "HOMME_FEMME"];
     if (adoptantGender === Gender.FEMME) return ["FEMME", "HOMME_FEMME"];
     return ["HOMME", "FEMME", "HOMME_FEMME"];
+  }
+
+  // ============================================================
+  // DEV MODE - Time Travel pour tester les 7 jours
+  // ============================================================
+
+  static async devSetDay(refugeSessionId: string, targetDay: number): Promise<RefugeSessionWithMetadata> {
+    // Validation
+    if (targetDay < 1 || targetDay > REFUGE_DURATION_DAYS) {
+      throw new BadRequestError(`Day must be between 1 and ${REFUGE_DURATION_DAYS}`);
+    }
+
+    // Récupérer la session
+    const refugeSession = await prisma.refugeSession.findUnique({
+      where: { id: refugeSessionId },
+      include: {
+        dailyChoices: { orderBy: { dayNumber: "asc" } },
+        guesses: { orderBy: { dayNumber: "asc" } },
+      },
+    });
+
+    if (!refugeSession) {
+      throw new NotFoundError("Refuge not found");
+    }
+
+    // Vérifier que la session est active
+    if (refugeSession.status !== RefugeSessionStatus.ACTIVE) {
+      throw new ConflictError("Refuge must be ACTIVE to use dev time-travel");
+    }
+
+    // Calculer le nouveau startedAt pour le jour cible
+    const newStartedAt = calculateStartedAtForDay(refugeSession.createdAt, targetDay);
+
+    // Mettre à jour
+    const updatedRefuge = await prisma.refugeSession.update({
+      where: { id: refugeSessionId },
+      data: {
+        startedAt: newStartedAt,
+      },
+      include: {
+        dailyChoices: { orderBy: { dayNumber: "asc" } },
+        guesses: { orderBy: { dayNumber: "asc" } },
+      },
+    });
+
+    // Recalculer les métadonnées avec le nouveau jour
+    const now = new Date();
+    const currentDay = getCurrentDay(updatedRefuge.createdAt, updatedRefuge.startedAt, now);
+    const timeRemaining = getTimeRemaining(updatedRefuge.endsAt || new Date(), now);
+    const isActive = updatedRefuge.status === RefugeSessionStatus.ACTIVE && !isRefugeExpired(updatedRefuge.endsAt);
+    const isCompleted = updatedRefuge.status === RefugeSessionStatus.COMPLETED || updatedRefuge.status === RefugeSessionStatus.ABANDONED;
+
+    const hearts = calculateHearts(updatedRefuge.dailyChoices, updatedRefuge.guesses, currentDay);
+    const canAttemptToday = canAttemptTodayForDay(currentDay, updatedRefuge.dailyChoices);
+    const todaySubmitted = todaySubmittedForDay(currentDay, updatedRefuge.guesses);
+
+    return {
+      ...this.mapToDTO(updatedRefuge),
+      currentDay,
+      timeRemaining,
+      isActive,
+      isCompleted,
+      hearts,
+      canAttemptToday,
+      todaySubmitted,
+    };
   }
 }

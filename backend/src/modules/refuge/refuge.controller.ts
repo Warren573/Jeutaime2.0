@@ -279,4 +279,47 @@ export class RefugeController {
       }
     }
   }
+
+  // ============================================================
+  // DEV MODE: POST /dev/refuge/:sessionId/set-day
+  // ============================================================
+
+  static async devSetDay(req: AuthedRequest, res: Response): Promise<void> {
+    // Check if dev mode is enabled
+    const devEnabled = process.env.REFUGE_DEV_TIME_TRAVEL === "true";
+    const isProd = process.env.NODE_ENV === "production";
+
+    if (isProd || !devEnabled) {
+      res.status(403).json({ error: "Dev mode not enabled" });
+      return;
+    }
+
+    const sessionId = req.params.sessionId as string;
+    const { day } = req.body as { day?: number };
+
+    if (!sessionId) {
+      res.status(400).json({ error: "sessionId is required" });
+      return;
+    }
+
+    if (typeof day !== "number" || day < 1 || day > 7) {
+      res.status(400).json({ error: "Day must be between 1 and 7" });
+      return;
+    }
+
+    try {
+      const result = await RefugeService.devSetDay(sessionId, day);
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: `[DEV] Jumped to day ${day}`,
+      });
+    } catch (error: any) {
+      if (error.statusCode) {
+        res.status(error.statusCode).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Internal error" });
+      }
+    }
+  }
 }
