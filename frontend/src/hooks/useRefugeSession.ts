@@ -76,7 +76,7 @@ export function useRefugeSession(sessionId: string | null) {
         canAttemptToday: data.canAttemptToday ?? true,
         todaySubmitted: data.todaySubmitted ?? false,
         hearts: data.hearts || prev.hearts,
-        companion: data.companion || {
+        companion: {
           animalType: data.animalType,
           background: data.background,
         },

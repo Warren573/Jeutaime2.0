@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useStore } from "../store/useStore";
 import { BouncyButton } from "../components/BouncyButton";
 import { BackgroundPicker } from "../components/BackgroundPicker";
+import { RefugeDevTimeTravel } from "../components/RefugeDevTimeTravel";
 import { AnimalIllustration, type RefugeAction } from "../components/AnimalIllustration";
 import { ACTION_LABELS } from "../data/refugeActions";
 import { getBackgroundGradientStyle } from "../data/refugeBackgrounds";
@@ -307,6 +308,12 @@ export function RefugeMainScreen() {
             <Text style={styles.submittedSubtitle}>À demain.</Text>
           </View>
         )}
+
+        <RefugeDevTimeTravel
+          sessionId={sessionId}
+          currentDay={refugeSession.currentDay}
+          onDayChanged={() => refugeSession.fetchSessionStatus()}
+        />
       </ScrollView>
       </View>
 
