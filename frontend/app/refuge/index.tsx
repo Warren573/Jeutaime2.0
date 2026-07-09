@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { RefugeMainScreen } from '../../src/screens/RefugeMainScreen';
 import { refugeApi } from '../../src/api/refuge-api';
 import { BouncyButton } from '../../src/components/BouncyButton';
 
@@ -49,17 +48,32 @@ export default function RefugePage() {
     );
   }
 
-  // If session ID exists, show the game
+  // If session ID exists, navigate to game route
   if (sessionId) {
-    return <RefugeMainScreen />;
+    React.useEffect(() => {
+      router.replace(`/refuge/${sessionId}`);
+    }, [sessionId, router]);
+    // Show loading while navigating
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color="#2196F3" />
+        </View>
+      </SafeAreaView>
+    );
   }
 
   // No active session - show landing screen with choices
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={{ fontSize: 24, color: 'red', padding: 20 }}>
-        ✅ REFUGE INDEX 39a52cf7 - LANDING SCREEN ACTIVE
-      </Text>
+      <View style={{ backgroundColor: '#FF0000', padding: 20, zIndex: 9999 }}>
+        <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#FFFFFF', textAlign: 'center' }}>
+          ✅ TEST REFUGE INDEX.TSX ACTIVE
+        </Text>
+        <Text style={{ fontSize: 16, color: '#FFFFFF', textAlign: 'center', marginTop: 10 }}>
+          Commit: 989b7176 (Landing Screen)
+        </Text>
+      </View>
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.emoji}>🏠</Text>
