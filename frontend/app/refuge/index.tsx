@@ -71,14 +71,6 @@ export default function RefugePage() {
   // No active session - show landing screen with choices
   return (
     <SafeAreaView style={styles.container}>
-      <View style={{ backgroundColor: '#FF0000', padding: 20, zIndex: 9999 }}>
-        <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#FFFFFF', textAlign: 'center' }}>
-          ✅ TEST REFUGE INDEX.TSX ACTIVE
-        </Text>
-        <Text style={{ fontSize: 16, color: '#FFFFFF', textAlign: 'center', marginTop: 10 }}>
-          Commit: 989b7176 (Landing Screen)
-        </Text>
-      </View>
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.emoji}>🏠</Text>
