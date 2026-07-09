@@ -75,3 +75,40 @@ export function shouldAutoAbandon(lastActivityAt: Date, now: Date = new Date()):
   const hoursElapsed = differenceInHours(now, lastActivityAt);
   return hoursElapsed >= REFUGE_AUTO_ABANDON_HOURS;
 }
+
+export function calculateHearts(
+  dailyChoices: any[],
+  guesses: any[],
+  currentDay: number
+): string[] {
+  const hearts: string[] = [];
+
+  for (let day = 1; day <= REFUGE_DURATION_DAYS; day++) {
+    const dailyChoice = dailyChoices.find((dc) => dc.dayNumber === day);
+    const guess = guesses.find((g) => g.dayNumber === day);
+
+    if (!dailyChoice) {
+      // No choice submitted yet
+      hearts.push("🤍");
+    } else if (!guess) {
+      // Choice submitted but no guess yet
+      hearts.push("🤍");
+    } else {
+      // Both choice and guess exist - check if they match (in either order)
+      const guessMatches =
+        (guess.guessedAction1 === dailyChoice.action1 && guess.guessedAction2 === dailyChoice.action2) ||
+        (guess.guessedAction1 === dailyChoice.action2 && guess.guessedAction2 === dailyChoice.action1);
+      hearts.push(guessMatches ? "❤️" : "❌");
+    }
+  }
+
+  return hearts;
+}
+
+export function canAttemptTodayForDay(dayNumber: number, dailyChoices: any[]): boolean {
+  return !dailyChoices.some((dc) => dc.dayNumber === dayNumber);
+}
+
+export function todaySubmittedForDay(dayNumber: number, guesses: any[]): boolean {
+  return guesses.some((g) => g.dayNumber === dayNumber);
+}

@@ -11,6 +11,9 @@ import {
   validateActionsAreDifferent,
   isValidDay,
   REFUGE_DURATION_DAYS,
+  calculateHearts,
+  canAttemptTodayForDay,
+  todaySubmittedForDay,
 } from "./refuge.utils";
 
 // ============================================================
@@ -288,6 +291,9 @@ export class RefugeService {
         dailyChoices: {
           orderBy: { dayNumber: "asc" },
         },
+        guesses: {
+          orderBy: { dayNumber: "asc" },
+        },
       },
     });
 
@@ -306,12 +312,19 @@ export class RefugeService {
     const isActive = refugeSession.status === RefugeSessionStatus.ACTIVE && !isRefugeExpired(refugeSession.endsAt);
     const isCompleted = refugeSession.status === RefugeSessionStatus.COMPLETED || refugeSession.status === RefugeSessionStatus.ABANDONED;
 
+    const hearts = calculateHearts(refugeSession.dailyChoices, refugeSession.guesses, currentDay);
+    const canAttemptToday = canAttemptTodayForDay(currentDay, refugeSession.dailyChoices);
+    const todaySubmitted = todaySubmittedForDay(currentDay, refugeSession.guesses);
+
     return {
       ...this.mapToDTO(refugeSession),
       currentDay,
       timeRemaining,
       isActive,
       isCompleted,
+      hearts,
+      canAttemptToday,
+      todaySubmitted,
     };
   }
 

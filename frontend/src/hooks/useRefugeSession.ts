@@ -70,13 +70,13 @@ export function useRefugeSession(sessionId: string | null) {
       const data = await refugeApi.getSessionStatus(sessionId);
       setState((prev) => ({
         ...prev,
-        sessionId: data.id,
+        sessionId: data.sessionId || data.id,
         currentDay: data.currentDay || 1,
-        status: data.status as any,
-        canAttemptToday: true,
-        todaySubmitted: false,
-        hearts: prev.hearts,
-        companion: {
+        status: data.status,
+        canAttemptToday: data.canAttemptToday ?? true,
+        todaySubmitted: data.todaySubmitted ?? false,
+        hearts: data.hearts || prev.hearts,
+        companion: data.companion || {
           animalType: data.animalType,
           background: data.background,
         },

@@ -28,6 +28,9 @@ export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
   };
   isActive: boolean;
   isCompleted: boolean;
+  hearts: string[]; // 7 emoji: ❤️, ❌, or 🤍
+  canAttemptToday: boolean;
+  todaySubmitted: boolean;
 }
 
 export interface RefugeDailyChoiceDTO {
