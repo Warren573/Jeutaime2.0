@@ -5,7 +5,18 @@ import { useRouter } from 'expo-router';
 import { refugeApi } from '../../src/api/refuge-api';
 import { BouncyButton } from '../../src/components/BouncyButton';
 
-const ANIMALS = ['Chat', 'Chien', 'Lapin', 'Hamster', 'Perroquet'];
+const ANIMALS = [
+  { value: 'CHAT', label: 'Chat' },
+  { value: 'CHIEN', label: 'Chien' },
+  { value: 'LAPIN', label: 'Lapin' },
+  { value: 'HAMSTER', label: 'Hamster' },
+  { value: 'RENARD', label: 'Renard' },
+  { value: 'PINGOUIN', label: 'Pingouin' },
+  { value: 'IGUANE', label: 'Iguane' },
+  { value: 'PANDA', label: 'Panda' },
+  { value: 'LICORNE', label: 'Licorne' },
+  { value: 'DRAGON', label: 'Dragon' },
+];
 const PREFERENCES = [
   { value: 'HOMME_FEMME', label: 'Tous (Homme et Femme)' },
   { value: 'HOMME', label: 'Homme uniquement' },
@@ -60,21 +71,21 @@ export default function ProposePage() {
             <View style={styles.grid}>
               {ANIMALS.map((animal) => (
                 <TouchableOpacity
-                  key={animal}
+                  key={animal.value}
                   style={[
                     styles.choice,
-                    selectedAnimal === animal && styles.choiceSelected,
+                    selectedAnimal === animal.value && styles.choiceSelected,
                   ]}
                   onPress={() => {
-                    setSelectedAnimal(animal);
+                    setSelectedAnimal(animal.value);
                     setStep(2);
                   }}
                 >
                   <Text style={[
                     styles.choiceText,
-                    selectedAnimal === animal && styles.choiceSelectedText,
+                    selectedAnimal === animal.value && styles.choiceSelectedText,
                   ]}>
-                    {animal}
+                    {animal.label}
                   </Text>
                 </TouchableOpacity>
               ))}
