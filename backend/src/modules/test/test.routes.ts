@@ -2435,49 +2435,82 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
     // Track Refuge sessions abandoned
     let refugeSessionsAbandoned = 0;
 
-    // Delete test accounts
+    // Delete test accounts (respecting FK constraints)
     if (userIdsToDelete.length > 0) {
+      // 1. Delete MagieCast (references fromUserId, toUserId)
+      await prisma.magieCast.deleteMany({
+        where: {
+          OR: [
+            { fromUserId: { in: userIdsToDelete } },
+            { toUserId: { in: userIdsToDelete } },
+          ],
+        },
+      });
+
+      // 2. Delete Reaction (references fromId, toId)
       await prisma.reaction.deleteMany({
         where: { OR: [{ fromId: { in: userIdsToDelete } }, { toId: { in: userIdsToDelete } }] },
       });
+
+      // 3. Delete Match (references userAId, userBId)
       await prisma.match.deleteMany({
         where: {
           OR: [{ userAId: { in: userIdsToDelete } }, { userBId: { in: userIdsToDelete } }],
         },
       });
+
+      // 4. Delete Letter (references fromUserId, toUserId)
       await prisma.letter.deleteMany({
         where: {
           OR: [{ fromUserId: { in: userIdsToDelete } }, { toUserId: { in: userIdsToDelete } }],
         },
       });
+
+      // 5. Delete OfferingSent (references fromUserId, toUserId)
       await prisma.offeringSent.deleteMany({
         where: {
           OR: [{ fromUserId: { in: userIdsToDelete } }, { toUserId: { in: userIdsToDelete } }],
         },
       });
+
+      // 6. Delete Block (references fromId, toId)
       await prisma.block.deleteMany({
         where: {
           OR: [{ fromId: { in: userIdsToDelete } }, { toId: { in: userIdsToDelete } }],
         },
       });
+
+      // 7. Delete RefreshToken (references userId)
       await prisma.refreshToken.deleteMany({
         where: { userId: { in: userIdsToDelete } },
       });
+
+      // 8. Delete Photo (references userId)
       await prisma.photo.deleteMany({
         where: { userId: { in: userIdsToDelete } },
       });
+
+      // 9. Delete Pet (references userId)
       await prisma.pet.deleteMany({
         where: { userId: { in: userIdsToDelete } },
       });
+
+      // 10. Delete Wallet (references userId)
       await prisma.wallet.deleteMany({
         where: { userId: { in: userIdsToDelete } },
       });
+
+      // 11. Delete UserSettings (references userId)
       await prisma.userSettings.deleteMany({
         where: { userId: { in: userIdsToDelete } },
       });
+
+      // 12. Delete Profile (references userId)
       await prisma.profile.deleteMany({
         where: { userId: { in: userIdsToDelete } },
       });
+
+      // 13. Finally delete User
       await prisma.user.deleteMany({
         where: { id: { in: userIdsToDelete } },
       });
@@ -2697,49 +2730,82 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
     // Track Refuge sessions abandoned
     let refugeSessionsAbandoned = 0;
 
-    // Delete test accounts
+    // Delete test accounts (respecting FK constraints)
     if (userIdsToDelete.length > 0) {
+      // 1. Delete MagieCast (references fromUserId, toUserId)
+      await prisma.magieCast.deleteMany({
+        where: {
+          OR: [
+            { fromUserId: { in: userIdsToDelete } },
+            { toUserId: { in: userIdsToDelete } },
+          ],
+        },
+      });
+
+      // 2. Delete Reaction (references fromId, toId)
       await prisma.reaction.deleteMany({
         where: { OR: [{ fromId: { in: userIdsToDelete } }, { toId: { in: userIdsToDelete } }] },
       });
+
+      // 3. Delete Match (references userAId, userBId)
       await prisma.match.deleteMany({
         where: {
           OR: [{ userAId: { in: userIdsToDelete } }, { userBId: { in: userIdsToDelete } }],
         },
       });
+
+      // 4. Delete Letter (references fromUserId, toUserId)
       await prisma.letter.deleteMany({
         where: {
           OR: [{ fromUserId: { in: userIdsToDelete } }, { toUserId: { in: userIdsToDelete } }],
         },
       });
+
+      // 5. Delete OfferingSent (references fromUserId, toUserId)
       await prisma.offeringSent.deleteMany({
         where: {
           OR: [{ fromUserId: { in: userIdsToDelete } }, { toUserId: { in: userIdsToDelete } }],
         },
       });
+
+      // 6. Delete Block (references fromId, toId)
       await prisma.block.deleteMany({
         where: {
           OR: [{ fromId: { in: userIdsToDelete } }, { toId: { in: userIdsToDelete } }],
         },
       });
+
+      // 7. Delete RefreshToken (references userId)
       await prisma.refreshToken.deleteMany({
         where: { userId: { in: userIdsToDelete } },
       });
+
+      // 8. Delete Photo (references userId)
       await prisma.photo.deleteMany({
         where: { userId: { in: userIdsToDelete } },
       });
+
+      // 9. Delete Pet (references userId)
       await prisma.pet.deleteMany({
         where: { userId: { in: userIdsToDelete } },
       });
+
+      // 10. Delete Wallet (references userId)
       await prisma.wallet.deleteMany({
         where: { userId: { in: userIdsToDelete } },
       });
+
+      // 11. Delete UserSettings (references userId)
       await prisma.userSettings.deleteMany({
         where: { userId: { in: userIdsToDelete } },
       });
+
+      // 12. Delete Profile (references userId)
       await prisma.profile.deleteMany({
         where: { userId: { in: userIdsToDelete } },
       });
+
+      // 13. Finally delete User
       await prisma.user.deleteMany({
         where: { id: { in: userIdsToDelete } },
       });
