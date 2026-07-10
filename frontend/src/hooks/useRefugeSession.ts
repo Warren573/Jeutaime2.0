@@ -68,7 +68,8 @@ export function useRefugeSession(sessionId: string | null) {
         throw new Error("Failed to fetch session status");
       }
 
-      const data = await response.json();
+      const json = await response.json();
+      const data = json.data;
 
       // Déterminer le rôle de l'utilisateur courant
       let role: "adopte" | "adoptant" | null = null;
@@ -100,7 +101,7 @@ export function useRefugeSession(sessionId: string | null) {
         error: err.message || "Unknown error",
       }));
     }
-  }, [sessionId, getAuthHeaders]);
+  }, [sessionId, getAuthHeaders, currentUser?.id]);
 
   // Charger le statut au montage
   useEffect(() => {
