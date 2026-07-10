@@ -45,9 +45,15 @@ export class RefugeController {
   // ============================================================
 
   static async getAvailable(req: AuthedRequest, res: Response): Promise<void> {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Non authentifié" });
+      return;
+    }
+
     try {
       const adoptantGender = req.query.gender as string | undefined;
-      const refuges = await RefugeService.getAvailableRefuges(adoptantGender);
+      const refuges = await RefugeService.getAvailableRefuges(userId, adoptantGender);
 
       res.status(200).json({
         success: true,

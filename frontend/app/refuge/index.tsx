@@ -51,7 +51,7 @@ export default function RefugePage() {
 
   // If session ID exists, show the game
   if (sessionId) {
-    return <RefugeMainScreen />;
+    return <RefugeMainScreen sessionIdProp={sessionId} />;
   }
 
   // No active session - show landing screen with choices

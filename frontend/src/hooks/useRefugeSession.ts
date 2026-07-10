@@ -14,6 +14,7 @@ interface RefugeSessionState {
     animalAgeMonths: number;
     background: string;
   } | null;
+  role: "adopte" | "adoptant" | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -31,6 +32,7 @@ export function useRefugeSession(sessionId: string | null) {
     todaySubmitted: false,
     hearts: ["🤍", "🤍", "🤍", "🤍", "🤍", "🤍", "🤍"],
     companion: null,
+    role: null,
     isLoading: true,
     error: null,
   });
@@ -67,6 +69,17 @@ export function useRefugeSession(sessionId: string | null) {
       }
 
       const data = await response.json();
+
+      // Déterminer le rôle de l'utilisateur courant
+      let role: "adopte" | "adoptant" | null = null;
+      if (currentUser?.id) {
+        if (data.adopteId === currentUser.id) {
+          role = "adopte";
+        } else if (data.adoptantId === currentUser.id) {
+          role = "adoptant";
+        }
+      }
+
       setState((prev) => ({
         ...prev,
         sessionId: data.sessionId,
@@ -76,6 +89,7 @@ export function useRefugeSession(sessionId: string | null) {
         todaySubmitted: data.todaySubmitted,
         hearts: data.hearts,
         companion: data.companion || null,
+        role,
         isLoading: false,
         error: null,
       }));

@@ -81,12 +81,15 @@ export class RefugeService {
   // Découverte — L'Adoptant trouve des refuges disponibles
   // ============================================================
 
-  static async getAvailableRefuges(adoptantGender?: string): Promise<RefugeSessionDTO[]> {
+  static async getAvailableRefuges(currentUserId: string, adoptantGender?: string): Promise<RefugeSessionDTO[]> {
     const query: any = {
       where: {
         status: RefugeSessionStatus.WAITING_FOR_ADOPTANT,
         endsAt: {
           gt: new Date(),
+        },
+        adopteId: {
+          not: currentUserId,
         },
       },
     };

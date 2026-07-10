@@ -22,7 +22,9 @@ export default function AdoptPage() {
         const gender = currentUser?.gender || 'HOMME_FEMME';
 
         const available = await refugeApi.getAvailable(gender);
-        setRefuges(available);
+        // Filter out user's own proposals (extra safety, backend also filters)
+        const filtered = available.filter(r => r.adopteId !== currentUser?.id);
+        setRefuges(filtered);
       } catch (error: any) {
         console.error('Error fetching available refuges:', error);
         Alert.alert('Erreur', 'Impossible de charger les compagnons disponibles');
@@ -32,7 +34,7 @@ export default function AdoptPage() {
     };
 
     fetchRefuges();
-  }, [currentUser?.gender]);
+  }, [currentUser?.gender, currentUser?.id]);
 
   const getAnimalEmoji = (animalType: string) => {
     const emojis: Record<string, string> = {
