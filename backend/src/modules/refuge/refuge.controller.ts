@@ -24,8 +24,6 @@ export class RefugeController {
     try {
       const refugeSession = await RefugeService.proposeAsAdopte(userId, {
         animalType: input.animalType as any,
-        animalCategory: input.animalCategory as any,
-        animalSexe: input.animalSexe as any,
         acceptedSexe: input.acceptedSexe as any,
       });
       res.status(201).json({

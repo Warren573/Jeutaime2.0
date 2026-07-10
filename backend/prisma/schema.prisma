@@ -921,6 +921,7 @@ model RefugeSession {
   animalType                RefugeAnimalType
   animalCategory            RefugeAnimalCategory
   animalSexe                RefugeAnimalSexe
+  animalAgeMonths           Int                         // âge en mois (généré aléatoirement)
   acceptedSexe              RefugeAcceptedSexe
 
   // Timeline

@@ -44,8 +44,6 @@ export interface RefugeDailyChoiceDTO {
 
 export interface RefugeProposalInput {
   animalType: RefugeAnimalType;
-  animalCategory: RefugeAnimalCategory;
-  animalSexe: RefugeAnimalSexe;
   acceptedSexe: RefugeAcceptedSexe;
 }
 

@@ -15,6 +15,9 @@ import {
   canAttemptTodayForDay,
   todaySubmittedForDay,
   calculateStartedAtForDay,
+  generateRandomSexe,
+  generateAnimalCategory,
+  generateRandomAge,
 } from "./refuge.utils";
 
 // ============================================================
@@ -52,13 +55,19 @@ export class RefugeService {
       throw new ConflictError("Tu as déjà un refuge en cours ou en attente");
     }
 
+    // Générer automatiquement les propriétés de l'animal côté backend
+    const animalSexe = generateRandomSexe();
+    const animalCategory = generateAnimalCategory(input.animalType);
+    const animalAgeMonths = generateRandomAge(input.animalType);
+
     // Créer la session Refuge
     const refugeSession = await prisma.refugeSession.create({
       data: {
         adopteId,
         animalType: input.animalType,
-        animalCategory: input.animalCategory,
-        animalSexe: input.animalSexe,
+        animalCategory,
+        animalSexe,
+        animalAgeMonths,
         acceptedSexe: input.acceptedSexe,
         status: RefugeSessionStatus.WAITING_FOR_ADOPTANT,
         endsAt: calculateRefugeEndsAt(new Date()),

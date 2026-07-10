@@ -17,8 +17,6 @@ const RefugeActionEnum = z.enum(Object.values(RefugeAction) as [string, ...strin
 
 export const ProposeRefugeSchema = z.object({
   animalType: RefugeAnimalTypeEnum,
-  animalCategory: RefugeAnimalCategoryEnum,
-  animalSexe: RefugeAnimalSexeEnum,
   acceptedSexe: RefugeAcceptedSexeEnum,
 });
 

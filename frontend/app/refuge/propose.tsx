@@ -6,8 +6,6 @@ import { refugeApi } from '../../src/api/refuge-api';
 import { BouncyButton } from '../../src/components/BouncyButton';
 
 const ANIMALS = ['Chat', 'Chien', 'Lapin', 'Hamster', 'Perroquet'];
-const CATEGORIES = ['Chaton', 'Chiot', 'Lapin nain', 'Hamster syrien', 'Perruche'];
-const SEXES = ['Mâle', 'Femelle'];
 const PREFERENCES = [
   { value: 'HOMME_FEMME', label: 'Tous (Homme et Femme)' },
   { value: 'HOMME', label: 'Homme uniquement' },
@@ -18,14 +16,12 @@ export default function ProposePage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [selectedAnimal, setSelectedAnimal] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedSex, setSelectedSex] = useState<string | null>(null);
   const [selectedPreference, setSelectedPreference] = useState<string>('HOMME_FEMME');
   const [loading, setLoading] = useState(false);
 
   const handlePropose = async () => {
-    if (!selectedAnimal || !selectedCategory || !selectedSex) {
-      Alert.alert('Erreur', 'Veuillez compléter tous les champs');
+    if (!selectedAnimal) {
+      Alert.alert('Erreur', 'Veuillez choisir un type d\'animal');
       return;
     }
 
@@ -33,8 +29,6 @@ export default function ProposePage() {
     try {
       const result = await refugeApi.propose({
         animalType: selectedAnimal,
-        animalCategory: selectedCategory,
-        animalSexe: selectedSex,
         acceptedSexe: selectedPreference,
       });
 
@@ -62,7 +56,7 @@ export default function ProposePage() {
         {/* Step 1: Animal */}
         {step >= 1 && (
           <View style={styles.step}>
-            <Text style={styles.stepTitle}>1. Quel compagnon proposez-vous?</Text>
+            <Text style={styles.stepTitle}>Quel compagnon proposez-vous?</Text>
             <View style={styles.grid}>
               {ANIMALS.map((animal) => (
                 <TouchableOpacity
@@ -76,65 +70,22 @@ export default function ProposePage() {
                     setStep(2);
                   }}
                 >
-                  <Text style={styles.choiceText}>{animal}</Text>
+                  <Text style={[
+                    styles.choiceText,
+                    selectedAnimal === animal && styles.choiceSelectedText,
+                  ]}>
+                    {animal}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
         )}
 
-        {/* Step 2: Category */}
+        {/* Step 2: Preference */}
         {step >= 2 && selectedAnimal && (
           <View style={styles.step}>
-            <Text style={styles.stepTitle}>2. Quelle catégorie?</Text>
-            <View style={styles.grid}>
-              {CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[
-                    styles.choice,
-                    selectedCategory === cat && styles.choiceSelected,
-                  ]}
-                  onPress={() => {
-                    setSelectedCategory(cat);
-                    setStep(3);
-                  }}
-                >
-                  <Text style={styles.choiceText}>{cat}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Step 3: Sex */}
-        {step >= 3 && selectedCategory && (
-          <View style={styles.step}>
-            <Text style={styles.stepTitle}>3. Sexe du compagnon?</Text>
-            <View style={styles.grid}>
-              {SEXES.map((sex) => (
-                <TouchableOpacity
-                  key={sex}
-                  style={[
-                    styles.choice,
-                    selectedSex === sex && styles.choiceSelected,
-                  ]}
-                  onPress={() => {
-                    setSelectedSex(sex);
-                    setStep(4);
-                  }}
-                >
-                  <Text style={styles.choiceText}>{sex}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Step 4: Preference */}
-        {step >= 4 && selectedSex && (
-          <View style={styles.step}>
-            <Text style={styles.stepTitle}>4. Quelle préférence pour l&apos;Adoptant?</Text>
+            <Text style={styles.stepTitle}>Quelle préférence pour l&apos;Adoptant?</Text>
             <View style={styles.preferencesContainer}>
               {PREFERENCES.map((pref) => (
                 <TouchableOpacity

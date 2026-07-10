@@ -1,4 +1,4 @@
-import { RefugeAction, RefugeSessionStatus } from "@prisma/client";
+import { RefugeAction, RefugeSessionStatus, RefugeAnimalType, RefugeAnimalCategory, RefugeAnimalSexe } from "@prisma/client";
 import { differenceInDays, differenceInHours, differenceInMilliseconds } from "date-fns";
 import type { RefugeTimeRemaining } from "./refuge.types";
 
@@ -127,4 +127,61 @@ export function calculateStartedAtForDay(createdAt: Date, targetDay: number): Da
   const startedAt = new Date(createdAt);
   startedAt.setDate(startedAt.getDate() + daysAgo);
   return startedAt;
+}
+
+// ============================================================
+// Génération automatique côté backend
+// ============================================================
+
+/**
+ * Génère un sexe d'animal aléatoire (MALE ou FEMELLE)
+ */
+export function generateRandomSexe(): RefugeAnimalSexe {
+  return Math.random() > 0.5 ? RefugeAnimalSexe.MALE : RefugeAnimalSexe.FEMELLE;
+}
+
+/**
+ * Mappe un type d'animal à sa catégorie officielle (rareté)
+ */
+export function generateAnimalCategory(animalType: RefugeAnimalType): RefugeAnimalCategory {
+  const categoryMapping: Record<RefugeAnimalType, RefugeAnimalCategory> = {
+    [RefugeAnimalType.HAMSTER]: RefugeAnimalCategory.SIMPLE,
+    [RefugeAnimalType.LAPIN]: RefugeAnimalCategory.SIMPLE,
+    [RefugeAnimalType.CHAT]: RefugeAnimalCategory.SIMPLE,
+    [RefugeAnimalType.CHIEN]: RefugeAnimalCategory.SIMPLE,
+    [RefugeAnimalType.RENARD]: RefugeAnimalCategory.RARE,
+    [RefugeAnimalType.PINGOUIN]: RefugeAnimalCategory.RARE,
+    [RefugeAnimalType.IGUANE]: RefugeAnimalCategory.RARE,
+    [RefugeAnimalType.PANDA]: RefugeAnimalCategory.EXOTIQUE,
+    [RefugeAnimalType.LICORNE]: RefugeAnimalCategory.EXOTIQUE,
+    [RefugeAnimalType.DRAGON]: RefugeAnimalCategory.EXOTIQUE,
+  };
+  return categoryMapping[animalType];
+}
+
+/**
+ * Retourne la plage d'âge (en mois) pour un type d'animal
+ */
+function getAgeRangeForAnimalType(animalType: RefugeAnimalType): { min: number; max: number } {
+  const ageRanges: Record<RefugeAnimalType, { min: number; max: number }> = {
+    [RefugeAnimalType.HAMSTER]: { min: 1, max: 24 },       // ~2 ans max
+    [RefugeAnimalType.LAPIN]: { min: 3, max: 84 },         // ~7 ans max
+    [RefugeAnimalType.CHAT]: { min: 2, max: 180 },         // ~15 ans max
+    [RefugeAnimalType.CHIEN]: { min: 2, max: 144 },        // ~12 ans max
+    [RefugeAnimalType.RENARD]: { min: 6, max: 276 },       // ~23 ans
+    [RefugeAnimalType.PINGOUIN]: { min: 12, max: 312 },    // ~26 ans
+    [RefugeAnimalType.IGUANE]: { min: 6, max: 328 },       // ~27 ans
+    [RefugeAnimalType.PANDA]: { min: 12, max: 408 },       // ~34 ans
+    [RefugeAnimalType.LICORNE]: { min: 12, max: 1200 },    // ~100 ans (fiction)
+    [RefugeAnimalType.DRAGON]: { min: 24, max: 4800 },     // très ancien (fiction)
+  };
+  return ageRanges[animalType];
+}
+
+/**
+ * Génère un âge aléatoire (en mois) pour un type d'animal
+ */
+export function generateRandomAge(animalType: RefugeAnimalType): number {
+  const range = getAgeRangeForAnimalType(animalType);
+  return Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
 }
