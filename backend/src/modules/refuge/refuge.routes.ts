@@ -39,6 +39,10 @@ router.post("/adopt", validate(AdoptRefugeSchema), wrap(RefugeController.adopt))
 // Récupère une session Refuge avec métadonnées
 router.get("/session/:sessionId", wrap(RefugeController.getSession));
 
+// GET /api/refuge/sessions/:sessionId/status
+// Alias: récupère une session Refuge avec métadonnées (pour compatibilité frontend)
+router.get("/sessions/:sessionId/status", wrap(RefugeController.getSession));
+
 // PATCH /api/refuge/session/:sessionId/background
 // Mettre à jour le fond d'ambiance
 router.patch("/session/:sessionId/background", wrap(RefugeController.updateBackground));
