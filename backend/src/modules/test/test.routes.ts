@@ -2437,6 +2437,30 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
 
     // Delete test accounts (respecting FK constraints)
     if (userIdsToDelete.length > 0) {
+      // 0. Abandon Refuge sessions FIRST (before deleting users, because adopteId has onDelete: Cascade)
+      const refugeSessionsAsAdopte = await prisma.refugeSession.findMany({
+        where: { adopteId: { in: userIdsToDelete } },
+        select: { id: true },
+      });
+      const refugeSessionsAsAdoptant = await prisma.refugeSession.findMany({
+        where: { adoptantId: { in: userIdsToDelete } },
+        select: { id: true },
+      });
+
+      const allRefugeSessionIds = [
+        ...refugeSessionsAsAdopte.map((s) => s.id),
+        ...refugeSessionsAsAdoptant.map((s) => s.id),
+      ];
+
+      if (allRefugeSessionIds.length > 0) {
+        const abandonResult = await prisma.refugeSession.updateMany({
+          where: { id: { in: allRefugeSessionIds } },
+          data: { status: "ABANDONED" },
+        });
+        refugeSessionsAbandoned = abandonResult.count;
+        console.log(`[test/reset-test-users] Abandoned ${refugeSessionsAbandoned} Refuge sessions`);
+      }
+
       // 1. Delete MagieCast (references fromUserId, toUserId)
       await prisma.magieCast.deleteMany({
         where: {
@@ -2510,36 +2534,12 @@ router.post("/reset-test-users", asyncHandler(async (_req: Request, res: Respons
         where: { userId: { in: userIdsToDelete } },
       });
 
-      // 13. Finally delete User
+      // 13. Finally delete User (this will cascade-delete orphaned RefugeSession records)
       await prisma.user.deleteMany({
         where: { id: { in: userIdsToDelete } },
       });
 
       console.log(`[test/reset-test-users] Deleted ${userIdsToDelete.length} test accounts`);
-
-      // Abandon Refuge sessions (user as adopte or adoptant)
-      const refugeSessionsAsAdopte = await prisma.refugeSession.findMany({
-        where: { adopteId: { in: userIdsToDelete } },
-        select: { id: true },
-      });
-      const refugeSessionsAsAdoptant = await prisma.refugeSession.findMany({
-        where: { adoptantId: { in: userIdsToDelete } },
-        select: { id: true },
-      });
-
-      const allRefugeSessionIds = [
-        ...refugeSessionsAsAdopte.map((s) => s.id),
-        ...refugeSessionsAsAdoptant.map((s) => s.id),
-      ];
-
-      if (allRefugeSessionIds.length > 0) {
-        const abandonResult = await prisma.refugeSession.updateMany({
-          where: { id: { in: allRefugeSessionIds } },
-          data: { status: "ABANDONED" },
-        });
-        refugeSessionsAbandoned = abandonResult.count;
-        console.log(`[test/reset-test-users] Abandoned ${refugeSessionsAbandoned} Refuge sessions`);
-      }
     }
 
     // 4. Create new test users
@@ -2732,6 +2732,30 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
 
     // Delete test accounts (respecting FK constraints)
     if (userIdsToDelete.length > 0) {
+      // 0. Abandon Refuge sessions FIRST (before deleting users, because adopteId has onDelete: Cascade)
+      const refugeSessionsAsAdopte = await prisma.refugeSession.findMany({
+        where: { adopteId: { in: userIdsToDelete } },
+        select: { id: true },
+      });
+      const refugeSessionsAsAdoptant = await prisma.refugeSession.findMany({
+        where: { adoptantId: { in: userIdsToDelete } },
+        select: { id: true },
+      });
+
+      const allRefugeSessionIds = [
+        ...refugeSessionsAsAdopte.map((s) => s.id),
+        ...refugeSessionsAsAdoptant.map((s) => s.id),
+      ];
+
+      if (allRefugeSessionIds.length > 0) {
+        const abandonResult = await prisma.refugeSession.updateMany({
+          where: { id: { in: allRefugeSessionIds } },
+          data: { status: "ABANDONED" },
+        });
+        refugeSessionsAbandoned = abandonResult.count;
+        console.log(`[test/reset-test-users GET] Abandoned ${refugeSessionsAbandoned} Refuge sessions`);
+      }
+
       // 1. Delete MagieCast (references fromUserId, toUserId)
       await prisma.magieCast.deleteMany({
         where: {
@@ -2805,36 +2829,12 @@ router.get("/reset-test-users", asyncHandler(async (_req: Request, res: Response
         where: { userId: { in: userIdsToDelete } },
       });
 
-      // 13. Finally delete User
+      // 13. Finally delete User (this will cascade-delete orphaned RefugeSession records)
       await prisma.user.deleteMany({
         where: { id: { in: userIdsToDelete } },
       });
 
       console.log(`[test/reset-test-users GET] Deleted ${userIdsToDelete.length} test accounts`);
-
-      // Abandon Refuge sessions (user as adopte or adoptant)
-      const refugeSessionsAsAdopte = await prisma.refugeSession.findMany({
-        where: { adopteId: { in: userIdsToDelete } },
-        select: { id: true },
-      });
-      const refugeSessionsAsAdoptant = await prisma.refugeSession.findMany({
-        where: { adoptantId: { in: userIdsToDelete } },
-        select: { id: true },
-      });
-
-      const allRefugeSessionIds = [
-        ...refugeSessionsAsAdopte.map((s) => s.id),
-        ...refugeSessionsAsAdoptant.map((s) => s.id),
-      ];
-
-      if (allRefugeSessionIds.length > 0) {
-        const abandonResult = await prisma.refugeSession.updateMany({
-          where: { id: { in: allRefugeSessionIds } },
-          data: { status: "ABANDONED" },
-        });
-        refugeSessionsAbandoned = abandonResult.count;
-        console.log(`[test/reset-test-users GET] Abandoned ${refugeSessionsAbandoned} Refuge sessions`);
-      }
     }
 
     // 4. Create new test users
