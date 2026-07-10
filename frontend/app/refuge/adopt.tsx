@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../../src/store/useStore';
 import { refugeApi, RefugeSession } from '../../src/api/refuge-api';
 import { BouncyButton } from '../../src/components/BouncyButton';
+import { formatAnimalAge } from '../../src/modules/refuge/refugeAgeDisplay';
 
 export default function AdoptPage() {
   const router = useRouter();
@@ -62,9 +63,9 @@ export default function AdoptPage() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <BouncyButton onPress={() => router.back()}>
           <Text style={styles.backButton}>← Retour</Text>
-        </TouchableOpacity>
+        </BouncyButton>
         <Text style={styles.title}>🔍 Adopter un compagnon</Text>
       </View>
 
@@ -90,11 +91,9 @@ export default function AdoptPage() {
           </Text>
 
           {refuges.map((refuge) => (
-            <TouchableOpacity
+            <View
               key={refuge.id}
               style={styles.refugeCard}
-              onPress={() => handleAdopt(refuge.id)}
-              disabled={adopting}
             >
               <View style={styles.refugeHeader}>
                 <Text style={styles.animalEmoji}>{getAnimalEmoji(refuge.animalType)}</Text>
@@ -107,6 +106,12 @@ export default function AdoptPage() {
               </View>
 
               <View style={styles.refugeDetails}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Âge:</Text>
+                  <Text style={styles.detailValue}>
+                    {formatAnimalAge(refuge.animalAgeMonths)}
+                  </Text>
+                </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Préférence:</Text>
                   <Text style={styles.detailValue}>
@@ -126,12 +131,13 @@ export default function AdoptPage() {
               <BouncyButton
                 style={[styles.adoptButton, adopting && styles.adoptButtonDisabled]}
                 disabled={adopting}
+                onPress={() => handleAdopt(refuge.id)}
               >
                 <Text style={styles.adoptButtonText}>
                   {adopting ? 'Adoption en cours...' : 'Adopter'}
                 </Text>
               </BouncyButton>
-            </TouchableOpacity>
+            </View>
           ))}
 
           <View style={styles.bottomSpacer} />

@@ -11,6 +11,7 @@ interface RefugeSessionState {
   hearts: ("❤️" | "❌" | "🤍")[];
   companion: {
     animalType: string;
+    animalAgeMonths: number;
     background: string;
   } | null;
   isLoading: boolean;

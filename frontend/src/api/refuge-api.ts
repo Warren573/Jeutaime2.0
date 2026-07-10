@@ -7,6 +7,7 @@ export interface RefugeSession {
   animalType: string;
   animalCategory: string;
   animalSexe: string;
+  animalAgeMonths: number;
   acceptedSexe: string;
   status: string;
   createdAt: string;
@@ -23,8 +24,6 @@ export interface RefugeSession {
 
 export interface ProposeRefugeRequest {
   animalType: string;
-  animalCategory: string;
-  animalSexe: string;
   acceptedSexe: string;
 }
 

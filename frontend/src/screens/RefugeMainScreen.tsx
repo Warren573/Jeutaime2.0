@@ -13,6 +13,7 @@ import { useRefugeActionLog } from "../hooks/useRefugeActionLog";
 import { useRefugeDay } from "../hooks/useRefugeDay";
 import { useRefugeDailyChoices } from "../hooks/useRefugeDailyChoices";
 import { useRefugeSession } from "../hooks/useRefugeSession";
+import { formatAnimalAge } from "../modules/refuge/refugeAgeDisplay";
 
 const screenHeight = Dimensions.get("window").height;
 const screenWidth = Dimensions.get("window").width;
@@ -152,7 +153,14 @@ export function RefugeMainScreen() {
         >
           <Text style={styles.backText}>← Retour</Text>
         </BouncyButton>
-        <Text style={styles.headerTitle}>Mon compagnon</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Mon compagnon</Text>
+          {refugeSession.companion && (
+            <Text style={styles.headerSubtitle}>
+              {refugeSession.companion.animalType} • {formatAnimalAge(refugeSession.companion.animalAgeMonths)}
+            </Text>
+          )}
+        </View>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -369,10 +377,19 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#8B6F47",
   },
+  headerContent: {
+    alignItems: "center",
+  },
   headerTitle: {
     fontSize: 17,
     fontWeight: "700",
     color: "#2D1F0E",
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#8B6F47",
+    marginTop: 2,
   },
   headerSpacer: {
     width: 40,

@@ -516,6 +516,7 @@ export class RefugeService {
       animalType: refugeSession.animalType,
       animalCategory: refugeSession.animalCategory,
       animalSexe: refugeSession.animalSexe,
+      animalAgeMonths: refugeSession.animalAgeMonths,
       acceptedSexe: refugeSession.acceptedSexe,
       status: refugeSession.status,
       createdAt: refugeSession.createdAt,

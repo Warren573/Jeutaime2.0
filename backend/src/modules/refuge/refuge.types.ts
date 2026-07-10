@@ -11,6 +11,7 @@ export interface RefugeSessionDTO {
   animalType: RefugeAnimalType;
   animalCategory: RefugeAnimalCategory;
   animalSexe: RefugeAnimalSexe;
+  animalAgeMonths: number;
   acceptedSexe: RefugeAcceptedSexe;
   status: RefugeSessionStatus;
   createdAt: Date;
