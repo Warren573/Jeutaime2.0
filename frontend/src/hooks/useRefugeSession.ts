@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useStore } from "../store/useStore";
+import { refugeApi } from "../api/refuge-api";
 
 interface RefugeSessionState {
   sessionId: string | null;
@@ -55,41 +56,33 @@ export function useRefugeSession(sessionId: string | null) {
     setState((prev) => ({ ...prev, isLoading: true }));
 
     try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(
-        `/api/refuge/sessions/${sessionId}/status`,
-        {
-          method: "GET",
-          headers,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch session status");
-      }
-
-      const json = await response.json();
-      const data = json.data;
+      const data = await refugeApi.getSession(sessionId);
 
       // Déterminer le rôle de l'utilisateur courant
       let role: "adopte" | "adoptant" | null = null;
       if (currentUser?.id) {
-        if (data.adopteId === currentUser.id) {
+        if (data.adopteId === currentUser?.id) {
           role = "adopte";
-        } else if (data.adoptantId === currentUser.id) {
+        } else if (data.adoptantId === currentUser?.id) {
           role = "adoptant";
+        } else {
+          role = null;
         }
       }
 
       setState((prev) => ({
         ...prev,
-        sessionId: data.sessionId,
-        currentDay: data.currentDay,
-        status: data.status,
-        canAttemptToday: data.canAttemptToday,
-        todaySubmitted: data.todaySubmitted,
-        hearts: data.hearts,
-        companion: data.companion || null,
+        sessionId: data.id,
+        currentDay: data.currentDay || 1,
+        status: data.status as "ACTIVE" | "COMPLETED" | "REVEALED" | "ABANDONED",
+        canAttemptToday: data.canAttemptToday || false,
+        todaySubmitted: data.todaySubmitted || false,
+        hearts: data.hearts || ["🤍", "🤍", "🤍", "🤍", "🤍", "🤍", "🤍"],
+        companion: {
+          animalType: data.animalType,
+          animalAgeMonths: data.animalAgeMonths,
+          background: data.background,
+        },
         role,
         isLoading: false,
         error: null,
@@ -98,10 +91,10 @@ export function useRefugeSession(sessionId: string | null) {
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        error: err.message || "Unknown error",
+        error: err.message || "Failed to fetch session",
       }));
     }
-  }, [sessionId, getAuthHeaders, currentUser?.id]);
+  }, [sessionId, currentUser?.id]);
 
   // Charger le statut au montage
   useEffect(() => {
