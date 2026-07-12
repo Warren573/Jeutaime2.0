@@ -196,9 +196,10 @@ export function RefugeMainScreen() {
         {/* Background Selector Button */}
         <BouncyButton
           style={styles.backgroundSelectorButton}
+          disabled={refugeSession.role === "adoptant"}
           onPress={() => setShowBackgroundPicker(true)}
         >
-          <Text style={styles.backgroundSelectorText}>🎨</Text>
+          <Text style={[styles.backgroundSelectorText, refugeSession.role === "adoptant" && { opacity: 0.5 }]}>🎨</Text>
         </BouncyButton>
       </View>
 
@@ -236,7 +237,7 @@ export function RefugeMainScreen() {
 
       {/* Content Area */}
       <ScrollView style={styles.contentScroll} contentContainerStyle={styles.contentContainer}>
-        {phase === "playing" && (
+        {phase === "playing" && refugeSession.role === "adopte" && (
           <View style={styles.actionsGrid}>
             {actions.map(action => (
               <BouncyButton
@@ -265,7 +266,7 @@ export function RefugeMainScreen() {
           </View>
         )}
 
-        {phase === "guessing" && (
+        {phase === "guessing" && refugeSession.role === "adoptant" && (
           <View style={styles.guessingCard}>
             <Text style={styles.guessTitle}>À ton avis, qu&apos;a choisi l&apos;autre ?</Text>
 
