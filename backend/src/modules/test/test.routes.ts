@@ -3334,11 +3334,21 @@ router.get(
     }
 
     try {
+      // Find testuser2 for filtering
+      const testuser2 = await prisma.user.findUnique({
+        where: { email: "testuser2@jeutaime.test" },
+        select: { id: true },
+      });
+
+      if (!testuser2) {
+        return res.status(404).json({ error: "testuser2 not found" });
+      }
+
       // Import RefugeService
       const { RefugeService } = await import("../refuge/refuge.service");
 
-      // Get available refuges (pass empty string for test endpoint without specific user)
-      const refuges = await RefugeService.getAvailableRefuges("");
+      // Get available refuges
+      const refuges = await RefugeService.getAvailableRefuges(testuser2.id);
 
       res.status(200).json({
         success: true,
