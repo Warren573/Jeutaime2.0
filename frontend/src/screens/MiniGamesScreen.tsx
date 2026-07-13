@@ -13,7 +13,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { miniGames } from '../data/gameData';
-import { refugeApi } from '../api/refuge-api';
 
 // Import des jeux
 import CardGame from './games/CardGame';
@@ -59,18 +58,8 @@ export default function MiniGamesScreen() {
     difficile: '#F44336',
   };
 
-  const handleAdoptionPress = async () => {
-    try {
-      const activeSession = await refugeApi.getActive();
-      if (activeSession) {
-        router.push(`/refuge?sessionId=${activeSession.id}`);
-      } else {
-        router.push('/refuge');
-      }
-    } catch (error) {
-      Alert.alert('Erreur', 'Impossible de vérifier votre session Refuge');
-      router.push('/refuge');
-    }
+  const handleAdoptionPress = () => {
+    router.push('/refuge');
   };
 
   if (result) {

@@ -12,7 +12,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
-import { refugeApi } from "../api/refuge-api";
 import CardGame from "./games/CardGame";
 import StoryGame from "./games/StoryGame";
 import { FEATURES } from "../config/features";
@@ -94,30 +93,7 @@ export default function SocialScreen() {
     }
 
     if (id === "adoption" && FEATURES.refuge !== "hidden") {
-      console.log("=== DIAGNOSTIC ADOPTION CLICK ===");
-      console.log("📍 FILE: SocialScreen.tsx - handlePress()");
-      console.log("👤 Current User:", { userId: currentUser?.id, username: currentUser?.pseudo });
-      try {
-        console.log("🔄 Calling refugeApi.getActive()...");
-        const activeSession = await refugeApi.getActive();
-        console.log("✅ refugeApi.getActive() returned:", activeSession);
-        if (activeSession) {
-          const route = `/refuge?sessionId=${activeSession.id}`;
-          console.log("📍 Route CHOSEN (has active session):", route);
-          console.log("🎫 Using sessionId:", activeSession.id);
-          router.push(route);
-        } else {
-          const route = "/refuge";
-          console.log("📍 Route CHOSEN (no active session):", route);
-          console.log("🎫 No sessionId - showing refuge home");
-          router.push(route);
-        }
-      } catch (error) {
-        console.error("❌ ERROR in handleAdoptionPress:", error);
-        console.log("📍 Route CHOSEN (on error):", "/refuge");
-        Alert.alert("Erreur", "Impossible de vérifier votre session Refuge");
-        router.push("/refuge");
-      }
+      router.push("/refuge");
       return;
     }
 

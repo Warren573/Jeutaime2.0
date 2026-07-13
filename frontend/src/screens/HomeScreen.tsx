@@ -13,7 +13,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
-import { refugeApi } from '../api/refuge-api';
 import { Avatar } from '../avatar/png/Avatar';
 import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 
@@ -46,30 +45,8 @@ export default function HomeScreen() {
   const screenBg = useStore(s => s.screenBackgrounds?.['home'] ?? J.bgMain);
   const title    = getCurrentTitle();
 
-  // Smart routing pour le bouton Animal
-  const handleAnimalPress = async () => {
-    console.log("🔍 [HomeScreen] handleAnimalPress() called from Home/La Une > Animal button");
-    try {
-      console.log("📡 [HomeScreen] Calling refugeApi.getActive()...");
-      const activeSession = await refugeApi.getActive();
-      console.log("✅ [HomeScreen] refugeApi.getActive() returned:", activeSession);
-      console.log("🔍 [HomeScreen] activeSession details:", {
-        id: activeSession?.id,
-        adopteId: activeSession?.adopteId,
-        status: activeSession?.status,
-      });
-      if (activeSession) {
-        console.log("📍 [HomeScreen] Route CHOSEN: /refuge?sessionId=" + activeSession.id);
-        router.push(`/refuge?sessionId=${activeSession.id}`);
-      } else {
-        console.log("📍 [HomeScreen] Route CHOSEN: /refuge (no active session)");
-        router.push('/refuge');
-      }
-    } catch (error) {
-      console.error("❌ [HomeScreen] ERROR in handleAnimalPress():", error);
-      console.log("📍 [HomeScreen] Route CHOSEN (on error): /refuge");
-      router.push('/refuge');
-    }
+  const handleAnimalPress = () => {
+    router.push('/refuge');
   };
 
   // Dernière lettre reçue
