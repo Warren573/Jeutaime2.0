@@ -185,3 +185,19 @@ export function generateRandomAge(animalType: RefugeAnimalType): number {
   const range = getAgeRangeForAnimalType(animalType);
   return Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
 }
+
+/**
+ * Génère 2 actions distinctes aléatoires pour le jour
+ */
+export function generateRandomDailyActions(): [RefugeAction, RefugeAction] {
+  const allActions: RefugeAction[] = [RefugeAction.NOURRIR, RefugeAction.JOUER, RefugeAction.CARESSER, RefugeAction.LAVER];
+
+  // Sélectionner 2 indices aléatoires distincts
+  const idx1 = Math.floor(Math.random() * allActions.length);
+  let idx2 = Math.floor(Math.random() * allActions.length);
+  while (idx2 === idx1) {
+    idx2 = Math.floor(Math.random() * allActions.length);
+  }
+
+  return [allActions[idx1]!, allActions[idx2]!];
+}

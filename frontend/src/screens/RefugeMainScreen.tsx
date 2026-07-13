@@ -49,8 +49,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp?: string } =
   // Charger la vraie session du serveur
   const refugeSession = useRefugeSession(sessionId);
 
-  const [actionsDone, setActionsDone] = useState<RefugeAction[]>([]);
-  const [phase, setPhase] = useState<"playing" | "guessing" | "submitted">("playing");
+  const [adoptantSubmitted, setAdoptantSubmitted] = useState(false);
   const [heartPulse, setHeartPulse] = useState(false);
   const [otherUserProfile, setOtherUserProfile] = useState<any>(null);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
@@ -68,41 +67,17 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp?: string } =
 
   const actions: RefugeAction[] = ["feed", "play", "pet", "wash"];
 
-  const handleActionPress = (action: RefugeAction) => {
-    if (
-      actionsDone.includes(action) ||
-      actionsDone.length >= 2 ||
-      !refugeSession.canAttemptToday
-    ) {
-      return;
-    }
-
-    logAction(action);
-    triggerAction(action);
-
-    const newActionsDone = [...actionsDone, action];
-    setActionsDone(newActionsDone);
-
-    if (newActionsDone.length === 2) {
-      setHeartPulse(true);
-      setTimeout(() => {
-        setPhase("guessing");
-        setHeartPulse(false);
-      }, 2500);
-    }
-  };
-
-  const handleTerminateDay = async () => {
+  const handleAdoptantSubmit = async () => {
     if (selectedGuessActions.length !== 2) return;
 
-    // Soumettre les actions et les devins au serveur
+    // Soumettre les devins au serveur (pour l'adoptant uniquement)
     const success = await refugeSession.submitAttempt(
-      actionsDone,
+      [],
       selectedGuessActions as string[]
     );
 
     if (success) {
-      setPhase("submitted");
+      setAdoptantSubmitted(true);
 
       // Si c'est le jour 7, préparer la révélation
       if (refugeSession.currentDay === 7) {
@@ -203,13 +178,15 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp?: string } =
           <View style={[styles.groundShadow, { width: animalSize * 0.6 }]} />
         </View>
 
-        {/* Background Selector Button */}
-        <BouncyButton
-          style={styles.backgroundSelectorButton}
-          onPress={() => setShowBackgroundPicker(true)}
-        >
-          <Text style={styles.backgroundSelectorText}>🎨</Text>
-        </BouncyButton>
+        {/* Background Selector Button - Only for adopte */}
+        {refugeSession.role === "adopte" && (
+          <BouncyButton
+            style={styles.backgroundSelectorButton}
+            onPress={() => setShowBackgroundPicker(true)}
+          >
+            <Text style={styles.backgroundSelectorText}>🎨</Text>
+          </BouncyButton>
+        )}
       </View>
 
       {/* Jauges */}
@@ -246,53 +223,71 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp?: string } =
 
       {/* Content Area */}
       <ScrollView style={styles.contentScroll} contentContainerStyle={styles.contentContainer}>
-        {phase === "playing" && (
-          <View style={styles.actionsGrid}>
-            {actions.map(action => (
-              <BouncyButton
-                key={action}
-                style={[
-                  styles.actionButton,
-                  actionsDone.includes(action) && styles.actionButtonLocked,
-                  isActing && action === currentAction && styles.actionButtonActive,
-                ]}
-                onPress={() => handleActionPress(action)}
-                disabled={actionsDone.includes(action) || isActing || !refugeSession.canAttemptToday}
-              >
-                <Text style={styles.actionIcon}>
-                  {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
-                </Text>
-                <Text
-                  style={[
-                    styles.actionLabel,
-                    isActing && action === currentAction && styles.actionLabelActive,
-                  ]}
-                >
-                  {ACTION_LABELS[action]}
-                </Text>
-              </BouncyButton>
-            ))}
+        {/* ADOPTÉ - Affiche les 2 actions en lecture seule */}
+        {refugeSession.role === "adopte" && (
+          <View style={styles.adopteCard}>
+            <Text style={styles.questionText}>👉 Que fait-on aujourd&apos;hui ?</Text>
+
+            <View style={styles.adoptActionsDisplay}>
+              {refugeSession.todayActions ? (
+                <>
+                  <View style={styles.actionDisplay}>
+                    <Text style={styles.actionDisplayIcon}>
+                      {refugeSession.todayActions.action1 === "NOURRIR" ? "🍖" :
+                       refugeSession.todayActions.action1 === "JOUER" ? "🎾" :
+                       refugeSession.todayActions.action1 === "CARESSER" ? "🤗" : "🧼"}
+                    </Text>
+                    <Text style={styles.actionDisplayLabel}>
+                      {refugeSession.todayActions.action1 === "NOURRIR" ? "Nourrir" :
+                       refugeSession.todayActions.action1 === "JOUER" ? "Jouer" :
+                       refugeSession.todayActions.action1 === "CARESSER" ? "Caresser" : "Laver"}
+                    </Text>
+                  </View>
+                  <Text style={styles.actionSeparator}>+</Text>
+                  <View style={styles.actionDisplay}>
+                    <Text style={styles.actionDisplayIcon}>
+                      {refugeSession.todayActions.action2 === "NOURRIR" ? "🍖" :
+                       refugeSession.todayActions.action2 === "JOUER" ? "🎾" :
+                       refugeSession.todayActions.action2 === "CARESSER" ? "🤗" : "🧼"}
+                    </Text>
+                    <Text style={styles.actionDisplayLabel}>
+                      {refugeSession.todayActions.action2 === "NOURRIR" ? "Nourrir" :
+                       refugeSession.todayActions.action2 === "JOUER" ? "Jouer" :
+                       refugeSession.todayActions.action2 === "CARESSER" ? "Caresser" : "Laver"}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.loadingText}>Chargement des actions...</Text>
+              )}
+            </View>
           </View>
         )}
 
-        {phase === "guessing" && (
-          <View style={styles.guessingCard}>
-            <Text style={styles.guessTitle}>À ton avis, qu&apos;a choisi l&apos;autre ?</Text>
+        {/* ADOPTANT - Sélectionne 2 actions */}
+        {refugeSession.role === "adoptant" && (
+          <View style={styles.adoptantCard}>
+            <Text style={styles.questionText}>👉 Que veut-il faire aujourd&apos;hui ?</Text>
 
-            <View style={styles.guessActionsGrid}>
+            <View style={styles.adoptantActionsGrid}>
               {actions.map(action => (
                 <BouncyButton
                   key={action}
                   style={[
-                    styles.guessButton,
-                    selectedGuessActions.includes(action) && styles.guessButtonSelected,
+                    styles.adoptantActionButton,
+                    selectedGuessActions.includes(action) && styles.adoptantActionButtonSelected,
+                    adoptantSubmitted && styles.adoptantActionButtonDisabled,
                   ]}
-                  onPress={() => toggleGuessAction(action)}
+                  onPress={() => !adoptantSubmitted && toggleGuessAction(action)}
+                  disabled={adoptantSubmitted || (selectedGuessActions.length === 2 && !selectedGuessActions.includes(action))}
                 >
+                  <Text style={styles.adoptantActionIcon}>
+                    {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
+                  </Text>
                   <Text
                     style={[
-                      styles.guessButtonText,
-                      selectedGuessActions.includes(action) && styles.guessButtonTextSelected,
+                      styles.adoptantActionLabel,
+                      selectedGuessActions.includes(action) && styles.adoptantActionLabelSelected,
                     ]}
                   >
                     {ACTION_LABELS[action]}
@@ -301,21 +296,22 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp?: string } =
               ))}
             </View>
 
-            {selectedGuessActions.length === 2 && (
-              <BouncyButton
-                style={styles.terminateButton}
-                onPress={handleTerminateDay}
-              >
-                <Text style={styles.terminateButtonText}>Terminer ma journée</Text>
-              </BouncyButton>
+            {adoptantSubmitted ? (
+              <View style={styles.submittedMessage}>
+                <Text style={styles.submittedMessageText}>Choix enregistré</Text>
+              </View>
+            ) : (
+              <>
+                {selectedGuessActions.length === 2 && (
+                  <BouncyButton
+                    style={styles.validateButton}
+                    onPress={handleAdoptantSubmit}
+                  >
+                    <Text style={styles.validateButtonText}>Valider</Text>
+                  </BouncyButton>
+                )}
+              </>
             )}
-          </View>
-        )}
-
-        {phase === "submitted" && (
-          <View style={styles.submittedCard}>
-            <Text style={styles.submittedTitle}>Journée terminée.</Text>
-            <Text style={styles.submittedSubtitle}>À demain.</Text>
           </View>
         )}
       </ScrollView>
@@ -553,8 +549,8 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
-  /* Guessing Phase */
-  guessingCard: {
+  /* ADOPTÉ - Display Actions */
+  adopteCard: {
     paddingVertical: 20,
     paddingHorizontal: 16,
     backgroundColor: "rgba(255, 255, 255, 0.5)",
@@ -562,21 +558,60 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#F0E5D8",
   },
-  guessTitle: {
+  questionText: {
     fontSize: 15,
     fontWeight: "700",
     color: "#2D1F0E",
     textAlign: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  guessActionsGrid: {
+  adoptActionsDisplay: {
+    flexDirection: "row" as const,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+  },
+  actionDisplay: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionDisplayIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  actionDisplayLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#2D1F0E",
+  },
+  actionSeparator: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#8B6F47",
+  },
+  loadingText: {
+    fontSize: 13,
+    color: "#8B6F47",
+    fontStyle: "italic",
+  },
+
+  /* ADOPTANT - Selection Actions */
+  adoptantCard: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#F0E5D8",
+  },
+  adoptantActionsGrid: {
     flexDirection: "row" as const,
     flexWrap: "wrap" as const,
     justifyContent: "space-between",
     gap: 10,
     marginBottom: 16,
   },
-  guessButton: {
+  adoptantActionButton: {
     width: (screenWidth - 52) / 2,
     paddingVertical: 12,
     paddingHorizontal: 8,
@@ -587,20 +622,27 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "transparent",
   },
-  guessButtonSelected: {
+  adoptantActionButtonSelected: {
     backgroundColor: "#FF9800",
     borderColor: "#FF7500",
   },
-  guessButtonText: {
+  adoptantActionButtonDisabled: {
+    opacity: 0.6,
+  },
+  adoptantActionIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  adoptantActionLabel: {
     fontSize: 12,
     fontWeight: "600",
     color: "#2D1F0E",
     textAlign: "center",
   },
-  guessButtonTextSelected: {
+  adoptantActionLabelSelected: {
     color: "#FFFFFF",
   },
-  terminateButton: {
+  validateButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
     backgroundColor: "#FFD700",
@@ -614,33 +656,25 @@ const styles = StyleSheet.create({
     elevation: 2,
     alignSelf: "center",
   },
-  terminateButtonText: {
+  validateButtonText: {
     fontSize: 13,
     fontWeight: "700",
     color: "#2D1F0E",
   },
-
-  /* Submitted Phase */
-  submittedCard: {
-    paddingVertical: 24,
+  submittedMessage: {
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
-    borderRadius: 16,
+    backgroundColor: "rgba(76, 175, 80, 0.1)",
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "center",
+    marginTop: 12,
   },
-  submittedTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#2D1F0E",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  submittedSubtitle: {
-    fontSize: 14,
+  submittedMessageText: {
+    fontSize: 13,
     fontWeight: "600",
-    color: "#8B6F47",
-    textAlign: "center",
+    color: "#4CAF50",
   },
 
   /* Error State */

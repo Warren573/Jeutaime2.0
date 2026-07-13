@@ -18,6 +18,7 @@ import {
   generateRandomSexe,
   generateAnimalCategory,
   generateRandomAge,
+  generateRandomDailyActions,
 } from "./refuge.utils";
 
 // ============================================================
@@ -325,6 +326,58 @@ export class RefugeService {
     const isActive = refugeSession.status === RefugeSessionStatus.ACTIVE && !isRefugeExpired(refugeSession.endsAt);
     const isCompleted = refugeSession.status === RefugeSessionStatus.COMPLETED || refugeSession.status === RefugeSessionStatus.ABANDONED;
 
+    // Génération lazy des 2 actions du jour (adopté uniquement)
+    let todayActions: { action1: RefugeAction; action2: RefugeAction } | null = null;
+    if (currentDay > 0) {
+      // Chercher si RefugeDailyChoice existe déjà pour ce jour
+      let dailyChoice = await prisma.refugeDailyChoice.findUnique({
+        where: {
+          refugeSessionId_dayNumber: {
+            refugeSessionId: refugeSessionId,
+            dayNumber: currentDay,
+          },
+        },
+      });
+
+      // S'il n'existe pas, générer et créer (gestion atomique du conflit)
+      if (!dailyChoice) {
+        const [action1, action2] = generateRandomDailyActions();
+        try {
+          dailyChoice = await prisma.refugeDailyChoice.create({
+            data: {
+              refugeSessionId,
+              dayNumber: currentDay,
+              action1,
+              action2,
+            },
+          });
+        } catch (err: any) {
+          // Conflit d'unicité: une autre requête a créé avant nous
+          // Récupérer l'enregistrement créé
+          if (err.code === "P2002") {
+            dailyChoice = await prisma.refugeDailyChoice.findUnique({
+              where: {
+                refugeSessionId_dayNumber: {
+                  refugeSessionId,
+                  dayNumber: currentDay,
+                },
+              },
+            });
+          } else {
+            throw err;
+          }
+        }
+      }
+
+      // Inclure todayActions seulement pour l'adopté
+      if (dailyChoice && userId === refugeSession.adopteId) {
+        todayActions = {
+          action1: dailyChoice.action1,
+          action2: dailyChoice.action2,
+        };
+      }
+    }
+
     const hearts = calculateHearts(refugeSession.dailyChoices, refugeSession.guesses, currentDay);
     const canAttemptToday = canAttemptTodayForDay(currentDay, refugeSession.dailyChoices);
     const todaySubmitted = todaySubmittedForDay(currentDay, refugeSession.guesses);
@@ -338,6 +391,7 @@ export class RefugeService {
       hearts,
       canAttemptToday,
       todaySubmitted,
+      ...(todayActions && { todayActions }),
     };
   }
 
