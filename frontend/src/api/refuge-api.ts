@@ -77,24 +77,10 @@ export const refugeApi = {
 
   // Récupérer la session Refuge active de l'utilisateur courant
   async getActive(): Promise<RefugeSession | null> {
-    console.log("🔌 API: Calling GET /refuge/active");
-    try {
-      const response = await apiFetch("/refuge/active");
-      console.log("📥 API Raw Response object:", response);
-      console.log("📥 API Response.data:", response?.data);
-      console.log("📥 API Response.data type:", typeof response?.data);
-      console.log("📥 API Response.data keys:", response?.data ? Object.keys(response.data) : 'N/A');
-      const result = response?.data || null;
-      console.log("✅ API getActive() final result:", result);
-      console.log("✅ API getActive() result?.id:", result?.id);
-      console.log("✅ API getActive() result is null?:", result === null);
-      console.log("✅ API getActive() result is undefined?:", result === undefined);
-      return result;
-    } catch (error) {
-      console.error("❌ API ERROR in getActive():", error);
-      console.error("❌ Error type:", error instanceof Error ? error.message : error);
-      throw error;
-    }
+    const response = await apiFetch("/refuge/active");
+    // Backend retourne: { success: true, data: activeSession | null }
+    // Déballage: retourner response.data (qui peut être null ou une RefugeSession)
+    return response?.data || null;
   },
 
   // Récupérer le statut de la session (alias pour getSession)
