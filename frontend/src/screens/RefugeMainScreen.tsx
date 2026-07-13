@@ -34,8 +34,6 @@ const getResponsiveValues = () => {
  * Gère le cycle 7 jours avec évaluation et dévoilement des profils.
  */
 export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp?: string } = {}) {
-  console.log("🟢 [TRACE] RefugeMainScreen.tsx rendered - Game screen with sessionIdProp:", sessionIdProp);
-
   const router = useRouter();
   const params = useLocalSearchParams();
   const paramsSessionId = typeof params.sessionId === "string" ? params.sessionId : null;
