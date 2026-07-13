@@ -15,6 +15,10 @@ interface RefugeSessionState {
     animalAgeMonths: number;
     background: string;
   } | null;
+  todayActions: {
+    action1: string;
+    action2: string;
+  } | null;
   role: "adopte" | "adoptant" | null;
   isLoading: boolean;
   error: string | null;
@@ -33,6 +37,7 @@ export function useRefugeSession(sessionId: string | null) {
     todaySubmitted: false,
     hearts: ["🤍", "🤍", "🤍", "🤍", "🤍", "🤍", "🤍"],
     companion: null,
+    todayActions: null,
     role: null,
     isLoading: true,
     error: null,
@@ -83,6 +88,7 @@ export function useRefugeSession(sessionId: string | null) {
           animalAgeMonths: data.animalAgeMonths,
           background: data.background,
         },
+        todayActions: data.todayActions ?? null,
         role,
         isLoading: false,
         error: null,

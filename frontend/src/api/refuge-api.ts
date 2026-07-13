@@ -60,7 +60,9 @@ export const refugeApi = {
   // Récupérer une session Refuge spécifique
   async getSession(sessionId: string): Promise<RefugeSession> {
     const response = await apiFetch(`/refuge/session/${sessionId}`);
-    return response?.data;
+    // Handle potential double wrapper: backend returns {data: {...}}, apiFetch returns {success: true, data: {...}}
+    const data = response?.data ?? response;
+    return data;
   },
 
   // Mettre à jour le fond d'ambiance
