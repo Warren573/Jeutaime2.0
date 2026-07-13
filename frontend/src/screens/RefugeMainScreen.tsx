@@ -223,38 +223,48 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp?: string } =
 
       {/* Content Area */}
       <ScrollView style={styles.contentScroll} contentContainerStyle={styles.contentContainer}>
-        {phase === "playing" && refugeSession.role === "adopte" && (
-          <View style={styles.actionsGrid}>
-            {actions.map(action => (
-              <BouncyButton
-                key={action}
-                style={[
-                  styles.actionButton,
-                  actionsDone.includes(action) && styles.actionButtonLocked,
-                  isActing && action === currentAction && styles.actionButtonActive,
-                ]}
-                onPress={() => handleActionPress(action)}
-                disabled={actionsDone.includes(action) || isActing || !refugeSession.canAttemptToday}
-              >
-                <Text style={styles.actionIcon}>
-                  {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
-                </Text>
-                <Text
-                  style={[
-                    styles.actionLabel,
-                    isActing && action === currentAction && styles.actionLabelActive,
-                  ]}
-                >
-                  {ACTION_LABELS[action]}
-                </Text>
-              </BouncyButton>
-            ))}
+        {/* ADOPTÉ: Display today's random actions (read-only) */}
+        {refugeSession.role === "adopte" && (
+          <View style={styles.adopteCard}>
+            <Text style={styles.questionText}>Que fait-on aujourd&apos;hui ?</Text>
+            {refugeSession.todayActions ? (
+              <View style={styles.adoptActionsDisplay}>
+                <View style={styles.actionDisplay}>
+                  <Text style={styles.actionDisplayIcon}>
+                    {refugeSession.todayActions.action1 === "NOURRIR" ? "🍖" :
+                     refugeSession.todayActions.action1 === "JOUER" ? "🎾" :
+                     refugeSession.todayActions.action1 === "CARESSER" ? "🤗" : "🧼"}
+                  </Text>
+                  <Text style={styles.actionDisplayLabel}>
+                    {refugeSession.todayActions.action1 === "NOURRIR" ? "Nourrir" :
+                     refugeSession.todayActions.action1 === "JOUER" ? "Jouer" :
+                     refugeSession.todayActions.action1 === "CARESSER" ? "Caresser" : "Laver"}
+                  </Text>
+                </View>
+                <Text style={styles.actionSeparator}>ou</Text>
+                <View style={styles.actionDisplay}>
+                  <Text style={styles.actionDisplayIcon}>
+                    {refugeSession.todayActions.action2 === "NOURRIR" ? "🍖" :
+                     refugeSession.todayActions.action2 === "JOUER" ? "🎾" :
+                     refugeSession.todayActions.action2 === "CARESSER" ? "🤗" : "🧼"}
+                  </Text>
+                  <Text style={styles.actionDisplayLabel}>
+                    {refugeSession.todayActions.action2 === "NOURRIR" ? "Nourrir" :
+                     refugeSession.todayActions.action2 === "JOUER" ? "Jouer" :
+                     refugeSession.todayActions.action2 === "CARESSER" ? "Caresser" : "Laver"}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.loadingText}>Chargement des actions...</Text>
+            )}
           </View>
         )}
 
-        {phase === "guessing" && refugeSession.role === "adoptant" && (
-          <View style={styles.guessingCard}>
-            <Text style={styles.guessTitle}>À ton avis, qu&apos;a choisi l&apos;autre ?</Text>
+        {/* ADOPTANT: Select actions for today */}
+        {refugeSession.role === "adoptant" && (
+          <View style={styles.adoptantCard}>
+            <Text style={styles.questionText}>Que veut-il faire aujourd&apos;hui ?</Text>
 
             <View style={styles.adoptantActionsGrid}>
               {actions.map(action => (
@@ -299,13 +309,6 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp?: string } =
                 )}
               </>
             )}
-          </View>
-        )}
-
-        {phase === "submitted" && (
-          <View style={styles.submittedCard}>
-            <Text style={styles.submittedTitle}>Journée terminée.</Text>
-            <Text style={styles.submittedSubtitle}>À demain.</Text>
           </View>
         )}
 
