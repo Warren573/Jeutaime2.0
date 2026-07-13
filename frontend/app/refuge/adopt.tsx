@@ -8,6 +8,8 @@ import { BouncyButton } from '../../src/components/BouncyButton';
 import { formatAnimalAge } from '../../src/modules/refuge/refugeAgeDisplay';
 
 export default function AdoptPage() {
+  console.log("🟡 [TRACE] app/refuge/adopt.tsx mounted - AdoptPage list");
+
   const router = useRouter();
   const { currentUser } = useStore();
   const [refuges, setRefuges] = useState<RefugeSession[]>([]);

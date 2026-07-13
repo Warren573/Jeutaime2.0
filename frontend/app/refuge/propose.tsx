@@ -24,6 +24,8 @@ const PREFERENCES = [
 ];
 
 export default function ProposePage() {
+  console.log("🟠 [TRACE] app/refuge/propose.tsx mounted - ProposePage form");
+
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [selectedAnimal, setSelectedAnimal] = useState<string | null>(null);

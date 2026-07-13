@@ -9,6 +9,8 @@ import { BouncyButton } from '../../src/components/BouncyButton';
  * Affiché uniquement lorsqu'aucune session Refuge n'est active.
  */
 export function RefugeHomeScreen() {
+  console.log("🔵 [TRACE] RefugeHomeScreen.tsx rendered - Home screen (Incarner/Adopter)");
+
   const router = useRouter();
 
   return (

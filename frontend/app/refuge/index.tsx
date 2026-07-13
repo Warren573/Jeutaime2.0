@@ -19,6 +19,8 @@ export default function RefugePage() {
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
+  console.log("🔴 [TRACE] app/refuge/index.tsx mounted - RefugePage dispatcher");
+
   useEffect(() => {
     const checkActiveSession = async () => {
       try {
