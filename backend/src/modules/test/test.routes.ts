@@ -3337,8 +3337,8 @@ router.get(
       // Import RefugeService
       const { RefugeService } = await import("../refuge/refuge.service");
 
-      // Get available refuges
-      const refuges = await RefugeService.getAvailableRefuges();
+      // Get available refuges (pass empty string for test endpoint without specific user)
+      const refuges = await RefugeService.getAvailableRefuges("");
 
       res.status(200).json({
         success: true,
@@ -3383,7 +3383,7 @@ router.get(
       const { RefugeService } = await import("../refuge/refuge.service");
 
       // Get first available refuge
-      const availableRefuges = await RefugeService.getAvailableRefuges();
+      const availableRefuges = await RefugeService.getAvailableRefuges(testuser3.id);
 
       if (availableRefuges.length === 0) {
         return res.status(404).json({ error: "No available refuges to adopt" });
