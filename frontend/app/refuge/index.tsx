@@ -4,22 +4,30 @@ import { RefugeHomeScreen } from './RefugeHomeScreen';
 import { refugeApi } from '../../src/api/refuge-api';
 
 export default function RefugePage() {
+  const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkActiveSession = async () => {
+    async function load() {
       try {
-        const activeSession = await refugeApi.getActive();
-        if (activeSession?.id) {
-          setSessionId(activeSession.id);
+        const active = await refugeApi.getActive();
+
+        if (active?.id) {
+          setSessionId(active.id);
         }
       } catch (error) {
         console.error('Error checking active Refuge session:', error);
+      } finally {
+        setLoading(false);
       }
-    };
+    }
 
-    checkActiveSession();
+    load();
   }, []);
+
+  if (loading) {
+    return null;
+  }
 
   if (sessionId) {
     return <RefugeMainScreen sessionIdProp={sessionId} />;
