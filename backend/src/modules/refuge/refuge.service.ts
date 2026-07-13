@@ -404,8 +404,22 @@ export class RefugeService {
     const activeSession = await prisma.refugeSession.findFirst({
       where: {
         OR: [
-          { adopteId: userId, status: RefugeSessionStatus.ACTIVE },
-          { adoptantId: userId, status: RefugeSessionStatus.ACTIVE },
+          // Adopté : peut avoir une session en CREATION, WAITING_FOR_ADOPTANT, ou ACTIVE
+          {
+            adopteId: userId,
+            status: {
+              in: [
+                RefugeSessionStatus.CREATION,
+                RefugeSessionStatus.WAITING_FOR_ADOPTANT,
+                RefugeSessionStatus.ACTIVE,
+              ],
+            },
+          },
+          // Adoptant : peut avoir une session en ACTIVE uniquement
+          {
+            adoptantId: userId,
+            status: RefugeSessionStatus.ACTIVE,
+          },
         ],
       },
     });
