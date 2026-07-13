@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { refugeApi } from '../../src/api/refuge-api';
@@ -29,6 +29,27 @@ export default function ProposePage() {
   const [selectedAnimal, setSelectedAnimal] = useState<string | null>(null);
   const [selectedPreference, setSelectedPreference] = useState<string>('HOMME_FEMME');
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  // Check if user has an active session - if so, redirect
+  useEffect(() => {
+    const checkActiveSession = async () => {
+      try {
+        const activeSession = await refugeApi.getActive();
+        if (activeSession?.id) {
+          // User has an active session, redirect to it
+          router.replace(`/refuge?sessionId=${activeSession.id}`);
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking active session:', error);
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    checkActiveSession();
+  }, [router]);
 
   const handlePropose = async () => {
     if (!selectedAnimal) {
@@ -52,6 +73,17 @@ export default function ProposePage() {
       setLoading(false);
     }
   };
+
+  // Show loading while checking for active session
+  if (checkingSession) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color="#2196F3" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -140,6 +172,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F4ED',
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     flex: 1,

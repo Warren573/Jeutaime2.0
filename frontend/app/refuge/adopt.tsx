@@ -13,8 +13,32 @@ export default function AdoptPage() {
   const [refuges, setRefuges] = useState<RefugeSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [adopting, setAdopting] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
 
+  // Check if user has an active session - if so, redirect
   useEffect(() => {
+    const checkActiveSession = async () => {
+      try {
+        const activeSession = await refugeApi.getActive();
+        if (activeSession?.id) {
+          // User has an active session, redirect to it
+          router.replace(`/refuge?sessionId=${activeSession.id}`);
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking active session:', error);
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    checkActiveSession();
+  }, [router]);
+
+  // Fetch available refuges only if no active session
+  useEffect(() => {
+    if (checkingSession) return;
+
     const fetchRefuges = async () => {
       try {
         setLoading(true);
@@ -34,7 +58,7 @@ export default function AdoptPage() {
     };
 
     fetchRefuges();
-  }, [currentUser?.gender, currentUser?.id]);
+  }, [currentUser?.gender, currentUser?.id, checkingSession]);
 
   const getAnimalEmoji = (animalType: string) => {
     const emojis: Record<string, string> = {
@@ -60,6 +84,17 @@ export default function AdoptPage() {
       setAdopting(false);
     }
   };
+
+  // Show loading while checking for active session
+  if (checkingSession) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color="#2196F3" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -153,6 +188,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F4ED',
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     paddingHorizontal: 16,
