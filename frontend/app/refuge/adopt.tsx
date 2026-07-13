@@ -14,6 +14,7 @@ export default function AdoptPage() {
   const [loading, setLoading] = useState(true);
   const [adopting, setAdopting] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Check if user has an active session - if so, redirect
   useEffect(() => {
@@ -22,11 +23,12 @@ export default function AdoptPage() {
         const activeSession = await refugeApi.getActive();
         if (activeSession?.id) {
           // User has an active session, redirect to it
-          router.replace(`/refuge?sessionId=${activeSession.id}`);
+          router.replace('/refuge');
           return;
         }
-      } catch (error) {
-        console.error('Error checking active session:', error);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
       } finally {
         setCheckingSession(false);
       }
@@ -90,6 +92,21 @@ export default function AdoptPage() {
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color="#2196F3" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error if session check failed
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerContent}>
+          <Text style={styles.errorTitle}>Erreur de chargement</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <BouncyButton onPress={() => router.back()} style={styles.errorButton}>
+            <Text style={styles.errorButtonText}>Retour</Text>
+          </BouncyButton>
         </View>
       </SafeAreaView>
     );
@@ -192,6 +209,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 16,
   },
   header: {
     paddingHorizontal: 16,
@@ -216,11 +234,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B6B6B',
     marginBottom: 16,
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   loadingText: {
     fontSize: 14,
@@ -313,5 +326,28 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#d32f2f',
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  errorButton: {
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    backgroundColor: '#2196F3',
+    borderRadius: 8,
+  },
+  errorButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

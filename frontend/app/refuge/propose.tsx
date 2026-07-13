@@ -30,6 +30,7 @@ export default function ProposePage() {
   const [selectedPreference, setSelectedPreference] = useState<string>('HOMME_FEMME');
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Check if user has an active session - if so, redirect
   useEffect(() => {
@@ -40,8 +41,9 @@ export default function ProposePage() {
           router.replace('/refuge');
           return;
         }
-      } catch (error) {
-        console.error('Error checking active session:', error);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
       } finally {
         setCheckingSession(false);
       }
@@ -78,6 +80,21 @@ export default function ProposePage() {
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color="#2196F3" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error if session check failed
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerContent}>
+          <Text style={styles.errorTitle}>Erreur de chargement</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={() => router.back()} style={styles.errorButton}>
+            <Text style={styles.errorButtonText}>Retour</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -175,6 +192,30 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#d32f2f',
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  errorButton: {
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    backgroundColor: '#2196F3',
+    borderRadius: 8,
+  },
+  errorButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
   content: {
     flex: 1,
