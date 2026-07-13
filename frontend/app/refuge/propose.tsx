@@ -24,8 +24,6 @@ const PREFERENCES = [
 ];
 
 export default function ProposePage() {
-  console.log("🟠 [TRACE] app/refuge/propose.tsx mounted - ProposePage form");
-
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [selectedAnimal, setSelectedAnimal] = useState<string | null>(null);
@@ -39,8 +37,7 @@ export default function ProposePage() {
       try {
         const activeSession = await refugeApi.getActive();
         if (activeSession?.id) {
-          // User has an active session, redirect to it
-          router.replace(`/refuge?sessionId=${activeSession.id}`);
+          router.replace('/refuge');
           return;
         }
       } catch (error) {
@@ -67,8 +64,7 @@ export default function ProposePage() {
       });
 
       if (result && result.id) {
-        // Navigate to the session with sessionId
-        router.replace(`/refuge?sessionId=${result.id}`);
+        router.replace('/refuge');
       }
     } catch (error: any) {
       Alert.alert('Erreur', error.message || 'Erreur lors de la proposition du compagnon');

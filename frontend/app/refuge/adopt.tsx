@@ -8,8 +8,6 @@ import { BouncyButton } from '../../src/components/BouncyButton';
 import { formatAnimalAge } from '../../src/modules/refuge/refugeAgeDisplay';
 
 export default function AdoptPage() {
-  console.log("🟡 [TRACE] app/refuge/adopt.tsx mounted - AdoptPage list");
-
   const router = useRouter();
   const { currentUser } = useStore();
   const [refuges, setRefuges] = useState<RefugeSession[]>([]);
@@ -78,8 +76,7 @@ export default function AdoptPage() {
     try {
       const result = await refugeApi.adopt(refugeSessionId);
       if (result && result.id) {
-        // Navigate to the session with sessionId
-        router.replace(`/refuge?sessionId=${result.id}`);
+        router.replace('/refuge');
       }
     } catch (error: any) {
       Alert.alert('Erreur', error.message || 'Erreur lors de l&apos;adoption');

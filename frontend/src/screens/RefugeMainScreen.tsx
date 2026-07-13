@@ -33,13 +33,9 @@ const getResponsiveValues = () => {
  * Affiche: 7 cœurs, refuge + compagnon, 4 jauges, 4 actions.
  * Gère le cycle 7 jours avec évaluation et dévoilement des profils.
  */
-export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp?: string } = {}) {
-  console.log("🟢 [TRACE] RefugeMainScreen.tsx rendered - Game screen with sessionIdProp:", sessionIdProp);
-
+export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const paramsSessionId = typeof params.sessionId === "string" ? params.sessionId : null;
-  const sessionId = sessionIdProp || paramsSessionId;
+  const sessionId = sessionIdProp;
 
   const { currentAction, isActing, triggerAction } = useRefugeAction();
   const { logAction } = useRefugeActionLog();
