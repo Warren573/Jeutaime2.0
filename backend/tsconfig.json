@@ -19,15 +19,14 @@
     "ignoreDeprecations": "6.0",
     "types": ["node"],
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
-    "baseUrl": ".",
+    "moduleResolution": "bundler",
     "paths": {
-      "@config/*": ["src/config/*"],
-      "@core/*": ["src/core/*"],
-      "@modules/*": ["src/modules/*"],
-      "@policies/*": ["src/policies/*"],
-      "@jobs/*": ["src/jobs/*"],
-      "@events/*": ["src/events/*"]
+      "@config/*": ["./src/config/*"],
+      "@core/*": ["./src/core/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@policies/*": ["./src/policies/*"],
+      "@jobs/*": ["./src/jobs/*"],
+      "@events/*": ["./src/events/*"]
     }
   },
   "include": ["src/**/*"],
