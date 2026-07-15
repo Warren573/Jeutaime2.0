@@ -1,6 +1,6 @@
 import type { Response } from "express";
 import { RefugeService } from "./refuge.service";
-import type { ProposeRefugeDto, AdoptRefugeDto, GuessDto } from "./refuge.schemas";
+import type { ProposeRefugeDto, AdoptRefugeDto, GuessDto, DailyChoiceDto } from "./refuge.schemas";
 import type { AuthedRequest } from "../../core/types";
 
 // ============================================================
@@ -191,6 +191,44 @@ export class RefugeController {
       res.status(200).json({
         success: true,
         data: activeSession,
+      });
+    } catch (error: any) {
+      if (error.statusCode) {
+        res.status(error.statusCode).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Erreur interne" });
+      }
+    }
+  }
+
+  // ============================================================
+  // POST /api/refuge/daily-choice
+  // ============================================================
+
+  static async submitDailyChoice(req: AuthedRequest, res: Response): Promise<void> {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Non authentifié" });
+      return;
+    }
+
+    const input = req.body as DailyChoiceDto;
+
+    try {
+      const choice = await RefugeService.submitDailyChoice(
+        input.sessionId,
+        userId,
+        input.dayNumber,
+        {
+          action1: input.action1 as any,
+          action2: input.action2 as any,
+        }
+      );
+
+      res.status(201).json({
+        success: true,
+        data: choice,
+        message: `Choix pour le jour ${input.dayNumber} enregistré`,
       });
     } catch (error: any) {
       if (error.statusCode) {

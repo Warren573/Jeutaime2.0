@@ -2,7 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
-import { ProposeRefugeSchema, AdoptRefugeSchema, GuessSchema } from "./refuge.schemas";
+import { ProposeRefugeSchema, AdoptRefugeSchema, GuessSchema, DailyChoiceSchema } from "./refuge.schemas";
 import { RefugeController } from "./refuge.controller";
 import type { AuthedRequest } from "../../core/types";
 
@@ -47,10 +47,12 @@ router.get("/sessions/:sessionId/status", wrap(RefugeController.getSession));
 // Mettre à jour le fond d'ambiance
 router.patch("/session/:sessionId/background", wrap(RefugeController.updateBackground));
 
+// POST /api/refuge/daily-choice
+// Adopté soumet son choix quotidien (2 actions du jour)
+router.post("/daily-choice", validate(DailyChoiceSchema), wrap(RefugeController.submitDailyChoice));
+
 // POST /api/refuge/guess
 // Adoptant soumet sa tentative du jour (retrouver les 2 actions de l'Adopté)
-// NOTE: les 2 actions quotidiennes sont générées par le serveur (GET session),
-// il n'existe pas de route de soumission côté Adopté.
 router.post("/guess", validate(GuessSchema), wrap(RefugeController.submitGuess));
 
 // ============================================================

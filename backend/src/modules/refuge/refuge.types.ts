@@ -32,10 +32,11 @@ export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
   hearts: string[]; // 7 emoji: ❤️, ❌, or 🤍
   canAttemptToday: boolean;
   todaySubmitted: boolean;
+  adopteSubmittedToday: boolean; // True si l'Adopté a vraiment soumis un choix aujourd'hui
   todayActions?: {
     action1: RefugeAction;
     action2: RefugeAction;
-  } | null; // Inclus uniquement pour l'adopté
+  } | null; // Inclus uniquement pour l'adopté si adopteSubmittedToday=true
 }
 
 export interface RefugeProposalInput {

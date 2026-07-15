@@ -41,7 +41,9 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   const { logAction } = useRefugeActionLog();
   const { animalSize } = getResponsiveValues();
   const {
+    selectedMyActions,
     selectedGuessActions,
+    toggleMyAction,
     toggleGuessAction,
     resetDay,
   } = useRefugeDailyChoices();
@@ -53,6 +55,18 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   const [heartPulse, setHeartPulse] = useState(false);
   const [otherUserProfile, setOtherUserProfile] = useState<any>(null);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
+
+  const handleAdopteSubmit = async () => {
+    if (selectedMyActions.length !== 2 || isSubmitting) return;
+
+    setIsSubmitting(true);
+    const success = await refugeSession.submitDailyChoice(selectedMyActions);
+    setIsSubmitting(false);
+
+    if (success) {
+      resetDay();
+    }
+  };
 
   // L'état "tentative soumise" vient du serveur : il survit au rechargement
   const adoptantSubmitted = refugeSession.todaySubmitted;
@@ -243,7 +257,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
             ) : (
               <>
                 <Text style={styles.questionText}>Que fait-on aujourd&apos;hui ?</Text>
-                {refugeSession.todayActions ? (
+                {refugeSession.adopteSubmittedToday && refugeSession.todayActions ? (
                   <View style={styles.adoptActionsDisplay}>
                     <View style={styles.actionDisplay}>
                       <Text style={styles.actionDisplayIcon}>
@@ -264,7 +278,42 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
                     </View>
                   </View>
                 ) : (
-                  <Text style={styles.loadingText}>Chargement des actions...</Text>
+                  <View style={styles.adoptActionSelectionGrid}>
+                    {actions.map(action => (
+                      <BouncyButton
+                        key={action}
+                        style={[
+                          styles.adoptActionButton,
+                          selectedMyActions.includes(action) && styles.adoptActionButtonSelected,
+                        ]}
+                        onPress={() => toggleMyAction(action)}
+                        disabled={selectedMyActions.length === 2 && !selectedMyActions.includes(action)}
+                      >
+                        <Text style={styles.adoptActionIcon}>
+                          {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.adoptActionLabel,
+                            selectedMyActions.includes(action) && styles.adoptActionLabelSelected,
+                          ]}
+                        >
+                          {ACTION_LABELS[action]}
+                        </Text>
+                      </BouncyButton>
+                    ))}
+                  </View>
+                )}
+                {!refugeSession.adopteSubmittedToday && selectedMyActions.length === 2 && (
+                  <BouncyButton
+                    style={styles.validateButton}
+                    onPress={handleAdopteSubmit}
+                    disabled={isSubmitting}
+                  >
+                    <Text style={styles.validateButtonText}>
+                      {isSubmitting ? "Envoi..." : "Valider"}
+                    </Text>
+                  </BouncyButton>
                 )}
               </>
             )}
@@ -609,6 +658,43 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#8B6F47",
     fontStyle: "italic",
+  },
+
+  /* ADOPTÉ - Selection Actions */
+  adoptActionSelectionGrid: {
+    flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 16,
+  },
+  adoptActionButton: {
+    width: (screenWidth - 52) / 2,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    backgroundColor: "#E8D5C4",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  adoptActionButtonSelected: {
+    backgroundColor: "#FF9800",
+    borderColor: "#FF7500",
+  },
+  adoptActionIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  adoptActionLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#2D1F0E",
+    textAlign: "center",
+  },
+  adoptActionLabelSelected: {
+    color: "#FFFFFF",
   },
 
   /* ADOPTANT - Selection Actions */

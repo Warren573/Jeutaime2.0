@@ -10,6 +10,7 @@ interface RefugeSessionState {
   status: string;
   canAttemptToday: boolean;
   todaySubmitted: boolean;
+  adopteSubmittedToday: boolean;
   hearts: string[];
   companion: {
     animalType: string;
@@ -36,6 +37,7 @@ export function useRefugeSession(sessionId: string | null) {
     status: "ACTIVE",
     canAttemptToday: true,
     todaySubmitted: false,
+    adopteSubmittedToday: false,
     hearts: ["🤍", "🤍", "🤍", "🤍", "🤍", "🤍", "🤍"],
     companion: null,
     todayActions: null,
@@ -90,6 +92,7 @@ export function useRefugeSession(sessionId: string | null) {
         status: data.status,
         canAttemptToday: data.canAttemptToday ?? false,
         todaySubmitted: data.todaySubmitted ?? false,
+        adopteSubmittedToday: data.adopteSubmittedToday ?? false,
         hearts: data.hearts || prev.hearts,
         companion: {
           animalType: data.animalType,
@@ -144,6 +147,38 @@ export function useRefugeSession(sessionId: string | null) {
       } catch (err: any) {
         // 409 : la tentative du jour a déjà été enregistrée (double clic,
         // requête simultanée ou réponse réseau perdue) — c'est un succès.
+        if (typeof err?.message === "string" && err.message.includes("déjà été soumise")) {
+          await fetchSessionStatus();
+          return true;
+        }
+        setState((prev) => ({
+          ...prev,
+          error: err?.message || "Erreur lors de la soumission",
+        }));
+        return false;
+      } finally {
+        isSubmittingRef.current = false;
+      }
+    },
+    [sessionId, fetchSessionStatus]
+  );
+
+  // Soumettre le choix quotidien de l'Adopté
+  const submitDailyChoice = useCallback(
+    async (actions: RefugeActionType[]) => {
+      if (!sessionId || actions.length !== 2) return false;
+      if (isSubmittingRef.current) return false;
+      isSubmittingRef.current = true;
+
+      try {
+        const action1 = ACTION_TO_BACKEND[actions[0]];
+        const action2 = ACTION_TO_BACKEND[actions[1]];
+
+        await refugeApi.submitDailyChoice(sessionId, currentDayRef.current, action1, action2);
+
+        await fetchSessionStatus();
+        return true;
+      } catch (err: any) {
         if (typeof err?.message === "string" && err.message.includes("déjà été soumise")) {
           await fetchSessionStatus();
           return true;
@@ -220,6 +255,7 @@ export function useRefugeSession(sessionId: string | null) {
   return {
     ...state,
     fetchSessionStatus,
+    submitDailyChoice,
     submitGuess,
     revealProfiles,
     changeBackground,

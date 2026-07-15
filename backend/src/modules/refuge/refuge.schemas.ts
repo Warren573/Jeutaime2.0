@@ -33,6 +33,13 @@ export const GuessSchema = z.object({
   guessedAction2: RefugeActionEnum,
 });
 
+export const DailyChoiceSchema = z.object({
+  sessionId: z.string().min(1, "sessionId requis"),
+  dayNumber: z.number().int().min(1).max(7, "dayNumber doit être entre 1 et 7"),
+  action1: RefugeActionEnum,
+  action2: RefugeActionEnum,
+});
+
 // ============================================================
 // Types extraits
 // ============================================================
@@ -40,3 +47,4 @@ export const GuessSchema = z.object({
 export type ProposeRefugeDto = z.infer<typeof ProposeRefugeSchema>;
 export type AdoptRefugeDto = z.infer<typeof AdoptRefugeSchema>;
 export type GuessDto = z.infer<typeof GuessSchema>;
+export type DailyChoiceDto = z.infer<typeof DailyChoiceSchema>;

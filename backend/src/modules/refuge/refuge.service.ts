@@ -344,26 +344,19 @@ export class RefugeService {
     const isActive = refugeSession.status === RefugeSessionStatus.ACTIVE && !isRefugeExpired(refugeSession.endsAt);
     const isCompleted = refugeSession.status === RefugeSessionStatus.COMPLETED || refugeSession.status === RefugeSessionStatus.ABANDONED;
 
-    // Génération lazy des 2 actions du jour (sessions actives uniquement)
+    // Lecture pure : les actions du jour ne sont retournées que si l'Adopté les a vraiment soumises
+    const todayDailyChoice = refugeSession.dailyChoices.find((dc) => dc.dayNumber === currentDay);
+    const adopteSubmittedToday = isActive && currentDay >= 1 && userId === refugeSession.adopteId && !!todayDailyChoice;
+
     let todayActions: { action1: RefugeAction; action2: RefugeAction } | null = null;
-    let dailyChoices = refugeSession.dailyChoices;
-    if (isActive && currentDay >= 1) {
-      const dailyChoice = await this.getOrCreateDailyChoice(refugeSessionId, currentDay);
-
-      if (!dailyChoices.some((dc) => dc.dayNumber === currentDay)) {
-        dailyChoices = [...dailyChoices, dailyChoice];
-      }
-
-      // Les actions du jour ne sont visibles que par l'Adopté
-      if (userId === refugeSession.adopteId) {
-        todayActions = {
-          action1: dailyChoice.action1,
-          action2: dailyChoice.action2,
-        };
-      }
+    if (adopteSubmittedToday && todayDailyChoice) {
+      todayActions = {
+        action1: todayDailyChoice.action1,
+        action2: todayDailyChoice.action2,
+      };
     }
 
-    const hearts = calculateHearts(dailyChoices, refugeSession.guesses, currentDay);
+    const hearts = calculateHearts(refugeSession.dailyChoices, refugeSession.guesses, currentDay);
     const canAttemptToday = isActive && currentDay >= 1 && canAttemptTodayForDay(currentDay, refugeSession.guesses);
     const todaySubmitted = todaySubmittedForDay(currentDay, refugeSession.guesses);
 
@@ -376,6 +369,7 @@ export class RefugeService {
       hearts,
       canAttemptToday,
       todaySubmitted,
+      adopteSubmittedToday,
       ...(todayActions && { todayActions }),
     };
   }
@@ -403,6 +397,101 @@ export class RefugeService {
     });
 
     return activeSession ? this.mapToDTO(activeSession) : null;
+  }
+
+  // ============================================================
+  // Choix quotidien — L'Adopté choisit ses 2 actions du jour
+  // ============================================================
+
+  static async submitDailyChoice(
+    refugeSessionId: string,
+    adopteId: string,
+    dayNumber: number,
+    input: { action1: RefugeAction; action2: RefugeAction }
+  ): Promise<RefugeDailyChoice> {
+    // Récupérer la session
+    const refugeSession = await prisma.refugeSession.findUnique({
+      where: { id: refugeSessionId },
+    });
+
+    if (!refugeSession) {
+      throw new NotFoundError("Refuge non trouvé");
+    }
+
+    // Vérifier que l'utilisateur est l'Adopté
+    if (adopteId !== refugeSession.adopteId) {
+      throw new ForbiddenError("Seul l'Adopté peut soumettre un choix");
+    }
+
+    // Vérifier que le refuge est actif
+    if (!canSubmitDailyChoice(refugeSession.status)) {
+      throw new ConflictError("Ce refuge n'est pas actif");
+    }
+
+    // Vérifier que le jour est valide
+    if (!isValidDay(dayNumber)) {
+      throw new BadRequestError(`Le jour doit être entre 1 et ${REFUGE_DURATION_DAYS}`);
+    }
+
+    // Vérifier que le refuge n'est pas expiré
+    if (isRefugeExpired(refugeSession.endsAt)) {
+      throw new ConflictError("Ce refuge a expiré");
+    }
+
+    // Vérifier que le jour soumis correspond bien au jour courant de la session
+    const currentDay = getCurrentDay(refugeSession.createdAt, refugeSession.startedAt, new Date());
+    if (dayNumber !== currentDay) {
+      throw new BadRequestError(
+        `Le jour soumis (${dayNumber}) ne correspond pas au jour courant de la session (${currentDay})`
+      );
+    }
+
+    // Vérifier que les 2 actions sont différentes
+    if (!validateActionsAreDifferent(input.action1, input.action2)) {
+      throw new BadRequestError("Les 2 actions doivent être différentes");
+    }
+
+    // Vérifier qu'il n'y a pas déjà un choix pour ce jour
+    const existingChoice = await prisma.refugeDailyChoice.findUnique({
+      where: {
+        refugeSessionId_dayNumber: {
+          refugeSessionId,
+          dayNumber,
+        },
+      },
+    });
+
+    if (existingChoice) {
+      throw new ConflictError(`Le choix pour le jour ${dayNumber} a déjà été soumis`);
+    }
+
+    // Créer le choix en transaction
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const dailyChoice = await tx.refugeDailyChoice.create({
+          data: {
+            refugeSessionId,
+            dayNumber,
+            action1: input.action1,
+            action2: input.action2,
+          },
+        });
+
+        // Mettre à jour lastAdopteActivityAt
+        await tx.refugeSession.update({
+          where: { id: refugeSessionId },
+          data: { lastAdopteActivityAt: new Date() },
+        });
+
+        return dailyChoice;
+      });
+    } catch (err: any) {
+      // Conflit d'unicité : une requête concurrente a créé le choix avant nous
+      if (err.code === "P2002") {
+        throw new ConflictError(`Le choix pour le jour ${dayNumber} a déjà été soumis`);
+      }
+      throw err;
+    }
   }
 
   // ============================================================

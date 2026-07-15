@@ -23,7 +23,8 @@ export interface RefugeSession {
   hearts?: string[];
   canAttemptToday?: boolean;
   todaySubmitted?: boolean;
-  // Actions du jour générées par le serveur — visibles uniquement par l'Adopté
+  adopteSubmittedToday?: boolean;
+  // Actions du jour — visibles uniquement par l'Adopté si adopteSubmittedToday=true
   todayActions?: { action1: string; action2: string } | null;
 }
 
@@ -93,6 +94,20 @@ export const refugeApi = {
   // Récupérer le statut de la session (alias pour getSession)
   async getSessionStatus(sessionId: string): Promise<RefugeSession> {
     return this.getSession(sessionId);
+  },
+
+  // Soumettre le choix quotidien de l'Adopté
+  async submitDailyChoice(
+    sessionId: string,
+    dayNumber: number,
+    action1: string,
+    action2: string
+  ): Promise<any> {
+    const response = await apiFetch("/refuge/daily-choice", {
+      method: "POST",
+      body: JSON.stringify({ sessionId, dayNumber, action1, action2 }),
+    });
+    return response?.data;
   },
 
   // Soumettre la tentative quotidienne de l'Adoptant
