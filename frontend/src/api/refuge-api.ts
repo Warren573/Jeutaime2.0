@@ -133,4 +133,15 @@ export const refugeApi = {
     });
     return response?.data;
   },
+
+  // DEV uniquement — remise à zéro contrôlée d'une session de test
+  // mode "reset": repasse en WAITING_FOR_ADOPTANT (choix/tentatives purgés)
+  // mode "abandon": clôt définitivement la session de test
+  async devResetSession(sessionId: string, mode: "reset" | "abandon" = "reset"): Promise<RefugeSession> {
+    const response = await apiFetch(`/refuge/dev/${sessionId}/reset`, {
+      method: "POST",
+      body: JSON.stringify({ mode }),
+    });
+    return response?.data;
+  },
 };

@@ -325,6 +325,13 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
           <View style={styles.adoptantCard}>
             <Text style={styles.questionText}>Que veut-il faire aujourd&apos;hui ?</Text>
 
+            {!refugeSession.adopteSubmittedToday && !adoptantSubmitted ? (
+              <Text style={styles.loadingText}>
+                Ton compagnon n&apos;a pas encore choisi ses actions du jour.
+                Reviens un peu plus tard pour tenter de les deviner.
+              </Text>
+            ) : (
+            <>
             <View style={styles.adoptantActionsGrid}>
               {actions.map(action => (
                 <BouncyButton
@@ -371,6 +378,8 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
                 )}
               </>
             )}
+            </>
+            )}
           </View>
         )}
 
@@ -378,6 +387,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
           sessionId={sessionId}
           currentDay={refugeSession.currentDay}
           onDayChanged={() => refugeSession.fetchSessionStatus()}
+          onSessionReset={() => router.replace('/refuge')}
         />
       </ScrollView>
       </View>

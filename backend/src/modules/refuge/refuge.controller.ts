@@ -319,4 +319,50 @@ export class RefugeController {
       }
     }
   }
+
+  // ============================================================
+  // DEV MODE: POST /api/refuge/dev/:sessionId/reset
+  // Remise à zéro contrôlée d'une session de test (hors production)
+  // ============================================================
+
+  static async devResetSession(req: AuthedRequest, res: Response): Promise<void> {
+    const devEnabled = process.env.REFUGE_DEV_TIME_TRAVEL === "true";
+    const isProd = process.env.NODE_ENV === "production";
+
+    if (isProd || !devEnabled) {
+      res.status(403).json({ error: "Dev mode not enabled" });
+      return;
+    }
+
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Non authentifié" });
+      return;
+    }
+
+    const sessionId = req.params.sessionId as string;
+    const { mode } = req.body as { mode?: string };
+
+    if (!sessionId) {
+      res.status(400).json({ error: "sessionId is required" });
+      return;
+    }
+
+    const resetMode = mode === "abandon" ? "abandon" : "reset";
+
+    try {
+      const result = await RefugeService.devResetSession(sessionId, userId, resetMode);
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: `[DEV] Session ${resetMode === "abandon" ? "abandonnée" : "remise à zéro"}`,
+      });
+    } catch (error: any) {
+      if (error.statusCode) {
+        res.status(error.statusCode).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Internal error" });
+      }
+    }
+  }
 }

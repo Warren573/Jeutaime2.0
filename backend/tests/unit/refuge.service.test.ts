@@ -180,6 +180,16 @@ describe("RefugeService.adoptRefuge", () => {
     expect(prisma.refugeSession.updateMany).not.toHaveBeenCalled();
   });
 
+  it("rejects when the Adoptant already has an open refuge as Adopté", async () => {
+    mockAdoptant();
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(waitingSession());
+    (prisma.refugeSession.findFirst as any)
+      .mockResolvedValueOnce(null) // pas de refuge actif en tant qu'Adoptant
+      .mockResolvedValueOnce(waitingSession({ id: "own-proposal", adopteId: adoptantId })); // proposition ouverte
+    await expect(RefugeService.adoptRefuge(adoptantId, sessionId)).rejects.toBeInstanceOf(ConflictError);
+    expect(prisma.refugeSession.updateMany).not.toHaveBeenCalled();
+  });
+
   it("claims the refuge atomically and realigns endsAt on startedAt + 7 days", async () => {
     mockAdoptant();
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(waitingSession());
@@ -261,55 +271,42 @@ describe("RefugeService.getRefugeSession", () => {
     await expect(RefugeService.getRefugeSession(sessionId, "stranger")).rejects.toBeInstanceOf(ForbiddenError);
   });
 
-  it("generates the day's actions once and returns them to the Adopté", async () => {
+  it("is a pure read: never generates daily actions, hearts stay white without a choice", async () => {
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
-    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(null);
-    (prisma.refugeDailyChoice.create as any).mockResolvedValueOnce(todayChoice);
 
     const result = await RefugeService.getRefugeSession(sessionId, adopteId);
 
-    expect(prisma.refugeDailyChoice.create).toHaveBeenCalledOnce();
+    expect(prisma.refugeDailyChoice.create).not.toHaveBeenCalled();
     expect(result.currentDay).toBe(1);
-    expect(result.todayActions).toEqual({ action1: "NOURRIR", action2: "JOUER" });
+    expect(result.todayActions).toBeUndefined();
+    expect(result.adopteSubmittedToday).toBe(false);
+    expect(result.hearts).toEqual(["🤍", "🤍", "🤍", "🤍", "🤍", "🤍", "🤍"]);
     expect(result.canAttemptToday).toBe(true);
     expect(result.todaySubmitted).toBe(false);
   });
 
-  it("does not expose todayActions to the Adoptant but still fixes the day's actions", async () => {
-    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
-    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(null);
-    (prisma.refugeDailyChoice.create as any).mockResolvedValueOnce(todayChoice);
-
-    const result = await RefugeService.getRefugeSession(sessionId, adoptantId);
-
-    expect(prisma.refugeDailyChoice.create).toHaveBeenCalledOnce();
-    expect(result.todayActions).toBeUndefined();
-  });
-
-  it("reuses the existing daily actions instead of regenerating them", async () => {
+  it("does not expose todayActions to the Adoptant but reports adopteSubmittedToday", async () => {
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
       activeSession({ dailyChoices: [todayChoice] })
     );
-    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(todayChoice);
+
+    const result = await RefugeService.getRefugeSession(sessionId, adoptantId);
+
+    expect(prisma.refugeDailyChoice.create).not.toHaveBeenCalled();
+    expect(result.todayActions).toBeUndefined();
+    expect(result.adopteSubmittedToday).toBe(true);
+  });
+
+  it("returns the Adopté's submitted actions for the day", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({ dailyChoices: [todayChoice] })
+    );
 
     const result = await RefugeService.getRefugeSession(sessionId, adopteId);
 
     expect(prisma.refugeDailyChoice.create).not.toHaveBeenCalled();
     expect(result.todayActions).toEqual({ action1: "NOURRIR", action2: "JOUER" });
-  });
-
-  it("resolves the unique-constraint race by re-reading the winning record", async () => {
-    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
-    (prisma.refugeDailyChoice.findUnique as any)
-      .mockResolvedValueOnce(null) // première lecture : rien
-      .mockResolvedValueOnce(todayChoice); // relecture après P2002
-    (prisma.refugeDailyChoice.create as any).mockRejectedValueOnce(
-      Object.assign(new Error("unique"), { code: "P2002" })
-    );
-
-    const result = await RefugeService.getRefugeSession(sessionId, adopteId);
-
-    expect(result.todayActions).toEqual({ action1: "NOURRIR", action2: "JOUER" });
+    expect(result.adopteSubmittedToday).toBe(true);
   });
 
   it("does not generate actions for a session still waiting for an Adoptant", async () => {
@@ -333,13 +330,55 @@ describe("RefugeService.getRefugeSession", () => {
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
       activeSession({ dailyChoices: [todayChoice], guesses: [guess] })
     );
-    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(todayChoice);
 
     const result = await RefugeService.getRefugeSession(sessionId, adoptantId);
 
     expect(result.todaySubmitted).toBe(true);
     expect(result.canAttemptToday).toBe(false);
     expect(result.hearts[0]).toBe("❤️");
+  });
+});
+
+// ============================================================
+// getActiveRefugeSession — résolution de la session courante
+// ============================================================
+
+describe("RefugeService.getActiveRefugeSession", () => {
+  it("prioritizes the ACTIVE session over any stale open proposal", async () => {
+    const shared = activeSession({ id: "shared-active" });
+    (prisma.refugeSession.findFirst as any).mockResolvedValueOnce(shared);
+
+    const dto = await RefugeService.getActiveRefugeSession(adoptantId);
+
+    expect(dto?.id).toBe("shared-active");
+    // Une seule requête suffit : la session ACTIVE court-circuite la recherche de proposition
+    expect(prisma.refugeSession.findFirst).toHaveBeenCalledTimes(1);
+    const args = (prisma.refugeSession.findFirst as any).mock.calls[0][0];
+    expect(args.where.status).toBe("ACTIVE");
+  });
+
+  it("falls back to the most recent open proposal as Adopté when no session is ACTIVE", async () => {
+    const proposal = waitingSession({ id: "own-waiting" });
+    (prisma.refugeSession.findFirst as any)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(proposal);
+
+    const dto = await RefugeService.getActiveRefugeSession(adopteId);
+
+    expect(dto?.id).toBe("own-waiting");
+    const args = (prisma.refugeSession.findFirst as any).mock.calls[1][0];
+    expect(args.where.adopteId).toBe(adopteId);
+    expect(args.orderBy).toEqual({ createdAt: "desc" });
+  });
+
+  it("returns null when the user has no open session at all", async () => {
+    (prisma.refugeSession.findFirst as any)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+
+    const dto = await RefugeService.getActiveRefugeSession(adopteId);
+
+    expect(dto).toBeNull();
   });
 });
 
@@ -407,7 +446,19 @@ describe("RefugeService.submitGuess", () => {
     expect(prisma.refugeGuess.create).not.toHaveBeenCalled();
   });
 
-  it("records the attempt atomically with the Adoptant's activity and guarantees the day's actions exist", async () => {
+  it("rejects the attempt when the Adopté has not submitted the day's choice (never auto-generates)", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
+    (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(null);
+    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(null);
+
+    await expect(
+      RefugeService.submitGuess(sessionId, adoptantId, 1, guessInput)
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(prisma.refugeDailyChoice.create).not.toHaveBeenCalled();
+    expect(prisma.refugeGuess.create).not.toHaveBeenCalled();
+  });
+
+  it("records the attempt atomically with the Adoptant's activity when the Adopté's choice exists", async () => {
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
     (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(null);
     (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(existingChoice);
@@ -418,6 +469,7 @@ describe("RefugeService.submitGuess", () => {
 
     expect(result.dayNumber).toBe(1);
     expect(prisma.refugeDailyChoice.findUnique).toHaveBeenCalled();
+    expect(prisma.refugeDailyChoice.create).not.toHaveBeenCalled();
     expect(prisma.$transaction).toHaveBeenCalledOnce();
     const activityUpdate = (prisma.refugeSession.update as any).mock.calls[0][0];
     expect(activityUpdate.data.lastAdoptantActivityAt).toBeInstanceOf(Date);

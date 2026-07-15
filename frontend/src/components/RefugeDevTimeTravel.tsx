@@ -16,12 +16,14 @@ interface RefugeDevTimeTravelProps {
   sessionId: string | null;
   currentDay: number;
   onDayChanged?: (newDay: number) => void;
+  onSessionReset?: () => void;
 }
 
 export function RefugeDevTimeTravel({
   sessionId,
   currentDay,
   onDayChanged,
+  onSessionReset,
 }: RefugeDevTimeTravelProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -49,6 +51,21 @@ export function RefugeDevTimeTravel({
       await refugeApi.devSetDay(sessionId, day);
       setMessage(`✅ Jumped to Day ${day}.`);
       onDayChanged?.(day);
+    } catch (err) {
+      setMessage(`❌ Error: ${err instanceof Error ? err.message : "Failed"}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReset = async (mode: "reset" | "abandon") => {
+    setLoading(true);
+    setMessage("");
+
+    try {
+      await refugeApi.devResetSession(sessionId, mode);
+      setMessage(mode === "abandon" ? "✅ Session abandonnée." : "✅ Session remise à zéro.");
+      onSessionReset?.();
     } catch (err) {
       setMessage(`❌ Error: ${err instanceof Error ? err.message : "Failed"}`);
     } finally {
@@ -85,6 +102,23 @@ export function RefugeDevTimeTravel({
             </Text>
           </TouchableOpacity>
         ))}
+      </View>
+
+      <View style={styles.resetRow}>
+        <TouchableOpacity
+          style={[styles.resetButton, loading && styles.dayButtonDisabled]}
+          onPress={() => handleReset("reset")}
+          disabled={loading}
+        >
+          <Text style={styles.resetButtonText}>♻️ Remettre à zéro</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.resetButton, styles.abandonButton, loading && styles.dayButtonDisabled]}
+          onPress={() => handleReset("abandon")}
+          disabled={loading}
+        >
+          <Text style={styles.resetButtonText}>🗑️ Abandonner</Text>
+        </TouchableOpacity>
       </View>
 
       {message && (
@@ -159,6 +193,29 @@ const styles = StyleSheet.create({
   },
   dayButtonTextActive: {
     color: "#ffffff",
+  },
+  resetRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
+  },
+  resetButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#2d2d44",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#666688",
+    alignItems: "center",
+  },
+  abandonButton: {
+    borderColor: "#aa4444",
+  },
+  resetButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#dddddd",
   },
   message: {
     fontSize: 11,
