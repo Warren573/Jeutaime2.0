@@ -12,12 +12,14 @@ import {
   isValidDay,
   REFUGE_DURATION_DAYS,
   calculateHearts,
+  calculateDayResult,
   canAttemptTodayForDay,
   todaySubmittedForDay,
   calculateStartedAtForDay,
   generateRandomSexe,
   generateAnimalCategory,
   generateRandomAge,
+  REFUGE_PERFECT_DAY_REWARD,
 } from "./refuge.utils";
 
 // Statuts pour lesquels un Adopté est considéré comme ayant déjà un refuge en cours
@@ -340,6 +342,21 @@ export class RefugeService {
     const canAttemptToday = isActive && currentDay >= 1 && canAttemptTodayForDay(currentDay, refugeSession.guesses);
     const todaySubmitted = todaySubmittedForDay(currentDay, refugeSession.guesses);
 
+    // Calculer le résultat du jour si une tentative a été soumise
+    let todayResult = null;
+    if (todaySubmitted && todayDailyChoice) {
+      const todayGuess = refugeSession.guesses.find((g) => g.dayNumber === currentDay);
+      if (todayGuess) {
+        const result = calculateDayResult(todayDailyChoice, todayGuess);
+        todayResult = {
+          matches: result.matches,
+          message: result.message,
+          reward: result.reward,
+          emoji: result.emoji,
+        };
+      }
+    }
+
     return {
       ...this.mapToDTO(refugeSession),
       currentDay,
@@ -351,6 +368,7 @@ export class RefugeService {
       todaySubmitted,
       adopteSubmittedToday,
       ...(todayActions && { todayActions }),
+      ...(todayResult && { todayResult }),
     };
   }
 
@@ -564,11 +582,17 @@ export class RefugeService {
       );
     }
 
-    // Écriture atomique : la tentative et l'activité de l'Adoptant vont ensemble.
+    // Calculer le résultat du jour avant la transaction
+    const dayResult = calculateDayResult(dailyChoice, {
+      guessedAction1: input.guessedAction1,
+      guessedAction2: input.guessedAction2,
+    });
+
+    // Écriture atomique : la tentative, l'activité de l'Adoptant, et attribution des pièces (si 2/2) vont ensemble.
     // Un double-clic ou deux requêtes simultanées déclenchent P2002 → 409.
     let guess;
     try {
-      [guess] = await prisma.$transaction([
+      const operations: any[] = [
         prisma.refugeGuess.create({
           data: {
             refugeSessionId,
@@ -581,7 +605,24 @@ export class RefugeService {
           where: { id: refugeSessionId },
           data: { lastAdoptantActivityAt: new Date() },
         }),
-      ]);
+      ];
+
+      // Si parfait match (2/2), attribuer les pièces aux deux joueurs
+      if (dayResult.reward > 0) {
+        operations.push(
+          prisma.wallet.update({
+            where: { userId: refugeSession.adopteId },
+            data: { coins: { increment: dayResult.reward } },
+          }),
+          prisma.wallet.update({
+            where: { userId: adoptantId },
+            data: { coins: { increment: dayResult.reward } },
+          })
+        );
+      }
+
+      const results = await prisma.$transaction(operations);
+      guess = results[0];
     } catch (err: any) {
       if (err.code === "P2002") {
         throw new ConflictError(`La tentative pour le jour ${dayNumber} a déjà été soumise`);
@@ -596,6 +637,12 @@ export class RefugeService {
       guessedAction1: guess.guessedAction1,
       guessedAction2: guess.guessedAction2,
       submittedAt: guess.submittedAt,
+      dayResult: {
+        matches: dayResult.matches,
+        message: dayResult.message,
+        reward: dayResult.reward,
+        emoji: dayResult.emoji,
+      },
     };
   }
 

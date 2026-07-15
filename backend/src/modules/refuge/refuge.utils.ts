@@ -10,6 +10,7 @@ export const REFUGE_DURATION_DAYS = 7;
 export const REFUGE_INACTIVITY_ALERT_HOURS = 24;
 export const REFUGE_FINAL_ALERT_HOURS = 48;
 export const REFUGE_AUTO_ABANDON_HOURS = 72;
+export const REFUGE_PERFECT_DAY_REWARD = 10;
 
 // ============================================================
 // Utilitaires de calcul
@@ -103,6 +104,61 @@ export function calculateHearts(
   }
 
   return hearts;
+}
+
+export interface DayResult {
+  matches: number;
+  message: string;
+  reward: number;
+  emoji: string;
+}
+
+export function calculateDayResult(dailyChoice: any, guess: any): DayResult {
+  if (!dailyChoice || !guess) {
+    return {
+      matches: 0,
+      message: "Attente du résultat",
+      reward: 0,
+      emoji: "🤍",
+    };
+  }
+
+  // Count how many actions match (in either order)
+  let matches = 0;
+  if (guess.guessedAction1 === dailyChoice.action1 || guess.guessedAction1 === dailyChoice.action2) {
+    matches++;
+  }
+  if (guess.guessedAction2 === dailyChoice.action1 || guess.guessedAction2 === dailyChoice.action2) {
+    matches++;
+  }
+
+  // Remove duplicates if both guesses are the same action
+  if (guess.guessedAction1 === guess.guessedAction2) {
+    matches = 0;
+  }
+
+  if (matches === 2) {
+    return {
+      matches: 2,
+      message: "Vous étiez sur la même longueur d'onde aujourd'hui !",
+      reward: REFUGE_PERFECT_DAY_REWARD,
+      emoji: "❤️",
+    };
+  } else if (matches === 1) {
+    return {
+      matches: 1,
+      message: "Vous commencez à être sur la même longueur d'onde.",
+      reward: 0,
+      emoji: "❤️",
+    };
+  } else {
+    return {
+      matches: 0,
+      message: "Vous n'étiez pas sur la même longueur d'onde aujourd'hui.",
+      reward: 0,
+      emoji: "❌",
+    };
+  }
 }
 
 // L'Adoptant peut encore tenter aujourd'hui s'il n'a pas déjà soumis sa tentative du jour

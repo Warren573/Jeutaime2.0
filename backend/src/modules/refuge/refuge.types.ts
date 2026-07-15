@@ -21,6 +21,13 @@ export interface RefugeSessionDTO {
   background: RefugeBackground;
 }
 
+export interface DayResultData {
+  matches: number; // 0, 1, or 2
+  message: string;
+  reward: number;
+  emoji: string; // ❌, ❤️, or 🤍
+}
+
 export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
   currentDay: number; // 1-7 ou 0 si pas commencé
   timeRemaining: {
@@ -37,6 +44,7 @@ export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
     action1: RefugeAction;
     action2: RefugeAction;
   } | null; // Inclus uniquement pour l'adopté si adopteSubmittedToday=true
+  todayResult?: DayResultData | null; // Résultat du jour courant si une tentative a été soumise
 }
 
 export interface RefugeProposalInput {

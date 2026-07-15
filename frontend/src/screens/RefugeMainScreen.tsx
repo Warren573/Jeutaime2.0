@@ -178,6 +178,17 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
         ))}
       </View>
 
+      {/* Résultat quotidien */}
+      {refugeSession.todayResult && (
+        <View style={styles.todayResultContainer}>
+          <Text style={styles.resultEmoji}>{refugeSession.todayResult.emoji}</Text>
+          <Text style={styles.resultMessage}>{refugeSession.todayResult.message}</Text>
+          {refugeSession.todayResult.reward > 0 && (
+            <Text style={styles.rewardText}>+{refugeSession.todayResult.reward} pièces chacun</Text>
+          )}
+        </View>
+      )}
+
       {/* Refuge Zone with Companion */}
       <View
         style={[
@@ -483,6 +494,34 @@ const styles = StyleSheet.create({
   heartPulse: {
     // Pulse animation handled via Animated in component
     transform: [{ scale: 1 }],
+  },
+
+  /* Résultat quotidien */
+  todayResultContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    borderRadius: 10,
+  },
+  resultEmoji: {
+    fontSize: 32,
+    marginBottom: 6,
+  },
+  resultMessage: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  rewardText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFD700",
   },
 
   /* Refuge Zone */

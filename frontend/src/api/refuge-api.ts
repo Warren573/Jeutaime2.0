@@ -26,6 +26,13 @@ export interface RefugeSession {
   adopteSubmittedToday?: boolean;
   // Actions du jour — visibles uniquement par l'Adopté si adopteSubmittedToday=true
   todayActions?: { action1: string; action2: string } | null;
+  // Résultat du jour courant si une tentative a été soumise
+  todayResult?: {
+    matches: number;
+    message: string;
+    reward: number;
+    emoji: string;
+  } | null;
 }
 
 export interface ProposeRefugeRequest {
