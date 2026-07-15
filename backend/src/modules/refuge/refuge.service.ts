@@ -357,6 +357,15 @@ export class RefugeService {
     }
 
     const hearts = calculateHearts(refugeSession.dailyChoices, refugeSession.guesses, currentDay);
+
+    // DEBUG: Log for bug investigation
+    console.log(`[getRefugeSession] Day ${currentDay}: ${refugeSession.dailyChoices.length} choices, ${refugeSession.guesses.length} guesses, hearts=[${hearts.join(',')}]`);
+    if (currentDay >= 1 && currentDay <= 7) {
+      const todayChoice = refugeSession.dailyChoices.find(dc => dc.dayNumber === currentDay);
+      const todayGuess = refugeSession.guesses.find(g => g.dayNumber === currentDay);
+      console.log(`[getRefugeSession] Today: choice=${todayChoice ? `${todayChoice.action1}/${todayChoice.action2}` : "none"}, guess=${todayGuess ? `${todayGuess.guessedAction1}/${todayGuess.guessedAction2}` : "none"}, heart=${hearts[currentDay - 1]}`);
+    }
+
     const canAttemptToday = isActive && currentDay >= 1 && canAttemptTodayForDay(currentDay, refugeSession.guesses);
     const todaySubmitted = todaySubmittedForDay(currentDay, refugeSession.guesses);
 
