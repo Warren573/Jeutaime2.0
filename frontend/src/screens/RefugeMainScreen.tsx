@@ -131,7 +131,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
         <Text style={styles.error}>Session terminée ou invalide</Text>
         <BouncyButton
           style={styles.button}
-          onPress={() => router.replace("/refuge")}
+          onPress={() => router.replace("/(tabs)/social")}
         >
           <Text style={styles.buttonText}>Retour</Text>
         </BouncyButton>
@@ -146,7 +146,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
       <View style={styles.header}>
         <BouncyButton
           style={styles.backButton}
-          onPress={() => router.replace('/refuge')}
+          onPress={() => router.replace('/(tabs)/social')}
         >
           <Text style={styles.backText}>← Retour</Text>
         </BouncyButton>
@@ -387,7 +387,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
           sessionId={sessionId}
           currentDay={refugeSession.currentDay}
           onDayChanged={() => refugeSession.fetchSessionStatus()}
-          onSessionReset={() => router.replace('/refuge')}
+          onSessionReset={() => router.replace('/(tabs)/social')}
         />
       </ScrollView>
       </View>
