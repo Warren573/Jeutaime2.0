@@ -1,6 +1,6 @@
 import type { Response } from "express";
 import { RefugeService } from "./refuge.service";
-import type { ProposeRefugeDto, AdoptRefugeDto, DailyChoiceDto, GuessDto } from "./refuge.schemas";
+import type { ProposeRefugeDto, AdoptRefugeDto, GuessDto } from "./refuge.schemas";
 import type { AuthedRequest } from "../../core/types";
 
 // ============================================================
@@ -180,62 +180,17 @@ export class RefugeController {
 
   static async getActive(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?.userId;
-    console.log("🔌 BACKEND: GET /refuge/active");
-    console.log("👤 userId from auth:", userId);
-
     if (!userId) {
-      console.log("❌ NO AUTH - returning 401");
       res.status(401).json({ error: "Non authentifié" });
       return;
     }
 
     try {
-      console.log("🔄 Calling RefugeService.getActiveRefugeSession()...");
       const activeSession = await RefugeService.getActiveRefugeSession(userId);
-      console.log("✅ Active session found:", activeSession);
 
       res.status(200).json({
         success: true,
         data: activeSession,
-      });
-    } catch (error: any) {
-      console.error("❌ ERROR in getActive():", error);
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Erreur interne" });
-      }
-    }
-  }
-
-  // ============================================================
-  // POST /api/refuge/daily-choice
-  // ============================================================
-
-  static async submitDailyChoice(req: AuthedRequest, res: Response): Promise<void> {
-    const userId = req.user?.userId;
-    if (!userId) {
-      res.status(401).json({ error: "Non authentifié" });
-      return;
-    }
-
-    const input = req.body as DailyChoiceDto;
-
-    try {
-      const dailyChoice = await RefugeService.submitDailyChoice(
-        input.sessionId,
-        userId,
-        input.dayNumber,
-        {
-          action1: input.action1 as any,
-          action2: input.action2 as any,
-        }
-      );
-
-      res.status(201).json({
-        success: true,
-        data: dailyChoice,
-        message: `Actions pour le jour ${input.dayNumber} enregistrées`,
       });
     } catch (error: any) {
       if (error.statusCode) {

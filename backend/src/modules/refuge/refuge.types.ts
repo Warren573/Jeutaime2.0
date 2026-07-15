@@ -38,23 +38,9 @@ export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
   } | null; // Inclus uniquement pour l'adopté
 }
 
-export interface RefugeDailyChoiceDTO {
-  id: string;
-  refugeSessionId: string;
-  dayNumber: number;
-  action1: RefugeAction;
-  action2: RefugeAction;
-  submittedAt: Date;
-}
-
 export interface RefugeProposalInput {
   animalType: RefugeAnimalType;
   acceptedSexe: RefugeAcceptedSexe;
-}
-
-export interface RefugeDailyChoiceInput {
-  action1: RefugeAction;
-  action2: RefugeAction;
 }
 
 export interface RefugeTimeRemaining {

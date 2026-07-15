@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
-import { RefugeSessionStatus, RefugeAction, Gender, RefugeBackground } from "@prisma/client";
-import type { RefugeSessionDTO, RefugeSessionWithMetadata, RefugeDailyChoiceDTO, RefugeProposalInput, RefugeDailyChoiceInput } from "./refuge.types";
+import { RefugeSessionStatus, RefugeAction, Gender, RefugeBackground, type RefugeDailyChoice } from "@prisma/client";
+import type { RefugeSessionDTO, RefugeSessionWithMetadata, RefugeProposalInput } from "./refuge.types";
 import {
   calculateRefugeEndsAt,
   getCurrentDay,
@@ -20,6 +20,13 @@ import {
   generateRandomAge,
   generateRandomDailyActions,
 } from "./refuge.utils";
+
+// Statuts pour lesquels un Adopté est considéré comme ayant déjà un refuge en cours
+const ADOPTE_OPEN_STATUSES = [
+  RefugeSessionStatus.CREATION,
+  RefugeSessionStatus.WAITING_FOR_ADOPTANT,
+  RefugeSessionStatus.ACTIVE,
+];
 
 // ============================================================
 // RefugeService — Logique métier du Refuge
@@ -46,9 +53,7 @@ export class RefugeService {
     const existingRefuge = await prisma.refugeSession.findFirst({
       where: {
         adopteId,
-        status: {
-          in: [RefugeSessionStatus.CREATION, RefugeSessionStatus.WAITING_FOR_ADOPTANT, RefugeSessionStatus.ACTIVE],
-        },
+        status: { in: ADOPTE_OPEN_STATUSES },
       },
     });
 
@@ -74,6 +79,20 @@ export class RefugeService {
         endsAt: calculateRefugeEndsAt(new Date()),
       },
     });
+
+    // Garde anti-concurrence : si un double-clic / deux requêtes simultanées ont créé
+    // plusieurs refuges ouverts, on annule la création courante.
+    const concurrentCount = await prisma.refugeSession.count({
+      where: {
+        adopteId,
+        status: { in: ADOPTE_OPEN_STATUSES },
+        id: { not: refugeSession.id },
+      },
+    });
+    if (concurrentCount > 0) {
+      await prisma.refugeSession.delete({ where: { id: refugeSession.id } });
+      throw new ConflictError("Tu as déjà un refuge en cours ou en attente");
+    }
 
     return this.mapToDTO(refugeSession);
   }
@@ -129,6 +148,11 @@ export class RefugeService {
       throw new NotFoundError("Refuge non trouvé");
     }
 
+    // Vérifier que l'Adoptant n'est pas l'Adopté
+    if (adoptantId === refugeSession.adopteId) {
+      throw new ForbiddenError("Tu ne peux pas adopter ton propre refuge");
+    }
+
     // Vérifier que le refuge est disponible
     if (refugeSession.status !== RefugeSessionStatus.WAITING_FOR_ADOPTANT) {
       throw new ConflictError("Ce refuge n'est plus disponible");
@@ -137,11 +161,6 @@ export class RefugeService {
     // Vérifier que le refuge n'est pas expiré
     if (isRefugeExpired(refugeSession.endsAt)) {
       throw new ConflictError("Ce refuge a expiré");
-    }
-
-    // Vérifier que l'Adoptant n'est pas l'Adopté
-    if (adoptantId === refugeSession.adopteId) {
-      throw new ForbiddenError("Tu ne peux pas adopter ton propre refuge");
     }
 
     // Vérifier le sexe de l'Adoptant matches l'acceptedSexe du refuge
@@ -154,9 +173,7 @@ export class RefugeService {
     const activeRefuge = await prisma.refugeSession.findFirst({
       where: {
         adoptantId,
-        status: {
-          in: [RefugeSessionStatus.ACTIVE],
-        },
+        status: RefugeSessionStatus.ACTIVE,
       },
     });
 
@@ -164,16 +181,60 @@ export class RefugeService {
       throw new ConflictError("Tu as déjà un refuge actif en cours");
     }
 
-    // Adopter le refuge
+    // Adoption atomique : le refuge n'est attribué que s'il est toujours
+    // en attente et sans adoptant (protège contre deux adoptions simultanées).
+    // Le jeu dure 7 jours à partir de l'adoption : endsAt est réaligné sur startedAt.
     const now = new Date();
-    const updatedRefuge = await prisma.refugeSession.update({
+    let claimed: { count: number };
+    try {
+      claimed = await prisma.refugeSession.updateMany({
+        where: {
+          id: refugeSessionId,
+          status: RefugeSessionStatus.WAITING_FOR_ADOPTANT,
+          adoptantId: null,
+          endsAt: { gt: now },
+        },
+        data: {
+          adoptantId,
+          status: RefugeSessionStatus.ACTIVE,
+          startedAt: now,
+          endsAt: calculateRefugeEndsAt(now),
+          lastAdoptantActivityAt: now,
+        },
+      });
+    } catch (err: any) {
+      // Contrainte unique (adopteId, adoptantId) : ce duo a déjà eu un refuge ensemble
+      if (err.code === "P2002") {
+        throw new ConflictError("Vous avez déjà partagé un refuge ensemble");
+      }
+      throw err;
+    }
+
+    if (claimed.count === 0) {
+      throw new ConflictError("Ce refuge n'est plus disponible");
+    }
+
+    // Garde anti-concurrence : si deux adoptions simultanées de refuges différents
+    // sont passées pour le même Adoptant, on libère celle-ci.
+    const activeCount = await prisma.refugeSession.count({
+      where: { adoptantId, status: RefugeSessionStatus.ACTIVE },
+    });
+    if (activeCount > 1) {
+      await prisma.refugeSession.update({
+        where: { id: refugeSessionId },
+        data: {
+          adoptantId: null,
+          status: RefugeSessionStatus.WAITING_FOR_ADOPTANT,
+          startedAt: null,
+          endsAt: refugeSession.endsAt,
+          lastAdoptantActivityAt: null,
+        },
+      });
+      throw new ConflictError("Tu as déjà un refuge actif en cours");
+    }
+
+    const updatedRefuge = await prisma.refugeSession.findUnique({
       where: { id: refugeSessionId },
-      data: {
-        adoptantId,
-        status: RefugeSessionStatus.ACTIVE,
-        startedAt: now,
-        lastAdoptantActivityAt: now,
-      },
     });
 
     return this.mapToDTO(updatedRefuge);
@@ -214,84 +275,41 @@ export class RefugeService {
   }
 
   // ============================================================
-  // Jeu quotidien — L'Adopté choisit ses 2 actions
+  // Actions du jour — producteur unique
+  // Les 2 actions quotidiennes de l'Adopté sont générées par le serveur,
+  // une seule fois par (session, jour), à la première lecture de la session
+  // ou à la première tentative de l'Adoptant.
   // ============================================================
 
-  static async submitDailyChoice(
+  private static async getOrCreateDailyChoice(
     refugeSessionId: string,
-    adopteId: string,
-    dayNumber: number,
-    input: RefugeDailyChoiceInput
-  ): Promise<RefugeDailyChoiceDTO> {
-    // Récupérer la session
-    const refugeSession = await prisma.refugeSession.findUnique({
-      where: { id: refugeSessionId },
-    });
-
-    if (!refugeSession) {
-      throw new NotFoundError("Refuge non trouvé");
-    }
-
-    // Vérifier que l'utilisateur est l'Adopté
-    if (adopteId !== refugeSession.adopteId) {
-      throw new ForbiddenError("Seul l'Adopté peut soumettre les actions");
-    }
-
-    // Vérifier que le refuge est actif
-    if (!canSubmitDailyChoice(refugeSession.status)) {
-      throw new ConflictError("Ce refuge n'est pas actif");
-    }
-
-    // Vérifier que le jour est valide
-    if (!isValidDay(dayNumber)) {
-      throw new BadRequestError(`Le jour doit être entre 1 et ${REFUGE_DURATION_DAYS}`);
-    }
-
-    // Vérifier que le refuge n'est pas expiré
-    if (isRefugeExpired(refugeSession.endsAt)) {
-      throw new ConflictError("Ce refuge a expiré");
-    }
-
-    // Vérifier que les 2 actions sont différentes
-    if (!validateActionsAreDifferent(input.action1, input.action2)) {
-      throw new BadRequestError("Les 2 actions doivent être différentes");
-    }
-
-    // Vérifier que les actions sont valides (enum check is automatic in Prisma)
-
-    // Vérifier qu'il n'y a pas déjà un choix pour ce jour
-    const existingChoice = await prisma.refugeDailyChoice.findUnique({
+    dayNumber: number
+  ): Promise<RefugeDailyChoice> {
+    const existing = await prisma.refugeDailyChoice.findUnique({
       where: {
-        refugeSessionId_dayNumber: {
-          refugeSessionId,
-          dayNumber,
-        },
+        refugeSessionId_dayNumber: { refugeSessionId, dayNumber },
       },
     });
+    if (existing) return existing;
 
-    if (existingChoice) {
-      throw new ConflictError(`Les actions pour le jour ${dayNumber} ont déjà été soumises`);
+    const [action1, action2] = generateRandomDailyActions();
+    try {
+      return await prisma.refugeDailyChoice.create({
+        data: { refugeSessionId, dayNumber, action1, action2 },
+      });
+    } catch (err: any) {
+      // Conflit d'unicité : une requête concurrente a créé le choix avant nous.
+      // On relit l'enregistrement gagnant — le jour reste unique et stable.
+      if (err.code === "P2002") {
+        const winner = await prisma.refugeDailyChoice.findUnique({
+          where: {
+            refugeSessionId_dayNumber: { refugeSessionId, dayNumber },
+          },
+        });
+        if (winner) return winner;
+      }
+      throw err;
     }
-
-    // Créer le choix quotidien
-    const dailyChoice = await prisma.refugeDailyChoice.create({
-      data: {
-        refugeSessionId,
-        dayNumber,
-        action1: input.action1,
-        action2: input.action2,
-      },
-    });
-
-    // Mettre à jour lastAdopteActivityAt
-    await prisma.refugeSession.update({
-      where: { id: refugeSessionId },
-      data: {
-        lastAdopteActivityAt: new Date(),
-      },
-    });
-
-    return this.mapDailyChoiceToDTO(dailyChoice);
   }
 
   // ============================================================
@@ -326,51 +344,18 @@ export class RefugeService {
     const isActive = refugeSession.status === RefugeSessionStatus.ACTIVE && !isRefugeExpired(refugeSession.endsAt);
     const isCompleted = refugeSession.status === RefugeSessionStatus.COMPLETED || refugeSession.status === RefugeSessionStatus.ABANDONED;
 
-    // Génération lazy des 2 actions du jour (adopté uniquement)
+    // Génération lazy des 2 actions du jour (sessions actives uniquement)
     let todayActions: { action1: RefugeAction; action2: RefugeAction } | null = null;
-    if (currentDay > 0) {
-      // Chercher si RefugeDailyChoice existe déjà pour ce jour
-      let dailyChoice = await prisma.refugeDailyChoice.findUnique({
-        where: {
-          refugeSessionId_dayNumber: {
-            refugeSessionId: refugeSessionId,
-            dayNumber: currentDay,
-          },
-        },
-      });
+    let dailyChoices = refugeSession.dailyChoices;
+    if (isActive && currentDay >= 1) {
+      const dailyChoice = await this.getOrCreateDailyChoice(refugeSessionId, currentDay);
 
-      // S'il n'existe pas, générer et créer (gestion atomique du conflit)
-      if (!dailyChoice) {
-        const [action1, action2] = generateRandomDailyActions();
-        try {
-          dailyChoice = await prisma.refugeDailyChoice.create({
-            data: {
-              refugeSessionId,
-              dayNumber: currentDay,
-              action1,
-              action2,
-            },
-          });
-        } catch (err: any) {
-          // Conflit d'unicité: une autre requête a créé avant nous
-          // Récupérer l'enregistrement créé
-          if (err.code === "P2002") {
-            dailyChoice = await prisma.refugeDailyChoice.findUnique({
-              where: {
-                refugeSessionId_dayNumber: {
-                  refugeSessionId,
-                  dayNumber: currentDay,
-                },
-              },
-            });
-          } else {
-            throw err;
-          }
-        }
+      if (!dailyChoices.some((dc) => dc.dayNumber === currentDay)) {
+        dailyChoices = [...dailyChoices, dailyChoice];
       }
 
-      // Inclure todayActions seulement pour l'adopté
-      if (dailyChoice && userId === refugeSession.adopteId) {
+      // Les actions du jour ne sont visibles que par l'Adopté
+      if (userId === refugeSession.adopteId) {
         todayActions = {
           action1: dailyChoice.action1,
           action2: dailyChoice.action2,
@@ -378,8 +363,8 @@ export class RefugeService {
       }
     }
 
-    const hearts = calculateHearts(refugeSession.dailyChoices, refugeSession.guesses, currentDay);
-    const canAttemptToday = canAttemptTodayForDay(currentDay, refugeSession.dailyChoices);
+    const hearts = calculateHearts(dailyChoices, refugeSession.guesses, currentDay);
+    const canAttemptToday = isActive && currentDay >= 1 && canAttemptTodayForDay(currentDay, refugeSession.guesses);
     const todaySubmitted = todaySubmittedForDay(currentDay, refugeSession.guesses);
 
     return {
@@ -400,20 +385,13 @@ export class RefugeService {
   // ============================================================
 
   static async getActiveRefugeSession(userId: string): Promise<RefugeSessionDTO | null> {
-    console.log("🔍 SERVICE: getActiveRefugeSession() for userId:", userId);
     const activeSession = await prisma.refugeSession.findFirst({
       where: {
         OR: [
           // Adopté : peut avoir une session en CREATION, WAITING_FOR_ADOPTANT, ou ACTIVE
           {
             adopteId: userId,
-            status: {
-              in: [
-                RefugeSessionStatus.CREATION,
-                RefugeSessionStatus.WAITING_FOR_ADOPTANT,
-                RefugeSessionStatus.ACTIVE,
-              ],
-            },
+            status: { in: ADOPTE_OPEN_STATUSES },
           },
           // Adoptant : peut avoir une session en ACTIVE uniquement
           {
@@ -424,21 +402,11 @@ export class RefugeService {
       },
     });
 
-    console.log("📊 Query result - activeSession:", activeSession ? "FOUND" : "NOT FOUND");
-    if (activeSession) {
-      console.log("  - Session ID:", activeSession.id);
-      console.log("  - Status:", activeSession.status);
-      console.log("  - AdopteId:", activeSession.adopteId);
-      console.log("  - AdoptantId:", activeSession.adoptantId);
-    }
-
-    const result = activeSession ? this.mapToDTO(activeSession) : null;
-    console.log("✅ SERVICE returning:", result);
-    return result;
+    return activeSession ? this.mapToDTO(activeSession) : null;
   }
 
   // ============================================================
-  // Devinettes — L'Adoptant devine les 2 actions de l'Adopté
+  // Tentative — L'Adoptant tente de retrouver les 2 actions du jour
   // ============================================================
 
   static async submitGuess(
@@ -458,7 +426,7 @@ export class RefugeService {
 
     // Vérifier que l'utilisateur est l'Adoptant
     if (adoptantId !== refugeSession.adoptantId) {
-      throw new ForbiddenError("Seul l'Adoptant peut soumettre des devinettes");
+      throw new ForbiddenError("Seul l'Adoptant peut soumettre une tentative");
     }
 
     // Vérifier que le refuge est actif
@@ -476,12 +444,20 @@ export class RefugeService {
       throw new ConflictError("Ce refuge a expiré");
     }
 
-    // Vérifier que les 2 devinettes sont différentes
-    if (!validateActionsAreDifferent(input.guessedAction1, input.guessedAction2)) {
-      throw new BadRequestError("Les 2 devinettes doivent être différentes");
+    // Vérifier que le jour soumis correspond bien au jour courant de la session
+    const currentDay = getCurrentDay(refugeSession.createdAt, refugeSession.startedAt, new Date());
+    if (dayNumber !== currentDay) {
+      throw new BadRequestError(
+        `Le jour soumis (${dayNumber}) ne correspond pas au jour courant de la session (${currentDay})`
+      );
     }
 
-    // Vérifier qu'il n'y a pas déjà une devinette pour ce jour
+    // Vérifier que les 2 tentatives sont différentes
+    if (!validateActionsAreDifferent(input.guessedAction1, input.guessedAction2)) {
+      throw new BadRequestError("Les 2 actions devinées doivent être différentes");
+    }
+
+    // Vérifier qu'il n'y a pas déjà une tentative pour ce jour
     const existingGuess = await prisma.refugeGuess.findUnique({
       where: {
         refugeSessionId_dayNumber: {
@@ -492,26 +468,36 @@ export class RefugeService {
     });
 
     if (existingGuess) {
-      throw new ConflictError(`Les devinettes pour le jour ${dayNumber} ont déjà été soumises`);
+      throw new ConflictError(`La tentative pour le jour ${dayNumber} a déjà été soumise`);
     }
 
-    // Créer la devinette
-    const guess = await prisma.refugeGuess.create({
-      data: {
-        refugeSessionId,
-        dayNumber,
-        guessedAction1: input.guessedAction1,
-        guessedAction2: input.guessedAction2,
-      },
-    });
+    // Garantir que les actions du jour existent pour que la comparaison soit possible
+    await this.getOrCreateDailyChoice(refugeSessionId, dayNumber);
 
-    // Mettre à jour lastAdoptantActivityAt
-    await prisma.refugeSession.update({
-      where: { id: refugeSessionId },
-      data: {
-        lastAdoptantActivityAt: new Date(),
-      },
-    });
+    // Écriture atomique : la tentative et l'activité de l'Adoptant vont ensemble.
+    // Un double-clic ou deux requêtes simultanées déclenchent P2002 → 409.
+    let guess;
+    try {
+      [guess] = await prisma.$transaction([
+        prisma.refugeGuess.create({
+          data: {
+            refugeSessionId,
+            dayNumber,
+            guessedAction1: input.guessedAction1,
+            guessedAction2: input.guessedAction2,
+          },
+        }),
+        prisma.refugeSession.update({
+          where: { id: refugeSessionId },
+          data: { lastAdoptantActivityAt: new Date() },
+        }),
+      ]);
+    } catch (err: any) {
+      if (err.code === "P2002") {
+        throw new ConflictError(`La tentative pour le jour ${dayNumber} a déjà été soumise`);
+      }
+      throw err;
+    }
 
     return {
       id: guess.id,
@@ -598,17 +584,6 @@ export class RefugeService {
     };
   }
 
-  private static mapDailyChoiceToDTO(dailyChoice: any): RefugeDailyChoiceDTO {
-    return {
-      id: dailyChoice.id,
-      refugeSessionId: dailyChoice.refugeSessionId,
-      dayNumber: dailyChoice.dayNumber,
-      action1: dailyChoice.action1,
-      action2: dailyChoice.action2,
-      submittedAt: dailyChoice.submittedAt,
-    };
-  }
-
   private static matchesAcceptedSexe(userGender: Gender, acceptedSexe: string): boolean {
     if (acceptedSexe === "HOMME_FEMME") return true;
     if (acceptedSexe === "HOMME" && userGender === Gender.HOMME) return true;
@@ -636,10 +611,6 @@ export class RefugeService {
     // Récupérer la session
     const refugeSession = await prisma.refugeSession.findUnique({
       where: { id: refugeSessionId },
-      include: {
-        dailyChoices: { orderBy: { dayNumber: "asc" } },
-        guesses: { orderBy: { dayNumber: "asc" } },
-      },
     });
 
     if (!refugeSession) {
@@ -651,41 +622,21 @@ export class RefugeService {
       throw new ConflictError("Refuge must be ACTIVE to use dev time-travel");
     }
 
-    // Calculer le nouveau startedAt pour le jour cible
-    const newStartedAt = calculateStartedAtForDay(refugeSession.createdAt, targetDay);
+    // Recaler startedAt pour que le jour courant observé par le backend soit targetDay,
+    // et garder l'invariant endsAt = startedAt + 7 jours.
+    const now = new Date();
+    const newStartedAt = calculateStartedAtForDay(targetDay, now);
 
-    // Mettre à jour
-    const updatedRefuge = await prisma.refugeSession.update({
+    await prisma.refugeSession.update({
       where: { id: refugeSessionId },
       data: {
         startedAt: newStartedAt,
-      },
-      include: {
-        dailyChoices: { orderBy: { dayNumber: "asc" } },
-        guesses: { orderBy: { dayNumber: "asc" } },
+        endsAt: calculateRefugeEndsAt(newStartedAt),
       },
     });
 
-    // Recalculer les métadonnées avec le nouveau jour
-    const now = new Date();
-    const currentDay = getCurrentDay(updatedRefuge.createdAt, updatedRefuge.startedAt, now);
-    const timeRemaining = getTimeRemaining(updatedRefuge.endsAt || new Date(), now);
-    const isActive = updatedRefuge.status === RefugeSessionStatus.ACTIVE && !isRefugeExpired(updatedRefuge.endsAt);
-    const isCompleted = updatedRefuge.status === RefugeSessionStatus.COMPLETED || updatedRefuge.status === RefugeSessionStatus.ABANDONED;
-
-    const hearts = calculateHearts(updatedRefuge.dailyChoices, updatedRefuge.guesses, currentDay);
-    const canAttemptToday = canAttemptTodayForDay(currentDay, updatedRefuge.dailyChoices);
-    const todaySubmitted = todaySubmittedForDay(currentDay, updatedRefuge.guesses);
-
-    return {
-      ...this.mapToDTO(updatedRefuge),
-      currentDay,
-      timeRemaining,
-      isActive,
-      isCompleted,
-      hearts,
-      canAttemptToday,
-      todaySubmitted,
-    };
+    // Retourner la session avec métadonnées recalculées (et actions du jour générées)
+    const requesterId = refugeSession.adopteId;
+    return this.getRefugeSession(refugeSessionId, requesterId);
   }
 }

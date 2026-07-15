@@ -20,6 +20,11 @@ export interface RefugeSession {
   timeRemaining?: { days: number; hours: number };
   isActive?: boolean;
   isCompleted?: boolean;
+  hearts?: string[];
+  canAttemptToday?: boolean;
+  todaySubmitted?: boolean;
+  // Actions du jour générées par le serveur — visibles uniquement par l'Adopté
+  todayActions?: { action1: string; action2: string } | null;
 }
 
 export interface ProposeRefugeRequest {
@@ -90,21 +95,8 @@ export const refugeApi = {
     return this.getSession(sessionId);
   },
 
-  // Soumettre les 2 actions quotidiennes de l'Adopté
-  async submitDailyChoice(
-    sessionId: string,
-    dayNumber: number,
-    action1: string,
-    action2: string
-  ): Promise<any> {
-    const response = await apiFetch("/refuge/daily-choice", {
-      method: "POST",
-      body: JSON.stringify({ sessionId, dayNumber, action1, action2 }),
-    });
-    return response?.data;
-  },
-
-  // Soumettre les 2 devinettes quotidiennes de l'Adoptant
+  // Soumettre la tentative quotidienne de l'Adoptant
+  // (retrouver les 2 actions du jour de l'Adopté)
   async submitGuess(
     sessionId: string,
     dayNumber: number,
@@ -114,6 +106,15 @@ export const refugeApi = {
     const response = await apiFetch("/refuge/guess", {
       method: "POST",
       body: JSON.stringify({ sessionId, dayNumber, guessedAction1, guessedAction2 }),
+    });
+    return response?.data;
+  },
+
+  // DEV uniquement — sauter au jour N (la route n'existe pas en production)
+  async devSetDay(sessionId: string, day: number): Promise<RefugeSession> {
+    const response = await apiFetch(`/refuge/dev/${sessionId}/set-day`, {
+      method: "POST",
+      body: JSON.stringify({ day }),
     });
     return response?.data;
   },

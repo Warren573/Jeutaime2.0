@@ -7,7 +7,7 @@ import { BouncyButton } from "../components/BouncyButton";
 import { BackgroundPicker } from "../components/BackgroundPicker";
 import { RefugeDevTimeTravel } from "../components/RefugeDevTimeTravel";
 import { AnimalIllustration, type RefugeAction } from "../components/AnimalIllustration";
-import { ACTION_LABELS } from "../data/refugeActions";
+import { ACTION_LABELS, BACKEND_ACTION_LABELS, BACKEND_ACTION_ICONS } from "../data/refugeActions";
 import { getBackgroundGradientStyle } from "../data/refugeBackgrounds";
 import { useRefugeAction } from "../hooks/useRefugeAction";
 import { useRefugeActionLog } from "../hooks/useRefugeActionLog";
@@ -43,15 +43,26 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   const {
     selectedGuessActions,
     toggleGuessAction,
+    resetDay,
   } = useRefugeDailyChoices();
 
   // Charger la vraie session du serveur
   const refugeSession = useRefugeSession(sessionId);
 
-  const [adoptantSubmitted, setAdoptantSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [heartPulse, setHeartPulse] = useState(false);
   const [otherUserProfile, setOtherUserProfile] = useState<any>(null);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
+
+  // L'état "tentative soumise" vient du serveur : il survit au rechargement
+  const adoptantSubmitted = refugeSession.todaySubmitted;
+
+  // Repartir d'une sélection vide quand le jour change (minuit ou panneau DEV)
+  useEffect(() => {
+    resetDay();
+  }, [refugeSession.currentDay, resetDay]);
+
+  const isWaitingForAdoptant = refugeSession.status === "WAITING_FOR_ADOPTANT" || refugeSession.status === "CREATION";
 
   // Jauges — valeurs du backend
   const gauges = {
@@ -67,17 +78,14 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   const actions: RefugeAction[] = ["feed", "play", "pet", "wash"];
 
   const handleAdoptantSubmit = async () => {
-    if (selectedGuessActions.length !== 2) return;
+    if (selectedGuessActions.length !== 2 || isSubmitting) return;
 
-    // Soumettre les devins au serveur (pour l'adoptant uniquement)
-    const success = await refugeSession.submitAttempt(
-      [],
-      selectedGuessActions as string[]
-    );
+    // Soumettre la tentative de l'Adoptant au serveur (POST /refuge/guess)
+    setIsSubmitting(true);
+    const success = await refugeSession.submitGuess(selectedGuessActions);
+    setIsSubmitting(false);
 
     if (success) {
-      setAdoptantSubmitted(true);
-
       // Si c'est le jour 7, préparer la révélation
       if (refugeSession.currentDay === 7) {
         setTimeout(async () => {
@@ -221,46 +229,50 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
 
       {/* Content Area */}
       <ScrollView style={styles.contentScroll} contentContainerStyle={styles.contentContainer}>
-        {/* ADOPTÉ: Display today's random actions (read-only) */}
+        {/* ADOPTÉ: Display today's server-generated actions (read-only) */}
         {refugeSession.role === "adopte" && (
           <View style={styles.adopteCard}>
-            <Text style={styles.questionText}>Que fait-on aujourd&apos;hui ?</Text>
-            {refugeSession.todayActions ? (
-              <View style={styles.adoptActionsDisplay}>
-                <View style={styles.actionDisplay}>
-                  <Text style={styles.actionDisplayIcon}>
-                    {refugeSession.todayActions.action1 === "NOURRIR" ? "🍖" :
-                     refugeSession.todayActions.action1 === "JOUER" ? "🎾" :
-                     refugeSession.todayActions.action1 === "CARESSER" ? "🤗" : "🧼"}
-                  </Text>
-                  <Text style={styles.actionDisplayLabel}>
-                    {refugeSession.todayActions.action1 === "NOURRIR" ? "Nourrir" :
-                     refugeSession.todayActions.action1 === "JOUER" ? "Jouer" :
-                     refugeSession.todayActions.action1 === "CARESSER" ? "Caresser" : "Laver"}
-                  </Text>
-                </View>
-                <Text style={styles.actionSeparator}>ou</Text>
-                <View style={styles.actionDisplay}>
-                  <Text style={styles.actionDisplayIcon}>
-                    {refugeSession.todayActions.action2 === "NOURRIR" ? "🍖" :
-                     refugeSession.todayActions.action2 === "JOUER" ? "🎾" :
-                     refugeSession.todayActions.action2 === "CARESSER" ? "🤗" : "🧼"}
-                  </Text>
-                  <Text style={styles.actionDisplayLabel}>
-                    {refugeSession.todayActions.action2 === "NOURRIR" ? "Nourrir" :
-                     refugeSession.todayActions.action2 === "JOUER" ? "Jouer" :
-                     refugeSession.todayActions.action2 === "CARESSER" ? "Caresser" : "Laver"}
-                  </Text>
-                </View>
-              </View>
+            {isWaitingForAdoptant ? (
+              <>
+                <Text style={styles.questionText}>En attente d&apos;un adoptant...</Text>
+                <Text style={styles.loadingText}>
+                  Ton compagnon apparaîtra dans la liste des refuges disponibles.
+                  Le jeu commence dès qu&apos;il est adopté.
+                </Text>
+              </>
             ) : (
-              <Text style={styles.loadingText}>Chargement des actions...</Text>
+              <>
+                <Text style={styles.questionText}>Que fait-on aujourd&apos;hui ?</Text>
+                {refugeSession.todayActions ? (
+                  <View style={styles.adoptActionsDisplay}>
+                    <View style={styles.actionDisplay}>
+                      <Text style={styles.actionDisplayIcon}>
+                        {BACKEND_ACTION_ICONS[refugeSession.todayActions.action1] ?? "🐾"}
+                      </Text>
+                      <Text style={styles.actionDisplayLabel}>
+                        {BACKEND_ACTION_LABELS[refugeSession.todayActions.action1] ?? refugeSession.todayActions.action1}
+                      </Text>
+                    </View>
+                    <Text style={styles.actionSeparator}>et</Text>
+                    <View style={styles.actionDisplay}>
+                      <Text style={styles.actionDisplayIcon}>
+                        {BACKEND_ACTION_ICONS[refugeSession.todayActions.action2] ?? "🐾"}
+                      </Text>
+                      <Text style={styles.actionDisplayLabel}>
+                        {BACKEND_ACTION_LABELS[refugeSession.todayActions.action2] ?? refugeSession.todayActions.action2}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.loadingText}>Chargement des actions...</Text>
+                )}
+              </>
             )}
           </View>
         )}
 
-        {/* ADOPTANT: Select actions for today */}
-        {refugeSession.role === "adoptant" && (
+        {/* ADOPTANT: Guess today's two actions */}
+        {refugeSession.role === "adoptant" && !isWaitingForAdoptant && (
           <View style={styles.adoptantCard}>
             <Text style={styles.questionText}>Que veut-il faire aujourd&apos;hui ?</Text>
 
@@ -301,8 +313,11 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
                   <BouncyButton
                     style={styles.validateButton}
                     onPress={handleAdoptantSubmit}
+                    disabled={isSubmitting}
                   >
-                    <Text style={styles.validateButtonText}>Valider</Text>
+                    <Text style={styles.validateButtonText}>
+                      {isSubmitting ? "Envoi..." : "Valider"}
+                    </Text>
                   </BouncyButton>
                 )}
               </>

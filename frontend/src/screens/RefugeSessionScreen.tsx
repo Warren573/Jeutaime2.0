@@ -14,12 +14,8 @@ import { refugeApi, RefugeSession } from "../api/refuge-api";
 import { useStore } from "../store/useStore";
 import { RefugeDevTimeTravel } from "../components/RefugeDevTimeTravel";
 
-interface SessionWithMetadata extends RefugeSession {
-  currentDay?: number;
-  timeRemaining?: string;
-  isActive?: boolean;
-  isCompleted?: boolean;
-}
+// Les métadonnées (currentDay, timeRemaining, ...) sont déjà déclarées sur RefugeSession
+type SessionWithMetadata = RefugeSession;
 
 export function RefugeSessionScreen() {
   const router = useRouter();
@@ -67,12 +63,6 @@ export function RefugeSessionScreen() {
   const isAdoptant = currentUser?.id === session.adoptantId;
   const statusText = session.status === "ACTIVE" ? "Actif" : session.status;
   const animalSexEmoji = session.animalSexe === "Mâle" ? "♂️" : "♀️";
-
-  console.log('[RefugeSessionScreen] Rendering with session:', {
-    sessionId: session.id,
-    animalType: session.animalType,
-    status: session.status,
-  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -128,7 +118,9 @@ export function RefugeSessionScreen() {
 
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>Temps restant</Text>
-            <Text style={styles.infoValue}>{session.timeRemaining || "7j"}</Text>
+            <Text style={styles.infoValue}>
+              {session.timeRemaining ? `${session.timeRemaining.days}j` : "7j"}
+            </Text>
           </View>
         </View>
 

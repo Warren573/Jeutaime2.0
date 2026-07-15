@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useStore } from "../store/useStore";
 import { refugeApi } from "../api/refuge-api";
+import { ACTION_TO_BACKEND, type RefugeActionType } from "../data/refugeActions";
 
 interface RefugeSessionState {
   sessionId: string | null;
   currentDay: number;
-  status: "ACTIVE" | "COMPLETED" | "REVEALED" | "ABANDONED";
+  status: string;
   canAttemptToday: boolean;
   todaySubmitted: boolean;
-  hearts: ("❤️" | "❌" | "🤍")[];
+  hearts: string[];
   companion: {
     animalType: string;
     animalAgeMonths: number;
@@ -45,7 +46,14 @@ export function useRefugeSession(sessionId: string | null) {
 
   const { currentUser } = useStore();
 
-  // Fonction helper pour obtenir le token
+  // Garde anti double-clic / requêtes simultanées sur la tentative
+  const isSubmittingRef = useRef(false);
+
+  // Jour courant lisible depuis les callbacks sans re-création
+  const currentDayRef = useRef(state.currentDay);
+  currentDayRef.current = state.currentDay;
+
+  // Fonction helper pour obtenir le token (utilisé par revealProfiles)
   const getAuthHeaders = useCallback(async () => {
     const token = await AsyncStorage.getItem("auth_token");
     return {
@@ -78,9 +86,9 @@ export function useRefugeSession(sessionId: string | null) {
       setState((prev) => ({
         ...prev,
         sessionId: data.id,
-        currentDay: data.currentDay || 1,
+        currentDay: data.currentDay ?? 0,
         status: data.status,
-        canAttemptToday: data.canAttemptToday ?? true,
+        canAttemptToday: data.canAttemptToday ?? false,
         todaySubmitted: data.todaySubmitted ?? false,
         hearts: data.hearts || prev.hearts,
         companion: {
@@ -111,38 +119,45 @@ export function useRefugeSession(sessionId: string | null) {
     return () => clearInterval(interval);
   }, [fetchSessionStatus]);
 
-  // Soumettre la tentative quotidienne
-  const submitAttempt = useCallback(
-    async (actions: string[], guesses: string[]) => {
-      if (!sessionId) return false;
+  // Soumettre la tentative quotidienne de l'Adoptant :
+  // retrouver les 2 actions du jour de l'Adopté (POST /refuge/guess).
+  const submitGuess = useCallback(
+    async (guessActions: RefugeActionType[]) => {
+      if (!sessionId || guessActions.length !== 2) return false;
+      if (isSubmittingRef.current) return false;
+      isSubmittingRef.current = true;
 
       try {
-        const headers = await getAuthHeaders();
-        const response = await fetch(
-          `/api/refuge/sessions/${sessionId}/attempt`,
-          {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ actions, guesses }),
-          }
+        const guessedAction1 = ACTION_TO_BACKEND[guessActions[0]];
+        const guessedAction2 = ACTION_TO_BACKEND[guessActions[1]];
+
+        await refugeApi.submitGuess(
+          sessionId,
+          currentDayRef.current,
+          guessedAction1,
+          guessedAction2
         );
 
-        if (!response.ok) {
-          throw new Error("Failed to submit attempt");
-        }
-
-        // Rafraîchir le statut
+        // Rafraîchir le statut (cœurs, todaySubmitted)
         await fetchSessionStatus();
         return true;
-      } catch (err) {
+      } catch (err: any) {
+        // 409 : la tentative du jour a déjà été enregistrée (double clic,
+        // requête simultanée ou réponse réseau perdue) — c'est un succès.
+        if (typeof err?.message === "string" && err.message.includes("déjà été soumise")) {
+          await fetchSessionStatus();
+          return true;
+        }
         setState((prev) => ({
           ...prev,
-          error: "Erreur lors de la soumission",
+          error: err?.message || "Erreur lors de la soumission",
         }));
         return false;
+      } finally {
+        isSubmittingRef.current = false;
       }
     },
-    [sessionId, getAuthHeaders, fetchSessionStatus]
+    [sessionId, fetchSessionStatus]
   );
 
   // Révéler les profils
@@ -174,25 +189,13 @@ export function useRefugeSession(sessionId: string | null) {
     }
   }, [sessionId, getAuthHeaders]);
 
-  // Changer le fond d'ambiance
+  // Changer le fond d'ambiance (Adopté uniquement)
   const changeBackground = useCallback(
     async (background: string) => {
       if (!sessionId) return false;
 
       try {
-        const headers = await getAuthHeaders();
-        const response = await fetch(
-          `/api/refuge/companions/${sessionId}/background`,
-          {
-            method: "PUT",
-            headers,
-            body: JSON.stringify({ background }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to change background");
-        }
+        await refugeApi.updateBackground(sessionId, background);
 
         // Mettre à jour l'état local
         setState((prev) => ({
@@ -211,13 +214,13 @@ export function useRefugeSession(sessionId: string | null) {
         return false;
       }
     },
-    [sessionId, getAuthHeaders]
+    [sessionId]
   );
 
   return {
     ...state,
     fetchSessionStatus,
-    submitAttempt,
+    submitGuess,
     revealProfiles,
     changeBackground,
   };

@@ -7,6 +7,7 @@
 
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
+import { refugeApi } from "../api/refuge-api";
 
 interface RefugeDevTimeTravelProps {
   sessionId: string | null;
@@ -47,21 +48,9 @@ export function RefugeDevTimeTravel({
     setMessage("");
 
     try {
-      const response = await fetch(
-        `/api/refuge/dev/${sessionId}/set-day`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ day }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const result = await response.json();
-      setMessage(`✅ Jumped to Day ${day}. Refresh to see changes.`);
+      // Passe par apiFetch : base URL + Authorization (la route exige l'auth)
+      await refugeApi.devSetDay(sessionId, day);
+      setMessage(`✅ Jumped to Day ${day}.`);
       onDayChanged?.(day);
     } catch (err) {
       setMessage(`❌ Error: ${err instanceof Error ? err.message : "Failed"}`);
@@ -113,7 +102,7 @@ export function RefugeDevTimeTravel({
       )}
 
       <Text style={styles.warning}>
-        ⚠️ DEV ONLY - This doesn't exist in production
+        ⚠️ DEV ONLY - Cette route n&apos;existe pas en production
       </Text>
     </View>
   );

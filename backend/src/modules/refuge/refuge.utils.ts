@@ -79,7 +79,7 @@ export function shouldAutoAbandon(lastActivityAt: Date, now: Date = new Date()):
 export function calculateHearts(
   dailyChoices: any[],
   guesses: any[],
-  currentDay: number
+  _currentDay: number
 ): string[] {
   const hearts: string[] = [];
 
@@ -105,8 +105,10 @@ export function calculateHearts(
   return hearts;
 }
 
-export function canAttemptTodayForDay(dayNumber: number, dailyChoices: any[]): boolean {
-  return !dailyChoices.some((dc) => dc.dayNumber === dayNumber);
+// L'Adoptant peut encore tenter aujourd'hui s'il n'a pas déjà soumis sa tentative du jour
+export function canAttemptTodayForDay(dayNumber: number, guesses: any[]): boolean {
+  if (dayNumber < 1) return false;
+  return !guesses.some((g) => g.dayNumber === dayNumber);
 }
 
 export function todaySubmittedForDay(dayNumber: number, guesses: any[]): boolean {
@@ -117,15 +119,14 @@ export function todaySubmittedForDay(dayNumber: number, guesses: any[]): boolean
 // DEV MODE - Time Travel (pour tester les 7 jours rapidement)
 // ============================================================
 
-export function calculateStartedAtForDay(createdAt: Date, targetDay: number): Date {
+export function calculateStartedAtForDay(targetDay: number, now: Date = new Date()): Date {
   if (targetDay < 1 || targetDay > REFUGE_DURATION_DAYS) {
     throw new Error(`Invalid day: ${targetDay}. Must be between 1 and ${REFUGE_DURATION_DAYS}`);
   }
 
-  // Pour le jour N, on simule que la session a démarré (N-1) jours ago
-  const daysAgo = targetDay - 1;
-  const startedAt = new Date(createdAt);
-  startedAt.setDate(startedAt.getDate() + daysAgo);
+  // Pour observer le jour N maintenant, la session doit avoir démarré il y a (N-1) jours
+  const startedAt = new Date(now);
+  startedAt.setDate(startedAt.getDate() - (targetDay - 1));
   return startedAt;
 }
 

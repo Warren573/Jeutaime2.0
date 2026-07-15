@@ -3504,21 +3504,18 @@ router.get(
         return res.status(404).json({ error: "No active refuge for testuser2" });
       }
 
-      // Submit daily choice for day 1
-      const dailyChoice = await RefugeService.submitDailyChoice(
-        refugeSession.id,
-        testuser2.id,
-        1,
-        {
-          action1: "NOURRIR",
-          action2: "JOUER",
-        }
-      );
+      // Les actions du jour sont générées par le serveur : la lecture de la
+      // session par l'Adopté les crée si besoin et les renvoie.
+      const sessionWithMetadata = await RefugeService.getRefugeSession(refugeSession.id, testuser2.id);
 
-      res.status(201).json({
+      res.status(200).json({
         success: true,
-        data: dailyChoice,
-        message: "Daily choice submitted by testuser2",
+        data: {
+          sessionId: refugeSession.id,
+          currentDay: sessionWithMetadata.currentDay,
+          todayActions: sessionWithMetadata.todayActions ?? null,
+        },
+        message: "Daily actions generated for testuser2",
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Erreur lors de la soumission des choix quotidiens" });
