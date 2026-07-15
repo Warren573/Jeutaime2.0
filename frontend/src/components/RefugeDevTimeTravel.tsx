@@ -2,7 +2,10 @@
  * Refuge DEV Mode - Time Travel Component
  * Allows testing days 1-7 quickly without waiting
  *
- * Only visible in development mode (NODE_ENV !== "production")
+ * Visible if:
+ * - Local dev (__DEV__ true)
+ * - OR EXPO_PUBLIC_REFUGE_DEV=true (for preview deployments)
+ * Hidden in production builds without flag
  */
 
 import React, { useState } from "react";
@@ -23,18 +26,12 @@ export function RefugeDevTimeTravel({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  // Only show in dev mode
-  if (
-    typeof window !== "undefined" &&
-    window.location?.hostname !== "localhost" &&
-    !window.location?.hostname?.includes("127.0.0.1")
-  ) {
-    if (process.env.NODE_ENV === "production") {
-      return null;
-    }
-  }
+  // Only show if DEV mode is explicitly enabled
+  const isLocalDev = __DEV__;
+  const isDevFlagEnabled = process.env.EXPO_PUBLIC_REFUGE_DEV === "true";
+  const shouldShow = isLocalDev || isDevFlagEnabled;
 
-  if (!sessionId) {
+  if (!shouldShow || !sessionId) {
     return null;
   }
 

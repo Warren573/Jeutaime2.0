@@ -664,12 +664,13 @@ const styles = StyleSheet.create({
   adoptActionSelectionGrid: {
     flexDirection: "row" as const,
     flexWrap: "wrap" as const,
-    justifyContent: "space-between",
-    gap: 10,
+    justifyContent: "space-around",
+    gap: 8,
     marginBottom: 16,
   },
   adoptActionButton: {
-    width: (screenWidth - 52) / 2,
+    width: "48%",
+    aspectRatio: 1,
     paddingVertical: 12,
     paddingHorizontal: 8,
     backgroundColor: "#E8D5C4",
