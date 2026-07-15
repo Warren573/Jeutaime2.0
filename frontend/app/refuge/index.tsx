@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { View, Text } from 'react-native';
 import { RefugeMainScreen } from '../../src/screens/RefugeMainScreen';
 import { RefugeHomeScreen } from './RefugeHomeScreen';
@@ -9,12 +10,14 @@ export default function RefugePage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  useFocusEffect(() => {
     async function load() {
       try {
         const active = await refugeApi.getActive();
         if (active?.id) {
           setSessionId(active.id);
+        } else {
+          setSessionId(null);
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -25,7 +28,7 @@ export default function RefugePage() {
     }
 
     load();
-  }, []);
+  });
 
   if (loading) {
     return null;

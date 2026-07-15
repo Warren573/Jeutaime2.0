@@ -146,7 +146,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
       <View style={styles.header}>
         <BouncyButton
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.replace('/refuge')}
         >
           <Text style={styles.backText}>← Retour</Text>
         </BouncyButton>
