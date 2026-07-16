@@ -21,6 +21,12 @@ interface RefugeSessionState {
     action1: string;
     action2: string;
   } | null;
+  todayResult: {
+    matches: number;
+    message: string;
+    reward: number;
+    emoji: string;
+  } | null;
   role: "adopte" | "adoptant" | null;
   isLoading: boolean;
   error: string | null;
@@ -41,6 +47,7 @@ export function useRefugeSession(sessionId: string | null) {
     hearts: ["🤍", "🤍", "🤍", "🤍", "🤍", "🤍", "🤍"],
     companion: null,
     todayActions: null,
+    todayResult: null,
     role: null,
     isLoading: true,
     error: null,
@@ -100,6 +107,7 @@ export function useRefugeSession(sessionId: string | null) {
           background: data.background,
         },
         todayActions: data.todayActions ?? null,
+        todayResult: data.todayResult ?? null,
         role,
         isLoading: false,
         error: null,

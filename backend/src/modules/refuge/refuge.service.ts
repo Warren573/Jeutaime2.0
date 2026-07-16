@@ -608,15 +608,18 @@ export class RefugeService {
       ];
 
       // Si parfait match (2/2), attribuer les pièces aux deux joueurs
+      // (upsert : un compte sans wallet ne doit pas faire échouer la tentative)
       if (dayResult.reward > 0) {
         operations.push(
-          prisma.wallet.update({
+          prisma.wallet.upsert({
             where: { userId: refugeSession.adopteId },
-            data: { coins: { increment: dayResult.reward } },
+            update: { coins: { increment: dayResult.reward } },
+            create: { userId: refugeSession.adopteId, coins: dayResult.reward },
           }),
-          prisma.wallet.update({
+          prisma.wallet.upsert({
             where: { userId: adoptantId },
-            data: { coins: { increment: dayResult.reward } },
+            update: { coins: { increment: dayResult.reward } },
+            create: { userId: adoptantId, coins: dayResult.reward },
           })
         );
       }

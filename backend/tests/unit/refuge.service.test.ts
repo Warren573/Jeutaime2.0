@@ -26,6 +26,9 @@ vi.mock("../../src/config/prisma", () => {
         findUnique: vi.fn(),
         create: vi.fn(),
       },
+      wallet: {
+        upsert: vi.fn(),
+      },
       $transaction: vi.fn(async (ops: unknown) => {
         if (Array.isArray(ops)) return Promise.all(ops);
         return (ops as (tx: unknown) => unknown)(undefined);
@@ -495,7 +498,7 @@ describe("RefugeService.submitGuess", () => {
     (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(existingChoice);
     (prisma.refugeGuess.create as any).mockResolvedValueOnce(createdGuess);
     (prisma.refugeSession.update as any).mockResolvedValueOnce({});
-    (prisma.wallet.update as any).mockResolvedValue({ coins: 100 });
+    (prisma.wallet.upsert as any).mockResolvedValue({ coins: 100 });
 
     const result = await RefugeService.submitGuess(sessionId, adoptantId, 1, guessInput);
 
@@ -504,7 +507,7 @@ describe("RefugeService.submitGuess", () => {
     expect(result.dayResult.message).toContain("même longueur d'onde");
     expect(result.dayResult.reward).toBe(10);
     expect(result.dayResult.emoji).toBe("❤️");
-    expect(prisma.wallet.update).toHaveBeenCalledTimes(2);
+    expect(prisma.wallet.upsert).toHaveBeenCalledTimes(2);
   });
 
   it("calculates 1/2 match and includes no reward", async () => {
@@ -524,7 +527,7 @@ describe("RefugeService.submitGuess", () => {
     expect(result.dayResult.message).toContain("commencez");
     expect(result.dayResult.reward).toBe(0);
     expect(result.dayResult.emoji).toBe("❤️");
-    expect(prisma.wallet.update).not.toHaveBeenCalled();
+    expect(prisma.wallet.upsert).not.toHaveBeenCalled();
   });
 
   it("calculates 0/2 match and includes no reward", async () => {
@@ -545,7 +548,7 @@ describe("RefugeService.submitGuess", () => {
     expect(result.dayResult.message).toContain("pas sur la même longueur");
     expect(result.dayResult.reward).toBe(0);
     expect(result.dayResult.emoji).toBe("❌");
-    expect(prisma.wallet.update).not.toHaveBeenCalled();
+    expect(prisma.wallet.upsert).not.toHaveBeenCalled();
   });
 
   it("handles reversed action order (2/2 match with different order)", async () => {
@@ -558,7 +561,7 @@ describe("RefugeService.submitGuess", () => {
     });
     (prisma.refugeGuess.create as any).mockResolvedValueOnce(createdGuess);
     (prisma.refugeSession.update as any).mockResolvedValueOnce({});
-    (prisma.wallet.update as any).mockResolvedValue({ coins: 100 });
+    (prisma.wallet.upsert as any).mockResolvedValue({ coins: 100 });
 
     // Guess in reversed order: JOUER, NOURRIR (instead of NOURRIR, JOUER)
     const reversedGuess = { guessedAction1: "JOUER", guessedAction2: "NOURRIR" };
@@ -566,7 +569,7 @@ describe("RefugeService.submitGuess", () => {
 
     expect(result.dayResult.matches).toBe(2);
     expect(result.dayResult.reward).toBe(10);
-    expect(prisma.wallet.update).toHaveBeenCalledTimes(2);
+    expect(prisma.wallet.upsert).toHaveBeenCalledTimes(2);
   });
 });
 

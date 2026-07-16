@@ -6,8 +6,9 @@ import { useStore } from "../store/useStore";
 import { BouncyButton } from "../components/BouncyButton";
 import { BackgroundPicker } from "../components/BackgroundPicker";
 import { RefugeDevTimeTravel } from "../components/RefugeDevTimeTravel";
+import { RefugeActionGrid } from "../components/RefugeActionGrid";
 import { AnimalIllustration, type RefugeAction } from "../components/AnimalIllustration";
-import { ACTION_LABELS, BACKEND_ACTION_LABELS, BACKEND_ACTION_ICONS } from "../data/refugeActions";
+import { BACKEND_ACTION_LABELS, BACKEND_ACTION_ICONS } from "../data/refugeActions";
 import { getBackgroundGradientStyle } from "../data/refugeBackgrounds";
 import { useRefugeAction } from "../hooks/useRefugeAction";
 import { useRefugeActionLog } from "../hooks/useRefugeActionLog";
@@ -88,8 +89,6 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
 
   // Cœurs depuis le serveur
   const hearts = refugeSession.hearts;
-
-  const actions: RefugeAction[] = ["feed", "play", "pet", "wash"];
 
   const handleAdoptantSubmit = async () => {
     if (selectedGuessActions.length !== 2 || isSubmitting) return;
@@ -289,31 +288,10 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
                     </View>
                   </View>
                 ) : (
-                  <View style={styles.adoptActionSelectionGrid}>
-                    {actions.map(action => (
-                      <BouncyButton
-                        key={action}
-                        style={[
-                          styles.adoptActionButton,
-                          selectedMyActions.includes(action) && styles.adoptActionButtonSelected,
-                        ]}
-                        onPress={() => toggleMyAction(action)}
-                        disabled={selectedMyActions.length === 2 && !selectedMyActions.includes(action)}
-                      >
-                        <Text style={styles.adoptActionIcon}>
-                          {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.adoptActionLabel,
-                            selectedMyActions.includes(action) && styles.adoptActionLabelSelected,
-                          ]}
-                        >
-                          {ACTION_LABELS[action]}
-                        </Text>
-                      </BouncyButton>
-                    ))}
-                  </View>
+                  <RefugeActionGrid
+                    selectedActions={selectedMyActions}
+                    onToggleAction={toggleMyAction}
+                  />
                 )}
                 {!refugeSession.adopteSubmittedToday && selectedMyActions.length === 2 && (
                   <BouncyButton
@@ -343,32 +321,12 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
               </Text>
             ) : (
             <>
-            <View style={styles.adoptantActionsGrid}>
-              {actions.map(action => (
-                <BouncyButton
-                  key={action}
-                  style={[
-                    styles.adoptantActionButton,
-                    selectedGuessActions.includes(action) && styles.adoptantActionButtonSelected,
-                    adoptantSubmitted && styles.adoptantActionButtonDisabled,
-                  ]}
-                  onPress={() => !adoptantSubmitted && toggleGuessAction(action)}
-                  disabled={adoptantSubmitted || (selectedGuessActions.length === 2 && !selectedGuessActions.includes(action))}
-                >
-                  <Text style={styles.adoptantActionIcon}>
-                    {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.adoptantActionLabel,
-                      selectedGuessActions.includes(action) && styles.adoptantActionLabelSelected,
-                    ]}
-                  >
-                    {ACTION_LABELS[action]}
-                  </Text>
-                </BouncyButton>
-              ))}
-            </View>
+            <RefugeActionGrid
+              selectedActions={selectedGuessActions}
+              onToggleAction={toggleGuessAction}
+              disabled={false}
+              submitted={adoptantSubmitted}
+            />
 
             {adoptantSubmitted ? (
               <View style={styles.submittedMessage}>
@@ -709,45 +667,7 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 
-  /* ADOPTÉ - Selection Actions */
-  adoptActionSelectionGrid: {
-    flexDirection: "row" as const,
-    flexWrap: "wrap" as const,
-    justifyContent: "space-around",
-    gap: 8,
-    marginBottom: 16,
-  },
-  adoptActionButton: {
-    width: "48%",
-    aspectRatio: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    backgroundColor: "#E8D5C4",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-  adoptActionButtonSelected: {
-    backgroundColor: "#FF9800",
-    borderColor: "#FF7500",
-  },
-  adoptActionIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  adoptActionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#2D1F0E",
-    textAlign: "center",
-  },
-  adoptActionLabelSelected: {
-    color: "#FFFFFF",
-  },
-
-  /* ADOPTANT - Selection Actions */
+  /* ADOPTANT - carte (la grille d'actions est le composant partagé RefugeActionGrid) */
   adoptantCard: {
     paddingVertical: 20,
     paddingHorizontal: 16,
@@ -755,44 +675,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#F0E5D8",
-  },
-  adoptantActionsGrid: {
-    flexDirection: "row" as const,
-    flexWrap: "wrap" as const,
-    justifyContent: "space-between",
-    gap: 10,
-    marginBottom: 16,
-  },
-  adoptantActionButton: {
-    width: (screenWidth - 52) / 2,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    backgroundColor: "#E8D5C4",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-  adoptantActionButtonSelected: {
-    backgroundColor: "#FF9800",
-    borderColor: "#FF7500",
-  },
-  adoptantActionButtonDisabled: {
-    opacity: 0.6,
-  },
-  adoptantActionIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  adoptantActionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#2D1F0E",
-    textAlign: "center",
-  },
-  adoptantActionLabelSelected: {
-    color: "#FFFFFF",
   },
   validateButton: {
     paddingVertical: 12,
