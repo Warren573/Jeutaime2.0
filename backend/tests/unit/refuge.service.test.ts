@@ -510,7 +510,7 @@ describe("RefugeService.submitGuess", () => {
     expect(prisma.wallet.upsert).toHaveBeenCalledTimes(2);
   });
 
-  it("calculates 1/2 match and includes no reward", async () => {
+  it("calculates 1/2 match: heart, 'pas loin' message, +5 for both players", async () => {
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
     (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(null);
     (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce({
@@ -519,15 +519,35 @@ describe("RefugeService.submitGuess", () => {
     });
     (prisma.refugeGuess.create as any).mockResolvedValueOnce(createdGuess);
     (prisma.refugeSession.update as any).mockResolvedValueOnce({});
+    (prisma.wallet.upsert as any).mockResolvedValue({ coins: 100 });
 
     const result = await RefugeService.submitGuess(sessionId, adoptantId, 1, guessInput);
 
     expect(result.dayResult).toBeDefined();
     expect(result.dayResult.matches).toBe(1);
-    expect(result.dayResult.message).toContain("commencez");
-    expect(result.dayResult.reward).toBe(0);
+    expect(result.dayResult.message).toBe("Vous n'étiez pas loin d'être sur la même longueur d'onde.");
+    expect(result.dayResult.reward).toBe(5);
     expect(result.dayResult.emoji).toBe("❤️");
-    expect(prisma.wallet.upsert).not.toHaveBeenCalled();
+    expect(prisma.wallet.upsert).toHaveBeenCalledTimes(2);
+    const increments = (prisma.wallet.upsert as any).mock.calls.map(
+      (c: any[]) => c[0].update.coins.increment
+    );
+    expect(increments).toEqual([5, 5]);
+  });
+
+  it("puts a heart (not a cross) in the hearts row for a 1/2 day", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({
+        dailyChoices: [{ dayNumber: 1, action1: "NOURRIR", action2: "LAVER" }],
+        guesses: [{ dayNumber: 1, guessedAction1: "NOURRIR", guessedAction2: "JOUER" }],
+      })
+    );
+
+    const result = await RefugeService.getRefugeSession(sessionId, adoptantId);
+
+    expect(result.hearts[0]).toBe("❤️");
+    expect(result.todayResult?.matches).toBe(1);
+    expect(result.todayResult?.reward).toBe(5);
   });
 
   it("calculates 0/2 match and includes no reward", async () => {

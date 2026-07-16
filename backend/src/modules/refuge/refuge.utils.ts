@@ -11,6 +11,7 @@ export const REFUGE_INACTIVITY_ALERT_HOURS = 24;
 export const REFUGE_FINAL_ALERT_HOURS = 48;
 export const REFUGE_AUTO_ABANDON_HOURS = 72;
 export const REFUGE_PERFECT_DAY_REWARD = 10;
+export const REFUGE_PARTIAL_DAY_REWARD = 5;
 
 // ============================================================
 // Utilitaires de calcul
@@ -95,11 +96,9 @@ export function calculateHearts(
       // Choice submitted but no guess yet
       hearts.push("🤍");
     } else {
-      // Both choice and guess exist - check if they match (in either order)
-      const guessMatches =
-        (guess.guessedAction1 === dailyChoice.action1 && guess.guessedAction2 === dailyChoice.action2) ||
-        (guess.guessedAction1 === dailyChoice.action2 && guess.guessedAction2 === dailyChoice.action1);
-      hearts.push(guessMatches ? "❤️" : "❌");
+      // Même source de vérité que le message/récompense du jour :
+      // 1 ou 2 bonnes réponses → ❤️, 0 → ❌ (ordre sans importance)
+      hearts.push(calculateDayResult(dailyChoice, guess).emoji);
     }
   }
 
@@ -147,8 +146,8 @@ export function calculateDayResult(dailyChoice: any, guess: any): DayResult {
   } else if (matches === 1) {
     return {
       matches: 1,
-      message: "Vous commencez à être sur la même longueur d'onde.",
-      reward: 0,
+      message: "Vous n'étiez pas loin d'être sur la même longueur d'onde.",
+      reward: REFUGE_PARTIAL_DAY_REWARD,
       emoji: "❤️",
     };
   } else {
