@@ -22,11 +22,11 @@ const screenWidth = Dimensions.get("window").width;
 
 const getResponsiveValues = () => {
   if (screenHeight < 700) {
-    return { animalSize: 220 };
+    return { animalSize: 165, zoneMinHeight: 175, zoneMaxHeight: 210 };
   } else if (screenHeight < 800) {
-    return { animalSize: 260 };
+    return { animalSize: 210, zoneMinHeight: 215, zoneMaxHeight: 260 };
   }
-  return { animalSize: 300 };
+  return { animalSize: 245, zoneMinHeight: 230, zoneMaxHeight: 300 };
 };
 
 /**
@@ -40,7 +40,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
 
   const { currentAction, isActing, triggerAction } = useRefugeAction();
   const { logAction } = useRefugeActionLog();
-  const { animalSize } = getResponsiveValues();
+  const { animalSize, zoneMinHeight, zoneMaxHeight } = getResponsiveValues();
   const {
     selectedMyActions,
     selectedGuessActions,
@@ -177,21 +177,11 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
         ))}
       </View>
 
-      {/* Résultat quotidien */}
-      {refugeSession.todayResult && (
-        <View style={styles.todayResultContainer}>
-          <Text style={styles.resultEmoji}>{refugeSession.todayResult.emoji}</Text>
-          <Text style={styles.resultMessage}>{refugeSession.todayResult.message}</Text>
-          {refugeSession.todayResult.reward > 0 && (
-            <Text style={styles.rewardText}>+{refugeSession.todayResult.reward} pièces chacun</Text>
-          )}
-        </View>
-      )}
-
       {/* Refuge Zone with Companion */}
       <View
         style={[
           styles.refugeZone,
+          { minHeight: zoneMinHeight, maxHeight: zoneMaxHeight },
           getBackgroundGradientStyle(refugeSession.companion?.background || 'default'),
         ]}
       >
@@ -253,6 +243,19 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
 
       {/* Content Area */}
       <ScrollView style={styles.contentScroll} contentContainerStyle={styles.contentContainer}>
+        {/* Résultat quotidien — bandeau compact juste au-dessus des actions */}
+        {refugeSession.todayResult && (
+          <View style={styles.todayResultContainer}>
+            <Text style={styles.resultEmoji}>{refugeSession.todayResult.emoji}</Text>
+            <Text style={styles.resultMessage}>
+              {refugeSession.todayResult.message}
+              {refugeSession.todayResult.reward > 0 && (
+                <Text style={styles.rewardText}>  +{refugeSession.todayResult.reward} pièces chacun</Text>
+              )}
+            </Text>
+          </View>
+        )}
+
         {/* ADOPTÉ: Display today's server-generated actions (read-only) */}
         {refugeSession.role === "adopte" && (
           <View style={styles.adopteCard}>
@@ -444,7 +447,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   heart: {
     fontSize: 28,
@@ -454,44 +457,42 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1 }],
   },
 
-  /* Résultat quotidien */
+  /* Résultat quotidien — simple bandeau d'information, pas une grande carte */
   todayResultContainer: {
+    flexDirection: "row" as const,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginHorizontal: 12,
-    marginBottom: 8,
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 10,
     backgroundColor: "rgba(255, 255, 255, 0.6)",
-    borderRadius: 10,
+    borderRadius: 8,
   },
   resultEmoji: {
-    fontSize: 32,
-    marginBottom: 6,
+    fontSize: 18,
   },
   resultMessage: {
-    fontSize: 14,
+    flexShrink: 1,
+    fontSize: 13,
     fontWeight: "600",
     color: "#333",
     textAlign: "center",
-    marginBottom: 6,
   },
   rewardText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
-    color: "#FFD700",
+    color: "#CC8A00",
   },
 
-  /* Refuge Zone */
+  /* Refuge Zone — min/maxHeight injectés dynamiquement (responsive) */
   refugeZone: {
-    flex: 0.5,
-    maxHeight: 350,
+    flex: 0.4,
     marginHorizontal: 12,
-    marginBottom: 12,
+    marginBottom: 10,
     alignItems: "center",
     justifyContent: "center",
     position: "relative" as const,
-    minHeight: 280,
     overflow: "hidden" as const,
     borderRadius: 12,
   },
@@ -529,7 +530,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     marginHorizontal: 12,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   gaugeRow: {
     flexDirection: "row" as const,
@@ -575,7 +576,8 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingTop: 4,
+    paddingBottom: 12,
   },
 
   /* Actions Grid */
@@ -623,7 +625,7 @@ const styles = StyleSheet.create({
 
   /* ADOPTÉ - Display Actions */
   adopteCard: {
-    paddingVertical: 20,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     backgroundColor: "rgba(255, 255, 255, 0.5)",
     borderRadius: 16,
@@ -635,7 +637,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#2D1F0E",
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 12,
   },
   adoptActionsDisplay: {
     flexDirection: "row" as const,
@@ -669,7 +671,7 @@ const styles = StyleSheet.create({
 
   /* ADOPTANT - carte (la grille d'actions est le composant partagé RefugeActionGrid) */
   adoptantCard: {
-    paddingVertical: 20,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     backgroundColor: "rgba(255, 255, 255, 0.5)",
     borderRadius: 16,

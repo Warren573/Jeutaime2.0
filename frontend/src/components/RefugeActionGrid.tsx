@@ -1,9 +1,7 @@
 import React from "react";
-import { View, Text, StyleSheet, Dimensions } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { BouncyButton } from "./BouncyButton";
 import { ACTION_LABELS } from "../data/refugeActions";
-
-const screenWidth = Dimensions.get("window").width;
 
 export type RefugeActionType = "feed" | "play" | "pet" | "wash";
 
@@ -57,13 +55,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    gap: 10,
-    marginBottom: 16,
+    rowGap: 10,
+    marginBottom: 12,
   },
   button: {
-    width: (screenWidth - 52) / 2,
-    aspectRatio: 1,
-    paddingVertical: 12,
+    // 48% + space-between : toujours 2 cartes par ligne, identiques des deux côtés,
+    // quelle que soit la largeur de l'écran (pas de calcul en pixels)
+    width: "48%",
+    aspectRatio: 1.9,
+    paddingVertical: 10,
     paddingHorizontal: 8,
     backgroundColor: "#E8D5C4",
     borderRadius: 10,
