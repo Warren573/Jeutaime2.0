@@ -10,8 +10,11 @@ export const REFUGE_DURATION_DAYS = 7;
 export const REFUGE_INACTIVITY_ALERT_HOURS = 24;
 export const REFUGE_FINAL_ALERT_HOURS = 48;
 export const REFUGE_AUTO_ABANDON_HOURS = 72;
-export const REFUGE_PERFECT_DAY_REWARD = 10;
-export const REFUGE_PARTIAL_DAY_REWARD = 5;
+// Économie du Refuge — montants centralisés (passent par le Wallet officiel)
+export const REFUGE_PERFECT_REWARD = 10; // 2/2 : +10 chacun
+export const REFUGE_PARTIAL_REWARD = 5; // 1/2 : +5 chacun
+export const REFUGE_PARTICIPATION_REWARD = 5; // jour incomplet : +5 pour celui qui a participé
+export const REFUGE_INACTIVITY_PENALTY = 5; // jour incomplet : -5 pour l'absent (jamais de solde négatif)
 
 // ============================================================
 // Utilitaires de calcul
@@ -140,14 +143,14 @@ export function calculateDayResult(dailyChoice: any, guess: any): DayResult {
     return {
       matches: 2,
       message: "Vous étiez sur la même longueur d'onde aujourd'hui !",
-      reward: REFUGE_PERFECT_DAY_REWARD,
+      reward: REFUGE_PERFECT_REWARD,
       emoji: "❤️",
     };
   } else if (matches === 1) {
     return {
       matches: 1,
       message: "Vous n'étiez pas loin d'être sur la même longueur d'onde.",
-      reward: REFUGE_PARTIAL_DAY_REWARD,
+      reward: REFUGE_PARTIAL_REWARD,
       emoji: "❤️",
     };
   } else {
@@ -158,6 +161,85 @@ export function calculateDayResult(dailyChoice: any, guess: any): DayResult {
       emoji: "❌",
     };
   }
+}
+
+// ============================================================
+// Statuts finaux des journées — symboles, messages, deltas
+// ============================================================
+
+export type RefugeDayStatusName =
+  | "OPEN"
+  | "FAILED"
+  | "PARTIAL"
+  | "PERFECT"
+  | "INCOMPLETE_ADOPTE_MISSING"
+  | "INCOMPLETE_ADOPTANT_MISSING"
+  | "NOT_PLAYED";
+
+export const DAY_STATUS_SYMBOLS: Record<RefugeDayStatusName, string> = {
+  OPEN: "🤍",
+  FAILED: "❌",
+  PARTIAL: "❤️",
+  PERFECT: "❤️",
+  INCOMPLETE_ADOPTE_MISSING: "⚠️",
+  INCOMPLETE_ADOPTANT_MISSING: "⚠️",
+  NOT_PLAYED: "—",
+};
+
+export const DAY_STATUS_MESSAGES: Record<RefugeDayStatusName, string> = {
+  OPEN: "Journée en cours.",
+  FAILED: "Vous n'étiez pas sur la même longueur d'onde aujourd'hui.",
+  PARTIAL: "Vous n'étiez pas loin d'être sur la même longueur d'onde.",
+  PERFECT: "Vous étiez sur la même longueur d'onde aujourd'hui !",
+  INCOMPLETE_ADOPTE_MISSING: "Le jour s'est terminé sans choix de l'autre personne.",
+  INCOMPLETE_ADOPTANT_MISSING: "Le jour s'est terminé sans réponse de l'autre personne.",
+  NOT_PLAYED: "Cette journée n'a pas été jouée.",
+};
+
+// Issue finale d'un jour ÉCHU, à partir des faits persistés.
+// adoptantWasPresent : l'Adoptant a montré une activité pendant la fenêtre du
+// jour — on ne le pénalise jamais pour une réponse techniquement impossible.
+export function computeDayClosure(
+  hasChoice: boolean,
+  hasGuess: boolean,
+  matches: number | null,
+  adoptantWasPresent: boolean
+): {
+  status: Exclude<RefugeDayStatusName, "OPEN">;
+  matchCount: number | null;
+  adopteCoinsDelta: number;
+  adoptantCoinsDelta: number;
+} {
+  if (hasChoice && hasGuess) {
+    const m = matches ?? 0;
+    if (m === 2) return { status: "PERFECT", matchCount: 2, adopteCoinsDelta: REFUGE_PERFECT_REWARD, adoptantCoinsDelta: REFUGE_PERFECT_REWARD };
+    if (m === 1) return { status: "PARTIAL", matchCount: 1, adopteCoinsDelta: REFUGE_PARTIAL_REWARD, adoptantCoinsDelta: REFUGE_PARTIAL_REWARD };
+    return { status: "FAILED", matchCount: 0, adopteCoinsDelta: 0, adoptantCoinsDelta: 0 };
+  }
+  if (hasChoice && !hasGuess) {
+    return {
+      status: "INCOMPLETE_ADOPTANT_MISSING",
+      matchCount: null,
+      adopteCoinsDelta: REFUGE_PARTICIPATION_REWARD,
+      adoptantCoinsDelta: -REFUGE_INACTIVITY_PENALTY,
+    };
+  }
+  if (!hasChoice && adoptantWasPresent) {
+    return {
+      status: "INCOMPLETE_ADOPTE_MISSING",
+      matchCount: null,
+      adopteCoinsDelta: -REFUGE_INACTIVITY_PENALTY,
+      adoptantCoinsDelta: REFUGE_PARTICIPATION_REWARD,
+    };
+  }
+  return { status: "NOT_PLAYED", matchCount: null, adopteCoinsDelta: 0, adoptantCoinsDelta: 0 };
+}
+
+// Fenêtre temporelle du jour N d'une session : [startedAt + (N-1)j, startedAt + Nj)
+export function dayWindow(startedAt: Date, dayNumber: number): { start: Date; end: Date } {
+  const start = new Date(startedAt.getTime() + (dayNumber - 1) * 24 * 60 * 60 * 1000);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
 }
 
 // Un jour est COMPLET uniquement quand l'Adopté a validé ses 2 actions

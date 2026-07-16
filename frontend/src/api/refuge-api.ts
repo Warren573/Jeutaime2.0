@@ -50,7 +50,41 @@ export interface RefugeSession {
     pseudo: string;
     bio: string | null;
     city: string | null;
+    age: number | null;
+    interests: string[];
+    photoUrl: string | null;
   } | null;
+  // État structuré des 7 jours — le frontend ne devine jamais ces états
+  dailyResults?: DailyResultEntry[];
+}
+
+export interface DailyResultEntry {
+  dayNumber: number;
+  status: string;
+  matchCount: number | null;
+  symbol: string;
+  adopteCoinsDelta: number;
+  adoptantCoinsDelta: number;
+  message: string;
+}
+
+export interface RefugeHistoryEntry {
+  sessionId: string;
+  status: string;
+  role: "adopte" | "adoptant";
+  animalType: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  dailyResults: DailyResultEntry[];
+  heartsCount: number;
+  failuresCount: number;
+  incompleteCount: number;
+  notPlayedCount: number;
+  totalCoinsDelta: number;
+  revealed: boolean;
+  otherUserSummary: { userId: string; pseudo: string } | null;
+  smileState: "NONE" | "SENT" | "RECEIVED" | "MUTUAL";
+  nextStepState: "NONE" | "QUESTIONS_STARTED" | "DISCUSSION_OPEN";
 }
 
 export interface ProposeRefugeRequest {
@@ -166,6 +200,12 @@ export const refugeApi = {
       method: "POST",
     });
     return response?.data;
+  },
+
+  // Historique paginé des adoptions terminées
+  async getHistory(page = 1, limit = 20): Promise<{ entries: RefugeHistoryEntry[]; total: number; page: number; limit: number }> {
+    const response = await apiFetch(`/refuge/history?page=${page}&limit=${limit}`);
+    return response?.data ?? { entries: [], total: 0, page, limit };
   },
 
   // Phase finale — soumettre sa décision de dévoilement (ACCEPT | REFUSE)

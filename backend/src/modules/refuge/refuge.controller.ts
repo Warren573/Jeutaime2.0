@@ -278,6 +278,33 @@ export class RefugeController {
   }
 
   // ============================================================
+  // GET /api/refuge/history
+  // Historique paginé des adoptions terminées de l'utilisateur
+  // ============================================================
+
+  static async getHistory(req: AuthedRequest, res: Response): Promise<void> {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Non authentifié" });
+      return;
+    }
+
+    const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit ?? "20"), 10) || 20));
+
+    try {
+      const result = await RefugeService.getRefugeHistory(userId, page, limit);
+      res.status(200).json({ success: true, data: result });
+    } catch (error: any) {
+      if (error.statusCode) {
+        res.status(error.statusCode).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Erreur interne" });
+      }
+    }
+  }
+
+  // ============================================================
   // POST /api/refuge/:sessionId/reveal-consent
   // Phase finale — décision de dévoilement (ACCEPT | REFUSE)
   // ============================================================

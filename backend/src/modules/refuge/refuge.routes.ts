@@ -31,6 +31,10 @@ router.get("/available", wrap(RefugeController.getAvailable));
 // Récupère la session Refuge active de l'utilisateur courant
 router.get("/active", wrap(RefugeController.getActive));
 
+// GET /api/refuge/history
+// Historique paginé des adoptions terminées (COMPLETED / ABANDONED / REVEALED)
+router.get("/history", wrap(RefugeController.getHistory));
+
 // POST /api/refuge/adopt
 // Adoptant adopte un refuge disponible
 router.post("/adopt", validate(AdoptRefugeSchema), wrap(RefugeController.adopt));

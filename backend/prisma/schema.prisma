@@ -63,6 +63,10 @@ enum CoinTxnType {
   REFUND
   ADMIN_ADJUST
   PURCHASE_COINS
+  REFUGE_PARTIAL_REWARD
+  REFUGE_PERFECT_REWARD
+  REFUGE_PARTICIPATION_REWARD
+  REFUGE_INACTIVITY_PENALTY
 }
 
 enum CardGameStatus {
@@ -899,6 +903,16 @@ enum RefugeRevealDecision {
   REFUSE
 }
 
+// Statut FINAL d'une journée de Refuge (persisté à la clôture du jour)
+enum RefugeDayStatus {
+  FAILED                      // les deux ont joué, 0/2
+  PARTIAL                     // les deux ont joué, 1/2
+  PERFECT                     // les deux ont joué, 2/2
+  INCOMPLETE_ADOPTE_MISSING   // l'Adopté n'a pas choisi (l'Adoptant était présent)
+  INCOMPLETE_ADOPTANT_MISSING // choix fait, pas de réponse de l'Adoptant
+  NOT_PLAYED                  // aucun des deux n'a participé
+}
+
 enum RefugePreexistingLinkType {
   MATCH
   LETTER
@@ -955,6 +969,7 @@ model RefugeSession {
   // Relations
   dailyChoices              RefugeDailyChoice[]
   guesses                   RefugeGuess[]
+  dayResults                RefugeDayResult[]
 
   // Index
   @@unique([adopteId, adoptantId])
@@ -990,4 +1005,22 @@ model RefugeGuess {
   // Index
   @@unique([refugeSessionId, dayNumber])
   @@index([refugeSessionId, dayNumber])
+}
+
+// Résultat FINAL persisté d'une journée de Refuge.
+// La contrainte unique (session, jour) garantit l'idempotence de la clôture :
+// une relance du job ne peut jamais recréer le résultat ni doubler les pièces.
+model RefugeDayResult {
+  id                  String          @id @default(cuid())
+  refugeSessionId     String
+  refugeSession       RefugeSession   @relation(fields: [refugeSessionId], references: [id], onDelete: Cascade)
+  dayNumber           Int             // 1-7
+  status              RefugeDayStatus
+  matchCount          Int?            // 0-2 si les deux ont joué, null sinon
+  adopteCoinsDelta    Int             // delta théorique appliqué à l'Adopté
+  adoptantCoinsDelta  Int             // delta théorique appliqué à l'Adoptant
+  closedAt            DateTime        @default(now())
+
+  @@unique([refugeSessionId, dayNumber])
+  @@index([refugeSessionId])
 }

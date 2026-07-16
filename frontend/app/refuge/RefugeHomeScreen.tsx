@@ -48,6 +48,13 @@ export function RefugeHomeScreen() {
             • Durez 7 jours ensemble pour révéler vos vrais profils
           </Text>
         </View>
+
+        <BouncyButton
+          style={styles.historyButton}
+          onPress={() => router.push('/refuge/history')}
+        >
+          <Text style={styles.historyButtonText}>📖 Historique des adoptions</Text>
+        </BouncyButton>
       </View>
     </SafeAreaView>
   );
@@ -131,5 +138,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#1565C0',
     lineHeight: 18,
+  },
+  historyButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E0D5C8',
+    alignItems: 'center',
+  },
+  historyButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8B6F47',
   },
 });

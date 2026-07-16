@@ -3,38 +3,54 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from ".
 
 // Mock the Prisma module with factory function to avoid hoisting issues
 vi.mock("../../src/config/prisma", () => {
-  return {
-    prisma: {
-      user: {
-        findUnique: vi.fn(),
-      },
-      refugeSession: {
-        findFirst: vi.fn(),
-        findUnique: vi.fn(),
-        findMany: vi.fn(),
-        create: vi.fn(),
-        update: vi.fn(),
-        updateMany: vi.fn(),
-        count: vi.fn(),
-        delete: vi.fn(),
-      },
-      refugeDailyChoice: {
-        findUnique: vi.fn(),
-        create: vi.fn(),
-      },
-      refugeGuess: {
-        findUnique: vi.fn(),
-        create: vi.fn(),
-      },
-      wallet: {
-        upsert: vi.fn(),
-      },
-      $transaction: vi.fn(async (ops: unknown) => {
-        if (Array.isArray(ops)) return Promise.all(ops);
-        return (ops as (tx: unknown) => unknown)(undefined);
-      }),
+  const prismaMock: any = {
+    user: {
+      findUnique: vi.fn(),
+    },
+    refugeSession: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      count: vi.fn(),
+      delete: vi.fn(),
+    },
+    refugeDailyChoice: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    refugeGuess: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    refugeDayResult: {
+      create: vi.fn(),
+      count: vi.fn(),
+    },
+    wallet: {
+      upsert: vi.fn(),
+      update: vi.fn(),
+    },
+    coinTransaction: {
+      create: vi.fn(),
+    },
+    reaction: {
+      findUnique: vi.fn(),
+    },
+    match: {
+      findFirst: vi.fn(),
     },
   };
+  // Les transactions interactives reçoivent le client mocké lui-même
+  prismaMock.$transaction = vi.fn(async (ops: unknown) => {
+    if (Array.isArray(ops)) return Promise.all(ops);
+    return (ops as (tx: unknown) => unknown)(prismaMock);
+  });
+  return { prisma: prismaMock };
 });
 
 import { RefugeService } from "../../src/modules/refuge/refuge.service";
@@ -70,6 +86,7 @@ function activeSession(overrides: Record<string, unknown> = {}) {
     revealedAt: null,
     dailyChoices: [],
     guesses: [],
+    dayResults: [],
     ...overrides,
   };
 }
@@ -98,6 +115,14 @@ function waitingSession(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // mockReset retire les mockImplementation posées par certains tests (devSetDay)
+  // qui sinon fuiraient dans les tests suivants une fois les Once épuisés.
+  (prisma.refugeSession.findUnique as any).mockReset();
+  (prisma.refugeSession.update as any).mockReset();
+  // Ledger : le wallet mocké répond par défaut (les tests vérifient les appels)
+  (prisma.wallet.upsert as any).mockResolvedValue({ userId: "u", coins: 100 });
+  (prisma.wallet.update as any).mockResolvedValue({});
+  (prisma.coinTransaction.create as any).mockResolvedValue({});
 });
 
 // ============================================================
@@ -558,11 +583,18 @@ describe("RefugeService.submitGuess", () => {
     expect(result.dayResult.message).toBe("Vous n'étiez pas loin d'être sur la même longueur d'onde.");
     expect(result.dayResult.reward).toBe(5);
     expect(result.dayResult.emoji).toBe("❤️");
+    // Écritures traçables via le ledger : une CoinTransaction +5 par joueur
     expect(prisma.wallet.upsert).toHaveBeenCalledTimes(2);
-    const increments = (prisma.wallet.upsert as any).mock.calls.map(
-      (c: any[]) => c[0].update.coins.increment
+    const txnAmounts = (prisma.coinTransaction.create as any).mock.calls.map(
+      (c: any[]) => c[0].data.amount
     );
-    expect(increments).toEqual([5, 5]);
+    expect(txnAmounts).toEqual([5, 5]);
+    const txnTypes = (prisma.coinTransaction.create as any).mock.calls.map((c: any[]) => c[0].data.type);
+    expect(txnTypes).toEqual(["REFUGE_PARTIAL_REWARD", "REFUGE_PARTIAL_REWARD"]);
+    // Résultat FINAL du jour persisté dans la même transaction
+    const dayResultArgs = (prisma.refugeDayResult.create as any).mock.calls[0][0];
+    expect(dayResultArgs.data.status).toBe("PARTIAL");
+    expect(dayResultArgs.data.adopteCoinsDelta).toBe(5);
   });
 
   it("puts a heart (not a cross) in the hearts row for a 1/2 day", async () => {
@@ -709,6 +741,7 @@ describe("RefugeService.submitRevealConsent", () => {
   it("first ACCEPT stores the decision and moves to AWAITING_REVEAL_CONSENT (no reveal)", async () => {
     (prisma.refugeSession.findUnique as any)
       .mockResolvedValueOnce(day7DoneSession()) // lecture initiale
+      .mockResolvedValueOnce(null) // closePastDays (no-op)
       .mockResolvedValueOnce(day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" })); // relecture getRefugeSession
     (prisma.refugeSession.updateMany as any)
       .mockResolvedValueOnce({ count: 1 }) // écrit ma décision
@@ -728,6 +761,7 @@ describe("RefugeService.submitRevealConsent", () => {
   it("second ACCEPT promotes atomically to REVEALED and emits once", async () => {
     (prisma.refugeSession.findUnique as any)
       .mockResolvedValueOnce(day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }))
+      .mockResolvedValueOnce(null) // closePastDays (no-op)
       .mockResolvedValueOnce({ revealedAt: new Date() }) // select post-promotion (événement)
       .mockResolvedValueOnce(
         day7DoneSession({
@@ -742,7 +776,8 @@ describe("RefugeService.submitRevealConsent", () => {
       .mockResolvedValueOnce({ count: 1 }); // promotion gagnée
     (prisma.user.findUnique as any).mockResolvedValueOnce({
       id: adopteId,
-      profile: { pseudo: "Alice", bio: "Bio", city: "Paris" },
+      profile: { pseudo: "Alice", bio: "Bio", city: "Paris", birthDate: new Date("1995-05-05"), interests: [] },
+      photos: [],
     });
 
     const result = await RefugeService.submitRevealConsent(sessionId, adoptantId, "ACCEPT");
@@ -761,6 +796,7 @@ describe("RefugeService.submitRevealConsent", () => {
   it("REFUSE ends the session cleanly as COMPLETED without revealing anything", async () => {
     (prisma.refugeSession.findUnique as any)
       .mockResolvedValueOnce(day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }))
+      .mockResolvedValueOnce(null) // closePastDays (no-op)
       .mockResolvedValueOnce(
         day7DoneSession({
           adopteRevealDecision: "ACCEPT",
@@ -785,6 +821,7 @@ describe("RefugeService.submitRevealConsent", () => {
   it("is idempotent: re-submitting the same decision returns state without writing", async () => {
     (prisma.refugeSession.findUnique as any)
       .mockResolvedValueOnce(day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }))
+      .mockResolvedValueOnce(null) // closePastDays (no-op)
       .mockResolvedValueOnce(day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }));
 
     const result = await RefugeService.submitRevealConsent(sessionId, adopteId, "ACCEPT");
@@ -852,8 +889,8 @@ describe("RefugeService.getRefugeSession (reveal privacy)", () => {
     });
     (prisma.refugeSession.findUnique as any).mockResolvedValue(revealed);
     (prisma.user.findUnique as any)
-      .mockResolvedValueOnce({ id: adoptantId, profile: { pseudo: "Bob", bio: null, city: "Lyon" } })
-      .mockResolvedValueOnce({ id: adopteId, profile: { pseudo: "Alice", bio: "Bio", city: "Paris" } });
+      .mockResolvedValueOnce({ id: adoptantId, profile: { pseudo: "Bob", bio: null, city: "Lyon", birthDate: null, interests: [] }, photos: [] })
+      .mockResolvedValueOnce({ id: adopteId, profile: { pseudo: "Alice", bio: "Bio", city: "Paris", birthDate: null, interests: [] }, photos: [] });
 
     const forAdopte = await RefugeService.getRefugeSession(sessionId, adopteId);
     const forAdoptant = await RefugeService.getRefugeSession(sessionId, adoptantId);
@@ -994,5 +1031,131 @@ describe("RefugeService.devAdvanceDay", () => {
     const result = await RefugeService.devAdvanceDay(sessionId);
 
     expect(result.currentDay).toBe(2);
+  });
+});
+
+// ============================================================
+// Clôture des jours — règles des jours incomplets et idempotence
+// ============================================================
+
+import { computeDayClosure } from "../../src/modules/refuge/refuge.utils";
+
+describe("computeDayClosure (règles des jours)", () => {
+  it("both played: FAILED/PARTIAL/PERFECT with the right deltas", () => {
+    expect(computeDayClosure(true, true, 0, true)).toEqual({ status: "FAILED", matchCount: 0, adopteCoinsDelta: 0, adoptantCoinsDelta: 0 });
+    expect(computeDayClosure(true, true, 1, true)).toEqual({ status: "PARTIAL", matchCount: 1, adopteCoinsDelta: 5, adoptantCoinsDelta: 5 });
+    expect(computeDayClosure(true, true, 2, true)).toEqual({ status: "PERFECT", matchCount: 2, adopteCoinsDelta: 10, adoptantCoinsDelta: 10 });
+  });
+
+  it("choice without answer: INCOMPLETE_ADOPTANT_MISSING +5/-5", () => {
+    expect(computeDayClosure(true, false, null, true)).toEqual({
+      status: "INCOMPLETE_ADOPTANT_MISSING",
+      matchCount: null,
+      adopteCoinsDelta: 5,
+      adoptantCoinsDelta: -5,
+    });
+  });
+
+  it("no choice but the Adoptant was present: INCOMPLETE_ADOPTE_MISSING -5/+5", () => {
+    expect(computeDayClosure(false, false, null, true)).toEqual({
+      status: "INCOMPLETE_ADOPTE_MISSING",
+      matchCount: null,
+      adopteCoinsDelta: -5,
+      adoptantCoinsDelta: 5,
+    });
+  });
+
+  it("nobody came: NOT_PLAYED 0/0 — no cross, no heart, no penalty", () => {
+    expect(computeDayClosure(false, false, null, false)).toEqual({
+      status: "NOT_PLAYED",
+      matchCount: null,
+      adopteCoinsDelta: 0,
+      adoptantCoinsDelta: 0,
+    });
+  });
+});
+
+describe("RefugeService.closePastDays", () => {
+  it("closes a past day with a choice but no answer: persists ⚠️ and moves coins once", async () => {
+    const startedAt = new Date(Date.now() - 1 * DAY_MS - 2 * 60 * 60 * 1000); // jour 2 → jour 1 échu
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({
+        startedAt,
+        endsAt: new Date(startedAt.getTime() + 7 * DAY_MS),
+        dailyChoices: [{ dayNumber: 1, action1: "NOURRIR", action2: "JOUER" }],
+      })
+    );
+
+    await RefugeService.closePastDays(sessionId);
+
+    const created = (prisma.refugeDayResult.create as any).mock.calls[0][0];
+    expect(created.data.dayNumber).toBe(1);
+    expect(created.data.status).toBe("INCOMPLETE_ADOPTANT_MISSING");
+    expect(created.data.adopteCoinsDelta).toBe(5);
+    expect(created.data.adoptantCoinsDelta).toBe(-5);
+    // Un crédit +5 (adopté) et un débit -5 (adoptant) via le ledger
+    const amounts = (prisma.coinTransaction.create as any).mock.calls.map((c: any[]) => c[0].data.amount);
+    expect(amounts).toEqual([5, -5]);
+    const types = (prisma.coinTransaction.create as any).mock.calls.map((c: any[]) => c[0].data.type);
+    expect(types).toEqual(["REFUGE_PARTICIPATION_REWARD", "REFUGE_INACTIVITY_PENALTY"]);
+  });
+
+  it("clamps a penalty to the available balance — never a negative wallet", async () => {
+    const startedAt = new Date(Date.now() - 1 * DAY_MS - 2 * 60 * 60 * 1000);
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({
+        startedAt,
+        endsAt: new Date(startedAt.getTime() + 7 * DAY_MS),
+        dailyChoices: [{ dayNumber: 1, action1: "NOURRIR", action2: "JOUER" }],
+      })
+    );
+    // L'adoptant n'a que 3 pièces
+    (prisma.wallet.upsert as any)
+      .mockResolvedValueOnce({ userId: adopteId, coins: 100 })
+      .mockResolvedValueOnce({ userId: adoptantId, coins: 3 });
+
+    await RefugeService.closePastDays(sessionId);
+
+    const debitTxn = (prisma.coinTransaction.create as any).mock.calls[1][0];
+    expect(debitTxn.data.amount).toBe(-3); // plafonné au solde
+    expect(debitTxn.data.balance).toBe(0); // jamais négatif
+    const walletUpdates = (prisma.wallet.update as any).mock.calls.map((c: any[]) => c[0].data.coins);
+    expect(walletUpdates).toEqual([105, 0]);
+  });
+
+  it("is idempotent: an already closed day is never re-processed (P2002 or existing result)", async () => {
+    const startedAt = new Date(Date.now() - 1 * DAY_MS - 2 * 60 * 60 * 1000);
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({
+        startedAt,
+        endsAt: new Date(startedAt.getTime() + 7 * DAY_MS),
+        dailyChoices: [{ dayNumber: 1, action1: "NOURRIR", action2: "JOUER" }],
+        dayResults: [{ dayNumber: 1, status: "INCOMPLETE_ADOPTANT_MISSING", matchCount: null, adopteCoinsDelta: 5, adoptantCoinsDelta: -5 }],
+      })
+    );
+
+    await RefugeService.closePastDays(sessionId);
+
+    expect(prisma.refugeDayResult.create).not.toHaveBeenCalled();
+    expect(prisma.coinTransaction.create).not.toHaveBeenCalled();
+  });
+
+  it("a past fully-played day (legacy) is persisted WITHOUT re-crediting wallets", async () => {
+    const startedAt = new Date(Date.now() - 1 * DAY_MS - 2 * 60 * 60 * 1000);
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({
+        startedAt,
+        endsAt: new Date(startedAt.getTime() + 7 * DAY_MS),
+        dailyChoices: [{ dayNumber: 1, action1: "NOURRIR", action2: "JOUER" }],
+        guesses: [{ dayNumber: 1, guessedAction1: "JOUER", guessedAction2: "NOURRIR" }],
+      })
+    );
+
+    await RefugeService.closePastDays(sessionId);
+
+    const created = (prisma.refugeDayResult.create as any).mock.calls[0][0];
+    expect(created.data.status).toBe("PERFECT");
+    // Les pièces avaient déjà été versées à la soumission de la réponse
+    expect(prisma.coinTransaction.create).not.toHaveBeenCalled();
   });
 });

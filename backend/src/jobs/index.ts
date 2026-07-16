@@ -13,6 +13,7 @@
 import { demoteExpiredPremiumJob } from "./demoteExpiredPremium";
 import { purgeExpiredRefreshTokensJob } from "./purgeExpiredRefreshTokens";
 import { expireCardGamesJob } from "./expireCardGames";
+import { closeRefugeDaysJob } from "./closeRefugeDays";
 import { expireSalonSessionsJob } from "./expireSalonSessions";
 import type { Job } from "./types";
 
@@ -25,6 +26,7 @@ export {
   purgeExpiredRefreshTokensJob,
   expireCardGamesJob,
   expireSalonSessionsJob,
+  closeRefugeDaysJob,
 };
 export {
   createPurgeExpiredRefreshTokensJob,
@@ -39,4 +41,5 @@ export const ALL_JOBS: readonly Job[] = [
   purgeExpiredRefreshTokensJob,
   expireCardGamesJob,
   expireSalonSessionsJob,
+  closeRefugeDaysJob,
 ];

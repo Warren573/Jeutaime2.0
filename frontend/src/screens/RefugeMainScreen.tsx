@@ -38,6 +38,7 @@ const getResponsiveValues = () => {
 export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   const router = useRouter();
   const sessionId = sessionIdProp;
+  const currentUserId = useStore((s) => s.currentUser?.id ?? null);
 
   const { currentAction, isActing, triggerAction } = useRefugeAction();
   const { logAction } = useRefugeActionLog();
@@ -126,6 +127,58 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
         >
           <Text style={styles.buttonText}>Retour</Text>
         </BouncyButton>
+      </SafeAreaView>
+    );
+  }
+
+  // ÉCRAN FINAL DÉDIÉ après révélation : résumé discret des 7 jours, carte
+  // profil, suite JeuTaime — sans animal, jauges, bandeau ni actions empilés.
+  // Le panneau DEV reste disponible en bas (staging) sans relancer l'animation.
+  if (refugeSession.status === "REVEALED") {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <BouncyButton style={styles.backButton} onPress={() => router.replace('/(tabs)/social')}>
+            <Text style={styles.backText}>← Retour</Text>
+          </BouncyButton>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Refuge terminé</Text>
+          </View>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        <ScrollView style={styles.contentScroll} contentContainerStyle={styles.contentContainer}>
+          {/* Résumé discret des 7 jours */}
+          <View style={styles.finalSummaryRow}>
+            {refugeSession.dailyResults.map((r) => (
+              <Text key={r.dayNumber} style={styles.finalSummarySymbol}>
+                {r.symbol}
+              </Text>
+            ))}
+          </View>
+
+          <RefugeRevealPhase
+            sessionId={sessionId}
+            currentUserId={currentUserId}
+            status={refugeSession.status}
+            reveal={refugeSession.reveal ?? { available: true, myDecision: "ACCEPT", otherDecided: true, revealedAt: null }}
+            hearts={refugeSession.dailyResults.map((r) => r.symbol)}
+            otherProfile={refugeSession.otherProfile}
+            isSubmitting={isSubmitting}
+            onDecision={handleRevealDecision}
+            onViewProfile={(userId) => router.push(`/profile/${userId}` as never)}
+            onExit={() => router.replace('/(tabs)/social')}
+          />
+
+          <View style={{ height: 12 }} />
+          <RefugeDevTimeTravel
+            sessionId={sessionId}
+            currentDay={refugeSession.currentDay}
+            canAdvanceDay={false}
+            onDayChanged={() => refugeSession.fetchSessionStatus()}
+            onSessionReset={() => router.replace('/(tabs)/social')}
+          />
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -252,12 +305,15 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
             L'état vient exclusivement du serveur (reveal.available). */}
         {refugeSession.reveal?.available && (
           <RefugeRevealPhase
+            sessionId={sessionId}
+            currentUserId={currentUserId}
             status={refugeSession.status}
             reveal={refugeSession.reveal}
             hearts={hearts}
             otherProfile={refugeSession.otherProfile}
             isSubmitting={isSubmitting}
             onDecision={handleRevealDecision}
+            onViewProfile={(userId) => router.push(`/profile/${userId}` as never)}
             onExit={() => router.replace('/(tabs)/social')}
           />
         )}
@@ -462,6 +518,19 @@ const styles = StyleSheet.create({
   heartPulse: {
     // Pulse animation handled via Animated in component
     transform: [{ scale: 1 }],
+  },
+
+  /* Écran final — résumé discret des 7 jours */
+  finalSummaryRow: {
+    flexDirection: "row" as const,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  finalSummarySymbol: {
+    fontSize: 20,
   },
 
   /* Résultat quotidien — simple bandeau d'information, pas une grande carte */

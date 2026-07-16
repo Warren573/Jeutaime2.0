@@ -41,7 +41,19 @@ interface RefugeSessionState {
     pseudo: string;
     bio: string | null;
     city: string | null;
+    age: number | null;
+    interests: string[];
+    photoUrl: string | null;
   } | null;
+  dailyResults: {
+    dayNumber: number;
+    status: string;
+    matchCount: number | null;
+    symbol: string;
+    adopteCoinsDelta: number;
+    adoptantCoinsDelta: number;
+    message: string;
+  }[];
   role: "adopte" | "adoptant" | null;
   isLoading: boolean;
   error: string | null;
@@ -69,6 +81,7 @@ export function useRefugeSession(sessionId: string | null) {
     todayResult: null,
     reveal: null,
     otherProfile: null,
+    dailyResults: [],
     role: null,
     isLoading: true,
     error: null,
@@ -83,12 +96,18 @@ export function useRefugeSession(sessionId: string | null) {
   const currentDayRef = useRef(state.currentDay);
   currentDayRef.current = state.currentDay;
 
+  // isLoading n'est vrai QUE pour le tout premier chargement : le polling ne
+  // doit jamais repasser l'écran en "Chargement..." — cela démontait tout
+  // l'arbre React (dont l'animation de dévoilement, qui rejouait en boucle).
+  const hasLoadedOnceRef = useRef(false);
 
   // Récupérer le statut de la session
   const fetchSessionStatus = useCallback(async () => {
     if (!sessionId) return;
 
-    setState((prev) => ({ ...prev, isLoading: true }));
+    if (!hasLoadedOnceRef.current) {
+      setState((prev) => ({ ...prev, isLoading: true }));
+    }
 
     try {
       const data = await refugeApi.getSession(sessionId);
@@ -125,12 +144,14 @@ export function useRefugeSession(sessionId: string | null) {
         },
         todayActions: data.todayActions ?? null,
         todayResult: data.todayResult ?? null,
+        dailyResults: data.dailyResults ?? prev.dailyResults,
         reveal: data.reveal ?? null,
         otherProfile: data.otherProfile ?? null,
         role,
         isLoading: false,
         error: null,
       }));
+      hasLoadedOnceRef.current = true;
     } catch (err: any) {
       setState((prev) => ({
         ...prev,

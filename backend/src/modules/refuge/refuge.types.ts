@@ -44,6 +44,28 @@ export interface RevealedProfile {
   pseudo: string;
   bio: string | null;
   city: string | null;
+  age: number | null;
+  interests: string[];
+  photoUrl: string | null; // photo principale (variante publique du système Photos)
+}
+
+// Résultat structuré d'une journée — renvoyé pour les 7 jours.
+// Le frontend ne devine jamais l'état : symbole et message viennent d'ici.
+export interface DailyResultEntry {
+  dayNumber: number;
+  status:
+    | "OPEN"
+    | "FAILED"
+    | "PARTIAL"
+    | "PERFECT"
+    | "INCOMPLETE_ADOPTE_MISSING"
+    | "INCOMPLETE_ADOPTANT_MISSING"
+    | "NOT_PLAYED";
+  matchCount: number | null;
+  symbol: string;
+  adopteCoinsDelta: number;
+  adoptantCoinsDelta: number;
+  message: string;
 }
 
 export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
@@ -67,8 +89,29 @@ export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
     action2: RefugeAction;
   } | null; // Inclus uniquement pour l'adopté si adopteSubmittedToday=true
   todayResult?: DayResultData | null; // Résultat du jour courant si une tentative a été soumise
+  dailyResults: DailyResultEntry[]; // État structuré des 7 jours (source de vérité du frontend)
   reveal?: RevealState; // Phase finale (présent dès que la session a un adoptant)
   otherProfile?: RevealedProfile | null; // Uniquement si status === REVEALED
+}
+
+// Entrée de l'historique des adoptions
+export interface RefugeHistoryEntry {
+  sessionId: string;
+  status: RefugeSessionStatus;
+  role: "adopte" | "adoptant";
+  animalType: RefugeAnimalType;
+  startedAt: Date | null;
+  endedAt: Date | null;
+  dailyResults: DailyResultEntry[];
+  heartsCount: number;
+  failuresCount: number;
+  incompleteCount: number;
+  notPlayedCount: number;
+  totalCoinsDelta: number;
+  revealed: boolean;
+  otherUserSummary: { userId: string; pseudo: string } | null; // uniquement si revealed
+  smileState: "NONE" | "SENT" | "RECEIVED" | "MUTUAL";
+  nextStepState: "NONE" | "QUESTIONS_STARTED" | "DISCUSSION_OPEN";
 }
 
 export interface RefugeProposalInput {
