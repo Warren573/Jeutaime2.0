@@ -10,7 +10,7 @@ import { RefugeActionGrid } from "../components/RefugeActionGrid";
 import { RefugeRevealPhase } from "../components/RefugeRevealPhase";
 import { RefugeDayResultIcon } from "../components/RefugeDayResultIcon";
 import { AnimalIllustration, type RefugeAction } from "../components/AnimalIllustration";
-import { BACKEND_ACTION_LABELS, BACKEND_ACTION_ICONS } from "../data/refugeActions";
+import { ACTION_LABELS, BACKEND_ACTION_LABELS, BACKEND_ACTION_ICONS } from "../data/refugeActions";
 import { getBackgroundGradientStyle } from "../data/refugeBackgrounds";
 import { useRefugeAction } from "../hooks/useRefugeAction";
 import { useRefugeActionLog } from "../hooks/useRefugeActionLog";
