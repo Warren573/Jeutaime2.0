@@ -40,6 +40,10 @@ export const DailyChoiceSchema = z.object({
   action2: RefugeActionEnum,
 });
 
+export const RevealConsentSchema = z.object({
+  decision: z.enum(["ACCEPT", "REFUSE"]),
+});
+
 // ============================================================
 // Types extraits
 // ============================================================
@@ -48,3 +52,4 @@ export type ProposeRefugeDto = z.infer<typeof ProposeRefugeSchema>;
 export type AdoptRefugeDto = z.infer<typeof AdoptRefugeSchema>;
 export type GuessDto = z.infer<typeof GuessSchema>;
 export type DailyChoiceDto = z.infer<typeof DailyChoiceSchema>;
+export type RevealConsentDto = z.infer<typeof RevealConsentSchema>;

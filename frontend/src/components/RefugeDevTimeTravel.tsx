@@ -58,14 +58,20 @@ export function RefugeDevTimeTravel({
     }
   };
 
-  const handleReset = async (mode: "reset" | "abandon") => {
+  const handleReset = async (mode: "reset" | "abandon" | "consent") => {
     setLoading(true);
     setMessage("");
 
     try {
       await refugeApi.devResetSession(sessionId, mode);
-      setMessage(mode === "abandon" ? "✅ Session abandonnée." : "✅ Session remise à zéro.");
-      onSessionReset?.();
+      if (mode === "consent") {
+        // On reste sur la session : seuls les consentements sont effacés
+        setMessage("✅ Consentements effacés.");
+        onDayChanged?.(currentDay);
+      } else {
+        setMessage(mode === "abandon" ? "✅ Session abandonnée." : "✅ Session remise à zéro.");
+        onSessionReset?.();
+      }
     } catch (err) {
       setMessage(`❌ Error: ${err instanceof Error ? err.message : "Failed"}`);
     } finally {
@@ -118,6 +124,16 @@ export function RefugeDevTimeTravel({
           disabled={loading}
         >
           <Text style={styles.resetButtonText}>🗑️ Abandonner</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.resetRow}>
+        <TouchableOpacity
+          style={[styles.resetButton, loading && styles.dayButtonDisabled]}
+          onPress={() => handleReset("consent")}
+          disabled={loading}
+        >
+          <Text style={styles.resetButtonText}>↩️ Reset consentements (phase finale)</Text>
         </TouchableOpacity>
       </View>
 

@@ -1,6 +1,6 @@
 import type { Response } from "express";
 import { RefugeService } from "./refuge.service";
-import type { ProposeRefugeDto, AdoptRefugeDto, GuessDto, DailyChoiceDto } from "./refuge.schemas";
+import type { ProposeRefugeDto, AdoptRefugeDto, GuessDto, DailyChoiceDto, RevealConsentDto } from "./refuge.schemas";
 import type { AuthedRequest } from "../../core/types";
 
 // ============================================================
@@ -278,6 +278,42 @@ export class RefugeController {
   }
 
   // ============================================================
+  // POST /api/refuge/:sessionId/reveal-consent
+  // Phase finale — décision de dévoilement (ACCEPT | REFUSE)
+  // ============================================================
+
+  static async submitRevealConsent(req: AuthedRequest, res: Response): Promise<void> {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Non authentifié" });
+      return;
+    }
+
+    const sessionId = req.params.sessionId as string;
+    if (!sessionId) {
+      res.status(400).json({ error: "sessionId requis" });
+      return;
+    }
+
+    const { decision } = req.body as RevealConsentDto;
+
+    try {
+      const session = await RefugeService.submitRevealConsent(sessionId, userId, decision);
+      res.status(200).json({
+        success: true,
+        data: session,
+        message: decision === "ACCEPT" ? "Décision enregistrée" : "Le Refuge se termine ici",
+      });
+    } catch (error: any) {
+      if (error.statusCode) {
+        res.status(error.statusCode).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Erreur interne" });
+      }
+    }
+  }
+
+  // ============================================================
   // DEV MODE: POST /dev/refuge/:sessionId/set-day
   // ============================================================
 
@@ -347,14 +383,16 @@ export class RefugeController {
       return;
     }
 
-    const resetMode = mode === "abandon" ? "abandon" : "reset";
+    const resetMode = mode === "abandon" ? "abandon" : mode === "consent" ? "consent" : "reset";
 
     try {
       const result = await RefugeService.devResetSession(sessionId, userId, resetMode);
+      const label =
+        resetMode === "abandon" ? "abandonnée" : resetMode === "consent" ? "consentements effacés" : "remise à zéro";
       res.status(200).json({
         success: true,
         data: result,
-        message: `[DEV] Session ${resetMode === "abandon" ? "abandonnée" : "remise à zéro"}`,
+        message: `[DEV] Session ${label}`,
       });
     } catch (error: any) {
       if (error.statusCode) {

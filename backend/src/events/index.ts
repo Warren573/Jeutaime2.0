@@ -69,6 +69,13 @@ export interface ReportCreatedPayload {
   reason: string;
 }
 
+export interface RefugeRevealedPayload {
+  refugeSessionId: string;
+  adopteId: string;
+  adoptantId: string;
+  revealedAt: Date;
+}
+
 // ============================================================
 // Map des événements → types de payload
 // ============================================================
@@ -82,6 +89,7 @@ interface JeuTaimeEventMap {
   premiumSubscribed: [PremiumSubscribedPayload];
   premiumCancelled: [PremiumCancelledPayload];
   reportCreated: [ReportCreatedPayload];
+  refugeRevealed: [RefugeRevealedPayload];
 }
 
 // ============================================================
@@ -131,6 +139,10 @@ export function emitOfferingSent(payload: OfferingSentPayload): void {
 
 export function emitMagieCast(payload: MagieCastPayload): void {
   emitter.emit("magieCast", payload);
+}
+
+export function emitRefugeRevealed(payload: RefugeRevealedPayload): void {
+  emitter.emit("refugeRevealed", payload);
 }
 
 export function emitMagieBroken(payload: MagieBrokenPayload): void {

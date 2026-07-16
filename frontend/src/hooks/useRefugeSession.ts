@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useStore } from "../store/useStore";
 import { refugeApi } from "../api/refuge-api";
 import { ACTION_TO_BACKEND, type RefugeActionType } from "../data/refugeActions";
@@ -27,6 +26,18 @@ interface RefugeSessionState {
     reward: number;
     emoji: string;
   } | null;
+  reveal: {
+    available: boolean;
+    myDecision: "ACCEPT" | "REFUSE" | null;
+    otherDecided: boolean;
+    revealedAt: string | null;
+  } | null;
+  otherProfile: {
+    userId: string;
+    pseudo: string;
+    bio: string | null;
+    city: string | null;
+  } | null;
   role: "adopte" | "adoptant" | null;
   isLoading: boolean;
   error: string | null;
@@ -48,6 +59,8 @@ export function useRefugeSession(sessionId: string | null) {
     companion: null,
     todayActions: null,
     todayResult: null,
+    reveal: null,
+    otherProfile: null,
     role: null,
     isLoading: true,
     error: null,
@@ -62,14 +75,6 @@ export function useRefugeSession(sessionId: string | null) {
   const currentDayRef = useRef(state.currentDay);
   currentDayRef.current = state.currentDay;
 
-  // Fonction helper pour obtenir le token (utilisé par revealProfiles)
-  const getAuthHeaders = useCallback(async () => {
-    const token = await AsyncStorage.getItem("auth_token");
-    return {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-  }, []);
 
   // Récupérer le statut de la session
   const fetchSessionStatus = useCallback(async () => {
@@ -108,6 +113,8 @@ export function useRefugeSession(sessionId: string | null) {
         },
         todayActions: data.todayActions ?? null,
         todayResult: data.todayResult ?? null,
+        reveal: data.reveal ?? null,
+        otherProfile: data.otherProfile ?? null,
         role,
         isLoading: false,
         error: null,
@@ -203,34 +210,32 @@ export function useRefugeSession(sessionId: string | null) {
     [sessionId, fetchSessionStatus]
   );
 
-  // Révéler les profils
-  const revealProfiles = useCallback(async () => {
-    if (!sessionId) return null;
+  // Phase finale — soumettre sa décision de dévoilement.
+  // Le serveur est la seule source de vérité : on renvoie son état tel quel.
+  const submitRevealConsent = useCallback(
+    async (decision: "ACCEPT" | "REFUSE") => {
+      if (!sessionId) return false;
+      if (isSubmittingRef.current) return false;
+      isSubmittingRef.current = true;
 
-    try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(
-        `/api/refuge/sessions/${sessionId}/reveal`,
-        {
-          method: "POST",
-          headers,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to reveal profiles");
+      try {
+        await refugeApi.submitRevealConsent(sessionId, decision);
+        await fetchSessionStatus();
+        return true;
+      } catch (err: any) {
+        setState((prev) => ({
+          ...prev,
+          error: err?.message || "Erreur lors de l'enregistrement de la décision",
+        }));
+        // Resynchroniser quand même (l'autre a pu terminer la session entre-temps)
+        await fetchSessionStatus();
+        return false;
+      } finally {
+        isSubmittingRef.current = false;
       }
-
-      const data = await response.json();
-      return data;
-    } catch (err) {
-      setState((prev) => ({
-        ...prev,
-        error: "Erreur lors du dévoilement",
-      }));
-      return null;
-    }
-  }, [sessionId, getAuthHeaders]);
+    },
+    [sessionId, fetchSessionStatus]
+  );
 
   // Changer le fond d'ambiance (Adopté uniquement)
   const changeBackground = useCallback(
@@ -265,7 +270,7 @@ export function useRefugeSession(sessionId: string | null) {
     fetchSessionStatus,
     submitDailyChoice,
     submitGuess,
-    revealProfiles,
+    submitRevealConsent,
     changeBackground,
   };
 }

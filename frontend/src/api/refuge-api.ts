@@ -33,6 +33,20 @@ export interface RefugeSession {
     reward: number;
     emoji: string;
   } | null;
+  // Phase finale — état du consentement au dévoilement (vu par MOI)
+  reveal?: {
+    available: boolean;
+    myDecision: "ACCEPT" | "REFUSE" | null;
+    otherDecided: boolean;
+    revealedAt: string | null;
+  };
+  // Profil de l'autre — uniquement si status === REVEALED
+  otherProfile?: {
+    userId: string;
+    pseudo: string;
+    bio: string | null;
+    city: string | null;
+  } | null;
 }
 
 export interface ProposeRefugeRequest {
@@ -141,10 +155,20 @@ export const refugeApi = {
     return response?.data;
   },
 
+  // Phase finale — soumettre sa décision de dévoilement (ACCEPT | REFUSE)
+  async submitRevealConsent(sessionId: string, decision: "ACCEPT" | "REFUSE"): Promise<RefugeSession> {
+    const response = await apiFetch(`/refuge/${sessionId}/reveal-consent`, {
+      method: "POST",
+      body: JSON.stringify({ decision }),
+    });
+    return response?.data;
+  },
+
   // DEV uniquement — remise à zéro contrôlée d'une session de test
   // mode "reset": repasse en WAITING_FOR_ADOPTANT (choix/tentatives purgés)
   // mode "abandon": clôt définitivement la session de test
-  async devResetSession(sessionId: string, mode: "reset" | "abandon" = "reset"): Promise<RefugeSession> {
+  // mode "consent": efface uniquement les décisions de dévoilement (phase finale)
+  async devResetSession(sessionId: string, mode: "reset" | "abandon" | "consent" = "reset"): Promise<RefugeSession> {
     const response = await apiFetch(`/refuge/dev/${sessionId}/reset`, {
       method: "POST",
       body: JSON.stringify({ mode }),

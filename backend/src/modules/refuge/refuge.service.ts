@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma";
+import { emitRefugeRevealed } from "../../events";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
 import { RefugeSessionStatus, RefugeAction, Gender, RefugeBackground, type RefugeDailyChoice } from "@prisma/client";
 import type { RefugeSessionDTO, RefugeSessionWithMetadata, RefugeProposalInput } from "./refuge.types";
@@ -321,7 +322,10 @@ export class RefugeService {
     const currentDay = getCurrentDay(refugeSession.createdAt, refugeSession.startedAt, now);
     const timeRemaining = getTimeRemaining(refugeSession.endsAt || new Date(), now);
     const isActive = refugeSession.status === RefugeSessionStatus.ACTIVE && !isRefugeExpired(refugeSession.endsAt);
-    const isCompleted = refugeSession.status === RefugeSessionStatus.COMPLETED || refugeSession.status === RefugeSessionStatus.ABANDONED;
+    const isCompleted =
+      refugeSession.status === RefugeSessionStatus.COMPLETED ||
+      refugeSession.status === RefugeSessionStatus.REVEALED ||
+      refugeSession.status === RefugeSessionStatus.ABANDONED;
 
     // Lecture pure : le flag "l'Adopté a soumis aujourd'hui" est visible des deux
     // participants (l'Adoptant en a besoin pour savoir s'il peut tenter) ; en
@@ -357,6 +361,50 @@ export class RefugeService {
       }
     }
 
+    // Phase finale — état du consentement vu par CE participant.
+    // Confidentialité : la décision de l'autre n'est exposée que comme booléen
+    // ("a répondu"), jamais en détail tant que la session n'est pas terminée.
+    const isAdopte = userId === refugeSession.adopteId;
+    const myDecision = isAdopte
+      ? refugeSession.adopteRevealDecision
+      : refugeSession.adoptantRevealDecision;
+    const otherDecision = isAdopte
+      ? refugeSession.adoptantRevealDecision
+      : refugeSession.adopteRevealDecision;
+
+    const revealAvailable =
+      (refugeSession.status === RefugeSessionStatus.ACTIVE ||
+        refugeSession.status === RefugeSessionStatus.AWAITING_REVEAL_CONSENT ||
+        refugeSession.status === RefugeSessionStatus.REVEALED ||
+        refugeSession.status === RefugeSessionStatus.COMPLETED) &&
+      this.isRevealPhaseReached(refugeSession, refugeSession.guesses);
+
+    const reveal = {
+      available: revealAvailable,
+      myDecision,
+      otherDecided: otherDecision !== null,
+      revealedAt: refugeSession.revealedAt,
+    };
+
+    // Profil de l'autre : UNIQUEMENT après accord mutuel (status REVEALED),
+    // champs publics seulement — jamais avant, pour aucun des deux.
+    let otherProfile = null;
+    if (refugeSession.status === RefugeSessionStatus.REVEALED && refugeSession.adoptantId) {
+      const otherUserId = isAdopte ? refugeSession.adoptantId : refugeSession.adopteId;
+      const otherUser = await prisma.user.findUnique({
+        where: { id: otherUserId },
+        select: { id: true, profile: { select: { pseudo: true, bio: true, city: true } } },
+      });
+      if (otherUser) {
+        otherProfile = {
+          userId: otherUser.id,
+          pseudo: otherUser.profile?.pseudo || "Anonyme",
+          bio: otherUser.profile?.bio ?? null,
+          city: otherUser.profile?.city ?? null,
+        };
+      }
+    }
+
     return {
       ...this.mapToDTO(refugeSession),
       currentDay,
@@ -367,8 +415,10 @@ export class RefugeService {
       canAttemptToday,
       todaySubmitted,
       adopteSubmittedToday,
+      reveal,
       ...(todayActions && { todayActions }),
       ...(todayResult && { todayResult }),
+      ...(otherProfile && { otherProfile }),
     };
   }
 
@@ -377,12 +427,14 @@ export class RefugeService {
   // ============================================================
 
   static async getActiveRefugeSession(userId: string): Promise<RefugeSessionDTO | null> {
-    // Priorité 1 : une session ACTIVE (jeu en cours) prime toujours sur une
-    // proposition en attente — les deux participants doivent résoudre vers
-    // la même session après l'adoption, même si d'anciennes propositions traînent.
+    // Priorité 1 : une session en cours (jeu actif ou phase finale de
+    // consentement) prime toujours sur une proposition en attente — les deux
+    // participants doivent résoudre vers la même session, même si d'anciennes
+    // propositions traînent. AWAITING_REVEAL_CONSENT reste "en cours" : la
+    // décision de dévoilement peut prendre plusieurs jours.
     const activeSession = await prisma.refugeSession.findFirst({
       where: {
-        status: RefugeSessionStatus.ACTIVE,
+        status: { in: [RefugeSessionStatus.ACTIVE, RefugeSessionStatus.AWAITING_REVEAL_CONSENT] },
         OR: [{ adopteId: userId }, { adoptantId: userId }],
       },
       orderBy: { startedAt: "desc" },
@@ -401,7 +453,22 @@ export class RefugeService {
       orderBy: { createdAt: "desc" },
     });
 
-    return openProposal ? this.mapToDTO(openProposal) : null;
+    if (openProposal) {
+      return this.mapToDTO(openProposal);
+    }
+
+    // Priorité 3 : une session RÉVÉLÉE reste consultable (les profils dévoilés)
+    // tant que l'utilisateur n'a pas relancé de refuge — sinon un rechargement
+    // juste après la révélation la ferait disparaître définitivement.
+    const revealedSession = await prisma.refugeSession.findFirst({
+      where: {
+        status: RefugeSessionStatus.REVEALED,
+        OR: [{ adopteId: userId }, { adoptantId: userId }],
+      },
+      orderBy: { revealedAt: "desc" },
+    });
+
+    return revealedSession ? this.mapToDTO(revealedSession) : null;
   }
 
   // ============================================================
@@ -650,6 +717,123 @@ export class RefugeService {
   }
 
   // ============================================================
+  // Phase finale — consentement mutuel au dévoilement des profils
+  // ============================================================
+
+  // Le jour 7 est "terminé" quand la tentative du jour 7 a été jouée,
+  // ou quand la durée de la session est écoulée sans qu'elle l'ait été.
+  private static isRevealPhaseReached(
+    refugeSession: { startedAt: Date | null; createdAt: Date; endsAt: Date | null; adoptantId: string | null },
+    guesses: { dayNumber: number }[]
+  ): boolean {
+    if (!refugeSession.adoptantId) return false;
+    const currentDay = getCurrentDay(refugeSession.createdAt, refugeSession.startedAt, new Date());
+    if (currentDay < REFUGE_DURATION_DAYS) return false;
+    const lastDayPlayed = guesses.some((g) => g.dayNumber === REFUGE_DURATION_DAYS);
+    return lastDayPlayed || isRefugeExpired(refugeSession.endsAt);
+  }
+
+  static async submitRevealConsent(
+    refugeSessionId: string,
+    userId: string,
+    decision: "ACCEPT" | "REFUSE"
+  ): Promise<RefugeSessionWithMetadata> {
+    const refugeSession = await prisma.refugeSession.findUnique({
+      where: { id: refugeSessionId },
+      include: { guesses: true },
+    });
+
+    if (!refugeSession) {
+      throw new NotFoundError("Refuge non trouvé");
+    }
+
+    const isAdopte = userId === refugeSession.adopteId;
+    const isAdoptant = userId === refugeSession.adoptantId;
+    if (!isAdopte && !isAdoptant) {
+      throw new ForbiddenError("Tu n'as accès à ce refuge");
+    }
+
+    const myDecision = isAdopte
+      ? refugeSession.adopteRevealDecision
+      : refugeSession.adoptantRevealDecision;
+
+    // Idempotence : re-soumettre la même décision (double clic, retry réseau)
+    // renvoie simplement l'état courant. Changer d'avis est refusé.
+    if (myDecision) {
+      if (myDecision === decision) {
+        return this.getRefugeSession(refugeSessionId, userId);
+      }
+      throw new ConflictError("Ta décision est déjà enregistrée");
+    }
+
+    if (
+      refugeSession.status !== RefugeSessionStatus.ACTIVE &&
+      refugeSession.status !== RefugeSessionStatus.AWAITING_REVEAL_CONSENT
+    ) {
+      throw new ConflictError("Cette session est terminée");
+    }
+
+    if (!this.isRevealPhaseReached(refugeSession, refugeSession.guesses)) {
+      throw new ConflictError("Le jour 7 n'est pas encore terminé");
+    }
+
+    const myField = isAdopte ? "adopteRevealDecision" : "adoptantRevealDecision";
+
+    if (decision === "REFUSE") {
+      // Refus → fin propre, aucune donnée révélée. Garde conditionnelle : ne
+      // s'applique que si la session est encore ouverte et ma décision absente.
+      await prisma.refugeSession.updateMany({
+        where: {
+          id: refugeSessionId,
+          status: { in: [RefugeSessionStatus.ACTIVE, RefugeSessionStatus.AWAITING_REVEAL_CONSENT] },
+          [myField]: null,
+        },
+        data: { [myField]: "REFUSE", status: RefugeSessionStatus.COMPLETED },
+      });
+    } else {
+      // ACCEPT : enregistrer ma décision (garde conditionnelle contre les courses)
+      await prisma.refugeSession.updateMany({
+        where: {
+          id: refugeSessionId,
+          status: { in: [RefugeSessionStatus.ACTIVE, RefugeSessionStatus.AWAITING_REVEAL_CONSENT] },
+          [myField]: null,
+        },
+        data: { [myField]: "ACCEPT", status: RefugeSessionStatus.AWAITING_REVEAL_CONSENT },
+      });
+
+      // Promotion atomique : REVEALED si et seulement si les deux ont accepté.
+      // Le WHERE status=AWAITING_REVEAL_CONSENT garantit qu'une seule des deux
+      // requêtes concurrentes effectue la transition (count=1) : revealedAt est
+      // posé une seule fois et l'événement métier émis une seule fois.
+      const promoted = await prisma.refugeSession.updateMany({
+        where: {
+          id: refugeSessionId,
+          status: RefugeSessionStatus.AWAITING_REVEAL_CONSENT,
+          adopteRevealDecision: "ACCEPT",
+          adoptantRevealDecision: "ACCEPT",
+          revealedAt: null,
+        },
+        data: { status: RefugeSessionStatus.REVEALED, revealedAt: new Date() },
+      });
+
+      if (promoted.count === 1 && refugeSession.adoptantId) {
+        const revealed = await prisma.refugeSession.findUnique({
+          where: { id: refugeSessionId },
+          select: { revealedAt: true },
+        });
+        emitRefugeRevealed({
+          refugeSessionId,
+          adopteId: refugeSession.adopteId,
+          adoptantId: refugeSession.adoptantId,
+          revealedAt: revealed?.revealedAt ?? new Date(),
+        });
+      }
+    }
+
+    return this.getRefugeSession(refugeSessionId, userId);
+  }
+
+  // ============================================================
   // Révélation préparatoire (sans cron)
   // ============================================================
 
@@ -788,7 +972,7 @@ export class RefugeService {
   static async devResetSession(
     refugeSessionId: string,
     userId: string,
-    mode: "reset" | "abandon"
+    mode: "reset" | "abandon" | "consent"
   ): Promise<RefugeSessionDTO> {
     const refugeSession = await prisma.refugeSession.findUnique({
       where: { id: refugeSessionId },
@@ -801,6 +985,21 @@ export class RefugeService {
     // Seul un participant de la session peut la réinitialiser
     if (userId !== refugeSession.adopteId && userId !== refugeSession.adoptantId) {
       throw new ForbiddenError("Tu n'as accès à ce refuge");
+    }
+
+    // Mode "consent" : efface uniquement les décisions de dévoilement pour
+    // rejouer les scénarios de la phase finale (les jours joués sont conservés).
+    if (mode === "consent") {
+      const updated = await prisma.refugeSession.update({
+        where: { id: refugeSessionId },
+        data: {
+          adopteRevealDecision: null,
+          adoptantRevealDecision: null,
+          revealedAt: null,
+          status: RefugeSessionStatus.ACTIVE,
+        },
+      });
+      return this.mapToDTO(updated);
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -820,6 +1019,9 @@ export class RefugeService {
             startedAt: null,
             lastAdopteActivityAt: new Date(),
             lastAdoptantActivityAt: null,
+            adopteRevealDecision: null,
+            adoptantRevealDecision: null,
+            revealedAt: null,
           },
         });
       }
@@ -834,6 +1036,9 @@ export class RefugeService {
           endsAt: calculateRefugeEndsAt(new Date()),
           lastAdopteActivityAt: new Date(),
           lastAdoptantActivityAt: null,
+          adopteRevealDecision: null,
+          adoptantRevealDecision: null,
+          revealedAt: null,
         },
       });
     });

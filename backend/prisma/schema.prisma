@@ -888,8 +888,15 @@ enum RefugeSessionStatus {
   CREATION
   WAITING_FOR_ADOPTANT
   ACTIVE
+  AWAITING_REVEAL_CONSENT
+  REVEALED
   COMPLETED
   ABANDONED
+}
+
+enum RefugeRevealDecision {
+  ACCEPT
+  REFUSE
 }
 
 enum RefugePreexistingLinkType {
@@ -939,6 +946,11 @@ model RefugeSession {
 
   // Esthétique
   background                RefugeBackground            @default(FORET)
+
+  // Phase finale — consentement au dévoilement des profils (jour 7 terminé)
+  adopteRevealDecision      RefugeRevealDecision?
+  adoptantRevealDecision    RefugeRevealDecision?
+  revealedAt                DateTime?
 
   // Relations
   dailyChoices              RefugeDailyChoice[]

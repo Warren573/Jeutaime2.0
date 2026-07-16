@@ -7,6 +7,7 @@ import { BouncyButton } from "../components/BouncyButton";
 import { BackgroundPicker } from "../components/BackgroundPicker";
 import { RefugeDevTimeTravel } from "../components/RefugeDevTimeTravel";
 import { RefugeActionGrid } from "../components/RefugeActionGrid";
+import { RefugeRevealPhase } from "../components/RefugeRevealPhase";
 import { AnimalIllustration, type RefugeAction } from "../components/AnimalIllustration";
 import { BACKEND_ACTION_LABELS, BACKEND_ACTION_ICONS } from "../data/refugeActions";
 import { getBackgroundGradientStyle } from "../data/refugeBackgrounds";
@@ -54,7 +55,6 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [heartPulse, setHeartPulse] = useState(false);
-  const [otherUserProfile, setOtherUserProfile] = useState<any>(null);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
 
   const handleAdopteSubmit = async () => {
@@ -93,27 +93,19 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   const handleAdoptantSubmit = async () => {
     if (selectedGuessActions.length !== 2 || isSubmitting) return;
 
-    // Soumettre la tentative de l'Adoptant au serveur (POST /refuge/guess)
+    // Soumettre la tentative de l'Adoptant au serveur (POST /refuge/guess).
+    // Après le jour 7, le serveur expose reveal.available : la phase finale
+    // de consentement s'affiche alors — aucune révélation automatique.
     setIsSubmitting(true);
-    const success = await refugeSession.submitGuess(selectedGuessActions);
+    await refugeSession.submitGuess(selectedGuessActions);
     setIsSubmitting(false);
+  };
 
-    if (success) {
-      // Si c'est le jour 7, préparer la révélation
-      if (refugeSession.currentDay === 7) {
-        setTimeout(async () => {
-          const revealed = await refugeSession.revealProfiles();
-          if (revealed) {
-            setOtherUserProfile(revealed.otherUserProfile);
-            // Naviguer vers l'écran de révélation des profils
-            router.push({
-              pathname: "/refuge/profile-reveal",
-              params: { profile: JSON.stringify(revealed.otherUserProfile) },
-            });
-          }
-        }, 2000);
-      }
-    }
+  const handleRevealDecision = async (decision: "ACCEPT" | "REFUSE") => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    await refugeSession.submitRevealConsent(decision);
+    setIsSubmitting(false);
   };
 
   if (refugeSession.isLoading) {
@@ -256,8 +248,22 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
           </View>
         )}
 
+        {/* PHASE FINALE: jour 7 terminé → consentement mutuel au dévoilement.
+            L'état vient exclusivement du serveur (reveal.available). */}
+        {refugeSession.reveal?.available && (
+          <RefugeRevealPhase
+            status={refugeSession.status}
+            reveal={refugeSession.reveal}
+            hearts={hearts}
+            otherProfile={refugeSession.otherProfile}
+            isSubmitting={isSubmitting}
+            onDecision={handleRevealDecision}
+            onExit={() => router.replace('/(tabs)/social')}
+          />
+        )}
+
         {/* ADOPTÉ: Display today's server-generated actions (read-only) */}
-        {refugeSession.role === "adopte" && (
+        {!refugeSession.reveal?.available && refugeSession.role === "adopte" && (
           <View style={styles.adopteCard}>
             {isWaitingForAdoptant ? (
               <>
@@ -313,7 +319,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
         )}
 
         {/* ADOPTANT: Guess today's two actions */}
-        {refugeSession.role === "adoptant" && !isWaitingForAdoptant && (
+        {!refugeSession.reveal?.available && refugeSession.role === "adoptant" && !isWaitingForAdoptant && (
           <View style={styles.adoptantCard}>
             <Text style={styles.questionText}>Que veut-il faire aujourd&apos;hui ?</Text>
 

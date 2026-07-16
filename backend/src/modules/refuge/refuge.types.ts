@@ -28,6 +28,24 @@ export interface DayResultData {
   emoji: string; // ❌, ❤️, or 🤍
 }
 
+// Phase finale — état du consentement au dévoilement, vu par UN participant.
+// otherDecided est volontairement un booléen : on n'expose jamais la décision
+// détaillée de l'autre tant que la session n'a pas atteint un état final.
+export interface RevealState {
+  available: boolean; // jour 7 terminé → le consentement peut être donné
+  myDecision: "ACCEPT" | "REFUSE" | null;
+  otherDecided: boolean;
+  revealedAt: Date | null;
+}
+
+// Profil dévoilé après accord mutuel — champs publics uniquement
+export interface RevealedProfile {
+  userId: string;
+  pseudo: string;
+  bio: string | null;
+  city: string | null;
+}
+
 export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
   currentDay: number; // 1-7 ou 0 si pas commencé
   timeRemaining: {
@@ -45,6 +63,8 @@ export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
     action2: RefugeAction;
   } | null; // Inclus uniquement pour l'adopté si adopteSubmittedToday=true
   todayResult?: DayResultData | null; // Résultat du jour courant si une tentative a été soumise
+  reveal?: RevealState; // Phase finale (présent dès que la session a un adoptant)
+  otherProfile?: RevealedProfile | null; // Uniquement si status === REVEALED
 }
 
 export interface RefugeProposalInput {

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
-import { ProposeRefugeSchema, AdoptRefugeSchema, GuessSchema, DailyChoiceSchema } from "./refuge.schemas";
+import { ProposeRefugeSchema, AdoptRefugeSchema, GuessSchema, DailyChoiceSchema, RevealConsentSchema } from "./refuge.schemas";
 import { RefugeController } from "./refuge.controller";
 import type { AuthedRequest } from "../../core/types";
 
@@ -54,6 +54,14 @@ router.post("/daily-choice", validate(DailyChoiceSchema), wrap(RefugeController.
 // POST /api/refuge/guess
 // Adoptant soumet sa tentative du jour (retrouver les 2 actions de l'Adopté)
 router.post("/guess", validate(GuessSchema), wrap(RefugeController.submitGuess));
+
+// POST /api/refuge/:sessionId/reveal-consent
+// Phase finale — chaque participant accepte ou refuse le dévoilement des profils
+router.post(
+  "/:sessionId/reveal-consent",
+  validate(RevealConsentSchema),
+  wrap(RefugeController.submitRevealConsent)
+);
 
 // ============================================================
 // DEV MODE ROUTES - Time Travel (only if REFUGE_DEV_TIME_TRAVEL=true)
