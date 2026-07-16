@@ -224,10 +224,8 @@ function RevealAnimation({ animalType, otherProfile, onFinished }: { animalType?
   const smoke3Opacity = useRef(new Animated.Value(0)).current;
   const smoke3Scale = useRef(new Animated.Value(1)).current;
 
-  const avatarScale = useRef(new Animated.Value(0.3)).current;
-  const avatarOpacity = useRef(new Animated.Value(0)).current;
-  const pseudoScale = useRef(new Animated.Value(0.3)).current;
-  const pseudoOpacity = useRef(new Animated.Value(0)).current;
+  const contentScale = useRef(new Animated.Value(0.3)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
 
   const finishedRef = useRef(false);
 
@@ -285,10 +283,8 @@ function RevealAnimation({ animalType, otherProfile, onFinished }: { animalType?
 
       // Phase 3: Avatar + Pseudo appear small and grow (800ms)
       Animated.parallel([
-        Animated.timing(avatarOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(avatarScale, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(pseudoOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(pseudoScale, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(contentOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(contentScale, { toValue: 1, duration: 800, useNativeDriver: true }),
       ]),
 
       Animated.delay(300),
@@ -328,8 +324,8 @@ function RevealAnimation({ animalType, otherProfile, onFinished }: { animalType?
             style={[
               styles.revealContentWrapper,
               {
-                opacity: avatarOpacity,
-                transform: [{ scale: avatarScale }],
+                opacity: contentOpacity,
+                transform: [{ scale: contentScale }],
               },
             ]}
           >
