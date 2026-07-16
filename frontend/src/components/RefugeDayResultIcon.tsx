@@ -1,10 +1,8 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-type DailyResultStatus = "COMPLETE" | "PARTIAL" | "INCOMPLETE" | "NOT_PLAYED";
-
 interface RefugeDayResultIconProps {
-  status: DailyResultStatus;
+  status: string;
   symbol: string;
   size?: number;
 }

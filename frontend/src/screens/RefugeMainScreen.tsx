@@ -923,4 +923,45 @@ const styles = StyleSheet.create({
     color: "#8B6F47",
     fontWeight: "600",
   },
+
+  /* Écran final — résumé discret des 7 jours */
+  finalSummaryRow: {
+    flexDirection: "row" as const,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  finalSummarySymbol: {
+    fontSize: 20,
+  },
+
+  /* Résultat quotidien — simple bandeau d'information */
+  todayResultContainer: {
+    flexDirection: "row" as const,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    borderRadius: 8,
+  },
+  resultEmoji: {
+    fontSize: 18,
+  },
+  resultMessage: {
+    flexShrink: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+  },
+  rewardText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#CC8A00",
+  },
 });
