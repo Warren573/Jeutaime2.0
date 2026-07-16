@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BouncyButton } from "./BouncyButton";
 import { sendReaction } from "../api/reactions";
 import { API_URL } from "../api/client";
+import { ANIMAL_PNG_FILENAME } from "../data/refugeAnimals";
 
 interface RevealStateProps {
   available: boolean;
@@ -33,6 +34,7 @@ interface RefugeRevealPhaseProps {
   onDecision: (decision: "ACCEPT" | "REFUSE") => void;
   onViewProfile: (userId: string) => void;
   onExit: () => void;
+  animalType?: string;
 }
 
 /**
@@ -55,6 +57,7 @@ export function RefugeRevealPhase({
   onDecision,
   onViewProfile,
   onExit,
+  animalType,
 }: RefugeRevealPhaseProps) {
   // null = flag pas encore lu (ne rien décider avant), true/false ensuite
   const [revealSeen, setRevealSeen] = useState<boolean | null>(null);
@@ -97,7 +100,7 @@ export function RefugeRevealPhase({
     }
     return (
       <View style={styles.card}>
-        {!revealSeen && <RevealAnimation hearts={hearts} onFinished={markSeen} />}
+        {!revealSeen && <RevealAnimation animalType={animalType} otherProfile={otherProfile} onFinished={markSeen} />}
 
         <Text style={styles.title}>Vous avez choisi de vous découvrir.</Text>
 
@@ -207,16 +210,29 @@ export function RefugeRevealPhase({
 }
 
 /**
- * Dévoilement : l'écran s'assombrit, les 7 cœurs apparaissent en rappel,
- * une lueur douce pulse, puis transition vers les profils révélés.
- * Jouée UNE seule fois : onFinished persiste le flag.
+ * Dévoilement : animal PNG 1s → pouf fumée → avatar+pseudo grandissent.
+ * Jouée UNE seule fois : onFinished persiste le flag via AsyncStorage.
  */
-function RevealAnimation({ hearts, onFinished }: { hearts: string[]; onFinished: () => void }) {
-  const dimOpacity = useRef(new Animated.Value(0)).current;
-  const heartsOpacity = useRef(new Animated.Value(0)).current;
-  const glowOpacity = useRef(new Animated.Value(0)).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
+function RevealAnimation({ animalType, otherProfile, onFinished }: { animalType?: string; otherProfile: OtherProfileProps | null; onFinished: () => void }) {
+  const animalOpacity = useRef(new Animated.Value(1)).current;
+  const animalScale = useRef(new Animated.Value(1)).current;
+
+  const smoke1Opacity = useRef(new Animated.Value(0)).current;
+  const smoke1Scale = useRef(new Animated.Value(1)).current;
+  const smoke2Opacity = useRef(new Animated.Value(0)).current;
+  const smoke2Scale = useRef(new Animated.Value(1)).current;
+  const smoke3Opacity = useRef(new Animated.Value(0)).current;
+  const smoke3Scale = useRef(new Animated.Value(1)).current;
+
+  const avatarScale = useRef(new Animated.Value(0.3)).current;
+  const avatarOpacity = useRef(new Animated.Value(0)).current;
+  const pseudoScale = useRef(new Animated.Value(0.3)).current;
+  const pseudoOpacity = useRef(new Animated.Value(0)).current;
+
   const finishedRef = useRef(false);
+
+  const animalFilename = animalType && ANIMAL_PNG_FILENAME[animalType as keyof typeof ANIMAL_PNG_FILENAME];
+  const animalUri = animalFilename ? `/refuge/${animalFilename}` : null;
 
   useEffect(() => {
     const finish = () => {
@@ -225,47 +241,113 @@ function RevealAnimation({ hearts, onFinished }: { hearts: string[]; onFinished:
         onFinished();
       }
     };
+
     Animated.sequence([
-      Animated.timing(dimOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
-      Animated.timing(heartsOpacity, { toValue: 1, duration: 900, useNativeDriver: true }),
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowOpacity, { toValue: 0.9, duration: 700, useNativeDriver: true }),
-          Animated.timing(glowOpacity, { toValue: 0.25, duration: 700, useNativeDriver: true }),
-        ]),
-        { iterations: 2 }
-      ),
-      Animated.timing(textOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
-      Animated.delay(1200),
+      // Phase 1: Animal visible 1 second (no action)
+      Animated.delay(1000),
+
+      // Phase 2: Smoke pouf effect (600ms) - animal fades out while smoke appears
       Animated.parallel([
-        Animated.timing(dimOpacity, { toValue: 0, duration: 700, useNativeDriver: true }),
-        Animated.timing(heartsOpacity, { toValue: 0, duration: 700, useNativeDriver: true }),
-        Animated.timing(glowOpacity, { toValue: 0, duration: 700, useNativeDriver: true }),
-        Animated.timing(textOpacity, { toValue: 0, duration: 700, useNativeDriver: true }),
+        Animated.timing(animalOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(smoke1Opacity, { toValue: 0.6, duration: 100, useNativeDriver: true }),
+            Animated.timing(smoke1Scale, { toValue: 1.4, duration: 100, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(smoke1Opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+            Animated.timing(smoke1Scale, { toValue: 2, duration: 300, useNativeDriver: true }),
+          ]),
+        ]),
+        Animated.sequence([
+          Animated.delay(50),
+          Animated.parallel([
+            Animated.timing(smoke2Opacity, { toValue: 0.5, duration: 100, useNativeDriver: true }),
+            Animated.timing(smoke2Scale, { toValue: 1.6, duration: 100, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(smoke2Opacity, { toValue: 0, duration: 350, useNativeDriver: true }),
+            Animated.timing(smoke2Scale, { toValue: 2.2, duration: 350, useNativeDriver: true }),
+          ]),
+        ]),
+        Animated.sequence([
+          Animated.delay(100),
+          Animated.parallel([
+            Animated.timing(smoke3Opacity, { toValue: 0.4, duration: 100, useNativeDriver: true }),
+            Animated.timing(smoke3Scale, { toValue: 1.3, duration: 100, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(smoke3Opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+            Animated.timing(smoke3Scale, { toValue: 2.1, duration: 300, useNativeDriver: true }),
+          ]),
+        ]),
       ]),
+
+      // Phase 3: Avatar + Pseudo appear small and grow (800ms)
+      Animated.parallel([
+        Animated.timing(avatarOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(avatarScale, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pseudoOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pseudoScale, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ]),
+
+      Animated.delay(300),
     ]).start(finish);
 
-    // Garde-fou : quoi qu'il arrive (animation interrompue), le flag est posé
-    const failsafe = setTimeout(finish, 10000);
+    const failsafe = setTimeout(finish, 5000);
     return () => clearTimeout(failsafe);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <Modal transparent animationType="none" visible>
-      <Animated.View style={[styles.overlay, { opacity: dimOpacity }]}>
-        <Animated.View style={[styles.glow, { opacity: glowOpacity }]} />
-        <Animated.View style={[styles.overlayHearts, { opacity: heartsOpacity }]}>
-          {hearts.map((heart, idx) => (
-            <Text key={idx} style={styles.overlayHeart}>
-              {heart}
-            </Text>
-          ))}
-        </Animated.View>
-        <Animated.Text style={[styles.overlayText, { opacity: textOpacity }]}>
-          Vous avez choisi de vous découvrir.
-        </Animated.Text>
-      </Animated.View>
+      <View style={styles.revealOverlay}>
+        {/* Phase 1: Animal PNG */}
+        {animalUri && (
+          <Animated.View style={[{ opacity: animalOpacity, transform: [{ scale: animalScale }] }]}>
+            <Image source={{ uri: animalUri }} style={styles.revealAnimal} resizeMode="contain" />
+          </Animated.View>
+        )}
+
+        {/* Phase 2: Smoke puffs */}
+        {[smoke1Opacity, smoke2Opacity, smoke3Opacity].map((opacity, idx) => (
+          <Animated.View
+            key={idx}
+            style={[
+              styles.smokePuff,
+              {
+                opacity: [smoke1Opacity, smoke2Opacity, smoke3Opacity][idx],
+                transform: [{ scale: [smoke1Scale, smoke2Scale, smoke3Scale][idx] }],
+              },
+            ]}
+          />
+        ))}
+
+        {/* Phase 3: Avatar + Pseudo growing */}
+        {otherProfile && (
+          <Animated.View
+            style={[
+              styles.revealContentWrapper,
+              {
+                opacity: avatarOpacity,
+                transform: [{ scale: avatarScale }],
+              },
+            ]}
+          >
+            {/* Avatar */}
+            <View style={styles.revealAvatarContainer}>
+              {otherProfile.photoUrl ? (
+                <Image source={{ uri: `${API_URL.replace(/\/api$/, "")}${otherProfile.photoUrl}` }} style={styles.revealAvatar} resizeMode="cover" />
+              ) : (
+                <View style={styles.revealAvatarPlaceholder}>
+                  <Text style={styles.revealAvatarEmoji}>👤</Text>
+                </View>
+              )}
+            </View>
+            {/* Pseudo */}
+            <Text style={styles.revealPseudo}>{otherProfile.pseudo}</Text>
+          </Animated.View>
+        )}
+      </View>
     </Modal>
   );
 }
@@ -438,32 +520,55 @@ const styles = StyleSheet.create({
     color: "#6B5417",
   },
 
-  /* Animation de dévoilement */
-  overlay: {
+  /* Nouvelle animation de dévoilement */
+  revealOverlay: {
     flex: 1,
-    backgroundColor: "rgba(20, 12, 4, 0.82)",
+    backgroundColor: "rgba(20, 12, 4, 0.85)",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
   },
-  glow: {
+  revealAnimal: {
+    width: 200,
+    height: 200,
     position: "absolute",
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: "rgba(255, 215, 130, 0.35)",
   },
-  overlayHearts: {
-    flexDirection: "row",
-    gap: 6,
-    marginBottom: 24,
+  smokePuff: {
+    position: "absolute",
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(200, 180, 160, 0.4)",
   },
-  overlayHeart: {
-    fontSize: 26,
+  revealContentWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
   },
-  overlayText: {
-    fontSize: 16,
-    fontWeight: "600",
+  revealAvatarContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: "hidden",
+    marginBottom: 12,
+    backgroundColor: "#E8D5C4",
+  },
+  revealAvatar: {
+    width: "100%",
+    height: "100%",
+  },
+  revealAvatarPlaceholder: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F0E5D8",
+  },
+  revealAvatarEmoji: {
+    fontSize: 48,
+  },
+  revealPseudo: {
+    fontSize: 18,
+    fontWeight: "700",
     color: "#FFF3DC",
     textAlign: "center",
   },

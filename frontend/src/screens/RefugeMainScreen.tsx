@@ -8,6 +8,7 @@ import { BackgroundPicker } from "../components/BackgroundPicker";
 import { RefugeDevTimeTravel } from "../components/RefugeDevTimeTravel";
 import { RefugeActionGrid } from "../components/RefugeActionGrid";
 import { RefugeRevealPhase } from "../components/RefugeRevealPhase";
+import { RefugeDayResultIcon } from "../components/RefugeDayResultIcon";
 import { AnimalIllustration, type RefugeAction } from "../components/AnimalIllustration";
 import { BACKEND_ACTION_LABELS, BACKEND_ACTION_ICONS } from "../data/refugeActions";
 import { getBackgroundGradientStyle } from "../data/refugeBackgrounds";
@@ -23,11 +24,11 @@ const screenWidth = Dimensions.get("window").width;
 
 const getResponsiveValues = () => {
   if (screenHeight < 700) {
-    return { animalSize: 165, zoneMinHeight: 175, zoneMaxHeight: 210 };
+    return { animalSize: 220 };
   } else if (screenHeight < 800) {
-    return { animalSize: 210, zoneMinHeight: 215, zoneMaxHeight: 260 };
+    return { animalSize: 260 };
   }
-  return { animalSize: 245, zoneMinHeight: 230, zoneMaxHeight: 300 };
+  return { animalSize: 300 };
 };
 
 /**
@@ -38,11 +39,10 @@ const getResponsiveValues = () => {
 export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   const router = useRouter();
   const sessionId = sessionIdProp;
-  const currentUserId = useStore((s) => s.currentUser?.id ?? null);
 
   const { currentAction, isActing, triggerAction } = useRefugeAction();
   const { logAction } = useRefugeActionLog();
-  const { animalSize, zoneMinHeight, zoneMaxHeight } = getResponsiveValues();
+  const { animalSize } = getResponsiveValues();
   const {
     selectedMyActions,
     selectedGuessActions,
@@ -56,6 +56,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [heartPulse, setHeartPulse] = useState(false);
+  const [otherUserProfile, setOtherUserProfile] = useState<any>(null);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
 
   const handleAdopteSubmit = async () => {
@@ -91,22 +92,32 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   // Cœurs depuis le serveur
   const hearts = refugeSession.hearts;
 
+  const actions: RefugeAction[] = ["feed", "play", "pet", "wash"];
+
   const handleAdoptantSubmit = async () => {
     if (selectedGuessActions.length !== 2 || isSubmitting) return;
 
-    // Soumettre la tentative de l'Adoptant au serveur (POST /refuge/guess).
-    // Après le jour 7, le serveur expose reveal.available : la phase finale
-    // de consentement s'affiche alors — aucune révélation automatique.
+    // Soumettre la tentative de l'Adoptant au serveur (POST /refuge/guess)
     setIsSubmitting(true);
-    await refugeSession.submitGuess(selectedGuessActions);
+    const success = await refugeSession.submitGuess(selectedGuessActions);
     setIsSubmitting(false);
-  };
 
-  const handleRevealDecision = async (decision: "ACCEPT" | "REFUSE") => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    await refugeSession.submitRevealConsent(decision);
-    setIsSubmitting(false);
+    if (success) {
+      // Si c'est le jour 7, préparer la révélation
+      if (refugeSession.currentDay === 7) {
+        setTimeout(async () => {
+          const revealed = await refugeSession.revealProfiles();
+          if (revealed) {
+            setOtherUserProfile(revealed.otherUserProfile);
+            // Naviguer vers l'écran de révélation des profils
+            router.push({
+              pathname: "/refuge/profile-reveal",
+              params: { profile: JSON.stringify(revealed.otherUserProfile) },
+            });
+          }
+        }, 2000);
+      }
+    }
   };
 
   if (refugeSession.isLoading) {
@@ -123,7 +134,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
         <Text style={styles.error}>Session terminée ou invalide</Text>
         <BouncyButton
           style={styles.button}
-          onPress={() => router.replace("/(tabs)/social")}
+          onPress={() => router.replace("/refuge")}
         >
           <Text style={styles.buttonText}>Retour</Text>
         </BouncyButton>
@@ -151,9 +162,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
           {/* Résumé discret des 7 jours */}
           <View style={styles.finalSummaryRow}>
             {refugeSession.dailyResults.map((r) => (
-              <Text key={r.dayNumber} style={styles.finalSummarySymbol}>
-                {r.symbol}
-              </Text>
+              <RefugeDayResultIcon key={r.dayNumber} status={r.status} symbol={r.symbol} size={20} />
             ))}
           </View>
 
@@ -168,6 +177,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
             onDecision={handleRevealDecision}
             onViewProfile={(userId) => router.push(`/profile/${userId}` as never)}
             onExit={() => router.replace('/(tabs)/social')}
+            animalType={refugeSession.companion?.animalType}
           />
 
           <View style={{ height: 12 }} />
@@ -182,7 +192,6 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
       </SafeAreaView>
     );
   }
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={{ flex: 1, pointerEvents: showBackgroundPicker ? "none" : "auto" }}>
@@ -190,7 +199,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
       <View style={styles.header}>
         <BouncyButton
           style={styles.backButton}
-          onPress={() => router.replace('/(tabs)/social')}
+          onPress={() => router.back()}
         >
           <Text style={styles.backText}>← Retour</Text>
         </BouncyButton>
@@ -226,7 +235,6 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
       <View
         style={[
           styles.refugeZone,
-          { minHeight: zoneMinHeight, maxHeight: zoneMaxHeight },
           getBackgroundGradientStyle(refugeSession.companion?.background || 'default'),
         ]}
       >
@@ -315,11 +323,11 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
             onDecision={handleRevealDecision}
             onViewProfile={(userId) => router.push(`/profile/${userId}` as never)}
             onExit={() => router.replace('/(tabs)/social')}
+            animalType={refugeSession.companion?.animalType}
           />
         )}
-
         {/* ADOPTÉ: Display today's server-generated actions (read-only) */}
-        {!refugeSession.reveal?.available && refugeSession.role === "adopte" && (
+        {refugeSession.role === "adopte" && (
           <View style={styles.adopteCard}>
             {isWaitingForAdoptant ? (
               <>
@@ -353,10 +361,31 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
                     </View>
                   </View>
                 ) : (
-                  <RefugeActionGrid
-                    selectedActions={selectedMyActions}
-                    onToggleAction={toggleMyAction}
-                  />
+                  <View style={styles.adoptActionSelectionGrid}>
+                    {actions.map(action => (
+                      <BouncyButton
+                        key={action}
+                        style={[
+                          styles.adoptActionButton,
+                          selectedMyActions.includes(action) && styles.adoptActionButtonSelected,
+                        ]}
+                        onPress={() => toggleMyAction(action)}
+                        disabled={selectedMyActions.length === 2 && !selectedMyActions.includes(action)}
+                      >
+                        <Text style={styles.adoptActionIcon}>
+                          {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.adoptActionLabel,
+                            selectedMyActions.includes(action) && styles.adoptActionLabelSelected,
+                          ]}
+                        >
+                          {ACTION_LABELS[action]}
+                        </Text>
+                      </BouncyButton>
+                    ))}
+                  </View>
                 )}
                 {!refugeSession.adopteSubmittedToday && selectedMyActions.length === 2 && (
                   <BouncyButton
@@ -375,23 +404,36 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
         )}
 
         {/* ADOPTANT: Guess today's two actions */}
-        {!refugeSession.reveal?.available && refugeSession.role === "adoptant" && !isWaitingForAdoptant && (
+        {refugeSession.role === "adoptant" && !isWaitingForAdoptant && (
           <View style={styles.adoptantCard}>
             <Text style={styles.questionText}>Que veut-il faire aujourd&apos;hui ?</Text>
 
-            {!refugeSession.adopteSubmittedToday && !adoptantSubmitted ? (
-              <Text style={styles.loadingText}>
-                Ton compagnon n&apos;a pas encore choisi ses actions du jour.
-                Reviens un peu plus tard pour tenter de les deviner.
-              </Text>
-            ) : (
-            <>
-            <RefugeActionGrid
-              selectedActions={selectedGuessActions}
-              onToggleAction={toggleGuessAction}
-              disabled={false}
-              submitted={adoptantSubmitted}
-            />
+            <View style={styles.adoptantActionsGrid}>
+              {actions.map(action => (
+                <BouncyButton
+                  key={action}
+                  style={[
+                    styles.adoptantActionButton,
+                    selectedGuessActions.includes(action) && styles.adoptantActionButtonSelected,
+                    adoptantSubmitted && styles.adoptantActionButtonDisabled,
+                  ]}
+                  onPress={() => !adoptantSubmitted && toggleGuessAction(action)}
+                  disabled={adoptantSubmitted || (selectedGuessActions.length === 2 && !selectedGuessActions.includes(action))}
+                >
+                  <Text style={styles.adoptantActionIcon}>
+                    {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.adoptantActionLabel,
+                      selectedGuessActions.includes(action) && styles.adoptantActionLabelSelected,
+                    ]}
+                  >
+                    {ACTION_LABELS[action]}
+                  </Text>
+                </BouncyButton>
+              ))}
+            </View>
 
             {adoptantSubmitted ? (
               <View style={styles.submittedMessage}>
@@ -412,17 +454,13 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
                 )}
               </>
             )}
-            </>
-            )}
           </View>
         )}
 
         <RefugeDevTimeTravel
           sessionId={sessionId}
           currentDay={refugeSession.currentDay}
-          canAdvanceDay={refugeSession.canAdvanceDay}
           onDayChanged={() => refugeSession.fetchSessionStatus()}
-          onSessionReset={() => router.replace('/(tabs)/social')}
         />
       </ScrollView>
       </View>
@@ -510,7 +548,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   heart: {
     fontSize: 28,
@@ -520,55 +558,16 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1 }],
   },
 
-  /* Écran final — résumé discret des 7 jours */
-  finalSummaryRow: {
-    flexDirection: "row" as const,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 10,
-    marginBottom: 10,
-  },
-  finalSummarySymbol: {
-    fontSize: 20,
-  },
-
-  /* Résultat quotidien — simple bandeau d'information, pas une grande carte */
-  todayResultContainer: {
-    flexDirection: "row" as const,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
-    borderRadius: 8,
-  },
-  resultEmoji: {
-    fontSize: 18,
-  },
-  resultMessage: {
-    flexShrink: 1,
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#333",
-    textAlign: "center",
-  },
-  rewardText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#CC8A00",
-  },
-
-  /* Refuge Zone — min/maxHeight injectés dynamiquement (responsive) */
+  /* Refuge Zone */
   refugeZone: {
-    flex: 0.4,
+    flex: 0.5,
+    maxHeight: 350,
     marginHorizontal: 12,
-    marginBottom: 10,
+    marginBottom: 12,
     alignItems: "center",
     justifyContent: "center",
     position: "relative" as const,
+    minHeight: 280,
     overflow: "hidden" as const,
     borderRadius: 12,
   },
@@ -606,7 +605,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     marginHorizontal: 12,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   gaugeRow: {
     flexDirection: "row" as const,
@@ -652,8 +651,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 12,
-    paddingTop: 4,
-    paddingBottom: 12,
+    paddingVertical: 12,
   },
 
   /* Actions Grid */
@@ -701,7 +699,7 @@ const styles = StyleSheet.create({
 
   /* ADOPTÉ - Display Actions */
   adopteCard: {
-    paddingVertical: 14,
+    paddingVertical: 20,
     paddingHorizontal: 16,
     backgroundColor: "rgba(255, 255, 255, 0.5)",
     borderRadius: 16,
@@ -713,7 +711,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#2D1F0E",
     textAlign: "center",
-    marginBottom: 12,
+    marginBottom: 20,
   },
   adoptActionsDisplay: {
     flexDirection: "row" as const,
@@ -745,14 +743,90 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 
-  /* ADOPTANT - carte (la grille d'actions est le composant partagé RefugeActionGrid) */
+  /* ADOPTÉ - Selection Actions */
+  adoptActionSelectionGrid: {
+    flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
+    justifyContent: "space-around",
+    gap: 8,
+    marginBottom: 16,
+  },
+  adoptActionButton: {
+    width: "48%",
+    aspectRatio: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    backgroundColor: "#E8D5C4",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  adoptActionButtonSelected: {
+    backgroundColor: "#FF9800",
+    borderColor: "#FF7500",
+  },
+  adoptActionIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  adoptActionLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#2D1F0E",
+    textAlign: "center",
+  },
+  adoptActionLabelSelected: {
+    color: "#FFFFFF",
+  },
+
+  /* ADOPTANT - Selection Actions */
   adoptantCard: {
-    paddingVertical: 14,
+    paddingVertical: 20,
     paddingHorizontal: 16,
     backgroundColor: "rgba(255, 255, 255, 0.5)",
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#F0E5D8",
+  },
+  adoptantActionsGrid: {
+    flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 16,
+  },
+  adoptantActionButton: {
+    width: (screenWidth - 52) / 2,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    backgroundColor: "#E8D5C4",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  adoptantActionButtonSelected: {
+    backgroundColor: "#FF9800",
+    borderColor: "#FF7500",
+  },
+  adoptantActionButtonDisabled: {
+    opacity: 0.6,
+  },
+  adoptantActionIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  adoptantActionLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#2D1F0E",
+    textAlign: "center",
+  },
+  adoptantActionLabelSelected: {
+    color: "#FFFFFF",
   },
   validateButton: {
     paddingVertical: 12,

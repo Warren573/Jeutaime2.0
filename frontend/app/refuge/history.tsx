@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { BouncyButton } from '../../src/components/BouncyButton';
+import { RefugeDayResultIcon } from '../../src/components/RefugeDayResultIcon';
 import { refugeApi, type RefugeHistoryEntry } from '../../src/api/refuge-api';
 
 const ANIMAL_EMOJIS: Record<string, string> = {
@@ -97,9 +98,9 @@ export default function RefugeHistoryScreen() {
               {/* Résultat synthétique des 7 jours */}
               <View style={styles.symbolsRow}>
                 {item.dailyResults.map((r) => (
-                  <Text key={r.dayNumber} style={styles.symbol}>
-                    {r.symbol}
-                  </Text>
+                  <View key={r.dayNumber} style={styles.symbolContainer}>
+                    <RefugeDayResultIcon status={r.status} symbol={r.symbol} size={18} />
+                  </View>
                 ))}
               </View>
 
@@ -228,9 +229,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 4,
     marginTop: 8,
+    alignItems: 'center',
   },
-  symbol: {
-    fontSize: 18,
+  symbolContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   counters: {
     fontSize: 12,
