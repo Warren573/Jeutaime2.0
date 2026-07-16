@@ -282,11 +282,11 @@ export class RefugeController {
   // ============================================================
 
   static async devSetDay(req: AuthedRequest, res: Response): Promise<void> {
-    // Check if dev mode is enabled
+    // Gate identique à l'enregistrement des routes : la variable explicite suffit
+    // (le staging tourne en build production mais doit pouvoir activer l'outil DEV).
     const devEnabled = process.env.REFUGE_DEV_TIME_TRAVEL === "true";
-    const isProd = process.env.NODE_ENV === "production";
 
-    if (isProd || !devEnabled) {
+    if (!devEnabled) {
       res.status(403).json({ error: "Dev mode not enabled" });
       return;
     }
@@ -327,9 +327,8 @@ export class RefugeController {
 
   static async devResetSession(req: AuthedRequest, res: Response): Promise<void> {
     const devEnabled = process.env.REFUGE_DEV_TIME_TRAVEL === "true";
-    const isProd = process.env.NODE_ENV === "production";
 
-    if (isProd || !devEnabled) {
+    if (!devEnabled) {
       res.status(403).json({ error: "Dev mode not enabled" });
       return;
     }

@@ -63,7 +63,9 @@ router.post("/guess", validate(GuessSchema), wrap(RefugeController.submitGuess))
 // DEV: Jump to specific day (1-7) for testing
 // POST /api/refuge/dev/:sessionId/reset
 // DEV: Remise à zéro contrôlée d'une session de test (body: { mode?: "reset" | "abandon" })
-if (process.env.REFUGE_DEV_TIME_TRAVEL === "true" && process.env.NODE_ENV !== "production") {
+// Gate sur la seule variable explicite REFUGE_DEV_TIME_TRAVEL : le staging (build
+// production sur Render) doit pouvoir l'activer ; la prod ne définit pas la variable.
+if (process.env.REFUGE_DEV_TIME_TRAVEL === "true") {
   router.post("/dev/:sessionId/set-day", wrap(RefugeController.devSetDay));
   router.post("/dev/:sessionId/reset", wrap(RefugeController.devResetSession));
 }
