@@ -872,3 +872,127 @@ describe("RefugeService.getRefugeSession (reveal privacy)", () => {
     expect(result.reveal?.myDecision).toBeNull();
   });
 });
+
+// ============================================================
+// Progression commune — dayCompleted / canAdvanceDay / finalConsentAvailable
+// ============================================================
+
+describe("RefugeService progression partagée", () => {
+  it("day 1 partially played (choice only): dayCompleted=false, cannot advance", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({ dailyChoices: [{ dayNumber: 1, action1: "NOURRIR", action2: "JOUER" }] })
+    );
+
+    const result = await RefugeService.getRefugeSession(sessionId, adopteId);
+
+    expect(result.adopteSubmittedToday).toBe(true);
+    expect(result.adoptantSubmittedToday).toBe(false);
+    expect(result.dayCompleted).toBe(false);
+    expect(result.canAdvanceDay).toBe(false);
+    expect(result.finalConsentAvailable).toBe(false);
+  });
+
+  it("day 1 fully played: dayCompleted=true, canAdvanceDay=true, no final consent", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({
+        dailyChoices: [{ dayNumber: 1, action1: "NOURRIR", action2: "JOUER" }],
+        guesses: [{ dayNumber: 1, guessedAction1: "NOURRIR", guessedAction2: "JOUER" }],
+      })
+    );
+
+    const result = await RefugeService.getRefugeSession(sessionId, adopteId);
+
+    expect(result.dayCompleted).toBe(true);
+    expect(result.canAdvanceDay).toBe(true);
+    expect(result.finalConsentAvailable).toBe(false);
+  });
+
+  it("forced to day 7 with nothing played: no fake data, no final phase, skipped days stay white", async () => {
+    const startedAt = new Date(Date.now() - 6 * DAY_MS - 2 * 60 * 60 * 1000);
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({ startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY_MS) })
+    );
+
+    const result = await RefugeService.getRefugeSession(sessionId, adopteId);
+
+    expect(result.currentDay).toBe(7);
+    expect(result.dayCompleted).toBe(false);
+    expect(result.canAdvanceDay).toBe(false);
+    expect(result.finalConsentAvailable).toBe(false);
+    expect(result.reveal?.available).toBe(false);
+    expect(result.hearts).toEqual(["🤍", "🤍", "🤍", "🤍", "🤍", "🤍", "🤍"]);
+  });
+
+  it("day 7 completed: finalConsentAvailable=true, canAdvanceDay=false", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(day7DoneSession());
+
+    const result = await RefugeService.getRefugeSession(sessionId, adoptantId);
+
+    expect(result.currentDay).toBe(7);
+    expect(result.dayCompleted).toBe(true);
+    expect(result.canAdvanceDay).toBe(false);
+    expect(result.finalConsentAvailable).toBe(true);
+    expect(result.reveal?.available).toBe(true);
+  });
+
+  it("expired session without day 7 played never reaches the final phase", async () => {
+    const startedAt = new Date(Date.now() - 9 * DAY_MS);
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({ startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY_MS) })
+    );
+
+    const result = await RefugeService.getRefugeSession(sessionId, adopteId);
+
+    expect(result.finalConsentAvailable).toBe(false);
+    expect(result.reveal?.available).toBe(false);
+  });
+});
+
+// ============================================================
+// devAdvanceDay — "jour suivant" gardé par la complétion du jour
+// ============================================================
+
+describe("RefugeService.devAdvanceDay", () => {
+  it("refuses to advance while the current day is not completed", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({ dailyChoices: [{ dayNumber: 1, action1: "NOURRIR", action2: "JOUER" }] })
+    );
+
+    await expect(RefugeService.devAdvanceDay(sessionId)).rejects.toBeInstanceOf(ConflictError);
+    expect(prisma.refugeSession.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses to advance past day 7", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(day7DoneSession());
+
+    await expect(RefugeService.devAdvanceDay(sessionId)).rejects.toBeInstanceOf(ConflictError);
+    expect(prisma.refugeSession.update).not.toHaveBeenCalled();
+  });
+
+  it("advances exactly one day when the current day is completed", async () => {
+    const completed = activeSession({
+      dailyChoices: [{ dayNumber: 1, action1: "NOURRIR", action2: "JOUER" }],
+      guesses: [{ dayNumber: 1, guessedAction1: "NOURRIR", guessedAction2: "JOUER" }],
+    });
+    (prisma.refugeSession.findUnique as any)
+      .mockResolvedValueOnce(completed) // lecture devAdvanceDay
+      .mockResolvedValueOnce(completed); // lecture devSetDay
+    let movedStartedAt: Date | null = null;
+    (prisma.refugeSession.update as any).mockImplementationOnce(async (args: any) => {
+      movedStartedAt = args.data.startedAt;
+      return completed;
+    });
+    (prisma.refugeSession.findUnique as any).mockImplementationOnce(async () =>
+      activeSession({
+        startedAt: movedStartedAt,
+        endsAt: new Date((movedStartedAt as unknown as Date).getTime() + 7 * DAY_MS),
+        dailyChoices: completed.dailyChoices,
+        guesses: completed.guesses,
+      })
+    );
+
+    const result = await RefugeService.devAdvanceDay(sessionId);
+
+    expect(result.currentDay).toBe(2);
+  });
+});

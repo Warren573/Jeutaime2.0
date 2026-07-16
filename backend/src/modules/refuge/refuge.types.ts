@@ -58,6 +58,10 @@ export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
   canAttemptToday: boolean;
   todaySubmitted: boolean;
   adopteSubmittedToday: boolean; // True si l'Adopté a vraiment soumis un choix aujourd'hui
+  adoptantSubmittedToday: boolean; // True si l'Adoptant a soumis sa réponse du jour
+  dayCompleted: boolean; // adopteSubmittedToday && adoptantSubmittedToday (jour courant)
+  canAdvanceDay: boolean; // dayCompleted && currentDay < 7 (outil DEV "jour suivant")
+  finalConsentAvailable: boolean; // dayCompleted && currentDay === 7
   todayActions?: {
     action1: RefugeAction;
     action2: RefugeAction;

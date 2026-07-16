@@ -364,6 +364,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
         <RefugeDevTimeTravel
           sessionId={sessionId}
           currentDay={refugeSession.currentDay}
+          canAdvanceDay={refugeSession.canAdvanceDay}
           onDayChanged={() => refugeSession.fetchSessionStatus()}
           onSessionReset={() => router.replace('/(tabs)/social')}
         />

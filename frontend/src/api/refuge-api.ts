@@ -24,6 +24,10 @@ export interface RefugeSession {
   canAttemptToday?: boolean;
   todaySubmitted?: boolean;
   adopteSubmittedToday?: boolean;
+  adoptantSubmittedToday?: boolean;
+  dayCompleted?: boolean;
+  canAdvanceDay?: boolean;
+  finalConsentAvailable?: boolean;
   // Actions du jour — visibles uniquement par l'Adopté si adopteSubmittedToday=true
   todayActions?: { action1: string; action2: string } | null;
   // Résultat du jour courant si une tentative a été soumise
@@ -151,6 +155,15 @@ export const refugeApi = {
     const response = await apiFetch(`/refuge/dev/${sessionId}/set-day`, {
       method: "POST",
       body: JSON.stringify({ day }),
+    });
+    return response?.data;
+  },
+
+  // DEV uniquement — "jour suivant" : refusé par le backend si le jour courant
+  // n'est pas terminé (choix + réponse)
+  async devAdvanceDay(sessionId: string): Promise<RefugeSession> {
+    const response = await apiFetch(`/refuge/dev/${sessionId}/advance-day`, {
+      method: "POST",
     });
     return response?.data;
   },

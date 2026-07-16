@@ -10,6 +10,10 @@ interface RefugeSessionState {
   canAttemptToday: boolean;
   todaySubmitted: boolean;
   adopteSubmittedToday: boolean;
+  adoptantSubmittedToday: boolean;
+  dayCompleted: boolean;
+  canAdvanceDay: boolean;
+  finalConsentAvailable: boolean;
   hearts: string[];
   companion: {
     animalType: string;
@@ -55,6 +59,10 @@ export function useRefugeSession(sessionId: string | null) {
     canAttemptToday: true,
     todaySubmitted: false,
     adopteSubmittedToday: false,
+    adoptantSubmittedToday: false,
+    dayCompleted: false,
+    canAdvanceDay: false,
+    finalConsentAvailable: false,
     hearts: ["🤍", "🤍", "🤍", "🤍", "🤍", "🤍", "🤍"],
     companion: null,
     todayActions: null,
@@ -105,6 +113,10 @@ export function useRefugeSession(sessionId: string | null) {
         canAttemptToday: data.canAttemptToday ?? false,
         todaySubmitted: data.todaySubmitted ?? false,
         adopteSubmittedToday: data.adopteSubmittedToday ?? false,
+        adoptantSubmittedToday: data.adoptantSubmittedToday ?? false,
+        dayCompleted: data.dayCompleted ?? false,
+        canAdvanceDay: data.canAdvanceDay ?? false,
+        finalConsentAvailable: data.finalConsentAvailable ?? false,
         hearts: data.hearts || prev.hearts,
         companion: {
           animalType: data.animalType,

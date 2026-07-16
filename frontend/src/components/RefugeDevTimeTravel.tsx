@@ -15,6 +15,7 @@ import { refugeApi } from "../api/refuge-api";
 interface RefugeDevTimeTravelProps {
   sessionId: string | null;
   currentDay: number;
+  canAdvanceDay?: boolean;
   onDayChanged?: (newDay: number) => void;
   onSessionReset?: () => void;
 }
@@ -22,6 +23,7 @@ interface RefugeDevTimeTravelProps {
 export function RefugeDevTimeTravel({
   sessionId,
   currentDay,
+  canAdvanceDay = false,
   onDayChanged,
   onSessionReset,
 }: RefugeDevTimeTravelProps) {
@@ -58,6 +60,21 @@ export function RefugeDevTimeTravel({
     }
   };
 
+  const handleAdvanceDay = async () => {
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const session = await refugeApi.devAdvanceDay(sessionId);
+      setMessage(`✅ Jour suivant : Day ${session?.currentDay ?? currentDay + 1}.`);
+      onDayChanged?.(session?.currentDay ?? currentDay + 1);
+    } catch (err) {
+      setMessage(`❌ ${err instanceof Error ? err.message : "Failed"}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleReset = async (mode: "reset" | "abandon" | "consent") => {
     setLoading(true);
     setMessage("");
@@ -86,6 +103,25 @@ export function RefugeDevTimeTravel({
         <Text style={styles.subtitle}>Current: Day {currentDay}/7</Text>
       </View>
 
+      {/* Mode 1 — Jour suivant : uniquement si le jour courant est terminé */}
+      <View style={styles.resetRow}>
+        <TouchableOpacity
+          style={[
+            styles.advanceButton,
+            (!canAdvanceDay || loading) && styles.dayButtonDisabled,
+          ]}
+          onPress={handleAdvanceDay}
+          disabled={!canAdvanceDay || loading}
+        >
+          <Text style={styles.advanceButtonText}>
+            ⏭️ Jour suivant
+            {canAdvanceDay ? "" : currentDay >= 7 ? " (jour 7 : phase finale)" : " (jour en cours non terminé)"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Mode 2 — Forcer un jour (test) : ne fabrique aucune donnée, jours sautés restent blancs */}
+      <Text style={styles.sectionLabel}>Forcer un jour (test)</Text>
       <View style={styles.buttonGrid}>
         {[1, 2, 3, 4, 5, 6, 7].map((day) => (
           <TouchableOpacity
@@ -214,6 +250,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginBottom: 12,
+  },
+  advanceButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#2d5d2d",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#4a8a4a",
+    alignItems: "center",
+  },
+  advanceButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#c8f0c8",
+  },
+  sectionLabel: {
+    fontSize: 11,
+    color: "#8888aa",
+    marginBottom: 6,
   },
   resetButton: {
     flex: 1,

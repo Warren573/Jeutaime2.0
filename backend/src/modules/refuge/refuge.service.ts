@@ -14,6 +14,7 @@ import {
   REFUGE_DURATION_DAYS,
   calculateHearts,
   calculateDayResult,
+  isDayCompleted,
   canAttemptTodayForDay,
   todaySubmittedForDay,
   calculateStartedAtForDay,
@@ -346,6 +347,15 @@ export class RefugeService {
     const canAttemptToday = isActive && currentDay >= 1 && canAttemptTodayForDay(currentDay, refugeSession.guesses);
     const todaySubmitted = todaySubmittedForDay(currentDay, refugeSession.guesses);
 
+    // Progression commune et déterministe — mêmes valeurs pour les deux comptes.
+    // dayCompleted        = choix de l'Adopté + réponse de l'Adoptant pour le jour courant
+    // canAdvanceDay       = jour courant terminé et il reste des jours (outil DEV "jour suivant")
+    // finalConsentAvailable = jour 7 ET jour 7 terminé — être au jour 7 ne suffit pas
+    const adoptantSubmittedToday = todaySubmitted;
+    const dayCompleted = currentDay >= 1 && isDayCompleted(refugeSession.dailyChoices, refugeSession.guesses, currentDay);
+    const canAdvanceDay = dayCompleted && currentDay < REFUGE_DURATION_DAYS && refugeSession.status === RefugeSessionStatus.ACTIVE;
+    const finalConsentAvailable = dayCompleted && currentDay === REFUGE_DURATION_DAYS;
+
     // Calculer le résultat du jour si une tentative a été soumise
     let todayResult = null;
     if (todaySubmitted && todayDailyChoice) {
@@ -377,7 +387,7 @@ export class RefugeService {
         refugeSession.status === RefugeSessionStatus.AWAITING_REVEAL_CONSENT ||
         refugeSession.status === RefugeSessionStatus.REVEALED ||
         refugeSession.status === RefugeSessionStatus.COMPLETED) &&
-      this.isRevealPhaseReached(refugeSession, refugeSession.guesses);
+      this.isRevealPhaseReached(refugeSession, refugeSession.dailyChoices, refugeSession.guesses);
 
     const reveal = {
       available: revealAvailable,
@@ -415,6 +425,10 @@ export class RefugeService {
       canAttemptToday,
       todaySubmitted,
       adopteSubmittedToday,
+      adoptantSubmittedToday,
+      dayCompleted,
+      canAdvanceDay,
+      finalConsentAvailable,
       reveal,
       ...(todayActions && { todayActions }),
       ...(todayResult && { todayResult }),
@@ -720,17 +734,18 @@ export class RefugeService {
   // Phase finale — consentement mutuel au dévoilement des profils
   // ============================================================
 
-  // Le jour 7 est "terminé" quand la tentative du jour 7 a été jouée,
-  // ou quand la durée de la session est écoulée sans qu'elle l'ait été.
+  // Règle stricte : la phase finale n'existe que si currentDay = 7 ET que le
+  // jour 7 est COMPLET (choix de l'Adopté + réponse de l'Adoptant, donc résultat
+  // calculé). Être au jour 7 ne suffit jamais ; l'expiration ne suffit pas non plus.
   private static isRevealPhaseReached(
-    refugeSession: { startedAt: Date | null; createdAt: Date; endsAt: Date | null; adoptantId: string | null },
+    refugeSession: { startedAt: Date | null; createdAt: Date; adoptantId: string | null },
+    dailyChoices: { dayNumber: number }[],
     guesses: { dayNumber: number }[]
   ): boolean {
     if (!refugeSession.adoptantId) return false;
     const currentDay = getCurrentDay(refugeSession.createdAt, refugeSession.startedAt, new Date());
-    if (currentDay < REFUGE_DURATION_DAYS) return false;
-    const lastDayPlayed = guesses.some((g) => g.dayNumber === REFUGE_DURATION_DAYS);
-    return lastDayPlayed || isRefugeExpired(refugeSession.endsAt);
+    if (currentDay !== REFUGE_DURATION_DAYS) return false;
+    return isDayCompleted(dailyChoices, guesses, REFUGE_DURATION_DAYS);
   }
 
   static async submitRevealConsent(
@@ -740,7 +755,7 @@ export class RefugeService {
   ): Promise<RefugeSessionWithMetadata> {
     const refugeSession = await prisma.refugeSession.findUnique({
       where: { id: refugeSessionId },
-      include: { guesses: true },
+      include: { guesses: true, dailyChoices: true },
     });
 
     if (!refugeSession) {
@@ -773,7 +788,7 @@ export class RefugeService {
       throw new ConflictError("Cette session est terminée");
     }
 
-    if (!this.isRevealPhaseReached(refugeSession, refugeSession.guesses)) {
+    if (!this.isRevealPhaseReached(refugeSession, refugeSession.dailyChoices, refugeSession.guesses)) {
       throw new ConflictError("Le jour 7 n'est pas encore terminé");
     }
 
@@ -962,6 +977,41 @@ export class RefugeService {
     // Retourner la session avec métadonnées recalculées (et actions du jour générées)
     const requesterId = refugeSession.adopteId;
     return this.getRefugeSession(refugeSessionId, requesterId);
+  }
+
+  // ============================================================
+  // DEV MODE - "Jour suivant" : avance d'exactement un jour, autorisé
+  // UNIQUEMENT si le jour courant est terminé (choix + réponse soumis).
+  // Le jour est persisté sur la session : les deux comptes basculent ensemble.
+  // ============================================================
+
+  static async devAdvanceDay(refugeSessionId: string): Promise<RefugeSessionWithMetadata> {
+    const refugeSession = await prisma.refugeSession.findUnique({
+      where: { id: refugeSessionId },
+      include: { dailyChoices: true, guesses: true },
+    });
+
+    if (!refugeSession) {
+      throw new NotFoundError("Refuge not found");
+    }
+
+    if (refugeSession.status !== RefugeSessionStatus.ACTIVE) {
+      throw new ConflictError("Refuge must be ACTIVE to use dev time-travel");
+    }
+
+    const currentDay = getCurrentDay(refugeSession.createdAt, refugeSession.startedAt, new Date());
+
+    if (!isDayCompleted(refugeSession.dailyChoices, refugeSession.guesses, currentDay)) {
+      throw new ConflictError(
+        `Le jour ${currentDay} n'est pas terminé : choix de l'Adopté et réponse de l'Adoptant requis avant d'avancer`
+      );
+    }
+
+    if (currentDay >= REFUGE_DURATION_DAYS) {
+      throw new ConflictError("Jour 7 atteint : plus de jour suivant, place à la phase finale");
+    }
+
+    return this.devSetDay(refugeSessionId, currentDay + 1);
   }
 
   // ============================================================

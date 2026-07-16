@@ -357,6 +357,41 @@ export class RefugeController {
   }
 
   // ============================================================
+  // DEV MODE: POST /api/refuge/dev/:sessionId/advance-day
+  // "Jour suivant" — autorisé uniquement si le jour courant est terminé
+  // ============================================================
+
+  static async devAdvanceDay(req: AuthedRequest, res: Response): Promise<void> {
+    const devEnabled = process.env.REFUGE_DEV_TIME_TRAVEL === "true";
+
+    if (!devEnabled) {
+      res.status(403).json({ error: "Dev mode not enabled" });
+      return;
+    }
+
+    const sessionId = req.params.sessionId as string;
+    if (!sessionId) {
+      res.status(400).json({ error: "sessionId is required" });
+      return;
+    }
+
+    try {
+      const result = await RefugeService.devAdvanceDay(sessionId);
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: `[DEV] Advanced to day ${result.currentDay}`,
+      });
+    } catch (error: any) {
+      if (error.statusCode) {
+        res.status(error.statusCode).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Internal error" });
+      }
+    }
+  }
+
+  // ============================================================
   // DEV MODE: POST /api/refuge/dev/:sessionId/reset
   // Remise à zéro contrôlée d'une session de test (hors production)
   // ============================================================

@@ -75,6 +75,7 @@ router.post(
 // production sur Render) doit pouvoir l'activer ; la prod ne définit pas la variable.
 if (process.env.REFUGE_DEV_TIME_TRAVEL === "true") {
   router.post("/dev/:sessionId/set-day", wrap(RefugeController.devSetDay));
+  router.post("/dev/:sessionId/advance-day", wrap(RefugeController.devAdvanceDay));
   router.post("/dev/:sessionId/reset", wrap(RefugeController.devResetSession));
 }
 

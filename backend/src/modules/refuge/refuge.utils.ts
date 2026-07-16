@@ -160,6 +160,19 @@ export function calculateDayResult(dailyChoice: any, guess: any): DayResult {
   }
 }
 
+// Un jour est COMPLET uniquement quand l'Adopté a validé ses 2 actions
+// ET que l'Adoptant a soumis sa réponse pour ce jour.
+export function isDayCompleted(
+  dailyChoices: { dayNumber: number }[],
+  guesses: { dayNumber: number }[],
+  dayNumber: number
+): boolean {
+  if (dayNumber < 1) return false;
+  const choiceDone = dailyChoices.some((dc) => dc.dayNumber === dayNumber);
+  const guessDone = guesses.some((g) => g.dayNumber === dayNumber);
+  return choiceDone && guessDone;
+}
+
 // L'Adoptant peut encore tenter aujourd'hui s'il n'a pas déjà soumis sa tentative du jour
 export function canAttemptTodayForDay(dayNumber: number, guesses: any[]): boolean {
   if (dayNumber < 1) return false;
