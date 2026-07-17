@@ -350,24 +350,24 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
                     </View>
                   </View>
                 ) : (
-                  <View style={styles.adoptActionSelectionGrid}>
+                  <View style={styles.actionGrid}>
                     {actions.map(action => (
                       <BouncyButton
                         key={action}
                         style={[
-                          styles.adoptActionButton,
-                          selectedMyActions.includes(action) && styles.adoptActionButtonSelected,
+                          styles.actionButton,
+                          selectedMyActions.includes(action) && styles.actionButtonSelected,
                         ]}
                         onPress={() => toggleMyAction(action)}
                         disabled={selectedMyActions.length === 2 && !selectedMyActions.includes(action)}
                       >
-                        <Text style={styles.adoptActionIcon}>
+                        <Text style={styles.actionIcon}>
                           {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
                         </Text>
                         <Text
                           style={[
-                            styles.adoptActionLabel,
-                            selectedMyActions.includes(action) && styles.adoptActionLabelSelected,
+                            styles.actionLabel,
+                            selectedMyActions.includes(action) && styles.actionLabelSelected,
                           ]}
                         >
                           {ACTION_LABELS[action]}
@@ -406,25 +406,25 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
               <>
                 <Text style={styles.questionText}>Que veut-il faire aujourd&apos;hui ?</Text>
 
-                <View style={styles.adoptantActionsGrid}>
+                <View style={styles.actionGrid}>
                   {actions.map(action => (
                     <BouncyButton
                       key={action}
                       style={[
-                        styles.adoptantActionButton,
-                        selectedGuessActions.includes(action) && styles.adoptantActionButtonSelected,
-                        adoptantSubmitted && styles.adoptantActionButtonDisabled,
+                        styles.actionButton,
+                        selectedGuessActions.includes(action) && styles.actionButtonSelected,
+                        adoptantSubmitted && styles.actionButtonDisabled,
                       ]}
                       onPress={() => !adoptantSubmitted && toggleGuessAction(action)}
                       disabled={adoptantSubmitted || (selectedGuessActions.length === 2 && !selectedGuessActions.includes(action))}
                     >
-                      <Text style={styles.adoptantActionIcon}>
+                      <Text style={styles.actionIcon}>
                         {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
                       </Text>
                       <Text
                         style={[
-                          styles.adoptantActionLabel,
-                          selectedGuessActions.includes(action) && styles.adoptantActionLabelSelected,
+                          styles.actionLabel,
+                          selectedGuessActions.includes(action) && styles.actionLabelSelected,
                         ]}
                       >
                         {ACTION_LABELS[action]}
@@ -651,46 +651,44 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
 
-  /* Actions Grid */
-  actionsGrid: {
+  /* Actions Grid — Common Style */
+  actionGrid: {
     flexDirection: "row" as const,
     flexWrap: "wrap" as const,
     justifyContent: "space-between",
     gap: 8,
+    marginBottom: 16,
   },
   actionButton: {
-    width: (screenWidth - 44) / 2,
-    paddingVertical: 12,
+    width: "48%",
+    minHeight: 68,
+    paddingVertical: 10,
     paddingHorizontal: 8,
-    backgroundColor: "#FFE5B4",
-    borderRadius: 12,
+    backgroundColor: "#E8D5C4",
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    borderWidth: 2,
+    borderColor: "transparent",
   },
-  actionButtonLocked: {
-    opacity: 0.5,
-  },
-  actionButtonActive: {
+  actionButtonSelected: {
     backgroundColor: "#FF9800",
-    shadowOpacity: 0.12,
-    elevation: 4,
+    borderColor: "#FF7500",
+  },
+  actionButtonDisabled: {
+    opacity: 0.6,
   },
   actionIcon: {
     fontSize: 24,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   actionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: "#2D1F0E",
     textAlign: "center",
   },
-  actionLabelActive: {
+  actionLabelSelected: {
     color: "#FFFFFF",
   },
 
@@ -740,46 +738,8 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 
-  /* ADOPTÉ - Selection Actions */
-  adoptActionSelectionGrid: {
-    flexDirection: "row" as const,
-    flexWrap: "wrap" as const,
-    justifyContent: "space-around",
-    gap: 8,
-    marginBottom: 16,
-  },
-  adoptActionButton: {
-    width: "48%",
-    aspectRatio: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    backgroundColor: "#E8D5C4",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-  adoptActionButtonSelected: {
-    backgroundColor: "#FF9800",
-    borderColor: "#FF7500",
-  },
-  adoptActionIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  adoptActionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#2D1F0E",
-    textAlign: "center",
-  },
-  adoptActionLabelSelected: {
-    color: "#FFFFFF",
-  },
-
-  /* ADOPTANT - Selection Actions */
-  adoptantCard: {
+  /* ADOPTÉ Card */
+  adoptCard: {
     paddingVertical: 20,
     paddingHorizontal: 16,
     backgroundColor: "rgba(255, 255, 255, 0.5)",
@@ -787,43 +747,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#F0E5D8",
   },
-  adoptantActionsGrid: {
-    flexDirection: "row" as const,
-    flexWrap: "wrap" as const,
-    justifyContent: "space-between",
-    gap: 10,
-    marginBottom: 16,
-  },
-  adoptantActionButton: {
-    width: (screenWidth - 52) / 2,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    backgroundColor: "#E8D5C4",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-  adoptantActionButtonSelected: {
-    backgroundColor: "#FF9800",
-    borderColor: "#FF7500",
-  },
-  adoptantActionButtonDisabled: {
-    opacity: 0.6,
-  },
-  adoptantActionIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  adoptantActionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#2D1F0E",
-    textAlign: "center",
-  },
-  adoptantActionLabelSelected: {
-    color: "#FFFFFF",
+
+  /* ADOPTANT Card */
+  adoptantCard: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#F0E5D8",
   },
   validateButton: {
     paddingVertical: 12,
