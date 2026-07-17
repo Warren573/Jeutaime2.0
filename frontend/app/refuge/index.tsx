@@ -30,8 +30,12 @@ export default function RefugePage() {
     load();
   });
 
-  if (loading) {
-    return null;
+  if (loading && !sessionId) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E7' }}>
+        <Text style={{ fontSize: 14, color: '#8B6F47' }}>Chargement...</Text>
+      </View>
+    );
   }
 
   if (error) {
