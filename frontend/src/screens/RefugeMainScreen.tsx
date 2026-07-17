@@ -77,7 +77,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   };
 
   // L'état "tentative soumise" vient du serveur : il survit au rechargement
-  const adoptantSubmitted = refugeSession.todaySubmitted;
+  const adoptantSubmitted = refugeSession.adoptantSubmittedToday;
 
   // Repartir d'une sélection vide quand le jour change (minuit ou panneau DEV)
   useEffect(() => {
@@ -102,7 +102,14 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   const actions: RefugeActionType[] = ["feed", "play", "pet", "wash"];
 
   const handleAdoptantSubmit = async () => {
-    if (selectedGuessActions.length !== 2 || isSubmitting) return;
+    if (
+      !refugeSession.adopteSubmittedToday ||
+      refugeSession.adoptantSubmittedToday ||
+      selectedGuessActions.length !== 2 ||
+      isSubmitting
+    ) {
+      return;
+    }
 
     // Soumettre la tentative de l'Adoptant au serveur (POST /refuge/guess)
     setIsSubmitting(true);
@@ -388,51 +395,62 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
         {/* ADOPTANT: Guess today's two actions */}
         {refugeSession.role === "adoptant" && !isWaitingForAdoptant && (
           <View style={styles.adoptantCard}>
-            <Text style={styles.questionText}>Que veut-il faire aujourd&apos;hui ?</Text>
-
-            <View style={styles.adoptantActionsGrid}>
-              {actions.map(action => (
-                <BouncyButton
-                  key={action}
-                  style={[
-                    styles.adoptantActionButton,
-                    selectedGuessActions.includes(action) && styles.adoptantActionButtonSelected,
-                    adoptantSubmitted && styles.adoptantActionButtonDisabled,
-                  ]}
-                  onPress={() => !adoptantSubmitted && toggleGuessAction(action)}
-                  disabled={adoptantSubmitted || (selectedGuessActions.length === 2 && !selectedGuessActions.includes(action))}
-                >
-                  <Text style={styles.adoptantActionIcon}>
-                    {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.adoptantActionLabel,
-                      selectedGuessActions.includes(action) && styles.adoptantActionLabelSelected,
-                    ]}
-                  >
-                    {ACTION_LABELS[action]}
-                  </Text>
-                </BouncyButton>
-              ))}
-            </View>
-
-            {adoptantSubmitted ? (
-              <View style={styles.submittedMessage}>
-                <Text style={styles.submittedMessageText}>Choix enregistré</Text>
-              </View>
+            {!refugeSession.adopteSubmittedToday ? (
+              <>
+                <Text style={styles.questionText}>En attente des choix de ton compagnon…</Text>
+                <Text style={styles.loadingText}>
+                  Dès que l&apos;adopté aura choisi ses 2 actions, tu pourras faire tes propositions.
+                </Text>
+              </>
             ) : (
               <>
-                {selectedGuessActions.length === 2 && (
-                  <BouncyButton
-                    style={styles.validateButton}
-                    onPress={handleAdoptantSubmit}
-                    disabled={isSubmitting}
-                  >
-                    <Text style={styles.validateButtonText}>
-                      {isSubmitting ? "Envoi..." : "Valider"}
-                    </Text>
-                  </BouncyButton>
+                <Text style={styles.questionText}>Que veut-il faire aujourd&apos;hui ?</Text>
+
+                <View style={styles.adoptantActionsGrid}>
+                  {actions.map(action => (
+                    <BouncyButton
+                      key={action}
+                      style={[
+                        styles.adoptantActionButton,
+                        selectedGuessActions.includes(action) && styles.adoptantActionButtonSelected,
+                        adoptantSubmitted && styles.adoptantActionButtonDisabled,
+                      ]}
+                      onPress={() => !adoptantSubmitted && toggleGuessAction(action)}
+                      disabled={adoptantSubmitted || (selectedGuessActions.length === 2 && !selectedGuessActions.includes(action))}
+                    >
+                      <Text style={styles.adoptantActionIcon}>
+                        {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.adoptantActionLabel,
+                          selectedGuessActions.includes(action) && styles.adoptantActionLabelSelected,
+                        ]}
+                      >
+                        {ACTION_LABELS[action]}
+                      </Text>
+                    </BouncyButton>
+                  ))}
+                </View>
+
+                {adoptantSubmitted ? (
+                  <View style={styles.submittedMessage}>
+                    <Text style={styles.submittedMessageText}>Choix enregistré</Text>
+                  </View>
+                ) : (
+                  <>
+                    {selectedGuessActions.length === 2 && (
+                      <BouncyButton
+                        style={styles.validateButton}
+                        onPress={handleAdoptantSubmit}
+                        disabled={isSubmitting}
+                      >
+                        <Text style={styles.validateButtonText}>
+                          {isSubmitting ? "Envoi..." : "Valider"}
+                        </Text>
+                      </BouncyButton>
+                    )}
+                  </>
                 )}
               </>
             )}
