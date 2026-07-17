@@ -6,6 +6,7 @@ import { useStore } from '../../src/store/useStore';
 import { refugeApi, RefugeSession } from '../../src/api/refuge-api';
 import { BouncyButton } from '../../src/components/BouncyButton';
 import { formatAnimalAge } from '../../src/modules/refuge/refugeAgeDisplay';
+import { getAnimalEmoji, getAnimalLabel, getAnimalSexeSymbol } from '../../src/data/refugeAnimals';
 
 export default function AdoptPage() {
   const router = useRouter();
@@ -61,17 +62,6 @@ export default function AdoptPage() {
 
     fetchRefuges();
   }, [currentUser?.gender, currentUser?.id, checkingSession]);
-
-  const getAnimalEmoji = (animalType: string) => {
-    const emojis: Record<string, string> = {
-      Chat: '🐱',
-      Chien: '🐕',
-      Lapin: '🐰',
-      Hamster: '🐹',
-      Perroquet: '🦜',
-    };
-    return emojis[animalType] || '🐾';
-  };
 
   const handleAdopt = async (refugeSessionId: string) => {
     setAdopting(true);
@@ -152,7 +142,7 @@ export default function AdoptPage() {
                 <Text style={styles.animalEmoji}>{getAnimalEmoji(refuge.animalType)}</Text>
                 <View style={styles.refugeInfo}>
                   <Text style={styles.refugeTitle}>
-                    {refuge.animalType} {refuge.animalSexe === 'Mâle' ? '♂️' : '♀️'}
+                    {getAnimalLabel(refuge.animalType)} {getAnimalSexeSymbol(refuge.animalSexe)}
                   </Text>
                   <Text style={styles.refugeCategory}>{refuge.animalCategory}</Text>
                 </View>

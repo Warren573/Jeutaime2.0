@@ -4,19 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { refugeApi } from '../../src/api/refuge-api';
 import { BouncyButton } from '../../src/components/BouncyButton';
+import { REFUGE_ANIMALS, ANIMAL_LABELS } from '../../src/data/refugeAnimals';
 
-const ANIMALS = [
-  { value: 'CHAT', label: 'Chat' },
-  { value: 'CHIEN', label: 'Chien' },
-  { value: 'LAPIN', label: 'Lapin' },
-  { value: 'HAMSTER', label: 'Hamster' },
-  { value: 'RENARD', label: 'Renard' },
-  { value: 'PINGOUIN', label: 'Pingouin' },
-  { value: 'IGUANE', label: 'Iguane' },
-  { value: 'PANDA', label: 'Panda' },
-  { value: 'LICORNE', label: 'Licorne' },
-  { value: 'DRAGON', label: 'Dragon' },
-];
+const ANIMALS = REFUGE_ANIMALS.map((value) => ({ value, label: ANIMAL_LABELS[value] }));
 const PREFERENCES = [
   { value: 'HOMME_FEMME', label: 'Tous (Homme et Femme)' },
   { value: 'HOMME', label: 'Homme uniquement' },

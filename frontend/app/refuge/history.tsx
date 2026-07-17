@@ -5,14 +5,7 @@ import { useRouter } from 'expo-router';
 import { BouncyButton } from '../../src/components/BouncyButton';
 import { RefugeDayResultIcon } from '../../src/components/RefugeDayResultIcon';
 import { refugeApi, type RefugeHistoryEntry } from '../../src/api/refuge-api';
-
-const ANIMAL_EMOJIS: Record<string, string> = {
-  CHAT: '🐱',
-  CHIEN: '🐶',
-  LAPIN: '🐰',
-  OISEAU: '🐦',
-  HAMSTER: '🐹',
-};
+import { getAnimalEmoji, getAnimalLabel } from '../../src/data/refugeAnimals';
 
 const SMILE_LABELS: Record<RefugeHistoryEntry['smileState'], string> = {
   NONE: 'Aucun Sourire envoyé',
@@ -86,7 +79,7 @@ export default function RefugeHistoryScreen() {
 
               <View style={styles.cardHeader}>
                 <Text style={styles.animal}>
-                  {ANIMAL_EMOJIS[item.animalType] ?? '🐾'} {item.animalType}
+                  {getAnimalEmoji(item.animalType)} {getAnimalLabel(item.animalType)}
                 </Text>
                 <Text style={styles.role}>{item.role === 'adopte' ? 'Adopté' : 'Adoptant'}</Text>
               </View>
