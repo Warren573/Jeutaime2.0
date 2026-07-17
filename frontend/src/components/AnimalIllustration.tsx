@@ -26,9 +26,18 @@ export function AnimalIllustration({ animal, size = 200, style }: AnimalIllustra
 
   useEffect(() => {
     if (source === null) return;
-    const resolved = Image.resolveAssetSource(source);
-    if (resolved && resolved.width > 0 && resolved.height > 0) {
-      setAspectRatio(resolved.width / resolved.height);
+
+    // Image.resolveAssetSource only exists on React Native native, not web
+    if (typeof Image.resolveAssetSource === 'function') {
+      try {
+        const resolved = Image.resolveAssetSource(source);
+        if (resolved && resolved.width > 0 && resolved.height > 0) {
+          setAspectRatio(resolved.width / resolved.height);
+        }
+      } catch (err) {
+        // Fallback: use default 1:1 ratio if resolution fails
+        setAspectRatio(1);
+      }
     }
   }, [source]);
 
