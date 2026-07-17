@@ -1,9 +1,9 @@
 import { useState, useCallback } from "react";
-import type { RefugeAction } from "../components/AnimalIllustration";
+import type { RefugeActionType } from "../data/refugeActions";
 
 interface DailyState {
-  selectedMyActions: RefugeAction[];
-  selectedGuessActions: RefugeAction[];
+  selectedMyActions: RefugeActionType[];
+  selectedGuessActions: RefugeActionType[];
   isDaySubmitted: boolean;
 }
 
@@ -20,7 +20,7 @@ const INITIAL_STATE: DailyState = {
 export function useRefugeDailyChoices() {
   const [state, setState] = useState<DailyState>(INITIAL_STATE);
 
-  const toggleMyAction = useCallback((action: RefugeAction) => {
+  const toggleMyAction = useCallback((action: RefugeActionType) => {
     setState(prev => {
       const newActions = prev.selectedMyActions.includes(action)
         ? prev.selectedMyActions.filter(a => a !== action)
@@ -32,7 +32,7 @@ export function useRefugeDailyChoices() {
     });
   }, []);
 
-  const toggleGuessAction = useCallback((action: RefugeAction) => {
+  const toggleGuessAction = useCallback((action: RefugeActionType) => {
     setState(prev => {
       const newActions = prev.selectedGuessActions.includes(action)
         ? prev.selectedGuessActions.filter(a => a !== action)

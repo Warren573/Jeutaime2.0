@@ -141,6 +141,9 @@ export function emitMagieCast(payload: MagieCastPayload): void {
   emitter.emit("magieCast", payload);
 }
 
+// Point d'extension : aucun handler n'est branché sur "refugeRevealed" à ce
+// jour (voir src/events/handlers.ts). L'émission est atomique et unique par
+// session (garantie par la transition REVEALED dans RefugeService).
 export function emitRefugeRevealed(payload: RefugeRevealedPayload): void {
   emitter.emit("refugeRevealed", payload);
 }
