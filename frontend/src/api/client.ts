@@ -40,18 +40,36 @@ async function buildHeaders(token?: string | null): Promise<Record<string, strin
   };
 }
 
+/**
+ * Erreur HTTP structurée : expose le statut et le code métier renvoyés par le
+ * backend ({ error: { code, message } }). Les consommateurs détectent les cas
+ * métier via `status`/`code` — jamais en comparant le texte du message.
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code: string | null = null,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function parseResponse(res: Response): Promise<any> {
   const text = await res.text();
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
+    let code: string | null = null;
     try {
       const parsed = text ? JSON.parse(text) : null;
-      message = parsed?.error?.message || parsed?.message || text || message;
+      message = parsed?.error?.message || parsed?.message || (typeof parsed?.error === "string" ? parsed.error : "") || text || message;
+      code = typeof parsed?.error?.code === "string" ? parsed.error.code : null;
     } catch {
       message = text || message;
     }
-    throw new Error(message);
+    throw new ApiError(message, res.status, code);
   }
   return text ? JSON.parse(text) : null;
 }

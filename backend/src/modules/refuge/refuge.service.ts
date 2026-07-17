@@ -1,7 +1,14 @@
 import { prisma } from "../../config/prisma";
 import { emitRefugeRevealed } from "../../events";
 import { buildPhotoUrl } from "../photos/photos.urls";
-import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  RefugeDailyChoiceAlreadySubmittedError,
+  RefugeGuessAlreadySubmittedError,
+} from "../../core/errors";
 import {
   RefugeSessionStatus,
   RefugeAction,
@@ -649,7 +656,7 @@ export class RefugeService {
     });
 
     if (existingChoice) {
-      throw new ConflictError(`Le choix pour le jour ${dayNumber} a déjà été soumis`);
+      throw new RefugeDailyChoiceAlreadySubmittedError(dayNumber);
     }
 
     // Créer le choix en transaction
@@ -676,7 +683,7 @@ export class RefugeService {
     } catch (err: any) {
       // Conflit d'unicité : une requête concurrente a créé le choix avant nous
       if (err.code === "P2002") {
-        throw new ConflictError(`Le choix pour le jour ${dayNumber} a déjà été soumis`);
+        throw new RefugeDailyChoiceAlreadySubmittedError(dayNumber);
       }
       throw err;
     }
@@ -750,7 +757,7 @@ export class RefugeService {
     });
 
     if (existingGuess) {
-      throw new ConflictError(`La tentative pour le jour ${dayNumber} a déjà été soumise`);
+      throw new RefugeGuessAlreadySubmittedError(dayNumber);
     }
 
     // La tentative n'a de sens que si l'Adopté a réellement soumis ses actions du jour.
@@ -829,7 +836,7 @@ export class RefugeService {
       });
     } catch (err: any) {
       if (err.code === "P2002") {
-        throw new ConflictError(`La tentative pour le jour ${dayNumber} a déjà été soumise`);
+        throw new RefugeGuessAlreadySubmittedError(dayNumber);
       }
       throw err;
     }
@@ -1116,58 +1123,6 @@ export class RefugeService {
     }
 
     return this.getRefugeSession(refugeSessionId, userId);
-  }
-
-  // ============================================================
-  // Révélation préparatoire (sans cron)
-  // ============================================================
-
-  static async prepareRevelationData(refugeSessionId: string): Promise<any> {
-    const refugeSession = await prisma.refugeSession.findUnique({
-      where: { id: refugeSessionId },
-      include: {
-        adopte: {
-          select: { id: true, profile: { select: { pseudo: true } } },
-        },
-        adoptant: {
-          select: { id: true, profile: { select: { pseudo: true } } },
-        },
-        dailyChoices: {
-          orderBy: { dayNumber: "asc" },
-        },
-      },
-    });
-
-    if (!refugeSession) {
-      throw new NotFoundError("Refuge non trouvé");
-    }
-
-    return {
-      sessionId: refugeSession.id,
-      status: refugeSession.status,
-      animalType: refugeSession.animalType,
-      animalCategory: refugeSession.animalCategory,
-      animalSexe: refugeSession.animalSexe,
-      adopte: {
-        id: refugeSession.adopte.id,
-        pseudo: refugeSession.adopte.profile?.pseudo || "Anonyme",
-      },
-      adoptant: refugeSession.adoptant
-        ? {
-            id: refugeSession.adoptant.id,
-            pseudo: refugeSession.adoptant.profile?.pseudo || "Anonyme",
-          }
-        : null,
-      dailyChoices: refugeSession.dailyChoices.map((choice) => ({
-        dayNumber: choice.dayNumber,
-        action1: choice.action1,
-        action2: choice.action2,
-      })),
-      createdAt: refugeSession.createdAt,
-      startedAt: refugeSession.startedAt,
-      endsAt: refugeSession.endsAt,
-      preexistingLinkType: refugeSession.preexistingLinkType,
-    };
   }
 
   // ============================================================

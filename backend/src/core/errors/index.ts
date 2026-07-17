@@ -114,3 +114,27 @@ export class PhotoUnlockedError extends HttpError {
     this.name = "PhotoUnlockedError";
   }
 }
+
+// Refuge — doubles soumissions quotidiennes. Le frontend détecte ces cas via
+// le code structuré (jamais en comparant le texte français du message).
+export class RefugeDailyChoiceAlreadySubmittedError extends HttpError {
+  constructor(dayNumber: number) {
+    super(
+      409,
+      "REFUGE_DAILY_CHOICE_ALREADY_SUBMITTED",
+      `Le choix pour le jour ${dayNumber} a déjà été soumis`,
+    );
+    this.name = "RefugeDailyChoiceAlreadySubmittedError";
+  }
+}
+
+export class RefugeGuessAlreadySubmittedError extends HttpError {
+  constructor(dayNumber: number) {
+    super(
+      409,
+      "REFUGE_GUESS_ALREADY_SUBMITTED",
+      `La tentative pour le jour ${dayNumber} a déjà été soumise`,
+    );
+    this.name = "RefugeGuessAlreadySubmittedError";
+  }
+}

@@ -1,13 +1,13 @@
 import { z } from "zod";
-import { RefugeAnimalType, RefugeAcceptedSexe, RefugeAction } from "@prisma/client";
+import { RefugeAnimalType, RefugeAcceptedSexe, RefugeAction, RefugeBackground } from "@prisma/client";
 
 // ============================================================
 // Enums Zod (synchronisés avec Prisma)
 // ============================================================
 
-const RefugeAnimalTypeEnum = z.enum(Object.values(RefugeAnimalType) as [string, ...string[]]);
-const RefugeAcceptedSexeEnum = z.enum(Object.values(RefugeAcceptedSexe) as [string, ...string[]]);
-const RefugeActionEnum = z.enum(Object.values(RefugeAction) as [string, ...string[]]);
+const RefugeAnimalTypeEnum = z.nativeEnum(RefugeAnimalType);
+const RefugeAcceptedSexeEnum = z.nativeEnum(RefugeAcceptedSexe);
+const RefugeActionEnum = z.nativeEnum(RefugeAction);
 
 // ============================================================
 // Schemas de requête
@@ -44,6 +44,12 @@ export const RevealConsentSchema = z.object({
   decision: z.enum(["ACCEPT", "REFUSE"]),
 });
 
+// Le fond d'ambiance doit être une valeur EXACTE de l'enum Prisma RefugeBackground :
+// toute valeur localisée ("forêt", "default"…) est rejetée en 400 avant Prisma.
+export const UpdateBackgroundSchema = z.object({
+  background: z.nativeEnum(RefugeBackground),
+});
+
 // ============================================================
 // Types extraits
 // ============================================================
@@ -53,3 +59,4 @@ export type AdoptRefugeDto = z.infer<typeof AdoptRefugeSchema>;
 export type GuessDto = z.infer<typeof GuessSchema>;
 export type DailyChoiceDto = z.infer<typeof DailyChoiceSchema>;
 export type RevealConsentDto = z.infer<typeof RevealConsentSchema>;
+export type UpdateBackgroundDto = z.infer<typeof UpdateBackgroundSchema>;

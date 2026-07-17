@@ -2,7 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
-import { ProposeRefugeSchema, AdoptRefugeSchema, GuessSchema, DailyChoiceSchema, RevealConsentSchema } from "./refuge.schemas";
+import { ProposeRefugeSchema, AdoptRefugeSchema, GuessSchema, DailyChoiceSchema, RevealConsentSchema, UpdateBackgroundSchema } from "./refuge.schemas";
 import { RefugeController } from "./refuge.controller";
 import type { AuthedRequest } from "../../core/types";
 
@@ -48,8 +48,12 @@ router.get("/session/:sessionId", wrap(RefugeController.getSession));
 router.get("/sessions/:sessionId/status", wrap(RefugeController.getSession));
 
 // PATCH /api/refuge/session/:sessionId/background
-// Mettre à jour le fond d'ambiance
-router.patch("/session/:sessionId/background", wrap(RefugeController.updateBackground));
+// Mettre à jour le fond d'ambiance (valeur enum RefugeBackground obligatoire)
+router.patch(
+  "/session/:sessionId/background",
+  validate(UpdateBackgroundSchema),
+  wrap(RefugeController.updateBackground)
+);
 
 // POST /api/refuge/daily-choice
 // Adopté soumet son choix quotidien (2 actions du jour)

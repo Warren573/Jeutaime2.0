@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../store/useStore";
-import { refugeApi } from "../api/refuge-api";
+import { refugeApi, isAlreadySubmittedError } from "../api/refuge-api";
 import { ACTION_TO_BACKEND, type RefugeActionType } from "../data/refugeActions";
 
 interface RefugeSessionState {
@@ -193,9 +193,10 @@ export function useRefugeSession(sessionId: string | null) {
         await fetchSessionStatus();
         return true;
       } catch (err: any) {
-        // 409 : la tentative du jour a déjà été enregistrée (double clic,
-        // requête simultanée ou réponse réseau perdue) — c'est un succès.
-        if (typeof err?.message === "string" && err.message.includes("déjà été soumise")) {
+        // 409 REFUGE_GUESS_ALREADY_SUBMITTED : la tentative du jour a déjà été
+        // enregistrée (double clic, requête simultanée ou réponse réseau
+        // perdue) — c'est un succès, l'état serveur fait foi.
+        if (isAlreadySubmittedError(err, "guess")) {
           await fetchSessionStatus();
           return true;
         }
@@ -227,7 +228,9 @@ export function useRefugeSession(sessionId: string | null) {
         await fetchSessionStatus();
         return true;
       } catch (err: any) {
-        if (typeof err?.message === "string" && err.message.includes("déjà été soumise")) {
+        // 409 REFUGE_DAILY_CHOICE_ALREADY_SUBMITTED : choix déjà enregistré —
+        // succès idempotent côté UX, l'état serveur fait foi.
+        if (isAlreadySubmittedError(err, "dailyChoice")) {
           await fetchSessionStatus();
           return true;
         }

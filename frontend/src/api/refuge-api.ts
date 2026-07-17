@@ -1,4 +1,28 @@
-import { apiFetch } from "./client";
+import { apiFetch, ApiError } from "./client";
+
+// Codes d'erreur métier Refuge (source : backend/src/core/errors — HttpError.code).
+// La détection des doubles soumissions passe par ces codes, jamais par le texte.
+export const REFUGE_ERROR_CODES = {
+  DAILY_CHOICE_ALREADY_SUBMITTED: "REFUGE_DAILY_CHOICE_ALREADY_SUBMITTED",
+  GUESS_ALREADY_SUBMITTED: "REFUGE_GUESS_ALREADY_SUBMITTED",
+} as const;
+
+/**
+ * Vrai si l'erreur est le 409 « déjà soumis » du choix quotidien ou de la
+ * tentative : un double clic / retry réseau est alors un succès côté UX
+ * (l'état réel du serveur prévaut après rechargement de la session).
+ */
+export function isAlreadySubmittedError(
+  err: unknown,
+  kind: "dailyChoice" | "guess"
+): boolean {
+  if (!(err instanceof ApiError) || err.status !== 409) return false;
+  const expected =
+    kind === "dailyChoice"
+      ? REFUGE_ERROR_CODES.DAILY_CHOICE_ALREADY_SUBMITTED
+      : REFUGE_ERROR_CODES.GUESS_ALREADY_SUBMITTED;
+  return err.code === expected;
+}
 
 export interface RefugeSession {
   id: string;

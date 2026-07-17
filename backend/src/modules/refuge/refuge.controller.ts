@@ -1,11 +1,24 @@
 import type { Response } from "express";
 import { RefugeService } from "./refuge.service";
-import type { ProposeRefugeDto, AdoptRefugeDto, GuessDto, DailyChoiceDto, RevealConsentDto } from "./refuge.schemas";
+import type { ProposeRefugeDto, AdoptRefugeDto, GuessDto, DailyChoiceDto, RevealConsentDto, UpdateBackgroundDto } from "./refuge.schemas";
 import type { AuthedRequest } from "../../core/types";
 
 // ============================================================
 // RefugeController — Handlers HTTP pour Refuge
 // ============================================================
+
+// Réponse d'erreur au format canonique du projet ({ error: { code, message } },
+// identique à core/middleware/errorHandler) : le frontend s'appuie sur `code`,
+// jamais sur le texte du message.
+function sendError(res: Response, error: any): void {
+  if (error?.statusCode) {
+    res.status(error.statusCode).json({
+      error: { code: error.code ?? "ERROR", message: error.message },
+    });
+  } else {
+    res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Erreur interne" } });
+  }
+}
 
 export class RefugeController {
   // ============================================================
@@ -23,8 +36,8 @@ export class RefugeController {
 
     try {
       const refugeSession = await RefugeService.proposeAsAdopte(userId, {
-        animalType: input.animalType as any,
-        acceptedSexe: input.acceptedSexe as any,
+        animalType: input.animalType,
+        acceptedSexe: input.acceptedSexe,
       });
       res.status(201).json({
         success: true,
@@ -32,11 +45,7 @@ export class RefugeController {
         message: "Refuge proposé avec succès",
       });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Erreur interne" });
-      }
+      sendError(res, error);
     }
   }
 
@@ -61,11 +70,7 @@ export class RefugeController {
         count: refuges.length,
       });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Erreur interne" });
-      }
+      sendError(res, error);
     }
   }
 
@@ -91,11 +96,7 @@ export class RefugeController {
         message: "Refuge adopté avec succès",
       });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Erreur interne" });
-      }
+      sendError(res, error);
     }
   }
 
@@ -125,11 +126,7 @@ export class RefugeController {
         data: refugeSession,
       });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Erreur interne" });
-      }
+      sendError(res, error);
     }
   }
 
@@ -145,20 +142,16 @@ export class RefugeController {
     }
 
     const sessionId = req.params.sessionId as string;
-    const { background } = req.body as { background: string };
+    // Body validé par UpdateBackgroundSchema : background est une valeur de l'enum Prisma
+    const { background } = req.body as UpdateBackgroundDto;
 
     if (!sessionId) {
       res.status(400).json({ error: "sessionId requis" });
       return;
     }
 
-    if (!background) {
-      res.status(400).json({ error: "background requis" });
-      return;
-    }
-
     try {
-      const refugeSession = await RefugeService.updateBackground(sessionId, userId, background as any);
+      const refugeSession = await RefugeService.updateBackground(sessionId, userId, background);
 
       res.status(200).json({
         success: true,
@@ -166,11 +159,7 @@ export class RefugeController {
         message: "Fond d'ambiance mis à jour",
       });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Erreur interne" });
-      }
+      sendError(res, error);
     }
   }
 
@@ -193,11 +182,7 @@ export class RefugeController {
         data: activeSession,
       });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Erreur interne" });
-      }
+      sendError(res, error);
     }
   }
 
@@ -220,8 +205,8 @@ export class RefugeController {
         userId,
         input.dayNumber,
         {
-          action1: input.action1 as any,
-          action2: input.action2 as any,
+          action1: input.action1,
+          action2: input.action2,
         }
       );
 
@@ -231,11 +216,7 @@ export class RefugeController {
         message: `Choix pour le jour ${input.dayNumber} enregistré`,
       });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Erreur interne" });
-      }
+      sendError(res, error);
     }
   }
 
@@ -258,8 +239,8 @@ export class RefugeController {
         userId,
         input.dayNumber,
         {
-          guessedAction1: input.guessedAction1 as any,
-          guessedAction2: input.guessedAction2 as any,
+          guessedAction1: input.guessedAction1,
+          guessedAction2: input.guessedAction2,
         }
       );
 
@@ -269,11 +250,7 @@ export class RefugeController {
         message: `Devinettes pour le jour ${input.dayNumber} enregistrées`,
       });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Erreur interne" });
-      }
+      sendError(res, error);
     }
   }
 
@@ -296,11 +273,7 @@ export class RefugeController {
       const result = await RefugeService.getRefugeHistory(userId, page, limit);
       res.status(200).json({ success: true, data: result });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Erreur interne" });
-      }
+      sendError(res, error);
     }
   }
 
@@ -332,11 +305,7 @@ export class RefugeController {
         message: decision === "ACCEPT" ? "Décision enregistrée" : "Le Refuge se termine ici",
       });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Erreur interne" });
-      }
+      sendError(res, error);
     }
   }
 
@@ -375,11 +344,7 @@ export class RefugeController {
         message: `[DEV] Jumped to day ${day}`,
       });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Internal error" });
-      }
+      sendError(res, error);
     }
   }
 
@@ -410,11 +375,7 @@ export class RefugeController {
         message: `[DEV] Advanced to day ${result.currentDay}`,
       });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Internal error" });
-      }
+      sendError(res, error);
     }
   }
 
@@ -457,11 +418,7 @@ export class RefugeController {
         message: `[DEV] Session ${label}`,
       });
     } catch (error: any) {
-      if (error.statusCode) {
-        res.status(error.statusCode).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: "Internal error" });
-      }
+      sendError(res, error);
     }
   }
 }
