@@ -2,13 +2,7 @@ import { env } from "./config/env";
 import { logger } from "./config/logger";
 import { prisma } from "./config/prisma";
 import app from "./app";
-import {
-  createPurgeExpiredRefreshTokensJob,
-  demoteExpiredPremiumJob,
-  expireCardGamesJob,
-  expireSalonSessionsJob,
-  startScheduler,
-} from "./jobs";
+import { buildScheduledJobs, startScheduler } from "./jobs";
 import { execSync } from "child_process";
 import { isTestMode } from "./core/testMode";
 
@@ -65,19 +59,15 @@ async function main() {
     );
   });
 
-  // Scheduler opt-in (ENABLE_SCHEDULER=true)
+  // Scheduler opt-in (ENABLE_SCHEDULER=true) — liste unique de jobs, dont
+  // closeRefugeDaysJob (clôture des journées de Refuge échues).
   let schedulerHandle: { stop: () => void } | null = null;
   if (env.ENABLE_SCHEDULER) {
     schedulerHandle = startScheduler({
       intervalMs: env.SCHEDULER_INTERVAL_MS,
-      jobs: [
-        demoteExpiredPremiumJob,
-        expireCardGamesJob,
-        expireSalonSessionsJob,
-        createPurgeExpiredRefreshTokensJob({
-          graceMs: env.REFRESH_TOKEN_PURGE_GRACE_MS,
-        }),
-      ],
+      jobs: buildScheduledJobs({
+        refreshTokenPurgeGraceMs: env.REFRESH_TOKEN_PURGE_GRACE_MS,
+      }),
     });
   }
 
