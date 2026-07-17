@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../src/core/errors";
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  RefugeDailyChoiceAlreadySubmittedError,
+  RefugeGuessAlreadySubmittedError,
+} from "../../src/core/errors";
 
 // Mock the Prisma module with factory function to avoid hoisting issues
 vi.mock("../../src/config/prisma", () => {
@@ -495,12 +502,13 @@ describe("RefugeService.submitGuess", () => {
     ).rejects.toBeInstanceOf(BadRequestError);
   });
 
-  it("rejects when the day's attempt already exists", async () => {
+  it("rejects when the day's attempt already exists (409 + structured code)", async () => {
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
     (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(createdGuess);
-    await expect(
-      RefugeService.submitGuess(sessionId, adoptantId, 1, guessInput)
-    ).rejects.toBeInstanceOf(ConflictError);
+    const error = await RefugeService.submitGuess(sessionId, adoptantId, 1, guessInput).catch((e) => e);
+    expect(error).toBeInstanceOf(RefugeGuessAlreadySubmittedError);
+    expect(error.statusCode).toBe(409);
+    expect(error.code).toBe("REFUGE_GUESS_ALREADY_SUBMITTED");
     expect(prisma.refugeGuess.create).not.toHaveBeenCalled();
   });
 
@@ -542,9 +550,10 @@ describe("RefugeService.submitGuess", () => {
     );
     (prisma.refugeSession.update as any).mockResolvedValueOnce({});
 
-    await expect(
-      RefugeService.submitGuess(sessionId, adoptantId, 1, guessInput)
-    ).rejects.toBeInstanceOf(ConflictError);
+    const error = await RefugeService.submitGuess(sessionId, adoptantId, 1, guessInput).catch((e) => e);
+    expect(error).toBeInstanceOf(RefugeGuessAlreadySubmittedError);
+    expect(error.statusCode).toBe(409);
+    expect(error.code).toBe("REFUGE_GUESS_ALREADY_SUBMITTED");
   });
 
   it("calculates 2/2 match and includes reward in result", async () => {
@@ -652,6 +661,41 @@ describe("RefugeService.submitGuess", () => {
     expect(result.dayResult.matches).toBe(2);
     expect(result.dayResult.reward).toBe(10);
     expect(prisma.wallet.upsert).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ============================================================
+// submitDailyChoice — double soumission : 409 + code structuré
+// (le frontend détecte ce cas par le code, jamais par le texte)
+// ============================================================
+
+describe("RefugeService.submitDailyChoice — double soumission", () => {
+  const choiceInput = { action1: "NOURRIR", action2: "JOUER" } as any;
+  const existingChoice = { id: "choice-1", refugeSessionId: sessionId, dayNumber: 1, action1: "NOURRIR", action2: "JOUER" };
+
+  it("rejects when the day's choice already exists (409 + structured code)", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
+    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(existingChoice);
+
+    const error = await RefugeService.submitDailyChoice(sessionId, adopteId, 1, choiceInput).catch((e) => e);
+    expect(error).toBeInstanceOf(RefugeDailyChoiceAlreadySubmittedError);
+    expect(error.statusCode).toBe(409);
+    expect(error.code).toBe("REFUGE_DAILY_CHOICE_ALREADY_SUBMITTED");
+    expect(prisma.refugeDailyChoice.create).not.toHaveBeenCalled();
+  });
+
+  it("turns a duplicate-submission race (P2002) into the same structured 409", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
+    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(null);
+    (prisma.refugeDailyChoice.create as any).mockRejectedValueOnce(
+      Object.assign(new Error("unique"), { code: "P2002" })
+    );
+    (prisma.refugeSession.update as any).mockResolvedValueOnce({});
+
+    const error = await RefugeService.submitDailyChoice(sessionId, adopteId, 1, choiceInput).catch((e) => e);
+    expect(error).toBeInstanceOf(RefugeDailyChoiceAlreadySubmittedError);
+    expect(error.statusCode).toBe(409);
+    expect(error.code).toBe("REFUGE_DAILY_CHOICE_ALREADY_SUBMITTED");
   });
 });
 

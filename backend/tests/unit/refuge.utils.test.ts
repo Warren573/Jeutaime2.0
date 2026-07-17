@@ -92,8 +92,10 @@ describe("Refuge utils", () => {
       expect(calculateHearts([choice], [guess], 1)[0]).toBe("❤️");
     });
 
-    it("shows ❌ when the attempt is wrong", () => {
-      const guess = { dayNumber: 1, guessedAction1: "LAVER", guessedAction2: "NOURRIR" };
+    it("shows ❌ when the attempt is fully wrong (0/2)", () => {
+      // Choix = NOURRIR + JOUER : la tentative ne doit contenir AUCUNE des deux
+      // (1/2 correct = ❤️ PARTIAL, règle couverte par refuge.service.test.ts)
+      const guess = { dayNumber: 1, guessedAction1: "LAVER", guessedAction2: "CARESSER" };
       expect(calculateHearts([choice], [guess], 1)[0]).toBe("❌");
     });
 
