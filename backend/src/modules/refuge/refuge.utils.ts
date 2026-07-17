@@ -151,7 +151,7 @@ export function calculateDayResult(dailyChoice: any, guess: any): DayResult {
       matches: 1,
       message: "Vous n'étiez pas loin d'être sur la même longueur d'onde.",
       reward: REFUGE_PARTIAL_REWARD,
-      emoji: "❤️",
+      emoji: "♡",
     };
   } else {
     return {
@@ -179,7 +179,7 @@ export type RefugeDayStatusName =
 export const DAY_STATUS_SYMBOLS: Record<RefugeDayStatusName, string> = {
   OPEN: "🤍",
   FAILED: "❌",
-  PARTIAL: "❤️",
+  PARTIAL: "♡",
   PERFECT: "❤️",
   INCOMPLETE_ADOPTE_MISSING: "⚠️",
   INCOMPLETE_ADOPTANT_MISSING: "⚠️",
