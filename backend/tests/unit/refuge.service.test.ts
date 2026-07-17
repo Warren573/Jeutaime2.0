@@ -591,7 +591,7 @@ describe("RefugeService.submitGuess", () => {
     expect(result.dayResult.matches).toBe(1);
     expect(result.dayResult.message).toBe("Vous n'étiez pas loin d'être sur la même longueur d'onde.");
     expect(result.dayResult.reward).toBe(5);
-    expect(result.dayResult.emoji).toBe("❤️");
+    expect(result.dayResult.emoji).toBe("♡");
     // Écritures traçables via le ledger : une CoinTransaction +5 par joueur
     expect(prisma.wallet.upsert).toHaveBeenCalledTimes(2);
     const txnAmounts = (prisma.coinTransaction.create as any).mock.calls.map(
@@ -616,7 +616,7 @@ describe("RefugeService.submitGuess", () => {
 
     const result = await RefugeService.getRefugeSession(sessionId, adoptantId);
 
-    expect(result.hearts[0]).toBe("❤️");
+    expect(result.hearts[0]).toBe("♡");
     expect(result.todayResult?.matches).toBe(1);
     expect(result.todayResult?.reward).toBe(5);
   });
