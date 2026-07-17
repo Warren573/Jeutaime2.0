@@ -3,8 +3,9 @@ import { View, Text, StyleSheet, Animated, Modal, Image } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BouncyButton } from "./BouncyButton";
 import { sendReaction } from "../api/reactions";
-import { API_URL } from "../api/client";
-import { ANIMAL_PNG_FILENAME } from "../data/refugeAnimals";
+import { API_URL, ApiError } from "../api/client";
+import { getAnimalEmoji } from "../data/refugeAnimals";
+import { getAnimalImage } from "../data/refugeAnimalImages";
 
 interface RevealStateProps {
   available: boolean;
@@ -28,7 +29,6 @@ interface RefugeRevealPhaseProps {
   currentUserId: string | null;
   status: string;
   reveal: RevealStateProps;
-  hearts: string[];
   otherProfile: OtherProfileProps | null;
   isSubmitting: boolean;
   onDecision: (decision: "ACCEPT" | "REFUSE") => void;
@@ -51,7 +51,6 @@ export function RefugeRevealPhase({
   currentUserId,
   status,
   reveal,
-  hearts,
   otherProfile,
   isSubmitting,
   onDecision,
@@ -87,10 +86,10 @@ export function RefugeRevealPhase({
     try {
       const result = await sendReaction(otherProfile.userId, "SMILE");
       setSmileStatus(result?.matchCreated ? "mutual" : "sent");
-    } catch (err: any) {
-      const msg = String(err?.message ?? "");
-      // Réaction déjà enregistrée (contrainte unique du flux Sourire existant)
-      setSmileStatus(msg.toLowerCase().includes("déjà") || msg.includes("409") ? "already" : "idle");
+    } catch (err: unknown) {
+      // 409 : réaction déjà enregistrée (contrainte unique du flux Sourire
+      // existant) — détection par statut HTTP, jamais par le texte du message.
+      setSmileStatus(err instanceof ApiError && err.status === 409 ? "already" : "idle");
     }
   };
 
@@ -214,6 +213,9 @@ export function RefugeRevealPhase({
  * Jouée UNE seule fois : onFinished persiste le flag via AsyncStorage.
  */
 function RevealAnimation({ animalType, otherProfile, onFinished }: { animalType?: string; otherProfile: OtherProfileProps | null; onFinished: () => void }) {
+  // PNG absents du dépôt : fallback emoji obligatoire — la phase 1 ne doit
+  // jamais afficher une zone vide (l'échec de chargement bascule aussi).
+  const [imageFailed, setImageFailed] = useState(false);
   const animalOpacity = useRef(new Animated.Value(1)).current;
   const animalScale = useRef(new Animated.Value(1)).current;
 
@@ -229,8 +231,9 @@ function RevealAnimation({ animalType, otherProfile, onFinished }: { animalType?
 
   const finishedRef = useRef(false);
 
-  const animalFilename = animalType && ANIMAL_PNG_FILENAME[animalType as keyof typeof ANIMAL_PNG_FILENAME];
-  const animalUri = animalFilename ? `/refuge/${animalFilename}` : null;
+  const animalSource = getAnimalImage(animalType);
+  const showAnimalImage = animalSource !== null && !imageFailed;
+  const animalEmoji = getAnimalEmoji(animalType);
 
   useEffect(() => {
     const finish = () => {
@@ -297,12 +300,19 @@ function RevealAnimation({ animalType, otherProfile, onFinished }: { animalType?
   return (
     <Modal transparent animationType="none" visible>
       <View style={styles.revealOverlay}>
-        {/* Phase 1: Animal PNG */}
-        {animalUri && (
-          <Animated.View style={[{ opacity: animalOpacity, transform: [{ scale: animalScale }] }]}>
-            <Image source={{ uri: animalUri }} style={styles.revealAnimal} resizeMode="contain" />
-          </Animated.View>
-        )}
+        {/* Phase 1: Animal — PNG local si fourni, sinon emoji (jamais de zone vide) */}
+        <Animated.View style={[{ opacity: animalOpacity, transform: [{ scale: animalScale }] }]}>
+          {showAnimalImage ? (
+            <Image
+              source={animalSource}
+              style={styles.revealAnimal}
+              resizeMode="contain"
+              onError={() => setImageFailed(true)}
+            />
+          ) : (
+            <Text style={styles.revealAnimalEmoji}>{animalEmoji}</Text>
+          )}
+        </Animated.View>
 
         {/* Phase 2: Smoke puffs */}
         {[smoke1Opacity, smoke2Opacity, smoke3Opacity].map((opacity, idx) => (
@@ -528,6 +538,10 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     position: "absolute",
+  },
+  revealAnimalEmoji: {
+    fontSize: 120,
+    textAlign: "center",
   },
   smokePuff: {
     position: "absolute",

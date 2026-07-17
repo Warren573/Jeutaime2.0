@@ -1,20 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Dimensions, ScrollView, Animated, Modal } from "react-native";
+import { View, Text, StyleSheet, Dimensions, ScrollView, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 import { BouncyButton } from "../components/BouncyButton";
 import { BackgroundPicker } from "../components/BackgroundPicker";
 import { RefugeDevTimeTravel } from "../components/RefugeDevTimeTravel";
-import { RefugeActionGrid } from "../components/RefugeActionGrid";
 import { RefugeRevealPhase } from "../components/RefugeRevealPhase";
 import { RefugeDayResultIcon } from "../components/RefugeDayResultIcon";
-import { AnimalIllustration, type RefugeAction } from "../components/AnimalIllustration";
-import { ACTION_LABELS, BACKEND_ACTION_LABELS, BACKEND_ACTION_ICONS } from "../data/refugeActions";
-import { getBackgroundGradientStyle } from "../data/refugeBackgrounds";
-import { useRefugeAction } from "../hooks/useRefugeAction";
-import { useRefugeActionLog } from "../hooks/useRefugeActionLog";
-import { useRefugeDay } from "../hooks/useRefugeDay";
+import { AnimalIllustration } from "../components/AnimalIllustration";
+import { ACTION_LABELS, BACKEND_ACTION_LABELS, BACKEND_ACTION_ICONS, type RefugeActionType } from "../data/refugeActions";
+import { getAnimalLabel, isRefugeAnimal } from "../data/refugeAnimals";
+import { getBackgroundGradientStyle, DEFAULT_REFUGE_BACKGROUND } from "../data/refugeBackgrounds";
 import { useRefugeDailyChoices } from "../hooks/useRefugeDailyChoices";
 import { useRefugeSession } from "../hooks/useRefugeSession";
 import { formatAnimalAge } from "../modules/refuge/refugeAgeDisplay";
@@ -40,8 +37,10 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   const router = useRouter();
   const sessionId = sessionIdProp;
 
-  const { currentAction, isActing, triggerAction } = useRefugeAction();
-  const { logAction } = useRefugeActionLog();
+  // Identité : même source que le reste de l'app (store d'authentification)
+  const { currentUser } = useStore();
+  const currentUserId = currentUser?.id ?? null;
+
   const { animalSize } = getResponsiveValues();
   const {
     selectedMyActions,
@@ -55,9 +54,15 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   const refugeSession = useRefugeSession(sessionId);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [heartPulse, setHeartPulse] = useState(false);
-  const [otherUserProfile, setOtherUserProfile] = useState<any>(null);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
+
+  // Phase finale — la décision part au serveur, puis l'état serveur fait foi
+  const handleRevealDecision = async (decision: "ACCEPT" | "REFUSE") => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    await refugeSession.submitRevealConsent(decision);
+    setIsSubmitting(false);
+  };
 
   const handleAdopteSubmit = async () => {
     if (selectedMyActions.length !== 2 || isSubmitting) return;
@@ -92,32 +97,19 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   // Cœurs depuis le serveur
   const hearts = refugeSession.hearts;
 
-  const actions: RefugeAction[] = ["feed", "play", "pet", "wash"];
+  const companionAnimal = refugeSession.companion?.animalType;
+
+  const actions: RefugeActionType[] = ["feed", "play", "pet", "wash"];
 
   const handleAdoptantSubmit = async () => {
     if (selectedGuessActions.length !== 2 || isSubmitting) return;
 
     // Soumettre la tentative de l'Adoptant au serveur (POST /refuge/guess)
     setIsSubmitting(true);
-    const success = await refugeSession.submitGuess(selectedGuessActions);
+    await refugeSession.submitGuess(selectedGuessActions);
     setIsSubmitting(false);
-
-    if (success) {
-      // Si c'est le jour 7, préparer la révélation
-      if (refugeSession.currentDay === 7) {
-        setTimeout(async () => {
-          const revealed = await refugeSession.revealProfiles();
-          if (revealed) {
-            setOtherUserProfile(revealed.otherUserProfile);
-            // Naviguer vers l'écran de révélation des profils
-            router.push({
-              pathname: "/refuge/profile-reveal",
-              params: { profile: JSON.stringify(revealed.otherUserProfile) },
-            });
-          }
-        }, 2000);
-      }
-    }
+    // Jour 7 : rien à déclencher ici — le serveur expose reveal.available
+    // et la phase de consentement (RefugeRevealPhase) s'affiche d'elle-même.
   };
 
   if (refugeSession.isLoading) {
@@ -171,7 +163,6 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
             currentUserId={currentUserId}
             status={refugeSession.status}
             reveal={refugeSession.reveal ?? { available: true, myDecision: "ACCEPT", otherDecided: true, revealedAt: null }}
-            hearts={refugeSession.dailyResults.map((r) => r.symbol)}
             otherProfile={refugeSession.otherProfile}
             isSubmitting={isSubmitting}
             onDecision={handleRevealDecision}
@@ -184,7 +175,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
           <RefugeDevTimeTravel
             sessionId={sessionId}
             currentDay={refugeSession.currentDay}
-            canAdvanceDay={false}
+            canAdvanceDay={refugeSession.canAdvanceDay}
             onDayChanged={() => refugeSession.fetchSessionStatus()}
             onSessionReset={() => router.replace('/(tabs)/social')}
           />
@@ -209,7 +200,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
           </Text>
           {refugeSession.companion && (
             <Text style={styles.headerSubtitle}>
-              {refugeSession.companion.animalType} • {formatAnimalAge(refugeSession.companion.animalAgeMonths)}
+              {getAnimalLabel(refugeSession.companion.animalType)} • {formatAnimalAge(refugeSession.companion.animalAgeMonths)}
             </Text>
           )}
         </View>
@@ -219,13 +210,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
       {/* 7 Cœurs */}
       <View style={styles.heartsContainer}>
         {hearts.map((heart, idx) => (
-          <Text
-            key={idx}
-            style={[
-              styles.heart,
-              heartPulse && idx === refugeSession.currentDay - 1 && styles.heartPulse,
-            ]}
-          >
+          <Text key={idx} style={styles.heart}>
             {heart}
           </Text>
         ))}
@@ -235,17 +220,15 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
       <View
         style={[
           styles.refugeZone,
-          getBackgroundGradientStyle(refugeSession.companion?.background || 'default'),
+          getBackgroundGradientStyle(refugeSession.companion?.background),
         ]}
       >
         {/* Companion with Shadow */}
         <View style={styles.companionWrapper}>
-          {refugeSession.companion?.animalType && (
+          {isRefugeAnimal(companionAnimal) && (
             <AnimalIllustration
-              animal={refugeSession.companion.animalType as any}
+              animal={companionAnimal}
               size={animalSize}
-              action={currentAction}
-              isActing={isActing}
             />
           )}
           {/* Ground Shadow */}
@@ -317,7 +300,6 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
             currentUserId={currentUserId}
             status={refugeSession.status}
             reveal={refugeSession.reveal}
-            hearts={hearts}
             otherProfile={refugeSession.otherProfile}
             isSubmitting={isSubmitting}
             onDecision={handleRevealDecision}
@@ -460,6 +442,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
         <RefugeDevTimeTravel
           sessionId={sessionId}
           currentDay={refugeSession.currentDay}
+          canAdvanceDay={refugeSession.canAdvanceDay}
           onDayChanged={() => refugeSession.fetchSessionStatus()}
         />
       </ScrollView>
@@ -485,7 +468,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
             </View>
 
             <BackgroundPicker
-              currentBackground={refugeSession.companion?.background || 'default'}
+              currentBackground={refugeSession.companion?.background ?? DEFAULT_REFUGE_BACKGROUND}
               onSelectBackground={async (background) => {
                 const success = await refugeSession.changeBackground(background);
                 if (success) {
@@ -552,10 +535,6 @@ const styles = StyleSheet.create({
   },
   heart: {
     fontSize: 28,
-  },
-  heartPulse: {
-    // Pulse animation handled via Animated in component
-    transform: [{ scale: 1 }],
   },
 
   /* Refuge Zone */
