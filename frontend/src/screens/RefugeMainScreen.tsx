@@ -5,7 +5,6 @@ import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 import { BouncyButton } from "../components/BouncyButton";
 import { BackgroundPicker } from "../components/BackgroundPicker";
-import { RefugeDevTimeTravel } from "../components/RefugeDevTimeTravel";
 import { RefugeRevealPhase } from "../components/RefugeRevealPhase";
 import { RefugeDayResultIcon } from "../components/RefugeDayResultIcon";
 import { AnimalIllustration } from "../components/AnimalIllustration";
@@ -178,14 +177,6 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
             animalType={refugeSession.companion?.animalType}
           />
 
-          <View style={{ height: 12 }} />
-          <RefugeDevTimeTravel
-            sessionId={sessionId}
-            currentDay={refugeSession.currentDay}
-            canAdvanceDay={refugeSession.canAdvanceDay}
-            onDayChanged={() => refugeSession.fetchSessionStatus()}
-            onSessionReset={() => router.replace('/(tabs)/social')}
-          />
         </ScrollView>
       </SafeAreaView>
     );
@@ -456,13 +447,6 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
             )}
           </View>
         )}
-
-        <RefugeDevTimeTravel
-          sessionId={sessionId}
-          currentDay={refugeSession.currentDay}
-          canAdvanceDay={refugeSession.canAdvanceDay}
-          onDayChanged={() => refugeSession.fetchSessionStatus()}
-        />
       </ScrollView>
       </View>
 
