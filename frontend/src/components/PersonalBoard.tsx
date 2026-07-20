@@ -185,6 +185,7 @@ export function PersonalBoard() {
 
         {/* Offrandes (center, largest) */}
         <Paper
+          onPress={() => router.push('/offerings')}
           style={{
             position: 'absolute',
             top: 570,
