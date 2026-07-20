@@ -76,6 +76,7 @@ export function PersonalBoard() {
       showsVerticalScrollIndicator={false}
       scrollEventThrottle={16}
       nestedScrollEnabled={true}
+      pointerEvents="box-none"
     >
       <View style={[styles.board, { paddingTop: insets.top }]} pointerEvents="box-none">
         {/* Profile (top left) */}
