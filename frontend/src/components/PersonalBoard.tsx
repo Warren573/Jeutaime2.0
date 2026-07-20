@@ -47,6 +47,7 @@ export function PersonalBoard() {
     letters,
     getCurrentTitle,
     pet,
+    currentSalonId,
   } = useStore();
 
   const title = getCurrentTitle() || { title: '', emoji: '' };
@@ -203,7 +204,7 @@ export function PersonalBoard() {
 
         {/* Mon Salon (bottom left) */}
         <Paper
-          onPress={() => router.push('/(tabs)/salons-list')}
+          onPress={() => router.push(currentSalonId ? `/salon/${currentSalonId}` : '/(tabs)/salons-list')}
           style={{
             position: 'absolute',
             top: 820,
