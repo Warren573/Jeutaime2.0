@@ -30,8 +30,9 @@ const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
     style={[styles.paper, style]}
     onPress={onPress}
     activeOpacity={0.85}
+    pointerEvents="auto"
   >
-    <View style={styles.magnet} />
+    <View style={styles.magnet} pointerEvents="none" />
     {children}
   </TouchableOpacity>
 );
