@@ -73,8 +73,9 @@ export function PersonalBoard() {
       style={styles.container}
       contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 80 }]}
       showsVerticalScrollIndicator={false}
+      pointerEvents="box-none"
     >
-      <View style={[styles.board, { paddingTop: insets.top }]}>
+      <View style={[styles.board, { paddingTop: insets.top }]} pointerEvents="box-none">
         {/* Profile (top left) */}
         <Paper
           onPress={() => {
