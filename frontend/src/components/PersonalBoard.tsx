@@ -185,7 +185,7 @@ export function PersonalBoard() {
 
         {/* Offrandes (center, largest) */}
         <Paper
-          onPress={() => router.push('/offerings')}
+          onPress={() => router.push('/coins')}
           style={{
             position: 'absolute',
             top: 570,
@@ -203,7 +203,7 @@ export function PersonalBoard() {
 
         {/* Mon Salon (bottom left) */}
         <Paper
-          onPress={() => router.push('/salons-list')}
+          onPress={() => router.push('/(tabs)/salons-list')}
           style={{
             position: 'absolute',
             top: 820,
