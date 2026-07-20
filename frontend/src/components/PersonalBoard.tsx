@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -171,7 +172,10 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.bottleTitle}>Bouteille à la Mer</Text>
-          <Text style={{ fontSize: 48, marginVertical: 4 }}>🌊</Text>
+          <Image
+            source={require('../../assets/images/bottle-message.png')}
+            style={styles.bottleImage}
+          />
         </Paper>
 
         {/* Offrandes (center, largest) */}
