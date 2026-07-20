@@ -171,7 +171,9 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.bottleTitle}>Bouteille à la Mer</Text>
-          <Text style={{ fontSize: 48, marginVertical: 4 }}>🌊</Text>
+          <View style={{ width: 60, height: 50, marginVertical: 4, backgroundColor: '#90caf9', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ fontSize: 32 }}>🌊</Text>
+          </View>
         </Paper>
 
         {/* Offrandes (center, largest) */}
