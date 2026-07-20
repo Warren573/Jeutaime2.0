@@ -27,14 +27,14 @@ interface PaperProps {
 }
 
 const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
-  <Pressable
+  <TouchableOpacity
     style={[styles.paper, style]}
     onPress={onPress}
-    pointerEvents="auto"
+    activeOpacity={0.7}
   >
     {onPress && <View style={styles.magnet} pointerEvents="none" />}
     {children}
-  </Pressable>
+  </TouchableOpacity>
 );
 
 export function PersonalBoard() {
@@ -76,7 +76,6 @@ export function PersonalBoard() {
       showsVerticalScrollIndicator={false}
       scrollEventThrottle={16}
       nestedScrollEnabled={true}
-      pointerEvents="box-none"
     >
       <View style={[styles.board, { paddingTop: insets.top }]} pointerEvents="box-none">
         {/* Profile (top left) */}
