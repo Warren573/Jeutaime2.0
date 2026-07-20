@@ -77,6 +77,7 @@ export function PersonalBoard() {
         {/* Profile (top left) */}
         <Paper
           onPress={() => {
+            console.log('Profile card pressed:', currentUser?.id);
             if (currentUser?.id) {
               router.push(`/profile/${currentUser.id}`);
             }
@@ -118,7 +119,10 @@ export function PersonalBoard() {
 
         {/* Lettres (left, below profile) */}
         <Paper
-          onPress={() => router.push('/(tabs)/letters')}
+          onPress={() => {
+            console.log('Lettres pressed');
+            router.push('/(tabs)/letters');
+          }}
           style={{
             position: 'absolute',
             top: 180,
