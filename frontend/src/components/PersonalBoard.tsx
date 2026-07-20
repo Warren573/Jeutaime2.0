@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -26,15 +27,14 @@ interface PaperProps {
 }
 
 const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
-  <TouchableOpacity
+  <Pressable
     style={[styles.paper, style]}
     onPress={onPress}
-    activeOpacity={0.85}
     pointerEvents="auto"
   >
     <View style={styles.magnet} pointerEvents="none" />
     {children}
-  </TouchableOpacity>
+  </Pressable>
 );
 
 export function PersonalBoard() {
