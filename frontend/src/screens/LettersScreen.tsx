@@ -830,10 +830,6 @@ export default function LettersScreen() {
                   {visibleMatches.length} enveloppe{visibleMatches.length > 1 ? 's' : ''}
                 </Text>
 
-                <Text style={{fontSize: 12, color: '#FF6B6B', marginBottom: 12, paddingHorizontal: 16}}>
-                  DEBUG_MATCHES: RAW={matches.length} VISIBLE={visibleMatches.length} STATUSES=[{matches.map(m => m.status).join(',')}]
-                </Text>
-
                 {visibleMatches.map((match) => {
                   const otherUserId = getOtherUserId(match);
                   const otherName = getOtherName(match);
