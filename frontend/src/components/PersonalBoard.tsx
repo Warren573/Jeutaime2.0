@@ -30,9 +30,8 @@ const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
   <Pressable
     style={[styles.paper, style]}
     onPress={onPress}
-    pointerEvents="auto"
   >
-    <View style={styles.magnet} pointerEvents="none" />
+    {onPress && <View style={styles.magnet} />}
     {children}
   </Pressable>
 );
