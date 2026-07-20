@@ -18,8 +18,6 @@ import { resolveAvatarConfig } from "../avatar/resolveAvatarConfig";
 import { getRelationInfo } from "../engine/RelationEngine";
 import { discoverProfiles, type DiscoveryProfileDto } from "../api/profiles";
 import { sendReaction } from "../api/reactions";
-import { getBackendVersion, type BackendVersion } from "../api/version";
-import { API_URL } from "../api/client";
 
 // ─── Lookup tables ─────────────────────────────────────────────────────────
 
@@ -131,9 +129,6 @@ export default function ProfileTwoStepDemo() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reacting, setReacting] = useState(false);
-  const [lastActionDebug, setLastActionDebug] = useState('');
-  const [rawResponse, setRawResponse] = useState<string>('');
-  const [backendVersion, setBackendVersion] = useState<BackendVersion | null>(null);
 
   // Clear discovery on user change
   useEffect(() => {
@@ -142,7 +137,6 @@ export default function ProfileTwoStepDemo() {
     setRemovedIds(new Set());
     setCurrentProfile(null);
     setError(null);
-    setLastActionDebug('');
   }, [currentUser?.id]);
 
   const load = useCallback(async () => {
@@ -169,30 +163,20 @@ export default function ProfileTwoStepDemo() {
     }
   }, [currentUser?.id]);
 
-  useEffect(() => {
-    getBackendVersion().then(setBackendVersion);
-  }, []);
-
   const profile = currentProfile;
   const displayedProfile = profile;
 
   const handleReact = async (type: "SMILE" | "GRIMACE", targetProfile: DiscoveryProfileDto | null) => {
-    setLastActionDebug(`CLICK ${type} profile=${!!targetProfile} reacting=${reacting} user=${!!currentUser?.id}\nPROFILE_ID=${targetProfile?.userId}`);
-
     if (!targetProfile) {
-      setLastActionDebug('BLOCKED no profile');
       return;
     }
     if (reacting) {
-      setLastActionDebug('BLOCKED reacting');
       return;
     }
     if (!currentUser?.id) {
-      setLastActionDebug('BLOCKED no user');
       return;
     }
     if (targetProfile.userId === currentUser.id) {
-      setLastActionDebug('BLOCKED_SELF_PROFILE');
       Alert.alert('Erreur', 'Tu ne peux pas réagir à ton propre profil');
       return;
     }
@@ -211,19 +195,11 @@ export default function ProfileTwoStepDemo() {
     setCurrentProfile(next);
     setRemainingProfiles(newRemaining);
     setRemovedIds(newRemovedIds);
-    setLastActionDebug(`REMOVED=${targetProfile.userId} NEXT=${next?.userId ?? 'EMPTY'} REMAINING=${newRemaining.length}`);
 
     try {
       const result = await sendReaction(targetProfile.userId, type);
-      const rawStr = JSON.stringify(result, null, 0);
-      setRawResponse(rawStr);
-      setLastActionDebug(`API_RESULT source=${(result as any).source ?? 'unknown'} debugBranch=${result.debugBranch ?? 'none'} matchCreated=${result.matchCreated} matchId=${result.matchId ?? 'null'}`);
 
       if (type === "SMILE" && result.debugBranch === "NEW-MATCH") {
-        setLastActionDebug(
-          `NEW_MATCH_RECEIVED=true matchId=${result.matchId}\n` +
-          `LOADING_MATCHES...`
-        );
         const storeStateBefore = require('../store/useStore').useStore.getState();
         const matchCountBefore = storeStateBefore.matches?.length ?? 0;
 
@@ -234,30 +210,13 @@ export default function ProfileTwoStepDemo() {
         const matchCountAfter = matchesAfter.length;
         const newMatch = matchesAfter.find(m => m.id === result.matchId);
 
-        setLastActionDebug(
-          `NEW_MATCH_RECEIVED=true\n` +
-          `LOAD_MATCHES_RAW_COUNT=${matchCountAfter}\n` +
-          `LOAD_MATCHES_VISIBLE_COUNT=${matchesAfter.filter(m => m.status === 'pending' || m.status === 'active').length}\n` +
-          `MATCH_FOUND=${!!newMatch}\n` +
-          `MATCH_STATUS=${newMatch?.status ?? 'NOT_FOUND'}\n` +
-          `NAVIGATING_TO_LETTERS...`
-        );
         router.push("/(tabs)/letters");
-        setLastActionDebug(
-          `NEW_MATCH_RECEIVED=true\n` +
-          `LOAD_MATCHES_RAW_COUNT=${matchCountAfter}\n` +
-          `LOAD_MATCHES_VISIBLE_COUNT=${matchesAfter.filter(m => m.status === 'pending' || m.status === 'active').length}\n` +
-          `MATCH_FOUND=${!!newMatch}\n` +
-          `MATCH_STATUS=${newMatch?.status ?? 'NOT_FOUND'}\n` +
-          `NAVIGATED_TO_LETTERS=true`
-        );
       }
     } catch (err) {
       setCurrentProfile(previousCurrent);
       setRemainingProfiles(previousRemaining);
       setRemovedIds(previousRemovedIds);
       const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi";
-      setLastActionDebug(`API_ERROR ${msg}`);
       Alert.alert("Erreur", msg);
     } finally {
       setReacting(false);
@@ -405,17 +364,6 @@ export default function ProfileTwoStepDemo() {
               <Text style={styles.actionText}>😊 Sourire</Text>
             </Pressable>
           </View>
-
-
-          {/* Debug display - action info */}
-          {lastActionDebug && (
-            <Text style={styles.debugText}>{lastActionDebug}</Text>
-          )}
-
-          {/* Debug display - raw API response */}
-          {rawResponse && (
-            <Text style={styles.debugRawText}>RAW_RESPONSE={rawResponse}</Text>
-          )}
         </View>
       </ScrollView>
     </View>
@@ -570,10 +518,4 @@ const styles = StyleSheet.create({
   // ── Seconde chance ──
   secondeChanceWrap: { alignItems: "center", marginTop: 14, paddingBottom: 4 },
   secondeChanceLink: { fontSize: 15, color: INK_SOFT, fontStyle: "italic", opacity: 0.7 },
-
-  // ── Debug ──
-  debugVersionText: { fontSize: 12, color: "#9C27B0", fontWeight: "700", marginTop: 16, textAlign: "center", paddingHorizontal: 12, backgroundColor: "#F3E5F5", padding: 8, borderRadius: 4 },
-  debugStateText: { fontSize: 13, color: "#FF9800", fontWeight: "600", marginTop: 8, textAlign: "center", paddingHorizontal: 12 },
-  debugText: { fontSize: 13, color: "#FF6B6B", fontWeight: "600", marginTop: 8, textAlign: "center", paddingHorizontal: 12 },
-  debugRawText: { fontSize: 11, color: "#2196F3", fontWeight: "500", marginTop: 8, fontFamily: "monospace", paddingHorizontal: 12, backgroundColor: "#E3F2FD", padding: 8, borderRadius: 4 },
 });
