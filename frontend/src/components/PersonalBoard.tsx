@@ -204,7 +204,7 @@ export function PersonalBoard() {
 
         {/* Mon Salon (bottom left) */}
         <Paper
-          onPress={() => router.push('/(tabs)/salons-list' as any)}
+          onPress={() => router.push('/salons-list')}
           style={{
             position: 'absolute',
             top: 820,
@@ -242,7 +242,7 @@ export function PersonalBoard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FF0000',
+    backgroundColor: J.bgBoard,
   },
   scrollContent: {
     flexGrow: 1,
