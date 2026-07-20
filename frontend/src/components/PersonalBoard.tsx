@@ -26,16 +26,23 @@ interface PaperProps {
   style?: any;
 }
 
-const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
-  <TouchableOpacity
-    style={[styles.paper, style]}
-    onPress={onPress}
-    activeOpacity={0.7}
-  >
-    {onPress && <View style={styles.magnet} pointerEvents="none" />}
-    {children}
-  </TouchableOpacity>
-);
+const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => {
+  const handlePress = () => {
+    console.log('[Paper] onPress triggered', { hasOnPress: !!onPress });
+    onPress?.();
+  };
+
+  return (
+    <TouchableOpacity
+      style={[styles.paper, style]}
+      onPress={handlePress}
+      activeOpacity={0.7}
+    >
+      {onPress && <View style={styles.magnet} pointerEvents="none" />}
+      {children}
+    </TouchableOpacity>
+  );
+};
 
 export function PersonalBoard() {
   const router = useRouter();
@@ -49,6 +56,10 @@ export function PersonalBoard() {
     pet,
     currentSalonId,
   } = useStore();
+
+  React.useEffect(() => {
+    console.log('[PersonalBoard] Component mounted', { hasRouter: !!router });
+  }, []);
 
   const title = getCurrentTitle() || { title: '', emoji: '' };
 
@@ -80,7 +91,11 @@ export function PersonalBoard() {
       <View style={[styles.board, { paddingTop: insets.top }]} pointerEvents="box-none">
         {/* Profile (top left) */}
         <Paper
-          onPress={() => router.push(`/profile/${currentUser?.id}`)}
+          onPress={() => {
+            const route = `/profile/${currentUser?.id}`;
+            console.log('[Card] Profile clicked', { route, userId: currentUser?.id });
+            router.push(route);
+          }}
           style={{
             position: 'absolute',
             top: 16,
@@ -118,7 +133,10 @@ export function PersonalBoard() {
 
         {/* Lettres (left, below profile) */}
         <Paper
-          onPress={() => router.push('/(tabs)/letters')}
+          onPress={() => {
+            console.log('[Card] Lettres Reçues clicked');
+            router.push('/(tabs)/letters');
+          }}
           style={{
             position: 'absolute',
             top: 180,
@@ -137,7 +155,10 @@ export function PersonalBoard() {
 
         {/* Animal (right side) */}
         <Paper
-          onPress={() => router.push('/refuge')}
+          onPress={() => {
+            console.log('[Card] Ton Compagnon clicked');
+            router.push('/refuge');
+          }}
           style={{
             position: 'absolute',
             top: 210,
@@ -153,7 +174,10 @@ export function PersonalBoard() {
 
         {/* Sourires (left, middle) */}
         <Paper
-          onPress={() => router.push('/(tabs)/profiles')}
+          onPress={() => {
+            console.log('[Card] Sourires clicked');
+            router.push('/(tabs)/profiles');
+          }}
           style={{
             position: 'absolute',
             top: 420,
@@ -168,7 +192,10 @@ export function PersonalBoard() {
 
         {/* Bouteille (right, middle) */}
         <Paper
-          onPress={() => router.push('/bottle')}
+          onPress={() => {
+            console.log('[Card] Bouteille à la Mer clicked');
+            router.push('/bottle');
+          }}
           style={{
             position: 'absolute',
             top: 435,
@@ -186,7 +213,10 @@ export function PersonalBoard() {
 
         {/* Offrandes (center, largest) */}
         <Paper
-          onPress={() => router.push('/offerings')}
+          onPress={() => {
+            console.log('[Card] Offrandes Reçues clicked');
+            router.push('/offerings');
+          }}
           style={{
             position: 'absolute',
             top: 570,
@@ -204,7 +234,11 @@ export function PersonalBoard() {
 
         {/* Mon Salon (bottom left) */}
         <Paper
-          onPress={() => router.push(currentSalonId ? `/salon/${currentSalonId}` : '/(tabs)/salons-list')}
+          onPress={() => {
+            const route = currentSalonId ? `/salon/${currentSalonId}` : '/(tabs)/salons-list';
+            console.log('[Card] Mon Salon clicked', { route, salonId: currentSalonId });
+            router.push(route);
+          }}
           style={{
             position: 'absolute',
             top: 820,
