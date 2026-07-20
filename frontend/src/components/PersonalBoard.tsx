@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
+import { getReceivedOfferings } from '../api/offerings';
+import { getInbox } from '../api/bottles';
+import { getSalon } from '../api/salons';
+import { getAnimalImage } from '../data/refugeAnimalImages';
+import { ANIMAL_LABELS } from '../data/refugeAnimals';
+import { apiFetch } from '../api/client';
 
 const J = {
   bgBoard: '#D9CFC2',
@@ -51,6 +57,66 @@ export function PersonalBoard() {
   } = useStore();
 
   const title = getCurrentTitle() || { title: '', emoji: '' };
+
+  const [offeringsCount, setOfferingsCount] = useState(0);
+  const [bottlesCount, setBottlesCount] = useState(0);
+  const [salonName, setSalonName] = useState<string | null>(null);
+  const [refugeData, setRefugeData] = useState<{
+    animalType: string;
+    todaySubmitted: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const loadOfferings = async () => {
+      try {
+        const data = await getReceivedOfferings(1, 100, true);
+        setOfferingsCount(data.length);
+      } catch (error) {
+      }
+    };
+    loadOfferings();
+  }, []);
+
+  useEffect(() => {
+    const loadBottles = async () => {
+      try {
+        const data = await getInbox();
+        const pending = data.filter(b => b.status === 'FLOATING');
+        setBottlesCount(pending.length);
+      } catch (error) {
+      }
+    };
+    loadBottles();
+  }, []);
+
+  useEffect(() => {
+    if (currentSalonId) {
+      const loadSalon = async () => {
+        try {
+          const data = await getSalon(currentSalonId);
+          setSalonName(data.name);
+        } catch (error) {
+        }
+      };
+      loadSalon();
+    }
+  }, [currentSalonId]);
+
+  useEffect(() => {
+    const checkRefugeSession = async () => {
+      try {
+        const response = await apiFetch('/refuge/session');
+        if (response && response.data) {
+          setRefugeData({
+            animalType: response.data.animalType,
+            todaySubmitted: response.data.todaySubmitted,
+          });
+        }
+      } catch (error) {
+      }
+    };
+    checkRefugeSession();
+  }, []);
 
   const recentLetters = letters
     ? [...letters]
@@ -128,11 +194,15 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.sectionTitle}>✉️ Lettres Reçues</Text>
-          {recentLetters.map((letter, idx) => (
-            <Text key={idx} style={styles.letterFrom}>
-              {letter.fromUserId}
-            </Text>
-          ))}
+          {recentLetters.length > 0 ? (
+            <Text style={styles.letterCount}>{recentLetters.length} lettre{recentLetters.length > 1 ? 's' : ''}</Text>
+          ) : (
+            recentLetters.map((letter, idx) => (
+              <Text key={idx} style={styles.letterFrom}>
+                {letter.fromUserId}
+              </Text>
+            ))
+          )}
         </Paper>
 
         {/* Animal (right side) */}
@@ -147,8 +217,26 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.animalTitle}>Ton Compagnon</Text>
-          <Text style={styles.animalIcon}>🐾</Text>
-          {pet && <Text style={styles.animalName}>{pet.petName}</Text>}
+          {refugeData?.animalType ? (
+            <>
+              {getAnimalImage(refugeData.animalType) ? (
+                <Image
+                  source={getAnimalImage(refugeData.animalType)}
+                  style={styles.animalImage}
+                />
+              ) : (
+                <Text style={styles.animalIcon}>{ANIMAL_LABELS[refugeData.animalType] || '🐾'}</Text>
+              )}
+              <Text style={styles.animalStatus}>
+                {refugeData.todaySubmitted ? "Tu l'as soigné 🎉" : "Il t'attend 💕"}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.animalIcon}>🐾</Text>
+              {pet && <Text style={styles.animalName}>{pet.petName}</Text>}
+            </>
+          )}
         </Paper>
 
         {/* Sourires (left, middle) */}
@@ -163,7 +251,7 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.smilesTitle}>Sourires</Text>
-          <Text style={styles.smilesCount}>12</Text>
+          <Text style={styles.smilesCount}>{matches?.length ?? 0}</Text>
         </Paper>
 
         {/* Bouteille (right, middle) */}
@@ -182,6 +270,9 @@ export function PersonalBoard() {
             source={require('../../assets/images/bottle-message.png')}
             style={styles.bottleImage}
           />
+          {bottlesCount > 0 && (
+            <Text style={styles.bottleBadge}>{bottlesCount} en attente</Text>
+          )}
         </Paper>
 
         {/* Offrandes (center, largest) */}
@@ -197,9 +288,15 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.giftsTitle}>🎁 Offrandes Reçues</Text>
-          <Text style={styles.giftItem}>💐 Bouquet</Text>
-          <Text style={styles.giftItem}>🍷 Grand Cru</Text>
-          <Text style={styles.giftItem}>📸 Photo</Text>
+          {offeringsCount > 0 ? (
+            <Text style={styles.giftCount}>{offeringsCount} offrande{offeringsCount > 1 ? 's' : ''}</Text>
+          ) : (
+            <>
+              <Text style={styles.giftItem}>💐 Bouquet</Text>
+              <Text style={styles.giftItem}>🍷 Grand Cru</Text>
+              <Text style={styles.giftItem}>📸 Photo</Text>
+            </>
+          )}
         </Paper>
 
         {/* Mon Salon (bottom left) */}
@@ -215,6 +312,9 @@ export function PersonalBoard() {
         >
           <Text style={styles.salonTitle}>Mon Salon</Text>
           <Text style={styles.salonIcon}>🎭</Text>
+          {salonName && (
+            <Text style={styles.salonName} numberOfLines={1}>{salonName}</Text>
+          )}
         </Paper>
 
         {/* Stats (bottom right) */}
@@ -316,6 +416,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  letterCount: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: J.textMain,
+    textAlign: 'center',
+  },
+
   animalTitle: {
     fontSize: 10,
     fontWeight: '700',
@@ -334,6 +441,21 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: J.textMain,
     textAlign: 'center',
+  },
+
+  animalImage: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
+    marginVertical: 4,
+  },
+
+  animalStatus: {
+    fontSize: 8,
+    color: J.accentPrimary,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
   },
 
   smilesTitle: {
@@ -408,5 +530,28 @@ const styles = StyleSheet.create({
     color: J.textMain,
     marginBottom: 6,
     textAlign: 'center',
+  },
+
+  giftCount: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: J.textMain,
+    textAlign: 'center',
+  },
+
+  bottleBadge: {
+    fontSize: 8,
+    color: '#FF6B6B',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+
+  salonName: {
+    fontSize: 8,
+    color: J.textSecondary,
+    textAlign: 'center',
+    marginTop: 2,
+    fontWeight: '500',
   },
 });
