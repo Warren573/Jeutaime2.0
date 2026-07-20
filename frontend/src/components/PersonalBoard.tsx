@@ -76,11 +76,6 @@ export function PersonalBoard() {
       <View style={[styles.board, { paddingTop: insets.top }]}>
         {/* Profile (top left) */}
         <Paper
-          onPress={() => {
-            if (currentUser?.id) {
-              router.push(`/profile/${currentUser.id}`);
-            }
-          }}
           style={{
             position: 'absolute',
             top: 16,
@@ -153,7 +148,6 @@ export function PersonalBoard() {
 
         {/* Sourires (left, middle) */}
         <Paper
-          onPress={() => router.push('/(tabs)/profiles')}
           style={{
             position: 'absolute',
             top: 420,
@@ -186,7 +180,6 @@ export function PersonalBoard() {
 
         {/* Offrandes (center, largest) */}
         <Paper
-          onPress={() => router.push('/offerings')}
           style={{
             position: 'absolute',
             top: 570,
