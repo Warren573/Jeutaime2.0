@@ -30,8 +30,9 @@ const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
   <Pressable
     style={[styles.paper, style]}
     onPress={onPress}
+    pointerEvents="auto"
   >
-    {onPress && <View style={styles.magnet} />}
+    {onPress && <View style={styles.magnet} pointerEvents="none" />}
     {children}
   </Pressable>
 );
@@ -72,8 +73,10 @@ export function PersonalBoard() {
       style={styles.container}
       contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 80 }]}
       showsVerticalScrollIndicator={false}
+      scrollEventThrottle={16}
+      nestedScrollEnabled={true}
     >
-      <View style={[styles.board, { paddingTop: insets.top }]}>
+      <View style={[styles.board, { paddingTop: insets.top }]} pointerEvents="box-none">
         {/* Profile (top left) */}
         <Paper
           style={{
