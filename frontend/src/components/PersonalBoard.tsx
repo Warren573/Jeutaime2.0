@@ -10,7 +10,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
-import BottleMessage from '../../assets/images/bottle-message.svg';
 
 const J = {
   bgBoard: '#D9CFC2',
@@ -172,9 +171,7 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.bottleTitle}>Bouteille à la Mer</Text>
-          <View style={{ width: 80, height: 60, marginVertical: 4 }}>
-            <BottleMessage width="100%" height="100%" />
-          </View>
+          <Text style={{ fontSize: 48, marginVertical: 4 }}>🌊</Text>
         </Paper>
 
         {/* Offrandes (center, largest) */}
