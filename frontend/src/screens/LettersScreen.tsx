@@ -976,14 +976,6 @@ export default function LettersScreen() {
         <Text style={styles.headerSubtitle}>Correspondances privées</Text>
       </View>
 
-      {/* DEBUG: Match visibility info */}
-      <View style={{ backgroundColor: '#1a1a2e', padding: 8, marginHorizontal: 12, marginVertical: 8, borderRadius: 6 }}>
-        <Text style={{ fontSize: 10, color: '#4ade80', fontFamily: 'monospace', marginBottom: 4 }}>DEBUG LETTERS</Text>
-        <Text style={{ fontSize: 9, color: '#60a5fa', fontFamily: 'monospace' }}>LOAD_MATCHES_RAW_COUNT={matches.length}</Text>
-        <Text style={{ fontSize: 9, color: '#60a5fa', fontFamily: 'monospace' }}>LOAD_MATCHES_VISIBLE_COUNT={filteredMatches.length}</Text>
-        <Text style={{ fontSize: 9, color: '#fbbf24', fontFamily: 'monospace' }}>STATUSES={debugMatchStatuses || 'none'}</Text>
-      </View>
-
       <View style={styles.tabsContainer}>
         {FEATURES.letters !== 'hidden' && (
           <TouchableOpacity

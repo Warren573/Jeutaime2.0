@@ -406,14 +406,6 @@ export default function ProfileTwoStepDemo() {
             </Pressable>
           </View>
 
-          {/* Debug display - backend version info */}
-          <Text style={styles.debugVersionText}>API_URL={API_URL}</Text>
-          {backendVersion && (
-            <Text style={styles.debugVersionText}>BACKEND_VERSION sha={backendVersion.sha.substring(0, 8)} env={backendVersion.environment}</Text>
-          )}
-
-          {/* Debug display - state info */}
-          <Text style={styles.debugStateText}>CURRENT={profile?.userId} REMAINING={remainingProfiles.length} REMOVED_COUNT={removedIds.size}</Text>
 
           {/* Debug display - action info */}
           {lastActionDebug && (

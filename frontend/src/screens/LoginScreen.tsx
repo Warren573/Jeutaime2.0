@@ -148,21 +148,6 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            {/* DEBUG: PERMANENT LOGIN FLOW DEBUG BOX */}
-            <View style={styles.debugBox}>
-              <Text style={styles.debugTitle}>LOGIN DEBUG</Text>
-              <Text style={styles.debugText}>API_BASE: {API_URL}</Text>
-              <Text style={styles.debugText}>API_ENDPOINT: {debugLoginFlow.loginApiUrl || "—"}</Text>
-              <Text style={styles.debugText}>RAW_RESPONSE: {debugLoginFlow.rawResponse ? JSON.stringify(debugLoginFlow.rawResponse, null, 2) : "—"}</Text>
-              <Text style={styles.debugText}>AccessToken: {debugLoginFlow.accessTokenExtracted ? "✓ YES" : "✗ NO"}</Text>
-              <Text style={styles.debugText}>RefreshToken: {debugLoginFlow.refreshTokenExtracted ? "✓ YES" : "✗ NO"}</Text>
-              <Text style={styles.debugText}>setAuth called: {debugLoginFlow.setAuthCalled ? "✓ YES" : "✗ NO"}</Text>
-              <Text style={styles.debugText}>currentUser after: {debugLoginFlow.currentUserAfterStore ? "✓ YES" : "✗ NO"}</Text>
-              <Text style={styles.debugText}>router.replace called: {debugLoginFlow.routerReplaceCalled ? "✓ YES" : "✗ NO"}</Text>
-              {debugLoginFlow.exactError && (
-                <Text style={styles.debugError}>ERROR: {debugLoginFlow.exactError}</Text>
-              )}
-            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

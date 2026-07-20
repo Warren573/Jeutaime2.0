@@ -448,15 +448,6 @@ export default function RegisterScreen() {
                 <Text style={s.statusErr}>{lastError}</Text>
               ) : null}
 
-              {/* Debug */}
-              <View style={s.debug}>
-                <Text style={s.debugTxt}>isFormValid: {String(isFormValid)}</Text>
-                <Text style={s.debugTxt}>birthDate: {birthDate}</Text>
-                <Text style={s.debugTxt}>statut: {status}</Text>
-                <Text style={s.debugTxt}>API: {API_URL}</Text>
-                <Text style={s.debugTxt}>erreur: {lastError ?? "–"}</Text>
-              </View>
-
               <Pressable
                 disabled={status === "submitting"}
                 onPress={() => router.replace("/login")}
