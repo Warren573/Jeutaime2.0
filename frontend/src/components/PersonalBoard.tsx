@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
+import type { Letter } from '../shared/types';
 import { Avatar } from '../avatar/png/Avatar';
 import { getReceivedOfferings, type OfferingSentDTO } from '../api/offerings';
 import { getInbox } from '../api/bottles';
@@ -50,7 +51,7 @@ export function PersonalBoard() {
     currentUser,
     points,
     matches,
-    letters,
+    lettersByMatch,
     getCurrentTitle,
     pet,
     currentSalonId,
@@ -118,12 +119,30 @@ export function PersonalBoard() {
     checkRefugeSession();
   }, []);
 
-  const recentLetters = letters
-    ? [...letters]
-        .sort((a, b) => b.createdAt - a.createdAt)
-        .filter(l => l.toUserId === (currentUser?.id || 'me'))
-        .slice(0, 3)
-    : [];
+  const recentLetters = (() => {
+    if (!currentUser?.id || !matches?.length) return [];
+
+    // Filter matches to active/pending status (same as LettersScreen)
+    const activeMatches = matches.filter(
+      (m) => m.status === 'active' || m.status === 'pending'
+    );
+
+    // Collect received letters from lettersByMatch
+    const allLetters: Letter[] = [];
+    activeMatches.forEach((match) => {
+      const matchLetters = lettersByMatch[match.id];
+      if (matchLetters !== undefined) {
+        allLetters.push(
+          ...matchLetters.filter((l) => l.toUserId === currentUser.id)
+        );
+      }
+    });
+
+    // Sort by createdAt descending and return 3 most recent
+    return allLetters
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 3);
+  })();
 
   if (!currentUser) {
     return (
