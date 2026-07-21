@@ -254,7 +254,7 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.animalTitle}>Ton Compagnon</Text>
-          {refugeData?.isActive && refugeData?.animalType ? (
+          {refugeData?.animalType ? (
             <>
               {getAnimalImage(refugeData.animalType) ? (
                 <Image
@@ -265,7 +265,7 @@ export function PersonalBoard() {
                 <Text style={styles.animalIcon}>{ANIMAL_LABELS[refugeData.animalType] || '🐾'}</Text>
               )}
               <Text style={styles.animalStatus}>
-                {refugeData.todaySubmitted ? "Tu t'en es déjà occupé aujourd'hui" : "Il est temps de t'en occuper aujourd'hui"}
+                {refugeData.isActive && refugeData.todaySubmitted ? "Tu t'en es déjà occupé aujourd'hui" : refugeData.isActive ? "Il est temps de t'en occuper aujourd'hui" : "En attente d'un adoptant"}
               </Text>
             </>
           ) : (
