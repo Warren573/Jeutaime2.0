@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
 import { useStore } from "../store/useStore";
 import { Avatar } from "../avatar/png/Avatar";
@@ -120,8 +120,13 @@ export function ProfileMedia({
 
 export default function ProfileTwoStepDemo() {
   const router = useRouter();
+  const searchParams = useLocalSearchParams<{ filter?: string }>();
   const currentUser  = useStore((s) => s.currentUser);
+  const allMatches   = useStore((s) => s.matches);
+  const matchPartners = useStore((s) => s.matchPartners);
   const loadMatches  = useStore((s) => s.loadMatches);
+
+  const isReceivedSmilesFilter = searchParams.filter === 'received-smiles';
 
   const [currentProfile, setCurrentProfile] = useState<DiscoveryProfileDto | null>(null);
   const [remainingProfiles, setRemainingProfiles] = useState<DiscoveryProfileDto[]>([]);
@@ -144,18 +149,53 @@ export default function ProfileTwoStepDemo() {
     setLoading(true);
     setError(null);
     try {
-      const result = await discoverProfiles({ pageSize: 50 });
-      const filtered = result.data.filter(
-        (p) => p.userId !== currentUser.id && !removedIds.has(p.userId)
-      );
-      setCurrentProfile(filtered[0] ?? null);
-      setRemainingProfiles(filtered.slice(1));
+      if (isReceivedSmilesFilter && allMatches.length > 0) {
+        // Show profiles who initiated matches with current user
+        const receivedSmileProfiles = allMatches
+          .filter(m => m.initiatorId !== currentUser.id)
+          .map(m => {
+            const otherUserId = m.userAId === currentUser.id ? m.userBId : m.userAId;
+            return { match: m, otherUserId };
+          })
+          .filter(({ otherUserId }) => !removedIds.has(otherUserId))
+          .map(({ match, otherUserId }) => {
+            const partner = matchPartners[otherUserId];
+            return {
+              userId: otherUserId,
+              pseudo: partner?.pseudo ?? "Anonyme",
+              birthDate: partner?.birthDate ? String(partner.birthDate) : undefined,
+              gender: "AUTRE" as const,
+              city: partner?.city ?? "",
+              bio: partner?.bio ?? "",
+              physicalDesc: partner?.physicalDesc,
+              avatarConfig: partner?.avatarConfig,
+              verified: false,
+              photoUri: undefined,
+              visibility: "avatar" as const,
+              lookingFor: [],
+              points: 0,
+              badges: [],
+            };
+          })
+          .filter((p, idx, arr) => arr.findIndex(a => a.userId === p.userId) === idx); // deduplicate
+
+        setCurrentProfile(receivedSmileProfiles[0] ?? null);
+        setRemainingProfiles(receivedSmileProfiles.slice(1));
+      } else {
+        // Normal discovery
+        const result = await discoverProfiles({ pageSize: 50 });
+        const filtered = result.data.filter(
+          (p) => p.userId !== currentUser.id && !removedIds.has(p.userId)
+        );
+        setCurrentProfile(filtered[0] ?? null);
+        setRemainingProfiles(filtered.slice(1));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de chargement");
     } finally {
       setLoading(false);
     }
-  }, [currentUser?.id, removedIds]);
+  }, [currentUser?.id, removedIds, isReceivedSmilesFilter, allMatches, matchPartners]);
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -287,7 +327,9 @@ export default function ProfileTwoStepDemo() {
 
           {/* Top bar */}
           <View style={styles.topBar}>
-            <Text style={styles.topBarTitle}>Découvrir</Text>
+            <Text style={styles.topBarTitle}>
+              {isReceivedSmilesFilter ? 'Sourires Reçus' : 'Découvrir'}
+            </Text>
             <View style={styles.progressBadge}>
               <Text style={styles.progressBadgeText}>
                 {remainingProfiles.length + 1} restant{remainingProfiles.length > 0 ? 's' : ''}

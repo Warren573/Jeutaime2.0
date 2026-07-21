@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
+import { getReceivedOfferings, type OfferingSentDTO } from '../api/offerings';
+import { getInbox } from '../api/bottles';
+import { getSalon } from '../api/salons';
+import { getAnimalImage } from '../data/refugeAnimalImages';
+import { ANIMAL_LABELS } from '../data/refugeAnimals';
+import { apiFetch } from '../api/client';
 
 const J = {
   bgBoard: '#D9CFC2',
@@ -27,14 +33,14 @@ interface PaperProps {
 }
 
 const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
-  <Pressable
+  <TouchableOpacity
     style={[styles.paper, style]}
     onPress={onPress}
-    pointerEvents="auto"
+    activeOpacity={0.7}
   >
     {onPress && <View style={styles.magnet} pointerEvents="none" />}
     {children}
-  </Pressable>
+  </TouchableOpacity>
 );
 
 export function PersonalBoard() {
@@ -47,9 +53,70 @@ export function PersonalBoard() {
     letters,
     getCurrentTitle,
     pet,
+    currentSalonId,
   } = useStore();
 
   const title = getCurrentTitle() || { title: '', emoji: '' };
+
+  const [offerings, setOfferings] = useState<OfferingSentDTO[]>([]);
+  const [hasBottle, setHasBottle] = useState(false);
+  const [salonName, setSalonName] = useState<string | null>(null);
+  const [refugeData, setRefugeData] = useState<{
+    animalType: string;
+    todaySubmitted: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const loadOfferings = async () => {
+      try {
+        const data = await getReceivedOfferings(1, 100, true);
+        setOfferings(data);
+      } catch (error) {
+      }
+    };
+    loadOfferings();
+  }, []);
+
+  useEffect(() => {
+    const loadBottles = async () => {
+      try {
+        const data = await getInbox();
+        const pending = data.find(b => b.status === 'FLOATING');
+        setHasBottle(!!pending);
+      } catch (error) {
+      }
+    };
+    loadBottles();
+  }, []);
+
+  useEffect(() => {
+    if (currentSalonId) {
+      const loadSalon = async () => {
+        try {
+          const data = await getSalon(currentSalonId);
+          setSalonName(data.name);
+        } catch (error) {
+        }
+      };
+      loadSalon();
+    }
+  }, [currentSalonId]);
+
+  useEffect(() => {
+    const checkRefugeSession = async () => {
+      try {
+        const response = await apiFetch('/refuge/session');
+        if (response && response.data) {
+          setRefugeData({
+            animalType: response.data.animalType,
+            todaySubmitted: response.data.todaySubmitted,
+          });
+        }
+      } catch (error) {
+      }
+    };
+    checkRefugeSession();
+  }, []);
 
   const recentLetters = letters
     ? [...letters]
@@ -79,6 +146,7 @@ export function PersonalBoard() {
       <View style={[styles.board, { paddingTop: insets.top }]} pointerEvents="box-none">
         {/* Profile (top left) */}
         <Paper
+          onPress={() => router.push(`/profile/${currentUser?.id}`)}
           style={{
             position: 'absolute',
             top: 16,
@@ -126,11 +194,27 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.sectionTitle}>✉️ Lettres Reçues</Text>
-          {recentLetters.map((letter, idx) => (
-            <Text key={idx} style={styles.letterFrom}>
-              {letter.fromUserId}
-            </Text>
-          ))}
+          {recentLetters.length > 0 ? (
+            <View style={styles.lettersContainer}>
+              {recentLetters.slice(0, 3).map((letter, idx) => {
+                const sender = matches?.find(m =>
+                  (m.userAId === letter.fromUserId || m.userBId === letter.fromUserId)
+                );
+                const senderName = sender?.otherProfile?.pseudo || letter.fromUserId;
+                return (
+                  <View key={idx} style={styles.letterItem}>
+                    <Text style={styles.letterEnvelope}>✉️</Text>
+                    <Text style={styles.letterSenderName} numberOfLines={1}>{senderName}</Text>
+                  </View>
+                );
+              })}
+              {recentLetters.length > 3 && (
+                <Text style={styles.moreIndicator}>+{recentLetters.length - 3}</Text>
+              )}
+            </View>
+          ) : (
+            <Text style={styles.emptyLetters}>Aucune lettre</Text>
+          )}
         </Paper>
 
         {/* Animal (right side) */}
@@ -145,12 +229,31 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.animalTitle}>Ton Compagnon</Text>
-          <Text style={styles.animalIcon}>🐾</Text>
-          {pet && <Text style={styles.animalName}>{pet.petName}</Text>}
+          {refugeData?.animalType ? (
+            <>
+              {getAnimalImage(refugeData.animalType) ? (
+                <Image
+                  source={getAnimalImage(refugeData.animalType)}
+                  style={styles.animalImage}
+                />
+              ) : (
+                <Text style={styles.animalIcon}>{ANIMAL_LABELS[refugeData.animalType] || '🐾'}</Text>
+              )}
+              <Text style={styles.animalStatus}>
+                {refugeData.todaySubmitted ? "Tu l'as soigné 🎉" : "Il t'attend 💕"}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.animalIcon}>🐾</Text>
+              {pet && <Text style={styles.animalName}>{pet.petName}</Text>}
+            </>
+          )}
         </Paper>
 
         {/* Sourires (left, middle) */}
         <Paper
+          onPress={() => router.push('/(tabs)/profiles?filter=received-smiles')}
           style={{
             position: 'absolute',
             top: 420,
@@ -160,7 +263,9 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.smilesTitle}>Sourires</Text>
-          <Text style={styles.smilesCount}>12</Text>
+          <Text style={styles.smilesCount}>
+            {matches?.filter(m => m.initiatorId !== currentUser?.id).length ?? 0}
+          </Text>
         </Paper>
 
         {/* Bouteille (right, middle) */}
@@ -175,14 +280,19 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.bottleTitle}>Bouteille à la Mer</Text>
-          <Image
-            source={require('../../assets/images/bottle-message.png')}
-            style={styles.bottleImage}
-          />
+          <View style={styles.oceanContainer} pointerEvents="none">
+            <View style={styles.oceanWaves} />
+            {hasBottle && (
+              <View style={styles.bottleWrapper}>
+                <Text style={styles.bottleEmoji}>🍾</Text>
+              </View>
+            )}
+          </View>
         </Paper>
 
         {/* Offrandes (center, largest) */}
         <Paper
+          onPress={() => router.push('/offerings')}
           style={{
             position: 'absolute',
             top: 570,
@@ -192,15 +302,37 @@ export function PersonalBoard() {
             transform: [{ rotate: '1deg' }],
           }}
         >
-          <Text style={styles.giftsTitle}>🎁 Offrandes Reçues</Text>
-          <Text style={styles.giftItem}>💐 Bouquet</Text>
-          <Text style={styles.giftItem}>🍷 Grand Cru</Text>
-          <Text style={styles.giftItem}>📸 Photo</Text>
+          <Text style={styles.giftsTitle}>Offrandes Reçues</Text>
+          {offerings.length > 0 ? (
+            <View style={styles.offeringsContainer}>
+              {offerings.slice(0, 3).map((offering, idx) => {
+                const sender = matches?.find(m =>
+                  (m.userAId === offering.fromUserId || m.userBId === offering.fromUserId)
+                );
+                const senderName = sender?.otherProfile?.pseudo || offering.fromUserId;
+                return (
+                  <View key={idx} style={styles.offeringItem}>
+                    <Text style={styles.offeringName} numberOfLines={1}>{offering.offering.name}</Text>
+                    <Text style={styles.offeringSenderName} numberOfLines={1}>{senderName}</Text>
+                  </View>
+                );
+              })}
+              {offerings.length > 3 && (
+                <Text style={styles.moreIndicator}>+{offerings.length - 3}</Text>
+              )}
+            </View>
+          ) : (
+            <>
+              <Text style={styles.giftItem}>Bouquet</Text>
+              <Text style={styles.giftItem}>Grand Cru</Text>
+              <Text style={styles.giftItem}>Photo</Text>
+            </>
+          )}
         </Paper>
 
         {/* Mon Salon (bottom left) */}
         <Paper
-          onPress={() => router.push('/salons-list')}
+          onPress={() => router.push(currentSalonId ? `/salon/${currentSalonId}` : '/(tabs)/salons-list')}
           style={{
             position: 'absolute',
             top: 820,
@@ -211,6 +343,9 @@ export function PersonalBoard() {
         >
           <Text style={styles.salonTitle}>Mon Salon</Text>
           <Text style={styles.salonIcon}>🎭</Text>
+          {salonName && (
+            <Text style={styles.salonName} numberOfLines={1}>{salonName}</Text>
+          )}
         </Paper>
 
         {/* Stats (bottom right) */}
@@ -229,7 +364,7 @@ export function PersonalBoard() {
         </Paper>
 
         {/* Spacer for scroll height */}
-        <View style={{ height: 1050 }} />
+        <View style={{ height: 1050 }} pointerEvents="none" />
       </View>
     </ScrollView>
   );
@@ -312,6 +447,44 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  lettersContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 4,
+  },
+
+  letterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 2,
+  },
+
+  letterEnvelope: {
+    fontSize: 12,
+    marginRight: 6,
+  },
+
+  letterSenderName: {
+    fontSize: 9,
+    color: J.textMain,
+    fontWeight: '600',
+    flex: 1,
+  },
+
+  emptyLetters: {
+    fontSize: 9,
+    color: J.textSecondary,
+    textAlign: 'center',
+  },
+
+  moreIndicator: {
+    fontSize: 9,
+    color: J.accentPrimary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+
   animalTitle: {
     fontSize: 10,
     fontWeight: '700',
@@ -330,6 +503,21 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: J.textMain,
     textAlign: 'center',
+  },
+
+  animalImage: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
+    marginVertical: 4,
+  },
+
+  animalStatus: {
+    fontSize: 8,
+    color: J.accentPrimary,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
   },
 
   smilesTitle: {
@@ -404,5 +592,68 @@ const styles = StyleSheet.create({
     color: J.textMain,
     marginBottom: 6,
     textAlign: 'center',
+  },
+
+  offeringsContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 4,
+  },
+
+  offeringItem: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    width: '100%',
+    paddingVertical: 2,
+  },
+
+  offeringName: {
+    fontSize: 9,
+    color: J.textMain,
+    fontWeight: '600',
+  },
+
+  offeringSenderName: {
+    fontSize: 8,
+    color: J.textSecondary,
+    fontWeight: '400',
+    flex: 1,
+  },
+
+  oceanContainer: {
+    width: '100%',
+    height: 50,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+
+  oceanWaves: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    height: 24,
+    backgroundColor: '#87CEEB',
+    borderRadius: 12,
+    opacity: 0.6,
+  },
+
+  bottleWrapper: {
+    position: 'absolute',
+    bottom: 12,
+    zIndex: 10,
+  },
+
+  bottleEmoji: {
+    fontSize: 20,
+  },
+
+  salonName: {
+    fontSize: 8,
+    color: J.textSecondary,
+    textAlign: 'center',
+    marginTop: 2,
+    fontWeight: '500',
   },
 });
