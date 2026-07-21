@@ -5,19 +5,16 @@
  * résolubles que par Metro/Expo — les données pures (labels, emojis, guards)
  * restent importables par les tests Node.
  *
- * Seuls assets réellement présents dans le dépôt :
- * frontend/assets/images/pets/pet_*.png (7 animaux sur 10).
- * HAMSTER, LAPIN et CHIEN n'ont pas de PNG fourni : `null` → fallback emoji.
- * Dépose pet_hamster.png / pet_rabbit.png / pet_dog.png dans ce dossier puis
- * remplace le `null` par un require() pour activer l'image.
+ * Tous les 10 animaux ont maintenant un PNG fourni dans
+ * frontend/assets/images/pets/pet_*.png
  */
 import { type RefugeAnimal, isRefugeAnimal } from "./refugeAnimals";
 
 export const ANIMAL_IMAGES: Record<RefugeAnimal, number | null> = {
-  HAMSTER: null,
-  LAPIN: null,
+  HAMSTER: require("../../assets/images/pets/pet_hamster.png"),
+  LAPIN: require("../../assets/images/pets/pet_rabbit.png"),
   CHAT: require("../../assets/images/pets/pet_cat.png"),
-  CHIEN: null,
+  CHIEN: require("../../assets/images/pets/pet_dog.png"),
   RENARD: require("../../assets/images/pets/pet_fox.png"),
   PINGOUIN: require("../../assets/images/pets/pet_penguin.png"),
   IGUANE: require("../../assets/images/pets/pet_iguana.png"),
