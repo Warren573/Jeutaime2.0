@@ -306,7 +306,10 @@ export function PersonalBoard() {
         >
           <Text style={styles.bottleTitle}>Bouteille à la Mer</Text>
           <View style={styles.oceanContainer} pointerEvents="none">
-            <View style={styles.oceanWaves} />
+            <Image
+              source={require('../../assets/images/bottle/beach.png')}
+              style={styles.beachImage}
+            />
             {hasBottle && (
               <View style={styles.bottleWrapper}>
                 <Text style={styles.bottleEmoji}>🍾</Text>
@@ -691,6 +694,12 @@ const styles = StyleSheet.create({
 
   bottleEmoji: {
     fontSize: 20,
+  },
+
+  beachImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 3,
   },
 
   salonName: {
