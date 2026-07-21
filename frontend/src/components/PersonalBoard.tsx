@@ -52,6 +52,7 @@ export function PersonalBoard() {
     points,
     matches,
     lettersByMatch,
+    matchPartners,
     getCurrentTitle,
     pet,
     currentSalonId,
@@ -216,10 +217,7 @@ export function PersonalBoard() {
           {recentLetters.length > 0 ? (
             <View style={styles.lettersContainer}>
               {recentLetters.slice(0, 3).map((letter, idx) => {
-                const sender = matches?.find(m =>
-                  (m.userAId === letter.fromUserId || m.userBId === letter.fromUserId)
-                );
-                const senderName = sender?.otherProfile?.pseudo || letter.fromUserId;
+                const senderName = matchPartners[letter.fromUserId]?.pseudo || letter.fromUserId;
                 return (
                   <View key={idx} style={styles.letterItem}>
                     <Text style={styles.letterEnvelope}>✉️</Text>
