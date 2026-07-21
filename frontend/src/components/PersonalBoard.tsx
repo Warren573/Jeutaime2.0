@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
-import { getReceivedOfferings } from '../api/offerings';
+import { getReceivedOfferings, type OfferingSentDTO } from '../api/offerings';
 import { getInbox } from '../api/bottles';
 import { getSalon } from '../api/salons';
 import { getAnimalImage } from '../data/refugeAnimalImages';
@@ -58,8 +58,8 @@ export function PersonalBoard() {
 
   const title = getCurrentTitle() || { title: '', emoji: '' };
 
-  const [offeringsCount, setOfferingsCount] = useState(0);
-  const [bottlesCount, setBottlesCount] = useState(0);
+  const [offerings, setOfferings] = useState<OfferingSentDTO[]>([]);
+  const [hasBottle, setHasBottle] = useState(false);
   const [salonName, setSalonName] = useState<string | null>(null);
   const [refugeData, setRefugeData] = useState<{
     animalType: string;
@@ -70,7 +70,7 @@ export function PersonalBoard() {
     const loadOfferings = async () => {
       try {
         const data = await getReceivedOfferings(1, 100, true);
-        setOfferingsCount(data.length);
+        setOfferings(data);
       } catch (error) {
       }
     };
@@ -81,8 +81,8 @@ export function PersonalBoard() {
     const loadBottles = async () => {
       try {
         const data = await getInbox();
-        const pending = data.filter(b => b.status === 'FLOATING');
-        setBottlesCount(pending.length);
+        const pending = data.find(b => b.status === 'FLOATING');
+        setHasBottle(!!pending);
       } catch (error) {
       }
     };
@@ -195,13 +195,25 @@ export function PersonalBoard() {
         >
           <Text style={styles.sectionTitle}>✉️ Lettres Reçues</Text>
           {recentLetters.length > 0 ? (
-            <Text style={styles.letterCount}>{recentLetters.length} lettre{recentLetters.length > 1 ? 's' : ''}</Text>
+            <View style={styles.lettersContainer}>
+              {recentLetters.slice(0, 3).map((letter, idx) => {
+                const sender = matches?.find(m =>
+                  (m.userAId === letter.fromUserId || m.userBId === letter.fromUserId)
+                );
+                const senderName = sender?.otherProfile?.pseudo || letter.fromUserId;
+                return (
+                  <View key={idx} style={styles.letterItem}>
+                    <Text style={styles.letterEnvelope}>✉️</Text>
+                    <Text style={styles.letterSenderName} numberOfLines={1}>{senderName}</Text>
+                  </View>
+                );
+              })}
+              {recentLetters.length > 3 && (
+                <Text style={styles.moreIndicator}>+{recentLetters.length - 3}</Text>
+              )}
+            </View>
           ) : (
-            recentLetters.map((letter, idx) => (
-              <Text key={idx} style={styles.letterFrom}>
-                {letter.fromUserId}
-              </Text>
-            ))
+            <Text style={styles.emptyLetters}>Aucune lettre</Text>
           )}
         </Paper>
 
@@ -266,13 +278,14 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.bottleTitle}>Bouteille à la Mer</Text>
-          <Image
-            source={require('../../assets/images/bottle-message.png')}
-            style={styles.bottleImage}
-          />
-          {bottlesCount > 0 && (
-            <Text style={styles.bottleBadge}>{bottlesCount} en attente</Text>
-          )}
+          <View style={styles.oceanContainer} pointerEvents="none">
+            <View style={styles.oceanWaves} />
+            {hasBottle && (
+              <View style={styles.bottleWrapper}>
+                <Text style={styles.bottleEmoji}>🍾</Text>
+              </View>
+            )}
+          </View>
         </Paper>
 
         {/* Offrandes (center, largest) */}
@@ -288,8 +301,24 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.giftsTitle}>🎁 Offrandes Reçues</Text>
-          {offeringsCount > 0 ? (
-            <Text style={styles.giftCount}>{offeringsCount} offrande{offeringsCount > 1 ? 's' : ''}</Text>
+          {offerings.length > 0 ? (
+            <View style={styles.offeringsContainer}>
+              {offerings.slice(0, 3).map((offering, idx) => {
+                const sender = matches?.find(m =>
+                  (m.userAId === offering.fromUserId || m.userBId === offering.fromUserId)
+                );
+                const senderName = sender?.otherProfile?.pseudo || offering.fromUserId;
+                return (
+                  <View key={idx} style={styles.offeringItem}>
+                    <Text style={styles.offeringEmoji}>{offering.offering.emoji}</Text>
+                    <Text style={styles.offeringSenderName} numberOfLines={1}>{senderName}</Text>
+                  </View>
+                );
+              })}
+              {offerings.length > 3 && (
+                <Text style={styles.moreIndicator}>+{offerings.length - 3}</Text>
+              )}
+            </View>
           ) : (
             <>
               <Text style={styles.giftItem}>💐 Bouquet</Text>
@@ -416,11 +445,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  letterCount: {
-    fontSize: 10,
-    fontWeight: '600',
+  lettersContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 4,
+  },
+
+  letterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 2,
+  },
+
+  letterEnvelope: {
+    fontSize: 12,
+    marginRight: 6,
+  },
+
+  letterSenderName: {
+    fontSize: 9,
     color: J.textMain,
+    fontWeight: '600',
+    flex: 1,
+  },
+
+  emptyLetters: {
+    fontSize: 9,
+    color: J.textSecondary,
     textAlign: 'center',
+  },
+
+  moreIndicator: {
+    fontSize: 9,
+    color: J.accentPrimary,
+    fontWeight: '600',
+    marginTop: 2,
   },
 
   animalTitle: {
@@ -532,19 +592,58 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  giftCount: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: J.textMain,
-    textAlign: 'center',
+  offeringsContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 4,
   },
 
-  bottleBadge: {
-    fontSize: 8,
-    color: '#FF6B6B',
+  offeringItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 2,
+  },
+
+  offeringEmoji: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+
+  offeringSenderName: {
+    fontSize: 9,
+    color: J.textMain,
     fontWeight: '600',
-    textAlign: 'center',
-    marginTop: 4,
+    flex: 1,
+  },
+
+  oceanContainer: {
+    width: '100%',
+    height: 50,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+
+  oceanWaves: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    height: 24,
+    backgroundColor: '#87CEEB',
+    borderRadius: 12,
+    opacity: 0.6,
+  },
+
+  bottleWrapper: {
+    position: 'absolute',
+    bottom: 12,
+    zIndex: 10,
+  },
+
+  bottleEmoji: {
+    fontSize: 20,
   },
 
   salonName: {
