@@ -11,16 +11,28 @@
 import { type RefugeAnimal, isRefugeAnimal } from "./refugeAnimals";
 
 export const ANIMAL_IMAGES: Record<RefugeAnimal, number | null> = {
-  HAMSTER: require("../../assets/images/pets/pet_hamster.png"),
-  LAPIN: require("../../assets/images/pets/pet_rabbit.png"),
-  CHAT: require("../../assets/images/pets/pet_cat.png"),
-  CHIEN: require("../../assets/images/pets/pet_dog.png"),
-  RENARD: require("../../assets/images/pets/pet_fox.png"),
-  PINGOUIN: require("../../assets/images/pets/pet_penguin.png"),
-  IGUANE: require("../../assets/images/pets/pet_iguana.png"),
-  PANDA: require("../../assets/images/pets/pet_panda.png"),
-  LICORNE: require("../../assets/images/pets/pet_unicorn.png"),
-  DRAGON: require("../../assets/images/pets/pet_dragon.png"),
+  HAMSTER: (() => {
+    try { return require("../../assets/images/pets/pet_hamster.png"); } catch { return null; }
+  })(),
+  LAPIN: (() => {
+    try { return require("../../assets/images/pets/pet_rabbit.png"); } catch { return null; }
+  })(),
+  CHAT: (() => {
+    try { return require("../../assets/images/pets/pet_cat.png"); } catch { return null; }
+  })(),
+  CHIEN: (() => {
+    try { return require("../../assets/images/pets/pet_dog.png"); } catch { return null; }
+  })(),
+  RENARD: null,
+  PINGOUIN: null,
+  IGUANE: (() => {
+    try { return require("../../assets/images/pets/pet_iguana.png"); } catch { return null; }
+  })(),
+  PANDA: (() => {
+    try { return require("../../assets/images/pets/pet_panda.png"); } catch { return null; }
+  })(),
+  LICORNE: null,
+  DRAGON: null,
 };
 
 /** Source d'image locale pour une valeur serveur, ou null si aucun asset fourni. */
