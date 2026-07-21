@@ -253,7 +253,7 @@ export function PersonalBoard() {
 
         {/* Sourires (left, middle) */}
         <Paper
-          onPress={() => router.push('/(tabs)/profiles')}
+          onPress={() => router.push('/(tabs)/profiles?filter=received-smiles')}
           style={{
             position: 'absolute',
             top: 420,
@@ -263,7 +263,9 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.smilesTitle}>Sourires</Text>
-          <Text style={styles.smilesCount}>{matches?.length ?? 0}</Text>
+          <Text style={styles.smilesCount}>
+            {matches?.filter(m => m.initiatorId !== currentUser?.id).length ?? 0}
+          </Text>
         </Paper>
 
         {/* Bouteille (right, middle) */}
@@ -300,7 +302,7 @@ export function PersonalBoard() {
             transform: [{ rotate: '1deg' }],
           }}
         >
-          <Text style={styles.giftsTitle}>🎁 Offrandes Reçues</Text>
+          <Text style={styles.giftsTitle}>Offrandes Reçues</Text>
           {offerings.length > 0 ? (
             <View style={styles.offeringsContainer}>
               {offerings.slice(0, 3).map((offering, idx) => {
@@ -308,9 +310,20 @@ export function PersonalBoard() {
                   (m.userAId === offering.fromUserId || m.userBId === offering.fromUserId)
                 );
                 const senderName = sender?.otherProfile?.pseudo || offering.fromUserId;
+                const offeringId = offering.offering.id;
+                const pngUriMap: Record<string, any> = {
+                  'biere': require('../../public/offerings/off_biere_stage1.png'),
+                  'bonbons': require('../../public/offerings/off_bonbons_stage1.png'),
+                  'fraises': require('../../public/offerings/off_fraises_stage1.png'),
+                };
+                const pngAsset = pngUriMap[offeringId];
                 return (
                   <View key={idx} style={styles.offeringItem}>
-                    <Text style={styles.offeringEmoji}>{offering.offering.emoji}</Text>
+                    {pngAsset ? (
+                      <Image source={pngAsset} style={styles.offeringPNG} />
+                    ) : (
+                      <Text style={styles.offeringName} numberOfLines={1}>{offering.offering.name}</Text>
+                    )}
                     <Text style={styles.offeringSenderName} numberOfLines={1}>{senderName}</Text>
                   </View>
                 );
@@ -321,9 +334,9 @@ export function PersonalBoard() {
             </View>
           ) : (
             <>
-              <Text style={styles.giftItem}>💐 Bouquet</Text>
-              <Text style={styles.giftItem}>🍷 Grand Cru</Text>
-              <Text style={styles.giftItem}>📸 Photo</Text>
+              <Text style={styles.giftItem}>Bouquet</Text>
+              <Text style={styles.giftItem}>Grand Cru</Text>
+              <Text style={styles.giftItem}>Photo</Text>
             </>
           )}
         </Paper>
@@ -603,17 +616,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     paddingVertical: 2,
+    gap: 6,
   },
 
-  offeringEmoji: {
-    fontSize: 14,
-    marginRight: 6,
+  offeringPNG: {
+    width: 28,
+    height: 28,
+    resizeMode: 'contain',
   },
 
-  offeringSenderName: {
+  offeringName: {
     fontSize: 9,
     color: J.textMain,
     fontWeight: '600',
+    flex: 1,
+  },
+
+  offeringSenderName: {
+    fontSize: 8,
+    color: J.textSecondary,
+    fontWeight: '400',
     flex: 1,
   },
 
