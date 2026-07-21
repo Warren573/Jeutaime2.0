@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useStore } from '../store/useStore';
 import type { Letter } from '../shared/types';
 import { Avatar } from '../avatar/png/Avatar';
@@ -66,7 +67,24 @@ export function PersonalBoard() {
   const [refugeData, setRefugeData] = useState<{
     animalType: string;
     todaySubmitted: boolean;
+    isActive: boolean;
   } | null>(null);
+
+  const checkRefugeSession = useCallback(async () => {
+    try {
+      const response = await apiFetch('/refuge/active');
+      if (response && response.data && response.data.animalType) {
+        setRefugeData({
+          animalType: response.data.animalType,
+          todaySubmitted: response.data.todaySubmitted,
+          isActive: response.data.isActive,
+        });
+      } else {
+        setRefugeData(null);
+      }
+    } catch (error) {
+    }
+  }, []);
 
   useEffect(() => {
     const loadOfferings = async () => {
@@ -104,21 +122,11 @@ export function PersonalBoard() {
     }
   }, [currentSalonId]);
 
-  useEffect(() => {
-    const checkRefugeSession = async () => {
-      try {
-        const response = await apiFetch('/refuge/session');
-        if (response && response.data) {
-          setRefugeData({
-            animalType: response.data.animalType,
-            todaySubmitted: response.data.todaySubmitted,
-          });
-        }
-      } catch (error) {
-      }
-    };
-    checkRefugeSession();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      checkRefugeSession();
+    }, [checkRefugeSession])
+  );
 
   const recentLetters = (() => {
     if (!currentUser?.id || !matches?.length) return [];
@@ -246,7 +254,7 @@ export function PersonalBoard() {
           }}
         >
           <Text style={styles.animalTitle}>Ton Compagnon</Text>
-          {refugeData?.animalType ? (
+          {refugeData?.isActive && refugeData?.animalType ? (
             <>
               {getAnimalImage(refugeData.animalType) ? (
                 <Image
@@ -257,7 +265,7 @@ export function PersonalBoard() {
                 <Text style={styles.animalIcon}>{ANIMAL_LABELS[refugeData.animalType] || '🐾'}</Text>
               )}
               <Text style={styles.animalStatus}>
-                {refugeData.todaySubmitted ? "Tu l'as soigné 🎉" : "Il t'attend 💕"}
+                {refugeData.todaySubmitted ? "Tu t'en es déjà occupé aujourd'hui" : "Il est temps de t'en occuper aujourd'hui"}
               </Text>
             </>
           ) : (

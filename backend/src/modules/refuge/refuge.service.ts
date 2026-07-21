@@ -548,7 +548,7 @@ export class RefugeService {
   // Récupération — Session active de l'utilisateur courant
   // ============================================================
 
-  static async getActiveRefugeSession(userId: string): Promise<RefugeSessionDTO | null> {
+  static async getActiveRefugeSession(userId: string): Promise<(RefugeSessionDTO & { currentDay: number; todaySubmitted: boolean; isActive: boolean }) | null> {
     // Priorité 1 : une session en cours (jeu actif ou phase finale de
     // consentement) prime toujours sur une proposition en attente — les deux
     // participants doivent résoudre vers la même session, même si d'anciennes
@@ -559,11 +559,26 @@ export class RefugeService {
         status: { in: [RefugeSessionStatus.ACTIVE, RefugeSessionStatus.AWAITING_REVEAL_CONSENT] },
         OR: [{ adopteId: userId }, { adoptantId: userId }],
       },
+      include: {
+        guesses: {
+          orderBy: { dayNumber: "asc" },
+        },
+      },
       orderBy: { startedAt: "desc" },
     });
 
     if (activeSession) {
-      return this.mapToDTO(activeSession);
+      const now = new Date();
+      const currentDay = getCurrentDay(activeSession.createdAt, activeSession.startedAt, now);
+      const todaySubmitted = todaySubmittedForDay(currentDay, activeSession.guesses);
+      const isActive = activeSession.status === RefugeSessionStatus.ACTIVE && !isRefugeExpired(activeSession.endsAt);
+
+      return {
+        ...this.mapToDTO(activeSession),
+        currentDay,
+        todaySubmitted,
+        isActive,
+      };
     }
 
     // Priorité 2 : sinon, la proposition ouverte la plus récente en tant qu'Adopté
@@ -576,7 +591,12 @@ export class RefugeService {
     });
 
     if (openProposal) {
-      return this.mapToDTO(openProposal);
+      return {
+        ...this.mapToDTO(openProposal),
+        currentDay: 0,
+        todaySubmitted: false,
+        isActive: false,
+      };
     }
 
     // Priorité 3 : une session RÉVÉLÉE reste consultable (les profils dévoilés)
@@ -590,7 +610,16 @@ export class RefugeService {
       orderBy: { revealedAt: "desc" },
     });
 
-    return revealedSession ? this.mapToDTO(revealedSession) : null;
+    if (revealedSession) {
+      return {
+        ...this.mapToDTO(revealedSession),
+        currentDay: 7,
+        todaySubmitted: false,
+        isActive: false,
+      };
+    }
+
+    return null;
   }
 
   // ============================================================
