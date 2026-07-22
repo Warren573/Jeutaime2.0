@@ -46,46 +46,95 @@ export default function BottleCreationScreen() {
   }, []);
 
   const handleSend = async () => {
+    console.log('[A] BOUTON CLIQUÉ');
+    console.log('[A] userProfile:', userProfile);
+    console.log('[A] message:', message);
+    console.log('[A] pendingBottles:', pendingBottles);
+    console.log('[A] isLoading:', isLoading);
+
+    console.log('[B] ENTRÉE handleSend');
+
     if (!message.trim()) {
+      console.log('[C-VALIDATION-1] Message vide - BLOQUÉ');
       Alert.alert('Erreur', 'Écris un message');
       return;
     }
+    console.log('[C-VALIDATION-1] PASSÉ - message non vide');
 
     if (message.length > 1000) {
+      console.log('[C-VALIDATION-2] Message trop long - BLOQUÉ');
       Alert.alert('Erreur', `Maximum 1000 caractères (tu as ${message.length})`);
       return;
     }
+    console.log('[C-VALIDATION-2] PASSÉ - length OK');
 
     if (pendingBottles >= 3) {
+      console.log('[C-VALIDATION-3] Trop de bouteilles pending - BLOQUÉ');
       Alert.alert(
         'Erreur',
         'Maximum 3 bouteilles en attente. Attends qu\'une soit acceptée/refusée'
       );
       return;
     }
+    console.log('[C-VALIDATION-3] PASSÉ - pendingBottles OK');
 
     if (!userProfile?.city) {
+      console.log('[C-VALIDATION-4] Pas de ville - BLOQUÉ');
       Alert.alert(
         'Erreur',
         'Complète ta ville dans Profil avant d\'envoyer une bouteille'
       );
       return;
     }
+    console.log('[C-VALIDATION-4] PASSÉ - city OK');
+
+    console.log('[D] TOUTES LES VALIDATIONS PASSÉES - Appel createBottle()');
+    console.log('[D] Payload:', { message: message.trim(), targetGender, ageMin, ageMax });
 
     setIsLoading(true);
     try {
-      await createBottle({
+      console.log('[D-1] createBottle() appelé');
+      const result = await createBottle({
         message: message.trim(),
         targetGender,
         ageMin,
         ageMax,
       });
+      console.log('[E] createBottle() succès:', result);
 
       Alert.alert('Succès', 'Bouteille lancée à la mer! ✓');
+      console.log('[E-1] Navigation router.back()');
       router.back();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Erreur d\'envoi. Réessaie.');
+      console.log('[F] ERREUR CAPTURÉE dans catch');
+      console.error('[F] Error object:', error);
+      console.error('[F] Error message:', error.message);
+      console.error('[F] Error status:', error.status);
+      console.error('[F] Error code:', error.code);
+
+      let displayMessage = 'Erreur d\'envoi. Réessaie.';
+
+      if (error.message) {
+        displayMessage = error.message;
+      }
+
+      if ((error as any).status) {
+        const status = (error as any).status;
+        if (status === 400) {
+          displayMessage = `Paramètres invalides: ${error.message}`;
+        } else if (status === 401) {
+          displayMessage = 'Session expirée. Reconnecte-toi.';
+        } else if (status === 403) {
+          displayMessage = 'Accès refusé.';
+        } else if (status >= 500) {
+          displayMessage = 'Erreur serveur. Réessaie plus tard.';
+        }
+      }
+
+      console.log('[F-1] Affichage alerte:', displayMessage);
+      Alert.alert('Erreur', displayMessage);
     } finally {
+      console.log('[G] finally - setIsLoading(false)');
       setIsLoading(false);
     }
   };
