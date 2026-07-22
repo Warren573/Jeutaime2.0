@@ -8,7 +8,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,6 +39,11 @@ export default function BottleCreationScreen() {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [pendingBottles, setPendingBottles] = useState(0);
+  // Feedback affiché DANS l'écran. Indispensable : Alert.alert() de
+  // react-native-web est un no-op sur le Web, donc toute alerte y est invisible.
+  const [feedback, setFeedback] = useState<
+    { type: 'error' | 'success'; text: string } | null
+  >(null);
 
   useEffect(() => {
     // TODO: charger le nombre réel de bouteilles en attente depuis l'API.
@@ -50,29 +54,31 @@ export default function BottleCreationScreen() {
     !message.trim() || isLoading || pendingBottles >= MAX_PENDING_BOTTLES;
 
   const handleSend = async () => {
+    setFeedback(null);
+
     if (!message.trim()) {
-      Alert.alert('Erreur', 'Écris un message');
+      setFeedback({ type: 'error', text: 'Écris un message.' });
       return;
     }
     if (message.length > MAX_MESSAGE_LENGTH) {
-      Alert.alert(
-        'Erreur',
-        `Maximum ${MAX_MESSAGE_LENGTH} caractères (tu as ${message.length})`,
-      );
+      setFeedback({
+        type: 'error',
+        text: `Maximum ${MAX_MESSAGE_LENGTH} caractères (tu as ${message.length}).`,
+      });
       return;
     }
     if (pendingBottles >= MAX_PENDING_BOTTLES) {
-      Alert.alert(
-        'Erreur',
-        "Maximum 3 bouteilles en attente. Attends qu'une soit acceptée/refusée",
-      );
+      setFeedback({
+        type: 'error',
+        text: "Maximum 3 bouteilles en attente. Attends qu'une soit acceptée ou refusée.",
+      });
       return;
     }
     if (!currentUser?.city) {
-      Alert.alert(
-        'Erreur',
-        "Complète ta ville dans Profil avant d'envoyer une bouteille",
-      );
+      setFeedback({
+        type: 'error',
+        text: "Complète ta ville dans ton profil avant d'envoyer une bouteille.",
+      });
       return;
     }
 
@@ -84,15 +90,16 @@ export default function BottleCreationScreen() {
         ageMin,
         ageMax,
       });
-      Alert.alert('Succès', 'Bouteille lancée à la mer ! ✓');
-      router.back();
+      setFeedback({ type: 'success', text: 'Bouteille lancée à la mer ! ✓' });
+      // Laisse le temps de voir la confirmation avant de revenir en arrière.
+      setTimeout(() => router.back(), 1200);
     } catch (error: any) {
       let displayMessage = "Erreur d'envoi. Réessaie.";
       if (error?.message) displayMessage = error.message;
 
       const status = error?.status;
       if (status === 400) {
-        displayMessage = `Paramètres invalides: ${error.message}`;
+        displayMessage = `Paramètres invalides : ${error.message}`;
       } else if (status === 401) {
         displayMessage = 'Session expirée. Reconnecte-toi.';
       } else if (status === 403) {
@@ -100,7 +107,7 @@ export default function BottleCreationScreen() {
       } else if (typeof status === 'number' && status >= 500) {
         displayMessage = 'Erreur serveur. Réessaie plus tard.';
       }
-      Alert.alert('Erreur', displayMessage);
+      setFeedback({ type: 'error', text: displayMessage });
     } finally {
       setIsLoading(false);
     }
@@ -221,6 +228,29 @@ export default function BottleCreationScreen() {
             <Text style={styles.warningText}>
               ⚠️ Tu as déjà {pendingBottles} bouteille
               {pendingBottles > 1 ? 's' : ''} en attente. Max 3.
+            </Text>
+          </View>
+        )}
+
+        {/* Feedback (visible sur web ET mobile) */}
+        {feedback && (
+          <View
+            style={[
+              styles.feedbackBox,
+              feedback.type === 'error'
+                ? styles.feedbackError
+                : styles.feedbackSuccess,
+            ]}
+          >
+            <Text
+              style={[
+                styles.feedbackText,
+                feedback.type === 'error'
+                  ? styles.feedbackTextError
+                  : styles.feedbackTextSuccess,
+              ]}
+            >
+              {feedback.text}
             </Text>
           </View>
         )}
@@ -368,6 +398,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.accent,
     fontWeight: '600',
+  },
+  feedbackBox: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  feedbackError: {
+    backgroundColor: '#FDECEA',
+    borderColor: '#E5534B',
+  },
+  feedbackSuccess: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#4CAF50',
+  },
+  feedbackText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  feedbackTextError: {
+    color: '#B3261E',
+  },
+  feedbackTextSuccess: {
+    color: '#2E7D32',
   },
   sendBtn: {
     paddingVertical: 16,
