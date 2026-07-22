@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
-import { createBottle } from '../api/bottles';
+import { createBottle, cancelPendingBottles } from '../api/bottles';
 
 const COLORS = {
   bg: '#F5F1E8',
@@ -44,6 +44,8 @@ export default function BottleCreationScreen() {
   const [feedback, setFeedback] = useState<
     { type: 'error' | 'success'; text: string } | null
   >(null);
+  const [atLimit, setAtLimit] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     // TODO: charger le nombre réel de bouteilles en attente depuis l'API.
@@ -53,8 +55,31 @@ export default function BottleCreationScreen() {
   const isDisabled =
     !message.trim() || isLoading || pendingBottles >= MAX_PENDING_BOTTLES;
 
+  const handleCancelPending = async () => {
+    setIsCancelling(true);
+    setFeedback(null);
+    try {
+      const cancelled = await cancelPendingBottles();
+      setAtLimit(false);
+      setFeedback({
+        type: 'success',
+        text: `${cancelled} bouteille(s) en attente annulée(s). Tu peux renvoyer une bouteille.`,
+      });
+    } catch (error: any) {
+      const status = error?.status;
+      const msg = (error?.message || 'Réessaie.').toString();
+      setFeedback({
+        type: 'error',
+        text: `[${status ?? '?'}] Impossible d'annuler : ${msg}`,
+      });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const handleSend = async () => {
     setFeedback(null);
+    setAtLimit(false);
 
     if (!message.trim()) {
       setFeedback({ type: 'error', text: 'Écris un message.' });
@@ -109,6 +134,8 @@ export default function BottleCreationScreen() {
         // Préfixe le code HTTP pour le diagnostic, en gardant le message réel.
         displayMessage = `[${status}] ${displayMessage}`;
       }
+      // 409 = quota de bouteilles en attente atteint → proposer l'annulation.
+      setAtLimit(status === 409);
       setFeedback({ type: 'error', text: displayMessage });
     } finally {
       setIsLoading(false);
@@ -255,6 +282,25 @@ export default function BottleCreationScreen() {
               {feedback.text}
             </Text>
           </View>
+        )}
+
+        {/* Bouton d'annulation — apparaît quand le quota (max 3) est atteint */}
+        {atLimit && (
+          <TouchableOpacity
+            style={[styles.cancelBtn, isCancelling && styles.sendBtnDisabled]}
+            onPress={handleCancelPending}
+            disabled={isCancelling}
+            accessibilityRole="button"
+            accessibilityLabel="Annuler mes bouteilles en attente"
+          >
+            {isCancelling ? (
+              <ActivityIndicator color={COLORS.accent} />
+            ) : (
+              <Text style={styles.cancelBtnText}>
+                Annuler mes bouteilles en attente
+              </Text>
+            )}
+          </TouchableOpacity>
         )}
 
         {/* Send Button */}
@@ -436,6 +482,21 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: {
     opacity: 0.5,
+  },
+  cancelBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: COLORS.card,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+    marginTop: 12,
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.accent,
+    textAlign: 'center',
   },
   sendBtnText: {
     fontSize: 16,

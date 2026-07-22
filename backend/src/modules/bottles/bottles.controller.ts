@@ -99,6 +99,16 @@ export async function createBottle(req: AuthedRequest, res: Response) {
 }
 
 // ============================================================
+// POST /api/bottles/cancel-pending
+// Expire les bouteilles FLOATING de l'utilisateur courant (libère le quota).
+// ============================================================
+export async function cancelPending(req: AuthedRequest, res: Response) {
+  const userId = req.user.userId;
+  const cancelled = await bottlesService.cancelPendingBottles(userId);
+  res.json({ data: { cancelled } });
+}
+
+// ============================================================
 // GET /api/bottles/inbox
 // ============================================================
 export async function getInbox(req: AuthedRequest, res: Response) {

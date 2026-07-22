@@ -89,6 +89,21 @@ export async function createBottle(
   }
 }
 
+/**
+ * Annule (expire) toutes les bouteilles FLOATING envoyées par l'utilisateur.
+ * Sert à libérer le quota de 3 bouteilles en attente. Ne touche pas aux
+ * relations (receipts/messages conservés).
+ */
+export async function cancelPendingBottles(
+  senderId: string,
+): Promise<number> {
+  const result = await prisma.messageInABottle.updateMany({
+    where: { senderId, status: "FLOATING" },
+    data: { status: "EXPIRED" },
+  });
+  return result.count;
+}
+
 async function findCompatibleRecipients(
   bottle: MessageInABottle,
 ): Promise<User[]> {

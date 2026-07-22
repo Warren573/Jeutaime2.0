@@ -34,6 +34,14 @@ router.post(
   }),
 );
 
+// POST /api/bottles/cancel-pending — expire current user's floating bottles
+router.post(
+  "/cancel-pending",
+  wrap(async (req, res) => {
+    await controller.cancelPending(req as AuthedRequest, res);
+  }),
+);
+
 // GET /api/bottles/inbox — get pending bottles for user
 router.get(
   "/inbox",

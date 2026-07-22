@@ -63,6 +63,17 @@ export async function createBottle(
 }
 
 // ============================================================
+// POST /api/bottles/cancel-pending
+// ============================================================
+export async function cancelPendingBottles(): Promise<number> {
+  const res = (await apiFetch("/bottles/cancel-pending", {
+    method: "POST",
+    body: JSON.stringify({}),
+  })) as { data: { cancelled: number } };
+  return res.data.cancelled;
+}
+
+// ============================================================
 // GET /api/bottles/inbox
 // ============================================================
 export async function getInbox(): Promise<InboxBottleDTO[]> {
