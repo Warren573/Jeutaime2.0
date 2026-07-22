@@ -40,6 +40,30 @@ export default function BottleCreationScreen() {
   const [debugStage, setDebugStage] = useState('');
   const [debugMessage, setDebugMessage] = useState('');
   const [executionLog, setExecutionLog] = useState<string[]>([]);
+  const [backendInfo, setBackendInfo] = useState<any>(null);
+
+  const FRONTEND_BUILD_SHA = 'fa46a8b4';
+  const FRONTEND_BUILD_TIME = new Date().toISOString();
+
+  useEffect(() => {
+    // Fetch backend version info
+    const fetchBackendInfo = async () => {
+      try {
+        const res = await fetch(process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') + '/api/health' || 'https://jeutaime-staging.onrender.com/api/health');
+        if (res.ok) {
+          const data = await res.json();
+          setBackendInfo({
+            sha: data.buildSha || 'unknown',
+            buildTime: data.buildTime || 'unknown',
+            instrumentation: data.instrumentation || 'unknown',
+          });
+        }
+      } catch (e) {
+        console.log('[HEALTH] Failed to fetch backend info');
+      }
+    };
+    fetchBackendInfo();
+  }, []);
 
   useEffect(() => {
     // TODO: Load pending bottle count from API
@@ -309,6 +333,15 @@ export default function BottleCreationScreen() {
           )}
         </TouchableOpacity>
 
+        {/* Build Info */}
+        <View style={styles.buildInfoPanel}>
+          <Text style={styles.buildInfoLabel}>BUILD INFO</Text>
+          <Text style={styles.buildInfoText}>FRONTEND_SHA={FRONTEND_BUILD_SHA}</Text>
+          <Text style={styles.buildInfoText}>BACKEND_SHA={backendInfo?.sha || 'loading...'}</Text>
+          <Text style={styles.buildInfoText}>API_URL={process.env.EXPO_PUBLIC_API_URL}</Text>
+          <Text style={styles.buildInfoText}>INSTRUMENTATION={backendInfo?.instrumentation || 'unknown'}</Text>
+        </View>
+
         {/* Debug Panel */}
         {(debugStage || executionLog.length > 0) && (
           <View style={styles.debugPanel}>
@@ -470,6 +503,29 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.card,
     textAlign: 'center',
+  },
+  buildInfoPanel: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  buildInfoLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2E7D32',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  buildInfoText: {
+    fontSize: 9,
+    color: '#1B5E20',
+    fontFamily: 'Courier',
+    lineHeight: 12,
+    marginBottom: 2,
   },
   debugPanel: {
     marginTop: 20,
