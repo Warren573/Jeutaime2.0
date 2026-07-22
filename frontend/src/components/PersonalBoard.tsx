@@ -300,8 +300,8 @@ export function PersonalBoard() {
             position: 'absolute',
             top: 435,
             right: 8,
-            width: 135,
-            height: 140,
+            width: 180,
+            height: 120,
             transform: [{ rotate: '2deg' }],
             overflow: 'hidden',
           }}
