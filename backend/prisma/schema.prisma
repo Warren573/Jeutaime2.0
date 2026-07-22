@@ -145,7 +145,9 @@ enum ReactionType {
 
 enum BottleStatus {
   FLOATING    // En attente de réception
-  ACCEPTED    // Acceptée par un utilisateur
+  ACCEPTED    // Acceptée par un utilisateur, discussion anonyme en cours
+  REVEALED    // Dévoilement accepté par les deux, devient discussion privée classique
+  BROKEN      // Rompue définitivement par l'un des deux participants
   EXPIRED     // 30 jours écoulés
 }
 
@@ -154,6 +156,12 @@ enum BottleReceiptStatus {
   ACCEPTED    // Acceptée
   REFUSED     // Refusée
   TAKEN       // Prise par quelqu'un d'autre
+}
+
+enum BottleRevealStatus {
+  PENDING     // En attente de réponse de l'autre participant
+  ACCEPTED    // Dévoilement accepté par les deux
+  REFUSED     // Refusé par le répondant
 }
 
 // ============================================================
@@ -619,9 +627,11 @@ model MessageInABottle {
   expiresAt     DateTime              // 30 jours
   lastReadBySenderId    DateTime?      // Quand l'envoyeur a lu les messages
   lastReadByAcceptorId  DateTime?      // Quand l'accepteur a lu les messages
+  revealedAt    DateTime?             // Quand les deux ont accepté le dévoilement
 
   receipts      BottleReceipt[]
   messages      AnonymousMessage[]
+  revealRequests BottleRevealRequest[]
 
   @@index([status, expiresAt])
   @@index([senderId, status])
@@ -651,6 +661,23 @@ model AnonymousMessage {
   createdAt DateTime          @default(now())
 
   @@index([bottleId, createdAt])
+}
+
+model BottleRevealRequest {
+  id            String              @id @default(cuid())
+  bottleId      String
+  bottle        MessageInABottle    @relation(fields: [bottleId], references: [id], onDelete: Cascade)
+  requestedById String              // Qui a demandé le dévoilement
+  requestedBy   User                @relation("RevealRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  respondentId  String              // Qui doit répondre (l'autre participant)
+  respondent    User                @relation("RevealRespondent", fields: [respondentId], references: [id], onDelete: Cascade)
+  status        BottleRevealStatus  @default(PENDING)
+  createdAt     DateTime            @default(now())
+  respondedAt   DateTime?
+
+  @@unique([bottleId, requestedById])
+  @@index([bottleId, status])
+  @@index([respondentId, status])
 }
 
 model BottleSuspension {

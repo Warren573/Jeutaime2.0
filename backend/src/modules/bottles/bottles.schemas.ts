@@ -134,9 +134,110 @@ export type MarkBottleAsReadBody = z.infer<
 
 export const MarkBottleAsReadResponseSchema = z.object({
   id: z.string(),
-  status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED"]),
+  status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
 });
 
 export type MarkBottleAsReadResponse = z.infer<
   typeof MarkBottleAsReadResponseSchema
+>;
+
+// ============================================================
+// POST /api/bottles/:id/reveal/request
+// ============================================================
+export const RequestRevealBodySchema = z.object({}).strict();
+
+export type RequestRevealBody = z.infer<typeof RequestRevealBodySchema>;
+
+export const RequestRevealResponseSchema = z.object({
+  id: z.string(),
+  bottleId: z.string(),
+  requestedById: z.string(),
+  respondentId: z.string(),
+  status: z.enum(["PENDING", "ACCEPTED", "REFUSED"]),
+  createdAt: z.string().datetime(),
+  respondedAt: z.string().datetime().nullable(),
+});
+
+export type RequestRevealResponse = z.infer<
+  typeof RequestRevealResponseSchema
+>;
+
+// ============================================================
+// POST /api/bottles/:id/reveal/accept
+// ============================================================
+export const AcceptRevealBodySchema = z.object({}).strict();
+
+export type AcceptRevealBody = z.infer<typeof AcceptRevealBodySchema>;
+
+export const AcceptRevealResponseSchema = z.object({
+  id: z.string(),
+  status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
+  revealedAt: z.string().datetime().nullable(),
+});
+
+export type AcceptRevealResponse = z.infer<
+  typeof AcceptRevealResponseSchema
+>;
+
+// ============================================================
+// POST /api/bottles/:id/reveal/refuse
+// ============================================================
+export const RefuseRevealBodySchema = z.object({}).strict();
+
+export type RefuseRevealBody = z.infer<typeof RefuseRevealBodySchema>;
+
+export const RefuseRevealResponseSchema = z.object({
+  id: z.string(),
+  bottleId: z.string(),
+  status: z.enum(["PENDING", "ACCEPTED", "REFUSED"]),
+  respondedAt: z.string().datetime(),
+});
+
+export type RefuseRevealResponse = z.infer<
+  typeof RefuseRevealResponseSchema
+>;
+
+// ============================================================
+// POST /api/bottles/:id/break
+// ============================================================
+export const BreakBottleBodySchema = z.object({}).strict();
+
+export type BreakBottleBody = z.infer<typeof BreakBottleBodySchema>;
+
+export const BreakBottleResponseSchema = z.object({
+  id: z.string(),
+  status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
+});
+
+export type BreakBottleResponse = z.infer<
+  typeof BreakBottleResponseSchema
+>;
+
+// ============================================================
+// POST /api/bottles/:id/restart
+// ============================================================
+export const RestartBottleBodySchema = z.object({}).strict();
+
+export type RestartBottleBody = z.infer<typeof RestartBottleBodySchema>;
+
+export const RestartBottleResponseSchema = z.object({
+  id: z.string(),
+  status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
+});
+
+export type RestartBottleResponse = z.infer<
+  typeof RestartBottleResponseSchema
+>;
+
+// ============================================================
+// GET /api/bottles/:id/reveal/status
+// ============================================================
+export const GetRevealStatusResponseSchema = z.object({
+  hasPendingRequest: z.boolean(),
+  isRequester: z.boolean(), // true if current user is the one who requested
+  requestedById: z.string().optional(),
+});
+
+export type GetRevealStatusResponse = z.infer<
+  typeof GetRevealStatusResponseSchema
 >;

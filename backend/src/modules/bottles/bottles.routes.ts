@@ -10,6 +10,11 @@ import {
   RefuseBottleBodySchema,
   PostBottleMessageBodySchema,
   MarkBottleAsReadBodySchema,
+  RequestRevealBodySchema,
+  AcceptRevealBodySchema,
+  RefuseRevealBodySchema,
+  BreakBottleBodySchema,
+  RestartBottleBodySchema,
 } from "./bottles.schemas";
 
 const router = Router();
@@ -86,6 +91,59 @@ router.post(
   validate(MarkBottleAsReadBodySchema),
   wrap(async (req, res) => {
     await controller.markBottleAsRead(req as AuthedRequest, res);
+  }),
+);
+
+// POST /api/bottles/:id/reveal/request — request reveal
+router.post(
+  "/:id/reveal/request",
+  validate(RequestRevealBodySchema),
+  wrap(async (req, res) => {
+    await controller.requestReveal(req as AuthedRequest, res);
+  }),
+);
+
+// POST /api/bottles/:id/reveal/accept — accept reveal
+router.post(
+  "/:id/reveal/accept",
+  validate(AcceptRevealBodySchema),
+  wrap(async (req, res) => {
+    await controller.acceptReveal(req as AuthedRequest, res);
+  }),
+);
+
+// POST /api/bottles/:id/reveal/refuse — refuse reveal
+router.post(
+  "/:id/reveal/refuse",
+  validate(RefuseRevealBodySchema),
+  wrap(async (req, res) => {
+    await controller.refuseReveal(req as AuthedRequest, res);
+  }),
+);
+
+// POST /api/bottles/:id/break — break correspondence
+router.post(
+  "/:id/break",
+  validate(BreakBottleBodySchema),
+  wrap(async (req, res) => {
+    await controller.breakBottle(req as AuthedRequest, res);
+  }),
+);
+
+// POST /api/bottles/:id/restart — restart bottle
+router.post(
+  "/:id/restart",
+  validate(RestartBottleBodySchema),
+  wrap(async (req, res) => {
+    await controller.restartBottle(req as AuthedRequest, res);
+  }),
+);
+
+// GET /api/bottles/:id/reveal/status — get reveal request status
+router.get(
+  "/:id/reveal/status",
+  wrap(async (req, res) => {
+    await controller.getRevealStatus(req as AuthedRequest, res);
   }),
 );
 

@@ -19,6 +19,11 @@ import {
   getBottleMessages,
   postBottleMessage,
   markBottleAsRead,
+  requestReveal,
+  acceptReveal,
+  refuseReveal,
+  breakBottle,
+  getRevealStatus,
   InboxBottleDTO,
   BottleMessageDTO,
 } from '../api/bottles';
@@ -47,6 +52,8 @@ export default function BottleDiscussionScreen() {
   const [messageText, setMessageText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [hasRevealRequest, setHasRevealRequest] = useState(false);
+  const [isRevealRequester, setIsRevealRequester] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -62,6 +69,11 @@ export default function BottleDiscussionScreen() {
       // Load messages
       const msgs = await getBottleMessages(bottleId);
       setMessages(msgs);
+
+      // Load reveal status
+      const revealStatus = await getRevealStatus(bottleId);
+      setHasRevealRequest(revealStatus.hasPendingRequest);
+      setIsRevealRequester(revealStatus.isRequester);
 
       // Mark bottle as read
       await markBottleAsRead(bottleId);
@@ -139,6 +151,60 @@ export default function BottleDiscussionScreen() {
     );
   };
 
+  const handleRequestReveal = async () => {
+    try {
+      await requestReveal(bottleId);
+      setHasRevealRequest(true);
+      setIsRevealRequester(true);
+      Alert.alert('Dévoilement demandé', 'En attente de réponse...');
+    } catch (error: any) {
+      Alert.alert('Erreur', error.message || 'Impossible de demander le dévoilement');
+    }
+  };
+
+  const handleAcceptReveal = async () => {
+    try {
+      await acceptReveal(bottleId);
+      Alert.alert('Succès', 'Dévoilement accepté');
+      setBottle(prev => prev ? { ...prev, status: 'REVEALED' } : null);
+    } catch (error: any) {
+      Alert.alert('Erreur', error.message || 'Impossible d\'accepter le dévoilement');
+    }
+  };
+
+  const handleRefuseReveal = async () => {
+    try {
+      await refuseReveal(bottleId);
+      setHasRevealRequest(false);
+      Alert.alert('Succès', 'Dévoilement refusé. La discussion reste anonyme.');
+    } catch (error: any) {
+      Alert.alert('Erreur', error.message || 'Impossible de refuser le dévoilement');
+    }
+  };
+
+  const handleBreakBottle = () => {
+    Alert.alert(
+      'Rompre cette correspondance?',
+      'Cela fermera définitivement la discussion. Aucun nouveau message ne sera possible.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Rompre',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await breakBottle(bottleId);
+              Alert.alert('Succès', 'Correspondance rompue');
+              router.back();
+            } catch (error: any) {
+              Alert.alert('Erreur', error.message || 'Impossible de rompre la correspondance');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
       <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
@@ -151,6 +217,43 @@ export default function BottleDiscussionScreen() {
     return (
       <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
         <Text style={styles.errorText}>Bouteille non trouvée</Text>
+      </View>
+    );
+  }
+
+  if (bottle.status === 'BROKEN') {
+    return (
+      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={styles.errorText}>Cette correspondance a été rompue</Text>
+          <TouchableOpacity
+            style={[styles.sendBtn, { marginTop: 20 }]}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.sendBtnText}>Retour</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (bottle.status === 'REVEALED') {
+    return (
+      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }]}>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: COLORS.text, marginBottom: 10 }}>
+            ✨ Dévoilement accepté!
+          </Text>
+          <Text style={{ fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 20 }}>
+            Cette correspondance anonyme est devenue une discussion privée classique.
+          </Text>
+          <TouchableOpacity
+            style={[styles.sendBtn]}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.sendBtnText}>Retour</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -255,13 +358,46 @@ export default function BottleDiscussionScreen() {
           )}
         </TouchableOpacity>
 
+        {/* Reveal Actions */}
+        {bottle?.status === 'ACCEPTED' && (
+          <View style={styles.revealSection}>
+            {hasRevealRequest && isRevealRequester ? (
+              <View>
+                <Text style={styles.revealText}>Demande de dévoilement en attente...</Text>
+              </View>
+            ) : hasRevealRequest && !isRevealRequester ? (
+              <View style={styles.revealActions}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.acceptBtn]}
+                  onPress={handleAcceptReveal}
+                >
+                  <Text style={styles.actionBtnText}>Accepter le dévoilement</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.refuseBtn]}
+                  onPress={handleRefuseReveal}
+                >
+                  <Text style={styles.actionBtnText}>Refuser</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.revealBtn]}
+                onPress={handleRequestReveal}
+              >
+                <Text style={styles.actionBtnText}>Proposer le dévoilement</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* Actions */}
         <View style={styles.actions}>
           <TouchableOpacity style={styles.actionBtn} onPress={handleReport}>
             <Text style={styles.actionBtnText}>Signaler</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleArchive}>
-            <Text style={styles.actionBtnText}>Archiver</Text>
+          <TouchableOpacity style={[styles.actionBtn, styles.breakBtn]} onPress={handleBreakBottle}>
+            <Text style={styles.actionBtnText}>Rompre</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -441,5 +577,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.accent,
     textAlign: 'center',
+  },
+  revealSection: {
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  revealText: {
+    fontSize: 12,
+    color: COLORS.accent,
+    textAlign: 'center',
+    paddingVertical: 8,
+    fontStyle: 'italic',
+  },
+  revealActions: {
+    flexDirection: 'column',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  revealBtn: {
+    backgroundColor: '#FFD700',
+  },
+  acceptBtn: {
+    backgroundColor: '#4CAF50',
+  },
+  refuseBtn: {
+    backgroundColor: '#F44336',
+  },
+  breakBtn: {
+    backgroundColor: '#FF6B6B',
   },
 });

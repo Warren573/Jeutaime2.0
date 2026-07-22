@@ -134,3 +134,87 @@ export async function markBottleAsRead(
   })) as { data: { id: string; status: string } };
   return res.data;
 }
+
+// ============================================================
+// POST /api/bottles/:id/reveal/request
+// ============================================================
+export async function requestReveal(
+  bottleId: string,
+): Promise<{
+  id: string;
+  status: "PENDING" | "ACCEPTED" | "REFUSED";
+}> {
+  const res = (await apiFetch(`/bottles/${bottleId}/reveal/request`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  })) as { data: any };
+  return res.data;
+}
+
+// ============================================================
+// POST /api/bottles/:id/reveal/accept
+// ============================================================
+export async function acceptReveal(
+  bottleId: string,
+): Promise<{ id: string; status: string; revealedAt: string | null }> {
+  const res = (await apiFetch(`/bottles/${bottleId}/reveal/accept`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  })) as { data: any };
+  return res.data;
+}
+
+// ============================================================
+// POST /api/bottles/:id/reveal/refuse
+// ============================================================
+export async function refuseReveal(
+  bottleId: string,
+): Promise<{ id: string; status: "REFUSED" }> {
+  const res = (await apiFetch(`/bottles/${bottleId}/reveal/refuse`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  })) as { data: any };
+  return res.data;
+}
+
+// ============================================================
+// POST /api/bottles/:id/break
+// ============================================================
+export async function breakBottle(
+  bottleId: string,
+): Promise<{ id: string; status: string }> {
+  const res = (await apiFetch(`/bottles/${bottleId}/break`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  })) as { data: any };
+  return res.data;
+}
+
+// ============================================================
+// POST /api/bottles/:id/restart
+// ============================================================
+export async function restartBottle(
+  bottleId: string,
+): Promise<{ id: string; status: string }> {
+  const res = (await apiFetch(`/bottles/${bottleId}/restart`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  })) as { data: any };
+  return res.data;
+}
+
+// ============================================================
+// GET /api/bottles/:id/reveal/status
+// ============================================================
+export async function getRevealStatus(
+  bottleId: string,
+): Promise<{
+  hasPendingRequest: boolean;
+  isRequester: boolean;
+  requestedById?: string;
+}> {
+  const res = (await apiFetch(`/bottles/${bottleId}/reveal/status`)) as {
+    data: any;
+  };
+  return res.data;
+}

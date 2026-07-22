@@ -16,6 +16,17 @@ import {
   GetUnreadCountResponseSchema,
   MarkBottleAsReadBodySchema,
   MarkBottleAsReadResponseSchema,
+  RequestRevealBodySchema,
+  RequestRevealResponseSchema,
+  AcceptRevealBodySchema,
+  AcceptRevealResponseSchema,
+  RefuseRevealBodySchema,
+  RefuseRevealResponseSchema,
+  BreakBottleBodySchema,
+  BreakBottleResponseSchema,
+  RestartBottleBodySchema,
+  RestartBottleResponseSchema,
+  GetRevealStatusResponseSchema,
 } from "./bottles.schemas";
 
 // ============================================================
@@ -211,6 +222,89 @@ export async function markBottleAsRead(req: AuthedRequest, res: Response) {
 
   const bottle = await bottlesService.markBottleAsRead(bottleId, userId);
   const validated = MarkBottleAsReadResponseSchema.parse(bottle);
+
+  res.json({ data: validated });
+}
+
+// ============================================================
+// POST /api/bottles/:id/reveal/request
+// ============================================================
+export async function requestReveal(req: AuthedRequest, res: Response) {
+  RequestRevealBodySchema.parse(req.body);
+  const bottleId = req.params["id"] as string;
+  const userId = req.user.userId;
+
+  const request = await bottlesService.requestReveal(bottleId, userId);
+  const validated = RequestRevealResponseSchema.parse(request);
+
+  res.json({ data: validated });
+}
+
+// ============================================================
+// POST /api/bottles/:id/reveal/accept
+// ============================================================
+export async function acceptReveal(req: AuthedRequest, res: Response) {
+  AcceptRevealBodySchema.parse(req.body);
+  const bottleId = req.params["id"] as string;
+  const userId = req.user.userId;
+
+  const bottle = await bottlesService.acceptReveal(bottleId, userId);
+  const validated = AcceptRevealResponseSchema.parse(bottle);
+
+  res.json({ data: validated });
+}
+
+// ============================================================
+// POST /api/bottles/:id/reveal/refuse
+// ============================================================
+export async function refuseReveal(req: AuthedRequest, res: Response) {
+  RefuseRevealBodySchema.parse(req.body);
+  const bottleId = req.params["id"] as string;
+  const userId = req.user.userId;
+
+  const request = await bottlesService.refuseReveal(bottleId, userId);
+  const validated = RefuseRevealResponseSchema.parse(request);
+
+  res.json({ data: validated });
+}
+
+// ============================================================
+// POST /api/bottles/:id/break
+// ============================================================
+export async function breakBottle(req: AuthedRequest, res: Response) {
+  BreakBottleBodySchema.parse(req.body);
+  const bottleId = req.params["id"] as string;
+  const userId = req.user.userId;
+
+  const bottle = await bottlesService.breakBottle(bottleId, userId);
+  const validated = BreakBottleResponseSchema.parse(bottle);
+
+  res.json({ data: validated });
+}
+
+// ============================================================
+// POST /api/bottles/:id/restart
+// ============================================================
+export async function restartBottle(req: AuthedRequest, res: Response) {
+  RestartBottleBodySchema.parse(req.body);
+  const bottleId = req.params["id"] as string;
+  const userId = req.user.userId;
+
+  const bottle = await bottlesService.restartBottle(bottleId, userId);
+  const validated = RestartBottleResponseSchema.parse(bottle);
+
+  res.json({ data: validated });
+}
+
+// ============================================================
+// GET /api/bottles/:id/reveal/status
+// ============================================================
+export async function getRevealStatus(req: AuthedRequest, res: Response) {
+  const bottleId = req.params["id"] as string;
+  const userId = req.user.userId;
+
+  const status = await bottlesService.getRevealStatus(bottleId, userId);
+  const validated = GetRevealStatusResponseSchema.parse(status);
 
   res.json({ data: validated });
 }

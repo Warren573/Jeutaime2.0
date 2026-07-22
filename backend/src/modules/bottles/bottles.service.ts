@@ -441,3 +441,284 @@ export async function markBottleAsRead(
 
   return updated;
 }
+
+// ============================================================
+// Reveal Mechanism
+// ============================================================
+
+export async function requestReveal(
+  bottleId: string,
+  requestedById: string,
+): Promise<any> {
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+
+  if (!bottle) {
+    throw new Error("Bottle not found");
+  }
+
+  if (bottle.status !== "ACCEPTED") {
+    throw new Error("Can only request reveal on accepted bottles");
+  }
+
+  // Verify user is sender or acceptor
+  if (bottle.senderId !== requestedById && bottle.acceptedById !== requestedById) {
+    throw new Error("Unauthorized");
+  }
+
+  // Determine respondent (the other participant)
+  const respondentId = bottle.senderId === requestedById ? bottle.acceptedById : bottle.senderId;
+
+  if (!respondentId) {
+    throw new Error("Respondent not found");
+  }
+
+  // Check if there's already a pending request from this user
+  const existing = await prisma.bottleRevealRequest.findUnique({
+    where: {
+      bottleId_requestedById: {
+        bottleId,
+        requestedById,
+      },
+    },
+  });
+
+  if (existing && existing.status === "PENDING") {
+    return existing; // Return existing pending request
+  }
+
+  // Create new request
+  const request = await prisma.bottleRevealRequest.create({
+    data: {
+      bottleId,
+      requestedById,
+      respondentId,
+    },
+  });
+
+  return request;
+}
+
+export async function acceptReveal(
+  bottleId: string,
+  userId: string,
+): Promise<MessageInABottle> {
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+
+  if (!bottle) {
+    throw new Error("Bottle not found");
+  }
+
+  if (bottle.status !== "ACCEPTED") {
+    throw new Error("Can only accept reveal on accepted bottles");
+  }
+
+  // Find the pending request for this user
+  const request = await prisma.bottleRevealRequest.findFirst({
+    where: {
+      bottleId,
+      respondentId: userId,
+      status: "PENDING",
+    },
+  });
+
+  if (!request) {
+    throw new Error("No pending reveal request for this user");
+  }
+
+  // Use transaction to update bottle status and mark request as accepted
+  const updated = await prisma.$transaction(async (tx) => {
+    // Update request status
+    await tx.bottleRevealRequest.update({
+      where: { id: request.id },
+      data: {
+        status: "ACCEPTED",
+        respondedAt: new Date(),
+      },
+    });
+
+    // Update bottle status to REVEALED
+    const bottle = await tx.messageInABottle.update({
+      where: { id: bottleId },
+      data: {
+        status: "REVEALED",
+        revealedAt: new Date(),
+      },
+    });
+
+    return bottle;
+  });
+
+  return updated;
+}
+
+export async function refuseReveal(
+  bottleId: string,
+  userId: string,
+): Promise<any> {
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+
+  if (!bottle) {
+    throw new Error("Bottle not found");
+  }
+
+  if (bottle.status !== "ACCEPTED") {
+    throw new Error("Can only refuse reveal on accepted bottles");
+  }
+
+  // Find the pending request for this user
+  const request = await prisma.bottleRevealRequest.findFirst({
+    where: {
+      bottleId,
+      respondentId: userId,
+      status: "PENDING",
+    },
+  });
+
+  if (!request) {
+    throw new Error("No pending reveal request for this user");
+  }
+
+  // Mark request as refused
+  const updated = await prisma.bottleRevealRequest.update({
+    where: { id: request.id },
+    data: {
+      status: "REFUSED",
+      respondedAt: new Date(),
+    },
+  });
+
+  return updated;
+}
+
+export async function breakBottle(
+  bottleId: string,
+  userId: string,
+): Promise<MessageInABottle> {
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+
+  if (!bottle) {
+    throw new Error("Bottle not found");
+  }
+
+  if (bottle.status !== "ACCEPTED" && bottle.status !== "REVEALED") {
+    throw new Error("Can only break accepted or revealed bottles");
+  }
+
+  // Verify user is sender or acceptor
+  if (bottle.senderId !== userId && bottle.acceptedById !== userId) {
+    throw new Error("Unauthorized");
+  }
+
+  // Update bottle status to BROKEN
+  const updated = await prisma.messageInABottle.update({
+    where: { id: bottleId },
+    data: {
+      status: "BROKEN",
+    },
+  });
+
+  return updated;
+}
+
+export async function restartBottle(
+  bottleId: string,
+  userId: string,
+): Promise<MessageInABottle> {
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+
+  if (!bottle) {
+    throw new Error("Bottle not found");
+  }
+
+  // Only the original sender can restart
+  if (bottle.senderId !== userId) {
+    throw new Error("Only the original sender can restart this bottle");
+  }
+
+  // Can only restart broken bottles
+  if (bottle.status !== "BROKEN") {
+    throw new Error("Can only restart broken bottles");
+  }
+
+  // Reset the bottle to FLOATING status
+  const updated = await prisma.$transaction(async (tx) => {
+    // Clear acceptedById, acceptedAt, revealedAt
+    const bottle = await tx.messageInABottle.update({
+      where: { id: bottleId },
+      data: {
+        status: "FLOATING",
+        acceptedById: null,
+        acceptedAt: null,
+        revealedAt: null,
+        lastReadBySenderId: null,
+        lastReadByAcceptorId: null,
+      },
+    });
+
+    // Delete all reveal requests
+    await tx.bottleRevealRequest.deleteMany({
+      where: { bottleId },
+    });
+
+    return bottle;
+  });
+
+  // Find new compatible recipients and create receipts
+  const compatibleUsers = await findCompatibleRecipients(updated);
+
+  if (compatibleUsers.length > 0) {
+    await prisma.bottleReceipt.createMany({
+      data: compatibleUsers.map((user) => ({
+        bottleId: updated.id,
+        recipientId: user.id,
+      })),
+      skipDuplicates: true, // In case some receipts already exist
+    });
+  }
+
+  return updated;
+}
+
+export async function getRevealStatus(
+  bottleId: string,
+  userId: string,
+): Promise<{ hasPendingRequest: boolean; isRequester: boolean; requestedById?: string }> {
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+
+  if (!bottle) {
+    throw new Error("Bottle not found");
+  }
+
+  // Find any pending reveal request
+  const request = await prisma.bottleRevealRequest.findFirst({
+    where: {
+      bottleId,
+      status: "PENDING",
+    },
+  });
+
+  if (!request) {
+    return {
+      hasPendingRequest: false,
+      isRequester: false,
+    };
+  }
+
+  return {
+    hasPendingRequest: true,
+    isRequester: request.requestedById === userId,
+    requestedById: request.requestedById,
+  };
+}
