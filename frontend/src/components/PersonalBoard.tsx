@@ -293,7 +293,7 @@ export function PersonalBoard() {
           </Text>
         </Paper>
 
-        {/* Bouteille (right, middle) */}
+        {/* Bouteille (right, middle) - Postcard with beach background */}
         <Paper
           onPress={() => router.push('/bottle')}
           style={{
@@ -302,20 +302,20 @@ export function PersonalBoard() {
             right: 8,
             width: 135,
             transform: [{ rotate: '2deg' }],
+            overflow: 'hidden',
           }}
         >
+          <Image
+            source={require('../../assets/images/bottle/beach.png')}
+            style={StyleSheet.absoluteFillObject}
+            resizeMode="cover"
+          />
           <Text style={styles.bottleTitle}>Bouteille à la Mer</Text>
-          <View style={styles.oceanContainer} pointerEvents="none">
-            <Image
-              source={require('../../assets/images/bottle/beach.png')}
-              style={styles.beachImage}
-            />
-            {hasBottle && (
-              <View style={styles.bottleWrapper}>
-                <Text style={styles.bottleEmoji}>🍾</Text>
-              </View>
-            )}
-          </View>
+          {hasBottle && (
+            <View style={styles.bottleWrapper} pointerEvents="none">
+              <Text style={styles.bottleEmoji}>🍾</Text>
+            </View>
+          )}
         </Paper>
 
         {/* Offrandes (center, largest) */}
@@ -577,9 +577,15 @@ const styles = StyleSheet.create({
   bottleTitle: {
     fontSize: 10,
     fontWeight: '700',
-    color: J.textMain,
-    marginBottom: 4,
+    color: '#FFFFFF',
+    marginTop: 12,
+    marginBottom: 0,
+    paddingHorizontal: 6,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    zIndex: 5,
   },
 
   bottleImage: {
@@ -667,41 +673,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  oceanContainer: {
-    width: '100%',
-    height: 96,
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 0,
-    paddingHorizontal: 6,
-    paddingVertical: 0,
-  },
-
-  oceanWaves: {
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
-    height: 24,
-    backgroundColor: '#87CEEB',
-    borderRadius: 12,
-    opacity: 0.6,
-  },
 
   bottleWrapper: {
     position: 'absolute',
-    bottom: 12,
+    bottom: 8,
+    left: '50%',
+    marginLeft: -10,
     zIndex: 10,
   },
 
   bottleEmoji: {
     fontSize: 20,
-  },
-
-  beachImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 2,
   },
 
   salonName: {
