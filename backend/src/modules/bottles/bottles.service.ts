@@ -548,7 +548,7 @@ export async function acceptReveal(
 
     // Create or get Match between sender and acceptor (bidirectional)
     const senderId = bottle.senderId;
-    const acceptorId = bottle.acceptedById;
+    const acceptorId = bottle.acceptedById!;
     const [userAId, userBId] = senderId < acceptorId ? [senderId, acceptorId] : [acceptorId, senderId];
 
     let match = await tx.match.findUnique({
