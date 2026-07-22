@@ -38,6 +38,8 @@ export default function BottleCreationScreen() {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [pendingBottles, setPendingBottles] = useState(0);
+  const [debugStage, setDebugStage] = useState('');
+  const [debugMessage, setDebugMessage] = useState('');
 
   useEffect(() => {
     // TODO: Load pending bottle count from API
@@ -46,29 +48,43 @@ export default function BottleCreationScreen() {
   }, []);
 
   const handleSend = async () => {
+    setDebugStage('A');
+    setDebugMessage('Clic reçu');
     console.log('[A] BOUTON CLIQUÉ');
     console.log('[A] userProfile:', userProfile);
     console.log('[A] message:', message);
     console.log('[A] pendingBottles:', pendingBottles);
     console.log('[A] isLoading:', isLoading);
 
+    setDebugStage('B');
+    setDebugMessage('Entrée dans handleSend');
     console.log('[B] ENTRÉE handleSend');
 
     if (!message.trim()) {
+      setDebugStage('C1');
+      setDebugMessage('❌ Message vide');
       console.log('[C-VALIDATION-1] Message vide - BLOQUÉ');
       Alert.alert('Erreur', 'Écris un message');
       return;
     }
+    setDebugStage('C1');
+    setDebugMessage('✓ Message validé');
     console.log('[C-VALIDATION-1] PASSÉ - message non vide');
 
     if (message.length > 1000) {
+      setDebugStage('C2');
+      setDebugMessage(`❌ Message trop long (${message.length}/1000)`);
       console.log('[C-VALIDATION-2] Message trop long - BLOQUÉ');
       Alert.alert('Erreur', `Maximum 1000 caractères (tu as ${message.length})`);
       return;
     }
+    setDebugStage('C2');
+    setDebugMessage('✓ Longueur validée');
     console.log('[C-VALIDATION-2] PASSÉ - length OK');
 
     if (pendingBottles >= 3) {
+      setDebugStage('C3');
+      setDebugMessage(`❌ ${pendingBottles} bouteilles en attente (max 3)`);
       console.log('[C-VALIDATION-3] Trop de bouteilles pending - BLOQUÉ');
       Alert.alert(
         'Erreur',
@@ -76,9 +92,13 @@ export default function BottleCreationScreen() {
       );
       return;
     }
+    setDebugStage('C3');
+    setDebugMessage('✓ Limite de bouteilles OK');
     console.log('[C-VALIDATION-3] PASSÉ - pendingBottles OK');
 
     if (!userProfile?.city) {
+      setDebugStage('C4');
+      setDebugMessage('❌ Pas de ville dans le profil');
       console.log('[C-VALIDATION-4] Pas de ville - BLOQUÉ');
       Alert.alert(
         'Erreur',
@@ -86,8 +106,12 @@ export default function BottleCreationScreen() {
       );
       return;
     }
+    setDebugStage('C4');
+    setDebugMessage('✓ Ville validée');
     console.log('[C-VALIDATION-4] PASSÉ - city OK');
 
+    setDebugStage('D');
+    setDebugMessage('Appel API lancé');
     console.log('[D] TOUTES LES VALIDATIONS PASSÉES - Appel createBottle()');
     console.log('[D] Payload:', { message: message.trim(), targetGender, ageMin, ageMax });
 
@@ -100,6 +124,8 @@ export default function BottleCreationScreen() {
         ageMin,
         ageMax,
       });
+      setDebugStage('E');
+      setDebugMessage('✓ Création réussie');
       console.log('[E] createBottle() succès:', result);
 
       Alert.alert('Succès', 'Bouteille lancée à la mer! ✓');
@@ -112,14 +138,12 @@ export default function BottleCreationScreen() {
       console.error('[F] Error status:', error.status);
       console.error('[F] Error code:', error.code);
 
-      // Construire un message d'erreur clair pour l'utilisateur
       let displayMessage = 'Erreur d\'envoi. Réessaie.';
 
       if (error.message) {
         displayMessage = error.message;
       }
 
-      // Si c'est un ApiError avec code de statut
       if ((error as any).status) {
         const status = (error as any).status;
         if (status === 400) {
@@ -133,9 +157,13 @@ export default function BottleCreationScreen() {
         }
       }
 
+      setDebugStage('F');
+      setDebugMessage(`❌ ${displayMessage}`);
       console.log('[F-1] Affichage alerte:', displayMessage);
       Alert.alert('Erreur', displayMessage);
     } finally {
+      setDebugStage('G');
+      setDebugMessage('Fin du traitement');
       console.log('[G] finally - setIsLoading(false)');
       setIsLoading(false);
     }
@@ -275,6 +303,15 @@ export default function BottleCreationScreen() {
             <Text style={styles.sendBtnText}>Envoyer la bouteille à la mer</Text>
           )}
         </TouchableOpacity>
+
+        {/* Debug Panel */}
+        {debugStage && (
+          <View style={styles.debugPanel}>
+            <Text style={styles.debugLabel}>Diagnostic en temps réel</Text>
+            <Text style={styles.debugStage}>Étape: {debugStage}</Text>
+            <Text style={styles.debugMessage}>{debugMessage}</Text>
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -420,5 +457,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.card,
     textAlign: 'center',
+  },
+  debugPanel: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
+    borderWidth: 1,
+    borderColor: '#D0D0D0',
+  },
+  debugLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#666',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  debugStage: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.accent,
+    marginBottom: 4,
+  },
+  debugMessage: {
+    fontSize: 12,
+    color: '#333',
+    fontWeight: '500',
   },
 });
