@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: J.textMain,
-    marginBottom: 6,
+    marginBottom: 4,
     textAlign: 'center',
   },
 
@@ -669,11 +669,13 @@ const styles = StyleSheet.create({
 
   oceanContainer: {
     width: '100%',
-    height: 50,
+    height: 96,
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 4,
+    marginVertical: 0,
+    paddingHorizontal: 6,
+    paddingVertical: 0,
   },
 
   oceanWaves: {
@@ -699,7 +701,7 @@ const styles = StyleSheet.create({
   beachImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2,
   },
 
   salonName: {
