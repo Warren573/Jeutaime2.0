@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://192.168.0.40:3000/api";
+  "https://jeutaime-staging.onrender.com/api";
 
 const ACCESS_TOKEN_KEY  = "auth_token";
 const REFRESH_TOKEN_KEY = "auth_refresh_token";

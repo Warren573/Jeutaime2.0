@@ -1,6 +1,10 @@
 {
   "buildCommand": "npx expo export -p web",
   "outputDirectory": "dist",
+  "env": {
+    "EXPO_PUBLIC_API_URL": "@jeutaime_api_url",
+    "EXPO_PUBLIC_REFUGE_DEV": "false"
+  },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
