@@ -303,14 +303,15 @@ export function PersonalBoard() {
             width: 180,
             height: 120,
             transform: [{ rotate: '2deg' }],
-            overflow: 'hidden',
           }}
         >
-          <Image
-            source={require('../../assets/images/bottle/beach.png')}
-            style={StyleSheet.absoluteFillObject}
-            resizeMode="contain"
-          />
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', borderRadius: 3 }}>
+            <Image
+              source={require('../../assets/images/bottle/beach.png')}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="contain"
+            />
+          </View>
           <Text style={styles.bottleTitle}>Bouteille à la Mer</Text>
           {hasBottle && (
             <View style={styles.bottleWrapper} pointerEvents="none">
