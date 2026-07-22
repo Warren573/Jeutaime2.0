@@ -308,7 +308,14 @@ export function PersonalBoard() {
         >
           <Image
             source={require('../../assets/images/bottle/beach.png')}
-            style={StyleSheet.absoluteFillObject}
+            style={{
+              position: 'absolute',
+              top: -20,
+              left: 0,
+              right: 0,
+              bottom: -20,
+              resizeMode: 'cover',
+            }}
             resizeMode="cover"
           />
           <Text style={styles.bottleTitle}>Bouteille à la Mer</Text>
