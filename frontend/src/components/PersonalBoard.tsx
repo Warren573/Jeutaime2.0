@@ -101,6 +101,8 @@ export function PersonalBoard() {
     const loadBottles = async () => {
       try {
         const data = await getInbox();
+        // Check if any bottle is ACCEPTED (active correspondence exists)
+        // TODO: Replace this with actual "unread message" indicator once implemented
         const accepted = data.find(b => b.status === 'ACCEPTED');
         setHasBottle(!!accepted);
       } catch (error) {
@@ -295,7 +297,13 @@ export function PersonalBoard() {
 
         {/* Bouteille (right, middle) - Postcard with beach background */}
         <Paper
-          onPress={() => router.push('/bottle')}
+          onPress={() => {
+            if (hasBottle) {
+              router.push('/bottles-discussions');
+            } else {
+              router.push('/bottles-inbox');
+            }
+          }}
           style={{
             position: 'absolute',
             top: 435,
