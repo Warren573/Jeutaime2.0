@@ -301,6 +301,7 @@ export function PersonalBoard() {
             top: 435,
             right: 8,
             width: 135,
+            height: 140,
             transform: [{ rotate: '2deg' }],
             overflow: 'hidden',
           }}
