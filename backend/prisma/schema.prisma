@@ -617,6 +617,8 @@ model MessageInABottle {
   acceptedAt    DateTime?
   createdAt     DateTime              @default(now())
   expiresAt     DateTime              // 30 jours
+  lastReadBySenderId    DateTime?      // Quand l'envoyeur a lu les messages
+  lastReadByAcceptorId  DateTime?      // Quand l'accepteur a lu les messages
 
   receipts      BottleReceipt[]
   messages      AnonymousMessage[]

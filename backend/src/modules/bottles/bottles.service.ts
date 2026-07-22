@@ -363,3 +363,81 @@ export async function reportAndSuspend(
     // This prevents further bottles from being sent
   }
 }
+
+// ============================================================
+// Message Read Status
+// ============================================================
+
+export async function countUnreadMessages(
+  userId: string,
+): Promise<number> {
+  // Find all bottles where user is either sender or acceptor and status is ACCEPTED
+  const bottles = await prisma.messageInABottle.findMany({
+    where: {
+      status: "ACCEPTED",
+      OR: [
+        { senderId: userId },
+        { acceptedById: userId },
+      ],
+    },
+    include: {
+      messages: {
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  let totalUnread = 0;
+
+  for (const bottle of bottles) {
+    const isCurrentUserSender = bottle.senderId === userId;
+    const lastReadAt = isCurrentUserSender
+      ? bottle.lastReadBySenderId
+      : bottle.lastReadByAcceptorId;
+
+    // Count messages from the OTHER participant that are after the last read time
+    const unreadMessages = bottle.messages.filter(msg => {
+      const isFromOtherParticipant = msg.senderId !== userId;
+      const isAfterLastRead = !lastReadAt || msg.createdAt > lastReadAt;
+      return isFromOtherParticipant && isAfterLastRead;
+    });
+
+    totalUnread += unreadMessages.length;
+  }
+
+  return totalUnread;
+}
+
+export async function markBottleAsRead(
+  bottleId: string,
+  userId: string,
+): Promise<MessageInABottle> {
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+
+  if (!bottle) {
+    throw new Error("Bottle not found");
+  }
+
+  if (bottle.status !== "ACCEPTED") {
+    throw new Error("Can only mark accepted bottles as read");
+  }
+
+  // Only allow marking as read if user is sender or acceptor
+  if (bottle.senderId !== userId && bottle.acceptedById !== userId) {
+    throw new Error("Unauthorized");
+  }
+
+  const isCurrentUserSender = bottle.senderId === userId;
+  const now = new Date();
+
+  const updated = await prisma.messageInABottle.update({
+    where: { id: bottleId },
+    data: isCurrentUserSender
+      ? { lastReadBySenderId: now }
+      : { lastReadByAcceptorId: now },
+  });
+
+  return updated;
+}

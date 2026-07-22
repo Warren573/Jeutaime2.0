@@ -13,6 +13,9 @@ import {
   GetBottleMessagesResponseSchema,
   PostBottleMessageBodySchema,
   PostBottleMessageResponseSchema,
+  GetUnreadCountResponseSchema,
+  MarkBottleAsReadBodySchema,
+  MarkBottleAsReadResponseSchema,
 } from "./bottles.schemas";
 
 // ============================================================
@@ -184,4 +187,30 @@ export async function postMessage(req: AuthedRequest, res: Response) {
 
   const validated = PostBottleMessageResponseSchema.parse(message);
   res.status(201).json({ data: validated });
+}
+
+// ============================================================
+// GET /api/bottles/unread-count
+// ============================================================
+export async function getUnreadCount(req: AuthedRequest, res: Response) {
+  const userId = req.user.userId;
+
+  const count = await bottlesService.countUnreadMessages(userId);
+  const validated = GetUnreadCountResponseSchema.parse({ count });
+
+  res.json({ data: validated });
+}
+
+// ============================================================
+// POST /api/bottles/:id/read
+// ============================================================
+export async function markBottleAsRead(req: AuthedRequest, res: Response) {
+  MarkBottleAsReadBodySchema.parse(req.body);
+  const bottleId = req.params["id"] as string;
+  const userId = req.user.userId;
+
+  const bottle = await bottlesService.markBottleAsRead(bottleId, userId);
+  const validated = MarkBottleAsReadResponseSchema.parse(bottle);
+
+  res.json({ data: validated });
 }

@@ -15,7 +15,7 @@ import { useStore } from '../store/useStore';
 import type { Letter } from '../shared/types';
 import { Avatar } from '../avatar/png/Avatar';
 import { getReceivedOfferings, type OfferingSentDTO } from '../api/offerings';
-import { getInbox } from '../api/bottles';
+import { getUnreadCount } from '../api/bottles';
 import { getSalon } from '../api/salons';
 import { getAnimalImage } from '../data/refugeAnimalImages';
 import { ANIMAL_LABELS } from '../data/refugeAnimals';
@@ -100,11 +100,8 @@ export function PersonalBoard() {
   useEffect(() => {
     const loadBottles = async () => {
       try {
-        const data = await getInbox();
-        // Check if any bottle is ACCEPTED (active correspondence exists)
-        // TODO: Replace this with actual "unread message" indicator once implemented
-        const accepted = data.find(b => b.status === 'ACCEPTED');
-        setHasBottle(!!accepted);
+        const count = await getUnreadCount();
+        setHasBottle(count > 0);
       } catch (error) {
       }
     };

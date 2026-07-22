@@ -18,6 +18,7 @@ import {
   getInbox,
   getBottleMessages,
   postBottleMessage,
+  markBottleAsRead,
   InboxBottleDTO,
   BottleMessageDTO,
 } from '../api/bottles';
@@ -61,6 +62,9 @@ export default function BottleDiscussionScreen() {
       // Load messages
       const msgs = await getBottleMessages(bottleId);
       setMessages(msgs);
+
+      // Mark bottle as read
+      await markBottleAsRead(bottleId);
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de charger la discussion');
     } finally {

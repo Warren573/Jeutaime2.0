@@ -111,3 +111,32 @@ export const PostBottleMessageResponseSchema = BottleMessageSchema;
 export type PostBottleMessageResponse = z.infer<
   typeof PostBottleMessageResponseSchema
 >;
+
+// ============================================================
+// GET /api/bottles/unread-count
+// ============================================================
+export const GetUnreadCountResponseSchema = z.object({
+  count: z.number().int().nonnegative(),
+});
+
+export type GetUnreadCountResponse = z.infer<
+  typeof GetUnreadCountResponseSchema
+>;
+
+// ============================================================
+// POST /api/bottles/:id/read
+// ============================================================
+export const MarkBottleAsReadBodySchema = z.object({}).strict();
+
+export type MarkBottleAsReadBody = z.infer<
+  typeof MarkBottleAsReadBodySchema
+>;
+
+export const MarkBottleAsReadResponseSchema = z.object({
+  id: z.string(),
+  status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED"]),
+});
+
+export type MarkBottleAsReadResponse = z.infer<
+  typeof MarkBottleAsReadResponseSchema
+>;

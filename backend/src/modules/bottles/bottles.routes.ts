@@ -9,6 +9,7 @@ import {
   AcceptBottleBodySchema,
   RefuseBottleBodySchema,
   PostBottleMessageBodySchema,
+  MarkBottleAsReadBodySchema,
 } from "./bottles.schemas";
 
 const router = Router();
@@ -68,6 +69,23 @@ router.post(
   validate(PostBottleMessageBodySchema),
   wrap(async (req, res) => {
     await controller.postMessage(req as AuthedRequest, res);
+  }),
+);
+
+// GET /api/bottles/unread-count — get total unread message count
+router.get(
+  "/unread-count",
+  wrap(async (req, res) => {
+    await controller.getUnreadCount(req as AuthedRequest, res);
+  }),
+);
+
+// POST /api/bottles/:id/read — mark bottle as read
+router.post(
+  "/:id/read",
+  validate(MarkBottleAsReadBodySchema),
+  wrap(async (req, res) => {
+    await controller.markBottleAsRead(req as AuthedRequest, res);
   }),
 );
 

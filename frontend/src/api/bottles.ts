@@ -111,3 +111,26 @@ export async function postBottleMessage(
   })) as { data: BottleMessageDTO };
   return res.data;
 }
+
+// ============================================================
+// GET /api/bottles/unread-count
+// ============================================================
+export async function getUnreadCount(): Promise<number> {
+  const res = (await apiFetch("/bottles/unread-count")) as {
+    data: { count: number };
+  };
+  return res.data.count;
+}
+
+// ============================================================
+// POST /api/bottles/:id/read
+// ============================================================
+export async function markBottleAsRead(
+  bottleId: string,
+): Promise<{ id: string; status: string }> {
+  const res = (await apiFetch(`/bottles/${bottleId}/read`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  })) as { data: { id: string; status: string } };
+  return res.data;
+}
