@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { miniGames } from '../data/gameData';
+import { getInbox } from '../api/bottles';
 
 // Import des jeux
 import CardGame from './games/CardGame';
@@ -114,8 +115,21 @@ export default function MiniGamesScreen() {
           <TouchableOpacity
             key={game.id}
             style={styles.gameCard}
-            onPress={() => {
-              if (game.id === 'bottle') { router.push('/bottle'); }
+            onPress={async () => {
+              if (game.id === 'bottle') {
+                try {
+                  const data = await getInbox();
+                  const accepted = data.find(b => b.status === 'ACCEPTED');
+                  if (accepted) {
+                    router.push('/bottles-discussions');
+                  } else {
+                    router.push('/bottles-inbox');
+                  }
+                } catch (error) {
+                  // Fallback to inbox if API fails
+                  router.push('/bottles-inbox');
+                }
+              }
               else if (game.id === 'adoption') { handleAdoptionPress(); }
               else if (game.id === 'classement') { router.push('/badges'); }
               else { setCurrentGame(game.id); }

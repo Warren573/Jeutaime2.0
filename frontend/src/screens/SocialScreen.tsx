@@ -15,6 +15,7 @@ import { useStore } from "../store/useStore";
 import CardGame from "./games/CardGame";
 import StoryGame from "./games/StoryGame";
 import { FEATURES } from "../config/features";
+import { getInbox } from "../api/bottles";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -98,7 +99,18 @@ export default function SocialScreen() {
     }
 
     if (id === "bottle" && FEATURES.social !== "hidden") {
-      router.push("/bottle");
+      try {
+        const data = await getInbox();
+        const accepted = data.find(b => b.status === 'ACCEPTED');
+        if (accepted) {
+          router.push('/bottles-discussions');
+        } else {
+          router.push('/bottles-inbox');
+        }
+      } catch (error) {
+        // Fallback to inbox if API fails
+        router.push('/bottles-inbox');
+      }
       return;
     }
 

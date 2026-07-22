@@ -14,6 +14,7 @@ import { useStore } from '../store/useStore';
 import { titles } from '../data/gameData';
 import { Avatar } from '../avatar/png/Avatar';
 import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
+import { getInbox } from '../api/bottles';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -176,6 +177,21 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleBottlePress = async () => {
+    try {
+      const data = await getInbox();
+      const accepted = data.find(b => b.status === 'ACCEPTED');
+      if (accepted) {
+        router.push('/bottles-discussions');
+      } else {
+        router.push('/bottles-inbox');
+      }
+    } catch (error) {
+      // Fallback to inbox if API fails
+      router.push('/bottles-inbox');
+    }
+  };
+
   // ── Config des sections ─────────────────────────────────────────────────────
 
   const SECTIONS: SettingsSection[] = [
@@ -209,7 +225,7 @@ export default function SettingsScreen() {
       title: 'Univers JeuTaime',
       items: [
         { icon: '🎮', label: 'Activités',                  route: '/games' },
-        { icon: '🍾', label: 'Bouteille à la mer',         route: '/bottle' },
+        { icon: '🍾', label: 'Bouteille à la mer',         action: handleBottlePress },
         { icon: '🏆', label: 'Profil de la semaine',       route: '/weekly-profile' },
         { icon: '📔', label: 'Journal',                    route: '/(tabs)/journal' },
         { icon: '🎁', label: 'Boîte à souvenirs',          route: '/souvenirs' },
