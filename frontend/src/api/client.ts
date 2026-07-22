@@ -10,9 +10,9 @@ const REFRESH_TOKEN_KEY = "auth_refresh_token";
 
 // Cold-start Render Free peut prendre jusqu'à 60s.
 // GET requests retried 3x; POST/PATCH/DELETE/PUT tried once only (not idempotent).
-const TIMEOUT_MS     = 65_000;
+const TIMEOUT_MS     = 15_000;  // Réduit de 65s à 15s pour feedback plus rapide
 const MAX_RETRIES    = 3;
-const RETRY_DELAY_MS = 4_000;
+const RETRY_DELAY_MS = 2_000;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -92,7 +92,12 @@ async function doFetch(
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new TypeError(
-        `Délai dépassé (${TIMEOUT_MS / 1000}s) — le serveur démarre, réessaie dans quelques secondes`,
+        `Délai dépassé (${TIMEOUT_MS / 1000}s) — le serveur ne répond pas. Vérife que l'API est accessible à ${API_URL}`,
+      );
+    }
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new TypeError(
+        `Erreur réseau: impossible de joindre ${API_URL}. Vérife ta connexion et que l'API est en ligne.`,
       );
     }
     throw err;

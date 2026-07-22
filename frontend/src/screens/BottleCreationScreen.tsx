@@ -84,7 +84,30 @@ export default function BottleCreationScreen() {
       Alert.alert('Succès', 'Bouteille lancée à la mer! ✓');
       router.back();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Erreur d\'envoi. Réessaie.');
+      console.error('[BottleCreation] Error:', error);
+
+      // Construire un message d'erreur clair pour l'utilisateur
+      let displayMessage = 'Erreur d\'envoi. Réessaie.';
+
+      if (error.message) {
+        displayMessage = error.message;
+      }
+
+      // Si c'est un ApiError avec code de statut
+      if ((error as any).status) {
+        const status = (error as any).status;
+        if (status === 400) {
+          displayMessage = `Paramètres invalides: ${error.message}`;
+        } else if (status === 401) {
+          displayMessage = 'Session expirée. Reconnecte-toi.';
+        } else if (status === 403) {
+          displayMessage = 'Accès refusé.';
+        } else if (status >= 500) {
+          displayMessage = 'Erreur serveur. Réessaie plus tard.';
+        }
+      }
+
+      Alert.alert('Erreur', displayMessage);
     } finally {
       setIsLoading(false);
     }
