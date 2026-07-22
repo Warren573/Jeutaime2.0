@@ -173,6 +173,7 @@ export const AcceptRevealResponseSchema = z.object({
   id: z.string(),
   status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
   revealedAt: z.string().datetime().nullable(),
+  matchId: z.string().nullable().optional(),
 });
 
 export type AcceptRevealResponse = z.infer<

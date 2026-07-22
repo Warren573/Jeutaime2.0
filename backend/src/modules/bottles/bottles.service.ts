@@ -371,10 +371,11 @@ export async function reportAndSuspend(
 export async function countUnreadMessages(
   userId: string,
 ): Promise<number> {
-  // Find all bottles where user is either sender or acceptor and status is ACCEPTED
+  // Find all bottles where user is either sender or acceptor
+  // Exclude REVEALED, BROKEN, and EXPIRED bottles (only ACCEPTED status)
   const bottles = await prisma.messageInABottle.findMany({
     where: {
-      status: "ACCEPTED",
+      status: "ACCEPTED", // Only count ACCEPTED anonymous conversations
       OR: [
         { senderId: userId },
         { acceptedById: userId },
@@ -503,9 +504,10 @@ export async function requestReveal(
 export async function acceptReveal(
   bottleId: string,
   userId: string,
-): Promise<MessageInABottle> {
+): Promise<MessageInABottle & { matchId?: string | null }> {
   const bottle = await prisma.messageInABottle.findUnique({
     where: { id: bottleId },
+    include: { messages: true },
   });
 
   if (!bottle) {
@@ -514,6 +516,10 @@ export async function acceptReveal(
 
   if (bottle.status !== "ACCEPTED") {
     throw new Error("Can only accept reveal on accepted bottles");
+  }
+
+  if (!bottle.acceptedById) {
+    throw new Error("Bottle not accepted");
   }
 
   // Find the pending request for this user
@@ -529,7 +535,7 @@ export async function acceptReveal(
     throw new Error("No pending reveal request for this user");
   }
 
-  // Use transaction to update bottle status and mark request as accepted
+  // Use transaction to update bottle status, create match, and migrate messages
   const updated = await prisma.$transaction(async (tx) => {
     // Update request status
     await tx.bottleRevealRequest.update({
@@ -540,16 +546,83 @@ export async function acceptReveal(
       },
     });
 
-    // Update bottle status to REVEALED
-    const bottle = await tx.messageInABottle.update({
+    // Create or get Match between sender and acceptor (bidirectional)
+    const senderId = bottle.senderId;
+    const acceptorId = bottle.acceptedById;
+    const [userAId, userBId] = senderId < acceptorId ? [senderId, acceptorId] : [acceptorId, senderId];
+
+    let match = await tx.match.findUnique({
+      where: { userAId_userBId: { userAId, userBId } },
+    });
+
+    if (!match) {
+      // Create new match with sender as initiator
+      match = await tx.match.create({
+        data: {
+          userAId,
+          userBId,
+          initiatorId: senderId,
+          status: "ACTIVE", // Auto-activate when revealed
+          questionsValidated: true, // Skip questions for bottle-based matches
+        },
+      });
+    } else if (match.status === "PENDING") {
+      // Auto-accept if match was pending
+      match = await tx.match.update({
+        where: { id: match.id },
+        data: { status: "ACTIVE" },
+      });
+    }
+
+    // Migrate anonymous messages to letters
+    // Sort messages by creation time
+    const sortedMessages = bottle.messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+    for (const msg of sortedMessages) {
+      await tx.letter.create({
+        data: {
+          matchId: match.id,
+          fromUserId: msg.senderId,
+          toUserId: msg.senderId === senderId ? acceptorId : senderId,
+          content: msg.content,
+          status: "SENT",
+          sentAt: msg.createdAt,
+        },
+      });
+
+      // Update match counters
+      if (msg.senderId === userAId) {
+        await tx.match.update({
+          where: { id: match.id },
+          data: {
+            letterCountA: { increment: 1 },
+            lastLetterBy: msg.senderId,
+            lastLetterAt: msg.createdAt,
+          },
+        });
+      } else {
+        await tx.match.update({
+          where: { id: match.id },
+          data: {
+            letterCountB: { increment: 1 },
+            lastLetterBy: msg.senderId,
+            lastLetterAt: msg.createdAt,
+          },
+        });
+      }
+    }
+
+    // Update bottle status to REVEALED and link to match
+    const updatedBottle = await tx.messageInABottle.update({
       where: { id: bottleId },
       data: {
         status: "REVEALED",
         revealedAt: new Date(),
+        matchId: match.id,
       },
     });
 
-    return bottle;
+    return { ...updatedBottle, matchId: match.id };
   });
 
   return updated;

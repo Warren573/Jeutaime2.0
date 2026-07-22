@@ -628,6 +628,8 @@ model MessageInABottle {
   lastReadBySenderId    DateTime?      // Quand l'envoyeur a lu les messages
   lastReadByAcceptorId  DateTime?      // Quand l'accepteur a lu les messages
   revealedAt    DateTime?             // Quand les deux ont accepté le dévoilement
+  matchId       String?               // Match créé après dévoilement (liens vers discussion privée)
+  match         Match?                @relation(fields: [matchId], references: [id], onDelete: SetNull)
 
   receipts      BottleReceipt[]
   messages      AnonymousMessage[]

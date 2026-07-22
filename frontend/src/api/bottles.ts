@@ -156,7 +156,7 @@ export async function requestReveal(
 // ============================================================
 export async function acceptReveal(
   bottleId: string,
-): Promise<{ id: string; status: string; revealedAt: string | null }> {
+): Promise<{ id: string; status: string; revealedAt: string | null; matchId?: string | null }> {
   const res = (await apiFetch(`/bottles/${bottleId}/reveal/accept`, {
     method: "POST",
     body: JSON.stringify({}),

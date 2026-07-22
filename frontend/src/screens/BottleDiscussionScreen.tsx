@@ -164,9 +164,17 @@ export default function BottleDiscussionScreen() {
 
   const handleAcceptReveal = async () => {
     try {
-      await acceptReveal(bottleId);
-      Alert.alert('Succès', 'Dévoilement accepté');
-      setBottle(prev => prev ? { ...prev, status: 'REVEALED' } : null);
+      const result = await acceptReveal(bottleId);
+      Alert.alert('Succès', 'Dévoilement accepté! Redirection vers la discussion privée...');
+
+      // Redirect to private conversation after a short delay
+      if (result.matchId) {
+        setTimeout(() => {
+          router.push(`/match-profile?matchId=${result.matchId}`);
+        }, 500);
+      } else {
+        setBottle(prev => prev ? { ...prev, status: 'REVEALED' } : null);
+      }
     } catch (error: any) {
       Alert.alert('Erreur', error.message || 'Impossible d\'accepter le dévoilement');
     }
