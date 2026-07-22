@@ -340,6 +340,11 @@ export default function BottleCreationScreen() {
           <Text style={styles.buildInfoText}>BACKEND_SHA={backendInfo?.sha || 'loading...'}</Text>
           <Text style={styles.buildInfoText}>API_URL={process.env.EXPO_PUBLIC_API_URL}</Text>
           <Text style={styles.buildInfoText}>INSTRUMENTATION={backendInfo?.instrumentation || 'unknown'}</Text>
+          <Text style={styles.buildInfoLabel} style={{marginTop: 8}}>BUTTON STATE</Text>
+          <Text style={styles.buildInfoText}>message.trim().length={message.trim().length}</Text>
+          <Text style={styles.buildInfoText}>isLoading={String(isLoading)}</Text>
+          <Text style={styles.buildInfoText}>pendingBottles={pendingBottles}</Text>
+          <Text style={styles.buildInfoText}>disabled={String(!message.trim() || isLoading || pendingBottles >= 3)}</Text>
         </View>
 
         {/* Debug Panel */}
