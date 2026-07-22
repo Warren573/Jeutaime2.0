@@ -45,11 +45,21 @@ export interface BottleMessageDTO {
 export async function createBottle(
   payload: CreateBottlePayload,
 ): Promise<BottleDTO> {
-  const res = (await apiFetch("/bottles/create", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  })) as { data: BottleDTO };
-  return res.data;
+  console.log('[API] createBottle START', { payload });
+  const startTime = Date.now();
+  try {
+    const res = (await apiFetch("/bottles/create", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })) as { data: BottleDTO };
+    const duration = Date.now() - startTime;
+    console.log('[API] createBottle SUCCESS', { duration, result: res.data });
+    return res.data;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error('[API] createBottle FAILED', { duration, error });
+    throw error;
+  }
 }
 
 // ============================================================

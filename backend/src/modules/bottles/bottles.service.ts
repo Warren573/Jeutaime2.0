@@ -18,54 +18,73 @@ export async function createBottle(
   targetGender: string,
   ageMin: number,
   ageMax: number,
+  correlationId: string = 'N/A',
 ): Promise<MessageInABottle> {
-  // Check max 3 pending bottles per user
-  const pendingCount = await prisma.messageInABottle.count({
-    where: {
-      senderId,
-      status: "FLOATING",
-    },
-  });
+  try {
+    console.log(`[S1-SERVICE] ${correlationId} | createBottle START | senderId=${senderId}`);
 
-  if (pendingCount >= 3) {
-    throw new Error(
-      "Maximum 3 pending bottles allowed. Accept or refuse existing bottles first.",
-    );
-  }
-
-  // Get sender's city from profile
-  const senderProfile = await prisma.profile.findUnique({
-    where: { userId: senderId },
-    select: { city: true },
-  });
-
-  const senderCity = senderProfile?.city || "Unknown";
-
-  const bottle = await prisma.messageInABottle.create({
-    data: {
-      senderId,
-      message,
-      senderCity,
-      targetGender,
-      ageMin,
-      ageMax,
-      expiresAt: addDays(new Date(), 30),
-    },
-  });
-
-  // Find compatible recipients and create receipts
-  const compatibleUsers = await findCompatibleRecipients(bottle);
-
-  if (compatibleUsers.length > 0) {
-    await prisma.bottleReceipt.createMany({
-      data: compatibleUsers.map((user) => ({
-        bottleId: bottle.id,
-        recipientId: user.id,
-      })),
+    // Check max 3 pending bottles per user
+    console.log(`[S2-SERVICE] ${correlationId} | COUNT FLOATING BOTTLES`);
+    const pendingCount = await prisma.messageInABottle.count({
+      where: {
+        senderId,
+        status: "FLOATING",
+      },
     });
-  }
+    console.log(`[S3-SERVICE] ${correlationId} | PENDING COUNT: ${pendingCount}`);
 
-  return bottle;
+    if (pendingCount >= 3) {
+      const err = "Maximum 3 pending bottles allowed. Accept or refuse existing bottles first.";
+      console.error(`[S4-SERVICE] ${correlationId} | VALIDATION FAILED | ${err}`);
+      throw new Error(err);
+    }
+
+    // Get sender's city from profile
+    console.log(`[S5-SERVICE] ${correlationId} | FETCH SENDER PROFILE | userId=${senderId}`);
+    const senderProfile = await prisma.profile.findUnique({
+      where: { userId: senderId },
+      select: { city: true },
+    });
+    const senderCity = senderProfile?.city || "Unknown";
+    console.log(`[S6-SERVICE] ${correlationId} | PROFILE FETCHED | city=${senderCity}`);
+
+    // Create bottle
+    console.log(`[S7-SERVICE] ${correlationId} | PRISMA CREATE BOTTLE START`);
+    const bottle = await prisma.messageInABottle.create({
+      data: {
+        senderId,
+        message,
+        senderCity,
+        targetGender,
+        ageMin,
+        ageMax,
+        expiresAt: addDays(new Date(), 30),
+      },
+    });
+    console.log(`[S8-SERVICE] ${correlationId} | PRISMA CREATE BOTTLE SUCCESS | id=${bottle.id}`);
+
+    // Find compatible recipients and create receipts
+    console.log(`[S9-SERVICE] ${correlationId} | FIND COMPATIBLE RECIPIENTS`);
+    const compatibleUsers = await findCompatibleRecipients(bottle);
+    console.log(`[S10-SERVICE] ${correlationId} | FOUND ${compatibleUsers.length} COMPATIBLE USERS`);
+
+    if (compatibleUsers.length > 0) {
+      console.log(`[S11-SERVICE] ${correlationId} | CREATE BOTTLE RECEIPTS | count=${compatibleUsers.length}`);
+      await prisma.bottleReceipt.createMany({
+        data: compatibleUsers.map((user) => ({
+          bottleId: bottle.id,
+          recipientId: user.id,
+        })),
+      });
+      console.log(`[S12-SERVICE] ${correlationId} | RECEIPTS CREATED`);
+    }
+
+    console.log(`[S13-SERVICE] ${correlationId} | createBottle SUCCESS | returning bottle`);
+    return bottle;
+  } catch (error: any) {
+    console.error(`[S-ERROR] ${correlationId} | SERVICE EXCEPTION | error=${error?.message}`);
+    throw error;
+  }
 }
 
 async function findCompatibleRecipients(

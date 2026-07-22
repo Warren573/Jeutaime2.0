@@ -150,14 +150,23 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<any
   const maxRetries = maxRetriesFor(options);
   let lastError: Error = new Error("Erreur inconnue");
   const method = (options?.method ?? "GET").toUpperCase();
+  const fullUrl = `${API_URL}${path}`;
+
+  console.log('[HTTP] START', { method, url: fullUrl, attempt: 1, maxRetries });
+  const startTime = Date.now();
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const res = await doFetch(path, options);
+      const duration = Date.now() - startTime;
+
+      console.log('[HTTP] RESPONSE', { method, path, status: res.status, duration });
 
       // 2xx (including 201 Created) — return parsed body immediately
       if (res.status !== 401) {
-        return await parseResponse(res);
+        const result = await parseResponse(res);
+        console.log('[HTTP] SUCCESS', { status: res.status, duration });
+        return result;
       }
 
       // 401 — attempt token refresh then retry once
@@ -174,16 +183,17 @@ export async function apiFetch(path: string, options?: RequestInit): Promise<any
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
       lastError   = error;
+      const duration = Date.now() - startTime;
 
-      // Log détaillé en développement (Expo __DEV__ est global)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((global as any).__DEV__) {
-        console.error(`[apiFetch] ${method} ${path}`, {
-          attempt,
-          error: error.message,
-          api_url: API_URL,
-        });
-      }
+      console.error('[HTTP] ERROR', {
+        method,
+        path,
+        attempt,
+        duration,
+        error: error.message,
+        url: fullUrl,
+        isNetworkError: isNetworkError(err),
+      });
 
       // HTTP errors (4xx/5xx) and auth errors — fail immediately, no retry
       if (!isNetworkError(err)) throw error;

@@ -33,19 +33,46 @@ import {
 // POST /api/bottles/create
 // ============================================================
 export async function createBottle(req: AuthedRequest, res: Response) {
-  const body = CreateBottleBodySchema.parse(req.body);
-  const userId = req.user.userId;
+  const correlationId = Math.random().toString(36).substring(7);
+  const startTime = Date.now();
 
-  const bottle = await bottlesService.createBottle(
-    userId,
-    body.message,
-    body.targetGender,
-    body.ageMin,
-    body.ageMax,
-  );
+  try {
+    console.log(`[B1-BOTTLE] ${correlationId} | REQUEST RECEIVED | path=${req.path} method=${req.method}`);
 
-  const validated = CreateBottleResponseSchema.parse(bottle);
-  res.status(201).json({ data: validated });
+    console.log(`[B2-BOTTLE] ${correlationId} | REQUIREAUTH CHECK | userId=${req.user?.userId}`);
+    if (!req.user?.userId) {
+      throw new Error('No userId in req.user');
+    }
+    console.log(`[B3-BOTTLE] ${correlationId} | REQUIREAUTH PASSED | userId=${req.user.userId}`);
+
+    console.log(`[B4-BOTTLE] ${correlationId} | ZOD VALIDATION START | body=${JSON.stringify(req.body)}`);
+    const body = CreateBottleBodySchema.parse(req.body);
+    const userId = req.user.userId;
+    console.log(`[B5-BOTTLE] ${correlationId} | ZOD VALIDATION PASSED | payload parsed`);
+
+    console.log(`[B6-BOTTLE] ${correlationId} | CONTROLLER CALL START | userId=${userId}`);
+    const bottle = await bottlesService.createBottle(
+      userId,
+      body.message,
+      body.targetGender,
+      body.ageMin,
+      body.ageMax,
+      correlationId,
+    );
+    console.log(`[B7-BOTTLE] ${correlationId} | CONTROLLER CALL SUCCESS | bottleId=${bottle.id}`);
+
+    console.log(`[B8-BOTTLE] ${correlationId} | RESPONSE SCHEMA VALIDATION START`);
+    const validated = CreateBottleResponseSchema.parse(bottle);
+    console.log(`[B9-BOTTLE] ${correlationId} | RESPONSE SCHEMA VALIDATION PASSED`);
+
+    const duration = Date.now() - startTime;
+    console.log(`[B10-BOTTLE] ${correlationId} | SENDING 201 RESPONSE | duration=${duration}ms | id=${bottle.id}`);
+    res.status(201).json({ data: validated });
+  } catch (error: any) {
+    const duration = Date.now() - startTime;
+    console.error(`[BACKEND-ERROR] ${correlationId} | EXCEPTION CAUGHT | duration=${duration}ms | error=${error?.message} | stack=${error?.stack}`);
+    throw error;
+  }
 }
 
 // ============================================================
