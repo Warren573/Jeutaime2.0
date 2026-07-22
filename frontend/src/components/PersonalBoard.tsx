@@ -81,8 +81,8 @@ export function PersonalBoard() {
     const loadBottles = async () => {
       try {
         const data = await getInbox();
-        const pending = data.find(b => b.status === 'FLOATING');
-        setHasBottle(!!pending);
+        const accepted = data.find(b => b.status === 'ACCEPTED');
+        setHasBottle(!!accepted);
       } catch (error) {
       }
     };
@@ -284,7 +284,10 @@ export function PersonalBoard() {
             <View style={styles.oceanWaves} />
             {hasBottle && (
               <View style={styles.bottleWrapper}>
-                <Text style={styles.bottleEmoji}>🍾</Text>
+                <Image
+                  source={require('../../assets/images/bottle-message.png')}
+                  style={styles.bottleImage}
+                />
               </View>
             )}
           </View>
@@ -544,10 +547,9 @@ const styles = StyleSheet.create({
   },
 
   bottleImage: {
-    width: 45,
-    height: 60,
+    width: 30,
+    height: 45,
     resizeMode: 'contain',
-    marginVertical: 4,
   },
 
   salonTitle: {
@@ -641,7 +643,8 @@ const styles = StyleSheet.create({
 
   bottleWrapper: {
     position: 'absolute',
-    bottom: 12,
+    bottom: 2,
+    left: '35%',
     zIndex: 10,
   },
 
