@@ -3585,4 +3585,48 @@ router.get(
   })
 );
 
+/**
+ * GET|POST /api/test/reset-my-bottles?email=...
+ *
+ * Vide les bouteilles "en attente" (FLOATING) envoyées par un utilisateur en
+ * les passant à EXPIRED. Sert à débloquer un compte qui a atteint la limite de
+ * 3 bouteilles en attente (utile après des artefacts de test). N'altère aucune
+ * relation (receipts/messages conservés), donc sans risque d'intégrité.
+ */
+const resetMyBottlesHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    const email =
+      (req.query["email"] as string) || (req.body && req.body.email);
+    if (!email) {
+      return res
+        .status(400)
+        .json({ error: "Paramètre 'email' requis (?email=...)" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: `Aucun utilisateur pour ${email}` });
+    }
+
+    const floating = await prisma.messageInABottle.count({
+      where: { senderId: user.id, status: "FLOATING" },
+    });
+
+    const result = await prisma.messageInABottle.updateMany({
+      where: { senderId: user.id, status: "FLOATING" },
+      data: { status: "EXPIRED" },
+    });
+
+    res.json({
+      status: "success",
+      email,
+      floatingBefore: floating,
+      expired: result.count,
+      message: `${result.count} bouteille(s) en attente expirée(s). Tu peux renvoyer une bouteille.`,
+    });
+  },
+);
+router.get("/reset-my-bottles", resetMyBottlesHandler);
+router.post("/reset-my-bottles", resetMyBottlesHandler);
+
 export default router;
