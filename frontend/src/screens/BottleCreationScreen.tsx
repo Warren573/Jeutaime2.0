@@ -29,8 +29,7 @@ const COLORS = {
 export default function BottleCreationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser } = useStore();
-  const userProfile = useStore(s => s.userProfile);
+  const currentUser = useStore(s => s.currentUser);
 
   const [targetGender, setTargetGender] = useState<'HOMME' | 'FEMME'>('FEMME');
   const [ageMin, setAgeMin] = useState(25);
@@ -51,7 +50,7 @@ export default function BottleCreationScreen() {
     setDebugStage('A');
     setDebugMessage('Clic reçu');
     console.log('[A] BOUTON CLIQUÉ');
-    console.log('[A] userProfile:', userProfile);
+    console.log('[A] currentUser:', currentUser);
     console.log('[A] message:', message);
     console.log('[A] pendingBottles:', pendingBottles);
     console.log('[A] isLoading:', isLoading);
@@ -96,7 +95,7 @@ export default function BottleCreationScreen() {
     setDebugMessage('✓ Limite de bouteilles OK');
     console.log('[C-VALIDATION-3] PASSÉ - pendingBottles OK');
 
-    if (!userProfile?.city) {
+    if (!currentUser?.city) {
       setDebugStage('C4');
       setDebugMessage('❌ Pas de ville dans le profil');
       console.log('[C-VALIDATION-4] Pas de ville - BLOQUÉ');
