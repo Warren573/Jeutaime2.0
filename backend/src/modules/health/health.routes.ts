@@ -24,18 +24,25 @@ router.get("/version", (_req: Request, res: Response) => {
     const timestamp = new Date().toISOString();
     res.json({
       service: "jeutaime-api",
-      sha,
+      buildSha: sha,
+      buildTime: timestamp,
       environment,
-      timestamp,
       apiUrl: process.env.API_URL || "not-set",
+      instrumentation: "bottle-debug-v1",
+      instrumentationDetails: {
+        controllerLogging: "B1-B10 steps logged",
+        serviceLogging: "S1-S13 steps logged",
+        correlationId: "enabled for all bottle creates",
+      },
     });
   } catch {
     res.json({
       service: "jeutaime-api",
-      sha: "unknown",
+      buildSha: "unknown",
+      buildTime: new Date().toISOString(),
       environment: process.env.NODE_ENV || "unknown",
-      timestamp: new Date().toISOString(),
       error: "git-not-available",
+      instrumentation: "bottle-debug-v1",
     });
   }
 });
