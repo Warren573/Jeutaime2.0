@@ -94,18 +94,20 @@ export default function BottleCreationScreen() {
       // Laisse le temps de voir la confirmation avant de revenir en arrière.
       setTimeout(() => router.back(), 1200);
     } catch (error: any) {
-      let displayMessage = "Erreur d'envoi. Réessaie.";
-      if (error?.message) displayMessage = error.message;
-
+      // On affiche TOUJOURS le message réel renvoyé par le backend — ne jamais
+      // le masquer derrière un texte générique, sinon la vraie cause est perdue.
       const status = error?.status;
-      if (status === 400) {
-        displayMessage = `Paramètres invalides : ${error.message}`;
-      } else if (status === 401) {
+      const backendMsg =
+        typeof error?.message === 'string' && error.message.trim()
+          ? error.message.trim()
+          : '';
+      let displayMessage = backendMsg || "Erreur d'envoi. Réessaie.";
+
+      if (status === 401) {
         displayMessage = 'Session expirée. Reconnecte-toi.';
-      } else if (status === 403) {
-        displayMessage = 'Accès refusé.';
-      } else if (typeof status === 'number' && status >= 500) {
-        displayMessage = 'Erreur serveur. Réessaie plus tard.';
+      } else if (typeof status === 'number') {
+        // Préfixe le code HTTP pour le diagnostic, en gardant le message réel.
+        displayMessage = `[${status}] ${displayMessage}`;
       }
       setFeedback({ type: 'error', text: displayMessage });
     } finally {

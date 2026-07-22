@@ -7,6 +7,7 @@ import type {
   User,
 } from "@prisma/client";
 import { addDays } from "date-fns";
+import { ConflictError } from "../../core/errors";
 
 // ============================================================
 // Core Bottle Operations
@@ -34,9 +35,10 @@ export async function createBottle(
     console.log(`[S3-SERVICE] ${correlationId} | PENDING COUNT: ${pendingCount}`);
 
     if (pendingCount >= 3) {
-      const err = "Maximum 3 pending bottles allowed. Accept or refuse existing bottles first.";
+      const err = `Tu as déjà ${pendingCount} bouteilles en attente (max 3). Attends qu'une soit acceptée ou expirée avant d'en renvoyer une.`;
       console.error(`[S4-SERVICE] ${correlationId} | VALIDATION FAILED | ${err}`);
-      throw new Error(err);
+      // HttpError typé → 409 avec message clair (sinon: 500 générique masqué).
+      throw new ConflictError(err);
     }
 
     // Get sender's city from profile
