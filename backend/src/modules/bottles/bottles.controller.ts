@@ -30,6 +30,29 @@ import {
 } from "./bottles.schemas";
 
 // ============================================================
+// Sérialisation Date → chaîne ISO
+// ------------------------------------------------------------
+// Prisma renvoie les champs DateTime comme objets `Date`. Les schémas de
+// réponse Zod exigent `z.string().datetime()` — un `Date` échoue donc à la
+// validation ("Expected string, received date") et provoque un 500 APRÈS que
+// l'enregistrement a été créé en base. On convertit récursivement les `Date`
+// en ISO avant toute validation de réponse.
+// ============================================================
+function serializeDates<T>(value: T): T {
+  if (value === null || value === undefined) return value;
+  if (value instanceof Date) return value.toISOString() as unknown as T;
+  if (Array.isArray(value)) return value.map(serializeDates) as unknown as T;
+  if (typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(value as Record<string, unknown>)) {
+      out[key] = serializeDates((value as Record<string, unknown>)[key]);
+    }
+    return out as unknown as T;
+  }
+  return value;
+}
+
+// ============================================================
 // POST /api/bottles/create
 // ============================================================
 export async function createBottle(req: AuthedRequest, res: Response) {
@@ -62,7 +85,7 @@ export async function createBottle(req: AuthedRequest, res: Response) {
     console.log(`[B7-BOTTLE] ${correlationId} | CONTROLLER CALL SUCCESS | bottleId=${bottle.id}`);
 
     console.log(`[B8-BOTTLE] ${correlationId} | RESPONSE SCHEMA VALIDATION START`);
-    const validated = CreateBottleResponseSchema.parse(bottle);
+    const validated = CreateBottleResponseSchema.parse(serializeDates(bottle));
     console.log(`[B9-BOTTLE] ${correlationId} | RESPONSE SCHEMA VALIDATION PASSED`);
 
     const duration = Date.now() - startTime;
@@ -98,7 +121,7 @@ export async function getInbox(req: AuthedRequest, res: Response) {
     .filter((r) => r.bottle !== null && r.bottle.status === "FLOATING" && (r.bottle.expiresAt === null || r.bottle.expiresAt > new Date()))
     .map((r) => r.bottle);
 
-  const validated = GetInboxResponseSchema.parse({ bottles });
+  const validated = GetInboxResponseSchema.parse(serializeDates({ bottles }));
 
   res.json({ data: validated });
 }
@@ -132,7 +155,7 @@ export async function acceptBottle(req: AuthedRequest, res: Response) {
   }
 
   const bottle = await bottlesService.acceptBottle(bottleId, userId);
-  const validated = AcceptBottleResponseSchema.parse(bottle);
+  const validated = AcceptBottleResponseSchema.parse(serializeDates(bottle));
 
   res.json({ data: validated });
 }
@@ -191,7 +214,7 @@ export async function getMessages(req: AuthedRequest, res: Response) {
   }
 
   const messages = await bottlesService.getMessages(bottleId);
-  const validated = GetBottleMessagesResponseSchema.parse({ messages });
+  const validated = GetBottleMessagesResponseSchema.parse(serializeDates({ messages }));
 
   res.json({ data: validated });
 }
@@ -223,7 +246,7 @@ export async function postMessage(req: AuthedRequest, res: Response) {
     body.content,
   );
 
-  const validated = PostBottleMessageResponseSchema.parse(message);
+  const validated = PostBottleMessageResponseSchema.parse(serializeDates(message));
   res.status(201).json({ data: validated });
 }
 
@@ -248,7 +271,7 @@ export async function markBottleAsRead(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
 
   const bottle = await bottlesService.markBottleAsRead(bottleId, userId);
-  const validated = MarkBottleAsReadResponseSchema.parse(bottle);
+  const validated = MarkBottleAsReadResponseSchema.parse(serializeDates(bottle));
 
   res.json({ data: validated });
 }
@@ -262,7 +285,7 @@ export async function requestReveal(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
 
   const request = await bottlesService.requestReveal(bottleId, userId);
-  const validated = RequestRevealResponseSchema.parse(request);
+  const validated = RequestRevealResponseSchema.parse(serializeDates(request));
 
   res.json({ data: validated });
 }
@@ -276,7 +299,7 @@ export async function acceptReveal(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
 
   const bottle = await bottlesService.acceptReveal(bottleId, userId);
-  const validated = AcceptRevealResponseSchema.parse(bottle);
+  const validated = AcceptRevealResponseSchema.parse(serializeDates(bottle));
 
   res.json({ data: validated });
 }
@@ -290,7 +313,7 @@ export async function refuseReveal(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
 
   const request = await bottlesService.refuseReveal(bottleId, userId);
-  const validated = RefuseRevealResponseSchema.parse(request);
+  const validated = RefuseRevealResponseSchema.parse(serializeDates(request));
 
   res.json({ data: validated });
 }
@@ -304,7 +327,7 @@ export async function breakBottle(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
 
   const bottle = await bottlesService.breakBottle(bottleId, userId);
-  const validated = BreakBottleResponseSchema.parse(bottle);
+  const validated = BreakBottleResponseSchema.parse(serializeDates(bottle));
 
   res.json({ data: validated });
 }
@@ -318,7 +341,7 @@ export async function restartBottle(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
 
   const bottle = await bottlesService.restartBottle(bottleId, userId);
-  const validated = RestartBottleResponseSchema.parse(bottle);
+  const validated = RestartBottleResponseSchema.parse(serializeDates(bottle));
 
   res.json({ data: validated });
 }
