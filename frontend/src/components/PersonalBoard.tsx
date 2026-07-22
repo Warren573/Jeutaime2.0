@@ -310,10 +310,10 @@ export function PersonalBoard() {
             source={require('../../assets/images/bottle/beach.png')}
             style={{
               position: 'absolute',
-              top: -20,
+              top: -80,
               left: 0,
               right: 0,
-              bottom: -20,
+              bottom: 40,
               resizeMode: 'cover',
             }}
             resizeMode="cover"
