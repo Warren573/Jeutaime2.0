@@ -25,13 +25,13 @@ export function getSalonBackgroundImage(
 // require() ici. Tant qu'une bannière manque, la carte retombe sur l'aquarelle
 // portrait via getSalonCardImage().
 export const SALON_BANNER_IMAGES: Record<string, ImageSourcePropType> = {
-  // piscine: require('../../assets/images/salons/banners/piscine.jpg'),
-  // cafe_paris: require('../../assets/images/salons/banners/cafe_paris.jpg'),
-  // pirates: require('../../assets/images/salons/banners/pirates.jpg'),
-  // theatre: require('../../assets/images/salons/banners/theatre.jpg'),
-  // cocktails: require('../../assets/images/salons/banners/cocktails.jpg'),
-  // metal: require('../../assets/images/salons/banners/metal.jpg'),
-  // psy: require('../../assets/images/salons/banners/psy.jpg'),
+  piscine: require('../../assets/images/salons/banners/piscine.jpg'),
+  cafe_paris: require('../../assets/images/salons/banners/cafe_paris.jpg'),
+  pirates: require('../../assets/images/salons/banners/pirates.jpg'),
+  theatre: require('../../assets/images/salons/banners/theatre.jpg'),
+  cocktails: require('../../assets/images/salons/banners/cocktails.jpg'),
+  metal: require('../../assets/images/salons/banners/metal.jpg'),
+  psy: require('../../assets/images/salons/banners/psy.jpg'),
 };
 
 // Image à utiliser pour la CARTE d'un salon : bannière large si dispo,
