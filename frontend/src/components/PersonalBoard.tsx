@@ -599,8 +599,8 @@ const styles = StyleSheet.create({
   },
 
   bottleImage: {
-    width: 44,
-    height: 66,
+    width: 60,
+    height: 90,
     resizeMode: 'contain',
   },
 
