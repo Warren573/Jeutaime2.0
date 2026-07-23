@@ -167,7 +167,14 @@ async function findCompatibleRecipients(
     },
   ];
   if (senderGender) {
-    profileAnd.push({ interestedIn: { hasSome: [senderGender] } });
+    // Tolérant : un profil dont la préférence n'est pas renseignée (interestedIn
+    // vide) reste éligible ; sinon elle doit inclure le genre de l'expéditeur.
+    profileAnd.push({
+      OR: [
+        { interestedIn: { isEmpty: true } },
+        { interestedIn: { hasSome: [senderGender] } },
+      ],
+    });
   }
 
   const users = await prisma.user.findMany({
@@ -409,6 +416,7 @@ async function isUserCompatibleWithBottle(
   });
   if (
     senderProfile?.gender &&
+    user.profile.interestedIn.length > 0 &&
     !user.profile.interestedIn.includes(senderProfile.gender)
   ) {
     return false;

@@ -43,6 +43,7 @@ const COLORS = {
 export default function BottleInboxScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const currentUser = useStore(s => s.currentUser);
 
   const [pendingBottles, setPendingBottles] = useState<InboxBottleDTO[]>([]);
   const [acceptedBottles, setAcceptedBottles] = useState<InboxBottleDTO[]>([]);
@@ -155,6 +156,21 @@ export default function BottleInboxScreen() {
       >
         {/* Header */}
         <Text style={styles.title}>Bouteilles à la mer</Text>
+
+        {/* Résumé du profil — aide à comprendre la réception des bouteilles */}
+        <View style={styles.profileSummary}>
+          <Text style={styles.profileSummaryText}>
+            Ton profil : {currentUser?.gender || '—'}
+            {currentUser?.age ? ` · ${currentUser.age} ans` : ''} · tu cherches :{' '}
+            {currentUser?.interestedIn && currentUser.interestedIn.length > 0
+              ? currentUser.interestedIn.join(', ')
+              : 'non renseigné'}
+          </Text>
+          <Text style={styles.profileSummaryHint}>
+            Tu reçois une bouteille si tu corresponds à sa cible (genre + âge) et,
+            si tu as renseigné une préférence, qu'elle inclut le genre de l'expéditeur.
+          </Text>
+        </View>
 
         {/* PENDING Section */}
         <View style={styles.section}>
@@ -319,7 +335,25 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: COLORS.text,
+    marginBottom: 12,
+  },
+  profileSummary: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: COLORS.accentLight,
     marginBottom: 20,
+  },
+  profileSummaryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.accent,
+  },
+  profileSummaryHint: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+    lineHeight: 15,
   },
   section: {
     marginBottom: 24,
