@@ -120,23 +120,37 @@ async function findCompatibleRecipients(
   const minBirthDate = addDays(now, -365 * bottle.ageMax - 365);
   const maxBirthDate = addDays(now, -365 * bottle.ageMin);
 
+  // Match mutuel : le destinataire doit AUSSI chercher le genre de l'expéditeur
+  // (sa préférence enregistrée `interestedIn`). Si le genre de l'expéditeur est
+  // inconnu, on n'applique pas ce filtre (pour ne rien masquer par erreur).
+  const senderProfile = await prisma.profile.findUnique({
+    where: { userId: bottle.senderId },
+    select: { gender: true },
+  });
+  const senderGender = senderProfile?.gender;
+
+  const profileAnd: any[] = [
+    {
+      // Le destinataire doit ÊTRE du genre recherché (gender), pas être
+      // "intéressé par" ce genre (interestedIn). LES_DEUX = homme + femme.
+      gender: { in: targetGendersFor(bottle.targetGender) as any },
+    },
+    {
+      birthDate: {
+        gte: minBirthDate,
+        lte: maxBirthDate,
+      },
+    },
+  ];
+  if (senderGender) {
+    profileAnd.push({ interestedIn: { hasSome: [senderGender] } });
+  }
+
   const users = await prisma.user.findMany({
     where: {
       isBanned: false,
       profile: {
-        AND: [
-          {
-            // Le destinataire doit ÊTRE du genre recherché (gender), pas être
-            // "intéressé par" ce genre (interestedIn). LES_DEUX = homme + femme.
-            gender: { in: targetGendersFor(bottle.targetGender) as any },
-          },
-          {
-            birthDate: {
-              gte: minBirthDate,
-              lte: maxBirthDate,
-            },
-          },
-        ],
+        AND: profileAnd,
       },
       NOT: {
         id: bottle.senderId,
@@ -359,6 +373,20 @@ async function isUserCompatibleWithBottle(
   // Check gender match : le destinataire doit ÊTRE d'un genre recherché
   // (LES_DEUX = homme ou femme).
   if (!targetGendersFor(bottle.targetGender).includes(user.profile.gender)) {
+    return false;
+  }
+
+  // Match mutuel : le destinataire doit AUSSI chercher le genre de l'expéditeur
+  // (sa préférence `interestedIn`). Si le genre de l'expéditeur est inconnu, on
+  // n'applique pas ce filtre.
+  const senderProfile = await prisma.profile.findUnique({
+    where: { userId: bottle.senderId },
+    select: { gender: true },
+  });
+  if (
+    senderProfile?.gender &&
+    !user.profile.interestedIn.includes(senderProfile.gender)
+  ) {
     return false;
   }
 
