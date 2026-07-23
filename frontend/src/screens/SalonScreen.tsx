@@ -2196,10 +2196,10 @@ const styles = StyleSheet.create({
 
   // Participant Strip - GRAND
   participantStrip: {
-    backgroundColor: '#FFF',
+    backgroundColor: 'rgba(255,255,255,0.45)',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8D5B7',
+    borderBottomColor: 'rgba(232,213,183,0.6)',
   },
   participantsRow: {
     flexDirection: 'row',
@@ -2406,11 +2406,11 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: 'rgba(255,255,255,0.82)',
     paddingHorizontal: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#E8D5B7',
+    borderTopColor: 'rgba(232,213,183,0.6)',
   },
   actionButton: {
     width: 44,
