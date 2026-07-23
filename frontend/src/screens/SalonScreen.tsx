@@ -1434,25 +1434,31 @@ export default function SalonScreen() {
   // RENDU MODE PORTRAIT (DISCUSSION)
   // ============================================
   const renderPortraitMode = () => (
-    <ImageBackground
-      source={getSalonBackgroundImage(salonId)}
-      style={styles.container}
-      resizeMode="cover"
-    >
-      {/* Voile clair par-dessus l'aquarelle pour garder le chat lisible.
-          cover → le fond s'adapte portrait ET paysage. */}
+    <>
+      {/* Fond du salon (aquarelle) épinglé au viewport — hors du flux (fixed
+          sur web) pour ne JAMAIS affecter la mise en page du contenu.
+          cover → s'adapte portrait ET paysage. Voile clair pour la lisibilité. */}
       {getSalonBackgroundImage(salonId) && (
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: 'rgba(255,248,231,0.55)' },
-          ]}
-        />
+        <View style={styles.salonBgLayer} pointerEvents="none">
+          <Image
+            source={getSalonBackgroundImage(salonId)}
+            style={styles.salonBgImage}
+            resizeMode="cover"
+          />
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: 'rgba(255,248,231,0.55)' },
+            ]}
+          />
+        </View>
       )}
 
       <KeyboardAvoidingView
-        style={styles.kav}
+        style={[
+          styles.container,
+          getSalonBackgroundImage(salonId) && styles.containerTransparent,
+        ]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
       {/* Header avec gradient */}
@@ -1616,7 +1622,7 @@ export default function SalonScreen() {
         </TouchableOpacity>
       </View>
       </KeyboardAvoidingView>
-    </ImageBackground>
+    </>
   );
 
   // ============================================
@@ -2126,9 +2132,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFF8E7',
   },
-  kav: {
-    flex: 1,
+  containerTransparent: {
     backgroundColor: 'transparent',
+    // Au-dessus de la couche de fond fixe.
+    position: 'relative',
+    zIndex: 1,
+  },
+  // Couche de fond épinglée au viewport : `fixed` sur web (hors flux, n'affecte
+  // pas la mise en page), `absolute` plein écran sur natif.
+  salonBgLayer:
+    Platform.OS === 'web'
+      ? ({ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 } as any)
+      : { ...StyleSheet.absoluteFillObject, zIndex: 0 },
+  salonBgImage: {
+    width: '100%',
+    height: '100%',
   },
   errorText: {
     fontSize: 18,
