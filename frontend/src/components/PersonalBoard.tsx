@@ -317,7 +317,6 @@ export function PersonalBoard() {
               resizeMode="contain"
             />
           </View>
-          <Text style={styles.bottleTitle}>Bouteille à la Mer</Text>
           {hasBottle && (
             <View style={styles.bottleWrapper} pointerEvents="none">
               <Image
@@ -599,8 +598,8 @@ const styles = StyleSheet.create({
   },
 
   bottleImage: {
-    width: 72,
-    height: 108,
+    width: 96,
+    height: 116,
     resizeMode: 'contain',
   },
 
@@ -686,7 +685,9 @@ const styles = StyleSheet.create({
   bottleWrapper: {
     position: 'absolute',
     bottom: 2,
-    left: '35%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
     zIndex: 10,
   },
 
