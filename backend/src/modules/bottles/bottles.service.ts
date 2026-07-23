@@ -8,6 +8,11 @@ import type {
 } from "@prisma/client";
 import { addDays } from "date-fns";
 import { ConflictError } from "../../core/errors";
+import { isPremiumActive } from "../../policies/premium";
+
+// Nombre max de bouteilles "à la mer" (FLOATING) simultanées par utilisateur.
+export const MAX_FLOATING_FREE = 1;
+export const MAX_FLOATING_PREMIUM = 5;
 
 // ============================================================
 // Core Bottle Operations
@@ -24,18 +29,30 @@ export async function createBottle(
   try {
     console.log(`[S1-SERVICE] ${correlationId} | createBottle START | senderId=${senderId}`);
 
-    // Check max 3 pending bottles per user
+    // Limite de bouteilles à la mer : 1 (gratuit) / 5 (premium actif).
     console.log(`[S2-SERVICE] ${correlationId} | COUNT FLOATING BOTTLES`);
-    const pendingCount = await prisma.messageInABottle.count({
-      where: {
-        senderId,
-        status: "FLOATING",
-      },
-    });
-    console.log(`[S3-SERVICE] ${correlationId} | PENDING COUNT: ${pendingCount}`);
+    const [pendingCount, sender] = await Promise.all([
+      prisma.messageInABottle.count({
+        where: { senderId, status: "FLOATING" },
+      }),
+      prisma.user.findUnique({
+        where: { id: senderId },
+        select: { premiumTier: true, premiumUntil: true },
+      }),
+    ]);
+    const maxFloating =
+      sender && isPremiumActive(sender)
+        ? MAX_FLOATING_PREMIUM
+        : MAX_FLOATING_FREE;
+    console.log(
+      `[S3-SERVICE] ${correlationId} | PENDING=${pendingCount} MAX=${maxFloating}`,
+    );
 
-    if (pendingCount >= 3) {
-      const err = `Tu as déjà ${pendingCount} bouteilles en attente (max 3). Attends qu'une soit acceptée ou expirée avant d'en renvoyer une.`;
+    if (pendingCount >= maxFloating) {
+      const err =
+        maxFloating === 1
+          ? "Tu as déjà une bouteille à la mer. Attends qu'elle soit acceptée ou expirée avant d'en renvoyer une. (Premium : jusqu'à 5)"
+          : `Tu as déjà ${pendingCount} bouteilles à la mer (max ${maxFloating}). Attends qu'une soit acceptée ou expirée.`;
       console.error(`[S4-SERVICE] ${correlationId} | VALIDATION FAILED | ${err}`);
       // HttpError typé → 409 avec message clair (sinon: 500 générique masqué).
       throw new ConflictError(err);

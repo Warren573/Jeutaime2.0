@@ -26,7 +26,10 @@ const COLORS = {
 };
 
 const MAX_MESSAGE_LENGTH = 1000;
-const MAX_PENDING_BOTTLES = 3;
+// Limite réelle appliquée par le backend : 1 (gratuit) / 5 (premium).
+// Le frontend ne bloque pas en amont (pendingBottles inconnu ici) ; il affiche
+// simplement le 409 renvoyé + le bouton d'annulation.
+const MAX_PENDING_BOTTLES = 5;
 
 export default function BottleCreationScreen() {
   const router = useRouter();
