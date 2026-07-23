@@ -1434,28 +1434,27 @@ export default function SalonScreen() {
   // RENDU MODE PORTRAIT (DISCUSSION)
   // ============================================
   const renderPortraitMode = () => (
-    <KeyboardAvoidingView
+    <ImageBackground
+      source={getSalonBackgroundImage(salonId)}
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      resizeMode="cover"
     >
-      {/* Fond du salon (aquarelle). cover → s'adapte portrait ET paysage.
-          Voile clair par-dessus pour garder le chat lisible. */}
+      {/* Voile clair par-dessus l'aquarelle pour garder le chat lisible.
+          cover → le fond s'adapte portrait ET paysage. */}
       {getSalonBackgroundImage(salonId) && (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <ImageBackground
-            source={getSalonBackgroundImage(salonId)}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
-          />
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: 'rgba(255,248,231,0.55)' },
-            ]}
-          />
-        </View>
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: 'rgba(255,248,231,0.55)' },
+          ]}
+        />
       )}
 
+      <KeyboardAvoidingView
+        style={styles.kav}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       {/* Header avec gradient */}
       <LinearGradient
         colors={salon.gradient || ['#667eea', '#764ba2']}
@@ -1616,7 +1615,8 @@ export default function SalonScreen() {
           <Text style={styles.sendText}>↑</Text>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </ImageBackground>
   );
 
   // ============================================
@@ -2125,6 +2125,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFF8E7',
+  },
+  kav: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   errorText: {
     fontSize: 18,
