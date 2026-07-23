@@ -155,9 +155,21 @@ export async function getInbox(req: AuthedRequest, res: Response) {
     },
   });
 
-  const bottles = receipts
+  const pending = receipts
     .filter((r) => r.bottle !== null && r.bottle.status === "FLOATING" && (r.bottle.expiresAt === null || r.bottle.expiresAt > new Date()))
     .map((r) => r.bottle);
+
+  // Bouteilles que l'utilisateur a ACCEPTÉES (conversations actives) — sinon
+  // elles n'apparaissent nulle part et la discussion est inaccessible.
+  const accepted = await prisma.messageInABottle.findMany({
+    where: {
+      acceptedById: userId,
+      status: { in: ["ACCEPTED", "REVEALED"] },
+    },
+    orderBy: { acceptedAt: "desc" },
+  });
+
+  const bottles = [...pending, ...accepted];
 
   const validated = GetInboxResponseSchema.parse(serializeDates({ bottles }));
 

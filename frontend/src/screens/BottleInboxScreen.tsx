@@ -63,7 +63,9 @@ export default function BottleInboxScreen() {
         getSentBottles().catch(() => [] as SentBottleDTO[]),
       ]);
       setPendingBottles(bottles.filter(b => b.status === 'FLOATING'));
-      setAcceptedBottles(bottles.filter(b => b.status === 'ACCEPTED'));
+      setAcceptedBottles(
+        bottles.filter(b => b.status === 'ACCEPTED' || b.status === 'REVEALED'),
+      );
       setSentBottles(sent);
     } catch (error) {
       setFeedback({
@@ -268,20 +270,24 @@ export default function BottleInboxScreen() {
           )}
         </View>
 
-        {/* ACCEPTED Section */}
+        {/* MES CONVERSATIONS (bouteilles acceptées) */}
         {acceptedBottles.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>ACCEPTED ({acceptedBottles.length})</Text>
+            <Text style={styles.sectionTitle}>
+              MES CONVERSATIONS ({acceptedBottles.length})
+            </Text>
 
             {acceptedBottles.map(bottle => (
               <View key={bottle.id} style={styles.bottleCard}>
                 <View style={styles.bottleHeader}>
-                  <Text style={styles.bottleEmoji}>✅</Text>
+                  <Text style={styles.bottleEmoji}>
+                    {bottle.status === 'REVEALED' ? '💞' : '✅'}
+                  </Text>
                   <View style={styles.bottleInfo}>
-                    <Text style={styles.bottleGender}>{bottle.targetGender}</Text>
-                    <Text style={styles.bottleDetails}>
-                      Âge • {bottle.senderCity}
+                    <Text style={styles.bottleGender}>
+                      {STATUS_LABELS[bottle.status] || bottle.status}
                     </Text>
+                    <Text style={styles.bottleDetails}>{bottle.senderCity}</Text>
                   </View>
                 </View>
 
