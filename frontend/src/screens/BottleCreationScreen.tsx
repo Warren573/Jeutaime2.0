@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -51,6 +52,7 @@ export default function BottleCreationScreen() {
   >(null);
   const [atLimit, setAtLimit] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [agePicker, setAgePicker] = useState<'min' | 'max' | null>(null);
 
   useEffect(() => {
     // TODO: charger le nombre réel de bouteilles en attente depuis l'API.
@@ -212,39 +214,23 @@ export default function BottleCreationScreen() {
           <View style={styles.ageRow}>
             <View style={styles.ageStepper}>
               <Text style={styles.ageStepperLabel}>Min</Text>
-              <View style={styles.stepperControls}>
-                <TouchableOpacity
-                  style={styles.stepperBtn}
-                  onPress={() => setAgeMin(Math.max(18, ageMin - 1))}
-                >
-                  <Text style={styles.stepperBtnText}>−</Text>
-                </TouchableOpacity>
-                <Text style={styles.stepperValue}>{ageMin}</Text>
-                <TouchableOpacity
-                  style={styles.stepperBtn}
-                  onPress={() => setAgeMin(Math.min(ageMax, ageMin + 1))}
-                >
-                  <Text style={styles.stepperBtnText}>+</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={styles.ageSelect}
+                onPress={() => setAgePicker('min')}
+              >
+                <Text style={styles.ageSelectValue}>{ageMin} ans</Text>
+                <Text style={styles.ageSelectChevron}>▾</Text>
+              </TouchableOpacity>
             </View>
             <View style={styles.ageStepper}>
               <Text style={styles.ageStepperLabel}>Max</Text>
-              <View style={styles.stepperControls}>
-                <TouchableOpacity
-                  style={styles.stepperBtn}
-                  onPress={() => setAgeMax(Math.max(ageMin, ageMax - 1))}
-                >
-                  <Text style={styles.stepperBtnText}>−</Text>
-                </TouchableOpacity>
-                <Text style={styles.stepperValue}>{ageMax}</Text>
-                <TouchableOpacity
-                  style={styles.stepperBtn}
-                  onPress={() => setAgeMax(Math.min(99, ageMax + 1))}
-                >
-                  <Text style={styles.stepperBtnText}>+</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={styles.ageSelect}
+                onPress={() => setAgePicker('max')}
+              >
+                <Text style={styles.ageSelectValue}>{ageMax} ans</Text>
+                <Text style={styles.ageSelectChevron}>▾</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -339,6 +325,61 @@ export default function BottleCreationScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Menu déroulant d'âge */}
+      <Modal
+        visible={agePicker !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAgePicker(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setAgePicker(null)}
+        >
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>
+              {agePicker === 'min' ? 'Âge minimum' : 'Âge maximum'}
+            </Text>
+            <ScrollView style={styles.modalList}>
+              {(() => {
+                const start = agePicker === 'min' ? 18 : ageMin;
+                const end = agePicker === 'min' ? ageMax : 99;
+                const items = [];
+                for (let a = start; a <= end; a++) items.push(a);
+                return items.map(age => {
+                  const selected =
+                    agePicker === 'min' ? age === ageMin : age === ageMax;
+                  return (
+                    <TouchableOpacity
+                      key={age}
+                      style={[
+                        styles.modalItem,
+                        selected && styles.modalItemSelected,
+                      ]}
+                      onPress={() => {
+                        if (agePicker === 'min') setAgeMin(age);
+                        else setAgeMax(age);
+                        setAgePicker(null);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.modalItemText,
+                          selected && styles.modalItemTextSelected,
+                        ]}
+                      >
+                        {age} ans
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                });
+              })()}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -415,7 +456,6 @@ const styles = StyleSheet.create({
   },
   ageStepper: {
     flex: 1,
-    alignItems: 'center',
     gap: 6,
   },
   ageStepperLabel: {
@@ -423,34 +463,68 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.textSecondary,
   },
-  stepperControls: {
+  ageSelect: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  stepperBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
     backgroundColor: COLORS.card,
-    borderWidth: 2,
-    borderColor: COLORS.accent,
-    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  ageSelectValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  ageSelectChevron: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
   },
-  stepperBtnText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: COLORS.accent,
-    lineHeight: 26,
+  modalCard: {
+    width: '100%',
+    maxWidth: 320,
+    maxHeight: '70%',
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
   },
-  stepperValue: {
-    fontSize: 20,
+  modalTitle: {
+    fontSize: 15,
     fontWeight: '700',
     color: COLORS.text,
-    minWidth: 34,
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalList: {
+    flexGrow: 0,
+  },
+  modalItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  modalItemSelected: {
+    backgroundColor: COLORS.accent,
+  },
+  modalItemText: {
+    fontSize: 16,
+    color: COLORS.text,
+    textAlign: 'center',
+  },
+  modalItemTextSelected: {
+    color: COLORS.card,
+    fontWeight: '700',
   },
   ageInput: {
     flex: 1,
