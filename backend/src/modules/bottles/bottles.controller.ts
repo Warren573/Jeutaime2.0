@@ -6,6 +6,7 @@ import {
   CreateBottleBodySchema,
   CreateBottleResponseSchema,
   GetInboxResponseSchema,
+  GetSentBottlesResponseSchema,
   AcceptBottleBodySchema,
   AcceptBottleResponseSchema,
   RefuseBottleBodySchema,
@@ -106,6 +107,18 @@ export async function cancelPending(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
   const cancelled = await bottlesService.cancelPendingBottles(userId);
   res.json({ data: { cancelled } });
+}
+
+// ============================================================
+// GET /api/bottles/sent — historique des bouteilles envoyées
+// ============================================================
+export async function getSent(req: AuthedRequest, res: Response) {
+  const userId = req.user.userId;
+  const bottles = await bottlesService.getSentBottles(userId);
+  const validated = GetSentBottlesResponseSchema.parse(
+    serializeDates({ bottles }),
+  );
+  res.json({ data: validated });
 }
 
 // ============================================================

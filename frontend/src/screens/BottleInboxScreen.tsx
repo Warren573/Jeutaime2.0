@@ -16,8 +16,18 @@ import {
   getInbox,
   acceptBottle,
   refuseBottle,
+  getSentBottles,
   InboxBottleDTO,
+  SentBottleDTO,
 } from '../api/bottles';
+
+const STATUS_LABELS: Record<string, string> = {
+  FLOATING: '🌊 À la mer (en attente)',
+  ACCEPTED: '✅ Acceptée',
+  EXPIRED: '⌛ Expirée',
+  REVEALED: '💞 Dévoilée',
+  BROKEN: '💔 Rompue',
+};
 
 const COLORS = {
   bg: '#F5F1E8',
@@ -36,15 +46,20 @@ export default function BottleInboxScreen() {
 
   const [pendingBottles, setPendingBottles] = useState<InboxBottleDTO[]>([]);
   const [acceptedBottles, setAcceptedBottles] = useState<InboxBottleDTO[]>([]);
+  const [sentBottles, setSentBottles] = useState<SentBottleDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const loadBottles = useCallback(async () => {
     try {
-      const bottles = await getInbox();
+      const [bottles, sent] = await Promise.all([
+        getInbox(),
+        getSentBottles().catch(() => [] as SentBottleDTO[]),
+      ]);
       setPendingBottles(bottles.filter(b => b.status === 'FLOATING'));
       setAcceptedBottles(bottles.filter(b => b.status === 'ACCEPTED'));
+      setSentBottles(sent);
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de charger les bouteilles');
     } finally {
@@ -233,6 +248,51 @@ export default function BottleInboxScreen() {
           </View>
         )}
 
+        {/* MES BOUTEILLES ENVOYÉES */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            MES BOUTEILLES ENVOYÉES ({sentBottles.length})
+          </Text>
+
+          {sentBottles.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>Tu n'as encore rien envoyé</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Crée ta première bouteille ci-dessous.
+              </Text>
+            </View>
+          ) : (
+            sentBottles.map(bottle => (
+              <View key={bottle.id} style={styles.bottleCard}>
+                <View style={styles.bottleHeader}>
+                  <Text style={styles.bottleEmoji}>🍾</Text>
+                  <View style={styles.bottleInfo}>
+                    <Text style={styles.bottleGender}>
+                      {STATUS_LABELS[bottle.status] || bottle.status}
+                    </Text>
+                    <Text style={styles.bottleDetails}>
+                      Cible : {bottle.targetGender} • {bottle.ageMin}-
+                      {bottle.ageMax} ans
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.bottleMessage}>
+                  {truncateMessage(bottle.message)}
+                </Text>
+
+                <Text style={styles.recipientLine}>
+                  {bottle.recipientCount > 0
+                    ? `📬 Envoyée à ${bottle.recipientCount} personne${
+                        bottle.recipientCount > 1 ? 's' : ''
+                      }`
+                    : '⚠️ Aucun destinataire compatible trouvé pour le moment'}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+
         {/* Create Button */}
         <TouchableOpacity
           style={styles.createBtn}
@@ -321,6 +381,11 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 12,
     lineHeight: 20,
+  },
+  recipientLine: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
   },
   bottleActions: {
     flexDirection: 'row',

@@ -62,6 +62,28 @@ export async function createBottle(
   }
 }
 
+export interface SentBottleDTO {
+  id: string;
+  message: string;
+  targetGender: string;
+  ageMin: number;
+  ageMax: number;
+  status: "FLOATING" | "ACCEPTED" | "EXPIRED" | "REVEALED" | "BROKEN";
+  createdAt: string;
+  expiresAt: string;
+  recipientCount: number;
+}
+
+// ============================================================
+// GET /api/bottles/sent
+// ============================================================
+export async function getSentBottles(): Promise<SentBottleDTO[]> {
+  const res = (await apiFetch("/bottles/sent")) as {
+    data: { bottles: SentBottleDTO[] };
+  };
+  return res.data.bottles;
+}
+
 // ============================================================
 // POST /api/bottles/cancel-pending
 // ============================================================

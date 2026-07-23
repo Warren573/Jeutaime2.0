@@ -42,6 +42,14 @@ router.post(
   }),
 );
 
+// GET /api/bottles/sent — sent-bottle history for current user
+router.get(
+  "/sent",
+  wrap(async (req, res) => {
+    await controller.getSent(req as AuthedRequest, res);
+  }),
+);
+
 // GET /api/bottles/inbox — get pending bottles for user
 router.get(
   "/inbox",

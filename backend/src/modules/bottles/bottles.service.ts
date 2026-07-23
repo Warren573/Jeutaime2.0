@@ -105,6 +105,30 @@ export async function cancelPendingBottles(
 }
 
 /**
+ * Historique des bouteilles envoyées par un utilisateur, avec le nombre de
+ * destinataires touchés (reçus créés) pour chacune.
+ */
+export async function getSentBottles(senderId: string) {
+  const bottles = await prisma.messageInABottle.findMany({
+    where: { senderId },
+    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { receipts: true } } },
+  });
+
+  return bottles.map((b) => ({
+    id: b.id,
+    message: b.message,
+    targetGender: b.targetGender,
+    ageMin: b.ageMin,
+    ageMax: b.ageMax,
+    status: b.status,
+    createdAt: b.createdAt,
+    expiresAt: b.expiresAt,
+    recipientCount: b._count.receipts,
+  }));
+}
+
+/**
  * Genres de destinataires visés par une bouteille.
  * "LES_DEUX" → hommes ET femmes ; sinon le genre demandé tel quel.
  */

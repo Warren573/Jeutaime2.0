@@ -50,6 +50,30 @@ export const GetInboxResponseSchema = z.object({
 export type GetInboxResponse = z.infer<typeof GetInboxResponseSchema>;
 
 // ============================================================
+// GET /api/bottles/sent — historique des bouteilles envoyées
+// ============================================================
+export const SentBottleSchema = z.object({
+  id: z.string(),
+  message: z.string(),
+  targetGender: z.string(),
+  ageMin: z.number(),
+  ageMax: z.number(),
+  status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
+  createdAt: z.string().datetime(),
+  expiresAt: z.string().datetime(),
+  // Nombre de destinataires touchés (reçus créés). 0 = personne trouvé.
+  recipientCount: z.number().int().nonnegative(),
+});
+
+export const GetSentBottlesResponseSchema = z.object({
+  bottles: z.array(SentBottleSchema),
+});
+
+export type GetSentBottlesResponse = z.infer<
+  typeof GetSentBottlesResponseSchema
+>;
+
+// ============================================================
 // POST /api/bottles/:id/accept
 // ============================================================
 export const AcceptBottleBodySchema = z.object({}).strict();
