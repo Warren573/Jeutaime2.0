@@ -599,8 +599,8 @@ const styles = StyleSheet.create({
   },
 
   bottleImage: {
-    width: 44,
-    height: 66,
+    width: 72,
+    height: 108,
     resizeMode: 'contain',
   },
 
@@ -685,8 +685,10 @@ const styles = StyleSheet.create({
 
   bottleWrapper: {
     position: 'absolute',
-    bottom: 2,
-    left: '35%',
+    bottom: 6,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
     zIndex: 10,
   },
 
