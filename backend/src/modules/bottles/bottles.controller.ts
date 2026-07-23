@@ -159,12 +159,13 @@ export async function getInbox(req: AuthedRequest, res: Response) {
     .filter((r) => r.bottle !== null && r.bottle.status === "FLOATING" && (r.bottle.expiresAt === null || r.bottle.expiresAt > new Date()))
     .map((r) => r.bottle);
 
-  // Bouteilles que l'utilisateur a ACCEPTÉES (conversations actives) — sinon
-  // elles n'apparaissent nulle part et la discussion est inaccessible.
+  // Conversations actives : bouteilles acceptées où l'utilisateur est
+  // l'accepteur OU l'expéditeur. Les DEUX parties doivent voir la discussion
+  // (sinon l'expéditeur d'une bouteille acceptée n'a aucun accès au chat).
   const accepted = await prisma.messageInABottle.findMany({
     where: {
-      acceptedById: userId,
       status: { in: ["ACCEPTED", "REVEALED"] },
+      OR: [{ acceptedById: userId }, { senderId: userId }],
     },
     orderBy: { acceptedAt: "desc" },
   });

@@ -33,8 +33,12 @@ export default function BottleDiscussionsListScreen() {
   const loadDiscussions = useCallback(async () => {
     try {
       const bottles = await getInbox();
-      setAcceptedBottles(bottles.filter(b => b.status === 'ACCEPTED'));
-      setClosedBottles(bottles.filter(b => b.status === 'EXPIRED'));
+      setAcceptedBottles(
+        bottles.filter(b => b.status === 'ACCEPTED' || b.status === 'REVEALED'),
+      );
+      setClosedBottles(
+        bottles.filter(b => b.status === 'EXPIRED' || b.status === 'BROKEN'),
+      );
     } catch (error) {
       console.error('Failed to load discussions:', error);
     } finally {
