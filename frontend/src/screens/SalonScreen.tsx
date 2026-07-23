@@ -1434,26 +1434,6 @@ export default function SalonScreen() {
   // RENDU MODE PORTRAIT (DISCUSSION)
   // ============================================
   const renderPortraitMode = () => (
-    <>
-      {/* Fond du salon (aquarelle) épinglé au viewport — hors du flux (fixed
-          sur web) pour ne JAMAIS affecter la mise en page du contenu.
-          cover → s'adapte portrait ET paysage. Voile clair pour la lisibilité. */}
-      {getSalonBackgroundImage(salonId) && (
-        <View style={styles.salonBgLayer} pointerEvents="none">
-          <Image
-            source={getSalonBackgroundImage(salonId)}
-            style={styles.salonBgImage}
-            resizeMode="cover"
-          />
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: 'rgba(255,248,231,0.55)' },
-            ]}
-          />
-        </View>
-      )}
-
       <KeyboardAvoidingView
         style={[
           styles.container,
@@ -1622,7 +1602,6 @@ export default function SalonScreen() {
         </TouchableOpacity>
       </View>
       </KeyboardAvoidingView>
-    </>
   );
 
   // ============================================
@@ -2102,6 +2081,24 @@ export default function SalonScreen() {
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Fond du salon (aquarelle), commun au portrait ET au paysage. Épinglé
+          au viewport (fixed sur web), hors du flux → n'affecte pas la mise en
+          page. Voile clair pour la lisibilité. */}
+      {getSalonBackgroundImage(salonId) && (
+        <View style={styles.salonBgLayer} pointerEvents="none">
+          <Image
+            source={getSalonBackgroundImage(salonId)}
+            style={styles.salonBgImage}
+            resizeMode="cover"
+          />
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: 'rgba(255,248,231,0.55)' },
+            ]}
+          />
+        </View>
+      )}
       {isLandscape ? renderLandscapeMode() : renderPortraitMode()}
       {renderOfferingsModal()}
       {renderPowersModal()}
@@ -2474,7 +2471,8 @@ const styles = StyleSheet.create({
   // ============================================
   landscapeContainer: {
     flex: 1,
-    backgroundColor: '#FFF8E7',
+    // Transparent : laisse voir le fond du salon (couche fixe) en paysage.
+    backgroundColor: 'transparent',
   },
   landscapeHeader: {
     flexDirection: 'row',
@@ -2499,7 +2497,7 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF8E7',
+    backgroundColor: 'rgba(255,248,231,0.30)',
   },
   avatarsGrid: {
     flexDirection: 'row',
@@ -2515,7 +2513,7 @@ const styles = StyleSheet.create({
   // Zone interactions (droite)
   interactionsZone: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: 'rgba(255,255,255,0.62)',
     borderLeftWidth: 2,
     borderLeftColor: '#E8D5B7',
     padding: 12,

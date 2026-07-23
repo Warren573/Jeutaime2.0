@@ -301,7 +301,7 @@ export default function SalonsListScreen() {
                   <View
                     style={[
                       StyleSheet.absoluteFill,
-                      { backgroundColor: 'rgba(0,0,0,0.38)' },
+                      { backgroundColor: 'rgba(0,0,0,0.30)' },
                     ]}
                   />
                   {cardContent}
