@@ -74,6 +74,21 @@ export type GetSentBottlesResponse = z.infer<
 >;
 
 // ============================================================
+// GET /api/bottles/:id — détail d'une bouteille (expéditeur ou accepteur)
+// ============================================================
+export const GetBottleResponseSchema = z.object({
+  id: z.string(),
+  message: z.string(),
+  senderCity: z.string(),
+  targetGender: z.string(),
+  status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
+  createdAt: z.string().datetime(),
+  expiresAt: z.string().datetime(),
+});
+
+export type GetBottleResponse = z.infer<typeof GetBottleResponseSchema>;
+
+// ============================================================
 // POST /api/bottles/:id/accept
 // ============================================================
 export const AcceptBottleBodySchema = z.object({}).strict();

@@ -105,6 +105,21 @@ export async function cancelPendingBottles(
 }
 
 /**
+ * Détail d'une bouteille accessible à l'expéditeur OU à l'accepteur.
+ * Renvoie null si la bouteille n'existe pas ou si l'utilisateur n'y a pas droit.
+ */
+export async function getBottleForUser(bottleId: string, userId: string) {
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+  if (!bottle) return null;
+  if (bottle.senderId !== userId && bottle.acceptedById !== userId) {
+    return null;
+  }
+  return bottle;
+}
+
+/**
  * Historique des bouteilles envoyées par un utilisateur, avec le nombre de
  * destinataires touchés (reçus créés) pour chacune.
  */

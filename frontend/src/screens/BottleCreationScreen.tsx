@@ -205,31 +205,43 @@ export default function BottleCreationScreen() {
 
         {/* Age Range */}
         <View style={styles.section}>
-          <Text style={styles.label}>Âge</Text>
+          <Text style={styles.label}>Âge : {ageMin} – {ageMax} ans</Text>
           <View style={styles.ageRow}>
-            <View style={styles.ageInput}>
-              <Text style={styles.ageLabel}>Min:</Text>
-              <TextInput
-                style={styles.ageField}
-                keyboardType="numeric"
-                value={String(ageMin)}
-                onChangeText={text => {
-                  const num = parseInt(text) || 18;
-                  setAgeMin(Math.max(18, Math.min(num, ageMax)));
-                }}
-              />
+            <View style={styles.ageStepper}>
+              <Text style={styles.ageStepperLabel}>Min</Text>
+              <View style={styles.stepperControls}>
+                <TouchableOpacity
+                  style={styles.stepperBtn}
+                  onPress={() => setAgeMin(Math.max(18, ageMin - 1))}
+                >
+                  <Text style={styles.stepperBtnText}>−</Text>
+                </TouchableOpacity>
+                <Text style={styles.stepperValue}>{ageMin}</Text>
+                <TouchableOpacity
+                  style={styles.stepperBtn}
+                  onPress={() => setAgeMin(Math.min(ageMax, ageMin + 1))}
+                >
+                  <Text style={styles.stepperBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.ageInput}>
-              <Text style={styles.ageLabel}>Max:</Text>
-              <TextInput
-                style={styles.ageField}
-                keyboardType="numeric"
-                value={String(ageMax)}
-                onChangeText={text => {
-                  const num = parseInt(text) || 99;
-                  setAgeMax(Math.min(99, Math.max(num, ageMin)));
-                }}
-              />
+            <View style={styles.ageStepper}>
+              <Text style={styles.ageStepperLabel}>Max</Text>
+              <View style={styles.stepperControls}>
+                <TouchableOpacity
+                  style={styles.stepperBtn}
+                  onPress={() => setAgeMax(Math.max(ageMin, ageMax - 1))}
+                >
+                  <Text style={styles.stepperBtnText}>−</Text>
+                </TouchableOpacity>
+                <Text style={styles.stepperValue}>{ageMax}</Text>
+                <TouchableOpacity
+                  style={styles.stepperBtn}
+                  onPress={() => setAgeMax(Math.min(99, ageMax + 1))}
+                >
+                  <Text style={styles.stepperBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -397,6 +409,45 @@ const styles = StyleSheet.create({
   ageRow: {
     flexDirection: 'row',
     gap: 16,
+  },
+  ageStepper: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  ageStepperLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  stepperControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  stepperBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.card,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperBtnText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.accent,
+    lineHeight: 26,
+  },
+  stepperValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text,
+    minWidth: 34,
+    textAlign: 'center',
   },
   ageInput: {
     flex: 1,

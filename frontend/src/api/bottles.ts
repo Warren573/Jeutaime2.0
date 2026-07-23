@@ -27,7 +27,7 @@ export interface InboxBottleDTO {
   message: string;
   senderCity: string;
   targetGender: string;
-  status: "FLOATING" | "ACCEPTED" | "EXPIRED";
+  status: "FLOATING" | "ACCEPTED" | "EXPIRED" | "REVEALED" | "BROKEN";
   createdAt: string;
   expiresAt: string;
 }
@@ -93,6 +93,16 @@ export async function cancelPendingBottles(): Promise<number> {
     body: JSON.stringify({}),
   })) as { data: { cancelled: number } };
   return res.data.cancelled;
+}
+
+// ============================================================
+// GET /api/bottles/:id  (accessible à l'expéditeur ou à l'accepteur)
+// ============================================================
+export async function getBottleById(bottleId: string): Promise<InboxBottleDTO> {
+  const res = (await apiFetch(`/bottles/${bottleId}`)) as {
+    data: InboxBottleDTO;
+  };
+  return res.data;
 }
 
 // ============================================================

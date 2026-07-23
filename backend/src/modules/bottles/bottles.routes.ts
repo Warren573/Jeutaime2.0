@@ -163,4 +163,14 @@ router.get(
   }),
 );
 
+// GET /api/bottles/:id — bottle detail (sender or acceptor)
+// IMPORTANT: déclaré APRÈS les routes GET spécifiques (/sent, /inbox,
+// /unread-count) pour ne pas les masquer.
+router.get(
+  "/:id",
+  wrap(async (req, res) => {
+    await controller.getBottleById(req as AuthedRequest, res);
+  }),
+);
+
 export default router;

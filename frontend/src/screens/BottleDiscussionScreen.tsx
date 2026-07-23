@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../store/useStore';
 import {
-  getInbox,
+  getBottleById,
   getBottleMessages,
   postBottleMessage,
   markBottleAsRead,
@@ -59,9 +59,8 @@ export default function BottleDiscussionScreen() {
     try {
       if (!bottleId) return;
 
-      // Load bottle details
-      const bottleData = await getInbox();
-      const found = bottleData.find(b => b.id === bottleId);
+      // Load bottle details (accessible à l'expéditeur comme à l'accepteur)
+      const found = await getBottleById(bottleId);
       if (found) {
         setBottle(found);
       }
