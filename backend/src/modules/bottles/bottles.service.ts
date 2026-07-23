@@ -117,9 +117,9 @@ async function findCompatibleRecipients(
       profile: {
         AND: [
           {
-            interestedIn: {
-              hasSome: [bottle.targetGender as any],
-            },
+            // Le destinataire doit ÊTRE du genre recherché (gender), pas être
+            // "intéressé par" ce genre (interestedIn). C'était l'inverse.
+            gender: bottle.targetGender as any,
           },
           {
             birthDate: {
@@ -347,8 +347,8 @@ async function isUserCompatibleWithBottle(
     return false;
   }
 
-  // Check gender match
-  if (!user.profile.interestedIn.includes(bottle.targetGender as any)) {
+  // Check gender match : le destinataire doit ÊTRE du genre recherché.
+  if (user.profile.gender !== (bottle.targetGender as any)) {
     return false;
   }
 
