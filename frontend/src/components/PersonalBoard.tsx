@@ -303,10 +303,10 @@ export function PersonalBoard() {
           }}
           style={{
             position: 'absolute',
-            top: 415,
+            top: 435,
             right: 8,
-            width: 230,
-            height: 160,
+            width: 180,
+            height: 120,
             transform: [{ rotate: '2deg' }],
           }}
         >
@@ -333,7 +333,7 @@ export function PersonalBoard() {
           onPress={() => router.push('/offerings')}
           style={{
             position: 'absolute',
-            top: 600,
+            top: 570,
             left: '50%',
             marginLeft: -115,
             width: 230,
@@ -585,10 +585,10 @@ const styles = StyleSheet.create({
   },
 
   bottleTitle: {
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '700',
     color: '#FFFFFF',
-    marginTop: 14,
+    marginTop: 12,
     marginBottom: 0,
     paddingHorizontal: 6,
     textAlign: 'center',
@@ -599,8 +599,8 @@ const styles = StyleSheet.create({
   },
 
   bottleImage: {
-    width: 72,
-    height: 108,
+    width: 44,
+    height: 66,
     resizeMode: 'contain',
   },
 
@@ -685,10 +685,8 @@ const styles = StyleSheet.create({
 
   bottleWrapper: {
     position: 'absolute',
-    bottom: 6,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+    bottom: 2,
+    left: '35%',
     zIndex: 10,
   },
 
