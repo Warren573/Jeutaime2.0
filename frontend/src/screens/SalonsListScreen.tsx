@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { salonsData } from '../data/salonsData';
-import { getSalonBackgroundImage } from '../data/salonBackgroundImages';
+import { getSalonCardImage } from '../data/salonBackgroundImages';
 import { useStore } from '../store/useStore';
 import { getCurrentSalonSession, leaveSession, getSalonCounters } from '../api/salons';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -258,7 +258,7 @@ export default function SalonsListScreen() {
         showsVerticalScrollIndicator={false}
       >
         {salonsData.map((salon) => {
-          const bgImage = getSalonBackgroundImage(salon.id);
+          const bgImage = getSalonCardImage(salon.id);
           const cardContent = (
             <View style={styles.salonContent}>
               <Text style={styles.salonIcon}>{salon.icon}</Text>
