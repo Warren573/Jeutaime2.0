@@ -234,6 +234,28 @@ export async function acceptBottle(
   bottleId: string,
   userId: string,
 ): Promise<MessageInABottle> {
+  // Limite de bouteilles ACCEPTÉES actives : 1 (gratuit) / 5 (premium).
+  const [activeAccepted, accepter] = await Promise.all([
+    prisma.messageInABottle.count({
+      where: { acceptedById: userId, status: { in: ["ACCEPTED", "REVEALED"] } },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { premiumTier: true, premiumUntil: true },
+    }),
+  ]);
+  const maxAccepted =
+    accepter && isPremiumActive(accepter)
+      ? MAX_FLOATING_PREMIUM
+      : MAX_FLOATING_FREE;
+  if (activeAccepted >= maxAccepted) {
+    throw new ConflictError(
+      maxAccepted === 1
+        ? "Tu as déjà une bouteille acceptée en cours. Termine-la avant d'en accepter une autre. (Premium : jusqu'à 5)"
+        : `Tu as déjà ${activeAccepted} bouteilles acceptées (max ${maxAccepted}).`,
+    );
+  }
+
   // Start transaction to ensure atomic updates
   const result = await prisma.$transaction(async (tx) => {
     // Update bottle status

@@ -51,6 +51,10 @@ export default function BottleInboxScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  // Feedback in-app (Alert.alert est un no-op sur le Web).
+  const [feedback, setFeedback] = useState<
+    { type: 'error' | 'success'; text: string } | null
+  >(null);
 
   const loadBottles = useCallback(async () => {
     try {
@@ -62,7 +66,10 @@ export default function BottleInboxScreen() {
       setAcceptedBottles(bottles.filter(b => b.status === 'ACCEPTED'));
       setSentBottles(sent);
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de charger les bouteilles');
+      setFeedback({
+        type: 'error',
+        text: 'Impossible de charger les bouteilles.',
+      });
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -77,9 +84,9 @@ export default function BottleInboxScreen() {
 
   const handleAccept = async (bottleId: string) => {
     setLoadingId(bottleId);
+    setFeedback(null);
     try {
-      const result = await acceptBottle(bottleId);
-      Alert.alert('Succès', 'Bouteille acceptée! Discussion créée.');
+      await acceptBottle(bottleId);
       // Navigate to discussion
       router.push({
         pathname: '/bottles-discussion',
@@ -87,14 +94,14 @@ export default function BottleInboxScreen() {
       });
       await loadBottles();
     } catch (error: any) {
-      if (error.message?.includes('TAKEN')) {
-        Alert.alert(
-          'Erreur',
-          'Quelqu\'un d\'autre a accepté cette bouteille avant vous.'
-        );
-      } else {
-        Alert.alert('Erreur', error.message || 'Erreur lors de l\'acceptation');
+      const status = error?.status;
+      let text = error?.message || "Erreur lors de l'acceptation";
+      if (typeof error?.message === 'string' && error.message.includes('TAKEN')) {
+        text = "Quelqu'un d'autre a accepté cette bouteille avant toi.";
+      } else if (typeof status === 'number') {
+        text = `[${status}] ${text}`;
       }
+      setFeedback({ type: 'error', text });
       await loadBottles();
     } finally {
       setLoadingId(null);
@@ -103,12 +110,16 @@ export default function BottleInboxScreen() {
 
   const handleRefuse = async (bottleId: string) => {
     setLoadingId(bottleId);
+    setFeedback(null);
     try {
       await refuseBottle(bottleId);
-      Alert.alert('Succès', 'Bouteille refusée.');
+      setFeedback({ type: 'success', text: 'Bouteille refusée.' });
       await loadBottles();
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Erreur lors du refus');
+      setFeedback({
+        type: 'error',
+        text: error?.message || 'Erreur lors du refus',
+      });
     } finally {
       setLoadingId(null);
     }
@@ -171,6 +182,29 @@ export default function BottleInboxScreen() {
             si tu as renseigné une préférence, qu'elle inclut le genre de l'expéditeur.
           </Text>
         </View>
+
+        {/* Feedback in-app (accept/refuse/chargement) */}
+        {feedback && (
+          <View
+            style={[
+              styles.feedbackBox,
+              feedback.type === 'error'
+                ? styles.feedbackError
+                : styles.feedbackSuccess,
+            ]}
+          >
+            <Text
+              style={[
+                styles.feedbackText,
+                feedback.type === 'error'
+                  ? styles.feedbackTextError
+                  : styles.feedbackTextSuccess,
+              ]}
+            >
+              {feedback.text}
+            </Text>
+          </View>
+        )}
 
         {/* PENDING Section */}
         <View style={styles.section}>
@@ -354,6 +388,32 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 4,
     lineHeight: 15,
+  },
+  feedbackBox: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  feedbackError: {
+    backgroundColor: '#FDECEA',
+    borderColor: '#E5534B',
+  },
+  feedbackSuccess: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#4CAF50',
+  },
+  feedbackText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  feedbackTextError: {
+    color: '#B3261E',
+  },
+  feedbackTextSuccess: {
+    color: '#2E7D32',
   },
   section: {
     marginBottom: 24,
