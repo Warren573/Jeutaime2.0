@@ -294,7 +294,7 @@ export default function SalonsListScreen() {
               {bgImage ? (
                 <ImageBackground
                   source={bgImage}
-                  style={styles.salonGradient}
+                  style={styles.salonBanner}
                   resizeMode="cover"
                 >
                   {/* Voile sombre : garde le texte blanc lisible sur l'image */}
@@ -385,6 +385,14 @@ const styles = StyleSheet.create({
   },
   salonGradient: {
     padding: 16,
+  },
+  // Carte avec bannière : ratio 3:1 (= celui des bannières) pour afficher
+  // l'image ENTIÈRE sans rognage. Le contenu (texte) est centré par-dessus.
+  salonBanner: {
+    width: '100%',
+    aspectRatio: 3,
+    padding: 16,
+    justifyContent: 'center',
   },
   salonContent: {
     flexDirection: 'row',
