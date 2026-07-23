@@ -9,6 +9,7 @@ import {
   Dimensions,
   Alert,
   ImageBackground,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -35,6 +36,11 @@ const KIND_TO_SLUG: Record<string, string> = {
 export default function SalonsListScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  // Hauteur d'une carte-bannière = largeur de la carte ÷ 3 (ratio 3:1 des
+  // bannières) → l'image s'affiche ENTIÈRE (cover sur un cadre exactement 3:1).
+  // Largeur carte = largeur écran − padding du conteneur (16 de chaque côté).
+  const bannerHeight = (screenWidth - 32) / 3;
   const screenBg = useStore(s => s.screenBackgrounds?.['salons'] ?? '#FFF8E7');
   const currentUser = useStore(s => s.currentUser);
   const canEnterSalon = currentUser?.canEnterSalon ?? true;
@@ -294,7 +300,7 @@ export default function SalonsListScreen() {
               {bgImage ? (
                 <ImageBackground
                   source={bgImage}
-                  style={styles.salonBanner}
+                  style={[styles.salonBanner, { height: bannerHeight }]}
                   resizeMode="cover"
                 >
                   {/* Voile sombre : garde le texte blanc lisible sur l'image */}
@@ -390,9 +396,10 @@ const styles = StyleSheet.create({
   // l'image ENTIÈRE sans rognage. Le contenu (texte) est centré par-dessus.
   salonBanner: {
     width: '100%',
-    aspectRatio: 3,
+    // hauteur fournie inline (= largeur/3) pour un cadre exactement 3:1
     padding: 16,
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   salonContent: {
     flexDirection: 'row',
