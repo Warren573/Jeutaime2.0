@@ -33,7 +33,9 @@ export default function BottleCreationScreen() {
   const insets = useSafeAreaInsets();
   const currentUser = useStore(s => s.currentUser);
 
-  const [targetGender, setTargetGender] = useState<'HOMME' | 'FEMME'>('FEMME');
+  const [targetGender, setTargetGender] = useState<
+    'HOMME' | 'FEMME' | 'LES_DEUX'
+  >('FEMME');
   const [ageMin, setAgeMin] = useState(25);
   const [ageMax, setAgeMax] = useState(35);
   const [message, setMessage] = useState('');
@@ -175,22 +177,26 @@ export default function BottleCreationScreen() {
         <View style={styles.section}>
           <Text style={styles.label}>Qui cherches-tu?</Text>
           <View style={styles.genderRow}>
-            {(['HOMME', 'FEMME'] as const).map(gender => (
+            {([
+              { value: 'HOMME', label: '👨 Homme' },
+              { value: 'FEMME', label: '👩 Femme' },
+              { value: 'LES_DEUX', label: '👫 Les deux' },
+            ] as const).map(({ value, label }) => (
               <TouchableOpacity
-                key={gender}
+                key={value}
                 style={[
                   styles.genderBtn,
-                  targetGender === gender && styles.genderBtnActive,
+                  targetGender === value && styles.genderBtnActive,
                 ]}
-                onPress={() => setTargetGender(gender)}
+                onPress={() => setTargetGender(value)}
               >
                 <Text
                   style={[
                     styles.genderBtnText,
-                    targetGender === gender && styles.genderBtnTextActive,
+                    targetGender === value && styles.genderBtnTextActive,
                   ]}
                 >
-                  {gender === 'HOMME' ? '👨 Homme' : '👩 Femme'}
+                  {label}
                 </Text>
               </TouchableOpacity>
             ))}

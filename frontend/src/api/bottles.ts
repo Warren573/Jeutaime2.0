@@ -2,7 +2,7 @@ import { apiFetch } from "./client";
 
 export interface CreateBottlePayload {
   message: string;
-  targetGender: "HOMME" | "FEMME" | "AUTRE";
+  targetGender: "HOMME" | "FEMME" | "AUTRE" | "LES_DEUX";
   ageMin: number;
   ageMax: number;
 }

@@ -104,6 +104,15 @@ export async function cancelPendingBottles(
   return result.count;
 }
 
+/**
+ * Genres de destinataires visés par une bouteille.
+ * "LES_DEUX" → hommes ET femmes ; sinon le genre demandé tel quel.
+ */
+function targetGendersFor(targetGender: string): string[] {
+  if (targetGender === "LES_DEUX") return ["HOMME", "FEMME"];
+  return [targetGender];
+}
+
 async function findCompatibleRecipients(
   bottle: MessageInABottle,
 ): Promise<User[]> {
@@ -118,8 +127,8 @@ async function findCompatibleRecipients(
         AND: [
           {
             // Le destinataire doit ÊTRE du genre recherché (gender), pas être
-            // "intéressé par" ce genre (interestedIn). C'était l'inverse.
-            gender: bottle.targetGender as any,
+            // "intéressé par" ce genre (interestedIn). LES_DEUX = homme + femme.
+            gender: { in: targetGendersFor(bottle.targetGender) as any },
           },
           {
             birthDate: {
@@ -347,8 +356,9 @@ async function isUserCompatibleWithBottle(
     return false;
   }
 
-  // Check gender match : le destinataire doit ÊTRE du genre recherché.
-  if (user.profile.gender !== (bottle.targetGender as any)) {
+  // Check gender match : le destinataire doit ÊTRE d'un genre recherché
+  // (LES_DEUX = homme ou femme).
+  if (!targetGendersFor(bottle.targetGender).includes(user.profile.gender)) {
     return false;
   }
 

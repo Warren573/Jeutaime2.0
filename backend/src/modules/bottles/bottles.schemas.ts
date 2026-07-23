@@ -5,7 +5,8 @@ import { z } from "zod";
 // ============================================================
 export const CreateBottleBodySchema = z.object({
   message: z.string().min(1).max(1000),
-  targetGender: z.enum(["HOMME", "FEMME", "AUTRE"]),
+  // LES_DEUX = cherche hommes ET femmes.
+  targetGender: z.enum(["HOMME", "FEMME", "AUTRE", "LES_DEUX"]),
   ageMin: z.number().int().min(18).max(99),
   ageMax: z.number().int().min(18).max(99),
 });
