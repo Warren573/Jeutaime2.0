@@ -8,11 +8,13 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
+  ImageBackground,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { salonsData } from '../data/salonsData';
+import { getSalonBackgroundImage } from '../data/salonBackgroundImages';
 import { useStore } from '../store/useStore';
 import { getCurrentSalonSession, leaveSession, getSalonCounters } from '../api/salons';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -255,45 +257,68 @@ export default function SalonsListScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {salonsData.map((salon) => (
-          <TouchableOpacity
-            key={salon.id}
-            style={[styles.salonCard, !canEnterSalon && { opacity: 0.5 }]}
-            onPress={() => handleSalonPress(salon)}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={salon.gradient}
-              style={styles.salonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <View style={styles.salonContent}>
-                <Text style={styles.salonIcon}>{salon.icon}</Text>
-                <View style={styles.salonInfo}>
-                  <Text style={styles.salonName}>{salon.name}</Text>
-                  <Text style={styles.salonDesc}>{salon.desc}</Text>
-                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                    <View style={[styles.specialBadge, { backgroundColor: salon.layout === 'vertical' ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)' }]}>
-                      <Text style={[styles.specialBadgeText, { color: '#FFF' }]}>
-                        {salon.layout === 'vertical' ? '💬 Conversation' : '👥 Groupe'}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.salonStats}>
-                  <View style={styles.participantsBadge}>
-                    <Text style={styles.participantsCount}>
-                      {salonCounters[salon.id] ?? 0}
+        {salonsData.map((salon) => {
+          const bgImage = getSalonBackgroundImage(salon.id);
+          const cardContent = (
+            <View style={styles.salonContent}>
+              <Text style={styles.salonIcon}>{salon.icon}</Text>
+              <View style={styles.salonInfo}>
+                <Text style={styles.salonName}>{salon.name}</Text>
+                <Text style={styles.salonDesc}>{salon.desc}</Text>
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+                  <View style={[styles.specialBadge, { backgroundColor: salon.layout === 'vertical' ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)' }]}>
+                    <Text style={[styles.specialBadgeText, { color: '#FFF' }]}>
+                      {salon.layout === 'vertical' ? '💬 Conversation' : '👥 Groupe'}
                     </Text>
-                    <Text style={styles.participantsLabel}>en ligne</Text>
                   </View>
-                  <Text style={styles.arrowIcon}>→</Text>
                 </View>
               </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        ))}
+              <View style={styles.salonStats}>
+                <View style={styles.participantsBadge}>
+                  <Text style={styles.participantsCount}>
+                    {salonCounters[salon.id] ?? 0}
+                  </Text>
+                  <Text style={styles.participantsLabel}>en ligne</Text>
+                </View>
+                <Text style={styles.arrowIcon}>→</Text>
+              </View>
+            </View>
+          );
+          return (
+            <TouchableOpacity
+              key={salon.id}
+              style={[styles.salonCard, !canEnterSalon && { opacity: 0.5 }]}
+              onPress={() => handleSalonPress(salon)}
+              activeOpacity={0.8}
+            >
+              {bgImage ? (
+                <ImageBackground
+                  source={bgImage}
+                  style={styles.salonGradient}
+                  resizeMode="cover"
+                >
+                  {/* Voile sombre : garde le texte blanc lisible sur l'image */}
+                  <View
+                    style={[
+                      StyleSheet.absoluteFill,
+                      { backgroundColor: 'rgba(0,0,0,0.38)' },
+                    ]}
+                  />
+                  {cardContent}
+                </ImageBackground>
+              ) : (
+                <LinearGradient
+                  colors={salon.gradient}
+                  style={styles.salonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  {cardContent}
+                </LinearGradient>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       {/* Leave confirmation modal */}

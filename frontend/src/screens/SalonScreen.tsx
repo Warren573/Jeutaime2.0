@@ -15,6 +15,7 @@ import {
   Animated,
   Dimensions,
   Image,
+  ImageBackground,
   Alert,
 } from 'react-native';
 
@@ -54,6 +55,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SalonParticipant } from '../data/salonsData';
+import { getSalonBackgroundImage } from '../data/salonBackgroundImages';
 import { useStore, Message } from '../store/useStore';
 import { allOfferings, allPowers } from '../data/offerings';
 import { OfferingBadge } from '../components/OfferingBadge';
@@ -1436,6 +1438,24 @@ export default function SalonScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* Fond du salon (aquarelle). cover → s'adapte portrait ET paysage.
+          Voile clair par-dessus pour garder le chat lisible. */}
+      {getSalonBackgroundImage(salonId) && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <ImageBackground
+            source={getSalonBackgroundImage(salonId)}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: 'rgba(255,248,231,0.55)' },
+            ]}
+          />
+        </View>
+      )}
+
       {/* Header avec gradient */}
       <LinearGradient
         colors={salon.gradient || ['#667eea', '#764ba2']}
