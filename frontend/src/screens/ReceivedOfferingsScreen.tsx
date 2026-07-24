@@ -4,258 +4,196 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
+  Image,
+  Platform,
   ActivityIndicator,
-  FlatList,
+  TouchableOpacity,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { getReceivedOfferings } from '../api/offerings';
 import type { OfferingSentDTO } from '../api/offerings';
+import { useStore } from '../store/useStore';
+
+// Bureau vu du dessus : fond plein écran sur lequel les offrandes sont posées.
+const DESK_BG = require('../../assets/images/offerings/desk-bg.jpg');
+
+// Illustrations dédiées pour les offrandes connues (mêmes assets que le
+// tableau personnel). Repli sur l'emoji du catalogue pour les autres.
+const OFFERING_IMAGES: Record<string, any> = {
+  biere: require('../../public/offerings/off_biere_stage1.png'),
+  bonbons: require('../../public/offerings/off_bonbons_stage1.png'),
+  fraises: require('../../public/offerings/off_fraises_stage1.png'),
+};
 
 export default function ReceivedOfferingsScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const matches = useStore((s) => s.matches);
+
   const [offerings, setOfferings] = useState<OfferingSentDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadOfferings();
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getReceivedOfferings(1, 50, true);
+        setOfferings(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
-  const loadOfferings = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getReceivedOfferings(1, 50, true);
-      setOfferings(data);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur de chargement';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const renderOfferingItem = ({ item }: { item: OfferingSentDTO }) => (
-    <View style={styles.offeringCard}>
-      <View style={styles.offeringHeader}>
-        <Text style={styles.emoji}>{item.offering.emoji}</Text>
-        <View style={styles.offeringInfo}>
-          <Text style={styles.offeringName}>{item.offering.name}</Text>
-          <Text style={styles.fromUser}>De {item.fromUserId}</Text>
-        </View>
-      </View>
-      <View style={styles.offeringDetails}>
-        <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
-        {item.isActive ? (
-          <View style={styles.activeBadge}>
-            <Text style={styles.activeBadgeText}>Actif</Text>
-          </View>
-        ) : (
-          <View style={styles.inactiveBadge}>
-            <Text style={styles.inactiveBadgeText}>Expiré</Text>
-          </View>
-        )}
-      </View>
-      {item.expiresAt && (
-        <Text style={styles.expiresAt}>
-          Expire le {formatDate(item.expiresAt)}
-        </Text>
-      )}
-    </View>
-  );
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#8B2E3C" />
-          <Text style={styles.loadingText}>Chargement des offrandes...</Text>
-        </View>
-      </SafeAreaView>
+  const senderName = (fromUserId: string) => {
+    const match = matches?.find(
+      (m) => m.userAId === fromUserId || m.userBId === fromUserId
     );
-  }
-
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <Text style={styles.errorText}>❌ Erreur</Text>
-          <Text style={styles.errorMessage}>{error}</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+    return match?.otherProfile?.pseudo || fromUserId;
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>🎁 Offrandes Reçues</Text>
+    <View style={styles.container}>
+      {/* Bureau épinglé au viewport (fixed web / absolute natif). */}
+      <View style={styles.deskBgLayer} pointerEvents="none">
+        <Image source={DESK_BG} style={styles.deskBgImage} resizeMode="cover" />
       </View>
 
-      {offerings.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyEmoji}>📭</Text>
-          <Text style={styles.emptyText}>Vous n'avez pas encore reçu d'offrandes</Text>
-          <Text style={styles.emptySubtext}>
-            Les offrandes reçues des autres joueurs apparaîtront ici
-          </Text>
+      <TouchableOpacity
+        style={[styles.backBtn, { top: insets.top + 12 }]}
+        onPress={() => router.back()}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Text style={styles.backText}>← Retour</Text>
+      </TouchableOpacity>
+
+      {loading ? (
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color="#F3E7C6" />
+        </View>
+      ) : error ? (
+        <View style={styles.centerContent}>
+          <Text style={styles.feedbackText}>{error}</Text>
+        </View>
+      ) : offerings.length === 0 ? (
+        <View style={styles.centerContent}>
+          <Text style={styles.feedbackText}>Le bureau est encore vide…</Text>
         </View>
       ) : (
-        <FlatList
-          data={offerings}
-          renderItem={renderOfferingItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          scrollEnabled={true}
-        />
+        <ScrollView
+          contentContainerStyle={[
+            styles.grid,
+            { paddingTop: insets.top + 70, paddingBottom: insets.bottom + 32 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          {offerings.map((item) => {
+            const image = OFFERING_IMAGES[item.offering.id];
+            return (
+              <View key={item.id} style={styles.offeringSlot}>
+                {image ? (
+                  <Image source={image} style={styles.offeringImage} resizeMode="contain" />
+                ) : (
+                  <Text style={styles.offeringEmoji}>{item.offering.emoji}</Text>
+                )}
+                <Text style={styles.offeringName} numberOfLines={1}>
+                  {item.offering.name}
+                </Text>
+                <Text style={styles.offeringSender} numberOfLines={1}>
+                  {senderName(item.fromUserId)}
+                </Text>
+              </View>
+            );
+          })}
+        </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F6F2',
+  },
+  deskBgLayer:
+    Platform.OS === 'web'
+      ? ({ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 } as any)
+      : { ...StyleSheet.absoluteFillObject, zIndex: 0 },
+  deskBgImage: {
+    width: '100%',
+    height: '100%',
+  },
+  backBtn: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  backText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#F3E7C6',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   centerContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 32,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5DDD3',
+  feedbackText: {
+    fontSize: 14,
+    color: '#F3E7C6',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#2B2B2B',
-  },
-  listContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  offeringCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  offeringHeader: {
+  grid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    gap: 20,
+  },
+  offeringSlot: {
+    width: 88,
     alignItems: 'center',
-    marginBottom: 8,
   },
-  emoji: {
-    fontSize: 32,
-    marginRight: 12,
+  offeringImage: {
+    width: 56,
+    height: 56,
+    marginBottom: 6,
   },
-  offeringInfo: {
-    flex: 1,
+  offeringEmoji: {
+    fontSize: 40,
+    marginBottom: 6,
   },
   offeringName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2B2B2B',
-    marginBottom: 2,
-  },
-  fromUser: {
     fontSize: 12,
-    color: '#6B6B6B',
-  },
-  offeringDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  date: {
-    fontSize: 11,
-    color: '#999',
-  },
-  activeBadge: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  activeBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  inactiveBadge: {
-    backgroundColor: '#CCC',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  inactiveBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#666',
-  },
-  expiresAt: {
-    fontSize: 10,
-    color: '#FF9800',
-    fontStyle: 'italic',
-    marginTop: 4,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: '#6B6B6B',
-    marginTop: 12,
-  },
-  errorText: {
-    fontSize: 18,
     fontWeight: '700',
-    color: '#D32F2F',
-    marginBottom: 8,
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#6B6B6B',
+    color: '#FFF7E6',
     textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2B2B2B',
-    marginBottom: 6,
+  offeringSender: {
+    fontSize: 10,
+    color: '#D9CBB0',
     textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 13,
-    color: '#6B6B6B',
-    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
 });
