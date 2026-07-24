@@ -180,10 +180,11 @@ export function PersonalBoard() {
   // de la barre de nav du bas (déjà exclue par le flex du Tabs navigator).
   const profileW = px(W, 0.27);
   const avatarSize = Math.round(profileW * 0.62);
-  // Bouteille + Offrandes partagent maintenant la même rangée (côte à côte) :
-  // Offrandes est réduite en largeur pour tenir à côté de la carte postale.
-  const bouteilleW = px(W, 0.34);
-  const bouteilleH = px(H, 0.15);
+  // Bouteille + Offrandes partagent la même rangée (côte à côte). La carte
+  // postale retrouve sa taille d'origine (~180×120 sur un board 390×665) ;
+  // seule Offrandes est réduite en largeur pour tenir à côté.
+  const bouteilleW = px(W, 0.46);
+  const bouteilleH = px(H, 0.18);
   const bottleImgH = Math.round(bouteilleH * 0.85);
   const bottleImgW = Math.round(bottleImgH * (96 / 116));
 
@@ -198,7 +199,7 @@ export function PersonalBoard() {
         onPress={() => router.push(`/profile/${currentUser?.id}`)}
         style={{
           position: 'absolute',
-          top: px(H, 0.0),
+          top: px(H, 0.03),
           left: px(W, 0.03),
           width: profileW,
           transform: [{ rotate: '-3deg' }],
@@ -218,7 +219,7 @@ export function PersonalBoard() {
         onPress={() => router.push('/refuge')}
         style={{
           position: 'absolute',
-          top: px(H, 0.01),
+          top: px(H, 0.03),
           right: px(W, 0.03),
           width: px(W, 0.38),
           transform: [{ rotate: '3deg' }],
@@ -252,7 +253,7 @@ export function PersonalBoard() {
         onPress={() => router.push('/(tabs)/letters')}
         style={{
           position: 'absolute',
-          top: px(H, 0.17),
+          top: px(H, 0.23),
           left: px(W, 0.03),
           width: px(W, 0.58),
           transform: [{ rotate: '-2deg' }],
@@ -284,7 +285,7 @@ export function PersonalBoard() {
         onPress={() => router.push('/(tabs)/profiles?filter=received-smiles')}
         style={{
           position: 'absolute',
-          top: px(H, 0.22),
+          top: px(H, 0.28),
           right: px(W, 0.05),
           width: px(W, 0.22),
           transform: [{ rotate: '-2deg' }],
@@ -307,7 +308,7 @@ export function PersonalBoard() {
         }}
         style={{
           position: 'absolute',
-          top: px(H, 0.4),
+          top: px(H, 0.44),
           left: px(W, 0.04),
           width: bouteilleW,
           height: bouteilleH,
@@ -337,10 +338,10 @@ export function PersonalBoard() {
         onPress={() => router.push('/offerings')}
         style={{
           position: 'absolute',
-          top: px(H, 0.4),
+          top: px(H, 0.5),
           right: px(W, 0.04),
           width: px(W, 0.4),
-          transform: [{ rotate: '1deg' }],
+          transform: [{ rotate: '-2deg' }],
         }}
       >
         <Text style={styles.giftsTitle}>Offrandes Reçues</Text>
@@ -383,7 +384,7 @@ export function PersonalBoard() {
         onPress={() => router.push(currentSalonId ? `/salon/${currentSalonId}` : '/(tabs)/salons-list')}
         style={{
           position: 'absolute',
-          top: px(H, 0.72),
+          top: px(H, 0.78),
           left: px(W, 0.04),
           width: px(W, 0.36),
           transform: [{ rotate: '-3deg' }],
@@ -400,7 +401,7 @@ export function PersonalBoard() {
       <Paper
         style={{
           position: 'absolute',
-          top: px(H, 0.72),
+          top: px(H, 0.78),
           right: px(W, 0.04),
           width: px(W, 0.33),
           transform: [{ rotate: '2deg' }],
