@@ -62,7 +62,7 @@ export default function ReceivedOfferingsScreen() {
     <View style={styles.container}>
       {/* Bureau épinglé au viewport (fixed web / absolute natif). */}
       <View style={styles.deskBgLayer} pointerEvents="none">
-        <Image source={DESK_BG} style={styles.deskBgImage} resizeMode="cover" />
+        <Image source={DESK_BG} style={styles.deskBgImage} resizeMode="contain" />
       </View>
 
       <TouchableOpacity
@@ -120,6 +120,10 @@ export default function ReceivedOfferingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    // Assorti aux coins sombres de la photo du bureau, pour que la marge
+    // (au-dessus/en dessous si la photo ne remplit pas toute la hauteur)
+    // se fonde avec l'image plutôt que de trancher dessus.
+    backgroundColor: '#141210',
   },
   deskBgLayer:
     Platform.OS === 'web'
