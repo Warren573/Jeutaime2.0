@@ -27,7 +27,7 @@ const SECTIONS = [
     name: "Salons",
     desc: "Rejoins des salons de discussion",
     feature: "salons",
-    colors: ["#4FA3A5", "#2E7370"], // teal — discussion
+    colors: ["#A9D2CB", "#6FA8A0"], // lavis turquoise doux — discussion
   },
   {
     id: "adoption",
@@ -35,7 +35,7 @@ const SECTIONS = [
     name: "Adoption",
     desc: "Prends soin de ton animal",
     feature: "refuge",
-    colors: ["#8FB56A", "#5C8A3F"], // vert nature
+    colors: ["#C4D69B", "#94B86A"], // lavis vert sauge
   },
   {
     id: "cards",
@@ -43,7 +43,7 @@ const SECTIONS = [
     name: "Jeu de Cartes",
     desc: "Révèle et gagne des pièces",
     feature: "games",
-    colors: ["#C0596B", "#8B2E3C"], // bordeaux — carte
+    colors: ["#E4B9A6", "#CE8E76"], // lavis terracotta rosé — carte
   },
   {
     id: "story",
@@ -51,7 +51,7 @@ const SECTIONS = [
     name: "Continue l'Histoire",
     desc: "Écris une histoire à plusieurs",
     feature: "games",
-    colors: ["#7C79C9", "#4B4890"], // indigo — encre/récit
+    colors: ["#C6BFDD", "#9C93C2"], // lavis lavande — encre/récit
   },
   {
     id: "bottle",
@@ -59,7 +59,7 @@ const SECTIONS = [
     name: "Bouteille à la Mer",
     desc: "Envoie un message à l'inconnu",
     feature: "social",
-    colors: ["#5AA9C9", "#2E6E93"], // bleu océan
+    colors: ["#AFD0E0", "#7BAAC6"], // lavis bleu océan doux
   },
 ] as const;
 
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(255,255,255,0.45)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 16,
@@ -313,14 +313,11 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#3A2818",
     marginBottom: 4,
-    textShadowColor: "rgba(0,0,0,0.25)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
-  cardDesc: { fontSize: 13, color: "rgba(255,255,255,0.92)" },
-  arrow: { fontSize: 16, color: "rgba(255,255,255,0.9)" },
+  cardDesc: { fontSize: 13, color: "#5E4B34" },
+  arrow: { fontSize: 16, color: "#5A4632" },
   topBack: { margin: 16 },
   topBackText: { fontSize: 16, color: "#8B6F47" },
   gameContent: { flexGrow: 1 },
