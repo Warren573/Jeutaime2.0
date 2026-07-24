@@ -5,9 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  ImageBackground,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,12 +23,21 @@ import { getAnimalImage } from '../data/refugeAnimalImages';
 import { ANIMAL_LABELS } from '../data/refugeAnimals';
 import { apiFetch } from '../api/client';
 
+// Fond bois du tableau personnel + palette "papier vieilli" pour les notes.
+const WOOD_BG = require('../../assets/images/home/board-wood-bg.jpg');
+
 const J = {
   bgBoard: '#D9CFC2',
-  textMain: '#2B2B2B',
-  textSecondary: '#6B6B6B',
+  textMain: '#3A2B1A',
+  textSecondary: '#7A6448',
   accentPrimary: '#8B2E3C',
+  paper: '#F1E7D2',
+  paperBorder: '#C3A876',
+  pin: '#9C7A2E',
 };
+
+// Police chaleureuse pour les titres des notes (esprit papier vieilli).
+const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 
 // La route /salon/[id] attend un SLUG (ex. "psy"), pas l'ID technique du
 // salon (currentSalonId, utilisé lui pour l'appel getSalon côté backend).
@@ -204,10 +214,9 @@ export function PersonalBoard() {
   const bottleImgW = Math.round(bottleImgH * (96 / 116));
 
   return (
-    <LinearGradient
-      colors={['#EFE3CB', '#DDCCAE', '#C6AD8A']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+    <ImageBackground
+      source={WOOD_BG}
+      resizeMode="cover"
       style={[styles.board, { flex: 1, paddingTop: topPad }]}
       pointerEvents="box-none"
     >
@@ -472,7 +481,7 @@ export function PersonalBoard() {
         <Text style={styles.statValue}>{points ?? 0} pts</Text>
         <Text style={styles.statValue}>{matches?.length ?? 0} matchs</Text>
       </Paper>
-    </LinearGradient>
+    </ImageBackground>
   );
 }
 
@@ -490,28 +499,33 @@ const styles = StyleSheet.create({
   },
 
   paper: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: J.paper,
     borderRadius: 3,
+    borderWidth: 1,
+    borderColor: J.paperBorder,
     padding: 12,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
   },
 
+  // Punaise dorée façon "push pin", au lieu du magnet gris.
   magnet: {
     position: 'absolute',
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#5A5A5A',
+    backgroundColor: J.pin,
+    borderWidth: 1,
+    borderColor: '#6B5220',
     top: -7,
     left: '50%',
     marginLeft: -7,
     shadowColor: '#000',
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 2,
     shadowOffset: { width: 0, height: 1 },
     zIndex: 10,
@@ -520,6 +534,7 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 10,
     fontWeight: '700',
+    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 2,
     textAlign: 'center',
@@ -528,6 +543,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700',
+    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 8,
     letterSpacing: 0.5,
@@ -574,6 +590,7 @@ const styles = StyleSheet.create({
   animalTitle: {
     fontSize: 10,
     fontWeight: '700',
+    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 6,
     textAlign: 'center',
@@ -581,6 +598,8 @@ const styles = StyleSheet.create({
 
   animalIcon: {
     fontSize: 32,
+    fontFamily: SERIF,
+    fontStyle: 'italic',
     marginBottom: 4,
     textAlign: 'center',
   },
@@ -609,6 +628,7 @@ const styles = StyleSheet.create({
   smilesTitle: {
     fontSize: 9,
     fontWeight: '700',
+    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 8,
     textAlign: 'center',
@@ -624,6 +644,7 @@ const styles = StyleSheet.create({
   salonTitle: {
     fontSize: 10,
     fontWeight: '700',
+    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 6,
     textAlign: 'center',
@@ -637,6 +658,7 @@ const styles = StyleSheet.create({
   statsTitle: {
     fontSize: 9,
     fontWeight: '700',
+    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 8,
     textAlign: 'center',
@@ -652,6 +674,7 @@ const styles = StyleSheet.create({
   giftsTitle: {
     fontSize: 11,
     fontWeight: '700',
+    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 12,
     textAlign: 'center',
