@@ -72,9 +72,9 @@ export default function SocialScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  // EXACTEMENT comme la liste des salons : cadre 3:1 (largeur carte ÷ 3) + cover
-  // → la bannière s'affiche EN ENTIER, sans rognage. Largeur carte = écran − 32.
-  const bannerHeight = (screenWidth - 32) / 3;
+  // Hauteur réelle de la zone de liste (mesurée) → on dimensionne les cartes
+  // pour que TOUTES tiennent sur une seule page, sans scroll.
+  const [listHeight, setListHeight] = useState(0);
   const { addPoints, incrementStat, currentUser } = useStore();
   const loadWallet = useStore((s) => s.loadWallet);
   const screenBg = useStore((s) => s.screenBackgrounds?.["social"] ?? "#FFF8E7");
@@ -230,6 +230,20 @@ export default function SocialScreen() {
     );
   }
 
+  // Dimensionnement pour que TOUTES les cartes tiennent sur une page.
+  // On garde le ratio 3:1 des bannières (image entière) : hauteur = largeur/3,
+  // plafonnée par la place réellement disponible ÷ nombre de cartes.
+  const GRID_PAD = 16;
+  const CARD_GAP = 12;
+  const count = visibleSections.length || 1;
+  const maxBanner = (screenWidth - 32) / 3;
+  const avail = listHeight - GRID_PAD * 2 - CARD_GAP * (count - 1);
+  const bannerHeight =
+    listHeight > 0
+      ? Math.max(64, Math.min(maxBanner, Math.floor(avail / count)))
+      : maxBanner;
+  const cardWidth = Math.min(screenWidth - 32, Math.round(bannerHeight * 3));
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -237,7 +251,12 @@ export default function SocialScreen() {
         <Text style={styles.subtitle}>Rencontres & activités</Text>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.grid}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.grid}
+        onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
+        showsVerticalScrollIndicator={false}
+      >
         {visibleSections.map((s) => {
           const banner = getSocialCardImage(s.id);
           const inner = (
@@ -259,7 +278,7 @@ export default function SocialScreen() {
           return (
             <TouchableOpacity
               key={s.id}
-              style={styles.cardTouch}
+              style={[styles.cardTouch, { width: cardWidth }]}
               activeOpacity={0.85}
               onPress={() => handlePress(s.id)}
             >
@@ -279,7 +298,7 @@ export default function SocialScreen() {
                   colors={s.colors as unknown as string[]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.card}
+                  style={[styles.card, { height: bannerHeight }]}
                 >
                   {inner}
                 </LinearGradient>
@@ -315,7 +334,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: "700", color: "#3A2818" },
   subtitle: { fontSize: 14, color: "#8B6F47", marginTop: 4 },
   scroll: { flex: 1 },
-  grid: { padding: 16, gap: 12 },
+  grid: { padding: 16, gap: 12, alignItems: "center" },
   cardTouch: {
     borderRadius: 18,
     overflow: "hidden",
@@ -329,8 +348,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 18,
-    padding: 18,
-    minHeight: 96,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     overflow: "hidden",
   },
   // Bannière illustrée : cadre exactement 3:1 (hauteur fournie inline = largeur/3).
@@ -343,15 +362,15 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(20,14,8,0.30)",
   },
   emojiCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "rgba(255,255,255,0.45)",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 16,
+    marginRight: 14,
   },
-  cardEmoji: { fontSize: 32 },
+  cardEmoji: { fontSize: 26 },
   cardText: { flex: 1 },
   cardName: {
     fontSize: 18,
