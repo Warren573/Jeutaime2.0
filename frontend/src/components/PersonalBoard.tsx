@@ -291,45 +291,61 @@ export function PersonalBoard() {
         </Text>
       </Paper>
 
-      {/* Bouteille (gauche) — carte postale réduite, à côté des Offrandes */}
-      <Paper
-        onPress={() => {
-          if (hasBottle) {
-            router.push('/bottles-discussions');
-          } else {
-            router.push('/bottles-inbox');
-          }
-        }}
+      {/* Bouteille (gauche) — carte postale réduite, à côté des Offrandes.
+          Structure dédiée (pas le composant Paper partagé) : la rotation et
+          le clip (overflow+radius) sont sur LE MÊME élément, ce qui évite le
+          liseré de rendu web qui apparaît quand rotation et clip sont sur
+          deux éléments parent/enfant différents. Le pin reste en dehors de
+          la zone clippée (un cercle n'est de toute façon pas affecté par une
+          rotation de 2°, inutile de le faire tourner avec la carte). */}
+      <View
         style={{
           position: 'absolute',
           top: px(H, 0.48),
           left: px(W, 0.04),
           width: bouteilleW,
           height: bouteilleH,
-          padding: 0,
-          transform: [{ rotate: '2deg' }],
         }}
       >
-        {/* Le cadre déborde de 2px sur chaque bord (au lieu de 0) : sur le web,
-            un élément avec overflow:hidden + borderRadius + rotate laisse
-            parfois un liseré d'un pixel visible sur un bord (bug de rendu
-            WebKit/Chromium) — le léger débord couvre ce liseré. */}
-        <View style={{ position: 'absolute', top: -2, left: -2, right: -2, bottom: -2, overflow: 'hidden', borderRadius: 5, backfaceVisibility: 'hidden' }}>
+        <View style={styles.magnet} pointerEvents="none" />
+        <TouchableOpacity
+          onPress={() => {
+            if (hasBottle) {
+              router.push('/bottles-discussions');
+            } else {
+              router.push('/bottles-inbox');
+            }
+          }}
+          activeOpacity={0.7}
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: 3,
+            overflow: 'hidden',
+            backgroundColor: '#FFFFFF',
+            transform: [{ rotate: '2deg' }],
+            shadowColor: '#000',
+            shadowOpacity: 0.15,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 3,
+          }}
+        >
           <Image
             source={require('../../assets/images/bottle/beach.png')}
             style={StyleSheet.absoluteFillObject}
             resizeMode="cover"
           />
-        </View>
-        {hasBottle && (
-          <View style={styles.bottleWrapper} pointerEvents="none">
-            <Image
-              source={require('../../assets/images/bottle-message.png')}
-              style={{ width: bottleImgW, height: bottleImgH, resizeMode: 'contain' }}
-            />
-          </View>
-        )}
-      </Paper>
+          {hasBottle && (
+            <View style={styles.bottleWrapper} pointerEvents="none">
+              <Image
+                source={require('../../assets/images/bottle-message.png')}
+                style={{ width: bottleImgW, height: bottleImgH, resizeMode: 'contain' }}
+              />
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
 
       {/* Offrandes Reçues (droite, à côté de la Bouteille) — objets uniquement,
           largeur réduite pour tenir sur la même rangée que la carte postale. */}
