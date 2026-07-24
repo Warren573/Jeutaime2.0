@@ -10,6 +10,8 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Image,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -27,6 +29,9 @@ import {
   InboxBottleDTO,
   BottleMessageDTO,
 } from '../api/bottles';
+
+// Fond aquarelle plein écran (partagé avec l'écran de création).
+const SEA_BG = require('../../assets/images/bottle/sea-bg.jpg');
 
 const COLORS = {
   bg: '#F5F1E8',
@@ -54,6 +59,7 @@ export default function BottleDiscussionScreen() {
   const [isSending, setIsSending] = useState(false);
   const [hasRevealRequest, setHasRevealRequest] = useState(false);
   const [isRevealRequester, setIsRevealRequester] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -267,11 +273,26 @@ export default function BottleDiscussionScreen() {
 
   const charRemaining = 500 - messageText.length;
 
+  const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+  const lastMsgMine = lastMsg ? lastMsg.senderId === currentUser?.id : false;
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: COLORS.bg }]}
-    >
+    <>
+      {/* Fond aquarelle épinglé au viewport (fixed web / absolute natif). */}
+      <View style={styles.seaBgLayer} pointerEvents="none">
+        <Image source={SEA_BG} style={styles.seaBgImage} resizeMode="cover" />
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: 'rgba(245,241,232,0.55)' },
+          ]}
+        />
+      </View>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
+      >
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -292,52 +313,60 @@ export default function BottleDiscussionScreen() {
         <Text style={styles.bottleMessageText}>"{bottle.message}"</Text>
       </View>
 
-      {/* Messages */}
-      <ScrollView
-        style={styles.messageScroll}
-        contentContainerStyle={styles.messageContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {messages.length === 0 ? (
-          <View style={styles.noMessages}>
-            <Text style={styles.noMessagesText}>Aucun message encore</Text>
-            <Text style={styles.noMessagesSubtext}>Sois le premier à écrire!</Text>
+      {/* Dernier message, présenté comme un parchemin sorti de la bouteille.
+          Le coin replié (haut-droit) ouvre l'historique complet. */}
+      <View style={styles.lastMessageArea}>
+        {lastMsg === null ? (
+          <View style={styles.parchmentCard}>
+            <Text style={styles.parchmentEmpty}>
+              Aucun mot encore.{'\n'}Glisse le premier dans la bouteille…
+            </Text>
           </View>
         ) : (
-          messages.map((msg, idx) => {
-            const isMyMessage = msg.senderId === currentUser?.id;
-            return (
-              <View
-                key={msg.id || idx}
-                style={[
-                  styles.messageBubble,
-                  isMyMessage ? styles.myMessageBubble : styles.otherMessageBubble,
-                ]}
+          <View style={styles.parchmentCard}>
+            {/* Coin replié → historique */}
+            <TouchableOpacity
+              style={styles.foldedCorner}
+              onPress={() => setShowHistory(true)}
+              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Voir l'historique des messages"
+            >
+              <View style={styles.foldedCornerTriangle} />
+              <Text style={styles.foldedCornerIcon}>📜</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.lastMsgSender}>
+              {lastMsgMine ? 'Toi' : 'Message reçu'}
+            </Text>
+            <Text style={styles.parchmentText}>{lastMsg.content}</Text>
+            <Text style={styles.lastMsgTime}>
+              {new Date(lastMsg.createdAt).toLocaleTimeString('fr-FR', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+
+            {messages.length > 1 && (
+              <TouchableOpacity
+                style={styles.historyHintBtn}
+                onPress={() => setShowHistory(true)}
               >
-                <Text style={styles.messageText}>{msg.content}</Text>
-                <Text
-                  style={[
-                    styles.messageTime,
-                    isMyMessage ? styles.myMessageTime : styles.otherMessageTime,
-                  ]}
-                >
-                  {new Date(msg.createdAt).toLocaleTimeString('fr-FR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                <Text style={styles.historyHintText}>
+                  📜 Voir l'historique ({messages.length})
                 </Text>
-              </View>
-            );
-          })
+              </TouchableOpacity>
+            )}
+          </View>
         )}
-      </ScrollView>
+      </View>
 
       {/* Input */}
       <View style={[styles.inputSection, { paddingBottom: insets.bottom + 12 }]}>
         <TextInput
           style={styles.messageInput}
-          placeholder="Écris un message (max 500)..."
-          placeholderTextColor={COLORS.textSecondary}
+          placeholder="Écris un mot à glisser dans la bouteille…"
+          placeholderTextColor="#9C8560"
           value={messageText}
           onChangeText={setMessageText}
           multiline
@@ -408,19 +437,89 @@ export default function BottleDiscussionScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+
+      {/* Historique complet des messages */}
+      <Modal
+        visible={showHistory}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowHistory(false)}
+      >
+        <View style={styles.historyBackdrop}>
+          <View style={[styles.historySheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.historyTitle}>📜 Historique</Text>
+              <TouchableOpacity onPress={() => setShowHistory(false)}>
+                <Text style={styles.historyClose}>Fermer</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.historyList}
+              contentContainerStyle={styles.messageContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {messages.map((msg, idx) => {
+                const isMyMessage = msg.senderId === currentUser?.id;
+                return (
+                  <View
+                    key={msg.id || idx}
+                    style={[
+                      styles.messageBubble,
+                      isMyMessage ? styles.myMessageBubble : styles.otherMessageBubble,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.messageText,
+                        isMyMessage && { color: COLORS.card },
+                      ]}
+                    >
+                      {msg.content}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.messageTime,
+                        isMyMessage ? styles.myMessageTime : styles.otherMessageTime,
+                      ]}
+                    >
+                      {new Date(msg.createdAt).toLocaleTimeString('fr-FR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  // Fond aquarelle épinglé au viewport (fixed sur le web, absolute en natif).
+  seaBgLayer:
+    Platform.OS === 'web'
+      ? ({ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 } as any)
+      : { ...StyleSheet.absoluteFillObject, zIndex: 0 },
+  seaBgImage: {
+    width: '100%',
+    height: '100%',
+  },
   container: {
     flex: 1,
+    backgroundColor: 'transparent',
+    position: 'relative',
+    zIndex: 1,
   },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: 'rgba(200,162,90,0.35)',
   },
   headerBack: {
     fontSize: 14,
@@ -433,7 +532,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: 'rgba(200,162,90,0.35)',
   },
   bottleGender: {
     fontSize: 16,
@@ -445,22 +544,118 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
   bottleMessage: {
-    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: COLORS.card,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(200,162,90,0.35)',
   },
   bottleMessageLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: '#8A6E3C',
     marginBottom: 6,
   },
   bottleMessageText: {
     fontSize: 13,
-    color: COLORS.text,
+    color: '#4A3A28',
     fontStyle: 'italic',
+  },
+  // --- Zone du dernier message (parchemin) ---
+  lastMessageArea: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    justifyContent: 'center',
+  },
+  parchmentCard: {
+    backgroundColor: '#F3E7C6',
+    borderWidth: 2,
+    borderColor: '#C8A25A',
+    borderRadius: 14,
+    paddingVertical: 22,
+    paddingHorizontal: 22,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  parchmentEmpty: {
+    fontSize: 15,
+    color: '#9C8560',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+  },
+  parchmentText: {
+    fontSize: 17,
+    color: '#4A3A28',
+    lineHeight: 26,
+    fontStyle: 'italic',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+  },
+  lastMsgSender: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#8A6E3C',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  lastMsgTime: {
+    fontSize: 11,
+    color: '#9C8560',
+    marginTop: 12,
+    textAlign: 'right',
+  },
+  // Coin replié en haut à droite → ouvre l'historique.
+  foldedCorner: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 46,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  foldedCornerTriangle: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 0,
+    height: 0,
+    borderTopWidth: 46,
+    borderTopColor: '#E4D2A0',
+    borderLeftWidth: 46,
+    borderLeftColor: 'transparent',
+  },
+  foldedCornerIcon: {
+    fontSize: 15,
+    marginTop: -14,
+    marginRight: -14,
+  },
+  historyHintBtn: {
+    marginTop: 16,
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(200,162,90,0.25)',
+    borderWidth: 1,
+    borderColor: '#C8A25A',
+  },
+  historyHintText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#7A5E2E',
   },
   messageScroll: {
     flex: 1,
@@ -520,20 +715,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    borderTopColor: 'rgba(200,162,90,0.35)',
+    backgroundColor: 'rgba(245,241,232,0.82)',
   },
   messageInput: {
-    minHeight: 60,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: COLORS.bg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    fontSize: 14,
-    color: COLORS.text,
+    minHeight: 90,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: '#F3E7C6',
+    borderWidth: 2,
+    borderColor: '#C8A25A',
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#4A3A28',
+    fontStyle: 'italic',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     marginBottom: 6,
+    textAlignVertical: 'top',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
   charCount: {
     fontSize: 11,
@@ -613,5 +817,40 @@ const styles = StyleSheet.create({
   },
   breakBtn: {
     backgroundColor: '#FF6B6B',
+  },
+  // --- Historique (modal bas de page) ---
+  historyBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  historySheet: {
+    maxHeight: '78%',
+    backgroundColor: '#F5F1E8',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 8,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(200,162,90,0.35)',
+  },
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4A3A28',
+  },
+  historyClose: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.accent,
+  },
+  historyList: {
+    flexGrow: 0,
   },
 });
