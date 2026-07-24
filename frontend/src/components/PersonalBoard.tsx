@@ -7,6 +7,7 @@ import {
   Image,
   useWindowDimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -203,8 +204,11 @@ export function PersonalBoard() {
   const bottleImgW = Math.round(bottleImgH * (96 / 116));
 
   return (
-    <View
-      style={[styles.container, styles.board, { paddingTop: topPad }]}
+    <LinearGradient
+      colors={['#EFE3CB', '#DDCCAE', '#C6AD8A']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[styles.board, { flex: 1, paddingTop: topPad }]}
       pointerEvents="box-none"
     >
       {/* Profile (haut gauche) */}
@@ -468,7 +472,7 @@ export function PersonalBoard() {
         <Text style={styles.statValue}>{points ?? 0} pts</Text>
         <Text style={styles.statValue}>{matches?.length ?? 0} matchs</Text>
       </Paper>
-    </View>
+    </LinearGradient>
   );
 }
 
