@@ -11,7 +11,6 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-  ImageBackground,
   Modal,
   useWindowDimensions,
 } from 'react-native';
@@ -32,10 +31,9 @@ import {
   BottleMessageDTO,
 } from '../api/bottles';
 
-// Fond aquarelle plein écran (partagé avec l'écran de création).
-const SEA_BG = require('../../assets/images/bottle/sea-bg.jpg');
-// Vrai parchemin déroulé (fond transparent) pour présenter le dernier message.
-const PARCHMENT_SCROLL = require('../../assets/images/bottle/parchment-scroll.png');
+// Papier à lettres « Bouteille à la mer » : sert à la fois de fond plein écran
+// ET de surface d'écriture (on écrit sur les lignes réglées au centre).
+const LETTER_BG = require('../../assets/images/bottle/letter-bg.jpg');
 
 const COLORS = {
   bg: '#F5F1E8',
@@ -52,7 +50,7 @@ const COLORS = {
 export default function BottleDiscussionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width: winWidth } = useWindowDimensions();
+  const { width: winWidth, height: winHeight } = useWindowDimensions();
   const params = useLocalSearchParams();
   const bottleId = params.bottleId as string;
   const { currentUser } = useStore();
@@ -282,22 +280,15 @@ export default function BottleDiscussionScreen() {
   const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
   const lastMsgMine = lastMsg ? lastMsg.senderId === currentUser?.id : false;
 
-  // Dimensions du parchemin (mêmes proportions que l'asset 760×1140 → ratio 1.5)
-  // pour placer le texte pile dans la zone d'écriture entre les deux rouleaux.
-  const scrollW = Math.min(winWidth - 40, 380);
-  const scrollH = scrollW * 1.5;
+  // Le papier remplit l'écran (cover) : ses lignes réglées occupent la bande
+  // verticale ~34–67 %. On pousse la zone de saisie pour tomber sur la 1re ligne.
+  const linesTop = Math.max(12, winHeight * 0.30 - insets.top - 52);
 
   return (
     <>
-      {/* Fond aquarelle épinglé au viewport (fixed web / absolute natif). */}
-      <View style={styles.seaBgLayer} pointerEvents="none">
-        <Image source={SEA_BG} style={styles.seaBgImage} resizeMode="cover" />
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: 'rgba(245,241,232,0.55)' },
-          ]}
-        />
+      {/* Papier à lettres épinglé au viewport : fond + surface d'écriture. */}
+      <View style={styles.letterBgLayer} pointerEvents="none">
+        <Image source={LETTER_BG} style={styles.letterBgImage} resizeMode="cover" />
       </View>
 
       <KeyboardAvoidingView
@@ -341,52 +332,26 @@ export default function BottleDiscussionScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Parchemin : dernier message + zone d'écriture, le tout SUR le parchemin. */}
-      <ScrollView
-        style={styles.lastMessageArea}
-        contentContainerStyle={styles.lastMessageContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <ImageBackground
-          source={PARCHMENT_SCROLL}
-          resizeMode="stretch"
-          style={{ width: scrollW, height: scrollH }}
-        >
-          <View
-            style={[
-              styles.scrollWritingArea,
-              {
-                paddingTop: scrollH * 0.23,
-                paddingBottom: scrollH * 0.19,
-                paddingHorizontal: scrollW * 0.15,
-              },
-            ]}
-          >
-            {/* Dernier message : une ligne d'encre pâlie, comme une note déjà écrite */}
-            {lastMsg && (
-              <Text style={styles.lastMsgQuote} numberOfLines={2}>
-                « {lastMsg.content} »
-              </Text>
-            )}
-
-            {/* Zone d'écriture : on écrit directement sur le parchemin, à l'encre */}
-            <TextInput
-              style={styles.messageInput}
-              placeholder={
-                lastMsg
-                  ? 'Écris ta réponse ici…'
-                  : 'Écris un mot à glisser\ndans la bouteille…'
-              }
-              placeholderTextColor="rgba(90,70,32,0.5)"
-              value={messageText}
-              onChangeText={setMessageText}
-              multiline
-              maxLength={500}
-            />
-          </View>
-        </ImageBackground>
-      </ScrollView>
+      {/* Zone d'écriture : posée sur les lignes réglées du papier, à l'encre. */}
+      <View style={[styles.writingArea, { paddingTop: linesTop, paddingHorizontal: winWidth * 0.11 }]}>
+        {/* Dernier message : encre pâlie, comme une note déjà tracée */}
+        {lastMsg && (
+          <Text style={styles.lastMsgQuote} numberOfLines={2}>
+            « {lastMsg.content} »
+          </Text>
+        )}
+        <TextInput
+          style={styles.messageInput}
+          placeholder={
+            lastMsg ? 'Écris ta réponse ici…' : 'Écris ton mot ici…'
+          }
+          placeholderTextColor="rgba(90,70,32,0.5)"
+          value={messageText}
+          onChangeText={setMessageText}
+          multiline
+          maxLength={500}
+        />
+      </View>
 
       {/* Barre d'envoi discrète sous le parchemin */}
       <View style={[styles.inputSection, { paddingBottom: insets.bottom + 10 }]}>
@@ -531,12 +496,12 @@ export default function BottleDiscussionScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Fond aquarelle épinglé au viewport (fixed sur le web, absolute en natif).
-  seaBgLayer:
+  // Papier à lettres épinglé au viewport (fixed sur le web, absolute en natif).
+  letterBgLayer:
     Platform.OS === 'web'
       ? ({ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 } as any)
       : { ...StyleSheet.absoluteFillObject, zIndex: 0 },
-  seaBgImage: {
+  letterBgImage: {
     width: '100%',
     height: '100%',
   },
@@ -619,28 +584,18 @@ const styles = StyleSheet.create({
     color: '#4A3A28',
     fontStyle: 'italic',
   },
-  // --- Zone du dernier message (vrai parchemin déroulé) ---
-  lastMessageArea: {
+  // --- Zone d'écriture posée sur les lignes réglées du papier ---
+  writingArea: {
     flex: 1,
-  },
-  lastMessageContent: {
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  // Zone d'écriture calée entre les deux rouleaux du parchemin.
-  scrollWritingArea: {
-    flex: 1,
-    justifyContent: 'center',
   },
   // Dernier message, encre pâlie, comme une note déjà tracée sur le papier.
   lastMsgQuote: {
     fontSize: 15,
-    lineHeight: 22,
+    lineHeight: 30,
     color: 'rgba(74,58,40,0.6)',
     fontStyle: 'italic',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    marginBottom: 14,
+    marginBottom: 2,
   },
   parchmentEmpty: {
     fontSize: 15,
@@ -734,14 +689,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  // Champ de saisie posé DIRECTEMENT sur le parchemin (pas de cadre),
-  // encre bien lisible (foncée, un peu plus grande).
+  // Champ de saisie posé sur les lignes réglées (pas de cadre), encre lisible.
+  // lineHeight ≈ écart entre deux lignes du papier pour "écrire dessus".
   messageInput: {
     flex: 1,
-    minHeight: 90,
-    paddingVertical: 4,
-    fontSize: 19,
-    lineHeight: 28,
+    paddingVertical: 0,
+    fontSize: 18,
+    lineHeight: 30,
     color: '#2A1C0C',
     fontWeight: '500',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
