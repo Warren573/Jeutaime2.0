@@ -304,11 +304,27 @@ export default function BottleDiscussionScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-      {/* Header : titre discret à gauche, menu « … » à droite */}
+      {/* Header : retour + historique (📜) à gauche, titre au centre, menu « … » à droite */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.headerBack}>←</Text>
-        </TouchableOpacity>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={styles.headerBack}>←</Text>
+          </TouchableOpacity>
+          {messages.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setShowHistory(true)}
+              style={styles.historyEmojiBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="Voir l'historique des messages"
+            >
+              <Text style={styles.historyEmoji}>📜</Text>
+              {messages.length > 1 && (
+                <Text style={styles.historyEmojiCount}>{messages.length}</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
         <View style={styles.headerTitle}>
           <Text style={styles.bottleGender} numberOfLines={1}>
             {bottle.targetGender}
@@ -341,49 +357,28 @@ export default function BottleDiscussionScreen() {
             style={[
               styles.scrollWritingArea,
               {
-                paddingTop: scrollH * 0.24,
-                paddingBottom: scrollH * 0.2,
-                paddingHorizontal: scrollW * 0.16,
+                paddingTop: scrollH * 0.23,
+                paddingBottom: scrollH * 0.19,
+                paddingHorizontal: scrollW * 0.15,
               },
             ]}
           >
-            {/* Dernier message reçu/envoyé, compact et cliquable → historique */}
+            {/* Dernier message : une ligne d'encre pâlie, comme une note déjà écrite */}
             {lastMsg && (
-              <TouchableOpacity
-                style={styles.lastMsgStrip}
-                onPress={() => messages.length > 1 && setShowHistory(true)}
-                activeOpacity={messages.length > 1 ? 0.6 : 1}
-              >
-                <Text style={styles.lastMsgSender}>
-                  {lastMsgMine ? 'Toi' : 'Reçu'}
-                  <Text style={styles.lastMsgTime}>
-                    {'  ·  '}
-                    {new Date(lastMsg.createdAt).toLocaleTimeString('fr-FR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                </Text>
-                <Text style={styles.parchmentText} numberOfLines={3}>
-                  {lastMsg.content}
-                </Text>
-                {messages.length > 1 && (
-                  <Text style={styles.historyHintText}>
-                    📜 Voir l'historique ({messages.length})
-                  </Text>
-                )}
-              </TouchableOpacity>
+              <Text style={styles.lastMsgQuote} numberOfLines={2}>
+                « {lastMsg.content} »
+              </Text>
             )}
 
-            {/* Zone d'écriture : on écrit directement sur le parchemin */}
+            {/* Zone d'écriture : on écrit directement sur le parchemin, à l'encre */}
             <TextInput
-              style={[styles.messageInput, lastMsg && styles.messageInputWithHistory]}
+              style={styles.messageInput}
               placeholder={
                 lastMsg
-                  ? 'Écris ta réponse…'
+                  ? 'Écris ta réponse ici…'
                   : 'Écris un mot à glisser\ndans la bouteille…'
               }
-              placeholderTextColor="#9C8560"
+              placeholderTextColor="rgba(90,70,32,0.5)"
               value={messageText}
               onChangeText={setMessageText}
               multiline
@@ -558,10 +553,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 10,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   headerBack: {
     fontSize: 24,
     color: COLORS.accent,
     fontWeight: '600',
+  },
+  historyEmojiBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  historyEmoji: {
+    fontSize: 22,
+  },
+  historyEmojiCount: {
+    marginLeft: 2,
+    marginTop: -8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7A5E2E',
   },
   headerTitle: {
     flex: 1,
@@ -619,11 +633,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
-  lastMsgStrip: {
-    marginBottom: 10,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(122,94,46,0.3)',
+  // Dernier message, encre pâlie, comme une note déjà tracée sur le papier.
+  lastMsgQuote: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: 'rgba(74,58,40,0.6)',
+    fontStyle: 'italic',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    marginBottom: 14,
   },
   parchmentEmpty: {
     fontSize: 15,
@@ -717,21 +734,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
   },
-  // Champ de saisie posé DIRECTEMENT sur le parchemin (pas de cadre).
+  // Champ de saisie posé DIRECTEMENT sur le parchemin (pas de cadre),
+  // encre bien lisible (foncée, un peu plus grande).
   messageInput: {
     flex: 1,
-    minHeight: 80,
+    minHeight: 90,
     paddingVertical: 4,
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#3A2C18',
-    fontStyle: 'italic',
+    fontSize: 19,
+    lineHeight: 28,
+    color: '#2A1C0C',
+    fontWeight: '500',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     textAlignVertical: 'top',
     ...(Platform.OS === 'web' ? { outlineWidth: 0 } as any : null),
-  },
-  messageInputWithHistory: {
-    minHeight: 56,
   },
   charCount: {
     fontSize: 11,
