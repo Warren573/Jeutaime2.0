@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
+  ImageBackground,
   Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { getSocialCardImage } from "../data/socialCardImages";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
@@ -231,30 +233,56 @@ export default function SocialScreen() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.grid}>
-        {visibleSections.map((s) => (
-          <TouchableOpacity
-            key={s.id}
-            style={styles.cardTouch}
-            activeOpacity={0.85}
-            onPress={() => handlePress(s.id)}
-          >
-            <LinearGradient
-              colors={s.colors as unknown as string[]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.card}
-            >
+        {visibleSections.map((s) => {
+          const banner = getSocialCardImage(s.id);
+          const inner = (
+            <>
               <View style={styles.emojiCircle}>
                 <Text style={styles.cardEmoji}>{s.emoji}</Text>
               </View>
               <View style={styles.cardText}>
-                <Text style={styles.cardName}>{s.name}</Text>
-                <Text style={styles.cardDesc}>{s.desc}</Text>
+                <Text style={[styles.cardName, banner && styles.cardNameOnImage]}>
+                  {s.name}
+                </Text>
+                <Text style={[styles.cardDesc, banner && styles.cardDescOnImage]}>
+                  {s.desc}
+                </Text>
               </View>
-              <Text style={styles.arrow}>▶</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        ))}
+              <Text style={[styles.arrow, banner && styles.arrowOnImage]}>▶</Text>
+            </>
+          );
+          return (
+            <TouchableOpacity
+              key={s.id}
+              style={styles.cardTouch}
+              activeOpacity={0.85}
+              onPress={() => handlePress(s.id)}
+            >
+              {banner ? (
+                // Bannière illustrée (comme les salons) : image + voile sombre.
+                <ImageBackground
+                  source={banner}
+                  resizeMode="cover"
+                  style={styles.card}
+                  imageStyle={styles.cardImage}
+                >
+                  <View style={styles.cardVeil} pointerEvents="none" />
+                  {inner}
+                </ImageBackground>
+              ) : (
+                // Repli : dégradé thématique tant qu'aucune illustration n'est fournie.
+                <LinearGradient
+                  colors={s.colors as unknown as string[]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.card}
+                >
+                  {inner}
+                </LinearGradient>
+              )}
+            </TouchableOpacity>
+          );
+        })}
 
         {visibleSections.length === 0 && (
           <View style={styles.emptyBox}>
@@ -297,7 +325,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 18,
     padding: 18,
+    minHeight: 96,
     overflow: "hidden",
+  },
+  cardImage: {
+    borderRadius: 18,
+  },
+  cardVeil: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(20,14,8,0.30)",
   },
   emojiCircle: {
     width: 58,
@@ -318,6 +354,20 @@ const styles = StyleSheet.create({
   },
   cardDesc: { fontSize: 13, color: "#5E4B34" },
   arrow: { fontSize: 16, color: "#5A4632" },
+  // Variantes quand une bannière illustrée est présente (texte blanc lisible).
+  cardNameOnImage: {
+    color: "#FFFFFF",
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  cardDescOnImage: {
+    color: "rgba(255,255,255,0.95)",
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  arrowOnImage: { color: "#FFFFFF" },
   topBack: { margin: 16 },
   topBackText: { fontSize: 16, color: "#8B6F47" },
   gameContent: { flexGrow: 1 },
