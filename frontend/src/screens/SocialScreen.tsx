@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
@@ -26,6 +27,7 @@ const SECTIONS = [
     name: "Salons",
     desc: "Rejoins des salons de discussion",
     feature: "salons",
+    colors: ["#4FA3A5", "#2E7370"], // teal — discussion
   },
   {
     id: "adoption",
@@ -33,6 +35,7 @@ const SECTIONS = [
     name: "Adoption",
     desc: "Prends soin de ton animal",
     feature: "refuge",
+    colors: ["#8FB56A", "#5C8A3F"], // vert nature
   },
   {
     id: "cards",
@@ -40,6 +43,7 @@ const SECTIONS = [
     name: "Jeu de Cartes",
     desc: "Révèle et gagne des pièces",
     feature: "games",
+    colors: ["#C0596B", "#8B2E3C"], // bordeaux — carte
   },
   {
     id: "story",
@@ -47,6 +51,7 @@ const SECTIONS = [
     name: "Continue l'Histoire",
     desc: "Écris une histoire à plusieurs",
     feature: "games",
+    colors: ["#7C79C9", "#4B4890"], // indigo — encre/récit
   },
   {
     id: "bottle",
@@ -54,6 +59,7 @@ const SECTIONS = [
     name: "Bouteille à la Mer",
     desc: "Envoie un message à l'inconnu",
     feature: "social",
+    colors: ["#5AA9C9", "#2E6E93"], // bleu océan
   },
 ] as const;
 
@@ -228,15 +234,25 @@ export default function SocialScreen() {
         {visibleSections.map((s) => (
           <TouchableOpacity
             key={s.id}
-            style={styles.card}
+            style={styles.cardTouch}
+            activeOpacity={0.85}
             onPress={() => handlePress(s.id)}
           >
-            <Text style={styles.cardEmoji}>{s.emoji}</Text>
-            <View style={styles.cardText}>
-              <Text style={styles.cardName}>{s.name}</Text>
-              <Text style={styles.cardDesc}>{s.desc}</Text>
-            </View>
-            <Text style={styles.arrow}>▶</Text>
+            <LinearGradient
+              colors={s.colors as unknown as string[]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.card}
+            >
+              <View style={styles.emojiCircle}>
+                <Text style={styles.cardEmoji}>{s.emoji}</Text>
+              </View>
+              <View style={styles.cardText}>
+                <Text style={styles.cardName}>{s.name}</Text>
+                <Text style={styles.cardDesc}>{s.desc}</Text>
+              </View>
+              <Text style={styles.arrow}>▶</Text>
+            </LinearGradient>
           </TouchableOpacity>
         ))}
 
@@ -268,30 +284,43 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14, color: "#8B6F47", marginTop: 4 },
   scroll: { flex: 1 },
   grid: { padding: 16, gap: 12 },
+  cardTouch: {
+    borderRadius: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 18,
-    borderWidth: 1,
-    borderColor: "#E8D5B7",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
+    overflow: "hidden",
   },
-  cardEmoji: { fontSize: 42, marginRight: 16 },
+  emojiCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  cardEmoji: { fontSize: 32 },
   cardText: { flex: 1 },
   cardName: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#3A2818",
+    color: "#FFFFFF",
     marginBottom: 4,
+    textShadowColor: "rgba(0,0,0,0.25)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  cardDesc: { fontSize: 13, color: "#8B6F47" },
-  arrow: { fontSize: 16, color: "#C4A35A" },
+  cardDesc: { fontSize: 13, color: "rgba(255,255,255,0.92)" },
+  arrow: { fontSize: 16, color: "rgba(255,255,255,0.9)" },
   topBack: { margin: 16 },
   topBackText: { fontSize: 16, color: "#8B6F47" },
   gameContent: { flexGrow: 1 },
