@@ -27,6 +27,19 @@ const J = {
   accentPrimary: '#8B2E3C',
 };
 
+// La route /salon/[id] attend un SLUG (ex. "psy"), pas l'ID technique du
+// salon (currentSalonId, utilisé lui pour l'appel getSalon côté backend).
+// Même mapping que SalonsListScreen.tsx.
+const KIND_TO_SLUG: Record<string, string> = {
+  PISCINE: 'piscine',
+  CAFE_DE_PARIS: 'cafe_paris',
+  ILE_PIRATES: 'pirates',
+  THEATRE: 'theatre',
+  BAR_COCKTAILS: 'cocktails',
+  METAL: 'metal',
+  PSY: 'psy',
+};
+
 interface PaperProps {
   children: React.ReactNode;
   onPress?: () => void;
@@ -56,6 +69,7 @@ export function PersonalBoard() {
     matchPartners,
     pet,
     currentSalonId,
+    currentSalonKind,
   } = useStore();
 
   // Hauteur dispo calculée (pas mesurée via onLayout, peu fiable sur web) :
@@ -412,9 +426,14 @@ export function PersonalBoard() {
       </Paper>
 
       {/* Mon Salon (bas gauche) — remonté pour combler l'espace libéré par la
-          rangée Bouteille + Offrandes désormais côte à côte. */}
+          rangée Bouteille + Offrandes désormais côte à côte. Si on est déjà
+          dans un salon, on y retourne (via son slug, pas currentSalonId qui
+          est l'ID technique backend) ; sinon on va à la sélection des salons. */}
       <Paper
-        onPress={() => router.push(currentSalonId ? `/salon/${currentSalonId}` : '/(tabs)/salons-list')}
+        onPress={() => {
+          const slug = currentSalonKind ? KIND_TO_SLUG[currentSalonKind] : undefined;
+          router.push(slug ? `/salon/${slug}` : '/(tabs)/salons-list');
+        }}
         style={{
           position: 'absolute',
           top: px(H, 0.78),
