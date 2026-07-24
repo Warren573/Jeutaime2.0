@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   useWindowDimensions,
-  LayoutChangeEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -48,7 +47,7 @@ const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
 export function PersonalBoard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width: winWidth } = useWindowDimensions();
+  const { width: winWidth, height: winHeight } = useWindowDimensions();
   const {
     currentUser,
     points,
@@ -59,18 +58,14 @@ export function PersonalBoard() {
     currentSalonId,
   } = useStore();
 
-  // Hauteur réellement disponible (mesurée), pour que TOUT le tableau tienne
-  // sur un seul écran fixe, sans scroll (le paddingTop = insets.top est déjà
-  // inclus dans la mesure, donc H = hauteur mesurée − insets.top).
-  const [boardH, setBoardH] = useState(0);
-  const onBoardLayout = useCallback(
-    (e: LayoutChangeEvent) => {
-      setBoardH(e.nativeEvent.layout.height - insets.top);
-    },
-    [insets.top]
-  );
+  // Hauteur dispo calculée (pas mesurée via onLayout, peu fiable sur web) :
+  // fenêtre − marge haute (insets.top, avec un minimum car certains WebViews
+  // le renvoient à 0) − hauteur exacte de la CustomTabBar flottante du bas
+  // (mêmes constantes que CustomTabBar.tsx : ACTIVE_LIFT+BAR_HEIGHT+BOTTOM_MARGIN+insets.bottom).
+  const topPad = Math.max(insets.top, 24);
+  const TAB_BAR_TOTAL = 24 + 64 + 10 + insets.bottom;
   const W = winWidth;
-  const H = boardH > 0 ? boardH : 700;
+  const H = Math.max(500, winHeight - topPad - TAB_BAR_TOTAL);
   const px = (base: number, frac: number) => Math.round(base * frac);
 
   const [offerings, setOfferings] = useState<OfferingSentDTO[]>([]);
@@ -190,9 +185,8 @@ export function PersonalBoard() {
 
   return (
     <View
-      style={[styles.container, styles.board, { paddingTop: insets.top }]}
+      style={[styles.container, styles.board, { paddingTop: topPad }]}
       pointerEvents="box-none"
-      onLayout={onBoardLayout}
     >
       {/* Profile (haut gauche) */}
       <Paper
