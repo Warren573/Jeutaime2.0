@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   ImageBackground,
+  useWindowDimensions,
   Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -70,6 +71,10 @@ type CurrentView = "cards" | "story" | null;
 export default function SocialScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  // EXACTEMENT comme la liste des salons : cadre 3:1 (largeur carte ÷ 3) + cover
+  // → la bannière s'affiche EN ENTIER, sans rognage. Largeur carte = écran − 32.
+  const bannerHeight = (screenWidth - 32) / 3;
   const { addPoints, incrementStat, currentUser } = useStore();
   const loadWallet = useStore((s) => s.loadWallet);
   const screenBg = useStore((s) => s.screenBackgrounds?.["social"] ?? "#FFF8E7");
@@ -262,9 +267,8 @@ export default function SocialScreen() {
                 // Bannière illustrée (comme les salons) : image + voile sombre.
                 <ImageBackground
                   source={banner}
-                  resizeMode="contain"
-                  style={styles.card}
-                  imageStyle={styles.cardImage}
+                  resizeMode="cover"
+                  style={[styles.card, styles.cardBanner, { height: bannerHeight }]}
                 >
                   <View style={styles.cardVeil} pointerEvents="none" />
                   {inner}
@@ -314,6 +318,7 @@ const styles = StyleSheet.create({
   grid: { padding: 16, gap: 12 },
   cardTouch: {
     borderRadius: 18,
+    overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
@@ -328,8 +333,10 @@ const styles = StyleSheet.create({
     minHeight: 96,
     overflow: "hidden",
   },
-  cardImage: {
-    borderRadius: 18,
+  // Bannière illustrée : cadre exactement 3:1 (hauteur fournie inline = largeur/3).
+  cardBanner: {
+    width: "100%",
+    justifyContent: "center",
   },
   cardVeil: {
     ...StyleSheet.absoluteFillObject,
