@@ -15,11 +15,11 @@
 import type { ImageSourcePropType } from 'react-native';
 
 export const SOCIAL_CARD_IMAGES: Record<string, ImageSourcePropType> = {
-  // salons: require('../../assets/images/social/salons.jpg'),
-  // adoption: require('../../assets/images/social/adoption.jpg'),
-  // cards: require('../../assets/images/social/cards.jpg'),
-  // story: require('../../assets/images/social/story.jpg'),
-  // bottle: require('../../assets/images/social/bottle.jpg'),
+  salons: require('../../assets/images/social/salons.jpg'),
+  adoption: require('../../assets/images/social/adoption.jpg'),
+  cards: require('../../assets/images/social/cards.jpg'),
+  story: require('../../assets/images/social/story.jpg'),
+  bottle: require('../../assets/images/social/bottle.jpg'),
 };
 
 export function getSocialCardImage(
