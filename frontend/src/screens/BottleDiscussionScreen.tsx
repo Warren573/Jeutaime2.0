@@ -11,7 +11,9 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  ImageBackground,
   Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -32,6 +34,8 @@ import {
 
 // Fond aquarelle plein écran (partagé avec l'écran de création).
 const SEA_BG = require('../../assets/images/bottle/sea-bg.jpg');
+// Vrai parchemin déroulé (fond transparent) pour présenter le dernier message.
+const PARCHMENT_SCROLL = require('../../assets/images/bottle/parchment-scroll.png');
 
 const COLORS = {
   bg: '#F5F1E8',
@@ -48,6 +52,7 @@ const COLORS = {
 export default function BottleDiscussionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: winWidth } = useWindowDimensions();
   const params = useLocalSearchParams();
   const bottleId = params.bottleId as string;
   const { currentUser } = useStore();
@@ -276,6 +281,11 @@ export default function BottleDiscussionScreen() {
   const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
   const lastMsgMine = lastMsg ? lastMsg.senderId === currentUser?.id : false;
 
+  // Dimensions du parchemin (mêmes proportions que l'asset 760×1140 → ratio 1.5)
+  // pour placer le texte pile dans la zone d'écriture entre les deux rouleaux.
+  const scrollW = Math.min(winWidth - 40, 380);
+  const scrollH = scrollW * 1.5;
+
   return (
     <>
       {/* Fond aquarelle épinglé au viewport (fixed web / absolute natif). */}
@@ -313,53 +323,62 @@ export default function BottleDiscussionScreen() {
         <Text style={styles.bottleMessageText}>"{bottle.message}"</Text>
       </View>
 
-      {/* Dernier message, présenté comme un parchemin sorti de la bouteille.
-          Le coin replié (haut-droit) ouvre l'historique complet. */}
-      <View style={styles.lastMessageArea}>
-        {lastMsg === null ? (
-          <View style={styles.parchmentCard}>
-            <Text style={styles.parchmentEmpty}>
-              Aucun mot encore.{'\n'}Glisse le premier dans la bouteille…
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.parchmentCard}>
-            {/* Coin replié → historique */}
-            <TouchableOpacity
-              style={styles.foldedCorner}
-              onPress={() => setShowHistory(true)}
-              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel="Voir l'historique des messages"
-            >
-              <View style={styles.foldedCornerTriangle} />
-              <Text style={styles.foldedCornerIcon}>📜</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.lastMsgSender}>
-              {lastMsgMine ? 'Toi' : 'Message reçu'}
-            </Text>
-            <Text style={styles.parchmentText}>{lastMsg.content}</Text>
-            <Text style={styles.lastMsgTime}>
-              {new Date(lastMsg.createdAt).toLocaleTimeString('fr-FR', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-
-            {messages.length > 1 && (
-              <TouchableOpacity
-                style={styles.historyHintBtn}
-                onPress={() => setShowHistory(true)}
-              >
-                <Text style={styles.historyHintText}>
-                  📜 Voir l'historique ({messages.length})
+      {/* Dernier message déroulé sur un vrai parchemin.
+          Le texte est calé dans la zone d'écriture, entre les deux rouleaux. */}
+      <ScrollView
+        style={styles.lastMessageArea}
+        contentContainerStyle={styles.lastMessageContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <ImageBackground
+          source={PARCHMENT_SCROLL}
+          resizeMode="stretch"
+          style={{ width: scrollW, height: scrollH }}
+        >
+          <View
+            style={[
+              styles.scrollWritingArea,
+              {
+                paddingTop: scrollH * 0.26,
+                paddingBottom: scrollH * 0.24,
+                paddingHorizontal: scrollW * 0.16,
+              },
+            ]}
+          >
+            {lastMsg === null ? (
+              <Text style={styles.parchmentEmpty}>
+                Aucun mot encore.{'\n'}Glisse le premier{'\n'}dans la bouteille…
+              </Text>
+            ) : (
+              <>
+                <Text style={styles.lastMsgSender}>
+                  {lastMsgMine ? 'Toi' : 'Message reçu'}
                 </Text>
-              </TouchableOpacity>
+                <Text style={styles.parchmentText} numberOfLines={6}>
+                  {lastMsg.content}
+                </Text>
+                <Text style={styles.lastMsgTime}>
+                  {new Date(lastMsg.createdAt).toLocaleTimeString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </Text>
+              </>
             )}
           </View>
+        </ImageBackground>
+
+        {messages.length > 1 && (
+          <TouchableOpacity
+            style={styles.historyHintBtn}
+            onPress={() => setShowHistory(true)}
+          >
+            <Text style={styles.historyHintText}>
+              📜 Voir l'historique ({messages.length})
+            </Text>
+          </TouchableOpacity>
         )}
-      </View>
+      </ScrollView>
 
       {/* Input */}
       <View style={[styles.inputSection, { paddingBottom: insets.bottom + 12 }]}>
@@ -564,31 +583,24 @@ const styles = StyleSheet.create({
     color: '#4A3A28',
     fontStyle: 'italic',
   },
-  // --- Zone du dernier message (parchemin) ---
+  // --- Zone du dernier message (vrai parchemin déroulé) ---
   lastMessageArea: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    justifyContent: 'center',
   },
-  parchmentCard: {
-    backgroundColor: '#F3E7C6',
-    borderWidth: 2,
-    borderColor: '#C8A25A',
-    borderRadius: 14,
-    paddingVertical: 22,
-    paddingHorizontal: 22,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 4,
+  lastMessageContent: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 16,
+  },
+  // Zone d'écriture calée entre les deux rouleaux du parchemin.
+  scrollWritingArea: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   parchmentEmpty: {
     fontSize: 15,
-    color: '#9C8560',
+    color: '#6B5533',
     fontStyle: 'italic',
     textAlign: 'center',
     lineHeight: 24,
@@ -596,66 +608,41 @@ const styles = StyleSheet.create({
   },
   parchmentText: {
     fontSize: 17,
-    color: '#4A3A28',
+    color: '#3A2C18',
     lineHeight: 26,
     fontStyle: 'italic',
+    textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   lastMsgSender: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#8A6E3C',
-    marginBottom: 8,
+    color: '#7A5E2E',
+    marginBottom: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
   lastMsgTime: {
     fontSize: 11,
-    color: '#9C8560',
+    color: '#8A6E3C',
     marginTop: 12,
-    textAlign: 'right',
-  },
-  // Coin replié en haut à droite → ouvre l'historique.
-  foldedCorner: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 46,
-    height: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  foldedCornerTriangle: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 0,
-    height: 0,
-    borderTopWidth: 46,
-    borderTopColor: '#E4D2A0',
-    borderLeftWidth: 46,
-    borderLeftColor: 'transparent',
-  },
-  foldedCornerIcon: {
-    fontSize: 15,
-    marginTop: -14,
-    marginRight: -14,
+    textAlign: 'center',
   },
   historyHintBtn: {
-    marginTop: 16,
+    marginTop: 8,
     alignSelf: 'center',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: 'rgba(200,162,90,0.25)',
+    backgroundColor: 'rgba(200,162,90,0.30)',
     borderWidth: 1,
     borderColor: '#C8A25A',
   },
   historyHintText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#7A5E2E',
+    color: '#5E4620',
   },
   messageScroll: {
     flex: 1,
