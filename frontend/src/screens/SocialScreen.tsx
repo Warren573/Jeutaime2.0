@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   ImageBackground,
+  useWindowDimensions,
   Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -70,6 +71,9 @@ type CurrentView = "cards" | "story" | null;
 export default function SocialScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: winWidth } = useWindowDimensions();
+  // Hauteur = largeur ÷ 3 pour afficher la bannière 3:1 EN ENTIER (pas de recadrage).
+  const bannerHeight = (winWidth - 32) / 3;
   const { addPoints, incrementStat, currentUser } = useStore();
   const loadWallet = useStore((s) => s.loadWallet);
   const screenBg = useStore((s) => s.screenBackgrounds?.["social"] ?? "#FFF8E7");
@@ -263,7 +267,7 @@ export default function SocialScreen() {
                 <ImageBackground
                   source={banner}
                   resizeMode="cover"
-                  style={styles.card}
+                  style={[styles.card, { height: bannerHeight }]}
                   imageStyle={styles.cardImage}
                 >
                   <View style={styles.cardVeil} pointerEvents="none" />
