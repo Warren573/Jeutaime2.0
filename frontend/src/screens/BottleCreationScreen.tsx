@@ -258,7 +258,7 @@ export default function BottleCreationScreen() {
           <TextInput
             style={styles.messageInput}
             placeholder="Cherche quelqu'une pour..."
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor="#9C8560"
             value={message}
             onChangeText={setMessage}
             multiline
@@ -581,16 +581,25 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   messageInput: {
-    minHeight: 120,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    fontSize: 14,
-    color: COLORS.text,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    minHeight: 150,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+    // Parchemin vieilli : papier crème chaud, bordure ambrée, texte « encre ».
+    backgroundColor: '#F3E7C6',
+    borderWidth: 2,
+    borderColor: '#C8A25A',
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#4A3A28',
+    fontStyle: 'italic',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    // Léger relief pour l'effet papier posé.
+    shadowColor: '#3B2C18',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
   charCount: {
     fontSize: 12,
