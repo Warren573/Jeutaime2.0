@@ -16,6 +16,7 @@ import { Avatar } from '../avatar/png/Avatar';
 import { getReceivedOfferings, type OfferingSentDTO } from '../api/offerings';
 import { getUnreadCount } from '../api/bottles';
 import { getSalon } from '../api/salons';
+import { salonsData } from '../data/salonsData';
 import { getAnimalImage } from '../data/refugeAnimalImages';
 import { ANIMAL_LABELS } from '../data/refugeAnimals';
 import { apiFetch } from '../api/client';
@@ -182,6 +183,10 @@ export function PersonalBoard() {
       </View>
     );
   }
+
+  const currentSalonSlug = currentSalonKind ? KIND_TO_SLUG[currentSalonKind] : undefined;
+  const currentSalonIcon =
+    salonsData.find((s) => s.id === currentSalonSlug)?.icon || '🎭';
 
   // Toutes les positions/tailles sont des fractions de (W, H) mesurés, pour
   // que le tableau tienne SUR UN SEUL ÉCRAN FIXE (pas de scroll), quel que
@@ -428,11 +433,11 @@ export function PersonalBoard() {
       {/* Mon Salon (bas gauche) — remonté pour combler l'espace libéré par la
           rangée Bouteille + Offrandes désormais côte à côte. Si on est déjà
           dans un salon, on y retourne (via son slug, pas currentSalonId qui
-          est l'ID technique backend) ; sinon on va à la sélection des salons. */}
+          est l'ID technique backend) ; sinon on va à la sélection des salons.
+          L'icône affichée est celle du salon réel, pas un emoji fixe. */}
       <Paper
         onPress={() => {
-          const slug = currentSalonKind ? KIND_TO_SLUG[currentSalonKind] : undefined;
-          router.push(slug ? `/salon/${slug}` : '/(tabs)/salons-list');
+          router.push(currentSalonSlug ? `/salon/${currentSalonSlug}` : '/(tabs)/salons-list');
         }}
         style={{
           position: 'absolute',
@@ -443,7 +448,7 @@ export function PersonalBoard() {
         }}
       >
         <Text style={styles.salonTitle}>Mon Salon</Text>
-        <Text style={styles.salonIcon}>🎭</Text>
+        <Text style={styles.salonIcon}>{currentSalonIcon}</Text>
         {salonName && (
           <Text style={styles.salonName} numberOfLines={1}>{salonName}</Text>
         )}
