@@ -7,7 +7,6 @@ import {
   Image,
   ImageBackground,
   useWindowDimensions,
-  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -23,21 +22,15 @@ import { getAnimalImage } from '../data/refugeAnimalImages';
 import { ANIMAL_LABELS } from '../data/refugeAnimals';
 import { apiFetch } from '../api/client';
 
-// Fond bois du tableau personnel + palette "papier vieilli" pour les notes.
+// Fond bois du tableau personnel (les cartes restent blanches par-dessus).
 const WOOD_BG = require('../../assets/images/home/board-wood-bg.jpg');
 
 const J = {
   bgBoard: '#D9CFC2',
-  textMain: '#3A2B1A',
-  textSecondary: '#7A6448',
+  textMain: '#2B2B2B',
+  textSecondary: '#6B6B6B',
   accentPrimary: '#8B2E3C',
-  paper: '#F1E7D2',
-  paperBorder: '#C3A876',
-  pin: '#9C7A2E',
 };
-
-// Police chaleureuse pour les titres des notes (esprit papier vieilli).
-const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 
 // La route /salon/[id] attend un SLUG (ex. "psy"), pas l'ID technique du
 // salon (currentSalonId, utilisé lui pour l'appel getSalon côté backend).
@@ -499,28 +492,23 @@ const styles = StyleSheet.create({
   },
 
   paper: {
-    backgroundColor: J.paper,
+    backgroundColor: '#FFFFFF',
     borderRadius: 3,
-    borderWidth: 1,
-    borderColor: J.paperBorder,
     padding: 12,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
 
-  // Punaise dorée façon "push pin", au lieu du magnet gris.
   magnet: {
     position: 'absolute',
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: J.pin,
-    borderWidth: 1,
-    borderColor: '#6B5220',
+    backgroundColor: '#5A5A5A',
     top: -7,
     left: '50%',
     marginLeft: -7,
@@ -534,7 +522,6 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 10,
     fontWeight: '700',
-    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 2,
     textAlign: 'center',
@@ -543,7 +530,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700',
-    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 8,
     letterSpacing: 0.5,
@@ -590,7 +576,6 @@ const styles = StyleSheet.create({
   animalTitle: {
     fontSize: 10,
     fontWeight: '700',
-    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 6,
     textAlign: 'center',
@@ -598,8 +583,6 @@ const styles = StyleSheet.create({
 
   animalIcon: {
     fontSize: 32,
-    fontFamily: SERIF,
-    fontStyle: 'italic',
     marginBottom: 4,
     textAlign: 'center',
   },
@@ -628,7 +611,6 @@ const styles = StyleSheet.create({
   smilesTitle: {
     fontSize: 9,
     fontWeight: '700',
-    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 8,
     textAlign: 'center',
@@ -644,7 +626,6 @@ const styles = StyleSheet.create({
   salonTitle: {
     fontSize: 10,
     fontWeight: '700',
-    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 6,
     textAlign: 'center',
@@ -658,7 +639,6 @@ const styles = StyleSheet.create({
   statsTitle: {
     fontSize: 9,
     fontWeight: '700',
-    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 8,
     textAlign: 'center',
@@ -674,7 +654,6 @@ const styles = StyleSheet.create({
   giftsTitle: {
     fontSize: 11,
     fontWeight: '700',
-    fontFamily: SERIF,
     color: J.textMain,
     marginBottom: 12,
     textAlign: 'center',
