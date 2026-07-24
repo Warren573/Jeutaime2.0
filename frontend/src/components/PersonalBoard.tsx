@@ -176,10 +176,10 @@ export function PersonalBoard() {
   const profileW = px(W, 0.27);
   const avatarSize = Math.round(profileW * 0.62);
   // Bouteille + Offrandes partagent la même rangée (côte à côte). La carte
-  // postale retrouve sa taille d'origine (~180×120 sur un board 390×665) ;
-  // seule Offrandes est réduite en largeur pour tenir à côté.
-  const bouteilleW = px(W, 0.46);
-  const bouteilleH = px(H, 0.18);
+  // postale retrouve EXACTEMENT sa taille d'origine (180×120 fixes, pas une
+  // approximation en %) pour garantir le même ratio que l'image beach.png.
+  const bouteilleW = 180;
+  const bouteilleH = 120;
   const bottleImgH = Math.round(bouteilleH * 0.85);
   const bottleImgW = Math.round(bottleImgH * (96 / 116));
 
@@ -308,6 +308,30 @@ export function PersonalBoard() {
         }}
       >
         <View style={styles.magnet} pointerEvents="none" />
+        {/* Couche d'ombre SÉPARÉE, sans clip ni image : sur le web, une ombre
+            portée + overflow:hidden + rotation sur le MÊME élément laisse un
+            liseré de rendu sur le bord dans le sens de l'ombre (ici le bas,
+            shadowOffset.height:4). En la sortant sur une couche dédiée
+            derrière la photo, la photo elle-même n'a plus ni ombre ni bord à
+            "recalculer" pendant le clip → plus de liseré. */}
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            borderRadius: 3,
+            backgroundColor: '#FFFFFF',
+            transform: [{ rotate: '2deg' }],
+            shadowColor: '#000',
+            shadowOpacity: 0.15,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 3,
+          }}
+        />
         <TouchableOpacity
           onPress={() => {
             if (hasBottle) {
@@ -322,13 +346,7 @@ export function PersonalBoard() {
             height: '100%',
             borderRadius: 3,
             overflow: 'hidden',
-            backgroundColor: '#FFFFFF',
             transform: [{ rotate: '2deg' }],
-            shadowColor: '#000',
-            shadowOpacity: 0.15,
-            shadowRadius: 8,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: 3,
           }}
         >
           <Image
