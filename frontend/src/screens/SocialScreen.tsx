@@ -238,11 +238,13 @@ export default function SocialScreen() {
   const count = visibleSections.length || 1;
   const maxBanner = (screenWidth - 32) / 3;
   const avail = listHeight - GRID_PAD * 2 - CARD_GAP * (count - 1);
+  // Cartes en PLEINE LARGEUR ; hauteur = place dispo ÷ nb cartes (plafonnée au
+  // ratio 3:1). Si un poil plus courte que 3:1, l'image est juste très légèrement
+  // rognée en haut/bas (cover) mais prend toute la largeur.
   const bannerHeight =
     listHeight > 0
       ? Math.max(64, Math.min(maxBanner, Math.floor(avail / count)))
       : maxBanner;
-  const cardWidth = Math.min(screenWidth - 32, Math.round(bannerHeight * 3));
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -278,7 +280,7 @@ export default function SocialScreen() {
           return (
             <TouchableOpacity
               key={s.id}
-              style={[styles.cardTouch, { width: cardWidth }]}
+              style={styles.cardTouch}
               activeOpacity={0.85}
               onPress={() => handlePress(s.id)}
             >
@@ -334,8 +336,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: "700", color: "#3A2818" },
   subtitle: { fontSize: 14, color: "#8B6F47", marginTop: 4 },
   scroll: { flex: 1 },
-  grid: { padding: 16, gap: 12, alignItems: "center" },
+  grid: { padding: 16, gap: 12 },
   cardTouch: {
+    alignSelf: "stretch",
     borderRadius: 18,
     overflow: "hidden",
     shadowColor: "#000",
