@@ -306,6 +306,7 @@ export function PersonalBoard() {
           left: px(W, 0.04),
           width: bouteilleW,
           height: bouteilleH,
+          padding: 0,
           transform: [{ rotate: '2deg' }],
         }}
       >
