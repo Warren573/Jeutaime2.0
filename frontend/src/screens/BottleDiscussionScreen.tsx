@@ -334,8 +334,9 @@ export default function BottleDiscussionScreen() {
 
       {/* Zone d'écriture : posée sur les lignes réglées du papier, à l'encre. */}
       <View style={[styles.writingArea, { paddingTop: linesTop, paddingHorizontal: winWidth * 0.11 }]}>
-        {/* Dernier message : encre pâlie, comme une note déjà tracée */}
-        {lastMsg && (
+        {/* Dernier message : rappel en encre pâlie, masqué dès qu'on écrit
+            (sinon il se superpose au texte saisi). */}
+        {lastMsg && messageText.length === 0 && (
           <Text style={styles.lastMsgQuote} numberOfLines={2}>
             « {lastMsg.content} »
           </Text>
