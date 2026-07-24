@@ -310,7 +310,11 @@ export function PersonalBoard() {
           transform: [{ rotate: '2deg' }],
         }}
       >
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', borderRadius: 3 }}>
+        {/* Le cadre déborde de 2px sur chaque bord (au lieu de 0) : sur le web,
+            un élément avec overflow:hidden + borderRadius + rotate laisse
+            parfois un liseré d'un pixel visible sur un bord (bug de rendu
+            WebKit/Chromium) — le léger débord couvre ce liseré. */}
+        <View style={{ position: 'absolute', top: -2, left: -2, right: -2, bottom: -2, overflow: 'hidden', borderRadius: 5, backfaceVisibility: 'hidden' }}>
           <Image
             source={require('../../assets/images/bottle/beach.png')}
             style={StyleSheet.absoluteFillObject}
