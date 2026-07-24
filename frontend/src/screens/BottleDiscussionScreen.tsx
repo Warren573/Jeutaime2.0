@@ -65,6 +65,7 @@ export default function BottleDiscussionScreen() {
   const [hasRevealRequest, setHasRevealRequest] = useState(false);
   const [isRevealRequester, setIsRevealRequester] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -303,32 +304,33 @@ export default function BottleDiscussionScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.headerBack}>← Retour</Text>
+      {/* Header : titre discret à gauche, menu « … » à droite */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={styles.headerBack}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.headerTitle}>
+          <Text style={styles.bottleGender} numberOfLines={1}>
+            {bottle.targetGender}
+            <Text style={styles.bottleDetails}>  ·  {bottle.senderCity}</Text>
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => setShowMenu(true)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Options de la correspondance"
+        >
+          <Text style={styles.menuDots}>⋯</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Bottle Info */}
-      <View style={styles.bottleInfo}>
-        <Text style={styles.bottleGender}>{bottle.targetGender}</Text>
-        <Text style={styles.bottleDetails}>
-          , {bottle.senderCity}
-        </Text>
-      </View>
-
-      <View style={styles.bottleMessage}>
-        <Text style={styles.bottleMessageLabel}>Message original:</Text>
-        <Text style={styles.bottleMessageText}>"{bottle.message}"</Text>
-      </View>
-
-      {/* Dernier message déroulé sur un vrai parchemin.
-          Le texte est calé dans la zone d'écriture, entre les deux rouleaux. */}
+      {/* Parchemin : dernier message + zone d'écriture, le tout SUR le parchemin. */}
       <ScrollView
         style={styles.lastMessageArea}
         contentContainerStyle={styles.lastMessageContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <ImageBackground
           source={PARCHMENT_SCROLL}
@@ -339,68 +341,65 @@ export default function BottleDiscussionScreen() {
             style={[
               styles.scrollWritingArea,
               {
-                paddingTop: scrollH * 0.26,
-                paddingBottom: scrollH * 0.24,
+                paddingTop: scrollH * 0.24,
+                paddingBottom: scrollH * 0.2,
                 paddingHorizontal: scrollW * 0.16,
               },
             ]}
           >
-            {lastMsg === null ? (
-              <Text style={styles.parchmentEmpty}>
-                Aucun mot encore.{'\n'}Glisse le premier{'\n'}dans la bouteille…
-              </Text>
-            ) : (
-              <>
+            {/* Dernier message reçu/envoyé, compact et cliquable → historique */}
+            {lastMsg && (
+              <TouchableOpacity
+                style={styles.lastMsgStrip}
+                onPress={() => messages.length > 1 && setShowHistory(true)}
+                activeOpacity={messages.length > 1 ? 0.6 : 1}
+              >
                 <Text style={styles.lastMsgSender}>
-                  {lastMsgMine ? 'Toi' : 'Message reçu'}
+                  {lastMsgMine ? 'Toi' : 'Reçu'}
+                  <Text style={styles.lastMsgTime}>
+                    {'  ·  '}
+                    {new Date(lastMsg.createdAt).toLocaleTimeString('fr-FR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
                 </Text>
-                <Text style={styles.parchmentText} numberOfLines={6}>
+                <Text style={styles.parchmentText} numberOfLines={3}>
                   {lastMsg.content}
                 </Text>
-                <Text style={styles.lastMsgTime}>
-                  {new Date(lastMsg.createdAt).toLocaleTimeString('fr-FR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </Text>
-              </>
+                {messages.length > 1 && (
+                  <Text style={styles.historyHintText}>
+                    📜 Voir l'historique ({messages.length})
+                  </Text>
+                )}
+              </TouchableOpacity>
             )}
+
+            {/* Zone d'écriture : on écrit directement sur le parchemin */}
+            <TextInput
+              style={[styles.messageInput, lastMsg && styles.messageInputWithHistory]}
+              placeholder={
+                lastMsg
+                  ? 'Écris ta réponse…'
+                  : 'Écris un mot à glisser\ndans la bouteille…'
+              }
+              placeholderTextColor="#9C8560"
+              value={messageText}
+              onChangeText={setMessageText}
+              multiline
+              maxLength={500}
+            />
           </View>
         </ImageBackground>
-
-        {messages.length > 1 && (
-          <TouchableOpacity
-            style={styles.historyHintBtn}
-            onPress={() => setShowHistory(true)}
-          >
-            <Text style={styles.historyHintText}>
-              📜 Voir l'historique ({messages.length})
-            </Text>
-          </TouchableOpacity>
-        )}
       </ScrollView>
 
-      {/* Input */}
-      <View style={[styles.inputSection, { paddingBottom: insets.bottom + 12 }]}>
-        <TextInput
-          style={styles.messageInput}
-          placeholder="Écris un mot à glisser dans la bouteille…"
-          placeholderTextColor="#9C8560"
-          value={messageText}
-          onChangeText={setMessageText}
-          multiline
-          numberOfLines={3}
-          maxLength={500}
-        />
+      {/* Barre d'envoi discrète sous le parchemin */}
+      <View style={[styles.inputSection, { paddingBottom: insets.bottom + 10 }]}>
         <Text
-          style={[
-            styles.charCount,
-            charRemaining < 50 && styles.charCountWarning,
-          ]}
+          style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
         >
-          {charRemaining}
+          {charRemaining} caractères
         </Text>
-
         <TouchableOpacity
           style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
           onPress={handleSendMessage}
@@ -409,54 +408,72 @@ export default function BottleDiscussionScreen() {
           {isSending ? (
             <ActivityIndicator size="small" color={COLORS.card} />
           ) : (
-            <Text style={styles.sendBtnText}>Envoyer</Text>
+            <Text style={styles.sendBtnText}>Glisser dans la bouteille</Text>
           )}
         </TouchableOpacity>
-
-        {/* Reveal Actions */}
-        {bottle?.status === 'ACCEPTED' && (
-          <View style={styles.revealSection}>
-            {hasRevealRequest && isRevealRequester ? (
-              <View>
-                <Text style={styles.revealText}>Demande de dévoilement en attente...</Text>
-              </View>
-            ) : hasRevealRequest && !isRevealRequester ? (
-              <View style={styles.revealActions}>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.acceptBtn]}
-                  onPress={handleAcceptReveal}
-                >
-                  <Text style={styles.actionBtnText}>Accepter le dévoilement</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.refuseBtn]}
-                  onPress={handleRefuseReveal}
-                >
-                  <Text style={styles.actionBtnText}>Refuser</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.revealBtn]}
-                onPress={handleRequestReveal}
-              >
-                <Text style={styles.actionBtnText}>Proposer le dévoilement</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleReport}>
-            <Text style={styles.actionBtnText}>Signaler</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, styles.breakBtn]} onPress={handleBreakBottle}>
-            <Text style={styles.actionBtnText}>Rompre</Text>
-          </TouchableOpacity>
-        </View>
       </View>
       </KeyboardAvoidingView>
+
+      {/* Menu « … » : dévoilement, signaler, rompre — discrets */}
+      <Modal
+        visible={showMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowMenu(false)}
+        >
+          <View style={[styles.menuCard, { top: insets.top + 44 }]}>
+            {bottle?.status === 'ACCEPTED' && (
+              <>
+                {hasRevealRequest && isRevealRequester ? (
+                  <View style={styles.menuItem}>
+                    <Text style={styles.menuItemDisabled}>Dévoilement en attente…</Text>
+                  </View>
+                ) : hasRevealRequest && !isRevealRequester ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={() => { setShowMenu(false); handleAcceptReveal(); }}
+                    >
+                      <Text style={styles.menuItemText}>✨ Accepter le dévoilement</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.menuItem}
+                      onPress={() => { setShowMenu(false); handleRefuseReveal(); }}
+                    >
+                      <Text style={styles.menuItemText}>Refuser le dévoilement</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => { setShowMenu(false); handleRequestReveal(); }}
+                  >
+                    <Text style={styles.menuItemText}>✨ Proposer le dévoilement</Text>
+                  </TouchableOpacity>
+                )}
+                <View style={styles.menuDivider} />
+              </>
+            )}
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); handleReport(); }}
+            >
+              <Text style={styles.menuItemText}>Signaler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); handleBreakBottle(); }}
+            >
+              <Text style={[styles.menuItemText, styles.menuItemDanger]}>Rompre la correspondance</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Historique complet des messages */}
       <Modal
@@ -535,32 +552,37 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(200,162,90,0.35)',
+    paddingBottom: 10,
   },
   headerBack: {
-    fontSize: 14,
+    fontSize: 24,
     color: COLORS.accent,
     fontWeight: '600',
   },
-  bottleInfo: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: 'row',
+  headerTitle: {
+    flex: 1,
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(200,162,90,0.35)',
+    paddingHorizontal: 8,
+  },
+  menuDots: {
+    fontSize: 26,
+    lineHeight: 26,
+    color: COLORS.accent,
+    fontWeight: '700',
   },
   bottleGender: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#4A3A28',
   },
   bottleDetails: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#8A6E3C',
   },
   bottleMessage: {
     marginHorizontal: 16,
@@ -596,7 +618,12 @@ const styles = StyleSheet.create({
   scrollWritingArea: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+  },
+  lastMsgStrip: {
+    marginBottom: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(122,94,46,0.3)',
   },
   parchmentEmpty: {
     fontSize: 15,
@@ -607,40 +634,28 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   parchmentText: {
-    fontSize: 17,
+    fontSize: 15,
     color: '#3A2C18',
-    lineHeight: 26,
+    lineHeight: 22,
     fontStyle: 'italic',
-    textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   lastMsgSender: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#7A5E2E',
-    marginBottom: 10,
+    marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    textAlign: 'center',
   },
   lastMsgTime: {
     fontSize: 11,
+    fontWeight: '400',
     color: '#8A6E3C',
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  historyHintBtn: {
-    marginTop: 8,
-    alignSelf: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: 'rgba(200,162,90,0.30)',
-    borderWidth: 1,
-    borderColor: '#C8A25A',
   },
   historyHintText: {
-    fontSize: 12,
+    marginTop: 6,
+    fontSize: 11,
     fontWeight: '600',
     color: '#5E4620',
   },
@@ -700,36 +715,29 @@ const styles = StyleSheet.create({
   },
   inputSection: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(200,162,90,0.35)',
-    backgroundColor: 'rgba(245,241,232,0.82)',
+    paddingTop: 8,
   },
+  // Champ de saisie posé DIRECTEMENT sur le parchemin (pas de cadre).
   messageInput: {
-    minHeight: 90,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    backgroundColor: '#F3E7C6',
-    borderWidth: 2,
-    borderColor: '#C8A25A',
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#4A3A28',
+    flex: 1,
+    minHeight: 80,
+    paddingVertical: 4,
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#3A2C18',
     fontStyle: 'italic',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    marginBottom: 6,
     textAlignVertical: 'top',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
+    ...(Platform.OS === 'web' ? { outlineWidth: 0 } as any : null),
+  },
+  messageInputWithHistory: {
+    minHeight: 56,
   },
   charCount: {
     fontSize: 11,
-    color: COLORS.textSecondary,
-    marginBottom: 8,
+    color: '#8A6E3C',
+    textAlign: 'center',
+    marginBottom: 6,
   },
   charCountWarning: {
     color: COLORS.accent,
@@ -804,6 +812,48 @@ const styles = StyleSheet.create({
   },
   breakBtn: {
     backgroundColor: '#FF6B6B',
+  },
+  // --- Menu « … » (dropdown haut-droit) ---
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  menuCard: {
+    position: 'absolute',
+    right: 12,
+    minWidth: 230,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(200,162,90,0.4)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  menuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  menuItemText: {
+    fontSize: 14,
+    color: '#3A2C18',
+    fontWeight: '500',
+  },
+  menuItemDisabled: {
+    fontSize: 14,
+    color: '#9C8560',
+    fontStyle: 'italic',
+  },
+  menuItemDanger: {
+    color: '#B23A48',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: 'rgba(200,162,90,0.3)',
+    marginVertical: 4,
   },
   // --- Historique (modal bas de page) ---
   historyBackdrop: {
