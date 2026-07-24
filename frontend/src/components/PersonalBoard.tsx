@@ -180,8 +180,10 @@ export function PersonalBoard() {
   // de la barre de nav du bas (déjà exclue par le flex du Tabs navigator).
   const profileW = px(W, 0.27);
   const avatarSize = Math.round(profileW * 0.62);
+  // Bouteille + Offrandes partagent maintenant la même rangée (côte à côte) :
+  // Offrandes est réduite en largeur pour tenir à côté de la carte postale.
   const bouteilleW = px(W, 0.34);
-  const bouteilleH = px(H, 0.13);
+  const bouteilleH = px(H, 0.15);
   const bottleImgH = Math.round(bouteilleH * 0.85);
   const bottleImgW = Math.round(bottleImgH * (96 / 116));
 
@@ -294,7 +296,7 @@ export function PersonalBoard() {
         </Text>
       </Paper>
 
-      {/* Bouteille (gauche, sous Lettres) — carte postale réduite */}
+      {/* Bouteille (gauche) — carte postale réduite, à côté des Offrandes */}
       <Paper
         onPress={() => {
           if (hasBottle) {
@@ -329,15 +331,15 @@ export function PersonalBoard() {
         )}
       </Paper>
 
-      {/* Offrandes Reçues (centre, la plus grande) — objets uniquement */}
+      {/* Offrandes Reçues (droite, à côté de la Bouteille) — objets uniquement,
+          largeur réduite pour tenir sur la même rangée que la carte postale. */}
       <Paper
         onPress={() => router.push('/offerings')}
         style={{
           position: 'absolute',
-          top: px(H, 0.55),
-          left: '50%',
-          marginLeft: -px(W, 0.295),
-          width: px(W, 0.59),
+          top: px(H, 0.4),
+          right: px(W, 0.04),
+          width: px(W, 0.4),
           transform: [{ rotate: '1deg' }],
         }}
       >
@@ -375,12 +377,13 @@ export function PersonalBoard() {
         )}
       </Paper>
 
-      {/* Mon Salon (bas gauche) */}
+      {/* Mon Salon (bas gauche) — remonté pour combler l'espace libéré par la
+          rangée Bouteille + Offrandes désormais côte à côte. */}
       <Paper
         onPress={() => router.push(currentSalonId ? `/salon/${currentSalonId}` : '/(tabs)/salons-list')}
         style={{
           position: 'absolute',
-          top: px(H, 0.84),
+          top: px(H, 0.72),
           left: px(W, 0.04),
           width: px(W, 0.36),
           transform: [{ rotate: '-3deg' }],
@@ -397,7 +400,7 @@ export function PersonalBoard() {
       <Paper
         style={{
           position: 'absolute',
-          top: px(H, 0.84),
+          top: px(H, 0.72),
           right: px(W, 0.04),
           width: px(W, 0.33),
           transform: [{ rotate: '2deg' }],
