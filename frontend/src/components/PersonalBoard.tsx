@@ -3,10 +3,10 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Image,
-  Pressable,
+  useWindowDimensions,
+  LayoutChangeEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -48,18 +48,30 @@ const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
 export function PersonalBoard() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: winWidth } = useWindowDimensions();
   const {
     currentUser,
     points,
     matches,
     lettersByMatch,
     matchPartners,
-    getCurrentTitle,
     pet,
     currentSalonId,
   } = useStore();
 
-  const title = getCurrentTitle() || { title: '', emoji: '' };
+  // Hauteur réellement disponible (mesurée), pour que TOUT le tableau tienne
+  // sur un seul écran fixe, sans scroll (le paddingTop = insets.top est déjà
+  // inclus dans la mesure, donc H = hauteur mesurée − insets.top).
+  const [boardH, setBoardH] = useState(0);
+  const onBoardLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      setBoardH(e.nativeEvent.layout.height - insets.top);
+    },
+    [insets.top]
+  );
+  const W = winWidth;
+  const H = boardH > 0 ? boardH : 700;
+  const px = (base: number, frac: number) => Math.round(base * frac);
 
   const [offerings, setOfferings] = useState<OfferingSentDTO[]>([]);
   const [hasBottle, setHasBottle] = useState(false);
@@ -162,259 +174,240 @@ export function PersonalBoard() {
     );
   }
 
+  // Toutes les positions/tailles sont des fractions de (W, H) mesurés, pour
+  // que le tableau tienne SUR UN SEUL ÉCRAN FIXE (pas de scroll), quel que
+  // soit l'appareil. H = hauteur dispo sous la barre de statut et au-dessus
+  // de la barre de nav du bas (déjà exclue par le flex du Tabs navigator).
+  const profileW = px(W, 0.27);
+  const avatarSize = Math.round(profileW * 0.62);
+  const bouteilleW = px(W, 0.34);
+  const bouteilleH = px(H, 0.13);
+  const bottleImgH = Math.round(bouteilleH * 0.85);
+  const bottleImgW = Math.round(bottleImgH * (96 / 116));
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 80 }]}
-      showsVerticalScrollIndicator={false}
-      scrollEventThrottle={16}
-      nestedScrollEnabled={true}
+    <View
+      style={[styles.container, styles.board, { paddingTop: insets.top }]}
+      pointerEvents="box-none"
+      onLayout={onBoardLayout}
     >
-      <View style={[styles.board, { paddingTop: insets.top }]} pointerEvents="box-none">
-        {/* Profile (top left) */}
-        <Paper
-          onPress={() => router.push(`/profile/${currentUser?.id}`)}
-          style={{
-            position: 'absolute',
-            top: 16,
-            left: 12,
-            width: 110,
-            height: 140,
-            transform: [{ rotate: '-3deg' }],
-          }}
-        >
-          {currentUser?.avatarConfig && (
-            <Avatar
-              size={56}
-              {...currentUser.avatarConfig}
-            />
-          )}
-          <Text style={styles.profileName}>{currentUser?.name || 'Vous'}</Text>
-          <Text style={styles.profileTitle}>{title.title}</Text>
-        </Paper>
+      {/* Profile (haut gauche) */}
+      <Paper
+        onPress={() => router.push(`/profile/${currentUser?.id}`)}
+        style={{
+          position: 'absolute',
+          top: px(H, 0.0),
+          left: px(W, 0.03),
+          width: profileW,
+          transform: [{ rotate: '-3deg' }],
+        }}
+      >
+        {currentUser?.avatarConfig && (
+          <Avatar
+            size={avatarSize}
+            {...currentUser.avatarConfig}
+          />
+        )}
+        <Text style={styles.profileName}>{currentUser?.name || 'Vous'}</Text>
+      </Paper>
 
-        {/* Bienvenue (top right) */}
-        <Paper
-          style={{
-            position: 'absolute',
-            top: 32,
-            right: 16,
-            width: 135,
-            height: 85,
-            transform: [{ rotate: '4deg' }],
-          }}
-        >
-          <Text style={styles.welcomeText}>
-            Bienvenue{'\n'}{currentUser?.name || 'Vous'} ♥
-          </Text>
-        </Paper>
+      {/* Ton Compagnon (haut droite) */}
+      <Paper
+        onPress={() => router.push('/refuge')}
+        style={{
+          position: 'absolute',
+          top: px(H, 0.01),
+          right: px(W, 0.03),
+          width: px(W, 0.38),
+          transform: [{ rotate: '3deg' }],
+        }}
+      >
+        <Text style={styles.animalTitle}>Ton Compagnon</Text>
+        {refugeData?.animalType ? (
+          <>
+            {getAnimalImage(refugeData.animalType) ? (
+              <Image
+                source={getAnimalImage(refugeData.animalType)}
+                style={styles.animalImage}
+              />
+            ) : (
+              <Text style={styles.animalIcon}>{ANIMAL_LABELS[refugeData.animalType] || '🐾'}</Text>
+            )}
+            <Text style={styles.animalStatus}>
+              {refugeData.isActive && refugeData.todaySubmitted ? "Tu t'en es déjà occupé aujourd'hui" : refugeData.isActive ? "Il est temps de t'en occuper aujourd'hui" : "En attente d'un adoptant"}
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.animalIcon}>🐾</Text>
+            {pet && <Text style={styles.animalName}>{pet.petName}</Text>}
+          </>
+        )}
+      </Paper>
 
-        {/* Lettres (left, below profile) */}
-        <Paper
-          onPress={() => router.push('/(tabs)/letters')}
-          style={{
-            position: 'absolute',
-            top: 180,
-            left: 16,
-            width: 230,
-            transform: [{ rotate: '-2deg' }],
-          }}
-        >
-          <Text style={styles.sectionTitle}>✉️ Lettres Reçues</Text>
-          {recentLetters.length > 0 ? (
-            <View style={styles.lettersContainer}>
-              {recentLetters.slice(0, 3).map((letter, idx) => {
-                const senderName = matchPartners[letter.fromUserId]?.pseudo || letter.fromUserId;
-                return (
-                  <View key={idx} style={styles.letterItem}>
-                    <Text style={styles.letterEnvelope}>✉️</Text>
-                    <Text style={styles.letterSenderName} numberOfLines={1}>{senderName}</Text>
-                  </View>
-                );
-              })}
-              {recentLetters.length > 3 && (
-                <Text style={styles.moreIndicator}>+{recentLetters.length - 3}</Text>
-              )}
-            </View>
-          ) : (
-            <Text style={styles.emptyLetters}>Aucune lettre</Text>
-          )}
-        </Paper>
+      {/* Lettres Reçues (gauche, sous le profil) */}
+      <Paper
+        onPress={() => router.push('/(tabs)/letters')}
+        style={{
+          position: 'absolute',
+          top: px(H, 0.17),
+          left: px(W, 0.03),
+          width: px(W, 0.58),
+          transform: [{ rotate: '-2deg' }],
+        }}
+      >
+        <Text style={styles.sectionTitle}>✉️ Lettres Reçues</Text>
+        {recentLetters.length > 0 ? (
+          <View style={styles.lettersContainer}>
+            {recentLetters.slice(0, 3).map((letter, idx) => {
+              const senderName = matchPartners[letter.fromUserId]?.pseudo || letter.fromUserId;
+              return (
+                <View key={idx} style={styles.letterItem}>
+                  <Text style={styles.letterEnvelope}>✉️</Text>
+                  <Text style={styles.letterSenderName} numberOfLines={1}>{senderName}</Text>
+                </View>
+              );
+            })}
+            {recentLetters.length > 3 && (
+              <Text style={styles.moreIndicator}>+{recentLetters.length - 3}</Text>
+            )}
+          </View>
+        ) : (
+          <Text style={styles.emptyLetters}>Aucune lettre</Text>
+        )}
+      </Paper>
 
-        {/* Animal (right side) */}
-        <Paper
-          onPress={() => router.push('/refuge')}
-          style={{
-            position: 'absolute',
-            top: 210,
-            right: 12,
-            width: 145,
-            transform: [{ rotate: '3deg' }],
-          }}
-        >
-          <Text style={styles.animalTitle}>Ton Compagnon</Text>
-          {refugeData?.animalType ? (
-            <>
-              {getAnimalImage(refugeData.animalType) ? (
-                <Image
-                  source={getAnimalImage(refugeData.animalType)}
-                  style={styles.animalImage}
-                />
-              ) : (
-                <Text style={styles.animalIcon}>{ANIMAL_LABELS[refugeData.animalType] || '🐾'}</Text>
-              )}
-              <Text style={styles.animalStatus}>
-                {refugeData.isActive && refugeData.todaySubmitted ? "Tu t'en es déjà occupé aujourd'hui" : refugeData.isActive ? "Il est temps de t'en occuper aujourd'hui" : "En attente d'un adoptant"}
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.animalIcon}>🐾</Text>
-              {pet && <Text style={styles.animalName}>{pet.petName}</Text>}
-            </>
-          )}
-        </Paper>
+      {/* Sourires (droite, sous Ton Compagnon) — réduit */}
+      <Paper
+        onPress={() => router.push('/(tabs)/profiles?filter=received-smiles')}
+        style={{
+          position: 'absolute',
+          top: px(H, 0.22),
+          right: px(W, 0.05),
+          width: px(W, 0.22),
+          transform: [{ rotate: '-2deg' }],
+        }}
+      >
+        <Text style={styles.smilesTitle}>Sourires</Text>
+        <Text style={styles.smilesCount}>
+          {matches?.filter(m => m.initiatorId !== currentUser?.id).length ?? 0}
+        </Text>
+      </Paper>
 
-        {/* Sourires (left, middle) */}
-        <Paper
-          onPress={() => router.push('/(tabs)/profiles?filter=received-smiles')}
-          style={{
-            position: 'absolute',
-            top: 420,
-            left: 8,
-            width: 125,
-            transform: [{ rotate: '-2deg' }],
-          }}
-        >
-          <Text style={styles.smilesTitle}>Sourires</Text>
-          <Text style={styles.smilesCount}>
-            {matches?.filter(m => m.initiatorId !== currentUser?.id).length ?? 0}
-          </Text>
-        </Paper>
-
-        {/* Bouteille (right, middle) - Postcard with beach background */}
-        <Paper
-          onPress={() => {
-            if (hasBottle) {
-              router.push('/bottles-discussions');
-            } else {
-              router.push('/bottles-inbox');
-            }
-          }}
-          style={{
-            position: 'absolute',
-            top: 435,
-            right: 8,
-            width: 180,
-            height: 120,
-            transform: [{ rotate: '2deg' }],
-          }}
-        >
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', borderRadius: 3 }}>
+      {/* Bouteille (gauche, sous Lettres) — carte postale réduite */}
+      <Paper
+        onPress={() => {
+          if (hasBottle) {
+            router.push('/bottles-discussions');
+          } else {
+            router.push('/bottles-inbox');
+          }
+        }}
+        style={{
+          position: 'absolute',
+          top: px(H, 0.4),
+          left: px(W, 0.04),
+          width: bouteilleW,
+          height: bouteilleH,
+          transform: [{ rotate: '2deg' }],
+        }}
+      >
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', borderRadius: 3 }}>
+          <Image
+            source={require('../../assets/images/bottle/beach.png')}
+            style={StyleSheet.absoluteFillObject}
+            resizeMode="contain"
+          />
+        </View>
+        {hasBottle && (
+          <View style={styles.bottleWrapper} pointerEvents="none">
             <Image
-              source={require('../../assets/images/bottle/beach.png')}
-              style={StyleSheet.absoluteFillObject}
-              resizeMode="contain"
+              source={require('../../assets/images/bottle-message.png')}
+              style={{ width: bottleImgW, height: bottleImgH, resizeMode: 'contain' }}
             />
           </View>
-          {hasBottle && (
-            <View style={styles.bottleWrapper} pointerEvents="none">
-              <Image
-                source={require('../../assets/images/bottle-message.png')}
-                style={styles.bottleImage}
-              />
-            </View>
-          )}
-        </Paper>
+        )}
+      </Paper>
 
-        {/* Offrandes (center, largest) */}
-        <Paper
-          onPress={() => router.push('/offerings')}
-          style={{
-            position: 'absolute',
-            top: 570,
-            left: '50%',
-            marginLeft: -115,
-            width: 230,
-            transform: [{ rotate: '1deg' }],
-          }}
-        >
-          <Text style={styles.giftsTitle}>Offrandes Reçues</Text>
-          {offerings.length > 0 ? (
-            <View style={styles.offeringsContainer}>
-              {offerings.slice(0, 3).map((offering, idx) => {
-                const sender = matches?.find(m =>
-                  (m.userAId === offering.fromUserId || m.userBId === offering.fromUserId)
-                );
-                const senderName = sender?.otherProfile?.pseudo || offering.fromUserId;
-                const offeringId = offering.offering.id;
-                const pngUriMap: Record<string, any> = {
-                  'biere': require('../../public/offerings/off_biere_stage1.png'),
-                  'bonbons': require('../../public/offerings/off_bonbons_stage1.png'),
-                  'fraises': require('../../public/offerings/off_fraises_stage1.png'),
-                };
-                const pngAsset = pngUriMap[offeringId];
-                return (
-                  <View key={idx} style={styles.offeringItem}>
-                    {pngAsset ? (
-                      <Image source={pngAsset} style={styles.offeringPNG} />
-                    ) : (
-                      <Text style={styles.offeringName} numberOfLines={1}>{offering.offering.name}</Text>
-                    )}
-                    <Text style={styles.offeringSenderName} numberOfLines={1}>{senderName}</Text>
-                  </View>
-                );
-              })}
-              {offerings.length > 3 && (
-                <Text style={styles.moreIndicator}>+{offerings.length - 3}</Text>
-              )}
-            </View>
-          ) : (
-            <>
-              <Text style={styles.giftItem}>Bouquet</Text>
-              <Text style={styles.giftItem}>Grand Cru</Text>
-              <Text style={styles.giftItem}>Photo</Text>
-            </>
-          )}
-        </Paper>
+      {/* Offrandes Reçues (centre, la plus grande) — objets uniquement */}
+      <Paper
+        onPress={() => router.push('/offerings')}
+        style={{
+          position: 'absolute',
+          top: px(H, 0.55),
+          left: '50%',
+          marginLeft: -px(W, 0.295),
+          width: px(W, 0.59),
+          transform: [{ rotate: '1deg' }],
+        }}
+      >
+        <Text style={styles.giftsTitle}>Offrandes Reçues</Text>
+        {offerings.length > 0 ? (
+          <View style={styles.offeringsContainer}>
+            {offerings.slice(0, 3).map((offering, idx) => {
+              const offeringId = offering.offering.id;
+              const pngUriMap: Record<string, any> = {
+                'biere': require('../../public/offerings/off_biere_stage1.png'),
+                'bonbons': require('../../public/offerings/off_bonbons_stage1.png'),
+                'fraises': require('../../public/offerings/off_fraises_stage1.png'),
+              };
+              const pngAsset = pngUriMap[offeringId];
+              return (
+                <View key={idx} style={styles.offeringItem}>
+                  {pngAsset ? (
+                    <Image source={pngAsset} style={styles.offeringPNG} />
+                  ) : (
+                    <Text style={styles.offeringName} numberOfLines={1}>{offering.offering.name}</Text>
+                  )}
+                </View>
+              );
+            })}
+            {offerings.length > 3 && (
+              <Text style={styles.moreIndicator}>+{offerings.length - 3}</Text>
+            )}
+          </View>
+        ) : (
+          <>
+            <Text style={styles.giftItem}>Bouquet</Text>
+            <Text style={styles.giftItem}>Grand Cru</Text>
+            <Text style={styles.giftItem}>Photo</Text>
+          </>
+        )}
+      </Paper>
 
-        {/* Mon Salon (bottom left) */}
-        <Paper
-          onPress={() => router.push(currentSalonId ? `/salon/${currentSalonId}` : '/(tabs)/salons-list')}
-          style={{
-            position: 'absolute',
-            top: 820,
-            left: 20,
-            width: 155,
-            transform: [{ rotate: '-3deg' }],
-          }}
-        >
-          <Text style={styles.salonTitle}>Mon Salon</Text>
-          <Text style={styles.salonIcon}>🎭</Text>
-          {salonName && (
-            <Text style={styles.salonName} numberOfLines={1}>{salonName}</Text>
-          )}
-        </Paper>
+      {/* Mon Salon (bas gauche) */}
+      <Paper
+        onPress={() => router.push(currentSalonId ? `/salon/${currentSalonId}` : '/(tabs)/salons-list')}
+        style={{
+          position: 'absolute',
+          top: px(H, 0.84),
+          left: px(W, 0.04),
+          width: px(W, 0.36),
+          transform: [{ rotate: '-3deg' }],
+        }}
+      >
+        <Text style={styles.salonTitle}>Mon Salon</Text>
+        <Text style={styles.salonIcon}>🎭</Text>
+        {salonName && (
+          <Text style={styles.salonName} numberOfLines={1}>{salonName}</Text>
+        )}
+      </Paper>
 
-        {/* Stats (bottom right) */}
-        <Paper
-          style={{
-            position: 'absolute',
-            top: 830,
-            right: 12,
-            width: 140,
-            transform: [{ rotate: '2deg' }],
-          }}
-        >
-          <Text style={styles.statsTitle}>Stats</Text>
-          <Text style={styles.statValue}>{points ?? 0} pts</Text>
-          <Text style={styles.statValue}>{matches?.length ?? 0} matchs</Text>
-        </Paper>
-
-        {/* Spacer for scroll height */}
-        <View style={{ height: 1050 }} pointerEvents="none" />
-      </View>
-    </ScrollView>
+      {/* Stats (bas droite) */}
+      <Paper
+        style={{
+          position: 'absolute',
+          top: px(H, 0.84),
+          right: px(W, 0.04),
+          width: px(W, 0.33),
+          transform: [{ rotate: '2deg' }],
+        }}
+      >
+        <Text style={styles.statsTitle}>Stats</Text>
+        <Text style={styles.statValue}>{points ?? 0} pts</Text>
+        <Text style={styles.statValue}>{matches?.length ?? 0} matchs</Text>
+      </Paper>
+    </View>
   );
 }
 
@@ -423,12 +416,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: J.bgBoard,
   },
-  scrollContent: {
-    flexGrow: 1,
-  },
+  // Tableau à taille fixe (pas de scroll) : occupe tout l'espace dispo
+  // entre le haut de l'écran et la barre de navigation flottante du bas.
   board: {
     position: 'relative',
     width: '100%',
+    overflow: 'hidden',
   },
 
   paper: {
@@ -467,32 +460,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  profileTitle: {
-    fontSize: 12,
-    textAlign: 'center',
-  },
-
-  welcomeText: {
-    fontSize: 13,
-    fontWeight: '300',
-    color: J.textMain,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700',
     color: J.textMain,
     marginBottom: 8,
     letterSpacing: 0.5,
-  },
-
-  letterFrom: {
-    fontSize: 9,
-    color: J.textMain,
-    marginBottom: 2,
-    fontWeight: '600',
   },
 
   lettersContainer: {
@@ -577,30 +550,10 @@ const styles = StyleSheet.create({
   },
 
   smilesCount: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '700',
     color: J.textMain,
     textAlign: 'center',
-  },
-
-  bottleTitle: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginTop: 12,
-    marginBottom: 0,
-    paddingHorizontal: 6,
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-    zIndex: 5,
-  },
-
-  bottleImage: {
-    width: 96,
-    height: 116,
-    resizeMode: 'contain',
   },
 
   salonTitle: {
@@ -656,6 +609,7 @@ const styles = StyleSheet.create({
   offeringItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     width: '100%',
     paddingVertical: 2,
     gap: 6,
@@ -671,16 +625,8 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: J.textMain,
     fontWeight: '600',
-    flex: 1,
+    textAlign: 'center',
   },
-
-  offeringSenderName: {
-    fontSize: 8,
-    color: J.textSecondary,
-    fontWeight: '400',
-    flex: 1,
-  },
-
 
   bottleWrapper: {
     position: 'absolute',
@@ -689,10 +635,6 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     zIndex: 10,
-  },
-
-  bottleEmoji: {
-    fontSize: 20,
   },
 
   salonName: {
