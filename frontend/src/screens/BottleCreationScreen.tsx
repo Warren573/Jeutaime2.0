@@ -10,11 +10,15 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { createBottle, cancelPendingBottles } from '../api/bottles';
+
+// Fond aquarelle plein écran de l'écran de création.
+const SEA_BG = require('../../assets/images/bottle/sea-bg.jpg');
 
 const COLORS = {
   bg: '#F5F1E8',
@@ -152,10 +156,23 @@ export default function BottleCreationScreen() {
   const charRemaining = MAX_MESSAGE_LENGTH - message.length;
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: COLORS.bg }]}
-    >
+    <>
+      {/* Fond aquarelle épinglé au viewport (fixed sur web), hors du flux —
+          n'affecte pas la mise en page. Voile clair pour la lisibilité du form. */}
+      <View style={styles.seaBgLayer} pointerEvents="none">
+        <Image source={SEA_BG} style={styles.seaBgImage} resizeMode="cover" />
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: 'rgba(245,241,232,0.62)' },
+          ]}
+        />
+      </View>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
+      >
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -380,13 +397,28 @@ export default function BottleCreationScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'transparent',
+    // Au-dessus de la couche de fond fixe.
+    position: 'relative',
+    zIndex: 1,
+  },
+  // Couche de fond épinglée au viewport : `fixed` sur web (hors flux), `absolute`
+  // plein écran sur natif.
+  seaBgLayer:
+    Platform.OS === 'web'
+      ? ({ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 } as any)
+      : { ...StyleSheet.absoluteFillObject, zIndex: 0 },
+  seaBgImage: {
+    width: '100%',
+    height: '100%',
   },
   scroll: {
     flex: 1,
