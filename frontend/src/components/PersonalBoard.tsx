@@ -302,7 +302,7 @@ export function PersonalBoard() {
         }}
         style={{
           position: 'absolute',
-          top: px(H, 0.44),
+          top: px(H, 0.48),
           left: px(W, 0.04),
           width: bouteilleW,
           height: bouteilleH,
@@ -313,7 +313,7 @@ export function PersonalBoard() {
           <Image
             source={require('../../assets/images/bottle/beach.png')}
             style={StyleSheet.absoluteFillObject}
-            resizeMode="contain"
+            resizeMode="cover"
           />
         </View>
         {hasBottle && (
