@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { BouncyButton } from '../../src/components/BouncyButton';
+import { BouncyButton } from '../components/BouncyButton';
 
 /**
  * Écran d'accueil du Refuge.

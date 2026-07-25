@@ -16,7 +16,7 @@ import {
   Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, Link, useFocusEffect } from 'expo-router';
+import { useRouter, Link, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matches';
 import { reportUser, type ReportReason } from '../api/profiles';
@@ -493,6 +493,7 @@ interface Souvenir {
 export default function LettersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const {
     matches, letters, lettersByMatch, questionsByMatch,
     addLetter, markLetterRead, markLetterReadApi,
@@ -516,7 +517,9 @@ export default function LettersScreen() {
   const [qCurrentStep, setQCurrentStep] = useState(0);
   const [qSubmitting, setQSubmitting] = useState(false);
   const [qResult, setQResult] = useState<{ myScore: number; passed: boolean; questionsValidated: boolean; waitingForOther: boolean; matchBroken: boolean } | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('lettres');
+  const initialTab: TabType =
+    params.tab === 'souvenirs' || params.tab === 'journal' ? params.tab : 'lettres';
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
 
   const [envAnimVisible, setEnvAnimVisible] = useState(false);
   const [envAnimSender, setEnvAnimSender] = useState('');

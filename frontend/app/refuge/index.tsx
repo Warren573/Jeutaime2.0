@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { View, Text } from 'react-native';
 import { RefugeMainScreen } from '../../src/screens/RefugeMainScreen';
-import { RefugeHomeScreen } from './RefugeHomeScreen';
+import { RefugeHomeScreen } from '../../src/screens/RefugeHomeScreen';
 import { refugeApi } from '../../src/api/refuge-api';
 
 export default function RefugePage() {

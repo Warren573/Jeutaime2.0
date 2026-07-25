@@ -238,11 +238,10 @@ export default function SettingsScreen() {
       key: 'univers',
       title: 'Univers JeuTaime',
       items: [
-        { icon: '🎮', label: 'Activités',                  route: '/games' },
         { icon: '🍾', label: 'Bouteille à la mer',         action: handleBottlePress },
         { icon: '🏆', label: 'Profil de la semaine',       route: '/weekly-profile' },
         { icon: '📔', label: 'Journal',                    route: '/(tabs)/journal' },
-        { icon: '🎁', label: 'Boîte à souvenirs',          route: '/souvenirs' },
+        { icon: '🎁', label: 'Boîte à souvenirs',          route: '/(tabs)/letters?tab=souvenirs' },
         { icon: '✨', label: 'Offrandes et magie',         route: '/offerings' },
       ],
     },
