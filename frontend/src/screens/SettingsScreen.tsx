@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -36,34 +36,42 @@ interface SettingsSection {
 
 // ─── Sous-composants ──────────────────────────────────────────────────────────
 
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <View style={styles.sectionHeaderWrap}>
-      <Text style={styles.sectionHeaderText}>{title.toUpperCase()}</Text>
-    </View>
-  );
-}
-
-function SectionCard({
-  items,
-  onPress,
+// Une seule carte par section : le titre est la rangée du haut, cliquable
+// (accordéon). Les items se déploient À L'INTÉRIEUR de cette même carte au
+// lieu d'être toujours affichés dans une carte séparée en dessous.
+function SectionAccordion({
+  section,
+  expanded,
+  onToggle,
+  onItemPress,
 }: {
-  items:   SettingsItem[];
-  onPress: (item: SettingsItem) => void;
+  section: SettingsSection;
+  expanded: boolean;
+  onToggle: () => void;
+  onItemPress: (item: SettingsItem) => void;
 }) {
   return (
     <View style={styles.sectionCard}>
-      {items.map((item, idx) => {
+      <TouchableOpacity
+        style={[styles.sectionHeaderRow, expanded && styles.sectionHeaderRowExpanded]}
+        onPress={onToggle}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.sectionHeaderText}>{section.title.toUpperCase()}</Text>
+        <Text style={styles.sectionChevron}>{expanded ? '⌃' : '⌄'}</Text>
+      </TouchableOpacity>
+
+      {expanded && section.items.map((item, idx) => {
         const tappable = !!(item.route || item.action);
         return (
           <TouchableOpacity
             key={idx}
             style={[
               styles.item,
-              idx < items.length - 1 && styles.itemBorder,
+              idx < section.items.length - 1 && styles.itemBorder,
               !tappable && styles.itemStatic,
             ]}
-            onPress={() => tappable && onPress(item)}
+            onPress={() => tappable && onItemPress(item)}
             activeOpacity={tappable ? 0.65 : 1}
           >
             <View style={[
@@ -109,6 +117,12 @@ export default function SettingsScreen() {
   const isAuthenticated = useStore(s => s.isAuthenticated);
   const screenBg = useStore(s => s.screenBackgrounds?.['settings'] ?? '#FFF8E7');
   const title = getCurrentTitle();
+
+  // Sections repliées par défaut (accordéon) : on ne montre que les 7 titres
+  // tant que l'utilisateur ne déplie pas celle qui l'intéresse.
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const toggleSection = (key: string) =>
+    setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
 
   const avatarResolution = resolveAvatarConfig(
     currentUser?.id || 'unknown',
@@ -340,12 +354,15 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* ── Sections ─────────────────────────────────────────────────────── */}
+        {/* ── Sections (accordéon) ──────────────────────────────────────────── */}
         {SECTIONS.map(section => (
-          <View key={section.key}>
-            <SectionHeader title={section.title} />
-            <SectionCard items={section.items} onPress={handlePress} />
-          </View>
+          <SectionAccordion
+            key={section.key}
+            section={section}
+            expanded={!!expandedSections[section.key]}
+            onToggle={() => toggleSection(section.key)}
+            onItemPress={handlePress}
+          />
         ))}
 
         {/* ── À propos ─────────────────────────────────────────────────────── */}
@@ -391,11 +408,13 @@ const styles = StyleSheet.create({
   progressBarFill: { height: '100%', backgroundColor: '#FFD700', borderRadius: 5 },
   progressText:   { fontSize: 12, color: '#B8A082', marginTop: 6, textAlign: 'right' },
 
-  // Sections
-  sectionHeaderWrap: { paddingHorizontal: 4, paddingTop: 18, paddingBottom: 6 },
-  sectionHeaderText: { fontSize: 11, fontWeight: '700', color: '#B8956A', letterSpacing: 1.2 },
+  // Sections (accordéon : une carte, titre cliquable en haut, items dedans)
+  sectionCard: { backgroundColor: '#FFF', borderRadius: 16, overflow: 'hidden', marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
 
-  sectionCard: { backgroundColor: '#FFF', borderRadius: 16, overflow: 'hidden', marginBottom: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16 },
+  sectionHeaderRowExpanded: { borderBottomWidth: 1, borderBottomColor: '#F5EFE6' },
+  sectionHeaderText: { fontSize: 12, fontWeight: '700', color: '#B8956A', letterSpacing: 1.2 },
+  sectionChevron: { fontSize: 16, color: '#C4A77D', fontWeight: '700' },
 
   item:        { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14 },
   itemBorder:  { borderBottomWidth: 1, borderBottomColor: '#F5EFE6' },
