@@ -11,7 +11,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
-import { titles } from '../data/gameData';
 import { Avatar } from '../avatar/png/Avatar';
 import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import { getInbox } from '../api/bottles';
@@ -113,10 +112,9 @@ function SectionAccordion({
 export default function SettingsScreen() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
-  const { currentUser, coins, points, getCurrentTitle, pet, logout } = useStore();
+  const { currentUser, coins, points, pet, logout } = useStore();
   const isAuthenticated = useStore(s => s.isAuthenticated);
   const screenBg = useStore(s => s.screenBackgrounds?.['settings'] ?? '#FFF8E7');
-  const title = getCurrentTitle();
 
   // Sections repliées par défaut (accordéon) : on ne montre que les 7 titres
   // tant que l'utilisateur ne déplie pas celle qui l'intéresse.
@@ -134,14 +132,6 @@ export default function SettingsScreen() {
 
   const canDiscover = currentUser?.canDiscover;
   const hasQuestions = (currentUser?.apiQuestions?.length ?? 0) > 0;
-
-  // Progression vers prochain titre
-  const currentTitleData = titles.find(t => t.level === title.level);
-  const nextTitle        = titles.find(t => t.level === title.level + 1);
-  const progress = nextTitle
-    ? Math.min(100, ((points - (currentTitleData?.minPoints ?? 0)) /
-        ((nextTitle.minPoints - (currentTitleData?.minPoints ?? 0)) || 1)) * 100)
-    : 100;
 
   const nav = (route: string) => router.push(route as any);
 
@@ -229,8 +219,6 @@ export default function SettingsScreen() {
       title: 'Personnalisation',
       items: [
         { icon: '🖼️', label: 'Arrière-plans des écrans',  route: '/background-picker' },
-        { icon: '🏷️', label: 'Mon titre',                  route: '/my-title' },
-        { icon: '🌟', label: 'Mes badges',                 route: '/badges' },
         { icon: '🐾', label: 'Mon Animal',                 route: '/refuge', badge: pet?.petEmoji ?? null },
       ],
     },
@@ -311,11 +299,6 @@ export default function SettingsScreen() {
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{currentUser?.name || 'Joueur'}</Text>
             <Text style={styles.profileCity}>📍 {(currentUser as any)?.city || 'Paris'}</Text>
-            <View style={styles.titleBadge}>
-              <Text style={styles.titleEmoji}>{title.emoji}</Text>
-              <Text style={styles.titleName}>{title.title}</Text>
-              <Text style={styles.titleLevel}>Niv. {title.level}</Text>
-            </View>
           </View>
           <Text style={styles.editIcon}>✏️</Text>
         </TouchableOpacity>
@@ -338,20 +321,6 @@ export default function SettingsScreen() {
             <Text style={styles.statLabel}>Matchs</Text>
           </View>
         </View>
-
-        {/* ── Progression titre ─────────────────────────────────────────────── */}
-        {nextTitle && (
-          <View style={styles.progressCard}>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressLabel}>Prochain titre</Text>
-              <Text style={styles.progressNext}>{nextTitle.emoji} {nextTitle.name ?? nextTitle.title}</Text>
-            </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${progress}%` as any }]} />
-            </View>
-            <Text style={styles.progressText}>{points} / {nextTitle.minPoints} pts</Text>
-          </View>
-        )}
 
         {/* ── Sections (accordéon) ──────────────────────────────────────────── */}
         {SECTIONS.map(section => (
@@ -385,10 +354,6 @@ const styles = StyleSheet.create({
   profileInfo:  { flex: 1, marginLeft: 14 },
   profileName:  { fontSize: 22, fontWeight: '800', color: '#3A2818' },
   profileCity:  { fontSize: 13, color: '#8B6F47', marginTop: 3 },
-  titleBadge:   { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFE082', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginTop: 8, alignSelf: 'flex-start' },
-  titleEmoji:   { fontSize: 16, marginRight: 4 },
-  titleName:    { fontSize: 14, fontWeight: '700', color: '#5D4037' },
-  titleLevel:   { fontSize: 12, color: '#8B6F47', marginLeft: 6 },
   editIcon:     { fontSize: 18, color: '#C4A77D' },
 
   // Stats
@@ -397,15 +362,6 @@ const styles = StyleSheet.create({
   statEmoji:  { fontSize: 22, marginBottom: 4 },
   statValue:  { fontSize: 20, fontWeight: '800', color: '#3A2818' },
   statLabel:  { fontSize: 11, color: '#8B6F47', marginTop: 3 },
-
-  // Progression
-  progressCard:   { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  progressLabel:  { fontSize: 13, color: '#8B6F47' },
-  progressNext:   { fontSize: 15, fontWeight: '700', color: '#DAA520' },
-  progressBarBg:  { height: 10, backgroundColor: '#E8D5B7', borderRadius: 5, overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: '#FFD700', borderRadius: 5 },
-  progressText:   { fontSize: 12, color: '#B8A082', marginTop: 6, textAlign: 'right' },
 
   // Sections (accordéon : une carte, titre cliquable en haut, items dedans)
   sectionCard: { backgroundColor: '#FFF', borderRadius: 16, overflow: 'hidden', marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },

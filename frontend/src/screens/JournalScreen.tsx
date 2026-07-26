@@ -95,11 +95,10 @@ const todayHeadline = () =>
 
 export default function JournalScreen() {
   const insets = useSafeAreaInsets();
-  const { coins, points, getCurrentTitle } = useStore();
+  const { coins, points } = useStore();
   const screenBg = useStore(s => s.screenBackgrounds?.['journal'] ?? '#F4EFE1');
   const [refreshing, setRefreshing] = useState(false);
   const [likedItems, setLikedItems] = useState<string[]>([]);
-  const title = getCurrentTitle();
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -134,7 +133,6 @@ export default function JournalScreen() {
           <View style={styles.mastheadRuleThin} />
           <View style={styles.datelineRow}>
             <Text style={styles.dateline}>{todayHeadline()}</Text>
-            <Text style={styles.dateline}>N° {title.level ?? 1}</Text>
           </View>
         </View>
 
@@ -150,11 +148,6 @@ export default function JournalScreen() {
             <View style={styles.briefItem}>
               <Text style={styles.briefValue}>{points}</Text>
               <Text style={styles.briefLabel}>Points</Text>
-            </View>
-            <View style={styles.briefDivider} />
-            <View style={styles.briefItem}>
-              <Text style={styles.briefValue}>{title.emoji}</Text>
-              <Text style={styles.briefLabel}>{title.title}</Text>
             </View>
           </View>
         </View>
@@ -275,7 +268,7 @@ const styles = StyleSheet.create({
   mastheadRuleThin: { height: 1, backgroundColor: INK, width: '100%', marginTop: 3 },
   datelineRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     width: '100%',
     marginTop: 6,
   },

@@ -26,11 +26,9 @@ import type {
   Letter,
   PetOwnership,
   Wallet,
-  UserProgression,
   UserStats,
   Transaction,
   TransactionCategory,
-  Title,
   GenderType,
 } from '../shared/types';
 
@@ -279,12 +277,9 @@ interface StoreState {
   
   // ===== Actions - Progression =====
   addPoints: (amount: number, reason?: string) => void;
-  getCurrentTitle: () => { level: number; title: string; emoji: string };
-  getNextLevel: () => { nextTitle: Title | null; progress: number; remaining: number };
-  
-  // ===== Actions - Stats & Badges =====
+
+  // ===== Actions - Stats =====
   incrementStat: (stat: keyof UserStats, amount?: number) => void;
-  checkAndUnlockBadges: () => string[];
   
   // ===== Actions - Pets =====
   adoptPet: (petId: string, name: string, emoji: string) => void;
@@ -746,55 +741,19 @@ export const useStore = create<StoreState>()(
         const { points } = get();
         const newPoints = points + amount;
         const { level, title, emoji } = ProgressionEngine.calculateLevel(newPoints);
-        set({ 
-          points: newPoints, 
-          level, 
-          title, 
-          titleEmoji: emoji 
+        set({
+          points: newPoints,
+          level,
+          title,
+          titleEmoji: emoji
         });
-        
-        // Vérifier les badges
-        get().checkAndUnlockBadges();
-      },
-      
-      getCurrentTitle: () => {
-        const { points } = get();
-        return ProgressionEngine.calculateLevel(points);
-      },
-      
-      getNextLevel: () => {
-        const { points } = get();
-        const { nextTitle, progress, remaining } = ProgressionEngine.getNextLevelRequirement(points);
-        return { nextTitle, progress, remaining };
       },
 
-      // ===== Stats & Badges Actions =====
+      // ===== Stats Actions =====
       incrementStat: (stat, amount = 1) => {
         const { stats } = get();
         const newStats = ProgressionEngine.updateStats(stats, stat, amount);
         set({ stats: newStats });
-        get().checkAndUnlockBadges();
-      },
-      
-      checkAndUnlockBadges: () => {
-        const { stats, unlockedBadges, points, level, title, titleEmoji } = get();
-        const progression: UserProgression = {
-          odId: 'me',
-          points,
-          level,
-          title,
-          titleEmoji,
-          unlockedBadges,
-          stats,
-        };
-        
-        const newBadges = ProgressionEngine.checkBadgeUnlock(progression, stats);
-        if (newBadges.length > 0) {
-          const newBadgeIds = newBadges.map(b => b.id);
-          set({ unlockedBadges: [...unlockedBadges, ...newBadgeIds] });
-          return newBadgeIds;
-        }
-        return [];
       },
 
       // ===== Pet Actions =====
