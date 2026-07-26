@@ -217,6 +217,7 @@ export default function SettingsScreen() {
         ...(canDiscover === false ? [{ icon: '⚠️', label: 'Compléter mon profil', route: '/create-profile', warning: true } as SettingsItem] : []),
         ...(isAuthenticated && !hasQuestions ? [{ icon: '❓', label: 'Mes 3 questions', route: '/setup-questions' } as SettingsItem] : []),
         { icon: '✏️', label: 'Modifier mon profil',       route: '/edit-profile' },
+        { icon: '🎨', label: 'Personnaliser mon avatar',   action: () => router.push({ pathname: '/avatar-builder' } as any) },
         { icon: '📸', label: 'Mes photos',                route: '/my-photos' },
         { icon: '🎯', label: 'Préférences de rencontre',  route: '/matching-preferences' },
         { icon: '📍', label: 'Localisation',              route: '/location' },
@@ -227,7 +228,6 @@ export default function SettingsScreen() {
       key: 'perso',
       title: 'Personnalisation',
       items: [
-        { icon: '🎨', label: 'Personnaliser mon avatar',   action: () => router.push({ pathname: '/avatar-builder' } as any) },
         { icon: '🖼️', label: 'Arrière-plans des écrans',  route: '/background-picker' },
         { icon: '🏷️', label: 'Mon titre',                  route: '/my-title' },
         { icon: '🌟', label: 'Mes badges',                 route: '/badges' },
