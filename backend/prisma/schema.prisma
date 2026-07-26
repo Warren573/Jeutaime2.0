@@ -67,6 +67,7 @@ enum CoinTxnType {
   REFUGE_PERFECT_REWARD
   REFUGE_PARTICIPATION_REWARD
   REFUGE_INACTIVITY_PENALTY
+  WEEKLY_PROFILE_VOTE
 }
 
 enum CardGameStatus {
@@ -212,6 +213,8 @@ model User {
   salonSessionParticipants SalonSessionParticipant[]
   encounters1              SalonEncounter[]          @relation("Encounter1")
   encounters2              SalonEncounter[]          @relation("Encounter2")
+  weeklyVotesGiven         WeeklyProfileVote[]       @relation("WeeklyVoteVoter")
+  weeklyVotesReceived      WeeklyProfileVote[]       @relation("WeeklyVoteCandidate")
 
   bottlesSent                  MessageInABottle[]    @relation("BottleSender")
   bottlesAccepted              MessageInABottle[]    @relation("BottleAcceptedBy")
@@ -1057,4 +1060,25 @@ model RefugeDayResult {
 
   @@unique([refugeSessionId, dayNumber])
   @@index([refugeSessionId])
+}
+
+// ============================================================
+// PROFIL DE LA SEMAINE
+// ============================================================
+
+// Un vote = un utilisateur qui soutient un candidat pour la semaine
+// (weekKey format ISO "YYYY-Www", ex. "2026-W30"). Un seul vote par semaine
+// et par votant (contrainte unique), qui coûte des pièces (WEEKLY_PROFILE_VOTE).
+model WeeklyProfileVote {
+  id          String   @id @default(cuid())
+  voterId     String
+  voter       User     @relation("WeeklyVoteVoter", fields: [voterId], references: [id], onDelete: Cascade)
+  candidateId String
+  candidate   User     @relation("WeeklyVoteCandidate", fields: [candidateId], references: [id], onDelete: Cascade)
+  weekKey     String
+  createdAt   DateTime @default(now())
+
+  @@unique([voterId, weekKey])
+  @@index([weekKey])
+  @@index([candidateId])
 }

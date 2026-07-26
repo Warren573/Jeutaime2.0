@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
+import { getCommunityStats, type CommunityStatsDTO } from '../api/stats';
 
 const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 
@@ -20,11 +20,12 @@ interface NewsItem {
   content: string;
   emoji: string;
   date: string;
-  likes: number;
-  comments: number;
-  author?: string;
 }
 
+// Contenu éditorial de l'équipe JeuTaime (annonces/astuces), affiché tel
+// quel — ce n'est pas une donnée utilisateur à charger depuis le serveur.
+// Les CHIFFRES ci-dessous (Chiffres de la communauté) sont eux bien réels,
+// via /api/stats/community.
 const mockNews: NewsItem[] = [
   {
     id: '1',
@@ -33,8 +34,6 @@ const mockNews: NewsItem[] = [
     content: 'Découvrez une nouvelle façon de faire des rencontres à travers le jeu, les histoires collaboratives et les cadeaux virtuels. Amusez-vous !',
     emoji: '🎉',
     date: "Aujourd'hui",
-    likes: 142,
-    comments: 23,
   },
   {
     id: '2',
@@ -43,8 +42,6 @@ const mockNews: NewsItem[] = [
     content: "Un nouveau salon intime pour 4 personnes vient d'ouvrir ! Ambiance cosy et conversation face-à-face garanties.",
     emoji: '☕',
     date: 'Hier',
-    likes: 89,
-    comments: 15,
   },
   {
     id: '3',
@@ -53,8 +50,6 @@ const mockNews: NewsItem[] = [
     content: 'Saviez-vous que vous pouvez envoyer des offrandes aux autres joueurs dans les salons ? Un excellent moyen de briser la glace !',
     emoji: '💡',
     date: 'Il y a 2 jours',
-    likes: 67,
-    comments: 8,
   },
   {
     id: '4',
@@ -63,8 +58,6 @@ const mockNews: NewsItem[] = [
     content: 'Pong, Casse-Brique et le Jeu de Cartes sont maintenant disponibles ! Gagnez des pièces en jouant.',
     emoji: '🎮',
     date: 'Il y a 3 jours',
-    likes: 234,
-    comments: 45,
   },
   {
     id: '5',
@@ -73,8 +66,6 @@ const mockNews: NewsItem[] = [
     content: 'Le refuge est ouvert ! Choisissez parmi 9 animaux adorables, du chien commun au dragon légendaire.',
     emoji: '🐾',
     date: 'Il y a 4 jours',
-    likes: 178,
-    comments: 32,
   },
 ];
 
@@ -93,24 +84,29 @@ const todayHeadline = () =>
     year: 'numeric',
   });
 
+const formatNumber = (n: number) => n.toLocaleString('fr-FR');
+
 export default function JournalScreen() {
   const insets = useSafeAreaInsets();
   const { coins, points } = useStore();
   const screenBg = useStore(s => s.screenBackgrounds?.['journal'] ?? '#F4EFE1');
   const [refreshing, setRefreshing] = useState(false);
-  const [likedItems, setLikedItems] = useState<string[]>([]);
+  const [stats, setStats] = useState<CommunityStatsDTO | null>(null);
+
+  const loadStats = () => {
+    getCommunityStats()
+      .then(setStats)
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
-  };
-
-  const handleLike = (itemId: string) => {
-    if (likedItems.includes(itemId)) {
-      setLikedItems(prev => prev.filter(id => id !== itemId));
-    } else {
-      setLikedItems(prev => [...prev, itemId]);
-    }
+    loadStats();
+    setTimeout(() => setRefreshing(false), 600);
   };
 
   const [headline, ...rest] = mockNews;
@@ -158,11 +154,6 @@ export default function JournalScreen() {
           <Text style={styles.headlineTitle}>{headline.emoji}  {headline.title}</Text>
           <Text style={styles.headlineByline}>{headline.date}</Text>
           <Text style={styles.headlineContent}>{headline.content}</Text>
-          <ArticleFooter
-            item={headline}
-            liked={likedItems.includes(headline.id)}
-            onLike={() => handleLike(headline.id)}
-          />
         </View>
 
         <View style={styles.sectionRule} />
@@ -174,11 +165,6 @@ export default function JournalScreen() {
             <Text style={styles.eyebrow}>{typeLabels[item.type].toUpperCase()} · {item.date}</Text>
             <Text style={styles.articleTitle}>{item.emoji}  {item.title}</Text>
             <Text style={styles.articleContent}>{item.content}</Text>
-            <ArticleFooter
-              item={item}
-              liked={likedItems.includes(item.id)}
-              onLike={() => handleLike(item.id)}
-            />
           </View>
         ))}
 
@@ -188,51 +174,25 @@ export default function JournalScreen() {
 
         <View style={styles.statsGrid}>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>1 234</Text>
+            <Text style={styles.statValue}>{stats ? formatNumber(stats.matchesToday) : '—'}</Text>
             <Text style={styles.statLabel}>Matchs aujourd'hui</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>567</Text>
-            <Text style={styles.statLabel}>Histoires créées</Text>
+            <Text style={styles.statValue}>{stats ? formatNumber(stats.lettersSent) : '—'}</Text>
+            <Text style={styles.statLabel}>Lettres échangées</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>2 891</Text>
+            <Text style={styles.statValue}>{stats ? formatNumber(stats.giftsSent) : '—'}</Text>
             <Text style={styles.statLabel}>Cadeaux envoyés</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>8 432</Text>
-            <Text style={styles.statLabel}>Membres actifs</Text>
+            <Text style={styles.statValue}>{stats ? formatNumber(stats.activeMembers) : '—'}</Text>
+            <Text style={styles.statLabel}>Membres actifs (7j)</Text>
           </View>
         </View>
 
         <Text style={styles.colophon}>— Fin de l'édition du jour —</Text>
       </ScrollView>
-    </View>
-  );
-}
-
-function ArticleFooter({
-  item,
-  liked,
-  onLike,
-}: {
-  item: NewsItem;
-  liked: boolean;
-  onLike: () => void;
-}) {
-  return (
-    <View style={styles.articleFooter}>
-      <TouchableOpacity style={styles.actionBtn} onPress={onLike}>
-        <Text style={styles.actionText}>
-          {liked ? '♥' : '♡'} {item.likes + (liked ? 1 : 0)}
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.actionBtn}>
-        <Text style={styles.actionText}>✎ {item.comments}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.actionBtn}>
-        <Text style={styles.actionText}>Partager</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -345,10 +305,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   articleContent: { fontSize: 14, fontFamily: SERIF, color: INK, lineHeight: 20 },
-
-  articleFooter: { flexDirection: 'row', marginTop: 10, paddingTop: 8 },
-  actionBtn: { marginRight: 20 },
-  actionText: { fontSize: 12, fontFamily: SERIF, color: INK_SOFT, fontStyle: 'italic' },
 
   // ── Chiffres ─────────────────────────────────────────────────────────────
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },

@@ -33,6 +33,9 @@ import reactionsRoutes from "./modules/reactions/reactions.routes";
 import cardGameRoutes from "./modules/card-game/card-game.routes";
 import bottlesRoutes from "./modules/bottles/bottles.routes";
 import refugeRoutes from "./modules/refuge/refuge.routes";
+import souvenirsRoutes from "./modules/souvenirs/souvenirs.routes";
+import statsRoutes from "./modules/stats/stats.routes";
+import weeklyProfileRoutes from "./modules/weekly-profile/weekly-profile.routes";
 import testRoutes from "./modules/test/test.routes";
 import debugRoutes from "./modules/debug/debug.routes";
 
@@ -97,6 +100,9 @@ app.use(`${api}/discover`, reactionsRoutes);
 app.use(`${api}/card-game`, cardGameRoutes);
 app.use(`${api}/bottles`, bottlesRoutes);
 app.use(`${api}/refuge`, refugeRoutes);
+app.use(`${api}/souvenirs`, souvenirsRoutes);
+app.use(`${api}/stats`, statsRoutes);
+app.use(`${api}/weekly-profile`, weeklyProfileRoutes);
 
 // Temporary dev routes (remove before production)
 app.use(`${api}/test`, testRoutes);

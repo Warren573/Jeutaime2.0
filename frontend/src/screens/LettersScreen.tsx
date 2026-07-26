@@ -20,6 +20,7 @@ import { useRouter, Link, useFocusEffect, useLocalSearchParams } from 'expo-rout
 import { useStore } from '../store/useStore';
 import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matches';
 import { reportUser, type ReportReason } from '../api/profiles';
+import { getSouvenirs, type SouvenirDTO } from '../api/souvenirs';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
 import { Avatar } from '../avatar/png/Avatar';
@@ -481,15 +482,6 @@ interface JournalEntry {
   mood: string;
 }
 
-interface Souvenir {
-  id: string;
-  type: 'match' | 'letter' | 'gift' | 'milestone';
-  title: string;
-  description: string;
-  date: string;
-  emoji: string;
-}
-
 export default function LettersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -552,24 +544,15 @@ export default function LettersScreen() {
   const [journalContent, setJournalContent] = useState('');
   const [journalMood, setJournalMood] = useState('😊');
 
-  const [souvenirs] = useState<Souvenir[]>([
-    {
-      id: '1',
-      type: 'milestone',
-      title: 'Inscription',
-      description: 'Tu as rejoint JeuTaime!',
-      date: '2025-03-12',
-      emoji: '🎉',
-    },
-    {
-      id: '2',
-      type: 'match',
-      title: 'Premier Match',
-      description: 'Tu as eu ton premier match!',
-      date: '2025-03-12',
-      emoji: '🌟',
-    },
-  ]);
+  const [souvenirs, setSouvenirs] = useState<SouvenirDTO[]>([]);
+  const [souvenirsLoading, setSouvenirsLoading] = useState(true);
+
+  useEffect(() => {
+    getSouvenirs()
+      .then(setSouvenirs)
+      .catch(() => setSouvenirs([]))
+      .finally(() => setSouvenirsLoading(false));
+  }, []);
 
   const visibleTabs = useMemo(() => {
     const tabs: TabType[] = [];
@@ -941,7 +924,9 @@ export default function LettersScreen() {
       default:
         return (
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-            {souvenirs.length === 0 ? (
+            {souvenirsLoading ? (
+              <ActivityIndicator size="large" color="#8B2E3C" style={{ marginTop: 40 }} />
+            ) : souvenirs.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyEmoji}>📦</Text>
                 <Text style={styles.emptyText}>Boîte à souvenirs vide</Text>
@@ -954,7 +939,11 @@ export default function LettersScreen() {
                   <View style={styles.souvenirInfo}>
                     <Text style={styles.souvenirTitle}>{souvenir.title}</Text>
                     <Text style={styles.souvenirDesc}>{souvenir.description}</Text>
-                    <Text style={styles.souvenirDate}>{souvenir.date}</Text>
+                    <Text style={styles.souvenirDate}>
+                      {new Date(souvenir.date).toLocaleDateString('fr-FR', {
+                        day: 'numeric', month: 'long', year: 'numeric',
+                      })}
+                    </Text>
                   </View>
                 </View>
               ))
