@@ -215,18 +215,11 @@ export default function SettingsScreen() {
       ],
     },
     {
-      key: 'perso',
-      title: 'Personnalisation',
-      items: [
-        { icon: '🖼️', label: 'Arrière-plans des écrans',  route: '/background-picker' },
-        { icon: '🐾', label: 'Mon Animal',                 route: '/refuge', badge: pet?.petEmoji ?? null },
-      ],
-    },
-    {
       key: 'univers',
       title: 'Univers JeuTaime',
       items: [
         { icon: '🍾', label: 'Bouteille à la mer',         action: handleBottlePress },
+        { icon: '🐾', label: 'Mon Animal',                 route: '/refuge', badge: pet?.petEmoji ?? null },
         { icon: '🏆', label: 'Profil de la semaine',       route: '/weekly-profile' },
         { icon: '📔', label: 'Journal',                    route: '/(tabs)/journal' },
         { icon: '🎁', label: 'Boîte à souvenirs',          route: '/(tabs)/letters?tab=souvenirs' },

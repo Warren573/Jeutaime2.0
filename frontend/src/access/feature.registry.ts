@@ -75,7 +75,7 @@ export const FEATURE_REGISTRY: FeatureDefinition[] = [
   {
     key:    "magie",
     label:  "Magie",
-    routes: ["avatar-builder", "sounds", "background-picker"],
+    routes: ["avatar-builder", "sounds"],
     access: DEFAULT_ACCESS.magie,
   },
   {
