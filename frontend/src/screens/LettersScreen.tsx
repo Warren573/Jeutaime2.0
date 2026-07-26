@@ -993,7 +993,7 @@ export default function LettersScreen() {
             onPress={() => setActiveTab('journal')}
           >
             <Text style={[styles.tabText, activeTab === 'journal' && styles.tabTextActive]}>
-              📔 Journal
+              📔 Journal Intime
             </Text>
           </TouchableOpacity>
         )}
