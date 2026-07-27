@@ -2,27 +2,23 @@ import { describe, it, expect } from "vitest";
 import { VoteWeeklyProfileSchema } from "../../src/modules/weekly-profile/weekly-profile.schemas";
 
 describe("VoteWeeklyProfileSchema", () => {
-  const base = { candidateAId: "user-a", candidateBId: "user-b", chosenId: "user-a" };
+  const base = { duelId: "duel-1", chosenId: "user-a" };
 
-  it("duel valide → OK", () => {
+  it("payload valide → OK", () => {
     const res = VoteWeeklyProfileSchema.parse(base);
     expect(res).toEqual(base);
   });
 
-  it("candidateAId manquant → rejeté", () => {
-    expect(() => VoteWeeklyProfileSchema.parse({ candidateBId: "user-b", chosenId: "user-b" })).toThrow();
-  });
-
-  it("candidateBId manquant → rejeté", () => {
-    expect(() => VoteWeeklyProfileSchema.parse({ candidateAId: "user-a", chosenId: "user-a" })).toThrow();
+  it("duelId manquant → rejeté", () => {
+    expect(() => VoteWeeklyProfileSchema.parse({ chosenId: "user-a" })).toThrow();
   });
 
   it("chosenId manquant → rejeté", () => {
-    expect(() => VoteWeeklyProfileSchema.parse({ candidateAId: "user-a", candidateBId: "user-b" })).toThrow();
+    expect(() => VoteWeeklyProfileSchema.parse({ duelId: "duel-1" })).toThrow();
   });
 
-  it("champ inconnu → rejeté (schema strict)", () => {
-    expect(() => VoteWeeklyProfileSchema.parse({ ...base, extra: "nope" })).toThrow();
+  it("champ inconnu (ex. candidateAId falsifié côté client) → rejeté (schema strict)", () => {
+    expect(() => VoteWeeklyProfileSchema.parse({ ...base, candidateAId: "fraude", candidateBId: "fraude2" })).toThrow();
   });
 
   it("id vide → rejeté", () => {
