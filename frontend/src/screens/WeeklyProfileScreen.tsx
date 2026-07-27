@@ -81,7 +81,7 @@ export default function WeeklyProfileScreen() {
       <Text style={styles.duelCity}>📍 {profile.city}</Text>
       {!!profile.bio && (
         <View style={styles.bioBox}>
-          <Text style={styles.bioText}>"{profile.bio}"</Text>
+          <Text style={styles.bioText}>&quot;{profile.bio}&quot;</Text>
         </View>
       )}
       <TouchableOpacity
@@ -107,13 +107,13 @@ export default function WeeklyProfileScreen() {
           <Text style={styles.duelCity}>📍 {profile.city}</Text>
           {!!profile.bio && (
             <View style={styles.bioBox}>
-              <Text style={styles.bioText}>"{profile.bio}"</Text>
+              <Text style={styles.bioText}>&quot;{profile.bio}&quot;</Text>
             </View>
           )}
           <Text style={styles.voteCount}>❤️ {profile.totalVotes} vote{profile.totalVotes > 1 ? 's' : ''}</Text>
         </View>
       ) : (
-        <Text style={styles.emptyText}>Pas encore de gagnant·e — les votes de la semaine passée n'ont pas suffi.</Text>
+        <Text style={styles.emptyText}>Pas encore de gagnant·e &mdash; les votes de la semaine passée n&apos;ont pas suffi.</Text>
       )}
     </>
   );
@@ -157,7 +157,7 @@ export default function WeeklyProfileScreen() {
 
             <View style={styles.statusBar}>
               <Text style={styles.statusText}>
-                Votes restants aujourd'hui : {state?.remainingToday ?? 0} / {state?.dailyLimit ?? 10}
+                Votes restants aujourd&apos;hui : {state?.remainingToday ?? 0} / {state?.dailyLimit ?? 10}
               </Text>
               <Text style={styles.statusReward}>Récompense : +{VOTE_REWARD} pièces par vote</Text>
             </View>
