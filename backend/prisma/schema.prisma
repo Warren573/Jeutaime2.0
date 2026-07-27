@@ -214,7 +214,6 @@ model User {
   encounters1              SalonEncounter[]          @relation("Encounter1")
   encounters2              SalonEncounter[]          @relation("Encounter2")
   weeklyVotesGiven         WeeklyProfileVote[]       @relation("WeeklyVoteVoter")
-  weeklyVotesReceived      WeeklyProfileVote[]       @relation("WeeklyVoteCandidate")
 
   bottlesSent                  MessageInABottle[]    @relation("BottleSender")
   bottlesAccepted              MessageInABottle[]    @relation("BottleAcceptedBy")
@@ -1066,19 +1065,24 @@ model RefugeDayResult {
 // PROFIL DE LA SEMAINE
 // ============================================================
 
-// Un vote = un utilisateur qui soutient un candidat pour la semaine
-// (weekKey format ISO "YYYY-Www", ex. "2026-W30"). Un seul vote par semaine
-// et par votant (contrainte unique), qui coûte des pièces (WEEKLY_PROFILE_VOTE).
+// Un vote = un duel (2 profils anonymes A vs B) où le votant a choisi l'un
+// des deux (chosenId). weekKey = semaine ISO ("2026-W30"), dayKey = jour UTC
+// ("2026-07-27") utilisé pour la limite quotidienne (10 votes/jour gratuit,
+// 20 Premium). Récompense : +5 pièces par vote (WEEKLY_PROFILE_VOTE, crédit).
+// Pas de contrainte unique par semaine : plusieurs votes/jour sont permis,
+// bornés par la limite quotidienne appliquée côté service.
 model WeeklyProfileVote {
-  id          String   @id @default(cuid())
-  voterId     String
-  voter       User     @relation("WeeklyVoteVoter", fields: [voterId], references: [id], onDelete: Cascade)
-  candidateId String
-  candidate   User     @relation("WeeklyVoteCandidate", fields: [candidateId], references: [id], onDelete: Cascade)
-  weekKey     String
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  voterId      String
+  voter        User     @relation("WeeklyVoteVoter", fields: [voterId], references: [id], onDelete: Cascade)
+  candidateAId String
+  candidateBId String
+  chosenId     String
+  weekKey      String
+  dayKey       String
+  createdAt    DateTime @default(now())
 
-  @@unique([voterId, weekKey])
-  @@index([weekKey])
-  @@index([candidateId])
+  @@index([voterId, dayKey])
+  @@index([voterId])
+  @@index([weekKey, chosenId])
 }

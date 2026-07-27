@@ -17,6 +17,9 @@ const wrap = (
 // GET /api/weekly-profile
 router.get("/", wrap(ctrl.handleGetWeeklyProfile));
 
+// GET /api/weekly-profile/winners
+router.get("/winners", wrap(ctrl.handleGetWinners));
+
 // POST /api/weekly-profile/vote
 router.post("/vote", validate(VoteWeeklyProfileSchema), wrap(ctrl.handleVote));
 

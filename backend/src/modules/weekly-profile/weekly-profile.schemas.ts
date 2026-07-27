@@ -5,7 +5,9 @@ import { z } from "zod";
 // ============================================================
 export const VoteWeeklyProfileSchema = z
   .object({
-    candidateId: z.string().min(1).max(64),
+    candidateAId: z.string().min(1).max(64),
+    candidateBId: z.string().min(1).max(64),
+    chosenId: z.string().min(1).max(64),
   })
   .strict();
 

@@ -1,39 +1,61 @@
 import { apiFetch } from "./client";
 
-export interface WeeklyProfileCandidateDTO {
+export interface DuelProfileDTO {
   id: string;
   pseudo: string;
   age: number;
   city: string;
-  gender: "HOMME" | "FEMME" | "AUTRE";
   bio: string | null;
-  avatarConfig: unknown;
-  votes: number;
 }
 
-export interface WeeklyProfileWinnerDTO extends WeeklyProfileCandidateDTO {
+export interface DuelDTO {
+  candidateA: DuelProfileDTO;
+  candidateB: DuelProfileDTO;
+}
+
+export interface WeeklyProfileStateDTO {
+  remainingToday: number;
+  dailyLimit: number;
+  limitReached: boolean;
+  notEnoughCandidates: boolean;
+  duel: DuelDTO | null;
+}
+
+export interface WeeklyProfileWinnerDTO {
+  id: string;
+  pseudo: string;
+  age: number;
+  city: string;
+  bio: string | null;
+  gender: "HOMME" | "FEMME" | "AUTRE";
+  totalVotes: number;
   weekKey: string;
 }
 
-export interface WeeklyProfileDTO {
+export interface WeeklyProfileWinnersDTO {
   weekKey: string;
-  candidates: WeeklyProfileCandidateDTO[];
-  votedCandidateId: string | null;
-  winners: {
-    male: WeeklyProfileWinnerDTO | null;
-    female: WeeklyProfileWinnerDTO | null;
-  };
+  male: WeeklyProfileWinnerDTO | null;
+  female: WeeklyProfileWinnerDTO | null;
 }
 
-export async function getWeeklyProfile(): Promise<WeeklyProfileDTO> {
-  const res = (await apiFetch("/weekly-profile")) as { data: WeeklyProfileDTO };
+export async function getWeeklyProfileState(): Promise<WeeklyProfileStateDTO> {
+  const res = (await apiFetch("/weekly-profile")) as { data: WeeklyProfileStateDTO };
   return res.data;
 }
 
-export async function voteWeeklyProfile(candidateId: string): Promise<WeeklyProfileDTO> {
+export async function voteForDuel(
+  candidateAId: string,
+  candidateBId: string,
+  chosenId: string,
+): Promise<WeeklyProfileStateDTO> {
   const res = (await apiFetch("/weekly-profile/vote", {
     method: "POST",
-    body: JSON.stringify({ candidateId }),
-  })) as { data: WeeklyProfileDTO };
+    body: JSON.stringify({ candidateAId, candidateBId, chosenId }),
+  })) as { data: WeeklyProfileStateDTO };
+  return res.data;
+}
+
+export async function getWeeklyProfileWinners(): Promise<WeeklyProfileWinnersDTO> {
+  const res = (await apiFetch("/weekly-profile/winners")) as { data: WeeklyProfileWinnersDTO };
   return res.data;
 }
