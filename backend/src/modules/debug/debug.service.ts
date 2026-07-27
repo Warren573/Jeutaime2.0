@@ -88,7 +88,7 @@ const petsData = [
 ];
 
 export async function getStagingStatus() {
-  const [salons, offerings, magies, pets, migrations] = await Promise.all([
+  const [salons, offerings, magies, pets, migrations, tableCheck] = await Promise.all([
     prisma.salon.findMany({ select: { kind: true, name: true } }),
     prisma.offeringCatalog.count(),
     prisma.magieCatalog.count(),
@@ -96,9 +96,13 @@ export async function getStagingStatus() {
     prisma.$queryRaw<Array<{ id: string; checksum: string; finished_at: Date }>>(
       Prisma.sql`SELECT id, checksum, finished_at FROM "_prisma_migrations" ORDER BY finished_at DESC LIMIT 10`
     ),
+    prisma.$queryRaw<Array<{ tablename: string }>>(
+      Prisma.sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('WeeklyProfileDuel', 'WeeklyProfileVote')`
+    ),
   ]);
 
   const commitSha = getCommitSha();
+  const existingTables = new Set(tableCheck.map((t) => t.tablename));
 
   // Check seed execution
   const salonCount = await prisma.salon.count();
@@ -116,6 +120,10 @@ export async function getStagingStatus() {
       offeringCatalog: offeringCount,
       magieCatalog: magieCount,
       petCatalog: petCount,
+      tables: {
+        WeeklyProfileDuel: existingTables.has("WeeklyProfileDuel"),
+        WeeklyProfileVote: existingTables.has("WeeklyProfileVote"),
+      },
     },
     seedStatus: {
       salonsSeeded: salonCount > 0,
