@@ -88,14 +88,29 @@ const petsData = [
 ];
 
 export async function getStagingStatus() {
-  const [salonCount, migrations, tableCheck] = await Promise.all([
+  const [salonCount, tableCheck, migrationsInfo] = await Promise.all([
     prisma.salon.count(),
-    prisma.$queryRaw<Array<{ id: string }>>(
-      Prisma.sql`SELECT id FROM "_prisma_migrations"`
-    ),
     prisma.$queryRaw<Array<{ tablename: string }>>(
       Prisma.sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('WeeklyProfileDuel', 'WeeklyProfileVote')`
     ),
+    // Check if _prisma_migrations exists and count rows
+    (async () => {
+      try {
+        const result = await prisma.$queryRaw<Array<{ count: bigint }>>(
+          Prisma.sql`SELECT COUNT(*) as count FROM "_prisma_migrations"`
+        );
+        return {
+          exists: true,
+          count: Number(result[0].count),
+        };
+      } catch {
+        // Table does not exist
+        return {
+          exists: false,
+          count: null as unknown as number,
+        };
+      }
+    })(),
   ]);
 
   const commitSha = getCommitSha();
@@ -108,7 +123,8 @@ export async function getStagingStatus() {
       WeeklyProfileDuel: existingTables.has("WeeklyProfileDuel"),
       WeeklyProfileVote: existingTables.has("WeeklyProfileVote"),
     },
-    migrations_count: migrations.length,
+    migrations_table_exists: migrationsInfo.exists,
+    migrations_count: migrationsInfo.exists ? migrationsInfo.count : null,
     timestamp: new Date().toISOString(),
   };
 }
