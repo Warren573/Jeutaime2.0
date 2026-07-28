@@ -499,7 +499,6 @@ export async function getWeeklyProfileWinners(): Promise<WeeklyProfileWinnersDto
     .filter((v): v is typeof v & { chosenId: string } => v.chosenId !== null)
     .map((v) => ({ chosenId: v.chosenId, candidateAId: v.candidateAId, candidateBId: v.candidateBId, usedAt: v.usedAt! }));
 
-<<<<<<< HEAD
   const totalsById = new Map<string, number>();
   const votesById = new Map<string, Date[]>();
   for (const v of usedVotes) {
@@ -521,29 +520,11 @@ export async function getWeeklyProfileWinners(): Promise<WeeklyProfileWinnersDto
       age: computeAge(profile.birthDate),
       city: profile.city,
       bio: profile.bio,
+      avatarConfig: profile.avatarConfig,
       gender,
       totalVotes: totalsById.get(winnerId) ?? 0,
       weekKey,
     };
-=======
-  for (const u of users) {
-    if (!u.profile) continue;
-    const totalVotes = voteMap.get(u.id) ?? 0;
-    const existing = byGender[u.profile.gender];
-    if (!existing || totalVotes > existing.totalVotes) {
-      byGender[u.profile.gender] = {
-        id: u.id,
-        pseudo: u.profile.pseudo,
-        age: computeAge(u.profile.birthDate),
-        city: u.profile.city,
-        bio: u.profile.bio,
-        avatarConfig: u.profile.avatarConfig as Record<string, unknown> | null,
-        gender: u.profile.gender,
-        totalVotes,
-        weekKey,
-      };
-    }
->>>>>>> cae937a (feat: add avatar display to weekly profile duels and winners)
   }
 
   return {
