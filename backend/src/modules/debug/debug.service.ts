@@ -100,8 +100,8 @@ export async function getStagingStatus() {
           Prisma.sql`SELECT COUNT(*) as count FROM "_prisma_migrations"`
         );
         return {
-          exists: true,
-          count: Number(result[0].count),
+          exists: result.length > 0,
+          count: result.length > 0 ? Number(result[0]!.count) : 0,
         };
       } catch {
         // Table does not exist
