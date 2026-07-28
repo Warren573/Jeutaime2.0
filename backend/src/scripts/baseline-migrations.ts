@@ -184,25 +184,50 @@ async function main() {
   console.log(`  Applied: ${applied}`);
   console.log(`  Skipped: ${skipped}\n`);
 
-  // Final verification
+  // Final verification and comparison
   console.log(`[baseline] Final verification:\n`);
   try {
-    const finalCount = await prisma.$queryRaw<Array<{ count: bigint }>>(
-      Prisma.sql`SELECT COUNT(*) as count FROM "_prisma_migrations"`
-    );
-    const count = finalCount.length > 0 ? Number(finalCount[0]!.count) : 0;
-    if (count !== 31) {
-      throw new Error(`Expected 31 migrations in database, found ${count}`);
-    }
-
     const finalList = await prisma.$queryRaw<Array<{ migration_name: string }>>(
       Prisma.sql`SELECT migration_name FROM "_prisma_migrations" ORDER BY migration_name ASC`
     );
 
-    console.log(`✅ All 31 migrations registered in _prisma_migrations\n`);
-    console.log(`[baseline] Migration registry:\n`);
+    const dbMigrations = new Set(finalList.map((m) => m.migration_name));
+    const expectedMigrations = new Set(MIGRATIONS);
+
+    // Find missing and extra migrations
+    const missing: string[] = [];
+    const extra: string[] = [];
+
+    for (const m of expectedMigrations) {
+      if (!dbMigrations.has(m)) {
+        missing.push(m);
+      }
+    }
+
+    for (const m of dbMigrations) {
+      if (!expectedMigrations.has(m)) {
+        extra.push(m);
+      }
+    }
+
+    // Verify all expected migrations are present
+    if (missing.length > 0) {
+      console.error(`[baseline] ❌ Missing ${missing.length} expected migrations:`);
+      missing.forEach((m) => console.error(`    - ${m}`));
+      process.exit(1);
+    }
+
+    console.log(`✅ All ${MIGRATIONS.length} expected migrations are present in _prisma_migrations\n`);
+
+    if (extra.length > 0) {
+      console.log(`⚠️  Additional migration(s) detected in database (not in MIGRATIONS array):\n`);
+      extra.forEach((m) => console.log(`    - ${m}`));
+    }
+
+    console.log(`\n[baseline] Complete migration registry (${finalList.length} total):\n`);
     finalList.forEach((m: { migration_name: string }, i: number) => {
-      console.log(`  ${String(i + 1).padStart(2)}. ${m.migration_name}`);
+      const marker = MIGRATIONS.includes(m.migration_name) ? "  " : "⚠️ ";
+      console.log(`  ${marker}${String(i + 1).padStart(2)}. ${m.migration_name}`);
     });
   } catch (err: any) {
     console.error("[baseline] ❌ Final verification failed:", err.message);
