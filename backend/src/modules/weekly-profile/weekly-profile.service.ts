@@ -166,7 +166,7 @@ function toEligibleProfile(u: EligibleUser): EligibleProfile {
     bio: u.profile.bio,
     gender: u.profile.gender,
     birthDate: u.profile.birthDate,
-    avatarConfig: u.profile.avatarConfig as Record<string, unknown> | null,
+    avatarConfig: (u.profile.avatarConfig || null) as Record<string, unknown> | null,
   };
 }
 
