@@ -1,6 +1,8 @@
 import { execSync } from "child_process";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma";
+import { createHash } from "crypto";
+import { resolve } from "path";
 
 const MIGRATIONS = [
   "1782981207_add_refuge_models",
@@ -36,6 +38,49 @@ const MIGRATIONS = [
   "20260610000000_add_background_to_refuge_session",
 ];
 
+function hashDatabaseUrl(): string {
+  const dbUrl = process.env.DATABASE_URL || "unknown";
+  const hash = createHash("sha256").update(dbUrl).digest("hex");
+  return hash.substring(0, 12);
+}
+
+async function printDiagnostics(): Promise<void> {
+  console.log("[baseline] === DIAGNOSTICS ===\n");
+
+  const cwd = process.cwd();
+  const schemaPath = resolve(cwd, "prisma/schema.prisma");
+  const dbUrlHash = hashDatabaseUrl();
+
+  console.log(`  process.cwd(): ${cwd}`);
+  console.log(`  schema.prisma path: ${schemaPath}`);
+  console.log(`  DATABASE_URL hash (SHA256 first 12): ${dbUrlHash}`);
+  console.log(`  Prisma Client: connected to PostgreSQL`);
+
+  try {
+    const dbName = await prisma.$queryRaw<Array<{ current_database: string }>>(
+      Prisma.sql`SELECT current_database()`
+    );
+    const dbNameVal = dbName.length > 0 ? dbName[0]!.current_database : "unknown";
+    console.log(`  PostgreSQL database: ${dbNameVal}`);
+
+    const schema = await prisma.$queryRaw<Array<{ current_schema: string }>>(
+      Prisma.sql`SELECT current_schema()`
+    );
+    const schemaVal = schema.length > 0 ? schema[0]!.current_schema : "unknown";
+    console.log(`  PostgreSQL schema: ${schemaVal}`);
+
+    const version = await prisma.$queryRaw<Array<{ version: string }>>(
+      Prisma.sql`SELECT version() as version`
+    );
+    const versionVal = version.length > 0 ? version[0]!.version.split(",")[0] : "unknown";
+    console.log(`  PostgreSQL version: ${versionVal}`);
+  } catch (err: any) {
+    console.error(`  Error querying PostgreSQL: ${err.message}`);
+  }
+
+  console.log("\n");
+}
+
 async function main() {
   if (process.env.RUN_MIGRATION_BASELINE !== "true") {
     console.log("[baseline] RUN_MIGRATION_BASELINE not 'true'. Exiting gracefully.");
@@ -43,6 +88,9 @@ async function main() {
   }
 
   console.log("[baseline] Starting baseline migration process...\n");
+
+  // Print diagnostics before any operations
+  await printDiagnostics();
 
   // Pre-flight checks
   try {
@@ -106,6 +154,10 @@ async function main() {
 
     try {
       console.log(`  ▶️  ${migration}...`);
+      console.log(`      [CLI] cwd: ${process.cwd()}`);
+      console.log(`      [CLI] schema: ${resolve(process.cwd(), "prisma/schema.prisma")}`);
+      console.log(`      [CLI] DATABASE_URL hash: ${hashDatabaseUrl()}`);
+
       execSync(`npx prisma migrate resolve --applied "${migration}"`, {
         stdio: "pipe",
         timeout: 10000,
