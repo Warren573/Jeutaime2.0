@@ -93,21 +93,26 @@ export async function getStagingStatus() {
     prisma.$queryRaw<Array<{ tablename: string }>>(
       Prisma.sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('WeeklyProfileDuel', 'WeeklyProfileVote')`
     ),
-    // Check if _prisma_migrations exists and count rows
+    // Check if _prisma_migrations exists and get migration names
     (async () => {
       try {
-        const result = await prisma.$queryRaw<Array<{ count: bigint }>>(
+        const countResult = await prisma.$queryRaw<Array<{ count: bigint }>>(
           Prisma.sql`SELECT COUNT(*) as count FROM "_prisma_migrations"`
         );
+        const migrationsResult = await prisma.$queryRaw<Array<{ migration: string }>>(
+          Prisma.sql`SELECT migration FROM "_prisma_migrations" ORDER BY migration ASC`
+        );
         return {
-          exists: result.length > 0,
-          count: result.length > 0 ? Number(result[0]!.count) : 0,
+          exists: countResult.length > 0,
+          count: countResult.length > 0 ? Number(countResult[0]!.count) : 0,
+          names: migrationsResult.map((m) => m.migration),
         };
       } catch {
         // Table does not exist
         return {
           exists: false,
           count: null as unknown as number,
+          names: [],
         };
       }
     })(),
@@ -125,6 +130,7 @@ export async function getStagingStatus() {
     },
     migrations_table_exists: migrationsInfo.exists,
     migrations_count: migrationsInfo.exists ? migrationsInfo.count : null,
+    migrations_list: migrationsInfo.names,
     timestamp: new Date().toISOString(),
   };
 }
