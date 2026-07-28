@@ -6,6 +6,7 @@ export interface DuelProfileDTO {
   age: number;
   city: string;
   bio: string | null;
+  avatarConfig: Record<string, unknown> | null;
 }
 
 export interface DuelDTO {
@@ -28,6 +29,7 @@ export interface WeeklyProfileWinnerDTO {
   age: number;
   city: string;
   bio: string | null;
+  avatarConfig: Record<string, unknown> | null;
   gender: "HOMME" | "FEMME" | "AUTRE";
   totalVotes: number;
   weekKey: string;

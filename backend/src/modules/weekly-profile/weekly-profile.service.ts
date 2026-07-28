@@ -18,6 +18,7 @@ export interface DuelProfileDto {
   age: number;
   city: string;
   bio: string | null;
+  avatarConfig: Record<string, unknown> | null;
 }
 
 export interface DuelDto {
@@ -40,6 +41,7 @@ export interface WeeklyProfileWinnerDto {
   age: number;
   city: string;
   bio: string | null;
+  avatarConfig: Record<string, unknown> | null;
   gender: Gender;
   totalVotes: number;
   weekKey: string;
@@ -104,6 +106,7 @@ interface EligibleProfile {
   bio: string | null;
   gender: Gender;
   birthDate: Date;
+  avatarConfig: Record<string, unknown> | null;
 }
 
 const ELIGIBILITY_SELECT = {
@@ -117,6 +120,7 @@ const ELIGIBILITY_SELECT = {
       bio: true,
       gender: true,
       birthDate: true,
+      avatarConfig: true,
       interestedIn: true,
       lookingFor: true,
       physicalDesc: true,
@@ -162,6 +166,7 @@ function toEligibleProfile(u: EligibleUser): EligibleProfile {
     bio: u.profile.bio,
     gender: u.profile.gender,
     birthDate: u.profile.birthDate,
+    avatarConfig: u.profile.avatarConfig as Record<string, unknown> | null,
   };
 }
 
@@ -183,7 +188,7 @@ async function getEligibleProfiles(excludeUserId: string): Promise<EligibleProfi
 }
 
 function toDuelProfileDto(p: EligibleProfile): DuelProfileDto {
-  return { id: p.id, pseudo: p.pseudo, age: computeAge(p.birthDate), city: p.city, bio: p.bio };
+  return { id: p.id, pseudo: p.pseudo, age: computeAge(p.birthDate), city: p.city, bio: p.bio, avatarConfig: p.avatarConfig };
 }
 
 // Trie déterministe (aucun hasard) : profils jamais vus par ce votant en
@@ -300,15 +305,16 @@ async function getOrCreateDuel(voterId: string): Promise<DuelDto | null> {
 async function profileDtoFor(userId: string): Promise<DuelProfileDto> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { profile: { select: { pseudo: true, city: true, bio: true, birthDate: true } } },
+    select: { profile: { select: { pseudo: true, city: true, bio: true, birthDate: true, avatarConfig: true } } },
   });
-  if (!user?.profile) return { id: userId, pseudo: "Profil supprimé", age: 0, city: "", bio: null };
+  if (!user?.profile) return { id: userId, pseudo: "Profil supprimé", age: 0, city: "", bio: null, avatarConfig: null };
   return {
     id: userId,
     pseudo: user.profile.pseudo,
     age: computeAge(user.profile.birthDate),
     city: user.profile.city,
     bio: user.profile.bio,
+    avatarConfig: user.profile.avatarConfig as Record<string, unknown> | null,
   };
 }
 
@@ -493,6 +499,7 @@ export async function getWeeklyProfileWinners(): Promise<WeeklyProfileWinnersDto
     .filter((v): v is typeof v & { chosenId: string } => v.chosenId !== null)
     .map((v) => ({ chosenId: v.chosenId, candidateAId: v.candidateAId, candidateBId: v.candidateBId, usedAt: v.usedAt! }));
 
+<<<<<<< HEAD
   const totalsById = new Map<string, number>();
   const votesById = new Map<string, Date[]>();
   for (const v of usedVotes) {
@@ -518,6 +525,25 @@ export async function getWeeklyProfileWinners(): Promise<WeeklyProfileWinnersDto
       totalVotes: totalsById.get(winnerId) ?? 0,
       weekKey,
     };
+=======
+  for (const u of users) {
+    if (!u.profile) continue;
+    const totalVotes = voteMap.get(u.id) ?? 0;
+    const existing = byGender[u.profile.gender];
+    if (!existing || totalVotes > existing.totalVotes) {
+      byGender[u.profile.gender] = {
+        id: u.id,
+        pseudo: u.profile.pseudo,
+        age: computeAge(u.profile.birthDate),
+        city: u.profile.city,
+        bio: u.profile.bio,
+        avatarConfig: u.profile.avatarConfig as Record<string, unknown> | null,
+        gender: u.profile.gender,
+        totalVotes,
+        weekKey,
+      };
+    }
+>>>>>>> cae937a (feat: add avatar display to weekly profile duels and winners)
   }
 
   return {

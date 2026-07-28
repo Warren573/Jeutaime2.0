@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { Avatar } from '../avatar/png/Avatar';
 import {
   getWeeklyProfileState,
   voteForDuel,
@@ -77,6 +78,11 @@ export default function WeeklyProfileScreen() {
 
   const DuelCard = ({ profile, disabled }: { profile: DuelProfileDTO; disabled: boolean }) => (
     <View style={styles.duelCard}>
+      {profile.avatarConfig && (
+        <View style={styles.avatarContainer}>
+          <Avatar size={80} {...(profile.avatarConfig as any)} />
+        </View>
+      )}
       <Text style={styles.duelName}>{profile.pseudo}, {profile.age}</Text>
       <Text style={styles.duelCity}>📍 {profile.city}</Text>
       {!!profile.bio && (
@@ -103,6 +109,11 @@ export default function WeeklyProfileScreen() {
       <Text style={styles.sectionTitle}>{emoji} {label}</Text>
       {profile ? (
         <View style={styles.winnerCard}>
+          {profile.avatarConfig && (
+            <View style={styles.avatarContainer}>
+              <Avatar size={100} {...(profile.avatarConfig as any)} />
+            </View>
+          )}
           <Text style={styles.duelName}>{profile.pseudo}, {profile.age}</Text>
           <Text style={styles.duelCity}>📍 {profile.city}</Text>
           {!!profile.bio && (
@@ -230,6 +241,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#3A2818', marginBottom: 12, marginTop: 8 },
 
+  avatarContainer: { marginBottom: 16 },
   duelCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, marginBottom: 8, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 5 },
   winnerCard: { backgroundColor: '#FFFEF7', borderWidth: 3, borderColor: '#FFD700', borderRadius: 24, padding: 24, marginBottom: 16, alignItems: 'center' },
   duelName: { fontSize: 22, fontWeight: '700', color: '#3A2818' },
