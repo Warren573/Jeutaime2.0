@@ -28,3 +28,11 @@ export async function getSeedSource(req: Request, res: Response) {
   res.json({ data });
 }
 
+export async function getSchemaCheck(req: Request, res: Response) {
+  if (!isDebugAllowed()) {
+    return res.status(403).json({ error: "Debug endpoint disabled in production" });
+  }
+
+  const data = await debugService.checkSchemaDrift();
+  res.json({ data });
+}

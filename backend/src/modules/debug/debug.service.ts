@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { execSync } from "child_process";
+import { resolve } from "path";
 import { Prisma } from "@prisma/client";
 import { SalonKind, OfferingCategory, MagieType } from "@prisma/client";
 
@@ -371,5 +372,56 @@ export async function resetTestCoins() {
     accounts: testUsers.map((u) => u.email),
     timestamp: new Date().toISOString(),
   };
+}
+
+// ============================================================
+// Schema Drift Check (read-only)
+// ============================================================
+export async function checkSchemaDrift() {
+  try {
+    const schemaPath = resolve(process.cwd(), "prisma/schema.prisma");
+
+    let output = "";
+    let exitCode = 0;
+
+    try {
+      output = execSync(
+        `npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel "${schemaPath}" --script`,
+        {
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+          timeout: 30000,
+          env: { ...process.env },
+        }
+      );
+      exitCode = 0;
+    } catch (err: any) {
+      exitCode = err.status || 1;
+      output = err.stdout ? String(err.stdout) : "";
+    }
+
+    const isEmpty = !output || output.trim() === "" || output.includes("empty migration");
+
+    // Get first 20 lines, max 500 chars
+    const lines = output.split("\n");
+    const previewLines = lines.slice(0, 20);
+    const preview = previewLines.join("\n").substring(0, 500);
+
+    return {
+      status: exitCode === 0 ? (isEmpty ? "aligned" : "drift") : "error",
+      exit_code: exitCode,
+      diff_empty: isEmpty,
+      diff_length: output.length,
+      diff_preview: preview.length > 0 ? preview : null,
+      timestamp: new Date().toISOString(),
+    };
+  } catch (err: any) {
+    return {
+      status: "error",
+      exit_code: -1,
+      error: err.message || "Schema diff check failed",
+      timestamp: new Date().toISOString(),
+    };
+  }
 }
 
