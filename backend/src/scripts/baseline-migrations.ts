@@ -129,11 +129,16 @@ async function main() {
       Prisma.sql`SELECT COUNT(*) as count FROM information_schema.tables WHERE table_name = '_prisma_migrations'`
     );
     if (tableExists.length > 0 && Number(tableExists[0]!.count) > 0) {
-      const rows = await prisma.$queryRaw<Array<{ migration: string }>>(
-        Prisma.sql`SELECT migration FROM "_prisma_migrations" ORDER BY migration ASC`
-      );
-      existing = new Set(rows.map((r: { migration: string }) => r.migration));
-      console.log(`[baseline] Found ${existing.size} existing migrations in database\n`);
+      try {
+        const rows = await prisma.$queryRaw<Array<{ migration_name: string }>>(
+          Prisma.sql`SELECT migration_name FROM "_prisma_migrations" ORDER BY migration_name ASC`
+        );
+        existing = new Set(rows.map((r: { migration_name: string }) => r.migration_name));
+        console.log(`[baseline] Found ${existing.size} existing migrations in database\n`);
+      } catch (queryErr: any) {
+        console.error("[baseline] ❌ Failed to query existing migrations:", queryErr.message);
+        process.exit(1);
+      }
     }
   } catch (err) {
     console.log("[baseline] _prisma_migrations table doesn't exist yet (will be created)\n");
@@ -142,7 +147,6 @@ async function main() {
   // Apply migrations via prisma migrate resolve
   let applied = 0;
   let skipped = 0;
-  const failed: string[] = [];
 
   console.log("[baseline] Registering migrations:\n");
   for (const migration of MIGRATIONS) {
@@ -166,21 +170,19 @@ async function main() {
       console.log(`      ✅ registered`);
       applied++;
     } catch (err: any) {
-      console.error(`      ❌ FAILED: ${err.message}`);
-      failed.push(migration);
+      console.error(`\n[baseline] ❌ FAILED at migration: ${migration}`);
+      console.error(`      Error: ${err.message}`);
+      console.error(`[baseline] Results so far:`);
+      console.error(`  Applied: ${applied}`);
+      console.error(`  Skipped: ${skipped}`);
+      console.error(`[baseline] Resume with RUN_MIGRATION_BASELINE=true\n`);
+      process.exit(1);
     }
   }
 
   console.log(`\n[baseline] Results:`);
   console.log(`  Applied: ${applied}`);
-  console.log(`  Skipped: ${skipped}`);
-  console.log(`  Failed: ${failed.length}\n`);
-
-  if (failed.length > 0) {
-    console.error(`[baseline] ❌ Failed migrations (resume with RUN_MIGRATION_BASELINE=true):`);
-    failed.forEach((m) => console.error(`    - ${m}`));
-    process.exit(1);
-  }
+  console.log(`  Skipped: ${skipped}\n`);
 
   // Final verification
   console.log(`[baseline] Final verification:\n`);
@@ -193,14 +195,14 @@ async function main() {
       throw new Error(`Expected 31 migrations in database, found ${count}`);
     }
 
-    const finalList = await prisma.$queryRaw<Array<{ migration: string }>>(
-      Prisma.sql`SELECT migration FROM "_prisma_migrations" ORDER BY migration ASC`
+    const finalList = await prisma.$queryRaw<Array<{ migration_name: string }>>(
+      Prisma.sql`SELECT migration_name FROM "_prisma_migrations" ORDER BY migration_name ASC`
     );
 
     console.log(`✅ All 31 migrations registered in _prisma_migrations\n`);
     console.log(`[baseline] Migration registry:\n`);
-    finalList.forEach((m: { migration: string }, i: number) => {
-      console.log(`  ${String(i + 1).padStart(2)}. ${m.migration}`);
+    finalList.forEach((m: { migration_name: string }, i: number) => {
+      console.log(`  ${String(i + 1).padStart(2)}. ${m.migration_name}`);
     });
   } catch (err: any) {
     console.error("[baseline] ❌ Final verification failed:", err.message);

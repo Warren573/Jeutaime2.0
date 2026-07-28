@@ -100,13 +100,13 @@ export async function getStagingStatus() {
         const countResult = await prisma.$queryRaw<Array<{ count: bigint }>>(
           Prisma.sql`SELECT COUNT(*) as count FROM "_prisma_migrations"`
         );
-        const migrationsResult = await prisma.$queryRaw<Array<{ migration: string }>>(
-          Prisma.sql`SELECT migration FROM "_prisma_migrations" ORDER BY migration ASC`
+        const migrationsResult = await prisma.$queryRaw<Array<{ migration_name: string }>>(
+          Prisma.sql`SELECT migration_name FROM "_prisma_migrations" ORDER BY migration_name ASC`
         );
         return {
           exists: countResult.length > 0,
           count: countResult.length > 0 ? Number(countResult[0]!.count) : 0,
-          names: migrationsResult.map((m) => m.migration),
+          names: migrationsResult.map((m) => m.migration_name),
         };
       } catch {
         // Table does not exist
