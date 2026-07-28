@@ -64,7 +64,7 @@ export default function WeeklyProfileScreen() {
     setError(null);
     setVoting(chosenId);
     try {
-      const updated = await voteForDuel(state.duel.candidateA.id, state.duel.candidateB.id, chosenId);
+      const updated = await voteForDuel(state.duel.duelId, chosenId);
       setState(updated);
       playFlash();
       await loadWallet();

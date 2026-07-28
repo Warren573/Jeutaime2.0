@@ -1,11 +1,16 @@
 import { CoinTxnType, Gender, Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
-import { BadRequestError, ConflictError, NotFoundError } from "../../core/errors";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
 import { computeCreditBalance } from "../../policies/wallet";
+import { computeProfileStatus } from "../../policies/profiles";
 
 const VOTE_REWARD = 5;
 const DAILY_LIMIT_FREE = 10;
 const DAILY_LIMIT_PREMIUM = 20;
+
+// Durée de vie d'un duel non voté. Passé ce délai, il est ignoré (traité
+// comme expiré) et un nouveau duel est généré à la prochaine consultation.
+const DUEL_TTL_MS = 15 * 60 * 1000;
 
 export interface DuelProfileDto {
   id: string;
@@ -16,6 +21,7 @@ export interface DuelProfileDto {
 }
 
 export interface DuelDto {
+  duelId: string;
   candidateA: DuelProfileDto;
   candidateB: DuelProfileDto;
 }
@@ -100,95 +106,210 @@ interface EligibleProfile {
   birthDate: Date;
 }
 
-async function getEligibleProfiles(excludeUserId: string): Promise<EligibleProfile[]> {
-  const users = await prisma.user.findMany({
-    where: {
-      id: { not: excludeUserId },
-      isBanned: false,
-      profile: { isNot: null },
-      OR: [{ settings: null }, { settings: { showInDiscovery: true } }],
+const ELIGIBILITY_SELECT = {
+  id: true,
+  isBanned: true,
+  settings: { select: { showInDiscovery: true } },
+  profile: {
+    select: {
+      pseudo: true,
+      city: true,
+      bio: true,
+      gender: true,
+      birthDate: true,
+      interestedIn: true,
+      lookingFor: true,
+      physicalDesc: true,
+      height: true,
+      vibe: true,
+      quote: true,
+      questions: true,
     },
-    select: { id: true, profile: true },
+  },
+} satisfies Prisma.UserSelect;
+
+type EligibilityUser = Prisma.UserGetPayload<{ select: typeof ELIGIBILITY_SELECT }>;
+type EligibleUser = EligibilityUser & { profile: NonNullable<EligibilityUser["profile"]> };
+
+// Un profil est éligible (proposable en duel, ou vainqueur possible) s'il a
+// une bio non vide, un profil complet au sens des règles existantes de
+// l'app (computeProfileStatus), et n'est ni banni ni masqué de la
+// découverte. Ne dépend d'aucun votant précis (pas de blocage ici).
+function isEligible(u: EligibilityUser): u is EligibleUser {
+  if (u.isBanned) return false;
+  if (u.settings && !u.settings.showInDiscovery) return false;
+  if (!u.profile) return false;
+  if (!u.profile.bio || u.profile.bio.trim().length === 0) return false;
+  const status = computeProfileStatus({
+    bio: u.profile.bio,
+    interestedIn: u.profile.interestedIn,
+    lookingFor: u.profile.lookingFor,
+    physicalDesc: u.profile.physicalDesc,
+    city: u.profile.city,
+    height: u.profile.height,
+    vibe: u.profile.vibe,
+    quote: u.profile.quote,
+    questions: u.profile.questions,
+  });
+  return status.isComplete;
+}
+
+function toEligibleProfile(u: EligibleUser): EligibleProfile {
+  return {
+    id: u.id,
+    pseudo: u.profile.pseudo,
+    city: u.profile.city,
+    bio: u.profile.bio,
+    gender: u.profile.gender,
+    birthDate: u.profile.birthDate,
+  };
+}
+
+// Profils proposables pour ce votant : éligibles, jamais soi-même, jamais
+// un profil qui bloque ou a bloqué le votant.
+async function getEligibleProfiles(excludeUserId: string): Promise<EligibleProfile[]> {
+  const blocks = await prisma.block.findMany({
+    where: { OR: [{ fromId: excludeUserId }, { toId: excludeUserId }] },
+    select: { fromId: true, toId: true },
+  });
+  const blockedIds = new Set(blocks.flatMap((b) => [b.fromId, b.toId]).filter((id) => id !== excludeUserId));
+
+  const users = await prisma.user.findMany({
+    where: { id: { not: excludeUserId, notIn: [...blockedIds] } },
+    select: ELIGIBILITY_SELECT,
   });
 
-  return users
-    .filter(u => u.profile)
-    .map(u => ({
-      id: u.id,
-      pseudo: u.profile!.pseudo,
-      city: u.profile!.city,
-      bio: u.profile!.bio,
-      gender: u.profile!.gender,
-      birthDate: u.profile!.birthDate,
-    }));
+  return users.filter(isEligible).map(toEligibleProfile);
 }
 
 function toDuelProfileDto(p: EligibleProfile): DuelProfileDto {
   return { id: p.id, pseudo: p.pseudo, age: computeAge(p.birthDate), city: p.city, bio: p.bio };
 }
 
-// Choisit 2 profils anonymes pour le votant :
-//  - jamais son propre profil (déjà exclu par getEligibleProfiles)
-//  - jamais deux fois exactement le même duel
-//  - priorité aux profils pas encore vus par ce votant, tant qu'il en reste ≥ 2
-//  - équilibre l'exposition globale (profils les moins montrés en premier)
-async function selectDuel(voterId: string): Promise<DuelDto | null> {
+// Trie déterministe (aucun hasard) : profils jamais vus par ce votant en
+// premier, puis exposition globale croissante (équilibrage), puis id
+// (départage stable).
+function rankProfiles(
+  eligible: EligibleProfile[],
+  seenProfileIds: Set<string>,
+  exposure: Map<string, number>,
+): EligibleProfile[] {
+  return [...eligible].sort((a, b) => {
+    const aSeen = seenProfileIds.has(a.id) ? 1 : 0;
+    const bSeen = seenProfileIds.has(b.id) ? 1 : 0;
+    if (aSeen !== bSeen) return aSeen - bSeen;
+    const diff = (exposure.get(a.id) ?? 0) - (exposure.get(b.id) ?? 0);
+    if (diff !== 0) return diff;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+}
+
+// Parcourt les paires possibles dans l'ordre du classement (profils jamais
+// vus d'abord) et retourne la première paire jamais montrée à ce votant.
+// Si aucune n'existe (pool minuscule), dernier recours : réutilise la
+// meilleure paire même déjà vue plutôt que de n'en proposer aucune.
+function pickPair(ranked: EligibleProfile[], seenPairs: Set<string>): [EligibleProfile, EligibleProfile] | null {
+  for (let i = 0; i < ranked.length; i++) {
+    const a = ranked[i];
+    if (!a) continue;
+    for (let j = i + 1; j < ranked.length; j++) {
+      const b = ranked[j];
+      if (!b) continue;
+      if (!seenPairs.has(pairKey(a.id, b.id))) {
+        return [a, b];
+      }
+    }
+  }
+  const [first, second] = ranked;
+  if (first && second) return [first, second];
+  return null;
+}
+
+async function buildDuelCandidates(voterId: string): Promise<[EligibleProfile, EligibleProfile] | null> {
   const eligible = await getEligibleProfiles(voterId);
   if (eligible.length < 2) return null;
 
-  const pastVotes = await prisma.weeklyProfileVote.findMany({
-    where: { voterId },
+  const pastDuels = await prisma.weeklyProfileDuel.findMany({
+    where: { userId: voterId },
     select: { candidateAId: true, candidateBId: true },
   });
 
   const seenProfileIds = new Set<string>();
   const seenPairs = new Set<string>();
-  for (const v of pastVotes) {
-    seenProfileIds.add(v.candidateAId);
-    seenProfileIds.add(v.candidateBId);
-    seenPairs.add(pairKey(v.candidateAId, v.candidateBId));
+  for (const d of pastDuels) {
+    seenProfileIds.add(d.candidateAId);
+    seenProfileIds.add(d.candidateBId);
+    seenPairs.add(pairKey(d.candidateAId, d.candidateBId));
   }
 
-  const eligibleIds = eligible.map(p => p.id);
+  const eligibleIds = eligible.map((p) => p.id);
   const [exposureA, exposureB] = await Promise.all([
-    prisma.weeklyProfileVote.groupBy({
+    prisma.weeklyProfileDuel.groupBy({
       by: ["candidateAId"],
       where: { candidateAId: { in: eligibleIds } },
       _count: { candidateAId: true },
     }),
-    prisma.weeklyProfileVote.groupBy({
+    prisma.weeklyProfileDuel.groupBy({
       by: ["candidateBId"],
       where: { candidateBId: { in: eligibleIds } },
       _count: { candidateBId: true },
     }),
   ]);
-
   const exposure = new Map<string, number>();
   for (const e of exposureA) exposure.set(e.candidateAId, (exposure.get(e.candidateAId) ?? 0) + e._count.candidateAId);
   for (const e of exposureB) exposure.set(e.candidateBId, (exposure.get(e.candidateBId) ?? 0) + e._count.candidateBId);
 
-  const unseen = eligible.filter(p => !seenProfileIds.has(p.id));
-  const pool = unseen.length >= 2 ? unseen : eligible;
+  const ranked = rankProfiles(eligible, seenProfileIds, exposure);
+  return pickPair(ranked, seenPairs);
+}
 
-  // Tri : exposition croissante (équilibrage), jitter aléatoire pour ne pas
-  // toujours proposer le même ordre entre profils à exposition égale.
-  const ranked = [...pool].sort((a, b) => {
-    const diff = (exposure.get(a.id) ?? 0) - (exposure.get(b.id) ?? 0);
-    if (diff !== 0) return diff;
-    return Math.random() - 0.5;
+// Retrouve un duel en attente (non voté, non expiré) pour ce votant, ou en
+// génère un nouveau. Réutiliser le duel en attente évite qu'un simple
+// rafraîchissement de l'écran ne "brûle" des paires jamais vues.
+async function getOrCreateDuel(voterId: string): Promise<DuelDto | null> {
+  const now = new Date();
+
+  const pending = await prisma.weeklyProfileDuel.findFirst({
+    where: { userId: voterId, usedAt: null, expiresAt: { gt: now } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (pending) {
+    return {
+      duelId: pending.id,
+      candidateA: await profileDtoFor(pending.candidateAId),
+      candidateB: await profileDtoFor(pending.candidateBId),
+    };
+  }
+
+  const pair = await buildDuelCandidates(voterId);
+  if (!pair) return null;
+  const [a, b] = pair;
+
+  const created = await prisma.weeklyProfileDuel.create({
+    data: {
+      userId: voterId,
+      candidateAId: a.id,
+      candidateBId: b.id,
+      expiresAt: new Date(now.getTime() + DUEL_TTL_MS),
+    },
   });
 
-  const candidateA = ranked[0];
-  if (!candidateA) return null;
-  let candidateB = ranked.find(p => p.id !== candidateA.id && !seenPairs.has(pairKey(candidateA.id, p.id)));
-  if (!candidateB) {
-    // Dernier recours (pool minuscule) : accepte un duel déjà vu plutôt que
-    // de n'en proposer aucun.
-    candidateB = ranked.find(p => p.id !== candidateA.id);
-  }
-  if (!candidateB) return null;
+  return { duelId: created.id, candidateA: toDuelProfileDto(a), candidateB: toDuelProfileDto(b) };
+}
 
-  return { candidateA: toDuelProfileDto(candidateA), candidateB: toDuelProfileDto(candidateB) };
+async function profileDtoFor(userId: string): Promise<DuelProfileDto> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { profile: { select: { pseudo: true, city: true, bio: true, birthDate: true } } },
+  });
+  if (!user?.profile) return { id: userId, pseudo: "Profil supprimé", age: 0, city: "", bio: null };
+  return {
+    id: userId,
+    pseudo: user.profile.pseudo,
+    age: computeAge(user.profile.birthDate),
+    city: user.profile.city,
+    bio: user.profile.bio,
+  };
 }
 
 export async function getWeeklyProfileState(
@@ -199,8 +320,8 @@ export async function getWeeklyProfileState(
   const dayKey = getDayKey(now);
   const dailyLimit = dailyLimitFor(isPremium);
 
-  const votesToday = await prisma.weeklyProfileVote.count({
-    where: { voterId, dayKey },
+  const votesToday = await prisma.weeklyProfileDuel.count({
+    where: { userId: voterId, dayKey, usedAt: { not: null } },
   });
   const remainingToday = Math.max(0, dailyLimit - votesToday);
 
@@ -208,7 +329,7 @@ export async function getWeeklyProfileState(
     return { remainingToday: 0, dailyLimit, limitReached: true, notEnoughCandidates: false, duel: null };
   }
 
-  const duel = await selectDuel(voterId);
+  const duel = await getOrCreateDuel(voterId);
   return {
     remainingToday,
     dailyLimit,
@@ -221,27 +342,33 @@ export async function getWeeklyProfileState(
 export async function voteForDuel(
   voterId: string,
   isPremium: boolean,
-  candidateAId: string,
-  candidateBId: string,
+  duelId: string,
   chosenId: string,
 ): Promise<WeeklyProfileStateDto> {
-  if (candidateAId === candidateBId) {
-    throw new BadRequestError("Duel invalide");
+  const duel = await prisma.weeklyProfileDuel.findUnique({ where: { id: duelId } });
+  if (!duel) {
+    throw new NotFoundError("Duel");
   }
-  if (chosenId !== candidateAId && chosenId !== candidateBId) {
+  if (duel.userId !== voterId) {
+    throw new ForbiddenError("Ce duel ne t'appartient pas");
+  }
+  if (duel.usedAt) {
+    throw new ConflictError("Ce duel a déjà été utilisé");
+  }
+  const now = new Date();
+  if (duel.expiresAt.getTime() <= now.getTime()) {
+    throw new ConflictError("Ce duel a expiré");
+  }
+  if (chosenId !== duel.candidateAId && chosenId !== duel.candidateBId) {
     throw new BadRequestError("Le profil choisi ne fait pas partie de ce duel");
   }
-  if (candidateAId === voterId || candidateBId === voterId) {
-    throw new BadRequestError("Tu ne peux pas voter pour toi-même");
-  }
 
-  const now = new Date();
   const dayKey = getDayKey(now);
   const weekKey = getWeekKey(now);
   const dailyLimit = dailyLimitFor(isPremium);
 
-  const votesToday = await prisma.weeklyProfileVote.count({
-    where: { voterId, dayKey },
+  const votesToday = await prisma.weeklyProfileDuel.count({
+    where: { userId: voterId, dayKey, usedAt: { not: null } },
   });
   if (votesToday >= dailyLimit) {
     throw new ConflictError("Limite quotidienne de votes atteinte");
@@ -251,13 +378,19 @@ export async function voteForDuel(
   if (!wallet) {
     throw new NotFoundError("Wallet");
   }
-
   const newBalance = computeCreditBalance(wallet.coins, VOTE_REWARD);
 
-  await prisma.$transaction(async tx => {
-    await tx.weeklyProfileVote.create({
-      data: { voterId, candidateAId, candidateBId, chosenId, weekKey, dayKey },
+  await prisma.$transaction(async (tx) => {
+    // Garde atomique : n'accepte le vote que si le duel est toujours non
+    // utilisé au moment de l'écriture (protège contre un double vote
+    // simultané sur le même duelId).
+    const claimed = await tx.weeklyProfileDuel.updateMany({
+      where: { id: duelId, usedAt: null },
+      data: { usedAt: now, chosenId, weekKey, dayKey },
     });
+    if (claimed.count !== 1) {
+      throw new ConflictError("Ce duel a déjà été utilisé");
+    }
 
     await tx.wallet.update({
       where: { userId: voterId },
@@ -270,7 +403,7 @@ export async function voteForDuel(
         type: CoinTxnType.WEEKLY_PROFILE_VOTE,
         amount: VOTE_REWARD,
         balance: newBalance,
-        meta: { candidateAId, candidateBId, chosenId, weekKey } as Prisma.InputJsonValue,
+        meta: { duelId, candidateAId: duel.candidateAId, candidateBId: duel.candidateBId, chosenId, weekKey } as Prisma.InputJsonValue,
       },
     });
   });
@@ -278,50 +411,118 @@ export async function voteForDuel(
   return getWeeklyProfileState(voterId, isPremium);
 }
 
+interface WinnerVoteRow {
+  chosenId: string;
+  candidateAId: string;
+  candidateBId: string;
+  usedAt: Date;
+}
+
+// Départage déterministe (aucun hasard) entre candidats à égalité :
+//  1) le plus de duels gagnés face à face contre les autres candidats à égalité
+//  2) celui qui a atteint ce score de votes en premier (timestamp du dernier
+//     vote qui l'a porté à son total, le plus tôt gagne)
+//  3) id le plus petit
+function pickWinnerAmong(
+  candidateIds: string[],
+  totalsById: Map<string, number>,
+  votesById: Map<string, Date[]>,
+  votesForGender: WinnerVoteRow[],
+): string | null {
+  if (candidateIds.length === 0) return null;
+  if (candidateIds.length === 1) {
+    const onlyId = candidateIds[0]!;
+    return (totalsById.get(onlyId) ?? 0) > 0 ? onlyId : null;
+  }
+
+  const maxVotes = Math.max(...candidateIds.map((id) => totalsById.get(id) ?? 0));
+  if (maxVotes === 0) return null;
+  let tied = candidateIds.filter((id) => (totalsById.get(id) ?? 0) === maxVotes);
+  if (tied.length === 1) return tied[0]!;
+
+  const tiedSet = new Set(tied);
+  const h2h = new Map<string, number>(tied.map((id) => [id, 0]));
+  for (const v of votesForGender) {
+    if (!tiedSet.has(v.chosenId)) continue;
+    const otherId = v.candidateAId === v.chosenId ? v.candidateBId : v.candidateAId;
+    if (tiedSet.has(otherId)) {
+      h2h.set(v.chosenId, (h2h.get(v.chosenId) ?? 0) + 1);
+    }
+  }
+  const maxH2H = Math.max(...tied.map((id) => h2h.get(id) ?? 0));
+  tied = tied.filter((id) => (h2h.get(id) ?? 0) === maxH2H);
+  if (tied.length === 1) return tied[0]!;
+
+  const reachedAt = new Map<string, number>(
+    tied.map((id) => [id, Math.max(...(votesById.get(id) ?? []).map((d) => d.getTime()))]),
+  );
+  const minReachedAt = Math.min(...tied.map((id) => reachedAt.get(id)!));
+  tied = tied.filter((id) => reachedAt.get(id) === minReachedAt);
+  if (tied.length === 1) return tied[0]!;
+
+  return [...tied].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0]!;
+}
+
 export async function getWeeklyProfileWinners(): Promise<WeeklyProfileWinnersDto> {
   const now = new Date();
   const weekKey = getPreviousWeekKey(now);
 
-  const votes = await prisma.weeklyProfileVote.groupBy({
-    by: ["chosenId"],
-    where: { weekKey },
-    _count: { chosenId: true },
+  const votes = await prisma.weeklyProfileDuel.findMany({
+    where: { weekKey, usedAt: { not: null } },
+    select: { chosenId: true, candidateAId: true, candidateBId: true, usedAt: true },
   });
 
   if (votes.length === 0) {
     return { weekKey, male: null, female: null };
   }
 
-  const candidateIds = votes.map(v => v.chosenId);
+  const participantIds = new Set<string>();
+  for (const v of votes) {
+    participantIds.add(v.candidateAId);
+    participantIds.add(v.candidateBId);
+  }
+
   const users = await prisma.user.findMany({
-    where: { id: { in: candidateIds } },
-    select: { id: true, profile: true },
+    where: { id: { in: [...participantIds] } },
+    select: ELIGIBILITY_SELECT,
   });
+  const eligibleUsers = users.filter(isEligible);
+  const profileById = new Map(eligibleUsers.map((u) => [u.id, toEligibleProfile(u)]));
 
-  const voteMap = new Map(votes.map(v => [v.chosenId, v._count.chosenId]));
-  const byGender: Record<string, WeeklyProfileWinnerDto> = {};
+  const usedVotes: WinnerVoteRow[] = votes
+    .filter((v): v is typeof v & { chosenId: string } => v.chosenId !== null)
+    .map((v) => ({ chosenId: v.chosenId, candidateAId: v.candidateAId, candidateBId: v.candidateBId, usedAt: v.usedAt! }));
 
-  for (const u of users) {
-    if (!u.profile) continue;
-    const totalVotes = voteMap.get(u.id) ?? 0;
-    const existing = byGender[u.profile.gender];
-    if (!existing || totalVotes > existing.totalVotes) {
-      byGender[u.profile.gender] = {
-        id: u.id,
-        pseudo: u.profile.pseudo,
-        age: computeAge(u.profile.birthDate),
-        city: u.profile.city,
-        bio: u.profile.bio,
-        gender: u.profile.gender,
-        totalVotes,
-        weekKey,
-      };
-    }
+  const totalsById = new Map<string, number>();
+  const votesById = new Map<string, Date[]>();
+  for (const v of usedVotes) {
+    if (!profileById.has(v.chosenId)) continue;
+    totalsById.set(v.chosenId, (totalsById.get(v.chosenId) ?? 0) + 1);
+    const arr = votesById.get(v.chosenId) ?? [];
+    arr.push(v.usedAt);
+    votesById.set(v.chosenId, arr);
+  }
+
+  function winnerForGender(gender: Gender): WeeklyProfileWinnerDto | null {
+    const genderParticipants = [...participantIds].filter((id) => profileById.get(id)?.gender === gender);
+    const winnerId = pickWinnerAmong(genderParticipants, totalsById, votesById, usedVotes);
+    if (!winnerId) return null;
+    const profile = profileById.get(winnerId)!;
+    return {
+      id: winnerId,
+      pseudo: profile.pseudo,
+      age: computeAge(profile.birthDate),
+      city: profile.city,
+      bio: profile.bio,
+      gender,
+      totalVotes: totalsById.get(winnerId) ?? 0,
+      weekKey,
+    };
   }
 
   return {
     weekKey,
-    male: byGender[Gender.HOMME] ?? null,
-    female: byGender[Gender.FEMME] ?? null,
+    male: winnerForGender(Gender.HOMME),
+    female: winnerForGender(Gender.FEMME),
   };
 }

@@ -9,6 +9,7 @@ export interface DuelProfileDTO {
 }
 
 export interface DuelDTO {
+  duelId: string;
   candidateA: DuelProfileDTO;
   candidateB: DuelProfileDTO;
 }
@@ -43,14 +44,10 @@ export async function getWeeklyProfileState(): Promise<WeeklyProfileStateDTO> {
   return res.data;
 }
 
-export async function voteForDuel(
-  candidateAId: string,
-  candidateBId: string,
-  chosenId: string,
-): Promise<WeeklyProfileStateDTO> {
+export async function voteForDuel(duelId: string, chosenId: string): Promise<WeeklyProfileStateDTO> {
   const res = (await apiFetch("/weekly-profile/vote", {
     method: "POST",
-    body: JSON.stringify({ candidateAId, candidateBId, chosenId }),
+    body: JSON.stringify({ duelId, chosenId }),
   })) as { data: WeeklyProfileStateDTO };
   return res.data;
 }

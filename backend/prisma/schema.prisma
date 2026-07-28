@@ -213,7 +213,7 @@ model User {
   salonSessionParticipants SalonSessionParticipant[]
   encounters1              SalonEncounter[]          @relation("Encounter1")
   encounters2              SalonEncounter[]          @relation("Encounter2")
-  weeklyVotesGiven         WeeklyProfileVote[]       @relation("WeeklyVoteVoter")
+  weeklyProfileDuels       WeeklyProfileDuel[]       @relation("WeeklyDuelUser")
 
   bottlesSent                  MessageInABottle[]    @relation("BottleSender")
   bottlesAccepted              MessageInABottle[]    @relation("BottleAcceptedBy")
@@ -1065,24 +1065,30 @@ model RefugeDayResult {
 // PROFIL DE LA SEMAINE
 // ============================================================
 
-// Un vote = un duel (2 profils anonymes A vs B) où le votant a choisi l'un
-// des deux (chosenId). weekKey = semaine ISO ("2026-W30"), dayKey = jour UTC
-// ("2026-07-27") utilisé pour la limite quotidienne (10 votes/jour gratuit,
-// 20 Premium). Récompense : +5 pièces par vote (WEEKLY_PROFILE_VOTE, crédit).
-// Pas de contrainte unique par semaine : plusieurs votes/jour sont permis,
-// bornés par la limite quotidienne appliquée côté service.
-model WeeklyProfileVote {
-  id           String   @id @default(cuid())
-  voterId      String
-  voter        User     @relation("WeeklyVoteVoter", fields: [voterId], references: [id], onDelete: Cascade)
+// Ticket de duel serveur (2 profils anonymes A vs B proposés à un userId
+// précis). Généré par GET /weekly-profile, consommé par POST /vote — le
+// client ne renvoie que duelId + chosenId, jamais les candidats eux-mêmes
+// (ceux-ci sont relus depuis cette table, jamais depuis le payload).
+// usedAt/chosenId/weekKey/dayKey restent null tant que le duel n'a pas été
+// voté ; ils sont posés atomiquement (updateMany usedAt:null en garde) au
+// moment du vote, dans la même transaction que le crédit de pièces.
+// expiresAt borne la durée de vie d'un duel non voté (15 min).
+model WeeklyProfileDuel {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation("WeeklyDuelUser", fields: [userId], references: [id], onDelete: Cascade)
   candidateAId String
   candidateBId String
-  chosenId     String
-  weekKey      String
-  dayKey       String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  usedAt       DateTime?
+  chosenId     String?
+  weekKey      String?
+  dayKey       String?
 
-  @@index([voterId, dayKey])
-  @@index([voterId])
+  @@index([userId, usedAt])
+  @@index([userId, dayKey])
   @@index([weekKey, chosenId])
+  @@index([candidateAId])
+  @@index([candidateBId])
 }

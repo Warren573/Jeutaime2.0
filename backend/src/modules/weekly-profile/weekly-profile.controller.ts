@@ -11,8 +11,8 @@ export async function handleGetWeeklyProfile(req: AuthedRequest, res: Response) 
 
 // POST /api/weekly-profile/vote
 export async function handleVote(req: AuthedRequest, res: Response) {
-  const { candidateAId, candidateBId, chosenId } = req.body as VoteWeeklyProfileDto;
-  const data = await svc.voteForDuel(req.user.userId, req.user.isPremium, candidateAId, candidateBId, chosenId);
+  const { duelId, chosenId } = req.body as VoteWeeklyProfileDto;
+  const data = await svc.voteForDuel(req.user.userId, req.user.isPremium, duelId, chosenId);
   res.status(201).json({ data });
 }
 
