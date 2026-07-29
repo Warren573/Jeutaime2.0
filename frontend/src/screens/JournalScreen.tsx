@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Platform,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -79,8 +80,8 @@ const typeLabels: Record<NewsItem['type'], string> = {
 };
 
 const mockWeeklyWinners = [
-  { id: 'testuser2', pseudo: 'testuser2', votes: 48, gender: 'f' },
-  { id: 'testuser3', pseudo: 'testuser3', votes: 42, gender: 'm' },
+  { id: 'testuser2', pseudo: 'testuser2', votes: 48, gender: 'f', avatar: 'https://api.example.com/avatars/testuser2.jpg' },
+  { id: 'testuser3', pseudo: 'testuser3', votes: 42, gender: 'm', avatar: 'https://api.example.com/avatars/testuser3.jpg' },
 ];
 
 const mockRefugeStats = {
@@ -175,9 +176,13 @@ export default function JournalScreen() {
           {mockWeeklyWinners.map((winner, idx) => (
             <View key={idx} style={styles.winnerColumn}>
               <TouchableOpacity
-                style={[styles.winnerAvatar, winner.gender === 'f' ? styles.avatarFemale : styles.avatarMale]}
                 onPress={() => router.push(`/profile/${winner.id}`)}
-              />
+              >
+                <Image
+                  source={{ uri: winner.avatar }}
+                  style={styles.winnerAvatar}
+                />
+              </TouchableOpacity>
               <Text style={styles.winnerName}>{winner.pseudo}</Text>
               <Text style={styles.winnerVotes}>{winner.votes} votes</Text>
             </View>
@@ -422,12 +427,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     marginBottom: 8,
-  },
-  avatarFemale: {
-    backgroundColor: '#FFB6D9',
-  },
-  avatarMale: {
-    backgroundColor: '#A8D5FF',
+    backgroundColor: '#E8E8E8',
   },
   winnerName: {
     fontSize: 13,
