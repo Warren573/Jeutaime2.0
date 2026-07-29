@@ -14,6 +14,7 @@ import { Avatar } from '../avatar/png/Avatar';
 import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import { useStore } from '../store/useStore';
 import { getCommunityStats, type CommunityStatsDTO } from '../api/stats';
+import { getPublicProfile, type PublicProfileDto } from '../api/profiles';
 
 const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 
@@ -113,6 +114,7 @@ export default function JournalScreen() {
   const screenBg = useStore(s => s.screenBackgrounds?.['journal'] ?? '#F4EFE1');
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<CommunityStatsDTO | null>(null);
+  const [winnerProfiles, setWinnerProfiles] = useState<Record<string, PublicProfileDto | null>>({});
 
   const loadStats = () => {
     getCommunityStats()
@@ -122,7 +124,22 @@ export default function JournalScreen() {
 
   useEffect(() => {
     loadStats();
+    loadWinnerProfiles();
   }, []);
+
+  const loadWinnerProfiles = async () => {
+    const profiles: Record<string, PublicProfileDto | null> = {};
+    for (const winner of mockWeeklyWinners) {
+      try {
+        const response = await getPublicProfile(winner.id);
+        profiles[winner.id] = response.profile;
+      } catch (error) {
+        console.error(`Failed to load profile for ${winner.id}:`, error);
+        profiles[winner.id] = null;
+      }
+    }
+    setWinnerProfiles(profiles);
+  };
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -175,7 +192,13 @@ export default function JournalScreen() {
 
         <View style={styles.winnersSection}>
           {mockWeeklyWinners.map((winner, idx) => {
-            const avatarResolution = resolveAvatarConfig(winner.id, undefined, winner.gender, 'JournalScreen');
+            const profile = winnerProfiles[winner.id];
+            const avatarResolution = resolveAvatarConfig(
+              winner.id,
+              profile?.avatarConfig,
+              profile?.gender || winner.gender,
+              'JournalScreen'
+            );
             return (
               <View key={idx} style={styles.winnerColumn}>
                 <TouchableOpacity
