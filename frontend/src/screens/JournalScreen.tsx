@@ -13,82 +13,45 @@ import { getCommunityStats, type CommunityStatsDTO } from '../api/stats';
 
 const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 
-interface NewsItem {
+interface ComplimentRecord {
   id: string;
-  type: 'news' | 'event' | 'tip' | 'update';
-  title: string;
-  content: string;
-  emoji: string;
-  date: string;
+  userName: string;
+  count: number;
 }
 
-// Contenu éditorial de l'équipe JeuTaime (annonces/astuces), affiché tel
-// quel — ce n'est pas une donnée utilisateur à charger depuis le serveur.
-// Les CHIFFRES ci-dessous (Chiffres de la communauté) sont eux bien réels,
-// via /api/stats/community.
-const mockNews: NewsItem[] = [
-  {
-    id: '1',
-    type: 'news',
-    title: 'Bienvenue sur JeuTaime !',
-    content: 'Découvrez une nouvelle façon de faire des rencontres à travers le jeu, les histoires collaboratives et les cadeaux virtuels. Amusez-vous !',
-    emoji: '🎉',
-    date: "Aujourd'hui",
-  },
-  {
-    id: '2',
-    type: 'event',
-    title: 'Nouveau salon : Café de Paris',
-    content: "Un nouveau salon intime pour 4 personnes vient d'ouvrir ! Ambiance cosy et conversation face-à-face garanties.",
-    emoji: '☕',
-    date: 'Hier',
-  },
-  {
-    id: '3',
-    type: 'tip',
-    title: 'Astuce du jour',
-    content: 'Saviez-vous que vous pouvez envoyer des offrandes aux autres joueurs dans les salons ? Un excellent moyen de briser la glace !',
-    emoji: '💡',
-    date: 'Il y a 2 jours',
-  },
-  {
-    id: '4',
-    type: 'update',
-    title: 'Nouvelles activités disponibles !',
-    content: 'Pong, Casse-Brique et le Jeu de Cartes sont maintenant disponibles ! Gagnez des pièces en jouant.',
-    emoji: '🎮',
-    date: 'Il y a 3 jours',
-  },
-  {
-    id: '5',
-    type: 'news',
-    title: 'Adoptez un compagnon virtuel !',
-    content: 'Le refuge est ouvert ! Choisissez parmi 9 animaux adorables, du chien commun au dragon légendaire.',
-    emoji: '🐾',
-    date: 'Il y a 4 jours',
-  },
+interface GiftRecord {
+  id: string;
+  userName: string;
+  count: number;
+}
+
+interface TopProfile {
+  id: string;
+  pseudo: string;
+  avatar?: string;
+  score: number;
+}
+
+const mockCompliments: ComplimentRecord[] = [
+  { id: '1', userName: 'Marie', count: 5 },
+  { id: '2', userName: 'Accueche', count: 3 },
 ];
 
-const typeLabels: Record<NewsItem['type'], string> = {
-  news: 'Actualité',
-  event: 'Événement',
-  tip: 'Astuce',
-  update: 'Mise à jour',
-};
+const mockGifts: GiftRecord[] = [
+  { id: '1', userName: 'Fincus', count: 5 },
+  { id: '2', userName: 'Marie', count: 4 },
+];
 
-const todayHeadline = () =>
-  new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+const mockTopProfiles: TopProfile[] = [
+  { id: '1', pseudo: 'Alex', score: 2850 },
+  { id: '2', pseudo: 'Jordan', score: 2620 },
+  { id: '3', pseudo: 'Casey', score: 2480 },
+];
 
 const formatNumber = (n: number) => n.toLocaleString('fr-FR');
 
 export default function JournalScreen() {
   const insets = useSafeAreaInsets();
-  const { coins, points } = useStore();
   const screenBg = useStore(s => s.screenBackgrounds?.['journal'] ?? '#F4EFE1');
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<CommunityStatsDTO | null>(null);
@@ -109,89 +72,115 @@ export default function JournalScreen() {
     setTimeout(() => setRefreshing(false), 600);
   };
 
-  const [headline, ...rest] = mockNews;
-
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3A2818" />
         }
       >
-        {/* ── Une (masthead) ─────────────────────────────────────────────── */}
+        {/* ── Masthead ─────────────────────────────────────────────────────── */}
         <View style={styles.masthead}>
-          <Text style={styles.kicker}>L'ÉDITION DU JOUR · GRATUIT</Text>
-          <Text style={styles.mastheadTitle}>Le JeuTaime</Text>
-          <Text style={styles.mastheadTagline}>Nouvelles du cœur & de la communauté</Text>
-          <View style={styles.mastheadRuleThick} />
-          <View style={styles.mastheadRuleThin} />
-          <View style={styles.datelineRow}>
-            <Text style={styles.dateline}>{todayHeadline()}</Text>
-          </View>
+          <Text style={styles.mastheadTitle}>JOURNAL</Text>
+          <View style={styles.mastheadRule} />
+          <Text style={styles.mastheadSubtitle}>Actualités de la communauté</Text>
+          <View style={styles.mastheadRule} />
         </View>
 
-        {/* ── Encadré lecteur (à la une, en bref) ────────────────────────── */}
-        <View style={styles.briefBox}>
-          <Text style={styles.briefBoxTitle}>EN BREF</Text>
-          <View style={styles.briefRow}>
-            <View style={styles.briefItem}>
-              <Text style={styles.briefValue}>{coins}</Text>
-              <Text style={styles.briefLabel}>Pièces</Text>
-            </View>
-            <View style={styles.briefDivider} />
-            <View style={styles.briefItem}>
-              <Text style={styles.briefValue}>{points}</Text>
-              <Text style={styles.briefLabel}>Points</Text>
-            </View>
+        {/* ── Multi-column layout ───────────────────────────────────────────── */}
+        <View style={styles.columnsContainer}>
+          {/* Left Column */}
+          <View style={styles.column}>
+            <Text style={styles.columnTitle}>DERNIÈRES ACTIONS</Text>
+            <Text style={styles.columnSubtitle}>DIX NOUVEAUX CONTACTS EN 24 HEURES</Text>
+            <Text style={styles.columnContent}>
+              Dix nouveaux reçevoir compliments récemment à l&apos;app ils communes évidemment jour jenvityjourss jours en onglots assistent tomreumet une élongue engla de resertgaisant une recleczio neroli
+            </Text>
           </View>
-        </View>
 
-        {/* ── Article principal ───────────────────────────────────────────── */}
-        <View style={styles.headlineArticle}>
-          <Text style={styles.headlineEyebrow}>{typeLabels[headline.type].toUpperCase()}</Text>
-          <Text style={styles.headlineTitle}>{headline.emoji}  {headline.title}</Text>
-          <Text style={styles.headlineByline}>{headline.date}</Text>
-          <Text style={styles.headlineContent}>{headline.content}</Text>
+          <View style={styles.columnDivider} />
+
+          {/* Middle Column */}
+          <View style={styles.column}>
+            <Text style={styles.columnTitle}>TOURNOI DE SCRABBLE:</Text>
+            <Text style={styles.columnSubtitle}>LES INSCRIPTIONS CONTINUENT</Text>
+            <View style={styles.sectionSeparator} />
+
+            <Text style={[styles.columnTitle, { marginTop: 12 }]}>COMPLIMENTS</Text>
+            {mockCompliments.map((compliment) => (
+              <View key={compliment.id} style={styles.complimentRow}>
+                <Text style={styles.complimentText}>
+                  {compliment.userName} reçoit {compliment.count} comp
+                </Text>
+                <Text style={styles.complimentText}>pliments récemment</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.columnDivider} />
+
+          {/* Right Column */}
+          <View style={styles.column}>
+            <View style={styles.columnPlaceholder} />
+
+            <View style={styles.complimentsBox}>
+              <Text style={styles.complimentsBoxIcon}>❤️</Text>
+            </View>
+
+            <Text style={[styles.columnTitle, { marginTop: 16 }]}>TOP PROFILS</Text>
+            {mockTopProfiles.map((profile) => (
+              <View key={profile.id} style={styles.profileRow}>
+                <View style={styles.profileAvatar} />
+                <View style={styles.profileInfo}>
+                  <Text style={styles.profileName}>{profile.pseudo}</Text>
+                  <Text style={styles.profileScore}>{profile.score} pts</Text>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
 
         <View style={styles.sectionRule} />
-        <Text style={styles.sectionLabel}>AUTRES ARTICLES</Text>
 
-        {/* ── Colonne d'articles ───────────────────────────────────────────── */}
-        {rest.map((item, idx) => (
-          <View key={item.id} style={[styles.article, idx > 0 && styles.articleBorder]}>
-            <Text style={styles.eyebrow}>{typeLabels[item.type].toUpperCase()} · {item.date}</Text>
-            <Text style={styles.articleTitle}>{item.emoji}  {item.title}</Text>
-            <Text style={styles.articleContent}>{item.content}</Text>
+        {/* ── Bottom sections ──────────────────────────────────────────────── */}
+        <View style={styles.bottomGrid}>
+          {/* Left: Gifts */}
+          <View style={styles.bottomSection}>
+            <Text style={styles.bottomTitle}>LES CADEAUX DU JOUR</Text>
+            {mockGifts.map((gift) => (
+              <View key={gift.id} style={styles.giftRow}>
+                <Text style={styles.giftText}>
+                  {gift.userName} reçoit {gift.count} compliments récemment
+                </Text>
+              </View>
+            ))}
+            <View style={styles.giftPlaceholder} />
           </View>
-        ))}
 
-        {/* ── Chiffres du jour ─────────────────────────────────────────────── */}
-        <View style={styles.sectionRule} />
-        <Text style={styles.sectionLabel}>LES CHIFFRES DE LA COMMUNAUTÉ</Text>
+          <View style={styles.bottomDivider} />
 
-        <View style={styles.statsGrid}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{stats ? formatNumber(stats.matchesToday) : '—'}</Text>
-            <Text style={styles.statLabel}>Matchs aujourd'hui</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{stats ? formatNumber(stats.lettersSent) : '—'}</Text>
-            <Text style={styles.statLabel}>Lettres échangées</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{stats ? formatNumber(stats.giftsSent) : '—'}</Text>
-            <Text style={styles.statLabel}>Cadeaux envoyés</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{stats ? formatNumber(stats.activeMembers) : '—'}</Text>
-            <Text style={styles.statLabel}>Membres actifs (7j)</Text>
+          {/* Right: Stats */}
+          <View style={styles.bottomSection}>
+            <Text style={styles.bottomTitle}>STATISTIQUES</Text>
+            <View style={styles.statsContent}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{stats ? formatNumber(stats.matchesToday) : '—'}</Text>
+                <Text style={styles.statLabel}>Matchs</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{stats ? formatNumber(stats.lettersSent) : '—'}</Text>
+                <Text style={styles.statLabel}>Lettres</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{stats ? formatNumber(stats.giftsSent) : '—'}</Text>
+                <Text style={styles.statLabel}>Cadeaux</Text>
+              </View>
+            </View>
           </View>
         </View>
-
-        <Text style={styles.colophon}>— Fin de l'édition du jour —</Text>
       </ScrollView>
     </View>
   );
@@ -199,133 +188,202 @@ export default function JournalScreen() {
 
 const INK = '#2A2118';
 const INK_SOFT = '#5C4B3A';
-const RULE = '#B8A377';
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: 18, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 100 },
 
   // ── Masthead ─────────────────────────────────────────────────────────────
-  masthead: { alignItems: 'center', paddingTop: 14, paddingBottom: 10 },
-  kicker: { fontSize: 10, letterSpacing: 2, color: INK_SOFT, fontFamily: SERIF },
+  masthead: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
   mastheadTitle: {
-    fontSize: 44,
+    fontSize: 48,
+    fontWeight: '900',
+    fontFamily: SERIF,
+    color: INK,
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  mastheadRule: {
+    height: 2,
+    backgroundColor: INK,
+    width: '100%',
+    marginVertical: 8,
+  },
+  mastheadSubtitle: {
+    fontSize: 16,
+    fontFamily: SERIF,
+    color: INK,
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
+
+  // ── Multi-column layout ───────────────────────────────────────────────────
+  columnsContainer: {
+    flexDirection: 'row',
+    marginVertical: 16,
+    gap: 0,
+  },
+  column: {
+    flex: 1,
+    paddingHorizontal: 12,
+  },
+  columnDivider: {
+    width: 1.5,
+    backgroundColor: INK,
+    marginHorizontal: 8,
+  },
+  columnTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    fontFamily: SERIF,
+    color: INK,
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  columnSubtitle: {
+    fontSize: 14,
     fontWeight: '700',
     fontFamily: SERIF,
     color: INK,
-    marginTop: 4,
-    letterSpacing: 0.5,
+    lineHeight: 18,
+    marginBottom: 10,
   },
-  mastheadTagline: {
+  columnContent: {
+    fontSize: 13,
+    fontFamily: SERIF,
+    color: INK_SOFT,
+    lineHeight: 19,
+  },
+  columnPlaceholder: {
+    height: 60,
+    backgroundColor: '#E8E0D0',
+    borderRadius: 4,
+    marginBottom: 12,
+  },
+  sectionSeparator: {
+    height: 1,
+    backgroundColor: INK,
+    marginVertical: 10,
+  },
+  complimentRow: {
+    marginBottom: 8,
+  },
+  complimentText: {
+    fontSize: 13,
+    fontFamily: SERIF,
+    color: INK,
+    lineHeight: 18,
+  },
+  complimentsBox: {
+    width: 60,
+    height: 60,
+    borderWidth: 2,
+    borderColor: INK,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginVertical: 12,
+  },
+  complimentsBoxIcon: {
+    fontSize: 32,
+  },
+
+  // ── Top Profiles ──────────────────────────────────────────────────────────
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  profileAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#CCC',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
     fontSize: 12,
-    fontStyle: 'italic',
+    fontWeight: '600',
+    fontFamily: SERIF,
+    color: INK,
+  },
+  profileScore: {
+    fontSize: 11,
     fontFamily: SERIF,
     color: INK_SOFT,
     marginTop: 2,
   },
-  mastheadRuleThick: { height: 3, backgroundColor: INK, width: '100%', marginTop: 12 },
-  mastheadRuleThin: { height: 1, backgroundColor: INK, width: '100%', marginTop: 3 },
-  datelineRow: {
+
+  // ── Separator ─────────────────────────────────────────────────────────────
+  sectionRule: {
+    height: 1,
+    backgroundColor: INK,
+    marginVertical: 16,
+  },
+
+  // ── Bottom Grid ───────────────────────────────────────────────────────────
+  bottomGrid: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    width: '100%',
-    marginTop: 6,
+    gap: 0,
   },
-  dateline: { fontSize: 11, fontFamily: SERIF, fontStyle: 'italic', color: INK_SOFT, textTransform: 'capitalize' },
-
-  // ── Encadré "En bref" ────────────────────────────────────────────────────
-  briefBox: {
-    borderWidth: 1,
-    borderColor: RULE,
-    marginTop: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+  bottomSection: {
+    flex: 1,
+    paddingHorizontal: 12,
   },
-  briefBoxTitle: {
-    fontSize: 10,
-    letterSpacing: 1.5,
-    fontFamily: SERIF,
-    fontWeight: '700',
-    color: INK_SOFT,
-    textAlign: 'center',
-    marginBottom: 8,
+  bottomDivider: {
+    width: 1.5,
+    backgroundColor: INK,
+    marginHorizontal: 8,
   },
-  briefRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
-  briefItem: { alignItems: 'center', flex: 1 },
-  briefDivider: { width: 1, height: 28, backgroundColor: RULE },
-  briefValue: { fontSize: 18, fontWeight: '700', fontFamily: SERIF, color: INK },
-  briefLabel: { fontSize: 10, color: INK_SOFT, marginTop: 2, fontFamily: SERIF },
-
-  // ── Article principal ────────────────────────────────────────────────────
-  headlineArticle: { marginTop: 20 },
-  headlineEyebrow: { fontSize: 11, letterSpacing: 1.2, color: INK_SOFT, fontFamily: SERIF, fontWeight: '700' },
-  headlineTitle: {
-    fontSize: 26,
-    fontWeight: '700',
-    fontFamily: SERIF,
-    color: INK,
-    marginTop: 6,
-    lineHeight: 30,
-  },
-  headlineByline: {
-    fontSize: 11,
-    fontStyle: 'italic',
-    fontFamily: SERIF,
-    color: INK_SOFT,
-    marginTop: 6,
-    marginBottom: 10,
-  },
-  headlineContent: {
-    fontSize: 15,
+  bottomTitle: {
+    fontSize: 16,
+    fontWeight: '900',
     fontFamily: SERIF,
     color: INK,
     lineHeight: 22,
+    marginBottom: 10,
   },
-
-  sectionRule: { height: 1, backgroundColor: RULE, marginTop: 22, marginBottom: 10 },
-  sectionLabel: {
-    fontSize: 11,
-    letterSpacing: 1.5,
+  giftRow: {
+    marginBottom: 8,
+  },
+  giftText: {
+    fontSize: 13,
     fontFamily: SERIF,
-    fontWeight: '700',
-    color: INK_SOFT,
+    color: INK,
+    lineHeight: 18,
   },
-
-  // ── Articles secondaires ─────────────────────────────────────────────────
-  article: { paddingTop: 16, paddingBottom: 4 },
-  articleBorder: { borderTopWidth: 1, borderTopColor: RULE },
-  eyebrow: { fontSize: 10, letterSpacing: 1, color: INK_SOFT, fontFamily: SERIF, fontWeight: '700' },
-  articleTitle: {
-    fontSize: 18,
+  giftPlaceholder: {
+    height: 40,
+    backgroundColor: '#E8E0D0',
+    borderRadius: 4,
+    marginTop: 12,
+  },
+  statsContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 16,
     fontWeight: '700',
     fontFamily: SERIF,
     color: INK,
-    marginTop: 5,
-    marginBottom: 6,
   },
-  articleContent: { fontSize: 14, fontFamily: SERIF, color: INK, lineHeight: 20 },
-
-  // ── Chiffres ─────────────────────────────────────────────────────────────
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
-  statBox: {
-    width: '50%',
-    borderWidth: 1,
-    borderColor: RULE,
-    marginTop: -1,
-    marginLeft: -1,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  statValue: { fontSize: 20, fontWeight: '700', fontFamily: SERIF, color: INK },
-  statLabel: { fontSize: 11, color: INK_SOFT, marginTop: 4, fontFamily: SERIF, textAlign: 'center' },
-
-  colophon: {
-    textAlign: 'center',
+  statLabel: {
     fontSize: 11,
-    fontStyle: 'italic',
     fontFamily: SERIF,
     color: INK_SOFT,
-    marginTop: 24,
+    marginTop: 4,
+    textAlign: 'center',
   },
 });
