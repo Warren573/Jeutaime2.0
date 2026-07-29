@@ -6,10 +6,15 @@ import {
   ScrollView,
   RefreshControl,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Avatar } from '../avatar/png/Avatar';
+import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import { useStore } from '../store/useStore';
 import { getCommunityStats, type CommunityStatsDTO } from '../api/stats';
+import { getPublicProfile, type PublicProfileDto } from '../api/profiles';
 
 const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 
@@ -88,8 +93,8 @@ const mockTopProfiles = [
 ];
 
 const mockWeeklyWinners = [
-  { pseudo: 'Sophie', wins: 8, gender: 'f' },
-  { pseudo: 'Marc', wins: 6, gender: 'm' },
+  { id: 'user1', pseudo: 'Sophie', wins: 8, gender: 'f' },
+  { id: 'user2', pseudo: 'Marc', wins: 6, gender: 'm' },
 ];
 
 const mockRefugeStats = {
@@ -115,10 +120,12 @@ const formatNumber = (n: number) => n.toLocaleString('fr-FR');
 
 export default function JournalScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { coins, points } = useStore();
   const screenBg = useStore(s => s.screenBackgrounds?.['journal'] ?? '#F4EFE1');
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<CommunityStatsDTO | null>(null);
+  const [winnerProfiles, setWinnerProfiles] = useState<Record<string, PublicProfileDto | null>>({});
 
   const loadStats = () => {
     getCommunityStats()
@@ -126,8 +133,23 @@ export default function JournalScreen() {
       .catch(() => {});
   };
 
+  const loadWinnerProfiles = async () => {
+    const profiles: Record<string, PublicProfileDto | null> = {};
+    for (const winner of mockWeeklyWinners) {
+      try {
+        const response = await getPublicProfile(winner.id);
+        profiles[winner.id] = response.profile;
+      } catch (error) {
+        console.error(`Failed to load profile for ${winner.id}:`, error);
+        profiles[winner.id] = null;
+      }
+    }
+    setWinnerProfiles(profiles);
+  };
+
   useEffect(() => {
     loadStats();
+    loadWinnerProfiles();
   }, []);
 
   const onRefresh = () => {
@@ -178,15 +200,29 @@ export default function JournalScreen() {
         <Text style={styles.sectionLabel}>GAGNANTS DE LA SEMAINE</Text>
 
         <View style={styles.winnersSection}>
-          {mockWeeklyWinners.map((winner, idx) => (
-            <View key={idx} style={styles.winnerCard}>
-              <View style={[styles.winnerAvatar, winner.gender === 'f' ? styles.avatarFemale : styles.avatarMale]} />
-              <View style={styles.winnerInfo}>
-                <Text style={styles.winnerName}>{winner.pseudo}</Text>
-                <Text style={styles.winnerStats}>{winner.wins} victoires</Text>
+          {mockWeeklyWinners.map((winner, idx) => {
+            const profile = winnerProfiles[winner.id];
+            const avatarResolution = resolveAvatarConfig(
+              winner.id,
+              profile?.avatarConfig,
+              profile?.gender || winner.gender,
+              'JournalScreen'
+            );
+            return (
+              <View key={idx} style={styles.winnerCard}>
+                <TouchableOpacity
+                  onPress={() => router.push(`/profile/${winner.id}`)}
+                  style={styles.avatarWrapper}
+                >
+                  <Avatar size={60} {...avatarResolution.config} />
+                </TouchableOpacity>
+                <View style={styles.winnerInfo}>
+                  <Text style={styles.winnerName}>{winner.pseudo}</Text>
+                  <Text style={styles.winnerStats}>{winner.wins} victoires</Text>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         {/* ── Le Refuge ───────────────────────────────────────────────────── */}
@@ -418,21 +454,12 @@ const styles = StyleSheet.create({
   winnerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: RULE,
-    gap: 12,
   },
-  winnerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  avatarFemale: {
-    backgroundColor: '#FFB6D9',
-  },
-  avatarMale: {
-    backgroundColor: '#A8D5FF',
+  avatarWrapper: {
+    marginRight: 12,
   },
   winnerInfo: {
     flex: 1,
