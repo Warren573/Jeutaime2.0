@@ -1,6 +1,5 @@
 import { prisma } from "../../config/prisma";
 import { execSync } from "child_process";
-import { resolve } from "path";
 import { Prisma } from "@prisma/client";
 import { SalonKind, OfferingCategory, MagieType } from "@prisma/client";
 
@@ -89,49 +88,49 @@ const petsData = [
 ];
 
 export async function getStagingStatus() {
-  const [salonCount, tableCheck, migrationsInfo] = await Promise.all([
-    prisma.salon.count(),
-    prisma.$queryRaw<Array<{ tablename: string }>>(
-      Prisma.sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('WeeklyProfileDuel', 'WeeklyProfileVote')`
+  const [salons, offerings, magies, pets, migrations] = await Promise.all([
+    prisma.salon.findMany({ select: { kind: true, name: true } }),
+    prisma.offeringCatalog.count(),
+    prisma.magieCatalog.count(),
+    prisma.petCatalog.count(),
+    prisma.$queryRaw<Array<{ id: string; checksum: string; finished_at: Date }>>(
+      Prisma.sql`SELECT id, checksum, finished_at FROM "_prisma_migrations" ORDER BY finished_at DESC LIMIT 10`
     ),
-    // Check if _prisma_migrations exists and get migration names
-    (async () => {
-      try {
-        const countResult = await prisma.$queryRaw<Array<{ count: bigint }>>(
-          Prisma.sql`SELECT COUNT(*) as count FROM "_prisma_migrations"`
-        );
-        const migrationsResult = await prisma.$queryRaw<Array<{ migration_name: string }>>(
-          Prisma.sql`SELECT migration_name FROM "_prisma_migrations" ORDER BY migration_name ASC`
-        );
-        return {
-          exists: countResult.length > 0,
-          count: countResult.length > 0 ? Number(countResult[0]!.count) : 0,
-          names: migrationsResult.map((m) => m.migration_name),
-        };
-      } catch {
-        // Table does not exist
-        return {
-          exists: false,
-          count: null as unknown as number,
-          names: [],
-        };
-      }
-    })(),
   ]);
 
   const commitSha = getCommitSha();
-  const existingTables = new Set(tableCheck.map((t) => t.tablename));
+
+  // Check seed execution
+  const salonCount = await prisma.salon.count();
+  const offeringCount = await prisma.offeringCatalog.count();
+  const magieCount = await prisma.magieCatalog.count();
+  const petCount = await prisma.petCatalog.count();
 
   return {
     commit: commitSha,
-    salons_count: salonCount,
-    tables: {
-      WeeklyProfileDuel: existingTables.has("WeeklyProfileDuel"),
-      WeeklyProfileVote: existingTables.has("WeeklyProfileVote"),
+    database: {
+      salons: {
+        count: salonCount,
+        records: salons.map((s) => ({ kind: s.kind, name: s.name })),
+      },
+      offeringCatalog: offeringCount,
+      magieCatalog: magieCount,
+      petCatalog: petCount,
     },
-    migrations_table_exists: migrationsInfo.exists,
-    migrations_count: migrationsInfo.exists ? migrationsInfo.count : null,
-    migrations_list: migrationsInfo.names,
+    seedStatus: {
+      salonsSeeded: salonCount > 0,
+      offeringsSeeded: offeringCount >= 3,
+      magiesSeeded: magieCount >= 14,
+      petsSeeded: petCount >= 10,
+      allSeeded: salonCount > 0 && offeringCount >= 3 && magieCount >= 14 && petCount >= 10,
+    },
+    migrations: {
+      count: migrations.length,
+      latest: migrations.slice(0, 3).map((m) => ({
+        id: m.id,
+        finished_at: m.finished_at,
+      })),
+    },
     timestamp: new Date().toISOString(),
   };
 }
@@ -372,56 +371,5 @@ export async function resetTestCoins() {
     accounts: testUsers.map((u) => u.email),
     timestamp: new Date().toISOString(),
   };
-}
-
-// ============================================================
-// Schema Drift Check (read-only)
-// ============================================================
-export async function checkSchemaDrift() {
-  try {
-    const schemaPath = resolve(process.cwd(), "prisma/schema.prisma");
-
-    let output = "";
-    let exitCode = 0;
-
-    try {
-      output = execSync(
-        `npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel "${schemaPath}" --script`,
-        {
-          encoding: "utf-8",
-          stdio: ["pipe", "pipe", "pipe"],
-          timeout: 30000,
-          env: { ...process.env },
-        }
-      );
-      exitCode = 0;
-    } catch (err: any) {
-      exitCode = err.status || 1;
-      output = err.stdout ? String(err.stdout) : "";
-    }
-
-    const isEmpty = !output || output.trim() === "" || output.includes("empty migration");
-
-    // Get first 20 lines, max 500 chars
-    const lines = output.split("\n");
-    const previewLines = lines.slice(0, 20);
-    const preview = previewLines.join("\n").substring(0, 500);
-
-    return {
-      status: exitCode === 0 ? (isEmpty ? "aligned" : "drift") : "error",
-      exit_code: exitCode,
-      diff_empty: isEmpty,
-      diff_length: output.length,
-      diff_preview: preview.length > 0 ? preview : null,
-      timestamp: new Date().toISOString(),
-    };
-  } catch (err: any) {
-    return {
-      status: "error",
-      exit_code: -1,
-      error: err.message || "Schema diff check failed",
-      timestamp: new Date().toISOString(),
-    };
-  }
 }
 

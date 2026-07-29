@@ -16,10 +16,4 @@ router.get(
   asyncHandler((_req, res: Response) => controller.getSeedSource(_req, res)),
 );
 
-// GET /api/debug/schema-drift — Check if database schema matches prisma/schema.prisma (read-only)
-router.get(
-  "/schema-drift",
-  asyncHandler((_req, res: Response) => controller.getSchemaCheck(_req, res)),
-);
-
 export default router;
