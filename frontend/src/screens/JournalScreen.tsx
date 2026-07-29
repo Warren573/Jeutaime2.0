@@ -79,8 +79,8 @@ const typeLabels: Record<NewsItem['type'], string> = {
 };
 
 const mockWeeklyWinners = [
-  { id: 'user-sophie-001', pseudo: 'Sophie', wins: 8, gender: 'f' },
-  { id: 'user-marc-001', pseudo: 'Marc', wins: 6, gender: 'm' },
+  { id: 'testuser2', pseudo: 'testuser2', votes: 48, gender: 'f' },
+  { id: 'testuser3', pseudo: 'testuser3', votes: 42, gender: 'm' },
 ];
 
 const mockRefugeStats = {
@@ -173,15 +173,13 @@ export default function JournalScreen() {
 
         <View style={styles.winnersSection}>
           {mockWeeklyWinners.map((winner, idx) => (
-            <View key={idx} style={styles.winnerCard}>
+            <View key={idx} style={styles.winnerColumn}>
               <TouchableOpacity
                 style={[styles.winnerAvatar, winner.gender === 'f' ? styles.avatarFemale : styles.avatarMale]}
                 onPress={() => router.push(`/profile/${winner.id}`)}
               />
-              <View style={styles.winnerInfo}>
-                <Text style={styles.winnerName}>{winner.pseudo}</Text>
-                <Text style={styles.winnerStats}>{winner.wins} victoires</Text>
-              </View>
+              <Text style={styles.winnerName}>{winner.pseudo}</Text>
+              <Text style={styles.winnerVotes}>{winner.votes} votes</Text>
             </View>
           ))}
         </View>
@@ -409,21 +407,21 @@ const styles = StyleSheet.create({
 
   // ── Gagnants de la semaine ──────────────────────────────────────────────────
   winnersSection: {
+    flexDirection: 'row',
     marginTop: 12,
     marginBottom: 16,
+    justifyContent: 'space-around',
+    gap: 24,
   },
-  winnerCard: {
-    flexDirection: 'row',
+  winnerColumn: {
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: RULE,
-    gap: 12,
+    flex: 1,
   },
   winnerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 8,
   },
   avatarFemale: {
     backgroundColor: '#FFB6D9',
@@ -431,20 +429,18 @@ const styles = StyleSheet.create({
   avatarMale: {
     backgroundColor: '#A8D5FF',
   },
-  winnerInfo: {
-    flex: 1,
-  },
   winnerName: {
     fontSize: 13,
     fontWeight: '700',
     fontFamily: SERIF,
     color: INK,
+    textAlign: 'center',
   },
-  winnerStats: {
+  winnerVotes: {
     fontSize: 11,
     fontFamily: SERIF,
     color: INK_SOFT,
-    marginTop: 2,
+    marginTop: 4,
   },
 
   // ── Le Refuge ───────────────────────────────────────────────────────────────
