@@ -87,6 +87,23 @@ const mockTopProfiles = [
   { pseudo: 'Jordan', score: 2480 },
 ];
 
+const mockWeeklyWinners = [
+  { pseudo: 'Sophie', wins: 8 },
+  { pseudo: 'Marc', wins: 6 },
+  { pseudo: 'Léa', wins: 5 },
+];
+
+const mockRefugeStats = {
+  totalPets: 42,
+  waitingAdoption: 12,
+};
+
+const mockCommunityStats = {
+  duelsLaunched: 247,
+  bottlesAtSea: 53,
+  lettersSent: 189,
+};
+
 const todayHeadline = () =>
   new Date().toLocaleDateString('fr-FR', {
     weekday: 'long',
@@ -137,10 +154,8 @@ export default function JournalScreen() {
           <Text style={styles.mastheadTitle}>Le JeuTaime</Text>
           <Text style={styles.mastheadTagline}>Nouvelles du cœur & de la communauté</Text>
           <View style={styles.mastheadRuleThick} />
+          <Text style={styles.dateline}>{todayHeadline()}</Text>
           <View style={styles.mastheadRuleThin} />
-          <View style={styles.datelineRow}>
-            <Text style={styles.dateline}>{todayHeadline()}</Text>
-          </View>
         </View>
 
         {/* ── Encadré lecteur (à la une, en bref) ────────────────────────── */}
@@ -159,37 +174,61 @@ export default function JournalScreen() {
           </View>
         </View>
 
-        {/* ── Communauté en direct ────────────────────────────────────────── */}
+        {/* ── Gagnants de la semaine ──────────────────────────────────────── */}
         <View style={styles.sectionRule} />
-        <Text style={styles.sectionLabel}>COMMUNAUTÉ EN DIRECT</Text>
+        <Text style={styles.sectionLabel}>GAGNANTS DE LA SEMAINE</Text>
 
-        <View style={styles.communitySection}>
-          <View style={styles.communityColumn}>
-            <Text style={styles.communitySectionTitle}>COMPLIMENTS</Text>
-            {mockCompliments.map((item, idx) => (
-              <View key={idx} style={styles.communityItem}>
-                <Text style={styles.communityItemText}>
-                  {item.userName} reçoit <Text style={styles.communityItemBold}>{item.count}</Text>
-                </Text>
-                <Text style={styles.communityItemText}>compliments</Text>
+        <View style={styles.winnersSection}>
+          {mockWeeklyWinners.map((winner, idx) => (
+            <View key={idx} style={styles.winnerCard}>
+              <View style={styles.winnerAvatar} />
+              <View style={styles.winnerInfo}>
+                <Text style={styles.winnerName}>{winner.pseudo}</Text>
+                <Text style={styles.winnerStats}>{winner.wins} victoires</Text>
               </View>
-            ))}
-          </View>
+              <Text style={styles.smileButton}>😊</Text>
+            </View>
+          ))}
+        </View>
 
-          <View style={styles.communityColumnDivider} />
+        {/* ── Le Refuge ───────────────────────────────────────────────────── */}
+        <View style={styles.sectionRule} />
+        <Text style={styles.sectionLabel}>LE REFUGE</Text>
 
-          <View style={styles.communityColumn}>
-            <Text style={styles.communitySectionTitle}>TOP PROFILS</Text>
-            {mockTopProfiles.map((profile, idx) => (
-              <View key={idx} style={styles.profileItem}>
-                <View style={styles.profileCircle} />
-                <View style={styles.profileDetails}>
-                  <Text style={styles.profileName}>{profile.pseudo}</Text>
-                  <Text style={styles.profileScore}>{formatNumber(profile.score)}</Text>
-                </View>
-              </View>
-            ))}
+        <View style={styles.refugeBox}>
+          <Text style={styles.refugeText}>
+            {mockRefugeStats.totalPets} animaux attendent une maison aimante. <Text style={styles.refugeHighlight}>{mockRefugeStats.waitingAdoption} sont en attente d&apos;adoption urgente</Text>.
+          </Text>
+          <Text style={styles.refugeSubtext}>Aide nos compagnons virtuels à trouver un foyer!</Text>
+        </View>
+
+        {/* ── Statistiques du jour ─────────────────────────────────────────── */}
+        <View style={styles.sectionRule} />
+        <Text style={styles.sectionLabel}>STATISTIQUES DU JOUR</Text>
+
+        <View style={styles.statsSection}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{mockCommunityStats.duelsLaunched}</Text>
+            <Text style={styles.statName}>Duels lancés</Text>
           </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{mockCommunityStats.bottlesAtSea}</Text>
+            <Text style={styles.statName}>Bouteilles à la mer</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{mockCommunityStats.lettersSent}</Text>
+            <Text style={styles.statName}>Lettres envoyées</Text>
+          </View>
+        </View>
+
+        {/* ── L'Histoire continue ──────────────────────────────────────────── */}
+        <View style={styles.sectionRule} />
+        <Text style={styles.sectionLabel}>L&apos;HISTOIRE CONTINUE...</Text>
+
+        <View style={styles.storyBox}>
+          <Text style={styles.storyText}>
+            Dans les salons de JeuTaime, chaque jour apporte son lot de surprises. Deux joueurs se rencontrent, partagent une histoire, échangent des cadeaux. Les compliments fleurissent, les défis se lancent, et l&apos;amitié grandit. Quelle sera votre prochaine aventure?
+          </Text>
         </View>
 
         {/* ── Article principal ───────────────────────────────────────────── */}
@@ -373,67 +412,109 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
 
-  // ── Communauté en direct ────────────────────────────────────────────────────
-  communitySection: {
-    flexDirection: 'row',
+  // ── Gagnants de la semaine ──────────────────────────────────────────────────
+  winnersSection: {
     marginTop: 12,
     marginBottom: 16,
   },
-  communityColumn: {
-    flex: 1,
-    paddingHorizontal: 8,
-  },
-  communityColumnDivider: {
-    width: 1,
-    backgroundColor: RULE,
-    marginHorizontal: 4,
-  },
-  communitySectionTitle: {
-    fontSize: 11,
-    letterSpacing: 1.2,
-    fontFamily: SERIF,
-    fontWeight: '700',
-    color: INK_SOFT,
-    marginBottom: 8,
-  },
-  communityItem: {
-    marginBottom: 8,
-  },
-  communityItemText: {
-    fontSize: 12,
-    fontFamily: SERIF,
-    color: INK,
-    lineHeight: 16,
-  },
-  communityItemBold: {
-    fontWeight: '700',
-    color: INK,
-  },
-  profileItem: {
+  winnerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: RULE,
+    gap: 12,
   },
-  profileCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  winnerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#D4D4D4',
   },
-  profileDetails: {
+  winnerInfo: {
     flex: 1,
   },
-  profileName: {
-    fontSize: 12,
-    fontWeight: '600',
+  winnerName: {
+    fontSize: 13,
+    fontWeight: '700',
     fontFamily: SERIF,
     color: INK,
   },
-  profileScore: {
+  winnerStats: {
     fontSize: 11,
     fontFamily: SERIF,
     color: INK_SOFT,
-    marginTop: 1,
+    marginTop: 2,
+  },
+  smileButton: {
+    fontSize: 24,
+  },
+
+  // ── Le Refuge ───────────────────────────────────────────────────────────────
+  refugeBox: {
+    borderWidth: 1,
+    borderColor: RULE,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  refugeText: {
+    fontSize: 14,
+    fontFamily: SERIF,
+    color: INK,
+    lineHeight: 21,
+  },
+  refugeHighlight: {
+    fontWeight: '700',
+    color: INK,
+  },
+  refugeSubtext: {
+    fontSize: 12,
+    fontFamily: SERIF,
+    color: INK_SOFT,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+
+  // ── Statistiques ─────────────────────────────────────────────────────────────
+  statsSection: {
+    flexDirection: 'row',
+    marginTop: 12,
+    marginBottom: 16,
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    fontFamily: SERIF,
+    color: INK,
+  },
+  statName: {
+    fontSize: 11,
+    fontFamily: SERIF,
+    color: INK_SOFT,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+
+  // ── L'Histoire continue ──────────────────────────────────────────────────────
+  storyBox: {
+    borderWidth: 1,
+    borderColor: RULE,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  storyText: {
+    fontSize: 14,
+    fontFamily: SERIF,
+    color: INK,
+    lineHeight: 22,
+    fontStyle: 'italic',
   },
 });
