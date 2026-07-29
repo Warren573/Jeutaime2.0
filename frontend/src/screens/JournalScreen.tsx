@@ -202,7 +202,7 @@ export default function JournalScreen() {
             return (
               <View key={idx} style={styles.winnerColumn}>
                 <TouchableOpacity
-                  onPress={() => router.push(`/profile/${winner.id}`)}
+                  onPress={() => router.push(`/profiles?userId=${winner.id}`)}
                   style={styles.avatarWrapper}
                 >
                   <Avatar size={60} {...avatarResolution.config} />
