@@ -7,13 +7,14 @@ import {
   RefreshControl,
   Platform,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Avatar } from '../avatar/png/Avatar';
-import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import { useStore } from '../store/useStore';
 import { getCommunityStats, type CommunityStatsDTO } from '../api/stats';
+import { getPublicProfile, type PublicPhotoDto } from '../api/profiles';
+import { API_URL } from '../api/client';
 
 const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 
@@ -113,6 +114,7 @@ export default function JournalScreen() {
   const screenBg = useStore(s => s.screenBackgrounds?.['journal'] ?? '#F4EFE1');
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<CommunityStatsDTO | null>(null);
+  const [winnerPhotos, setWinnerPhotos] = useState<Record<string, PublicPhotoDto | null>>({});
 
   const loadStats = () => {
     getCommunityStats()
@@ -122,7 +124,22 @@ export default function JournalScreen() {
 
   useEffect(() => {
     loadStats();
+    loadWinnerPhotos();
   }, []);
+
+  const loadWinnerPhotos = async () => {
+    const photos: Record<string, PublicPhotoDto | null> = {};
+    for (const winner of mockWeeklyWinners) {
+      try {
+        const response = await getPublicProfile(winner.id);
+        const primaryPhoto = response.photos?.find(p => p.isPrimary) || response.photos?.[0];
+        photos[winner.id] = primaryPhoto || null;
+      } catch {
+        photos[winner.id] = null;
+      }
+    }
+    setWinnerPhotos(photos);
+  };
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -175,14 +192,21 @@ export default function JournalScreen() {
 
         <View style={styles.winnersSection}>
           {mockWeeklyWinners.map((winner, idx) => {
-            const avatarResolution = resolveAvatarConfig(winner.id, undefined, winner.gender, 'JournalScreen');
+            const photo = winnerPhotos[winner.id];
+            const photoUrl = photo ? `${API_URL.replace(/\/api$/, '')}${photo.url}` : null;
             return (
               <View key={idx} style={styles.winnerColumn}>
                 <TouchableOpacity
                   onPress={() => router.push(`/profile/${winner.id}`)}
-                  style={styles.avatarContainer}
+                  style={styles.winnerPhotoWrapper}
                 >
-                  <Avatar size={60} {...avatarResolution.config} />
+                  {photoUrl ? (
+                    <Image source={{ uri: photoUrl }} style={styles.winnerPhoto} />
+                  ) : (
+                    <View style={styles.winnerPhotoPlaceholder}>
+                      <Text style={styles.placeholderEmoji}>👤</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
                 <Text style={styles.winnerName}>{winner.pseudo}</Text>
                 <Text style={styles.winnerVotes}>{winner.votes} votes</Text>
@@ -424,8 +448,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  avatarContainer: {
+  winnerPhotoWrapper: {
     marginBottom: 8,
+  },
+  winnerPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  winnerPhotoPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#E8E8E8',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderEmoji: {
+    fontSize: 32,
   },
   winnerName: {
     fontSize: 13,
