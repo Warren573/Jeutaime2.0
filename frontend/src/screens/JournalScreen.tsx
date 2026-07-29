@@ -7,10 +7,11 @@ import {
   RefreshControl,
   Platform,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Avatar } from '../avatar/png/Avatar';
+import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import { useStore } from '../store/useStore';
 import { getCommunityStats, type CommunityStatsDTO } from '../api/stats';
 
@@ -80,8 +81,8 @@ const typeLabels: Record<NewsItem['type'], string> = {
 };
 
 const mockWeeklyWinners = [
-  { id: 'testuser2', pseudo: 'testuser2', votes: 48, gender: 'f', avatar: 'https://api.example.com/avatars/testuser2.jpg' },
-  { id: 'testuser3', pseudo: 'testuser3', votes: 42, gender: 'm', avatar: 'https://api.example.com/avatars/testuser3.jpg' },
+  { id: 'testuser2', pseudo: 'testuser2', votes: 48, gender: 'f' as const },
+  { id: 'testuser3', pseudo: 'testuser3', votes: 42, gender: 'm' as const },
 ];
 
 const mockRefugeStats = {
@@ -173,20 +174,21 @@ export default function JournalScreen() {
         <Text style={styles.sectionLabel}>GAGNANTS DE LA SEMAINE</Text>
 
         <View style={styles.winnersSection}>
-          {mockWeeklyWinners.map((winner, idx) => (
-            <View key={idx} style={styles.winnerColumn}>
-              <TouchableOpacity
-                onPress={() => router.push(`/profile/${winner.id}`)}
-              >
-                <Image
-                  source={{ uri: winner.avatar }}
-                  style={styles.winnerAvatar}
-                />
-              </TouchableOpacity>
-              <Text style={styles.winnerName}>{winner.pseudo}</Text>
-              <Text style={styles.winnerVotes}>{winner.votes} votes</Text>
-            </View>
-          ))}
+          {mockWeeklyWinners.map((winner, idx) => {
+            const avatarResolution = resolveAvatarConfig(winner.id, undefined, winner.gender, 'JournalScreen');
+            return (
+              <View key={idx} style={styles.winnerColumn}>
+                <TouchableOpacity
+                  onPress={() => router.push(`/profile/${winner.id}`)}
+                  style={styles.avatarContainer}
+                >
+                  <Avatar size={60} {...avatarResolution.config} />
+                </TouchableOpacity>
+                <Text style={styles.winnerName}>{winner.pseudo}</Text>
+                <Text style={styles.winnerVotes}>{winner.votes} votes</Text>
+              </View>
+            );
+          })}
         </View>
 
         {/* ── Le Refuge ───────────────────────────────────────────────────── */}
@@ -422,12 +424,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  winnerAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  avatarContainer: {
     marginBottom: 8,
-    backgroundColor: '#E8E8E8',
   },
   winnerName: {
     fontSize: 13,
