@@ -2,9 +2,12 @@ import type { Request, Response } from "express";
 import { env } from "../../config/env";
 import * as debugService from "./debug.service";
 
-// Only allow in staging/dev
+// Only allow in staging/dev, or in production if explicitly enabled
 function isDebugAllowed(): boolean {
-  return env.ALLOW_DEBUG_ENDPOINTS || env.NODE_ENV !== "production";
+  if (env.NODE_ENV === "production") {
+    return process.env.ALLOW_DEBUG_ENDPOINTS === "true";
+  }
+  return true;
 }
 
 export async function getStagingStatus(req: Request, res: Response) {

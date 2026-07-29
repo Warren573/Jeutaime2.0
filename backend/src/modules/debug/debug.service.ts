@@ -88,49 +88,49 @@ const petsData = [
 ];
 
 export async function getStagingStatus() {
-  const [salons, offerings, magies, pets, migrations] = await Promise.all([
-    prisma.salon.findMany({ select: { kind: true, name: true } }),
-    prisma.offeringCatalog.count(),
-    prisma.magieCatalog.count(),
-    prisma.petCatalog.count(),
-    prisma.$queryRaw<Array<{ id: string; checksum: string; finished_at: Date }>>(
-      Prisma.sql`SELECT id, checksum, finished_at FROM "_prisma_migrations" ORDER BY finished_at DESC LIMIT 10`
+  const [salonCount, tableCheck, migrationsInfo] = await Promise.all([
+    prisma.salon.count(),
+    prisma.$queryRaw<Array<{ tablename: string }>>(
+      Prisma.sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('WeeklyProfileDuel', 'WeeklyProfileVote')`
     ),
+    // Check if _prisma_migrations exists and get migration names
+    (async () => {
+      try {
+        const countResult = await prisma.$queryRaw<Array<{ count: bigint }>>(
+          Prisma.sql`SELECT COUNT(*) as count FROM "_prisma_migrations"`
+        );
+        const migrationsResult = await prisma.$queryRaw<Array<{ migration: string }>>(
+          Prisma.sql`SELECT migration FROM "_prisma_migrations" ORDER BY migration ASC`
+        );
+        return {
+          exists: countResult.length > 0,
+          count: countResult.length > 0 ? Number(countResult[0]!.count) : 0,
+          names: migrationsResult.map((m) => m.migration),
+        };
+      } catch {
+        // Table does not exist
+        return {
+          exists: false,
+          count: null as unknown as number,
+          names: [],
+        };
+      }
+    })(),
   ]);
 
   const commitSha = getCommitSha();
-
-  // Check seed execution
-  const salonCount = await prisma.salon.count();
-  const offeringCount = await prisma.offeringCatalog.count();
-  const magieCount = await prisma.magieCatalog.count();
-  const petCount = await prisma.petCatalog.count();
+  const existingTables = new Set(tableCheck.map((t) => t.tablename));
 
   return {
     commit: commitSha,
-    database: {
-      salons: {
-        count: salonCount,
-        records: salons.map((s) => ({ kind: s.kind, name: s.name })),
-      },
-      offeringCatalog: offeringCount,
-      magieCatalog: magieCount,
-      petCatalog: petCount,
+    salons_count: salonCount,
+    tables: {
+      WeeklyProfileDuel: existingTables.has("WeeklyProfileDuel"),
+      WeeklyProfileVote: existingTables.has("WeeklyProfileVote"),
     },
-    seedStatus: {
-      salonsSeeded: salonCount > 0,
-      offeringsSeeded: offeringCount >= 3,
-      magiesSeeded: magieCount >= 14,
-      petsSeeded: petCount >= 10,
-      allSeeded: salonCount > 0 && offeringCount >= 3 && magieCount >= 14 && petCount >= 10,
-    },
-    migrations: {
-      count: migrations.length,
-      latest: migrations.slice(0, 3).map((m) => ({
-        id: m.id,
-        finished_at: m.finished_at,
-      })),
-    },
+    migrations_table_exists: migrationsInfo.exists,
+    migrations_count: migrationsInfo.exists ? migrationsInfo.count : null,
+    migrations_list: migrationsInfo.names,
     timestamp: new Date().toISOString(),
   };
 }

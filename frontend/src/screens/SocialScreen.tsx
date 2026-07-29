@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 import CardGame from "./games/CardGame";
 import StoryGame from "./games/StoryGame";
+import WeeklyProfileScreen from "./WeeklyProfileScreen";
 import { FEATURES } from "../config/features";
 import { getInbox } from "../api/bottles";
 
@@ -43,8 +44,8 @@ const SECTIONS = [
   {
     id: "cards",
     emoji: "🎴",
-    name: "Jeu de Cartes",
-    desc: "Révèle et gagne des pièces",
+    name: "Jeux & Défis",
+    desc: "Jeu de cartes & élection hebdomadaire",
     feature: "games",
     colors: ["#E4B9A6", "#CE8E76"], // lavis terracotta rosé — carte
   },
@@ -66,7 +67,8 @@ const SECTIONS = [
   },
 ] as const;
 
-type CurrentView = "cards" | "story" | null;
+type CurrentView = "cards" | "story" | "games-hub" | null;
+type GamesHubView = "card-game" | "weekly-profile" | null;
 
 export default function SocialScreen() {
   const router = useRouter();
@@ -79,6 +81,7 @@ export default function SocialScreen() {
   const loadWallet = useStore((s) => s.loadWallet);
   const screenBg = useStore((s) => s.screenBackgrounds?.["social"] ?? "#FFF8E7");
   const [currentView, setCurrentView] = useState<CurrentView>(null);
+  const [gamesHubView, setGamesHubView] = useState<GamesHubView>(null);
   const [result, setResult] = useState<{ won: boolean; reward: number } | null>(
     null
   );
@@ -127,8 +130,13 @@ export default function SocialScreen() {
       return;
     }
 
-    if ((id === "cards" || id === "story") && FEATURES.games !== "hidden") {
-      setCurrentView(id as "cards" | "story");
+    if (id === "cards" && FEATURES.games !== "hidden") {
+      setCurrentView("games-hub");
+      return;
+    }
+
+    if (id === "story" && FEATURES.games !== "hidden") {
+      setCurrentView("story");
     }
   };
 
@@ -158,7 +166,12 @@ export default function SocialScreen() {
 
   const reset = () => {
     setResult(null);
-    setCurrentView(null);
+    setGamesHubView(null);
+    if (currentView === "games-hub") {
+      setCurrentView(null);
+    } else {
+      setCurrentView(null);
+    }
   };
 
   if (socialHidden) {
@@ -204,6 +217,60 @@ export default function SocialScreen() {
     );
   }
 
+  if (currentView === "games-hub") {
+    return (
+      <View
+        style={[
+          styles.container,
+          { paddingTop: insets.top, backgroundColor: screenBg },
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.topBack}
+          onPress={() => setCurrentView(null)}
+        >
+          <Text style={styles.topBackText}>← Retour</Text>
+        </TouchableOpacity>
+        {gamesHubView === null ? (
+          <ScrollView contentContainerStyle={styles.hubMenu}>
+            <Text style={styles.hubTitle}>Jeux & Défis</Text>
+            <TouchableOpacity
+              style={styles.hubOption}
+              onPress={() => setGamesHubView("card-game")}
+            >
+              <Text style={styles.hubOptionEmoji}>🎴</Text>
+              <Text style={styles.hubOptionTitle}>Jeu de Cartes</Text>
+              <Text style={styles.hubOptionDesc}>Révèle et gagne des pièces</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.hubOption}
+              onPress={() => setGamesHubView("weekly-profile")}
+            >
+              <Text style={styles.hubOptionEmoji}>🏆</Text>
+              <Text style={styles.hubOptionTitle}>Élection Hebdomadaire</Text>
+              <Text style={styles.hubOptionDesc}>Vote pour ton profil préféré</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        ) : (
+          <ScrollView contentContainerStyle={styles.gameContent}>
+            {gamesHubView === "card-game" && FEATURES.games !== "hidden" && (
+              <CardGame onEnd={handleCardGameEnd} />
+            )}
+            {gamesHubView === "weekly-profile" && FEATURES.games !== "hidden" && (
+              <WeeklyProfileScreen />
+            )}
+            <TouchableOpacity
+              style={styles.hubBack}
+              onPress={() => setGamesHubView(null)}
+            >
+              <Text style={styles.hubBackText}>← Retour aux jeux</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+      </View>
+    );
+  }
+
   if (currentView) {
     return (
       <View
@@ -219,9 +286,6 @@ export default function SocialScreen() {
           <Text style={styles.topBackText}>← Retour</Text>
         </TouchableOpacity>
         <ScrollView contentContainerStyle={styles.gameContent}>
-          {currentView === "cards" && FEATURES.games !== "hidden" && (
-            <CardGame onEnd={handleCardGameEnd} />
-          )}
           {currentView === "story" && FEATURES.games !== "hidden" && (
             <StoryGame onEnd={(won) => (won ? handleWin(50) : handleLose())} />
           )}
@@ -443,5 +507,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#8B6F47",
     lineHeight: 22,
+  },
+  hubMenu: {
+    flexGrow: 1,
+    padding: 20,
+    justifyContent: "center",
+    gap: 16,
+  },
+  hubTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#3A2818",
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  hubOption: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#E8D5B7",
+  },
+  hubOptionEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  hubOptionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#3A2818",
+    marginBottom: 4,
+  },
+  hubOptionDesc: {
+    fontSize: 14,
+    color: "#8B6F47",
+    textAlign: "center",
+  },
+  hubBack: {
+    marginTop: 24,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  hubBackText: {
+    fontSize: 16,
+    color: "#8B6F47",
+    fontWeight: "600",
   },
 });
