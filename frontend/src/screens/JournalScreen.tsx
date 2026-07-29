@@ -88,9 +88,8 @@ const mockTopProfiles = [
 ];
 
 const mockWeeklyWinners = [
-  { pseudo: 'Sophie', wins: 8 },
-  { pseudo: 'Marc', wins: 6 },
-  { pseudo: 'Léa', wins: 5 },
+  { pseudo: 'Sophie', wins: 8, gender: 'f' },
+  { pseudo: 'Marc', wins: 6, gender: 'm' },
 ];
 
 const mockRefugeStats = {
@@ -181,12 +180,11 @@ export default function JournalScreen() {
         <View style={styles.winnersSection}>
           {mockWeeklyWinners.map((winner, idx) => (
             <View key={idx} style={styles.winnerCard}>
-              <View style={styles.winnerAvatar} />
+              <View style={[styles.winnerAvatar, winner.gender === 'f' ? styles.avatarFemale : styles.avatarMale]} />
               <View style={styles.winnerInfo}>
                 <Text style={styles.winnerName}>{winner.pseudo}</Text>
                 <Text style={styles.winnerStats}>{winner.wins} victoires</Text>
               </View>
-              <Text style={styles.smileButton}>😊</Text>
             </View>
           ))}
         </View>
@@ -429,7 +427,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#D4D4D4',
+  },
+  avatarFemale: {
+    backgroundColor: '#FFB6D9',
+  },
+  avatarMale: {
+    backgroundColor: '#A8D5FF',
   },
   winnerInfo: {
     flex: 1,
@@ -446,10 +449,6 @@ const styles = StyleSheet.create({
     color: INK_SOFT,
     marginTop: 2,
   },
-  smileButton: {
-    fontSize: 24,
-  },
-
   // ── Le Refuge ───────────────────────────────────────────────────────────────
   refugeBox: {
     borderWidth: 1,
