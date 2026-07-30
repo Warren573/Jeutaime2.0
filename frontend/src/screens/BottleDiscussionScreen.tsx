@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Image,
   Modal,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -308,7 +309,7 @@ export default function BottleDiscussionScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Historique des messages */}
+      {/* Historique des messages - prend 65% de l'espace */}
       <ScrollView style={styles.messagesScroll} contentContainerStyle={styles.messagesContent}>
         {messages.map((msg, idx) => {
           const isMyMessage = msg.senderId === currentUser?.id;
@@ -344,8 +345,13 @@ export default function BottleDiscussionScreen() {
         })}
       </ScrollView>
 
-      {/* Zone d'écriture : champ de saisie standard */}
+      {/* Zone d'écriture : champ de saisie standard - prend 35% de l'espace */}
       <View style={[styles.inputArea, { paddingBottom: insets.bottom + 10 }]}>
+        <View style={styles.inputControls}>
+          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.dismissBtn}>
+            <Text style={styles.dismissBtnText}>⌨️</Text>
+          </TouchableOpacity>
+        </View>
         <TextInput
           style={styles.messageInput}
           placeholder="Écris ton message..."
@@ -370,7 +376,7 @@ export default function BottleDiscussionScreen() {
             {isSending ? (
               <ActivityIndicator size="small" color={COLORS.card} />
             ) : (
-              <Text style={styles.sendBtnText}>Glisser dans la bouteille</Text>
+              <Text style={styles.sendBtnText}>Glisser</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -497,7 +503,7 @@ const styles = StyleSheet.create({
     color: '#8A6E3C',
   },
   messagesScroll: {
-    flex: 1,
+    flex: 2,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
@@ -537,10 +543,23 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   inputArea: {
+    flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 8,
-    borderTopWidth: 1,
+    paddingTop: 12,
+    borderTopWidth: 2,
     borderTopColor: COLORS.border,
+    justifyContent: 'flex-start',
+  },
+  inputControls: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 8,
+  },
+  dismissBtn: {
+    padding: 8,
+  },
+  dismissBtnText: {
+    fontSize: 16,
   },
   inputFooter: {
     flexDirection: 'row',
@@ -549,14 +568,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   messageInput: {
-    minHeight: 60,
-    maxHeight: 120,
-    paddingVertical: 8,
+    minHeight: 90,
+    maxHeight: 140,
+    paddingVertical: 12,
     paddingHorizontal: 12,
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 20,
     color: COLORS.text,
     backgroundColor: COLORS.card,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
     textAlignVertical: 'top',
@@ -572,18 +592,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sendBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
     backgroundColor: COLORS.accent,
     marginLeft: 8,
+    justifyContent: 'center',
   },
   sendBtnDisabled: {
-    opacity: 0.5,
+    opacity: 0.6,
   },
   sendBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: COLORS.card,
     textAlign: 'center',
   },
