@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   Image,
   Modal,
-  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -308,13 +307,8 @@ export default function BottleDiscussionScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Zone de composition full screen */}
+      {/* Zone de composition - JUSTE les lignes */}
       <View style={styles.mainScroll}>
-        <View style={styles.inputControls}>
-          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.dismissBtn}>
-            <Text style={styles.dismissBtnText}>⌨️</Text>
-          </TouchableOpacity>
-        </View>
         <TextInput
           style={styles.messageInput}
           placeholder="Écris ton message..."
@@ -327,24 +321,26 @@ export default function BottleDiscussionScreen() {
           underlineColorAndroid="transparent"
           selectionColor="transparent"
         />
-        <View style={styles.inputFooter}>
-          <Text
-            style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
-          >
-            {charRemaining} caractères
-          </Text>
-          <TouchableOpacity
-            style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
-            onPress={handleSendMessage}
-            disabled={isSending || !messageText.trim()}
-          >
-            {isSending ? (
-              <ActivityIndicator size="small" color={COLORS.card} />
-            ) : (
-              <Text style={styles.sendBtnText}>Glisser</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+      </View>
+
+      {/* Contrôles en bas - hors de la zone d'écriture */}
+      <View style={styles.bottomControls}>
+        <Text
+          style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
+        >
+          {charRemaining} caractères
+        </Text>
+        <TouchableOpacity
+          style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
+          onPress={handleSendMessage}
+          disabled={isSending || !messageText.trim()}
+        >
+          {isSending ? (
+            <ActivityIndicator size="small" color={COLORS.card} />
+          ) : (
+            <Text style={styles.sendBtnText}>Glisser</Text>
+          )}
+        </TouchableOpacity>
       </View>
       </KeyboardAvoidingView>
 
@@ -470,7 +466,16 @@ const styles = StyleSheet.create({
   mainScroll: {
     flex: 1,
     backgroundColor: 'transparent',
-    justifyContent: 'flex-end',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  bottomControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
   },
   messageBubble: {
     paddingVertical: 8,
@@ -504,34 +509,8 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     opacity: 0.6,
   },
-  inputSection: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    justifyContent: 'space-between',
-  },
-  inputControls: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 8,
-  },
-  dismissBtn: {
-    padding: 8,
-  },
-  dismissBtnText: {
-    fontSize: 16,
-  },
-  inputFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
   messageInput: {
-    minHeight: 100,
-    maxHeight: 150,
-    paddingVertical: 8,
-    paddingHorizontal: 24,
+    flex: 1,
     fontSize: 16,
     lineHeight: 30,
     color: '#2A1C0C',
@@ -540,6 +519,8 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     fontStyle: 'italic',
     textAlignVertical: 'top',
+    padding: 0,
+    margin: 0,
     ...(Platform.OS === 'web' ? { outlineWidth: 0 } as any : null),
   },
   charCount: {
