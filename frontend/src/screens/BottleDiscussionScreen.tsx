@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
   Image,
   Modal,
-  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -50,7 +49,6 @@ const COLORS = {
 export default function BottleDiscussionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width: winWidth, height: winHeight } = useWindowDimensions();
   const params = useLocalSearchParams();
   const bottleId = params.bottleId as string;
   const { currentUser } = useStore();
@@ -62,7 +60,6 @@ export default function BottleDiscussionScreen() {
   const [isSending, setIsSending] = useState(false);
   const [hasRevealRequest, setHasRevealRequest] = useState(false);
   const [isRevealRequester, setIsRevealRequester] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -277,13 +274,6 @@ export default function BottleDiscussionScreen() {
 
   const charRemaining = 500 - messageText.length;
 
-  const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
-  const lastMsgMine = lastMsg ? lastMsg.senderId === currentUser?.id : false;
-
-  // Le papier remplit l'écran (cover) : ses lignes réglées occupent la bande
-  // verticale ~34–67 %. On pousse la zone de saisie pour tomber sur la 1re ligne.
-  const linesTop = Math.max(12, winHeight * 0.30 - insets.top - 52);
-
   return (
     <>
       {/* Papier à lettres épinglé au viewport : fond + surface d'écriture. */}
@@ -295,26 +285,12 @@ export default function BottleDiscussionScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-      {/* Header : retour + historique (📜) à gauche, titre au centre, menu « … » à droite */}
+      {/* Header : retour, titre au centre, menu « … » à droite */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={styles.headerBack}>←</Text>
           </TouchableOpacity>
-          {messages.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setShowHistory(true)}
-              style={styles.historyEmojiBtn}
-              hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-              accessibilityRole="button"
-              accessibilityLabel="Voir l'historique des messages"
-            >
-              <Text style={styles.historyEmoji}>📜</Text>
-              {messages.length > 1 && (
-                <Text style={styles.historyEmojiCount}>{messages.length}</Text>
-              )}
-            </TouchableOpacity>
-          )}
         </View>
         <View style={styles.headerTitle}>
           <Text style={styles.bottleGender} numberOfLines={1}>
@@ -332,46 +308,72 @@ export default function BottleDiscussionScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Zone d'écriture : posée sur les lignes réglées du papier, à l'encre. */}
-      <View style={[styles.writingArea, { paddingTop: linesTop, paddingHorizontal: winWidth * 0.11 }]}>
-        {/* Dernier message : rappel en encre pâlie, masqué dès qu'on écrit
-            (sinon il se superpose au texte saisi). */}
-        {lastMsg && messageText.length === 0 && (
-          <Text style={styles.lastMsgQuote} numberOfLines={2}>
-            « {lastMsg.content} »
-          </Text>
-        )}
+      {/* Historique des messages */}
+      <ScrollView style={styles.messagesScroll} contentContainerStyle={styles.messagesContent}>
+        {messages.map((msg, idx) => {
+          const isMyMessage = msg.senderId === currentUser?.id;
+          return (
+            <View
+              key={msg.id || idx}
+              style={[
+                styles.messageBubble,
+                isMyMessage ? styles.myMessageBubble : styles.otherMessageBubble,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.messageText,
+                  isMyMessage && { color: COLORS.card },
+                ]}
+              >
+                {msg.content}
+              </Text>
+              <Text
+                style={[
+                  styles.messageTime,
+                  isMyMessage ? styles.myMessageTime : styles.otherMessageTime,
+                ]}
+              >
+                {new Date(msg.createdAt).toLocaleTimeString('fr-FR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+
+      {/* Zone d'écriture : champ de saisie standard */}
+      <View style={[styles.inputArea, { paddingBottom: insets.bottom + 10 }]}>
         <TextInput
           style={styles.messageInput}
-          placeholder={
-            lastMsg ? 'Écris ta réponse ici…' : 'Écris ton mot ici…'
-          }
-          placeholderTextColor="rgba(90,70,32,0.5)"
+          placeholder="Écris ton message..."
+          placeholderTextColor={COLORS.textSecondary}
           value={messageText}
           onChangeText={setMessageText}
           multiline
           maxLength={500}
+          editable={!isSending}
         />
-      </View>
-
-      {/* Barre d'envoi discrète sous le parchemin */}
-      <View style={[styles.inputSection, { paddingBottom: insets.bottom + 10 }]}>
-        <Text
-          style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
-        >
-          {charRemaining} caractères
-        </Text>
-        <TouchableOpacity
-          style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
-          onPress={handleSendMessage}
-          disabled={isSending || !messageText.trim()}
-        >
-          {isSending ? (
-            <ActivityIndicator size="small" color={COLORS.card} />
-          ) : (
-            <Text style={styles.sendBtnText}>Glisser dans la bouteille</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.inputFooter}>
+          <Text
+            style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
+          >
+            {charRemaining} caractères
+          </Text>
+          <TouchableOpacity
+            style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
+            onPress={handleSendMessage}
+            disabled={isSending || !messageText.trim()}
+          >
+            {isSending ? (
+              <ActivityIndicator size="small" color={COLORS.card} />
+            ) : (
+              <Text style={styles.sendBtnText}>Glisser dans la bouteille</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
       </KeyboardAvoidingView>
 
@@ -436,62 +438,6 @@ export default function BottleDiscussionScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Historique complet des messages */}
-      <Modal
-        visible={showHistory}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowHistory(false)}
-      >
-        <View style={styles.historyBackdrop}>
-          <View style={[styles.historySheet, { paddingBottom: insets.bottom + 16 }]}>
-            <View style={styles.historyHeader}>
-              <Text style={styles.historyTitle}>📜 Historique</Text>
-              <TouchableOpacity onPress={() => setShowHistory(false)}>
-                <Text style={styles.historyClose}>Fermer</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.historyList}
-              contentContainerStyle={styles.messageContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {messages.map((msg, idx) => {
-                const isMyMessage = msg.senderId === currentUser?.id;
-                return (
-                  <View
-                    key={msg.id || idx}
-                    style={[
-                      styles.messageBubble,
-                      isMyMessage ? styles.myMessageBubble : styles.otherMessageBubble,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.messageText,
-                        isMyMessage && { color: COLORS.card },
-                      ]}
-                    >
-                      {msg.content}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.messageTime,
-                        isMyMessage ? styles.myMessageTime : styles.otherMessageTime,
-                      ]}
-                    >
-                      {new Date(msg.createdAt).toLocaleTimeString('fr-FR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </Text>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 }
@@ -529,20 +475,6 @@ const styles = StyleSheet.create({
     color: COLORS.accent,
     fontWeight: '600',
   },
-  historyEmojiBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  historyEmoji: {
-    fontSize: 22,
-  },
-  historyEmojiCount: {
-    marginLeft: 2,
-    marginTop: -8,
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#7A5E2E',
-  },
   headerTitle: {
     flex: 1,
     alignItems: 'center',
@@ -564,95 +496,13 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: '#8A6E3C',
   },
-  bottleMessage: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(200,162,90,0.35)',
-  },
-  bottleMessageLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#8A6E3C',
-    marginBottom: 6,
-  },
-  bottleMessageText: {
-    fontSize: 13,
-    color: '#4A3A28',
-    fontStyle: 'italic',
-  },
-  // --- Zone d'écriture posée sur les lignes réglées du papier ---
-  writingArea: {
+  messagesScroll: {
     flex: 1,
-  },
-  // Dernier message, encre pâlie, comme une note déjà tracée sur le papier.
-  lastMsgQuote: {
-    fontSize: 15,
-    lineHeight: 30,
-    color: 'rgba(74,58,40,0.6)',
-    fontStyle: 'italic',
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    marginBottom: 2,
-  },
-  parchmentEmpty: {
-    fontSize: 15,
-    color: '#6B5533',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    lineHeight: 24,
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-  },
-  parchmentText: {
-    fontSize: 15,
-    color: '#3A2C18',
-    lineHeight: 22,
-    fontStyle: 'italic',
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-  },
-  lastMsgSender: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#7A5E2E',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  lastMsgTime: {
-    fontSize: 11,
-    fontWeight: '400',
-    color: '#8A6E3C',
-  },
-  historyHintText: {
-    marginTop: 6,
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#5E4620',
-  },
-  messageScroll: {
-    flex: 1,
-  },
-  messageContent: {
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  noMessages: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 48,
-  },
-  noMessagesText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  noMessagesSubtext: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
+  messagesContent: {
+    paddingVertical: 8,
   },
   messageBubble: {
     paddingVertical: 8,
@@ -686,102 +536,61 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     opacity: 0.6,
   },
-  inputSection: {
+  inputArea: {
     paddingHorizontal: 16,
     paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
   },
-  // Champ de saisie posé sur les lignes réglées (pas de cadre), encre lisible.
-  // lineHeight ≈ écart entre deux lignes du papier pour "écrire dessus".
+  inputFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
   messageInput: {
-    flex: 1,
-    paddingVertical: 0,
-    fontSize: 18,
-    lineHeight: 30,
-    color: '#2A1C0C',
-    fontWeight: '500',
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    minHeight: 60,
+    maxHeight: 120,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    color: COLORS.text,
+    backgroundColor: COLORS.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     textAlignVertical: 'top',
-    ...(Platform.OS === 'web' ? { outlineWidth: 0 } as any : null),
   },
   charCount: {
     fontSize: 11,
     color: '#8A6E3C',
-    textAlign: 'center',
-    marginBottom: 6,
+    marginBottom: 0,
+    flex: 1,
   },
   charCountWarning: {
     color: COLORS.accent,
     fontWeight: '600',
   },
   sendBtn: {
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 6,
     backgroundColor: COLORS.accent,
-    marginBottom: 12,
+    marginLeft: 8,
   },
   sendBtnDisabled: {
     opacity: 0.5,
   },
   sendBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: COLORS.card,
-    textAlign: 'center',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingBottom: 8,
-  },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.bg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  actionBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.text,
     textAlign: 'center',
   },
   errorText: {
     fontSize: 16,
     color: COLORS.accent,
     textAlign: 'center',
-  },
-  revealSection: {
-    paddingBottom: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  revealText: {
-    fontSize: 12,
-    color: COLORS.accent,
-    textAlign: 'center',
-    paddingVertical: 8,
-    fontStyle: 'italic',
-  },
-  revealActions: {
-    flexDirection: 'column',
-    gap: 8,
-    paddingVertical: 8,
-  },
-  revealBtn: {
-    backgroundColor: '#FFD700',
-  },
-  acceptBtn: {
-    backgroundColor: '#4CAF50',
-  },
-  refuseBtn: {
-    backgroundColor: '#F44336',
-  },
-  breakBtn: {
-    backgroundColor: '#FF6B6B',
   },
   // --- Menu « … » (dropdown haut-droit) ---
   menuBackdrop: {
@@ -824,40 +633,5 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(200,162,90,0.3)',
     marginVertical: 4,
-  },
-  // --- Historique (modal bas de page) ---
-  historyBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  historySheet: {
-    maxHeight: '78%',
-    backgroundColor: '#F5F1E8',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 8,
-  },
-  historyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(200,162,90,0.35)',
-  },
-  historyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#4A3A28',
-  },
-  historyClose: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.accent,
-  },
-  historyList: {
-    flexGrow: 0,
   },
 });
