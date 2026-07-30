@@ -89,6 +89,11 @@ export default function BottleDiscussionsListScreen() {
         }
       >
         {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.headerBack}>← Retour</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.title}>Discussions</Text>
 
         {/* ACTIVE Section */}
@@ -175,6 +180,14 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
+  },
+  header: {
+    marginBottom: 8,
+  },
+  headerBack: {
+    fontSize: 16,
+    color: COLORS.accent,
+    fontWeight: '600',
   },
   title: {
     fontSize: 24,
