@@ -309,8 +309,9 @@ export default function BottleDiscussionScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Historique des messages - prend 65% de l'espace */}
-      <ScrollView style={styles.messagesScroll} contentContainerStyle={styles.messagesContent}>
+      {/* Tout sur un scroll : messages + input */}
+      <ScrollView style={styles.mainScroll} contentContainerStyle={styles.mainContent}>
+        {/* Historique des messages */}
         {messages.map((msg, idx) => {
           const isMyMessage = msg.senderId === currentUser?.id;
           return (
@@ -343,46 +344,46 @@ export default function BottleDiscussionScreen() {
             </View>
           );
         })}
-      </ScrollView>
 
-      {/* Zone d'écriture : champ de saisie standard - prend 35% de l'espace */}
-      <View style={[styles.inputArea, { paddingBottom: insets.bottom + 10 }]}>
-        <View style={styles.inputControls}>
-          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.dismissBtn}>
-            <Text style={styles.dismissBtnText}>⌨️</Text>
-          </TouchableOpacity>
+        {/* Zone d'écriture intégrée - à la fin du scroll */}
+        <View style={styles.inputSection}>
+          <View style={styles.inputControls}>
+            <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.dismissBtn}>
+              <Text style={styles.dismissBtnText}>⌨️</Text>
+            </TouchableOpacity>
+          </View>
+          <TextInput
+            style={styles.messageInput}
+            placeholder="Écris ton message..."
+            placeholderTextColor={COLORS.textSecondary}
+            value={messageText}
+            onChangeText={setMessageText}
+            multiline
+            maxLength={500}
+            editable={!isSending}
+            underlineColorAndroid="transparent"
+            selectionColor="transparent"
+          />
+          <View style={styles.inputFooter}>
+            <Text
+              style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
+            >
+              {charRemaining} caractères
+            </Text>
+            <TouchableOpacity
+              style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
+              onPress={handleSendMessage}
+              disabled={isSending || !messageText.trim()}
+            >
+              {isSending ? (
+                <ActivityIndicator size="small" color={COLORS.card} />
+              ) : (
+                <Text style={styles.sendBtnText}>Glisser</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-        <TextInput
-          style={styles.messageInput}
-          placeholder="Écris ton message..."
-          placeholderTextColor={COLORS.textSecondary}
-          value={messageText}
-          onChangeText={setMessageText}
-          multiline
-          maxLength={500}
-          editable={!isSending}
-          underlineColorAndroid="transparent"
-          selectionColor="transparent"
-        />
-        <View style={styles.inputFooter}>
-          <Text
-            style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
-          >
-            {charRemaining} caractères
-          </Text>
-          <TouchableOpacity
-            style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
-            onPress={handleSendMessage}
-            disabled={isSending || !messageText.trim()}
-          >
-            {isSending ? (
-              <ActivityIndicator size="small" color={COLORS.card} />
-            ) : (
-              <Text style={styles.sendBtnText}>Glisser</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
+      </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Menu « … » : dévoilement, signaler, rompre — discrets */}
@@ -504,13 +505,14 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: '#8A6E3C',
   },
-  messagesScroll: {
-    flex: 2,
+  mainScroll: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  mainContent: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-  },
-  messagesContent: {
-    paddingVertical: 8,
+    paddingBottom: 100,
   },
   messageBubble: {
     paddingVertical: 8,
@@ -544,12 +546,9 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     opacity: 0.6,
   },
-  inputArea: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 0,
-    justifyContent: 'flex-start',
+  inputSection: {
+    paddingVertical: 16,
+    paddingHorizontal: 0,
   },
   inputControls: {
     flexDirection: 'row',
