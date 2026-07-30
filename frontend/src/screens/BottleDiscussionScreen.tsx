@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlignVertical: 'top',
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: 200,
     paddingBottom: 20,
     margin: 0,
     ...(Platform.OS === 'web' ? {
