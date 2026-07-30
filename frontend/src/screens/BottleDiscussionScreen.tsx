@@ -320,6 +320,8 @@ export default function BottleDiscussionScreen() {
           editable={!isSending}
           underlineColorAndroid="transparent"
           selectionColor="transparent"
+          scrollEnabled={false}
+          keyboardType="default"
         />
       </View>
 
@@ -516,12 +518,17 @@ const styles = StyleSheet.create({
     color: '#2A1C0C',
     backgroundColor: 'transparent',
     borderWidth: 0,
+    borderColor: 'transparent',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     fontStyle: 'italic',
     textAlignVertical: 'top',
     padding: 0,
     margin: 0,
-    ...(Platform.OS === 'web' ? { outlineWidth: 0 } as any : null),
+    ...(Platform.OS === 'web' ? {
+      outlineWidth: 0,
+      outline: 'none',
+      boxShadow: 'none',
+    } as any : null),
   },
   charCount: {
     fontSize: 11,
