@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
 
   // ── Masthead ─────────────────────────────────────────────────────────────
   masthead: { alignItems: 'center', paddingTop: 14, paddingBottom: 10 },
-  kicker: { fontSize: 10, letterSpacing: 2, color: INK_SOFT, fontFamily: SERIF },
+  kicker: { fontSize: 13, letterSpacing: 2, color: INK_SOFT, fontFamily: SERIF },
   mastheadTitle: {
     fontSize: 44,
     fontWeight: '700',
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   mastheadTagline: {
-    fontSize: 12,
+    fontSize: 15,
     fontStyle: 'italic',
     fontFamily: SERIF,
     color: INK_SOFT,
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 6,
   },
-  dateline: { fontSize: 11, fontFamily: SERIF, fontStyle: 'italic', color: INK_SOFT, textTransform: 'capitalize' },
+  dateline: { fontSize: 14, fontFamily: SERIF, fontStyle: 'italic', color: INK_SOFT, textTransform: 'capitalize' },
 
   // ── Encadré "En bref" ────────────────────────────────────────────────────
   briefBox: {
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   briefBoxTitle: {
-    fontSize: 10,
+    fontSize: 13,
     letterSpacing: 1.5,
     fontFamily: SERIF,
     fontWeight: '700',
@@ -360,12 +360,12 @@ const styles = StyleSheet.create({
   briefRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
   briefItem: { alignItems: 'center', flex: 1 },
   briefDivider: { width: 1, height: 28, backgroundColor: RULE },
-  briefValue: { fontSize: 18, fontWeight: '700', fontFamily: SERIF, color: INK },
-  briefLabel: { fontSize: 10, color: INK_SOFT, marginTop: 2, fontFamily: SERIF },
+  briefValue: { fontSize: 21, fontWeight: '700', fontFamily: SERIF, color: INK },
+  briefLabel: { fontSize: 13, color: INK_SOFT, marginTop: 2, fontFamily: SERIF },
 
   // ── Article principal ────────────────────────────────────────────────────
   headlineArticle: { marginTop: 20 },
-  headlineEyebrow: { fontSize: 11, letterSpacing: 1.2, color: INK_SOFT, fontFamily: SERIF, fontWeight: '700' },
+  headlineEyebrow: { fontSize: 14, letterSpacing: 1.2, color: INK_SOFT, fontFamily: SERIF, fontWeight: '700' },
   headlineTitle: {
     fontSize: 26,
     fontWeight: '700',
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   headlineByline: {
-    fontSize: 11,
+    fontSize: 14,
     fontStyle: 'italic',
     fontFamily: SERIF,
     color: INK_SOFT,
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   headlineContent: {
-    fontSize: 15,
+    fontSize: 18,
     fontFamily: SERIF,
     color: INK,
     lineHeight: 22,
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
 
   sectionRule: { height: 1, backgroundColor: RULE, marginTop: 22, marginBottom: 10 },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 14,
     letterSpacing: 1.5,
     fontFamily: SERIF,
     fontWeight: '700',
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   // ── Articles secondaires ─────────────────────────────────────────────────
   article: { paddingTop: 16, paddingBottom: 4 },
   articleBorder: { borderTopWidth: 1, borderTopColor: RULE },
-  eyebrow: { fontSize: 10, letterSpacing: 1, color: INK_SOFT, fontFamily: SERIF, fontWeight: '700' },
+  eyebrow: { fontSize: 13, letterSpacing: 1, color: INK_SOFT, fontFamily: SERIF, fontWeight: '700' },
   articleTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 6,
   },
-  articleContent: { fontSize: 14, fontFamily: SERIF, color: INK, lineHeight: 20 },
+  articleContent: { fontSize: 17, fontFamily: SERIF, color: INK, lineHeight: 20 },
 
   // ── Chiffres ─────────────────────────────────────────────────────────────
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
@@ -423,12 +423,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
   },
-  statValue: { fontSize: 20, fontWeight: '700', fontFamily: SERIF, color: INK },
-  statLabel: { fontSize: 11, color: INK_SOFT, marginTop: 4, fontFamily: SERIF, textAlign: 'center' },
+  statValue: { fontSize: 24, fontWeight: '700', fontFamily: SERIF, color: INK },
+  statLabel: { fontSize: 14, color: INK_SOFT, marginTop: 4, fontFamily: SERIF, textAlign: 'center' },
 
   colophon: {
     textAlign: 'center',
-    fontSize: 11,
+    fontSize: 14,
     fontStyle: 'italic',
     fontFamily: SERIF,
     color: INK_SOFT,
@@ -451,14 +451,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   winnerName: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '700',
     fontFamily: SERIF,
     color: INK,
     textAlign: 'center',
   },
   winnerVotes: {
-    fontSize: 11,
+    fontSize: 14,
     fontFamily: SERIF,
     color: INK_SOFT,
     marginTop: 4,
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   refugeText: {
-    fontSize: 14,
+    fontSize: 17,
     fontFamily: SERIF,
     color: INK,
     lineHeight: 21,
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     color: INK,
   },
   refugeSubtext: {
-    fontSize: 12,
+    fontSize: 15,
     fontFamily: SERIF,
     color: INK_SOFT,
     marginTop: 8,
@@ -502,13 +502,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statNumber: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     fontFamily: SERIF,
     color: INK,
   },
   statName: {
-    fontSize: 11,
+    fontSize: 14,
     fontFamily: SERIF,
     color: INK_SOFT,
     marginTop: 4,
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   storyText: {
-    fontSize: 14,
+    fontSize: 17,
     fontFamily: SERIF,
     color: INK,
     lineHeight: 22,
