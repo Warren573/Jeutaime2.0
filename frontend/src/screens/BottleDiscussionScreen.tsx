@@ -361,6 +361,8 @@ export default function BottleDiscussionScreen() {
           multiline
           maxLength={500}
           editable={!isSending}
+          underlineColorAndroid="transparent"
+          selectionColor="transparent"
         />
         <View style={styles.inputFooter}>
           <Text
