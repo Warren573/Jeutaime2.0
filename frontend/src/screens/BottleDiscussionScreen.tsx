@@ -546,8 +546,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 12,
-    borderTopWidth: 2,
-    borderTopColor: COLORS.border,
+    borderTopWidth: 0,
     justifyContent: 'flex-start',
   },
   inputControls: {
@@ -576,9 +575,11 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     color: '#2A1C0C',
     backgroundColor: 'transparent',
+    borderWidth: 0,
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     fontStyle: 'italic',
     textAlignVertical: 'top',
+    ...(Platform.OS === 'web' ? { outlineWidth: 0 } as any : null),
   },
   charCount: {
     fontSize: 11,
