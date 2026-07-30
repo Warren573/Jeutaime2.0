@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
@@ -309,81 +308,44 @@ export default function BottleDiscussionScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Tout sur un scroll : messages + input */}
-      <ScrollView style={styles.mainScroll} contentContainerStyle={styles.mainContent}>
-        {/* Historique des messages */}
-        {messages.map((msg, idx) => {
-          const isMyMessage = msg.senderId === currentUser?.id;
-          return (
-            <View
-              key={msg.id || idx}
-              style={[
-                styles.messageBubble,
-                isMyMessage ? styles.myMessageBubble : styles.otherMessageBubble,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.messageText,
-                  isMyMessage && { color: COLORS.card },
-                ]}
-              >
-                {msg.content}
-              </Text>
-              <Text
-                style={[
-                  styles.messageTime,
-                  isMyMessage ? styles.myMessageTime : styles.otherMessageTime,
-                ]}
-              >
-                {new Date(msg.createdAt).toLocaleTimeString('fr-FR', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </Text>
-            </View>
-          );
-        })}
-
-        {/* Zone d'écriture intégrée - à la fin du scroll */}
-        <View style={styles.inputSection}>
-          <View style={styles.inputControls}>
-            <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.dismissBtn}>
-              <Text style={styles.dismissBtnText}>⌨️</Text>
-            </TouchableOpacity>
-          </View>
-          <TextInput
-            style={styles.messageInput}
-            placeholder="Écris ton message..."
-            placeholderTextColor={COLORS.textSecondary}
-            value={messageText}
-            onChangeText={setMessageText}
-            multiline
-            maxLength={500}
-            editable={!isSending}
-            underlineColorAndroid="transparent"
-            selectionColor="transparent"
-          />
-          <View style={styles.inputFooter}>
-            <Text
-              style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
-            >
-              {charRemaining} caractères
-            </Text>
-            <TouchableOpacity
-              style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
-              onPress={handleSendMessage}
-              disabled={isSending || !messageText.trim()}
-            >
-              {isSending ? (
-                <ActivityIndicator size="small" color={COLORS.card} />
-              ) : (
-                <Text style={styles.sendBtnText}>Glisser</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+      {/* Zone de composition full screen */}
+      <View style={styles.mainScroll}>
+        <View style={styles.inputControls}>
+          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.dismissBtn}>
+            <Text style={styles.dismissBtnText}>⌨️</Text>
+          </TouchableOpacity>
         </View>
-      </ScrollView>
+        <TextInput
+          style={styles.messageInput}
+          placeholder="Écris ton message..."
+          placeholderTextColor={COLORS.textSecondary}
+          value={messageText}
+          onChangeText={setMessageText}
+          multiline
+          maxLength={500}
+          editable={!isSending}
+          underlineColorAndroid="transparent"
+          selectionColor="transparent"
+        />
+        <View style={styles.inputFooter}>
+          <Text
+            style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
+          >
+            {charRemaining} caractères
+          </Text>
+          <TouchableOpacity
+            style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
+            onPress={handleSendMessage}
+            disabled={isSending || !messageText.trim()}
+          >
+            {isSending ? (
+              <ActivityIndicator size="small" color={COLORS.card} />
+            ) : (
+              <Text style={styles.sendBtnText}>Glisser</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
       </KeyboardAvoidingView>
 
       {/* Menu « … » : dévoilement, signaler, rompre — discrets */}
@@ -508,11 +470,7 @@ const styles = StyleSheet.create({
   mainScroll: {
     flex: 1,
     backgroundColor: 'transparent',
-  },
-  mainContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingBottom: 100,
+    justifyContent: 'flex-end',
   },
   messageBubble: {
     paddingVertical: 8,
@@ -547,8 +505,10 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   inputSection: {
+    flex: 1,
+    paddingHorizontal: 16,
     paddingVertical: 16,
-    paddingHorizontal: 0,
+    justifyContent: 'space-between',
   },
   inputControls: {
     flexDirection: 'row',
