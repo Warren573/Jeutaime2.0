@@ -42,17 +42,29 @@ export default function JournalScreen() {
   const loadAllData = async () => {
     try {
       const [commStats, dayStats, refStats, winners] = await Promise.all([
-        getCommunityStats(),
-        getDailyStats(),
-        getRefugeStats(),
-        getWeeklyProfileWinners(),
+        getCommunityStats().catch(err => {
+          console.error('[JournalScreen] Error loading community stats:', err);
+          return null;
+        }),
+        getDailyStats().catch(err => {
+          console.error('[JournalScreen] Error loading daily stats:', err);
+          return null;
+        }),
+        getRefugeStats().catch(err => {
+          console.error('[JournalScreen] Error loading refuge stats:', err);
+          return null;
+        }),
+        getWeeklyProfileWinners().catch(err => {
+          console.error('[JournalScreen] Error loading weekly winners:', err);
+          return null;
+        }),
       ]);
-      setCommunityStats(commStats);
-      setDailyStats(dayStats);
-      setRefugeStats(refStats);
-      setWeeklyWinners(winners);
+      if (commStats) setCommunityStats(commStats);
+      if (dayStats) setDailyStats(dayStats);
+      if (refStats) setRefugeStats(refStats);
+      if (winners) setWeeklyWinners(winners);
     } catch (error) {
-      console.error('[JournalScreen] Error loading data:', error);
+      console.error('[JournalScreen] Unexpected error loading data:', error);
     }
   };
 
@@ -104,37 +116,43 @@ export default function JournalScreen() {
         </View>
 
         {/* ── Gagnants de la semaine ──────────────────────────────────────── */}
-        {weeklyWinners && (weeklyWinners.male || weeklyWinners.female) && (
+        {weeklyWinners && (
           <>
             <View style={styles.sectionRule} />
             <Text style={styles.sectionLabel}>GAGNANTS DE LA SEMAINE</Text>
 
-            <View style={styles.winnersSection}>
-              {weeklyWinners.female && (
-                <View style={styles.winnerColumn}>
-                  <TouchableOpacity
-                    onPress={() => router.push(`/profiles?userId=${weeklyWinners.female!.id}`)}
-                    style={styles.avatarWrapper}
-                  >
-                    <Avatar size={60} {...resolveAvatarConfig(weeklyWinners.female.id, weeklyWinners.female.avatarConfig, weeklyWinners.female.gender, 'JournalScreen').config} />
-                  </TouchableOpacity>
-                  <Text style={styles.winnerName}>{weeklyWinners.female.pseudo}</Text>
-                  <Text style={styles.winnerVotes}>{weeklyWinners.female.totalVotes} votes</Text>
-                </View>
-              )}
-              {weeklyWinners.male && (
-                <View style={styles.winnerColumn}>
-                  <TouchableOpacity
-                    onPress={() => router.push(`/profiles?userId=${weeklyWinners.male!.id}`)}
-                    style={styles.avatarWrapper}
-                  >
-                    <Avatar size={60} {...resolveAvatarConfig(weeklyWinners.male.id, weeklyWinners.male.avatarConfig, weeklyWinners.male.gender, 'JournalScreen').config} />
-                  </TouchableOpacity>
-                  <Text style={styles.winnerName}>{weeklyWinners.male.pseudo}</Text>
-                  <Text style={styles.winnerVotes}>{weeklyWinners.male.totalVotes} votes</Text>
-                </View>
-              )}
-            </View>
+            {weeklyWinners.male || weeklyWinners.female ? (
+              <View style={styles.winnersSection}>
+                {weeklyWinners.female && (
+                  <View style={styles.winnerColumn}>
+                    <TouchableOpacity
+                      onPress={() => router.push(`/profiles?userId=${weeklyWinners.female!.id}`)}
+                      style={styles.avatarWrapper}
+                    >
+                      <Avatar size={60} {...resolveAvatarConfig(weeklyWinners.female.id, weeklyWinners.female.avatarConfig, weeklyWinners.female.gender, 'JournalScreen').config} />
+                    </TouchableOpacity>
+                    <Text style={styles.winnerName}>{weeklyWinners.female.pseudo}</Text>
+                    <Text style={styles.winnerVotes}>{weeklyWinners.female.totalVotes} votes</Text>
+                  </View>
+                )}
+                {weeklyWinners.male && (
+                  <View style={styles.winnerColumn}>
+                    <TouchableOpacity
+                      onPress={() => router.push(`/profiles?userId=${weeklyWinners.male!.id}`)}
+                      style={styles.avatarWrapper}
+                    >
+                      <Avatar size={60} {...resolveAvatarConfig(weeklyWinners.male.id, weeklyWinners.male.avatarConfig, weeklyWinners.male.gender, 'JournalScreen').config} />
+                    </TouchableOpacity>
+                    <Text style={styles.winnerName}>{weeklyWinners.male.pseudo}</Text>
+                    <Text style={styles.winnerVotes}>{weeklyWinners.male.totalVotes} votes</Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.emptyStateBox}>
+                <Text style={styles.emptyStateText}>Aucun résultat cette semaine.</Text>
+              </View>
+            )}
           </>
         )}
 
@@ -146,9 +164,9 @@ export default function JournalScreen() {
 
             <View style={styles.refugeBox}>
               <Text style={styles.refugeText}>
-                {refugeStats.petsInRefuge} animaux attendent une maison aimante. <Text style={styles.refugeHighlight}>{refugeStats.petsAwaitingReveal} sont en attente de révélation</Text>.
+                <Text style={styles.refugeHighlight}>{refugeStats.activeRefuges}</Text> refuge{refugeStats.activeRefuges !== 1 ? 's' : ''} en cours. <Text style={styles.refugeHighlight}>{refugeStats.awaitingReveal}</Text> révélation{refugeStats.awaitingReveal !== 1 ? 's' : ''} en attente.
               </Text>
-              <Text style={styles.refugeSubtext}>Aide nos compagnons virtuels à trouver un foyer!</Text>
+              <Text style={styles.refugeSubtext}>{refugeStats.completedRefuges} refuge{refugeStats.completedRefuges !== 1 ? 's' : ''} terminé{refugeStats.completedRefuges !== 1 ? 's' : ''}.</Text>
             </View>
           </>
         )}
@@ -161,8 +179,12 @@ export default function JournalScreen() {
 
             <View style={styles.statsSection}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.duelsPlayedToday}</Text>
-                <Text style={styles.statName}>Duels joués</Text>
+                <Text style={styles.statNumber}>{dailyStats.matchesToday}</Text>
+                <Text style={styles.statName}>Matchs créés</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{dailyStats.lettersSentToday}</Text>
+                <Text style={styles.statName}>Lettres envoyées</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{dailyStats.bottlesSentToday}</Text>
@@ -181,18 +203,14 @@ export default function JournalScreen() {
                 <Text style={styles.statName}>Offrandes envoyées</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.petsAdoptedToday}</Text>
-                <Text style={styles.statName}>Animaux adoptés</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.matchesToday}</Text>
-                <Text style={styles.statName}>Matchs créés</Text>
+                <Text style={styles.statNumber}>{dailyStats.duelsPlayedToday}</Text>
+                <Text style={styles.statName}>Duels joués</Text>
               </View>
             </View>
           </>
         )}
 
-        {/* ── Chiffres du jour ─────────────────────────────────────────────── */}
+        {/* ── Chiffres de la communauté ────────────────────────────────────── */}
         {communityStats && (
           <>
             <View style={styles.sectionRule} />
@@ -201,19 +219,19 @@ export default function JournalScreen() {
             <View style={styles.statsGrid}>
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>{formatNumber(communityStats.matchesToday)}</Text>
-                <Text style={styles.statLabel}>Matchs aujourd'hui</Text>
+                <Text style={styles.statLabel}>Matchs (depuis le lancement)</Text>
               </View>
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>{formatNumber(communityStats.lettersSent)}</Text>
-                <Text style={styles.statLabel}>Lettres échangées</Text>
+                <Text style={styles.statLabel}>Lettres échangées (depuis le lancement)</Text>
               </View>
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>{formatNumber(communityStats.giftsSent)}</Text>
-                <Text style={styles.statLabel}>Cadeaux envoyés</Text>
+                <Text style={styles.statLabel}>Offrandes envoyées (depuis le lancement)</Text>
               </View>
               <View style={styles.statBox}>
                 <Text style={styles.statValue}>{formatNumber(communityStats.activeMembers)}</Text>
-                <Text style={styles.statLabel}>Membres actifs (7j)</Text>
+                <Text style={styles.statLabel}>Membres actifs (7 derniers jours)</Text>
               </View>
             </View>
           </>
@@ -301,6 +319,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     justifyContent: 'space-around',
     gap: 24,
+  },
+  emptyStateBox: {
+    marginTop: 12,
+    marginBottom: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 15,
+    fontFamily: SERIF,
+    color: INK_SOFT,
+    fontStyle: 'italic',
   },
   winnerColumn: {
     alignItems: 'center',

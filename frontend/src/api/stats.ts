@@ -13,15 +13,14 @@ export interface DailyStatsDTO {
   smilesSentToday: number;
   grimacesSentToday: number;
   offeringsSentToday: number;
-  petsAdoptedToday: number;
   duelsPlayedToday: number;
+  lettersSentToday: number;
 }
 
 export interface RefugeStatsDTO {
-  totalPets: number;
-  petsInRefuge: number;
-  petsAdopted: number;
-  petsAwaitingReveal: number;
+  activeRefuges: number;
+  awaitingReveal: number;
+  completedRefuges: number;
 }
 
 export async function getCommunityStats(): Promise<CommunityStatsDTO> {

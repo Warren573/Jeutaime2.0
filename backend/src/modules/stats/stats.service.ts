@@ -13,8 +13,8 @@ export interface DailyStatsDto {
   smilesSentToday: number;
   grimacesSentToday: number;
   offeringsSentToday: number;
-  petsAdoptedToday: number;
   duelsPlayedToday: number;
+  lettersSentToday: number;
 }
 
 // Chiffres réels de la communauté (affichés dans le Journal) — aucune
@@ -47,16 +47,16 @@ export async function getDailyStats(): Promise<DailyStatsDto> {
     smilesSentToday,
     grimacesSentToday,
     offeringsSentToday,
-    petsAdoptedToday,
     duelsPlayedToday,
+    lettersSentToday,
   ] = await Promise.all([
     prisma.match.count({ where: { createdAt: { gte: startOfDay } } }),
     prisma.messageInABottle.count({ where: { createdAt: { gte: startOfDay } } }),
     prisma.reaction.count({ where: { type: "SMILE", createdAt: { gte: startOfDay } } }),
     prisma.reaction.count({ where: { type: "GRIMACE", createdAt: { gte: startOfDay } } }),
     prisma.offeringSent.count({ where: { createdAt: { gte: startOfDay } } }),
-    prisma.pet.count({ where: { adoptedAt: { gte: startOfDay } } }),
     prisma.weeklyProfileDuel.count({ where: { createdAt: { gte: startOfDay } } }),
+    prisma.letter.count({ where: { sentAt: { gte: startOfDay } } }),
   ]);
 
   return {
@@ -65,32 +65,28 @@ export async function getDailyStats(): Promise<DailyStatsDto> {
     smilesSentToday,
     grimacesSentToday,
     offeringsSentToday,
-    petsAdoptedToday,
     duelsPlayedToday,
+    lettersSentToday,
   };
 }
 
 export interface RefugeStatsDto {
-  totalPets: number;
-  petsInRefuge: number;
-  petsAdopted: number;
-  petsAwaitingReveal: number;
+  activeRefuges: number;
+  awaitingReveal: number;
+  completedRefuges: number;
 }
 
 // Statistiques du Refuge pour le Journal
 export async function getRefugeStats(): Promise<RefugeStatsDto> {
-  const [totalPets, petsAdopted, petsAwaitingReveal] = await Promise.all([
-    prisma.pet.count(),
-    prisma.pet.count({ where: { adoptedAt: { not: null } } }),
-    prisma.refugeSession.count({ where: { status: "WAITING_FOR_REVEAL" } }),
+  const [activeRefuges, awaitingReveal, completedRefuges] = await Promise.all([
+    prisma.refugeSession.count({ where: { status: "ACTIVE" } }),
+    prisma.refugeSession.count({ where: { status: "AWAITING_REVEAL_CONSENT" } }),
+    prisma.refugeSession.count({ where: { status: { in: ["COMPLETED", "REVEALED"] } } }),
   ]);
 
-  const petsInRefuge = totalPets - petsAdopted;
-
   return {
-    totalPets,
-    petsInRefuge,
-    petsAdopted,
-    petsAwaitingReveal,
+    activeRefuges,
+    awaitingReveal,
+    completedRefuges,
   };
 }
