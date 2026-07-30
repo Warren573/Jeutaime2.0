@@ -468,8 +468,6 @@ const styles = StyleSheet.create({
   mainScroll: {
     flex: 1,
     backgroundColor: 'transparent',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
   },
   bottomControls: {
     flexDirection: 'row',
@@ -522,7 +520,9 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     fontStyle: 'italic',
     textAlignVertical: 'top',
-    padding: 0,
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
     margin: 0,
     ...(Platform.OS === 'web' ? {
       outlineWidth: 0,
