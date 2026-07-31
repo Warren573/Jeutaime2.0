@@ -168,6 +168,11 @@ export default function BottleInboxScreen() {
         }
       >
         {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.headerBack}>← Retour</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.title}>Bouteilles à la mer</Text>
 
         {/* Résumé du profil — aide à comprendre la réception des bouteilles */}
@@ -370,6 +375,14 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
+  },
+  header: {
+    marginBottom: 8,
+  },
+  headerBack: {
+    fontSize: 16,
+    color: COLORS.accent,
+    fontWeight: '600',
   },
   title: {
     fontSize: 24,

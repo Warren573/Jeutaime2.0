@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
@@ -12,9 +11,10 @@ import {
   ActivityIndicator,
   Image,
   Modal,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
 import {
   getBottleById,
@@ -52,6 +52,7 @@ export default function BottleDiscussionScreen() {
   const params = useLocalSearchParams();
   const bottleId = params.bottleId as string;
   const { currentUser } = useStore();
+  const textInputRef = useRef<TextInput>(null);
 
   const [bottle, setBottle] = useState<InboxBottleDTO | null>(null);
   const [messages, setMessages] = useState<BottleMessageDTO[]>([]);
@@ -61,6 +62,23 @@ export default function BottleDiscussionScreen() {
   const [hasRevealRequest, setHasRevealRequest] = useState(false);
   const [isRevealRequester, setIsRevealRequester] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Dismiss keyboard when screen comes into focus
+      Keyboard.dismiss();
+
+      // Small delay to ensure proper re-rendering
+      const timer = setTimeout(() => {
+        if (textInputRef.current) {
+          // Force the TextInput to re-render by toggling focus
+          textInputRef.current.blur();
+        }
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }, [])
+  );
 
   const loadData = useCallback(async () => {
     try {
@@ -308,6 +326,7 @@ export default function BottleDiscussionScreen() {
         </TouchableOpacity>
       </View>
 
+<<<<<<< HEAD
       {/* Historique des messages */}
       <ScrollView style={styles.messagesScroll} contentContainerStyle={styles.messagesContent}>
         {messages.map((msg, idx) => {
@@ -346,7 +365,12 @@ export default function BottleDiscussionScreen() {
 
       {/* Zone d'écriture : champ de saisie standard */}
       <View style={[styles.inputArea, { paddingBottom: insets.bottom + 10 }]}>
+=======
+      {/* Zone de composition - JUSTE les lignes */}
+      <View style={styles.mainScroll}>
+>>>>>>> main
         <TextInput
+          ref={textInputRef}
           style={styles.messageInput}
           placeholder="Écris ton message..."
           placeholderTextColor={COLORS.textSecondary}
@@ -355,6 +379,7 @@ export default function BottleDiscussionScreen() {
           multiline
           maxLength={500}
           editable={!isSending}
+<<<<<<< HEAD
         />
         <View style={styles.inputFooter}>
           <Text
@@ -374,6 +399,33 @@ export default function BottleDiscussionScreen() {
             )}
           </TouchableOpacity>
         </View>
+=======
+          underlineColorAndroid="transparent"
+          selectionColor="transparent"
+          scrollEnabled={false}
+          keyboardType="default"
+        />
+      </View>
+
+      {/* Contrôles en bas - hors de la zone d'écriture */}
+      <View style={styles.bottomControls}>
+        <Text
+          style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
+        >
+          {charRemaining} caractères
+        </Text>
+        <TouchableOpacity
+          style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
+          onPress={handleSendMessage}
+          disabled={isSending || !messageText.trim()}
+        >
+          {isSending ? (
+            <ActivityIndicator size="small" color={COLORS.card} />
+          ) : (
+            <Text style={styles.sendBtnText}>Glisser</Text>
+          )}
+        </TouchableOpacity>
+>>>>>>> main
       </View>
       </KeyboardAvoidingView>
 
@@ -496,6 +548,7 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: '#8A6E3C',
   },
+<<<<<<< HEAD
   messagesScroll: {
     flex: 1,
     paddingHorizontal: 16,
@@ -503,6 +556,19 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     paddingVertical: 8,
+=======
+  mainScroll: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  bottomControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
+>>>>>>> main
   },
   messageBubble: {
     paddingVertical: 8,
@@ -536,6 +602,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     opacity: 0.6,
   },
+<<<<<<< HEAD
   inputArea: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -560,6 +627,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     textAlignVertical: 'top',
+=======
+  messageInput: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 30,
+    color: '#2A1C0C',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderColor: 'transparent',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontStyle: 'italic',
+    textAlignVertical: 'top',
+    paddingHorizontal: 24,
+    paddingTop: 200,
+    paddingBottom: 20,
+    margin: 0,
+    ...(Platform.OS === 'web' ? {
+      outlineWidth: 0,
+      outline: 'none',
+      boxShadow: 'none',
+    } as any : null),
+>>>>>>> main
   },
   charCount: {
     fontSize: 11,
@@ -572,18 +661,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sendBtn: {
+<<<<<<< HEAD
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 6,
     backgroundColor: COLORS.accent,
     marginLeft: 8,
+=======
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: COLORS.accent,
+    marginLeft: 8,
+    justifyContent: 'center',
+>>>>>>> main
   },
   sendBtnDisabled: {
-    opacity: 0.5,
+    opacity: 0.6,
   },
   sendBtnText: {
+<<<<<<< HEAD
     fontSize: 13,
     fontWeight: '600',
+=======
+    fontSize: 14,
+    fontWeight: '700',
+>>>>>>> main
     color: COLORS.card,
     textAlign: 'center',
   },

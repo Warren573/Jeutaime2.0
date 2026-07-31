@@ -11,6 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import {
   getWallet,
@@ -42,6 +43,7 @@ const TRANSACTION_TYPE_COLORS: Record<string, { bg: string; icon: string }> = {
 };
 
 export default function WalletScreen() {
+  const router = useRouter();
   const { currentUser, loadWallet } = useStore();
   const insets = useSafeAreaInsets();
 
@@ -127,6 +129,9 @@ export default function WalletScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.headerBack}>← Retour</Text>
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Portefeuille</Text>
       </View>
 
@@ -239,11 +244,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E3D1B9',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerBack: {
+    fontSize: 16,
+    color: '#8B4513',
+    fontWeight: '600',
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: '900',
     color: '#2B1B12',
+    flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 16,

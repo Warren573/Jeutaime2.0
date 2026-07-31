@@ -15,4 +15,10 @@ const wrap = (
 // GET /api/stats/community
 router.get("/community", wrap(ctrl.handleGetCommunityStats));
 
+// GET /api/stats/daily
+router.get("/daily", wrap(ctrl.handleGetDailyStats));
+
+// GET /api/stats/refuge
+router.get("/refuge", wrap(ctrl.handleGetRefugeStats));
+
 export default router;
