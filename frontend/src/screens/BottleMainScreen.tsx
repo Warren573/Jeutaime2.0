@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { getCurrentBottle, acceptBottle, refuseBottle } from '../api/bottles';
+import { getCurrentBottle, getInbox, acceptBottle, refuseBottle } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
-import type { GetCurrentBottleResponse } from '../api/bottles';
+import type { GetCurrentBottleResponse, InboxBottleDTO } from '../api/bottles';
+import { useStore } from '../store/useStore';
 
 const CREAM_BG = '#FBF8F3';
 
@@ -28,25 +29,29 @@ const COLORS = {
 export default function BottleMainScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const currentUser = useStore((s) => s.currentUser);
 
   const [state, setState] = useState<GetCurrentBottleResponse | null>(null);
+  const [inbox, setInbox] = useState<InboxBottleDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [debugLoadStarted, setDebugLoadStarted] = useState(false);
-  const [debugResponse, setDebugResponse] = useState<string>('');
 
   const loadState = useCallback(async () => {
     try {
       setError(null);
-      setDebugLoadStarted(true);
-      const current = await getCurrentBottle();
-      setDebugResponse(JSON.stringify(current, null, 2));
+
+      // Load both endpoints in parallel
+      const [current, inboxData] = await Promise.all([
+        getCurrentBottle(),
+        getInbox(),
+      ]);
+
       setState(current);
+      setInbox(inboxData);
     } catch (err: any) {
       console.error('[BottleMainScreen] Error:', err);
-      setDebugResponse(`ERROR: ${err?.message || 'Unknown error'} | Code: ${err?.code || 'N/A'} | Status: ${err?.status || 'N/A'}`);
       setError(err?.message || 'Erreur de chargement');
     } finally {
       setIsLoading(false);
@@ -66,11 +71,47 @@ export default function BottleMainScreen() {
     loadState();
   };
 
+  // Determine which bottle to display based on priority
+  const getBottleToDisplay = () => {
+    if (!currentUser?.id) return null;
+
+    // PRIORITY 1: Received bottle waiting for acceptance/refusal
+    const receivedPending = inbox.find(
+      (b) => b.status === 'FLOATING' && b.acceptedById === null && b.senderId !== currentUser.id
+    );
+    if (receivedPending) {
+      return { type: 'received', bottle: receivedPending };
+    }
+
+    // PRIORITY 2: Active correspondence (ACCEPTED or REVEALED)
+    if (state?.bottle && (state.bottle.status === 'ACCEPTED' || state.bottle.status === 'REVEALED')) {
+      return { type: 'correspondence', bottle: state.bottle, latestLetter: state.latestLetter };
+    }
+
+    // PRIORITY 3: Sent bottle still FLOATING (journey in progress)
+    const sentFloating = inbox.find(
+      (b) => b.status === 'FLOATING' && b.senderId === currentUser.id
+    );
+    if (sentFloating && !state?.canCreateBottle) {
+      return { type: 'sent', bottle: sentFloating };
+    }
+
+    // PRIORITY 4: Creation (only if canCreateBottle is true)
+    if (state?.canCreateBottle) {
+      return { type: 'create', bottle: null };
+    }
+
+    // Fallback: Quota reached
+    return { type: 'quota', bottle: null };
+  };
+
+  const displayState = getBottleToDisplay();
+
   const handleAccept = async () => {
-    if (!state?.bottle) return;
+    if (!displayState?.bottle) return;
     setIsAccepting(true);
     try {
-      await acceptBottle(state.bottle.id);
+      await acceptBottle(displayState.bottle.id);
       await loadState();
       Alert.alert('Succès', 'Bouteille acceptée!');
     } catch (err: any) {
@@ -81,7 +122,7 @@ export default function BottleMainScreen() {
   };
 
   const handleRefuse = async () => {
-    if (!state?.bottle) return;
+    if (!displayState?.bottle) return;
     Alert.alert(
       'Refuser cette bouteille?',
       'Vous ne pourrez plus revenir sur cette lettre.',
@@ -92,7 +133,7 @@ export default function BottleMainScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await refuseBottle(state.bottle!.id);
+              await refuseBottle(displayState.bottle!.id);
               await loadState();
               Alert.alert('Succès', 'Bouteille refusée');
             } catch (err: any) {
@@ -107,21 +148,68 @@ export default function BottleMainScreen() {
   if (isLoading) {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG, paddingTop: insets.top }]}>
-        <View style={{ padding: 10, backgroundColor: '#FFE0E0' }}>
-          <Text style={{ fontSize: 10, color: '#000' }}>DEBUG SCREEN: BottleMainScreen v2</Text>
-          <Text style={{ fontSize: 10, color: '#000' }}>DEBUG: Loading...</Text>
-        </View>
         <ActivityIndicator size="large" color={COLORS.accent} />
       </View>
     );
   }
 
-  const hasBottle = state?.bottle && state?.latestLetter;
-  const canCreate = state?.canCreateBottle ?? false;
-  const bottleStatus = state?.bottle?.status;
+  // PRIORITY 1: Received bottle waiting for acceptance/refusal
+  if (displayState?.type === 'received') {
+    const bottle = displayState.bottle;
+    return (
+      <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[
+              styles.content,
+              { paddingBottom: insets.bottom + 100 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={COLORS.accent}
+              />
+            }
+          >
+            <View style={styles.receivedBox}>
+              <Text style={styles.receivedEmoji}>📨</Text>
+              <Text style={styles.receivedTitle}>Vous avez reçu une lettre</Text>
+              <Text style={styles.receivedText}>
+                Quelqu{"'"}un a écrit pour vous. Voulez-vous répondre?
+              </Text>
+            </View>
 
-  // CAS A: Correspondance ACCEPTED avec lettre
-  if (hasBottle && bottleStatus === 'ACCEPTED') {
+            <BottleParchmentCard content={bottle?.message || ''} />
+
+            <View style={styles.actionBox}>
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: COLORS.success }]}
+                onPress={handleAccept}
+                disabled={isAccepting}
+              >
+                <Text style={styles.actionBtnText}>
+                  {isAccepting ? 'Acceptation...' : '✓ Accepter'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: COLORS.error }]}
+                onPress={handleRefuse}
+              >
+                <Text style={styles.actionBtnText}>✗ Refuser</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    );
+  }
+
+  // PRIORITY 2: Correspondence ACCEPTED avec lettre
+  if (displayState?.type === 'correspondence' && displayState.latestLetter) {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -183,8 +271,9 @@ export default function BottleMainScreen() {
     );
   }
 
-  // CAS B: Bouteille FLOATING (envoyée par moi, en voyage)
-  if (hasBottle && bottleStatus === 'FLOATING') {
+  // PRIORITY 3: Sent bottle still FLOATING (journey in progress)
+  if (displayState?.type === 'sent') {
+    const bottle = displayState.bottle;
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -211,7 +300,7 @@ export default function BottleMainScreen() {
               </Text>
             </View>
 
-            <BottleParchmentCard content={state.latestLetter!.content} />
+            <BottleParchmentCard content={bottle?.message || ''} />
 
             <View style={styles.infoBox}>
               <Text style={styles.infoText}>
@@ -224,64 +313,8 @@ export default function BottleMainScreen() {
     );
   }
 
-  // CAS C: Bouteille reçue en attente d'acceptation/refus
-  if (hasBottle && bottleStatus !== 'ACCEPTED' && bottleStatus !== 'FLOATING') {
-    return (
-      <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={[
-              styles.content,
-              { paddingBottom: insets.bottom + 100 },
-            ]}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={handleRefresh}
-                tintColor={COLORS.accent}
-              />
-            }
-          >
-            <View style={styles.receivedBox}>
-              <Text style={styles.receivedEmoji}>📨</Text>
-              <Text style={styles.receivedTitle}>Vous avez reçu une lettre</Text>
-              <Text style={styles.receivedText}>
-                Quelqu{"'"}un a écrit pour vous. Voulez-vous répondre?
-              </Text>
-            </View>
-
-            <BottleParchmentCard content={state.latestLetter!.content} />
-
-            <View style={styles.actionBox}>
-              <TouchableOpacity
-                style={[styles.acceptBtn, isAccepting && styles.btnDisabled]}
-                onPress={handleAccept}
-                disabled={isAccepting}
-              >
-                {isAccepting ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Text style={styles.acceptBtnText}>✨ Accepter</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.refuseBtn, isAccepting && styles.btnDisabled]}
-                onPress={handleRefuse}
-                disabled={isAccepting}
-              >
-                <Text style={styles.refuseBtnText}>Refuser</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
-      </View>
-    );
-  }
-
-  // CAS D: Pas de bouteille, création autorisée
-  if (!hasBottle && canCreate) {
+  // PRIORITY 4: Creation (only if canCreateBottle is true)
+  if (displayState?.type === 'create') {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -313,7 +346,7 @@ export default function BottleMainScreen() {
     );
   }
 
-  // CAS E: Quota atteint, aucune création possible
+  // Fallback: Quota reached
   return (
     <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -332,18 +365,6 @@ export default function BottleMainScreen() {
             />
           }
         >
-          <View style={{ padding: 10, backgroundColor: '#FFE0E0', marginBottom: 12 }}>
-            <Text style={{ fontSize: 9, color: '#000', fontFamily: 'monospace' }}>DEBUG SCREEN: BottleMainScreen v2</Text>
-            <Text style={{ fontSize: 9, color: '#000', fontFamily: 'monospace' }}>DEBUG: loadState started = {String(debugLoadStarted)}</Text>
-            <Text style={{ fontSize: 9, color: '#000', fontFamily: 'monospace' }}>DEBUG: state = {state ? 'object' : 'null'}</Text>
-            <Text style={{ fontSize: 9, color: '#000', fontFamily: 'monospace' }}>DEBUG: error = {error || 'none'}</Text>
-            {debugResponse && (
-              <View style={{ marginTop: 8, backgroundColor: '#FFF', padding: 6, borderRadius: 4 }}>
-                <Text style={{ fontSize: 8, color: '#000', fontFamily: 'monospace' }}>{debugResponse}</Text>
-              </View>
-            )}
-          </View>
-
           {error && (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>{error}</Text>

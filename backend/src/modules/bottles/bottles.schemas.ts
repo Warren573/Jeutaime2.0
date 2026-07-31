@@ -39,6 +39,8 @@ export const InboxBottleSchema = z.object({
   senderCity: z.string(),
   targetGender: z.string(),
   status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
+  senderId: z.string(),
+  acceptedById: z.string().nullable(),
   createdAt: z.string().datetime(),
   expiresAt: z.string().datetime(),
 });
