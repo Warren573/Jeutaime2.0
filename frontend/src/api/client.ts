@@ -82,14 +82,30 @@ async function doFetch(
   const headers    = await buildHeaders(token);
   const controller = new AbortController();
   const timer      = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const fullUrl = `${API_URL}${path}`;
+  const method = (options?.method ?? "GET").toUpperCase();
+
+  console.log(`[FETCH-DEBUG] URL: ${fullUrl}`);
+  console.log(`[FETCH-DEBUG] Method: ${method}`);
 
   try {
-    return await fetch(`${API_URL}${path}`, {
+    const response = await fetch(fullUrl, {
       ...options,
       headers: { ...headers, ...(options?.headers ?? {}) },
       signal: controller.signal,
     });
+
+    console.log(`[FETCH-DEBUG] Status: ${response.status}`);
+    const text = await response.text();
+    console.log(`[FETCH-DEBUG] Body raw: ${text.substring(0, 500)}`);
+
+    return new Response(text, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
   } catch (err) {
+    console.log(`[FETCH-DEBUG] Catch error: ${err instanceof Error ? err.message : String(err)}`);
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new TypeError(
         `Délai dépassé (${TIMEOUT_MS / 1000}s) — le serveur ne répond pas. Vérife que l'API est accessible à ${API_URL}`,

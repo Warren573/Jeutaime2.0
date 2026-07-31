@@ -435,10 +435,12 @@ export async function getCurrentBottle(req: AuthedRequest, res: Response) {
       hasLatest: !!result.latestLetter,
       canCreate: result.canCreateBottle,
     });
+    console.log("[CONTROLLER] Full result:", JSON.stringify(result, null, 2));
 
     const validated = GetCurrentBottleResponseSchema.parse(result);
     console.log("[CONTROLLER] Validation passed, sending 200 OK");
 
+    console.log("[CONTROLLER] Sending response:", { status: 200, dataKeys: Object.keys(validated) });
     res.json({ data: validated });
   } catch (error: any) {
     console.error("[CONTROLLER] getCurrentBottle ERROR:", {
@@ -447,6 +449,7 @@ export async function getCurrentBottle(req: AuthedRequest, res: Response) {
       status: res.statusCode,
       stack: error?.stack,
     });
+    console.error("[CONTROLLER] Full error:", error);
     throw error;
   }
 }

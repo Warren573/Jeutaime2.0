@@ -34,14 +34,19 @@ export default function BottleMainScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debugLoadStarted, setDebugLoadStarted] = useState(false);
+  const [debugResponse, setDebugResponse] = useState<string>('');
 
   const loadState = useCallback(async () => {
     try {
       setError(null);
+      setDebugLoadStarted(true);
       const current = await getCurrentBottle();
+      setDebugResponse(JSON.stringify(current, null, 2));
       setState(current);
     } catch (err: any) {
       console.error('[BottleMainScreen] Error:', err);
+      setDebugResponse(`ERROR: ${err?.message || 'Unknown error'} | Code: ${err?.code || 'N/A'} | Status: ${err?.status || 'N/A'}`);
       setError(err?.message || 'Erreur de chargement');
     } finally {
       setIsLoading(false);
@@ -102,6 +107,10 @@ export default function BottleMainScreen() {
   if (isLoading) {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG, paddingTop: insets.top }]}>
+        <View style={{ padding: 10, backgroundColor: '#FFE0E0' }}>
+          <Text style={{ fontSize: 10, color: '#000' }}>DEBUG SCREEN: BottleMainScreen v2</Text>
+          <Text style={{ fontSize: 10, color: '#000' }}>DEBUG: Loading...</Text>
+        </View>
         <ActivityIndicator size="large" color={COLORS.accent} />
       </View>
     );
@@ -323,6 +332,18 @@ export default function BottleMainScreen() {
             />
           }
         >
+          <View style={{ padding: 10, backgroundColor: '#FFE0E0', marginBottom: 12 }}>
+            <Text style={{ fontSize: 9, color: '#000', fontFamily: 'monospace' }}>DEBUG SCREEN: BottleMainScreen v2</Text>
+            <Text style={{ fontSize: 9, color: '#000', fontFamily: 'monospace' }}>DEBUG: loadState started = {String(debugLoadStarted)}</Text>
+            <Text style={{ fontSize: 9, color: '#000', fontFamily: 'monospace' }}>DEBUG: state = {state ? 'object' : 'null'}</Text>
+            <Text style={{ fontSize: 9, color: '#000', fontFamily: 'monospace' }}>DEBUG: error = {error || 'none'}</Text>
+            {debugResponse && (
+              <View style={{ marginTop: 8, backgroundColor: '#FFF', padding: 6, borderRadius: 4 }}>
+                <Text style={{ fontSize: 8, color: '#000', fontFamily: 'monospace' }}>{debugResponse}</Text>
+              </View>
+            )}
+          </View>
+
           {error && (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>{error}</Text>
