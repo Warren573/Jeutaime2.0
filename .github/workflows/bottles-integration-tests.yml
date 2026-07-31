@@ -58,10 +58,14 @@ jobs:
 
       - name: Prisma validate schema
         working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
         run: npx prisma validate
 
       - name: Prisma generate client
         working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
         run: npx prisma generate
 
       - name: Wait for PostgreSQL
