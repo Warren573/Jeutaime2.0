@@ -15,10 +15,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { useStore } from '../store/useStore';
 import {
-  getBottleById,
-  getBottleMessages,
+  getCurrentBottle,
   postBottleMessage,
   markBottleAsRead,
   requestReveal,
@@ -26,12 +24,11 @@ import {
   refuseReveal,
   breakBottle,
   getRevealStatus,
-  InboxBottleDTO,
-  BottleMessageDTO,
 } from '../api/bottles';
+import { BottleParchmentCard } from '../components/BottleParchmentCard';
+import { generateUUID } from '../utils/uuid';
+import type { GetCurrentBottleResponse } from '../api/bottles';
 
-// Papier à lettres « Bouteille à la mer » : sert à la fois de fond plein écran
-// ET de surface d'écriture (on écrit sur les lignes réglées au centre).
 const LETTER_BG = require('../../assets/images/bottle/letter-bg.jpg');
 
 const COLORS = {
@@ -42,8 +39,6 @@ const COLORS = {
   border: '#D8D2C4',
   accent: '#8B2E3C',
   accentLight: '#E8CFCF',
-  myMessage: '#8B2E3C',
-  otherMessage: '#E8CFCF',
 };
 
 export default function BottleDiscussionScreen() {
@@ -51,58 +46,46 @@ export default function BottleDiscussionScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const bottleId = params.bottleId as string;
-  const { currentUser } = useStore();
   const textInputRef = useRef<TextInput>(null);
+  const idempotencyKeyRef = useRef<string>(generateUUID());
 
-  const [bottle, setBottle] = useState<InboxBottleDTO | null>(null);
-  const [messages, setMessages] = useState<BottleMessageDTO[]>([]);
+  const [bottleState, setBottleState] = useState<GetCurrentBottleResponse | null>(null);
   const [messageText, setMessageText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [hasRevealRequest, setHasRevealRequest] = useState(false);
   const [isRevealRequester, setIsRevealRequester] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
-      // Dismiss keyboard when screen comes into focus
       Keyboard.dismiss();
-
-      // Small delay to ensure proper re-rendering
       const timer = setTimeout(() => {
         if (textInputRef.current) {
-          // Force the TextInput to re-render by toggling focus
           textInputRef.current.blur();
         }
       }, 100);
-
       return () => clearTimeout(timer);
     }, [])
   );
 
   const loadData = useCallback(async () => {
     try {
-      if (!bottleId) return;
+      setError(null);
+      const current = await getCurrentBottle();
+      setBottleState(current);
 
-      // Load bottle details (accessible à l'expéditeur comme à l'accepteur)
-      const found = await getBottleById(bottleId);
-      if (found) {
-        setBottle(found);
+      if (current.bottle?.id === bottleId) {
+        await markBottleAsRead(bottleId);
+
+        const revealStatus = await getRevealStatus(bottleId);
+        setHasRevealRequest(revealStatus.hasPendingRequest);
+        setIsRevealRequester(revealStatus.isRequester);
       }
-
-      // Load messages
-      const msgs = await getBottleMessages(bottleId);
-      setMessages(msgs);
-
-      // Load reveal status
-      const revealStatus = await getRevealStatus(bottleId);
-      setHasRevealRequest(revealStatus.hasPendingRequest);
-      setIsRevealRequester(revealStatus.isRequester);
-
-      // Mark bottle as read
-      await markBottleAsRead(bottleId);
-    } catch (error) {
-      Alert.alert('Erreur', 'Impossible de charger la discussion');
+    } catch (err: any) {
+      console.error('[BottleDiscussionScreen] Error:', err);
+      setError(err?.message || 'Erreur de chargement');
     } finally {
       setIsLoading(false);
     }
@@ -124,55 +107,33 @@ export default function BottleDiscussionScreen() {
     }
 
     setIsSending(true);
+    setError(null);
+
     try {
-      const newMsg = await postBottleMessage(bottleId, messageText.trim());
-      setMessages([...messages, newMsg]);
+      await postBottleMessage(bottleId, messageText.trim(), idempotencyKeyRef.current);
       setMessageText('');
-    } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Erreur d\'envoi');
+
+      // Refetch /bottles/current pour obtenir le nouvel état
+      await loadData();
+
+      // Réinitialiser l'idempotency key pour le prochain envoi
+      idempotencyKeyRef.current = generateUUID();
+    } catch (err: any) {
+      const code = err?.code || err?.message;
+
+      if (code === 'LETTER_TURN_VIOLATION') {
+        setError("Ce n'est pas ton tour de répondre. Attends la réponse de l'autre.");
+        // Refetch pour obtenir l'état réel
+        await loadData();
+      } else if (code === 'BOTTLE_NOT_ACTIVE') {
+        setError('Cette bouteille n\'est plus active.');
+        await loadData();
+      } else {
+        setError(err?.message || 'Erreur lors de l\'envoi');
+      }
     } finally {
       setIsSending(false);
     }
-  };
-
-  const handleReport = async () => {
-    Alert.alert(
-      'Signaler cette conversation?',
-      'La personne sera notifiée et pourra être suspendue après 3 signalements.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Signaler',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // TODO: Call API endpoint to report
-              Alert.alert('Succès', 'Conversation signalée');
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible de signaler');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleArchive = () => {
-    Alert.alert(
-      'Archiver cette discussion?',
-      'Elle sera masquée de la liste des discussions.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Archiver',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert('Succès', 'Discussion archivée');
-            router.back();
-          },
-        },
-      ]
-    );
   };
 
   const handleRequestReveal = async () => {
@@ -180,27 +141,25 @@ export default function BottleDiscussionScreen() {
       await requestReveal(bottleId);
       setHasRevealRequest(true);
       setIsRevealRequester(true);
-      Alert.alert('Dévoilement demandé', 'En attente de réponse...');
-    } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de demander le dévoilement');
+      Alert.alert('Succès', 'Dévoilement demandé. En attente de réponse...');
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message || 'Impossible de demander le dévoilement');
     }
   };
 
   const handleAcceptReveal = async () => {
     try {
       const result = await acceptReveal(bottleId);
-      Alert.alert('Succès', 'Dévoilement accepté! Redirection vers la discussion privée...');
-
-      // Redirect to private conversation after a short delay
+      Alert.alert('Succès', 'Dévoilement accepté!');
       if (result.matchId) {
         setTimeout(() => {
           router.push(`/match-profile?matchId=${result.matchId}`);
         }, 500);
       } else {
-        setBottle(prev => prev ? { ...prev, status: 'REVEALED' } : null);
+        await loadData();
       }
-    } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'accepter le dévoilement');
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message || 'Impossible d\'accepter le dévoilement');
     }
   };
 
@@ -209,15 +168,15 @@ export default function BottleDiscussionScreen() {
       await refuseReveal(bottleId);
       setHasRevealRequest(false);
       Alert.alert('Succès', 'Dévoilement refusé. La discussion reste anonyme.');
-    } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de refuser le dévoilement');
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message || 'Impossible de refuser le dévoilement');
     }
   };
 
   const handleBreakBottle = () => {
     Alert.alert(
       'Rompre cette correspondance?',
-      'Cela fermera définitivement la discussion. Aucun nouveau message ne sera possible.',
+      'Cela fermera définitivement la discussion.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -228,8 +187,8 @@ export default function BottleDiscussionScreen() {
               await breakBottle(bottleId);
               Alert.alert('Succès', 'Correspondance rompue');
               router.back();
-            } catch (error: any) {
-              Alert.alert('Erreur', error.message || 'Impossible de rompre la correspondance');
+            } catch (err: any) {
+              Alert.alert('Erreur', err?.message || 'Impossible de rompre');
             }
           },
         },
@@ -245,19 +204,11 @@ export default function BottleDiscussionScreen() {
     );
   }
 
-  if (!bottle) {
-    return (
-      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-        <Text style={styles.errorText}>Bouteille non trouvée</Text>
-      </View>
-    );
-  }
-
-  if (bottle.status === 'BROKEN') {
+  if (!bottleState?.bottle || !bottleState?.latestLetter) {
     return (
       <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <Text style={styles.errorText}>Cette correspondance a été rompue</Text>
+          <Text style={styles.errorText}>Correspondance non trouvée</Text>
           <TouchableOpacity
             style={[styles.sendBtn, { marginTop: 20 }]}
             onPress={() => router.back()}
@@ -269,32 +220,12 @@ export default function BottleDiscussionScreen() {
     );
   }
 
-  if (bottle.status === 'REVEALED') {
-    return (
-      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }]}>
-          <Text style={{ fontSize: 24, fontWeight: 'bold', color: COLORS.text, marginBottom: 10 }}>
-            ✨ Dévoilement accepté!
-          </Text>
-          <Text style={{ fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 20 }}>
-            Cette correspondance anonyme est devenue une discussion privée classique.
-          </Text>
-          <TouchableOpacity
-            style={[styles.sendBtn]}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.sendBtnText}>Retour</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
   const charRemaining = 500 - messageText.length;
+  const canReply = bottleState.canReply;
+  const waitingForReply = bottleState.waitingForReply;
 
   return (
     <>
-      {/* Papier à lettres épinglé au viewport : fond + surface d'écriture. */}
       <View style={styles.letterBgLayer} pointerEvents="none">
         <Image source={LETTER_BG} style={styles.letterBgImage} resizeMode="cover" />
       </View>
@@ -303,70 +234,123 @@ export default function BottleDiscussionScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-      {/* Header : retour, titre au centre, menu « … » à droite */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.headerLeft}>
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={styles.headerBack}>←</Text>
           </TouchableOpacity>
+          <View style={styles.headerTitle}>
+            <Text style={styles.headerTitleText} numberOfLines={1}>
+              Lettre en transit
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => setShowMenu(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.menuDots}>⋯</Text>
+          </TouchableOpacity>
         </View>
-        <View style={styles.headerTitle}>
-          <Text style={styles.bottleGender} numberOfLines={1}>
-            {bottle.targetGender}
-            <Text style={styles.bottleDetails}>  ·  {bottle.senderCity}</Text>
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => setShowMenu(true)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityRole="button"
-          accessibilityLabel="Options de la correspondance"
-        >
-          <Text style={styles.menuDots}>⋯</Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* Zone de composition - JUSTE les lignes */}
-      <View style={styles.mainScroll}>
-        <TextInput
-          ref={textInputRef}
-          style={styles.messageInput}
-          placeholder="Écris ton message..."
-          placeholderTextColor={COLORS.textSecondary}
-          value={messageText}
-          onChangeText={setMessageText}
-          multiline
-          maxLength={500}
-          editable={!isSending}
-          underlineColorAndroid="transparent"
-          selectionColor="transparent"
-          scrollEnabled={false}
-          keyboardType="default"
-        />
-      </View>
+        {/* Affichage de la dernière lettre */}
+        <View style={styles.mainScroll}>
+          <View style={styles.parchmentWrapper}>
+            <BottleParchmentCard
+              content={bottleState.latestLetter.content}
+              createdAt={bottleState.latestLetter.createdAt}
+              source={bottleState.latestLetter.source}
+              isMine={bottleState.latestLetter.isMine}
+            />
+          </View>
 
-      {/* Contrôles en bas - hors de la zone d'écriture */}
-      <View style={styles.bottomControls}>
-        <Text
-          style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
-        >
-          {charRemaining} caractères
-        </Text>
-        <TouchableOpacity
-          style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
-          onPress={handleSendMessage}
-          disabled={isSending || !messageText.trim()}
-        >
-          {isSending ? (
-            <ActivityIndicator size="small" color={COLORS.card} />
-          ) : (
-            <Text style={styles.sendBtnText}>Glisser</Text>
+          {/* Message d'erreur ou feedback */}
+          {error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorBoxText}>{error}</Text>
+            </View>
           )}
-        </TouchableOpacity>
-      </View>
+
+          {/* Bouton Répondre SI canReply */}
+          {canReply && !isSending && (
+            <View style={styles.replyPrompt}>
+              <Text style={styles.replyPromptText}>
+                💬 À toi de répondre!
+              </Text>
+            </View>
+          )}
+
+          {/* Message d'attente SI waitingForReply */}
+          {waitingForReply && (
+            <View style={styles.waitingBox}>
+              <Text style={styles.waitingText}>
+                ✈️ Votre lettre est en voyage...
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Zone de réponse (visible seulement si canReply) */}
+        {canReply && (
+          <>
+            {/* Zone de saisie */}
+            <View style={styles.bottomControls}>
+              <TextInput
+                ref={textInputRef}
+                style={styles.messageInput}
+                placeholder="Écris ta réponse..."
+                placeholderTextColor={COLORS.textSecondary}
+                value={messageText}
+                onChangeText={setMessageText}
+                multiline
+                maxLength={500}
+                editable={!isSending}
+                underlineColorAndroid="transparent"
+                selectionColor="transparent"
+                scrollEnabled={false}
+              />
+            </View>
+
+            {/* Bouton Envoyer */}
+            <View style={styles.sendFooter}>
+              <Text
+                style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
+              >
+                {charRemaining} caractères
+              </Text>
+              <TouchableOpacity
+                style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
+                onPress={handleSendMessage}
+                disabled={isSending || !messageText.trim()}
+              >
+                {isSending ? (
+                  <ActivityIndicator size="small" color={COLORS.card} />
+                ) : (
+                  <Text style={styles.sendBtnText}>Envoyer</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* Boutons secondaires (historique) */}
+        {!canReply && (
+          <View style={styles.secondaryActions}>
+            <TouchableOpacity
+              style={styles.historyBtn}
+              onPress={() =>
+                router.push({
+                  pathname: '/bottles-history',
+                  params: { bottleId },
+                })
+              }
+            >
+              <Text style={styles.historyBtnText}>📖 Historique</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </KeyboardAvoidingView>
 
-      {/* Menu « … » : dévoilement, signaler, rompre — discrets */}
+      {/* Menu */}
       <Modal
         visible={showMenu}
         transparent
@@ -379,7 +363,7 @@ export default function BottleDiscussionScreen() {
           onPress={() => setShowMenu(false)}
         >
           <View style={[styles.menuCard, { top: insets.top + 44 }]}>
-            {bottle?.status === 'ACCEPTED' && (
+            {bottleState.bottle.status === 'ACCEPTED' && (
               <>
                 {hasRevealRequest && isRevealRequester ? (
                   <View style={styles.menuItem}>
@@ -389,13 +373,19 @@ export default function BottleDiscussionScreen() {
                   <>
                     <TouchableOpacity
                       style={styles.menuItem}
-                      onPress={() => { setShowMenu(false); handleAcceptReveal(); }}
+                      onPress={() => {
+                        setShowMenu(false);
+                        handleAcceptReveal();
+                      }}
                     >
                       <Text style={styles.menuItemText}>✨ Accepter le dévoilement</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.menuItem}
-                      onPress={() => { setShowMenu(false); handleRefuseReveal(); }}
+                      onPress={() => {
+                        setShowMenu(false);
+                        handleRefuseReveal();
+                      }}
                     >
                       <Text style={styles.menuItemText}>Refuser le dévoilement</Text>
                     </TouchableOpacity>
@@ -403,7 +393,10 @@ export default function BottleDiscussionScreen() {
                 ) : (
                   <TouchableOpacity
                     style={styles.menuItem}
-                    onPress={() => { setShowMenu(false); handleRequestReveal(); }}
+                    onPress={() => {
+                      setShowMenu(false);
+                      handleRequestReveal();
+                    }}
                   >
                     <Text style={styles.menuItemText}>✨ Proposer le dévoilement</Text>
                   </TouchableOpacity>
@@ -411,28 +404,41 @@ export default function BottleDiscussionScreen() {
                 <View style={styles.menuDivider} />
               </>
             )}
+
+            {!canReply && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowMenu(false);
+                  router.push({
+                    pathname: '/bottles-history',
+                    params: { bottleId },
+                  });
+                }}
+              >
+                <Text style={styles.menuItemText}>📖 Historique</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => { setShowMenu(false); handleReport(); }}
+              onPress={() => {
+                setShowMenu(false);
+                handleBreakBottle();
+              }}
             >
-              <Text style={styles.menuItemText}>Signaler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => { setShowMenu(false); handleBreakBottle(); }}
-            >
-              <Text style={[styles.menuItemText, styles.menuItemDanger]}>Rompre la correspondance</Text>
+              <Text style={[styles.menuItemText, styles.menuItemDanger]}>
+                Rompre la correspondance
+              </Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
-
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  // Papier à lettres épinglé au viewport (fixed sur le web, absolute en natif).
   letterBgLayer:
     Platform.OS === 'web'
       ? ({ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 } as any)
@@ -454,11 +460,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 10,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   headerBack: {
     fontSize: 24,
     color: COLORS.accent,
@@ -469,27 +470,89 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
   },
+  headerTitleText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#4A3A28',
+  },
   menuDots: {
     fontSize: 26,
     lineHeight: 26,
     color: COLORS.accent,
     fontWeight: '700',
   },
-  bottleGender: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#4A3A28',
-  },
-  bottleDetails: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#8A6E3C',
-  },
   mainScroll: {
     flex: 1,
     backgroundColor: 'transparent',
+    paddingHorizontal: 16,
+  },
+  parchmentWrapper: {
+    marginVertical: 20,
+  },
+  replyPrompt: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#E8F5E9',
+    borderLeftWidth: 4,
+    borderLeftColor: '#2E7D32',
+    marginBottom: 16,
+  },
+  replyPromptText: {
+    fontSize: 13,
+    color: '#2E7D32',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  waitingBox: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#FFF3E0',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9800',
+    marginBottom: 16,
+  },
+  waitingText: {
+    fontSize: 14,
+    color: '#E65100',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  errorBox: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#FDECEA',
+    borderLeftWidth: 4,
+    borderLeftColor: '#E5534B',
+    marginBottom: 16,
+  },
+  errorBoxText: {
+    fontSize: 13,
+    color: '#B3261E',
+    fontWeight: '600',
+    textAlign: 'center',
   },
   bottomControls: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
+  },
+  messageInput: {
+    minHeight: 80,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#F3E7C6',
+    borderWidth: 2,
+    borderColor: '#C8A25A',
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#4A3A28',
+    fontStyle: 'italic',
+  },
+  sendFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -497,63 +560,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: 'transparent',
   },
-  messageBubble: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    maxWidth: '80%',
-  },
-  myMessageBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: COLORS.myMessage,
-  },
-  otherMessageBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.otherMessage,
-  },
-  messageText: {
-    fontSize: 14,
-    color: COLORS.text,
-    lineHeight: 20,
-  },
-  messageTime: {
-    fontSize: 11,
-    marginTop: 4,
-  },
-  myMessageTime: {
-    color: COLORS.card,
-    opacity: 0.7,
-  },
-  otherMessageTime: {
-    color: COLORS.text,
-    opacity: 0.6,
-  },
-  messageInput: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 30,
-    color: '#2A1C0C',
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    borderColor: 'transparent',
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    fontStyle: 'italic',
-    textAlignVertical: 'top',
-    paddingHorizontal: 24,
-    paddingTop: 200,
-    paddingBottom: 20,
-    margin: 0,
-    ...(Platform.OS === 'web' ? {
-      outlineWidth: 0,
-      outline: 'none',
-      boxShadow: 'none',
-    } as any : null),
-  },
   charCount: {
     fontSize: 11,
     color: '#8A6E3C',
-    marginBottom: 0,
     flex: 1,
   },
   charCountWarning: {
@@ -577,12 +586,30 @@ const styles = StyleSheet.create({
     color: COLORS.card,
     textAlign: 'center',
   },
+  secondaryActions: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
+  },
+  historyBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: COLORS.card,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+  },
+  historyBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    textAlign: 'center',
+  },
   errorText: {
     fontSize: 16,
     color: COLORS.accent,
     textAlign: 'center',
   },
-  // --- Menu « … » (dropdown haut-droit) ---
   menuBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.2)',

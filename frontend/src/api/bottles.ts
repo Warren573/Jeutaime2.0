@@ -39,6 +39,32 @@ export interface BottleMessageDTO {
   createdAt: string;
 }
 
+export interface BottleMessageWithMetadata {
+  id: string;
+  content: string;
+  createdAt: string;
+  isMine: boolean;
+  source: 'INITIAL_BOTTLE' | 'ANONYMOUS_MESSAGE';
+}
+
+export interface GetCurrentBottleResponse {
+  bottle: {
+    id: string;
+    status: 'FLOATING' | 'ACCEPTED' | 'REVEALED' | 'BROKEN' | 'EXPIRED';
+  } | null;
+  latestLetter: {
+    id: string;
+    content: string;
+    createdAt: string;
+    isMine: boolean;
+    source: 'INITIAL_BOTTLE' | 'ANONYMOUS_MESSAGE';
+  } | null;
+  canReply: boolean;
+  waitingForReply: boolean;
+  canCreateBottle: boolean;
+  messageCount: number;
+}
+
 // ============================================================
 // POST /api/bottles/create
 // ============================================================
@@ -140,13 +166,23 @@ export async function refuseBottle(
 }
 
 // ============================================================
+// GET /api/bottles/current
+// ============================================================
+export async function getCurrentBottle(): Promise<GetCurrentBottleResponse> {
+  const res = (await apiFetch("/bottles/current")) as {
+    data: GetCurrentBottleResponse;
+  };
+  return res.data;
+}
+
+// ============================================================
 // GET /api/bottles/:id/messages
 // ============================================================
 export async function getBottleMessages(
   bottleId: string,
-): Promise<BottleMessageDTO[]> {
+): Promise<BottleMessageWithMetadata[]> {
   const res = (await apiFetch(`/bottles/${bottleId}/messages`)) as {
-    data: { messages: BottleMessageDTO[] };
+    data: { messages: BottleMessageWithMetadata[] };
   };
   return res.data.messages;
 }
@@ -157,12 +193,13 @@ export async function getBottleMessages(
 export async function postBottleMessage(
   bottleId: string,
   content: string,
+  idempotencyKey: string,
 ): Promise<BottleMessageDTO> {
   const res = (await apiFetch(`/bottles/${bottleId}/messages`, {
     method: "POST",
-    body: JSON.stringify({ content }),
-  })) as { data: BottleMessageDTO };
-  return res.data;
+    body: JSON.stringify({ content, idempotencyKey }),
+  })) as { data: { message: BottleMessageDTO; idempotentReplay: boolean } };
+  return res.data.message;
 }
 
 // ============================================================
