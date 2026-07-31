@@ -121,7 +121,7 @@ jobs:
 
       - name: ESLint check (bottles module)
         working-directory: backend
-        run: npm run lint -- src/modules/bottles/
+        run: npx eslint src/modules/bottles/ --ext .ts
 
       - name: Database integrity check
         env:
