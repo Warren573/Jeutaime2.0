@@ -257,9 +257,6 @@ export default function BottleDiscussionScreen() {
           <View style={styles.parchmentWrapper}>
             <BottleParchmentCard
               content={bottleState.latestLetter.content}
-              createdAt={bottleState.latestLetter.createdAt}
-              source={bottleState.latestLetter.source}
-              isMine={bottleState.latestLetter.isMine}
             />
           </View>
 
