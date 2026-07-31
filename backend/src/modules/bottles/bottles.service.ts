@@ -3,7 +3,6 @@ import type {
   MessageInABottle,
   BottleReceipt,
   AnonymousMessage,
-  BottleSuspension,
   User,
 } from "@prisma/client";
 import { addDays } from "date-fns";

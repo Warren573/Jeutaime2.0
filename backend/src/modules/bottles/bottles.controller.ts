@@ -11,7 +11,6 @@ import {
   AcceptBottleBodySchema,
   AcceptBottleResponseSchema,
   RefuseBottleBodySchema,
-  RefuseBottleResponseSchema,
   GetBottleMessagesResponseSchema,
   PostBottleMessageBodySchema,
   PostBottleMessageResponseSchema,
