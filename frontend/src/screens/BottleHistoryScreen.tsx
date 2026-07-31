@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  ImageBackground,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -14,12 +15,11 @@ import { getBottleMessages } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import type { BottleMessageWithMetadata } from '../api/bottles';
 
+const WOOD_BG = require('../../assets/images/home/board-wood-bg.jpg');
+
 const COLORS = {
-  bg: '#F5F1E8',
-  card: '#FFFFFF',
   text: '#2B2B2B',
   textSecondary: '#6B6B6B',
-  border: '#D8D2C4',
   accent: '#8B2E3C',
 };
 
@@ -63,82 +63,82 @@ export default function BottleHistoryScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-      </View>
+      <ImageBackground source={WOOD_BG} style={styles.bg}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+        </View>
+      </ImageBackground>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
-        ]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={COLORS.accent}
-          />
-        }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.headerBack}>← Retour</Text>
+    <ImageBackground source={WOOD_BG} style={styles.bg}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: insets.bottom + 60 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={COLORS.accent}
+            />
+          }
+        >
+          <TouchableOpacity
+            style={styles.back}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backText}>← Retour</Text>
           </TouchableOpacity>
-        </View>
 
-        <Text style={styles.title}>Historique de la correspondance</Text>
+          <Text style={styles.title}>Notre correspondance</Text>
 
-        {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
+          {error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
-        {messages.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>Aucun message</Text>
-          </View>
-        ) : (
-          <View>
-            <Text style={styles.messageCount}>
-              {messages.length} message{messages.length > 1 ? 's' : ''}
-            </Text>
-            {messages.map((message, index) => (
-              <TouchableOpacity
-                key={message.id}
-                onPress={() =>
-                  router.push({
-                    pathname: '/bottles-old-letter',
-                    params: { bottleId, messageIndex: index.toString() },
-                  })
-                }
-              >
-                <View style={styles.messagePreview}>
+          {messages.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>Aucune lettre</Text>
+            </View>
+          ) : (
+            <View>
+              {messages.map((message) => (
+                <TouchableOpacity
+                  key={message.id}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/bottles-old-letter',
+                      params: { bottleId, messageId: message.id },
+                    })
+                  }
+                  style={styles.letterTouchable}
+                >
                   <BottleParchmentCard
                     content={message.content}
-                    createdAt={message.createdAt}
-                    source={message.source}
-                    isMine={message.isMine}
                     compact={true}
                   />
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  bg: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
@@ -147,11 +147,12 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
+    paddingVertical: 16,
   },
-  header: {
+  back: {
     marginBottom: 8,
   },
-  headerBack: {
+  backText: {
     fontSize: 16,
     color: COLORS.accent,
     fontWeight: '600',
@@ -162,21 +163,14 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 16,
   },
-  messageCount: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-    marginBottom: 12,
-    letterSpacing: 0.5,
-  },
-  messagePreview: {
-    marginBottom: 4,
+  letterTouchable: {
+    marginBottom: 8,
   },
   emptyState: {
-    paddingVertical: 32,
+    paddingVertical: 48,
     alignItems: 'center',
   },
-  emptyStateText: {
+  emptyText: {
     fontSize: 16,
     color: COLORS.textSecondary,
   },
@@ -191,7 +185,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: '#B3261E',
+    color: '#D32F2F',
     fontWeight: '600',
   },
 });

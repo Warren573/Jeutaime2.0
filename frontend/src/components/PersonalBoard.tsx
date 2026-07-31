@@ -359,11 +359,7 @@ export function PersonalBoard() {
         />
         <TouchableOpacity
           onPress={() => {
-            if (hasBottle) {
-              router.push('/bottles-discussions');
-            } else {
-              router.push('/bottles-inbox');
-            }
+            router.push('/bottles-main');
           }}
           activeOpacity={0.7}
           style={{

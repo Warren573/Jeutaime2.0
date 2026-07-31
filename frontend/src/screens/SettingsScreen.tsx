@@ -181,19 +181,8 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleBottlePress = async () => {
-    try {
-      const data = await getInbox();
-      const accepted = data.find(b => b.status === 'ACCEPTED');
-      if (accepted) {
-        router.push('/bottles-discussions');
-      } else {
-        router.push('/bottles-inbox');
-      }
-    } catch (error) {
-      // Fallback to inbox if API fails
-      router.push('/bottles-inbox');
-    }
+  const handleBottlePress = () => {
+    router.push('/bottles-main');
   };
 
   // ── Config des sections ─────────────────────────────────────────────────────

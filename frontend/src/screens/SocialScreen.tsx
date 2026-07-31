@@ -115,18 +115,7 @@ export default function SocialScreen() {
     }
 
     if (id === "bottle" && FEATURES.social !== "hidden") {
-      try {
-        const data = await getInbox();
-        const accepted = data.find(b => b.status === 'ACCEPTED');
-        if (accepted) {
-          router.push('/bottles-discussions');
-        } else {
-          router.push('/bottles-inbox');
-        }
-      } catch (error) {
-        // Fallback to inbox if API fails
-        router.push('/bottles-inbox');
-      }
+      router.push('/bottles-main');
       return;
     }
 

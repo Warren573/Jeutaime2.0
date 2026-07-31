@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  ImageBackground,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -13,8 +14,9 @@ import { getBottleMessages } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import type { BottleMessageWithMetadata } from '../api/bottles';
 
+const WOOD_BG = require('../../assets/images/home/board-wood-bg.jpg');
+
 const COLORS = {
-  bg: '#F5F1E8',
   text: '#2B2B2B',
   textSecondary: '#6B6B6B',
   accent: '#8B2E3C',
@@ -25,92 +27,103 @@ export default function BottleOldLetterScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const bottleId = params.bottleId as string;
-  const messageIndex = parseInt(params.messageIndex as string, 10);
+  const messageId = params.messageId as string;
 
   const [message, setMessage] = useState<BottleMessageWithMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadMessage = async () => {
-      if (!bottleId) return;
+      if (!bottleId || !messageId) {
+        setError('Paramètres manquants');
+        setIsLoading(false);
+        return;
+      }
       try {
         const messages = await getBottleMessages(bottleId);
-        if (messages[messageIndex]) {
-          setMessage(messages[messageIndex]);
+        const found = messages.find((m) => m.id === messageId);
+        if (found) {
+          setMessage(found);
+        } else {
+          setError('Cette lettre n\'existe plus');
         }
       } catch (err) {
         console.error('[BottleOldLetterScreen] Error:', err);
+        setError('Erreur de chargement');
       } finally {
         setIsLoading(false);
       }
     };
 
     loadMessage();
-  }, [bottleId, messageIndex]);
+  }, [bottleId, messageId]);
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-      </View>
+      <ImageBackground source={WOOD_BG} style={styles.bg}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+        </View>
+      </ImageBackground>
     );
   }
 
-  if (!message) {
+  if (error || !message) {
     return (
-      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Lettre non trouvée</Text>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.backBtnText}>Retour</Text>
-          </TouchableOpacity>
+      <ImageBackground source={WOOD_BG} style={styles.bg}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>
+              {error || 'Lettre non trouvée'}
+            </Text>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.backBtnText}>Retour</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </ImageBackground>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 60 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.headerBack}>← Retour</Text>
+    <ImageBackground source={WOOD_BG} style={styles.bg}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: insets.bottom + 60 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableOpacity
+            style={styles.back}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backText}>← Retour</Text>
           </TouchableOpacity>
-        </View>
 
-        <Text style={styles.title}>Lettre</Text>
+          <BottleParchmentCard content={message.content} />
 
-        {/* Affiche la lettre en lecture seule */}
-        <BottleParchmentCard
-          content={message.content}
-          createdAt={message.createdAt}
-          source={message.source}
-          isMine={message.isMine}
-        />
-
-        {/* Message de lecture seule */}
-        <View style={styles.readOnlyBox}>
-          <Text style={styles.readOnlyText}>
-            🔒 Lecture seule — Aucune réponse depuis une ancienne lettre
-          </Text>
-        </View>
-      </ScrollView>
-    </View>
+          <View style={styles.readOnlyBox}>
+            <Text style={styles.readOnlyText}>
+              🔒 Lecture seule
+            </Text>
+          </View>
+        </ScrollView>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  bg: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
@@ -119,20 +132,15 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
+    paddingVertical: 16,
   },
-  header: {
-    marginBottom: 8,
+  back: {
+    marginBottom: 16,
   },
-  headerBack: {
+  backText: {
     fontSize: 16,
     color: COLORS.accent,
     fontWeight: '600',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 20,
   },
   readOnlyBox: {
     paddingVertical: 12,
@@ -141,6 +149,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9',
     borderLeftWidth: 4,
     borderLeftColor: '#2E7D32',
+    marginBottom: 16,
   },
   readOnlyText: {
     fontSize: 12,
@@ -158,6 +167,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
     marginBottom: 20,
+    textAlign: 'center',
   },
   backBtn: {
     paddingVertical: 12,

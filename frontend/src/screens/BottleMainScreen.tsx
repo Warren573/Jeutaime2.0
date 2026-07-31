@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,49 +7,42 @@ import {
   ActivityIndicator,
   ScrollView,
   RefreshControl,
+  ImageBackground,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useStore } from '../store/useStore';
-import { getCurrentBottle, getInbox } from '../api/bottles';
-import type { GetCurrentBottleResponse, InboxBottleDTO } from '../api/bottles';
+import { getCurrentBottle, acceptBottle, refuseBottle } from '../api/bottles';
+import { BottleParchmentCard } from '../components/BottleParchmentCard';
+import type { GetCurrentBottleResponse } from '../api/bottles';
+
+const WOOD_BG = require('../../assets/images/home/board-wood-bg.jpg');
 
 const COLORS = {
-  bg: '#F5F1E8',
-  card: '#FFFFFF',
   text: '#2B2B2B',
   textSecondary: '#6B6B6B',
-  border: '#D8D2C4',
   accent: '#8B2E3C',
-  accentLight: '#E8CFCF',
   success: '#2E7D32',
-  error: '#B3261E',
+  error: '#D32F2F',
 };
 
 export default function BottleMainScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [currentBottleState, setCurrentBottleState] = useState<GetCurrentBottleResponse | null>(null);
-  const [pendingInbox, setPendingInbox] = useState<InboxBottleDTO[]>([]);
+  const [state, setState] = useState<GetCurrentBottleResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadState = useCallback(async () => {
     try {
       setError(null);
-      const [current, inbox] = await Promise.all([
-        getCurrentBottle(),
-        getInbox(),
-      ]);
-
-      setCurrentBottleState(current);
-
-      // Filter pending bottles (not yet accepted)
-      setPendingInbox(inbox.filter(b => b.status === 'FLOATING'));
+      const current = await getCurrentBottle();
+      setState(current);
     } catch (err: any) {
-      console.error('[BottleMainScreen] Error loading state:', err);
+      console.error('[BottleMainScreen] Error:', err);
       setError(err?.message || 'Erreur de chargement');
     } finally {
       setIsLoading(false);
@@ -59,6 +52,7 @@ export default function BottleMainScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      setIsLoading(true);
       loadState();
     }, [loadState])
   );
@@ -68,27 +62,260 @@ export default function BottleMainScreen() {
     loadState();
   };
 
+  const handleAccept = async () => {
+    if (!state?.bottle) return;
+    setIsAccepting(true);
+    try {
+      await acceptBottle(state.bottle.id);
+      await loadState();
+      Alert.alert('Succès', 'Bouteille acceptée!');
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message || 'Impossible d\'accepter');
+    } finally {
+      setIsAccepting(false);
+    }
+  };
+
+  const handleRefuse = async () => {
+    if (!state?.bottle) return;
+    Alert.alert(
+      'Refuser cette bouteille?',
+      'Vous ne pourrez plus revenir sur cette lettre.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Refuser',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await refuseBottle(state.bottle!.id);
+              await loadState();
+              Alert.alert('Succès', 'Bouteille refusée');
+            } catch (err: any) {
+              Alert.alert('Erreur', err?.message || 'Impossible de refuser');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-      </View>
+      <ImageBackground source={WOOD_BG} style={styles.bg}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+        </View>
+      </ImageBackground>
     );
   }
 
-  // Détermine le cas actuel
-  const hasCurrent = currentBottleState?.bottle && currentBottleState?.latestLetter;
-  const canCreate = currentBottleState?.canCreateBottle ?? false;
+  const hasBottle = state?.bottle && state?.latestLetter;
+  const canCreate = state?.canCreateBottle ?? false;
+  const bottleStatus = state?.bottle?.status;
 
-  // CAS A : Correspondance active
-  if (hasCurrent) {
+  // CAS A: Correspondance ACCEPTED avec lettre
+  if (hasBottle && bottleStatus === 'ACCEPTED') {
     return (
-      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
+      <ImageBackground source={WOOD_BG} style={styles.bg}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[
+              styles.content,
+              { paddingBottom: insets.bottom + 100 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={COLORS.accent}
+              />
+            }
+          >
+            <BottleParchmentCard content={state.latestLetter!.content} />
+
+            {state.canReply && (
+              <TouchableOpacity
+                style={styles.replyBtn}
+                onPress={() =>
+                  router.push({
+                    pathname: '/bottles-discussion',
+                    params: { bottleId: state.bottle!.id },
+                  })
+                }
+              >
+                <Text style={styles.replyBtnText}>Écrire une réponse</Text>
+              </TouchableOpacity>
+            )}
+
+            {state.waitingForReply && (
+              <View style={styles.waitingBox}>
+                <Text style={styles.waitingText}>
+                  ✈️ Votre lettre est en voyage...
+                </Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.historyBtn}
+              onPress={() =>
+                router.push({
+                  pathname: '/bottles-history',
+                  params: { bottleId: state.bottle!.id },
+                })
+              }
+            >
+              <Text style={styles.historyBtnText}>
+                Relire notre correspondance
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </ImageBackground>
+    );
+  }
+
+  // CAS B: Bouteille FLOATING (envoyée par moi, en voyage)
+  if (hasBottle && bottleStatus === 'FLOATING') {
+    return (
+      <ImageBackground source={WOOD_BG} style={styles.bg}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[
+              styles.content,
+              { paddingBottom: insets.bottom + 100 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={COLORS.accent}
+              />
+            }
+          >
+            <View style={styles.floatingBox}>
+              <Text style={styles.floatingEmoji}>🌊</Text>
+              <Text style={styles.floatingTitle}>Votre bouteille voyage</Text>
+              <Text style={styles.floatingText}>
+                Nous recherchons quelqu{"'"}un qui apprécierait votre lettre...
+              </Text>
+            </View>
+
+            <BottleParchmentCard content={state.latestLetter!.content} />
+
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                Revenez bientôt pour voir si quelqu{"'"}un a répondu à votre lettre.
+              </Text>
+            </View>
+          </ScrollView>
+        </View>
+      </ImageBackground>
+    );
+  }
+
+  // CAS C: Bouteille reçue en attente d'acceptation/refus
+  if (hasBottle && bottleStatus !== 'ACCEPTED' && bottleStatus !== 'FLOATING') {
+    return (
+      <ImageBackground source={WOOD_BG} style={styles.bg}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[
+              styles.content,
+              { paddingBottom: insets.bottom + 100 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={COLORS.accent}
+              />
+            }
+          >
+            <View style={styles.receivedBox}>
+              <Text style={styles.receivedEmoji}>📨</Text>
+              <Text style={styles.receivedTitle}>Vous avez reçu une lettre</Text>
+              <Text style={styles.receivedText}>
+                Quelqu{"'"}un a écrit pour vous. Voulez-vous répondre?
+              </Text>
+            </View>
+
+            <BottleParchmentCard content={state.latestLetter!.content} />
+
+            <View style={styles.actionBox}>
+              <TouchableOpacity
+                style={[styles.acceptBtn, isAccepting && styles.btnDisabled]}
+                onPress={handleAccept}
+                disabled={isAccepting}
+              >
+                {isAccepting ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.acceptBtnText}>✨ Accepter</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.refuseBtn, isAccepting && styles.btnDisabled]}
+                onPress={handleRefuse}
+                disabled={isAccepting}
+              >
+                <Text style={styles.refuseBtnText}>Refuser</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </ImageBackground>
+    );
+  }
+
+  // CAS D: Pas de bouteille, création autorisée
+  if (!hasBottle && canCreate) {
+    return (
+      <ImageBackground source={WOOD_BG} style={styles.bg}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[
+              styles.content,
+              { paddingBottom: insets.bottom + 100 },
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>🌊</Text>
+              <Text style={styles.emptyTitle}>Lancez une bouteille</Text>
+              <Text style={styles.emptySubtext}>
+                Écrivez une lettre et laissez-la naviguer vers quelqu{"'"}un de spécial.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.createBtn}
+              onPress={() => router.push('/bottles-create')}
+            >
+              <Text style={styles.createBtnText}>Créer une nouvelle bouteille</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </ImageBackground>
+    );
+  }
+
+  // CAS E: Quota atteint, aucune création possible
+  return (
+    <ImageBackground source={WOOD_BG} style={styles.bg}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
             styles.content,
-            { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
+            { paddingBottom: insets.bottom + 100 },
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -99,207 +326,32 @@ export default function BottleMainScreen() {
             />
           }
         >
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text style={styles.headerBack}>← Retour</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.title}>Bouteille à la mer</Text>
-
-          {/* Afficher la dernière lettre via BottleParchmentCard */}
-          <BottleParchmentCardContent
-            message={currentBottleState.latestLetter!}
-          />
-
-          {/* Bouton Répondre SI canReply */}
-          {currentBottleState.canReply && (
-            <TouchableOpacity
-              style={styles.replyBtn}
-              onPress={() =>
-                router.push({
-                  pathname: '/bottles-discussion',
-                  params: { bottleId: currentBottleState.bottle!.id },
-                })
-              }
-            >
-              <Text style={styles.replyBtnText}>Répondre à cette lettre</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Message d'attente SI waitingForReply */}
-          {currentBottleState.waitingForReply && (
-            <View style={styles.waitingBox}>
-              <Text style={styles.waitingText}>
-                ✈️ Votre lettre est en voyage...
-              </Text>
+          {error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
 
-          {/* Bouton Historique */}
-          <TouchableOpacity
-            style={styles.historyBtn}
-            onPress={() =>
-              router.push({
-                pathname: '/bottles-history',
-                params: { bottleId: currentBottleState.bottle!.id },
-              })
-            }
-          >
-            <Text style={styles.historyBtnText}>
-              📖 Relire notre correspondance ({currentBottleState.messageCount})
-            </Text>
-          </TouchableOpacity>
-
-          {/* Menu actions */}
-          <TouchableOpacity
-            style={styles.menuBtn}
-            onPress={() =>
-              router.push({
-                pathname: '/bottles-menu',
-                params: { bottleId: currentBottleState.bottle!.id },
-              })
-            }
-          >
-            <Text style={styles.menuBtnText}>⋯ Options</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    );
-  }
-
-  // CAS B : Pas de correspondance, création autorisée
-  if (canCreate && !hasCurrent) {
-    return (
-      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.content,
-            { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text style={styles.headerBack}>← Retour</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.title}>Bouteille à la mer</Text>
-
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateEmoji}>🌊</Text>
-            <Text style={styles.emptyStateText}>
-              Aucune correspondance en cours
-            </Text>
-            <Text style={styles.emptyStateSubtext}>
-              Lance une bouteille à la mer et attends une réponse...
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.createBtn}
-            onPress={() => router.push('/bottles-create')}
-          >
-            <Text style={styles.createBtnText}>
-              + Créer et envoyer une bouteille
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    );
-  }
-
-  // CAS C : Pas de correspondance, création BLOQUÉE
-  // Afficher l'état réel (FLOATING, en attente d'acceptation, quota atteint)
-  return (
-    <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
-        ]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={COLORS.accent}
-          />
-        }
-      >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.headerBack}>← Retour</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.title}>Bouteille à la mer</Text>
-
-        {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
-
-        {/* Bouteille FLOATING déjà envoyée */}
-        {pendingInbox.length === 0 && (
           <View style={styles.quotaBox}>
+            <Text style={styles.quotaEmoji}>⏳</Text>
+            <Text style={styles.quotaTitle}>Patientez un instant</Text>
             <Text style={styles.quotaText}>
-              ⚠️ Tu as atteint ton quota de bouteilles en attente.
+              Vous avez atteint le nombre maximum de bouteilles en attente.
             </Text>
             <Text style={styles.quotaSubtext}>
-              Attends qu'une soit acceptée, refusée ou expire avant d'en renvoyer une.
+              Revenez quand une sera acceptée, refusée ou aura expiré.
             </Text>
           </View>
-        )}
-
-        {/* Bouteilles en attente d'acceptation */}
-        {pendingInbox.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              BOUTEILLES EN ATTENTE ({pendingInbox.length})
-            </Text>
-            {pendingInbox.map(bottle => (
-              <View key={bottle.id} style={styles.bottleCard}>
-                <Text style={styles.bottleStatus}>🌊 En voyage...</Text>
-                <Text style={styles.bottleMessage} numberOfLines={2}>
-                  "{bottle.message}"
-                </Text>
-                <Text style={styles.bottleTarget}>
-                  Cible : {bottle.targetGender}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </View>
-  );
-}
-
-// Composant pour afficher une lettre seule (réutilisable)
-function BottleParchmentCardContent({ message }: { message: any }) {
-  return (
-    <View style={styles.parchmentCard}>
-      <View style={styles.parchmentContent}>
-        <Text style={styles.parchmentMessage}>{message.content}</Text>
+        </ScrollView>
       </View>
-      <View style={styles.parchmentMeta}>
-        <Text style={styles.parchmentDate}>
-          {new Date(message.createdAt).toLocaleDateString('fr-FR')}
-        </Text>
-        <Text style={styles.parchmentSource}>
-          {message.source === 'INITIAL_BOTTLE' ? '📨 Lettre initiale' : '💌 Réponse'}
-        </Text>
-      </View>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  bg: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
@@ -308,62 +360,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
-  },
-  header: {
-    marginBottom: 8,
-  },
-  headerBack: {
-    fontSize: 16,
-    color: COLORS.accent,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 20,
-  },
-  parchmentCard: {
-    borderRadius: 12,
-    backgroundColor: '#F3E7C6',
-    borderWidth: 2,
-    borderColor: '#C8A25A',
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    shadowColor: '#3B2C18',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  parchmentContent: {
-    marginBottom: 16,
-  },
-  parchmentMessage: {
-    fontSize: 16,
-    lineHeight: 28,
-    color: '#4A3A28',
-    fontFamily: 'Georgia',
-    fontStyle: 'italic',
-  },
-  parchmentMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(200, 162, 90, 0.3)',
-    paddingTop: 12,
-  },
-  parchmentDate: {
-    fontSize: 12,
-    color: '#8A6E3C',
-    fontWeight: '500',
-  },
-  parchmentSource: {
-    fontSize: 12,
-    color: '#8A6E3C',
-    fontWeight: '500',
+    paddingVertical: 16,
   },
   replyBtn: {
     paddingVertical: 14,
@@ -375,7 +372,7 @@ const styles = StyleSheet.create({
   replyBtnText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.card,
+    color: '#FFF',
     textAlign: 'center',
   },
   waitingBox: {
@@ -397,53 +394,123 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: COLORS.card,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    marginBottom: 12,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderWidth: 1,
+    borderColor: COLORS.accent,
   },
   historyBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: COLORS.accent,
     textAlign: 'center',
   },
-  menuBtn: {
+  floatingBox: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  floatingEmoji: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  floatingTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  floatingText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  receivedBox: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  receivedEmoji: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  receivedTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  receivedText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  actionBox: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  acceptBtn: {
+    flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: COLORS.card,
-    borderWidth: 2,
-    borderColor: COLORS.border,
+    backgroundColor: COLORS.success,
+    justifyContent: 'center',
   },
-  menuBtnText: {
+  acceptBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: '#FFF',
     textAlign: 'center',
+  },
+  refuseBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderWidth: 1,
+    borderColor: COLORS.error,
+    justifyContent: 'center',
+  },
+  refuseBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.error,
+    textAlign: 'center',
+  },
+  btnDisabled: {
+    opacity: 0.6,
   },
   emptyState: {
     paddingVertical: 48,
     alignItems: 'center',
     marginBottom: 24,
   },
-  emptyStateEmoji: {
+  emptyEmoji: {
     fontSize: 64,
     marginBottom: 16,
   },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
     color: COLORS.text,
     marginBottom: 8,
   },
-  emptyStateSubtext: {
+  emptySubtext: {
     fontSize: 14,
     color: COLORS.textSecondary,
     textAlign: 'center',
+    lineHeight: 20,
   },
   createBtn: {
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 8,
     backgroundColor: COLORS.accent,
@@ -452,65 +519,51 @@ const styles = StyleSheet.create({
   createBtnText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.card,
+    color: '#FFF',
     textAlign: 'center',
   },
   quotaBox: {
-    paddingVertical: 16,
+    paddingVertical: 24,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: '#FDECEA',
-    borderLeftWidth: 4,
-    borderLeftColor: '#E5534B',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     marginBottom: 20,
+    alignItems: 'center',
+  },
+  quotaEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  quotaTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 8,
   },
   quotaText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#B3261E',
-    marginBottom: 4,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 8,
   },
   quotaSubtext: {
-    fontSize: 12,
-    color: '#B3261E',
-    opacity: 0.8,
-    lineHeight: 18,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-    marginBottom: 12,
-    letterSpacing: 0.5,
-  },
-  bottleCard: {
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: 12,
-  },
-  bottleStatus: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.accent,
-    marginBottom: 8,
-  },
-  bottleMessage: {
     fontSize: 13,
-    color: COLORS.text,
-    marginBottom: 8,
-    fontStyle: 'italic',
+    color: COLORS.textSecondary,
+    textAlign: 'center',
     lineHeight: 18,
   },
-  bottleTarget: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
+  infoBox: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#E8F5E9',
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.success,
+  },
+  infoText: {
+    fontSize: 13,
+    color: COLORS.success,
+    fontWeight: '600',
   },
   errorBox: {
     paddingVertical: 12,
@@ -518,12 +571,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#FDECEA',
     borderLeftWidth: 4,
-    borderLeftColor: '#E5534B',
+    borderLeftColor: COLORS.error,
     marginBottom: 16,
   },
   errorText: {
     fontSize: 13,
-    color: '#B3261E',
+    color: COLORS.error,
     fontWeight: '600',
   },
 });
