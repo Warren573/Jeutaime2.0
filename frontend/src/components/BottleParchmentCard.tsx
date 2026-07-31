@@ -13,8 +13,8 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
   content,
   compact = false,
 }) => {
-  // Parchemin: aspect ratio environ 3:4 (portrait)
-  const cardWidth = Math.min(width * 0.95, 340);
+  // Parchemin: 94-96% de la largeur utile, max 550 pour tablet/desktop
+  const cardWidth = Math.min(width * 0.95, 550);
   const cardHeight = cardWidth * 1.33;
 
   return (

@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   ScrollView,
   RefreshControl,
-  ImageBackground,
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +15,7 @@ import { getCurrentBottle, acceptBottle, refuseBottle } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import type { GetCurrentBottleResponse } from '../api/bottles';
 
-const WOOD_BG = require('../../assets/images/home/board-wood-bg.jpg');
+const CREAM_BG = '#FBF8F3';
 
 const COLORS = {
   text: '#2B2B2B',
@@ -102,11 +101,9 @@ export default function BottleMainScreen() {
 
   if (isLoading) {
     return (
-      <ImageBackground source={WOOD_BG} style={styles.bg}>
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-          <ActivityIndicator size="large" color={COLORS.accent} />
-        </View>
-      </ImageBackground>
+      <View style={[styles.bg, { backgroundColor: CREAM_BG, paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={COLORS.accent} />
+      </View>
     );
   }
 
@@ -117,7 +114,7 @@ export default function BottleMainScreen() {
   // CAS A: Correspondance ACCEPTED avec lettre
   if (hasBottle && bottleStatus === 'ACCEPTED') {
     return (
-      <ImageBackground source={WOOD_BG} style={styles.bg}>
+      <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <ScrollView
             style={styles.scroll}
@@ -173,14 +170,14 @@ export default function BottleMainScreen() {
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </ImageBackground>
+      </View>
     );
   }
 
   // CAS B: Bouteille FLOATING (envoyée par moi, en voyage)
   if (hasBottle && bottleStatus === 'FLOATING') {
     return (
-      <ImageBackground source={WOOD_BG} style={styles.bg}>
+      <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <ScrollView
             style={styles.scroll}
@@ -214,14 +211,14 @@ export default function BottleMainScreen() {
             </View>
           </ScrollView>
         </View>
-      </ImageBackground>
+      </View>
     );
   }
 
   // CAS C: Bouteille reçue en attente d'acceptation/refus
   if (hasBottle && bottleStatus !== 'ACCEPTED' && bottleStatus !== 'FLOATING') {
     return (
-      <ImageBackground source={WOOD_BG} style={styles.bg}>
+      <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <ScrollView
             style={styles.scroll}
@@ -270,14 +267,14 @@ export default function BottleMainScreen() {
             </View>
           </ScrollView>
         </View>
-      </ImageBackground>
+      </View>
     );
   }
 
   // CAS D: Pas de bouteille, création autorisée
   if (!hasBottle && canCreate) {
     return (
-      <ImageBackground source={WOOD_BG} style={styles.bg}>
+      <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <ScrollView
             style={styles.scroll}
@@ -303,13 +300,13 @@ export default function BottleMainScreen() {
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </ImageBackground>
+      </View>
     );
   }
 
   // CAS E: Quota atteint, aucune création possible
   return (
-    <ImageBackground source={WOOD_BG} style={styles.bg}>
+    <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <ScrollView
           style={styles.scroll}
@@ -344,7 +341,7 @@ export default function BottleMainScreen() {
           </View>
         </ScrollView>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
 

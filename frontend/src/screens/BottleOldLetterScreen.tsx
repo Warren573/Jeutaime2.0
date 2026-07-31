@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  ImageBackground,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -14,7 +13,7 @@ import { getBottleMessages } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import type { BottleMessageWithMetadata } from '../api/bottles';
 
-const WOOD_BG = require('../../assets/images/home/board-wood-bg.jpg');
+const CREAM_BG = '#FBF8F3';
 
 const COLORS = {
   text: '#2B2B2B',
@@ -61,17 +60,17 @@ export default function BottleOldLetterScreen() {
 
   if (isLoading) {
     return (
-      <ImageBackground source={WOOD_BG} style={styles.bg}>
+      <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <ActivityIndicator size="large" color={COLORS.accent} />
         </View>
-      </ImageBackground>
+      </View>
     );
   }
 
   if (error || !message) {
     return (
-      <ImageBackground source={WOOD_BG} style={styles.bg}>
+      <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>
@@ -85,12 +84,12 @@ export default function BottleOldLetterScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </ImageBackground>
+      </View>
     );
   }
 
   return (
-    <ImageBackground source={WOOD_BG} style={styles.bg}>
+    <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <ScrollView
           style={styles.scroll}
@@ -116,7 +115,7 @@ export default function BottleOldLetterScreen() {
           </View>
         </ScrollView>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
 
