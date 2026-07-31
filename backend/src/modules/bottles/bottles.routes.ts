@@ -163,9 +163,17 @@ router.get(
   }),
 );
 
+// GET /api/bottles/current — get most recent active correspondence
+router.get(
+  "/current",
+  wrap(async (req, res) => {
+    await controller.getCurrentBottle(req as AuthedRequest, res);
+  }),
+);
+
 // GET /api/bottles/:id — bottle detail (sender or acceptor)
 // IMPORTANT: déclaré APRÈS les routes GET spécifiques (/sent, /inbox,
-// /unread-count) pour ne pas les masquer.
+// /unread-count, /current) pour ne pas les masquer.
 router.get(
   "/:id",
   wrap(async (req, res) => {

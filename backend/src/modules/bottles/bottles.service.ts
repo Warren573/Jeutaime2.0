@@ -29,36 +29,7 @@ export async function createBottle(
   try {
     console.log(`[S1-SERVICE] ${correlationId} | createBottle START | senderId=${senderId}`);
 
-    // Limite de bouteilles à la mer : 1 (gratuit) / 5 (premium actif).
-    console.log(`[S2-SERVICE] ${correlationId} | COUNT FLOATING BOTTLES`);
-    const [pendingCount, sender] = await Promise.all([
-      prisma.messageInABottle.count({
-        where: { senderId, status: "FLOATING" },
-      }),
-      prisma.user.findUnique({
-        where: { id: senderId },
-        select: { premiumTier: true, premiumUntil: true },
-      }),
-    ]);
-    const maxFloating =
-      sender && isPremiumActive(sender)
-        ? MAX_FLOATING_PREMIUM
-        : MAX_FLOATING_FREE;
-    console.log(
-      `[S3-SERVICE] ${correlationId} | PENDING=${pendingCount} MAX=${maxFloating}`,
-    );
-
-    if (pendingCount >= maxFloating) {
-      const err =
-        maxFloating === 1
-          ? "Tu as déjà une bouteille à la mer. Attends qu'elle soit acceptée ou expirée avant d'en renvoyer une. (Premium : jusqu'à 5)"
-          : `Tu as déjà ${pendingCount} bouteilles à la mer (max ${maxFloating}). Attends qu'une soit acceptée ou expirée.`;
-      console.error(`[S4-SERVICE] ${correlationId} | VALIDATION FAILED | ${err}`);
-      // HttpError typé → 409 avec message clair (sinon: 500 générique masqué).
-      throw new ConflictError(err);
-    }
-
-    // Get sender's city from profile
+    // Get sender's city from profile (can be done outside transaction)
     console.log(`[S5-SERVICE] ${correlationId} | FETCH SENDER PROFILE | userId=${senderId}`);
     const senderProfile = await prisma.profile.findUnique({
       where: { userId: senderId },
@@ -67,22 +38,61 @@ export async function createBottle(
     const senderCity = senderProfile?.city || "Unknown";
     console.log(`[S6-SERVICE] ${correlationId} | PROFILE FETCHED | city=${senderCity}`);
 
-    // Create bottle
-    console.log(`[S7-SERVICE] ${correlationId} | PRISMA CREATE BOTTLE START`);
-    const bottle = await prisma.messageInABottle.create({
-      data: {
-        senderId,
-        message,
-        senderCity,
-        targetGender,
-        ageMin,
-        ageMax,
-        expiresAt: addDays(new Date(), 30),
-      },
-    });
-    console.log(`[S8-SERVICE] ${correlationId} | PRISMA CREATE BOTTLE SUCCESS | id=${bottle.id}`);
+    // Quota check and bottle creation MUST be atomic
+    console.log(`[S2-SERVICE] ${correlationId} | STARTING ATOMIC QUOTA CHECK + CREATION`);
+    const bottle = await prisma.$transaction(
+      async (tx) => {
+        // Count existing FLOATING bottles
+        const pendingCount = await tx.messageInABottle.count({
+          where: { senderId, status: "FLOATING" },
+        });
 
-    // Find compatible recipients and create receipts
+        // Get sender's premium status
+        const sender = await tx.user.findUnique({
+          where: { id: senderId },
+          select: { premiumTier: true, premiumUntil: true },
+        });
+
+        const maxFloating =
+          sender && isPremiumActive(sender)
+            ? MAX_FLOATING_PREMIUM
+            : MAX_FLOATING_FREE;
+        console.log(
+          `[S3-SERVICE] ${correlationId} | PENDING=${pendingCount} MAX=${maxFloating}`,
+        );
+
+        if (pendingCount >= maxFloating) {
+          const err =
+            maxFloating === 1
+              ? "Tu as déjà une bouteille à la mer. Attends qu'elle soit acceptée ou expirée avant d'en renvoyer une. (Premium : jusqu'à 5)"
+              : `Tu as déjà ${pendingCount} bouteilles à la mer (max ${maxFloating}). Attends qu'une soit acceptée ou expirée.`;
+          console.error(`[S4-SERVICE] ${correlationId} | VALIDATION FAILED | ${err}`);
+          throw new ConflictError(err);
+        }
+
+        // Create bottle
+        console.log(`[S7-SERVICE] ${correlationId} | PRISMA CREATE BOTTLE START`);
+        const newBottle = await tx.messageInABottle.create({
+          data: {
+            senderId,
+            message,
+            senderCity,
+            targetGender,
+            ageMin,
+            ageMax,
+            expiresAt: addDays(new Date(), 30),
+          },
+        });
+        console.log(`[S8-SERVICE] ${correlationId} | PRISMA CREATE BOTTLE SUCCESS | id=${newBottle.id}`);
+
+        return newBottle;
+      },
+      {
+        isolationLevel: "Serializable",
+      },
+    );
+
+    // Find compatible recipients and create receipts (outside transaction for performance)
     console.log(`[S9-SERVICE] ${correlationId} | FIND COMPATIBLE RECIPIENTS`);
     const compatibleUsers = await findCompatibleRecipients(bottle);
     console.log(`[S10-SERVICE] ${correlationId} | FOUND ${compatibleUsers.length} COMPATIBLE USERS`);
@@ -357,29 +367,166 @@ export async function refuseBottle(
 
 export async function getMessages(
   bottleId: string,
-): Promise<AnonymousMessage[]> {
-  const messages = await prisma.anonymousMessage.findMany({
+  userId: string,
+) {
+  // Verify user is a participant and bottle exists
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+
+  if (!bottle) {
+    const err = new Error("Bottle not found");
+    (err as any).code = "BOTTLE_NOT_FOUND";
+    throw err;
+  }
+
+  if (bottle.senderId !== userId && bottle.acceptedById !== userId) {
+    const err = new Error("Not a participant");
+    (err as any).code = "NOT_BOTTLE_PARTICIPANT";
+    throw err;
+  }
+
+  // Get all anonymous messages
+  const anonymousMessages = await prisma.anonymousMessage.findMany({
     where: { bottleId },
     orderBy: { createdAt: "asc" },
   });
 
-  return messages;
+  // Build complete message list: initial message + anonymous messages
+  const messages = [
+    {
+      id: bottle.id,
+      content: bottle.message,
+      createdAt: bottle.createdAt,
+      isMine: bottle.senderId === userId,
+      source: "INITIAL_BOTTLE" as const,
+    },
+    ...anonymousMessages.map(msg => ({
+      id: msg.id,
+      content: msg.content,
+      createdAt: msg.createdAt,
+      isMine: msg.senderId === userId,
+      source: "ANONYMOUS_MESSAGE" as const,
+    })),
+  ];
+
+  return { messages };
 }
 
 export async function postMessage(
   bottleId: string,
   senderId: string,
   content: string,
+  idempotencyKey?: string,
 ): Promise<AnonymousMessage> {
-  const message = await prisma.anonymousMessage.create({
-    data: {
-      bottleId,
-      senderId,
-      content,
-    },
-  });
+  // Use Serializable isolation to ensure turn-by-turn atomicity
+  const maxRetries = 3;
+  let lastError: any = null;
 
-  return message;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const message = await prisma.$transaction(
+        async (tx) => {
+          // 1. Fetch bottle with locking (explicit SELECT FOR UPDATE via findFirst with rejectOnNotFound behavior)
+          const bottle = await tx.messageInABottle.findUnique({
+            where: { id: bottleId },
+          });
+
+          if (!bottle) {
+            const err = new Error("Bottle not found");
+            (err as any).code = "BOTTLE_NOT_FOUND";
+            throw err;
+          }
+
+          // 2. Verify bottle is active
+          if (bottle.status !== "ACCEPTED") {
+            const err = new Error("Bottle is not active");
+            (err as any).code = "BOTTLE_NOT_ACTIVE";
+            throw err;
+          }
+
+          // 3. Verify user is a participant
+          if (bottle.senderId !== senderId && bottle.acceptedById !== senderId) {
+            const err = new Error("User is not a participant");
+            (err as any).code = "NOT_BOTTLE_PARTICIPANT";
+            throw err;
+          }
+
+          // 4. Get all messages to check last sender
+          const lastMessage = await tx.anonymousMessage.findFirst({
+            where: { bottleId },
+            orderBy: { createdAt: "desc" },
+          });
+
+          // Determine who sent the last message
+          // If no anonymous messages, the last sender is the initial bottle sender
+          let lastSenderId: string;
+          if (!lastMessage) {
+            lastSenderId = bottle.senderId;
+          } else {
+            lastSenderId = lastMessage.senderId;
+          }
+
+          // 5. Verify it's this user's turn (last message was NOT from this user)
+          if (lastSenderId === senderId) {
+            const err = new Error("It's not your turn to respond");
+            (err as any).code = "LETTER_TURN_VIOLATION";
+            throw err;
+          }
+
+          // 6. Check for duplicate idempotency key
+          if (idempotencyKey) {
+            const existing = await tx.anonymousMessage.findFirst({
+              where: {
+                senderId,
+                idempotencyKey,
+              },
+            });
+            if (existing) {
+              const err = new Error("Duplicate message with same idempotency key");
+              (err as any).code = "DUPLICATE_LETTER_REQUEST";
+              throw err;
+            }
+          }
+
+          // 7. Create message
+          const newMessage = await tx.anonymousMessage.create({
+            data: {
+              bottleId,
+              senderId,
+              content,
+              idempotencyKey: idempotencyKey || null,
+            },
+          });
+
+          return newMessage;
+        },
+        {
+          isolationLevel: "Serializable",
+        },
+      );
+
+      return message;
+    } catch (error: any) {
+      lastError = error;
+
+      // If it's a serialization conflict, retry
+      if (error.code === "P2034") {
+        // P2034 = Serialization error in Prisma
+        if (attempt < maxRetries - 1) {
+          // Exponential backoff
+          const delay = Math.pow(2, attempt) * 100;
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+
+      // For other errors, throw immediately
+      throw error;
+    }
+  }
+
+  throw lastError;
 }
 
 // ============================================================
@@ -953,5 +1100,97 @@ export async function getRevealStatus(
     hasPendingRequest: true,
     isRequester: request.requestedById === userId,
     requestedById: request.requestedById,
+  };
+}
+
+// ============================================================
+// GET /api/bottles/current — Get the most recent active correspondence
+// ============================================================
+export async function getCurrentBottle(userId: string) {
+  // Find active bottles where user is sender or acceptor
+  const bottle = await prisma.messageInABottle.findFirst({
+    where: {
+      OR: [
+        { senderId: userId, status: { in: ["ACCEPTED", "REVEALED"] } },
+        { acceptedById: userId, status: { in: ["ACCEPTED", "REVEALED"] } },
+      ],
+    },
+    include: {
+      messages: {
+        orderBy: { createdAt: "asc" },
+      },
+    },
+    orderBy: [
+      { acceptedAt: "desc" },
+      { createdAt: "desc" },
+    ],
+  });
+
+  if (!bottle) {
+    return {
+      bottle: null,
+      latestLetter: null,
+      canReply: false,
+      waitingForReply: false,
+      canCreateBottle: true,
+      messageCount: 0,
+    };
+  }
+
+  // Build message list: initial message + anonymous messages
+  const allMessages = [
+    {
+      id: bottle.id,
+      content: bottle.message,
+      createdAt: bottle.createdAt,
+      senderId: bottle.senderId,
+      source: "INITIAL_BOTTLE" as const,
+    },
+    ...bottle.messages.map(m => ({
+      id: m.id,
+      content: m.content,
+      createdAt: m.createdAt,
+      senderId: m.senderId,
+      source: "ANONYMOUS_MESSAGE" as const,
+    })),
+  ];
+
+  const latestMessage = allMessages[allMessages.length - 1]!;
+  const isMine = latestMessage.senderId === userId;
+
+  // Determine state
+  // User can reply if: it's NOT their turn (last message is from someone else)
+  const canReply = !isMine && bottle.status === "ACCEPTED";
+  const waitingForReply = isMine && bottle.status === "ACCEPTED";
+
+  // Check if user can create a new bottle
+  const pendingCount = await prisma.messageInABottle.count({
+    where: { senderId: userId, status: "FLOATING" },
+  });
+  const sender = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { premiumTier: true, premiumUntil: true },
+  });
+  const maxFloating = sender && isPremiumActive(sender)
+    ? MAX_FLOATING_PREMIUM
+    : MAX_FLOATING_FREE;
+  const canCreateBottle = pendingCount < maxFloating;
+
+  return {
+    bottle: {
+      id: bottle.id,
+      status: bottle.status,
+    },
+    latestLetter: {
+      id: latestMessage.id,
+      content: latestMessage.content,
+      createdAt: latestMessage.createdAt.toISOString(),
+      isMine,
+      source: latestMessage.source,
+    },
+    canReply,
+    waitingForReply,
+    canCreateBottle,
+    messageCount: allMessages.length,
   };
 }

@@ -659,15 +659,17 @@ model BottleReceipt {
 }
 
 model AnonymousMessage {
-  id        String           @id @default(cuid())
-  bottleId  String
-  bottle    MessageInABottle @relation(fields: [bottleId], references: [id], onDelete: Cascade)
-  senderId  String
-  sender    User             @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  content   String           @db.Text
-  createdAt DateTime         @default(now())
+  id              String           @id @default(cuid())
+  bottleId        String
+  bottle          MessageInABottle @relation(fields: [bottleId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User             @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content         String           @db.Text
+  idempotencyKey  String?
+  createdAt       DateTime         @default(now())
 
   @@index([bottleId, createdAt])
+  @@unique([senderId, idempotencyKey], name: "AnonymousMessage_senderId_idempotencyKey_key")
 }
 
 model BottleRevealRequest {
