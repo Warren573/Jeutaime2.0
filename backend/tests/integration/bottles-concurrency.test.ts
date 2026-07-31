@@ -25,6 +25,29 @@ describe.skipIf(!ENABLED)('BOTTLES: Concurrency with Serializable Isolation (Int
     senderId = 'concurrency-test-sender-' + Math.random().toString(36).substring(7);
     acceptorId = 'concurrency-test-acceptor-' + Math.random().toString(36).substring(7);
 
+    // Create test users (required for foreign key constraints)
+    await prisma.user.create({
+      data: {
+        id: senderId,
+        email: `${senderId}@test.local`,
+        passwordHash: 'test_hash',
+        role: 'USER',
+        isVerified: true,
+        premiumTier: 'FREE',
+      },
+    });
+
+    await prisma.user.create({
+      data: {
+        id: acceptorId,
+        email: `${acceptorId}@test.local`,
+        passwordHash: 'test_hash',
+        role: 'USER',
+        isVerified: true,
+        premiumTier: 'FREE',
+      },
+    });
+
     // Create a bottle in ACCEPTED state
     const bottle = await prisma.messageInABottle.create({
       data: {
@@ -53,6 +76,11 @@ describe.skipIf(!ENABLED)('BOTTLES: Concurrency with Serializable Isolation (Int
       });
       await prisma.messageInABottle.deleteMany({
         where: { id: testBottleId },
+      });
+      await prisma.user.deleteMany({
+        where: {
+          id: { in: [senderId, acceptorId] },
+        },
       });
     } catch (e) {
       // Ignore cleanup errors
@@ -123,6 +151,18 @@ describe.skipIf(!ENABLED)('BOTTLES: Concurrency with Serializable Isolation (Int
   it('should respect FLOATING quota under concurrent creates', async () => {
     const userId = 'quota-test-user-' + Math.random().toString(36).substring(7);
 
+    // Create test user first
+    await prisma.user.create({
+      data: {
+        id: userId,
+        email: `${userId}@test.local`,
+        passwordHash: 'test_hash',
+        role: 'USER',
+        isVerified: true,
+        premiumTier: 'FREE',
+      },
+    });
+
     // Create exactly 1 FLOATING bottle (at quota limit)
     await prisma.messageInABottle.create({
       data: {
@@ -167,6 +207,14 @@ describe.skipIf(!ENABLED)('BOTTLES: Concurrency with Serializable Isolation (Int
 
     // Should NOT exceed quota of 1
     expect(pendingCount).toBeLessThanOrEqual(2); // 1 created + at most 1 more
+
+    // Cleanup quota test user
+    await prisma.messageInABottle.deleteMany({
+      where: { senderId: userId },
+    });
+    await prisma.user.deleteMany({
+      where: { id: userId },
+    });
   });
 
   // ============================================================
