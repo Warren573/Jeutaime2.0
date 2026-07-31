@@ -38,6 +38,7 @@ describe.skipIf(!ENABLED)('BOTTLES: Concurrency with Serializable Isolation (Int
         status: 'ACCEPTED',
         acceptedById: acceptorId,
         acceptedAt: new Date(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
       },
     });
 
@@ -133,6 +134,7 @@ describe.skipIf(!ENABLED)('BOTTLES: Concurrency with Serializable Isolation (Int
         ageMin: 25,
         ageMax: 35,
         status: 'FLOATING',
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
       },
     });
 
