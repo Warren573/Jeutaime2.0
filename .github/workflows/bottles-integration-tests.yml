@@ -77,11 +77,17 @@ jobs:
         env:
           PGPASSWORD: postgres
 
-      - name: Run Prisma migrations
+      - name: Apply CI baseline schema
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d jeutaime_test -f backend/prisma/ci-baseline/schema.sql
+
+      - name: Verify schema consistency (zero drift)
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
-        run: npx prisma migrate deploy
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 
       - name: Verify database connection
         env:
