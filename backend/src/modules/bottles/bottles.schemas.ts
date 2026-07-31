@@ -127,8 +127,20 @@ export const BottleMessageSchema = z.object({
   createdAt: z.string().datetime(),
 });
 
+export const BottleMessageWithMetadataSchema = z.object({
+  id: z.string(),
+  content: z.string(),
+  createdAt: z.string().datetime(),
+  isMine: z.boolean(),
+  source: z.enum(["INITIAL_BOTTLE", "ANONYMOUS_MESSAGE"]),
+});
+
+export type BottleMessageWithMetadata = z.infer<
+  typeof BottleMessageWithMetadataSchema
+>;
+
 export const GetBottleMessagesResponseSchema = z.object({
-  messages: z.array(BottleMessageSchema),
+  messages: z.array(BottleMessageWithMetadataSchema),
 });
 
 export type GetBottleMessagesResponse = z.infer<
@@ -140,17 +152,19 @@ export type GetBottleMessagesResponse = z.infer<
 // ============================================================
 export const PostBottleMessageBodySchema = z.object({
   content: z.string().min(1).max(500),
+  idempotencyKey: z.string().uuid("Invalid UUID format for idempotencyKey"),
 });
 
 export type PostBottleMessageBody = z.infer<
   typeof PostBottleMessageBodySchema
 >;
 
-export const PostBottleMessageResponseSchema = BottleMessageSchema;
+export const PostBottleMessageResponseSchema = z.object({
+  message: BottleMessageSchema,
+  idempotentReplay: z.boolean().describe("true if this is a replay of a previous request"),
+});
 
-export type PostBottleMessageResponse = z.infer<
-  typeof PostBottleMessageResponseSchema
->;
+export type PostBottleMessageResponse = z.infer<typeof PostBottleMessageResponseSchema>;
 
 // ============================================================
 // GET /api/bottles/unread-count
@@ -281,4 +295,33 @@ export const GetRevealStatusResponseSchema = z.object({
 
 export type GetRevealStatusResponse = z.infer<
   typeof GetRevealStatusResponseSchema
+>;
+
+// ============================================================
+// GET /api/bottles/current
+// ============================================================
+export const LatestLetterSchema = z.object({
+  id: z.string(),
+  content: z.string(),
+  createdAt: z.string().datetime(),
+  isMine: z.boolean(),
+  source: z.enum(["INITIAL_BOTTLE", "ANONYMOUS_MESSAGE"]),
+});
+
+export type LatestLetter = z.infer<typeof LatestLetterSchema>;
+
+export const GetCurrentBottleResponseSchema = z.object({
+  bottle: z.object({
+    id: z.string(),
+    status: z.enum(["FLOATING", "ACCEPTED", "REVEALED", "BROKEN", "EXPIRED"]),
+  }).nullable(),
+  latestLetter: LatestLetterSchema.nullable(),
+  canReply: z.boolean(),
+  waitingForReply: z.boolean(),
+  canCreateBottle: z.boolean(),
+  messageCount: z.number(),
+});
+
+export type GetCurrentBottleResponse = z.infer<
+  typeof GetCurrentBottleResponseSchema
 >;

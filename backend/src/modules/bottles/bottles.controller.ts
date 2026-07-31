@@ -11,7 +11,6 @@ import {
   AcceptBottleBodySchema,
   AcceptBottleResponseSchema,
   RefuseBottleBodySchema,
-  RefuseBottleResponseSchema,
   GetBottleMessagesResponseSchema,
   PostBottleMessageBodySchema,
   PostBottleMessageResponseSchema,
@@ -29,6 +28,7 @@ import {
   RestartBottleBodySchema,
   RestartBottleResponseSchema,
   GetRevealStatusResponseSchema,
+  GetCurrentBottleResponseSchema,
 } from "./bottles.schemas";
 
 // ============================================================
@@ -251,23 +251,23 @@ export async function getMessages(req: AuthedRequest, res: Response) {
   const bottleId = req.params["id"] as string;
   const userId = req.user.userId;
 
-  // Verify user is sender or acceptor
-  const bottle = await prisma.messageInABottle.findUnique({
-    where: { id: bottleId },
-  });
+  try {
+    const result = await bottlesService.getMessages(bottleId, userId);
+    const validated = GetBottleMessagesResponseSchema.parse(serializeDates(result));
 
-  if (!bottle) {
-    return res.status(404).json({ error: "Bottle not found" });
+    res.json({ data: validated });
+  } catch (error: any) {
+    const code = error.code || error.message;
+
+    if (code === "BOTTLE_NOT_FOUND") {
+      return res.status(404).json({ error: "Bottle not found" });
+    }
+    if (code === "NOT_BOTTLE_PARTICIPANT") {
+      return res.status(403).json({ error: "Not a participant" });
+    }
+
+    throw error;
   }
-
-  if (bottle.senderId !== userId && bottle.acceptedById !== userId) {
-    return res.status(403).json({ error: "Unauthorized" });
-  }
-
-  const messages = await bottlesService.getMessages(bottleId);
-  const validated = GetBottleMessagesResponseSchema.parse(serializeDates({ messages }));
-
-  res.json({ data: validated });
 }
 
 // ============================================================
@@ -278,27 +278,38 @@ export async function postMessage(req: AuthedRequest, res: Response) {
   const bottleId = req.params["id"] as string;
   const userId = req.user.userId;
 
-  // Verify user is sender or acceptor
-  const bottle = await prisma.messageInABottle.findUnique({
-    where: { id: bottleId },
-  });
+  try {
+    const result = await bottlesService.postMessage(
+      bottleId,
+      userId,
+      body.content,
+      body.idempotencyKey,
+    );
 
-  if (!bottle) {
-    return res.status(404).json({ error: "Bottle not found" });
+    const validated = PostBottleMessageResponseSchema.parse(
+      serializeDates(result),
+    );
+    // 200 if replay, 201 if new
+    const statusCode = result.idempotentReplay ? 200 : 201;
+    res.status(statusCode).json({ data: validated });
+  } catch (error: any) {
+    const code = error.code || error.message;
+
+    if (code === "BOTTLE_NOT_FOUND") {
+      return res.status(404).json({ error: "Bottle not found" });
+    }
+    if (code === "NOT_BOTTLE_PARTICIPANT") {
+      return res.status(403).json({ error: "Not a participant" });
+    }
+    if (code === "BOTTLE_NOT_ACTIVE") {
+      return res.status(409).json({ error: "Bottle is not active", code: "BOTTLE_NOT_ACTIVE" });
+    }
+    if (code === "LETTER_TURN_VIOLATION") {
+      return res.status(409).json({ error: "It's not your turn to respond", code: "LETTER_TURN_VIOLATION" });
+    }
+
+    throw error;
   }
-
-  if (bottle.senderId !== userId && bottle.acceptedById !== userId) {
-    return res.status(403).json({ error: "Unauthorized" });
-  }
-
-  const message = await bottlesService.postMessage(
-    bottleId,
-    userId,
-    body.content,
-  );
-
-  const validated = PostBottleMessageResponseSchema.parse(serializeDates(message));
-  res.status(201).json({ data: validated });
 }
 
 // ============================================================
@@ -408,4 +419,34 @@ export async function getRevealStatus(req: AuthedRequest, res: Response) {
   const validated = GetRevealStatusResponseSchema.parse(status);
 
   res.json({ data: validated });
+}
+
+// ============================================================
+// GET /api/bottles/current
+// ============================================================
+export async function getCurrentBottle(req: AuthedRequest, res: Response) {
+  const userId = req.user.userId;
+  console.log("[CONTROLLER] getCurrentBottle called", { userId, path: req.path });
+
+  try {
+    const result = await bottlesService.getCurrentBottle(userId);
+    console.log("[CONTROLLER] Service returned:", {
+      hasBottle: !!result.bottle,
+      hasLatest: !!result.latestLetter,
+      canCreate: result.canCreateBottle,
+    });
+
+    const validated = GetCurrentBottleResponseSchema.parse(result);
+    console.log("[CONTROLLER] Validation passed, sending 200 OK");
+
+    res.json({ data: validated });
+  } catch (error: any) {
+    console.error("[CONTROLLER] getCurrentBottle ERROR:", {
+      message: error?.message,
+      code: error?.code,
+      status: res.statusCode,
+      stack: error?.stack,
+    });
+    throw error;
+  }
 }

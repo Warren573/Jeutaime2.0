@@ -24,7 +24,6 @@ export async function handleRefresh(req: Request, res: Response) {
 }
 
 export async function handleLogout(req: AuthedRequest, res: Response) {
-  const raw = req.headers.authorization?.slice(7) ?? "";
   const body = req.body as Record<string, unknown>;
   const refreshToken = typeof body["refreshToken"] === "string" ? body["refreshToken"] : "";
   if (!refreshToken) throw new BadRequestError("refreshToken requis dans le body");
