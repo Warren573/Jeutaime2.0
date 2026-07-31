@@ -1,7 +1,7 @@
 name: Bottles Integration Tests (PostgreSQL)
 
 on:
-  workflow_dispatch
+  workflow_dispatch:
   push:
     branches:
       - claude/duel-validation-profiles-r85y7z
