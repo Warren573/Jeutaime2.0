@@ -1102,6 +1102,8 @@ export async function getRevealStatus(
 // GET /api/bottles/current — Get the most recent active correspondence
 // ============================================================
 export async function getCurrentBottle(userId: string) {
+  console.log("[DEBUG] getCurrentBottle START", { userId });
+
   // Find active bottles where user is sender or acceptor
   // ACCEPTED = anonymous letter correspondence
   // REVEALED = match created (not anonymous letters anymore)
@@ -1123,7 +1125,14 @@ export async function getCurrentBottle(userId: string) {
     ],
   });
 
+  console.log("[DEBUG] Prisma findFirst result:", {
+    found: !!bottle,
+    bottleId: bottle?.id || null,
+    bottleStatus: bottle?.status || null,
+  });
+
   if (!bottle) {
+    console.log("[DEBUG] No bottle found, returning empty state");
     return {
       bottle: null,
       latestLetter: null,
@@ -1155,6 +1164,12 @@ export async function getCurrentBottle(userId: string) {
   const latestMessage = allMessages[allMessages.length - 1]!;
   const isMine = latestMessage.senderId === userId;
 
+  console.log("[DEBUG] Latest message:", {
+    messageId: latestMessage.id,
+    isMine,
+    source: latestMessage.source,
+  });
+
   // Determine state
   // User can reply if: it's NOT their turn (last message is from someone else)
   const canReply = !isMine && bottle.status === "ACCEPTED";
@@ -1164,14 +1179,26 @@ export async function getCurrentBottle(userId: string) {
   const pendingCount = await prisma.messageInABottle.count({
     where: { senderId: userId, status: "FLOATING" },
   });
+  console.log("[DEBUG] pendingCount:", { pendingCount });
+
   const sender = await prisma.user.findUnique({
     where: { id: userId },
     select: { premiumTier: true, premiumUntil: true },
   });
+  console.log("[DEBUG] sender found:", { exists: !!sender, premiumTier: sender?.premiumTier });
+
   const maxFloating = sender && isPremiumActive(sender)
     ? MAX_FLOATING_PREMIUM
     : MAX_FLOATING_FREE;
   const canCreateBottle = pendingCount < maxFloating;
+
+  console.log("[DEBUG] Response ready:", {
+    bottleId: bottle.id,
+    canReply,
+    waitingForReply,
+    canCreateBottle,
+    messageCount: allMessages.length,
+  });
 
   return {
     bottle: {

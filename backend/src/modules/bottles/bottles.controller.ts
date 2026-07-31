@@ -426,9 +426,27 @@ export async function getRevealStatus(req: AuthedRequest, res: Response) {
 // ============================================================
 export async function getCurrentBottle(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
+  console.log("[CONTROLLER] getCurrentBottle called", { userId, path: req.path });
 
-  const result = await bottlesService.getCurrentBottle(userId);
-  const validated = GetCurrentBottleResponseSchema.parse(result);
+  try {
+    const result = await bottlesService.getCurrentBottle(userId);
+    console.log("[CONTROLLER] Service returned:", {
+      hasBottle: !!result.bottle,
+      hasLatest: !!result.latestLetter,
+      canCreate: result.canCreateBottle,
+    });
 
-  res.json({ data: validated });
+    const validated = GetCurrentBottleResponseSchema.parse(result);
+    console.log("[CONTROLLER] Validation passed, sending 200 OK");
+
+    res.json({ data: validated });
+  } catch (error: any) {
+    console.error("[CONTROLLER] getCurrentBottle ERROR:", {
+      message: error?.message,
+      code: error?.code,
+      status: res.statusCode,
+      stack: error?.stack,
+    });
+    throw error;
+  }
 }
