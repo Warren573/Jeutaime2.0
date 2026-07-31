@@ -59,26 +59,23 @@ describe('BOTTLES: Turn-by-Turn Logic (Unit)', () => {
     // Mock bottle exists and is ACCEPTED
     (prisma.messageInABottle.findUnique as any).mockResolvedValue({
       id: bottleId,
-      senderId: 'user-a', // A is the sender
+      senderId: 'user-a',
       acceptedById: 'user-b',
       status: 'ACCEPTED',
       message: 'Initial message from A',
       createdAt: new Date(),
     });
 
-    // Mock last message is from the same user (A)
-    (prisma.anonymousMessage.findFirst as any).mockResolvedValue({
-      id: 'msg-1',
-      senderId: 'user-a', // Last message is from A
-      content: 'Previous message from A',
-      createdAt: new Date(),
-    });
+    // Mock findFirst: first call (check existing message) returns null, second call (last message) returns A's message
+    (prisma.anonymousMessage.findFirst as any)
+      .mockResolvedValueOnce(null) // No existing message with this idempotencyKey
+      .mockResolvedValueOnce({ id: 'msg-1', senderId: 'user-a', content: 'Previous message from A', createdAt: new Date() });
 
     let errorThrown = false;
     let errorCode = '';
 
     try {
-      await bottlesService.postMessage(bottleId, senderId, 'A tries to respond again');
+      await bottlesService.postMessage(bottleId, senderId, 'A tries to respond again', '00000000-0000-0000-0000-000000000001');
     } catch (error: any) {
       errorThrown = true;
       errorCode = error.code;
@@ -105,33 +102,31 @@ describe('BOTTLES: Turn-by-Turn Logic (Unit)', () => {
       createdAt: new Date(),
     });
 
-    // Mock last message is from the other user (A)
-    (prisma.anonymousMessage.findFirst as any).mockResolvedValue({
-      id: 'msg-1',
-      senderId: 'user-a', // Last message is from A
-      content: 'Message from A',
-      createdAt: new Date(),
-    });
+    // Mock findFirst: first call returns null (no existing), second call returns A's message
+    (prisma.anonymousMessage.findFirst as any)
+      .mockResolvedValueOnce(null) // No existing message
+      .mockResolvedValueOnce({ id: 'msg-1', senderId: 'user-a', content: 'Message from A', createdAt: new Date() });
 
-    // Mock create to return the new message
+    // Mock create
     (prisma.anonymousMessage.create as any).mockResolvedValue({
       id: 'msg-2',
       bottleId,
       senderId: 'user-b',
       content: 'B\'s response',
-      idempotencyKey: null,
+      idempotencyKey: 'key-123',
       createdAt: new Date(),
     });
 
-    const message = await bottlesService.postMessage(
+    const result = await bottlesService.postMessage(
       bottleId,
       senderId,
       'B\'s response',
-      undefined,
+      'key-123',
     );
 
-    expect(message).toBeDefined();
-    expect(message.senderId).toBe('user-b');
+    expect(result).toBeDefined();
+    expect(result.message.senderId).toBe('user-b');
+    expect(result.idempotentReplay).toBe(false);
     expect((prisma.anonymousMessage.create as any)).toHaveBeenCalled();
   });
 
@@ -152,8 +147,10 @@ describe('BOTTLES: Turn-by-Turn Logic (Unit)', () => {
       createdAt: new Date(),
     });
 
-    // Mock no anonymous messages (first reply)
-    (prisma.anonymousMessage.findFirst as any).mockResolvedValue(null);
+    // Mock findFirst: first call (check existing idempotency) returns null, second call (last message) returns null
+    (prisma.anonymousMessage.findFirst as any)
+      .mockResolvedValueOnce(null) // No existing message with this idempotencyKey
+      .mockResolvedValueOnce(null); // No previous messages, so allowed
 
     // Mock create to return the new message
     (prisma.anonymousMessage.create as any).mockResolvedValue({
@@ -161,19 +158,20 @@ describe('BOTTLES: Turn-by-Turn Logic (Unit)', () => {
       bottleId,
       senderId: 'user-b',
       content: 'B\'s first reply',
-      idempotencyKey: null,
+      idempotencyKey: '00000000-0000-0000-0000-000000000002',
       createdAt: new Date(),
     });
 
-    const message = await bottlesService.postMessage(
+    const result = await bottlesService.postMessage(
       bottleId,
       senderId,
       'B\'s first reply',
-      undefined,
+      '00000000-0000-0000-0000-000000000002',
     );
 
-    expect(message).toBeDefined();
-    expect(message.senderId).toBe('user-b');
+    expect(result).toBeDefined();
+    expect(result.message.senderId).toBe('user-b');
+    expect(result.idempotentReplay).toBe(false);
   });
 
   // ============================================================
@@ -275,18 +273,12 @@ describe('BOTTLES: Turn-by-Turn Logic (Unit)', () => {
       return Promise.resolve(null);
     });
 
-    let errorThrown = false;
-    let errorCode = '';
+    // Now retry with the same key
+    const result = await bottlesService.postMessage(bottleId, senderId, 'Retry message (different content)', idempotencyKey);
 
-    try {
-      await bottlesService.postMessage(bottleId, senderId, 'Retry message', idempotencyKey);
-    } catch (error: any) {
-      errorThrown = true;
-      errorCode = error.code;
-    }
-
-    expect(errorThrown).toBe(true);
-    expect(errorCode).toBe('DUPLICATE_LETTER_REQUEST');
+    expect(result).toBeDefined();
+    expect(result.idempotentReplay).toBe(true);
+    expect(result.message?.id).toBe('msg-1'); // Same message returned
   });
 
   // ============================================================

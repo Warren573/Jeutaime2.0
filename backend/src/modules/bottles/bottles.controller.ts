@@ -280,15 +280,19 @@ export async function postMessage(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
 
   try {
-    const message = await bottlesService.postMessage(
+    const result = await bottlesService.postMessage(
       bottleId,
       userId,
       body.content,
       body.idempotencyKey,
     );
 
-    const validated = PostBottleMessageResponseSchema.parse(serializeDates(message));
-    res.status(201).json({ data: validated });
+    const validated = PostBottleMessageResponseSchema.parse(
+      serializeDates(result),
+    );
+    // 200 if replay, 201 if new
+    const statusCode = result.idempotentReplay ? 200 : 201;
+    res.status(statusCode).json({ data: validated });
   } catch (error: any) {
     const code = error.code || error.message;
 
@@ -303,9 +307,6 @@ export async function postMessage(req: AuthedRequest, res: Response) {
     }
     if (code === "LETTER_TURN_VIOLATION") {
       return res.status(409).json({ error: "It's not your turn to respond", code: "LETTER_TURN_VIOLATION" });
-    }
-    if (code === "DUPLICATE_LETTER_REQUEST") {
-      return res.status(409).json({ error: "Duplicate message", code: "DUPLICATE_LETTER_REQUEST" });
     }
 
     throw error;

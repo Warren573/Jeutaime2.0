@@ -152,18 +152,19 @@ export type GetBottleMessagesResponse = z.infer<
 // ============================================================
 export const PostBottleMessageBodySchema = z.object({
   content: z.string().min(1).max(500),
-  idempotencyKey: z.string().optional(),
+  idempotencyKey: z.string().uuid("Invalid UUID format for idempotencyKey"),
 });
 
 export type PostBottleMessageBody = z.infer<
   typeof PostBottleMessageBodySchema
 >;
 
-export const PostBottleMessageResponseSchema = BottleMessageSchema;
+export const PostBottleMessageResponseSchema = z.object({
+  message: BottleMessageSchema,
+  idempotentReplay: z.boolean().describe("true if this is a replay of a previous request"),
+});
 
-export type PostBottleMessageResponse = z.infer<
-  typeof PostBottleMessageResponseSchema
->;
+export type PostBottleMessageResponse = z.infer<typeof PostBottleMessageResponseSchema>;
 
 // ============================================================
 // GET /api/bottles/unread-count

@@ -255,7 +255,7 @@ describe("BottleService", () => {
   });
 
   describe("postMessage", () => {
-    it("should create anonymous message", async () => {
+    it("should create anonymous message with idempotency key", async () => {
       const mockBottle = {
         id: "bottle1",
         senderId: "user1",
@@ -270,15 +270,18 @@ describe("BottleService", () => {
         bottleId: "bottle1",
         senderId: "user2",
         content: "Hello from acceptor!",
-        idempotencyKey: null,
+        idempotencyKey: "uuid-key-1",
         createdAt: new Date(),
       };
+
+      // Mock no existing message (first time)
+      vi.mocked(prisma.anonymousMessage.findFirst).mockResolvedValueOnce(null as any);
 
       // Mock the bottle lookup
       vi.mocked(prisma.messageInABottle.findUnique).mockResolvedValue(mockBottle as any);
 
       // Mock the last message check (no previous messages, so user1 is the last sender)
-      vi.mocked(prisma.anonymousMessage.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.anonymousMessage.findFirst).mockResolvedValueOnce(null as any);
 
       // Mock the message creation
       vi.mocked(prisma.anonymousMessage.create).mockResolvedValue(mockMessage as any);
@@ -287,19 +290,47 @@ describe("BottleService", () => {
         "bottle1",
         "user2",
         "Hello from acceptor!",
-        undefined,
+        "uuid-key-1",
       );
 
-      expect(result.id).toBe("msg1");
-      expect(result.content).toBe("Hello from acceptor!");
+      expect(result.message.id).toBe("msg1");
+      expect(result.message.content).toBe("Hello from acceptor!");
+      expect(result.idempotentReplay).toBe(false);
       expect(prisma.anonymousMessage.create).toHaveBeenCalledWith({
         data: {
           bottleId: "bottle1",
           senderId: "user2",
           content: "Hello from acceptor!",
-          idempotencyKey: null,
+          idempotencyKey: "uuid-key-1",
         },
       });
+    });
+
+    it("should return existing message on idempotent replay", async () => {
+      const idempotencyKey = "uuid-key-existing";
+      const existingMessage = {
+        id: "msg-existing",
+        bottleId: "bottle1",
+        senderId: "user2",
+        content: "Existing message",
+        idempotencyKey,
+        createdAt: new Date(),
+      };
+
+      // Mock finding the existing message
+      vi.mocked(prisma.anonymousMessage.findFirst).mockResolvedValue(existingMessage as any);
+
+      const result = await bottlesService.postMessage(
+        "bottle1",
+        "user2",
+        "Retry content",
+        idempotencyKey,
+      );
+
+      expect(result.message.id).toBe("msg-existing");
+      expect(result.idempotentReplay).toBe(true);
+      // Should NOT call create
+      expect(prisma.anonymousMessage.create).not.toHaveBeenCalled();
     });
   });
 

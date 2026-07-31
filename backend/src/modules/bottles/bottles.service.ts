@@ -417,17 +417,30 @@ export async function postMessage(
   bottleId: string,
   senderId: string,
   content: string,
-  idempotencyKey?: string,
-): Promise<AnonymousMessage> {
+  idempotencyKey: string,
+): Promise<{ message: AnonymousMessage; idempotentReplay: boolean }> {
   // Use Serializable isolation to ensure turn-by-turn atomicity
   const maxRetries = 3;
   let lastError: any = null;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const message = await prisma.$transaction(
+      const result = await prisma.$transaction(
         async (tx) => {
-          // 1. Fetch bottle with locking (explicit SELECT FOR UPDATE via findFirst with rejectOnNotFound behavior)
+          // 1. Check for existing message with this idempotency key FIRST
+          const existingMessage = await tx.anonymousMessage.findFirst({
+            where: {
+              senderId,
+              idempotencyKey,
+            },
+          });
+
+          // If exists, return it (idempotent replay)
+          if (existingMessage) {
+            return { message: existingMessage, idempotentReplay: true };
+          }
+
+          // 2. Fetch bottle
           const bottle = await tx.messageInABottle.findUnique({
             where: { id: bottleId },
           });
@@ -438,90 +451,73 @@ export async function postMessage(
             throw err;
           }
 
-          // 2. Verify bottle is active
+          // 3. Verify bottle is ACCEPTED (not REVEALED, not EXPIRED, etc.)
           if (bottle.status !== "ACCEPTED") {
             const err = new Error("Bottle is not active");
             (err as any).code = "BOTTLE_NOT_ACTIVE";
             throw err;
           }
 
-          // 3. Verify user is a participant
+          // 4. Verify user is a participant
           if (bottle.senderId !== senderId && bottle.acceptedById !== senderId) {
             const err = new Error("User is not a participant");
             (err as any).code = "NOT_BOTTLE_PARTICIPANT";
             throw err;
           }
 
-          // 4. Get all messages to check last sender
+          // 5. Get last message to check turn
           const lastMessage = await tx.anonymousMessage.findFirst({
             where: { bottleId },
             orderBy: { createdAt: "desc" },
           });
 
-          // Determine who sent the last message
-          // If no anonymous messages, the last sender is the initial bottle sender
           let lastSenderId: string;
           if (!lastMessage) {
+            // No anonymous messages yet: last sender is initial bottle sender
             lastSenderId = bottle.senderId;
           } else {
             lastSenderId = lastMessage.senderId;
           }
 
-          // 5. Verify it's this user's turn (last message was NOT from this user)
+          // 6. Verify it's this user's turn
           if (lastSenderId === senderId) {
             const err = new Error("It's not your turn to respond");
             (err as any).code = "LETTER_TURN_VIOLATION";
             throw err;
           }
 
-          // 6. Check for duplicate idempotency key
-          if (idempotencyKey) {
-            const existing = await tx.anonymousMessage.findFirst({
-              where: {
-                senderId,
-                idempotencyKey,
-              },
-            });
-            if (existing) {
-              const err = new Error("Duplicate message with same idempotency key");
-              (err as any).code = "DUPLICATE_LETTER_REQUEST";
-              throw err;
-            }
-          }
-
-          // 7. Create message
+          // 7. Create message with idempotency key
           const newMessage = await tx.anonymousMessage.create({
             data: {
               bottleId,
               senderId,
               content,
-              idempotencyKey: idempotencyKey || null,
+              idempotencyKey,
             },
           });
 
-          return newMessage;
+          return { message: newMessage, idempotentReplay: false };
         },
         {
           isolationLevel: "Serializable",
         },
       );
 
-      return message;
+      return result;
     } catch (error: any) {
       lastError = error;
 
-      // If it's a serialization conflict, retry
+      // Only retry on serialization conflicts (P2034)
       if (error.code === "P2034") {
-        // P2034 = Serialization error in Prisma
         if (attempt < maxRetries - 1) {
-          // Exponential backoff
+          // Exponential backoff: 100ms, 200ms, 400ms
           const delay = Math.pow(2, attempt) * 100;
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
       }
 
-      // For other errors, throw immediately
+      // For all other errors, throw immediately (business errors or final P2034)
       throw error;
     }
   }
@@ -1108,11 +1104,13 @@ export async function getRevealStatus(
 // ============================================================
 export async function getCurrentBottle(userId: string) {
   // Find active bottles where user is sender or acceptor
+  // ACCEPTED = anonymous letter correspondence
+  // REVEALED = match created (not anonymous letters anymore)
   const bottle = await prisma.messageInABottle.findFirst({
     where: {
       OR: [
-        { senderId: userId, status: { in: ["ACCEPTED", "REVEALED"] } },
-        { acceptedById: userId, status: { in: ["ACCEPTED", "REVEALED"] } },
+        { senderId: userId, status: "ACCEPTED" },
+        { acceptedById: userId, status: "ACCEPTED" },
       ],
     },
     include: {
