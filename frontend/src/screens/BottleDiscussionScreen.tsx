@@ -29,7 +29,7 @@ import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import { generateUUID } from '../utils/uuid';
 import type { GetCurrentBottleResponse } from '../api/bottles';
 
-const LETTER_BG = require('../../assets/images/bottle/letter-bg.jpg');
+const LETTER_BG = require('../../assets/images/bottle/letter-bg2.jpg');
 
 const COLORS = {
   bg: '#F5F1E8',

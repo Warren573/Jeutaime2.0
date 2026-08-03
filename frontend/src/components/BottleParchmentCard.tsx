@@ -6,7 +6,7 @@ interface BottleParchmentCardProps {
   compact?: boolean;
 }
 
-const PARCHMENT_BG = require('../../assets/images/bottle/letter-bg.png');
+const PARCHMENT_BG = require('../../assets/images/bottle/letter-bg2.jpg');
 const { width } = Dimensions.get('window');
 
 export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
