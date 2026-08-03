@@ -93,7 +93,10 @@ export default function BottleOldLetterScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: 200 },
+          ]}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.paddedSection}>
@@ -107,13 +110,13 @@ export default function BottleOldLetterScreen() {
 
           <BottleParchmentCard content={message.content} />
         </ScrollView>
+      </View>
 
-        <View style={[styles.bannerContainer, { bottom: insets.bottom + 16 }]}>
-          <View style={styles.readOnlyBox}>
-            <Text style={styles.readOnlyText}>
-              🔒 Lecture seule
-            </Text>
-          </View>
+      <View style={[styles.bannerContainer, { bottom: insets.bottom + 12 }]}>
+        <View style={styles.readOnlyBox}>
+          <Text style={styles.readOnlyText}>
+            🔒 Lecture seule
+          </Text>
         </View>
       </View>
     </View>
@@ -126,8 +129,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    flexDirection: 'column',
-    justifyContent: 'space-between',
   },
   scroll: {
     flex: 1,
@@ -139,9 +140,8 @@ const styles = StyleSheet.create({
   },
   bannerContainer: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
+    left: 16,
+    right: 16,
   },
   paddedSection: {
     paddingHorizontal: 16,
