@@ -117,6 +117,18 @@ export default function BottleMainScreen() {
   if (displayState?.type === 'received') {
     const availableBottles = getAvailableBottles();
     const selectedBottle = selectedBottleId ? availableBottles.find((b) => b.id === selectedBottleId) : null;
+    if (availableBottles.length === 0) {
+      return (<View style={[styles.bg, { backgroundColor: CREAM_BG }]}><View style={[styles.container, { paddingTop: insets.top }]}><ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
+        <View style={styles.paddedSection}>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>🌊</Text>
+            <Text style={styles.emptyTitle}>Aucune bouteille à découvrir</Text>
+            <Text style={styles.emptySubtext}>Revenez plus tard ou lancez votre propre message.</Text>
+          </View>
+          {state?.canCreateBottle && (<TouchableOpacity style={styles.createBtn} onPress={() => router.push('/bottles-create')}><Text style={styles.createBtnText}>Créer une nouvelle bouteille</Text></TouchableOpacity>)}
+        </View>
+      </ScrollView></View></View>);
+    }
     return (<View style={[styles.bg, { backgroundColor: CREAM_BG }]}><View style={[styles.container, { paddingTop: insets.top }]}><ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
       {!selectedBottle ? (<><View style={styles.paddedSection}><Text style={styles.selectionTitle}>Choisissez une bouteille</Text><Text style={styles.selectionSubtitle}>Découvrez des messages anonymes</Text></View><View style={styles.bottlesContainer}>{availableBottles.map((bottle, index) => (<BottleItem key={bottle.id} id={bottle.id} index={index} position={bottlePositions[index % bottlePositions.length]} onPress={() => setSelectedBottleId(bottle.id)} />))}</View><View style={styles.paddedSection}>{state?.canCreateBottle && (<TouchableOpacity style={styles.createAlternativeBtn} onPress={() => router.push('/bottles-create')}><Text style={styles.createAlternativeBtnText}>Ou créer une nouvelle bouteille</Text></TouchableOpacity>)}</View></>) : (<><View style={styles.paddedSection}><TouchableOpacity style={styles.backSelection} onPress={() => setSelectedBottleId(null)}><Text style={styles.backSelectionText}>← Choisir une autre</Text></TouchableOpacity></View><BottleParchmentCard content={selectedBottle.message || ''} /><View style={styles.paddedSection}><View style={styles.actionBox}><TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.success }]} onPress={handleAccept} disabled={isAccepting}><Text style={styles.actionBtnText}>{isAccepting ? 'Acceptation...' : '✓ Accepter'}</Text></TouchableOpacity><TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.error }]} onPress={handleRefuse}><Text style={styles.actionBtnText}>✗ Refuser</Text></TouchableOpacity></View></View></>)}
     </ScrollView></View></View>);
