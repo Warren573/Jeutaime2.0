@@ -28,7 +28,7 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
             height: cardHeight,
           },
         ]}
-        resizeMode="contain"
+        resizeMode="cover"
       >
         <View style={[styles.textArea, compact && styles.textAreaCompact]}>
           <Text style={[styles.message, compact && styles.messageCompact]}>
