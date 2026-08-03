@@ -13,9 +13,9 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
   content,
   compact = false,
 }) => {
-  // Parchemin: 94-96% de la largeur utile, max 550 pour tablet/desktop
-  const cardWidth = Math.min(width * 0.95, 550);
-  const cardHeight = cardWidth * 1.33;
+  // Parchemin: prend toute la largeur
+  const cardWidth = width;
+  const cardHeight = width * 1.33;
 
   return (
     <View style={[styles.container, compact && styles.containerCompact]}>
@@ -42,22 +42,23 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
+    alignItems: 'stretch',
     marginBottom: 24,
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
   },
   containerCompact: {
     marginBottom: 12,
   },
   parchment: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
   },
   textArea: {
-    width: '85%',
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
+    width: '100%',
+    paddingTop: 48,
+    paddingBottom: 48,
+    paddingHorizontal: 32,
+    justifyContent: 'flex-start',
   },
   textAreaCompact: {
     paddingVertical: 24,
@@ -69,7 +70,7 @@ const styles = StyleSheet.create({
     color: '#3A2A1A',
     fontFamily: 'Georgia',
     fontStyle: 'italic',
-    textAlign: 'justify',
+    textAlign: 'left',
   },
   messageCompact: {
     fontSize: 13,
