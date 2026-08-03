@@ -292,14 +292,6 @@ export default function BottleMainScreen() {
               />
             }
           >
-            <View style={styles.floatingBox}>
-              <Text style={styles.floatingEmoji}>🌊</Text>
-              <Text style={styles.floatingTitle}>Votre bouteille voyage</Text>
-              <Text style={styles.floatingText}>
-                Nous recherchons quelqu{"'"}un qui apprécierait votre lettre...
-              </Text>
-            </View>
-
             <BottleParchmentCard content={bottle?.message || ''} />
 
             <View style={styles.infoBox}>
