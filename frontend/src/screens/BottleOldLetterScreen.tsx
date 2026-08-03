@@ -108,8 +108,6 @@ export default function BottleOldLetterScreen() {
           <BottleParchmentCard content={message.content} />
         </ScrollView>
 
-        <View style={styles.spacer} />
-
         <View style={[styles.bannerContainer, { marginBottom: insets.bottom + 16 }]}>
           <View style={styles.readOnlyBox}>
             <Text style={styles.readOnlyText}>
@@ -128,16 +126,15 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'space-between',
   },
   scroll: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 0,
-    paddingVertical: 40,
-  },
-  spacer: {
-    flex: 1,
+    paddingVertical: 60,
   },
   bannerContainer: {
     paddingHorizontal: 16,
