@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'stretch',
     marginBottom: 0,
-    marginHorizontal: -16,
+    marginHorizontal: -999,
     paddingHorizontal: 0,
   },
   containerCompact: {
