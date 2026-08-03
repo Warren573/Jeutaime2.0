@@ -134,7 +134,8 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 0,
-    paddingVertical: 60,
+    paddingTop: 80,
+    paddingBottom: 80,
   },
   bannerContainer: {
     paddingHorizontal: 16,
