@@ -13,7 +13,7 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
   content,
   compact = false,
 }) => {
-  const cardHeight = width * 1.33;
+  const cardHeight = width * (885 / 624);
 
   return (
     <View style={[styles.container, compact && styles.containerCompact]}>
