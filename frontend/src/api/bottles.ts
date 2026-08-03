@@ -28,6 +28,8 @@ export interface InboxBottleDTO {
   senderCity: string;
   targetGender: string;
   status: "FLOATING" | "ACCEPTED" | "EXPIRED" | "REVEALED" | "BROKEN";
+  senderId: string;
+  acceptedById: string | null;
   createdAt: string;
   expiresAt: string;
 }
