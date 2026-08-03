@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -13,7 +13,7 @@ const COLORS = { text: '#2B2B2B', textSecondary: '#6B6B6B', accent: '#8B2E3C', s
 
 const BottleItem: React.FC<{ id: string; index: number; onPress: () => void; position: { left: string; top: string } }> = ({ id, index, onPress, position }) => {
   const floatAnim = useMemo(() => new Animated.Value(0), []);
-  useMemo(() => { Animated.loop(Animated.sequence([Animated.timing(floatAnim, { toValue: 1, duration: 3000 + index * 200, easing: Easing.inOut(Easing.sine), useNativeDriver: true }), Animated.timing(floatAnim, { toValue: 0, duration: 3000 + index * 200, easing: Easing.inOut(Easing.sine), useNativeDriver: true })])).start(); }, [floatAnim, index]);
+  useEffect(() => { Animated.loop(Animated.sequence([Animated.timing(floatAnim, { toValue: 1, duration: 3000 + index * 200, easing: Easing.inOut(Easing.sine), useNativeDriver: true }), Animated.timing(floatAnim, { toValue: 0, duration: 3000 + index * 200, easing: Easing.inOut(Easing.sine), useNativeDriver: true })])).start(); }, [floatAnim, index]);
   const rotation = useMemo(() => { const rotations = [-12, 8, -6, 14, -9, 11]; return rotations[index % rotations.length]; }, [index]);
   const floatY = floatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -16] });
   return (<Animated.View style={[styles.bottleItem, position, { transform: [{ rotateZ: `${rotation}deg` }, { translateY: floatY }] }]}>
@@ -137,7 +137,7 @@ export default function BottleMainScreen() {
     const bottle = displayState.bottle;
     return (<View style={[styles.bg, { backgroundColor: CREAM_BG }]}><View style={[styles.container, { paddingTop: insets.top }]}><ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
       <BottleParchmentCard content={bottle?.message || ''} />
-      <View style={styles.paddedSection}><View style={styles.infoBox}><Text style={styles.infoText}>Revenez bientôt pour voir si quelqu{"'"}un a répondu à votre lettre.</Text></View></View>
+      <View style={styles.paddedSection}><View style={styles.infoBox}><Text style={styles.infoText}>Revenez bientôt pour voir si quelqu'un a répondu à votre lettre.</Text></View></View>
     </ScrollView></View></View>);
   }
 
@@ -147,7 +147,7 @@ export default function BottleMainScreen() {
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>🌊</Text>
           <Text style={styles.emptyTitle}>Lancez une bouteille</Text>
-          <Text style={styles.emptySubtext}>Écrivez une lettre et laissez-la naviguer vers quelqu{"'"}un de spécial.</Text>
+          <Text style={styles.emptySubtext}>Écrivez une lettre et laissez-la naviguer vers quelqu'un de spécial.</Text>
         </View>
         <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/bottles-create')}><Text style={styles.createBtnText}>Créer une nouvelle bouteille</Text></TouchableOpacity>
       </View>
