@@ -92,7 +92,7 @@ export default function BottleMainScreen() {
     const sentFloating = inbox.find(
       (b) => b.status === 'FLOATING' && b.senderId === currentUser.id
     );
-    if (sentFloating && !state?.canCreateBottle) {
+    if (sentFloating) {
       return { type: 'sent', bottle: sentFloating };
     }
 
