@@ -45,6 +45,7 @@ const styles = StyleSheet.create({
     marginVertical: 0,
     paddingHorizontal: 0,
     paddingVertical: 0,
+    marginTop: 24,
   },
   containerCompact: {
     marginBottom: 12,
@@ -60,6 +61,7 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
     paddingHorizontal: 28,
     justifyContent: 'flex-start',
+    alignSelf: 'center',
   },
   textAreaCompact: {
     paddingVertical: 24,

@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9',
     borderLeftWidth: 4,
     borderLeftColor: '#2E7D32',
-    marginTop: 50,
+    marginTop: 80,
     marginBottom: 16,
   },
   readOnlyText: {
