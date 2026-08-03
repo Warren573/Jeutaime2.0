@@ -252,14 +252,15 @@ export default function BottleDiscussionScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Affichage de la dernière lettre */}
-        <View style={styles.mainScroll}>
-          <View style={styles.parchmentWrapper}>
-            <BottleParchmentCard
-              content={bottleState.latestLetter.content}
-            />
-          </View>
+        {/* Affichage de la dernière lettre - PLEINE LARGEUR */}
+        <View style={styles.parchmentWrapper}>
+          <BottleParchmentCard
+            content={bottleState.latestLetter.content}
+          />
+        </View>
 
+        {/* Contenu avec padding */}
+        <View style={styles.mainScroll}>
           {/* Message d'erreur ou feedback */}
           {error && (
             <View style={styles.errorBox}>
@@ -485,6 +486,7 @@ const styles = StyleSheet.create({
   },
   parchmentWrapper: {
     marginVertical: 20,
+    width: '100%',
   },
   replyPrompt: {
     paddingVertical: 12,
