@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'stretch',
     marginBottom: 0,
-    marginHorizontal: -20,
+    marginHorizontal: -50,
     paddingHorizontal: 0,
   },
   containerCompact: {
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   textArea: {
-    width: '100%',
+    width: '85%',
     paddingTop: 80,
     paddingBottom: 60,
     paddingHorizontal: 28,
