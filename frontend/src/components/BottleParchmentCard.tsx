@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     color: '#3A2A1A',
     fontFamily: 'Georgia',
     fontStyle: 'italic',
-    textAlign: 'center',
+    textAlign: 'left',
   },
   messageCompact: {
     fontSize: 13,
