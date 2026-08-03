@@ -56,9 +56,9 @@ const styles = StyleSheet.create({
   },
   textArea: {
     width: '100%',
-    paddingTop: 48,
-    paddingBottom: 48,
-    paddingHorizontal: 32,
+    paddingTop: 12,
+    paddingBottom: 20,
+    paddingHorizontal: 24,
     justifyContent: 'flex-start',
   },
   textAreaCompact: {
