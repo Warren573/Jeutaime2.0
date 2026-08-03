@@ -145,6 +145,7 @@ export async function getInbox(req: AuthedRequest, res: Response) {
   // Lazy evaluation: ensure receipts exist for compatible floating bottles
   await bottlesService.ensureReceiptsForFloatingBottles(userId);
 
+  // Received floating bottles (pending receipts)
   const receipts = await prisma.bottleReceipt.findMany({
     where: {
       recipientId: userId,
@@ -170,7 +171,16 @@ export async function getInbox(req: AuthedRequest, res: Response) {
     orderBy: { acceptedAt: "desc" },
   });
 
-  const bottles = [...pending, ...accepted];
+  // Sent floating bottles (user's bottles en route)
+  const sentFloating = await prisma.messageInABottle.findMany({
+    where: {
+      senderId: userId,
+      status: "FLOATING",
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const bottles = [...pending, ...accepted, ...sentFloating];
 
   const validated = GetInboxResponseSchema.parse(serializeDates({ bottles }));
 
