@@ -69,14 +69,14 @@ export default function MatchProfileScreen() {
   const revealLevel = Math.max(1, Math.min(3, rel.level)) as RevealLevel;
 
   const hasUnlockedPhoto = (rel.level >= 3) && !!match.photoUrl;
-  const introText = useMemo(() => {
+  const introText = (() => {
     const bio = partner?.bio?.trim();
     if (!bio) return '';
     if (revealLevel === 1) {
       return bio.length > 110 ? `${bio.slice(0, 110).trim()}…` : bio;
     }
     return bio;
-  }, [partner?.bio, revealLevel]);
+  })();
 
   const interests = partner?.interests ?? [];
   const visibleInterests = revealLevel === 1 ? interests.slice(0, 2) : interests;
