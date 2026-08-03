@@ -39,7 +39,7 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
+    alignSelf: 'stretch',
     alignItems: 'stretch',
     marginBottom: 0,
     marginHorizontal: 0,
@@ -52,6 +52,7 @@ const styles = StyleSheet.create({
   },
   parchment: {
     width: '100%',
+    overflow: 'visible',
     justifyContent: 'flex-start',
     alignItems: 'stretch',
   },
