@@ -29,8 +29,6 @@ import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import { generateUUID } from '../utils/uuid';
 import type { GetCurrentBottleResponse } from '../api/bottles';
 
-const LETTER_BG = require('../../assets/images/bottle/letter-bg4.png');
-
 const COLORS = {
   bg: '#F5F1E8',
   card: '#FFFFFF',
@@ -226,10 +224,6 @@ export default function BottleDiscussionScreen() {
 
   return (
     <>
-      <View style={styles.letterBgLayer} pointerEvents="none">
-        <Image source={LETTER_BG} style={styles.letterBgImage} resizeMode="cover" />
-      </View>
-
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
@@ -437,17 +431,9 @@ export default function BottleDiscussionScreen() {
 }
 
 const styles = StyleSheet.create({
-  letterBgLayer:
-    Platform.OS === 'web'
-      ? ({ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 } as any)
-      : { ...StyleSheet.absoluteFillObject, zIndex: 0 },
-  letterBgImage: {
-    width: '100%',
-    height: '100%',
-  },
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#FBF8F3',
     position: 'relative',
     zIndex: 1,
   },
