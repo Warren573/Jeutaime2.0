@@ -13,8 +13,6 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
   content,
   compact = false,
 }) => {
-  // Parchemin: prend toute la largeur
-  const cardWidth = width;
   const cardHeight = width * 1.33;
 
   return (
@@ -24,7 +22,6 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
         style={[
           styles.parchment,
           {
-            width: cardWidth,
             height: cardHeight,
           },
         ]}
@@ -42,6 +39,7 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
+    width: '100%',
     alignItems: 'stretch',
     marginBottom: 0,
     marginHorizontal: 0,
@@ -53,6 +51,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   parchment: {
+    width: '100%',
     justifyContent: 'flex-start',
     alignItems: 'stretch',
   },
