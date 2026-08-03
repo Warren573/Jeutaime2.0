@@ -42,10 +42,9 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     marginBottom: 0,
     marginHorizontal: 0,
+    marginVertical: 0,
     paddingHorizontal: 0,
-    width: width,
-    marginLeft: -16,
-    marginRight: -16,
+    paddingVertical: 0,
   },
   containerCompact: {
     marginBottom: 12,

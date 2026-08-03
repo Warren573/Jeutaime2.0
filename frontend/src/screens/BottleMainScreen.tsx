@@ -174,33 +174,37 @@ export default function BottleMainScreen() {
               />
             }
           >
-            <View style={styles.receivedBox}>
-              <Text style={styles.receivedEmoji}>📨</Text>
-              <Text style={styles.receivedTitle}>Vous avez reçu une lettre</Text>
-              <Text style={styles.receivedText}>
-                Quelqu{"'"}un a écrit pour vous. Voulez-vous répondre?
-              </Text>
+            <View style={styles.paddedSection}>
+              <View style={styles.receivedBox}>
+                <Text style={styles.receivedEmoji}>📨</Text>
+                <Text style={styles.receivedTitle}>Vous avez reçu une lettre</Text>
+                <Text style={styles.receivedText}>
+                  Quelqu{"'"}un a écrit pour vous. Voulez-vous répondre?
+                </Text>
+              </View>
             </View>
 
             <BottleParchmentCard content={bottle?.message || ''} />
 
-            <View style={styles.actionBox}>
-              <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: COLORS.success }]}
-                onPress={handleAccept}
-                disabled={isAccepting}
-              >
-                <Text style={styles.actionBtnText}>
-                  {isAccepting ? 'Acceptation...' : '✓ Accepter'}
-                </Text>
-              </TouchableOpacity>
+            <View style={styles.paddedSection}>
+              <View style={styles.actionBox}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: COLORS.success }]}
+                  onPress={handleAccept}
+                  disabled={isAccepting}
+                >
+                  <Text style={styles.actionBtnText}>
+                    {isAccepting ? 'Acceptation...' : '✓ Accepter'}
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: COLORS.error }]}
-                onPress={handleRefuse}
-              >
-                <Text style={styles.actionBtnText}>✗ Refuser</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: COLORS.error }]}
+                  onPress={handleRefuse}
+                >
+                  <Text style={styles.actionBtnText}>✗ Refuser</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </ScrollView>
         </View>
@@ -230,41 +234,43 @@ export default function BottleMainScreen() {
           >
             <BottleParchmentCard content={state.latestLetter!.content} />
 
-            {state.canReply && (
+            <View style={styles.paddedSection}>
+              {state.canReply && (
+                <TouchableOpacity
+                  style={styles.replyBtn}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/bottles-discussion',
+                      params: { bottleId: state.bottle!.id },
+                    })
+                  }
+                >
+                  <Text style={styles.replyBtnText}>Écrire une réponse</Text>
+                </TouchableOpacity>
+              )}
+
+              {state.waitingForReply && (
+                <View style={styles.waitingBox}>
+                  <Text style={styles.waitingText}>
+                    ✈️ Votre lettre est en voyage...
+                  </Text>
+                </View>
+              )}
+
               <TouchableOpacity
-                style={styles.replyBtn}
+                style={styles.historyBtn}
                 onPress={() =>
                   router.push({
-                    pathname: '/bottles-discussion',
+                    pathname: '/bottles-history',
                     params: { bottleId: state.bottle!.id },
                   })
                 }
               >
-                <Text style={styles.replyBtnText}>Écrire une réponse</Text>
-              </TouchableOpacity>
-            )}
-
-            {state.waitingForReply && (
-              <View style={styles.waitingBox}>
-                <Text style={styles.waitingText}>
-                  ✈️ Votre lettre est en voyage...
+                <Text style={styles.historyBtnText}>
+                  Relire notre correspondance
                 </Text>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={styles.historyBtn}
-              onPress={() =>
-                router.push({
-                  pathname: '/bottles-history',
-                  params: { bottleId: state.bottle!.id },
-                })
-              }
-            >
-              <Text style={styles.historyBtnText}>
-                Relire notre correspondance
-              </Text>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </View>
       </View>
@@ -294,10 +300,12 @@ export default function BottleMainScreen() {
           >
             <BottleParchmentCard content={bottle?.message || ''} />
 
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                Revenez bientôt pour voir si quelqu{"'"}un a répondu à votre lettre.
-              </Text>
+            <View style={styles.paddedSection}>
+              <View style={styles.infoBox}>
+                <Text style={styles.infoText}>
+                  Revenez bientôt pour voir si quelqu{"'"}un a répondu à votre lettre.
+                </Text>
+              </View>
             </View>
           </ScrollView>
         </View>
@@ -318,20 +326,22 @@ export default function BottleMainScreen() {
             ]}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>🌊</Text>
-              <Text style={styles.emptyTitle}>Lancez une bouteille</Text>
-              <Text style={styles.emptySubtext}>
-                Écrivez une lettre et laissez-la naviguer vers quelqu{"'"}un de spécial.
-              </Text>
-            </View>
+            <View style={styles.paddedSection}>
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyEmoji}>🌊</Text>
+                <Text style={styles.emptyTitle}>Lancez une bouteille</Text>
+                <Text style={styles.emptySubtext}>
+                  Écrivez une lettre et laissez-la naviguer vers quelqu{"'"}un de spécial.
+                </Text>
+              </View>
 
-            <TouchableOpacity
-              style={styles.createBtn}
-              onPress={() => router.push('/bottles-create')}
-            >
-              <Text style={styles.createBtnText}>Créer une nouvelle bouteille</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.createBtn}
+                onPress={() => router.push('/bottles-create')}
+              >
+                <Text style={styles.createBtnText}>Créer une nouvelle bouteille</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </View>
       </View>
@@ -357,21 +367,23 @@ export default function BottleMainScreen() {
             />
           }
         >
-          {error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
+          <View style={styles.paddedSection}>
+            {error && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
 
-          <View style={styles.quotaBox}>
-            <Text style={styles.quotaEmoji}>⏳</Text>
-            <Text style={styles.quotaTitle}>Patientez un instant</Text>
-            <Text style={styles.quotaText}>
-              Vous avez atteint le nombre maximum de bouteilles en attente.
-            </Text>
-            <Text style={styles.quotaSubtext}>
-              Revenez quand une sera acceptée, refusée ou aura expiré.
-            </Text>
+            <View style={styles.quotaBox}>
+              <Text style={styles.quotaEmoji}>⏳</Text>
+              <Text style={styles.quotaTitle}>Patientez un instant</Text>
+              <Text style={styles.quotaText}>
+                Vous avez atteint le nombre maximum de bouteilles en attente.
+              </Text>
+              <Text style={styles.quotaSubtext}>
+                Revenez quand une sera acceptée, refusée ou aura expiré.
+              </Text>
+            </View>
           </View>
         </ScrollView>
       </View>
@@ -390,8 +402,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     paddingVertical: 0,
+  },
+  paddedSection: {
+    paddingHorizontal: 16,
   },
   replyBtn: {
     paddingVertical: 14,

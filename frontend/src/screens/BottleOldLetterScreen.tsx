@@ -99,19 +99,23 @@ export default function BottleOldLetterScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <TouchableOpacity
-            style={styles.back}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.backText}>← Retour</Text>
-          </TouchableOpacity>
+          <View style={styles.paddedSection}>
+            <TouchableOpacity
+              style={styles.back}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.backText}>← Retour</Text>
+            </TouchableOpacity>
+          </View>
 
           <BottleParchmentCard content={message.content} />
 
-          <View style={styles.readOnlyBox}>
-            <Text style={styles.readOnlyText}>
-              🔒 Lecture seule
-            </Text>
+          <View style={styles.paddedSection}>
+            <View style={styles.readOnlyBox}>
+              <Text style={styles.readOnlyText}>
+                🔒 Lecture seule
+              </Text>
+            </View>
           </View>
         </ScrollView>
       </View>
@@ -130,8 +134,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     paddingVertical: 16,
+  },
+  paddedSection: {
+    paddingHorizontal: 16,
   },
   back: {
     marginBottom: 16,

@@ -88,26 +88,30 @@ export default function BottleHistoryScreen() {
             />
           }
         >
-          <TouchableOpacity
-            style={styles.back}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.backText}>← Retour</Text>
-          </TouchableOpacity>
+          <View style={styles.paddedSection}>
+            <TouchableOpacity
+              style={styles.back}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.backText}>← Retour</Text>
+            </TouchableOpacity>
 
-          <Text style={styles.title}>Notre correspondance</Text>
+            <Text style={styles.title}>Notre correspondance</Text>
 
-          {error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
+            {error && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
 
-          {messages.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>Aucune lettre</Text>
-            </View>
-          ) : (
+            {messages.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>Aucune lettre</Text>
+              </View>
+            )}
+          </View>
+
+          {messages.length > 0 && (
             <View>
               {messages.map((message) => (
                 <TouchableOpacity
@@ -145,8 +149,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     paddingVertical: 16,
+  },
+  paddedSection: {
+    paddingHorizontal: 16,
   },
   back: {
     marginBottom: 8,
