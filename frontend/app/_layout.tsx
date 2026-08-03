@@ -26,6 +26,7 @@ export default function RootLayout() {
   const { hydrateFromApi } = useStore();
   const isAuthenticated = useStore((s) => s.isAuthenticated);
   const canDiscover = useStore((s) => s.currentUser?.canDiscover);
+  const currentUser = useStore((s) => s.currentUser);
   const router = useRouter();
   const pathname = usePathname();
   const [isHydrated, setIsHydrated] = useState(false);
@@ -43,7 +44,7 @@ export default function RootLayout() {
       if (token) await hydrateFromApi();
       setIsHydrated(true);
     })();
-  }, []);
+  }, [hydrateFromApi]);
 
   // Auth gate — unauthenticated users must go to /login
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function RootLayout() {
     if (isAuthenticated) return;
     if (AUTH_EXCLUDED.some((p) => pathname.startsWith(p))) return;
     router.replace('/login');
-  }, [isHydrated, isAuthenticated, pathname]);
+  }, [isHydrated, isAuthenticated, pathname, router]);
 
   // Profile gate — only fires for authenticated users whose profile is
   // critically incomplete (canDiscover=false: missing gender, city, bio, etc.)
@@ -64,22 +65,22 @@ export default function RootLayout() {
 
     // DEBUG LOG
     console.log("[profile-gate] REDIRECT TRIGGERED", {
-      userId: useStore((s) => s.currentUser?.id),
-      email: useStore((s) => s.currentUser?.email),
-      pseudo: useStore((s) => s.currentUser?.pseudo),
-      bio: useStore((s) => s.currentUser?.bio?.substring(0, 30)),
-      interestedIn: useStore((s) => s.currentUser?.interestedIn),
-      lookingFor: useStore((s) => s.currentUser?.lookingFor),
-      physicalDesc: useStore((s) => s.currentUser?.physicalDesc),
-      questionsCount: (useStore((s) => s.currentUser?.apiQuestions) ?? []).length,
+      userId: currentUser?.id,
+      email: currentUser?.email,
+      pseudo: currentUser?.pseudo,
+      bio: currentUser?.bio?.substring(0, 30),
+      interestedIn: currentUser?.interestedIn,
+      lookingFor: currentUser?.lookingFor,
+      physicalDesc: currentUser?.physicalDesc,
+      questionsCount: (currentUser?.apiQuestions ?? []).length,
       canDiscover,
-      profileMissingFields: useStore((s) => s.currentUser?.profileMissingFields),
+      profileMissingFields: currentUser?.profileMissingFields,
       pathname,
     });
 
     if (PROFILE_GATE_EXCLUDED.some((p) => pathname.startsWith(p))) return;
     router.replace('/create-profile');
-  }, [isHydrated, isAuthenticated, canDiscover, pathname]);
+  }, [isHydrated, isAuthenticated, canDiscover, pathname, currentUser, router]);
 
   useNotificationPolling();
   usePushNotifications();
