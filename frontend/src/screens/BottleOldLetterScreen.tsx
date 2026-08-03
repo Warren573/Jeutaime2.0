@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 0,
-    paddingVertical: 16,
+    paddingVertical: 40,
   },
   spacer: {
     flex: 1,
