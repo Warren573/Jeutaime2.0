@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 0,
   },
   replyBtn: {
     paddingVertical: 14,

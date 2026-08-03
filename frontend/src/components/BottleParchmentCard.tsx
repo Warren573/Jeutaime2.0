@@ -43,7 +43,7 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'stretch',
-    marginBottom: 24,
+    marginBottom: 0,
     marginHorizontal: -16,
     paddingHorizontal: 0,
   },
