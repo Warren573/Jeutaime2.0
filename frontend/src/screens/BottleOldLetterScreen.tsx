@@ -11,7 +11,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getBottleMessages } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
-import { BOTTLE_LAYOUT } from '../constants/bottleLayout';
 import type { BottleMessageWithMetadata } from '../api/bottles';
 
 const CREAM_BG = '#FBF8F3';
@@ -92,22 +91,20 @@ export default function BottleOldLetterScreen() {
   return (
     <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        {/* Header Slot */}
-        <View style={styles.headerSlot}>
-          <TouchableOpacity
-            style={styles.back}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.backText}>← Retour</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Scrollable Parchment */}
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.paddedSection}>
+            <TouchableOpacity
+              style={styles.back}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.backText}>← Retour</Text>
+            </TouchableOpacity>
+          </View>
+
           <BottleParchmentCard content={message.content} />
         </ScrollView>
       </View>
@@ -122,26 +119,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerSlot: {
-    height: BOTTLE_LAYOUT.HEADER_HEIGHT,
-    paddingHorizontal: BOTTLE_LAYOUT.HORIZONTAL_PADDING,
-    justifyContent: 'center',
-  },
-  back: {
-    marginBottom: 0,
-  },
-  backText: {
-    fontSize: 16,
-    color: COLORS.accent,
-    fontWeight: '600',
-  },
   scroll: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 0,
-    paddingTop: BOTTLE_LAYOUT.GAP_BEFORE_PARCHMENT,
+    paddingTop: 80,
     paddingBottom: 80,
+  },
+  paddedSection: {
+    paddingHorizontal: 16,
+    marginTop: 40,
+  },
+  back: {
+    marginBottom: 16,
+  },
+  backText: {
+    fontSize: 16,
+    color: COLORS.accent,
+    fontWeight: '600',
   },
   errorContainer: {
     flex: 1,

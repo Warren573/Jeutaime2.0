@@ -13,7 +13,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getCurrentBottle, getInbox, acceptBottle, refuseBottle } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
-import { BOTTLE_LAYOUT } from '../constants/bottleLayout';
 import type { GetCurrentBottleResponse, InboxBottleDTO } from '../api/bottles';
 import { useStore } from '../store/useStore';
 
@@ -160,9 +159,6 @@ export default function BottleMainScreen() {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          {/* Header Slot */}
-          <View style={styles.headerSlot} />
-
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={[
@@ -221,9 +217,6 @@ export default function BottleMainScreen() {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          {/* Header Slot */}
-          <View style={styles.headerSlot} />
-
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={[
@@ -290,9 +283,6 @@ export default function BottleMainScreen() {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          {/* Header Slot */}
-          <View style={styles.headerSlot} />
-
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={[
@@ -328,9 +318,6 @@ export default function BottleMainScreen() {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          {/* Header Slot */}
-          <View style={styles.headerSlot} />
-
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={[
@@ -365,9 +352,6 @@ export default function BottleMainScreen() {
   return (
     <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        {/* Header Slot */}
-        <View style={styles.headerSlot} />
-
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
@@ -414,9 +398,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerSlot: {
-    height: BOTTLE_LAYOUT.HEADER_HEIGHT,
-  },
   scroll: {
     flex: 1,
   },
@@ -425,7 +406,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   paddedSection: {
-    paddingHorizontal: BOTTLE_LAYOUT.HORIZONTAL_PADDING,
+    paddingHorizontal: 16,
   },
   replyBtn: {
     paddingVertical: 14,

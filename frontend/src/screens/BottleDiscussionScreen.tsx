@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Image,
   Modal,
   Keyboard,
 } from 'react-native';
@@ -25,7 +26,6 @@ import {
   getRevealStatus,
 } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
-import { BOTTLE_LAYOUT } from '../constants/bottleLayout';
 import { generateUUID } from '../utils/uuid';
 import type { GetCurrentBottleResponse } from '../api/bottles';
 
@@ -228,8 +228,8 @@ export default function BottleDiscussionScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        {/* Header Slot */}
-        <View style={[styles.header, { paddingTop: insets.top + BOTTLE_LAYOUT.HEADER_PADDING_TOP_EXTRA }]}>
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={styles.headerBack}>←</Text>
           </TouchableOpacity>
@@ -246,8 +246,8 @@ export default function BottleDiscussionScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Parchment Slot */}
-        <View style={styles.parchmentSlot}>
+        {/* Affichage de la dernière lettre - PLEINE LARGEUR */}
+        <View style={styles.parchmentWrapper}>
           <BottleParchmentCard
             content={bottleState.latestLetter.content}
           />
@@ -441,9 +441,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: BOTTLE_LAYOUT.HORIZONTAL_PADDING,
-    paddingBottom: BOTTLE_LAYOUT.HEADER_PADDING_BOTTOM,
-    height: BOTTLE_LAYOUT.HEADER_HEIGHT,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
   },
   headerBack: {
     fontSize: 24,
@@ -471,11 +470,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingHorizontal: 16,
   },
-  parchmentSlot: {
-    marginTop: BOTTLE_LAYOUT.GAP_BEFORE_PARCHMENT,
-    marginBottom: BOTTLE_LAYOUT.GAP_AFTER_PARCHMENT,
+  parchmentWrapper: {
+    marginVertical: 20,
     width: '100%',
-    alignItems: 'center',
   },
   replyPrompt: {
     paddingVertical: 12,
@@ -523,7 +520,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   bottomControls: {
-    paddingHorizontal: BOTTLE_LAYOUT.HORIZONTAL_PADDING,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: 'transparent',
   },
@@ -544,7 +541,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: BOTTLE_LAYOUT.HORIZONTAL_PADDING,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: 'transparent',
   },
