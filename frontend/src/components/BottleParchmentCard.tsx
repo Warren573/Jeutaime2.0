@@ -6,14 +6,14 @@ interface BottleParchmentCardProps {
   compact?: boolean;
 }
 
-const PARCHMENT_BG = require('../../assets/images/bottle/letter-bg2.jpg');
+const PARCHMENT_BG = require('../../assets/images/bottle/letter-bg4.png');
 const { width } = Dimensions.get('window');
 
 export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
   content,
   compact = false,
 }) => {
-  const cardHeight = width * 1.33;
+  const cardHeight = width * (885 / 624);
 
   return (
     <View style={[styles.container, compact && styles.containerCompact]}>
@@ -60,6 +60,7 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
     paddingHorizontal: 28,
     justifyContent: 'flex-start',
+    alignSelf: 'center',
   },
   textAreaCompact: {
     paddingVertical: 24,
@@ -71,7 +72,7 @@ const styles = StyleSheet.create({
     color: '#3A2A1A',
     fontFamily: 'Georgia',
     fontStyle: 'italic',
-    textAlign: 'left',
+    textAlign: 'center',
   },
   messageCompact: {
     fontSize: 13,
