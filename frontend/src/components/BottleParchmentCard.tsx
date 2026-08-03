@@ -13,7 +13,7 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
   content,
   compact = false,
 }) => {
-  const cardHeight = width * 1.33;
+  const cardHeight = width * 1.1;
 
   return (
     <View style={[styles.container, compact && styles.containerCompact]}>
@@ -58,8 +58,8 @@ const styles = StyleSheet.create({
   },
   textArea: {
     width: '85%',
-    paddingTop: 80,
-    paddingBottom: 60,
+    paddingTop: 40,
+    paddingBottom: 30,
     paddingHorizontal: 28,
     justifyContent: 'flex-start',
   },
