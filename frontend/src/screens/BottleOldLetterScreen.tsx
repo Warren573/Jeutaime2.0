@@ -93,10 +93,7 @@ export default function BottleOldLetterScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: insets.bottom + 60 },
-          ]}
+          contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.paddedSection}>
@@ -109,15 +106,17 @@ export default function BottleOldLetterScreen() {
           </View>
 
           <BottleParchmentCard content={message.content} />
-
-          <View style={styles.paddedSection}>
-            <View style={styles.readOnlyBox}>
-              <Text style={styles.readOnlyText}>
-                🔒 Lecture seule
-              </Text>
-            </View>
-          </View>
         </ScrollView>
+
+        <View style={styles.spacer} />
+
+        <View style={[styles.bannerContainer, { marginBottom: insets.bottom + 16 }]}>
+          <View style={styles.readOnlyBox}>
+            <Text style={styles.readOnlyText}>
+              🔒 Lecture seule
+            </Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -136,6 +135,12 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 0,
     paddingVertical: 16,
+  },
+  spacer: {
+    flex: 1,
+  },
+  bannerContainer: {
+    paddingHorizontal: 16,
   },
   paddedSection: {
     paddingHorizontal: 16,
@@ -156,8 +161,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9',
     borderLeftWidth: 4,
     borderLeftColor: '#2E7D32',
-    marginTop: 80,
-    marginBottom: 16,
   },
   readOnlyText: {
     fontSize: 12,
