@@ -139,6 +139,7 @@ const styles = StyleSheet.create({
   },
   paddedSection: {
     paddingHorizontal: 16,
+    marginTop: 40,
   },
   back: {
     marginBottom: 16,
@@ -155,6 +156,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9',
     borderLeftWidth: 4,
     borderLeftColor: '#2E7D32',
+    marginTop: 50,
     marginBottom: 16,
   },
   readOnlyText: {
