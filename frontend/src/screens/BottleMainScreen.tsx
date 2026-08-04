@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   errorBox: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 8, backgroundColor: '#FDECEA', borderLeftWidth: 4, borderLeftColor: COLORS.error, marginBottom: 16 }, errorText: { fontSize: 13, color: COLORS.error, fontWeight: '600' },
   selectionTitle: { fontSize: 28, fontWeight: '700', color: COLORS.text, marginBottom: 8, textAlign: 'center' }, selectionSubtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 40, fontStyle: 'italic' },
   bottlesContainer: { position: 'relative', height: 600, marginBottom: 40, paddingHorizontal: 16 },
-  bottleItem: { position: 'absolute', width: 90, height: 130 }, bottleTouchable: { width: '100%', height: '100%' }, bottleImage: { width: '100%', height: '100%' },
+  bottleItem: { position: 'absolute', width: 110, height: 160 }, bottleTouchable: { width: '100%', height: '100%' }, bottleImage: { width: '100%', height: '100%' },
   backSelection: { marginBottom: 16 }, backSelectionText: { fontSize: 16, color: COLORS.accent, fontWeight: '600' },
   actionBtn: { flex: 1, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, justifyContent: 'center' }, actionBtnText: { fontSize: 14, fontWeight: '600', color: '#FFF', textAlign: 'center' },
   createAlternativeBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(139,46,60,0.1)', borderWidth: 1, borderColor: COLORS.accent, marginTop: 20 }, createAlternativeBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.accent, textAlign: 'center' },
