@@ -126,8 +126,12 @@ export default function BottleMainScreen() {
   if (isLoading) return (<View style={[styles.bg, { backgroundColor: CREAM_BG, paddingTop: insets.top }]}><ActivityIndicator size="large" color={COLORS.accent} /></View>);
 
   if (displayState?.type === 'received') {
-    const availableBottles = getAvailableBottles();
-    const selectedBottle = selectedBottleId ? availableBottles.find((b) => b.id === selectedBottleId) : null;
+    const allAvailableBottles = getAvailableBottles();
+    const availableBottles = useMemo(() => {
+      const shuffled = [...allAvailableBottles].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, 10);
+    }, [allAvailableBottles]);
+    const selectedBottle = selectedBottleId ? allAvailableBottles.find((b) => b.id === selectedBottleId) : null;
     if (availableBottles.length === 0) {
       return (<View style={[styles.bg, { backgroundColor: CREAM_BG }]}><View style={[styles.container, { paddingTop: insets.top }]}><ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
         <View style={styles.paddedSection}>
