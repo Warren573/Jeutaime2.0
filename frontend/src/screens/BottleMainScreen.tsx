@@ -170,10 +170,7 @@ export default function BottleMainScreen() {
   try {
     if (displayState?.type === 'received') {
       const allAvailableBottles = getAvailableBottles();
-      const availableBottles = useMemo(() => {
-        const shuffled = [...allAvailableBottles].sort(() => Math.random() - 0.5);
-        return shuffled.slice(0, 10);
-      }, [allAvailableBottles]);
+      const availableBottles = [...allAvailableBottles].sort(() => Math.random() - 0.5).slice(0, 10);
       const selectedBottle = selectedBottleId ? allAvailableBottles.find((b) => b.id === selectedBottleId) : null;
 
       return (
