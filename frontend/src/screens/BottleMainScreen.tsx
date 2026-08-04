@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getCurrentBottle, getInbox, acceptBottle, refuseBottle } from '../api/bottles';
@@ -12,18 +12,28 @@ const BOTTLE_IMG = require('../../assets/images/bottle/BOTTLE.png');
 const COLORS = { text: '#2B2B2B', textSecondary: '#6B6B6B', accent: '#8B2E3C', success: '#2E7D32', error: '#D32F2F' };
 
 const BottleItem: React.FC<{ id: string; index: number; onPress: () => void; position: { left: string; top: string } }> = ({ id, index, onPress, position }) => {
-  const floatAnim = useMemo(() => new Animated.Value(0), []);
-  useEffect(() => { Animated.loop(Animated.sequence([Animated.timing(floatAnim, { toValue: 1, duration: 3000 + index * 200, easing: Easing.inOut(Easing.sine), useNativeDriver: true }), Animated.timing(floatAnim, { toValue: 0, duration: 3000 + index * 200, easing: Easing.inOut(Easing.sine), useNativeDriver: true })])).start(); }, [floatAnim, index]);
   const rotation = useMemo(() => { const rotations = [-12, 8, -6, 14, -9, 11]; return rotations[index % rotations.length]; }, [index]);
-  const floatY = floatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -16] });
-  return (<Animated.View style={[styles.bottleItem, position, { transform: [{ rotateZ: `${rotation}deg` }, { translateY: floatY }] }]}>
+  const animDelay = useMemo(() => index * 200, [index]);
+  return (<View style={[styles.bottleItem, position, { transform: [{ rotate: `${rotation}deg` }], animation: `float 3.5s ease-in-out infinite ${animDelay}ms` } as any]}>
     <TouchableOpacity onPress={onPress} style={styles.bottleTouchable} activeOpacity={0.7}>
       <Image source={BOTTLE_IMG} style={styles.bottleImage} resizeMode="contain" />
     </TouchableOpacity>
-  </Animated.View>);
+  </View>);
 };
 
 export default function BottleMainScreen() {
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-16px); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const currentUser = useStore((s) => s.currentUser);
@@ -197,7 +207,7 @@ const styles = StyleSheet.create({
   errorBox: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 8, backgroundColor: '#FDECEA', borderLeftWidth: 4, borderLeftColor: COLORS.error, marginBottom: 16 }, errorText: { fontSize: 13, color: COLORS.error, fontWeight: '600' },
   selectionTitle: { fontSize: 28, fontWeight: '700', color: COLORS.text, marginBottom: 8, textAlign: 'center' }, selectionSubtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 40, fontStyle: 'italic' },
   bottlesContainer: { position: 'relative', height: 600, marginBottom: 40, paddingHorizontal: 16 },
-  bottleItem: { position: 'absolute', width: 90, height: 130, shadowColor: '#000', shadowOffset: { width: 2, height: 6 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5 }, bottleTouchable: { width: '100%', height: '100%' }, bottleImage: { width: '100%', height: '100%' },
+  bottleItem: { position: 'absolute', width: 90, height: 130 }, bottleTouchable: { width: '100%', height: '100%' }, bottleImage: { width: '100%', height: '100%' },
   backSelection: { marginBottom: 16 }, backSelectionText: { fontSize: 16, color: COLORS.accent, fontWeight: '600' },
   actionBtn: { flex: 1, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, justifyContent: 'center' }, actionBtnText: { fontSize: 14, fontWeight: '600', color: '#FFF', textAlign: 'center' },
   createAlternativeBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(139,46,60,0.1)', borderWidth: 1, borderColor: COLORS.accent, marginTop: 20 }, createAlternativeBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.accent, textAlign: 'center' },
