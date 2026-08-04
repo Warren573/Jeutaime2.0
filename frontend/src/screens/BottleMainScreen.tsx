@@ -81,6 +81,21 @@ export default function BottleMainScreen() {
     loadState();
   }, [loadState]));
 
+  useEffect(() => {
+    setSelectedBottleId(null);
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    if (selectedBottleId && currentUser?.id) {
+      const bottleExists = inbox.some(
+        (b) => b.id === selectedBottleId && b.status === 'FLOATING' && b.acceptedById === null && b.senderId !== currentUser.id
+      );
+      if (!bottleExists) {
+        setSelectedBottleId(null);
+      }
+    }
+  }, [selectedBottleId, inbox, currentUser?.id]);
+
   const handleRefresh = () => {
     setIsRefreshing(true);
     loadState();
