@@ -143,15 +143,7 @@ export default function BottleDiscussionScreen() {
       setIsRevealRequester(true);
       Alert.alert('Succès', 'Dévoilement demandé. En attente de réponse...');
     } catch (err: any) {
-      const code = err?.code || err?.message;
-
-      if (code === 'REVEAL_REQUEST_ALREADY_EXISTS') {
-        setHasRevealRequest(true);
-        setIsRevealRequester(true);
-        Alert.alert('Dévoilement', 'Vous avez déjà demandé le dévoilement. En attente de réponse ou refusée.');
-      } else {
-        Alert.alert('Erreur', err?.message || 'Impossible de demander le dévoilement');
-      }
+      Alert.alert('Erreur', err?.message || 'Impossible de demander le dévoilement');
     }
   };
 
@@ -175,10 +167,7 @@ export default function BottleDiscussionScreen() {
     try {
       await refuseReveal(bottleId);
       setHasRevealRequest(false);
-      setIsRevealRequester(false);
       Alert.alert('Succès', 'Dévoilement refusé. La discussion reste anonyme.');
-      // Reload data to ensure state is consistent
-      await loadData();
     } catch (err: any) {
       Alert.alert('Erreur', err?.message || 'Impossible de refuser le dévoilement');
     }

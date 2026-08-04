@@ -791,32 +791,16 @@ export async function requestReveal(
     return existing; // Return existing pending request
   }
 
-  // If existing request with non-PENDING status (ACCEPTED/REFUSED), throw error
-  if (existing) {
-    const err = new Error("Reveal request already exists");
-    (err as any).code = "REVEAL_REQUEST_ALREADY_EXISTS";
-    throw err;
-  }
-
   // Create new request
-  try {
-    const request = await prisma.bottleRevealRequest.create({
-      data: {
-        bottleId,
-        requestedById,
-        respondentId,
-      },
-    });
-    return request;
-  } catch (error: any) {
-    // Handle P2002 unique constraint violation
-    if (error.code === "P2002") {
-      const err = new Error("Reveal request already exists");
-      (err as any).code = "REVEAL_REQUEST_ALREADY_EXISTS";
-      throw err;
-    }
-    throw error;
-  }
+  const request = await prisma.bottleRevealRequest.create({
+    data: {
+      bottleId,
+      requestedById,
+      respondentId,
+    },
+  });
+
+  return request;
 }
 
 export async function acceptReveal(
