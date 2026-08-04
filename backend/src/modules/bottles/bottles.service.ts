@@ -777,7 +777,7 @@ export async function requestReveal(
     throw new Error("Respondent not found");
   }
 
-  // Check if there's already a pending request from this user
+  // Check if there's already a request from this user for this bottle
   const existing = await prisma.bottleRevealRequest.findUnique({
     where: {
       bottleId_requestedById: {
@@ -787,11 +787,29 @@ export async function requestReveal(
     },
   });
 
-  if (existing && existing.status === "PENDING") {
-    return existing; // Return existing pending request
+  // If a request exists, handle based on status
+  if (existing) {
+    if (existing.status === "PENDING") {
+      // Request still pending — return existing (idempotent)
+      return existing;
+    }
+
+    if (existing.status === "REFUSED") {
+      // User already refused — final decision for this user
+      const err = new Error("Votre demande a déjà été refusée. C'est désormais à l'autre personne de faire la démarche si elle change d'avis.");
+      (err as any).code = "REVEAL_ALREADY_REFUSED";
+      throw err;
+    }
+
+    if (existing.status === "ACCEPTED") {
+      // Reveal already accepted — no need to request again
+      const err = new Error("Le dévoilement a déjà été accepté.");
+      (err as any).code = "REVEAL_ALREADY_ACCEPTED";
+      throw err;
+    }
   }
 
-  // Create new request
+  // No existing request — create new one
   const request = await prisma.bottleRevealRequest.create({
     data: {
       bottleId,

@@ -25,6 +25,12 @@ vi.mock("../../src/config/prisma", () => {
     bottleSuspension: {
       upsert: vi.fn(),
     },
+    bottleRevealRequest: {
+      create: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      update: vi.fn(),
+    },
     user: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
@@ -367,6 +373,158 @@ describe("BottleService", () => {
           endsAt: expect.any(Date),
         },
       });
+    });
+  });
+
+  describe("requestReveal", () => {
+    it("should create a new reveal request when none exists", async () => {
+      const mockBottle = {
+        id: "bottle1",
+        senderId: "user1",
+        acceptedById: "user2",
+        status: "ACCEPTED",
+      };
+
+      const mockRequest = {
+        id: "req1",
+        bottleId: "bottle1",
+        requestedById: "user1",
+        respondentId: "user2",
+        status: "PENDING",
+        createdAt: new Date(),
+        respondedAt: null,
+      };
+
+      vi.mocked(prisma.messageInABottle.findUnique).mockResolvedValue(mockBottle as any);
+      vi.mocked(prisma.bottleRevealRequest.findUnique).mockResolvedValue(null as any);
+      vi.mocked(prisma.bottleRevealRequest.create).mockResolvedValue(mockRequest as any);
+
+      const result = await bottlesService.requestReveal("bottle1", "user1");
+
+      expect(result.id).toBe("req1");
+      expect(result.status).toBe("PENDING");
+      expect(prisma.bottleRevealRequest.create).toHaveBeenCalledWith({
+        data: {
+          bottleId: "bottle1",
+          requestedById: "user1",
+          respondentId: "user2",
+        },
+      });
+    });
+
+    it("should return existing PENDING request (idempotent)", async () => {
+      const mockBottle = {
+        id: "bottle1",
+        senderId: "user1",
+        acceptedById: "user2",
+        status: "ACCEPTED",
+      };
+
+      const existingRequest = {
+        id: "req1",
+        bottleId: "bottle1",
+        requestedById: "user1",
+        respondentId: "user2",
+        status: "PENDING",
+        createdAt: new Date(),
+        respondedAt: null,
+      };
+
+      vi.mocked(prisma.messageInABottle.findUnique).mockResolvedValue(mockBottle as any);
+      vi.mocked(prisma.bottleRevealRequest.findUnique).mockResolvedValue(existingRequest as any);
+
+      const result = await bottlesService.requestReveal("bottle1", "user1");
+
+      expect(result.id).toBe("req1");
+      expect(result.status).toBe("PENDING");
+      expect(prisma.bottleRevealRequest.create).not.toHaveBeenCalled();
+    });
+
+    it("should throw REVEAL_ALREADY_REFUSED when request already refused", async () => {
+      const mockBottle = {
+        id: "bottle1",
+        senderId: "user1",
+        acceptedById: "user2",
+        status: "ACCEPTED",
+      };
+
+      const refusedRequest = {
+        id: "req1",
+        bottleId: "bottle1",
+        requestedById: "user1",
+        respondentId: "user2",
+        status: "REFUSED",
+        createdAt: new Date(),
+        respondedAt: new Date(),
+      };
+
+      vi.mocked(prisma.messageInABottle.findUnique).mockResolvedValue(mockBottle as any);
+      vi.mocked(prisma.bottleRevealRequest.findUnique).mockResolvedValue(refusedRequest as any);
+
+      try {
+        await bottlesService.requestReveal("bottle1", "user1");
+        expect.fail("Should have thrown an error");
+      } catch (error: any) {
+        expect(error.code).toBe("REVEAL_ALREADY_REFUSED");
+      }
+    });
+
+    it("should throw REVEAL_ALREADY_ACCEPTED when request already accepted", async () => {
+      const mockBottle = {
+        id: "bottle1",
+        senderId: "user1",
+        acceptedById: "user2",
+        status: "ACCEPTED",
+      };
+
+      const acceptedRequest = {
+        id: "req1",
+        bottleId: "bottle1",
+        requestedById: "user1",
+        respondentId: "user2",
+        status: "ACCEPTED",
+        createdAt: new Date(),
+        respondedAt: new Date(),
+      };
+
+      vi.mocked(prisma.messageInABottle.findUnique).mockResolvedValue(mockBottle as any);
+      vi.mocked(prisma.bottleRevealRequest.findUnique).mockResolvedValue(acceptedRequest as any);
+
+      try {
+        await bottlesService.requestReveal("bottle1", "user1");
+        expect.fail("Should have thrown an error");
+      } catch (error: any) {
+        expect(error.code).toBe("REVEAL_ALREADY_ACCEPTED");
+      }
+    });
+
+    it("should allow different user to request after first user refused", async () => {
+      const mockBottle = {
+        id: "bottle1",
+        senderId: "user1",
+        acceptedById: "user2",
+        status: "ACCEPTED",
+      };
+
+      const mockRequest = {
+        id: "req2",
+        bottleId: "bottle1",
+        requestedById: "user2",
+        respondentId: "user1",
+        status: "PENDING",
+        createdAt: new Date(),
+        respondedAt: null,
+      };
+
+      vi.mocked(prisma.messageInABottle.findUnique).mockResolvedValue(mockBottle as any);
+      vi.mocked(prisma.bottleRevealRequest.findUnique).mockResolvedValue(null as any);
+      vi.mocked(prisma.bottleRevealRequest.create).mockResolvedValue(mockRequest as any);
+
+      const result = await bottlesService.requestReveal("bottle1", "user2");
+
+      expect(result.id).toBe("req2");
+      expect(result.requestedById).toBe("user2");
+      expect(prisma.bottleRevealRequest.create).toHaveBeenCalled();
     });
   });
 });

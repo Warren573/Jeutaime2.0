@@ -141,7 +141,18 @@ export default function BottleDiscussionScreen() {
       setIsRevealRequester(true);
       Alert.alert('Succès', 'Dévoilement demandé. En attente de réponse...');
     } catch (err: any) {
-      Alert.alert('Erreur', err?.message || 'Impossible de demander le dévoilement');
+      const code = err?.code || err?.message;
+
+      if (code === 'REVEAL_ALREADY_REFUSED') {
+        setHasRevealRequest(true);
+        setIsRevealRequester(true);
+        Alert.alert('Dévoilement', err?.message || 'Votre demande a déjà été refusée.');
+      } else if (code === 'REVEAL_ALREADY_ACCEPTED') {
+        setHasRevealRequest(false);
+        Alert.alert('Dévoilement', err?.message || 'Le dévoilement a déjà été accepté.');
+      } else {
+        Alert.alert('Erreur', err?.message || 'Impossible de demander le dévoilement');
+      }
     }
   };
 

@@ -356,10 +356,34 @@ export async function requestReveal(req: AuthedRequest, res: Response) {
   const bottleId = req.params["id"] as string;
   const userId = req.user.userId;
 
-  const request = await bottlesService.requestReveal(bottleId, userId);
-  const validated = RequestRevealResponseSchema.parse(serializeDates(request));
+  try {
+    const request = await bottlesService.requestReveal(bottleId, userId);
+    const validated = RequestRevealResponseSchema.parse(serializeDates(request));
 
-  res.json({ data: validated });
+    res.json({ data: validated });
+  } catch (error: any) {
+    const code = error.code || error.message;
+
+    if (code === "REVEAL_ALREADY_REFUSED") {
+      return res.status(409).json({
+        error: {
+          message: error.message,
+          code: "REVEAL_ALREADY_REFUSED"
+        }
+      });
+    }
+
+    if (code === "REVEAL_ALREADY_ACCEPTED") {
+      return res.status(409).json({
+        error: {
+          message: error.message,
+          code: "REVEAL_ALREADY_ACCEPTED"
+        }
+      });
+    }
+
+    throw error;
+  }
 }
 
 // ============================================================
