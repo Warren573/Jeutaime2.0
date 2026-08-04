@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { getCurrentBottle, getInbox, acceptBottle, refuseBottle } from '../api/bottles';
+import { getCurrentBottle, getInbox, acceptBottle } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import type { GetCurrentBottleResponse, InboxBottleDTO } from '../api/bottles';
 import { useStore } from '../store/useStore';
@@ -12,12 +12,16 @@ const BOTTLE_IMG = require('../../assets/images/bottle/BOTTLE-22.png');
 const OCEAN_BG = require('../../assets/images/ocean.png');
 const COLORS = { text: '#2B2B2B', textSecondary: '#6B6B6B', accent: '#8B2E3C', success: '#2E7D32', error: '#D32F2F' };
 
-const BottleItem: React.FC<{ id: string; index: number; onPress: () => void; position: { left: string; top: string } }> = ({ id, index, onPress, position }) => {
+const BottleItem: React.FC<{ id: string; index: number; onPress: () => void; position: { left: string; top: string }; isAccepting: boolean }> = ({ id, index, onPress, position, isAccepting }) => {
   const rotation = useMemo(() => { const rotations = [-12, 8, -6, 14, -9, 11]; return rotations[index % rotations.length]; }, [index]);
   const animDelay = useMemo(() => index * 200, [index]);
   return (<View style={[styles.bottleItem, position, { transform: [{ rotate: `${rotation}deg` }], animation: `float 3.5s ease-in-out infinite ${animDelay}ms` } as any]}>
-    <TouchableOpacity onPress={onPress} style={styles.bottleTouchable} activeOpacity={0.7}>
-      <Image source={BOTTLE_IMG} style={styles.bottleImage} resizeMode="contain" />
+    <TouchableOpacity onPress={onPress} style={styles.bottleTouchable} activeOpacity={0.7} disabled={isAccepting}>
+      {isAccepting ? (
+        <ActivityIndicator size="small" color={COLORS.accent} style={{ flex: 1, justifyContent: 'center' }} />
+      ) : (
+        <Image source={BOTTLE_IMG} style={styles.bottleImage} resizeMode="contain" />
+      )}
     </TouchableOpacity>
   </View>);
 };
@@ -44,8 +48,6 @@ export default function BottleMainScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedBottleId, setSelectedBottleId] = useState<string | null>(null);
-  const [renderError, setRenderError] = useState<any>(null);
 
   const loadState = useCallback(async () => {
     try {
@@ -82,24 +84,27 @@ export default function BottleMainScreen() {
     loadState();
   }, [loadState]));
 
-  useEffect(() => {
-    setSelectedBottleId(null);
-  }, [currentUser?.id]);
-
-  useEffect(() => {
-    if (selectedBottleId && currentUser?.id) {
-      const bottleExists = inbox.some(
-        (b) => b.id === selectedBottleId && b.status === 'FLOATING' && b.acceptedById === null && b.senderId !== currentUser.id
-      );
-      if (!bottleExists) {
-        setSelectedBottleId(null);
-      }
-    }
-  }, [selectedBottleId, inbox, currentUser?.id]);
-
   const handleRefresh = () => {
     setIsRefreshing(true);
     loadState();
+  };
+
+  const handleBottleClick = async (bottleId: string) => {
+    setIsAccepting(true);
+    try {
+      await acceptBottle(bottleId);
+      await loadState();
+    } catch (err: any) {
+      const code = err.code || err.message;
+      if (code === 409 || code === 'P2002') {
+        setError('Cette bouteille vient d\'être récupérée. Choisissez-en une autre.');
+        await loadState();
+      } else {
+        Alert.alert('Erreur', err?.message || 'Impossible d\'accepter la bouteille');
+      }
+    } finally {
+      setIsAccepting(false);
+    }
   };
 
   const getBottleToDisplay = () => {
@@ -115,134 +120,43 @@ export default function BottleMainScreen() {
 
   const displayState = getBottleToDisplay();
 
-  const handleAccept = async () => {
-    const bottleToAccept = selectedBottleId ? getAvailableBottles().find((b) => b.id === selectedBottleId) : displayState?.bottle;
-    if (!bottleToAccept) return;
-    setIsAccepting(true);
-    try {
-      await acceptBottle(bottleToAccept.id);
-      await loadState();
-      Alert.alert('Succès', 'Bouteille acceptée!');
-    } catch (err: any) {
-      Alert.alert('Erreur', err?.message || 'Impossible d\'accepter');
-    } finally {
-      setIsAccepting(false);
-    }
-  };
-
-  const handleRefuse = async () => {
-    const bottleToRefuse = selectedBottleId ? getAvailableBottles().find((b) => b.id === selectedBottleId) : displayState?.bottle;
-    if (!bottleToRefuse) return;
-    Alert.alert('Refuser cette bouteille?', 'Vous ne pourrez plus revenir sur cette lettre.', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Refuser', style: 'destructive', onPress: async () => { try { await refuseBottle(bottleToRefuse.id); await loadState(); Alert.alert('Succès', 'Bouteille refusée'); } catch (err: any) { Alert.alert('Erreur', err?.message || 'Impossible de refuser'); } } },
-    ]);
-  };
-
   if (isLoading) return (<View style={[styles.bg, { backgroundColor: CREAM_BG, paddingTop: insets.top }]}><ActivityIndicator size="large" color={COLORS.accent} /></View>);
 
-  if (renderError) {
-    return (
-      <View style={[styles.bg, { backgroundColor: '#FDECEA', paddingTop: insets.top, padding: 16 }]}>
-        <ScrollView>
-          <Text style={{ color: COLORS.error, fontWeight: 'bold', fontSize: 16, marginBottom: 12 }}>DEBUG BOTTLE MAIN — commit a030e9e3</Text>
-          <Text style={{ color: COLORS.error, fontWeight: 'bold', marginBottom: 8 }}>RENDER ERROR CAUGHT:</Text>
-          <Text style={{ color: COLORS.error, fontSize: 12, marginBottom: 12, fontFamily: 'monospace', backgroundColor: '#FFF', padding: 8, borderRadius: 4 }}>{String(renderError?.message || 'Unknown error')}</Text>
-          <Text style={{ color: COLORS.error, fontSize: 10, marginBottom: 12, fontFamily: 'monospace', backgroundColor: '#FFF', padding: 8, borderRadius: 4 }}>{String(renderError?.stack || 'No stack trace')}</Text>
-          <TouchableOpacity onPress={() => setRenderError(null)} style={{ backgroundColor: COLORS.error, padding: 12, borderRadius: 4 }}>
-            <Text style={{ color: '#FFF', textAlign: 'center' }}>Dismiss</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    );
-  }
+  if (displayState?.type === 'received') {
+    const allAvailableBottles = getAvailableBottles();
+    const availableBottles = [...allAvailableBottles].sort(() => Math.random() - 0.5).slice(0, 10);
 
-  const DebugHeader = () => (
-    <View style={{ backgroundColor: '#FFF3E0', padding: 12, borderBottomWidth: 1, borderBottomColor: '#FF9800' }}>
-      <Text style={{ color: '#E65100', fontSize: 12, fontWeight: 'bold', fontFamily: 'monospace', marginBottom: 6 }}>DEBUG BOTTLE MAIN — commit a030e9e3</Text>
-      <Text style={{ color: '#E65100', fontSize: 11, fontFamily: 'monospace' }}>displayState.type={displayState?.type}</Text>
-      <Text style={{ color: '#E65100', fontSize: 11, fontFamily: 'monospace' }}>inbox.length={inbox.length}</Text>
-      <Text style={{ color: '#E65100', fontSize: 11, fontFamily: 'monospace' }}>selectedBottleId={selectedBottleId}</Text>
-      <Text style={{ color: '#E65100', fontSize: 11, fontFamily: 'monospace' }}>currentUser.id={currentUser?.id?.slice(0, 8) || 'none'}...</Text>
-    </View>
-  );
-
-  try {
-    if (displayState?.type === 'received') {
-      const allAvailableBottles = getAvailableBottles();
-      const availableBottles = [...allAvailableBottles].sort(() => Math.random() - 0.5).slice(0, 10);
-      const selectedBottle = selectedBottleId ? allAvailableBottles.find((b) => b.id === selectedBottleId) : null;
-
-      return (
-        <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
-          <DebugHeader />
-          <View style={[styles.container, { paddingTop: insets.top }]}>
-            <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
-              {availableBottles.length === 0 ? (
-                <View style={styles.paddedSection}>
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyEmoji}>🌊</Text>
-                    <Text style={styles.emptyTitle}>Aucune bouteille à découvrir</Text>
-                    <Text style={styles.emptySubtext}>Revenez plus tard ou lancez votre propre message.</Text>
-                  </View>
-                  {state?.canCreateBottle && (<TouchableOpacity style={styles.createBtn} onPress={() => router.push('/bottles-create')}><Text style={styles.createBtnText}>Créer une nouvelle bouteille</Text></TouchableOpacity>)}
-                </View>
-              ) : !selectedBottle ? (
-                <>
-                  <View style={styles.paddedSection}>
-                    <Text style={styles.selectionTitle}>Choisissez une bouteille</Text>
-                    <Text style={styles.selectionSubtitle}>Découvrez des messages anonymes</Text>
-                    <Text style={{ fontSize: 12, color: '#FF9800', marginTop: 8, fontFamily: 'monospace' }}>availableBottles.length={availableBottles.length}</Text>
-                  </View>
-                  <View style={styles.bottlesContainer}>
-                    <View style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0 }}>
-                      <Image source={OCEAN_BG} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                    </View>
-                    {availableBottles.map((bottle, index) => (
-                      <BottleItem key={bottle.id} id={bottle.id} index={index} position={bottlePositions[index % bottlePositions.length]} onPress={() => setSelectedBottleId(bottle.id)} />
-                    ))}
-                  </View>
-                  <View style={styles.paddedSection}>
-                    {state?.canCreateBottle && (<TouchableOpacity style={styles.createAlternativeBtn} onPress={() => router.push('/bottles-create')}><Text style={styles.createAlternativeBtnText}>Ou créer une nouvelle bouteille</Text></TouchableOpacity>)}
-                  </View>
-                </>
-              ) : (
-                <>
-                  <View style={styles.paddedSection}>
-                    <TouchableOpacity style={styles.backSelection} onPress={() => setSelectedBottleId(null)}>
-                      <Text style={styles.backSelectionText}>← Choisir une autre</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <BottleParchmentCard content={selectedBottle.message || ''} />
-                  <View style={styles.paddedSection}>
-                    <View style={styles.actionBox}>
-                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.success }]} onPress={handleAccept} disabled={isAccepting}>
-                        <Text style={styles.actionBtnText}>{isAccepting ? 'Acceptation...' : '✓ Accepter'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.error }]} onPress={handleRefuse}>
-                        <Text style={styles.actionBtnText}>✗ Refuser</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </>
-              )}
-            </ScrollView>
+    if (availableBottles.length === 0) {
+      return (<View style={[styles.bg, { backgroundColor: CREAM_BG }]}><View style={[styles.container, { paddingTop: insets.top }]}><ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
+        <View style={styles.paddedSection}>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>🌊</Text>
+            <Text style={styles.emptyTitle}>Aucune bouteille à découvrir</Text>
+            <Text style={styles.emptySubtext}>Revenez plus tard ou lancez votre propre message.</Text>
           </View>
+          {state?.canCreateBottle && (<TouchableOpacity style={styles.createBtn} onPress={() => router.push('/bottles-create')}><Text style={styles.createBtnText}>Créer une nouvelle bouteille</Text></TouchableOpacity>)}
         </View>
-      );
+      </ScrollView></View></View>);
     }
-  } catch (err: any) {
-    setRenderError(err);
-    return (
-      <View style={[styles.bg, { backgroundColor: '#FDECEA', paddingTop: insets.top, padding: 16 }]}>
-        <ScrollView>
-          <Text style={{ color: COLORS.error, fontWeight: 'bold', fontSize: 16, marginBottom: 12 }}>DEBUG BOTTLE MAIN — commit a030e9e3</Text>
-          <Text style={{ color: COLORS.error, fontWeight: 'bold', marginBottom: 8 }}>RENDER ERROR IN received STATE:</Text>
-          <Text style={{ color: COLORS.error, fontSize: 12, marginBottom: 12, fontFamily: 'monospace', backgroundColor: '#FFF', padding: 8, borderRadius: 4 }}>{String(err?.message || 'Unknown error')}</Text>
-          <Text style={{ color: COLORS.error, fontSize: 10, marginBottom: 12, fontFamily: 'monospace', backgroundColor: '#FFF', padding: 8, borderRadius: 4 }}>{String(err?.stack || 'No stack trace')}</Text>
-        </ScrollView>
+
+    return (<View style={[styles.bg, { backgroundColor: CREAM_BG }]}><View style={[styles.container, { paddingTop: insets.top }]}><ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
+      {error && (<View style={styles.paddedSection}><View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View></View>)}
+      <View style={styles.paddedSection}>
+        <Text style={styles.selectionTitle}>Choisissez une bouteille</Text>
+        <Text style={styles.selectionSubtitle}>Découvrez des messages anonymes</Text>
       </View>
-    );
+      <View style={styles.bottlesContainer}>
+        <View style={{ position: 'absolute', width: '100%', height: '100%', top: 0, left: 0 }}>
+          <Image source={OCEAN_BG} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        </View>
+        {availableBottles.map((bottle, index) => (
+          <BottleItem key={bottle.id} id={bottle.id} index={index} position={bottlePositions[index % bottlePositions.length]} onPress={() => handleBottleClick(bottle.id)} isAccepting={isAccepting} />
+        ))}
+      </View>
+      <View style={styles.paddedSection}>
+        {state?.canCreateBottle && (<TouchableOpacity style={styles.createAlternativeBtn} onPress={() => router.push('/bottles-create')}><Text style={styles.createAlternativeBtnText}>Ou créer une nouvelle bouteille</Text></TouchableOpacity>)}
+      </View>
+    </ScrollView></View></View>);
   }
 
   if (displayState?.type === 'correspondence' && displayState.latestLetter) {
