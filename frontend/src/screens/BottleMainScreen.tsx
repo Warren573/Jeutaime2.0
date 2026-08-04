@@ -8,7 +8,7 @@ import type { GetCurrentBottleResponse, InboxBottleDTO } from '../api/bottles';
 import { useStore } from '../store/useStore';
 
 const CREAM_BG = '#FBF8F3';
-const BOTTLE_IMG = require('../../assets/images/bottle/BOTTLE.png');
+const BOTTLE_IMG = require('../../assets/images/bottle/BOTTLE-22.png');
 const OCEAN_BG = require('../../assets/images/ocean.png');
 const COLORS = { text: '#2B2B2B', textSecondary: '#6B6B6B', accent: '#8B2E3C', success: '#2E7D32', error: '#D32F2F' };
 
