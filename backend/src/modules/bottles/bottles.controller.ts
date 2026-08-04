@@ -356,10 +356,25 @@ export async function requestReveal(req: AuthedRequest, res: Response) {
   const bottleId = req.params["id"] as string;
   const userId = req.user.userId;
 
-  const request = await bottlesService.requestReveal(bottleId, userId);
-  const validated = RequestRevealResponseSchema.parse(serializeDates(request));
+  try {
+    const request = await bottlesService.requestReveal(bottleId, userId);
+    const validated = RequestRevealResponseSchema.parse(serializeDates(request));
 
-  res.json({ data: validated });
+    res.json({ data: validated });
+  } catch (error: any) {
+    const code = error.code || error.message;
+
+    if (code === "REVEAL_REQUEST_ALREADY_EXISTS") {
+      return res.status(409).json({
+        error: {
+          message: "Vous avez déjà demandé le dévoilement. En attente de réponse ou refusée.",
+          code: "REVEAL_REQUEST_ALREADY_EXISTS"
+        }
+      });
+    }
+
+    throw error;
+  }
 }
 
 // ============================================================
