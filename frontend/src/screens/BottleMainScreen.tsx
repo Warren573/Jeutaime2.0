@@ -2,8 +2,9 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { getCurrentBottle, getInbox, acceptBottle } from '../api/bottles';
+import { getCurrentBottle, getInbox, acceptBottle, getRevealStatus } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
+import { BottleCorrespondenceMenu } from '../components/BottleCorrespondenceMenu';
 import type { GetCurrentBottleResponse, InboxBottleDTO } from '../api/bottles';
 import { useStore } from '../store/useStore';
 
@@ -48,6 +49,9 @@ export default function BottleMainScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasRevealRequest, setHasRevealRequest] = useState(false);
+  const [isRevealRequester, setIsRevealRequester] = useState(false);
+  const [isRevealRefused, setIsRevealRefused] = useState(false);
 
   const loadState = useCallback(async () => {
     try {
@@ -55,6 +59,12 @@ export default function BottleMainScreen() {
       const [current, inboxData] = await Promise.all([getCurrentBottle(), getInbox()]);
       setState(current);
       setInbox(inboxData);
+
+      if (current.bottle?.id) {
+        const revealStatus = await getRevealStatus(current.bottle.id);
+        setHasRevealRequest(revealStatus.hasPendingRequest);
+        setIsRevealRequester(revealStatus.isRequester);
+      }
     } catch (err: any) {
       console.error('[BottleMainScreen] Error:', err);
       setError(err?.message || 'Erreur de chargement');
@@ -104,6 +114,51 @@ export default function BottleMainScreen() {
     } finally {
       setIsAccepting(false);
     }
+  };
+
+  const handleRequestReveal = async () => {
+    if (!state?.bottle?.id) return;
+    const { requestReveal } = await import('../api/bottles');
+    try {
+      await requestReveal(state.bottle.id);
+      setHasRevealRequest(true);
+      setIsRevealRequester(true);
+      setIsRevealRefused(false);
+      Alert.alert('Succès', 'Dévoilement demandé. En attente de réponse...');
+    } catch (err: any) {
+      const code = err?.code || err?.message;
+      if (code === 'REVEAL_ALREADY_REFUSED') {
+        setIsRevealRefused(true);
+        Alert.alert('Dévoilement', 'Votre demande a été refusée. Si cette personne change d\'avis, elle pourra vous proposer le dévoilement.');
+      } else {
+        Alert.alert('Erreur', err?.message || 'Impossible de demander le dévoilement');
+      }
+    }
+  };
+
+  const handleBreakBottle = () => {
+    if (!state?.bottle?.id) return;
+    Alert.alert(
+      'Rompre cette correspondance?',
+      'Cela fermera définitivement la discussion.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Rompre',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { breakBottle } = await import('../api/bottles');
+              await breakBottle(state.bottle!.id);
+              Alert.alert('Succès', 'Correspondance rompue');
+              await loadState();
+            } catch (err: any) {
+              Alert.alert('Erreur', err?.message || 'Impossible de rompre');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const getBottleToDisplay = () => {
@@ -158,15 +213,41 @@ export default function BottleMainScreen() {
     </ScrollView></View></View>);
   }
 
-  if (displayState?.type === 'correspondence' && displayState.latestLetter) {
-    return (<View style={[styles.bg, { backgroundColor: CREAM_BG }]}><View style={[styles.container, { paddingTop: insets.top }]}><ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
-      <BottleParchmentCard content={state.latestLetter!.content} />
-      <View style={styles.paddedSection}>
-        {state.canReply && (<TouchableOpacity style={styles.replyBtn} onPress={() => router.push({ pathname: '/bottles-discussion', params: { bottleId: state.bottle!.id } })}><Text style={styles.replyBtnText}>Écrire une réponse</Text></TouchableOpacity>)}
-        {state.waitingForReply && (<View style={styles.waitingBox}><Text style={styles.waitingText}>✈️ Votre lettre est en voyage...</Text></View>)}
-        <TouchableOpacity style={styles.historyBtn} onPress={() => router.push({ pathname: '/bottles-history', params: { bottleId: state.bottle!.id } })}><Text style={styles.historyBtnText}>Relire notre correspondance</Text></TouchableOpacity>
+  if (displayState?.type === 'correspondence' && displayState.latestLetter && state?.bottle) {
+    return (<View style={[styles.bg, { backgroundColor: CREAM_BG }]}><View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: 8 }]}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={styles.headerBack}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.headerTitle}>
+          <Text style={styles.headerTitleText} numberOfLines={1}>
+            Lettre en transit
+          </Text>
+        </View>
+        <BottleCorrespondenceMenu
+          bottleId={state.bottle.id}
+          canBreak={state.canBreak}
+          revealStatus={{
+            hasPendingRequest: hasRevealRequest,
+            isRequester: isRevealRequester,
+          }}
+          isRevealRefused={isRevealRefused}
+          onRequestReveal={handleRequestReveal}
+          onBreak={handleBreakBottle}
+          onRefresh={loadState}
+          insets={insets}
+        />
       </View>
-    </ScrollView></View></View>);
+
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
+        <BottleParchmentCard content={state.latestLetter!.content} />
+        <View style={styles.paddedSection}>
+          {state.canReply && (<TouchableOpacity style={styles.replyBtn} onPress={() => router.push({ pathname: '/bottles-discussion', params: { bottleId: state.bottle!.id } })}><Text style={styles.replyBtnText}>Écrire une réponse</Text></TouchableOpacity>)}
+          {state.waitingForReply && (<View style={styles.waitingBox}><Text style={styles.waitingText}>✈️ Votre lettre est en voyage...</Text></View>)}
+          <TouchableOpacity style={styles.historyBtn} onPress={() => router.push({ pathname: '/bottles-history', params: { bottleId: state.bottle!.id } })}><Text style={styles.historyBtnText}>Relire notre correspondance</Text></TouchableOpacity>
+        </View>
+      </ScrollView></View></View>);
   }
 
   if (displayState?.type === 'sent') {
@@ -205,6 +286,10 @@ export default function BottleMainScreen() {
 
 const styles = StyleSheet.create({
   bg: { flex: 1 }, container: { flex: 1 }, scroll: { flex: 1 }, content: { paddingHorizontal: 0, paddingVertical: 0 }, paddedSection: { paddingHorizontal: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 10 },
+  headerBack: { fontSize: 24, color: COLORS.accent, fontWeight: '600' },
+  headerTitle: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
+  headerTitleText: { fontSize: 15, fontWeight: '700', color: '#4A3A28' },
   replyBtn: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 8, backgroundColor: COLORS.accent, marginBottom: 12 }, replyBtnText: { fontSize: 16, fontWeight: '600', color: '#FFF', textAlign: 'center' },
   waitingBox: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#FFF3E0', borderLeftWidth: 4, borderLeftColor: '#FF9800', marginBottom: 12 }, waitingText: { fontSize: 14, color: '#E65100', fontWeight: '600', textAlign: 'center' },
   historyBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.8)', borderWidth: 1, borderColor: COLORS.accent }, historyBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.accent, textAlign: 'center' },
