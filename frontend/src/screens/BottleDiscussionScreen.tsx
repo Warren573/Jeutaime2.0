@@ -55,6 +55,7 @@ export default function BottleDiscussionScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      setShowMenu(false);
       Keyboard.dismiss();
       const timer = setTimeout(() => {
         if (textInputRef.current) {
