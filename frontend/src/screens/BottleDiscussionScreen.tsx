@@ -24,7 +24,7 @@ import {
   refuseReveal,
   breakBottle,
   getRevealStatus,
-  createReport,
+  reportBottleConversation,
 } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import { generateUUID } from '../utils/uuid';
@@ -152,7 +152,7 @@ export default function BottleDiscussionScreen() {
 
       if (code === 'REVEAL_ALREADY_REFUSED') {
         setIsRevealRefused(true);
-        Alert.alert('Dévoilement', err?.message || 'Votre demande a déjà été refusée. À l\'autre personne de faire la démarche si elle change d\'avis.');
+        Alert.alert('Dévoilement', 'Votre demande a été refusée. Si cette personne change d\'avis, elle pourra vous proposer le dévoilement.');
       } else if (code === 'REVEAL_ALREADY_ACCEPTED') {
         setHasRevealRequest(false);
         Alert.alert('Dévoilement', err?.message || 'Le dévoilement a déjà été accepté.');
@@ -197,13 +197,7 @@ export default function BottleDiscussionScreen() {
 
     setIsReporting(true);
     try {
-      const senderId = bottleState?.bottle?.id
-        ? bottleState.latestLetter?.isMine
-          ? undefined
-          : bottleState.latestLetter?.createdAt
-        : undefined;
-
-      await createReport(
+      await reportBottleConversation(
         bottleId,
         reportReason as 'HARASSMENT' | 'SPAM' | 'FAKE' | 'INAPPROPRIATE_CONTENT' | 'MINOR' | 'OTHER',
         reportDetails.trim() || undefined,
@@ -484,7 +478,7 @@ export default function BottleDiscussionScreen() {
               <>
                 {isRevealRefused ? (
                   <View style={styles.menuItem}>
-                    <Text style={styles.menuItemDisabled}>Dévoilement refusé définitivement</Text>
+                    <Text style={styles.menuItemDisabled}>Votre demande a été refusée</Text>
                   </View>
                 ) : hasRevealRequest && isRevealRequester ? (
                   <View style={styles.menuItem}>

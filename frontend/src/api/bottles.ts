@@ -313,16 +313,16 @@ export async function getRevealStatus(
 }
 
 // ============================================================
-// POST /api/reports
+// POST /api/bottles/:id/report
 // ============================================================
-export async function createReport(
-  targetId: string,
+export async function reportBottleConversation(
+  bottleId: string,
   reason: 'HARASSMENT' | 'SPAM' | 'FAKE' | 'INAPPROPRIATE_CONTENT' | 'MINOR' | 'OTHER',
   details?: string,
 ): Promise<{ id: string; status: string }> {
-  const res = (await apiFetch('/reports', {
+  const res = (await apiFetch(`/bottles/${bottleId}/report`, {
     method: 'POST',
-    body: JSON.stringify({ targetId, reason, details }),
+    body: JSON.stringify({ reason, details }),
   })) as { data: any };
   return res.data;
 }

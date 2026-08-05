@@ -171,6 +171,14 @@ router.get(
   }),
 );
 
+// POST /api/bottles/:id/report — report conversation, backend determines target user
+router.post(
+  "/:id/report",
+  wrap(async (req, res) => {
+    await controller.reportBottle(req as AuthedRequest, res);
+  }),
+);
+
 // GET /api/bottles/:id — bottle detail (sender or acceptor)
 // IMPORTANT: déclaré APRÈS les routes GET spécifiques (/sent, /inbox,
 // /unread-count, /current) pour ne pas les masquer.

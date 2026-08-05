@@ -1194,8 +1194,11 @@ export async function getCurrentBottle(userId: string) {
   const canReply = !isMine && bottle.status === "ACCEPTED";
   const waitingForReply = isMine && bottle.status === "ACCEPTED";
 
-  // Can break correspondence: bottle is ACCEPTED/REVEALED AND first response already sent (messageCount > 1)
-  const canBreak = (bottle.status === "ACCEPTED" || bottle.status === "REVEALED") && allMessages.length > 1;
+  // Can break correspondence: bottle is ACCEPTED AND acceptor has sent first reply
+  const hasAcceptorReply = bottle.status === "ACCEPTED" && bottle.acceptedById
+    ? bottle.messages.some(m => m.senderId === bottle.acceptedById)
+    : false;
+  const canBreak = hasAcceptorReply;
 
   // Check if user can create a new bottle
   const pendingCount = await prisma.messageInABottle.count({
@@ -1241,4 +1244,47 @@ export async function getCurrentBottle(userId: string) {
     canBreak,
     messageCount: allMessages.length,
   };
+}
+
+export async function reportBottle(
+  bottleId: string,
+  reporterId: string,
+  reason: string,
+  details?: string,
+): Promise<{ id: string; status: string }> {
+  const bottle = await prisma.messageInABottle.findUnique({
+    where: { id: bottleId },
+  });
+
+  if (!bottle) {
+    throw new Error("Bottle not found");
+  }
+
+  if (bottle.status !== "ACCEPTED") {
+    throw new Error("Can only report accepted bottles");
+  }
+
+  // Verify user is participant (sender or acceptor)
+  if (bottle.senderId !== reporterId && bottle.acceptedById !== reporterId) {
+    throw new Error("Unauthorized");
+  }
+
+  // Determine target user (the other participant)
+  const targetId = bottle.senderId === reporterId ? bottle.acceptedById : bottle.senderId;
+
+  if (!targetId) {
+    throw new Error("Cannot determine target user");
+  }
+
+  // Create report with target user ID
+  const report = await prisma.report.create({
+    data: {
+      reporterId,
+      targetId,
+      reason,
+      details,
+    },
+  });
+
+  return { id: report.id, status: report.status };
 }

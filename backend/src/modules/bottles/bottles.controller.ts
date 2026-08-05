@@ -456,6 +456,18 @@ export async function getRevealStatus(req: AuthedRequest, res: Response) {
 }
 
 // ============================================================
+// POST /api/bottles/:id/report
+// ============================================================
+export async function reportBottle(req: AuthedRequest, res: Response) {
+  const bottleId = req.params["id"] as string;
+  const userId = req.user.userId;
+  const { reason, details } = req.body;
+
+  const result = await bottlesService.reportBottle(bottleId, userId, reason, details);
+  res.json({ data: result });
+}
+
+// ============================================================
 // GET /api/bottles/current
 // ============================================================
 export async function getCurrentBottle(req: AuthedRequest, res: Response) {
