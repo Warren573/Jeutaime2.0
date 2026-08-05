@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Modal,
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,8 +19,6 @@ import {
   getCurrentBottle,
   postBottleMessage,
   markBottleAsRead,
-  requestReveal,
-  breakBottle,
   getRevealStatus,
 } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
@@ -51,7 +50,7 @@ export default function BottleDiscussionScreen() {
   const [isSending, setIsSending] = useState(false);
   const [hasRevealRequest, setHasRevealRequest] = useState(false);
   const [isRevealRequester, setIsRevealRequester] = useState(false);
-  const [isRevealRefused, setIsRevealRefused] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
@@ -132,51 +131,6 @@ export default function BottleDiscussionScreen() {
     }
   };
 
-  const handleRequestReveal = async () => {
-    try {
-      await requestReveal(bottleId);
-      setHasRevealRequest(true);
-      setIsRevealRequester(true);
-      setIsRevealRefused(false);
-      Alert.alert('Succès', 'Dévoilement demandé. En attente de réponse...');
-    } catch (err: any) {
-      const code = err?.code || err?.message;
-
-      if (code === 'REVEAL_ALREADY_REFUSED') {
-        setIsRevealRefused(true);
-        Alert.alert('Dévoilement', 'Votre demande a été refusée. Si cette personne change d\'avis, elle pourra vous proposer le dévoilement.');
-      } else if (code === 'REVEAL_ALREADY_ACCEPTED') {
-        setHasRevealRequest(false);
-        Alert.alert('Dévoilement', err?.message || 'Le dévoilement a déjà été accepté.');
-      } else {
-        Alert.alert('Erreur', err?.message || 'Impossible de demander le dévoilement');
-      }
-    }
-  };
-
-
-  const handleBreakBottle = () => {
-    Alert.alert(
-      'Rompre cette correspondance?',
-      'Cela fermera définitivement la discussion.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Rompre',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await breakBottle(bottleId);
-              Alert.alert('Succès', 'Correspondance rompue');
-              router.back();
-            } catch (err: any) {
-              Alert.alert('Erreur', err?.message || 'Impossible de rompre');
-            }
-          },
-        },
-      ]
-    );
-  };
 
   if (isLoading) {
     return (
@@ -222,21 +176,12 @@ export default function BottleDiscussionScreen() {
               Lettre en transit
             </Text>
           </View>
-          {bottleState?.bottle && (
-            <BottleCorrespondenceMenu
-              bottleId={bottleId}
-              canBreak={bottleState.canBreak}
-              revealStatus={{
-                hasPendingRequest: hasRevealRequest,
-                isRequester: isRevealRequester,
-              }}
-              isRevealRefused={isRevealRefused}
-              onRequestReveal={handleRequestReveal}
-              onBreak={handleBreakBottle}
-              onRefresh={loadData}
-              insets={insets}
-            />
-          )}
+          <TouchableOpacity
+            onPress={() => setShowMenu(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.menuDots}>⋯</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Affichage de la dernière lettre - PLEINE LARGEUR */}
@@ -335,6 +280,16 @@ export default function BottleDiscussionScreen() {
         )}
       </KeyboardAvoidingView>
 
+      {bottleState?.bottle && (
+        <BottleCorrespondenceMenu
+          visible={showMenu}
+          bottleId={bottleState.bottle.id}
+          canBreak={bottleState.canBreak}
+          onClose={() => setShowMenu(false)}
+          onRefresh={loadData}
+          onBroken={() => router.back()}
+        />
+      )}
     </>
   );
 }
@@ -503,5 +458,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.accent,
     textAlign: 'center',
+  },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  menuCard: {
+    position: 'absolute',
+    right: 12,
+    minWidth: 230,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(200,162,90,0.4)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  menuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  menuItemText: {
+    fontSize: 14,
+    color: '#3A2C18',
+    fontWeight: '500',
+  },
+  menuItemDisabled: {
+    fontSize: 14,
+    color: '#9C8560',
+    fontStyle: 'italic',
+  },
+  menuItemDanger: {
+    color: '#B23A48',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: 'rgba(200,162,90,0.3)',
+    marginVertical: 4,
   },
 });
