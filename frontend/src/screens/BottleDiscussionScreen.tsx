@@ -24,6 +24,7 @@ import {
   refuseReveal,
   breakBottle,
   getRevealStatus,
+  createReport,
 } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import { generateUUID } from '../utils/uuid';
@@ -53,7 +54,12 @@ export default function BottleDiscussionScreen() {
   const [isSending, setIsSending] = useState(false);
   const [hasRevealRequest, setHasRevealRequest] = useState(false);
   const [isRevealRequester, setIsRevealRequester] = useState(false);
+  const [isRevealRefused, setIsRevealRefused] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState<'HARASSMENT' | 'SPAM' | 'FAKE' | 'INAPPROPRIATE_CONTENT' | 'MINOR' | 'OTHER' | ''>('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [isReporting, setIsReporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
@@ -139,14 +145,14 @@ export default function BottleDiscussionScreen() {
       await requestReveal(bottleId);
       setHasRevealRequest(true);
       setIsRevealRequester(true);
+      setIsRevealRefused(false);
       Alert.alert('Succès', 'Dévoilement demandé. En attente de réponse...');
     } catch (err: any) {
       const code = err?.code || err?.message;
 
       if (code === 'REVEAL_ALREADY_REFUSED') {
-        setHasRevealRequest(true);
-        setIsRevealRequester(true);
-        Alert.alert('Dévoilement', err?.message || 'Votre demande a déjà été refusée.');
+        setIsRevealRefused(true);
+        Alert.alert('Dévoilement', err?.message || 'Votre demande a déjà été refusée. À l\'autre personne de faire la démarche si elle change d\'avis.');
       } else if (code === 'REVEAL_ALREADY_ACCEPTED') {
         setHasRevealRequest(false);
         Alert.alert('Dévoilement', err?.message || 'Le dévoilement a déjà été accepté.');
@@ -176,9 +182,40 @@ export default function BottleDiscussionScreen() {
     try {
       await refuseReveal(bottleId);
       setHasRevealRequest(false);
+      setIsRevealRefused(true);
       Alert.alert('Succès', 'Dévoilement refusé. La discussion reste anonyme.');
     } catch (err: any) {
       Alert.alert('Erreur', err?.message || 'Impossible de refuser le dévoilement');
+    }
+  };
+
+  const handleReport = async () => {
+    if (!reportReason) {
+      Alert.alert('Erreur', 'Veuillez choisir une raison de signalement');
+      return;
+    }
+
+    setIsReporting(true);
+    try {
+      const senderId = bottleState?.bottle?.id
+        ? bottleState.latestLetter?.isMine
+          ? undefined
+          : bottleState.latestLetter?.createdAt
+        : undefined;
+
+      await createReport(
+        bottleId,
+        reportReason as 'HARASSMENT' | 'SPAM' | 'FAKE' | 'INAPPROPRIATE_CONTENT' | 'MINOR' | 'OTHER',
+        reportDetails.trim() || undefined,
+      );
+      Alert.alert('Succès', 'Votre signalement a été envoyé à l\'équipe de modération.');
+      setReportReason('');
+      setReportDetails('');
+      setShowReportModal(false);
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message || 'Impossible de signaler cette conversation');
+    } finally {
+      setIsReporting(false);
     }
   };
 
@@ -353,6 +390,83 @@ export default function BottleDiscussionScreen() {
         )}
       </KeyboardAvoidingView>
 
+      {/* Report Modal */}
+      <Modal
+        visible={showReportModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !isReporting && setShowReportModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.reportModalBackdrop}
+          activeOpacity={1}
+          onPress={() => !isReporting && setShowReportModal(false)}
+        >
+          <View style={styles.reportModalContent}>
+            <TouchableOpacity
+              style={styles.reportModalClose}
+              onPress={() => !isReporting && setShowReportModal(false)}
+              disabled={isReporting}
+            >
+              <Text style={styles.reportModalCloseText}>✕</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.reportModalTitle}>Signaler cette conversation</Text>
+
+            <View style={styles.reportReasonsContainer}>
+              {(['HARASSMENT', 'SPAM', 'FAKE', 'INAPPROPRIATE_CONTENT', 'MINOR', 'OTHER'] as const).map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[
+                    styles.reportReasonBtn,
+                    reportReason === reason && styles.reportReasonBtnSelected,
+                  ]}
+                  onPress={() => setReportReason(reason)}
+                  disabled={isReporting}
+                >
+                  <Text
+                    style={[
+                      styles.reportReasonText,
+                      reportReason === reason && styles.reportReasonTextSelected,
+                    ]}
+                  >
+                    {reason === 'HARASSMENT' && 'Harcèlement'}
+                    {reason === 'SPAM' && 'Spam'}
+                    {reason === 'FAKE' && 'Profil fake'}
+                    {reason === 'INAPPROPRIATE_CONTENT' && 'Contenu inapproprié'}
+                    {reason === 'MINOR' && 'Mineur'}
+                    {reason === 'OTHER' && 'Autre'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              style={styles.reportDetailsInput}
+              placeholder="Détails supplémentaires (optionnel)"
+              placeholderTextColor={COLORS.textSecondary}
+              value={reportDetails}
+              onChangeText={setReportDetails}
+              multiline
+              maxLength={500}
+              editable={!isReporting}
+            />
+
+            <TouchableOpacity
+              style={[styles.reportSubmitBtn, isReporting && styles.reportSubmitBtnDisabled]}
+              onPress={handleReport}
+              disabled={isReporting || !reportReason}
+            >
+              {isReporting ? (
+                <ActivityIndicator size="small" color={COLORS.card} />
+              ) : (
+                <Text style={styles.reportSubmitBtnText}>Envoyer le signalement</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Menu */}
       <Modal
         visible={showMenu}
@@ -368,9 +482,13 @@ export default function BottleDiscussionScreen() {
           <View style={[styles.menuCard, { top: insets.top + 44 }]}>
             {bottleState.bottle.status === 'ACCEPTED' && (
               <>
-                {hasRevealRequest && isRevealRequester ? (
+                {isRevealRefused ? (
                   <View style={styles.menuItem}>
-                    <Text style={styles.menuItemDisabled}>Dévoilement en attente…</Text>
+                    <Text style={styles.menuItemDisabled}>Dévoilement refusé définitivement</Text>
+                  </View>
+                ) : hasRevealRequest && isRevealRequester ? (
+                  <View style={styles.menuItem}>
+                    <Text style={styles.menuItemDisabled}>Demande de dévoilement en attente…</Text>
                   </View>
                 ) : hasRevealRequest && !isRevealRequester ? (
                   <>
@@ -401,7 +519,7 @@ export default function BottleDiscussionScreen() {
                       handleRequestReveal();
                     }}
                   >
-                    <Text style={styles.menuItemText}>✨ Proposer le dévoilement</Text>
+                    <Text style={styles.menuItemText}>✨ Demander le dévoilement du profil</Text>
                   </TouchableOpacity>
                 )}
                 <View style={styles.menuDivider} />
@@ -423,15 +541,29 @@ export default function BottleDiscussionScreen() {
               </TouchableOpacity>
             )}
 
+            {bottleState.canBreak && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowMenu(false);
+                  handleBreakBottle();
+                }}
+              >
+                <Text style={[styles.menuItemText, styles.menuItemDanger]}>
+                  Arrêter la correspondance
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
                 setShowMenu(false);
-                handleBreakBottle();
+                setShowReportModal(true);
               }}
             >
               <Text style={[styles.menuItemText, styles.menuItemDanger]}>
-                Rompre la correspondance
+                Signaler
               </Text>
             </TouchableOpacity>
           </View>
@@ -646,5 +778,87 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(200,162,90,0.3)',
     marginVertical: 4,
+  },
+  reportModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'flex-end',
+  },
+  reportModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    maxHeight: '80%',
+  },
+  reportModalClose: {
+    alignSelf: 'flex-end',
+    paddingBottom: 12,
+  },
+  reportModalCloseText: {
+    fontSize: 24,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  reportModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2B2B2B',
+    marginBottom: 20,
+  },
+  reportReasonsContainer: {
+    marginBottom: 20,
+  },
+  reportReasonBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#F5F1E8',
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  reportReasonBtnSelected: {
+    backgroundColor: '#E8CFCF',
+    borderColor: COLORS.accent,
+  },
+  reportReasonText: {
+    fontSize: 14,
+    color: '#3A2C18',
+    fontWeight: '500',
+  },
+  reportReasonTextSelected: {
+    color: COLORS.accent,
+    fontWeight: '600',
+  },
+  reportDetailsInput: {
+    minHeight: 100,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#F5F1E8',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    fontSize: 13,
+    color: '#2B2B2B',
+    marginBottom: 16,
+    textAlignVertical: 'top',
+  },
+  reportSubmitBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: COLORS.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reportSubmitBtnDisabled: {
+    opacity: 0.6,
+  },
+  reportSubmitBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.card,
   },
 });

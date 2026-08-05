@@ -1157,6 +1157,7 @@ export async function getCurrentBottle(userId: string) {
       canReply: false,
       waitingForReply: false,
       canCreateBottle: true,
+      canBreak: false,
       messageCount: 0,
     };
   }
@@ -1193,6 +1194,9 @@ export async function getCurrentBottle(userId: string) {
   const canReply = !isMine && bottle.status === "ACCEPTED";
   const waitingForReply = isMine && bottle.status === "ACCEPTED";
 
+  // Can break correspondence: bottle is ACCEPTED/REVEALED AND first response already sent (messageCount > 1)
+  const canBreak = (bottle.status === "ACCEPTED" || bottle.status === "REVEALED") && allMessages.length > 1;
+
   // Check if user can create a new bottle
   const pendingCount = await prisma.messageInABottle.count({
     where: { senderId: userId, status: "FLOATING" },
@@ -1215,6 +1219,7 @@ export async function getCurrentBottle(userId: string) {
     canReply,
     waitingForReply,
     canCreateBottle,
+    canBreak,
     messageCount: allMessages.length,
   });
 
@@ -1233,6 +1238,7 @@ export async function getCurrentBottle(userId: string) {
     canReply,
     waitingForReply,
     canCreateBottle,
+    canBreak,
     messageCount: allMessages.length,
   };
 }

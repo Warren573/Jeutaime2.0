@@ -64,6 +64,7 @@ export interface GetCurrentBottleResponse {
   canReply: boolean;
   waitingForReply: boolean;
   canCreateBottle: boolean;
+  canBreak: boolean;
   messageCount: number;
 }
 
@@ -308,5 +309,20 @@ export async function getRevealStatus(
   const res = (await apiFetch(`/bottles/${bottleId}/reveal/status`)) as {
     data: any;
   };
+  return res.data;
+}
+
+// ============================================================
+// POST /api/reports
+// ============================================================
+export async function createReport(
+  targetId: string,
+  reason: 'HARASSMENT' | 'SPAM' | 'FAKE' | 'INAPPROPRIATE_CONTENT' | 'MINOR' | 'OTHER',
+  details?: string,
+): Promise<{ id: string; status: string }> {
+  const res = (await apiFetch('/reports', {
+    method: 'POST',
+    body: JSON.stringify({ targetId, reason, details }),
+  })) as { data: any };
   return res.data;
 }
