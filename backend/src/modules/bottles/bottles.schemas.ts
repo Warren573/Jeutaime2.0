@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ReportReason } from "@prisma/client";
 
 // ============================================================
 // POST /api/bottles/create
@@ -321,9 +322,27 @@ export const GetCurrentBottleResponseSchema = z.object({
   canReply: z.boolean(),
   waitingForReply: z.boolean(),
   canCreateBottle: z.boolean(),
+  canBreak: z.boolean(),
   messageCount: z.number(),
 });
 
 export type GetCurrentBottleResponse = z.infer<
   typeof GetCurrentBottleResponseSchema
 >;
+
+// ============================================================
+// POST /api/bottles/:id/report
+// ============================================================
+export const ReportBottleBodySchema = z.object({
+  reason: z.nativeEnum(ReportReason),
+  details: z.string().max(2000).optional(),
+});
+
+export type ReportBottleBody = z.infer<typeof ReportBottleBodySchema>;
+
+export const ReportBottleResponseSchema = z.object({
+  id: z.string(),
+  status: z.string(),
+});
+
+export type ReportBottleResponse = z.infer<typeof ReportBottleResponseSchema>;

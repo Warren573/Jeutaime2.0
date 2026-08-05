@@ -29,6 +29,8 @@ import {
   RestartBottleResponseSchema,
   GetRevealStatusResponseSchema,
   GetCurrentBottleResponseSchema,
+  ReportBottleBodySchema,
+  ReportBottleResponseSchema,
 } from "./bottles.schemas";
 
 // ============================================================
@@ -465,6 +467,22 @@ export async function reportBottle(req: AuthedRequest, res: Response) {
 
   const result = await bottlesService.reportBottle(bottleId, userId, reason, details);
   res.json({ data: result });
+}
+
+// ============================================================
+// GET /api/bottles/current
+// ============================================================
+// POST /api/bottles/:id/report
+// ============================================================
+export async function reportBottle(req: AuthedRequest, res: Response) {
+  const body = ReportBottleBodySchema.parse(req.body);
+  const bottleId = req.params["id"] as string;
+  const userId = req.user.userId;
+
+  const result = await bottlesService.reportBottle(bottleId, userId, body.reason, body.details);
+  const validated = ReportBottleResponseSchema.parse(result);
+
+  res.json({ data: validated });
 }
 
 // ============================================================

@@ -5,6 +5,7 @@ import type {
   AnonymousMessage,
   User,
 } from "@prisma/client";
+import { ReportReason } from "@prisma/client";
 import { addDays } from "date-fns";
 import { ConflictError } from "../../core/errors";
 import { isPremiumActive } from "../../policies/premium";
@@ -1249,7 +1250,7 @@ export async function getCurrentBottle(userId: string) {
 export async function reportBottle(
   bottleId: string,
   reporterId: string,
-  reason: string,
+  reason: ReportReason,
   details?: string,
 ): Promise<{ id: string; status: string }> {
   const bottle = await prisma.messageInABottle.findUnique({
