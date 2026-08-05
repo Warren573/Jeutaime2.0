@@ -1201,6 +1201,21 @@ export async function getCurrentBottle(userId: string) {
     : false;
   const canBreak = hasAcceptorReply;
 
+  // DIAGNOSTIC LOG: exact runtime values for canBreak verification
+  console.log("[CANBREAK_DIAGNOSTIC]", JSON.stringify({
+    bottleId: bottle.id,
+    status: bottle.status,
+    senderId: bottle.senderId,
+    acceptedById: bottle.acceptedById,
+    messages: bottle.messages.map(m => ({
+      id: m.id,
+      senderId: m.senderId,
+      createdAt: m.createdAt.toISOString(),
+    })),
+    hasAcceptorReply,
+    canBreak,
+  }, null, 2));
+
   // Check if user can create a new bottle
   const pendingCount = await prisma.messageInABottle.count({
     where: { senderId: userId, status: "FLOATING" },
