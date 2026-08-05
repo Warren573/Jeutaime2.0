@@ -55,7 +55,6 @@ export default function BottleMainScreen() {
       const [current, inboxData] = await Promise.all([getCurrentBottle(), getInbox()]);
       setState(current);
       setInbox(inboxData);
-      setSelectedBottleId(null);
     } catch (err: any) {
       console.error('[BottleMainScreen] Error:', err);
       setError(err?.message || 'Erreur de chargement');
