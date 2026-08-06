@@ -163,6 +163,8 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
     }
   };
 
+  console.log('[BottleCorrespondenceMenu] render', { visible, bottleId, canBreak });
+
   return (
     <>
       <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
