@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,14 +12,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import {
   acceptReveal,
   breakBottle,
+  getBottleById,
   getRevealStatus,
   refuseReveal,
   reportBottleConversation,
   requestReveal,
 } from '../api/bottles';
+import { useStore } from '../store/useStore';
 
 const COLORS = {
   card: '#FFFFFF',
@@ -39,6 +42,8 @@ type ReportReason =
 type RevealState = {
   hasPendingRequest: boolean;
   isRequester: boolean;
+  bottleStatus: 'FLOATING' | 'ACCEPTED' | 'EXPIRED' | 'REVEALED' | 'BROKEN' | null;
+  partnerId: string | null;
 };
 
 type Props = {
@@ -67,9 +72,13 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
   onRefresh,
   onBroken,
 }) => {
+  const router = useRouter();
+  const currentUser = useStore((state) => state.currentUser);
   const [revealState, setRevealState] = useState<RevealState>({
     hasPendingRequest: false,
     isRequester: false,
+    bottleStatus: null,
+    partnerId: null,
   });
   const [isRevealLoading, setIsRevealLoading] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -85,20 +94,35 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
     Alert.alert(title, message);
   };
 
+  const loadRevealState = useCallback(async () => {
+    if (!bottleId) return;
+
+    const [status, bottle] = await Promise.all([
+      getRevealStatus(bottleId),
+      getBottleById(bottleId),
+    ]);
+
+    const partnerId = currentUser?.id
+      ? bottle.senderId === currentUser.id
+        ? bottle.acceptedById
+        : bottle.senderId
+      : null;
+
+    setRevealState({
+      hasPendingRequest: status.hasPendingRequest,
+      isRequester: status.isRequester,
+      bottleStatus: bottle.status,
+      partnerId,
+    });
+  }, [bottleId, currentUser?.id]);
+
   useEffect(() => {
     if (!visible || !bottleId) return;
 
     let active = true;
     setIsRevealLoading(true);
 
-    getRevealStatus(bottleId)
-      .then((status) => {
-        if (!active) return;
-        setRevealState({
-          hasPendingRequest: status.hasPendingRequest,
-          isRequester: status.isRequester,
-        });
-      })
+    loadRevealState()
       .catch((err: any) => {
         if (!active) return;
         showMessage('Erreur', err?.message || 'Impossible de charger le statut du dévoilement');
@@ -107,16 +131,31 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
         if (active) setIsRevealLoading(false);
       });
 
+    const interval = setInterval(() => {
+      void loadRevealState().catch(() => undefined);
+    }, 3000);
+
     return () => {
       active = false;
+      clearInterval(interval);
     };
-  }, [visible, bottleId]);
+  }, [visible, bottleId, loadRevealState]);
+
+  const openPartnerProfile = () => {
+    if (!revealState.partnerId) {
+      showMessage('Erreur', 'Profil partenaire introuvable');
+      return;
+    }
+
+    onClose();
+    router.push(`/profile/${revealState.partnerId}` as never);
+  };
 
   const handleRequestReveal = async () => {
     setIsRevealLoading(true);
     try {
       await requestReveal(bottleId);
-      setRevealState({ hasPendingRequest: true, isRequester: true });
+      await loadRevealState();
       await onRefresh();
       showMessage('Succès', 'Dévoilement demandé. En attente de réponse...');
       onClose();
@@ -139,9 +178,9 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
     setIsRevealLoading(true);
     try {
       await acceptReveal(bottleId);
-      await onRefresh();
+      await loadRevealState();
       showMessage('Succès', 'Dévoilement accepté !');
-      onClose();
+      openPartnerProfile();
     } catch (err: any) {
       showMessage('Erreur', err?.message || "Impossible d'accepter le dévoilement");
     } finally {
@@ -153,7 +192,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
     setIsRevealLoading(true);
     try {
       await refuseReveal(bottleId);
-      setRevealState({ hasPendingRequest: false, isRequester: false });
+      await loadRevealState();
       await onRefresh();
       showMessage('Succès', 'Dévoilement refusé. La discussion reste anonyme.');
       onClose();
@@ -234,6 +273,14 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
       );
     }
 
+    if (revealState.bottleStatus === 'REVEALED') {
+      return (
+        <TouchableOpacity style={styles.menuItem} onPress={openPartnerProfile}>
+          <Text style={styles.menuItemText}>👤 Voir le profil dévoilé</Text>
+        </TouchableOpacity>
+      );
+    }
+
     if (!revealState.hasPendingRequest) {
       return (
         <TouchableOpacity style={styles.menuItem} onPress={() => void handleRequestReveal()}>
@@ -270,7 +317,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
           <View style={styles.menuCard}>
             {renderRevealActions()}
 
-            {canBreak && (
+            {canBreak && revealState.bottleStatus !== 'REVEALED' && (
               <TouchableOpacity style={styles.menuItem} onPress={handleBreakBottle}>
                 <Text style={[styles.menuItemText, styles.menuItemDanger]}>
                   Arrêter la correspondance
