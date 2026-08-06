@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,7 @@ import {
 import {
   acceptReveal,
   breakBottle,
+  getRevealStatus,
   refuseReveal,
   reportBottleConversation,
   requestReveal,
@@ -34,6 +35,11 @@ type ReportReason =
   | 'INAPPROPRIATE_CONTENT'
   | 'MINOR'
   | 'OTHER';
+
+type RevealState = {
+  hasPendingRequest: boolean;
+  isRequester: boolean;
+};
 
 type Props = {
   visible: boolean;
@@ -61,60 +67,111 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
   onRefresh,
   onBroken,
 }) => {
+  const [revealState, setRevealState] = useState<RevealState>({
+    hasPendingRequest: false,
+    isRequester: false,
+  });
+  const [isRevealLoading, setIsRevealLoading] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason | ''>('');
   const [reportDetails, setReportDetails] = useState('');
   const [isReporting, setIsReporting] = useState(false);
 
+  const showMessage = (title: string, message: string) => {
+    if (Platform.OS === 'web' && typeof globalThis.alert === 'function') {
+      globalThis.alert(`${title}\n\n${message}`);
+      return;
+    }
+    Alert.alert(title, message);
+  };
+
+  useEffect(() => {
+    if (!visible || !bottleId) return;
+
+    let active = true;
+    setIsRevealLoading(true);
+
+    getRevealStatus(bottleId)
+      .then((status) => {
+        if (!active) return;
+        setRevealState({
+          hasPendingRequest: status.hasPendingRequest,
+          isRequester: status.isRequester,
+        });
+      })
+      .catch((err: any) => {
+        if (!active) return;
+        showMessage('Erreur', err?.message || 'Impossible de charger le statut du dévoilement');
+      })
+      .finally(() => {
+        if (active) setIsRevealLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [visible, bottleId]);
+
   const handleRequestReveal = async () => {
+    setIsRevealLoading(true);
     try {
       await requestReveal(bottleId);
-      onClose();
+      setRevealState({ hasPendingRequest: true, isRequester: true });
       await onRefresh();
-      Alert.alert('Succès', 'Dévoilement demandé. En attente de réponse...');
+      showMessage('Succès', 'Dévoilement demandé. En attente de réponse...');
+      onClose();
     } catch (err: any) {
       const code = err?.code || err?.message;
       if (code === 'REVEAL_ALREADY_REFUSED') {
-        Alert.alert(
+        showMessage(
           'Dévoilement',
           "Votre demande a été refusée. Si cette personne change d'avis, elle pourra vous proposer le dévoilement.",
         );
       } else {
-        Alert.alert('Erreur', err?.message || 'Impossible de demander le dévoilement');
+        showMessage('Erreur', err?.message || 'Impossible de demander le dévoilement');
       }
+    } finally {
+      setIsRevealLoading(false);
     }
   };
 
   const handleAcceptReveal = async () => {
+    setIsRevealLoading(true);
     try {
       await acceptReveal(bottleId);
-      onClose();
       await onRefresh();
-      Alert.alert('Succès', 'Dévoilement accepté !');
+      showMessage('Succès', 'Dévoilement accepté !');
+      onClose();
     } catch (err: any) {
-      Alert.alert('Erreur', err?.message || "Impossible d'accepter le dévoilement");
+      showMessage('Erreur', err?.message || "Impossible d'accepter le dévoilement");
+    } finally {
+      setIsRevealLoading(false);
     }
   };
 
   const handleRefuseReveal = async () => {
+    setIsRevealLoading(true);
     try {
       await refuseReveal(bottleId);
-      onClose();
+      setRevealState({ hasPendingRequest: false, isRequester: false });
       await onRefresh();
-      Alert.alert('Succès', 'Dévoilement refusé. La discussion reste anonyme.');
+      showMessage('Succès', 'Dévoilement refusé. La discussion reste anonyme.');
+      onClose();
     } catch (err: any) {
-      Alert.alert('Erreur', err?.message || 'Impossible de refuser le dévoilement');
+      showMessage('Erreur', err?.message || 'Impossible de refuser le dévoilement');
+    } finally {
+      setIsRevealLoading(false);
     }
   };
 
   const performBreak = async () => {
     try {
       await breakBottle(bottleId);
+      showMessage('Succès', 'Correspondance rompue');
       onClose();
-      Alert.alert('Succès', 'Correspondance rompue');
       onBroken();
     } catch (err: any) {
-      Alert.alert('Erreur', err?.message || 'Impossible de rompre');
+      showMessage('Erreur', err?.message || 'Impossible de rompre');
     }
   };
 
@@ -124,9 +181,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
 
     if (Platform.OS === 'web') {
       const confirmed = globalThis.confirm(`${title}\n\n${message}`);
-      if (confirmed) {
-        void performBreak();
-      }
+      if (confirmed) void performBreak();
       return;
     }
 
@@ -142,14 +197,12 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
   };
 
   const closeReportModal = () => {
-    if (!isReporting) {
-      setShowReportModal(false);
-    }
+    if (!isReporting) setShowReportModal(false);
   };
 
   const handleReport = async () => {
     if (!reportReason) {
-      Alert.alert('Erreur', 'Veuillez choisir une raison de signalement');
+      showMessage('Erreur', 'Veuillez choisir une raison de signalement');
       return;
     }
 
@@ -163,12 +216,50 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
       setReportReason('');
       setReportDetails('');
       setShowReportModal(false);
-      Alert.alert('Succès', "Votre signalement a été envoyé à l'équipe de modération.");
+      showMessage('Succès', "Votre signalement a été envoyé à l'équipe de modération.");
     } catch (err: any) {
-      Alert.alert('Erreur', err?.message || 'Impossible de signaler cette conversation');
+      showMessage('Erreur', err?.message || 'Impossible de signaler cette conversation');
     } finally {
       setIsReporting(false);
     }
+  };
+
+  const renderRevealActions = () => {
+    if (isRevealLoading) {
+      return (
+        <View style={styles.loadingItem}>
+          <ActivityIndicator size="small" color={COLORS.accent} />
+          <Text style={styles.loadingText}>Chargement...</Text>
+        </View>
+      );
+    }
+
+    if (!revealState.hasPendingRequest) {
+      return (
+        <TouchableOpacity style={styles.menuItem} onPress={() => void handleRequestReveal()}>
+          <Text style={styles.menuItemText}>✨ Demander le dévoilement du profil</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    if (revealState.isRequester) {
+      return (
+        <View style={styles.loadingItem}>
+          <Text style={styles.menuItemDisabled}>⏳ Demande de dévoilement en attente</Text>
+        </View>
+      );
+    }
+
+    return (
+      <>
+        <TouchableOpacity style={styles.menuItem} onPress={() => void handleAcceptReveal()}>
+          <Text style={styles.menuItemText}>✓ Accepter le dévoilement</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.menuItem} onPress={() => void handleRefuseReveal()}>
+          <Text style={[styles.menuItemText, styles.menuItemDanger]}>✕ Refuser le dévoilement</Text>
+        </TouchableOpacity>
+      </>
+    );
   };
 
   return (
@@ -176,11 +267,8 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
       <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
         <View style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-
           <View style={styles.menuCard}>
-            <TouchableOpacity style={styles.menuItem} onPress={() => void handleRequestReveal()}>
-              <Text style={styles.menuItemText}>✨ Demander le dévoilement du profil</Text>
-            </TouchableOpacity>
+            {renderRevealActions()}
 
             {canBreak && (
               <TouchableOpacity style={styles.menuItem} onPress={handleBreakBottle}>
@@ -205,7 +293,6 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
       >
         <View style={styles.reportModalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={closeReportModal} />
-
           <ScrollView
             style={styles.reportModalContent}
             contentContainerStyle={styles.reportModalContentContainer}
@@ -276,7 +363,7 @@ const styles = StyleSheet.create({
   },
   menuCard: {
     alignSelf: 'center',
-    minWidth: 230,
+    minWidth: 260,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingVertical: 6,
@@ -299,6 +386,22 @@ const styles = StyleSheet.create({
   },
   menuItemDanger: {
     color: '#B23A48',
+  },
+  menuItemDisabled: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  loadingItem: {
+    minHeight: 44,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
   },
   reportModalBackdrop: {
     flex: 1,
