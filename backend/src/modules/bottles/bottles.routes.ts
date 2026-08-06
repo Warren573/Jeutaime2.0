@@ -3,7 +3,11 @@ import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
 import type { AuthedRequest } from "../../core/types";
+import { ConflictError } from "../../core/errors";
+import { prisma } from "../../config/prisma";
+import { isPremiumActive } from "../../policies/premium";
 import * as controller from "./bottles.controller";
+import { MAX_FLOATING_FREE, MAX_FLOATING_PREMIUM } from "./bottles.service";
 import {
   CreateBottleBodySchema,
   AcceptBottleBodySchema,
@@ -59,11 +63,98 @@ router.get(
 );
 
 // POST /api/bottles/:id/accept — accept a bottle
+// A bottle already REVEALED has moved to the match/profile flow and must no
+// longer consume an active anonymous-correspondence slot.
 router.post(
   "/:id/accept",
   validate(AcceptBottleBodySchema),
   wrap(async (req, res) => {
-    await controller.acceptBottle(req as AuthedRequest, res);
+    const bottleId = req.params["id"] as string;
+    const userId = req.user.userId;
+
+    const bottle = await prisma.$transaction(
+      async (tx) => {
+        const [activeAccepted, accepter] = await Promise.all([
+          tx.messageInABottle.count({
+            where: { acceptedById: userId, status: "ACCEPTED" },
+          }),
+          tx.user.findUnique({
+            where: { id: userId },
+            select: { premiumTier: true, premiumUntil: true },
+          }),
+        ]);
+
+        const maxAccepted =
+          accepter && isPremiumActive(accepter)
+            ? MAX_FLOATING_PREMIUM
+            : MAX_FLOATING_FREE;
+
+        if (activeAccepted >= maxAccepted) {
+          throw new ConflictError(
+            maxAccepted === 1
+              ? "Tu as déjà une bouteille acceptée en cours. Termine-la avant d'en accepter une autre. (Premium : jusqu'à 5)"
+              : `Tu as déjà ${activeAccepted} bouteilles acceptées (max ${maxAccepted}).`,
+          );
+        }
+
+        const claimed = await tx.messageInABottle.updateMany({
+          where: {
+            id: bottleId,
+            status: "FLOATING",
+            acceptedById: null,
+          },
+          data: {
+            status: "ACCEPTED",
+            acceptedById: userId,
+            acceptedAt: new Date(),
+          },
+        });
+
+        if (claimed.count !== 1) {
+          throw new ConflictError(
+            "Cette bouteille vient d'être récupérée. Choisis-en une autre.",
+          );
+        }
+
+        await tx.bottleReceipt.update({
+          where: {
+            bottleId_recipientId: {
+              bottleId,
+              recipientId: userId,
+            },
+          },
+          data: {
+            status: "ACCEPTED",
+            actionAt: new Date(),
+          },
+        });
+
+        await tx.bottleReceipt.updateMany({
+          where: {
+            bottleId,
+            recipientId: { not: userId },
+            status: "PENDING",
+          },
+          data: {
+            status: "TAKEN",
+            actionAt: new Date(),
+          },
+        });
+
+        const acceptedBottle = await tx.messageInABottle.findUnique({
+          where: { id: bottleId },
+        });
+
+        if (!acceptedBottle) {
+          throw new Error("Bottle not found after acceptance");
+        }
+
+        return acceptedBottle;
+      },
+      { isolationLevel: "Serializable" },
+    );
+
+    res.json({ data: bottle });
   }),
 );
 
