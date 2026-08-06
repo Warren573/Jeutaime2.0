@@ -240,48 +240,66 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
             <Text style={styles.reportModalTitle}>Signaler cette conversation</Text>
 
             <TouchableOpacity
-              style={styles.reportReasonBtn}
-              onPress={() => setReportReason('HARASSMENT')}
+              style={[styles.reportReasonBtn, reportReason === 'HARASSMENT' && styles.reportReasonBtnSelected]}
+              onPress={() => {
+                console.log('[REPORT_REASON_SELECTED]', 'HARASSMENT', { before: reportReason, after: 'HARASSMENT' });
+                setReportReason('HARASSMENT');
+              }}
               disabled={isReporting}
             >
               <Text style={styles.reportReasonText}>Harcèlement</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.reportReasonBtn}
-              onPress={() => setReportReason('SPAM')}
+              style={[styles.reportReasonBtn, reportReason === 'SPAM' && styles.reportReasonBtnSelected]}
+              onPress={() => {
+                console.log('[REPORT_REASON_SELECTED]', 'SPAM', { before: reportReason, after: 'SPAM' });
+                setReportReason('SPAM');
+              }}
               disabled={isReporting}
             >
               <Text style={styles.reportReasonText}>Spam</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.reportReasonBtn}
-              onPress={() => setReportReason('FAKE')}
+              style={[styles.reportReasonBtn, reportReason === 'FAKE' && styles.reportReasonBtnSelected]}
+              onPress={() => {
+                console.log('[REPORT_REASON_SELECTED]', 'FAKE', { before: reportReason, after: 'FAKE' });
+                setReportReason('FAKE');
+              }}
               disabled={isReporting}
             >
               <Text style={styles.reportReasonText}>Profil fake</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.reportReasonBtn}
-              onPress={() => setReportReason('INAPPROPRIATE_CONTENT')}
+              style={[styles.reportReasonBtn, reportReason === 'INAPPROPRIATE_CONTENT' && styles.reportReasonBtnSelected]}
+              onPress={() => {
+                console.log('[REPORT_REASON_SELECTED]', 'INAPPROPRIATE_CONTENT', { before: reportReason, after: 'INAPPROPRIATE_CONTENT' });
+                setReportReason('INAPPROPRIATE_CONTENT');
+              }}
               disabled={isReporting}
             >
               <Text style={styles.reportReasonText}>Contenu inapproprié</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.reportReasonBtn}
-              onPress={() => setReportReason('MINOR')}
+              style={[styles.reportReasonBtn, reportReason === 'MINOR' && styles.reportReasonBtnSelected]}
+              onPress={() => {
+                console.log('[REPORT_REASON_SELECTED]', 'MINOR', { before: reportReason, after: 'MINOR' });
+                setReportReason('MINOR');
+              }}
               disabled={isReporting}
             >
               <Text style={styles.reportReasonText}>Mineur</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.reportReasonBtn}
-              onPress={() => setReportReason('OTHER')}
+              style={[styles.reportReasonBtn, reportReason === 'OTHER' && styles.reportReasonBtnSelected]}
+              onPress={() => {
+                console.log('[REPORT_REASON_SELECTED]', 'OTHER', { before: reportReason, after: 'OTHER' });
+                setReportReason('OTHER');
+              }}
               disabled={isReporting}
             >
               <Text style={styles.reportReasonText}>Autre</Text>
@@ -385,6 +403,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 2,
     borderColor: 'transparent',
+  },
+  reportReasonBtnSelected: {
+    backgroundColor: '#E8D5C4',
+    borderColor: COLORS.accent,
   },
   reportReasonText: {
     fontSize: 14,
