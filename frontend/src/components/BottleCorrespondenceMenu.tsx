@@ -48,12 +48,16 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
   const [isReporting, setIsReporting] = useState(false);
 
   const handleRequestReveal = async () => {
+    console.log('[BOTTLE_MENU_ACTION]', { action: 'reveal_request', bottleId });
     try {
+      console.log('[BOTTLE_MENU_ACTION] avant appel API');
       await requestReveal(bottleId);
+      console.log('[BOTTLE_MENU_ACTION] succès API');
       Alert.alert('Succès', 'Dévoilement demandé. En attente de réponse...');
       onClose();
       await onRefresh();
     } catch (err: any) {
+      console.error('[BOTTLE_MENU_ACTION] erreur:', err);
       const code = err?.code || err?.message;
       if (code === 'REVEAL_ALREADY_REFUSED') {
         Alert.alert(
@@ -67,8 +71,11 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
   };
 
   const handleAcceptReveal = async () => {
+    console.log('[BOTTLE_MENU_ACTION]', { action: 'reveal_accept', bottleId });
     try {
+      console.log('[BOTTLE_MENU_ACTION] avant appel API');
       const result = await acceptReveal(bottleId);
+      console.log('[BOTTLE_MENU_ACTION] succès API');
       Alert.alert('Succès', 'Dévoilement accepté!');
       onClose();
       if (result.matchId) {
@@ -79,22 +86,28 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
         await onRefresh();
       }
     } catch (err: any) {
+      console.error('[BOTTLE_MENU_ACTION] erreur:', err);
       Alert.alert('Erreur', err?.message || 'Impossible d\'accepter le dévoilement');
     }
   };
 
   const handleRefuseReveal = async () => {
+    console.log('[BOTTLE_MENU_ACTION]', { action: 'reveal_refuse', bottleId });
     try {
+      console.log('[BOTTLE_MENU_ACTION] avant appel API');
       await refuseReveal(bottleId);
+      console.log('[BOTTLE_MENU_ACTION] succès API');
       Alert.alert('Succès', 'Dévoilement refusé. La discussion reste anonyme.');
       onClose();
       await onRefresh();
     } catch (err: any) {
+      console.error('[BOTTLE_MENU_ACTION] erreur:', err);
       Alert.alert('Erreur', err?.message || 'Impossible de refuser le dévoilement');
     }
   };
 
   const handleBreakBottle = () => {
+    console.log('[BOTTLE_MENU_ACTION]', { action: 'break', bottleId });
     Alert.alert(
       'Rompre cette correspondance?',
       'Cela fermera définitivement la discussion.',
@@ -104,12 +117,15 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
           text: 'Rompre',
           style: 'destructive',
           onPress: async () => {
+            console.log('[BOTTLE_MENU_ACTION] avant appel API');
             try {
               await breakBottle(bottleId);
+              console.log('[BOTTLE_MENU_ACTION] succès API');
               Alert.alert('Succès', 'Correspondance rompue');
               onClose();
               onBroken();
             } catch (err: any) {
+              console.error('[BOTTLE_MENU_ACTION] erreur:', err);
               Alert.alert('Erreur', err?.message || 'Impossible de rompre');
             }
           },
@@ -119,6 +135,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
   };
 
   const handleReport = async () => {
+    console.log('[BOTTLE_MENU_ACTION]', { action: 'report', bottleId, reportReason });
     if (!reportReason) {
       Alert.alert('Erreur', 'Veuillez choisir une raison de signalement');
       return;
@@ -126,17 +143,20 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
 
     setIsReporting(true);
     try {
+      console.log('[BOTTLE_MENU_ACTION] avant appel API');
       await reportBottleConversation(
         bottleId,
         reportReason as 'HARASSMENT' | 'SPAM' | 'FAKE' | 'INAPPROPRIATE_CONTENT' | 'MINOR' | 'OTHER',
         reportDetails.trim() || undefined
       );
+      console.log('[BOTTLE_MENU_ACTION] succès API');
       Alert.alert('Succès', 'Votre signalement a été envoyé à l\'équipe de modération.');
       setReportReason('');
       setReportDetails('');
       setShowReportModal(false);
       onClose();
     } catch (err: any) {
+      console.error('[BOTTLE_MENU_ACTION] erreur:', err);
       Alert.alert('Erreur', err?.message || 'Impossible de signaler cette conversation');
     } finally {
       setIsReporting(false);
