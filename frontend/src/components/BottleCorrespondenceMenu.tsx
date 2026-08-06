@@ -22,6 +22,7 @@ import {
   reportBottleConversation,
   requestReveal,
 } from '../api/bottles';
+import { getMatch } from '../api/matches';
 import { useStore } from '../store/useStore';
 
 const COLORS = {
@@ -42,6 +43,7 @@ type ReportReason =
 type RevealState = {
   hasPendingRequest: boolean;
   isRequester: boolean;
+  requestedById: string | null;
   bottleStatus: 'FLOATING' | 'ACCEPTED' | 'EXPIRED' | 'REVEALED' | 'BROKEN' | null;
   partnerId: string | null;
 };
@@ -77,6 +79,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
   const [revealState, setRevealState] = useState<RevealState>({
     hasPendingRequest: false,
     isRequester: false,
+    requestedById: null,
     bottleStatus: null,
     partnerId: null,
   });
@@ -102,15 +105,29 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
       getBottleById(bottleId),
     ]);
 
-    const partnerId = currentUser?.id
-      ? bottle.senderId === currentUser.id
-        ? bottle.acceptedById
-        : bottle.senderId
-      : null;
+    let partnerId: string | null = null;
+
+    if (bottle.matchId) {
+      try {
+        const match = await getMatch(bottle.matchId);
+        partnerId = match.otherUserId;
+      } catch {
+        partnerId = null;
+      }
+    }
+
+    if (!partnerId && currentUser?.id) {
+      partnerId = bottle.senderId === currentUser.id ? bottle.acceptedById : bottle.senderId;
+    }
+
+    if (!partnerId && status.hasPendingRequest && !status.isRequester) {
+      partnerId = status.requestedById ?? null;
+    }
 
     setRevealState({
       hasPendingRequest: status.hasPendingRequest,
       isRequester: status.isRequester,
+      requestedById: status.requestedById ?? null,
       bottleStatus: bottle.status,
       partnerId,
     });
@@ -124,8 +141,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
 
     loadRevealState()
       .catch((err: any) => {
-        if (!active) return;
-        showMessage('Erreur', err?.message || 'Impossible de charger le statut du dévoilement');
+        if (active) showMessage('Erreur', err?.message || 'Impossible de charger le statut du dévoilement');
       })
       .finally(() => {
         if (active) setIsRevealLoading(false);
@@ -141,17 +157,22 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
     };
   }, [visible, bottleId, loadRevealState]);
 
-  const openPartnerProfile = () => {
-    if (!revealState.partnerId) {
+  const openPartnerProfile = (partnerId = revealState.partnerId) => {
+    if (!partnerId) {
       showMessage('Erreur', 'Profil partenaire introuvable');
       return;
     }
 
     onClose();
-    router.push(`/profile/${revealState.partnerId}` as never);
+    router.push(`/profile/${partnerId}` as never);
   };
 
   const handleRequestReveal = async () => {
+    if (!canBreak) {
+      showMessage('Dévoilement indisponible', 'Vous devez avoir envoyé une première lettre chacun.');
+      return;
+    }
+
     setIsRevealLoading(true);
     try {
       await requestReveal(bottleId);
@@ -162,10 +183,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
     } catch (err: any) {
       const code = err?.code || err?.message;
       if (code === 'REVEAL_ALREADY_REFUSED') {
-        showMessage(
-          'Dévoilement',
-          "Votre demande a été refusée. Si cette personne change d'avis, elle pourra vous proposer le dévoilement.",
-        );
+        showMessage('Dévoilement', "Votre demande a été refusée. L'autre personne pourra refaire la démarche si elle change d'avis.");
       } else {
         showMessage('Erreur', err?.message || 'Impossible de demander le dévoilement');
       }
@@ -177,10 +195,22 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
   const handleAcceptReveal = async () => {
     setIsRevealLoading(true);
     try {
-      await acceptReveal(bottleId);
-      await loadRevealState();
+      const knownPartnerId = revealState.partnerId || revealState.requestedById;
+      const result = await acceptReveal(bottleId);
+      let partnerId = knownPartnerId;
+
+      if (result.matchId) {
+        try {
+          const match = await getMatch(result.matchId);
+          partnerId = match.otherUserId;
+        } catch {
+          // Keep the partner already known from the pending request.
+        }
+      }
+
+      await onRefresh();
       showMessage('Succès', 'Dévoilement accepté !');
-      openPartnerProfile();
+      openPartnerProfile(partnerId);
     } catch (err: any) {
       showMessage('Erreur', err?.message || "Impossible d'accepter le dévoilement");
     } finally {
@@ -247,11 +277,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
 
     setIsReporting(true);
     try {
-      await reportBottleConversation(
-        bottleId,
-        reportReason,
-        reportDetails.trim() || undefined,
-      );
+      await reportBottleConversation(bottleId, reportReason, reportDetails.trim() || undefined);
       setReportReason('');
       setReportDetails('');
       setShowReportModal(false);
@@ -275,9 +301,17 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
 
     if (revealState.bottleStatus === 'REVEALED') {
       return (
-        <TouchableOpacity style={styles.menuItem} onPress={openPartnerProfile}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => openPartnerProfile()}>
           <Text style={styles.menuItemText}>👤 Voir le profil dévoilé</Text>
         </TouchableOpacity>
+      );
+    }
+
+    if (!canBreak) {
+      return (
+        <View style={styles.loadingItem}>
+          <Text style={styles.menuItemDisabled}>🔒 Dévoilement après une première lettre chacun</Text>
+        </View>
       );
     }
 
@@ -317,11 +351,9 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
           <View style={styles.menuCard}>
             {renderRevealActions()}
 
-            {canBreak && revealState.bottleStatus !== 'REVEALED' && (
+            {canBreak && (
               <TouchableOpacity style={styles.menuItem} onPress={handleBreakBottle}>
-                <Text style={[styles.menuItemText, styles.menuItemDanger]}>
-                  Arrêter la correspondance
-                </Text>
+                <Text style={[styles.menuItemText, styles.menuItemDanger]}>Arrêter la correspondance</Text>
               </TouchableOpacity>
             )}
 
@@ -332,12 +364,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
         </View>
       </Modal>
 
-      <Modal
-        visible={showReportModal}
-        transparent
-        animationType="slide"
-        onRequestClose={closeReportModal}
-      >
+      <Modal visible={showReportModal} transparent animationType="slide" onRequestClose={closeReportModal}>
         <View style={styles.reportModalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={closeReportModal} />
           <ScrollView
@@ -345,11 +372,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
             contentContainerStyle={styles.reportModalContentContainer}
             keyboardShouldPersistTaps="handled"
           >
-            <TouchableOpacity
-              style={styles.reportModalClose}
-              onPress={closeReportModal}
-              disabled={isReporting}
-            >
+            <TouchableOpacity style={styles.reportModalClose} onPress={closeReportModal} disabled={isReporting}>
               <Text style={styles.reportModalCloseText}>✕</Text>
             </TouchableOpacity>
 
@@ -358,10 +381,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
             {REPORT_REASONS.map(({ value, label }) => (
               <TouchableOpacity
                 key={value}
-                style={[
-                  styles.reportReasonBtn,
-                  reportReason === value && styles.reportReasonBtnSelected,
-                ]}
+                style={[styles.reportReasonBtn, reportReason === value && styles.reportReasonBtnSelected]}
                 onPress={() => setReportReason(value)}
                 disabled={isReporting}
               >
@@ -381,10 +401,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
             />
 
             <TouchableOpacity
-              style={[
-                styles.reportSubmitBtn,
-                (isReporting || !reportReason) && styles.reportSubmitBtnDisabled,
-              ]}
+              style={[styles.reportSubmitBtn, (isReporting || !reportReason) && styles.reportSubmitBtnDisabled]}
               onPress={() => void handleReport()}
               disabled={isReporting || !reportReason}
             >
@@ -422,23 +439,10 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  menuItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  menuItemText: {
-    fontSize: 14,
-    color: '#3A2C18',
-    fontWeight: '500',
-  },
-  menuItemDanger: {
-    color: '#B23A48',
-  },
-  menuItemDisabled: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
+  menuItem: { paddingVertical: 12, paddingHorizontal: 16 },
+  menuItemText: { fontSize: 14, color: '#3A2C18', fontWeight: '500' },
+  menuItemDanger: { color: '#B23A48' },
+  menuItemDisabled: { fontSize: 14, color: COLORS.textSecondary, fontWeight: '500' },
   loadingItem: {
     minHeight: 44,
     paddingHorizontal: 16,
@@ -446,10 +450,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  loadingText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
+  loadingText: { fontSize: 14, color: COLORS.textSecondary },
   reportModalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.3)',
@@ -461,25 +462,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
-  reportModalContentContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-  },
-  reportModalClose: {
-    alignSelf: 'flex-end',
-    paddingBottom: 12,
-  },
-  reportModalCloseText: {
-    fontSize: 24,
-    color: COLORS.textSecondary,
-    fontWeight: '600',
-  },
-  reportModalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 20,
-  },
+  reportModalContentContainer: { paddingHorizontal: 20, paddingVertical: 24 },
+  reportModalClose: { alignSelf: 'flex-end', paddingBottom: 12 },
+  reportModalCloseText: { fontSize: 24, color: COLORS.textSecondary, fontWeight: '600' },
+  reportModalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 20 },
   reportReasonBtn: {
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -489,15 +475,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  reportReasonBtnSelected: {
-    backgroundColor: '#E8D5C4',
-    borderColor: COLORS.accent,
-  },
-  reportReasonText: {
-    fontSize: 14,
-    color: '#3A2C18',
-    fontWeight: '500',
-  },
+  reportReasonBtnSelected: { backgroundColor: '#E8D5C4', borderColor: COLORS.accent },
+  reportReasonText: { fontSize: 14, color: '#3A2C18', fontWeight: '500' },
   reportDetailsInput: {
     minHeight: 100,
     paddingVertical: 12,
@@ -520,12 +499,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  reportSubmitBtnDisabled: {
-    opacity: 0.6,
-  },
-  reportSubmitBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.card,
-  },
+  reportSubmitBtnDisabled: { opacity: 0.6 },
+  reportSubmitBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.card },
 });
