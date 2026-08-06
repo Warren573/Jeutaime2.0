@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { getCurrentBottle, getInbox, acceptBottle, getRevealStatus } from '../api/bottles';
+import { getCurrentBottle, getInbox, acceptBottle } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import { BottleCorrespondenceMenu } from '../components/BottleCorrespondenceMenu';
 import type { GetCurrentBottleResponse, InboxBottleDTO } from '../api/bottles';
@@ -49,9 +49,7 @@ export default function BottleMainScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasRevealRequest, setHasRevealRequest] = useState(false);
-  const [isRevealRequester, setIsRevealRequester] = useState(false);
-  const [isRevealRefused, setIsRevealRefused] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const loadState = useCallback(async () => {
     try {
@@ -59,12 +57,6 @@ export default function BottleMainScreen() {
       const [current, inboxData] = await Promise.all([getCurrentBottle(), getInbox()]);
       setState(current);
       setInbox(inboxData);
-
-      if (current.bottle?.id) {
-        const revealStatus = await getRevealStatus(current.bottle.id);
-        setHasRevealRequest(revealStatus.hasPendingRequest);
-        setIsRevealRequester(revealStatus.isRequester);
-      }
     } catch (err: any) {
       console.error('[BottleMainScreen] Error:', err);
       setError(err?.message || 'Erreur de chargement');
@@ -93,6 +85,10 @@ export default function BottleMainScreen() {
     loadState();
   }, [loadState]));
 
+  useFocusEffect(useCallback(() => {
+    setShowMenu(false);
+  }, []));
+
   const handleRefresh = () => {
     setIsRefreshing(true);
     loadState();
@@ -114,51 +110,6 @@ export default function BottleMainScreen() {
     } finally {
       setIsAccepting(false);
     }
-  };
-
-  const handleRequestReveal = async () => {
-    if (!state?.bottle?.id) return;
-    const { requestReveal } = await import('../api/bottles');
-    try {
-      await requestReveal(state.bottle.id);
-      setHasRevealRequest(true);
-      setIsRevealRequester(true);
-      setIsRevealRefused(false);
-      Alert.alert('Succès', 'Dévoilement demandé. En attente de réponse...');
-    } catch (err: any) {
-      const code = err?.code || err?.message;
-      if (code === 'REVEAL_ALREADY_REFUSED') {
-        setIsRevealRefused(true);
-        Alert.alert('Dévoilement', 'Votre demande a été refusée. Si cette personne change d\'avis, elle pourra vous proposer le dévoilement.');
-      } else {
-        Alert.alert('Erreur', err?.message || 'Impossible de demander le dévoilement');
-      }
-    }
-  };
-
-  const handleBreakBottle = () => {
-    if (!state?.bottle?.id) return;
-    Alert.alert(
-      'Rompre cette correspondance?',
-      'Cela fermera définitivement la discussion.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Rompre',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { breakBottle } = await import('../api/bottles');
-              await breakBottle(state.bottle!.id);
-              Alert.alert('Succès', 'Correspondance rompue');
-              await loadState();
-            } catch (err: any) {
-              Alert.alert('Erreur', err?.message || 'Impossible de rompre');
-            }
-          },
-        },
-      ]
-    );
   };
 
   const getBottleToDisplay = () => {
@@ -225,19 +176,9 @@ export default function BottleMainScreen() {
             Lettre en transit
           </Text>
         </View>
-        <BottleCorrespondenceMenu
-          bottleId={state.bottle.id}
-          canBreak={state.canBreak}
-          revealStatus={{
-            hasPendingRequest: hasRevealRequest,
-            isRequester: isRevealRequester,
-          }}
-          isRevealRefused={isRevealRefused}
-          onRequestReveal={handleRequestReveal}
-          onBreak={handleBreakBottle}
-          onRefresh={loadState}
-          insets={insets}
-        />
+        <TouchableOpacity onPress={() => setShowMenu(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={styles.menuDots}>⋯</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
@@ -247,7 +188,17 @@ export default function BottleMainScreen() {
           {state.waitingForReply && (<View style={styles.waitingBox}><Text style={styles.waitingText}>✈️ Votre lettre est en voyage...</Text></View>)}
           <TouchableOpacity style={styles.historyBtn} onPress={() => router.push({ pathname: '/bottles-history', params: { bottleId: state.bottle!.id } })}><Text style={styles.historyBtnText}>Relire notre correspondance</Text></TouchableOpacity>
         </View>
-      </ScrollView></View></View>);
+      </ScrollView>
+
+      <BottleCorrespondenceMenu
+        visible={showMenu}
+        bottleId={state.bottle.id}
+        canBreak={state.canBreak}
+        onClose={() => setShowMenu(false)}
+        onRefresh={loadState}
+        onBroken={() => router.back()}
+      />
+    </View></View>);
   }
 
   if (displayState?.type === 'sent') {
@@ -310,4 +261,5 @@ const styles = StyleSheet.create({
   backSelection: { marginBottom: 16 }, backSelectionText: { fontSize: 16, color: COLORS.accent, fontWeight: '600' },
   actionBtn: { flex: 1, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, justifyContent: 'center' }, actionBtnText: { fontSize: 14, fontWeight: '600', color: '#FFF', textAlign: 'center' },
   createAlternativeBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(139,46,60,0.1)', borderWidth: 1, borderColor: COLORS.accent, marginTop: 20 }, createAlternativeBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.accent, textAlign: 'center' },
+  menuDots: { fontSize: 24, color: COLORS.accent, fontWeight: '600' },
 });
