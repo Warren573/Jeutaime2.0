@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
 import {
-  Modal,
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  Alert,
-  TextInput,
   ActivityIndicator,
+  Alert,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import {
-  requestReveal,
   acceptReveal,
-  refuseReveal,
   breakBottle,
+  refuseReveal,
   reportBottleConversation,
+  requestReveal,
 } from '../api/bottles';
 
 const COLORS = {
@@ -22,6 +26,14 @@ const COLORS = {
   textSecondary: '#6B6B6B',
   accent: '#8B2E3C',
 };
+
+type ReportReason =
+  | 'HARASSMENT'
+  | 'SPAM'
+  | 'FAKE'
+  | 'INAPPROPRIATE_CONTENT'
+  | 'MINOR'
+  | 'OTHER';
 
 type Props = {
   visible: boolean;
@@ -32,6 +44,15 @@ type Props = {
   onBroken: () => void;
 };
 
+const REPORT_REASONS: Array<{ value: ReportReason; label: string }> = [
+  { value: 'HARASSMENT', label: 'Harcèlement' },
+  { value: 'SPAM', label: 'Spam' },
+  { value: 'FAKE', label: 'Profil fake' },
+  { value: 'INAPPROPRIATE_CONTENT', label: 'Contenu inapproprié' },
+  { value: 'MINOR', label: 'Mineur' },
+  { value: 'OTHER', label: 'Autre' },
+];
+
 export const BottleCorrespondenceMenu: React.FC<Props> = ({
   visible,
   bottleId,
@@ -41,24 +62,22 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
   onBroken,
 }) => {
   const [showReportModal, setShowReportModal] = useState(false);
-  const [reportReason, setReportReason] = useState<
-    'HARASSMENT' | 'SPAM' | 'FAKE' | 'INAPPROPRIATE_CONTENT' | 'MINOR' | 'OTHER' | ''
-  >('');
+  const [reportReason, setReportReason] = useState<ReportReason | ''>('');
   const [reportDetails, setReportDetails] = useState('');
   const [isReporting, setIsReporting] = useState(false);
 
   const handleRequestReveal = async () => {
     try {
       await requestReveal(bottleId);
-      Alert.alert('Succès', 'Dévoilement demandé. En attente de réponse...');
       onClose();
       await onRefresh();
+      Alert.alert('Succès', 'Dévoilement demandé. En attente de réponse...');
     } catch (err: any) {
       const code = err?.code || err?.message;
       if (code === 'REVEAL_ALREADY_REFUSED') {
         Alert.alert(
           'Dévoilement',
-          'Votre demande a été refusée. Si cette personne change d\'avis, elle pourra vous proposer le dévoilement.'
+          "Votre demande a été refusée. Si cette personne change d'avis, elle pourra vous proposer le dévoilement.",
         );
       } else {
         Alert.alert('Erreur', err?.message || 'Impossible de demander le dévoilement');
@@ -67,71 +86,68 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
   };
 
   const handleAcceptReveal = async () => {
-    console.log('[BOTTLE_MENU_ACTION]', { action: 'reveal_accept', bottleId });
     try {
-      console.log('[BOTTLE_MENU_ACTION] avant appel API');
-      const result = await acceptReveal(bottleId);
-      console.log('[BOTTLE_MENU_ACTION] succès API');
-      Alert.alert('Succès', 'Dévoilement accepté!');
+      await acceptReveal(bottleId);
       onClose();
-      if (result.matchId) {
-        setTimeout(() => {
-          onRefresh();
-        }, 500);
-      } else {
-        await onRefresh();
-      }
+      await onRefresh();
+      Alert.alert('Succès', 'Dévoilement accepté !');
     } catch (err: any) {
-      console.error('[BOTTLE_MENU_ACTION] erreur:', err);
-      Alert.alert('Erreur', err?.message || 'Impossible d\'accepter le dévoilement');
+      Alert.alert('Erreur', err?.message || "Impossible d'accepter le dévoilement");
     }
   };
 
   const handleRefuseReveal = async () => {
-    console.log('[BOTTLE_MENU_ACTION]', { action: 'reveal_refuse', bottleId });
     try {
-      console.log('[BOTTLE_MENU_ACTION] avant appel API');
       await refuseReveal(bottleId);
-      console.log('[BOTTLE_MENU_ACTION] succès API');
-      Alert.alert('Succès', 'Dévoilement refusé. La discussion reste anonyme.');
       onClose();
       await onRefresh();
+      Alert.alert('Succès', 'Dévoilement refusé. La discussion reste anonyme.');
     } catch (err: any) {
-      console.error('[BOTTLE_MENU_ACTION] erreur:', err);
       Alert.alert('Erreur', err?.message || 'Impossible de refuser le dévoilement');
     }
   };
 
+  const performBreak = async () => {
+    try {
+      await breakBottle(bottleId);
+      onClose();
+      Alert.alert('Succès', 'Correspondance rompue');
+      onBroken();
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message || 'Impossible de rompre');
+    }
+  };
+
   const handleBreakBottle = () => {
-    console.log('[BOTTLE_MENU_ACTION]', { action: 'break', bottleId });
-    Alert.alert(
-      'Rompre cette correspondance?',
-      'Cela fermera définitivement la discussion.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Rompre',
-          style: 'destructive',
-          onPress: async () => {
-            console.log('[BOTTLE_MENU_ACTION] avant appel API');
-            try {
-              await breakBottle(bottleId);
-              console.log('[BOTTLE_MENU_ACTION] succès API');
-              Alert.alert('Succès', 'Correspondance rompue');
-              onClose();
-              onBroken();
-            } catch (err: any) {
-              console.error('[BOTTLE_MENU_ACTION] erreur:', err);
-              Alert.alert('Erreur', err?.message || 'Impossible de rompre');
-            }
-          },
-        },
-      ]
-    );
+    const title = 'Rompre cette correspondance ?';
+    const message = 'Cela fermera définitivement la discussion.';
+
+    if (Platform.OS === 'web') {
+      const confirmed = globalThis.confirm(`${title}\n\n${message}`);
+      if (confirmed) {
+        void performBreak();
+      }
+      return;
+    }
+
+    Alert.alert(title, message, [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Rompre', style: 'destructive', onPress: () => void performBreak() },
+    ]);
+  };
+
+  const openReportModal = () => {
+    onClose();
+    setShowReportModal(true);
+  };
+
+  const closeReportModal = () => {
+    if (!isReporting) {
+      setShowReportModal(false);
+    }
   };
 
   const handleReport = async () => {
-    console.log('[BOTTLE_MENU_ACTION]', { action: 'report', bottleId, reportReason });
     if (!reportReason) {
       Alert.alert('Erreur', 'Veuillez choisir une raison de signalement');
       return;
@@ -139,95 +155,65 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
 
     setIsReporting(true);
     try {
-      console.log('[BOTTLE_MENU_ACTION] avant appel API');
       await reportBottleConversation(
         bottleId,
-        reportReason as 'HARASSMENT' | 'SPAM' | 'FAKE' | 'INAPPROPRIATE_CONTENT' | 'MINOR' | 'OTHER',
-        reportDetails.trim() || undefined
+        reportReason,
+        reportDetails.trim() || undefined,
       );
-      console.log('[BOTTLE_MENU_ACTION] succès API');
-      Alert.alert('Succès', 'Votre signalement a été envoyé à l\'équipe de modération.');
       setReportReason('');
       setReportDetails('');
       setShowReportModal(false);
-      onClose();
+      Alert.alert('Succès', "Votre signalement a été envoyé à l'équipe de modération.");
     } catch (err: any) {
-      console.error('[BOTTLE_MENU_ACTION] erreur:', err);
       Alert.alert('Erreur', err?.message || 'Impossible de signaler cette conversation');
     } finally {
       setIsReporting(false);
     }
   };
 
-  console.log('[BottleCorrespondenceMenu] render', { visible, bottleId, canBreak });
-
   return (
     <>
       <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose}>
-          <TouchableOpacity
-            style={styles.menuCard}
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={async () => {
-                console.log('[BOTTLE_MENU_CLICK] reveal_request', { bottleId });
-                await handleRequestReveal();
-              }}
-            >
+        <View style={styles.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+
+          <View style={styles.menuCard}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => void handleRequestReveal()}>
               <Text style={styles.menuItemText}>✨ Demander le dévoilement du profil</Text>
             </TouchableOpacity>
 
             {canBreak && (
-              <>
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => {
-                    onClose();
-                    handleBreakBottle();
-                  }}
-                >
-                  <Text style={[styles.menuItemText, styles.menuItemDanger]}>
-                    Arrêter la correspondance
-                  </Text>
-                </TouchableOpacity>
-              </>
+              <TouchableOpacity style={styles.menuItem} onPress={handleBreakBottle}>
+                <Text style={[styles.menuItemText, styles.menuItemDanger]}>
+                  Arrêter la correspondance
+                </Text>
+              </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                onClose();
-                setShowReportModal(true);
-              }}
-            >
+            <TouchableOpacity style={styles.menuItem} onPress={openReportModal}>
               <Text style={[styles.menuItemText, styles.menuItemDanger]}>Signaler</Text>
             </TouchableOpacity>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
       <Modal
         visible={showReportModal}
         transparent
         animationType="slide"
-        onRequestClose={() => !isReporting && setShowReportModal(false)}
+        onRequestClose={closeReportModal}
       >
-        <TouchableOpacity
-          style={styles.reportModalBackdrop}
-          activeOpacity={1}
-          onPress={() => !isReporting && setShowReportModal(false)}
-        >
-          <TouchableOpacity
+        <View style={styles.reportModalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeReportModal} />
+
+          <ScrollView
             style={styles.reportModalContent}
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
+            contentContainerStyle={styles.reportModalContentContainer}
+            keyboardShouldPersistTaps="handled"
           >
             <TouchableOpacity
               style={styles.reportModalClose}
-              onPress={() => !isReporting && setShowReportModal(false)}
+              onPress={closeReportModal}
               disabled={isReporting}
             >
               <Text style={styles.reportModalCloseText}>✕</Text>
@@ -235,71 +221,19 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
 
             <Text style={styles.reportModalTitle}>Signaler cette conversation</Text>
 
-            <TouchableOpacity
-              style={[styles.reportReasonBtn, reportReason === 'HARASSMENT' && styles.reportReasonBtnSelected]}
-              onPress={() => {
-                console.log('[REPORT_REASON_SELECTED]', 'HARASSMENT', { before: reportReason, after: 'HARASSMENT' });
-                setReportReason('HARASSMENT');
-              }}
-              disabled={isReporting}
-            >
-              <Text style={styles.reportReasonText}>Harcèlement</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.reportReasonBtn, reportReason === 'SPAM' && styles.reportReasonBtnSelected]}
-              onPress={() => {
-                console.log('[REPORT_REASON_SELECTED]', 'SPAM', { before: reportReason, after: 'SPAM' });
-                setReportReason('SPAM');
-              }}
-              disabled={isReporting}
-            >
-              <Text style={styles.reportReasonText}>Spam</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.reportReasonBtn, reportReason === 'FAKE' && styles.reportReasonBtnSelected]}
-              onPress={() => {
-                console.log('[REPORT_REASON_SELECTED]', 'FAKE', { before: reportReason, after: 'FAKE' });
-                setReportReason('FAKE');
-              }}
-              disabled={isReporting}
-            >
-              <Text style={styles.reportReasonText}>Profil fake</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.reportReasonBtn, reportReason === 'INAPPROPRIATE_CONTENT' && styles.reportReasonBtnSelected]}
-              onPress={() => {
-                console.log('[REPORT_REASON_SELECTED]', 'INAPPROPRIATE_CONTENT', { before: reportReason, after: 'INAPPROPRIATE_CONTENT' });
-                setReportReason('INAPPROPRIATE_CONTENT');
-              }}
-              disabled={isReporting}
-            >
-              <Text style={styles.reportReasonText}>Contenu inapproprié</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.reportReasonBtn, reportReason === 'MINOR' && styles.reportReasonBtnSelected]}
-              onPress={() => {
-                console.log('[REPORT_REASON_SELECTED]', 'MINOR', { before: reportReason, after: 'MINOR' });
-                setReportReason('MINOR');
-              }}
-              disabled={isReporting}
-            >
-              <Text style={styles.reportReasonText}>Mineur</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.reportReasonBtn, reportReason === 'OTHER' && styles.reportReasonBtnSelected]}
-              onPress={() => {
-                console.log('[REPORT_REASON_SELECTED]', 'OTHER', { before: reportReason, after: 'OTHER' });
-                setReportReason('OTHER');
-              }}
-              disabled={isReporting}
-            >
-              <Text style={styles.reportReasonText}>Autre</Text>
-            </TouchableOpacity>
+            {REPORT_REASONS.map(({ value, label }) => (
+              <TouchableOpacity
+                key={value}
+                style={[
+                  styles.reportReasonBtn,
+                  reportReason === value && styles.reportReasonBtnSelected,
+                ]}
+                onPress={() => setReportReason(value)}
+                disabled={isReporting}
+              >
+                <Text style={styles.reportReasonText}>{label}</Text>
+              </TouchableOpacity>
+            ))}
 
             <TextInput
               style={styles.reportDetailsInput}
@@ -313,8 +247,11 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
             />
 
             <TouchableOpacity
-              style={[styles.reportSubmitBtn, isReporting && styles.reportSubmitBtnDisabled]}
-              onPress={handleReport}
+              style={[
+                styles.reportSubmitBtn,
+                (isReporting || !reportReason) && styles.reportSubmitBtnDisabled,
+              ]}
+              onPress={() => void handleReport()}
               disabled={isReporting || !reportReason}
             >
               {isReporting ? (
@@ -323,8 +260,8 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
                 <Text style={styles.reportSubmitBtnText}>Envoyer le signalement</Text>
               )}
             </TouchableOpacity>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </ScrollView>
+        </View>
       </Modal>
     </>
   );
@@ -369,12 +306,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   reportModalContent: {
+    maxHeight: '80%',
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+  },
+  reportModalContentContainer: {
     paddingHorizontal: 20,
     paddingVertical: 24,
-    maxHeight: '80%',
   },
   reportModalClose: {
     alignSelf: 'flex-end',
@@ -388,7 +327,7 @@ const styles = StyleSheet.create({
   reportModalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#2B2B2B',
+    color: COLORS.text,
     marginBottom: 20,
   },
   reportReasonBtn: {
@@ -418,7 +357,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D8D2C4',
     fontSize: 13,
-    color: '#2B2B2B',
+    color: COLORS.text,
     marginBottom: 16,
     textAlignVertical: 'top',
   },
@@ -429,6 +368,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 12,
   },
   reportSubmitBtnDisabled: {
     opacity: 0.6,
