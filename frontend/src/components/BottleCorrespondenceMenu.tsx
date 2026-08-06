@@ -48,16 +48,12 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
   const [isReporting, setIsReporting] = useState(false);
 
   const handleRequestReveal = async () => {
-    console.log('[BOTTLE_MENU_ACTION]', { action: 'reveal_request', bottleId });
     try {
-      console.log('[BOTTLE_MENU_ACTION] avant appel API');
       await requestReveal(bottleId);
-      console.log('[BOTTLE_MENU_ACTION] succès API');
       Alert.alert('Succès', 'Dévoilement demandé. En attente de réponse...');
       onClose();
       await onRefresh();
     } catch (err: any) {
-      console.error('[BOTTLE_MENU_ACTION] erreur:', err);
       const code = err?.code || err?.message;
       if (code === 'REVEAL_ALREADY_REFUSED') {
         Alert.alert(
@@ -176,9 +172,9 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
           >
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => {
-                onClose();
-                handleRequestReveal();
+              onPress={async () => {
+                console.log('[BOTTLE_MENU_CLICK] reveal_request', { bottleId });
+                await handleRequestReveal();
               }}
             >
               <Text style={styles.menuItemText}>✨ Demander le dévoilement du profil</Text>
