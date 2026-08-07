@@ -3,7 +3,7 @@ import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
 import { authRateLimit } from "../../core/middleware/rateLimit";
-import { RegisterSchema, LoginSchema, RefreshSchema } from "./auth.schemas";
+import { RegisterSchema, LoginSchema, RefreshSchema, ChangePasswordSchema } from "./auth.schemas";
 import * as ctrl from "./auth.controller";
 import { AuthedRequest } from "../../core/types";
 
@@ -37,6 +37,14 @@ router.post(
   "/logout",
   requireAuth as never,
   asyncHandler((req, res, next) => ctrl.handleLogout(req as AuthedRequest, res).catch(next)),
+);
+
+// POST /api/auth/change-password (🔒)
+router.post(
+  "/change-password",
+  requireAuth as never,
+  validate(ChangePasswordSchema),
+  asyncHandler((req, res, next) => ctrl.handleChangePassword(req as AuthedRequest, res).catch(next)),
 );
 
 // GET /api/auth/me (🔒)
