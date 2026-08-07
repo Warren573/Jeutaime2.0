@@ -26,7 +26,7 @@ export interface BottleDTO {
 export interface InboxBottleDTO {
   id: string;
   message: string;
-  senderCity: string;
+  senderCity: string | null;
   targetGender: string;
   status: "FLOATING" | "ACCEPTED" | "EXPIRED" | "REVEALED" | "BROKEN";
   senderId: string;
