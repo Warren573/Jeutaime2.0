@@ -34,7 +34,6 @@ const envSchema = z.object({
 
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
-  // ----- Debug (Staging diagnostics) -----
   STAGING_DEBUG: z
     .string()
     .default("false")
@@ -44,14 +43,12 @@ const envSchema = z.object({
     .default("false")
     .transform((v) => v.toLowerCase() === "true"),
 
-  // ----- Scheduler (Phase 9 — Events / Cron) -----
-  // Opt-in : off par défaut pour rester compatible avec dev/tests/local.
   ENABLE_SCHEDULER: z
     .string()
     .default("false")
     .transform((v) => v.toLowerCase() === "true"),
-  SCHEDULER_INTERVAL_MS: z.coerce.number().int().positive().default(300_000), // 5 min
-  REFRESH_TOKEN_PURGE_GRACE_MS: z.coerce.number().int().min(0).default(3_600_000), // 1h
+  SCHEDULER_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
+  REFRESH_TOKEN_PURGE_GRACE_MS: z.coerce.number().int().min(0).default(3_600_000),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -65,19 +62,26 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 
-export const corsOrigins = env.CORS_ORIGINS.split(",").map((s) => s.trim());
+export const corsOrigins = env.CORS_ORIGINS
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 export function corsOriginCallback(
   origin: string | undefined,
   callback: (err: Error | null, allow?: boolean) => void,
 ): void {
-  // Requests with no Origin (mobile apps, curl, server-to-server)
+  // Mobile apps, curl and server-to-server requests have no browser Origin.
   if (!origin) return callback(null, true);
-  // Explicitly configured origins (localhost dev, custom domains)
+
+  // Always allow explicitly configured origins.
   if (corsOrigins.includes(origin)) return callback(null, true);
-  // Any Vercel deployment — covers preview and production URLs
-  if (origin.endsWith(".vercel.app")) return callback(null, true);
-  // localhost with any port
-  if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
+
+  // Convenience origins are development/test only. Production must be explicit.
+  if (env.NODE_ENV !== "production") {
+    if (origin.endsWith(".vercel.app")) return callback(null, true);
+    if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
+  }
+
   callback(new Error(`CORS: origin not allowed — ${origin}`));
 }
