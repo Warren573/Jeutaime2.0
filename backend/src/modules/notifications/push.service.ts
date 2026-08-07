@@ -54,7 +54,8 @@ export async function registerDeviceToken(params: {
 
 // ============================================================
 // sendPushToUser
-// Récupère tous les tokens du user et envoie la notification.
+// Respecte UserSettings.notifPush avant tout appel réseau vers Expo.
+// Récupère ensuite tous les tokens du user et envoie la notification.
 // Les tickets d'erreur Expo (ex : DeviceNotRegistered) purgent le token.
 // ============================================================
 export async function sendPushToUser(params: {
@@ -63,6 +64,16 @@ export async function sendPushToUser(params: {
   body: string;
   data?: Record<string, string>;
 }): Promise<void> {
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId: params.userId },
+    select: { notifPush: true },
+  });
+
+  // Le réglage est créé à l'inscription et vaut true par défaut. Si une
+  // ancienne donnée n'a pas encore de ligne UserSettings, on conserve le
+  // comportement historique (push autorisé) plutôt que de couper en silence.
+  if (settings?.notifPush === false) return;
+
   const rows = await prisma.pushToken.findMany({
     where: { userId: params.userId },
     select: { id: true, token: true },
