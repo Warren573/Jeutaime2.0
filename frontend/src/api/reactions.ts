@@ -10,6 +10,8 @@ export interface ReactionDTO {
   createdAt: string;
   matchCreated: boolean;
   matchId?: string;
+  /** Compatibilité temporaire avec l'écran Découverte. */
+  debugBranch?: "NEW-MATCH";
 }
 
 export interface ReactionStatusDTO {
