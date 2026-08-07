@@ -104,11 +104,11 @@ app.use(`${api}/souvenirs`, souvenirsRoutes);
 app.use(`${api}/stats`, statsRoutes);
 app.use(`${api}/weekly-profile`, weeklyProfileRoutes);
 
-// Temporary dev routes (remove before production)
-app.use(`${api}/test`, testRoutes);
-
-// Debug routes (staging only)
-app.use(`${api}/debug`, debugRoutes);
+// Outils de développement : jamais exposés en production.
+if (env.NODE_ENV !== "production") {
+  app.use(`${api}/test`, testRoutes);
+  app.use(`${api}/debug`, debugRoutes);
+}
 
 // Admin (ADMIN/MOD role required — enforced inside each router)
 app.use(`${api}/admin/salons`, adminSalonsRoutes);
@@ -120,8 +120,10 @@ app.use(`${api}/admin/audit-log`, adminAuditRoutes);
 // Public stream de fichiers admin (URLs opaques, no auth)
 app.use(`${api}/files`, publicFilesRouter);
 
-console.log(`[DEBUG-APP] API_PREFIX: ${api}`);
-console.log(`[DEBUG-APP] Salon-sessions routes registered at: ${api}/salon-sessions`);
+if (env.NODE_ENV !== "production") {
+  console.log(`[DEBUG-APP] API_PREFIX: ${api}`);
+  console.log(`[DEBUG-APP] Salon-sessions routes registered at: ${api}/salon-sessions`);
+}
 
 // 404
 app.use((_req, res) => {
