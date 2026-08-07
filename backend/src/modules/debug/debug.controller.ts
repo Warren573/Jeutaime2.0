@@ -2,15 +2,13 @@ import type { Request, Response } from "express";
 import { env } from "../../config/env";
 import * as debugService from "./debug.service";
 
-// Only allow in staging/dev, or in production if explicitly enabled
+// Defense in depth: debug endpoints are never allowed in production,
+// even if this router is accidentally mounted or a debug env flag is set.
 function isDebugAllowed(): boolean {
-  if (env.NODE_ENV === "production") {
-    return process.env.ALLOW_DEBUG_ENDPOINTS === "true";
-  }
-  return true;
+  return env.NODE_ENV !== "production";
 }
 
-export async function getStagingStatus(req: Request, res: Response) {
+export async function getStagingStatus(_req: Request, res: Response) {
   if (!isDebugAllowed()) {
     return res.status(403).json({ error: "Debug endpoint disabled in production" });
   }
@@ -19,7 +17,7 @@ export async function getStagingStatus(req: Request, res: Response) {
   res.json({ data });
 }
 
-export async function getSeedSource(req: Request, res: Response) {
+export async function getSeedSource(_req: Request, res: Response) {
   if (!isDebugAllowed()) {
     return res.status(403).json({ error: "Debug endpoint disabled in production" });
   }
@@ -27,4 +25,3 @@ export async function getSeedSource(req: Request, res: Response) {
   const data = await debugService.getSeedSource();
   res.json({ data });
 }
-
