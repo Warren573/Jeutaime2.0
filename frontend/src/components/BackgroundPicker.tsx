@@ -46,10 +46,13 @@ export function BackgroundPicker({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Choisir l'ambiance</Text>
-      <Text style={styles.subtitle}>
-        Personnalisez le refuge de votre compagnon
-      </Text>
+      <View style={styles.headingBlock}>
+        <Text style={styles.eyebrow}>AMBIANCE DU REFUGE</Text>
+        <Text style={styles.title}>Choisir un décor</Text>
+        <Text style={styles.subtitle}>
+          Une ambiance douce pour personnaliser l'espace de votre compagnon.
+        </Text>
+      </View>
 
       <ScrollView
         horizontal
@@ -69,10 +72,11 @@ export function BackgroundPicker({
                 styles.backgroundButton,
                 {
                   backgroundColor: background.gradient[0],
-                  borderColor: isSelected ? '#2D1F0E' : '#E0D5C8',
-                  borderWidth: isSelected ? 3 : 2,
+                  borderColor: isSelected ? '#8B2E3C' : 'rgba(122, 92, 58, 0.28)',
+                  borderWidth: isSelected ? 2 : 1,
                   opacity: isSubmitting || isLoading ? 0.6 : 1,
                 },
+                isSelected && styles.backgroundButtonSelected,
               ]}
             >
               <View style={styles.buttonContent}>
@@ -91,13 +95,13 @@ export function BackgroundPicker({
 
       {isSubmitting && (
         <View style={styles.loading}>
-          <ActivityIndicator size="small" color="#8B6F47" />
-          <Text style={styles.loadingText}>Sauvegarde...</Text>
+          <ActivityIndicator size="small" color="#8B2E3C" />
+          <Text style={styles.loadingText}>Sauvegarde de l'ambiance…</Text>
         </View>
       )}
 
       <Text style={styles.hint}>
-        L'ambiance sera appliquée au refuge de votre compagnon
+        Le décor est appliqué immédiatement au refuge.
       </Text>
     </View>
   );
@@ -105,90 +109,122 @@ export function BackgroundPicker({
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    paddingTop: 18,
+    paddingBottom: 20,
+    paddingHorizontal: 18,
+    backgroundColor: '#FEFAF0',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  headingBlock: {
+    marginBottom: 16,
+  },
+  eyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.8,
+    color: '#B87333',
+    marginBottom: 5,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#2D1F0E',
-    marginBottom: 4,
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#2C1A0E',
+    marginBottom: 5,
   },
   subtitle: {
-    fontSize: 12,
-    color: '#8B6F47',
-    marginBottom: 12,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#7A5C3A',
   },
   scroll: {
-    marginBottom: 12,
+    marginBottom: 14,
   },
   scrollContent: {
-    gap: 10,
-    paddingHorizontal: 0,
+    gap: 12,
+    paddingRight: 4,
   },
   backgroundButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
+    width: 108,
+    height: 108,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    shadowColor: '#5A3A1A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 7,
+    elevation: 3,
+  },
+  backgroundButtonSelected: {
+    shadowColor: '#8B2E3C',
+    shadowOpacity: 0.22,
+    elevation: 5,
   },
   buttonContent: {
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    gap: 6,
+    width: '100%',
+    height: '100%',
+    paddingHorizontal: 8,
   },
   emoji: {
-    fontSize: 32,
+    fontSize: 34,
   },
   label: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#2D1F0E',
+    fontWeight: '700',
+    color: '#2C1A0E',
     textAlign: 'center',
   },
   checkmark: {
     position: 'absolute' as const,
-    top: 4,
-    right: 4,
-    backgroundColor: '#2D1F0E',
+    top: 8,
+    right: 8,
+    backgroundColor: '#8B2E3C',
     borderRadius: 12,
     width: 24,
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFF8E7',
   },
   checkmarkText: {
-    color: '#FFF8E7',
-    fontSize: 14,
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   loading: {
     flexDirection: 'row' as const,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(240, 235, 225, 0.5)',
-    borderRadius: 8,
-    marginBottom: 8,
+    backgroundColor: '#F5EFDA',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8D9C6',
+    marginBottom: 10,
   },
   loadingText: {
     fontSize: 12,
-    color: '#8B6F47',
-    fontWeight: '500',
+    color: '#7A5C3A',
+    fontWeight: '600',
   },
   hint: {
     fontSize: 11,
-    color: '#A89A7E',
+    color: '#9A7040',
     textAlign: 'center',
+    fontStyle: 'italic',
   },
   error: {
     fontSize: 14,
-    color: '#d32f2f',
+    color: '#9C2F45',
     textAlign: 'center',
+    fontWeight: '600',
   },
 });
