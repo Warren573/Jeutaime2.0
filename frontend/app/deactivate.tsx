@@ -1,5 +1,3 @@
-import AccountLifecycleUnavailableScreen from '../src/screens/AccountLifecycleUnavailableScreen';
+import DeactivateAccountScreen from '../src/screens/DeactivateAccountScreen';
 
-export default function DeactivatePage() {
-  return <AccountLifecycleUnavailableScreen mode="deactivate" />;
-}
+export default DeactivateAccountScreen;
