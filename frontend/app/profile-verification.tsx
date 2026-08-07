@@ -1,4 +1,3 @@
-import PlaceholderScreen from '../src/screens/PlaceholderScreen';
-export default function Screen() {
-  return <PlaceholderScreen icon="✅" title="Vérification du profil" description="Vérifiez votre identité pour plus de confiance." />;
-}
+import ProfileVerificationScreen from '../src/screens/ProfileVerificationScreen';
+
+export default ProfileVerificationScreen;
