@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { AppBackButton } from '../components/AppBackButton';
+import {
+  getOfferingsCatalog,
+  type OfferingCatalogItemDTO,
+} from '../api/offerings';
 import {
   APP_COLORS,
   APP_RADIUS,
@@ -65,10 +69,16 @@ export default function ShopScreen() {
   const coins = useStore((s) => s.coins);
   const currentUser = useStore((s) => s.currentUser);
   const loadWallet = useStore((s) => s.loadWallet);
+  const [catalog, setCatalog] = useState<OfferingCatalogItemDTO[]>([]);
 
   useEffect(() => {
     void loadWallet();
+    getOfferingsCatalog()
+      .then(setCatalog)
+      .catch(() => setCatalog([]));
   }, [loadWallet]);
+
+  const catalogPreview = catalog.slice(0, 4);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -127,13 +137,35 @@ export default function ShopScreen() {
           onPress={() => router.push('/coins')}
         />
 
-        <ShopTile
-          icon="🎁"
-          title="Offrandes"
-          description="Les offrandes s’envoient depuis les espaces où tu rencontres quelqu’un. Ici, retrouve celles que tu as reçues."
-          actionLabel="Voir mes offrandes"
-          onPress={() => router.push('/offerings')}
-        />
+        <View style={styles.catalogCard}>
+          <View style={styles.catalogHeader}>
+            <View>
+              <Text style={styles.catalogTitle}>🎁 Offrandes</Text>
+              <Text style={styles.catalogSubtitle}>Aperçu du catalogue actuel</Text>
+            </View>
+            <TouchableOpacity onPress={() => router.push('/offerings')} activeOpacity={0.75}>
+              <Text style={styles.catalogLink}>Reçues →</Text>
+            </TouchableOpacity>
+          </View>
+
+          {catalogPreview.length > 0 ? (
+            <View style={styles.catalogGrid}>
+              {catalogPreview.map((item) => (
+                <View key={item.id} style={styles.catalogItem}>
+                  <Text style={styles.catalogEmoji}>{item.emoji}</Text>
+                  <Text style={styles.catalogName} numberOfLines={1}>{item.name}</Text>
+                  <Text style={styles.catalogPrice}>{item.cost} 🪙</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.catalogEmpty}>Catalogue indisponible pour le moment.</Text>
+          )}
+
+          <Text style={styles.catalogNote}>
+            Une offrande s’envoie depuis un profil ou un salon afin de conserver le bon destinataire.
+          </Text>
+        </View>
 
         <View style={styles.infoCard}>
           <Text style={styles.infoIcon}>💳</Text>
@@ -267,7 +299,7 @@ const styles = StyleSheet.create({
   },
   tileTitle: {
     fontSize: 17,
-    fontWeight: '850',
+    fontWeight: '800',
     color: APP_COLORS.ink,
   },
   tileBadge: {
@@ -292,6 +324,80 @@ const styles = StyleSheet.create({
   },
   tileActionEmphasized: {
     color: APP_COLORS.burgundy,
+  },
+  catalogCard: {
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    padding: APP_SPACING.md,
+    marginBottom: APP_SPACING.md,
+    ...(APP_SHADOWS.card ?? {}),
+  },
+  catalogHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  catalogTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: APP_COLORS.ink,
+  },
+  catalogSubtitle: {
+    fontSize: 11,
+    color: APP_COLORS.muted,
+    marginTop: 2,
+  },
+  catalogLink: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: APP_COLORS.burgundy,
+  },
+  catalogGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  catalogItem: {
+    width: '47%',
+    minHeight: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: APP_COLORS.paperSoft,
+    borderRadius: APP_RADIUS.md,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    padding: 10,
+  },
+  catalogEmoji: { fontSize: 27, marginBottom: 5 },
+  catalogName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: APP_COLORS.ink,
+    textAlign: 'center',
+  },
+  catalogPrice: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: APP_COLORS.muted,
+    marginTop: 4,
+  },
+  catalogEmpty: {
+    fontSize: 12,
+    color: APP_COLORS.muted,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
+  catalogNote: {
+    fontSize: 11,
+    lineHeight: 17,
+    color: APP_COLORS.muted,
+    marginTop: 12,
+    fontStyle: 'italic',
   },
   infoCard: {
     flexDirection: 'row',
