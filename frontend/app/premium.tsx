@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useStore } from "../src/store/useStore";
+import { AppBackButton } from "../src/components/AppBackButton";
 import {
   getPremiumPlans,
   getMyPremiumStatus,
@@ -154,14 +155,11 @@ export default function PremiumScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Retour</Text>
-        </TouchableOpacity>
+        <AppBackButton onPress={() => router.back()} style={styles.backBtn} />
 
         <Text style={styles.title}>👑 Premium</Text>
         <Text style={styles.subtitle}>Vis JeuTaime sans limites.</Text>
 
-        {/* Statut actuel */}
         <View style={[styles.statusCard, isActive ? styles.statusCardActive : styles.statusCardFree]}>
           {isActive ? (
             <>
@@ -181,7 +179,6 @@ export default function PremiumScreen() {
           <Text style={styles.coinsBalance}>Solde : {coins} 🪙</Text>
         </View>
 
-        {/* Avantages */}
         <Text style={styles.sectionTitle}>Ce que tu débloques</Text>
         <View style={styles.advantagesCard}>
           {ADVANTAGES.map((a, i) => (
@@ -192,7 +189,6 @@ export default function PremiumScreen() {
           ))}
         </View>
 
-        {/* Plans — seulement si pas déjà premium */}
         {!isActive && plans.length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Choisir un plan</Text>
@@ -246,7 +242,6 @@ export default function PremiumScreen() {
           </>
         )}
 
-        {/* Annulation */}
         {isActive && (
           <Pressable
             style={[styles.cancelBtn, cancelling && { opacity: 0.5 }]}
@@ -270,8 +265,7 @@ const styles = StyleSheet.create({
   loadingWrap:           { flex: 1, justifyContent: "center", alignItems: "center" },
   container:             { padding: 24, paddingBottom: 60 },
 
-  backBtn:               { alignSelf: "flex-start", marginBottom: 16 },
-  backText:              { fontSize: 15, color: "#667eea", fontWeight: "600" },
+  backBtn:               { marginBottom: 16 },
 
   title:                 { fontSize: 34, fontWeight: "800", color: "#232126", textAlign: "center", marginBottom: 6 },
   subtitle:              { fontSize: 15, color: "#7a746d", textAlign: "center", marginBottom: 24 },
