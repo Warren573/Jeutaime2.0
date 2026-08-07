@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import * as authService from "./auth.service";
 import { changePassword } from "./accountSecurity.service";
 import { exportPersonalData } from "./dataExport.service";
+import { deactivateAccount, reactivateAccountByEmail } from "./accountLifecycle.service";
 import { AuthedRequest } from "../../core/types";
 import { BadRequestError } from "../../core/errors";
 
@@ -12,7 +13,8 @@ export async function handleRegister(req: Request, res: Response) {
 
 export async function handleLogin(req: Request, res: Response) {
   const tokens = await authService.login(req.body);
-  res.json({ data: tokens });
+  const reactivated = await reactivateAccountByEmail(req.body.email);
+  res.json({ data: tokens, meta: { reactivated } });
 }
 
 export async function handleRefresh(req: Request, res: Response) {
@@ -31,6 +33,11 @@ export async function handleLogout(req: AuthedRequest, res: Response) {
 export async function handleChangePassword(req: AuthedRequest, res: Response) {
   await changePassword(req.user.userId, req.body.currentPassword, req.body.newPassword);
   res.json({ data: { message: "Mot de passe modifié" } });
+}
+
+export async function handleDeactivate(req: AuthedRequest, res: Response) {
+  await deactivateAccount(req.user.userId, req.body.currentPassword);
+  res.json({ data: { message: "Compte désactivé" } });
 }
 
 export async function handleExportData(req: AuthedRequest, res: Response) {
