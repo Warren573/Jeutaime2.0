@@ -30,6 +30,7 @@ import adminUploadRoutes, {
 import adminReportsRoutes from "./modules/admin/reports/adminReports.routes";
 import adminUsersRoutes from "./modules/admin/users/adminUsers.routes";
 import adminAuditRoutes from "./modules/admin/audit/adminAudit.routes";
+import adminSupportRoutes from "./modules/admin/support/adminSupport.routes";
 import reactionsRoutes from "./modules/reactions/reactions.routes";
 import cardGameRoutes from "./modules/card-game/card-game.routes";
 import bottlesRoutes from "./modules/bottles/bottles.routes";
@@ -118,6 +119,7 @@ app.use(`${api}/admin/upload`, adminUploadRoutes);
 app.use(`${api}/admin/reports`, adminReportsRoutes);
 app.use(`${api}/admin/users`, adminUsersRoutes);
 app.use(`${api}/admin/audit-log`, adminAuditRoutes);
+app.use(`${api}/admin/support`, adminSupportRoutes);
 
 // Public stream de fichiers admin (URLs opaques, no auth)
 app.use(`${api}/files`, publicFilesRouter);
