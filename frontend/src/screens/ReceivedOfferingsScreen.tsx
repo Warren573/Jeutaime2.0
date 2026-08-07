@@ -58,7 +58,7 @@ export default function ReceivedOfferingsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.deskBgLayer} pointerEvents="none">
-        <Image source={DESK_BG} style={styles.deskBgImage} resizeMode="contain" />
+        <Image source={DESK_BG} style={styles.deskBgImage} resizeMode="cover" />
       </View>
 
       <AppBackButton
@@ -69,7 +69,7 @@ export default function ReceivedOfferingsScreen() {
 
       {loading ? (
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#F3E7C6" />
+          <ActivityIndicator size="large" color="#F4E8CE" />
         </View>
       ) : error ? (
         <View style={styles.centerContent}>
@@ -83,7 +83,7 @@ export default function ReceivedOfferingsScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.grid,
-            { paddingTop: insets.top + 70, paddingBottom: insets.bottom + 32 },
+            { paddingTop: insets.top + 76, paddingBottom: insets.bottom + 36 },
           ]}
           showsVerticalScrollIndicator={false}
         >
@@ -114,7 +114,7 @@ export default function ReceivedOfferingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#141210',
+    backgroundColor: '#171411',
   },
   deskBgLayer:
     Platform.OS === 'web'
@@ -133,52 +133,65 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 36,
   },
   feedbackText: {
     fontSize: 14,
-    color: '#F3E7C6',
+    lineHeight: 20,
+    color: '#F4E8CE',
     textAlign: 'center',
     fontStyle: 'italic',
-    textShadowColor: 'rgba(0,0,0,0.6)',
+    fontWeight: '500',
+    textShadowColor: 'rgba(0,0,0,0.72)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 4,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    gap: 20,
+    alignContent: 'flex-start',
+    paddingHorizontal: 20,
+    rowGap: 26,
+    columnGap: 18,
   },
   offeringSlot: {
-    width: 88,
+    width: 96,
+    minHeight: 100,
     alignItems: 'center',
+    justifyContent: 'flex-start',
   },
   offeringImage: {
-    width: 56,
-    height: 56,
-    marginBottom: 6,
+    width: 64,
+    height: 64,
+    marginBottom: 7,
   },
   offeringEmoji: {
-    fontSize: 40,
-    marginBottom: 6,
+    fontSize: 44,
+    lineHeight: 64,
+    marginBottom: 7,
   },
   offeringName: {
+    width: '100%',
     fontSize: 12,
+    lineHeight: 16,
     fontWeight: '700',
-    color: '#FFF7E6',
+    color: '#FFF8EA',
     textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowColor: 'rgba(0,0,0,0.82)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 4,
   },
   offeringSender: {
+    width: '100%',
+    marginTop: 1,
     fontSize: 10,
-    color: '#D9CBB0',
+    lineHeight: 14,
+    fontWeight: '500',
+    color: '#DED0B6',
     textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowColor: 'rgba(0,0,0,0.82)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 4,
   },
 });
