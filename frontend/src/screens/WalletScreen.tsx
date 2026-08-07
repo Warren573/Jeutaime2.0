@@ -149,6 +149,21 @@ export default function WalletScreen() {
           </Text>
         </View>
 
+        <TouchableOpacity
+          style={styles.shopBtn}
+          onPress={() => router.push('/shop')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.shopBtnIconWrap}>
+            <Text style={styles.shopBtnIcon}>🛍️</Text>
+          </View>
+          <View style={styles.shopBtnContent}>
+            <Text style={styles.shopBtnTitle}>Boutique</Text>
+            <Text style={styles.shopBtnSub}>Premium, pièces et offrandes</Text>
+          </View>
+          <Text style={styles.shopBtnArrow}>›</Text>
+        </TouchableOpacity>
+
         {canClaimBonus ? (
           <TouchableOpacity
             style={[styles.bonusBtn, claimingBonus && styles.bonusBtnDisabled]}
@@ -162,7 +177,7 @@ export default function WalletScreen() {
                 <Text style={styles.bonusEmoji}>📅</Text>
                 <View style={styles.bonusContent}>
                   <Text style={styles.bonusTitle}>Bonus quotidien disponible</Text>
-                  <Text style={styles.bonusSub}>Tappez pour recevoir votre bonus</Text>
+                  <Text style={styles.bonusSub}>Touchez pour recevoir votre bonus</Text>
                 </View>
               </>
             )}
@@ -259,7 +274,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF8E7',
     borderRadius: 16,
     padding: 20,
-    marginBottom: 20,
+    marginBottom: 12,
     borderWidth: 2,
     borderColor: '#D4B896',
   },
@@ -289,6 +304,42 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#8B6F47',
     fontStyle: 'italic',
+  },
+  shopBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E7',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#D4B896',
+  },
+  shopBtnIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F2E7D6',
+    marginRight: 12,
+  },
+  shopBtnIcon: { fontSize: 22 },
+  shopBtnContent: { flex: 1 },
+  shopBtnTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#2B1B12',
+  },
+  shopBtnSub: {
+    fontSize: 11,
+    color: '#8B6F47',
+    marginTop: 2,
+  },
+  shopBtnArrow: {
+    fontSize: 28,
+    color: '#9C7A4D',
+    marginLeft: 8,
   },
   bonusBtn: {
     backgroundColor: '#F59E0B',
