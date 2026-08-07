@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { RefugeMainScreen } from '../../src/screens/RefugeMainScreen';
+import { RefugeIllustratedScreen } from '../../src/screens/RefugeIllustratedScreen';
 
 export default function RefugeGamePage() {
   const params = useLocalSearchParams();
@@ -15,5 +15,5 @@ export default function RefugeGamePage() {
     );
   }
 
-  return <RefugeMainScreen sessionIdProp={sessionId} />;
+  return <RefugeIllustratedScreen sessionIdProp={sessionId} />;
 }
