@@ -2,6 +2,7 @@ import { Response } from "express";
 import * as svc from "./profiles.service";
 import { listBlockedUsers } from "./blockedUsers.service";
 import { getUserSettings, updateUserSettings, type UserSettingsPatch } from "./userSettings.service";
+import { applyLocationPrivacy, applyLocationPrivacyToMany } from "./profilePrivacy.service";
 import { AuthedRequest } from "../../core/types";
 import { computeProfileStatus } from "../../policies/profiles";
 
@@ -26,12 +27,14 @@ export async function handleGetProfile(req: AuthedRequest, res: Response) {
     req.params["id"] as string,
     req.user.isPremium,
   );
-  res.json({ data: result });
+  const profile = await applyLocationPrivacy(result.profile);
+  res.json({ data: { ...result, profile } });
 }
 
 export async function handleDiscovery(req: AuthedRequest, res: Response) {
   const result = await svc.discoverProfiles(req.user.userId, req.query as never);
-  res.json(result);
+  const data = await applyLocationPrivacyToMany(result.data);
+  res.json({ ...result, data });
 }
 
 export async function handleListBlocked(req: AuthedRequest, res: Response) {
