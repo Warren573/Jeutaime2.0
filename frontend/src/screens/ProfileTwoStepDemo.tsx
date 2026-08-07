@@ -23,29 +23,37 @@ import {
   type ReportReason,
 } from "../api/profiles";
 import { sendReaction } from "../api/reactions";
+import {
+  APP_COLORS,
+  APP_COMPONENTS,
+  APP_RADIUS,
+  APP_SHADOWS,
+  APP_SIZES,
+  APP_SPACING,
+} from "../theme/appTheme";
 
 const PHYSIQUE_LABEL: Record<string, { emoji: string; label: string }> = {
-  filiforme:    { emoji: "🍝", label: "Filiforme" },
-  ras_motte:    { emoji: "🐭", label: "Ras motte" },
+  filiforme: { emoji: "🍝", label: "Filiforme" },
+  ras_motte: { emoji: "🐭", label: "Ras motte" },
   grande_gigue: { emoji: "🦒", label: "Grande gigue" },
-  doux:         { emoji: "✨", label: "Grande beauté intérieure" },
-  athletique:   { emoji: "🏃", label: "Athlétique" },
-  costaud:      { emoji: "🍑", label: "En formes généreuses" },
-  mignon:       { emoji: "⚖️", label: "Moyenne" },
-  mysterieux:   { emoji: "💪", label: "Musclé•e" },
+  doux: { emoji: "✨", label: "Grande beauté intérieure" },
+  athletique: { emoji: "🏃", label: "Athlétique" },
+  costaud: { emoji: "🍑", label: "En formes généreuses" },
+  mignon: { emoji: "⚖️", label: "Moyenne" },
+  mysterieux: { emoji: "💪", label: "Musclé•e" },
 };
 
 const LOOKING_FOR_LABEL: Record<string, string> = {
-  relation:   "J'ai vu de la lumière, je suis entré·e",
-  flirt:      "Rien de trop sérieux",
-  amitie:     "Des affinités, d'abord",
+  relation: "J'ai vu de la lumière, je suis entré·e",
+  flirt: "Rien de trop sérieux",
+  amitie: "Des affinités, d'abord",
   discussion: "Je cherche à discuter",
-  serieux:    "Je cherche l'âme sœur",
-  RELATION:   "J'ai vu de la lumière, je suis entré·e",
-  FLIRT:      "Rien de trop sérieux",
-  AMITIE:     "Des affinités, d'abord",
+  serieux: "Je cherche l'âme sœur",
+  RELATION: "J'ai vu de la lumière, je suis entré·e",
+  FLIRT: "Rien de trop sérieux",
+  AMITIE: "Des affinités, d'abord",
   DISCUSSION: "Je cherche à discuter",
-  SERIEUX:    "Je cherche l'âme sœur",
+  SERIEUX: "Je cherche l'âme sœur",
 };
 
 const REPORT_REASONS: Array<{ value: ReportReason; label: string }> = [
@@ -92,12 +100,20 @@ export function RelationLevelBadge({
 }
 
 const badgeStyles = StyleSheet.create({
-  container:        { backgroundColor: "#F9EFDB", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#E8D5B7", marginTop: 10 },
+  container: {
+    backgroundColor: APP_COLORS.paperSoft,
+    borderRadius: APP_RADIUS.md,
+    paddingHorizontal: APP_SPACING.sm,
+    paddingVertical: APP_SPACING.xs,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    marginTop: APP_SPACING.xs,
+  },
   containerCompact: { paddingHorizontal: 10, paddingVertical: 6, marginTop: 6 },
-  topRow:           { flexDirection: "row", alignItems: "center", gap: 8 },
-  stars:            { fontSize: 14 },
-  label:            { fontSize: 13, fontWeight: "700", color: "#6B4C30" },
-  progress:         { fontSize: 12, color: "#8B6F47", marginTop: 5, fontStyle: "italic" },
+  topRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  stars: { fontSize: 14 },
+  label: { fontSize: 13, fontWeight: "700", color: APP_COLORS.text },
+  progress: { fontSize: 12, color: APP_COLORS.muted, marginTop: 5, fontStyle: "italic" },
 });
 
 export function ProfileMedia({
@@ -127,10 +143,10 @@ export function ProfileMedia({
 export default function ProfileTwoStepDemo() {
   const router = useRouter();
   const searchParams = useLocalSearchParams<{ filter?: string }>();
-  const currentUser  = useStore((s) => s.currentUser);
-  const allMatches   = useStore((s) => s.matches);
+  const currentUser = useStore((s) => s.currentUser);
+  const allMatches = useStore((s) => s.matches);
   const matchPartners = useStore((s) => s.matchPartners);
-  const loadMatches  = useStore((s) => s.loadMatches);
+  const loadMatches = useStore((s) => s.loadMatches);
 
   const isReceivedSmilesFilter = searchParams.filter === 'received-smiles';
 
@@ -160,8 +176,8 @@ export default function ProfileTwoStepDemo() {
     try {
       if (isReceivedSmilesFilter && allMatches.length > 0) {
         const receivedSmileProfiles = allMatches
-          .filter(m => m.initiatorId !== currentUser.id)
-          .map(m => {
+          .filter((m) => m.initiatorId !== currentUser.id)
+          .map((m) => {
             const otherUserId = m.userAId === currentUser.id ? m.userBId : m.userAId;
             return { match: m, otherUserId };
           })
@@ -185,14 +201,14 @@ export default function ProfileTwoStepDemo() {
               badges: [],
             };
           })
-          .filter((p, idx, arr) => arr.findIndex(a => a.userId === p.userId) === idx);
+          .filter((p, idx, arr) => arr.findIndex((a) => a.userId === p.userId) === idx);
 
         setCurrentProfile(receivedSmileProfiles[0] ?? null);
         setRemainingProfiles(receivedSmileProfiles.slice(1));
       } else {
         const result = await discoverProfiles({ pageSize: 50 });
         const filtered = result.data.filter(
-          (p) => p.userId !== currentUser.id && !removedIds.has(p.userId)
+          (p) => p.userId !== currentUser.id && !removedIds.has(p.userId),
         );
         setCurrentProfile(filtered[0] ?? null);
         setRemainingProfiles(filtered.slice(1));
@@ -299,7 +315,7 @@ export default function ProfileTwoStepDemo() {
   if (loading) {
     return (
       <View style={[styles.screen, styles.centered]}>
-        <ActivityIndicator size="large" color="#9C7A4D" />
+        <ActivityIndicator size="large" color={APP_COLORS.burgundy} />
         <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
@@ -333,7 +349,7 @@ export default function ProfileTwoStepDemo() {
     profile.userId,
     profile.avatarConfig,
     profile.gender,
-    'ProfileTwoStepDemo'
+    'ProfileTwoStepDemo',
   );
   const avatarConfig = avatarResolution.config;
   const physique = profile.physicalDesc
@@ -343,8 +359,8 @@ export default function ProfileTwoStepDemo() {
     .map((id) => LOOKING_FOR_LABEL[id] ?? id)
     .join(" · ");
   const displayName = (profile.pseudo ?? "").trim();
-  const headerLine  = [displayName, age !== null ? String(age) : ""].filter(Boolean).join(", ");
-  const displayBio  = (profile.bio ?? "").trim();
+  const headerLine = [displayName, age !== null ? String(age) : ""].filter(Boolean).join(", ");
+  const displayBio = (profile.bio ?? "").trim();
   const displayCity = (profile.city ?? "").trim();
 
   return (
@@ -455,98 +471,102 @@ export default function ProfileTwoStepDemo() {
   );
 }
 
-const BG       = "#ECE3D4";
-const PAPER    = "#F6EEDF";
-const INK      = "#2B1B12";
-const INK_SOFT = "#7C5A43";
-const LINE     = "#D9C7AA";
-const RED      = "#BE6B63";
+const BG = APP_COLORS.background;
+const PAPER = APP_COLORS.paper;
+const INK = APP_COLORS.ink;
+const INK_SOFT = APP_COLORS.muted;
+const LINE = APP_COLORS.border;
+const RED = APP_COLORS.danger;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
-  centered: { alignItems: "center", justifyContent: "center", padding: 24 },
-  loadingText: { fontSize: 16, color: INK_SOFT, marginTop: 12 },
-  errorText: { fontSize: 16, color: RED, textAlign: "center", marginBottom: 16 },
-  emptyTitle: { fontSize: 22, fontWeight: "800", color: INK, marginBottom: 8, textAlign: "center" },
-  emptyText: { fontSize: 16, color: INK_SOFT, textAlign: "center", marginBottom: 20, lineHeight: 24 },
-  retryBtn: { backgroundColor: "#E8D5B7", borderRadius: 14, paddingHorizontal: 20, paddingVertical: 12 },
-  retryBtnText: { fontSize: 16, fontWeight: "700", color: "#6B4C30" },
-  stageOneContent: { paddingHorizontal: 16, paddingBottom: 28, paddingTop: 10 },
+  centered: { alignItems: "center", justifyContent: "center", padding: APP_SPACING.xl },
+  loadingText: { fontSize: 16, color: INK_SOFT, marginTop: APP_SPACING.sm },
+  errorText: { fontSize: 16, color: RED, textAlign: "center", marginBottom: APP_SPACING.md },
+  emptyTitle: { fontSize: 22, fontWeight: "800", color: INK, marginBottom: APP_SPACING.xs, textAlign: "center" },
+  emptyText: { fontSize: 16, color: INK_SOFT, textAlign: "center", marginBottom: APP_SPACING.lg, lineHeight: 24 },
+  retryBtn: {
+    ...APP_COMPONENTS.secondaryButton,
+    paddingHorizontal: APP_SPACING.lg,
+  },
+  retryBtnText: { fontSize: 15, fontWeight: "700", color: APP_COLORS.burgundy },
+  stageOneContent: {
+    paddingHorizontal: APP_SIZES.screenPadding,
+    paddingBottom: APP_SPACING.xxl,
+    paddingTop: APP_SPACING.sm,
+  },
   stageOneCard: {
     backgroundColor: PAPER,
-    borderRadius: 26,
+    borderRadius: APP_RADIUS.xl,
     borderWidth: 1,
     borderColor: LINE,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 4,
+    paddingHorizontal: APP_SPACING.lg,
+    paddingVertical: APP_SPACING.lg,
+    ...(APP_SHADOWS.elevated ?? {}),
   },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: APP_SPACING.md,
     position: 'relative',
     zIndex: 30,
   },
-  topBarTitle: { fontSize: 17, color: INK, fontWeight: "700" },
-  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  progressBadge: { backgroundColor: "#E8DDCE", borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
-  progressBadgeText: { fontSize: 13, color: INK_SOFT, fontWeight: "600" },
+  topBarTitle: { fontSize: 18, color: INK, fontWeight: "800" },
+  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: APP_SPACING.xs },
+  progressBadge: {
+    backgroundColor: APP_COLORS.paperSoft,
+    borderRadius: APP_RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LINE,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  progressBadgeText: { fontSize: 12, color: INK_SOFT, fontWeight: "700" },
   safetyButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: APP_SIZES.touchTarget,
+    height: APP_SIZES.touchTarget,
+    borderRadius: APP_RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E8DDCE',
+    backgroundColor: APP_COLORS.paperSoft,
+    borderWidth: 1,
+    borderColor: LINE,
   },
   safetyButtonText: { fontSize: 20 },
   safetyMenu: {
     position: 'absolute',
-    top: 44,
+    top: 50,
     right: 0,
     width: 210,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.lg,
     borderWidth: 1,
-    borderColor: '#D9C7AA',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
+    borderColor: LINE,
+    paddingVertical: APP_SPACING.xs,
+    paddingHorizontal: APP_SPACING.xs,
+    ...(APP_SHADOWS.elevated ?? {}),
   },
-  safetyMenuItem: { paddingHorizontal: 12, paddingVertical: 13 },
-  safetyMenuText: { fontSize: 16, fontWeight: '700', color: INK },
-  safetyMenuDanger: { color: '#9B3343' },
-  safetyMenuTitle: { fontSize: 13, fontWeight: '800', color: INK_SOFT, paddingHorizontal: 10, paddingVertical: 8 },
-  reasonMenuItem: { paddingHorizontal: 10, paddingVertical: 9, borderRadius: 8 },
+  safetyMenuItem: { paddingHorizontal: APP_SPACING.sm, paddingVertical: APP_SPACING.sm },
+  safetyMenuText: { fontSize: 15, fontWeight: '700', color: INK },
+  safetyMenuDanger: { color: APP_COLORS.danger },
+  safetyMenuTitle: { fontSize: 13, fontWeight: '800', color: INK_SOFT, paddingHorizontal: 10, paddingVertical: APP_SPACING.xs },
+  reasonMenuItem: { paddingHorizontal: 10, paddingVertical: 9, borderRadius: APP_RADIUS.sm },
   reasonMenuText: { fontSize: 14, color: INK, fontWeight: '600' },
-  reasonBack: { paddingHorizontal: 10, paddingTop: 10, paddingBottom: 8, marginTop: 4, borderTopWidth: 1, borderTopColor: '#EEE3D5' },
-  reasonBackText: { fontSize: 14, fontWeight: '700', color: '#8B2E3C' },
-  stageOneHeader: { flexDirection: "row", alignItems: "flex-start", marginBottom: 18 },
+  reasonBack: { paddingHorizontal: 10, paddingTop: 10, paddingBottom: APP_SPACING.xs, marginTop: 4, borderTopWidth: 1, borderTopColor: LINE },
+  reasonBackText: { fontSize: 14, fontWeight: '700', color: APP_COLORS.burgundy },
+  stageOneHeader: { flexDirection: "row", alignItems: "flex-start", marginBottom: APP_SPACING.lg },
   photoCard: {
     width: 126,
     height: 156,
-    borderRadius: 12,
-    backgroundColor: "#FFF",
+    borderRadius: APP_RADIUS.md,
+    backgroundColor: APP_COLORS.white,
     borderWidth: 1,
-    borderColor: "#E6D8C2",
+    borderColor: LINE,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 2,
+    marginRight: APP_SPACING.md,
+    ...(APP_SHADOWS.card ?? {}),
   },
   photoTape: {
     position: "absolute",
@@ -560,20 +580,28 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   stageOneHeaderText: { flex: 1, paddingTop: 4 },
-  stageOneName: { fontSize: 34, lineHeight: 38, fontWeight: "800", color: INK, marginBottom: 6 },
+  stageOneName: { fontSize: 32, lineHeight: 37, fontWeight: "800", color: INK, marginBottom: 6 },
   metaInline: { fontSize: 15, color: INK_SOFT, marginBottom: 6 },
-  arrowLineWrap: { marginTop: 4, marginBottom: 8 },
-  arrowLine: { fontSize: 14, color: "#B29077", letterSpacing: 1 },
-  stageOneBlabla: { fontSize: 26, lineHeight: 43, color: INK, marginBottom: 14, letterSpacing: -0.2 },
-  vibeTag: { fontSize: 17, color: INK_SOFT, fontStyle: "italic", marginBottom: 10 },
-  discoverWrap: { alignSelf: "flex-start", marginBottom: 18 },
-  discoverLink: { fontSize: 18, color: "#9C7A4D", fontWeight: "600" },
-  stageOneActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  actionButton: { flex: 1, borderRadius: 18, paddingVertical: 16, alignItems: "center", borderWidth: 1 },
-  actionBad: { backgroundColor: "#F3DEDF", borderColor: "#E3C2C5" },
-  actionGood: { backgroundColor: "#DFEEE1", borderColor: "#C7DDCB" },
+  arrowLineWrap: { marginTop: 4, marginBottom: APP_SPACING.xs },
+  arrowLine: { fontSize: 14, color: APP_COLORS.borderStrong, letterSpacing: 1 },
+  stageOneBlabla: { fontSize: 24, lineHeight: 38, color: INK, marginBottom: APP_SPACING.md, letterSpacing: -0.2 },
+  vibeTag: { fontSize: 16, color: INK_SOFT, fontStyle: "italic", marginBottom: 10 },
+  discoverWrap: { alignSelf: "flex-start", marginBottom: APP_SPACING.lg, minHeight: APP_SIZES.touchTarget, justifyContent: 'center' },
+  discoverLink: { fontSize: 17, color: APP_COLORS.burgundy, fontWeight: "700" },
+  stageOneActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: APP_SPACING.sm },
+  actionButton: {
+    flex: 1,
+    minHeight: APP_SIZES.buttonHeightLarge,
+    borderRadius: APP_RADIUS.lg,
+    paddingHorizontal: APP_SPACING.sm,
+    alignItems: "center",
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  actionBad: { backgroundColor: "#F7E7E8", borderColor: "#E5C8CB" },
+  actionGood: { backgroundColor: "#E7F1E8", borderColor: "#CADFCF" },
   actionDisabled: { opacity: 0.5 },
-  actionText: { fontSize: 17, color: INK, fontWeight: "700" },
+  actionText: { fontSize: 16, color: INK, fontWeight: "800" },
   secondeChanceWrap: { alignItems: "center", marginTop: 14, paddingBottom: 4 },
   secondeChanceLink: { fontSize: 15, color: INK_SOFT, fontStyle: "italic", opacity: 0.7 },
 });
