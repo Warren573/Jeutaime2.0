@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,7 +12,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AppBackButton } from '../components/AppBackButton';
-import { getMyAccountData, type MyAccountDataDTO } from '../api/accountData';
+import {
+  exportMyPersonalData,
+  getMyAccountData,
+  type MyAccountDataDTO,
+} from '../api/accountData';
 import { APP_COLORS, APP_RADIUS, APP_SHADOWS, APP_SPACING } from '../theme/appTheme';
 
 function DataRow({ label, value }: { label: string; value: string }) {
@@ -28,6 +33,7 @@ export default function PersonalDataScreen() {
   const insets = useSafeAreaInsets();
   const [data, setData] = useState<MyAccountDataDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -44,6 +50,26 @@ export default function PersonalDataScreen() {
     void load();
   }, [load]);
 
+  const handleExport = useCallback(async () => {
+    if (exporting) return;
+    try {
+      setExporting(true);
+      const exported = await exportMyPersonalData();
+      const json = JSON.stringify(exported, null, 2);
+      await Share.share({
+        title: 'Export de mes données JeuTaime',
+        message: json,
+      });
+    } catch (err) {
+      Alert.alert(
+        'Export impossible',
+        err instanceof Error ? err.message : 'Impossible de générer ton export pour le moment.',
+      );
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting]);
+
   const profile = (data?.profile ?? {}) as Record<string, unknown>;
   const settings = (data?.settings ?? {}) as Record<string, unknown>;
 
@@ -54,7 +80,7 @@ export default function PersonalDataScreen() {
         <View style={styles.headerText}>
           <Text style={styles.kicker}>MON COMPTE</Text>
           <Text style={styles.title}>Données personnelles</Text>
-          <Text style={styles.subtitle}>Les principales données actuellement enregistrées sur ton compte.</Text>
+          <Text style={styles.subtitle}>Consulte et récupère les données enregistrées sur ton compte.</Text>
         </View>
         <View style={styles.headerSpacer} />
       </View>
@@ -97,12 +123,24 @@ export default function PersonalDataScreen() {
           <View style={styles.infoCard}>
             <Text style={styles.infoIcon}>📦</Text>
             <View style={styles.infoBody}>
-              <Text style={styles.infoTitle}>Export complet</Text>
+              <Text style={styles.infoTitle}>Export de tes données</Text>
               <Text style={styles.infoText}>
-                L’export téléchargeable de toutes les données n’est pas encore implémenté côté backend. Cet écran affiche uniquement les données déjà accessibles de façon sûre via ton compte.
+                L’export JSON regroupe les données de ton compte accessibles à l’utilisateur. Les mots de passe, jetons de connexion et informations techniques internes ne sont jamais inclus.
               </Text>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={[styles.exportBtn, exporting && styles.exportBtnDisabled]}
+            onPress={() => void handleExport()}
+            disabled={exporting}
+          >
+            {exporting ? (
+              <ActivityIndicator color={APP_COLORS.white} />
+            ) : (
+              <Text style={styles.exportText}>Exporter mes données</Text>
+            )}
+          </TouchableOpacity>
 
           <TouchableOpacity style={styles.refreshBtn} onPress={() => void load()}>
             <Text style={styles.refreshText}>Actualiser</Text>
@@ -171,6 +209,17 @@ const styles = StyleSheet.create({
   infoBody: { flex: 1 },
   infoTitle: { fontSize: 13, fontWeight: '800', color: APP_COLORS.ink, marginBottom: 4 },
   infoText: { fontSize: 12, lineHeight: 18, color: APP_COLORS.muted },
+  exportBtn: {
+    minHeight: 50,
+    marginTop: APP_SPACING.md,
+    borderRadius: APP_RADIUS.md,
+    backgroundColor: APP_COLORS.burgundy,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+  exportBtnDisabled: { opacity: 0.55 },
+  exportText: { color: APP_COLORS.white, fontWeight: '800', fontSize: 13 },
   refreshBtn: {
     alignSelf: 'center',
     marginTop: APP_SPACING.md,
