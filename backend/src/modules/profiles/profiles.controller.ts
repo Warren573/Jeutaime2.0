@@ -1,6 +1,7 @@
 import { Response } from "express";
 import * as svc from "./profiles.service";
 import { listBlockedUsers } from "./blockedUsers.service";
+import { getUserSettings, updateUserSettings, type UserSettingsPatch } from "./userSettings.service";
 import { AuthedRequest } from "../../core/types";
 import { computeProfileStatus } from "../../policies/profiles";
 
@@ -36,6 +37,31 @@ export async function handleDiscovery(req: AuthedRequest, res: Response) {
 export async function handleListBlocked(req: AuthedRequest, res: Response) {
   const users = await listBlockedUsers(req.user.userId);
   res.json({ data: users });
+}
+
+export async function handleGetSettings(req: AuthedRequest, res: Response) {
+  res.json({ data: await getUserSettings(req.user.userId) });
+}
+
+export async function handleUpdateSettings(req: AuthedRequest, res: Response) {
+  const allowedKeys: Array<keyof UserSettingsPatch> = [
+    "notifEmail",
+    "notifPush",
+    "soundEnabled",
+    "showInDiscovery",
+    "locationShared",
+  ];
+  const patch: UserSettingsPatch = {};
+  for (const key of allowedKeys) {
+    if (req.body?.[key] !== undefined) {
+      if (typeof req.body[key] !== "boolean") {
+        res.status(400).json({ error: `${key} must be a boolean` });
+        return;
+      }
+      patch[key] = req.body[key];
+    }
+  }
+  res.json({ data: await updateUserSettings(req.user.userId, patch) });
 }
 
 export async function handleBlock(req: AuthedRequest, res: Response) {
