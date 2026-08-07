@@ -37,7 +37,7 @@ export type CreateBottleResponse = z.infer<typeof CreateBottleResponseSchema>;
 export const InboxBottleSchema = z.object({
   id: z.string(),
   message: z.string(),
-  senderCity: z.string(),
+  senderCity: z.string().nullable(),
   targetGender: z.string(),
   status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
   senderId: z.string(),
@@ -64,7 +64,6 @@ export const SentBottleSchema = z.object({
   status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
   createdAt: z.string().datetime(),
   expiresAt: z.string().datetime(),
-  // Nombre de destinataires touchés (reçus créés). 0 = personne trouvé.
   recipientCount: z.number().int().nonnegative(),
 });
 
@@ -82,7 +81,7 @@ export type GetSentBottlesResponse = z.infer<
 export const GetBottleResponseSchema = z.object({
   id: z.string(),
   message: z.string(),
-  senderCity: z.string(),
+  senderCity: z.string().nullable(),
   targetGender: z.string(),
   status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
   createdAt: z.string().datetime(),
@@ -95,7 +94,6 @@ export type GetBottleResponse = z.infer<typeof GetBottleResponseSchema>;
 // POST /api/bottles/:id/accept
 // ============================================================
 export const AcceptBottleBodySchema = z.object({}).strict();
-
 export type AcceptBottleBody = z.infer<typeof AcceptBottleBodySchema>;
 
 export const AcceptBottleResponseSchema = z.object({
@@ -104,20 +102,17 @@ export const AcceptBottleResponseSchema = z.object({
   acceptedById: z.string(),
   acceptedAt: z.string().datetime(),
 });
-
 export type AcceptBottleResponse = z.infer<typeof AcceptBottleResponseSchema>;
 
 // ============================================================
 // POST /api/bottles/:id/refuse
 // ============================================================
 export const RefuseBottleBodySchema = z.object({}).strict();
-
 export type RefuseBottleBody = z.infer<typeof RefuseBottleBodySchema>;
 
 export const RefuseBottleResponseSchema = z.object({
   success: z.boolean(),
 });
-
 export type RefuseBottleResponse = z.infer<typeof RefuseBottleResponseSchema>;
 
 // ============================================================
@@ -145,7 +140,6 @@ export type BottleMessageWithMetadata = z.infer<
 export const GetBottleMessagesResponseSchema = z.object({
   messages: z.array(BottleMessageWithMetadataSchema),
 });
-
 export type GetBottleMessagesResponse = z.infer<
   typeof GetBottleMessagesResponseSchema
 >;
@@ -157,16 +151,12 @@ export const PostBottleMessageBodySchema = z.object({
   content: z.string().min(1).max(500),
   idempotencyKey: z.string().uuid("Invalid UUID format for idempotencyKey"),
 });
-
-export type PostBottleMessageBody = z.infer<
-  typeof PostBottleMessageBodySchema
->;
+export type PostBottleMessageBody = z.infer<typeof PostBottleMessageBodySchema>;
 
 export const PostBottleMessageResponseSchema = z.object({
   message: BottleMessageSchema,
   idempotentReplay: z.boolean().describe("true if this is a replay of a previous request"),
 });
-
 export type PostBottleMessageResponse = z.infer<typeof PostBottleMessageResponseSchema>;
 
 // ============================================================
@@ -175,34 +165,24 @@ export type PostBottleMessageResponse = z.infer<typeof PostBottleMessageResponse
 export const GetUnreadCountResponseSchema = z.object({
   count: z.number().int().nonnegative(),
 });
-
-export type GetUnreadCountResponse = z.infer<
-  typeof GetUnreadCountResponseSchema
->;
+export type GetUnreadCountResponse = z.infer<typeof GetUnreadCountResponseSchema>;
 
 // ============================================================
 // POST /api/bottles/:id/read
 // ============================================================
 export const MarkBottleAsReadBodySchema = z.object({}).strict();
-
-export type MarkBottleAsReadBody = z.infer<
-  typeof MarkBottleAsReadBodySchema
->;
+export type MarkBottleAsReadBody = z.infer<typeof MarkBottleAsReadBodySchema>;
 
 export const MarkBottleAsReadResponseSchema = z.object({
   id: z.string(),
   status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
 });
-
-export type MarkBottleAsReadResponse = z.infer<
-  typeof MarkBottleAsReadResponseSchema
->;
+export type MarkBottleAsReadResponse = z.infer<typeof MarkBottleAsReadResponseSchema>;
 
 // ============================================================
 // POST /api/bottles/:id/reveal/request
 // ============================================================
 export const RequestRevealBodySchema = z.object({}).strict();
-
 export type RequestRevealBody = z.infer<typeof RequestRevealBodySchema>;
 
 export const RequestRevealResponseSchema = z.object({
@@ -214,16 +194,12 @@ export const RequestRevealResponseSchema = z.object({
   createdAt: z.string().datetime(),
   respondedAt: z.string().datetime().nullable(),
 });
-
-export type RequestRevealResponse = z.infer<
-  typeof RequestRevealResponseSchema
->;
+export type RequestRevealResponse = z.infer<typeof RequestRevealResponseSchema>;
 
 // ============================================================
 // POST /api/bottles/:id/reveal/accept
 // ============================================================
 export const AcceptRevealBodySchema = z.object({}).strict();
-
 export type AcceptRevealBody = z.infer<typeof AcceptRevealBodySchema>;
 
 export const AcceptRevealResponseSchema = z.object({
@@ -232,16 +208,12 @@ export const AcceptRevealResponseSchema = z.object({
   revealedAt: z.string().datetime().nullable(),
   matchId: z.string().nullable().optional(),
 });
-
-export type AcceptRevealResponse = z.infer<
-  typeof AcceptRevealResponseSchema
->;
+export type AcceptRevealResponse = z.infer<typeof AcceptRevealResponseSchema>;
 
 // ============================================================
 // POST /api/bottles/:id/reveal/refuse
 // ============================================================
 export const RefuseRevealBodySchema = z.object({}).strict();
-
 export type RefuseRevealBody = z.infer<typeof RefuseRevealBodySchema>;
 
 export const RefuseRevealResponseSchema = z.object({
@@ -250,55 +222,41 @@ export const RefuseRevealResponseSchema = z.object({
   status: z.enum(["PENDING", "ACCEPTED", "REFUSED"]),
   respondedAt: z.string().datetime(),
 });
-
-export type RefuseRevealResponse = z.infer<
-  typeof RefuseRevealResponseSchema
->;
+export type RefuseRevealResponse = z.infer<typeof RefuseRevealResponseSchema>;
 
 // ============================================================
 // POST /api/bottles/:id/break
 // ============================================================
 export const BreakBottleBodySchema = z.object({}).strict();
-
 export type BreakBottleBody = z.infer<typeof BreakBottleBodySchema>;
 
 export const BreakBottleResponseSchema = z.object({
   id: z.string(),
   status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
 });
-
-export type BreakBottleResponse = z.infer<
-  typeof BreakBottleResponseSchema
->;
+export type BreakBottleResponse = z.infer<typeof BreakBottleResponseSchema>;
 
 // ============================================================
 // POST /api/bottles/:id/restart
 // ============================================================
 export const RestartBottleBodySchema = z.object({}).strict();
-
 export type RestartBottleBody = z.infer<typeof RestartBottleBodySchema>;
 
 export const RestartBottleResponseSchema = z.object({
   id: z.string(),
   status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
 });
-
-export type RestartBottleResponse = z.infer<
-  typeof RestartBottleResponseSchema
->;
+export type RestartBottleResponse = z.infer<typeof RestartBottleResponseSchema>;
 
 // ============================================================
 // GET /api/bottles/:id/reveal/status
 // ============================================================
 export const GetRevealStatusResponseSchema = z.object({
   hasPendingRequest: z.boolean(),
-  isRequester: z.boolean(), // true if current user is the one who requested
+  isRequester: z.boolean(),
   requestedById: z.string().optional(),
 });
-
-export type GetRevealStatusResponse = z.infer<
-  typeof GetRevealStatusResponseSchema
->;
+export type GetRevealStatusResponse = z.infer<typeof GetRevealStatusResponseSchema>;
 
 // ============================================================
 // GET /api/bottles/current
@@ -310,7 +268,6 @@ export const LatestLetterSchema = z.object({
   isMine: z.boolean(),
   source: z.enum(["INITIAL_BOTTLE", "ANONYMOUS_MESSAGE"]),
 });
-
 export type LatestLetter = z.infer<typeof LatestLetterSchema>;
 
 export const GetCurrentBottleResponseSchema = z.object({
@@ -325,10 +282,7 @@ export const GetCurrentBottleResponseSchema = z.object({
   canBreak: z.boolean(),
   messageCount: z.number(),
 });
-
-export type GetCurrentBottleResponse = z.infer<
-  typeof GetCurrentBottleResponseSchema
->;
+export type GetCurrentBottleResponse = z.infer<typeof GetCurrentBottleResponseSchema>;
 
 // ============================================================
 // POST /api/bottles/:id/report
@@ -338,11 +292,7 @@ export const ReportBottleBodySchema = z.object({
   details: z.string().max(2000).optional(),
 });
 
-export type ReportBottleBody = z.infer<typeof ReportBottleBodySchema>;
-
 export const ReportBottleResponseSchema = z.object({
   id: z.string(),
   status: z.string(),
 });
-
-export type ReportBottleResponse = z.infer<typeof ReportBottleResponseSchema>;
