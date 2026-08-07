@@ -25,8 +25,51 @@ export async function deleteAccountPermanently(userId: string, currentPassword: 
   const photos = user.photos;
 
   await prisma.$transaction(async (tx) => {
+    // Purger les références historiques qui stockent un userId sans FK.
+    await tx.offeringSent.updateMany({
+      where: { lastConsumedBy: userId },
+      data: { lastConsumedBy: null },
+    });
+    await tx.magieCast.updateMany({
+      where: { brokenBy: userId },
+      data: { brokenBy: null },
+    });
+    await tx.salonSession.updateMany({
+      where: { ownerId: userId },
+      data: { ownerId: null },
+    });
+    await tx.report.updateMany({
+      where: { resolvedBy: userId },
+      data: { resolvedBy: null },
+    });
+
+    // candidateAId/candidateBId/chosenId ne sont pas des FK : supprimer les
+    // tickets historiques qui référencent directement le compte supprimé.
+    await tx.weeklyProfileDuel.deleteMany({
+      where: {
+        OR: [
+          { candidateAId: userId },
+          { candidateBId: userId },
+          { chosenId: userId },
+        ],
+      },
+    });
+
+    // Les métadonnées de notification peuvent contenir l'identifiant de l'autre
+    // utilisateur. On supprime ces notifications secondaires côté destinataires.
+    await tx.$executeRaw`
+      DELETE FROM "Notification"
+      WHERE "meta"->>'fromUserId' = ${userId}
+         OR "meta"->>'otherUserId' = ${userId}
+    `;
+
+    // Les logs qui identifient directement ce compte sont retirés. Les autres
+    // AuditLog restent intacts et leur FK actor est de toute façon SetNull.
+    await tx.auditLog.deleteMany({
+      where: { OR: [{ actorId: userId }, { target: userId }] },
+    });
+
     // Relations vers User qui ne sont PAS configurées en onDelete: Cascade.
-    // On les supprime explicitement avant le User pour éviter tout blocage FK.
     await tx.letter.deleteMany({
       where: { OR: [{ fromUserId: userId }, { toUserId: userId }] },
     });
@@ -54,8 +97,7 @@ export async function deleteAccountPermanently(userId: string, currentPassword: 
   });
 
   // Les lignes Photo sont déjà supprimées par cascade. On nettoie ensuite les
-  // fichiers physiques en best-effort ; deletePhotoFiles est idempotent et logue
-  // les erreurs non-ENOENT sans faire échouer une suppression DB déjà validée.
+  // fichiers physiques en best-effort ; deletePhotoFiles est idempotent.
   await Promise.all(
     photos.map((photo) =>
       deletePhotoFiles(photo.originalPath, photo.blurredPath, photo.blurMediumPath),
