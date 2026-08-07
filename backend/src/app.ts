@@ -22,6 +22,7 @@ import reportsRoutes from "./modules/reports/reports.routes";
 import magiesRoutes from "./modules/magies/magies.routes";
 import offeringsRoutes from "./modules/offerings/offerings.routes";
 import notificationsRoutes from "./modules/notifications/notifications.routes";
+import supportRoutes from "./modules/support/support.routes";
 import adminSalonsRoutes from "./modules/admin/salons/adminSalons.routes";
 import adminUploadRoutes, {
   publicFilesRouter,
@@ -96,6 +97,7 @@ app.use(`${api}/reports`, reportsRoutes);
 app.use(`${api}/magies`, magiesRoutes);
 app.use(`${api}/offerings`, offeringsRoutes);
 app.use(`${api}/notifications`, notificationsRoutes);
+app.use(`${api}/support`, supportRoutes);
 app.use(`${api}/discover`, reactionsRoutes);
 app.use(`${api}/card-game`, cardGameRoutes);
 app.use(`${api}/bottles`, bottlesRoutes);
