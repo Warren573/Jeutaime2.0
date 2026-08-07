@@ -29,7 +29,6 @@ const wrap = (
   fn: (req: AuthedRequest, res: Response) => Promise<void>,
 ) => asyncHandler((req, res, next) => fn(req as AuthedRequest, res).catch(next));
 
-// POST /api/bottles/create — create a new bottle
 router.post(
   "/create",
   validate(CreateBottleBodySchema),
@@ -38,7 +37,6 @@ router.post(
   }),
 );
 
-// POST /api/bottles/cancel-pending — expire current user's floating bottles
 router.post(
   "/cancel-pending",
   wrap(async (req, res) => {
@@ -46,7 +44,6 @@ router.post(
   }),
 );
 
-// GET /api/bottles/sent — sent-bottle history for current user
 router.get(
   "/sent",
   wrap(async (req, res) => {
@@ -54,7 +51,6 @@ router.get(
   }),
 );
 
-// GET /api/bottles/inbox — get pending bottles for user
 router.get(
   "/inbox",
   wrap(async (req, res) => {
@@ -62,9 +58,6 @@ router.get(
   }),
 );
 
-// POST /api/bottles/:id/accept — accept a bottle
-// A bottle already REVEALED has moved to the match/profile flow and must no
-// longer consume an active anonymous-correspondence slot.
 router.post(
   "/:id/accept",
   validate(AcceptBottleBodySchema),
@@ -158,7 +151,6 @@ router.post(
   }),
 );
 
-// POST /api/bottles/:id/refuse — refuse a bottle
 router.post(
   "/:id/refuse",
   validate(RefuseBottleBodySchema),
@@ -167,7 +159,6 @@ router.post(
   }),
 );
 
-// GET /api/bottles/:id/messages — get messages for a bottle
 router.get(
   "/:id/messages",
   wrap(async (req, res) => {
@@ -175,16 +166,65 @@ router.get(
   }),
 );
 
-// POST /api/bottles/:id/messages — post anonymous message to a bottle
+// Continue the same bottle conversation after profile reveal.
+// ACCEPTED uses the original service. REVEALED keeps turn-by-turn and idempotency,
+// but no longer rejects the conversation simply because identities are known.
 router.post(
   "/:id/messages",
   validate(PostBottleMessageBodySchema),
   wrap(async (req, res) => {
-    await controller.postMessage(req as AuthedRequest, res);
+    const bottleId = req.params["id"] as string;
+    const userId = req.user.userId;
+    const { content, idempotencyKey } = req.body as { content: string; idempotencyKey: string };
+
+    const bottle = await prisma.messageInABottle.findUnique({
+      where: { id: bottleId },
+      include: { messages: { orderBy: { createdAt: "asc" } } },
+    });
+
+    if (!bottle || bottle.status !== "REVEALED") {
+      await controller.postMessage(req as AuthedRequest, res);
+      return;
+    }
+
+    if (bottle.senderId !== userId && bottle.acceptedById !== userId) {
+      res.status(403).json({ error: "Not a participant" });
+      return;
+    }
+
+    const existing = await prisma.anonymousMessage.findFirst({
+      where: { senderId: userId, idempotencyKey },
+    });
+    if (existing) {
+      res.json({ data: { message: existing, idempotentReplay: true } });
+      return;
+    }
+
+    const lastSenderId = bottle.messages.length > 0
+      ? bottle.messages[bottle.messages.length - 1]!.senderId
+      : bottle.senderId;
+
+    if (lastSenderId === userId) {
+      res.status(409).json({
+        error: "It's not your turn to respond",
+        code: "LETTER_TURN_VIOLATION",
+      });
+      return;
+    }
+
+    const message = await prisma.anonymousMessage.create({
+      data: {
+        bottleId,
+        senderId: userId,
+        content,
+        idempotencyKey,
+      },
+    });
+
+    res.status(201).json({ data: { message, idempotentReplay: false } });
   }),
 );
 
-// GET /api/bottles/unread-count — get total unread message count
 router.get(
   "/unread-count",
   wrap(async (req, res) => {
@@ -192,16 +232,34 @@ router.get(
   }),
 );
 
-// POST /api/bottles/:id/read — mark bottle as read
 router.post(
   "/:id/read",
   validate(MarkBottleAsReadBodySchema),
   wrap(async (req, res) => {
-    await controller.markBottleAsRead(req as AuthedRequest, res);
+    const bottleId = req.params["id"] as string;
+    const userId = req.user.userId;
+    const bottle = await prisma.messageInABottle.findUnique({ where: { id: bottleId } });
+
+    if (bottle?.status !== "REVEALED") {
+      await controller.markBottleAsRead(req as AuthedRequest, res);
+      return;
+    }
+
+    if (bottle.senderId !== userId && bottle.acceptedById !== userId) {
+      res.status(403).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const updated = await prisma.messageInABottle.update({
+      where: { id: bottleId },
+      data: bottle.senderId === userId
+        ? { lastReadBySenderId: new Date() }
+        : { lastReadByAcceptorId: new Date() },
+    });
+    res.json({ data: { id: updated.id, status: updated.status } });
   }),
 );
 
-// POST /api/bottles/:id/reveal/request — request reveal
 router.post(
   "/:id/reveal/request",
   validate(RequestRevealBodySchema),
@@ -210,7 +268,6 @@ router.post(
   }),
 );
 
-// POST /api/bottles/:id/reveal/accept — accept reveal
 router.post(
   "/:id/reveal/accept",
   validate(AcceptRevealBodySchema),
@@ -219,7 +276,6 @@ router.post(
   }),
 );
 
-// POST /api/bottles/:id/reveal/refuse — refuse reveal
 router.post(
   "/:id/reveal/refuse",
   validate(RefuseRevealBodySchema),
@@ -228,7 +284,6 @@ router.post(
   }),
 );
 
-// POST /api/bottles/:id/break — break correspondence
 router.post(
   "/:id/break",
   validate(BreakBottleBodySchema),
@@ -237,7 +292,6 @@ router.post(
   }),
 );
 
-// POST /api/bottles/:id/restart — restart bottle
 router.post(
   "/:id/restart",
   validate(RestartBottleBodySchema),
@@ -246,7 +300,6 @@ router.post(
   }),
 );
 
-// GET /api/bottles/:id/reveal/status — get reveal request status
 router.get(
   "/:id/reveal/status",
   wrap(async (req, res) => {
@@ -254,15 +307,92 @@ router.get(
   }),
 );
 
-// GET /api/bottles/current — get most recent active correspondence
+// ACCEPTED and REVEALED both remain valid bottle correspondences.
 router.get(
   "/current",
   wrap(async (req, res) => {
-    await controller.getCurrentBottle(req as AuthedRequest, res);
+    const userId = req.user.userId;
+    const bottle = await prisma.messageInABottle.findFirst({
+      where: {
+        status: { in: ["ACCEPTED", "REVEALED"] },
+        OR: [{ senderId: userId }, { acceptedById: userId }],
+      },
+      include: { messages: { orderBy: { createdAt: "asc" } } },
+      orderBy: [{ acceptedAt: "desc" }, { createdAt: "desc" }],
+    });
+
+    if (!bottle) {
+      const pendingCount = await prisma.messageInABottle.count({
+        where: { senderId: userId, status: "FLOATING" },
+      });
+      const sender = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { premiumTier: true, premiumUntil: true },
+      });
+      const maxFloating = sender && isPremiumActive(sender) ? MAX_FLOATING_PREMIUM : MAX_FLOATING_FREE;
+      res.json({
+        data: {
+          bottle: null,
+          latestLetter: null,
+          canReply: false,
+          waitingForReply: false,
+          canCreateBottle: pendingCount < maxFloating,
+          canBreak: false,
+          messageCount: 0,
+        },
+      });
+      return;
+    }
+
+    const allMessages = [
+      {
+        id: bottle.id,
+        content: bottle.message,
+        createdAt: bottle.createdAt,
+        senderId: bottle.senderId,
+        source: "INITIAL_BOTTLE" as const,
+      },
+      ...bottle.messages.map((m) => ({
+        id: m.id,
+        content: m.content,
+        createdAt: m.createdAt,
+        senderId: m.senderId,
+        source: "ANONYMOUS_MESSAGE" as const,
+      })),
+    ];
+
+    const latest = allMessages[allMessages.length - 1]!;
+    const isMine = latest.senderId === userId;
+    const hasAcceptorReply = !!bottle.acceptedById && bottle.messages.some((m) => m.senderId === bottle.acceptedById);
+    const pendingCount = await prisma.messageInABottle.count({
+      where: { senderId: userId, status: "FLOATING" },
+    });
+    const sender = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { premiumTier: true, premiumUntil: true },
+    });
+    const maxFloating = sender && isPremiumActive(sender) ? MAX_FLOATING_PREMIUM : MAX_FLOATING_FREE;
+
+    res.json({
+      data: {
+        bottle: { id: bottle.id, status: bottle.status },
+        latestLetter: {
+          id: latest.id,
+          content: latest.content,
+          createdAt: latest.createdAt.toISOString(),
+          isMine,
+          source: latest.source,
+        },
+        canReply: !isMine,
+        waitingForReply: isMine,
+        canCreateBottle: pendingCount < maxFloating,
+        canBreak: hasAcceptorReply,
+        messageCount: allMessages.length,
+      },
+    });
   }),
 );
 
-// POST /api/bottles/:id/report — report conversation, backend determines target user
 router.post(
   "/:id/report",
   wrap(async (req, res) => {
@@ -270,13 +400,20 @@ router.post(
   }),
 );
 
-// GET /api/bottles/:id — bottle detail (sender or acceptor)
-// IMPORTANT: déclaré APRÈS les routes GET spécifiques (/sent, /inbox,
-// /unread-count, /current) pour ne pas les masquer.
+// Return participant ids and match id as well: the revealed-profile menu needs them.
 router.get(
   "/:id",
   wrap(async (req, res) => {
-    await controller.getBottleById(req as AuthedRequest, res);
+    const bottleId = req.params["id"] as string;
+    const userId = req.user.userId;
+    const bottle = await prisma.messageInABottle.findUnique({ where: { id: bottleId } });
+
+    if (!bottle || (bottle.senderId !== userId && bottle.acceptedById !== userId)) {
+      res.status(404).json({ error: "Bottle not found" });
+      return;
+    }
+
+    res.json({ data: bottle });
   }),
 );
 
