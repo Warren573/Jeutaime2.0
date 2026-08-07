@@ -3,6 +3,7 @@ import { View, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { RefugeIllustratedScreen } from '../../src/screens/RefugeIllustratedScreen';
 
+// Refuge sessions use the illustrated image-backed screen.
 export default function RefugeGamePage() {
   const params = useLocalSearchParams();
   const sessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
