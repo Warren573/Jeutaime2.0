@@ -1,12 +1,29 @@
 import { Response } from "express";
 import { AuthedRequest } from "../../core/types";
 import { parsePagination } from "../../core/utils/pagination";
+import { prisma } from "../../config/prisma";
+import { ForbiddenError } from "../../core/errors";
+import { isAccountDeactivated } from "../auth/accountLifecycle.service";
 import * as svc from "./letters.service";
 
 // Appelé depuis matches.routes.ts (/:matchId/letters)
 export async function handleSend(req: AuthedRequest, res: Response) {
   const matchId = req.params["matchId"] as string;
-  const letter = await svc.sendLetter(matchId, req.user.userId, req.body);
+  const senderId = req.user.userId;
+
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { userAId: true, userBId: true },
+  });
+
+  if (match) {
+    const otherUserId = match.userAId === senderId ? match.userBId : match.userAId;
+    if (otherUserId !== senderId && await isAccountDeactivated(otherUserId)) {
+      throw new ForbiddenError("Cette personne a temporairement désactivé son compte");
+    }
+  }
+
+  const letter = await svc.sendLetter(matchId, senderId, req.body);
   res.status(201).json({ data: letter });
 }
 
