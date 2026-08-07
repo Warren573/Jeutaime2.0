@@ -107,9 +107,20 @@ app.use(`${api}/souvenirs`, souvenirsRoutes);
 app.use(`${api}/stats`, statsRoutes);
 app.use(`${api}/weekly-profile`, weeklyProfileRoutes);
 
-// Outils de développement : jamais exposés en production.
-if (env.NODE_ENV !== "production") {
+// Routes de test : disponibles en développement, sur le staging Render,
+// ou en production uniquement si ALLOW_TEST_ENDPOINTS=true est explicitement défini.
+// Les handlers sensibles conservent également leurs propres garde-fous.
+const allowTestRoutes =
+  env.NODE_ENV !== "production" ||
+  process.env.RENDER_SERVICE_NAME === "jeutaime-staging" ||
+  process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+if (allowTestRoutes) {
   app.use(`${api}/test`, testRoutes);
+}
+
+// Les routes de debug générales restent totalement absentes de la production.
+if (env.NODE_ENV !== "production") {
   app.use(`${api}/debug`, debugRoutes);
 }
 
