@@ -164,7 +164,7 @@ export const BottleCorrespondenceMenu: React.FC<Props> = ({
     }
 
     onClose();
-    router.push(`/profile/${partnerId}` as never);
+    router.push(`/profile/${partnerId}?source=bottle&bottleId=${encodeURIComponent(bottleId)}` as never);
   };
 
   const handleRequestReveal = async () => {
