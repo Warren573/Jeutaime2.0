@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import ProfileDetailScreen from '../../src/screens/ProfileDetailScreen';
 import { getReactionStatus, sendReaction, type ReactionStatusDTO } from '../../src/api/reactions';
-import { listMatches, type MatchDTO } from '../../src/api/matches';
+import { blockMatch, breakMatch, listMatches, type MatchDTO } from '../../src/api/matches';
 import { useStore } from '../../src/store/useStore';
 
 export default function ProfileRoute() {
@@ -20,16 +20,15 @@ export default function ProfileRoute() {
   const [isSmiling, setIsSmiling] = useState(false);
   const [isLoadingReaction, setIsLoadingReaction] = useState(false);
   const [reactionStatus, setReactionStatus] = useState<ReactionStatusDTO | null>(null);
+  const [isRelationActioning, setIsRelationActioning] = useState(false);
 
   const isOwnProfile = !!profileId && currentUser?.id === profileId;
 
   useEffect(() => {
     let active = true;
-    if (!isBottleContext || !profileId || isOwnProfile) return;
+    if (!profileId || isOwnProfile) return;
 
     setIsLoadingMatches(true);
-    setIsLoadingReaction(true);
-
     listMatches()
       .then((items) => {
         if (active) setMatches(items);
@@ -41,16 +40,19 @@ export default function ProfileRoute() {
         if (active) setIsLoadingMatches(false);
       });
 
-    getReactionStatus(profileId)
-      .then((status) => {
-        if (active) setReactionStatus(status);
-      })
-      .catch(() => {
-        if (active) setReactionStatus(null);
-      })
-      .finally(() => {
-        if (active) setIsLoadingReaction(false);
-      });
+    if (isBottleContext) {
+      setIsLoadingReaction(true);
+      getReactionStatus(profileId)
+        .then((status) => {
+          if (active) setReactionStatus(status);
+        })
+        .catch(() => {
+          if (active) setReactionStatus(null);
+        })
+        .finally(() => {
+          if (active) setIsLoadingReaction(false);
+        });
+    }
 
     return () => {
       active = false;
@@ -70,6 +72,24 @@ export default function ProfileRoute() {
     Alert.alert(title, message);
   };
 
+  const confirmAction = (title: string, message: string, confirmLabel: string): Promise<boolean> => {
+    if (Platform.OS === 'web' && typeof globalThis.confirm === 'function') {
+      return Promise.resolve(globalThis.confirm(`${title}\n\n${message}`));
+    }
+
+    return new Promise((resolve) => {
+      Alert.alert(title, message, [
+        { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+        { text: confirmLabel, style: 'destructive', onPress: () => resolve(true) },
+      ]);
+    });
+  };
+
+  const refreshMatches = async () => {
+    const refreshed = await listMatches().catch(() => []);
+    setMatches(refreshed);
+  };
+
   const handleSmile = async () => {
     if (!profileId || isOwnProfile || isSmiling || reactionStatus?.outgoingType === 'SMILE') return;
 
@@ -85,8 +105,7 @@ export default function ProfileRoute() {
 
       if (refreshedStatus.mutualSmile) {
         showMessage('Sourire mutuel', 'Le sourire est partagé. Vous pouvez continuer depuis vos Lettres.');
-        const refreshed = await listMatches().catch(() => []);
-        setMatches(refreshed);
+        await refreshMatches();
       } else {
         showMessage('Sourire envoyé', 'Votre sourire a bien été envoyé.');
       }
@@ -101,16 +120,61 @@ export default function ProfileRoute() {
     router.push('/(tabs)/letters' as never);
   };
 
+  const handleBreak = async () => {
+    if (!relationMatch || relationMatch.status !== 'ACTIVE' || isRelationActioning) return;
+
+    const confirmed = await confirmAction(
+      "Rompre l'échange ?",
+      "La discussion sera arrêtée, mais l'historique des lettres sera conservé.",
+      'Rompre',
+    );
+    if (!confirmed) return;
+
+    setIsRelationActioning(true);
+    try {
+      await breakMatch(relationMatch.id);
+      await refreshMatches();
+      showMessage('Échange rompu', "L'échange a bien été arrêté.");
+    } catch (error: any) {
+      showMessage('Erreur', error?.message || "Impossible de rompre l'échange");
+    } finally {
+      setIsRelationActioning(false);
+    }
+  };
+
+  const handleBlock = async () => {
+    if (!relationMatch || relationMatch.status !== 'ACTIVE' || isRelationActioning) return;
+
+    const confirmed = await confirmAction(
+      'Bloquer cette personne ?',
+      'Vous ne pourrez plus interagir avec cette personne.',
+      'Bloquer',
+    );
+    if (!confirmed) return;
+
+    setIsRelationActioning(true);
+    try {
+      await blockMatch(relationMatch.id);
+      await refreshMatches();
+      showMessage('Personne bloquée', 'Cette personne a bien été bloquée.');
+    } catch (error: any) {
+      showMessage('Erreur', error?.message || 'Impossible de bloquer cette personne');
+    } finally {
+      setIsRelationActioning(false);
+    }
+  };
+
   const smileAlreadySent = reactionStatus?.outgoingType === 'SMILE';
   const mutualSmile = reactionStatus?.mutualSmile === true;
+  const hasActiveRelation = relationMatch?.status === 'ACTIVE';
 
   return (
     <View style={styles.container}>
       <ProfileDetailScreen />
 
-      {isBottleContext && !isOwnProfile && profileId && (
+      {!isOwnProfile && profileId && (
         <View style={styles.actions}>
-          {!mutualSmile && (
+          {isBottleContext && !mutualSmile && (
             <TouchableOpacity
               style={[styles.smileButton, (isSmiling || isLoadingReaction || smileAlreadySent) && styles.disabledButton]}
               onPress={() => void handleSmile()}
@@ -125,7 +189,7 @@ export default function ProfileRoute() {
             </TouchableOpacity>
           )}
 
-          {(relationMatch || isLoadingMatches) && (
+          {isBottleContext && (relationMatch || isLoadingMatches) && (
             <TouchableOpacity
               style={[styles.continueButton, isLoadingMatches && styles.disabledButton]}
               onPress={handleContinue}
@@ -138,6 +202,28 @@ export default function ProfileRoute() {
                 <Text style={styles.continueText}>✉️ Continuer la discussion</Text>
               )}
             </TouchableOpacity>
+          )}
+
+          {hasActiveRelation && (
+            <View style={styles.relationActionsRow}>
+              <TouchableOpacity
+                style={[styles.relationActionButton, isRelationActioning && styles.disabledButton]}
+                onPress={() => void handleBreak()}
+                disabled={isRelationActioning}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.relationActionText}>Rompre l'échange</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.relationActionButton, styles.blockButton, isRelationActioning && styles.disabledButton]}
+                onPress={() => void handleBlock()}
+                disabled={isRelationActioning}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.relationActionText}>Bloquer</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       )}
@@ -187,6 +273,29 @@ const styles = StyleSheet.create({
   continueText: {
     color: '#8B2E3C',
     fontSize: 15,
+    fontWeight: '700',
+  },
+  relationActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  relationActionButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#8B2E3C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  blockButton: {
+    backgroundColor: '#FFF4F4',
+  },
+  relationActionText: {
+    color: '#8B2E3C',
+    fontSize: 14,
     fontWeight: '700',
   },
   disabledButton: {
