@@ -18,7 +18,7 @@ export function RefugeHomeScreen() {
         onPress={() => router.back()}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
-        <Text style={styles.backButtonText}>←</Text>
+        <Text style={styles.backButtonText}>← Retour</Text>
       </TouchableOpacity>
 
       <View style={styles.content}>
@@ -29,19 +29,13 @@ export function RefugeHomeScreen() {
         </View>
 
         <View style={styles.buttonContainer}>
-          <BouncyButton
-            style={styles.button}
-            onPress={() => router.push('/refuge/propose')}
-          >
+          <BouncyButton style={styles.button} onPress={() => router.push('/refuge/propose')}>
             <Text style={styles.buttonEmoji}>🎭</Text>
             <Text style={styles.buttonText}>Incarner</Text>
             <Text style={styles.buttonSubtext}>Proposer un compagnon</Text>
           </BouncyButton>
 
-          <BouncyButton
-            style={styles.button}
-            onPress={() => router.push('/refuge/adopt')}
-          >
+          <BouncyButton style={styles.button} onPress={() => router.push('/refuge/adopt')}>
             <Text style={styles.buttonEmoji}>🔍</Text>
             <Text style={styles.buttonText}>Adopter</Text>
             <Text style={styles.buttonSubtext}>Chercher un compagnon</Text>
@@ -57,10 +51,7 @@ export function RefugeHomeScreen() {
           </Text>
         </View>
 
-        <BouncyButton
-          style={styles.historyButton}
-          onPress={() => router.push('/refuge/history')}
-        >
+        <BouncyButton style={styles.historyButton} onPress={() => router.push('/refuge/history')}>
           <Text style={styles.historyButtonText}>📖 Historique des adoptions</Text>
         </BouncyButton>
       </View>
@@ -69,25 +60,19 @@ export function RefugeHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F4ED',
-  },
+  container: { flex: 1, backgroundColor: '#F8F4ED' },
   backButton: {
     position: 'absolute',
     top: 12,
     left: 16,
     zIndex: 20,
-    width: 44,
-    height: 44,
-    alignItems: 'center',
+    minHeight: 44,
     justifyContent: 'center',
   },
   backButtonText: {
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 15,
     color: '#8B2E3C',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   content: {
     flex: 1,
@@ -95,28 +80,11 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     justifyContent: 'space-between',
   },
-  header: {
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  emoji: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#2B2B2B',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B6B6B',
-  },
-  buttonContainer: {
-    gap: 16,
-    marginVertical: 20,
-  },
+  header: { alignItems: 'center', marginTop: 20 },
+  emoji: { fontSize: 64, marginBottom: 16 },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#2B2B2B', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#6B6B6B' },
+  buttonContainer: { gap: 16, marginVertical: 20 },
   button: {
     backgroundColor: '#FFFFFF',
     paddingVertical: 24,
@@ -129,21 +97,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  buttonEmoji: {
-    fontSize: 40,
-    marginBottom: 12,
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2B2B2B',
-    marginBottom: 4,
-  },
-  buttonSubtext: {
-    fontSize: 13,
-    color: '#6B6B6B',
-    marginTop: 4,
-  },
+  buttonEmoji: { fontSize: 40, marginBottom: 12 },
+  buttonText: { fontSize: 18, fontWeight: '600', color: '#2B2B2B', marginBottom: 4 },
+  buttonSubtext: { fontSize: 13, color: '#6B6B6B', marginTop: 4 },
   infoCard: {
     backgroundColor: '#E3F2FD',
     padding: 16,
@@ -152,17 +108,8 @@ const styles = StyleSheet.create({
     borderLeftColor: '#2196F3',
     marginBottom: 20,
   },
-  infoTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1565C0',
-    marginBottom: 8,
-  },
-  infoText: {
-    fontSize: 12,
-    color: '#1565C0',
-    lineHeight: 18,
-  },
+  infoTitle: { fontSize: 14, fontWeight: '600', color: '#1565C0', marginBottom: 8 },
+  infoText: { fontSize: 12, color: '#1565C0', lineHeight: 18 },
   historyButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -172,9 +119,5 @@ const styles = StyleSheet.create({
     borderColor: '#E0D5C8',
     alignItems: 'center',
   },
-  historyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#8B6F47',
-  },
+  historyButtonText: { fontSize: 14, fontWeight: '600', color: '#8B6F47' },
 });
