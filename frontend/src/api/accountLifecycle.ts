@@ -6,3 +6,10 @@ export async function deactivateAccount(currentPassword: string): Promise<void> 
     body: JSON.stringify({ currentPassword }),
   });
 }
+
+export async function deleteAccountPermanently(currentPassword: string): Promise<void> {
+  await apiFetch('/auth/account', {
+    method: 'DELETE',
+    body: JSON.stringify({ currentPassword, confirmation: 'SUPPRIMER' }),
+  });
+}
