@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { BouncyButton } from '../components/BouncyButton';
+import { AppBackButton } from '../components/AppBackButton';
 
 /**
  * Écran d'accueil du Refuge.
@@ -13,13 +14,7 @@ export function RefugeHomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.back()}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      >
-        <Text style={styles.backButtonText}>← Retour</Text>
-      </TouchableOpacity>
+      <AppBackButton style={styles.backButton} onPress={() => router.back()} />
 
       <View style={styles.content}>
         <View style={styles.header}>
@@ -66,13 +61,6 @@ const styles = StyleSheet.create({
     top: 12,
     left: 16,
     zIndex: 20,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  backButtonText: {
-    fontSize: 15,
-    color: '#8B2E3C',
-    fontWeight: '700',
   },
   content: {
     flex: 1,
