@@ -1,15 +1,16 @@
 /**
- * Test/staging mode detection
- * Allows self-targeting and other test features in development
+ * Test/staging mode detection.
+ * Test-only relaxations must never be activatable in production.
  */
 
 export function isTestMode(): boolean {
-  // Check NODE_ENV or explicit test flag
   const nodeEnv = process.env.NODE_ENV || 'development';
-  const testFlag = process.env.JEUTAIME_TEST_MODE === 'true';
 
-  // Enable test mode in development or with explicit flag
-  return nodeEnv !== 'production' || testFlag;
+  // Production is always strict, regardless of any leftover env flag.
+  if (nodeEnv === 'production') return false;
+
+  // Outside production, explicit flag can enable/disable test behaviour.
+  return process.env.JEUTAIME_TEST_MODE === 'true' || nodeEnv === 'development' || nodeEnv === 'test';
 }
 
 export function logTestMode(context: string): void {
