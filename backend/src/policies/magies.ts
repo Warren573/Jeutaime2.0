@@ -15,10 +15,6 @@ import { BadRequestError } from "../core/errors";
 import { BREAK_CONDITION_TO_ANTISPELL } from "../modules/magies/magies.constants";
 import { isTestMode } from "../core/testMode";
 
-// ============================================================
-// Types minimaux — volontairement structural typing
-// ============================================================
-
 export interface CastLike {
   brokenAt: Date | null;
   expiresAt: Date;
@@ -29,45 +25,17 @@ export interface CatalogLike {
   durationSec: number;
 }
 
-// ============================================================
-// isMagieActive
-// ============================================================
-
-/**
- * Une magie est ACTIVE si et seulement si :
- *   - elle n'a jamais été cassée (brokenAt === null)
- *   - ET son expiresAt est STRICTEMENT dans le futur (> now)
- *
- * La borne est stricte : une magie pile à `expiresAt === now` est
- * considérée comme expirée.
- */
 export function isMagieActive(cast: CastLike, now: Date): boolean {
   if (cast.brokenAt !== null) return false;
   return cast.expiresAt.getTime() > now.getTime();
 }
 
-// ============================================================
-// computeMagieExpiry
-// ============================================================
-
-/**
- * Calcule la date d'expiration d'une magie à partir de son instant de
- * cast et de sa durée en secondes.
- *
- * @throws BadRequestError si durationSec <= 0 (les sorts doivent
- *         avoir une durée > 0 — les anti-sorts ne sont jamais castés
- *         via ce chemin)
- */
 export function computeMagieExpiry(castAt: Date, durationSec: number): Date {
   if (!Number.isInteger(durationSec) || durationSec <= 0) {
     throw new BadRequestError("Durée de magie invalide");
   }
   return new Date(castAt.getTime() + durationSec * 1000);
 }
-
-// ============================================================
-// assertCastableSpell — vérifie qu'un catalog peut être casté comme sort
-// ============================================================
 
 export function assertCastableSpell(catalog: CatalogLike): void {
   if (!catalog.enabled) {
@@ -80,10 +48,6 @@ export function assertCastableSpell(catalog: CatalogLike): void {
   }
 }
 
-// ============================================================
-// assertValidAntiSpell — vérifie qu'un catalog est bien un anti-sort
-// ============================================================
-
 export function assertValidAntiSpell(catalog: CatalogLike): void {
   if (!catalog.enabled) {
     throw new BadRequestError("Cet anti-sort est désactivé");
@@ -95,10 +59,6 @@ export function assertValidAntiSpell(catalog: CatalogLike): void {
   }
 }
 
-// ============================================================
-// assertCanBreakMagie — le cast ciblé doit être effectivement actif
-// ============================================================
-
 export function assertCanBreakMagie(cast: CastLike, now: Date): void {
   if (cast.brokenAt !== null) {
     throw new BadRequestError("Cette magie est déjà brisée");
@@ -108,17 +68,6 @@ export function assertCanBreakMagie(cast: CastLike, now: Date): void {
   }
 }
 
-// ============================================================
-// assertAntiSpellBreaksCondition — l'anti-sort doit matcher la cond.
-// ============================================================
-
-/**
- * Vérifie qu'un anti-sort est bien celui attendu pour satisfaire le
- * `breakConditionId` d'un sort.
- *
- * @throws BadRequestError si la condition ne peut pas être matchée
- *         ou si l'anti-sort fourni n'est pas le bon
- */
 export function assertAntiSpellBreaksCondition(
   spellBreakConditionId: string | null,
   antiSpellId: string,
@@ -141,37 +90,15 @@ export function assertAntiSpellBreaksCondition(
   }
 }
 
-// ============================================================
-// assertNotSelfCast — interdiction de se caster un sort à soi-même
-// ============================================================
-
+/**
+ * Interdit de se lancer un sort à soi-même.
+ * L'exception n'est permise qu'en mode test, lui-même impossible en production.
+ */
 export function assertNotSelfCast(
   actorId: string,
   targetId: string,
 ): void {
-  // Log at entry
-  console.log('[SELF-CAST-CHECK-ENTER]', {
-    actorId,
-    targetId,
-    isSelf: actorId === targetId,
-    NODE_ENV: process.env.NODE_ENV,
-    JEUTAIME_TEST_MODE: process.env.JEUTAIME_TEST_MODE,
-    isTestMode: isTestMode(),
-  });
-
-  const testMode = isTestMode();
-  const isSelf = actorId === targetId;
-
-  if (isSelf && !testMode) {
-    // Log just before throwing
-    console.log('[SELF-CAST-BLOCKED]', {
-      actorId,
-      targetId,
-      isSelf: actorId === targetId,
-      NODE_ENV: process.env.NODE_ENV,
-      JEUTAIME_TEST_MODE: process.env.JEUTAIME_TEST_MODE,
-      isTestMode: isTestMode(),
-    });
+  if (actorId === targetId && !isTestMode()) {
     throw new BadRequestError(
       "Tu ne peux pas te lancer un sort à toi-même",
     );
