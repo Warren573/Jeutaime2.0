@@ -21,6 +21,12 @@ import {
   type PremiumPlanDTO,
   type PremiumStatusDTO,
 } from "../src/api/premium";
+import {
+  APP_COLORS,
+  APP_RADIUS,
+  APP_SHADOWS,
+  APP_SPACING,
+} from "../src/theme/appTheme";
 
 const ADVANTAGES = [
   { icon: "💌", text: "Jusqu'à 20 matches simultanés (5 en free)" },
@@ -76,10 +82,7 @@ export default function PremiumScreen() {
     if (!plan) return;
 
     if (coins < plan.priceCoins) {
-      Alert.alert(
-        "Solde insuffisant",
-        `Il te faut ${plan.priceCoins} 🪙 pour ce plan. Tu en as ${coins}.`,
-      );
+      router.push('/shop');
       return;
     }
 
@@ -138,7 +141,7 @@ export default function PremiumScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color="#9c2f45" size="large" />
+          <ActivityIndicator color={APP_COLORS.burgundy} size="large" />
         </View>
       </SafeAreaView>
     );
@@ -157,6 +160,7 @@ export default function PremiumScreen() {
       >
         <AppBackButton onPress={() => router.back()} style={styles.backBtn} />
 
+        <Text style={styles.kicker}>JEUTAIME</Text>
         <Text style={styles.title}>👑 Premium</Text>
         <Text style={styles.subtitle}>Vis JeuTaime sans limites.</Text>
 
@@ -165,9 +169,7 @@ export default function PremiumScreen() {
             <>
               <Text style={styles.statusBadge}>✨ Membre Premium</Text>
               {status?.premiumUntil && (
-                <Text style={styles.statusSub}>
-                  Actif jusqu'au {formatDate(status.premiumUntil)}
-                </Text>
+                <Text style={styles.statusSub}>Actif jusqu'au {formatDate(status.premiumUntil)}</Text>
               )}
             </>
           ) : (
@@ -176,7 +178,9 @@ export default function PremiumScreen() {
               <Text style={styles.statusSub}>Passe en Premium pour tout débloquer.</Text>
             </>
           )}
-          <Text style={styles.coinsBalance}>Solde : {coins} 🪙</Text>
+          <TouchableOpacity onPress={() => router.push('/coins')} activeOpacity={0.75}>
+            <Text style={styles.coinsBalance}>Solde : {coins} 🪙  →</Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.sectionTitle}>Ce que tu débloques</Text>
@@ -208,12 +212,8 @@ export default function PremiumScreen() {
                     <Text style={styles.planDuration}>{p.durationDays} jours</Text>
                   </View>
                   <View style={styles.planRight}>
-                    <Text style={[styles.planCoins, !affordable && styles.planCoinsLow]}>
-                      {p.priceCoins} 🪙
-                    </Text>
-                    {!affordable && (
-                      <Text style={styles.planCoinsLowLabel}>solde insuffisant</Text>
-                    )}
+                    <Text style={[styles.planCoins, !affordable && styles.planCoinsLow]}>{p.priceCoins} 🪙</Text>
+                    {!affordable && <Text style={styles.planCoinsLowLabel}>solde insuffisant</Text>}
                   </View>
                   {isSelected && <View style={styles.planDot} />}
                 </TouchableOpacity>
@@ -221,17 +221,15 @@ export default function PremiumScreen() {
             })}
 
             <Pressable
-              style={[styles.subscribeBtn, (!canAfford || subscribing) && styles.subscribeBtnDisabled]}
+              style={[styles.subscribeBtn, subscribing && styles.subscribeBtnDisabled]}
               onPress={handleSubscribe}
-              disabled={!canAfford || subscribing}
+              disabled={subscribing}
             >
               {subscribing ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={APP_COLORS.white} />
               ) : (
                 <Text style={styles.subscribeBtnText}>
-                  {canAfford
-                    ? `Souscrire — ${plan?.priceCoins ?? "…"} 🪙`
-                    : "Solde insuffisant"}
+                  {canAfford ? `Souscrire — ${plan?.priceCoins ?? "…"} 🪙` : "Voir la boutique"}
                 </Text>
               )}
             </Pressable>
@@ -249,7 +247,7 @@ export default function PremiumScreen() {
             disabled={cancelling}
           >
             {cancelling ? (
-              <ActivityIndicator color="#9c2f45" />
+              <ActivityIndicator color={APP_COLORS.burgundy} />
             ) : (
               <Text style={styles.cancelBtnText}>Annuler mon abonnement</Text>
             )}
@@ -261,48 +259,93 @@ export default function PremiumScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea:              { flex: 1, backgroundColor: "#f6f1ea" },
-  loadingWrap:           { flex: 1, justifyContent: "center", alignItems: "center" },
-  container:             { padding: 24, paddingBottom: 60 },
-
-  backBtn:               { marginBottom: 16 },
-
-  title:                 { fontSize: 34, fontWeight: "800", color: "#232126", textAlign: "center", marginBottom: 6 },
-  subtitle:              { fontSize: 15, color: "#7a746d", textAlign: "center", marginBottom: 24 },
-
-  statusCard:            { borderRadius: 18, padding: 20, marginBottom: 28, borderWidth: 1 },
-  statusCardActive:      { backgroundColor: "#FFF8E7", borderColor: "#D7A84E" },
-  statusCardFree:        { backgroundColor: "#f0ece5", borderColor: "#d9cec3" },
-  statusBadge:           { fontSize: 18, fontWeight: "800", color: "#232126", marginBottom: 4 },
-  statusSub:             { fontSize: 14, color: "#7a746d", marginBottom: 14, lineHeight: 20 },
-  coinsBalance:          { fontSize: 15, fontWeight: "700", color: "#8B6F47" },
-
-  sectionTitle:          { fontSize: 12, fontWeight: "800", color: "#9c2f45", letterSpacing: 0.8, marginBottom: 12, textTransform: "uppercase" },
-
-  advantagesCard:        { backgroundColor: "#fff", borderRadius: 16, marginBottom: 28, borderWidth: 1, borderColor: "#d9cec3", overflow: "hidden" },
-  advantageRow:          { flexDirection: "row", alignItems: "flex-start", paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
-  advantageRowBorder:    { borderBottomWidth: 1, borderBottomColor: "#f0ece5" },
-  advantageIcon:         { fontSize: 20, width: 26, textAlign: "center" },
-  advantageText:         { flex: 1, fontSize: 14, color: "#2a272c", lineHeight: 20 },
-
-  planCard:              { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: "#d9cec3", flexDirection: "row", alignItems: "center" },
-  planCardSelected:      { borderColor: "#9c2f45", borderWidth: 2 },
-  planLeft:              { flex: 1 },
-  planLabel:             { fontSize: 16, fontWeight: "700", color: "#2a272c" },
-  planDuration:          { fontSize: 13, color: "#8B6F47", marginTop: 2 },
-  planRight:             { alignItems: "flex-end" },
-  planCoins:             { fontSize: 16, fontWeight: "800", color: "#2a272c" },
-  planCoinsLow:          { color: "#B8A082" },
-  planCoinsLowLabel:     { fontSize: 11, color: "#B8A082", marginTop: 2 },
-  planDot:               { width: 10, height: 10, borderRadius: 5, backgroundColor: "#9c2f45", marginLeft: 12 },
-
-  subscribeBtn:          { marginTop: 16, height: 56, borderRadius: 16, backgroundColor: "#9c2f45", justifyContent: "center", alignItems: "center" },
-  subscribeBtnDisabled:  { opacity: 0.45 },
-  subscribeBtnText:      { color: "#fff", fontSize: 17, fontWeight: "700" },
-
-  stripeBanner:          { alignItems: "center", paddingVertical: 14 },
-  stripeText:            { fontSize: 13, color: "#B8A082" },
-
-  cancelBtn:             { marginTop: 32, height: 52, borderRadius: 16, borderWidth: 1.5, borderColor: "#9c2f45", justifyContent: "center", alignItems: "center" },
-  cancelBtnText:         { fontSize: 15, fontWeight: "700", color: "#9c2f45" },
+  safeArea: { flex: 1, backgroundColor: APP_COLORS.background },
+  loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { padding: APP_SPACING.xl, paddingBottom: 60 },
+  backBtn: { marginBottom: APP_SPACING.md },
+  kicker: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: APP_COLORS.muted,
+    letterSpacing: 2.4,
+    textAlign: "center",
+    marginBottom: 3,
+  },
+  title: { fontSize: 32, fontWeight: "900", color: APP_COLORS.ink, textAlign: "center", marginBottom: 6 },
+  subtitle: { fontSize: 14, color: APP_COLORS.muted, textAlign: "center", marginBottom: APP_SPACING.xl },
+  statusCard: {
+    borderRadius: APP_RADIUS.lg,
+    padding: APP_SPACING.lg,
+    marginBottom: 28,
+    borderWidth: 1,
+    ...(APP_SHADOWS.card ?? {}),
+  },
+  statusCardActive: { backgroundColor: APP_COLORS.paper, borderColor: APP_COLORS.gold },
+  statusCardFree: { backgroundColor: APP_COLORS.paperSoft, borderColor: APP_COLORS.border },
+  statusBadge: { fontSize: 17, fontWeight: "800", color: APP_COLORS.ink, marginBottom: 4 },
+  statusSub: { fontSize: 13, color: APP_COLORS.muted, marginBottom: 14, lineHeight: 20 },
+  coinsBalance: { fontSize: 14, fontWeight: "800", color: APP_COLORS.burgundy },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: APP_COLORS.muted,
+    letterSpacing: 1,
+    marginBottom: 12,
+    textTransform: "uppercase",
+  },
+  advantagesCard: {
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.lg,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    overflow: "hidden",
+    ...(APP_SHADOWS.card ?? {}),
+  },
+  advantageRow: { flexDirection: "row", alignItems: "flex-start", paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  advantageRowBorder: { borderBottomWidth: 1, borderBottomColor: APP_COLORS.paperSoft },
+  advantageIcon: { fontSize: 20, width: 26, textAlign: "center" },
+  advantageText: { flex: 1, fontSize: 14, color: APP_COLORS.text, lineHeight: 20 },
+  planCard: {
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.lg,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  planCardSelected: { borderColor: APP_COLORS.burgundy, borderWidth: 2 },
+  planLeft: { flex: 1 },
+  planLabel: { fontSize: 16, fontWeight: "700", color: APP_COLORS.ink },
+  planDuration: { fontSize: 13, color: APP_COLORS.muted, marginTop: 2 },
+  planRight: { alignItems: "flex-end" },
+  planCoins: { fontSize: 16, fontWeight: "800", color: APP_COLORS.ink },
+  planCoinsLow: { color: APP_COLORS.muted },
+  planCoinsLowLabel: { fontSize: 11, color: APP_COLORS.muted, marginTop: 2 },
+  planDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: APP_COLORS.burgundy, marginLeft: 12 },
+  subscribeBtn: {
+    marginTop: 16,
+    height: 54,
+    borderRadius: APP_RADIUS.lg,
+    backgroundColor: APP_COLORS.burgundy,
+    justifyContent: "center",
+    alignItems: "center",
+    ...(APP_SHADOWS.card ?? {}),
+  },
+  subscribeBtnDisabled: { opacity: 0.45 },
+  subscribeBtnText: { color: APP_COLORS.white, fontSize: 16, fontWeight: "800" },
+  stripeBanner: { alignItems: "center", paddingVertical: 14 },
+  stripeText: { fontSize: 12, color: APP_COLORS.muted },
+  cancelBtn: {
+    marginTop: 32,
+    height: 52,
+    borderRadius: APP_RADIUS.lg,
+    borderWidth: 1.5,
+    borderColor: APP_COLORS.burgundy,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cancelBtnText: { fontSize: 15, fontWeight: "700", color: APP_COLORS.burgundy },
 });
