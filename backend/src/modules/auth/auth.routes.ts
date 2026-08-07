@@ -3,7 +3,14 @@ import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
 import { authRateLimit } from "../../core/middleware/rateLimit";
-import { RegisterSchema, LoginSchema, RefreshSchema, ChangePasswordSchema, DeactivateAccountSchema } from "./auth.schemas";
+import {
+  RegisterSchema,
+  LoginSchema,
+  RefreshSchema,
+  ChangePasswordSchema,
+  DeactivateAccountSchema,
+  DeleteAccountSchema,
+} from "./auth.schemas";
 import * as ctrl from "./auth.controller";
 import { AuthedRequest } from "../../core/types";
 
@@ -53,6 +60,14 @@ router.post(
   requireAuth as never,
   validate(DeactivateAccountSchema),
   asyncHandler((req, res, next) => ctrl.handleDeactivate(req as AuthedRequest, res).catch(next)),
+);
+
+// DELETE /api/auth/account (🔒)
+router.delete(
+  "/account",
+  requireAuth as never,
+  validate(DeleteAccountSchema),
+  asyncHandler((req, res, next) => ctrl.handleDeleteAccount(req as AuthedRequest, res).catch(next)),
 );
 
 // GET /api/auth/export-data (🔒)
