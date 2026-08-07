@@ -98,7 +98,6 @@ export async function uploadPhoto(file: File): Promise<MyPhotoDto> {
     res = await fetch(`${API_URL}/photos/me`, {
       method: 'POST',
       headers: {
-        // Content-Type omis : le navigateur pose multipart/form-data;boundary=... automatiquement
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: formData,
@@ -198,6 +197,13 @@ export async function reportUser(targetId: string, reason: ReportReason, details
   await apiFetch('/reports', {
     method: 'POST',
     body: JSON.stringify({ targetId, reason, details }),
+  });
+}
+
+export async function blockProfile(userId: string): Promise<void> {
+  await apiFetch(`/profiles/${userId}/block`, {
+    method: 'POST',
+    body: JSON.stringify({}),
   });
 }
 
