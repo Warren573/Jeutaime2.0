@@ -77,7 +77,6 @@ export function assertSalonOnlyRespected(
   providedSalon: SalonLike | null,
 ): void {
   if (catalogSalonOnly === null) {
-    // Aucune contrainte — tout est bon.
     return;
   }
   if (!providedSalon) {
@@ -96,17 +95,6 @@ export function assertSalonOnlyRespected(
 // computeOfferingExpiry
 // ============================================================
 
-/**
- * Calcule la date d'expiration d'un offering.
- *
- * - `durationMs === null` → pas d'expiration (retourne null)
- * - `durationMs > 0` (entier) → sentAt + durationMs
- * - Tout autre cas → BadRequestError
- *
- * Note : on accepte des millisecondes (alignement sur le schéma
- * Prisma `OfferingCatalog.durationMs`), contrairement aux magies qui
- * raisonnent en secondes.
- */
 export function computeOfferingExpiry(
   sentAt: Date,
   durationMs: number | null,
@@ -122,14 +110,6 @@ export function computeOfferingExpiry(
 // isOfferingActive
 // ============================================================
 
-/**
- * Un offering est ACTIF si :
- *   - expiresAt est null (cadeau permanent), OU
- *   - expiresAt est STRICTEMENT dans le futur (> now)
- *
- * La borne est stricte : un offering pile à `expiresAt === now` est
- * considéré comme expiré.
- */
 export function isOfferingActive(
   offering: OfferingSentLike,
   now: Date,
@@ -144,16 +124,13 @@ export function isOfferingActive(
 
 /**
  * Interdit d'envoyer un cadeau à soi-même (abus anti-farm).
- *
- * @throws BadRequestError si actor === target
+ * L'exception n'est permise qu'en mode test, lui-même impossible en production.
  */
 export function assertNotSelfOffering(
   fromUserId: string,
   toUserId: string,
 ): void {
-  const testMode = isTestMode();
-  console.log('[SELF-OFFERING-CHECK]', { fromUserId, toUserId, isSelf: fromUserId === toUserId, testMode, allowed: fromUserId !== toUserId || testMode });
-  if (fromUserId === toUserId && !testMode) {
+  if (fromUserId === toUserId && !isTestMode()) {
     throw new BadRequestError(
       "Tu ne peux pas t'envoyer un cadeau à toi-même",
     );
