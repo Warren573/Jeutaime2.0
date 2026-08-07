@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { AppBackButton } from '../components/AppBackButton';
 import {
   getWallet,
   listTransactions,
@@ -129,9 +130,7 @@ export default function WalletScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.headerBack}>← Retour</Text>
-        </TouchableOpacity>
+        <AppBackButton onPress={() => router.back()} />
         <Text style={styles.headerTitle}>Portefeuille</Text>
       </View>
 
@@ -139,7 +138,6 @@ export default function WalletScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
-        {/* Solde actuel */}
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Solde actuel</Text>
           <View style={styles.balanceRow}>
@@ -151,7 +149,6 @@ export default function WalletScreen() {
           </Text>
         </View>
 
-        {/* Bonus quotidien */}
         {canClaimBonus ? (
           <TouchableOpacity
             style={[styles.bonusBtn, claimingBonus && styles.bonusBtnDisabled]}
@@ -178,7 +175,6 @@ export default function WalletScreen() {
           </View>
         )}
 
-        {/* Historique */}
         <Text style={styles.historyTitle}>Historique</Text>
         {transactions.length === 0 ? (
           <View style={styles.emptyBox}>
@@ -247,11 +243,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  headerBack: {
-    fontSize: 16,
-    color: '#8B4513',
-    fontWeight: '600',
   },
   headerTitle: {
     fontSize: 28,
