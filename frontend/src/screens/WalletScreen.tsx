@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Dimensions,
   RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,8 +21,12 @@ import {
   type CoinTxnDTO,
   type PaginationMeta,
 } from '../api/wallet';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import {
+  APP_COLORS,
+  APP_RADIUS,
+  APP_SHADOWS,
+  APP_SPACING,
+} from '../theme/appTheme';
 
 const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   DAILY_BONUS: '📅 Bonus quotidien',
@@ -45,7 +48,7 @@ const TRANSACTION_TYPE_COLORS: Record<string, { bg: string; icon: string }> = {
 
 export default function WalletScreen() {
   const router = useRouter();
-  const { currentUser, loadWallet } = useStore();
+  const loadWallet = useStore((s) => s.loadWallet);
   const insets = useSafeAreaInsets();
 
   const [wallet, setWallet] = useState<WalletDTO | null>(null);
@@ -88,10 +91,7 @@ export default function WalletScreen() {
       setWallet(result.wallet);
       setTransactions((prev) => [result.transaction, ...prev]);
       await loadWallet();
-      Alert.alert(
-        'Succès',
-        `Bonus quotidien reçu : +${result.amount} 🪙`,
-      );
+      Alert.alert('Succès', `Bonus quotidien reçu : +${result.amount} 🪙`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Impossible de réclamer le bonus';
       Alert.alert('Erreur', msg);
@@ -101,13 +101,13 @@ export default function WalletScreen() {
   };
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   if (loading) {
     return (
       <View style={[styles.container, styles.center, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color="#9C7A4D" />
+        <ActivityIndicator size="large" color={APP_COLORS.burgundy} />
       </View>
     );
   }
@@ -131,12 +131,17 @@ export default function WalletScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <AppBackButton onPress={() => router.back()} />
-        <Text style={styles.headerTitle}>Portefeuille</Text>
+        <View style={styles.headerTextWrap}>
+          <Text style={styles.headerKicker}>JEUTAIME</Text>
+          <Text style={styles.headerTitle}>Portefeuille</Text>
+        </View>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Solde actuel</Text>
@@ -171,7 +176,7 @@ export default function WalletScreen() {
             disabled={claimingBonus}
           >
             {claimingBonus ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={APP_COLORS.white} />
             ) : (
               <>
                 <Text style={styles.bonusEmoji}>📅</Text>
@@ -184,9 +189,7 @@ export default function WalletScreen() {
           </TouchableOpacity>
         ) : (
           <View style={styles.bonusClaimed}>
-            <Text style={styles.bonusClaimedText}>
-              ✅ Bonus quotidien déjà reçu aujourd'hui
-            </Text>
+            <Text style={styles.bonusClaimedText}>✅ Bonus quotidien déjà reçu aujourd'hui</Text>
           </View>
         )}
 
@@ -223,14 +226,10 @@ function TransactionRow({ transaction }: { transaction: CoinTxnDTO }) {
       <View style={[styles.txnIcon, { backgroundColor: colors.bg }]}>
         <Text style={styles.txnIconEmoji}>{colors.icon}</Text>
       </View>
-
       <View style={styles.txnInfo}>
         <Text style={styles.txnLabel}>{label}</Text>
-        <Text style={styles.txnDate}>
-          {new Date(transaction.createdAt).toLocaleString('fr-FR')}
-        </Text>
+        <Text style={styles.txnDate}>{new Date(transaction.createdAt).toLocaleString('fr-FR')}</Text>
       </View>
-
       <View style={styles.txnAmount}>
         <Text style={[styles.txnAmountText, isPositive ? styles.txnPositive : styles.txnNegative]}>
           {isPositive ? '+' : ''}{transaction.amount} 🪙
@@ -242,239 +241,149 @@ function TransactionRow({ transaction }: { transaction: CoinTxnDTO }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#EFE4D4',
-  },
-  center: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1, backgroundColor: APP_COLORS.background },
+  center: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    minHeight: 76,
+    paddingHorizontal: APP_SPACING.md,
+    paddingVertical: APP_SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#E3D1B9',
+    borderBottomColor: APP_COLORS.border,
+    backgroundColor: APP_COLORS.paper,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#2B1B12',
-    flex: 1,
+  headerTextWrap: { flex: 1, alignItems: 'center' },
+  headerKicker: {
+    fontSize: 9,
+    letterSpacing: 2.2,
+    fontWeight: '800',
+    color: APP_COLORS.muted,
+    marginBottom: 2,
   },
+  headerTitle: { fontSize: 23, fontWeight: '900', color: APP_COLORS.ink },
+  headerSpacer: { width: 52 },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: APP_SPACING.md,
+    paddingVertical: APP_SPACING.md,
     paddingBottom: 40,
   },
   balanceCard: {
-    backgroundColor: '#FFF8E7',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: '#D4B896',
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.lg,
+    padding: APP_SPACING.lg,
+    marginBottom: APP_SPACING.sm,
+    borderWidth: 1,
+    borderColor: APP_COLORS.borderStrong,
+    ...(APP_SHADOWS.card ?? {}),
   },
   balanceLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#7A5A3A',
-    letterSpacing: 0.5,
-    marginBottom: 12,
+    fontSize: 12,
+    fontWeight: '800',
+    color: APP_COLORS.muted,
+    letterSpacing: 0.8,
+    marginBottom: 10,
     textTransform: 'uppercase',
   },
-  balanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  balanceEmoji: {
-    fontSize: 32,
-  },
-  balanceValue: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: '#2B1B12',
-  },
-  balanceDate: {
-    fontSize: 11,
-    color: '#8B6F47',
-    fontStyle: 'italic',
-  },
+  balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  balanceEmoji: { fontSize: 31 },
+  balanceValue: { fontSize: 36, fontWeight: '900', color: APP_COLORS.ink },
+  balanceDate: { fontSize: 10, color: APP_COLORS.muted, fontStyle: 'italic' },
   shopBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF8E7',
-    borderRadius: 14,
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.lg,
     padding: 14,
-    marginBottom: 16,
+    marginBottom: APP_SPACING.md,
     borderWidth: 1,
-    borderColor: '#D4B896',
+    borderColor: APP_COLORS.border,
+    ...(APP_SHADOWS.card ?? {}),
   },
   shopBtnIconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: APP_RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F2E7D6',
+    backgroundColor: APP_COLORS.paperSoft,
     marginRight: 12,
   },
   shopBtnIcon: { fontSize: 22 },
   shopBtnContent: { flex: 1 },
-  shopBtnTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#2B1B12',
-  },
-  shopBtnSub: {
-    fontSize: 11,
-    color: '#8B6F47',
-    marginTop: 2,
-  },
-  shopBtnArrow: {
-    fontSize: 28,
-    color: '#9C7A4D',
-    marginLeft: 8,
-  },
+  shopBtnTitle: { fontSize: 15, fontWeight: '800', color: APP_COLORS.ink },
+  shopBtnSub: { fontSize: 11, color: APP_COLORS.muted, marginTop: 2 },
+  shopBtnArrow: { fontSize: 28, color: APP_COLORS.burgundy, marginLeft: 8 },
   bonusBtn: {
-    backgroundColor: '#F59E0B',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 20,
+    backgroundColor: APP_COLORS.burgundy,
+    borderRadius: APP_RADIUS.lg,
+    padding: APP_SPACING.md,
+    marginBottom: APP_SPACING.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    ...(APP_SHADOWS.card ?? {}),
   },
-  bonusBtnDisabled: {
-    opacity: 0.6,
-  },
-  bonusEmoji: {
-    fontSize: 28,
-  },
-  bonusContent: {
-    flex: 1,
-  },
-  bonusTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFF',
-    marginBottom: 2,
-  },
-  bonusSub: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-  },
+  bonusBtnDisabled: { opacity: 0.6 },
+  bonusEmoji: { fontSize: 27 },
+  bonusContent: { flex: 1 },
+  bonusTitle: { fontSize: 15, fontWeight: '800', color: APP_COLORS.white, marginBottom: 2 },
+  bonusSub: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
   bonusClaimed: {
-    backgroundColor: '#D4EDDA',
-    borderRadius: 10,
+    backgroundColor: '#EDF5E9',
+    borderRadius: APP_RADIUS.md,
     padding: 12,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#28A745',
+    marginBottom: APP_SPACING.lg,
+    borderWidth: 1,
+    borderColor: '#C9DEC1',
   },
-  bonusClaimedText: {
-    fontSize: 13,
-    color: '#155724',
-    fontWeight: '600',
-  },
+  bonusClaimedText: { fontSize: 13, color: '#487342', fontWeight: '700' },
   historyTitle: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '800',
-    color: '#2B1B12',
-    marginBottom: 12,
+    color: APP_COLORS.muted,
+    marginBottom: APP_SPACING.sm,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
-  transactionsList: {
-    gap: 10,
-    marginBottom: 20,
-  },
+  transactionsList: { gap: 10, marginBottom: APP_SPACING.lg },
   transactionRow: {
-    backgroundColor: '#FFF8E7',
-    borderRadius: 12,
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.md,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
   },
-  txnIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txnIconEmoji: {
-    fontSize: 24,
-  },
-  txnInfo: {
-    flex: 1,
-  },
-  txnLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#2B1B12',
-    marginBottom: 2,
-  },
-  txnDate: {
-    fontSize: 11,
-    color: '#8B6F47',
-  },
-  txnAmount: {
-    alignItems: 'flex-end',
-  },
-  txnAmountText: {
-    fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-  txnPositive: {
-    color: '#27AE60',
-  },
-  txnNegative: {
-    color: '#E74C3C',
-  },
-  txnBalance: {
-    fontSize: 10,
-    color: '#8B6F47',
-  },
+  txnIcon: { width: 46, height: 46, borderRadius: APP_RADIUS.md, alignItems: 'center', justifyContent: 'center' },
+  txnIconEmoji: { fontSize: 23 },
+  txnInfo: { flex: 1 },
+  txnLabel: { fontSize: 13, fontWeight: '700', color: APP_COLORS.ink, marginBottom: 2 },
+  txnDate: { fontSize: 10, color: APP_COLORS.muted },
+  txnAmount: { alignItems: 'flex-end' },
+  txnAmountText: { fontSize: 13, fontWeight: '800', marginBottom: 2 },
+  txnPositive: { color: APP_COLORS.success },
+  txnNegative: { color: APP_COLORS.danger },
+  txnBalance: { fontSize: 9, color: APP_COLORS.muted },
   emptyBox: {
-    backgroundColor: '#F5EFDA',
-    borderRadius: 12,
+    backgroundColor: APP_COLORS.paperSoft,
+    borderRadius: APP_RADIUS.md,
     padding: 32,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: APP_SPACING.lg,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
   },
-  emptyText: {
-    fontSize: 14,
-    color: '#8B6F47',
-    fontStyle: 'italic',
-  },
-  paginationText: {
-    fontSize: 12,
-    color: '#8B6F47',
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  errorText: {
-    color: '#E74C3C',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
+  emptyText: { fontSize: 13, color: APP_COLORS.muted, fontStyle: 'italic' },
+  paginationText: { fontSize: 11, color: APP_COLORS.muted, textAlign: 'center', marginTop: 12 },
+  errorText: { color: APP_COLORS.danger, fontSize: 15, textAlign: 'center', marginBottom: 20 },
   retryBtn: {
-    backgroundColor: '#9C7A4D',
-    borderRadius: 10,
+    backgroundColor: APP_COLORS.burgundy,
+    borderRadius: APP_RADIUS.md,
     paddingVertical: 12,
     paddingHorizontal: 24,
   },
-  retryText: {
-    color: '#FFF',
-    fontWeight: '700',
-  },
+  retryText: { color: APP_COLORS.white, fontWeight: '700' },
 });
