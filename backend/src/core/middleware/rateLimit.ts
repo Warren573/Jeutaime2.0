@@ -22,8 +22,6 @@ export const authRateLimit = rateLimit({
   skip: (req) => {
     if (env.NODE_ENV === "test") return true;
 
-    // Exception strictement réservée au service de staging nommé et aux
-    // comptes de test dédiés. Ne jamais journaliser l'adresse email.
     const isStaging = process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
     const email = (req.body as any)?.email;
     const isTestEmail = typeof email === "string" && email.endsWith("@jeutaime.test");
@@ -40,6 +38,14 @@ export const authRateLimit = rateLimit({
   },
 });
 
+function userOrIpKey(req: unknown): string {
+  const request = req as Record<string, unknown>;
+  const user = request["user"] as Record<string, unknown> | undefined;
+  if (user?.["userId"]) return String(user["userId"]);
+  const ip = request["ip"];
+  return typeof ip === "string" ? ip : "unknown";
+}
+
 /** Limite pour envoi de lettres (20/h/user) */
 export const lettersRateLimit = rateLimit({
   windowMs: env.RATE_LIMIT_LETTERS_WINDOW_MS,
@@ -47,9 +53,7 @@ export const lettersRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { code: "TOO_MANY_REQUESTS", message: "Limite d'envoi de lettres atteinte" } },
-  keyGenerator: (req) => (req as unknown as Record<string, unknown>)["user"]
-    ? String(((req as unknown as Record<string, unknown>)["user"] as Record<string, unknown>)["userId"])
-    : (req.ip ?? "unknown"),
+  keyGenerator: userOrIpKey as never,
   skip: () => env.NODE_ENV === "test",
 });
 
@@ -60,9 +64,23 @@ export const reportsRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { code: "TOO_MANY_REQUESTS", message: "Limite de signalements atteinte" } },
-  keyGenerator: (req) => (req as unknown as Record<string, unknown>)["user"]
-    ? String(((req as unknown as Record<string, unknown>)["user"] as Record<string, unknown>)["userId"])
-    : (req.ip ?? "unknown"),
+  keyGenerator: userOrIpKey as never,
+  skip: () => env.NODE_ENV === "test",
+});
+
+/** Limite pour création de tickets support (5/h/user). */
+export const supportTicketsRateLimit = rateLimit({
+  windowMs: env.RATE_LIMIT_REPORTS_WINDOW_MS,
+  max: env.RATE_LIMIT_REPORTS_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: {
+      code: "TOO_MANY_REQUESTS",
+      message: "Trop de demandes envoyées au support — réessaie plus tard",
+    },
+  },
+  keyGenerator: userOrIpKey as never,
   skip: () => env.NODE_ENV === "test",
 });
 
@@ -73,8 +91,6 @@ export const photoUploadRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { code: "TOO_MANY_REQUESTS", message: "Limite d'upload photos atteinte" } },
-  keyGenerator: (req) => (req as unknown as Record<string, unknown>)["user"]
-    ? String(((req as unknown as Record<string, unknown>)["user"] as Record<string, unknown>)["userId"])
-    : (req.ip ?? "unknown"),
+  keyGenerator: userOrIpKey as never,
   skip: () => env.NODE_ENV === "test",
 });
