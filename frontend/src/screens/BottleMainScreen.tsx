@@ -5,6 +5,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { getCurrentBottle, getInbox, acceptBottle } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import { BottleCorrespondenceMenu } from '../components/BottleCorrespondenceMenu';
+import { AppBackButton } from '../components/AppBackButton';
 import type { GetCurrentBottleResponse, InboxBottleDTO } from '../api/bottles';
 import { useStore } from '../store/useStore';
 
@@ -142,7 +143,7 @@ export default function BottleMainScreen() {
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={styles.backText}>← Retour</Text></TouchableOpacity>
+            <AppBackButton onPress={() => router.back()} />
             <View style={styles.headerTitle}><Text style={styles.headerTitleText}>Lettre en transit</Text></View>
             <TouchableOpacity onPress={() => setShowMenu(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={styles.menuDots}>⋯</Text></TouchableOpacity>
           </View>
@@ -177,7 +178,7 @@ export default function BottleMainScreen() {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          <TouchableOpacity style={styles.landingBackButton} onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}><Text style={styles.backText}>← Retour</Text></TouchableOpacity>
+          <AppBackButton onPress={() => router.back()} style={styles.landingBackButton} />
           <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}>
             <View style={styles.paddedSection}>
               <View style={styles.emptyState}>
@@ -220,8 +221,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 0, paddingVertical: 0 },
   paddedSection: { paddingHorizontal: 16 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
-  backText: { fontSize: 15, color: COLORS.accent, fontWeight: '700' },
-  landingBackButton: { position: 'absolute', top: 8, left: 16, zIndex: 20, minHeight: 44, justifyContent: 'center' },
+  landingBackButton: { position: 'absolute', top: 8, left: 16, zIndex: 20 },
   headerTitle: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
   headerTitleText: { fontSize: 15, fontWeight: '700', color: '#4A3A28' },
   menuDots: { fontSize: 24, color: COLORS.accent, fontWeight: '600' },
