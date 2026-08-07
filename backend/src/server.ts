@@ -19,14 +19,14 @@ function getCommitSha() {
 
 async function main() {
   const commitSha = getCommitSha();
-  console.log(`\n🔍 [VERSION] Backend startup - commit SHA: ${commitSha}\n`);
+  logger.info({ commitSha }, "Backend startup");
 
-  // Diagnostic: Test mode detection
-  console.log('[TEST-MODE-STARTUP]', {
-    NODE_ENV: process.env.NODE_ENV,
-    JEUTAIME_TEST_MODE: process.env.JEUTAIME_TEST_MODE,
-    isTestMode: isTestMode(),
-  });
+  if (env.NODE_ENV !== "production") {
+    logger.debug({
+      nodeEnv: process.env.NODE_ENV,
+      testMode: isTestMode(),
+    }, "Test mode diagnostic");
+  }
 
   // Vérifier la connexion DB avant de démarrer (avec timeout)
   try {
@@ -41,21 +41,27 @@ async function main() {
     throw err;
   }
 
-  // DEBUG: Afficher les salons au démarrage
-  try {
-    const salons = await prisma.salon.findMany({ select: { kind: true, name: true, isActive: true }, orderBy: { order: "asc" } });
-    console.log(`[STARTUP-SALONS] Found ${salons.length} salons:`, salons.map(s => `${s.kind}(${s.name})`).join(", "));
-    if (!salons.find(s => s.kind === "PSY")) {
-      console.warn(`[STARTUP-SALONS] ⚠️  PSY salon NOT FOUND in database!`);
+  // Diagnostic salons uniquement hors production.
+  if (env.NODE_ENV !== "production") {
+    try {
+      const salons = await prisma.salon.findMany({
+        select: { kind: true, name: true, isActive: true },
+        orderBy: { order: "asc" },
+      });
+      logger.debug({
+        count: salons.length,
+        salons: salons.map((s) => ({ kind: s.kind, name: s.name, isActive: s.isActive })),
+        hasPsySalon: salons.some((s) => s.kind === "PSY"),
+      }, "Startup salons diagnostic");
+    } catch (err) {
+      logger.debug({ err }, "Startup salons diagnostic unavailable");
     }
-  } catch (err) {
-    console.error(`[STARTUP-SALONS] Error loading salons:`, err);
   }
 
   const server = app.listen(env.PORT, "0.0.0.0", () => {
     logger.info(
       { port: env.PORT, env: env.NODE_ENV, prefix: env.API_PREFIX, host: "0.0.0.0" },
-      `🚀 JeuTaime API démarrée`,
+      "JeuTaime API démarrée",
     );
   });
 
@@ -83,7 +89,7 @@ async function main() {
   };
 
   process.on("SIGTERM", () => { void shutdown("SIGTERM"); });
-  process.on("SIGINT",  () => { void shutdown("SIGINT"); });
+  process.on("SIGINT", () => { void shutdown("SIGINT"); });
 }
 
 main().catch((err) => {
