@@ -6,6 +6,7 @@ import { prisma } from "../../config/prisma";
 import { Role } from "@prisma/client";
 import { asyncHandler } from "../utils/asyncHandler";
 import { isPremiumActive } from "../../policies/premium";
+import { isAccountDeactivated } from "../../modules/auth/accountLifecycle.service";
 
 /**
  * Middleware principal d'authentification.
@@ -21,7 +22,7 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
   const token = authHeader.slice(7);
   const payload = verifyAccessToken(token);
 
-  // Vérifier que le user existe et n'est pas banni
+  // Vérifier que le user existe et n'est ni banni ni volontairement désactivé.
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
     select: { id: true, role: true, isBanned: true, premiumTier: true, premiumUntil: true },
@@ -32,6 +33,9 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
   }
   if (user.isBanned) {
     throw new ForbiddenError("Ton compte est banni");
+  }
+  if (await isAccountDeactivated(user.id)) {
+    throw new ForbiddenError("Ton compte est désactivé. Reconnecte-toi pour le réactiver.");
   }
 
   authedReq.user = {
