@@ -3,6 +3,8 @@ import { AuthedRequest } from "../../core/types";
 import { parsePagination } from "../../core/utils/pagination";
 import { MatchStatus } from "@prisma/client";
 import { prisma } from "../../config/prisma";
+import { ForbiddenError } from "../../core/errors";
+import { isAccountDeactivated } from "../auth/accountLifecycle.service";
 import * as svc from "./matches.service";
 
 type MatchResponseLike = {
@@ -48,6 +50,11 @@ async function applySingleMatchLocationPrivacy<T extends MatchResponseLike>(matc
 }
 
 export async function handleCreate(req: AuthedRequest, res: Response) {
+  const targetUserId = (req.body as { targetUserId?: string })?.targetUserId;
+  if (targetUserId && await isAccountDeactivated(targetUserId)) {
+    throw new ForbiddenError("Cet utilisateur n'est pas disponible");
+  }
+
   const match = await svc.createMatch(req.user.userId, req.body);
   res.status(201).json({ data: match });
 }
