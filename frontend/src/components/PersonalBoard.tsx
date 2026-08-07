@@ -21,20 +21,22 @@ import { salonsData } from '../data/salonsData';
 import { getAnimalImage } from '../data/refugeAnimalImages';
 import { ANIMAL_LABELS } from '../data/refugeAnimals';
 import { apiFetch } from '../api/client';
+import {
+  APP_COLORS,
+  APP_RADIUS,
+  APP_SHADOWS,
+  APP_SPACING,
+} from '../theme/appTheme';
 
-// Fond bois du tableau personnel (les cartes restent blanches par-dessus).
 const WOOD_BG = require('../../assets/images/home/board-wood-bg.jpg');
 
 const J = {
-  bgBoard: '#D9CFC2',
-  textMain: '#2B2B2B',
-  textSecondary: '#6B6B6B',
-  accentPrimary: '#8B2E3C',
+  bgBoard: APP_COLORS.background,
+  textMain: APP_COLORS.ink,
+  textSecondary: APP_COLORS.muted,
+  accentPrimary: APP_COLORS.burgundy,
 };
 
-// La route /salon/[id] attend un SLUG (ex. "psy"), pas l'ID technique du
-// salon (currentSalonId, utilisé lui pour l'appel getSalon côté backend).
-// Même mapping que SalonsListScreen.tsx.
 const KIND_TO_SLUG: Record<string, string> = {
   PISCINE: 'piscine',
   CAFE_DE_PARIS: 'cafe_paris',
@@ -55,7 +57,7 @@ const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
   <TouchableOpacity
     style={[styles.paper, style]}
     onPress={onPress}
-    activeOpacity={0.7}
+    activeOpacity={0.78}
   >
     {onPress && <View style={styles.magnet} pointerEvents="none" />}
     {children}
@@ -77,10 +79,6 @@ export function PersonalBoard() {
     currentSalonKind,
   } = useStore();
 
-  // Hauteur dispo calculée (pas mesurée via onLayout, peu fiable sur web) :
-  // fenêtre − marge haute (insets.top, avec un minimum car certains WebViews
-  // le renvoient à 0) − hauteur exacte de la CustomTabBar flottante du bas
-  // (mêmes constantes que CustomTabBar.tsx : ACTIVE_LIFT+BAR_HEIGHT+BOTTOM_MARGIN+insets.bottom).
   const topPad = Math.max(insets.top, 24);
   const TAB_BAR_TOTAL = 24 + 64 + 10 + insets.bottom;
   const W = winWidth;
@@ -108,16 +106,17 @@ export function PersonalBoard() {
       } else {
         setRefugeData(null);
       }
-    } catch (error) {
+    } catch {
+      // L'accueil doit rester utilisable même si le refuge est indisponible.
     }
   }, []);
 
   useEffect(() => {
     const loadOfferings = async () => {
       try {
-        const data = await getReceivedOfferings(1, 100, true);
-        setOfferings(data);
-      } catch (error) {
+        setOfferings(await getReceivedOfferings(1, 100, true));
+      } catch {
+        // Conserver l'état vide.
       }
     };
     loadOfferings();
@@ -126,53 +125,52 @@ export function PersonalBoard() {
   useEffect(() => {
     const loadBottles = async () => {
       try {
-        const count = await getUnreadCount();
-        setHasBottle(count > 0);
-      } catch (error) {
+        setHasBottle((await getUnreadCount()) > 0);
+      } catch {
+        // Conserver l'état sans notification.
       }
     };
     loadBottles();
   }, []);
 
   useEffect(() => {
-    if (currentSalonId) {
-      const loadSalon = async () => {
-        try {
-          const data = await getSalon(currentSalonId);
-          setSalonName(data.name);
-        } catch (error) {
-        }
-      };
-      loadSalon();
+    if (!currentSalonId) {
+      setSalonName(null);
+      return;
     }
+
+    const loadSalon = async () => {
+      try {
+        const data = await getSalon(currentSalonId);
+        setSalonName(data.name);
+      } catch {
+        // Le raccourci vers les salons reste fonctionnel sans le nom.
+      }
+    };
+    loadSalon();
   }, [currentSalonId]);
 
   useFocusEffect(
     useCallback(() => {
       checkRefugeSession();
-    }, [checkRefugeSession])
+    }, [checkRefugeSession]),
   );
 
   const recentLetters = (() => {
     if (!currentUser?.id || !matches?.length) return [];
 
-    // Filter matches to active/pending status (same as LettersScreen)
     const activeMatches = matches.filter(
-      (m) => m.status === 'active' || m.status === 'pending'
+      (m) => m.status === 'active' || m.status === 'pending',
     );
 
-    // Collect received letters from lettersByMatch
     const allLetters: Letter[] = [];
     activeMatches.forEach((match) => {
       const matchLetters = lettersByMatch[match.id];
       if (matchLetters !== undefined) {
-        allLetters.push(
-          ...matchLetters.filter((l) => l.toUserId === currentUser.id)
-        );
+        allLetters.push(...matchLetters.filter((l) => l.toUserId === currentUser.id));
       }
     });
 
-    // Sort by createdAt descending and return 3 most recent
     return allLetters
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 3);
@@ -181,26 +179,16 @@ export function PersonalBoard() {
   if (!currentUser) {
     return (
       <View style={styles.container}>
-        <Text style={{ color: '#999', textAlign: 'center', marginTop: 50 }}>
-          Chargement...
-        </Text>
+        <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
   }
 
   const currentSalonSlug = currentSalonKind ? KIND_TO_SLUG[currentSalonKind] : undefined;
-  const currentSalonIcon =
-    salonsData.find((s) => s.id === currentSalonSlug)?.icon || '🎭';
+  const currentSalonIcon = salonsData.find((s) => s.id === currentSalonSlug)?.icon || '🎭';
 
-  // Toutes les positions/tailles sont des fractions de (W, H) mesurés, pour
-  // que le tableau tienne SUR UN SEUL ÉCRAN FIXE (pas de scroll), quel que
-  // soit l'appareil. H = hauteur dispo sous la barre de statut et au-dessus
-  // de la barre de nav du bas (déjà exclue par le flex du Tabs navigator).
   const profileW = px(W, 0.27);
   const avatarSize = Math.round(profileW * 0.62);
-  // Bouteille + Offrandes partagent la même rangée (côte à côte). La carte
-  // postale retrouve EXACTEMENT sa taille d'origine (180×120 fixes, pas une
-  // approximation en %) pour garantir le même ratio que l'image beach.png.
   const bouteilleW = 180;
   const bouteilleH = 120;
   const bottleImgH = Math.round(bouteilleH * 0.85);
@@ -213,9 +201,8 @@ export function PersonalBoard() {
       style={[styles.board, { flex: 1, paddingTop: topPad }]}
       pointerEvents="box-none"
     >
-      {/* Profile (haut gauche) */}
       <Paper
-        onPress={() => router.push(`/profile/${currentUser?.id}`)}
+        onPress={() => router.push(`/profile/${currentUser.id}`)}
         style={{
           position: 'absolute',
           top: px(H, 0.03),
@@ -224,16 +211,10 @@ export function PersonalBoard() {
           transform: [{ rotate: '-3deg' }],
         }}
       >
-        {currentUser?.avatarConfig && (
-          <Avatar
-            size={avatarSize}
-            {...currentUser.avatarConfig}
-          />
-        )}
-        <Text style={styles.profileName}>{currentUser?.name || 'Vous'}</Text>
+        {currentUser.avatarConfig && <Avatar size={avatarSize} {...currentUser.avatarConfig} />}
+        <Text style={styles.profileName}>{currentUser.name || 'Vous'}</Text>
       </Paper>
 
-      {/* Ton Compagnon (haut droite) */}
       <Paper
         onPress={() => router.push('/refuge')}
         style={{
@@ -248,15 +229,16 @@ export function PersonalBoard() {
         {refugeData?.animalType ? (
           <>
             {getAnimalImage(refugeData.animalType) ? (
-              <Image
-                source={getAnimalImage(refugeData.animalType)}
-                style={styles.animalImage}
-              />
+              <Image source={getAnimalImage(refugeData.animalType)} style={styles.animalImage} />
             ) : (
               <Text style={styles.animalIcon}>{ANIMAL_LABELS[refugeData.animalType] || '🐾'}</Text>
             )}
             <Text style={styles.animalStatus}>
-              {refugeData.isActive && refugeData.todaySubmitted ? "Tu t'en es déjà occupé aujourd'hui" : refugeData.isActive ? "Il est temps de t'en occuper aujourd'hui" : "En attente d'un adoptant"}
+              {refugeData.isActive && refugeData.todaySubmitted
+                ? "Tu t'en es déjà occupé aujourd'hui"
+                : refugeData.isActive
+                  ? "Il est temps de t'en occuper aujourd'hui"
+                  : "En attente d'un adoptant"}
             </Text>
           </>
         ) : (
@@ -267,7 +249,6 @@ export function PersonalBoard() {
         )}
       </Paper>
 
-      {/* Lettres Reçues (gauche, sous le profil) */}
       <Paper
         onPress={() => router.push('/(tabs)/letters')}
         style={{
@@ -281,25 +262,21 @@ export function PersonalBoard() {
         <Text style={styles.sectionTitle}>✉️ Lettres Reçues</Text>
         {recentLetters.length > 0 ? (
           <View style={styles.lettersContainer}>
-            {recentLetters.slice(0, 3).map((letter, idx) => {
+            {recentLetters.map((letter, idx) => {
               const senderName = matchPartners[letter.fromUserId]?.pseudo || letter.fromUserId;
               return (
-                <View key={idx} style={styles.letterItem}>
+                <View key={`${letter.id}-${idx}`} style={styles.letterItem}>
                   <Text style={styles.letterEnvelope}>✉️</Text>
                   <Text style={styles.letterSenderName} numberOfLines={1}>{senderName}</Text>
                 </View>
               );
             })}
-            {recentLetters.length > 3 && (
-              <Text style={styles.moreIndicator}>+{recentLetters.length - 3}</Text>
-            )}
           </View>
         ) : (
           <Text style={styles.emptyLetters}>Aucune lettre</Text>
         )}
       </Paper>
 
-      {/* Sourires (droite, sous Ton Compagnon) — réduit */}
       <Paper
         onPress={() => router.push('/(tabs)/profiles?filter=received-smiles')}
         style={{
@@ -312,17 +289,10 @@ export function PersonalBoard() {
       >
         <Text style={styles.smilesTitle}>Sourires</Text>
         <Text style={styles.smilesCount}>
-          {matches?.filter(m => m.initiatorId !== currentUser?.id).length ?? 0}
+          {matches?.filter((m) => m.initiatorId !== currentUser.id).length ?? 0}
         </Text>
       </Paper>
 
-      {/* Bouteille (gauche) — carte postale réduite, à côté des Offrandes.
-          Structure dédiée (pas le composant Paper partagé) : la rotation et
-          le clip (overflow+radius) sont sur LE MÊME élément, ce qui évite le
-          liseré de rendu web qui apparaît quand rotation et clip sont sur
-          deux éléments parent/enfant différents. Le pin reste en dehors de
-          la zone clippée (un cercle n'est de toute façon pas affecté par une
-          rotation de 2°, inutile de le faire tourner avec la carte). */}
       <View
         style={{
           position: 'absolute',
@@ -333,42 +303,17 @@ export function PersonalBoard() {
         }}
       >
         <View style={styles.magnet} pointerEvents="none" />
-        {/* Couche d'ombre SÉPARÉE, sans clip ni image : sur le web, une ombre
-            portée + overflow:hidden + rotation sur le MÊME élément laisse un
-            liseré de rendu sur le bord dans le sens de l'ombre (ici le bas,
-            shadowOffset.height:4). En la sortant sur une couche dédiée
-            derrière la photo, la photo elle-même n'a plus ni ombre ni bord à
-            "recalculer" pendant le clip → plus de liseré. */}
         <View
           pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            borderRadius: 3,
-            backgroundColor: '#FFFFFF',
-            transform: [{ rotate: '2deg' }],
-            shadowColor: '#000',
-            shadowOpacity: 0.15,
-            shadowRadius: 8,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: 3,
-          }}
+          style={[
+            styles.postcardShadow,
+            { transform: [{ rotate: '2deg' }] },
+          ]}
         />
         <TouchableOpacity
-          onPress={() => {
-            router.push('/bottles-main');
-          }}
-          activeOpacity={0.7}
-          style={{
-            width: '100%',
-            height: '100%',
-            borderRadius: 3,
-            overflow: 'hidden',
-            transform: [{ rotate: '2deg' }],
-          }}
+          onPress={() => router.push('/bottles-main')}
+          activeOpacity={0.78}
+          style={styles.postcardTouchable}
         >
           <Image
             source={require('../../assets/images/bottle/beach.png')}
@@ -386,8 +331,6 @@ export function PersonalBoard() {
         </TouchableOpacity>
       </View>
 
-      {/* Offrandes Reçues (droite, à côté de la Bouteille) — objets uniquement,
-          largeur réduite pour tenir sur la même rangée que la carte postale. */}
       <Paper
         onPress={() => router.push('/offerings')}
         style={{
@@ -402,15 +345,14 @@ export function PersonalBoard() {
         {offerings.length > 0 ? (
           <View style={styles.offeringsContainer}>
             {offerings.slice(0, 3).map((offering, idx) => {
-              const offeringId = offering.offering.id;
               const pngUriMap: Record<string, any> = {
-                'biere': require('../../public/offerings/off_biere_stage1.png'),
-                'bonbons': require('../../public/offerings/off_bonbons_stage1.png'),
-                'fraises': require('../../public/offerings/off_fraises_stage1.png'),
+                biere: require('../../public/offerings/off_biere_stage1.png'),
+                bonbons: require('../../public/offerings/off_bonbons_stage1.png'),
+                fraises: require('../../public/offerings/off_fraises_stage1.png'),
               };
-              const pngAsset = pngUriMap[offeringId];
+              const pngAsset = pngUriMap[offering.offering.id];
               return (
-                <View key={idx} style={styles.offeringItem}>
+                <View key={`${offering.id}-${idx}`} style={styles.offeringItem}>
                   {pngAsset ? (
                     <Image source={pngAsset} style={styles.offeringPNG} />
                   ) : (
@@ -432,15 +374,8 @@ export function PersonalBoard() {
         )}
       </Paper>
 
-      {/* Mon Salon (bas gauche) — remonté pour combler l'espace libéré par la
-          rangée Bouteille + Offrandes désormais côte à côte. Si on est déjà
-          dans un salon, on y retourne (via son slug, pas currentSalonId qui
-          est l'ID technique backend) ; sinon on va à la sélection des salons.
-          L'icône affichée est celle du salon réel, pas un emoji fixe. */}
       <Paper
-        onPress={() => {
-          router.push(currentSalonSlug ? `/salon/${currentSalonSlug}` : '/(tabs)/salons-list');
-        }}
+        onPress={() => router.push(currentSalonSlug ? `/salon/${currentSalonSlug}` : '/(tabs)/salons-list')}
         style={{
           position: 'absolute',
           top: px(H, 0.78),
@@ -451,12 +386,9 @@ export function PersonalBoard() {
       >
         <Text style={styles.salonTitle}>Mon Salon</Text>
         <Text style={styles.salonIcon}>{currentSalonIcon}</Text>
-        {salonName && (
-          <Text style={styles.salonName} numberOfLines={1}>{salonName}</Text>
-        )}
+        {salonName && <Text style={styles.salonName} numberOfLines={1}>{salonName}</Text>}
       </Paper>
 
-      {/* Stats (bas droite) */}
       <Paper
         style={{
           position: 'absolute',
@@ -479,26 +411,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: J.bgBoard,
   },
-  // Tableau à taille fixe (pas de scroll) : occupe tout l'espace dispo
-  // entre le haut de l'écran et la barre de navigation flottante du bas.
+  loadingText: {
+    color: APP_COLORS.muted,
+    textAlign: 'center',
+    marginTop: 50,
+  },
   board: {
     position: 'relative',
     width: '100%',
     overflow: 'hidden',
   },
-
   paper: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 3,
-    padding: 12,
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    padding: APP_SPACING.sm,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    ...(APP_SHADOWS.card ?? {}),
   },
-
   magnet: {
     position: 'absolute',
     width: 14,
@@ -509,12 +440,12 @@ const styles = StyleSheet.create({
     left: '50%',
     marginLeft: -7,
     shadowColor: '#000',
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 2,
     shadowOffset: { width: 0, height: 1 },
+    elevation: 4,
     zIndex: 10,
   },
-
   profileName: {
     fontSize: 10,
     fontWeight: '700',
@@ -522,153 +453,132 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     textAlign: 'center',
   },
-
   sectionTitle: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     color: J.textMain,
-    marginBottom: 8,
-    letterSpacing: 0.5,
+    marginBottom: APP_SPACING.xs,
+    letterSpacing: 0.4,
   },
-
   lettersContainer: {
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 4,
+    gap: APP_SPACING.xxs,
+    width: '100%',
   },
-
   letterItem: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
     paddingVertical: 2,
   },
-
   letterEnvelope: {
     fontSize: 12,
     marginRight: 6,
   },
-
   letterSenderName: {
     fontSize: 9,
     color: J.textMain,
     fontWeight: '600',
     flex: 1,
   },
-
   emptyLetters: {
     fontSize: 9,
     color: J.textSecondary,
     textAlign: 'center',
   },
-
   moreIndicator: {
     fontSize: 9,
     color: J.accentPrimary,
-    fontWeight: '600',
+    fontWeight: '700',
     marginTop: 2,
   },
-
   animalTitle: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
     color: J.textMain,
     marginBottom: 6,
     textAlign: 'center',
   },
-
   animalIcon: {
     fontSize: 32,
     marginBottom: 4,
     textAlign: 'center',
   },
-
   animalName: {
     fontSize: 9,
     color: J.textMain,
     textAlign: 'center',
   },
-
   animalImage: {
     width: 60,
     height: 60,
     resizeMode: 'contain',
     marginVertical: 4,
   },
-
   animalStatus: {
     fontSize: 8,
     color: J.accentPrimary,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
     marginTop: 4,
   },
-
   smilesTitle: {
     fontSize: 9,
-    fontWeight: '700',
+    fontWeight: '800',
     color: J.textMain,
-    marginBottom: 8,
+    marginBottom: APP_SPACING.xs,
     textAlign: 'center',
   },
-
   smilesCount: {
     fontSize: 22,
-    fontWeight: '700',
-    color: J.textMain,
+    fontWeight: '800',
+    color: APP_COLORS.burgundy,
     textAlign: 'center',
   },
-
   salonTitle: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
     color: J.textMain,
     marginBottom: 6,
     textAlign: 'center',
   },
-
   salonIcon: {
     fontSize: 24,
     textAlign: 'center',
   },
-
   statsTitle: {
     fontSize: 9,
-    fontWeight: '700',
+    fontWeight: '800',
     color: J.textMain,
-    marginBottom: 8,
+    marginBottom: APP_SPACING.xs,
     textAlign: 'center',
   },
-
   statValue: {
     fontSize: 9,
     color: J.textMain,
     textAlign: 'center',
     marginBottom: 2,
   },
-
   giftsTitle: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     color: J.textMain,
-    marginBottom: 12,
+    marginBottom: APP_SPACING.sm,
     textAlign: 'center',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
-
   giftItem: {
     fontSize: 9,
     color: J.textMain,
     marginBottom: 6,
     textAlign: 'center',
   },
-
   offeringsContainer: {
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 4,
+    gap: APP_SPACING.xxs,
   },
-
   offeringItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -677,20 +587,36 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     gap: 6,
   },
-
   offeringPNG: {
     width: 28,
     height: 28,
     resizeMode: 'contain',
   },
-
   offeringName: {
     fontSize: 9,
     color: J.textMain,
     fontWeight: '600',
     textAlign: 'center',
   },
-
+  postcardShadow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: APP_RADIUS.sm,
+    backgroundColor: APP_COLORS.paper,
+    ...(APP_SHADOWS.elevated ?? {}),
+  },
+  postcardTouchable: {
+    width: '100%',
+    height: '100%',
+    borderRadius: APP_RADIUS.sm,
+    overflow: 'hidden',
+    transform: [{ rotate: '2deg' }],
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+  },
   bottleWrapper: {
     position: 'absolute',
     bottom: 2,
@@ -699,7 +625,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 10,
   },
-
   salonName: {
     fontSize: 8,
     color: J.textSecondary,
