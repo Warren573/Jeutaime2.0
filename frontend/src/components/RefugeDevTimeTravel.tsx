@@ -1,11 +1,8 @@
 /**
  * Refuge DEV Mode - Time Travel Component
- * Allows testing days 1-7 quickly without waiting
+ * Allows testing days 1-7 quickly without waiting.
  *
- * Visible if:
- * - Local dev (__DEV__ true)
- * - OR EXPO_PUBLIC_REFUGE_DEV=true (for preview deployments)
- * Hidden in production builds without flag
+ * Strictly local/development UI: never rendered in production builds.
  */
 
 import React, { useState } from "react";
@@ -30,12 +27,7 @@ export function RefugeDevTimeTravel({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  // Only show if DEV mode is explicitly enabled
-  const isLocalDev = __DEV__;
-  const isDevFlagEnabled = process.env.EXPO_PUBLIC_REFUGE_DEV === "true";
-  const shouldShow = isLocalDev || isDevFlagEnabled;
-
-  if (!shouldShow || !sessionId) {
+  if (!__DEV__ || !sessionId) {
     return null;
   }
 
@@ -49,7 +41,6 @@ export function RefugeDevTimeTravel({
     setMessage("");
 
     try {
-      // Passe par apiFetch : base URL + Authorization (la route exige l'auth)
       await refugeApi.devSetDay(sessionId, day);
       setMessage(`✅ Jumped to Day ${day}.`);
       onDayChanged?.(day);
@@ -82,7 +73,6 @@ export function RefugeDevTimeTravel({
     try {
       await refugeApi.devResetSession(sessionId, mode);
       if (mode === "consent") {
-        // On reste sur la session : seuls les consentements sont effacés
         setMessage("✅ Consentements effacés.");
         onDayChanged?.(currentDay);
       } else {
@@ -103,7 +93,6 @@ export function RefugeDevTimeTravel({
         <Text style={styles.subtitle}>Current: Day {currentDay}/7</Text>
       </View>
 
-      {/* Mode 1 — Jour suivant : uniquement si le jour courant est terminé */}
       <View style={styles.resetRow}>
         <TouchableOpacity
           style={[
@@ -120,7 +109,6 @@ export function RefugeDevTimeTravel({
         </TouchableOpacity>
       </View>
 
-      {/* Mode 2 — Forcer un jour (test) : ne fabrique aucune donnée, jours sautés restent blancs */}
       <Text style={styles.sectionLabel}>Forcer un jour (test)</Text>
       <View style={styles.buttonGrid}>
         {[1, 2, 3, 4, 5, 6, 7].map((day) => (
@@ -185,7 +173,7 @@ export function RefugeDevTimeTravel({
       )}
 
       <Text style={styles.warning}>
-        ⚠️ DEV ONLY - Cette route n&apos;existe pas en production
+        ⚠️ DEV ONLY - Cette interface n&apos;est jamais rendue en production
       </Text>
     </View>
   );
@@ -201,25 +189,10 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: "#ff6b6b",
   },
-  header: {
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#ff6b6b",
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: "#aaaaaa",
-  },
-  buttonGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12,
-  },
+  header: { marginBottom: 12 },
+  title: { fontSize: 14, fontWeight: "bold", color: "#ff6b6b", marginBottom: 4 },
+  subtitle: { fontSize: 12, color: "#aaaaaa" },
+  buttonGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   dayButton: {
     flex: Platform.OS === "web" ? 0 : 1,
     minWidth: "13%",
@@ -231,26 +204,11 @@ const styles = StyleSheet.create({
     borderColor: "#444444",
     alignItems: "center",
   },
-  dayButtonActive: {
-    backgroundColor: "#ff6b6b",
-    borderColor: "#ff6b6b",
-  },
-  dayButtonDisabled: {
-    opacity: 0.5,
-  },
-  dayButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#aaaaaa",
-  },
-  dayButtonTextActive: {
-    color: "#ffffff",
-  },
-  resetRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 12,
-  },
+  dayButtonActive: { backgroundColor: "#ff6b6b", borderColor: "#ff6b6b" },
+  dayButtonDisabled: { opacity: 0.5 },
+  dayButtonText: { fontSize: 12, fontWeight: "600", color: "#aaaaaa" },
+  dayButtonTextActive: { color: "#ffffff" },
+  resetRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   advanceButton: {
     flex: 1,
     paddingVertical: 10,
@@ -261,16 +219,8 @@ const styles = StyleSheet.create({
     borderColor: "#4a8a4a",
     alignItems: "center",
   },
-  advanceButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#c8f0c8",
-  },
-  sectionLabel: {
-    fontSize: 11,
-    color: "#8888aa",
-    marginBottom: 6,
-  },
+  advanceButtonText: { fontSize: 12, fontWeight: "600", color: "#c8f0c8" },
+  sectionLabel: { fontSize: 11, color: "#8888aa", marginBottom: 6 },
   resetButton: {
     flex: 1,
     paddingVertical: 8,
@@ -281,32 +231,10 @@ const styles = StyleSheet.create({
     borderColor: "#666688",
     alignItems: "center",
   },
-  abandonButton: {
-    borderColor: "#aa4444",
-  },
-  resetButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#dddddd",
-  },
-  message: {
-    fontSize: 11,
-    marginBottom: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  messageSuccess: {
-    backgroundColor: "#2d5d2d",
-    color: "#7fff7f",
-  },
-  messageError: {
-    backgroundColor: "#5d2d2d",
-    color: "#ff7f7f",
-  },
-  warning: {
-    fontSize: 10,
-    color: "#ffaa00",
-    fontStyle: "italic",
-  },
+  abandonButton: { borderColor: "#aa4444" },
+  resetButtonText: { fontSize: 12, fontWeight: "600", color: "#dddddd" },
+  message: { fontSize: 11, marginBottom: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+  messageSuccess: { backgroundColor: "#2d5d2d", color: "#7fff7f" },
+  messageError: { backgroundColor: "#5d2d2d", color: "#ff7f7f" },
+  warning: { fontSize: 10, color: "#ffaa00", fontStyle: "italic" },
 });
