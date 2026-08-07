@@ -1,5 +1,6 @@
 import { Response } from "express";
 import * as svc from "./profiles.service";
+import { listBlockedUsers } from "./blockedUsers.service";
 import { AuthedRequest } from "../../core/types";
 import { computeProfileStatus } from "../../policies/profiles";
 
@@ -30,6 +31,11 @@ export async function handleGetProfile(req: AuthedRequest, res: Response) {
 export async function handleDiscovery(req: AuthedRequest, res: Response) {
   const result = await svc.discoverProfiles(req.user.userId, req.query as never);
   res.json(result);
+}
+
+export async function handleListBlocked(req: AuthedRequest, res: Response) {
+  const users = await listBlockedUsers(req.user.userId);
+  res.json({ data: users });
 }
 
 export async function handleBlock(req: AuthedRequest, res: Response) {
