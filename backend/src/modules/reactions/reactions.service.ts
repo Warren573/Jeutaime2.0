@@ -4,6 +4,7 @@ import { BadRequestError, ForbiddenError, NotFoundError } from "../../core/error
 import { isPremiumActive } from "../../policies/premium";
 import { canOpenNewMatch, getMatchLimit } from "../../policies/contactLimits";
 import { emitMatchCreated } from "../../events";
+import { isAccountDeactivated } from "../auth/accountLifecycle.service";
 import type { SendReactionDto } from "./reactions.schemas";
 
 function sortIds(a: string, b: string): [string, string] {
@@ -30,12 +31,17 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
     throw new BadRequestError("Tu ne peux pas réagir à ton propre profil");
   }
 
-  const target = await prisma.user.findUnique({
-    where: { id: toId },
-    select: { id: true, isBanned: true },
-  });
+  const [target, targetDeactivated] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: toId },
+      select: { id: true, isBanned: true },
+    }),
+    isAccountDeactivated(toId),
+  ]);
   if (!target) throw new NotFoundError("Utilisateur");
-  if (target.isBanned) throw new ForbiddenError("Cet utilisateur n'est pas disponible");
+  if (target.isBanned || targetDeactivated) {
+    throw new ForbiddenError("Cet utilisateur n'est pas disponible");
+  }
 
   const block = await prisma.block.findFirst({
     where: {
@@ -47,7 +53,6 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
   });
   if (block) throw new ForbiddenError("Action impossible — un blocage existe entre ces utilisateurs");
 
-  // Upsert : permet de changer son avis (sourire → grimace ou inverse)
   const reaction = await prisma.reaction.upsert({
     where: { fromId_toId: { fromId, toId } },
     create: { fromId, toId, type: type as ReactionType },
@@ -55,7 +60,6 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
   });
 
   if (type !== "SMILE") {
-    console.log("[sendReaction] Branch: NOT-SMILE");
     return {
       id: reaction.id,
       fromId,
@@ -63,18 +67,14 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
       type,
       createdAt: reaction.createdAt.toISOString(),
       matchCreated: false,
-      source: "reactions.service.sendReaction",
-      debugBranch: "NOT-SMILE",
     };
   }
 
-  // Vérifier sourire mutuel
   const mutualSmile = await prisma.reaction.findFirst({
     where: { fromId: toId, toId: fromId, type: ReactionType.SMILE },
   });
 
   if (!mutualSmile) {
-    console.log("[sendReaction] Branch: NO-MUTUAL");
     return {
       id: reaction.id,
       fromId,
@@ -82,12 +82,9 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
       type,
       createdAt: reaction.createdAt.toISOString(),
       matchCreated: false,
-      source: "reactions.service.sendReaction",
-      debugBranch: "NO-MUTUAL",
     };
   }
 
-  // Sourire mutuel — vérifier si un match existe déjà
   const [userAId, userBId] = sortIds(fromId, toId);
   const existing = await prisma.match.findUnique({
     where: { userAId_userBId: { userAId, userBId } },
@@ -95,7 +92,6 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
   });
 
   if (existing) {
-    console.log("[sendReaction] Branch: EXISTING-MATCH");
     return {
       id: reaction.id,
       fromId,
@@ -104,12 +100,9 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
       createdAt: reaction.createdAt.toISOString(),
       matchCreated: true,
       matchId: existing.id,
-      source: "reactions.service.sendReaction",
-      debugBranch: "EXISTING-MATCH",
     };
   }
 
-  // Vérifier la limite de matchs de l'initiateur
   const [fromUser, activeCount] = await Promise.all([
     prisma.user.findUnique({
       where: { id: fromId },
@@ -119,10 +112,11 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
   ]);
   const isPremium = fromUser ? isPremiumActive(fromUser) : false;
   if (!canOpenNewMatch(activeCount, isPremium)) {
-    throw new BadRequestError(`Limite de matches atteinte (${getMatchLimit(isPremium)}). Passe en premium pour en avoir plus.`);
+    throw new BadRequestError(
+      `Limite de matches atteinte (${getMatchLimit(isPremium)}). Passe en premium pour en avoir plus.`,
+    );
   }
 
-  // Créer le match en PENDING — acceptation requise
   const match = await prisma.$transaction(async (tx) => {
     return tx.match.create({
       data: {
@@ -137,7 +131,6 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
 
   emitMatchCreated({ matchId: match.id, userAId, userBId, initiatorId: fromId });
 
-  console.log("[sendReaction] Branch: NEW-MATCH");
   return {
     id: reaction.id,
     fromId,
@@ -146,7 +139,5 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
     createdAt: reaction.createdAt.toISOString(),
     matchCreated: true,
     matchId: match.id,
-    source: "reactions.service.sendReaction",
-    debugBranch: "NEW-MATCH",
   };
 }
