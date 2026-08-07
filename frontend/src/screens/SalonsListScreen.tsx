@@ -134,13 +134,18 @@ export default function SalonsListScreen() {
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <View style={styles.header}>
         <AppBackButton onPress={() => router.back()} style={styles.backButton} />
-        <Text style={styles.headerTitle}>👥 Salons</Text>
-        <Text style={styles.headerSubtitle}>Rejoignez une discussion</Text>
+        <Text style={styles.headerKicker}>JEUTAIME</Text>
+        <Text style={styles.headerTitle}>Salons</Text>
+        <Text style={styles.headerSubtitle}>Choisissez l'ambiance qui vous ressemble.</Text>
       </View>
 
       {currentSessionId && currentSalonName && currentSalonKind && (
         <View style={styles.activeSalonBanner}>
-          <Text style={styles.activeSalonText}>🟢 Vous êtes actuellement dans : <Text style={{ fontWeight: '700' }}>{currentSalonName}</Text></Text>
+          <View style={styles.activeSalonHeading}>
+            <View style={styles.activeDot} />
+            <Text style={styles.activeSalonLabel}>SALON ACTIF</Text>
+          </View>
+          <Text style={styles.activeSalonText}>{currentSalonName}</Text>
           <View style={styles.activeSalonButtons}>
             <TouchableOpacity
               onPress={() => {
@@ -156,7 +161,7 @@ export default function SalonsListScreen() {
               <Text style={styles.returnButtonText}>Retourner au salon</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowLeaveModal(true)} style={styles.leaveButtonList}>
-              <Text style={styles.leaveButtonListText}>Quitter le salon</Text>
+              <Text style={styles.leaveButtonListText}>Quitter</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -164,6 +169,7 @@ export default function SalonsListScreen() {
 
       {!canEnterSalon && (
         <View style={styles.gateBanner}>
+          <Text style={styles.gateBannerTitle}>Profil à compléter</Text>
           <Text style={styles.gateBannerText}>Complète ta bio et tes préférences pour entrer dans les salons.</Text>
           <TouchableOpacity onPress={() => router.push('/edit-profile')}><Text style={styles.gateBannerBtnText}>Compléter mon profil →</Text></TouchableOpacity>
         </View>
@@ -174,13 +180,13 @@ export default function SalonsListScreen() {
           const bgImage = getSalonCardImage(salon.id);
           const cardContent = (
             <View style={styles.salonContent}>
-              <Text style={styles.salonIcon}>{salon.icon}</Text>
+              <View style={styles.salonIconWrap}><Text style={styles.salonIcon}>{salon.icon}</Text></View>
               <View style={styles.salonInfo}>
                 <Text style={styles.salonName}>{salon.name}</Text>
                 <Text style={styles.salonDesc}>{salon.desc}</Text>
-                <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                  <View style={[styles.specialBadge, { backgroundColor: salon.layout === 'vertical' ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)' }]}>
-                    <Text style={[styles.specialBadgeText, { color: '#FFF' }]}>{salon.layout === 'vertical' ? '💬 Conversation' : '👥 Groupe'}</Text>
+                <View style={styles.badgeRow}>
+                  <View style={styles.specialBadge}>
+                    <Text style={styles.specialBadgeText}>{salon.layout === 'vertical' ? '💬 Conversation' : '👥 Groupe'}</Text>
                   </View>
                 </View>
               </View>
@@ -195,10 +201,10 @@ export default function SalonsListScreen() {
           );
 
           return (
-            <TouchableOpacity key={salon.id} style={[styles.salonCard, !canEnterSalon && { opacity: 0.5 }]} onPress={() => handleSalonPress(salon)} activeOpacity={0.8}>
+            <TouchableOpacity key={salon.id} style={[styles.salonCard, !canEnterSalon && styles.salonCardDisabled]} onPress={() => handleSalonPress(salon)} activeOpacity={0.82}>
               {bgImage ? (
                 <ImageBackground source={bgImage} style={[styles.salonBanner, { height: bannerHeight }]} resizeMode="cover">
-                  <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.30)' }]} />
+                  <View style={[StyleSheet.absoluteFill, styles.imageOverlay]} />
                   {cardContent}
                 </ImageBackground>
               ) : (
@@ -216,35 +222,44 @@ export default function SalonsListScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF8E7' },
-  header: { paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
-  backButton: { marginBottom: 8 },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: '#3A2818' },
-  headerSubtitle: { fontSize: 14, color: '#8B6F47', marginTop: 4 },
+  header: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 18, borderBottomWidth: 1, borderBottomColor: '#E6D6C2', backgroundColor: 'rgba(255,248,231,0.92)' },
+  backButton: { marginBottom: 10 },
+  headerKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 2.4, color: '#9B704A', marginBottom: 5 },
+  headerTitle: { fontSize: 29, lineHeight: 34, fontWeight: '900', color: '#2F1E15', letterSpacing: -0.4 },
+  headerSubtitle: { fontSize: 14, lineHeight: 20, color: '#806149', marginTop: 5 },
   scrollView: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 100 },
-  salonCard: { marginBottom: 16, borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6 },
-  salonGradient: { padding: 16 },
-  salonBanner: { width: '100%', padding: 16, justifyContent: 'center', overflow: 'hidden' },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 108 },
+  salonCard: { marginBottom: 14, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(91,58,29,0.16)', shadowColor: '#4B2D18', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.16, shadowRadius: 10, elevation: 5, backgroundColor: '#F4E7D6' },
+  salonCardDisabled: { opacity: 0.48 },
+  salonGradient: { padding: 16, minHeight: 118, justifyContent: 'center' },
+  salonBanner: { width: '100%', padding: 15, justifyContent: 'center', overflow: 'hidden' },
+  imageOverlay: { backgroundColor: 'rgba(28,16,8,0.38)' },
   salonContent: { flexDirection: 'row', alignItems: 'center' },
-  salonIcon: { fontSize: 40, marginRight: 14 },
-  salonInfo: { flex: 1 },
-  salonName: { fontSize: 18, fontWeight: '700', color: '#FFF', textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
-  salonDesc: { fontSize: 13, color: 'rgba(255,255,255,0.9)', marginTop: 4 },
-  specialBadge: { backgroundColor: 'rgba(255,215,0,0.9)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, alignSelf: 'flex-start', marginTop: 6 },
-  specialBadgeText: { fontSize: 10, fontWeight: '700', color: '#3A2818' },
-  salonStats: { alignItems: 'center' },
-  participantsBadge: { backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, alignItems: 'center' },
-  participantsCount: { fontSize: 18, fontWeight: '700', color: '#FFF' },
-  participantsLabel: { fontSize: 10, color: 'rgba(255,255,255,0.8)' },
-  arrowIcon: { fontSize: 20, color: '#FFF', marginTop: 8, fontWeight: '700' },
-  gateBanner: { backgroundColor: '#FFF3CD', borderRadius: 12, margin: 16, marginBottom: 0, padding: 14, borderWidth: 1, borderColor: '#FFEAA7' },
-  gateBannerText: { fontSize: 14, color: '#856404', marginBottom: 10, lineHeight: 20 },
-  gateBannerBtnText: { fontSize: 14, fontWeight: '700', color: '#856404' },
-  activeSalonBanner: { backgroundColor: '#D4EDDA', borderRadius: 12, margin: 16, marginBottom: 12, padding: 16, borderWidth: 1, borderColor: '#C3E6CB' },
-  activeSalonText: { fontSize: 14, fontWeight: '500', color: '#155724', marginBottom: 14, lineHeight: 20 },
-  activeSalonButtons: { gap: 10 },
-  returnButton: { backgroundColor: 'rgba(139,46,60,0.08)', paddingVertical: 11, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1.5, borderColor: '#8B2E3C', alignItems: 'center' },
-  returnButtonText: { fontSize: 13, fontWeight: '600', color: '#8B2E3C' },
-  leaveButtonList: { backgroundColor: '#E74C3C', paddingVertical: 11, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center' },
-  leaveButtonListText: { fontSize: 13, fontWeight: '600', color: '#FFF' },
+  salonIconWrap: { width: 48, height: 48, borderRadius: 15, marginRight: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,248,231,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' },
+  salonIcon: { fontSize: 29 },
+  salonInfo: { flex: 1, minWidth: 0 },
+  salonName: { fontSize: 18, lineHeight: 22, fontWeight: '800', color: '#FFF9EF', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  salonDesc: { fontSize: 12.5, lineHeight: 17, color: 'rgba(255,249,239,0.9)', marginTop: 3 },
+  badgeRow: { flexDirection: 'row', marginTop: 7 },
+  specialBadge: { backgroundColor: 'rgba(255,248,231,0.18)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  specialBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFF9EF' },
+  salonStats: { alignItems: 'center', marginLeft: 10 },
+  participantsBadge: { minWidth: 52, backgroundColor: 'rgba(255,248,231,0.18)', paddingHorizontal: 9, paddingVertical: 6, borderRadius: 13, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  participantsCount: { fontSize: 17, lineHeight: 19, fontWeight: '800', color: '#FFF9EF' },
+  participantsLabel: { fontSize: 9.5, color: 'rgba(255,249,239,0.82)', marginTop: 1 },
+  arrowIcon: { fontSize: 19, color: '#FFF9EF', marginTop: 6, fontWeight: '700' },
+  gateBanner: { backgroundColor: '#F8EEDB', borderRadius: 16, marginHorizontal: 16, marginTop: 14, padding: 15, borderWidth: 1, borderColor: '#DFC9A8' },
+  gateBannerTitle: { fontSize: 13, fontWeight: '800', color: '#5C3E28', marginBottom: 4 },
+  gateBannerText: { fontSize: 13, color: '#74563D', marginBottom: 9, lineHeight: 19 },
+  gateBannerBtnText: { fontSize: 13, fontWeight: '800', color: '#8B2E3C' },
+  activeSalonBanner: { backgroundColor: '#F7EEDD', borderRadius: 16, marginHorizontal: 16, marginTop: 14, padding: 15, borderWidth: 1, borderColor: '#D8C1A0', shadowColor: '#4B2D18', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 5, elevation: 2 },
+  activeSalonHeading: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  activeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#5F8A5E', marginRight: 7 },
+  activeSalonLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.4, color: '#7B6048' },
+  activeSalonText: { fontSize: 16, fontWeight: '800', color: '#352319', marginBottom: 13 },
+  activeSalonButtons: { flexDirection: 'row', gap: 9 },
+  returnButton: { flex: 1, backgroundColor: '#8B2E3C', minHeight: 44, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  returnButtonText: { fontSize: 13, fontWeight: '800', color: '#FFF8E7' },
+  leaveButtonList: { minWidth: 88, minHeight: 44, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F2E4D3', borderWidth: 1, borderColor: '#D8BFA6' },
+  leaveButtonListText: { fontSize: 13, fontWeight: '700', color: '#7A3941' },
 });
