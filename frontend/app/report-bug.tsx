@@ -1,5 +1,5 @@
-import SupportUnavailableScreen from '../src/screens/SupportUnavailableScreen';
+import SupportTicketScreen from '../src/screens/SupportTicketScreen';
 
 export default function ReportBugPage() {
-  return <SupportUnavailableScreen mode="bug" />;
+  return <SupportTicketScreen mode="bug" />;
 }
