@@ -30,7 +30,9 @@ export function signRefreshToken(payload: RefreshTokenPayload): string {
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
   try {
-    return jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload;
+    return jwt.verify(token, env.JWT_ACCESS_SECRET, {
+      algorithms: ["HS256"],
+    }) as AccessTokenPayload;
   } catch {
     throw new UnauthorizedError("Token invalide ou expiré");
   }
@@ -38,7 +40,9 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
 
 export function verifyRefreshToken(token: string): RefreshTokenPayload {
   try {
-    return jwt.verify(token, env.JWT_REFRESH_SECRET) as RefreshTokenPayload;
+    return jwt.verify(token, env.JWT_REFRESH_SECRET, {
+      algorithms: ["HS256"],
+    }) as RefreshTokenPayload;
   } catch {
     throw new UnauthorizedError("Refresh token invalide ou expiré");
   }
