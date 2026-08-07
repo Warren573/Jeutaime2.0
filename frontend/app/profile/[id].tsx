@@ -19,6 +19,7 @@ import { getReactionStatus, sendReaction, type ReactionStatusDTO } from '../../s
 import { blockMatch, breakMatch, listMatches, type MatchDTO } from '../../src/api/matches';
 import { blockProfile, reportUser, type ReportReason } from '../../src/api/profiles';
 import { useStore } from '../../src/store/useStore';
+import { APP_COLORS, APP_RADIUS, APP_SHADOWS, APP_SIZES, APP_SPACING, APP_TYPE } from '../../src/theme/appTheme';
 
 const REPORT_REASONS: Array<{ value: ReportReason; label: string }> = [
   { value: 'HARASSMENT', label: 'Harcèlement' },
@@ -238,7 +239,7 @@ export default function ProfileRoute() {
               disabled={isSmiling || isLoadingReaction || smileAlreadySent}
             >
               {isSmiling || isLoadingReaction ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={APP_COLORS.white} />
               ) : (
                 <Text style={styles.smileText}>{smileAlreadySent ? '😊 Sourire envoyé' : '😊 Envoyer un sourire'}</Text>
               )}
@@ -252,7 +253,7 @@ export default function ProfileRoute() {
               disabled={isLoadingMatches}
             >
               {isLoadingMatches ? (
-                <ActivityIndicator size="small" color="#8B2E3C" />
+                <ActivityIndicator size="small" color={APP_COLORS.burgundy} />
               ) : (
                 <Text style={styles.continueText}>✉️ Continuer la discussion</Text>
               )}
@@ -293,6 +294,7 @@ export default function ProfileRoute() {
             >
               <Text style={styles.safetyText}>⚠️ Signaler</Text>
             </TouchableOpacity>
+            <View style={styles.safetyDivider} />
             <TouchableOpacity style={styles.safetyItem} onPress={() => void handleBlock()}>
               <Text style={[styles.safetyText, styles.dangerText]}>🚫 Bloquer</Text>
             </TouchableOpacity>
@@ -319,6 +321,7 @@ export default function ProfileRoute() {
               value={reportDetails}
               onChangeText={setReportDetails}
               placeholder="Détails supplémentaires (optionnel)"
+              placeholderTextColor={APP_COLORS.muted}
               multiline
               maxLength={1000}
               editable={!isProfileActioning}
@@ -328,7 +331,7 @@ export default function ProfileRoute() {
               onPress={() => void handleReportSubmit()}
               disabled={isProfileActioning}
             >
-              {isProfileActioning ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.reportSubmitText}>Envoyer le signalement</Text>}
+              {isProfileActioning ? <ActivityIndicator size="small" color={APP_COLORS.white} /> : <Text style={styles.reportSubmitText}>Envoyer le signalement</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.reportCancel} onPress={() => setShowReportModal(false)} disabled={isProfileActioning}>
               <Text style={styles.reportCancelText}>Annuler</Text>
@@ -341,32 +344,118 @@ export default function ProfileRoute() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  warningHitArea: { position: 'absolute', right: 16, width: 40, height: 40, zIndex: 50 },
-  actions: { position: 'absolute', left: 16, right: 16, bottom: 18, gap: 10 },
-  smileButton: { minHeight: 50, borderRadius: 12, backgroundColor: '#8B2E3C', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
-  smileText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  continueButton: { minHeight: 48, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#8B2E3C', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
-  continueText: { color: '#8B2E3C', fontSize: 15, fontWeight: '700' },
-  relationActionsRow: { flexDirection: 'row', gap: 10 },
-  relationActionButton: { flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#8B2E3C', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
-  blockButton: { backgroundColor: '#FFF4F4' },
-  relationActionText: { color: '#8B2E3C', fontSize: 14, fontWeight: '700' },
-  disabledButton: { opacity: 0.65 },
-  safetyOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.12)' },
-  safetyMenu: { position: 'absolute', right: 16, width: 190, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#E1D4C4', paddingVertical: 6, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 8 },
-  safetyItem: { paddingHorizontal: 16, paddingVertical: 14 },
-  safetyText: { fontSize: 15, fontWeight: '700', color: '#3A2C18' },
-  dangerText: { color: '#8B2E3C' },
-  reportOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  reportCard: { width: '100%', maxWidth: 420, maxHeight: '90%', borderRadius: 18, backgroundColor: '#FFFDF8', padding: 20 },
-  reportTitle: { fontSize: 20, fontWeight: '800', color: '#2B2B2B', marginBottom: 16 },
-  reasonButton: { paddingVertical: 11, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#F5F1E8', marginBottom: 8, borderWidth: 1.5, borderColor: 'transparent' },
-  reasonButtonSelected: { borderColor: '#8B2E3C', backgroundColor: '#F2E3E5' },
-  reasonText: { fontSize: 14, color: '#3A2C18', fontWeight: '600' },
-  reportInput: { minHeight: 90, borderWidth: 1, borderColor: '#D8D2C4', borderRadius: 8, padding: 12, marginTop: 6, marginBottom: 14, textAlignVertical: 'top', color: '#2B2B2B' },
-  reportSubmit: { minHeight: 46, borderRadius: 10, backgroundColor: '#8B2E3C', alignItems: 'center', justifyContent: 'center' },
-  reportSubmitText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  reportCancel: { minHeight: 42, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  reportCancelText: { color: '#6B6B6B', fontSize: 14, fontWeight: '600' },
+  container: { flex: 1, backgroundColor: APP_COLORS.background },
+  warningHitArea: { position: 'absolute', right: APP_SPACING.md, width: APP_SIZES.touchTarget, height: APP_SIZES.touchTarget, zIndex: 50 },
+  actions: {
+    position: 'absolute',
+    left: APP_SPACING.md,
+    right: APP_SPACING.md,
+    bottom: APP_SPACING.lg,
+    gap: APP_SPACING.sm,
+  },
+  smileButton: {
+    minHeight: APP_SIZES.buttonHeightLarge,
+    borderRadius: APP_RADIUS.lg,
+    backgroundColor: APP_COLORS.burgundy,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: APP_SPACING.lg,
+    ...(APP_SHADOWS.card as any),
+  },
+  smileText: { color: APP_COLORS.white, fontSize: APP_TYPE.subtitle, fontWeight: '700' },
+  continueButton: {
+    minHeight: APP_SIZES.buttonHeight,
+    borderRadius: APP_RADIUS.lg,
+    backgroundColor: APP_COLORS.paper,
+    borderWidth: 1,
+    borderColor: APP_COLORS.burgundy,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: APP_SPACING.lg,
+    ...(APP_SHADOWS.card as any),
+  },
+  continueText: { color: APP_COLORS.burgundy, fontSize: APP_TYPE.button, fontWeight: '700' },
+  relationActionsRow: { flexDirection: 'row', gap: APP_SPACING.sm },
+  relationActionButton: {
+    flex: 1,
+    minHeight: APP_SIZES.buttonHeight,
+    borderRadius: APP_RADIUS.md,
+    backgroundColor: APP_COLORS.paper,
+    borderWidth: 1,
+    borderColor: APP_COLORS.burgundy,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: APP_SPACING.sm,
+  },
+  blockButton: { backgroundColor: '#FFF3F3', borderColor: APP_COLORS.danger },
+  relationActionText: { color: APP_COLORS.burgundy, fontSize: APP_TYPE.small, fontWeight: '700' },
+  disabledButton: { opacity: 0.55 },
+  safetyOverlay: { flex: 1, backgroundColor: 'rgba(44, 26, 14, 0.16)' },
+  safetyMenu: {
+    position: 'absolute',
+    right: APP_SPACING.md,
+    width: 200,
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    paddingVertical: APP_SPACING.xs,
+    ...(APP_SHADOWS.elevated as any),
+  },
+  safetyItem: { paddingHorizontal: APP_SPACING.md, paddingVertical: APP_SPACING.sm },
+  safetyDivider: { height: 1, backgroundColor: APP_COLORS.border, marginHorizontal: APP_SPACING.md },
+  safetyText: { fontSize: APP_TYPE.body, fontWeight: '700', color: APP_COLORS.ink },
+  dangerText: { color: APP_COLORS.danger },
+  reportOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(44, 26, 14, 0.42)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: APP_SPACING.lg,
+  },
+  reportCard: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '90%',
+    borderRadius: APP_RADIUS.xl,
+    backgroundColor: APP_COLORS.paper,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    padding: APP_SPACING.lg,
+    ...(APP_SHADOWS.elevated as any),
+  },
+  reportTitle: { fontSize: 20, fontWeight: '800', color: APP_COLORS.ink, marginBottom: APP_SPACING.md },
+  reasonButton: {
+    paddingVertical: APP_SPACING.sm,
+    paddingHorizontal: APP_SPACING.sm,
+    borderRadius: APP_RADIUS.md,
+    backgroundColor: APP_COLORS.paperSoft,
+    marginBottom: APP_SPACING.xs,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+  },
+  reasonButtonSelected: { borderColor: APP_COLORS.burgundy, backgroundColor: '#F5E7E9' },
+  reasonText: { fontSize: APP_TYPE.small, color: APP_COLORS.ink, fontWeight: '600' },
+  reportInput: {
+    minHeight: 96,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    borderRadius: APP_RADIUS.md,
+    padding: APP_SPACING.sm,
+    marginTop: APP_SPACING.xs,
+    marginBottom: APP_SPACING.md,
+    textAlignVertical: 'top',
+    color: APP_COLORS.ink,
+    backgroundColor: APP_COLORS.backgroundWarm,
+  },
+  reportSubmit: {
+    minHeight: APP_SIZES.buttonHeight,
+    borderRadius: APP_RADIUS.md,
+    backgroundColor: APP_COLORS.burgundy,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportSubmitText: { color: APP_COLORS.white, fontSize: APP_TYPE.button, fontWeight: '700' },
+  reportCancel: { minHeight: APP_SIZES.touchTarget, alignItems: 'center', justifyContent: 'center', marginTop: APP_SPACING.xs },
+  reportCancelText: { color: APP_COLORS.muted, fontSize: APP_TYPE.small, fontWeight: '600' },
 });
