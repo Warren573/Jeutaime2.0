@@ -7,11 +7,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Switch,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
 import type { NotificationDto, NotificationType } from '../api/notifications';
+import { getUserSettings, updateUserSettings } from '../api/userSettings';
 import { getNotificationTarget } from '../utils/notifications';
 
 const TYPE_EMOJI: Record<NotificationType, string> = {
@@ -82,31 +85,42 @@ export default function NotificationsScreen() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [notifPush, setNotifPush] = useState(true);
+  const [notifEmail, setNotifEmail] = useState(true);
+  const [savingPreference, setSavingPreference] = useState<'push' | 'email' | null>(null);
 
-  const refresh = useCallback(async () => {
-    await Promise.all([loadNotifications(), loadUnreadCount()]);
-  }, [loadNotifications, loadUnreadCount]);
-
-  // Chargement initial
-  useEffect(() => {
-    refresh().finally(() => setLoading(false));
+  const loadPreferences = useCallback(async () => {
+    const settings = await getUserSettings();
+    setNotifPush(settings.notifPush);
+    setNotifEmail(settings.notifEmail);
   }, []);
 
-  // Rechargement à chaque fois que l'écran prend le focus
+  const refresh = useCallback(async () => {
+    await Promise.all([loadNotifications(), loadUnreadCount(), loadPreferences()]);
+  }, [loadNotifications, loadUnreadCount, loadPreferences]);
+
+  useEffect(() => {
+    refresh()
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [refresh]);
+
   useFocusEffect(
     useCallback(() => {
-      void refresh();
+      void refresh().catch(() => {});
     }, [refresh]),
   );
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refresh();
-    setRefreshing(false);
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
   }, [refresh]);
 
   const handlePress = useCallback(async (notification: NotificationDto) => {
-    // Marquer comme lu si nécessaire (fire-and-forget, ne bloque pas la nav)
     if (!notification.isRead) {
       void markNotificationRead(notification.id);
     }
@@ -120,9 +134,67 @@ export default function NotificationsScreen() {
     await markAllNotificationsRead();
   }, [markAllNotificationsRead]);
 
+  const handlePreference = useCallback(async (
+    key: 'notifPush' | 'notifEmail',
+    value: boolean,
+  ) => {
+    const kind = key === 'notifPush' ? 'push' : 'email';
+    if (savingPreference) return;
+
+    const previous = key === 'notifPush' ? notifPush : notifEmail;
+    if (key === 'notifPush') setNotifPush(value);
+    else setNotifEmail(value);
+
+    try {
+      setSavingPreference(kind);
+      const next = await updateUserSettings({ [key]: value });
+      setNotifPush(next.notifPush);
+      setNotifEmail(next.notifEmail);
+    } catch (err) {
+      if (key === 'notifPush') setNotifPush(previous);
+      else setNotifEmail(previous);
+      Alert.alert(
+        'Erreur',
+        err instanceof Error ? err.message : 'Impossible de modifier ce réglage.',
+      );
+    } finally {
+      setSavingPreference(null);
+    }
+  }, [notifEmail, notifPush, savingPreference]);
+
+  const preferencesHeader = (
+    <>
+      <View style={styles.preferencesCard}>
+        <Text style={styles.preferencesTitle}>Préférences</Text>
+        <View style={styles.preferenceRow}>
+          <View style={styles.preferenceTextWrap}>
+            <Text style={styles.preferenceLabel}>Notifications push</Text>
+            <Text style={styles.preferenceHint}>Alertes envoyées sur ton appareil.</Text>
+          </View>
+          <Switch
+            value={notifPush}
+            onValueChange={(value) => void handlePreference('notifPush', value)}
+            disabled={savingPreference !== null}
+          />
+        </View>
+        <View style={[styles.preferenceRow, styles.preferenceRowLast]}>
+          <View style={styles.preferenceTextWrap}>
+            <Text style={styles.preferenceLabel}>Notifications par email</Text>
+            <Text style={styles.preferenceHint}>Autorise les emails liés à ton compte.</Text>
+          </View>
+          <Switch
+            value={notifEmail}
+            onValueChange={(value) => void handlePreference('notifEmail', value)}
+            disabled={savingPreference !== null}
+          />
+        </View>
+      </View>
+      <Text style={styles.historyTitle}>Historique</Text>
+    </>
+  );
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backIcon}>←</Text>
@@ -141,17 +213,19 @@ export default function NotificationsScreen() {
         <View style={styles.center}>
           <ActivityIndicator color="#8B2E3C" />
         </View>
-      ) : notifications.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>🔕</Text>
-          <Text style={styles.emptyText}>Aucune notification pour l'instant.</Text>
-        </View>
       ) : (
         <FlatList<NotificationDto>
           data={notifications}
           keyExtractor={(n) => n.id}
           renderItem={({ item }) => (
             <NotifItem item={item as NotificationDto} onPress={handlePress} />
+          )}
+          ListHeaderComponent={preferencesHeader}
+          ListEmptyComponent={(
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyEmoji}>🔕</Text>
+              <Text style={styles.emptyText}>Aucune notification pour l'instant.</Text>
+            </View>
           )}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -210,6 +284,60 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingVertical: 8,
+    paddingBottom: 28,
+  },
+  preferencesCard: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 18,
+    backgroundColor: '#FFF8F0',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#DED4C5',
+    paddingHorizontal: 14,
+  },
+  preferencesTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#8B2E3C',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  preferenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 13,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E2D8',
+  },
+  preferenceRowLast: {
+    borderBottomWidth: 0,
+  },
+  preferenceTextWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  preferenceLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2B2B2B',
+  },
+  preferenceHint: {
+    fontSize: 11,
+    color: '#8A8174',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  historyTitle: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#8A8174',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
   },
   separator: {
     height: 1,
@@ -276,6 +404,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
+  },
+  emptyBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
     gap: 12,
   },
   emptyEmoji: {
