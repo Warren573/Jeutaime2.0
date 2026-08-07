@@ -10,7 +10,7 @@ API_URL=$(grep "EXPO_PUBLIC_API_URL\|process.env.NEXT_PUBLIC_API_URL\|192.168.0.
 echo "   Current config: $API_URL"
 if grep -q "192.168.0.40" frontend/src/api/client.ts; then
   echo "   ⚠️  Using 192.168.0.40 - Change to localhost:3000 for local dev"
-  echo "   → Edit: frontend/src/api/client.ts line 6"
+  echo "   → Edit: frontend/src/api/client.ts"
 else
   echo "   ✅ API URL looks configured"
 fi
@@ -62,26 +62,31 @@ BACKEND_URL="http://localhost:3000/api/health"
 if curl -s "$BACKEND_URL" > /dev/null 2>&1; then
   echo "   ✅ Backend is running on localhost:3000"
 else
-  echo "   ❌ Backend NOT reachable on localhost:3000"
-  echo "   → Make sure backend is running: npm run dev (from backend dir)"
+  echo "   ⚠️  Backend NOT reachable on localhost:3000"
 fi
 echo
 
-# Check DEV mode
-echo "6. Checking DEV mode settings..."
+# Production-safety check: unlimited local coins must never be left enabled.
+echo "6. Checking DEV economy settings..."
 DEV_MODE=$(grep "DEV_MODE_UNLIMITED_COINS" frontend/src/store/useStore.ts | head -1)
 if echo "$DEV_MODE" | grep -q "true"; then
-  echo "   ✅ DEV_MODE_UNLIMITED_COINS = true (coins unlimited for testing)"
+  echo "   ❌ DEV_MODE_UNLIMITED_COINS is enabled"
+  echo "   → This is acceptable for local visual testing only. Disable/gate it before a production build."
 else
-  echo "   ⚠️  DEV_MODE may be off - Set to true for easier testing"
+  echo "   ✅ Unlimited DEV coins are disabled or gated"
+fi
+echo
+
+# Sensitive HTTP logging should not be present in the API client.
+echo "7. Checking sensitive HTTP logging..."
+if grep -q "Body raw\|FETCH-DEBUG" frontend/src/api/client.ts; then
+  echo "   ❌ Sensitive HTTP debug logging detected"
+else
+  echo "   ✅ No raw HTTP response logging detected"
 fi
 echo
 
 echo "=== Summary ==="
-echo "✅ Run: cd frontend && npm start --web"
-echo "✅ Opens http://localhost:8081 in browser"
-echo "✅ Use Chrome DevTools for debugging:"
-echo "   - Network tab: Check API calls"
-echo "   - Console: Check for errors"
-echo "   - Redux DevTools (if available)"
+echo "Run the app locally with: cd frontend && npm start --web"
+echo "Before production, resolve every ❌ above."
 echo
