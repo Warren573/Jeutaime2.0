@@ -4,6 +4,7 @@ import {
   Alert,
   Modal,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ProfileDetailScreen from '../../src/screens/ProfileDetailScreen';
 import { getReactionStatus, sendReaction, type ReactionStatusDTO } from '../../src/api/reactions';
@@ -29,6 +31,7 @@ const REPORT_REASONS: Array<{ value: ReportReason; label: string }> = [
 
 export default function ProfileRoute() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id?: string; source?: string; bottleId?: string }>();
   const currentUser = useStore((state) => state.currentUser);
   const profileId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -42,6 +45,7 @@ export default function ProfileRoute() {
   const [reactionStatus, setReactionStatus] = useState<ReactionStatusDTO | null>(null);
   const [isRelationActioning, setIsRelationActioning] = useState(false);
   const [isProfileActioning, setIsProfileActioning] = useState(false);
+  const [showSafetyMenu, setShowSafetyMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason>('OTHER');
   const [reportDetails, setReportDetails] = useState('');
@@ -105,7 +109,6 @@ export default function ProfileRoute() {
     if (Platform.OS === 'web' && typeof globalThis.confirm === 'function') {
       return Promise.resolve(globalThis.confirm(`${title}\n\n${message}`));
     }
-
     return new Promise((resolve) => {
       Alert.alert(title, message, [
         { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
@@ -121,7 +124,6 @@ export default function ProfileRoute() {
 
   const handleSmile = async () => {
     if (!profileId || isOwnProfile || isSmiling || reactionStatus?.outgoingType === 'SMILE') return;
-
     setIsSmiling(true);
     try {
       const result = await sendReaction(profileId, 'SMILE');
@@ -131,7 +133,6 @@ export default function ProfileRoute() {
         mutualSmile: result.matchCreated,
       }));
       setReactionStatus(refreshedStatus);
-
       if (refreshedStatus.mutualSmile) {
         showMessage('Sourire mutuel', 'Le sourire est partagé. Vous pouvez continuer depuis vos Lettres.');
         await refreshMatches();
@@ -145,20 +146,16 @@ export default function ProfileRoute() {
     }
   };
 
-  const handleContinue = () => {
-    router.push('/(tabs)/letters' as never);
-  };
+  const handleContinue = () => router.push('/(tabs)/letters' as never);
 
   const handleBreak = async () => {
     if (!relationMatch || relationMatch.status !== 'ACTIVE' || isRelationActioning) return;
-
     const confirmed = await confirmAction(
       "Rompre l'échange ?",
       "La discussion sera arrêtée, mais l'historique des lettres sera conservé.",
       'Rompre',
     );
     if (!confirmed) return;
-
     setIsRelationActioning(true);
     try {
       await breakMatch(relationMatch.id);
@@ -172,8 +169,7 @@ export default function ProfileRoute() {
   };
 
   const handleBlock = async () => {
-    if (!relationMatch || relationMatch.status !== 'ACTIVE' || isRelationActioning) return;
-
+    if (!profileId || isProfileActioning || isRelationActioning) return;
     const confirmed = await confirmAction(
       'Bloquer cette personne ?',
       'Vous ne pourrez plus interagir avec cette personne.',
@@ -181,35 +177,19 @@ export default function ProfileRoute() {
     );
     if (!confirmed) return;
 
-    setIsRelationActioning(true);
-    try {
-      await blockMatch(relationMatch.id);
-      await refreshMatches();
-      showMessage('Personne bloquée', 'Cette personne a bien été bloquée.');
-    } catch (error: any) {
-      showMessage('Erreur', error?.message || 'Impossible de bloquer cette personne');
-    } finally {
-      setIsRelationActioning(false);
-    }
-  };
-
-  const handleBlockUnmatchedProfile = async () => {
-    if (!profileId || anyRelationMatch || isProfileActioning) return;
-
-    const confirmed = await confirmAction(
-      'Bloquer cette personne ?',
-      'Son profil ne vous sera plus proposé et vous ne pourrez plus interagir ensemble.',
-      'Bloquer',
-    );
-    if (!confirmed) return;
-
+    setShowSafetyMenu(false);
     setIsProfileActioning(true);
     try {
-      await blockProfile(profileId);
-      showMessage('Personne bloquée', 'Ce profil a bien été bloqué.');
-      router.back();
+      if (relationMatch?.status === 'ACTIVE') {
+        await blockMatch(relationMatch.id);
+        await refreshMatches();
+      } else {
+        await blockProfile(profileId);
+      }
+      showMessage('Personne bloquée', 'Cette personne a bien été bloquée.');
+      if (!anyRelationMatch) router.back();
     } catch (error: any) {
-      showMessage('Erreur', error?.message || 'Impossible de bloquer ce profil');
+      showMessage('Erreur', error?.message || 'Impossible de bloquer cette personne');
     } finally {
       setIsProfileActioning(false);
     }
@@ -217,7 +197,6 @@ export default function ProfileRoute() {
 
   const handleReportSubmit = async () => {
     if (!profileId || isProfileActioning) return;
-
     setIsProfileActioning(true);
     try {
       await reportUser(profileId, reportReason, reportDetails.trim() || undefined);
@@ -235,20 +214,28 @@ export default function ProfileRoute() {
   const smileAlreadySent = reactionStatus?.outgoingType === 'SMILE';
   const mutualSmile = reactionStatus?.mutualSmile === true;
   const hasActiveRelation = relationMatch?.status === 'ACTIVE';
-  const isUnmatchedProfile = !isLoadingMatches && !anyRelationMatch;
 
   return (
     <View style={styles.container}>
       <ProfileDetailScreen />
 
       {!isOwnProfile && profileId && (
-        <View style={styles.actions}>
+        <TouchableOpacity
+          style={[styles.warningHitArea, { top: insets.top + 13 }]}
+          onPress={() => setShowSafetyMenu(true)}
+          activeOpacity={1}
+        >
+          <View />
+        </TouchableOpacity>
+      )}
+
+      {!isOwnProfile && profileId && (
+        <View style={styles.actions} pointerEvents="box-none">
           {isBottleContext && !mutualSmile && (
             <TouchableOpacity
               style={[styles.smileButton, (isSmiling || isLoadingReaction || smileAlreadySent) && styles.disabledButton]}
               onPress={() => void handleSmile()}
               disabled={isSmiling || isLoadingReaction || smileAlreadySent}
-              activeOpacity={0.8}
             >
               {isSmiling || isLoadingReaction ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -263,7 +250,6 @@ export default function ProfileRoute() {
               style={[styles.continueButton, isLoadingMatches && styles.disabledButton]}
               onPress={handleContinue}
               disabled={isLoadingMatches}
-              activeOpacity={0.8}
             >
               {isLoadingMatches ? (
                 <ActivityIndicator size="small" color="#8B2E3C" />
@@ -279,38 +265,13 @@ export default function ProfileRoute() {
                 style={[styles.relationActionButton, isRelationActioning && styles.disabledButton]}
                 onPress={() => void handleBreak()}
                 disabled={isRelationActioning}
-                activeOpacity={0.8}
               >
                 <Text style={styles.relationActionText}>Rompre l'échange</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={[styles.relationActionButton, styles.blockButton, isRelationActioning && styles.disabledButton]}
                 onPress={() => void handleBlock()}
                 disabled={isRelationActioning}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.relationActionText}>Bloquer</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {isUnmatchedProfile && (
-            <View style={styles.relationActionsRow}>
-              <TouchableOpacity
-                style={[styles.relationActionButton, isProfileActioning && styles.disabledButton]}
-                onPress={() => setShowReportModal(true)}
-                disabled={isProfileActioning}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.relationActionText}>Signaler</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.relationActionButton, styles.blockButton, isProfileActioning && styles.disabledButton]}
-                onPress={() => void handleBlockUnmatchedProfile()}
-                disabled={isProfileActioning}
-                activeOpacity={0.8}
               >
                 <Text style={styles.relationActionText}>Bloquer</Text>
               </TouchableOpacity>
@@ -319,11 +280,30 @@ export default function ProfileRoute() {
         </View>
       )}
 
+      <Modal visible={showSafetyMenu} transparent animationType="fade" onRequestClose={() => setShowSafetyMenu(false)}>
+        <View style={styles.safetyOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowSafetyMenu(false)} />
+          <View style={[styles.safetyMenu, { top: insets.top + 58 }]}>
+            <TouchableOpacity
+              style={styles.safetyItem}
+              onPress={() => {
+                setShowSafetyMenu(false);
+                setShowReportModal(true);
+              }}
+            >
+              <Text style={styles.safetyText}>⚠️ Signaler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.safetyItem} onPress={() => void handleBlock()}>
+              <Text style={[styles.safetyText, styles.dangerText]}>🚫 Bloquer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={showReportModal} transparent animationType="fade" onRequestClose={() => setShowReportModal(false)}>
         <View style={styles.reportOverlay}>
           <View style={styles.reportCard}>
             <Text style={styles.reportTitle}>Signaler ce profil</Text>
-
             {REPORT_REASONS.map(({ value, label }) => (
               <TouchableOpacity
                 key={value}
@@ -334,7 +314,6 @@ export default function ProfileRoute() {
                 <Text style={styles.reasonText}>{label}</Text>
               </TouchableOpacity>
             ))}
-
             <TextInput
               style={styles.reportInput}
               value={reportDetails}
@@ -344,24 +323,14 @@ export default function ProfileRoute() {
               maxLength={1000}
               editable={!isProfileActioning}
             />
-
             <TouchableOpacity
               style={[styles.reportSubmit, isProfileActioning && styles.disabledButton]}
               onPress={() => void handleReportSubmit()}
               disabled={isProfileActioning}
             >
-              {isProfileActioning ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.reportSubmitText}>Envoyer le signalement</Text>
-              )}
+              {isProfileActioning ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.reportSubmitText}>Envoyer le signalement</Text>}
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.reportCancel}
-              onPress={() => setShowReportModal(false)}
-              disabled={isProfileActioning}
-            >
+            <TouchableOpacity style={styles.reportCancel} onPress={() => setShowReportModal(false)} disabled={isProfileActioning}>
               <Text style={styles.reportCancelText}>Annuler</Text>
             </TouchableOpacity>
           </View>
@@ -372,144 +341,32 @@ export default function ProfileRoute() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  actions: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 18,
-    gap: 10,
-  },
-  smileButton: {
-    minHeight: 50,
-    borderRadius: 12,
-    backgroundColor: '#8B2E3C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  smileText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  continueButton: {
-    minHeight: 48,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#8B2E3C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-  continueText: {
-    color: '#8B2E3C',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  relationActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  relationActionButton: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#8B2E3C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-  },
-  blockButton: {
-    backgroundColor: '#FFF4F4',
-  },
-  relationActionText: {
-    color: '#8B2E3C',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  disabledButton: {
-    opacity: 0.65,
-  },
-  reportOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  reportCard: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 20,
-  },
-  reportTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#2B2B2B',
-    marginBottom: 16,
-  },
-  reasonButton: {
-    minHeight: 42,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    borderRadius: 9,
-    backgroundColor: '#F5F1E8',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    marginBottom: 8,
-  },
-  reasonButtonSelected: {
-    borderColor: '#8B2E3C',
-    backgroundColor: '#F8ECEE',
-  },
-  reasonText: {
-    color: '#3A2C18',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  reportInput: {
-    minHeight: 80,
-    borderWidth: 1,
-    borderColor: '#D8D2C4',
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 6,
-    marginBottom: 14,
-    textAlignVertical: 'top',
-  },
-  reportSubmit: {
-    minHeight: 46,
-    borderRadius: 10,
-    backgroundColor: '#8B2E3C',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reportSubmitText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  reportCancel: {
-    minHeight: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  reportCancelText: {
-    color: '#6B6B6B',
-    fontWeight: '600',
-  },
+  container: { flex: 1 },
+  warningHitArea: { position: 'absolute', right: 16, width: 40, height: 40, zIndex: 50 },
+  actions: { position: 'absolute', left: 16, right: 16, bottom: 18, gap: 10 },
+  smileButton: { minHeight: 50, borderRadius: 12, backgroundColor: '#8B2E3C', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  smileText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  continueButton: { minHeight: 48, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#8B2E3C', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  continueText: { color: '#8B2E3C', fontSize: 15, fontWeight: '700' },
+  relationActionsRow: { flexDirection: 'row', gap: 10 },
+  relationActionButton: { flex: 1, minHeight: 44, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#8B2E3C', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  blockButton: { backgroundColor: '#FFF4F4' },
+  relationActionText: { color: '#8B2E3C', fontSize: 14, fontWeight: '700' },
+  disabledButton: { opacity: 0.65 },
+  safetyOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.12)' },
+  safetyMenu: { position: 'absolute', right: 16, width: 190, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#E1D4C4', paddingVertical: 6, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, elevation: 8 },
+  safetyItem: { paddingHorizontal: 16, paddingVertical: 14 },
+  safetyText: { fontSize: 15, fontWeight: '700', color: '#3A2C18' },
+  dangerText: { color: '#8B2E3C' },
+  reportOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  reportCard: { width: '100%', maxWidth: 420, maxHeight: '90%', borderRadius: 18, backgroundColor: '#FFFDF8', padding: 20 },
+  reportTitle: { fontSize: 20, fontWeight: '800', color: '#2B2B2B', marginBottom: 16 },
+  reasonButton: { paddingVertical: 11, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#F5F1E8', marginBottom: 8, borderWidth: 1.5, borderColor: 'transparent' },
+  reasonButtonSelected: { borderColor: '#8B2E3C', backgroundColor: '#F2E3E5' },
+  reasonText: { fontSize: 14, color: '#3A2C18', fontWeight: '600' },
+  reportInput: { minHeight: 90, borderWidth: 1, borderColor: '#D8D2C4', borderRadius: 8, padding: 12, marginTop: 6, marginBottom: 14, textAlignVertical: 'top', color: '#2B2B2B' },
+  reportSubmit: { minHeight: 46, borderRadius: 10, backgroundColor: '#8B2E3C', alignItems: 'center', justifyContent: 'center' },
+  reportSubmitText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  reportCancel: { minHeight: 42, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  reportCancelText: { color: '#6B6B6B', fontSize: 14, fontWeight: '600' },
 });
