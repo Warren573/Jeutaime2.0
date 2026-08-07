@@ -1,9 +1,8 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { RefugeIllustratedScreen } from '../../src/screens/RefugeIllustratedScreen';
+import { RefugePolishedScreen } from '../../src/screens/RefugePolishedScreen';
 
-// Refuge sessions use the illustrated image-backed screen.
 export default function RefugeGamePage() {
   const params = useLocalSearchParams();
   const sessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
@@ -16,5 +15,5 @@ export default function RefugeGamePage() {
     );
   }
 
-  return <RefugeIllustratedScreen sessionIdProp={sessionId} />;
+  return <RefugePolishedScreen sessionIdProp={sessionId} />;
 }
