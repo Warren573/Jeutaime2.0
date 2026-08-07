@@ -1,3 +1,6 @@
+/**
+ * PersonalBoard — Tableau magnétique personnel de l'accueil.
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -71,6 +74,7 @@ export function PersonalBoard() {
   const {
     currentUser,
     points,
+    coins,
     matches,
     lettersByMatch,
     matchPartners,
@@ -390,6 +394,7 @@ export function PersonalBoard() {
       </Paper>
 
       <Paper
+        onPress={() => router.push('/coins')}
         style={{
           position: 'absolute',
           top: px(H, 0.78),
@@ -398,7 +403,8 @@ export function PersonalBoard() {
           transform: [{ rotate: '2deg' }],
         }}
       >
-        <Text style={styles.statsTitle}>Stats</Text>
+        <Text style={styles.statsTitle}>Pièces & Stats</Text>
+        <Text style={styles.statValue}>🪙 {coins ?? 0}</Text>
         <Text style={styles.statValue}>{points ?? 0} pts</Text>
         <Text style={styles.statValue}>{matches?.length ?? 0} matchs</Text>
       </Paper>
