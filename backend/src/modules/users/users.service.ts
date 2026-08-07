@@ -4,7 +4,8 @@ import { UnauthorizedError, NotFoundError } from "../../core/errors";
 import { ChangePasswordDto } from "./users.schemas";
 
 // -----------------------------------------------------------------------
-// Changer le mot de passe
+// Changer le mot de passe — route historique conservée pour compatibilité.
+// Le nouvel écran utilise /api/auth/change-password.
 // -----------------------------------------------------------------------
 export async function changePassword(userId: string, dto: ChangePasswordDto) {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
@@ -21,34 +22,4 @@ export async function changePassword(userId: string, dto: ChangePasswordDto) {
     where: { userId, revokedAt: null },
     data: { revokedAt: new Date() },
   });
-}
-
-// -----------------------------------------------------------------------
-// Désactiver le compte (showInDiscovery = false, flag soft)
-// -----------------------------------------------------------------------
-export async function deactivateAccount(userId: string) {
-  await prisma.userSettings.update({
-    where: { userId },
-    data: { showInDiscovery: false },
-  });
-  // Révoquer refresh tokens
-  await prisma.refreshToken.updateMany({
-    where: { userId, revokedAt: null },
-    data: { revokedAt: new Date() },
-  });
-  return { message: "Compte désactivé. Tu peux te reconnecter à tout moment pour le réactiver." };
-}
-
-// -----------------------------------------------------------------------
-// Supprimer le compte (RGPD)
-// -----------------------------------------------------------------------
-export async function deleteAccount(userId: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
-  if (!user) throw new NotFoundError("Utilisateur");
-
-  const valid = await comparePassword(password, user.passwordHash);
-  if (!valid) throw new UnauthorizedError("Mot de passe incorrect");
-
-  // Cascade gérée par Prisma (onDelete: Cascade sur toutes les relations)
-  await prisma.user.delete({ where: { id: userId } });
 }
