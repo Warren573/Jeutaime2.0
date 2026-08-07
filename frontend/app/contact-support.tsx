@@ -1,4 +1,5 @@
-import PlaceholderScreen from '../src/screens/PlaceholderScreen';
-export default function Screen() {
-  return <PlaceholderScreen icon="📩" title="Contacter le support" description="Notre équipe est là pour vous aider." />;
+import SupportUnavailableScreen from '../src/screens/SupportUnavailableScreen';
+
+export default function ContactSupportPage() {
+  return <SupportUnavailableScreen mode="contact" />;
 }
