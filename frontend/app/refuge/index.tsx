@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { View, Text } from 'react-native';
-import { RefugeMainScreen } from '../../src/screens/RefugeMainScreen';
+import { RefugeIllustratedScreen } from '../../src/screens/RefugeIllustratedScreen';
 import { RefugeHomeScreen } from '../../src/screens/RefugeHomeScreen';
 import { refugeApi } from '../../src/api/refuge-api';
 
@@ -52,7 +52,7 @@ export default function RefugePage() {
   }
 
   if (sessionId) {
-    return <RefugeMainScreen sessionIdProp={sessionId} />;
+    return <RefugeIllustratedScreen sessionIdProp={sessionId} />;
   }
 
   return <RefugeHomeScreen />;
