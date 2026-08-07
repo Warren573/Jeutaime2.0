@@ -1,5 +1,5 @@
-import SupportUnavailableScreen from '../src/screens/SupportUnavailableScreen';
+import SupportTicketScreen from '../src/screens/SupportTicketScreen';
 
 export default function ContactSupportPage() {
-  return <SupportUnavailableScreen mode="contact" />;
+  return <SupportTicketScreen mode="support" />;
 }
