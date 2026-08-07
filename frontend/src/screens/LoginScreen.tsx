@@ -56,13 +56,18 @@ export default function LoginScreen() {
         exactError: null,
       });
 
-      const result = await storeLogin(email.trim().toLowerCase(), password);
+      await storeLogin(email.trim().toLowerCase(), password);
+
+      // storeLogin has completed only after /auth/login succeeded and the
+      // access/refresh tokens were saved. hydrateFromApi may intentionally
+      // swallow a secondary loading error, so do not let the route guard
+      // invalidate an otherwise valid authenticated session.
+      if (!useStore.getState().isAuthenticated) {
+        useStore.setState({ isAuthenticated: true });
+      }
 
       setDebugLoginFlow(prev => ({
         ...prev,
-        rawResponse: result,
-        accessTokenExtracted: !!result?.accessToken,
-        refreshTokenExtracted: !!result?.refreshToken,
         setAuthCalled: true,
         currentUserAfterStore: { logged: true },
         routerReplaceCalled: true,
@@ -147,7 +152,6 @@ export default function LoginScreen() {
                 </Pressable>
               </View>
             </View>
-
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
