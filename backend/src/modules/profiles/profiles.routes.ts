@@ -29,6 +29,10 @@ router.get("/me/photos", wrap(ctrl.handleGetMyPhotos));
 // GET /api/profiles/me/blocks
 router.get("/me/blocks", wrap(ctrl.handleListBlocked));
 
+// GET/PATCH /api/profiles/me/settings
+router.get("/me/settings", wrap(ctrl.handleGetSettings));
+router.patch("/me/settings", wrap(ctrl.handleUpdateSettings));
+
 // PATCH /api/profiles/me/photo-display
 router.patch("/me/photo-display", wrap(ctrl.handleUpdateShowPhotoByDefault));
 
