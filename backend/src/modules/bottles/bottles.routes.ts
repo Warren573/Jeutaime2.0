@@ -401,6 +401,7 @@ router.post(
 );
 
 // Return participant ids and match id as well: the revealed-profile menu needs them.
+// Respect location privacy for the sender even on this raw detail route.
 router.get(
   "/:id",
   wrap(async (req, res) => {
@@ -413,7 +414,21 @@ router.get(
       return;
     }
 
-    res.json({ data: bottle });
+    if (bottle.senderId === userId) {
+      res.json({ data: bottle });
+      return;
+    }
+
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId: bottle.senderId },
+      select: { locationShared: true },
+    });
+
+    res.json({
+      data: settings?.locationShared === true
+        ? bottle
+        : { ...bottle, senderCity: null },
+    });
   }),
 );
 
