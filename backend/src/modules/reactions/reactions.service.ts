@@ -20,10 +20,6 @@ async function countActiveMatches(userId: string): Promise<number> {
   });
 }
 
-/**
- * Enregistre une réaction (sourire ou grimace) de fromId vers toId.
- * Si sourire mutuel détecté → crée automatiquement un match PENDING.
- */
 export async function sendReaction(fromId: string, dto: SendReactionDto) {
   const { toId, type } = dto;
 
@@ -139,5 +135,8 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
     createdAt: reaction.createdAt.toISOString(),
     matchCreated: true,
     matchId: match.id,
+    // Compatibilité temporaire avec ProfileTwoStepDemo : seul le cas utile
+    // subsiste. À remplacer par un champ métier explicite lors du refactor écran.
+    debugBranch: "NEW-MATCH" as const,
   };
 }
