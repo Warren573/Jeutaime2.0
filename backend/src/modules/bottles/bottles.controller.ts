@@ -33,15 +33,6 @@ import {
   ReportBottleResponseSchema,
 } from "./bottles.schemas";
 
-// ============================================================
-// Sérialisation Date → chaîne ISO
-// ------------------------------------------------------------
-// Prisma renvoie les champs DateTime comme objets `Date`. Les schémas de
-// réponse Zod exigent `z.string().datetime()` — un `Date` échoue donc à la
-// validation ("Expected string, received date") et provoque un 500 APRÈS que
-// l'enregistrement a été créé en base. On convertit récursivement les `Date`
-// en ISO avant toute validation de réponse.
-// ============================================================
 function serializeDates<T>(value: T): T {
   if (value === null || value === undefined) return value;
   if (value instanceof Date) return value.toISOString() as unknown as T;
@@ -56,55 +47,69 @@ function serializeDates<T>(value: T): T {
   return value;
 }
 
+type BottleWithSenderCity = {
+  senderId: string;
+  senderCity?: string | null;
+  [key: string]: unknown;
+};
+
+async function applyBottleLocationPrivacy<T extends BottleWithSenderCity>(
+  bottles: T[],
+  viewerId: string,
+): Promise<T[]> {
+  const otherSenderIds = [
+    ...new Set(
+      bottles
+        .map((bottle) => bottle.senderId)
+        .filter((id) => id && id !== viewerId),
+    ),
+  ];
+
+  if (otherSenderIds.length === 0) return bottles;
+
+  const settings = await prisma.userSettings.findMany({
+    where: { userId: { in: otherSenderIds } },
+    select: { userId: true, locationShared: true },
+  });
+  const sharedByUser = new Map(settings.map((entry) => [entry.userId, entry.locationShared]));
+
+  return bottles.map((bottle) => {
+    if (bottle.senderId === viewerId || sharedByUser.get(bottle.senderId) === true) {
+      return bottle;
+    }
+    return { ...bottle, senderCity: null } as T;
+  });
+}
+
+async function applySingleBottleLocationPrivacy<T extends BottleWithSenderCity>(
+  bottle: T,
+  viewerId: string,
+): Promise<T> {
+  const [sanitized] = await applyBottleLocationPrivacy([bottle], viewerId);
+  return sanitized ?? bottle;
+}
+
 // ============================================================
 // POST /api/bottles/create
 // ============================================================
 export async function createBottle(req: AuthedRequest, res: Response) {
-  const correlationId = Math.random().toString(36).substring(7);
-  const startTime = Date.now();
+  const body = CreateBottleBodySchema.parse(req.body);
+  const userId = req.user.userId;
 
-  try {
-    console.log(`[B1-BOTTLE] ${correlationId} | REQUEST RECEIVED | path=${req.path} method=${req.method}`);
+  const bottle = await bottlesService.createBottle(
+    userId,
+    body.message,
+    body.targetGender,
+    body.ageMin,
+    body.ageMax,
+  );
 
-    console.log(`[B2-BOTTLE] ${correlationId} | REQUIREAUTH CHECK | userId=${req.user?.userId}`);
-    if (!req.user?.userId) {
-      throw new Error('No userId in req.user');
-    }
-    console.log(`[B3-BOTTLE] ${correlationId} | REQUIREAUTH PASSED | userId=${req.user.userId}`);
-
-    console.log(`[B4-BOTTLE] ${correlationId} | ZOD VALIDATION START | body=${JSON.stringify(req.body)}`);
-    const body = CreateBottleBodySchema.parse(req.body);
-    const userId = req.user.userId;
-    console.log(`[B5-BOTTLE] ${correlationId} | ZOD VALIDATION PASSED | payload parsed`);
-
-    console.log(`[B6-BOTTLE] ${correlationId} | CONTROLLER CALL START | userId=${userId}`);
-    const bottle = await bottlesService.createBottle(
-      userId,
-      body.message,
-      body.targetGender,
-      body.ageMin,
-      body.ageMax,
-      correlationId,
-    );
-    console.log(`[B7-BOTTLE] ${correlationId} | CONTROLLER CALL SUCCESS | bottleId=${bottle.id}`);
-
-    console.log(`[B8-BOTTLE] ${correlationId} | RESPONSE SCHEMA VALIDATION START`);
-    const validated = CreateBottleResponseSchema.parse(serializeDates(bottle));
-    console.log(`[B9-BOTTLE] ${correlationId} | RESPONSE SCHEMA VALIDATION PASSED`);
-
-    const duration = Date.now() - startTime;
-    console.log(`[B10-BOTTLE] ${correlationId} | SENDING 201 RESPONSE | duration=${duration}ms | id=${bottle.id}`);
-    res.status(201).json({ data: validated });
-  } catch (error: any) {
-    const duration = Date.now() - startTime;
-    console.error(`[BACKEND-ERROR] ${correlationId} | EXCEPTION CAUGHT | duration=${duration}ms | error=${error?.message} | stack=${error?.stack}`);
-    throw error;
-  }
+  const validated = CreateBottleResponseSchema.parse(serializeDates(bottle));
+  res.status(201).json({ data: validated });
 }
 
 // ============================================================
 // POST /api/bottles/cancel-pending
-// Expire les bouteilles FLOATING de l'utilisateur courant (libère le quota).
 // ============================================================
 export async function cancelPending(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
@@ -113,7 +118,7 @@ export async function cancelPending(req: AuthedRequest, res: Response) {
 }
 
 // ============================================================
-// GET /api/bottles/:id — détail (expéditeur ou accepteur)
+// GET /api/bottles/:id
 // ============================================================
 export async function getBottleById(req: AuthedRequest, res: Response) {
   const bottleId = req.params["id"] as string;
@@ -122,19 +127,22 @@ export async function getBottleById(req: AuthedRequest, res: Response) {
   if (!bottle) {
     return res.status(404).json({ error: "Bottle not found" });
   }
-  const validated = GetBottleResponseSchema.parse(serializeDates(bottle));
+
+  const sanitized = await applySingleBottleLocationPrivacy(
+    bottle as unknown as BottleWithSenderCity,
+    userId,
+  );
+  const validated = GetBottleResponseSchema.parse(serializeDates(sanitized));
   res.json({ data: validated });
 }
 
 // ============================================================
-// GET /api/bottles/sent — historique des bouteilles envoyées
+// GET /api/bottles/sent
 // ============================================================
 export async function getSent(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
   const bottles = await bottlesService.getSentBottles(userId);
-  const validated = GetSentBottlesResponseSchema.parse(
-    serializeDates({ bottles }),
-  );
+  const validated = GetSentBottlesResponseSchema.parse(serializeDates({ bottles }));
   res.json({ data: validated });
 }
 
@@ -144,27 +152,22 @@ export async function getSent(req: AuthedRequest, res: Response) {
 export async function getInbox(req: AuthedRequest, res: Response) {
   const userId = req.user.userId;
 
-  // Lazy evaluation: ensure receipts exist for compatible floating bottles
   await bottlesService.ensureReceiptsForFloatingBottles(userId);
 
-  // Received floating bottles (pending receipts)
   const receipts = await prisma.bottleReceipt.findMany({
-    where: {
-      recipientId: userId,
-      status: "PENDING",
-    },
-    include: {
-      bottle: true,
-    },
+    where: { recipientId: userId, status: "PENDING" },
+    include: { bottle: true },
   });
 
   const pending = receipts
-    .filter((r) => r.bottle !== null && r.bottle.status === "FLOATING" && (r.bottle.expiresAt === null || r.bottle.expiresAt > new Date()))
+    .filter(
+      (r) =>
+        r.bottle !== null &&
+        r.bottle.status === "FLOATING" &&
+        (r.bottle.expiresAt === null || r.bottle.expiresAt > new Date()),
+    )
     .map((r) => r.bottle);
 
-  // Conversations actives : bouteilles acceptées où l'utilisateur est
-  // l'accepteur OU l'expéditeur. Les DEUX parties doivent voir la discussion
-  // (sinon l'expéditeur d'une bouteille acceptée n'a aucun accès au chat).
   const accepted = await prisma.messageInABottle.findMany({
     where: {
       status: { in: ["ACCEPTED", "REVEALED"] },
@@ -173,19 +176,17 @@ export async function getInbox(req: AuthedRequest, res: Response) {
     orderBy: { acceptedAt: "desc" },
   });
 
-  // Sent floating bottles (user's bottles en route)
   const sentFloating = await prisma.messageInABottle.findMany({
-    where: {
-      senderId: userId,
-      status: "FLOATING",
-    },
+    where: { senderId: userId, status: "FLOATING" },
     orderBy: { createdAt: "desc" },
   });
 
-  const bottles = [...pending, ...accepted, ...sentFloating];
+  const bottles = await applyBottleLocationPrivacy(
+    [...pending, ...accepted, ...sentFloating] as unknown as BottleWithSenderCity[],
+    userId,
+  );
 
   const validated = GetInboxResponseSchema.parse(serializeDates({ bottles }));
-
   res.json({ data: validated });
 }
 
@@ -197,29 +198,17 @@ export async function acceptBottle(req: AuthedRequest, res: Response) {
   const bottleId = req.params["id"] as string;
   const userId = req.user.userId;
 
-  // Verify receipt exists and is PENDING
   const receipt = await prisma.bottleReceipt.findUnique({
-    where: {
-      bottleId_recipientId: {
-        bottleId,
-        recipientId: userId,
-      },
-    },
+    where: { bottleId_recipientId: { bottleId, recipientId: userId } },
   });
 
-  if (!receipt) {
-    return res.status(404).json({ error: "Receipt not found" });
-  }
-
+  if (!receipt) return res.status(404).json({ error: "Receipt not found" });
   if (receipt.status !== "PENDING") {
-    return res
-      .status(400)
-      .json({ error: "Can only accept pending bottles" });
+    return res.status(400).json({ error: "Can only accept pending bottles" });
   }
 
   const bottle = await bottlesService.acceptBottle(bottleId, userId);
   const validated = AcceptBottleResponseSchema.parse(serializeDates(bottle));
-
   res.json({ data: validated });
 }
 
@@ -231,28 +220,16 @@ export async function refuseBottle(req: AuthedRequest, res: Response) {
   const bottleId = req.params["id"] as string;
   const userId = req.user.userId;
 
-  // Verify receipt exists and is PENDING
   const receipt = await prisma.bottleReceipt.findUnique({
-    where: {
-      bottleId_recipientId: {
-        bottleId,
-        recipientId: userId,
-      },
-    },
+    where: { bottleId_recipientId: { bottleId, recipientId: userId } },
   });
 
-  if (!receipt) {
-    return res.status(404).json({ error: "Receipt not found" });
-  }
-
+  if (!receipt) return res.status(404).json({ error: "Receipt not found" });
   if (receipt.status !== "PENDING") {
-    return res
-      .status(400)
-      .json({ error: "Can only refuse pending bottles" });
+    return res.status(400).json({ error: "Can only refuse pending bottles" });
   }
 
   await bottlesService.refuseBottle(bottleId, userId);
-
   res.json({ data: { success: true } });
 }
 
@@ -266,18 +243,11 @@ export async function getMessages(req: AuthedRequest, res: Response) {
   try {
     const result = await bottlesService.getMessages(bottleId, userId);
     const validated = GetBottleMessagesResponseSchema.parse(serializeDates(result));
-
     res.json({ data: validated });
   } catch (error: any) {
     const code = error.code || error.message;
-
-    if (code === "BOTTLE_NOT_FOUND") {
-      return res.status(404).json({ error: "Bottle not found" });
-    }
-    if (code === "NOT_BOTTLE_PARTICIPANT") {
-      return res.status(403).json({ error: "Not a participant" });
-    }
-
+    if (code === "BOTTLE_NOT_FOUND") return res.status(404).json({ error: "Bottle not found" });
+    if (code === "NOT_BOTTLE_PARTICIPANT") return res.status(403).json({ error: "Not a participant" });
     throw error;
   }
 }
@@ -298,28 +268,18 @@ export async function postMessage(req: AuthedRequest, res: Response) {
       body.idempotencyKey,
     );
 
-    const validated = PostBottleMessageResponseSchema.parse(
-      serializeDates(result),
-    );
-    // 200 if replay, 201 if new
-    const statusCode = result.idempotentReplay ? 200 : 201;
-    res.status(statusCode).json({ data: validated });
+    const validated = PostBottleMessageResponseSchema.parse(serializeDates(result));
+    res.status(result.idempotentReplay ? 200 : 201).json({ data: validated });
   } catch (error: any) {
     const code = error.code || error.message;
-
-    if (code === "BOTTLE_NOT_FOUND") {
-      return res.status(404).json({ error: "Bottle not found" });
-    }
-    if (code === "NOT_BOTTLE_PARTICIPANT") {
-      return res.status(403).json({ error: "Not a participant" });
-    }
+    if (code === "BOTTLE_NOT_FOUND") return res.status(404).json({ error: "Bottle not found" });
+    if (code === "NOT_BOTTLE_PARTICIPANT") return res.status(403).json({ error: "Not a participant" });
     if (code === "BOTTLE_NOT_ACTIVE") {
       return res.status(409).json({ error: "Bottle is not active", code: "BOTTLE_NOT_ACTIVE" });
     }
     if (code === "LETTER_TURN_VIOLATION") {
       return res.status(409).json({ error: "It's not your turn to respond", code: "LETTER_TURN_VIOLATION" });
     }
-
     throw error;
   }
 }
@@ -328,11 +288,8 @@ export async function postMessage(req: AuthedRequest, res: Response) {
 // GET /api/bottles/unread-count
 // ============================================================
 export async function getUnreadCount(req: AuthedRequest, res: Response) {
-  const userId = req.user.userId;
-
-  const count = await bottlesService.countUnreadMessages(userId);
+  const count = await bottlesService.countUnreadMessages(req.user.userId);
   const validated = GetUnreadCountResponseSchema.parse({ count });
-
   res.json({ data: validated });
 }
 
@@ -341,12 +298,11 @@ export async function getUnreadCount(req: AuthedRequest, res: Response) {
 // ============================================================
 export async function markBottleAsRead(req: AuthedRequest, res: Response) {
   MarkBottleAsReadBodySchema.parse(req.body);
-  const bottleId = req.params["id"] as string;
-  const userId = req.user.userId;
-
-  const bottle = await bottlesService.markBottleAsRead(bottleId, userId);
+  const bottle = await bottlesService.markBottleAsRead(
+    req.params["id"] as string,
+    req.user.userId,
+  );
   const validated = MarkBottleAsReadResponseSchema.parse(serializeDates(bottle));
-
   res.json({ data: validated });
 }
 
@@ -361,29 +317,19 @@ export async function requestReveal(req: AuthedRequest, res: Response) {
   try {
     const request = await bottlesService.requestReveal(bottleId, userId);
     const validated = RequestRevealResponseSchema.parse(serializeDates(request));
-
     res.json({ data: validated });
   } catch (error: any) {
     const code = error.code || error.message;
-
     if (code === "REVEAL_ALREADY_REFUSED") {
       return res.status(409).json({
-        error: {
-          message: error.message,
-          code: "REVEAL_ALREADY_REFUSED"
-        }
+        error: { message: error.message, code: "REVEAL_ALREADY_REFUSED" },
       });
     }
-
     if (code === "REVEAL_ALREADY_ACCEPTED") {
       return res.status(409).json({
-        error: {
-          message: error.message,
-          code: "REVEAL_ALREADY_ACCEPTED"
-        }
+        error: { message: error.message, code: "REVEAL_ALREADY_ACCEPTED" },
       });
     }
-
     throw error;
   }
 }
@@ -393,12 +339,11 @@ export async function requestReveal(req: AuthedRequest, res: Response) {
 // ============================================================
 export async function acceptReveal(req: AuthedRequest, res: Response) {
   AcceptRevealBodySchema.parse(req.body);
-  const bottleId = req.params["id"] as string;
-  const userId = req.user.userId;
-
-  const bottle = await bottlesService.acceptReveal(bottleId, userId);
+  const bottle = await bottlesService.acceptReveal(
+    req.params["id"] as string,
+    req.user.userId,
+  );
   const validated = AcceptRevealResponseSchema.parse(serializeDates(bottle));
-
   res.json({ data: validated });
 }
 
@@ -407,12 +352,11 @@ export async function acceptReveal(req: AuthedRequest, res: Response) {
 // ============================================================
 export async function refuseReveal(req: AuthedRequest, res: Response) {
   RefuseRevealBodySchema.parse(req.body);
-  const bottleId = req.params["id"] as string;
-  const userId = req.user.userId;
-
-  const request = await bottlesService.refuseReveal(bottleId, userId);
+  const request = await bottlesService.refuseReveal(
+    req.params["id"] as string,
+    req.user.userId,
+  );
   const validated = RefuseRevealResponseSchema.parse(serializeDates(request));
-
   res.json({ data: validated });
 }
 
@@ -421,12 +365,11 @@ export async function refuseReveal(req: AuthedRequest, res: Response) {
 // ============================================================
 export async function breakBottle(req: AuthedRequest, res: Response) {
   BreakBottleBodySchema.parse(req.body);
-  const bottleId = req.params["id"] as string;
-  const userId = req.user.userId;
-
-  const bottle = await bottlesService.breakBottle(bottleId, userId);
+  const bottle = await bottlesService.breakBottle(
+    req.params["id"] as string,
+    req.user.userId,
+  );
   const validated = BreakBottleResponseSchema.parse(serializeDates(bottle));
-
   res.json({ data: validated });
 }
 
@@ -435,12 +378,11 @@ export async function breakBottle(req: AuthedRequest, res: Response) {
 // ============================================================
 export async function restartBottle(req: AuthedRequest, res: Response) {
   RestartBottleBodySchema.parse(req.body);
-  const bottleId = req.params["id"] as string;
-  const userId = req.user.userId;
-
-  const bottle = await bottlesService.restartBottle(bottleId, userId);
+  const bottle = await bottlesService.restartBottle(
+    req.params["id"] as string,
+    req.user.userId,
+  );
   const validated = RestartBottleResponseSchema.parse(serializeDates(bottle));
-
   res.json({ data: validated });
 }
 
@@ -448,12 +390,11 @@ export async function restartBottle(req: AuthedRequest, res: Response) {
 // GET /api/bottles/:id/reveal/status
 // ============================================================
 export async function getRevealStatus(req: AuthedRequest, res: Response) {
-  const bottleId = req.params["id"] as string;
-  const userId = req.user.userId;
-
-  const status = await bottlesService.getRevealStatus(bottleId, userId);
+  const status = await bottlesService.getRevealStatus(
+    req.params["id"] as string,
+    req.user.userId,
+  );
   const validated = GetRevealStatusResponseSchema.parse(status);
-
   res.json({ data: validated });
 }
 
@@ -462,12 +403,13 @@ export async function getRevealStatus(req: AuthedRequest, res: Response) {
 // ============================================================
 export async function reportBottle(req: AuthedRequest, res: Response) {
   const body = ReportBottleBodySchema.parse(req.body);
-  const bottleId = req.params["id"] as string;
-  const userId = req.user.userId;
-
-  const result = await bottlesService.reportBottle(bottleId, userId, body.reason, body.details);
+  const result = await bottlesService.reportBottle(
+    req.params["id"] as string,
+    req.user.userId,
+    body.reason,
+    body.details,
+  );
   const validated = ReportBottleResponseSchema.parse(result);
-
   res.json({ data: validated });
 }
 
@@ -475,31 +417,7 @@ export async function reportBottle(req: AuthedRequest, res: Response) {
 // GET /api/bottles/current
 // ============================================================
 export async function getCurrentBottle(req: AuthedRequest, res: Response) {
-  const userId = req.user.userId;
-  console.log("[CONTROLLER] getCurrentBottle called", { userId, path: req.path });
-
-  try {
-    const result = await bottlesService.getCurrentBottle(userId);
-    console.log("[CONTROLLER] Service returned:", {
-      hasBottle: !!result.bottle,
-      hasLatest: !!result.latestLetter,
-      canCreate: result.canCreateBottle,
-    });
-    console.log("[CONTROLLER] Full result:", JSON.stringify(result, null, 2));
-
-    const validated = GetCurrentBottleResponseSchema.parse(result);
-    console.log("[CONTROLLER] Validation passed, sending 200 OK");
-
-    console.log("[CONTROLLER] Sending response:", { status: 200, dataKeys: Object.keys(validated) });
-    res.json({ data: validated });
-  } catch (error: any) {
-    console.error("[CONTROLLER] getCurrentBottle ERROR:", {
-      message: error?.message,
-      code: error?.code,
-      status: res.statusCode,
-      stack: error?.stack,
-    });
-    console.error("[CONTROLLER] Full error:", error);
-    throw error;
-  }
+  const result = await bottlesService.getCurrentBottle(req.user.userId);
+  const validated = GetCurrentBottleResponseSchema.parse(result);
+  res.json({ data: validated });
 }
