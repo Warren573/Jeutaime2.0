@@ -1,5 +1,7 @@
 import { Response } from "express";
 import { AuthedRequest } from "../../core/types";
+import { ForbiddenError } from "../../core/errors";
+import { isAccountDeactivated } from "../auth/accountLifecycle.service";
 import * as svc from "./offerings.service";
 import type {
   ListReceivedQueryDto,
@@ -17,39 +19,20 @@ export async function handleCatalog(_req: AuthedRequest, res: Response) {
 // POST /api/offerings/send
 export async function handleSend(req: AuthedRequest, res: Response) {
   const dto = req.body as SendOfferingDto;
-  console.log('[OFFERING-BODY]', { fromUserId: req.user.userId, ...dto });
-  try {
-    const data = await svc.sendOffering(req.user.userId, dto);
-    res.status(201).json({ data });
-  } catch (error: any) {
-    console.error('[OFFERING-SEND-ERROR]', {
-      message: error?.message,
-      code: error?.code,
-      details: error?.details,
-      requestBody: dto,
-      errorType: error?.constructor?.name,
-    });
-    throw error;
+
+  if (await isAccountDeactivated(dto.toUserId)) {
+    throw new ForbiddenError("Cette personne a temporairement désactivé son compte");
   }
+
+  const data = await svc.sendOffering(req.user.userId, dto);
+  res.status(201).json({ data });
 }
 
 // POST /api/offerings/send-to-session (Tournée générale)
 export async function handleSendToSession(req: AuthedRequest, res: Response) {
   const dto = req.body as SendOfferingToSessionDto;
-  console.log('[OFFERING-TO-SESSION]', { fromUserId: req.user.userId, ...dto });
-  try {
-    const data = await svc.sendOfferingToSession(req.user.userId, dto);
-    res.status(201).json({ data });
-  } catch (error: any) {
-    console.error('[OFFERING-TO-SESSION-ERROR]', {
-      message: error?.message,
-      code: error?.code,
-      details: error?.details,
-      requestBody: dto,
-      errorType: error?.constructor?.name,
-    });
-    throw error;
-  }
+  const data = await svc.sendOfferingToSession(req.user.userId, dto);
+  res.status(201).json({ data });
 }
 
 // GET /api/offerings/received
@@ -76,6 +59,7 @@ export async function handleListSalonOfferings(
 export async function handleConsume(req: AuthedRequest, res: Response) {
   const offeringId = req.params["offeringId"] as string;
   const body = req.body as ConsumeOfferingBodyDto;
+  void body;
   const data = await svc.consumeOffering(offeringId, req.user.userId);
   res.json({ success: true, data });
 }
