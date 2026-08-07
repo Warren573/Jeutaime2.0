@@ -9,10 +9,10 @@ import { AppBackButton } from '../components/AppBackButton';
 import type { GetCurrentBottleResponse, InboxBottleDTO } from '../api/bottles';
 import { useStore } from '../store/useStore';
 
-const CREAM_BG = '#FBF8F3';
+const CREAM_BG = '#F6F0E4';
 const BOTTLE_IMG = require('../../assets/images/bottle/BOTTLE-22.png');
 const OCEAN_BG = require('../../assets/images/ocean.png');
-const COLORS = { text: '#2B2B2B', textSecondary: '#6B6B6B', accent: '#8B2E3C', success: '#2E7D32', error: '#D32F2F' };
+const COLORS = { text: '#2C1A0E', textSecondary: '#7A5C3A', accent: '#8B2E3C', border: '#D4B896', paper: '#FEFAF0', success: '#466B4E', error: '#A43A3A' };
 
 const BottleItem: React.FC<{ id: string; index: number; onPress: () => void; position: { left: string; top: string }; isAccepting: boolean }> = ({ index, onPress, position, isAccepting }) => {
   const rotation = useMemo(() => [-12, 8, -6, 14, -9, 11][index % 6], [index]);
@@ -119,7 +119,7 @@ export default function BottleMainScreen() {
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
             {error && <View style={styles.paddedSection}><View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View></View>}
-            <View style={styles.paddedSection}>
+            <View style={styles.selectionHeader}>
               <Text style={styles.selectionTitle}>Choisissez une bouteille</Text>
               <Text style={styles.selectionSubtitle}>Découvrez des messages anonymes</Text>
             </View>
@@ -145,7 +145,7 @@ export default function BottleMainScreen() {
           <View style={styles.header}>
             <AppBackButton onPress={() => router.back()} />
             <View style={styles.headerTitle}><Text style={styles.headerTitleText}>Lettre en transit</Text></View>
-            <TouchableOpacity onPress={() => setShowMenu(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={styles.menuDots}>⋯</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.menuButton} onPress={() => setShowMenu(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={styles.menuDots}>⋯</Text></TouchableOpacity>
           </View>
           <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
             <BottleParchmentCard content={state.latestLetter.content} />
@@ -220,38 +220,40 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingHorizontal: 0, paddingVertical: 0 },
   paddedSection: { paddingHorizontal: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
+  header: { flexDirection: 'row', alignItems: 'center', minHeight: 58, paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E7D9C6', backgroundColor: 'rgba(254,250,240,0.94)' },
   landingBackButton: { position: 'absolute', top: 8, left: 16, zIndex: 20 },
   headerTitle: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
-  headerTitleText: { fontSize: 15, fontWeight: '700', color: '#4A3A28' },
-  menuDots: { fontSize: 24, color: COLORS.accent, fontWeight: '600' },
-  replyBtn: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 8, backgroundColor: COLORS.accent, marginBottom: 12 },
-  replyBtnText: { fontSize: 16, fontWeight: '600', color: '#FFF', textAlign: 'center' },
-  waitingBox: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#FFF3E0', borderLeftWidth: 4, borderLeftColor: '#FF9800', marginBottom: 12 },
-  waitingText: { fontSize: 14, color: '#E65100', fontWeight: '600', textAlign: 'center' },
-  historyBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.8)', borderWidth: 1, borderColor: COLORS.accent },
-  historyBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.accent, textAlign: 'center' },
-  emptyState: { paddingVertical: 48, alignItems: 'center', marginBottom: 24 },
-  emptyEmoji: { fontSize: 64, marginBottom: 16 },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
-  emptySubtext: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20 },
-  createBtn: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 8, backgroundColor: COLORS.accent, marginTop: 16 },
-  createBtnText: { fontSize: 16, fontWeight: '600', color: '#FFF', textAlign: 'center' },
-  infoBox: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 8, backgroundColor: '#E8F5E9', borderLeftWidth: 4, borderLeftColor: COLORS.success },
-  infoText: { fontSize: 13, color: COLORS.success, fontWeight: '600' },
-  errorBox: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 8, backgroundColor: '#FDECEA', borderLeftWidth: 4, borderLeftColor: COLORS.error, marginBottom: 16 },
-  errorText: { fontSize: 13, color: COLORS.error, fontWeight: '600' },
-  selectionTitle: { fontSize: 28, fontWeight: '700', color: COLORS.text, marginBottom: 8, textAlign: 'center' },
-  selectionSubtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 40, fontStyle: 'italic' },
-  bottlesContainer: { position: 'relative', height: 600, marginBottom: 40, paddingHorizontal: 16 },
+  headerTitleText: { fontSize: 17, fontWeight: '700', color: COLORS.text, letterSpacing: 0.2 },
+  menuButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(139,46,60,0.07)' },
+  menuDots: { fontSize: 23, color: COLORS.accent, fontWeight: '700', marginTop: -5 },
+  replyBtn: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 18, borderRadius: 14, backgroundColor: COLORS.accent, marginBottom: 12, shadowColor: '#5A3A1A', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.16, shadowRadius: 7, elevation: 4 },
+  replyBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF', textAlign: 'center' },
+  waitingBox: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14, backgroundColor: '#F4E7D2', borderWidth: 1, borderColor: '#DEC6A5', marginBottom: 12 },
+  waitingText: { fontSize: 14, color: '#7A5C3A', fontWeight: '600', textAlign: 'center' },
+  historyBtn: { minHeight: 46, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 14, backgroundColor: COLORS.paper, borderWidth: 1.5, borderColor: '#B8956A' },
+  historyBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.accent, textAlign: 'center' },
+  emptyState: { paddingTop: 90, paddingBottom: 32, alignItems: 'center', marginBottom: 10 },
+  emptyEmoji: { fontSize: 58, marginBottom: 18 },
+  emptyTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
+  emptySubtext: { maxWidth: 310, fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 21 },
+  createBtn: { minHeight: 50, justifyContent: 'center', paddingHorizontal: 18, borderRadius: 14, backgroundColor: COLORS.accent, marginTop: 10, shadowColor: '#5A3A1A', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.16, shadowRadius: 7, elevation: 4 },
+  createBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF', textAlign: 'center' },
+  infoBox: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14, backgroundColor: '#EEF2EA', borderWidth: 1, borderColor: '#CAD7C7' },
+  infoText: { fontSize: 13, color: COLORS.success, fontWeight: '600', lineHeight: 19 },
+  errorBox: { paddingVertical: 13, paddingHorizontal: 15, borderRadius: 14, backgroundColor: '#F8E8E5', borderWidth: 1, borderColor: '#E7C0BA', marginBottom: 16 },
+  errorText: { fontSize: 13, color: COLORS.error, fontWeight: '600', lineHeight: 19 },
+  selectionHeader: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 18, alignItems: 'center' },
+  selectionTitle: { fontSize: 25, fontWeight: '800', color: COLORS.text, marginBottom: 6, textAlign: 'center' },
+  selectionSubtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', fontStyle: 'italic' },
+  bottlesContainer: { position: 'relative', height: 600, marginHorizontal: 16, marginBottom: 28, borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(184,149,106,0.55)', shadowColor: '#5A3A1A', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.16, shadowRadius: 12, elevation: 5 },
   bottleItem: { position: 'absolute', width: 110, height: 160 },
   bottleTouchable: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   bottleImage: { width: '100%', height: '100%' },
-  createAlternativeBtn: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(139,46,60,0.1)', borderWidth: 1, borderColor: COLORS.accent, marginTop: 20 },
-  createAlternativeBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.accent, textAlign: 'center' },
-  quotaBox: { paddingVertical: 24, paddingHorizontal: 16, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.9)', marginBottom: 20, alignItems: 'center' },
-  quotaEmoji: { fontSize: 48, marginBottom: 12 },
-  quotaTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
-  quotaText: { fontSize: 14, color: COLORS.text, textAlign: 'center', marginBottom: 8 },
-  quotaSubtext: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 18 },
+  createAlternativeBtn: { minHeight: 46, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 14, backgroundColor: COLORS.paper, borderWidth: 1.5, borderColor: '#B8956A', marginTop: 4 },
+  createAlternativeBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.accent, textAlign: 'center' },
+  quotaBox: { paddingVertical: 30, paddingHorizontal: 20, borderRadius: 18, backgroundColor: COLORS.paper, marginTop: 30, marginBottom: 20, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, shadowColor: '#5A3A1A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 4 },
+  quotaEmoji: { fontSize: 46, marginBottom: 14 },
+  quotaTitle: { fontSize: 19, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
+  quotaText: { fontSize: 14, color: COLORS.text, textAlign: 'center', marginBottom: 8, lineHeight: 20 },
+  quotaSubtext: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 19 },
 });
