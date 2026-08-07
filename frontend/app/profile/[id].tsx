@@ -1,11 +1,31 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import ProfileDetailScreen from '../../src/screens/ProfileDetailScreen';
 import { getReactionStatus, sendReaction, type ReactionStatusDTO } from '../../src/api/reactions';
 import { blockMatch, breakMatch, listMatches, type MatchDTO } from '../../src/api/matches';
+import { blockProfile, reportUser, type ReportReason } from '../../src/api/profiles';
 import { useStore } from '../../src/store/useStore';
+
+const REPORT_REASONS: Array<{ value: ReportReason; label: string }> = [
+  { value: 'HARASSMENT', label: 'Harcèlement' },
+  { value: 'SPAM', label: 'Spam' },
+  { value: 'FAKE', label: 'Faux profil' },
+  { value: 'INAPPROPRIATE_CONTENT', label: 'Contenu inapproprié' },
+  { value: 'MINOR', label: 'Mineur' },
+  { value: 'OTHER', label: 'Autre' },
+];
 
 export default function ProfileRoute() {
   const router = useRouter();
@@ -21,6 +41,10 @@ export default function ProfileRoute() {
   const [isLoadingReaction, setIsLoadingReaction] = useState(false);
   const [reactionStatus, setReactionStatus] = useState<ReactionStatusDTO | null>(null);
   const [isRelationActioning, setIsRelationActioning] = useState(false);
+  const [isProfileActioning, setIsProfileActioning] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState<ReportReason>('OTHER');
+  const [reportDetails, setReportDetails] = useState('');
 
   const isOwnProfile = !!profileId && currentUser?.id === profileId;
 
@@ -58,6 +82,11 @@ export default function ProfileRoute() {
       active = false;
     };
   }, [profileId, isOwnProfile, isBottleContext]);
+
+  const anyRelationMatch = useMemo(
+    () => matches.find((match) => match.otherUserId === profileId),
+    [matches, profileId],
+  );
 
   const relationMatch = useMemo(
     () => matches.find((match) => match.otherUserId === profileId && (match.status === 'ACTIVE' || match.status === 'PENDING')),
@@ -164,9 +193,49 @@ export default function ProfileRoute() {
     }
   };
 
+  const handleBlockUnmatchedProfile = async () => {
+    if (!profileId || anyRelationMatch || isProfileActioning) return;
+
+    const confirmed = await confirmAction(
+      'Bloquer cette personne ?',
+      'Son profil ne vous sera plus proposé et vous ne pourrez plus interagir ensemble.',
+      'Bloquer',
+    );
+    if (!confirmed) return;
+
+    setIsProfileActioning(true);
+    try {
+      await blockProfile(profileId);
+      showMessage('Personne bloquée', 'Ce profil a bien été bloqué.');
+      router.back();
+    } catch (error: any) {
+      showMessage('Erreur', error?.message || 'Impossible de bloquer ce profil');
+    } finally {
+      setIsProfileActioning(false);
+    }
+  };
+
+  const handleReportSubmit = async () => {
+    if (!profileId || isProfileActioning) return;
+
+    setIsProfileActioning(true);
+    try {
+      await reportUser(profileId, reportReason, reportDetails.trim() || undefined);
+      setShowReportModal(false);
+      setReportReason('OTHER');
+      setReportDetails('');
+      showMessage('Signalement envoyé', 'Merci, votre signalement a bien été transmis.');
+    } catch (error: any) {
+      showMessage('Erreur', error?.message || "Impossible d'envoyer le signalement");
+    } finally {
+      setIsProfileActioning(false);
+    }
+  };
+
   const smileAlreadySent = reactionStatus?.outgoingType === 'SMILE';
   const mutualSmile = reactionStatus?.mutualSmile === true;
   const hasActiveRelation = relationMatch?.status === 'ACTIVE';
+  const isUnmatchedProfile = !isLoadingMatches && !anyRelationMatch;
 
   return (
     <View style={styles.container}>
@@ -225,8 +294,79 @@ export default function ProfileRoute() {
               </TouchableOpacity>
             </View>
           )}
+
+          {isUnmatchedProfile && (
+            <View style={styles.relationActionsRow}>
+              <TouchableOpacity
+                style={[styles.relationActionButton, isProfileActioning && styles.disabledButton]}
+                onPress={() => setShowReportModal(true)}
+                disabled={isProfileActioning}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.relationActionText}>Signaler</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.relationActionButton, styles.blockButton, isProfileActioning && styles.disabledButton]}
+                onPress={() => void handleBlockUnmatchedProfile()}
+                disabled={isProfileActioning}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.relationActionText}>Bloquer</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
+
+      <Modal visible={showReportModal} transparent animationType="fade" onRequestClose={() => setShowReportModal(false)}>
+        <View style={styles.reportOverlay}>
+          <View style={styles.reportCard}>
+            <Text style={styles.reportTitle}>Signaler ce profil</Text>
+
+            {REPORT_REASONS.map(({ value, label }) => (
+              <TouchableOpacity
+                key={value}
+                style={[styles.reasonButton, reportReason === value && styles.reasonButtonSelected]}
+                onPress={() => setReportReason(value)}
+                disabled={isProfileActioning}
+              >
+                <Text style={styles.reasonText}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+
+            <TextInput
+              style={styles.reportInput}
+              value={reportDetails}
+              onChangeText={setReportDetails}
+              placeholder="Détails supplémentaires (optionnel)"
+              multiline
+              maxLength={1000}
+              editable={!isProfileActioning}
+            />
+
+            <TouchableOpacity
+              style={[styles.reportSubmit, isProfileActioning && styles.disabledButton]}
+              onPress={() => void handleReportSubmit()}
+              disabled={isProfileActioning}
+            >
+              {isProfileActioning ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.reportSubmitText}>Envoyer le signalement</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.reportCancel}
+              onPress={() => setShowReportModal(false)}
+              disabled={isProfileActioning}
+            >
+              <Text style={styles.reportCancelText}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -300,5 +440,76 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.65,
+  },
+  reportOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  reportCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 20,
+  },
+  reportTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2B2B2B',
+    marginBottom: 16,
+  },
+  reasonButton: {
+    minHeight: 42,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 9,
+    backgroundColor: '#F5F1E8',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    marginBottom: 8,
+  },
+  reasonButtonSelected: {
+    borderColor: '#8B2E3C',
+    backgroundColor: '#F8ECEE',
+  },
+  reasonText: {
+    color: '#3A2C18',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  reportInput: {
+    minHeight: 80,
+    borderWidth: 1,
+    borderColor: '#D8D2C4',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 6,
+    marginBottom: 14,
+    textAlignVertical: 'top',
+  },
+  reportSubmit: {
+    minHeight: 46,
+    borderRadius: 10,
+    backgroundColor: '#8B2E3C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportSubmitText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  reportCancel: {
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  reportCancelText: {
+    color: '#6B6B6B',
+    fontWeight: '600',
   },
 });
