@@ -1,19 +1,21 @@
 import { z } from "zod";
 
+const StrongPasswordSchema = z
+  .string()
+  .min(8, "Mot de passe : 8 caractères minimum")
+  .max(72, "Mot de passe : 72 caractères maximum")
+  .regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+    "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre",
+  );
+
 export const RegisterSchema = z.object({
   email: z
     .string()
     .email("Email invalide")
     .max(255)
     .toLowerCase(),
-  password: z
-    .string()
-    .min(8, "Mot de passe : 8 caractères minimum")
-    .max(72, "Mot de passe : 72 caractères maximum")
-    .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre",
-    ),
+  password: StrongPasswordSchema,
   pseudo: z
     .string()
     .min(3, "Pseudo : 3 caractères minimum")
@@ -40,6 +42,12 @@ export const RefreshSchema = z.object({
   refreshToken: z.string().min(1, "Refresh token requis"),
 });
 
+export const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Mot de passe actuel requis"),
+  newPassword: StrongPasswordSchema,
+});
+
 export type RegisterDto = z.infer<typeof RegisterSchema>;
 export type LoginDto = z.infer<typeof LoginSchema>;
 export type RefreshDto = z.infer<typeof RefreshSchema>;
+export type ChangePasswordDto = z.infer<typeof ChangePasswordSchema>;
