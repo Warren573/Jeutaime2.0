@@ -34,15 +34,6 @@ const envSchema = z.object({
 
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
-  STAGING_DEBUG: z
-    .string()
-    .default("false")
-    .transform((v) => v.toLowerCase() === "true"),
-  ALLOW_DEBUG_ENDPOINTS: z
-    .string()
-    .default("false")
-    .transform((v) => v.toLowerCase() === "true"),
-
   ENABLE_SCHEDULER: z
     .string()
     .default("false")
