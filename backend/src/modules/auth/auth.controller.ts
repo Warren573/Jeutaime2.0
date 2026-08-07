@@ -3,6 +3,7 @@ import * as authService from "./auth.service";
 import { changePassword } from "./accountSecurity.service";
 import { exportPersonalData } from "./dataExport.service";
 import { deactivateAccount, reactivateAccountByEmail } from "./accountLifecycle.service";
+import { deleteAccountPermanently } from "./accountDeletion.service";
 import { AuthedRequest } from "../../core/types";
 import { BadRequestError } from "../../core/errors";
 
@@ -38,6 +39,11 @@ export async function handleChangePassword(req: AuthedRequest, res: Response) {
 export async function handleDeactivate(req: AuthedRequest, res: Response) {
   await deactivateAccount(req.user.userId, req.body.currentPassword);
   res.json({ data: { message: "Compte désactivé" } });
+}
+
+export async function handleDeleteAccount(req: AuthedRequest, res: Response) {
+  await deleteAccountPermanently(req.user.userId, req.body.currentPassword);
+  res.json({ data: { message: "Compte supprimé définitivement" } });
 }
 
 export async function handleExportData(req: AuthedRequest, res: Response) {
