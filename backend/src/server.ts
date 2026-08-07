@@ -17,7 +17,20 @@ function getCommitSha() {
   }
 }
 
+function hardenProductionConsole(): void {
+  if (env.NODE_ENV !== "production") return;
+
+  // Le backend utilise Pino pour les logs de production. Les vieux console.log
+  // de diagnostic présents dans certains gros modules peuvent contenir des IDs,
+  // villes ou payloads métier : on les neutralise globalement sans masquer
+  // console.warn / console.error, qui restent disponibles pour les incidents.
+  console.log = () => undefined;
+  console.debug = () => undefined;
+}
+
 async function main() {
+  hardenProductionConsole();
+
   const commitSha = getCommitSha();
   logger.info({ commitSha }, "Backend startup");
 
@@ -28,7 +41,6 @@ async function main() {
     }, "Test mode diagnostic");
   }
 
-  // Vérifier la connexion DB avant de démarrer (avec timeout)
   try {
     const connectPromise = prisma.$connect();
     const timeoutPromise = new Promise((_resolve, reject) =>
@@ -41,7 +53,6 @@ async function main() {
     throw err;
   }
 
-  // Diagnostic salons uniquement hors production.
   if (env.NODE_ENV !== "production") {
     try {
       const salons = await prisma.salon.findMany({
@@ -65,8 +76,6 @@ async function main() {
     );
   });
 
-  // Scheduler opt-in (ENABLE_SCHEDULER=true) — liste unique de jobs, dont
-  // closeRefugeDaysJob (clôture des journées de Refuge échues).
   let schedulerHandle: { stop: () => void } | null = null;
   if (env.ENABLE_SCHEDULER) {
     schedulerHandle = startScheduler({
@@ -77,7 +86,6 @@ async function main() {
     });
   }
 
-  // Arrêt propre
   const shutdown = async (signal: string) => {
     logger.info({ signal }, "Arrêt en cours...");
     schedulerHandle?.stop();
