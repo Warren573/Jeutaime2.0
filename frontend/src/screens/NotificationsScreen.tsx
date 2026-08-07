@@ -86,13 +86,11 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [notifPush, setNotifPush] = useState(true);
-  const [notifEmail, setNotifEmail] = useState(true);
-  const [savingPreference, setSavingPreference] = useState<'push' | 'email' | null>(null);
+  const [savingPreference, setSavingPreference] = useState(false);
 
   const loadPreferences = useCallback(async () => {
     const settings = await getUserSettings();
     setNotifPush(settings.notifPush);
-    setNotifEmail(settings.notifEmail);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -134,58 +132,39 @@ export default function NotificationsScreen() {
     await markAllNotificationsRead();
   }, [markAllNotificationsRead]);
 
-  const handlePreference = useCallback(async (
-    key: 'notifPush' | 'notifEmail',
-    value: boolean,
-  ) => {
-    const kind = key === 'notifPush' ? 'push' : 'email';
+  const handlePushPreference = useCallback(async (value: boolean) => {
     if (savingPreference) return;
-
-    const previous = key === 'notifPush' ? notifPush : notifEmail;
-    if (key === 'notifPush') setNotifPush(value);
-    else setNotifEmail(value);
+    const previous = notifPush;
+    setNotifPush(value);
 
     try {
-      setSavingPreference(kind);
-      const next = await updateUserSettings({ [key]: value });
+      setSavingPreference(true);
+      const next = await updateUserSettings({ notifPush: value });
       setNotifPush(next.notifPush);
-      setNotifEmail(next.notifEmail);
     } catch (err) {
-      if (key === 'notifPush') setNotifPush(previous);
-      else setNotifEmail(previous);
+      setNotifPush(previous);
       Alert.alert(
         'Erreur',
         err instanceof Error ? err.message : 'Impossible de modifier ce réglage.',
       );
     } finally {
-      setSavingPreference(null);
+      setSavingPreference(false);
     }
-  }, [notifEmail, notifPush, savingPreference]);
+  }, [notifPush, savingPreference]);
 
   const preferencesHeader = (
     <>
       <View style={styles.preferencesCard}>
         <Text style={styles.preferencesTitle}>Préférences</Text>
-        <View style={styles.preferenceRow}>
+        <View style={[styles.preferenceRow, styles.preferenceRowLast]}>
           <View style={styles.preferenceTextWrap}>
             <Text style={styles.preferenceLabel}>Notifications push</Text>
             <Text style={styles.preferenceHint}>Alertes envoyées sur ton appareil.</Text>
           </View>
           <Switch
             value={notifPush}
-            onValueChange={(value) => void handlePreference('notifPush', value)}
-            disabled={savingPreference !== null}
-          />
-        </View>
-        <View style={[styles.preferenceRow, styles.preferenceRowLast]}>
-          <View style={styles.preferenceTextWrap}>
-            <Text style={styles.preferenceLabel}>Notifications par email</Text>
-            <Text style={styles.preferenceHint}>Autorise les emails liés à ton compte.</Text>
-          </View>
-          <Switch
-            value={notifEmail}
-            onValueChange={(value) => void handlePreference('notifEmail', value)}
-            disabled={savingPreference !== null}
+            onValueChange={(value) => void handlePushPreference(value)}
+            disabled={savingPreference}
           />
         </View>
       </View>
