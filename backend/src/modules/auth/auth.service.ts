@@ -39,11 +39,9 @@ async function persistRefreshToken(userId: string, tokenId: string, rawToken: st
 // Register
 // -----------------------------------------------------------------------
 export async function register(dto: RegisterDto) {
-  // Unicité email
   const existingEmail = await prisma.user.findUnique({ where: { email: dto.email }, select: { id: true } });
   if (existingEmail) throw new ConflictError("Cet email est déjà utilisé");
 
-  // Unicité pseudo
   const existingPseudo = await prisma.profile.findUnique({ where: { pseudo: dto.pseudo }, select: { id: true } });
   if (existingPseudo) throw new ConflictError("Ce pseudo est déjà pris");
 
@@ -68,7 +66,7 @@ export async function register(dto: RegisterDto) {
     });
 
     await tx.wallet.create({
-      data: { userId: newUser.id, coins: 100 }, // bonus bienvenue
+      data: { userId: newUser.id, coins: 100 },
     });
 
     await tx.userSettings.create({
@@ -85,47 +83,47 @@ export async function register(dto: RegisterDto) {
 }
 
 // -----------------------------------------------------------------------
-// Login with Full Debug Info (for testing)
+// Login debug — réservé aux routes de test, sans fuite de hash/password.
 // -----------------------------------------------------------------------
 export async function loginWithDebug(dto: LoginDto) {
-  const debug: any = {
+  if (process.env.NODE_ENV === "production") {
+    return {
+      tokens: null,
+      debug: { disabled: true },
+      error: "Debug login disabled in production",
+    };
+  }
+
+  const debug: Record<string, unknown> = {
     inputEmail: dto.email,
     userFound: false,
-    userObjectKeys: null,
-    passwordHashExists: false,
-    passwordHashLength: 0,
-    passwordHashPrefix: null,
     bcryptCompareResult: null,
     failureReason: null,
-    failureLineNumber: null,
   };
 
   try {
     const user = await prisma.user.findUnique({
       where: { email: dto.email },
       select: {
-        id: true, passwordHash: true, role: true, isBanned: true,
-        premiumTier: true, premiumUntil: true, banReason: true,
+        id: true,
+        passwordHash: true,
+        role: true,
+        isBanned: true,
+        premiumTier: true,
+        premiumUntil: true,
+        banReason: true,
       },
     });
 
     debug.userFound = !!user;
-    if (user) {
-      debug.userObjectKeys = Object.keys(user);
-      debug.passwordHashExists = !!user.passwordHash;
-      debug.passwordHashLength = user.passwordHash?.length || 0;
-      debug.passwordHashPrefix = user.passwordHash?.substring(0, 10) || null;
-    }
 
     if (!user) {
       debug.failureReason = "Email ou mot de passe incorrect";
-      debug.failureLineNumber = 105;
       return { tokens: null, debug, error: debug.failureReason };
     }
 
     if (user.isBanned) {
       debug.failureReason = `Compte suspendu${user.banReason ? " : " + user.banReason : ""}`;
-      debug.failureLineNumber = 106;
       return { tokens: null, debug, error: debug.failureReason };
     }
 
@@ -134,12 +132,10 @@ export async function loginWithDebug(dto: LoginDto) {
 
     if (!valid) {
       debug.failureReason = "Email ou mot de passe incorrect";
-      debug.failureLineNumber = 122;
       return { tokens: null, debug, error: debug.failureReason };
     }
 
     const isPremium = isPremiumActive(user);
-
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
     const { access, refresh, tokenId } = buildTokenPair(user.id, user.role, isPremium);
@@ -155,43 +151,35 @@ export async function loginWithDebug(dto: LoginDto) {
 
 // -----------------------------------------------------------------------
 // Login
+// -----------------------------------------------------------------------
 export async function login(dto: LoginDto) {
   const user = await prisma.user.findUnique({
     where: { email: dto.email },
     select: {
-      id: true, passwordHash: true, role: true, isBanned: true,
-      premiumTier: true, premiumUntil: true, banReason: true,
+      id: true,
+      passwordHash: true,
+      role: true,
+      isBanned: true,
+      premiumTier: true,
+      premiumUntil: true,
+      banReason: true,
     },
   });
 
-  console.log("[auth/login] DEBUG user query:", {
-    emailSearched: dto.email,
-    userFound: !!user,
-    userObjectKeys: user ? Object.keys(user) : null,
-  });
-
   if (!user) throw new UnauthorizedError("Email ou mot de passe incorrect");
-  if (user.isBanned) throw new UnauthorizedError(`Compte suspendu${user.banReason ? " : " + user.banReason : ""}`);
-
-  console.log("[auth/login] DEBUG password check:", {
-    inputPasswordLength: dto.password.length,
-    passwordHashExists: !!user.passwordHash,
-    passwordHashLength: user.passwordHash?.length || 0,
-    passwordHashPrefix: user.passwordHash?.substring(0, 10) || "N/A",
-  });
+  if (user.isBanned) {
+    throw new UnauthorizedError(`Compte suspendu${user.banReason ? " : " + user.banReason : ""}`);
+  }
 
   const valid = await comparePassword(dto.password, user.passwordHash);
-
-  console.log("[auth/login] DEBUG compare result:", {
-    bcryptCompareResult: valid,
-    passwordHashPrefix: user.passwordHash?.substring(0, 10) || "N/A",
-  });
-
   if (!valid) throw new UnauthorizedError("Email ou mot de passe incorrect");
 
   const isPremium = isPremiumActive(user);
 
-  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+  });
 
   const { access, refresh, tokenId } = buildTokenPair(user.id, user.role, isPremium);
   await persistRefreshToken(user.id, tokenId, refresh);
@@ -200,7 +188,7 @@ export async function login(dto: LoginDto) {
 }
 
 // -----------------------------------------------------------------------
-// Refresh
+// Refresh — rotation atomique, un refresh token ne peut être consommé qu'une fois.
 // -----------------------------------------------------------------------
 export async function refresh(rawToken: string) {
   const payload = verifyRefreshToken(rawToken);
@@ -209,7 +197,13 @@ export async function refresh(rawToken: string) {
     where: { id: payload.tokenId },
     include: {
       user: {
-        select: { id: true, role: true, isBanned: true, premiumTier: true, premiumUntil: true },
+        select: {
+          id: true,
+          role: true,
+          isBanned: true,
+          premiumTier: true,
+          premiumUntil: true,
+        },
       },
     },
   });
@@ -220,16 +214,39 @@ export async function refresh(rawToken: string) {
   if (stored.expiresAt < new Date()) throw new UnauthorizedError("Refresh token expiré");
   if (stored.user.isBanned) throw new UnauthorizedError("Compte suspendu");
 
-  // Rotation : révoquer l'ancien, émettre un nouveau
-  await prisma.refreshToken.update({
-    where: { id: stored.id },
-    data: { revokedAt: new Date() },
+  const isPremium = isPremiumActive(stored.user);
+  const { access, refresh: newRefresh, tokenId: newTokenId } = buildTokenPair(
+    stored.user.id,
+    stored.user.role,
+    isPremium,
+  );
+  const now = new Date();
+  const newExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_S * 1000);
+
+  const rotated = await prisma.$transaction(async (tx) => {
+    const revoke = await tx.refreshToken.updateMany({
+      where: { id: stored.id, revokedAt: null },
+      data: { revokedAt: now },
+    });
+
+    // Concurrency guard: only the first request can consume this refresh token.
+    if (revoke.count !== 1) return false;
+
+    await tx.refreshToken.create({
+      data: {
+        id: newTokenId,
+        userId: stored.user.id,
+        tokenHash: hashToken(newRefresh),
+        expiresAt: newExpiresAt,
+      },
+    });
+
+    return true;
   });
 
-  const isPremium = isPremiumActive(stored.user);
-
-  const { access, refresh: newRefresh, tokenId } = buildTokenPair(stored.user.id, stored.user.role, isPremium);
-  await persistRefreshToken(stored.user.id, tokenId, newRefresh);
+  if (!rotated) {
+    throw new UnauthorizedError("Refresh token déjà utilisé");
+  }
 
   return { accessToken: access, refreshToken: newRefresh };
 }
