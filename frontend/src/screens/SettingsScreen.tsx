@@ -246,7 +246,9 @@ export default function SettingsScreen() {
         { icon: '🚪', label: 'Se déconnecter',               action: handleLogout,    warning: true },
         { icon: '⏸️', label: 'Désactiver mon compte',        route: '/deactivate',    warning: true },
         { icon: '🗑️', label: 'Supprimer mon compte',         route: '/delete-account', danger: true },
-        { icon: '🔄', label: 'Réinitialiser session locale', action: handleDebugReset, danger: true },
+        ...(__DEV__
+          ? [{ icon: '🔄', label: 'Réinitialiser session locale', action: handleDebugReset, danger: true } as SettingsItem]
+          : []),
       ],
     },
     {
