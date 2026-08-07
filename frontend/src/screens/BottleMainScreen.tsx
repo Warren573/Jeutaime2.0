@@ -166,15 +166,12 @@ export default function BottleMainScreen() {
 
   if (displayState?.type === 'correspondence' && displayState.latestLetter && state?.bottle) {
     return (<View style={[styles.bg, { backgroundColor: CREAM_BG }]}><View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: 8 }]}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={styles.headerBack}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerTitle}>
-          <Text style={styles.headerTitleText} numberOfLines={1}>
-            Lettre en transit
-          </Text>
+          <Text style={styles.headerTitleText} numberOfLines={1}>Lettre en transit</Text>
         </View>
         <TouchableOpacity onPress={() => setShowMenu(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={styles.menuDots}>⋯</Text>
@@ -190,14 +187,7 @@ export default function BottleMainScreen() {
         </View>
       </ScrollView>
 
-      <BottleCorrespondenceMenu
-        visible={showMenu}
-        bottleId={state.bottle.id}
-        canBreak={state.canBreak}
-        onClose={() => setShowMenu(false)}
-        onRefresh={loadState}
-        onBroken={() => router.back()}
-      />
+      <BottleCorrespondenceMenu visible={showMenu} bottleId={state.bottle.id} canBreak={state.canBreak} onClose={() => setShowMenu(false)} onRefresh={loadState} onBroken={() => router.back()} />
     </View></View>);
   }
 
@@ -210,16 +200,21 @@ export default function BottleMainScreen() {
   }
 
   if (displayState?.type === 'create') {
-    return (<View style={[styles.bg, { backgroundColor: CREAM_BG }]}><View style={[styles.container, { paddingTop: insets.top }]}><ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false}>
-      <View style={styles.paddedSection}>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyEmoji}>🌊</Text>
-          <Text style={styles.emptyTitle}>Lancez une bouteille</Text>
-          <Text style={styles.emptySubtext}>Écrivez une lettre et laissez-la naviguer vers quelqu'un de spécial.</Text>
+    return (<View style={[styles.bg, { backgroundColor: CREAM_BG }]}><View style={[styles.container, { paddingTop: insets.top }]}>
+      <TouchableOpacity style={styles.landingBackButton} onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <Text style={styles.headerBack}>←</Text>
+      </TouchableOpacity>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false}>
+        <View style={styles.paddedSection}>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>🌊</Text>
+            <Text style={styles.emptyTitle}>Lancez une bouteille</Text>
+            <Text style={styles.emptySubtext}>Écrivez une lettre et laissez-la naviguer vers quelqu'un de spécial.</Text>
+          </View>
+          <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/bottles-create')}><Text style={styles.createBtnText}>Créer une nouvelle bouteille</Text></TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/bottles-create')}><Text style={styles.createBtnText}>Créer une nouvelle bouteille</Text></TouchableOpacity>
-      </View>
-    </ScrollView></View></View>);
+      </ScrollView>
+    </View></View>);
   }
 
   return (<View style={[styles.bg, { backgroundColor: CREAM_BG }]}><View style={[styles.container, { paddingTop: insets.top }]}><ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
@@ -239,6 +234,7 @@ const styles = StyleSheet.create({
   bg: { flex: 1 }, container: { flex: 1 }, scroll: { flex: 1 }, content: { paddingHorizontal: 0, paddingVertical: 0 }, paddedSection: { paddingHorizontal: 16 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 10 },
   headerBack: { fontSize: 24, color: COLORS.accent, fontWeight: '600' },
+  landingBackButton: { position: 'absolute', top: 8, left: 16, zIndex: 20, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
   headerTitleText: { fontSize: 15, fontWeight: '700', color: '#4A3A28' },
   replyBtn: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 8, backgroundColor: COLORS.accent, marginBottom: 12 }, replyBtnText: { fontSize: 16, fontWeight: '600', color: '#FFF', textAlign: 'center' },
