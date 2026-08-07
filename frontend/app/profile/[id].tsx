@@ -3,28 +3,33 @@ import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TouchableOpacity,
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import ProfileDetailScreen from '../../src/screens/ProfileDetailScreen';
-import { sendReaction } from '../../src/api/reactions';
+import { getReactionStatus, sendReaction, type ReactionStatusDTO } from '../../src/api/reactions';
 import { listMatches, type MatchDTO } from '../../src/api/matches';
 import { useStore } from '../../src/store/useStore';
 
 export default function ProfileRoute() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; source?: string; bottleId?: string }>();
   const currentUser = useStore((state) => state.currentUser);
   const profileId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const source = Array.isArray(params.source) ? params.source[0] : params.source;
+  const isBottleContext = source === 'bottle';
 
   const [matches, setMatches] = useState<MatchDTO[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
   const [isSmiling, setIsSmiling] = useState(false);
-  const [smileSent, setSmileSent] = useState(false);
+  const [isLoadingReaction, setIsLoadingReaction] = useState(false);
+  const [reactionStatus, setReactionStatus] = useState<ReactionStatusDTO | null>(null);
 
   const isOwnProfile = !!profileId && currentUser?.id === profileId;
 
   useEffect(() => {
     let active = true;
-    if (!profileId || isOwnProfile) return;
+    if (!isBottleContext || !profileId || isOwnProfile) return;
 
     setIsLoadingMatches(true);
+    setIsLoadingReaction(true);
+
     listMatches()
       .then((items) => {
         if (active) setMatches(items);
@@ -36,10 +41,21 @@ export default function ProfileRoute() {
         if (active) setIsLoadingMatches(false);
       });
 
+    getReactionStatus(profileId)
+      .then((status) => {
+        if (active) setReactionStatus(status);
+      })
+      .catch(() => {
+        if (active) setReactionStatus(null);
+      })
+      .finally(() => {
+        if (active) setIsLoadingReaction(false);
+      });
+
     return () => {
       active = false;
     };
-  }, [profileId, isOwnProfile]);
+  }, [profileId, isOwnProfile, isBottleContext]);
 
   const relationMatch = useMemo(
     () => matches.find((match) => match.otherUserId === profileId && (match.status === 'ACTIVE' || match.status === 'PENDING')),
@@ -55,14 +71,19 @@ export default function ProfileRoute() {
   };
 
   const handleSmile = async () => {
-    if (!profileId || isOwnProfile || isSmiling) return;
+    if (!profileId || isOwnProfile || isSmiling || reactionStatus?.outgoingType === 'SMILE') return;
 
     setIsSmiling(true);
     try {
       const result = await sendReaction(profileId, 'SMILE');
-      setSmileSent(true);
+      const refreshedStatus = await getReactionStatus(profileId).catch(() => ({
+        outgoingType: 'SMILE' as const,
+        incomingType: null,
+        mutualSmile: result.matchCreated,
+      }));
+      setReactionStatus(refreshedStatus);
 
-      if (result.matchCreated) {
+      if (refreshedStatus.mutualSmile) {
         showMessage('Sourire mutuel', 'Le sourire est partagé. Vous pouvez continuer depuis vos Lettres.');
         const refreshed = await listMatches().catch(() => []);
         setMatches(refreshed);
@@ -80,24 +101,29 @@ export default function ProfileRoute() {
     router.push('/(tabs)/letters' as never);
   };
 
+  const smileAlreadySent = reactionStatus?.outgoingType === 'SMILE';
+  const mutualSmile = reactionStatus?.mutualSmile === true;
+
   return (
     <View style={styles.container}>
       <ProfileDetailScreen />
 
-      {!isOwnProfile && profileId && (
+      {isBottleContext && !isOwnProfile && profileId && (
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.smileButton, (isSmiling || smileSent) && styles.disabledButton]}
-            onPress={() => void handleSmile()}
-            disabled={isSmiling || smileSent}
-            activeOpacity={0.8}
-          >
-            {isSmiling ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.smileText}>{smileSent ? '😊 Sourire envoyé' : '😊 Envoyer un sourire'}</Text>
-            )}
-          </TouchableOpacity>
+          {!mutualSmile && (
+            <TouchableOpacity
+              style={[styles.smileButton, (isSmiling || isLoadingReaction || smileAlreadySent) && styles.disabledButton]}
+              onPress={() => void handleSmile()}
+              disabled={isSmiling || isLoadingReaction || smileAlreadySent}
+              activeOpacity={0.8}
+            >
+              {isSmiling || isLoadingReaction ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.smileText}>{smileAlreadySent ? '😊 Sourire envoyé' : '😊 Envoyer un sourire'}</Text>
+              )}
+            </TouchableOpacity>
+          )}
 
           {(relationMatch || isLoadingMatches) && (
             <TouchableOpacity
