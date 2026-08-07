@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 import { BouncyButton } from "../components/BouncyButton";
+import { AppBackButton } from "../components/AppBackButton";
 import { BackgroundPicker } from "../components/BackgroundPicker";
 import { RefugeRevealPhase } from "../components/RefugeRevealPhase";
 import { RefugeDayResultIcon } from "../components/RefugeDayResultIcon";
@@ -16,7 +17,6 @@ import { useRefugeSession } from "../hooks/useRefugeSession";
 import { formatAnimalAge } from "../modules/refuge/refugeAgeDisplay";
 
 const screenHeight = Dimensions.get("window").height;
-const screenWidth = Dimensions.get("window").width;
 
 const getResponsiveValues = () => {
   if (screenHeight < 700) {
@@ -27,19 +27,11 @@ const getResponsiveValues = () => {
   return { animalSize: 300 };
 };
 
-/**
- * Écran principal d'une session Refuge active.
- * Affiche: 7 cœurs, refuge + compagnon, 4 jauges, 4 actions.
- * Gère le cycle 7 jours avec évaluation et dévoilement des profils.
- */
 export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
   const router = useRouter();
   const sessionId = sessionIdProp;
-
-  // Identité : même source que le reste de l'app (store d'authentification)
   const { currentUser } = useStore();
   const currentUserId = currentUser?.id ?? null;
-
   const { animalSize } = getResponsiveValues();
   const {
     selectedMyActions,
@@ -48,14 +40,10 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
     toggleGuessAction,
     resetDay,
   } = useRefugeDailyChoices();
-
-  // Charger la vraie session du serveur
   const refugeSession = useRefugeSession(sessionId);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
 
-  // Phase finale — la décision part au serveur, puis l'état serveur fait foi
   const handleRevealDecision = async (decision: "ACCEPT" | "REFUSE") => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -65,105 +53,58 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
 
   const handleAdopteSubmit = async () => {
     if (selectedMyActions.length !== 2 || isSubmitting) return;
-
     setIsSubmitting(true);
     const success = await refugeSession.submitDailyChoice(selectedMyActions);
     setIsSubmitting(false);
-
-    if (success) {
-      resetDay();
-    }
+    if (success) resetDay();
   };
 
-  // L'état "tentative soumise" vient du serveur : il survit au rechargement
   const adoptantSubmitted = refugeSession.adoptantSubmittedToday;
 
-  // Repartir d'une sélection vide quand le jour change (minuit ou panneau DEV)
   useEffect(() => {
     resetDay();
   }, [refugeSession.currentDay, resetDay]);
 
   const isWaitingForAdoptant = refugeSession.status === "WAITING_FOR_ADOPTANT" || refugeSession.status === "CREATION";
-
-  // Jauges — valeurs du backend
-  const gauges = {
-    happiness: 75,
-    hunger: 45,
-    energy: 60,
-    cleanliness: 80,
-  };
-
-  // Cœurs depuis le serveur
+  const gauges = { happiness: 75, hunger: 45, energy: 60, cleanliness: 80 };
   const hearts = refugeSession.hearts;
-
   const companionAnimal = refugeSession.companion?.animalType;
-
   const actions: RefugeActionType[] = ["feed", "play", "pet", "wash"];
 
   const handleAdoptantSubmit = async () => {
-    if (
-      !refugeSession.adopteSubmittedToday ||
-      refugeSession.adoptantSubmittedToday ||
-      selectedGuessActions.length !== 2 ||
-      isSubmitting
-    ) {
-      return;
-    }
-
-    // Soumettre la tentative de l'Adoptant au serveur (POST /refuge/guess)
+    if (!refugeSession.adopteSubmittedToday || refugeSession.adoptantSubmittedToday || selectedGuessActions.length !== 2 || isSubmitting) return;
     setIsSubmitting(true);
     await refugeSession.submitGuess(selectedGuessActions);
     setIsSubmitting(false);
-    // Jour 7 : rien à déclencher ici — le serveur expose reveal.available
-    // et la phase de consentement (RefugeRevealPhase) s'affiche d'elle-même.
   };
 
   if (refugeSession.isLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.error}>Chargement...</Text>
-      </SafeAreaView>
-    );
+    return <SafeAreaView style={[styles.container, styles.centerState]}><Text style={styles.loadingState}>Chargement...</Text></SafeAreaView>;
   }
 
   if (!sessionId || refugeSession.status === "ABANDONED") {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, styles.centerState]}>
         <Text style={styles.error}>Session terminée ou invalide</Text>
-        <BouncyButton
-          style={styles.button}
-          onPress={() => router.replace("/refuge")}
-        >
-          <Text style={styles.buttonText}>Retour</Text>
+        <BouncyButton style={styles.button} onPress={() => router.replace("/refuge")}>
+          <Text style={styles.buttonText}>Retour au refuge</Text>
         </BouncyButton>
       </SafeAreaView>
     );
   }
 
-  // ÉCRAN FINAL DÉDIÉ après révélation : résumé discret des 7 jours, carte
-  // profil, suite JeuTaime — sans animal, jauges, bandeau ni actions empilés.
-  // Le panneau DEV reste disponible en bas (staging) sans relancer l'animation.
   if (refugeSession.status === "REVEALED") {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <BouncyButton style={styles.backButton} onPress={() => router.replace('/(tabs)/social')}>
-            <Text style={styles.backText}>← Retour</Text>
-          </BouncyButton>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Refuge terminé</Text>
-          </View>
+          <AppBackButton onPress={() => router.replace('/(tabs)/social')} />
+          <View style={styles.headerContent}><Text style={styles.headerTitle}>Refuge terminé</Text></View>
           <View style={styles.headerSpacer} />
         </View>
-
         <ScrollView style={styles.contentScroll} contentContainerStyle={styles.contentContainer}>
-          {/* Résumé discret des 7 jours */}
           <View style={styles.finalSummaryRow}>
-            {refugeSession.dailyResults.map((r) => (
-              <RefugeDayResultIcon key={r.dayNumber} status={r.status} symbol={r.symbol} size={20} />
-            ))}
+            {refugeSession.dailyResults.map((r) => <RefugeDayResultIcon key={r.dayNumber} status={r.status} symbol={r.symbol} size={20} />)}
           </View>
-
           <RefugeRevealPhase
             sessionId={sessionId}
             currentUserId={currentUserId}
@@ -176,306 +117,143 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
             onExit={() => router.replace('/(tabs)/social')}
             animalType={refugeSession.companion?.animalType}
           />
-
         </ScrollView>
       </SafeAreaView>
     );
   }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={{ flex: 1, pointerEvents: showBackgroundPicker ? "none" : "auto" }}>
-      {/* Header */}
-      <View style={styles.header}>
-        <BouncyButton
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backText}>← Retour</Text>
-        </BouncyButton>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>
-            {refugeSession.role === "adopte" ? "Mon refuge" : "Mon compagnon"}
-          </Text>
-          {refugeSession.companion && (
-            <Text style={styles.headerSubtitle}>
-              {getAnimalLabel(refugeSession.companion.animalType)} • {formatAnimalAge(refugeSession.companion.animalAgeMonths)}
-            </Text>
-          )}
+        <View style={styles.header}>
+          <AppBackButton onPress={() => router.back()} />
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>{refugeSession.role === "adopte" ? "Mon refuge" : "Mon compagnon"}</Text>
+            {refugeSession.companion && (
+              <Text style={styles.headerSubtitle}>{getAnimalLabel(refugeSession.companion.animalType)} • {formatAnimalAge(refugeSession.companion.animalAgeMonths)}</Text>
+            )}
+          </View>
+          <View style={styles.headerSpacer} />
         </View>
-        <View style={styles.headerSpacer} />
-      </View>
 
-      {/* 7 Cœurs */}
-      <View style={styles.heartsContainer}>
-        {hearts.map((heart, idx) => (
-          <Text key={idx} style={styles.heart}>
-            {heart}
-          </Text>
-        ))}
-      </View>
+        <View style={styles.heartsContainer}>
+          {hearts.map((heart, idx) => <Text key={idx} style={styles.heart}>{heart}</Text>)}
+        </View>
 
-      {/* Refuge Zone with Companion */}
-      <View
-        style={[
-          styles.refugeZone,
-          getBackgroundGradientStyle(refugeSession.companion?.background),
-        ]}
-      >
-        {/* Companion with Shadow */}
-        <View style={styles.companionWrapper}>
-          {isRefugeAnimal(companionAnimal) && (
-            <AnimalIllustration
-              animal={companionAnimal}
-              size={animalSize}
+        <View style={[styles.refugeZone, getBackgroundGradientStyle(refugeSession.companion?.background)]}>
+          <View style={styles.companionWrapper}>
+            {isRefugeAnimal(companionAnimal) && <AnimalIllustration animal={companionAnimal} size={animalSize} />}
+            <View style={[styles.groundShadow, { width: animalSize * 0.6 }]} />
+          </View>
+          <BouncyButton style={styles.backgroundSelectorButton} disabled={refugeSession.role === "adoptant"} onPress={() => setShowBackgroundPicker(true)}>
+            <Text style={[styles.backgroundSelectorText, refugeSession.role === "adoptant" && { opacity: 0.5 }]}>🎨</Text>
+          </BouncyButton>
+        </View>
+
+        <View style={styles.gaugesContainer}>
+          <View style={styles.gaugeRow}>
+            <View style={styles.gaugeItem}><Text style={styles.gaugeLabel}>❤️ Bonheur</Text><View style={styles.gaugeBar}><View style={[styles.gaugeFill, styles.gaugeFillHappiness, { width: `${gauges.happiness}%` }]} /></View></View>
+            <View style={styles.gaugeItem}><Text style={styles.gaugeLabel}>🍖 Faim</Text><View style={styles.gaugeBar}><View style={[styles.gaugeFill, styles.gaugeFillHunger, { width: `${gauges.hunger}%` }]} /></View></View>
+          </View>
+          <View style={[styles.gaugeRow, { marginBottom: 0 }]}>
+            <View style={styles.gaugeItem}><Text style={styles.gaugeLabel}>⚡ Énergie</Text><View style={styles.gaugeBar}><View style={[styles.gaugeFill, styles.gaugeFillEnergy, { width: `${gauges.energy}%` }]} /></View></View>
+            <View style={styles.gaugeItem}><Text style={styles.gaugeLabel}>🧼 Propreté</Text><View style={styles.gaugeBar}><View style={[styles.gaugeFill, styles.gaugeFillCleanliness, { width: `${gauges.cleanliness}%` }]} /></View></View>
+          </View>
+        </View>
+
+        <ScrollView style={styles.contentScroll} contentContainerStyle={styles.contentContainer}>
+          {refugeSession.todayResult && (
+            <View style={styles.todayResultContainer}>
+              <Text style={styles.resultEmoji}>{refugeSession.todayResult.emoji}</Text>
+              <Text style={styles.resultMessage}>{refugeSession.todayResult.message}{refugeSession.todayResult.reward > 0 && <Text style={styles.rewardText}>  +{refugeSession.todayResult.reward} pièces chacun</Text>}</Text>
+            </View>
+          )}
+
+          {refugeSession.reveal?.available && (
+            <RefugeRevealPhase
+              sessionId={sessionId}
+              currentUserId={currentUserId}
+              status={refugeSession.status}
+              reveal={refugeSession.reveal}
+              otherProfile={refugeSession.otherProfile}
+              isSubmitting={isSubmitting}
+              onDecision={handleRevealDecision}
+              onViewProfile={(userId) => router.push(`/profile/${userId}` as never)}
+              onExit={() => router.replace('/(tabs)/social')}
+              animalType={refugeSession.companion?.animalType}
             />
           )}
-          {/* Ground Shadow */}
-          <View style={[styles.groundShadow, { width: animalSize * 0.6 }]} />
-        </View>
 
-        {/* Background Selector Button */}
-        <BouncyButton
-          style={styles.backgroundSelectorButton}
-          disabled={refugeSession.role === "adoptant"}
-          onPress={() => setShowBackgroundPicker(true)}
-        >
-          <Text style={[styles.backgroundSelectorText, refugeSession.role === "adoptant" && { opacity: 0.5 }]}>🎨</Text>
-        </BouncyButton>
-      </View>
-
-      {/* Jauges */}
-      <View style={styles.gaugesContainer}>
-        <View style={styles.gaugeRow}>
-          <View style={styles.gaugeItem}>
-            <Text style={styles.gaugeLabel}>❤️ Bonheur</Text>
-            <View style={styles.gaugeBar}>
-              <View style={[styles.gaugeFill, styles.gaugeFillHappiness, { width: `${gauges.happiness}%` }]} />
-            </View>
-          </View>
-          <View style={styles.gaugeItem}>
-            <Text style={styles.gaugeLabel}>🍖 Faim</Text>
-            <View style={styles.gaugeBar}>
-              <View style={[styles.gaugeFill, styles.gaugeFillHunger, { width: `${gauges.hunger}%` }]} />
-            </View>
-          </View>
-        </View>
-        <View style={styles.gaugeRow}>
-          <View style={styles.gaugeItem}>
-            <Text style={styles.gaugeLabel}>⚡ Énergie</Text>
-            <View style={styles.gaugeBar}>
-              <View style={[styles.gaugeFill, styles.gaugeFillEnergy, { width: `${gauges.energy}%` }]} />
-            </View>
-          </View>
-          <View style={styles.gaugeItem}>
-            <Text style={styles.gaugeLabel}>🧼 Propreté</Text>
-            <View style={styles.gaugeBar}>
-              <View style={[styles.gaugeFill, styles.gaugeFillCleanliness, { width: `${gauges.cleanliness}%` }]} />
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* Content Area */}
-      <ScrollView style={styles.contentScroll} contentContainerStyle={styles.contentContainer}>
-        {/* Résultat quotidien — bandeau compact juste au-dessus des actions */}
-        {refugeSession.todayResult && (
-          <View style={styles.todayResultContainer}>
-            <Text style={styles.resultEmoji}>{refugeSession.todayResult.emoji}</Text>
-            <Text style={styles.resultMessage}>
-              {refugeSession.todayResult.message}
-              {refugeSession.todayResult.reward > 0 && (
-                <Text style={styles.rewardText}>  +{refugeSession.todayResult.reward} pièces chacun</Text>
+          {refugeSession.role === "adopte" && (
+            <View style={styles.adopteCard}>
+              {isWaitingForAdoptant ? (
+                <><Text style={styles.questionText}>En attente d&apos;un adoptant...</Text><Text style={styles.loadingText}>Ton compagnon apparaîtra dans la liste des refuges disponibles. Le jeu commence dès qu&apos;il est adopté.</Text></>
+              ) : (
+                <>
+                  <Text style={styles.questionText}>Que fait-on aujourd&apos;hui ?</Text>
+                  {refugeSession.adopteSubmittedToday && refugeSession.todayActions ? (
+                    <View style={styles.adoptActionsDisplay}>
+                      <View style={styles.actionDisplay}><Text style={styles.actionDisplayIcon}>{BACKEND_ACTION_ICONS[refugeSession.todayActions.action1] ?? "🐾"}</Text><Text style={styles.actionDisplayLabel}>{BACKEND_ACTION_LABELS[refugeSession.todayActions.action1] ?? refugeSession.todayActions.action1}</Text></View>
+                      <Text style={styles.actionSeparator}>et</Text>
+                      <View style={styles.actionDisplay}><Text style={styles.actionDisplayIcon}>{BACKEND_ACTION_ICONS[refugeSession.todayActions.action2] ?? "🐾"}</Text><Text style={styles.actionDisplayLabel}>{BACKEND_ACTION_LABELS[refugeSession.todayActions.action2] ?? refugeSession.todayActions.action2}</Text></View>
+                    </View>
+                  ) : (
+                    <View style={styles.actionGrid}>
+                      {actions.map(action => (
+                        <BouncyButton key={action} style={[styles.actionButton, selectedMyActions.includes(action) && styles.actionButtonSelected]} onPress={() => toggleMyAction(action)} disabled={selectedMyActions.length === 2 && !selectedMyActions.includes(action)}>
+                          <Text style={styles.actionIcon}>{action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}</Text>
+                          <Text style={[styles.actionLabel, selectedMyActions.includes(action) && styles.actionLabelSelected]}>{ACTION_LABELS[action]}</Text>
+                        </BouncyButton>
+                      ))}
+                    </View>
+                  )}
+                  {!refugeSession.adopteSubmittedToday && selectedMyActions.length === 2 && (
+                    <BouncyButton style={styles.validateButton} onPress={handleAdopteSubmit} disabled={isSubmitting}><Text style={styles.validateButtonText}>{isSubmitting ? "Envoi..." : "Valider"}</Text></BouncyButton>
+                  )}
+                </>
               )}
-            </Text>
-          </View>
-        )}
+            </View>
+          )}
 
-        {/* PHASE FINALE: jour 7 terminé → consentement mutuel au dévoilement.
-            L'état vient exclusivement du serveur (reveal.available). */}
-        {refugeSession.reveal?.available && (
-          <RefugeRevealPhase
-            sessionId={sessionId}
-            currentUserId={currentUserId}
-            status={refugeSession.status}
-            reveal={refugeSession.reveal}
-            otherProfile={refugeSession.otherProfile}
-            isSubmitting={isSubmitting}
-            onDecision={handleRevealDecision}
-            onViewProfile={(userId) => router.push(`/profile/${userId}` as never)}
-            onExit={() => router.replace('/(tabs)/social')}
-            animalType={refugeSession.companion?.animalType}
-          />
-        )}
-        {/* ADOPTÉ: Display today's server-generated actions (read-only) */}
-        {refugeSession.role === "adopte" && (
-          <View style={styles.adopteCard}>
-            {isWaitingForAdoptant ? (
-              <>
-                <Text style={styles.questionText}>En attente d&apos;un adoptant...</Text>
-                <Text style={styles.loadingText}>
-                  Ton compagnon apparaîtra dans la liste des refuges disponibles.
-                  Le jeu commence dès qu&apos;il est adopté.
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.questionText}>Que fait-on aujourd&apos;hui ?</Text>
-                {refugeSession.adopteSubmittedToday && refugeSession.todayActions ? (
-                  <View style={styles.adoptActionsDisplay}>
-                    <View style={styles.actionDisplay}>
-                      <Text style={styles.actionDisplayIcon}>
-                        {BACKEND_ACTION_ICONS[refugeSession.todayActions.action1] ?? "🐾"}
-                      </Text>
-                      <Text style={styles.actionDisplayLabel}>
-                        {BACKEND_ACTION_LABELS[refugeSession.todayActions.action1] ?? refugeSession.todayActions.action1}
-                      </Text>
-                    </View>
-                    <Text style={styles.actionSeparator}>et</Text>
-                    <View style={styles.actionDisplay}>
-                      <Text style={styles.actionDisplayIcon}>
-                        {BACKEND_ACTION_ICONS[refugeSession.todayActions.action2] ?? "🐾"}
-                      </Text>
-                      <Text style={styles.actionDisplayLabel}>
-                        {BACKEND_ACTION_LABELS[refugeSession.todayActions.action2] ?? refugeSession.todayActions.action2}
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
+          {refugeSession.role === "adoptant" && !isWaitingForAdoptant && (
+            <View style={styles.adoptantCard}>
+              {!refugeSession.adopteSubmittedToday ? (
+                <><Text style={styles.questionText}>En attente des choix de ton compagnon…</Text><Text style={styles.loadingText}>Dès que l&apos;adopté aura choisi ses 2 actions, tu pourras faire tes propositions.</Text></>
+              ) : (
+                <>
+                  <Text style={styles.questionText}>Que veut-il faire aujourd&apos;hui ?</Text>
                   <View style={styles.actionGrid}>
                     {actions.map(action => (
-                      <BouncyButton
-                        key={action}
-                        style={[
-                          styles.actionButton,
-                          selectedMyActions.includes(action) && styles.actionButtonSelected,
-                        ]}
-                        onPress={() => toggleMyAction(action)}
-                        disabled={selectedMyActions.length === 2 && !selectedMyActions.includes(action)}
-                      >
-                        <Text style={styles.actionIcon}>
-                          {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.actionLabel,
-                            selectedMyActions.includes(action) && styles.actionLabelSelected,
-                          ]}
-                        >
-                          {ACTION_LABELS[action]}
-                        </Text>
+                      <BouncyButton key={action} style={[styles.actionButton, selectedGuessActions.includes(action) && styles.actionButtonSelected, adoptantSubmitted && styles.actionButtonDisabled]} onPress={() => !adoptantSubmitted && toggleGuessAction(action)} disabled={adoptantSubmitted || (selectedGuessActions.length === 2 && !selectedGuessActions.includes(action))}>
+                        <Text style={styles.actionIcon}>{action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}</Text>
+                        <Text style={[styles.actionLabel, selectedGuessActions.includes(action) && styles.actionLabelSelected]}>{ACTION_LABELS[action]}</Text>
                       </BouncyButton>
                     ))}
                   </View>
-                )}
-                {!refugeSession.adopteSubmittedToday && selectedMyActions.length === 2 && (
-                  <BouncyButton
-                    style={styles.validateButton}
-                    onPress={handleAdopteSubmit}
-                    disabled={isSubmitting}
-                  >
-                    <Text style={styles.validateButtonText}>
-                      {isSubmitting ? "Envoi..." : "Valider"}
-                    </Text>
-                  </BouncyButton>
-                )}
-              </>
-            )}
-          </View>
-        )}
-
-        {/* ADOPTANT: Guess today's two actions */}
-        {refugeSession.role === "adoptant" && !isWaitingForAdoptant && (
-          <View style={styles.adoptantCard}>
-            {!refugeSession.adopteSubmittedToday ? (
-              <>
-                <Text style={styles.questionText}>En attente des choix de ton compagnon…</Text>
-                <Text style={styles.loadingText}>
-                  Dès que l&apos;adopté aura choisi ses 2 actions, tu pourras faire tes propositions.
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.questionText}>Que veut-il faire aujourd&apos;hui ?</Text>
-
-                <View style={styles.actionGrid}>
-                  {actions.map(action => (
-                    <BouncyButton
-                      key={action}
-                      style={[
-                        styles.actionButton,
-                        selectedGuessActions.includes(action) && styles.actionButtonSelected,
-                        adoptantSubmitted && styles.actionButtonDisabled,
-                      ]}
-                      onPress={() => !adoptantSubmitted && toggleGuessAction(action)}
-                      disabled={adoptantSubmitted || (selectedGuessActions.length === 2 && !selectedGuessActions.includes(action))}
-                    >
-                      <Text style={styles.actionIcon}>
-                        {action === "feed" ? "🍖" : action === "play" ? "🎾" : action === "pet" ? "🤗" : "🧼"}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.actionLabel,
-                          selectedGuessActions.includes(action) && styles.actionLabelSelected,
-                        ]}
-                      >
-                        {ACTION_LABELS[action]}
-                      </Text>
-                    </BouncyButton>
-                  ))}
-                </View>
-
-                {adoptantSubmitted ? (
-                  <View style={styles.submittedMessage}>
-                    <Text style={styles.submittedMessageText}>Choix enregistré</Text>
-                  </View>
-                ) : (
-                  <>
-                    {selectedGuessActions.length === 2 && (
-                      <BouncyButton
-                        style={styles.validateButton}
-                        onPress={handleAdoptantSubmit}
-                        disabled={isSubmitting}
-                      >
-                        <Text style={styles.validateButtonText}>
-                          {isSubmitting ? "Envoi..." : "Valider"}
-                        </Text>
-                      </BouncyButton>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-          </View>
-        )}
-      </ScrollView>
+                  {adoptantSubmitted ? (
+                    <View style={styles.submittedMessage}><Text style={styles.submittedMessageText}>Choix enregistré</Text></View>
+                  ) : selectedGuessActions.length === 2 ? (
+                    <BouncyButton style={styles.validateButton} onPress={handleAdoptantSubmit} disabled={isSubmitting}><Text style={styles.validateButtonText}>{isSubmitting ? "Envoi..." : "Valider"}</Text></BouncyButton>
+                  ) : null}
+                </>
+              )}
+            </View>
+          )}
+        </ScrollView>
       </View>
 
-      {/* Background Picker Modal */}
-      <Modal
-        visible={showBackgroundPicker}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowBackgroundPicker(false)}
-      >
+      <Modal visible={showBackgroundPicker} transparent animationType="slide" onRequestClose={() => setShowBackgroundPicker(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Personnaliser le refuge</Text>
-              <BouncyButton
-                style={styles.modalCloseButton}
-                onPress={() => setShowBackgroundPicker(false)}
-              >
-                <Text style={styles.modalCloseText}>✕</Text>
-              </BouncyButton>
+              <BouncyButton style={styles.modalCloseButton} onPress={() => setShowBackgroundPicker(false)}><Text style={styles.modalCloseText}>✕</Text></BouncyButton>
             </View>
-
             <BackgroundPicker
               currentBackground={refugeSession.companion?.background ?? DEFAULT_REFUGE_BACKGROUND}
               onSelectBackground={async (background) => {
                 const success = await refugeSession.changeBackground(background);
-                if (success) {
-                  setShowBackgroundPicker(false);
-                }
+                if (success) setShowBackgroundPicker(false);
               }}
               isLoading={refugeSession.isLoading}
             />
@@ -487,394 +265,65 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFF8E7",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0E5D8",
-  },
-  backButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-  },
-  backText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#8B6F47",
-  },
-  headerContent: {
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#2D1F0E",
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#8B6F47",
-    marginTop: 2,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-
-  /* 7 Cœurs */
-  heartsContainer: {
-    flexDirection: "row" as const,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 12,
-  },
-  heart: {
-    fontSize: 28,
-  },
-
-  /* Refuge Zone */
-  refugeZone: {
-    flex: 0.5,
-    maxHeight: 350,
-    marginHorizontal: 12,
-    marginBottom: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative" as const,
-    minHeight: 280,
-    overflow: "hidden" as const,
-    borderRadius: 12,
-  },
-  companionWrapper: {
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative" as const,
-  },
-  groundShadow: {
-    height: 12,
-    borderRadius: 999,
-    backgroundColor: "rgba(0, 0, 0, 0.15)",
-    marginTop: -8,
-    marginBottom: 8,
-  },
-  backgroundSelectorButton: {
-    position: "absolute" as const,
-    top: 12,
-    right: 12,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(255, 255, 255, 0.85)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  backgroundSelectorText: {
-    fontSize: 24,
-  },
-
-  /* Jauges */
-  gaugesContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginHorizontal: 12,
-    marginBottom: 12,
-  },
-  gaugeRow: {
-    flexDirection: "row" as const,
-    gap: 8,
-    marginBottom: 8,
-  },
-  gaugeItem: {
-    flex: 1,
-    flexDirection: "column" as const,
-    gap: 3,
-  },
-  gaugeLabel: {
-    fontSize: 11,
-    color: "#8B6F47",
-    fontWeight: "500",
-  },
-  gaugeBar: {
-    height: 4,
-    backgroundColor: "#E0D5C8",
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  gaugeFill: {
-    height: "100%",
-    borderRadius: 2,
-  },
-  gaugeFillHappiness: {
-    backgroundColor: "#FF6B9D",
-  },
-  gaugeFillHunger: {
-    backgroundColor: "#E8A76A",
-  },
-  gaugeFillEnergy: {
-    backgroundColor: "#FFD700",
-  },
-  gaugeFillCleanliness: {
-    backgroundColor: "#87CEEB",
-  },
-
-  /* Scroll Content */
-  contentScroll: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-
-  /* Actions Grid — Common Style */
-  actionGrid: {
-    flexDirection: "row" as const,
-    flexWrap: "wrap" as const,
-    justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 16,
-  },
-  actionButton: {
-    width: "48%",
-    minHeight: 68,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    backgroundColor: "#E8D5C4",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-  actionButtonSelected: {
-    backgroundColor: "#FF9800",
-    borderColor: "#FF7500",
-  },
-  actionButtonDisabled: {
-    opacity: 0.6,
-  },
-  actionIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  actionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#2D1F0E",
-    textAlign: "center",
-  },
-  actionLabelSelected: {
-    color: "#FFFFFF",
-  },
-
-  /* ADOPTÉ - Display Actions */
-  adopteCard: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F0E5D8",
-  },
-  questionText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#2D1F0E",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  adoptActionsDisplay: {
-    flexDirection: "row" as const,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 16,
-  },
-  actionDisplay: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionDisplayIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  actionDisplayLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#2D1F0E",
-  },
-  actionSeparator: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#8B6F47",
-  },
-  loadingText: {
-    fontSize: 13,
-    color: "#8B6F47",
-    fontStyle: "italic",
-  },
-
-  /* ADOPTÉ Card */
-  adoptCard: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F0E5D8",
-  },
-
-  /* ADOPTANT Card */
-  adoptantCard: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F0E5D8",
-  },
-  validateButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: "#FFD700",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-    alignSelf: "center",
-  },
-  validateButtonText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#2D1F0E",
-  },
-  submittedMessage: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: "rgba(76, 175, 80, 0.1)",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    marginTop: 12,
-  },
-  submittedMessageText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#4CAF50",
-  },
-
-  /* Error State */
-  error: {
-    fontSize: 16,
-    color: "red",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: "#FFE5B4",
-    borderRadius: 8,
-    alignItems: "center",
-    alignSelf: "center",
-  },
-  buttonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#2D1F0E",
-  },
-
-  /* Modal */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#FFF8E7",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 32,
-  },
-  modalHeader: {
-    flexDirection: "row" as const,
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0E5D8",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#2D1F0E",
-  },
-  modalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(240, 235, 225, 0.5)",
-  },
-  modalCloseText: {
-    fontSize: 18,
-    color: "#8B6F47",
-    fontWeight: "600",
-  },
-
-  /* Écran final — résumé discret des 7 jours */
-  finalSummaryRow: {
-    flexDirection: "row" as const,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 10,
-    marginBottom: 10,
-  },
-  finalSummarySymbol: {
-    fontSize: 20,
-  },
-
-  /* Résultat quotidien — simple bandeau d'information */
-  todayResultContainer: {
-    flexDirection: "row" as const,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
-    borderRadius: 8,
-  },
-  resultEmoji: {
-    fontSize: 18,
-  },
-  resultMessage: {
-    flexShrink: 1,
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#333",
-    textAlign: "center",
-  },
-  rewardText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#CC8A00",
-  },
+  container: { flex: 1, backgroundColor: "#F8F1E5" },
+  centerState: { alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
+  loadingState: { fontSize: 15, color: "#7A5C3A", fontWeight: "600" },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 64, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "rgba(255,250,240,0.96)", borderBottomWidth: 1, borderBottomColor: "#D9C7AE" },
+  headerContent: { flex: 1, alignItems: "center", paddingHorizontal: 8 },
+  headerTitle: { fontSize: 18, fontWeight: "800", color: "#2D1F0E" },
+  headerSubtitle: { fontSize: 12, fontWeight: "500", color: "#8B6F47", marginTop: 2 },
+  headerSpacer: { width: 72 },
+  heartsContainer: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, marginHorizontal: 16, marginTop: 12, marginBottom: 10, paddingVertical: 9, paddingHorizontal: 12, backgroundColor: "rgba(255,250,240,0.88)", borderRadius: 16, borderWidth: 1, borderColor: "#E1D1BB" },
+  heart: { fontSize: 26 },
+  refugeZone: { flex: 0.5, maxHeight: 350, marginHorizontal: 16, marginBottom: 12, alignItems: "center", justifyContent: "center", position: "relative", minHeight: 280, overflow: "hidden", borderRadius: 18, borderWidth: 1, borderColor: "rgba(117,80,42,0.18)", shadowColor: "#4C311A", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.14, shadowRadius: 12, elevation: 4 },
+  companionWrapper: { alignItems: "center", justifyContent: "center", position: "relative" },
+  groundShadow: { height: 12, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.12)", marginTop: -8, marginBottom: 8 },
+  backgroundSelectorButton: { position: "absolute", top: 12, right: 12, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,250,240,0.92)", borderWidth: 1, borderColor: "rgba(139,111,71,0.25)", justifyContent: "center", alignItems: "center" },
+  backgroundSelectorText: { fontSize: 22 },
+  gaugesContainer: { backgroundColor: "#FFFAF0", borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: "#E1D1BB", shadowColor: "#4C311A", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 7, elevation: 2 },
+  gaugeRow: { flexDirection: "row", gap: 12, marginBottom: 10 },
+  gaugeItem: { flex: 1, flexDirection: "column", gap: 5 },
+  gaugeLabel: { fontSize: 11, color: "#6F5436", fontWeight: "600" },
+  gaugeBar: { height: 5, backgroundColor: "#E7DCCB", borderRadius: 999, overflow: "hidden" },
+  gaugeFill: { height: "100%", borderRadius: 999 },
+  gaugeFillHappiness: { backgroundColor: "#C96A83" },
+  gaugeFillHunger: { backgroundColor: "#C98B55" },
+  gaugeFillEnergy: { backgroundColor: "#C7A53D" },
+  gaugeFillCleanliness: { backgroundColor: "#6E9EAA" },
+  contentScroll: { flex: 1 },
+  contentContainer: { paddingHorizontal: 16, paddingVertical: 8, paddingBottom: 28 },
+  actionGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 10, marginBottom: 16 },
+  actionButton: { width: "48%", minHeight: 72, paddingVertical: 11, paddingHorizontal: 8, backgroundColor: "#F7EDDE", borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#D9C4A7" },
+  actionButtonSelected: { backgroundColor: "#8B2E3C", borderColor: "#742332" },
+  actionButtonDisabled: { opacity: 0.55 },
+  actionIcon: { fontSize: 24, marginBottom: 5 },
+  actionLabel: { fontSize: 12, fontWeight: "700", color: "#3B2A18", textAlign: "center" },
+  actionLabelSelected: { color: "#FFFFFF" },
+  adopteCard: { paddingVertical: 20, paddingHorizontal: 16, backgroundColor: "#FFFAF0", borderRadius: 18, borderWidth: 1, borderColor: "#E1D1BB", shadowColor: "#4C311A", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+  questionText: { fontSize: 15, fontWeight: "800", color: "#2D1F0E", textAlign: "center", marginBottom: 18 },
+  adoptActionsDisplay: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16 },
+  actionDisplay: { alignItems: "center", justifyContent: "center", minWidth: 90, paddingVertical: 12, paddingHorizontal: 10, backgroundColor: "#F7EDDE", borderRadius: 14 },
+  actionDisplayIcon: { fontSize: 30, marginBottom: 7 },
+  actionDisplayLabel: { fontSize: 13, fontWeight: "700", color: "#2D1F0E" },
+  actionSeparator: { fontSize: 15, fontWeight: "700", color: "#8B6F47" },
+  loadingText: { fontSize: 13, lineHeight: 20, color: "#8B6F47", fontStyle: "italic", textAlign: "center" },
+  adoptantCard: { paddingVertical: 20, paddingHorizontal: 16, backgroundColor: "#FFFAF0", borderRadius: 18, borderWidth: 1, borderColor: "#E1D1BB", shadowColor: "#4C311A", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+  validateButton: { minWidth: 150, paddingVertical: 13, paddingHorizontal: 24, backgroundColor: "#8B2E3C", borderRadius: 14, alignItems: "center", justifyContent: "center", shadowColor: "#4C1D25", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 6, elevation: 3, alignSelf: "center" },
+  validateButtonText: { fontSize: 14, fontWeight: "800", color: "#FFFFFF" },
+  submittedMessage: { paddingVertical: 11, paddingHorizontal: 20, backgroundColor: "#EDF5E9", borderRadius: 12, borderWidth: 1, borderColor: "#C9DEC1", alignItems: "center", justifyContent: "center", alignSelf: "center", marginTop: 12 },
+  submittedMessageText: { fontSize: 13, fontWeight: "700", color: "#487342" },
+  error: { fontSize: 16, color: "#9C2F45", textAlign: "center", marginBottom: 16, fontWeight: "700" },
+  button: { paddingVertical: 13, paddingHorizontal: 24, backgroundColor: "#8B2E3C", borderRadius: 14, alignItems: "center", alignSelf: "center" },
+  buttonText: { fontSize: 14, fontWeight: "700", color: "#FFFFFF" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(31,18,8,0.48)", justifyContent: "flex-end" },
+  modalContent: { backgroundColor: "#FFFAF0", borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingBottom: 32, borderWidth: 1, borderColor: "#E1D1BB" },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#E1D1BB" },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#2D1F0E" },
+  modalCloseButton: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center", backgroundColor: "#F1E5D4" },
+  modalCloseText: { fontSize: 18, color: "#8B6F47", fontWeight: "700" },
+  finalSummaryRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, paddingVertical: 12, marginBottom: 10, backgroundColor: "#FFFAF0", borderRadius: 16, borderWidth: 1, borderColor: "#E1D1BB" },
+  todayResultContainer: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12, backgroundColor: "#FFFAF0", borderRadius: 14, borderWidth: 1, borderColor: "#E1D1BB" },
+  resultEmoji: { fontSize: 18 },
+  resultMessage: { flexShrink: 1, fontSize: 13, fontWeight: "600", color: "#4A3724", textAlign: "center" },
+  rewardText: { fontSize: 13, fontWeight: "800", color: "#A66B14" },
 });
