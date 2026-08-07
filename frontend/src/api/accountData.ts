@@ -14,7 +14,14 @@ export interface MyAccountDataDTO {
   settings: Record<string, unknown> | null;
 }
 
+export type PersonalDataExportDTO = Record<string, unknown>;
+
 export async function getMyAccountData(): Promise<MyAccountDataDTO> {
   const res = (await apiFetch('/auth/me')) as { data: MyAccountDataDTO };
+  return res.data;
+}
+
+export async function exportMyPersonalData(): Promise<PersonalDataExportDTO> {
+  const res = (await apiFetch('/auth/export-data')) as { data: PersonalDataExportDTO };
   return res.data;
 }
