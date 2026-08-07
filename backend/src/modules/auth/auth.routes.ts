@@ -47,6 +47,13 @@ router.post(
   asyncHandler((req, res, next) => ctrl.handleChangePassword(req as AuthedRequest, res).catch(next)),
 );
 
+// GET /api/auth/export-data (🔒)
+router.get(
+  "/export-data",
+  requireAuth as never,
+  asyncHandler((req, res, next) => ctrl.handleExportData(req as AuthedRequest, res).catch(next)),
+);
+
 // GET /api/auth/me (🔒)
 router.get(
   "/me",
