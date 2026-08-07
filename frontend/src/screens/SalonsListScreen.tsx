@@ -19,6 +19,7 @@ import { getSalonCardImage } from '../data/salonBackgroundImages';
 import { useStore } from '../store/useStore';
 import { getCurrentSalonSession, leaveSession, getSalonCounters } from '../api/salons';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { AppBackButton } from '../components/AppBackButton';
 
 const { width } = Dimensions.get('window');
 
@@ -40,7 +41,7 @@ export default function SalonsListScreen() {
   const screenBg = useStore(s => s.screenBackgrounds?.['salons'] ?? '#FFF8E7');
   const currentUser = useStore(s => s.currentUser);
   const canEnterSalon = currentUser?.canEnterSalon ?? true;
-  const { currentSessionId, currentSalonKind, currentSalonId, currentSalonName, setCurrentSalonSession, clearCurrentSalonSession, isAuthenticated } = useStore();
+  const { currentSessionId, currentSalonKind, currentSalonName, setCurrentSalonSession, clearCurrentSalonSession, isAuthenticated } = useStore();
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [salonCounters, setSalonCounters] = useState<Record<string, number>>({});
@@ -49,20 +50,15 @@ export default function SalonsListScreen() {
     try {
       console.log('[COUNTERS] Loading counters from backend...');
       const backendCounters = await getSalonCounters();
-      console.log('[COUNTERS] RAW BACKEND RESPONSE:', JSON.stringify(backendCounters, null, 2));
       const counters: Record<string, number> = {};
       for (const salon of salonsData) {
         const salonKind = Object.entries(KIND_TO_SLUG).find(([_, slug]) => slug === salon.id)?.[0];
         if (!salonKind) {
           counters[salon.id] = 0;
-          console.log(`[COUNTERS-MAPPING] ${salon.id}: NO MAPPING (kind not found) → 0`);
           continue;
         }
-        const backendValue = backendCounters[salonKind] ?? 0;
-        counters[salon.id] = backendValue;
-        console.log(`[COUNTERS-MAPPING] ${salon.id}: kind="${salonKind}" → backend[${salonKind}]=${backendValue} → final=${counters[salon.id]}`);
+        counters[salon.id] = backendCounters[salonKind] ?? 0;
       }
-      console.log('[COUNTERS-FINAL] All counters mapped:', JSON.stringify(counters, null, 2));
       setSalonCounters(counters);
     } catch (e) {
       console.error('[COUNTERS] Failed to load counters:', e);
@@ -111,14 +107,10 @@ export default function SalonsListScreen() {
 
   const handleSalonPress = (salon: typeof salonsData[0]) => {
     if (!canEnterSalon) {
-      Alert.alert(
-        'Profil incomplet',
-        'Complète ta bio et tes préférences pour entrer dans les salons.',
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Compléter mon profil', onPress: () => router.push('/edit-profile') },
-        ],
-      );
+      Alert.alert('Profil incomplet', 'Complète ta bio et tes préférences pour entrer dans les salons.', [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Compléter mon profil', onPress: () => router.push('/edit-profile') },
+      ]);
       return;
     }
 
@@ -128,14 +120,10 @@ export default function SalonsListScreen() {
         router.push(`/salon/${salon.id}`);
         return;
       }
-      Alert.alert(
-        'Salon actif',
-        `Vous êtes actuellement dans ${currentSalonName}. Quittez ce salon avant d'en rejoindre un autre.`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Retourner à mon salon', onPress: () => router.push(`/salon/${currentSlug}`) },
-        ],
-      );
+      Alert.alert('Salon actif', `Vous êtes actuellement dans ${currentSalonName}. Quittez ce salon avant d'en rejoindre un autre.`, [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Retourner à mon salon', onPress: () => router.push(`/salon/${currentSlug}`) },
+      ]);
       return;
     }
 
@@ -145,18 +133,14 @@ export default function SalonsListScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
-          <Text style={styles.backText}>← Retour</Text>
-        </TouchableOpacity>
+        <AppBackButton onPress={() => router.back()} style={styles.backButton} />
         <Text style={styles.headerTitle}>👥 Salons</Text>
         <Text style={styles.headerSubtitle}>Rejoignez une discussion</Text>
       </View>
 
       {currentSessionId && currentSalonName && currentSalonKind && (
         <View style={styles.activeSalonBanner}>
-          <Text style={styles.activeSalonText}>
-            🟢 Vous êtes actuellement dans : <Text style={{ fontWeight: '700' }}>{currentSalonName}</Text>
-          </Text>
+          <Text style={styles.activeSalonText}>🟢 Vous êtes actuellement dans : <Text style={{ fontWeight: '700' }}>{currentSalonName}</Text></Text>
           <View style={styles.activeSalonButtons}>
             <TouchableOpacity
               onPress={() => {
@@ -181,9 +165,7 @@ export default function SalonsListScreen() {
       {!canEnterSalon && (
         <View style={styles.gateBanner}>
           <Text style={styles.gateBannerText}>Complète ta bio et tes préférences pour entrer dans les salons.</Text>
-          <TouchableOpacity onPress={() => router.push('/edit-profile')}>
-            <Text style={styles.gateBannerBtnText}>Compléter mon profil →</Text>
-          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/edit-profile')}><Text style={styles.gateBannerBtnText}>Compléter mon profil →</Text></TouchableOpacity>
         </View>
       )}
 
@@ -198,9 +180,7 @@ export default function SalonsListScreen() {
                 <Text style={styles.salonDesc}>{salon.desc}</Text>
                 <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
                   <View style={[styles.specialBadge, { backgroundColor: salon.layout === 'vertical' ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)' }]}>
-                    <Text style={[styles.specialBadgeText, { color: '#FFF' }]}>
-                      {salon.layout === 'vertical' ? '💬 Conversation' : '👥 Groupe'}
-                    </Text>
+                    <Text style={[styles.specialBadgeText, { color: '#FFF' }]}>{salon.layout === 'vertical' ? '💬 Conversation' : '👥 Groupe'}</Text>
                   </View>
                 </View>
               </View>
@@ -215,37 +195,21 @@ export default function SalonsListScreen() {
           );
 
           return (
-            <TouchableOpacity
-              key={salon.id}
-              style={[styles.salonCard, !canEnterSalon && { opacity: 0.5 }]}
-              onPress={() => handleSalonPress(salon)}
-              activeOpacity={0.8}
-            >
+            <TouchableOpacity key={salon.id} style={[styles.salonCard, !canEnterSalon && { opacity: 0.5 }]} onPress={() => handleSalonPress(salon)} activeOpacity={0.8}>
               {bgImage ? (
                 <ImageBackground source={bgImage} style={[styles.salonBanner, { height: bannerHeight }]} resizeMode="cover">
                   <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.30)' }]} />
                   {cardContent}
                 </ImageBackground>
               ) : (
-                <LinearGradient colors={salon.gradient} style={styles.salonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                  {cardContent}
-                </LinearGradient>
+                <LinearGradient colors={salon.gradient} style={styles.salonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>{cardContent}</LinearGradient>
               )}
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      <ConfirmationModal
-        visible={showLeaveModal}
-        title="Quitter le salon ?"
-        message="Vous pourrez rejoindre un autre salon après votre départ."
-        cancelText="Annuler"
-        confirmText="Quitter"
-        onCancel={() => setShowLeaveModal(false)}
-        onConfirm={handleLeaveSession}
-        isDangerous={true}
-      />
+      <ConfirmationModal visible={showLeaveModal} title="Quitter le salon ?" message="Vous pourrez rejoindre un autre salon après votre départ." cancelText="Annuler" confirmText="Quitter" onCancel={() => setShowLeaveModal(false)} onConfirm={handleLeaveSession} isDangerous={true} />
     </View>
   );
 }
@@ -253,8 +217,7 @@ export default function SalonsListScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF8E7' },
   header: { paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
-  backButton: { marginBottom: 8, alignSelf: 'flex-start', minHeight: 36, justifyContent: 'center' },
-  backText: { fontSize: 16, color: '#8B2E3C', fontWeight: '700' },
+  backButton: { marginBottom: 8 },
   headerTitle: { fontSize: 28, fontWeight: '700', color: '#3A2818' },
   headerSubtitle: { fontSize: 14, color: '#8B6F47', marginTop: 4 },
   scrollView: { flex: 1 },
