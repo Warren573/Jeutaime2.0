@@ -7,19 +7,16 @@ import {
   Image,
   Platform,
   ActivityIndicator,
-  TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { getReceivedOfferings } from '../api/offerings';
 import type { OfferingSentDTO } from '../api/offerings';
 import { useStore } from '../store/useStore';
+import { AppBackButton } from '../components/AppBackButton';
 
-// Bureau vu du dessus : fond plein écran sur lequel les offrandes sont posées.
 const DESK_BG = require('../../assets/images/offerings/desk-bg.jpg');
 
-// Illustrations dédiées pour les offrandes connues (mêmes assets que le
-// tableau personnel). Repli sur l'emoji du catalogue pour les autres.
 const OFFERING_IMAGES: Record<string, any> = {
   biere: require('../../public/offerings/off_biere_stage1.png'),
   bonbons: require('../../public/offerings/off_bonbons_stage1.png'),
@@ -60,18 +57,15 @@ export default function ReceivedOfferingsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Bureau épinglé au viewport (fixed web / absolute natif). */}
       <View style={styles.deskBgLayer} pointerEvents="none">
         <Image source={DESK_BG} style={styles.deskBgImage} resizeMode="contain" />
       </View>
 
-      <TouchableOpacity
-        style={[styles.backBtn, { top: insets.top + 12 }]}
+      <AppBackButton
         onPress={() => router.back()}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Text style={styles.backText}>← Retour</Text>
-      </TouchableOpacity>
+        tone="inverse"
+        style={[styles.backBtn, { top: insets.top + 12 }]}
+      />
 
       {loading ? (
         <View style={styles.centerContent}>
@@ -120,9 +114,6 @@ export default function ReceivedOfferingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // Assorti aux coins sombres de la photo du bureau, pour que la marge
-    // (au-dessus/en dessous si la photo ne remplit pas toute la hauteur)
-    // se fonde avec l'image plutôt que de trancher dessus.
     backgroundColor: '#141210',
   },
   deskBgLayer:
@@ -137,16 +128,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     zIndex: 2,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-  },
-  backText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#F3E7C6',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
   centerContent: {
     flex: 1,
