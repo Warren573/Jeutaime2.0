@@ -1,15 +1,16 @@
 import type { Response } from "express";
+import { prisma } from "../../config/prisma";
 import { RefugeService } from "./refuge.service";
-import type { ProposeRefugeDto, AdoptRefugeDto, GuessDto, DailyChoiceDto, RevealConsentDto, UpdateBackgroundDto } from "./refuge.schemas";
+import type {
+  ProposeRefugeDto,
+  AdoptRefugeDto,
+  GuessDto,
+  DailyChoiceDto,
+  RevealConsentDto,
+  UpdateBackgroundDto,
+} from "./refuge.schemas";
 import type { AuthedRequest } from "../../core/types";
 
-// ============================================================
-// RefugeController — Handlers HTTP pour Refuge
-// ============================================================
-
-// Réponse d'erreur au format canonique du projet ({ error: { code, message } },
-// identique à core/middleware/errorHandler) : le frontend s'appuie sur `code`,
-// jamais sur le texte du message.
 function sendError(res: Response, error: any): void {
   if (error?.statusCode) {
     res.status(error.statusCode).json({
@@ -20,11 +21,33 @@ function sendError(res: Response, error: any): void {
   }
 }
 
-export class RefugeController {
-  // ============================================================
-  // POST /api/refuge/propose
-  // ============================================================
+type RefugeResponseLike = {
+  otherProfile?: (Record<string, unknown> & { userId?: string; city?: string | null }) | null;
+  [key: string]: unknown;
+};
 
+async function applyRefugeLocationPrivacy<T extends RefugeResponseLike>(value: T): Promise<T> {
+  const otherProfile = value.otherProfile;
+  const otherUserId = otherProfile?.userId;
+  if (!otherProfile || typeof otherUserId !== "string") return value;
+
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId: otherUserId },
+    select: { locationShared: true },
+  });
+
+  if (settings?.locationShared === true) return value;
+  return {
+    ...value,
+    otherProfile: { ...otherProfile, city: null },
+  } as T;
+}
+
+function isRefugeDevEnabled(): boolean {
+  return process.env.NODE_ENV !== "production" && process.env.REFUGE_DEV_TIME_TRAVEL === "true";
+}
+
+export class RefugeController {
   static async propose(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?.userId;
     if (!userId) {
@@ -49,10 +72,6 @@ export class RefugeController {
     }
   }
 
-  // ============================================================
-  // GET /api/refuge/available
-  // ============================================================
-
   static async getAvailable(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?.userId;
     if (!userId) {
@@ -63,20 +82,11 @@ export class RefugeController {
     try {
       const adoptantGender = req.query.gender as string | undefined;
       const refuges = await RefugeService.getAvailableRefuges(userId, adoptantGender);
-
-      res.status(200).json({
-        success: true,
-        data: refuges,
-        count: refuges.length,
-      });
+      res.status(200).json({ success: true, data: refuges, count: refuges.length });
     } catch (error: any) {
       sendError(res, error);
     }
   }
-
-  // ============================================================
-  // POST /api/refuge/adopt
-  // ============================================================
 
   static async adopt(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?.userId;
@@ -89,7 +99,6 @@ export class RefugeController {
 
     try {
       const refugeSession = await RefugeService.adoptRefuge(userId, input.refugeSessionId);
-
       res.status(200).json({
         success: true,
         data: refugeSession,
@@ -100,10 +109,6 @@ export class RefugeController {
     }
   }
 
-  // ============================================================
-  // GET /api/refuge/session/:sessionId
-  // ============================================================
-
   static async getSession(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?.userId;
     if (!userId) {
@@ -112,7 +117,6 @@ export class RefugeController {
     }
 
     const sessionId = req.params.sessionId as string;
-
     if (!sessionId) {
       res.status(400).json({ error: "sessionId requis" });
       return;
@@ -120,19 +124,12 @@ export class RefugeController {
 
     try {
       const refugeSession = await RefugeService.getRefugeSession(sessionId, userId);
-
-      res.status(200).json({
-        success: true,
-        data: refugeSession,
-      });
+      const data = await applyRefugeLocationPrivacy(refugeSession as unknown as RefugeResponseLike);
+      res.status(200).json({ success: true, data });
     } catch (error: any) {
       sendError(res, error);
     }
   }
-
-  // ============================================================
-  // PATCH /api/refuge/session/:sessionId/background
-  // ============================================================
 
   static async updateBackground(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?.userId;
@@ -142,7 +139,6 @@ export class RefugeController {
     }
 
     const sessionId = req.params.sessionId as string;
-    // Body validé par UpdateBackgroundSchema : background est une valeur de l'enum Prisma
     const { background } = req.body as UpdateBackgroundDto;
 
     if (!sessionId) {
@@ -152,7 +148,6 @@ export class RefugeController {
 
     try {
       const refugeSession = await RefugeService.updateBackground(sessionId, userId, background);
-
       res.status(200).json({
         success: true,
         data: refugeSession,
@@ -163,10 +158,6 @@ export class RefugeController {
     }
   }
 
-  // ============================================================
-  // GET /api/refuge/active
-  // ============================================================
-
   static async getActive(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?.userId;
     if (!userId) {
@@ -176,19 +167,11 @@ export class RefugeController {
 
     try {
       const activeSession = await RefugeService.getActiveRefugeSession(userId);
-
-      res.status(200).json({
-        success: true,
-        data: activeSession,
-      });
+      res.status(200).json({ success: true, data: activeSession });
     } catch (error: any) {
       sendError(res, error);
     }
   }
-
-  // ============================================================
-  // POST /api/refuge/daily-choice
-  // ============================================================
 
   static async submitDailyChoice(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?.userId;
@@ -204,12 +187,8 @@ export class RefugeController {
         input.sessionId,
         userId,
         input.dayNumber,
-        {
-          action1: input.action1,
-          action2: input.action2,
-        }
+        { action1: input.action1, action2: input.action2 },
       );
-
       res.status(201).json({
         success: true,
         data: choice,
@@ -219,10 +198,6 @@ export class RefugeController {
       sendError(res, error);
     }
   }
-
-  // ============================================================
-  // POST /api/refuge/guess
-  // ============================================================
 
   static async submitGuess(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?.userId;
@@ -241,9 +216,8 @@ export class RefugeController {
         {
           guessedAction1: input.guessedAction1,
           guessedAction2: input.guessedAction2,
-        }
+        },
       );
-
       res.status(201).json({
         success: true,
         data: guess,
@@ -253,11 +227,6 @@ export class RefugeController {
       sendError(res, error);
     }
   }
-
-  // ============================================================
-  // GET /api/refuge/history
-  // Historique paginé des adoptions terminées de l'utilisateur
-  // ============================================================
 
   static async getHistory(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?.userId;
@@ -277,11 +246,6 @@ export class RefugeController {
     }
   }
 
-  // ============================================================
-  // POST /api/refuge/:sessionId/reveal-consent
-  // Phase finale — décision de dévoilement (ACCEPT | REFUSE)
-  // ============================================================
-
   static async submitRevealConsent(req: AuthedRequest, res: Response): Promise<void> {
     const userId = req.user?.userId;
     if (!userId) {
@@ -299,9 +263,10 @@ export class RefugeController {
 
     try {
       const session = await RefugeService.submitRevealConsent(sessionId, userId, decision);
+      const data = await applyRefugeLocationPrivacy(session as unknown as RefugeResponseLike);
       res.status(200).json({
         success: true,
-        data: session,
+        data,
         message: decision === "ACCEPT" ? "Décision enregistrée" : "Le Refuge se termine ici",
       });
     } catch (error: any) {
@@ -309,16 +274,8 @@ export class RefugeController {
     }
   }
 
-  // ============================================================
-  // DEV MODE: POST /dev/refuge/:sessionId/set-day
-  // ============================================================
-
   static async devSetDay(req: AuthedRequest, res: Response): Promise<void> {
-    // Gate identique à l'enregistrement des routes : la variable explicite suffit
-    // (le staging tourne en build production mais doit pouvoir activer l'outil DEV).
-    const devEnabled = process.env.REFUGE_DEV_TIME_TRAVEL === "true";
-
-    if (!devEnabled) {
+    if (!isRefugeDevEnabled()) {
       res.status(403).json({ error: "Dev mode not enabled" });
       return;
     }
@@ -348,15 +305,8 @@ export class RefugeController {
     }
   }
 
-  // ============================================================
-  // DEV MODE: POST /api/refuge/dev/:sessionId/advance-day
-  // "Jour suivant" — autorisé uniquement si le jour courant est terminé
-  // ============================================================
-
   static async devAdvanceDay(req: AuthedRequest, res: Response): Promise<void> {
-    const devEnabled = process.env.REFUGE_DEV_TIME_TRAVEL === "true";
-
-    if (!devEnabled) {
+    if (!isRefugeDevEnabled()) {
       res.status(403).json({ error: "Dev mode not enabled" });
       return;
     }
@@ -379,15 +329,8 @@ export class RefugeController {
     }
   }
 
-  // ============================================================
-  // DEV MODE: POST /api/refuge/dev/:sessionId/reset
-  // Remise à zéro contrôlée d'une session de test (hors production)
-  // ============================================================
-
   static async devResetSession(req: AuthedRequest, res: Response): Promise<void> {
-    const devEnabled = process.env.REFUGE_DEV_TIME_TRAVEL === "true";
-
-    if (!devEnabled) {
+    if (!isRefugeDevEnabled()) {
       res.status(403).json({ error: "Dev mode not enabled" });
       return;
     }
@@ -411,7 +354,11 @@ export class RefugeController {
     try {
       const result = await RefugeService.devResetSession(sessionId, userId, resetMode);
       const label =
-        resetMode === "abandon" ? "abandonnée" : resetMode === "consent" ? "consentements effacés" : "remise à zéro";
+        resetMode === "abandon"
+          ? "abandonnée"
+          : resetMode === "consent"
+            ? "consentements effacés"
+            : "remise à zéro";
       res.status(200).json({
         success: true,
         data: result,
