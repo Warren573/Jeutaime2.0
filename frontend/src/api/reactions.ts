@@ -10,8 +10,6 @@ export interface ReactionDTO {
   createdAt: string;
   matchCreated: boolean;
   matchId?: string;
-  source?: string;
-  debugBranch?: string;
 }
 
 export interface ReactionStatusDTO {
@@ -32,7 +30,6 @@ export async function sendReaction(
     method: "POST",
     body: JSON.stringify({ toId, type }),
   });
-  console.log("[sendReaction] RAW_RESPONSE:", JSON.stringify(res, null, 2));
   return res.data;
 }
 
