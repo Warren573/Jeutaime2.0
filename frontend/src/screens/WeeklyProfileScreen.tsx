@@ -12,6 +12,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
+import { AppBackButton } from '../components/AppBackButton';
+import {
+  APP_COLORS,
+  APP_RADIUS,
+  APP_SHADOWS,
+  APP_SPACING,
+} from '../theme/appTheme';
 import {
   getWeeklyProfileState,
   voteForDuel,
@@ -29,13 +36,11 @@ export default function WeeklyProfileScreen() {
   const loadWallet = useStore(s => s.loadWallet);
 
   const [activeTab, setActiveTab] = useState<'winners' | 'vote'>('vote');
-
   const [state, setState] = useState<WeeklyProfileStateDTO | null>(null);
   const [stateLoading, setStateLoading] = useState(true);
   const [voting, setVoting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash] = useState(new Animated.Value(0));
-
   const [winners, setWinners] = useState<WeeklyProfileWinnersDTO | null>(null);
   const [winnersLoading, setWinnersLoading] = useState(true);
 
@@ -80,7 +85,7 @@ export default function WeeklyProfileScreen() {
     <View style={styles.duelCard}>
       {profile.avatarConfig && (
         <View style={styles.avatarContainer}>
-          <Avatar size={80} {...(profile.avatarConfig as any)} />
+          <Avatar size={82} {...(profile.avatarConfig as any)} />
         </View>
       )}
       <Text style={styles.duelName}>{profile.pseudo}, {profile.age}</Text>
@@ -94,11 +99,12 @@ export default function WeeklyProfileScreen() {
         style={[styles.voteBtn, disabled && styles.voteBtnDisabled]}
         onPress={() => handleVote(profile.id)}
         disabled={disabled}
+        activeOpacity={0.78}
       >
         {voting === profile.id ? (
-          <ActivityIndicator size="small" color="#FFF" />
+          <ActivityIndicator size="small" color={APP_COLORS.white} />
         ) : (
-          <Text style={styles.voteBtnText}>👍 Voter</Text>
+          <Text style={styles.voteBtnText}>Voter pour ce profil</Text>
         )}
       </TouchableOpacity>
     </View>
@@ -109,9 +115,10 @@ export default function WeeklyProfileScreen() {
       <Text style={styles.sectionTitle}>{emoji} {label}</Text>
       {profile ? (
         <View style={styles.winnerCard}>
+          <View style={styles.crownBadge}><Text style={styles.crownText}>👑</Text></View>
           {profile.avatarConfig && (
             <View style={styles.avatarContainer}>
-              <Avatar size={100} {...(profile.avatarConfig as any)} />
+              <Avatar size={102} {...(profile.avatarConfig as any)} />
             </View>
           )}
           <Text style={styles.duelName}>{profile.pseudo}, {profile.age}</Text>
@@ -121,10 +128,12 @@ export default function WeeklyProfileScreen() {
               <Text style={styles.bioText}>&quot;{profile.bio}&quot;</Text>
             </View>
           )}
-          <Text style={styles.voteCount}>❤️ {profile.totalVotes} vote{profile.totalVotes > 1 ? 's' : ''}</Text>
+          <Text style={styles.voteCount}>♥ {profile.totalVotes} vote{profile.totalVotes > 1 ? 's' : ''}</Text>
         </View>
       ) : (
-        <Text style={styles.emptyText}>Pas encore de gagnant·e &mdash; les votes de la semaine passée n&apos;ont pas suffi.</Text>
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyText}>Pas encore de gagnant·e pour cette catégorie.</Text>
+        </View>
       )}
     </>
   );
@@ -135,42 +144,49 @@ export default function WeeklyProfileScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backText}>← Retour</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>🏆 Profil de la semaine</Text>
-        <Text style={styles.subtitle}>Duel anonyme — pseudo, âge, ville, bio</Text>
+        <AppBackButton onPress={() => router.back()} />
+        <View style={styles.headerText}>
+          <Text style={styles.kicker}>COMMUNAUTÉ</Text>
+          <Text style={styles.title}>Profil de la semaine</Text>
+          <Text style={styles.subtitle}>Vote selon le profil, pas selon une galerie de photos.</Text>
+        </View>
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.tabsRow}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'vote' && styles.tabActive]}
           onPress={() => setActiveTab('vote')}
+          activeOpacity={0.75}
         >
-          <Text style={[styles.tabText, activeTab === 'vote' && styles.tabTextActive]}>🗳️ Voter</Text>
+          <Text style={[styles.tabText, activeTab === 'vote' && styles.tabTextActive]}>Voter</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'winners' && styles.tabActive]}
           onPress={() => setActiveTab('winners')}
+          activeOpacity={0.75}
         >
-          <Text style={[styles.tabText, activeTab === 'winners' && styles.tabTextActive]}>👑 Gagnants</Text>
+          <Text style={[styles.tabText, activeTab === 'winners' && styles.tabTextActive]}>Gagnants</Text>
         </TouchableOpacity>
       </View>
 
       {activeTab === 'vote' ? (
         stateLoading ? (
           <View style={styles.centerContent}>
-            <ActivityIndicator size="large" color="#8B2E3C" />
+            <ActivityIndicator size="large" color={APP_COLORS.burgundy} />
           </View>
         ) : (
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {!!error && <Text style={styles.errorText}>{error}</Text>}
 
             <View style={styles.statusBar}>
-              <Text style={styles.statusText}>
-                Votes restants aujourd&apos;hui : {state?.remainingToday ?? 0} / {state?.dailyLimit ?? 10}
-              </Text>
-              <Text style={styles.statusReward}>Récompense : +{VOTE_REWARD} pièces par vote</Text>
+              <View>
+                <Text style={styles.statusLabel}>Votes restants aujourd'hui</Text>
+                <Text style={styles.statusValue}>{state?.remainingToday ?? 0} / {state?.dailyLimit ?? 10}</Text>
+              </View>
+              <View style={styles.rewardPill}>
+                <Text style={styles.rewardText}>+{VOTE_REWARD} 🪙 / vote</Text>
+              </View>
             </View>
 
             <Animated.View pointerEvents="none" style={[styles.flashOverlay, { opacity: flash }]}>
@@ -178,19 +194,21 @@ export default function WeeklyProfileScreen() {
             </Animated.View>
 
             {limitReached && (
-              <Text style={styles.emptyText}>
-                Tu as atteint ta limite quotidienne de votes. Reviens demain pour continuer !
-              </Text>
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>Tu as atteint ta limite quotidienne. Reviens demain pour continuer.</Text>
+              </View>
             )}
 
             {!limitReached && state?.notEnoughCandidates && (
-              <Text style={styles.emptyText}>Pas assez de profils disponibles pour composer un duel pour le moment.</Text>
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>Pas assez de profils disponibles pour composer un duel pour le moment.</Text>
+              </View>
             )}
 
             {!limitReached && state?.duel && (
               <>
                 <DuelCard profile={state.duel.candidateA} disabled={disabled} />
-                <Text style={styles.vsText}>VS</Text>
+                <View style={styles.vsWrap}><Text style={styles.vsText}>OU</Text></View>
                 <DuelCard profile={state.duel.candidateB} disabled={disabled} />
               </>
             )}
@@ -199,12 +217,12 @@ export default function WeeklyProfileScreen() {
       ) : (
         winnersLoading ? (
           <View style={styles.centerContent}>
-            <ActivityIndicator size="large" color="#8B2E3C" />
+            <ActivityIndicator size="large" color={APP_COLORS.burgundy} />
           </View>
         ) : (
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-            <WinnerCard profile={winners?.female ?? null} label="Profil féminin de la semaine" emoji="👸" />
-            <WinnerCard profile={winners?.male ?? null} label="Profil masculin de la semaine" emoji="🤴" />
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <WinnerCard profile={winners?.female ?? null} label="Profil féminin de la semaine" emoji="♀" />
+            <WinnerCard profile={winners?.male ?? null} label="Profil masculin de la semaine" emoji="♂" />
           </ScrollView>
         )
       )}
@@ -213,44 +231,123 @@ export default function WeeklyProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF8E7' },
-  header: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#E8D5B7' },
-  backText: { fontSize: 16, color: '#8B6F47' },
-  title: { fontSize: 28, fontWeight: '700', color: '#3A2818', marginTop: 4 },
-  subtitle: { fontSize: 14, color: '#8B6F47', marginTop: 4 },
+  container: { flex: 1, backgroundColor: APP_COLORS.background },
+  header: {
+    minHeight: 88,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: APP_SPACING.md,
+    paddingVertical: APP_SPACING.sm,
+    backgroundColor: APP_COLORS.paper,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.border,
+  },
+  headerText: { flex: 1, alignItems: 'center', paddingHorizontal: APP_SPACING.sm },
+  headerSpacer: { width: 52 },
+  kicker: { fontSize: 9, fontWeight: '800', color: APP_COLORS.muted, letterSpacing: 2 },
+  title: { fontSize: 22, fontWeight: '900', color: APP_COLORS.ink, marginTop: 2, textAlign: 'center' },
+  subtitle: { fontSize: 11, color: APP_COLORS.muted, marginTop: 3, textAlign: 'center' },
 
-  tabsRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFF' },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12, marginHorizontal: 4, backgroundColor: '#F5F5F5' },
-  tabActive: { backgroundColor: '#FFD700' },
-  tabText: { fontSize: 15, fontWeight: '600', color: '#8B6F47' },
-  tabTextActive: { color: '#3A2818' },
+  tabsRow: {
+    flexDirection: 'row',
+    marginHorizontal: APP_SPACING.md,
+    marginTop: APP_SPACING.md,
+    padding: 4,
+    borderRadius: APP_RADIUS.md,
+    backgroundColor: APP_COLORS.paperSoft,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+  },
+  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: APP_RADIUS.sm },
+  tabActive: { backgroundColor: APP_COLORS.paper, ...(APP_SHADOWS.card ?? {}) },
+  tabText: { fontSize: 13, fontWeight: '700', color: APP_COLORS.muted },
+  tabTextActive: { color: APP_COLORS.burgundy },
 
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollView: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 100 },
+  scrollContent: { padding: APP_SPACING.md, paddingBottom: 72 },
 
-  errorText: { fontSize: 13, color: '#C0392B', textAlign: 'center', marginBottom: 12 },
-  emptyText: { fontSize: 14, color: '#8B6F47', textAlign: 'center', marginBottom: 16, fontStyle: 'italic' },
+  errorText: { fontSize: 13, color: APP_COLORS.danger, textAlign: 'center', marginBottom: APP_SPACING.sm },
+  emptyCard: {
+    backgroundColor: APP_COLORS.paperSoft,
+    borderRadius: APP_RADIUS.md,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    padding: APP_SPACING.lg,
+    marginBottom: APP_SPACING.md,
+  },
+  emptyText: { fontSize: 13, color: APP_COLORS.muted, textAlign: 'center', lineHeight: 19 },
 
-  statusBar: { backgroundColor: '#FFF', borderRadius: 16, padding: 14, marginBottom: 16, alignItems: 'center', borderLeftWidth: 4, borderLeftColor: '#FFD700' },
-  statusText: { fontSize: 15, fontWeight: '700', color: '#3A2818' },
-  statusReward: { fontSize: 13, color: '#8B6F47', marginTop: 4 },
+  statusBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.lg,
+    padding: APP_SPACING.md,
+    marginBottom: APP_SPACING.lg,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    ...(APP_SHADOWS.card ?? {}),
+  },
+  statusLabel: { fontSize: 11, color: APP_COLORS.muted, marginBottom: 3 },
+  statusValue: { fontSize: 20, fontWeight: '900', color: APP_COLORS.ink },
+  rewardPill: { backgroundColor: APP_COLORS.backgroundWarm, borderRadius: APP_RADIUS.pill, paddingHorizontal: 11, paddingVertical: 7 },
+  rewardText: { fontSize: 11, fontWeight: '800', color: APP_COLORS.gold },
 
   flashOverlay: { position: 'absolute', top: 8, alignSelf: 'center', zIndex: 10 },
-  flashText: { fontSize: 20, fontWeight: '800', color: '#DAA520' },
+  flashText: { fontSize: 19, fontWeight: '900', color: APP_COLORS.gold },
 
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#3A2818', marginBottom: 12, marginTop: 8 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: APP_COLORS.ink, marginBottom: APP_SPACING.sm, marginTop: APP_SPACING.sm },
 
-  avatarContainer: { marginBottom: 16 },
-  duelCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, marginBottom: 8, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 5 },
-  winnerCard: { backgroundColor: '#FFFEF7', borderWidth: 3, borderColor: '#FFD700', borderRadius: 24, padding: 24, marginBottom: 16, alignItems: 'center' },
-  duelName: { fontSize: 22, fontWeight: '700', color: '#3A2818' },
-  duelCity: { fontSize: 15, color: '#8B6F47', marginTop: 4 },
-  bioBox: { backgroundColor: '#FFF8E7', borderRadius: 16, padding: 16, marginTop: 16, width: '100%' },
-  bioText: { fontSize: 15, color: '#5D4037', fontStyle: 'italic', lineHeight: 22, textAlign: 'center' },
-  voteCount: { fontSize: 16, fontWeight: '700', color: '#E91E63', marginTop: 14 },
-  vsText: { textAlign: 'center', fontSize: 18, fontWeight: '800', color: '#8B6F47', marginVertical: 8 },
-  voteBtn: { marginTop: 16, backgroundColor: '#E91E63', paddingHorizontal: 32, paddingVertical: 14, borderRadius: 25, minWidth: 160, alignItems: 'center' },
-  voteBtnDisabled: { opacity: 0.5 },
-  voteBtnText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
+  avatarContainer: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: APP_COLORS.paperSoft,
+    marginBottom: APP_SPACING.md,
+  },
+  duelCard: {
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.xl,
+    padding: APP_SPACING.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    ...(APP_SHADOWS.card ?? {}),
+  },
+  winnerCard: {
+    position: 'relative',
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.xl,
+    padding: APP_SPACING.lg,
+    marginBottom: APP_SPACING.lg,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: APP_COLORS.goldSoft,
+    ...(APP_SHADOWS.elevated ?? {}),
+  },
+  crownBadge: { position: 'absolute', top: -14, right: 18, backgroundColor: APP_COLORS.backgroundWarm, borderRadius: APP_RADIUS.pill, padding: 6, borderWidth: 1, borderColor: APP_COLORS.goldSoft },
+  crownText: { fontSize: 17 },
+  duelName: { fontSize: 20, fontWeight: '900', color: APP_COLORS.ink },
+  duelCity: { fontSize: 13, color: APP_COLORS.muted, marginTop: 4 },
+  bioBox: { backgroundColor: APP_COLORS.paperSoft, borderRadius: APP_RADIUS.md, padding: APP_SPACING.md, marginTop: APP_SPACING.md, width: '100%' },
+  bioText: { fontSize: 13, color: APP_COLORS.text, lineHeight: 20, textAlign: 'center' },
+  voteCount: { fontSize: 13, fontWeight: '800', color: APP_COLORS.burgundy, marginTop: APP_SPACING.md },
+  vsWrap: { alignSelf: 'center', marginVertical: 8, backgroundColor: APP_COLORS.paperSoft, paddingHorizontal: 12, paddingVertical: 5, borderRadius: APP_RADIUS.pill },
+  vsText: { fontSize: 10, fontWeight: '900', color: APP_COLORS.muted, letterSpacing: 1.1 },
+  voteBtn: {
+    marginTop: APP_SPACING.md,
+    minHeight: 48,
+    width: '100%',
+    backgroundColor: APP_COLORS.burgundy,
+    paddingHorizontal: APP_SPACING.md,
+    borderRadius: APP_RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voteBtnDisabled: { opacity: 0.45 },
+  voteBtnText: { color: APP_COLORS.white, fontWeight: '800', fontSize: 14 },
 });
