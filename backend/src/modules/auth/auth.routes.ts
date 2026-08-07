@@ -3,7 +3,7 @@ import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
 import { authRateLimit } from "../../core/middleware/rateLimit";
-import { RegisterSchema, LoginSchema, RefreshSchema, ChangePasswordSchema } from "./auth.schemas";
+import { RegisterSchema, LoginSchema, RefreshSchema, ChangePasswordSchema, DeactivateAccountSchema } from "./auth.schemas";
 import * as ctrl from "./auth.controller";
 import { AuthedRequest } from "../../core/types";
 
@@ -45,6 +45,14 @@ router.post(
   requireAuth as never,
   validate(ChangePasswordSchema),
   asyncHandler((req, res, next) => ctrl.handleChangePassword(req as AuthedRequest, res).catch(next)),
+);
+
+// POST /api/auth/deactivate (🔒)
+router.post(
+  "/deactivate",
+  requireAuth as never,
+  validate(DeactivateAccountSchema),
+  asyncHandler((req, res, next) => ctrl.handleDeactivate(req as AuthedRequest, res).catch(next)),
 );
 
 // GET /api/auth/export-data (🔒)
