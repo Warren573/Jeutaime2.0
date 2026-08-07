@@ -12,12 +12,7 @@ export async function handleRegister(req: Request, res: Response) {
 
 export async function handleLogin(req: Request, res: Response) {
   const tokens = await authService.login(req.body);
-  res.json({
-    data: tokens,
-    _debug: {
-      AUTH_RATE_LIMIT_TRIGGERED: false,
-    },
-  });
+  res.json({ data: tokens });
 }
 
 export async function handleRefresh(req: Request, res: Response) {
