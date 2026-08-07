@@ -13,13 +13,16 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
 import { useStore } from "../store/useStore";
 import { Avatar } from "../avatar/png/Avatar";
-import { DEFAULT_AVATAR, DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE } from "../avatar/png/defaults";
 import { resolveAvatarConfig } from "../avatar/resolveAvatarConfig";
 import { getRelationInfo } from "../engine/RelationEngine";
-import { discoverProfiles, type DiscoveryProfileDto } from "../api/profiles";
+import {
+  blockProfile,
+  discoverProfiles,
+  reportUser,
+  type DiscoveryProfileDto,
+  type ReportReason,
+} from "../api/profiles";
 import { sendReaction } from "../api/reactions";
-
-// ─── Lookup tables ─────────────────────────────────────────────────────────
 
 const PHYSIQUE_LABEL: Record<string, { emoji: string; label: string }> = {
   filiforme:    { emoji: "🍝", label: "Filiforme" },
@@ -45,7 +48,14 @@ const LOOKING_FOR_LABEL: Record<string, string> = {
   SERIEUX:    "Je cherche l'âme sœur",
 };
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+const REPORT_REASONS: Array<{ value: ReportReason; label: string }> = [
+  { value: 'HARASSMENT', label: 'Harcèlement' },
+  { value: 'SPAM', label: 'Spam' },
+  { value: 'FAKE', label: 'Faux profil' },
+  { value: 'INAPPROPRIATE_CONTENT', label: 'Contenu inapproprié' },
+  { value: 'MINOR', label: 'Mineur' },
+  { value: 'OTHER', label: 'Autre' },
+];
 
 function computeAge(birthDate?: string): number | null {
   if (!birthDate) return null;
@@ -57,8 +67,6 @@ function computeAge(birthDate?: string): number | null {
   if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
   return age >= 0 ? age : null;
 }
-
-// ─── Exported sub-components (kept for future reuse) ──────────────────────
 
 export function RelationLevelBadge({
   letterCount,
@@ -116,8 +124,6 @@ export function ProfileMedia({
   );
 }
 
-// ─── Discovery screen ──────────────────────────────────────────────────────
-
 export default function ProfileTwoStepDemo() {
   const router = useRouter();
   const searchParams = useLocalSearchParams<{ filter?: string }>();
@@ -134,14 +140,17 @@ export default function ProfileTwoStepDemo() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reacting, setReacting] = useState(false);
+  const [showSafetyMenu, setShowSafetyMenu] = useState(false);
+  const [showReportReasons, setShowReportReasons] = useState(false);
+  const [safetyActioning, setSafetyActioning] = useState(false);
 
-  // Clear discovery on user change
   useEffect(() => {
     setCurrentProfile(null);
     setRemainingProfiles([]);
     setRemovedIds(new Set());
-    setCurrentProfile(null);
     setError(null);
+    setShowSafetyMenu(false);
+    setShowReportReasons(false);
   }, [currentUser?.id]);
 
   const load = useCallback(async () => {
@@ -196,24 +205,59 @@ export default function ProfileTwoStepDemo() {
   }, [currentUser?.id, removedIds, isReceivedSmilesFilter, allMatches, matchPartners]);
 
   useEffect(() => {
-    if (currentUser?.id) {
-      load();
-    }
+    if (currentUser?.id) load();
   }, [currentUser?.id]);
 
   const profile = currentProfile;
   const displayedProfile = profile;
 
+  const advanceAfterSafetyAction = () => {
+    if (!currentProfile) return;
+    const next = remainingProfiles[0] ?? null;
+    const newRemovedIds = new Set(removedIds);
+    newRemovedIds.add(currentProfile.userId);
+    setCurrentProfile(next);
+    setRemainingProfiles(remainingProfiles.slice(1));
+    setRemovedIds(newRemovedIds);
+    setShowSafetyMenu(false);
+    setShowReportReasons(false);
+  };
+
+  const handleBlockProfile = async () => {
+    if (!profile || safetyActioning) return;
+    const confirmed = typeof globalThis.confirm === 'function'
+      ? globalThis.confirm('Bloquer cette personne ?\n\nSon profil ne vous sera plus proposé et vous ne pourrez plus interagir ensemble.')
+      : true;
+    if (!confirmed) return;
+
+    setSafetyActioning(true);
+    try {
+      await blockProfile(profile.userId);
+      advanceAfterSafetyAction();
+      Alert.alert('Personne bloquée', 'Ce profil a bien été bloqué.');
+    } catch (err) {
+      Alert.alert('Erreur', err instanceof Error ? err.message : 'Impossible de bloquer ce profil');
+    } finally {
+      setSafetyActioning(false);
+    }
+  };
+
+  const handleReportProfile = async (reason: ReportReason) => {
+    if (!profile || safetyActioning) return;
+    setSafetyActioning(true);
+    try {
+      await reportUser(profile.userId, reason);
+      advanceAfterSafetyAction();
+      Alert.alert('Signalement envoyé', 'Merci, votre signalement a bien été transmis.');
+    } catch (err) {
+      Alert.alert('Erreur', err instanceof Error ? err.message : "Impossible d'envoyer le signalement");
+    } finally {
+      setSafetyActioning(false);
+    }
+  };
+
   const handleReact = async (type: "SMILE" | "GRIMACE", targetProfile: DiscoveryProfileDto | null) => {
-    if (!targetProfile) {
-      return;
-    }
-    if (reacting) {
-      return;
-    }
-    if (!currentUser?.id) {
-      return;
-    }
+    if (!targetProfile || reacting || !currentUser?.id) return;
     if (targetProfile.userId === currentUser.id) {
       Alert.alert('Erreur', 'Tu ne peux pas réagir à ton propre profil');
       return;
@@ -224,6 +268,8 @@ export default function ProfileTwoStepDemo() {
     const previousRemovedIds = removedIds;
 
     setReacting(true);
+    setShowSafetyMenu(false);
+    setShowReportReasons(false);
 
     const next = remainingProfiles[0] ?? null;
     const newRemaining = remainingProfiles.slice(1);
@@ -236,32 +282,20 @@ export default function ProfileTwoStepDemo() {
 
     try {
       const result = await sendReaction(targetProfile.userId, type);
-
       if (type === "SMILE" && result.debugBranch === "NEW-MATCH") {
-        const storeStateBefore = require('../store/useStore').useStore.getState();
-        const matchCountBefore = storeStateBefore.matches?.length ?? 0;
-
         await loadMatches();
-
-        const storeStateAfter = require('../store/useStore').useStore.getState();
-        const matchesAfter = storeStateAfter.matches ?? [];
-        const matchCountAfter = matchesAfter.length;
-        const newMatch = matchesAfter.find(m => m.id === result.matchId);
-
         router.push("/(tabs)/letters");
       }
     } catch (err) {
       setCurrentProfile(previousCurrent);
       setRemainingProfiles(previousRemaining);
       setRemovedIds(previousRemovedIds);
-      const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi";
-      Alert.alert("Erreur", msg);
+      Alert.alert("Erreur", err instanceof Error ? err.message : "Erreur lors de l'envoi");
     } finally {
       setReacting(false);
     }
   };
 
-  // ── Loading ──
   if (loading) {
     return (
       <View style={[styles.screen, styles.centered]}>
@@ -271,7 +305,6 @@ export default function ProfileTwoStepDemo() {
     );
   }
 
-  // ── Error ──
   if (error) {
     return (
       <View style={[styles.screen, styles.centered]}>
@@ -283,14 +316,11 @@ export default function ProfileTwoStepDemo() {
     );
   }
 
-  // ── Empty ──
   if (!profile) {
     return (
       <View style={[styles.screen, styles.centered]}>
         <Text style={styles.emptyTitle}>Aucun profil à découvrir</Text>
-        <Text style={styles.emptyText}>
-          Reviens plus tard ou modifie tes filtres.
-        </Text>
+        <Text style={styles.emptyText}>Reviens plus tard ou modifie tes filtres.</Text>
         <Pressable style={styles.retryBtn} onPress={load}>
           <Text style={styles.retryBtnText}>Actualiser</Text>
         </Pressable>
@@ -298,7 +328,6 @@ export default function ProfileTwoStepDemo() {
     );
   }
 
-  // ── Derived display values ──
   const age = computeAge(profile.birthDate ?? undefined);
   const avatarResolution = resolveAvatarConfig(
     profile.userId,
@@ -322,59 +351,80 @@ export default function ProfileTwoStepDemo() {
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.stageOneContent}>
         <View style={styles.stageOneCard}>
-
-          {/* Top bar */}
           <View style={styles.topBar}>
             <Text style={styles.topBarTitle}>
               {isReceivedSmilesFilter ? 'Sourires Reçus' : 'Découvrir'}
             </Text>
-            <View style={styles.progressBadge}>
-              <Text style={styles.progressBadgeText}>
-                {remainingProfiles.length + 1} restant{remainingProfiles.length > 0 ? 's' : ''}
-              </Text>
+            <View style={styles.topBarRight}>
+              <View style={styles.progressBadge}>
+                <Text style={styles.progressBadgeText}>
+                  {remainingProfiles.length + 1} restant{remainingProfiles.length > 0 ? 's' : ''}
+                </Text>
+              </View>
+              <Pressable
+                style={styles.safetyButton}
+                onPress={() => {
+                  setShowReportReasons(false);
+                  setShowSafetyMenu((value) => !value);
+                }}
+                disabled={safetyActioning}
+              >
+                <Text style={styles.safetyButtonText}>⚠️</Text>
+              </Pressable>
             </View>
+
+            {showSafetyMenu && (
+              <View style={styles.safetyMenu}>
+                {!showReportReasons ? (
+                  <>
+                    <Pressable style={styles.safetyMenuItem} onPress={() => setShowReportReasons(true)}>
+                      <Text style={styles.safetyMenuText}>⚠️ Signaler</Text>
+                    </Pressable>
+                    <Pressable style={styles.safetyMenuItem} onPress={() => void handleBlockProfile()} disabled={safetyActioning}>
+                      <Text style={[styles.safetyMenuText, styles.safetyMenuDanger]}>🚫 Bloquer</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.safetyMenuTitle}>Motif du signalement</Text>
+                    {REPORT_REASONS.map(({ value, label }) => (
+                      <Pressable
+                        key={value}
+                        style={styles.reasonMenuItem}
+                        onPress={() => void handleReportProfile(value)}
+                        disabled={safetyActioning}
+                      >
+                        <Text style={styles.reasonMenuText}>{label}</Text>
+                      </Pressable>
+                    ))}
+                    <Pressable style={styles.reasonBack} onPress={() => setShowReportReasons(false)}>
+                      <Text style={styles.reasonBackText}>← Retour</Text>
+                    </Pressable>
+                  </>
+                )}
+              </View>
+            )}
           </View>
 
-          {/* Profile header: avatar + name/city */}
           <View style={styles.stageOneHeader}>
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
-              <ProfileMedia
-                avatarConfig={avatarConfig}
-                visibility="avatar"
-                size={96}
-              />
+              <ProfileMedia avatarConfig={avatarConfig} visibility="avatar" size={96} />
             </View>
 
             <View style={styles.stageOneHeaderText}>
-              {!!headerLine && (
-                <Text style={styles.stageOneName}>{headerLine}</Text>
-              )}
-              {!!displayCity && (
-                <Text style={styles.metaInline}>📍 {displayCity}</Text>
-              )}
+              {!!headerLine && <Text style={styles.stageOneName}>{headerLine}</Text>}
+              {!!displayCity && <Text style={styles.metaInline}>📍 {displayCity}</Text>}
               <View style={styles.arrowLineWrap}>
                 <Text style={styles.arrowLine}>⟵ 〜〜〜〜〜〜〜〜〜</Text>
               </View>
             </View>
           </View>
 
-          {/* Bio */}
-          {!!displayBio && (
-            <Text style={styles.stageOneBlabla}>{displayBio}</Text>
-          )}
+          {!!displayBio && <Text style={styles.stageOneBlabla}>{displayBio}</Text>}
+          {!!intentionSentence && <Text style={styles.vibeTag}>{intentionSentence}</Text>}
+          {physique && <Text style={styles.vibeTag}>{physique.emoji} {physique.label}</Text>}
 
-          {/* Intention */}
-          {!!intentionSentence && (
-            <Text style={styles.vibeTag}>{intentionSentence}</Text>
-          )}
-
-          {/* Physique */}
-          {physique && (
-            <Text style={styles.vibeTag}>{physique.emoji} {physique.label}</Text>
-          )}
-
-          {/* Navigate to full profile */}
           <Pressable
             onPress={() => router.push({ pathname: '/profile/[id]', params: { id: profile.userId } })}
             style={styles.discoverWrap}
@@ -382,7 +432,6 @@ export default function ProfileTwoStepDemo() {
             <Text style={styles.discoverLink}>Découvrir le profil →</Text>
           </Pressable>
 
-          {/* Action buttons */}
           <View style={styles.stageOneActions}>
             <Pressable
               style={[styles.actionButton, styles.actionBad, reacting && styles.actionDisabled]}
@@ -390,10 +439,6 @@ export default function ProfileTwoStepDemo() {
               disabled={reacting}
             >
               <Text style={styles.actionText}>😬 Grimace</Text>
-            </Pressable>
-
-            <Pressable style={[styles.actionButton, styles.actionNeutral]}>
-              <Text style={styles.actionText}>🚩 Signaler</Text>
             </Pressable>
 
             <Pressable
@@ -410,35 +455,23 @@ export default function ProfileTwoStepDemo() {
   );
 }
 
-// ─── Styles ────────────────────────────────────────────────────────────────
-
 const BG       = "#ECE3D4";
 const PAPER    = "#F6EEDF";
 const INK      = "#2B1B12";
 const INK_SOFT = "#7C5A43";
 const LINE     = "#D9C7AA";
-const GREEN    = "#6F9B74";
 const RED      = "#BE6B63";
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
   centered: { alignItems: "center", justifyContent: "center", padding: 24 },
-
-  // ── Loading / Error / Empty ──
-  loadingText:      { fontSize: 16, color: INK_SOFT, marginTop: 12 },
-  errorText:        { fontSize: 16, color: RED, textAlign: "center", marginBottom: 16 },
-  emptyTitle:       { fontSize: 22, fontWeight: "800", color: INK, marginBottom: 8, textAlign: "center" },
-  emptyText:        { fontSize: 16, color: INK_SOFT, textAlign: "center", marginBottom: 20, lineHeight: 24 },
-  retryBtn:         { backgroundColor: "#E8D5B7", borderRadius: 14, paddingHorizontal: 20, paddingVertical: 12 },
-  retryBtnText:     { fontSize: 16, fontWeight: "700", color: "#6B4C30" },
-
-  // ── Card scroll ──
-  stageOneContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 28,
-    paddingTop: 10,
-  },
-
+  loadingText: { fontSize: 16, color: INK_SOFT, marginTop: 12 },
+  errorText: { fontSize: 16, color: RED, textAlign: "center", marginBottom: 16 },
+  emptyTitle: { fontSize: 22, fontWeight: "800", color: INK, marginBottom: 8, textAlign: "center" },
+  emptyText: { fontSize: 16, color: INK_SOFT, textAlign: "center", marginBottom: 20, lineHeight: 24 },
+  retryBtn: { backgroundColor: "#E8D5B7", borderRadius: 14, paddingHorizontal: 20, paddingVertical: 12 },
+  retryBtnText: { fontSize: 16, fontWeight: "700", color: "#6B4C30" },
+  stageOneContent: { paddingHorizontal: 16, paddingBottom: 28, paddingTop: 10 },
   stageOneCard: {
     backgroundColor: PAPER,
     borderRadius: 26,
@@ -452,30 +485,53 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 4,
   },
-
-  // ── Top bar ──
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 14,
+    position: 'relative',
+    zIndex: 30,
   },
   topBarTitle: { fontSize: 17, color: INK, fontWeight: "700" },
-  progressBadge: {
-    backgroundColor: "#E8DDCE",
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
+  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  progressBadge: { backgroundColor: "#E8DDCE", borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
   progressBadgeText: { fontSize: 13, color: INK_SOFT, fontWeight: "600" },
-
-  // ── Profile header ──
-  stageOneHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 18,
+  safetyButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8DDCE',
   },
-
+  safetyButtonText: { fontSize: 20 },
+  safetyMenu: {
+    position: 'absolute',
+    top: 44,
+    right: 0,
+    width: 210,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#D9C7AA',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  safetyMenuItem: { paddingHorizontal: 12, paddingVertical: 13 },
+  safetyMenuText: { fontSize: 16, fontWeight: '700', color: INK },
+  safetyMenuDanger: { color: '#9B3343' },
+  safetyMenuTitle: { fontSize: 13, fontWeight: '800', color: INK_SOFT, paddingHorizontal: 10, paddingVertical: 8 },
+  reasonMenuItem: { paddingHorizontal: 10, paddingVertical: 9, borderRadius: 8 },
+  reasonMenuText: { fontSize: 14, color: INK, fontWeight: '600' },
+  reasonBack: { paddingHorizontal: 10, paddingTop: 10, paddingBottom: 8, marginTop: 4, borderTopWidth: 1, borderTopColor: '#EEE3D5' },
+  reasonBackText: { fontSize: 14, fontWeight: '700', color: '#8B2E3C' },
+  stageOneHeader: { flexDirection: "row", alignItems: "flex-start", marginBottom: 18 },
   photoCard: {
     width: 126,
     height: 156,
@@ -503,59 +559,21 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "-6deg" }],
     zIndex: 3,
   },
-
   stageOneHeaderText: { flex: 1, paddingTop: 4 },
-  stageOneName: {
-    fontSize: 34,
-    lineHeight: 38,
-    fontWeight: "800",
-    color: INK,
-    marginBottom: 6,
-  },
+  stageOneName: { fontSize: 34, lineHeight: 38, fontWeight: "800", color: INK, marginBottom: 6 },
   metaInline: { fontSize: 15, color: INK_SOFT, marginBottom: 6 },
   arrowLineWrap: { marginTop: 4, marginBottom: 8 },
   arrowLine: { fontSize: 14, color: "#B29077", letterSpacing: 1 },
-
-  // ── Body text ──
-  stageOneBlabla: {
-    fontSize: 26,
-    lineHeight: 43,
-    color: INK,
-    marginBottom: 14,
-    letterSpacing: -0.2,
-  },
-  vibeTag: {
-    fontSize: 17,
-    color: INK_SOFT,
-    fontStyle: "italic",
-    marginBottom: 10,
-  },
-
-  // ── CTA ──
+  stageOneBlabla: { fontSize: 26, lineHeight: 43, color: INK, marginBottom: 14, letterSpacing: -0.2 },
+  vibeTag: { fontSize: 17, color: INK_SOFT, fontStyle: "italic", marginBottom: 10 },
   discoverWrap: { alignSelf: "flex-start", marginBottom: 18 },
   discoverLink: { fontSize: 18, color: "#9C7A4D", fontWeight: "600" },
-
-  // ── Action buttons ──
-  stageOneActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  actionButton: {
-    flex: 1,
-    borderRadius: 18,
-    paddingVertical: 16,
-    alignItems: "center",
-    borderWidth: 1,
-  },
-  actionBad:      { backgroundColor: "#F3DEDF", borderColor: "#E3C2C5" },
-  actionNeutral:  { backgroundColor: "#EEE5D8", borderColor: "#DDD1BF" },
-  actionGood:     { backgroundColor: "#DFEEE1", borderColor: "#C7DDCB" },
+  stageOneActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  actionButton: { flex: 1, borderRadius: 18, paddingVertical: 16, alignItems: "center", borderWidth: 1 },
+  actionBad: { backgroundColor: "#F3DEDF", borderColor: "#E3C2C5" },
+  actionGood: { backgroundColor: "#DFEEE1", borderColor: "#C7DDCB" },
   actionDisabled: { opacity: 0.5 },
-  actionText:     { fontSize: 17, color: INK, fontWeight: "700" },
-
-  // ── Seconde chance ──
+  actionText: { fontSize: 17, color: INK, fontWeight: "700" },
   secondeChanceWrap: { alignItems: "center", marginTop: 14, paddingBottom: 4 },
   secondeChanceLink: { fontSize: 15, color: INK_SOFT, fontStyle: "italic", opacity: 0.7 },
 });
