@@ -9,6 +9,7 @@ export async function listBlockedUsers(userId: string) {
       createdAt: true,
       to: {
         select: {
+          settings: { select: { locationShared: true } },
           profile: {
             select: {
               pseudo: true,
@@ -27,7 +28,7 @@ export async function listBlockedUsers(userId: string) {
     blockedAt: block.createdAt,
     pseudo: block.to.profile?.pseudo ?? "Utilisateur",
     gender: block.to.profile?.gender ?? null,
-    city: block.to.profile?.city ?? null,
+    city: block.to.settings?.locationShared === true ? (block.to.profile?.city ?? null) : null,
     avatarConfig: block.to.profile?.avatarConfig ?? null,
   }));
 }
