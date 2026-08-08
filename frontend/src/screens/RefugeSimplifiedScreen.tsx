@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { REFUGE_BACKGROUND_DATA_URI } from '../assets/refugeBackgroundData';
+import { REFUGE_BACKGROUND_EXACT_DATA_URI } from '../assets/refugeBackgroundExact';
 import { AnimalIllustration } from '../components/AnimalIllustration';
 import { isRefugeAnimal } from '../data/refugeAnimals';
 import { type RefugeActionType } from '../data/refugeActions';
@@ -62,7 +62,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={[styles.scene, { width: artWidth, height: artHeight }]}> 
           <Image
-            source={{ uri: REFUGE_BACKGROUND_DATA_URI }}
+            source={{ uri: REFUGE_BACKGROUND_EXACT_DATA_URI }}
             resizeMode="cover"
             style={styles.backgroundImage}
           />
