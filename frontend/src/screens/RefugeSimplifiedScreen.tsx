@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { REFUGE_BACKGROUND_DATA_URI } from '../assets/refugeBackgroundData';
 import { AnimalIllustration } from '../components/AnimalIllustration';
 import { isRefugeAnimal } from '../data/refugeAnimals';
 import { type RefugeActionType } from '../data/refugeActions';
@@ -61,12 +60,6 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={[styles.scene, { width: artWidth, height: artHeight }]}> 
-          <Image
-            source={{ uri: REFUGE_BACKGROUND_DATA_URI }}
-            resizeMode="cover"
-            style={styles.backgroundImage}
-          />
-
           <View style={styles.headerMask} />
           <TouchableOpacity style={styles.back} onPress={() => router.back()}><Text style={styles.backText}>← Retour</Text></TouchableOpacity>
           <View style={styles.titleBlock} pointerEvents="none"><Text style={styles.title}>Mon refuge</Text><Text style={styles.subtitle}>Prenez soin l’un de l’autre pendant 7 jours</Text></View>
@@ -107,7 +100,6 @@ const styles=StyleSheet.create({
   container:{flex:1,backgroundColor:'#F2E5CF'},
   scroll:{alignItems:'center',backgroundColor:'#F2E5CF'},
   scene:{position:'relative',overflow:'hidden',backgroundColor:'#F2E5CF'},
-  backgroundImage:{...StyleSheet.absoluteFillObject,width:'100%',height:'100%',opacity:1},
   headerMask:{position:'absolute',top:0,left:0,right:0,height:'15%',backgroundColor:'rgba(238,218,184,.90)',zIndex:20},
   back:{position:'absolute',top:'4%',left:'4%',zIndex:22,padding:8}, backText:{color:burgundy,fontFamily:'Georgia',fontSize:19,fontWeight:'700'}, titleBlock:{position:'absolute',top:'3.3%',left:'25%',width:'60%',alignItems:'center',zIndex:22}, title:{color:burgundy,fontFamily:'Georgia',fontSize:30}, subtitle:{color:ink,fontFamily:'Georgia',fontSize:10.5,marginTop:5,textAlign:'center'},
   calendar:{position:'absolute',top:'18%',left:'25%',width:'50%',height:'19%',backgroundColor:parchment,borderWidth:1,borderColor:'#AE8458',borderRadius:4,paddingHorizontal:14,paddingTop:24,zIndex:10,shadowColor:'#231308',shadowOpacity:.3,shadowRadius:4,shadowOffset:{width:0,height:3}}, rings:{position:'absolute',top:-9,left:12,right:12,flexDirection:'row',justifyContent:'space-between'}, ring:{width:5,height:19,borderRadius:4,borderWidth:2,borderColor:'#4A3525',backgroundColor:'#B78A57'}, calendarTitle:{textAlign:'center',color:ink,fontFamily:'Georgia',fontSize:17,marginBottom:10}, days:{flexDirection:'row',justifyContent:'space-between'}, day:{flex:1,alignItems:'center'}, dayNumber:{color:ink,fontFamily:'Georgia',fontSize:14,fontWeight:'600'}, today:{color:burgundy,fontWeight:'900'}, heart:{color:'#9E876C',fontSize:18}, heartFull:{color:burgundy}, dayCaption:{color:'#6E4B32',fontFamily:'Georgia',fontStyle:'italic',fontSize:10.5,textAlign:'right',marginTop:3},
