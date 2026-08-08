@@ -2,13 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { REFUGE_BACKGROUND_EXACT_DATA_URI } from '../assets/refugeBackgroundExact';
 import { AnimalIllustration } from '../components/AnimalIllustration';
 import { isRefugeAnimal } from '../data/refugeAnimals';
 import { type RefugeActionType } from '../data/refugeActions';
 import { useRefugeDailyChoices } from '../hooks/useRefugeDailyChoices';
 import { useRefugeSession } from '../hooks/useRefugeSession';
-
-const REFUGE_BACKGROUND = 'https://raw.githubusercontent.com/Warren573/Jeutaime2.0/main/frontend/assets/images/refuge/refuge-watercolor-bg.jpg';
 
 const ACTIONS: Array<{ key: RefugeActionType; title: string; mark: string }> = [
   { key: 'feed', title: 'Nourrir', mark: '◉' },
@@ -58,7 +57,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <ImageBackground source={{ uri: REFUGE_BACKGROUND }} resizeMode="cover" style={[styles.scene, { width: artWidth, height: artHeight }]} imageStyle={styles.backgroundImage}>
+        <ImageBackground source={{ uri: REFUGE_BACKGROUND_EXACT_DATA_URI }} resizeMode="cover" style={[styles.scene, { width: artWidth, height: artHeight }]} imageStyle={styles.backgroundImage}>
           <TouchableOpacity style={styles.back} onPress={() => router.back()}><Text style={styles.backText}>← Retour</Text></TouchableOpacity>
           <View style={styles.titleBlock} pointerEvents="none"><Text style={styles.title}>Mon refuge</Text><Text style={styles.subtitle}>Prenez soin l’un de l’autre pendant 7 jours</Text></View>
           <View style={styles.calendar}>
