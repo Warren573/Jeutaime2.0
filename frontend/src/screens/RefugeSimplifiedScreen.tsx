@@ -8,7 +8,7 @@ import { type RefugeActionType } from '../data/refugeActions';
 import { useRefugeDailyChoices } from '../hooks/useRefugeDailyChoices';
 import { useRefugeSession } from '../hooks/useRefugeSession';
 
-const REFUGE_BACKGROUND = require('../../assets/images/refuge/refuge-watercolor-bg.jpg');
+const REFUGE_BACKGROUND = 'https://raw.githubusercontent.com/Warren573/Jeutaime2.0/main/frontend/assets/images/refuge/refuge-watercolor-bg.jpg';
 
 const ACTIONS: Array<{ key: RefugeActionType; title: string; mark: string }> = [
   { key: 'feed', title: 'Nourrir', mark: '◉' },
@@ -58,7 +58,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <ImageBackground source={REFUGE_BACKGROUND} resizeMode="cover" style={[styles.scene, { width: artWidth, height: artHeight }]} imageStyle={styles.backgroundImage}>
+        <ImageBackground source={{ uri: REFUGE_BACKGROUND }} resizeMode="cover" style={[styles.scene, { width: artWidth, height: artHeight }]} imageStyle={styles.backgroundImage}>
           <TouchableOpacity style={styles.back} onPress={() => router.back()}><Text style={styles.backText}>← Retour</Text></TouchableOpacity>
           <View style={styles.titleBlock} pointerEvents="none"><Text style={styles.title}>Mon refuge</Text><Text style={styles.subtitle}>Prenez soin l’un de l’autre pendant 7 jours</Text></View>
           <View style={styles.calendar}>
