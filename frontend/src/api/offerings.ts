@@ -77,6 +77,13 @@ export async function getReceivedOfferings(
   return res.data;
 }
 
+export async function getOfferingHistory(): Promise<OfferingSentDTO[]> {
+  const res = (await apiFetch("/offerings/history")) as {
+    data: OfferingSentDTO[];
+  };
+  return res.data;
+}
+
 export interface SalonOfferingDTO {
   id: string;
   offeringId: string;
