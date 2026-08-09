@@ -11,13 +11,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { getReceivedOfferings } from '../api/offerings';
+import { getOfferingHistory, getReceivedOfferings } from '../api/offerings';
 import type { OfferingSentDTO } from '../api/offerings';
 import { useStore } from '../store/useStore';
 import { AppBackButton } from '../components/AppBackButton';
 
 const DESK_BG = require('../../assets/images/offerings/desk-bg.jpg');
-const SIX_MONTHS_MS = 183 * 24 * 60 * 60 * 1000;
 
 type DeskTab = 'active' | 'history';
 
@@ -32,7 +31,8 @@ export default function ReceivedOfferingsScreen() {
   const insets = useSafeAreaInsets();
   const matches = useStore((s) => s.matches);
 
-  const [offerings, setOfferings] = useState<OfferingSentDTO[]>([]);
+  const [activeOfferings, setActiveOfferings] = useState<OfferingSentDTO[]>([]);
+  const [historyOfferings, setHistoryOfferings] = useState<OfferingSentDTO[]>([]);
   const [tab, setTab] = useState<DeskTab>('active');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,9 +42,12 @@ export default function ReceivedOfferingsScreen() {
       try {
         setLoading(true);
         setError(null);
-        // Le bureau charge aussi les anciennes offrandes afin d'offrir un historique local sur 6 mois.
-        const data = await getReceivedOfferings(1, 100, false);
-        setOfferings(data);
+        const [active, history] = await Promise.all([
+          getReceivedOfferings(1, 100, true),
+          getOfferingHistory(),
+        ]);
+        setActiveOfferings(active.filter((item) => item.isActive && item.consumptionCount < 3));
+        setHistoryOfferings(history);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur de chargement');
       } finally {
@@ -61,20 +64,10 @@ export default function ReceivedOfferingsScreen() {
     return match?.otherProfile?.pseudo || 'Quelqu’un';
   };
 
-  const activeOfferings = useMemo(
-    () => offerings.filter((item) => item.isActive && item.consumptionCount < 3),
-    [offerings],
+  const visibleOfferings = useMemo(
+    () => (tab === 'active' ? activeOfferings : historyOfferings),
+    [activeOfferings, historyOfferings, tab],
   );
-
-  const historyOfferings = useMemo(() => {
-    const cutoff = Date.now() - SIX_MONTHS_MS;
-    return offerings.filter((item) => {
-      const createdAt = new Date(item.createdAt).getTime();
-      return createdAt >= cutoff && (!item.isActive || item.consumptionCount >= 3);
-    });
-  }, [offerings]);
-
-  const visibleOfferings = tab === 'active' ? activeOfferings : historyOfferings;
 
   return (
     <View style={styles.container}>
@@ -109,7 +102,7 @@ export default function ReceivedOfferingsScreen() {
           style={[styles.tab, tab === 'history' && styles.tabActive]}
         >
           <Text style={[styles.tabText, tab === 'history' && styles.tabTextActive]}>
-            Historique
+            Historique · {historyOfferings.length}
           </Text>
         </TouchableOpacity>
       </View>
