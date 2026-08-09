@@ -3,6 +3,7 @@ import { AuthedRequest } from "../../core/types";
 import { ForbiddenError } from "../../core/errors";
 import { isAccountDeactivated } from "../auth/accountLifecycle.service";
 import * as svc from "./offerings.service";
+import { listOfferingHistory } from "./offerings.history.service";
 import type {
   ListReceivedQueryDto,
   SendOfferingDto,
@@ -43,6 +44,12 @@ export async function handleListReceived(
   const query = req.query as unknown as ListReceivedQueryDto;
   const { items, ...meta } = await svc.listReceived(req.user.userId, query);
   res.json({ data: items, meta });
+}
+
+// GET /api/offerings/history
+export async function handleHistory(req: AuthedRequest, res: Response) {
+  const data = await listOfferingHistory(req.user.userId);
+  res.json({ data });
 }
 
 // GET /api/offerings/salon/:salonId
