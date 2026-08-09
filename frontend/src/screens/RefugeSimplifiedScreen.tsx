@@ -8,7 +8,7 @@ import { type RefugeActionType } from '../data/refugeActions';
 import { useRefugeDailyChoices } from '../hooks/useRefugeDailyChoices';
 import { useRefugeSession } from '../hooks/useRefugeSession';
 
-const REFUGE_BACKGROUND = require('../../assets/images/refuge/refuge-watercolor-bg.jpg');
+const REFUGE_BACKGROUND = require('../../assets/images/refuge/refuge-watercolor-bg.png');
 
 const ACTIONS: Array<{ key: RefugeActionType; title: string; mark: string }> = [
   { key: 'feed', title: 'Nourrir', mark: '◉' },
