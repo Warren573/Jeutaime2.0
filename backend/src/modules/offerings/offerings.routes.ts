@@ -37,6 +37,9 @@ router.get(
   wrap(ctrl.handleListReceived),
 );
 
+// GET /api/offerings/history — historique du Bureau d'Offrandes (6 mois)
+router.get("/history", wrap(ctrl.handleHistory));
+
 // GET /api/offerings/salon/:salonId
 router.get(
   "/salon/:salonId",
