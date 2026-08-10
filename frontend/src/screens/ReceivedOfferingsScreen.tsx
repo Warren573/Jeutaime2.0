@@ -9,8 +9,8 @@ import { AppBackButton } from '../components/AppBackButton';
 const DESK_BG=require('../../assets/images/offerings/desk-bg.jpg'); type DeskTab='active'|'history';
 const OFFERING_IMAGES:Record<string,any>={desk_chocolats:require('../../assets/images/offerings/desk/BOITE DE CHOCOLATS.png'),desk_bouquet:require('../../assets/images/offerings/desk/BOUQUET DE FLEURS.png'),desk_rose:require('../../assets/images/offerings/desk/ROSE ETERNELLE.png')};
 // Échelle basée sur les objets physiques du décor (lampe, pot à crayons), pas sur une vignette UI.
-const DESK_IMAGE_SIZES:Record<string,{width:number;height:number}>={desk_chocolats:{width:252,height:182},desk_bouquet:{width:270,height:352},desk_rose:{width:184,height:366}};
-const DEFAULT_DESK_IMAGE_SIZE={width:190,height:220};
+const DESK_IMAGE_SIZES:Record<string,{width:number;height:number}>={desk_chocolats:{width:270,height:195},desk_bouquet:{width:290,height:378},desk_rose:{width:198,height:394}};
+const DEFAULT_DESK_IMAGE_SIZE={width:204,height:236};
 // Zones dédiées mais suffisamment proches pour autoriser des croisements naturels entre objets.
 const DESK_SLOTS=[{left:'0%',top:'21%',width:220,height:380,rotation:'-2deg'},{left:'39%',top:'22%',width:275,height:370,rotation:'2deg'},{left:'4%',top:'46%',width:270,height:235,rotation:'1deg'},{left:'43%',top:'46%',width:245,height:245,rotation:'-2deg'},{left:'0%',top:'65%',width:225,height:225,rotation:'2deg'},{left:'33%',top:'66%',width:225,height:225,rotation:'-1deg'},{left:'57%',top:'77%',width:190,height:205,rotation:'2deg'},{left:'12%',top:'79%',width:195,height:205,rotation:'-2deg'}] as const;
 const FIXED_SLOT_BY_OFFERING:Record<string,number>={desk_rose:0,desk_bouquet:1,desk_chocolats:2};
