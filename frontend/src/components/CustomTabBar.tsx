@@ -5,7 +5,7 @@ import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { FEATURES } from "../config/features";
 import { useStore } from "../store/useStore";
 
-const BAR_HEIGHT = 58;
+const BAR_HEIGHT = 76;
 
 const ROUTE_META: Record<string, { icon: string; label: string }> = {
   index: { icon: "⌂", label: "Accueil" },
@@ -45,7 +45,7 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
                 const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
                 if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
               }}>
-              <View style={styles.iconWrap}>
+              <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
                 <Text style={[styles.icon, focused && styles.iconActive]}>{meta.icon}</Text>
                 {route.name === "settings" && unreadNotificationsCount > 0 && <View style={styles.badgeDot} />}
               </View>
@@ -60,21 +60,27 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { position: "relative", backgroundColor: "#F5EBDD" },
+  safeArea: { position: "relative", backgroundColor: "#F3E6D2" },
   bar: {
     position: "absolute", left: 0, right: 0,
     flexDirection: "row", alignItems: "stretch",
-    backgroundColor: "#F5EBDD",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(105,76,52,0.22)",
+    backgroundColor: "#F3E6D2",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(119,83,55,0.30)",
+    shadowColor: "#3B2618",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 5,
   },
-  tabItem: { flex: 1, minWidth: 0, alignItems: "center", justifyContent: "center", paddingTop: 5 },
-  iconWrap: { height: 24, minWidth: 29, alignItems: "center", justifyContent: "center" },
-  icon: { fontFamily: "Georgia", fontSize: 21, lineHeight: 23, color: "#765F4C", opacity: 0.82, textAlign: "center", fontWeight: "400" },
-  iconActive: { color: "#9A3143", opacity: 1 },
-  label: { marginTop: 0, maxWidth: "100%", paddingHorizontal: 1, fontFamily: "Georgia", fontSize: 9, lineHeight: 11, color: "#695442", textAlign: "center" },
-  labelActive: { color: "#9A3143", fontFamily: "Georgia", fontSize: 10, fontStyle: "italic", fontWeight: "700" },
-  underline: { marginTop: 3, width: 25, height: 2, borderRadius: 2, backgroundColor: "transparent", transform: [{ rotate: "-2deg" }] },
+  tabItem: { flex: 1, minWidth: 0, alignItems: "center", justifyContent: "center", paddingTop: 7, paddingBottom: 3 },
+  iconWrap: { height: 34, minWidth: 38, alignItems: "center", justifyContent: "center", borderRadius: 18 },
+  iconWrapActive: { backgroundColor: "rgba(154,49,67,0.08)" },
+  icon: { fontFamily: "Georgia", fontSize: 28, lineHeight: 31, color: "#705844", opacity: 0.84, textAlign: "center", fontWeight: "400" },
+  iconActive: { color: "#982F42", opacity: 1, fontWeight: "700" },
+  label: { marginTop: 2, maxWidth: "100%", paddingHorizontal: 1, fontFamily: "Georgia", fontSize: 11, lineHeight: 14, color: "#654F3D", textAlign: "center" },
+  labelActive: { color: "#8E2D3E", fontSize: 12, fontStyle: "italic", fontWeight: "700" },
+  underline: { marginTop: 4, width: 30, height: 3, borderRadius: 2, backgroundColor: "transparent", transform: [{ rotate: "-2deg" }] },
   underlineActive: { backgroundColor: "#9A3143" },
-  badgeDot: { position: "absolute", top: 0, right: -1, width: 7, height: 7, borderRadius: 4, backgroundColor: "#B52D40", borderWidth: 1, borderColor: "#F5EBDD" },
+  badgeDot: { position: "absolute", top: -1, right: -1, width: 9, height: 9, borderRadius: 5, backgroundColor: "#B52D40", borderWidth: 1, borderColor: "#F3E6D2" },
 });
