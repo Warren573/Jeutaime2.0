@@ -4,6 +4,7 @@ import { ForbiddenError } from "../../core/errors";
 import { isAccountDeactivated } from "../auth/accountLifecycle.service";
 import * as svc from "./offerings.service";
 import { listOfferingHistory } from "./offerings.history.service";
+import { assertPersonalOfferingAllowed } from "./personalOfferings.policy";
 import type {
   ListReceivedQueryDto,
   SendOfferingDto,
@@ -24,6 +25,13 @@ export async function handleSend(req: AuthedRequest, res: Response) {
   if (await isAccountDeactivated(dto.toUserId)) {
     throw new ForbiddenError("Cette personne a temporairement désactivé son compte");
   }
+
+  await assertPersonalOfferingAllowed(
+    req.user.userId,
+    dto.toUserId,
+    dto.offeringId,
+    dto.salonId,
+  );
 
   const data = await svc.sendOffering(req.user.userId, dto);
   res.status(201).json({ data });
