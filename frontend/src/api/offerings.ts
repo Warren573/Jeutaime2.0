@@ -36,9 +36,23 @@ export interface ListReceivedResponseDTO {
   totalPages: number;
 }
 
+export interface PersonalDeskStateDTO {
+  offering: Pick<OfferingCatalogItemDTO, "id" | "emoji" | "name" | "cost" | "category"> | null;
+  startsAt: string | null;
+  expiresAt: string | null;
+  ownedOfferingIds: string[];
+}
+
 export async function getOfferingsCatalog(): Promise<OfferingCatalogItemDTO[]> {
   const res = (await apiFetch("/offerings/catalog")) as {
     data: OfferingCatalogItemDTO[];
+  };
+  return res.data;
+}
+
+export async function getPersonalDeskState(userId: string): Promise<PersonalDeskStateDTO> {
+  const res = (await apiFetch(`/offerings/desk-state/${userId}`)) as {
+    data: PersonalDeskStateDTO;
   };
   return res.data;
 }
