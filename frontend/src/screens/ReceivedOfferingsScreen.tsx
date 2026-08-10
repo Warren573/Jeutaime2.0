@@ -17,14 +17,9 @@ import { useStore } from '../store/useStore';
 import { AppBackButton } from '../components/AppBackButton';
 
 const DESK_BG = require('../../assets/images/offerings/desk-bg.jpg');
+const PERSONAL_PREFIX = 'desk_';
 
 type DeskTab = 'active' | 'history';
-
-const OFFERING_IMAGES: Record<string, any> = {
-  biere: require('../../public/offerings/off_biere_stage1.png'),
-  bonbons: require('../../public/offerings/off_bonbons_stage1.png'),
-  fraises: require('../../public/offerings/off_fraises_stage1.png'),
-};
 
 export default function ReceivedOfferingsScreen() {
   const router = useRouter();
@@ -46,8 +41,14 @@ export default function ReceivedOfferingsScreen() {
           getReceivedOfferings(1, 100, true),
           getOfferingHistory(),
         ]);
-        setActiveOfferings(active.filter((item) => item.isActive && item.consumptionCount < 3));
-        setHistoryOfferings(history);
+        setActiveOfferings(
+          active.filter(
+            (item) => item.offering.id.startsWith(PERSONAL_PREFIX) && item.isActive && item.consumptionCount < 3,
+          ),
+        );
+        setHistoryOfferings(
+          history.filter((item) => item.offering.id.startsWith(PERSONAL_PREFIX)),
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur de chargement');
       } finally {
@@ -102,7 +103,7 @@ export default function ReceivedOfferingsScreen() {
           style={[styles.tab, tab === 'history' && styles.tabActive]}
         >
           <Text style={[styles.tabText, tab === 'history' && styles.tabTextActive]}>
-            Historique · {historyOfferings.length}
+            Mes offrandes · {historyOfferings.length}
           </Text>
         </TouchableOpacity>
       </View>
@@ -120,7 +121,7 @@ export default function ReceivedOfferingsScreen() {
           <Text style={styles.feedbackText}>
             {tab === 'active'
               ? 'Le bureau est encore vide…'
-              : 'Aucune offrande dans les 6 derniers mois.'}
+              : 'Aucune offrande personnelle dans les 6 derniers mois.'}
           </Text>
         </View>
       ) : (
@@ -131,32 +132,23 @@ export default function ReceivedOfferingsScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {visibleOfferings.map((item) => {
-            const image = OFFERING_IMAGES[item.offering.id];
-            return (
-              <View key={item.id} style={styles.offeringSlot}>
-                {image ? (
-                  <Image source={image} style={styles.offeringImage} resizeMode="contain" />
-                ) : (
-                  <Text style={styles.offeringEmoji}>{item.offering.emoji}</Text>
-                )}
-                <Text style={styles.offeringName} numberOfLines={1}>
-                  {item.offering.name}
-                </Text>
-                <Text style={styles.offeringSender} numberOfLines={1}>
-                  de {senderName(item.fromUserId)}
-                </Text>
-                {tab === 'history' && (
-                  <Text style={styles.offeringDate}>
-                    {new Date(item.createdAt).toLocaleDateString('fr-FR', {
-                      day: '2-digit',
-                      month: 'short',
-                    })}
-                  </Text>
-                )}
-              </View>
-            );
-          })}
+          {visibleOfferings.map((item) => (
+            <View key={item.id} style={styles.offeringSlot}>
+              <Text style={styles.offeringEmoji}>{item.offering.emoji}</Text>
+              <Text style={styles.offeringName} numberOfLines={2}>
+                {item.offering.name}
+              </Text>
+              <Text style={styles.offeringSender} numberOfLines={1}>
+                de {senderName(item.fromUserId)}
+              </Text>
+              <Text style={styles.offeringDate}>
+                {new Date(item.createdAt).toLocaleDateString('fr-FR', {
+                  day: '2-digit',
+                  month: 'short',
+                })}
+              </Text>
+            </View>
+          ))}
         </ScrollView>
       )}
     </View>
@@ -272,14 +264,9 @@ const styles = StyleSheet.create({
   },
   offeringSlot: {
     width: 96,
-    minHeight: 108,
+    minHeight: 112,
     alignItems: 'center',
     justifyContent: 'flex-start',
-  },
-  offeringImage: {
-    width: 68,
-    height: 68,
-    marginBottom: 5,
   },
   offeringEmoji: {
     fontSize: 45,
