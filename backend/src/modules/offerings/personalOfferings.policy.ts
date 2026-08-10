@@ -20,7 +20,9 @@ export async function assertPersonalOfferingAllowed(
     throw new BadRequestError('Une offrande de bureau ne peut pas être envoyée dans un salon');
   }
 
-  const [userAId, userBId] = [fromUserId, toUserId].sort();
+  const userAId = fromUserId < toUserId ? fromUserId : toUserId;
+  const userBId = fromUserId < toUserId ? toUserId : fromUserId;
+
   const contact = await prisma.match.findUnique({
     where: { userAId_userBId: { userAId, userBId } },
     select: { status: true },
