@@ -149,6 +149,14 @@ export default function ProfileRoute() {
 
   const handleContinue = () => router.push('/(tabs)/letters' as never);
 
+  const handleOfferings = () => {
+    if (!profileId || !hasActiveRelation) return;
+    router.push({
+      pathname: '/contact-offerings',
+      params: { toUserId: profileId },
+    } as never);
+  };
+
   const handleBreak = async () => {
     if (!relationMatch || relationMatch.status !== 'ACTIVE' || isRelationActioning) return;
     const confirmed = await confirmAction(
@@ -257,6 +265,12 @@ export default function ProfileRoute() {
               ) : (
                 <Text style={styles.continueText}>✉️ Continuer la discussion</Text>
               )}
+            </TouchableOpacity>
+          )}
+
+          {hasActiveRelation && (
+            <TouchableOpacity style={styles.offeringsButton} onPress={handleOfferings}>
+              <Text style={styles.offeringsButtonText}>🎁 Offrandes</Text>
             </TouchableOpacity>
           )}
 
@@ -375,6 +389,18 @@ const styles = StyleSheet.create({
     ...(APP_SHADOWS.card as any),
   },
   continueText: { color: APP_COLORS.burgundy, fontSize: APP_TYPE.button, fontWeight: '700' },
+  offeringsButton: {
+    minHeight: APP_SIZES.buttonHeight,
+    borderRadius: APP_RADIUS.md,
+    backgroundColor: '#F3E6C9',
+    borderWidth: 1,
+    borderColor: '#C8A873',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: APP_SPACING.md,
+    ...(APP_SHADOWS.card as any),
+  },
+  offeringsButtonText: { color: APP_COLORS.ink, fontSize: APP_TYPE.button, fontWeight: '800' },
   relationActionsRow: { flexDirection: 'row', gap: APP_SPACING.sm },
   relationActionButton: {
     flex: 1,
