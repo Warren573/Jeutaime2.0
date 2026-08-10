@@ -5,6 +5,7 @@ import { isAccountDeactivated } from "../auth/accountLifecycle.service";
 import * as svc from "./offerings.service";
 import { listOfferingHistory } from "./offerings.history.service";
 import { assertPersonalOfferingAllowed } from "./personalOfferings.policy";
+import { getPersonalOfferingSpotlight } from "./personalOfferingsSpotlight.service";
 import type {
   ListReceivedQueryDto,
   SendOfferingDto,
@@ -15,6 +16,13 @@ import type {
 // GET /api/offerings/catalog
 export async function handleCatalog(_req: AuthedRequest, res: Response) {
   const data = await svc.listCatalog();
+  res.json({ data });
+}
+
+// GET /api/offerings/desk-state/:userId
+export async function handleDeskState(req: AuthedRequest, res: Response) {
+  const userId = req.params["userId"] as string;
+  const data = await getPersonalOfferingSpotlight(userId);
   res.json({ data });
 }
 
