@@ -17,9 +17,14 @@ import { useStore } from '../store/useStore';
 import { AppBackButton } from '../components/AppBackButton';
 
 const DESK_BG = require('../../assets/images/offerings/desk-bg.jpg');
-const PERSONAL_PREFIX = 'desk_';
 
 type DeskTab = 'active' | 'history';
+
+const OFFERING_IMAGES: Record<string, any> = {
+  biere: require('../../public/offerings/off_biere_stage1.png'),
+  bonbons: require('../../public/offerings/off_bonbons_stage1.png'),
+  fraises: require('../../public/offerings/off_fraises_stage1.png'),
+};
 
 export default function ReceivedOfferingsScreen() {
   const router = useRouter();
@@ -43,11 +48,11 @@ export default function ReceivedOfferingsScreen() {
         ]);
         setActiveOfferings(
           active.filter(
-            (item) => item.offering.id.startsWith(PERSONAL_PREFIX) && item.isActive && item.consumptionCount < 3,
+            (item) => item.offering.id.startsWith('desk_') && item.isActive && item.consumptionCount < 3,
           ),
         );
         setHistoryOfferings(
-          history.filter((item) => item.offering.id.startsWith(PERSONAL_PREFIX)),
+          history.filter((item) => item.offering.id.startsWith('desk_')),
         );
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur de chargement');
@@ -121,34 +126,47 @@ export default function ReceivedOfferingsScreen() {
           <Text style={styles.feedbackText}>
             {tab === 'active'
               ? 'Le bureau est encore vide…'
-              : 'Aucune offrande personnelle dans les 6 derniers mois.'}
+              : 'Aucune offrande dans les 6 derniers mois.'}
           </Text>
         </View>
       ) : (
         <ScrollView
           contentContainerStyle={[
-            styles.grid,
+            tab === 'active' ? styles.objectGrid : styles.historyGrid,
             { paddingTop: insets.top + 132, paddingBottom: insets.bottom + 36 },
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {visibleOfferings.map((item) => (
-            <View key={item.id} style={styles.offeringSlot}>
-              <Text style={styles.offeringEmoji}>{item.offering.emoji}</Text>
-              <Text style={styles.offeringName} numberOfLines={2}>
-                {item.offering.name}
-              </Text>
-              <Text style={styles.offeringSender} numberOfLines={1}>
-                de {senderName(item.fromUserId)}
-              </Text>
-              <Text style={styles.offeringDate}>
-                {new Date(item.createdAt).toLocaleDateString('fr-FR', {
-                  day: '2-digit',
-                  month: 'short',
-                })}
-              </Text>
-            </View>
-          ))}
+          {visibleOfferings.map((item) => {
+            const image = OFFERING_IMAGES[item.offering.id];
+            const isHistory = tab === 'history';
+            return (
+              <View key={item.id} style={isHistory ? styles.historySlot : styles.objectSlot}>
+                {image ? (
+                  <Image
+                    source={image}
+                    style={isHistory ? styles.historyImage : styles.objectImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <Text style={isHistory ? styles.historyEmoji : styles.objectEmoji}>{item.offering.emoji}</Text>
+                )}
+
+                {isHistory && (
+                  <>
+                    <Text style={styles.offeringName} numberOfLines={1}>{item.offering.name}</Text>
+                    <Text style={styles.offeringSender} numberOfLines={1}>de {senderName(item.fromUserId)}</Text>
+                    <Text style={styles.offeringDate}>
+                      {new Date(item.createdAt).toLocaleDateString('fr-FR', {
+                        day: '2-digit',
+                        month: 'short',
+                      })}
+                    </Text>
+                  </>
+                )}
+              </View>
+            );
+          })}
         </ScrollView>
       )}
     </View>
@@ -156,155 +174,62 @@ export default function ReceivedOfferingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#171411',
-  },
+  container: { flex: 1, backgroundColor: '#171411' },
   deskBgLayer:
     Platform.OS === 'web'
       ? ({ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 } as any)
       : { ...StyleSheet.absoluteFillObject, zIndex: 0 },
-  deskBgImage: {
-    width: '100%',
-    height: '100%',
-  },
-  backBtn: {
-    position: 'absolute',
-    left: 16,
-    zIndex: 4,
-  },
-  header: {
-    position: 'absolute',
-    left: 96,
-    right: 18,
-    zIndex: 3,
-    alignItems: 'center',
-  },
+  deskBgImage: { width: '100%', height: '100%' },
+  backBtn: { position: 'absolute', left: 16, zIndex: 4 },
+  header: { position: 'absolute', left: 96, right: 18, zIndex: 3, alignItems: 'center' },
   title: {
-    color: '#F5E6C8',
-    fontFamily: 'Georgia',
-    fontSize: 24,
-    lineHeight: 29,
-    fontWeight: '700',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,.78)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    color: '#F5E6C8', fontFamily: 'Georgia', fontSize: 24, lineHeight: 29, fontWeight: '700', textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,.78)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
   subtitle: {
-    color: '#E8D8BC',
-    fontFamily: 'Georgia',
-    fontSize: 11,
-    lineHeight: 15,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,.78)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    color: '#E8D8BC', fontFamily: 'Georgia', fontSize: 11, lineHeight: 15, fontStyle: 'italic', textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,.78)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
-  tabs: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    height: 38,
-    zIndex: 4,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
+  tabs: { position: 'absolute', left: 20, right: 20, height: 38, zIndex: 4, flexDirection: 'row', justifyContent: 'center', gap: 8 },
   tab: {
-    minWidth: 128,
-    height: 34,
-    paddingHorizontal: 13,
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(40,28,20,.58)',
-    borderWidth: 1,
-    borderColor: 'rgba(238,216,180,.34)',
+    minWidth: 128, height: 34, paddingHorizontal: 13, borderRadius: 4, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(40,28,20,.58)', borderWidth: 1, borderColor: 'rgba(238,216,180,.34)',
   },
-  tabActive: {
-    backgroundColor: 'rgba(238,216,180,.90)',
-    borderColor: '#B78A57',
-  },
-  tabText: {
-    color: '#F6E8D0',
-    fontFamily: 'Georgia',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  tabTextActive: {
-    color: '#4A2B1C',
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 36,
-  },
+  tabActive: { backgroundColor: 'rgba(238,216,180,.90)', borderColor: '#B78A57' },
+  tabText: { color: '#F6E8D0', fontFamily: 'Georgia', fontSize: 11, fontWeight: '700' },
+  tabTextActive: { color: '#4A2B1C' },
+  centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 36 },
   feedbackText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#F4E8CE',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    fontWeight: '500',
-    textShadowColor: 'rgba(0,0,0,0.72)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    fontSize: 14, lineHeight: 20, color: '#F4E8CE', textAlign: 'center', fontStyle: 'italic', fontWeight: '500',
+    textShadowColor: 'rgba(0,0,0,0.72)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignContent: 'flex-start',
-    paddingHorizontal: 20,
-    rowGap: 28,
-    columnGap: 18,
+  objectGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignContent: 'flex-start',
+    paddingHorizontal: 24, rowGap: 30, columnGap: 24,
   },
-  offeringSlot: {
-    width: 96,
-    minHeight: 112,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
+  objectSlot: { width: 92, height: 92, alignItems: 'center', justifyContent: 'center' },
+  objectImage: { width: 82, height: 82 },
+  objectEmoji: {
+    fontSize: 58, lineHeight: 82, textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,.35)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4,
   },
-  offeringEmoji: {
-    fontSize: 45,
-    lineHeight: 68,
-    marginBottom: 5,
+  historyGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignContent: 'flex-start',
+    paddingHorizontal: 20, rowGap: 28, columnGap: 18,
   },
+  historySlot: { width: 96, minHeight: 108, alignItems: 'center', justifyContent: 'flex-start' },
+  historyImage: { width: 68, height: 68, marginBottom: 5 },
+  historyEmoji: { fontSize: 45, lineHeight: 68, marginBottom: 5 },
   offeringName: {
-    width: '100%',
-    fontSize: 12,
-    lineHeight: 16,
-    fontFamily: 'Georgia',
-    fontWeight: '700',
-    color: '#FFF8EA',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.82)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    width: '100%', fontSize: 12, lineHeight: 16, fontFamily: 'Georgia', fontWeight: '700', color: '#FFF8EA', textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.82)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
   offeringSender: {
-    width: '100%',
-    marginTop: 1,
-    fontSize: 10,
-    lineHeight: 13,
-    fontFamily: 'Georgia',
-    color: '#E8DCC5',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.82)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    width: '100%', marginTop: 1, fontSize: 10, lineHeight: 13, fontFamily: 'Georgia', color: '#E8DCC5', textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.82)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
   offeringDate: {
-    marginTop: 1,
-    fontSize: 9,
-    lineHeight: 12,
-    color: '#D2C1A5',
-    fontStyle: 'italic',
-    textShadowColor: 'rgba(0,0,0,0.82)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    marginTop: 1, fontSize: 9, lineHeight: 12, color: '#D2C1A5', fontStyle: 'italic',
+    textShadowColor: 'rgba(0,0,0,0.82)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
   },
 });
