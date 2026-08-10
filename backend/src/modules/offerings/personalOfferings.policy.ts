@@ -29,4 +29,16 @@ export async function assertPersonalOfferingAllowed(
   if (!contact || contact.status !== MatchStatus.ACTIVE) {
     throw new ForbiddenError('Les offrandes de bureau sont réservées à tes contacts');
   }
+
+  const alreadyOwned = await prisma.offeringSent.findFirst({
+    where: {
+      toUserId,
+      offeringId,
+    },
+    select: { id: true },
+  });
+
+  if (alreadyOwned) {
+    throw new BadRequestError('Cette offrande est déjà présente sur son bureau');
+  }
 }
