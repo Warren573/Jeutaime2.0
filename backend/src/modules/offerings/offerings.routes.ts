@@ -24,6 +24,9 @@ const wrap = (
 // GET /api/offerings/catalog
 router.get("/catalog", wrap(ctrl.handleCatalog));
 
+// GET /api/offerings/desk-state/:userId — collection + offrande mise en avant 36h
+router.get("/desk-state/:userId", wrap(ctrl.handleDeskState));
+
 // POST /api/offerings/send
 router.post("/send", validate(SendOfferingSchema), wrap(ctrl.handleSend));
 
