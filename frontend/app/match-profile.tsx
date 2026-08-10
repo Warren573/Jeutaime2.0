@@ -85,6 +85,16 @@ export default function MatchProfileScreen() {
     .filter(Boolean)
     .join(', ');
 
+  const openOfferings = () => {
+    router.push({
+      pathname: '/contact-offerings',
+      params: {
+        toUserId: partnerId,
+        pseudo: partner?.pseudo ?? partnerId,
+      },
+    });
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}> 
       <View style={styles.navBar}>
@@ -140,6 +150,15 @@ export default function MatchProfileScreen() {
               )}
             </View>
           </View>
+
+          <TouchableOpacity activeOpacity={0.78} onPress={openOfferings} style={styles.offeringsTab}>
+            <Text style={styles.offeringsTabIcon}>🎁</Text>
+            <View style={styles.offeringsTabTextWrap}>
+              <Text style={styles.offeringsTabTitle}>Offrandes</Text>
+              <Text style={styles.offeringsTabSubtitle}>Déposer une attention sur son bureau</Text>
+            </View>
+            <Text style={styles.offeringsTabArrow}>›</Text>
+          </TouchableOpacity>
 
           <View style={styles.freeLineWrap}>
             <Text style={styles.freeLineLabel}>Intéressé·e par :</Text>
@@ -276,6 +295,12 @@ const styles = StyleSheet.create({
   levelLabel: { fontSize: 12, fontWeight: '700', color: '#6B4C30' },
   levelProgress: { fontSize: 11, color: INK_S, marginTop: 3, fontStyle: 'italic' },
   photoHint: { fontSize: 11, color: INK_S, fontStyle: 'italic', lineHeight: 16 },
+  offeringsTab: { flexDirection: 'row', alignItems: 'center', minHeight: 58, marginTop: 2, marginBottom: 26, paddingHorizontal: 13, paddingVertical: 10, borderWidth: 1, borderColor: '#D7C1A2', backgroundColor: '#F8F1E5', borderRadius: 8 },
+  offeringsTabIcon: { fontSize: 22, marginRight: 10 },
+  offeringsTabTextWrap: { flex: 1 },
+  offeringsTabTitle: { fontFamily: 'Georgia', fontSize: 15, lineHeight: 19, color: INK, fontWeight: '700' },
+  offeringsTabSubtitle: { marginTop: 2, fontSize: 11, lineHeight: 15, color: INK_S },
+  offeringsTabArrow: { fontSize: 25, lineHeight: 27, color: '#9A7553' },
   paperSection: { marginBottom: 22 },
   widePaper: { marginTop: 10, marginBottom: 30 },
   kicker: { fontSize: 15, color: INK, fontWeight: '800', letterSpacing: 0.4, marginBottom: 10 },
