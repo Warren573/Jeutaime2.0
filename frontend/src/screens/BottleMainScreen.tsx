@@ -165,6 +165,7 @@ export default function BottleMainScreen() {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
+          <AppBackButton onPress={() => router.back()} style={styles.landingBackButton} />
           <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
             <BottleParchmentCard content={displayState.bottle?.message || ''} />
             <View style={styles.paddedSection}><View style={styles.infoBox}><Text style={styles.infoText}>Revenez bientôt pour voir si quelqu'un a répondu à votre lettre.</Text></View></View>
