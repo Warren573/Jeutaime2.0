@@ -5,111 +5,75 @@ import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import { FEATURES } from "../config/features";
 
-const BAR_HEIGHT = 82;
-const INACTIVE = "#39281D";
-const ACTIVE = "#9B3043";
+const BAR_HEIGHT = 72;
+const INACTIVE = "#3C2A1E";
+const ACTIVE = "#A12E46";
 
 const ROUTE_META: Record<string, { label: string }> = {
-  index: { label: "Accueil" },
-  profiles: { label: "Profils" },
-  social: { label: "Social" },
-  letters: { label: "Lettres" },
-  journal: { label: "Journal" },
+  index: { label: "Accueil" }, profiles: { label: "Profils" }, social: { label: "Social" }, letters: { label: "Lettres" }, journal: { label: "Journal" },
 };
-
 const ROUTE_TO_FEATURE: Record<string, keyof typeof FEATURES> = {
-  index: "home",
-  profiles: "profiles",
-  social: "social",
-  letters: "letters",
-  journal: "journal",
-  "salons-list": "salons",
+  index: "home", profiles: "profiles", social: "social", letters: "letters", journal: "journal", "salons-list": "salons",
 };
-
 const ROUTE_ACTIVE_TAB_ALIAS: Record<string, string> = { "salons-list": "social" };
 
 function TabIcon({ name, active }: { name: string; active: boolean }) {
   const color = active ? ACTIVE : INACTIVE;
-  const strokeWidth = active ? 2.25 : 1.9;
-
-  if (name === "index") {
-    return (
-      <Svg width={36} height={36} viewBox="0 0 36 36">
-        <Path d="M5 17.5L18 6l13 11.5V31H21.5v-9h-7v9H5V17.5Z" fill={active ? color : "none"} stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
-      </Svg>
-    );
-  }
-
-  if (name === "profiles") {
-    return (
-      <Svg width={38} height={38} viewBox="0 0 38 38">
-        <Circle cx="16" cy="16" r="9.5" fill="none" stroke={color} strokeWidth={2.2} />
-        <Line x1="23" y1="23" x2="32" y2="32" stroke={color} strokeWidth={2.7} strokeLinecap="round" />
-      </Svg>
-    );
-  }
-
-  if (name === "social") {
-    return (
-      <Svg width={46} height={38} viewBox="0 0 46 38">
-        <Path d="M4 7.5h20c3.3 0 6 2.4 6 5.5v6.5c0 3-2.7 5.5-6 5.5h-8l-7 5v-5H8c-3.3 0-6-2.5-6-5.5V13c0-3.1 2.7-5.5 6-5.5Z" fill="none" stroke={color} strokeWidth={1.9} strokeLinejoin="round" />
-        <Path d="M22 12h15c3.9 0 7 2.7 7 6v5c0 3.3-3.1 6-7 6h-2v5l-7-5h-6c-3.9 0-7-2.7-7-6" fill="none" stroke={color} strokeWidth={1.9} strokeLinejoin="round" strokeLinecap="round" />
-      </Svg>
-    );
-  }
-
-  if (name === "letters") {
-    return (
-      <Svg width={42} height={36} viewBox="0 0 42 36">
-        <Rect x="3" y="6" width="36" height="25" rx="1.5" fill="none" stroke={color} strokeWidth={2} />
-        <Path d="M4.5 8l16.5 13L37.5 8" fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
-      </Svg>
-    );
-  }
-
+  const sw = 1.65;
+  if (name === "index") return (
+    <Svg width={31} height={31} viewBox="0 0 36 36">
+      <Path d="M6.5 17.2 18 7.2l11.5 10V30H21v-8.5h-6V30H6.5V17.2Z" fill={active ? color : "none"} stroke={color} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round" />
+    </Svg>
+  );
+  if (name === "profiles") return (
+    <Svg width={34} height={34} viewBox="0 0 38 38">
+      <Circle cx="15.5" cy="15.5" r="8.7" fill="none" stroke={color} strokeWidth={1.7} />
+      <Line x1="22" y1="22" x2="31" y2="31" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+  if (name === "social") return (
+    <Svg width={41} height={34} viewBox="0 0 46 38">
+      <Path d="M5 7.5h19c3.1 0 5.5 2.2 5.5 5v6c0 2.8-2.4 5-5.5 5h-8l-6 4.3v-4.3H8c-3.1 0-5.5-2.2-5.5-5v-6c0-2.8 2.4-5 5.5-5Z" fill="none" stroke={color} strokeWidth={1.55} strokeLinejoin="round" strokeLinecap="round" />
+      <Path d="M23 12h14c3.6 0 6.5 2.4 6.5 5.5v5c0 3-2.9 5.5-6.5 5.5h-2v4.3L29 28h-5.5" fill="none" stroke={color} strokeWidth={1.55} strokeLinejoin="round" strokeLinecap="round" />
+    </Svg>
+  );
+  if (name === "letters") return (
+    <Svg width={37} height={32} viewBox="0 0 42 36">
+      <Rect x="4" y="7" width="34" height="23" rx="1" fill="none" stroke={color} strokeWidth={1.55} />
+      <Path d="M5 8.5 21 20.5 37 8.5" fill="none" stroke={color} strokeWidth={1.45} strokeLinejoin="round" />
+    </Svg>
+  );
   return (
-    <Svg width={38} height={38} viewBox="0 0 38 38">
-      <Rect x="8" y="4" width="25" height="30" rx="1" fill="none" stroke={color} strokeWidth={2} />
-      <Line x1="12" y1="4" x2="12" y2="34" stroke={color} strokeWidth={1.6} />
-      <Line x1="16" y1="11" x2="29" y2="11" stroke={color} strokeWidth={1.5} />
-      <Line x1="16" y1="16" x2="29" y2="16" stroke={color} strokeWidth={1.5} />
-      <Line x1="16" y1="21" x2="29" y2="21" stroke={color} strokeWidth={1.5} />
-      <Line x1="16" y1="26" x2="29" y2="26" stroke={color} strokeWidth={1.5} />
+    <Svg width={33} height={34} viewBox="0 0 38 38">
+      <Rect x="8.5" y="4.5" width="24" height="29" rx="0.8" fill="none" stroke={color} strokeWidth={1.55} />
+      <Line x1="12" y1="5" x2="12" y2="33" stroke={color} strokeWidth={1.25} />
+      <Line x1="16" y1="11" x2="28.5" y2="11" stroke={color} strokeWidth={1.15} />
+      <Line x1="16" y1="16" x2="28.5" y2="16" stroke={color} strokeWidth={1.15} />
+      <Line x1="16" y1="21" x2="28.5" y2="21" stroke={color} strokeWidth={1.15} />
+      <Line x1="16" y1="26" x2="28.5" y2="26" stroke={color} strokeWidth={1.15} />
     </Svg>
   );
 }
 
 export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const visibleRoutes = useMemo(
-    () => state.routes.filter((route) => {
-      const featureKey = ROUTE_TO_FEATURE[route.name];
-      return !!featureKey && FEATURES[featureKey] !== "hidden" && route.name in ROUTE_META;
-    }),
-    [state.routes]
-  );
-
+  const visibleRoutes = useMemo(() => state.routes.filter((route) => {
+    const featureKey = ROUTE_TO_FEATURE[route.name];
+    return !!featureKey && FEATURES[featureKey] !== "hidden" && route.name in ROUTE_META;
+  }), [state.routes]);
   const currentRoute = state.routes[state.index];
   const activeVisibleRouteName = ROUTE_ACTIVE_TAB_ALIAS[currentRoute?.name] || currentRoute?.name;
 
   return (
-    <View style={[styles.safeArea, { height: BAR_HEIGHT + insets.bottom + 18 }]}> 
-      <View style={[styles.bar, { bottom: insets.bottom + 8 }]}> 
+    <View style={[styles.safeArea, { height: BAR_HEIGHT + insets.bottom + 14 }]}> 
+      <View style={[styles.bar, { bottom: insets.bottom + 7 }]}> 
         {visibleRoutes.map((route) => {
           const focused = route.name === activeVisibleRouteName;
           return (
-            <TouchableOpacity
-              key={route.key}
-              style={styles.tabItem}
-              activeOpacity={0.72}
-              accessibilityRole="button"
-              accessibilityLabel={ROUTE_META[route.name].label}
-              accessibilityState={{ selected: focused }}
-              onPress={() => {
-                const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
-                if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
-              }}
-            >
+            <TouchableOpacity key={route.key} style={styles.tabItem} activeOpacity={0.72} accessibilityRole="button" accessibilityLabel={ROUTE_META[route.name].label} accessibilityState={{ selected: focused }} onPress={() => {
+              const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
+              if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+            }}>
               <View style={styles.iconWrap}><TabIcon name={route.name} active={focused} /></View>
               <View style={[styles.underline, focused && styles.underlineActive]} />
             </TouchableOpacity>
@@ -121,26 +85,14 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { position: "relative", backgroundColor: "#F4E7D4" },
+  safeArea: { position: "relative", backgroundColor: "#F5EAD8" },
   bar: {
-    position: "absolute",
-    left: 22,
-    right: 22,
-    height: BAR_HEIGHT,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F3E5D1",
-    borderRadius: 27,
-    borderWidth: 1,
-    borderColor: "rgba(104,72,46,0.13)",
-    shadowColor: "#2C1B10",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.17,
-    shadowRadius: 12,
-    elevation: 9,
+    position: "absolute", left: 12, right: 12, height: BAR_HEIGHT, flexDirection: "row", alignItems: "center",
+    backgroundColor: "#F7ECD9", borderRadius: 24, borderWidth: 0.7, borderColor: "rgba(116,82,51,0.11)",
+    shadowColor: "#6B4A2D", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.12, shadowRadius: 14, elevation: 7,
   },
-  tabItem: { flex: 1, height: "100%", alignItems: "center", justifyContent: "center", paddingTop: 5 },
-  iconWrap: { height: 48, alignItems: "center", justifyContent: "center" },
-  underline: { width: 35, height: 4, marginTop: 0, borderRadius: 4, backgroundColor: "transparent", transform: [{ rotate: "-4deg" }] },
+  tabItem: { flex: 1, height: "100%", alignItems: "center", justifyContent: "center", paddingTop: 4 },
+  iconWrap: { height: 42, alignItems: "center", justifyContent: "center" },
+  underline: { width: 38, height: 2.5, marginTop: 1, borderRadius: 3, backgroundColor: "transparent", transform: [{ rotate: "-3deg" }] },
   underlineActive: { backgroundColor: ACTIVE },
 });
