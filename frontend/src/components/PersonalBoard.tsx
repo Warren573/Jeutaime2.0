@@ -31,7 +31,7 @@ import {
 } from '../theme/appTheme';
 
 const WOOD_BG = require('../../assets/images/home/board-wood-bg.png');
-const WOOD_BG_ASPECT_RATIO = 2 / 3;
+const WOOD_BG_ASPECT_RATIO = 710 / 1536;
 
 const J = {
   bgBoard: APP_COLORS.background,
@@ -202,7 +202,7 @@ export function PersonalBoard() {
     <View style={[styles.board, { flex: 1, paddingTop: topPad }]} pointerEvents="box-none">
       <Image
         source={WOOD_BG}
-        resizeMode="contain"
+        resizeMode="cover"
         pointerEvents="none"
         style={styles.woodBackground}
       />
