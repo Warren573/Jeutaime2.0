@@ -32,9 +32,9 @@ function TabIcon({ name, active }: { name: string; active: boolean }) {
     </Svg>
   );
   if (name === "social") return (
-    <Svg width={41} height={34} viewBox="0 0 46 38">
-      <Path d="M5 7.5h19c3.1 0 5.5 2.2 5.5 5v6c0 2.8-2.4 5-5.5 5h-8l-6 4.3v-4.3H8c-3.1 0-5.5-2.2-5.5-5v-6c0-2.8 2.4-5 5.5-5Z" fill="none" stroke={color} strokeWidth={1.55} strokeLinejoin="round" strokeLinecap="round" />
-      <Path d="M23 12h14c3.6 0 6.5 2.4 6.5 5.5v5c0 3-2.9 5.5-6.5 5.5h-2v4.3L29 28h-5.5" fill="none" stroke={color} strokeWidth={1.55} strokeLinejoin="round" strokeLinecap="round" />
+    <Svg width={43} height={40} viewBox="0 0 48 42">
+      <Path d="M5.5 8.5h18.5c3.1 0 5.5 2.2 5.5 5v6c0 2.8-2.4 5-5.5 5h-7.5l-6 4.3v-4.3H8.5c-3.1 0-5.5-2.2-5.5-5v-6c0-2.8 2.4-5 5.5-5Z" fill="none" stroke={color} strokeWidth={1.55} strokeLinejoin="round" strokeLinecap="round" />
+      <Path d="M23.5 13h13.5c3.6 0 6.5 2.4 6.5 5.5v5c0 3-2.9 5.5-6.5 5.5h-2v4.3L29 29h-5.5" fill="none" stroke={color} strokeWidth={1.55} strokeLinejoin="round" strokeLinecap="round" />
     </Svg>
   );
   if (name === "letters") return (
@@ -65,8 +65,8 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const activeVisibleRouteName = ROUTE_ACTIVE_TAB_ALIAS[currentRoute?.name] || currentRoute?.name;
 
   return (
-    <View style={[styles.safeArea, { height: BAR_HEIGHT + insets.bottom + 14 }]}> 
-      <View style={[styles.bar, { bottom: insets.bottom + 7 }]}> 
+    <View style={[styles.safeArea, { height: BAR_HEIGHT + insets.bottom + 30 }]}> 
+      <View style={[styles.bar, { bottom: insets.bottom + 18 }]}> 
         {visibleRoutes.map((route) => {
           const focused = route.name === activeVisibleRouteName;
           return (
@@ -85,14 +85,22 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { position: "relative", backgroundColor: "#F5EAD8" },
+  safeArea: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "transparent",
+    overflow: "visible",
+    zIndex: 50,
+  },
   bar: {
     position: "absolute", left: 12, right: 12, height: BAR_HEIGHT, flexDirection: "row", alignItems: "center",
     backgroundColor: "#F7ECD9", borderRadius: 24, borderWidth: 0.7, borderColor: "rgba(116,82,51,0.11)",
     shadowColor: "#6B4A2D", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.12, shadowRadius: 14, elevation: 7,
   },
   tabItem: { flex: 1, height: "100%", alignItems: "center", justifyContent: "center", paddingTop: 4 },
-  iconWrap: { height: 42, alignItems: "center", justifyContent: "center" },
-  underline: { width: 38, height: 2.5, marginTop: 1, borderRadius: 3, backgroundColor: "transparent", transform: [{ rotate: "-3deg" }] },
+  iconWrap: { height: 46, alignItems: "center", justifyContent: "center", overflow: "visible" },
+  underline: { width: 38, height: 2.5, marginTop: 0, borderRadius: 3, backgroundColor: "transparent", transform: [{ rotate: "-3deg" }] },
   underlineActive: { backgroundColor: ACTIVE },
 });
