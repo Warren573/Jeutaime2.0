@@ -8,7 +8,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  ImageBackground,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +31,7 @@ import {
 } from '../theme/appTheme';
 
 const WOOD_BG = require('../../assets/images/home/board-wood-bg.png');
+const WOOD_BG_ASPECT_RATIO = 710 / 1537;
 
 const J = {
   bgBoard: APP_COLORS.background,
@@ -199,12 +199,13 @@ export function PersonalBoard() {
   const bottleImgW = Math.round(bottleImgH * (96 / 116));
 
   return (
-    <ImageBackground
-      source={WOOD_BG}
-      resizeMode="stretch"
-      style={[styles.board, { flex: 1, paddingTop: topPad }]}
-      pointerEvents="box-none"
-    >
+    <View style={[styles.board, { flex: 1, paddingTop: topPad }]} pointerEvents="box-none">
+      <Image
+        source={WOOD_BG}
+        resizeMode="contain"
+        pointerEvents="none"
+        style={styles.woodBackground}
+      />
       <Paper onPress={() => router.push(`/profile/${currentUser.id}`)} style={{ position: 'absolute', top: px(H, 0.03), left: px(W, 0.03), width: profileW, transform: [{ rotate: '-3deg' }] }}>
         {currentUser.avatarConfig && <Avatar size={avatarSize} {...currentUser.avatarConfig} />}
         <Text style={styles.profileName}>{currentUser.name || 'Vous'}</Text>
@@ -234,14 +235,15 @@ export function PersonalBoard() {
       <Paper onPress={() => router.push('/coins')} style={{ position: 'absolute', top: px(H, 0.78), right: px(W, 0.04), width: px(W, 0.33), transform: [{ rotate: '2deg' }] }}>
         <Text style={styles.statsTitle}>Pièces & Stats</Text><Text style={styles.statValue}>🪙 {coins ?? 0}</Text><Text style={styles.statValue}>{points ?? 0} pts</Text><Text style={styles.statValue}>{matches?.length ?? 0} matchs</Text>
       </Paper>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: J.bgBoard },
   loadingText: { color: APP_COLORS.muted, textAlign: 'center', marginTop: 50 },
-  board: { position: 'relative', width: '100%', overflow: 'hidden' },
+  board: { position: 'relative', width: '100%', overflow: 'hidden', backgroundColor: J.bgBoard },
+  woodBackground: { position: 'absolute', top: 0, left: 0, width: '100%', aspectRatio: WOOD_BG_ASPECT_RATIO },
   paper: { backgroundColor: APP_COLORS.paper, borderRadius: APP_RADIUS.sm, borderWidth: 1, borderColor: APP_COLORS.border, padding: APP_SPACING.sm, alignItems: 'center', ...(APP_SHADOWS.card ?? {}) },
   magnet: { position: 'absolute', width: 14, height: 14, borderRadius: 7, backgroundColor: '#666', top: -7, left: '50%', marginLeft: -7, zIndex: 10 },
   profileName: { fontSize: 14, fontWeight: '700', color: J.textMain, marginTop: 2 },
