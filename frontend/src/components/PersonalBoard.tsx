@@ -31,7 +31,7 @@ import {
 } from '../theme/appTheme';
 
 const WOOD_BG = require('../../assets/images/home/board-wood-bg.png');
-const WOOD_BG_ASPECT_RATIO = 710 / 1537;
+const WOOD_BG_ASPECT_RATIO = 2 / 3;
 
 const J = {
   bgBoard: APP_COLORS.background,
