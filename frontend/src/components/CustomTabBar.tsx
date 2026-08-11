@@ -32,9 +32,11 @@ function TabIcon({ name, active }: { name: string; active: boolean }) {
     </Svg>
   );
   if (name === "social") return (
-    <Svg width={48} height={40} viewBox="0 0 52 42">
-      <Path d="M5 8.5h21c3.3 0 6 2.5 6 5.5v6.5c0 3-2.7 5.5-6 5.5h-7.5l-6.5 4.8V26H9c-3.3 0-6-2.5-6-5.5V14c0-3 2.7-5.5 6-5.5Z" fill="none" stroke={color} strokeWidth={1.55} strokeLinejoin="round" strokeLinecap="round" />
-      <Path d="M26 13h16c3.9 0 7 2.7 7 6v5.5c0 3.3-3.1 6-7 6h-2.5v4.5L33 30.5h-7c-3.9 0-7-2.7-7-6V24" fill="none" stroke={color} strokeWidth={1.55} strokeLinejoin="round" strokeLinecap="round" />
+    <Svg width={50} height={40} viewBox="0 0 50 40">
+      <Rect x="3" y="6" width="27" height="18" rx="7" fill="none" stroke={color} strokeWidth={1.55} />
+      <Path d="M10 23.5 8.5 29l7-5.3" fill="none" stroke={color} strokeWidth={1.55} strokeLinecap="round" strokeLinejoin="round" />
+      <Rect x="20" y="13" width="27" height="18" rx="7" fill="none" stroke={color} strokeWidth={1.55} />
+      <Path d="M39.5 30.5 41 35l-6.5-4.2" fill="none" stroke={color} strokeWidth={1.55} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
   if (name === "letters") return (
@@ -100,7 +102,7 @@ const styles = StyleSheet.create({
     shadowColor: "#6B4A2D", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.12, shadowRadius: 14, elevation: 7,
   },
   tabItem: { flex: 1, height: "100%", alignItems: "center", justifyContent: "center", paddingTop: 4, overflow: "visible" },
-  iconWrap: { width: 54, height: 46, alignItems: "center", justifyContent: "center", overflow: "visible" },
+  iconWrap: { width: 58, height: 46, alignItems: "center", justifyContent: "center", overflow: "visible" },
   underline: { width: 38, height: 2.5, marginTop: 0, borderRadius: 3, backgroundColor: "transparent", transform: [{ rotate: "-3deg" }] },
   underlineActive: { backgroundColor: ACTIVE },
 });
