@@ -32,9 +32,9 @@ function TabIcon({ name, active }: { name: string; active: boolean }) {
     </Svg>
   );
   if (name === "social") return (
-    <Svg width={43} height={40} viewBox="0 0 48 42">
-      <Path d="M5.5 8.5h18.5c3.1 0 5.5 2.2 5.5 5v6c0 2.8-2.4 5-5.5 5h-7.5l-6 4.3v-4.3H8.5c-3.1 0-5.5-2.2-5.5-5v-6c0-2.8 2.4-5 5.5-5Z" fill="none" stroke={color} strokeWidth={1.55} strokeLinejoin="round" strokeLinecap="round" />
-      <Path d="M23.5 13h13.5c3.6 0 6.5 2.4 6.5 5.5v5c0 3-2.9 5.5-6.5 5.5h-2v4.3L29 29h-5.5" fill="none" stroke={color} strokeWidth={1.55} strokeLinejoin="round" strokeLinecap="round" />
+    <Svg width={48} height={40} viewBox="0 0 52 42">
+      <Path d="M5 8.5h21c3.3 0 6 2.5 6 5.5v6.5c0 3-2.7 5.5-6 5.5h-7.5l-6.5 4.8V26H9c-3.3 0-6-2.5-6-5.5V14c0-3 2.7-5.5 6-5.5Z" fill="none" stroke={color} strokeWidth={1.55} strokeLinejoin="round" strokeLinecap="round" />
+      <Path d="M26 13h16c3.9 0 7 2.7 7 6v5.5c0 3.3-3.1 6-7 6h-2.5v4.5L33 30.5h-7c-3.9 0-7-2.7-7-6V24" fill="none" stroke={color} strokeWidth={1.55} strokeLinejoin="round" strokeLinecap="round" />
     </Svg>
   );
   if (name === "letters") return (
@@ -99,8 +99,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#F7ECD9", borderRadius: 24, borderWidth: 0.7, borderColor: "rgba(116,82,51,0.11)",
     shadowColor: "#6B4A2D", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.12, shadowRadius: 14, elevation: 7,
   },
-  tabItem: { flex: 1, height: "100%", alignItems: "center", justifyContent: "center", paddingTop: 4 },
-  iconWrap: { height: 46, alignItems: "center", justifyContent: "center", overflow: "visible" },
+  tabItem: { flex: 1, height: "100%", alignItems: "center", justifyContent: "center", paddingTop: 4, overflow: "visible" },
+  iconWrap: { width: 54, height: 46, alignItems: "center", justifyContent: "center", overflow: "visible" },
   underline: { width: 38, height: 2.5, marginTop: 0, borderRadius: 3, backgroundColor: "transparent", transform: [{ rotate: "-3deg" }] },
   underlineActive: { backgroundColor: ACTIVE },
 });
