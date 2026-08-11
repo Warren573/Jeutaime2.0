@@ -201,7 +201,7 @@ export function PersonalBoard() {
   return (
     <ImageBackground
       source={WOOD_BG}
-      resizeMode="cover"
+      resizeMode="stretch"
       style={[styles.board, { flex: 1, paddingTop: topPad }]}
       pointerEvents="box-none"
     >
