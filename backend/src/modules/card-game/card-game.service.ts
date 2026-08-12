@@ -2,7 +2,6 @@ import { CardGameStatus, CoinTxnType, Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import {
   BadRequestError,
-  ConflictError,
   ForbiddenError,
   NotFoundError,
   UnprocessableError,
@@ -15,7 +14,6 @@ import {
   countHiddenHearts,
   isCardRevealed,
   markCardRevealed,
-  areAllCardsRevealed,
   ENTRY_COST,
   SESSION_TTL_MS,
   DeckCard,
@@ -77,8 +75,12 @@ function getRevealedCards(deck: DeckCard[], revealed: number): RevealedCardState
     .map((card) => ({ index: card.index, suit: card.suit }));
 }
 
-async function loadActiveSession(sessionId: string, userId: string) {
-  const session = await prisma.cardGameSession.findUnique({
+async function loadActiveSession(
+  tx: Prisma.TransactionClient,
+  sessionId: string,
+  userId: string,
+) {
+  const session = await tx.cardGameSession.findUnique({
     where: { id: sessionId },
   });
   if (!session) throw new NotFoundError("Session de jeu");
@@ -88,7 +90,7 @@ async function loadActiveSession(sessionId: string, userId: string) {
   if (session.status === CardGameStatus.CLAIMED)
     throw new UnprocessableError("Les gains ont déjà été réclamés");
   if (session.expiresAt <= new Date()) {
-    await prisma.cardGameSession.update({
+    await tx.cardGameSession.update({
       where: { id: sessionId },
       data: { status: CardGameStatus.EXPIRED },
     });
@@ -164,7 +166,7 @@ export async function reveal(
   cardIndex: number,
 ): Promise<RevealResult> {
   return prisma.$transaction(async (tx) => {
-    const session = await loadActiveSession(sessionId, userId);
+    const session = await loadActiveSession(tx, sessionId, userId);
     const deck = parseDeck(session.deck);
 
     if (isCardRevealed(session.revealed, cardIndex)) {
@@ -194,7 +196,7 @@ export async function claim(
   sessionId: string,
 ): Promise<ClaimResult> {
   return prisma.$transaction(async (tx) => {
-    const session = await loadActiveSession(sessionId, userId);
+    const session = await loadActiveSession(tx, sessionId, userId);
 
     const gained = session.gainsCurrent;
     let newBalance: number;
@@ -239,7 +241,7 @@ export async function bet(
   sessionId: string,
 ): Promise<BetResult> {
   return prisma.$transaction(async (tx) => {
-    const session = await loadActiveSession(sessionId, userId);
+    const session = await loadActiveSession(tx, sessionId, userId);
     const deck = parseDeck(session.deck);
 
     const heartsRemaining = countHiddenHearts(deck, session.revealed);
