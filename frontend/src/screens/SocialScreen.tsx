@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 import CardGame from "./games/CardGame";
-import WeeklyProfileScreen from "./WeeklyProfileScreen";
 import { FEATURES } from "../config/features";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -56,7 +55,7 @@ const SECTIONS = [
 ] as const;
 
 type CurrentView = "games-hub" | null;
-type GamesHubView = "card-game" | "weekly-profile" | null;
+type GamesHubView = "card-game" | null;
 
 export default function SocialScreen() {
   const router = useRouter();
@@ -159,7 +158,7 @@ export default function SocialScreen() {
               <Text style={styles.hubOptionTitle}>Jeu de Cartes</Text>
               <Text style={styles.hubOptionDesc}>Révèle et gagne des pièces</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.hubOption} onPress={() => setGamesHubView("weekly-profile")}>
+            <TouchableOpacity style={styles.hubOption} onPress={() => router.push('/weekly-profile')}>
               <Text style={styles.hubOptionEmoji}>🏆</Text>
               <Text style={styles.hubOptionTitle}>Élection Hebdomadaire</Text>
               <Text style={styles.hubOptionDesc}>Vote pour ton profil préféré</Text>
@@ -168,7 +167,6 @@ export default function SocialScreen() {
         ) : (
           <ScrollView contentContainerStyle={styles.gameContent}>
             {gamesHubView === "card-game" && FEATURES.games !== "hidden" && <CardGame onEnd={handleCardGameEnd} />}
-            {gamesHubView === "weekly-profile" && FEATURES.games !== "hidden" && <WeeklyProfileScreen />}
             <TouchableOpacity style={styles.hubBack} onPress={() => setGamesHubView(null)}>
               <Text style={styles.hubBackText}>← Retour aux jeux</Text>
             </TouchableOpacity>
