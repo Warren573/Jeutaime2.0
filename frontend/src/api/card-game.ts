@@ -20,10 +20,18 @@ export interface CardEffect {
   diamondHint?: DiamondHint;
 }
 
+export interface RevealedCardState {
+  index: number;
+  suit: CardSuit;
+}
+
 export interface StartResult {
   sessionId: string;
   hint: GameStartHint;
   expiresAt: string;
+  resumed: boolean;
+  gainsCurrent: number;
+  revealedCards: RevealedCardState[];
 }
 
 export interface RevealResult {
