@@ -10,7 +10,7 @@
 //     y est superposé en blanc, avec un léger voile déjà appliqué par l'app.
 //
 // Nommage : un fichier par carte, selon l'id de la section —
-//   salons.jpg, adoption.jpg, cards.jpg, story.jpg, bottle.jpg
+//   salons.jpg, adoption.jpg, cards.jpg, bottle.jpg
 // à déposer dans assets/images/social/ puis décommenter le require() ci-dessous.
 import type { ImageSourcePropType } from 'react-native';
 
@@ -18,7 +18,6 @@ export const SOCIAL_CARD_IMAGES: Record<string, ImageSourcePropType> = {
   salons: require('../../assets/images/social/salons.jpg'),
   adoption: require('../../assets/images/social/adoption.jpg'),
   cards: require('../../assets/images/social/cards.jpg'),
-  story: require('../../assets/images/social/story.jpg'),
   bottle: require('../../assets/images/social/bottle.jpg'),
 };
 
