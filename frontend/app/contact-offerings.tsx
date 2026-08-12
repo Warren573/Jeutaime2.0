@@ -27,6 +27,8 @@ const OFFERING_IMAGES: Record<string, any> = {
   desk_chocolats: require('../assets/images/offerings/desk/BOITE DE CHOCOLATS.png'),
   desk_bouquet: require('../assets/images/offerings/desk/BOUQUET DE FLEURS.png'),
   desk_rose: require('../assets/images/offerings/desk/ROSE ETERNELLE.png'),
+  desk_grand_cru: require('../assets/images/offerings/desk/BOUTEILLE GRAND CRU.png'),
+  desk_venise: require('../assets/images/offerings/desk/VOYAGE VENISE.png'),
 };
 
 const INTENT_LABELS: Record<string, string> = {
