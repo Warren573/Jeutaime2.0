@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     minHeight: 36,
-    paddingTop: 34,
+    paddingTop: 52,
   },
   subtitle: {
     fontFamily: 'Georgia',
