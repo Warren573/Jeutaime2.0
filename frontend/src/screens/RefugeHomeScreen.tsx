@@ -80,7 +80,11 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     justifyContent: 'space-between',
   },
-  header: { alignItems: 'center', minHeight: 36 },
+  header: {
+    alignItems: 'center',
+    minHeight: 36,
+    paddingTop: 34,
+  },
   subtitle: {
     fontFamily: 'Georgia',
     fontSize: 15,
