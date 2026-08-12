@@ -23,12 +23,18 @@ import {
   GameStartHint,
 } from "../../policies/cardGame";
 
-// ── DTOs de sortie ────────────────────────────────────────────────────────────
+export interface RevealedCardState {
+  index: number;
+  suit: DeckCard["suit"];
+}
 
 export interface StartResult {
   sessionId: string;
   hint: GameStartHint;
   expiresAt: Date;
+  resumed: boolean;
+  gainsCurrent: number;
+  revealedCards: RevealedCardState[];
 }
 
 export interface RevealResult {
@@ -60,11 +66,15 @@ export interface HistoryItem {
   createdAt: Date;
 }
 
-// ── Helpers internes ─────────────────────────────────────────────────────────
-
 function parseDeck(raw: Prisma.JsonValue): DeckCard[] {
   if (!Array.isArray(raw)) throw new UnprocessableError("Deck corrompu");
   return raw as unknown as DeckCard[];
+}
+
+function getRevealedCards(deck: DeckCard[], revealed: number): RevealedCardState[] {
+  return deck
+    .filter((card) => isCardRevealed(revealed, card.index))
+    .map((card) => ({ index: card.index, suit: card.suit }));
 }
 
 async function loadActiveSession(sessionId: string, userId: string) {
@@ -77,7 +87,6 @@ async function loadActiveSession(sessionId: string, userId: string) {
     throw new UnprocessableError("Cette session a expiré");
   if (session.status === CardGameStatus.CLAIMED)
     throw new UnprocessableError("Les gains ont déjà été réclamés");
-  // Expiration on-the-fly si pas encore passée par le job
   if (session.expiresAt <= new Date()) {
     await prisma.cardGameSession.update({
       where: { id: sessionId },
@@ -88,11 +97,8 @@ async function loadActiveSession(sessionId: string, userId: string) {
   return session;
 }
 
-// ── start ─────────────────────────────────────────────────────────────────────
-
 export async function start(userId: string): Promise<StartResult> {
   return prisma.$transaction(async (tx) => {
-    // Empêcher deux sessions ACTIVE simultanées — renvoie l'existante
     const existing = await tx.cardGameSession.findFirst({
       where: { userId, status: CardGameStatus.ACTIVE },
       orderBy: { createdAt: "desc" },
@@ -104,10 +110,12 @@ export async function start(userId: string): Promise<StartResult> {
         sessionId: existing.id,
         hint: computeStartHint(deck),
         expiresAt: existing.expiresAt,
+        resumed: true,
+        gainsCurrent: existing.gainsCurrent,
+        revealedCards: getRevealedCards(deck, existing.revealed),
       };
     }
 
-    // Débiter le coût d'entrée
     const wallet = await tx.wallet.findUnique({ where: { userId } });
     if (!wallet) throw new NotFoundError("Wallet");
 
@@ -128,7 +136,6 @@ export async function start(userId: string): Promise<StartResult> {
       },
     });
 
-    // Générer le deck et créer la session
     const deck = buildDeck();
     const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
@@ -144,11 +151,12 @@ export async function start(userId: string): Promise<StartResult> {
       sessionId: session.id,
       hint: computeStartHint(deck),
       expiresAt,
+      resumed: false,
+      gainsCurrent: 0,
+      revealedCards: [],
     };
   });
 }
-
-// ── reveal ────────────────────────────────────────────────────────────────────
 
 export async function reveal(
   userId: string,
@@ -180,8 +188,6 @@ export async function reveal(
     return { cardIndex, effect, gainsCurrent: effect.newGains };
   });
 }
-
-// ── claim ─────────────────────────────────────────────────────────────────────
 
 export async function claim(
   userId: string,
@@ -227,8 +233,6 @@ export async function claim(
     return { gained, newBalance };
   });
 }
-
-// ── bet ───────────────────────────────────────────────────────────────────────
 
 export async function bet(
   userId: string,
@@ -277,8 +281,6 @@ export async function bet(
     return { heartsRemaining, won, gained, newBalance };
   });
 }
-
-// ── history ───────────────────────────────────────────────────────────────────
 
 export async function history(userId: string): Promise<HistoryItem[]> {
   const sessions = await prisma.cardGameSession.findMany({
