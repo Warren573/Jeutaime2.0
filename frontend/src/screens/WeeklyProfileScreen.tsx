@@ -30,6 +30,16 @@ import {
 
 const VOTE_REWARD = 5;
 
+function errorMessage(err: unknown, fallback: string): string {
+  const message = err instanceof Error ? err.message : '';
+  return message.trim() || fallback;
+}
+
+function isExpiredComparisonError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message.toLowerCase() : '';
+  return message.includes('expir') || message.includes('déjà été utilisé');
+}
+
 export default function WeeklyProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -43,25 +53,38 @@ export default function WeeklyProfileScreen() {
   const [flash] = useState(new Animated.Value(0));
   const [winners, setWinners] = useState<WeeklyProfileWinnersDTO | null>(null);
   const [winnersLoading, setWinnersLoading] = useState(true);
+  const [winnersError, setWinnersError] = useState<string | null>(null);
 
-  const loadState = () => {
+  const loadState = async () => {
     setStateLoading(true);
     setError(null);
-    getWeeklyProfileState()
-      .then(setState)
-      .catch((err: any) => {
-        setState(null);
-        setError(err?.message || 'Impossible de charger le duel du jour');
-      })
-      .finally(() => setStateLoading(false));
+    try {
+      const next = await getWeeklyProfileState();
+      setState(next);
+    } catch (err) {
+      setState(null);
+      setError(errorMessage(err, 'Impossible de charger la comparaison de profils.'));
+    } finally {
+      setStateLoading(false);
+    }
+  };
+
+  const loadWinners = async () => {
+    setWinnersLoading(true);
+    setWinnersError(null);
+    try {
+      setWinners(await getWeeklyProfileWinners());
+    } catch (err) {
+      setWinners(null);
+      setWinnersError(errorMessage(err, 'Impossible de charger les gagnants de la semaine.'));
+    } finally {
+      setWinnersLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadState();
-    getWeeklyProfileWinners()
-      .then(setWinners)
-      .catch(() => setWinners(null))
-      .finally(() => setWinnersLoading(false));
+    void loadState();
+    void loadWinners();
   }, []);
 
   const playFlash = () => {
@@ -70,7 +93,7 @@ export default function WeeklyProfileScreen() {
   };
 
   const handleVote = async (chosenId: string) => {
-    if (!state?.duel) return;
+    if (!state?.duel || voting !== null) return;
     setError(null);
     setVoting(chosenId);
     try {
@@ -78,8 +101,20 @@ export default function WeeklyProfileScreen() {
       setState(updated);
       playFlash();
       await loadWallet();
-    } catch (err: any) {
-      setError(err?.message || "Impossible d'enregistrer ton vote");
+    } catch (err) {
+      if (isExpiredComparisonError(err)) {
+        // Une comparaison peut expirer pendant que l'utilisateur la regarde.
+        // On recharge immédiatement une paire valide au lieu de le laisser bloqué.
+        setError('Cette comparaison n’était plus disponible. Une nouvelle vient d’être chargée.');
+        try {
+          setState(await getWeeklyProfileState());
+        } catch (refreshErr) {
+          setState(null);
+          setError(errorMessage(refreshErr, 'Impossible de charger une nouvelle comparaison.'));
+        }
+      } else {
+        setError(errorMessage(err, "Impossible d'enregistrer ton vote."));
+      }
     } finally {
       setVoting(null);
     }
@@ -93,7 +128,7 @@ export default function WeeklyProfileScreen() {
         </View>
       )}
       <Text style={styles.duelName}>{profile.pseudo}, {profile.age}</Text>
-      <Text style={styles.duelCity}>📍 {profile.city}</Text>
+      {!!profile.city && <Text style={styles.duelCity}>📍 {profile.city}</Text>}
       {!!profile.bio && (
         <View style={styles.bioBox}>
           <Text style={styles.bioText}>&quot;{profile.bio}&quot;</Text>
@@ -126,7 +161,7 @@ export default function WeeklyProfileScreen() {
             </View>
           )}
           <Text style={styles.duelName}>{profile.pseudo}, {profile.age}</Text>
-          <Text style={styles.duelCity}>📍 {profile.city}</Text>
+          {!!profile.city && <Text style={styles.duelCity}>📍 {profile.city}</Text>}
           {!!profile.bio && (
             <View style={styles.bioBox}>
               <Text style={styles.bioText}>&quot;{profile.bio}&quot;</Text>
@@ -184,21 +219,25 @@ export default function WeeklyProfileScreen() {
             {!!error && (
               <View style={styles.errorCard}>
                 <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={loadState} activeOpacity={0.75}>
-                  <Text style={styles.retryButtonText}>Réessayer</Text>
-                </TouchableOpacity>
+                {!state && (
+                  <TouchableOpacity style={styles.retryButton} onPress={loadState} activeOpacity={0.75}>
+                    <Text style={styles.retryButtonText}>Réessayer</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
-            <View style={styles.statusBar}>
-              <View>
-                <Text style={styles.statusLabel}>Votes restants aujourd'hui</Text>
-                <Text style={styles.statusValue}>{state?.remainingToday ?? 0} / {state?.dailyLimit ?? 10}</Text>
+            {!!state && (
+              <View style={styles.statusBar}>
+                <View>
+                  <Text style={styles.statusLabel}>Votes restants aujourd'hui</Text>
+                  <Text style={styles.statusValue}>{state.remainingToday} / {state.dailyLimit}</Text>
+                </View>
+                <View style={styles.rewardPill}>
+                  <Text style={styles.rewardText}>+{VOTE_REWARD} 🪙 / vote</Text>
+                </View>
               </View>
-              <View style={styles.rewardPill}>
-                <Text style={styles.rewardText}>+{VOTE_REWARD} 🪙 / vote</Text>
-              </View>
-            </View>
+            )}
 
             <Animated.View pointerEvents="none" style={[styles.flashOverlay, { opacity: flash }]}>
               <Text style={styles.flashText}>+{VOTE_REWARD} 🪙</Text>
@@ -212,7 +251,7 @@ export default function WeeklyProfileScreen() {
 
             {!limitReached && state?.notEnoughCandidates && (
               <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>Pas assez de profils disponibles pour composer un duel pour le moment.</Text>
+                <Text style={styles.emptyText}>Pas assez de profils disponibles pour proposer une comparaison pour le moment.</Text>
               </View>
             )}
 
@@ -232,8 +271,20 @@ export default function WeeklyProfileScreen() {
           </View>
         ) : (
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            <WinnerCard profile={winners?.female ?? null} label="Profil féminin de la semaine" emoji="♀" />
-            <WinnerCard profile={winners?.male ?? null} label="Profil masculin de la semaine" emoji="♂" />
+            {!!winnersError && (
+              <View style={styles.errorCard}>
+                <Text style={styles.errorText}>{winnersError}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={loadWinners} activeOpacity={0.75}>
+                  <Text style={styles.retryButtonText}>Réessayer</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {!winnersError && (
+              <>
+                <WinnerCard profile={winners?.female ?? null} label="Profil féminin de la semaine" emoji="♀" />
+                <WinnerCard profile={winners?.male ?? null} label="Profil masculin de la semaine" emoji="♂" />
+              </>
+            )}
           </ScrollView>
         )
       )}
@@ -258,7 +309,6 @@ const styles = StyleSheet.create({
   kicker: { fontSize: 9, fontWeight: '800', color: APP_COLORS.muted, letterSpacing: 2 },
   title: { fontSize: 22, fontWeight: '900', color: APP_COLORS.ink, marginTop: 2, textAlign: 'center' },
   subtitle: { fontSize: 11, color: APP_COLORS.muted, marginTop: 3, textAlign: 'center' },
-
   tabsRow: {
     flexDirection: 'row',
     marginHorizontal: APP_SPACING.md,
@@ -273,11 +323,9 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: APP_COLORS.paper, ...(APP_SHADOWS.card ?? {}) },
   tabText: { fontSize: 13, fontWeight: '700', color: APP_COLORS.muted },
   tabTextActive: { color: APP_COLORS.burgundy },
-
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollView: { flex: 1 },
   scrollContent: { padding: APP_SPACING.md, paddingBottom: 72 },
-
   errorCard: {
     backgroundColor: APP_COLORS.paper,
     borderRadius: APP_RADIUS.md,
@@ -305,7 +353,6 @@ const styles = StyleSheet.create({
     marginBottom: APP_SPACING.md,
   },
   emptyText: { fontSize: 13, color: APP_COLORS.muted, textAlign: 'center', lineHeight: 19 },
-
   statusBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -322,12 +369,9 @@ const styles = StyleSheet.create({
   statusValue: { fontSize: 20, fontWeight: '900', color: APP_COLORS.ink },
   rewardPill: { backgroundColor: APP_COLORS.backgroundWarm, borderRadius: APP_RADIUS.pill, paddingHorizontal: 11, paddingVertical: 7 },
   rewardText: { fontSize: 11, fontWeight: '800', color: APP_COLORS.gold },
-
   flashOverlay: { position: 'absolute', top: 8, alignSelf: 'center', zIndex: 10 },
   flashText: { fontSize: 19, fontWeight: '900', color: APP_COLORS.gold },
-
   sectionTitle: { fontSize: 15, fontWeight: '800', color: APP_COLORS.ink, marginBottom: APP_SPACING.sm, marginTop: APP_SPACING.sm },
-
   avatarContainer: {
     width: 108,
     height: 108,
