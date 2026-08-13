@@ -27,6 +27,7 @@ function getDayKey(date: Date): string { return date.toISOString().slice(0, 10);
 function computeAge(birthDate: Date): number { const now = new Date(); let age = now.getUTCFullYear() - birthDate.getUTCFullYear(); const monthDiff = now.getUTCMonth() - birthDate.getUTCMonth(); if (monthDiff < 0 || (monthDiff === 0 && now.getUTCDate() < birthDate.getUTCDate())) age--; return age; }
 function dailyLimitFor(isPremium: boolean): number { return isPremium ? DAILY_LIMIT_PREMIUM : DAILY_LIMIT_FREE; }
 function pairKey(a: string, b: string): string { return [a, b].sort().join("::"); }
+function otherMainGender(gender: Gender): Gender { return gender === Gender.HOMME ? Gender.FEMME : Gender.HOMME; }
 
 interface EligibleProfile { id: string; pseudo: string; city: string; bio: string | null; gender: Gender; birthDate: Date; avatarConfig: Record<string, unknown> | null; }
 const ELIGIBILITY_SELECT = { id: true, isBanned: true, settings: { select: { showInDiscovery: true } }, profile: { select: { pseudo: true, city: true, bio: true, gender: true, birthDate: true, avatarConfig: true, interestedIn: true, lookingFor: true, physicalDesc: true, height: true, vibe: true, quote: true, questions: true } } } satisfies Prisma.UserSelect;
@@ -43,31 +44,52 @@ async function getEligibleProfiles(excludeUserId: string): Promise<EligibleProfi
   const users = await prisma.user.findMany({ where: { id: { not: excludeUserId, notIn: [...blockedIds] } }, select: ELIGIBILITY_SELECT });
   return users.filter(isEligible).map(toEligibleProfile);
 }
-async function candidateIdsAreEligibleForVoter(voterId: string, a: string, b: string): Promise<boolean> { const ids = new Set((await getEligibleProfiles(voterId)).map((p) => p.id)); return ids.has(a) && ids.has(b); }
+async function candidatePairMatchesGender(voterId: string, a: string, b: string, gender: Gender): Promise<boolean> {
+  const eligible = await getEligibleProfiles(voterId);
+  const byId = new Map(eligible.map((p) => [p.id, p]));
+  return byId.get(a)?.gender === gender && byId.get(b)?.gender === gender;
+}
 function toDuelProfileDto(p: EligibleProfile): DuelProfileDto { return { id: p.id, pseudo: p.pseudo, age: computeAge(p.birthDate), city: p.city, bio: p.bio, avatarConfig: p.avatarConfig }; }
 function rankProfiles(eligible: EligibleProfile[], seenProfileIds: Set<string>, exposure: Map<string, number>): EligibleProfile[] { return [...eligible].sort((a,b) => { const seenDiff=(seenProfileIds.has(a.id)?1:0)-(seenProfileIds.has(b.id)?1:0); if(seenDiff) return seenDiff; const exp=(exposure.get(a.id)??0)-(exposure.get(b.id)??0); return exp || a.id.localeCompare(b.id); }); }
 function pickPair(ranked: EligibleProfile[], seenPairs: Set<string>): [EligibleProfile, EligibleProfile] | null {
   for(let i=0;i<ranked.length;i++) for(let j=i+1;j<ranked.length;j++) { const a=ranked[i],b=ranked[j]; if(a&&b&&!seenPairs.has(pairKey(a.id,b.id))) return [a,b]; }
   return null;
 }
-async function buildDuelCandidates(voterId: string): Promise<[EligibleProfile, EligibleProfile] | null> {
-  const eligible=await getEligibleProfiles(voterId); if(eligible.length<2) return null;
+
+async function preferredGenderForNextComparison(voterId: string, now: Date): Promise<Gender> {
+  const votesToday = await prisma.weeklyProfileDuel.count({ where: { userId: voterId, dayKey: getDayKey(now), usedAt: { not: null } } });
+  return votesToday % 2 === 0 ? Gender.HOMME : Gender.FEMME;
+}
+
+async function buildDuelCandidates(voterId: string, targetGender: Gender): Promise<[EligibleProfile, EligibleProfile] | null> {
+  const eligible=(await getEligibleProfiles(voterId)).filter((p) => p.gender === targetGender);
+  if(eligible.length<2) return null;
   const past=await prisma.weeklyProfileDuel.findMany({where:{userId:voterId},select:{candidateAId:true,candidateBId:true}});
   const seenProfileIds=new Set<string>(), seenPairs=new Set<string>(); for(const d of past){seenProfileIds.add(d.candidateAId);seenProfileIds.add(d.candidateBId);seenPairs.add(pairKey(d.candidateAId,d.candidateBId));}
   const ids=eligible.map(p=>p.id); const [ea,eb]=await Promise.all([prisma.weeklyProfileDuel.groupBy({by:["candidateAId"],where:{candidateAId:{in:ids}},_count:{candidateAId:true}}),prisma.weeklyProfileDuel.groupBy({by:["candidateBId"],where:{candidateBId:{in:ids}},_count:{candidateBId:true}})]);
   const exposure=new Map<string,number>(); for(const e of ea) exposure.set(e.candidateAId,(exposure.get(e.candidateAId)??0)+e._count.candidateAId); for(const e of eb) exposure.set(e.candidateBId,(exposure.get(e.candidateBId)??0)+e._count.candidateBId);
   return pickPair(rankProfiles(eligible,seenProfileIds,exposure),seenPairs);
 }
+
 async function getOrCreateDuel(voterId:string):Promise<DuelDto|null>{
-  const now=new Date(); const pending=await prisma.weeklyProfileDuel.findFirst({where:{userId:voterId,usedAt:null,expiresAt:{gt:now}},orderBy:{createdAt:"desc"}});
-  if(pending){ if(await candidateIdsAreEligibleForVoter(voterId,pending.candidateAId,pending.candidateBId)) return {duelId:pending.id,candidateA:await profileDtoFor(pending.candidateAId),candidateB:await profileDtoFor(pending.candidateBId)}; await prisma.weeklyProfileDuel.updateMany({where:{id:pending.id,usedAt:null},data:{expiresAt:now}}); }
-  const pair=await buildDuelCandidates(voterId); if(!pair) return null; const [a,b]=pair; const created=await prisma.weeklyProfileDuel.create({data:{userId:voterId,candidateAId:a.id,candidateBId:b.id,expiresAt:new Date(now.getTime()+DUEL_TTL_MS)}}); return {duelId:created.id,candidateA:toDuelProfileDto(a),candidateB:toDuelProfileDto(b)};
+  const now=new Date();
+  const preferredGender = await preferredGenderForNextComparison(voterId, now);
+  const pending=await prisma.weeklyProfileDuel.findFirst({where:{userId:voterId,usedAt:null,expiresAt:{gt:now}},orderBy:{createdAt:"desc"}});
+  if(pending){
+    if(await candidatePairMatchesGender(voterId,pending.candidateAId,pending.candidateBId,preferredGender)) return {duelId:pending.id,candidateA:await profileDtoFor(pending.candidateAId),candidateB:await profileDtoFor(pending.candidateBId)};
+    await prisma.weeklyProfileDuel.updateMany({where:{id:pending.id,usedAt:null},data:{expiresAt:now}});
+  }
+  let pair=await buildDuelCandidates(voterId, preferredGender);
+  if(!pair) pair=await buildDuelCandidates(voterId, otherMainGender(preferredGender));
+  if(!pair) return null;
+  const [a,b]=pair; const created=await prisma.weeklyProfileDuel.create({data:{userId:voterId,candidateAId:a.id,candidateBId:b.id,expiresAt:new Date(now.getTime()+DUEL_TTL_MS)}}); return {duelId:created.id,candidateA:toDuelProfileDto(a),candidateB:toDuelProfileDto(b)};
 }
+
 async function profileDtoFor(userId:string):Promise<DuelProfileDto>{const user=await prisma.user.findUnique({where:{id:userId},select:{profile:{select:{pseudo:true,city:true,bio:true,birthDate:true,avatarConfig:true}}}});if(!user?.profile)return{id:userId,pseudo:"Profil supprimé",age:0,city:"",bio:null,avatarConfig:null};return{id:userId,pseudo:user.profile.pseudo,age:computeAge(user.profile.birthDate),city:user.profile.city,bio:user.profile.bio,avatarConfig:user.profile.avatarConfig as Record<string,unknown>|null};}
 export async function getWeeklyProfileState(voterId:string,isPremium:boolean):Promise<WeeklyProfileStateDto>{const now=new Date(),dayKey=getDayKey(now),dailyLimit=dailyLimitFor(isPremium);const votesToday=await prisma.weeklyProfileDuel.count({where:{userId:voterId,dayKey,usedAt:{not:null}}});const remainingToday=Math.max(0,dailyLimit-votesToday);if(remainingToday<=0)return{remainingToday:0,dailyLimit,limitReached:true,notEnoughCandidates:false,duel:null};const duel=await getOrCreateDuel(voterId);return{remainingToday,dailyLimit,limitReached:false,notEnoughCandidates:duel===null,duel};}
 export async function voteForDuel(voterId:string,isPremium:boolean,duelId:string,chosenId:string):Promise<WeeklyProfileStateDto>{
   const duel=await prisma.weeklyProfileDuel.findUnique({where:{id:duelId}});if(!duel)throw new NotFoundError("Duel");if(duel.userId!==voterId)throw new ForbiddenError("Ce duel ne t'appartient pas");if(duel.usedAt)throw new ConflictError("Ce duel a déjà été utilisé");const now=new Date();if(duel.expiresAt<=now)throw new ConflictError("Ce duel a expiré");if(chosenId!==duel.candidateAId&&chosenId!==duel.candidateBId)throw new BadRequestError("Le profil choisi ne fait pas partie de ce duel");
-  if(!await candidateIdsAreEligibleForVoter(voterId,duel.candidateAId,duel.candidateBId)){await prisma.weeklyProfileDuel.updateMany({where:{id:duelId,usedAt:null},data:{expiresAt:now}});throw new ConflictError("Cette comparaison n'est plus disponible");}
+  const eligible = await getEligibleProfiles(voterId); const eligibleIds = new Set(eligible.map((p) => p.id)); if(!eligibleIds.has(duel.candidateAId)||!eligibleIds.has(duel.candidateBId)){await prisma.weeklyProfileDuel.updateMany({where:{id:duelId,usedAt:null},data:{expiresAt:now}});throw new ConflictError("Cette comparaison n'est plus disponible");}
   const dayKey=getDayKey(now),weekKey=getWeekKey(now),dailyLimit=dailyLimitFor(isPremium);const votesToday=await prisma.weeklyProfileDuel.count({where:{userId:voterId,dayKey,usedAt:{not:null}}});if(votesToday>=dailyLimit)throw new ConflictError("Limite quotidienne de votes atteinte");
   await prisma.$transaction(async(tx)=>{const claimed=await tx.weeklyProfileDuel.updateMany({where:{id:duelId,usedAt:null},data:{usedAt:now,chosenId,weekKey,dayKey}});if(claimed.count!==1)throw new ConflictError("Ce duel a déjà été utilisé");const wallet=await tx.wallet.findUnique({where:{userId:voterId},select:{userId:true}});if(!wallet)throw new NotFoundError("Wallet");const updated=await tx.wallet.update({where:{userId:voterId},data:{coins:{increment:VOTE_REWARD}},select:{coins:true}});await tx.coinTransaction.create({data:{walletId:voterId,type:CoinTxnType.WEEKLY_PROFILE_VOTE,amount:VOTE_REWARD,balance:updated.coins,meta:{duelId,candidateAId:duel.candidateAId,candidateBId:duel.candidateBId,chosenId,weekKey} as Prisma.InputJsonValue}});});
   return getWeeklyProfileState(voterId,isPremium);
