@@ -53,14 +53,10 @@ export interface WeeklyProfileWinnersDto {
   female: WeeklyProfileWinnerDto | null;
 }
 
-// Semaine ISO (ex. "2026-W30") — stable pour tout le monde, change chaque
-// lundi. Sert à comptabiliser les votes lundi→dimanche et à en déduire
-// automatiquement les gagnant·e·s de la semaine précédente (pas besoin de
-// job planifié : le calcul se fait à la demande sur weekKey précédent).
 export function getWeekKey(date: Date): string {
   const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  const dayNum = (d.getUTCDay() + 6) % 7; // lundi = 0
-  d.setUTCDate(d.getUTCDate() - dayNum + 3); // jeudi de cette semaine ISO
+  const dayNum = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - dayNum + 3);
   const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
   const weekNum =
     1 +
@@ -76,7 +72,6 @@ function getPreviousWeekKey(now: Date): string {
   return getWeekKey(prev);
 }
 
-// Jour UTC ("2026-07-27") — sert à borner les votes/jour (10 gratuit, 20 Premium).
 function getDayKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -135,10 +130,6 @@ const ELIGIBILITY_SELECT = {
 type EligibilityUser = Prisma.UserGetPayload<{ select: typeof ELIGIBILITY_SELECT }>;
 type EligibleUser = EligibilityUser & { profile: NonNullable<EligibilityUser["profile"]> };
 
-// Un profil est éligible (proposable en duel, ou vainqueur possible) s'il a
-// une bio non vide, un profil complet au sens des règles existantes de
-// l'app (computeProfileStatus), et n'est ni banni ni masqué de la
-// découverte. Ne dépend d'aucun votant précis (pas de blocage ici).
 function isEligible(u: EligibilityUser): u is EligibleUser {
   if (u.isBanned) return false;
   if (u.settings && !u.settings.showInDiscovery) return false;
@@ -170,8 +161,6 @@ function toEligibleProfile(u: EligibleUser): EligibleProfile {
   };
 }
 
-// Profils proposables pour ce votant : éligibles, jamais soi-même, jamais
-// un profil qui bloque ou a bloqué le votant.
 async function getEligibleProfiles(excludeUserId: string): Promise<EligibleProfile[]> {
   const blocks = await prisma.block.findMany({
     where: { OR: [{ fromId: excludeUserId }, { toId: excludeUserId }] },
@@ -187,13 +176,16 @@ async function getEligibleProfiles(excludeUserId: string): Promise<EligibleProfi
   return users.filter(isEligible).map(toEligibleProfile);
 }
 
+async function candidateIdsAreEligibleForVoter(voterId: string, candidateAId: string, candidateBId: string): Promise<boolean> {
+  const eligible = await getEligibleProfiles(voterId);
+  const ids = new Set(eligible.map((profile) => profile.id));
+  return ids.has(candidateAId) && ids.has(candidateBId);
+}
+
 function toDuelProfileDto(p: EligibleProfile): DuelProfileDto {
   return { id: p.id, pseudo: p.pseudo, age: computeAge(p.birthDate), city: p.city, bio: p.bio, avatarConfig: p.avatarConfig };
 }
 
-// Trie déterministe (aucun hasard) : profils jamais vus par ce votant en
-// premier, puis exposition globale croissante (équilibrage), puis id
-// (départage stable).
 function rankProfiles(
   eligible: EligibleProfile[],
   seenProfileIds: Set<string>,
@@ -209,10 +201,6 @@ function rankProfiles(
   });
 }
 
-// Parcourt les paires possibles dans l'ordre du classement (profils jamais
-// vus d'abord) et retourne la première paire jamais montrée à ce votant.
-// Si aucune n'existe (pool minuscule), dernier recours : réutilise la
-// meilleure paire même déjà vue plutôt que de n'en proposer aucune.
 function pickPair(ranked: EligibleProfile[], seenPairs: Set<string>): [EligibleProfile, EligibleProfile] | null {
   for (let i = 0; i < ranked.length; i++) {
     const a = ranked[i];
@@ -268,9 +256,6 @@ async function buildDuelCandidates(voterId: string): Promise<[EligibleProfile, E
   return pickPair(ranked, seenPairs);
 }
 
-// Retrouve un duel en attente (non voté, non expiré) pour ce votant, ou en
-// génère un nouveau. Réutiliser le duel en attente évite qu'un simple
-// rafraîchissement de l'écran ne "brûle" des paires jamais vues.
 async function getOrCreateDuel(voterId: string): Promise<DuelDto | null> {
   const now = new Date();
 
@@ -279,11 +264,21 @@ async function getOrCreateDuel(voterId: string): Promise<DuelDto | null> {
     orderBy: { createdAt: "desc" },
   });
   if (pending) {
-    return {
-      duelId: pending.id,
-      candidateA: await profileDtoFor(pending.candidateAId),
-      candidateB: await profileDtoFor(pending.candidateBId),
-    };
+    const stillEligible = await candidateIdsAreEligibleForVoter(voterId, pending.candidateAId, pending.candidateBId);
+    if (stillEligible) {
+      return {
+        duelId: pending.id,
+        candidateA: await profileDtoFor(pending.candidateAId),
+        candidateB: await profileDtoFor(pending.candidateBId),
+      };
+    }
+
+    // Rend l'ancienne comparaison immédiatement réutilisable par personne,
+    // sans la compter comme un vote. Une nouvelle paire sera générée juste après.
+    await prisma.weeklyProfileDuel.updateMany({
+      where: { id: pending.id, usedAt: null },
+      data: { expiresAt: now },
+    });
   }
 
   const pair = await buildDuelCandidates(voterId);
@@ -369,6 +364,15 @@ export async function voteForDuel(
     throw new BadRequestError("Le profil choisi ne fait pas partie de ce duel");
   }
 
+  const candidatesStillEligible = await candidateIdsAreEligibleForVoter(voterId, duel.candidateAId, duel.candidateBId);
+  if (!candidatesStillEligible) {
+    await prisma.weeklyProfileDuel.updateMany({
+      where: { id: duelId, usedAt: null },
+      data: { expiresAt: now },
+    });
+    throw new ConflictError("Cette comparaison n'est plus disponible");
+  }
+
   const dayKey = getDayKey(now);
   const weekKey = getWeekKey(now);
   const dailyLimit = dailyLimitFor(isPremium);
@@ -387,9 +391,6 @@ export async function voteForDuel(
   const newBalance = computeCreditBalance(wallet.coins, VOTE_REWARD);
 
   await prisma.$transaction(async (tx) => {
-    // Garde atomique : n'accepte le vote que si le duel est toujours non
-    // utilisé au moment de l'écriture (protège contre un double vote
-    // simultané sur le même duelId).
     const claimed = await tx.weeklyProfileDuel.updateMany({
       where: { id: duelId, usedAt: null },
       data: { usedAt: now, chosenId, weekKey, dayKey },
@@ -424,11 +425,6 @@ interface WinnerVoteRow {
   usedAt: Date;
 }
 
-// Départage déterministe (aucun hasard) entre candidats à égalité :
-//  1) le plus de duels gagnés face à face contre les autres candidats à égalité
-//  2) celui qui a atteint ce score de votes en premier (timestamp du dernier
-//     vote qui l'a porté à son total, le plus tôt gagne)
-//  3) id le plus petit
 function pickWinnerAmong(
   candidateIds: string[],
   totalsById: Map<string, number>,
