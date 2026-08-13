@@ -46,9 +46,13 @@ export default function WeeklyProfileScreen() {
 
   const loadState = () => {
     setStateLoading(true);
+    setError(null);
     getWeeklyProfileState()
       .then(setState)
-      .catch(() => setError('Impossible de charger le duel du jour'))
+      .catch((err: any) => {
+        setState(null);
+        setError(err?.message || 'Impossible de charger le duel du jour');
+      })
       .finally(() => setStateLoading(false));
   };
 
@@ -177,7 +181,14 @@ export default function WeeklyProfileScreen() {
           </View>
         ) : (
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            {!!error && (
+              <View style={styles.errorCard}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={loadState} activeOpacity={0.75}>
+                  <Text style={styles.retryButtonText}>Réessayer</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View style={styles.statusBar}>
               <View>
@@ -267,7 +278,24 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: { padding: APP_SPACING.md, paddingBottom: 72 },
 
-  errorText: { fontSize: 13, color: APP_COLORS.danger, textAlign: 'center', marginBottom: APP_SPACING.sm },
+  errorCard: {
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.md,
+    borderWidth: 1,
+    borderColor: APP_COLORS.danger,
+    padding: APP_SPACING.md,
+    marginBottom: APP_SPACING.md,
+    alignItems: 'center',
+  },
+  errorText: { fontSize: 13, color: APP_COLORS.danger, textAlign: 'center' },
+  retryButton: {
+    marginTop: APP_SPACING.sm,
+    paddingHorizontal: APP_SPACING.md,
+    paddingVertical: 8,
+    borderRadius: APP_RADIUS.md,
+    backgroundColor: APP_COLORS.burgundy,
+  },
+  retryButtonText: { color: APP_COLORS.white, fontSize: 12, fontWeight: '800' },
   emptyCard: {
     backgroundColor: APP_COLORS.paperSoft,
     borderRadius: APP_RADIUS.md,
