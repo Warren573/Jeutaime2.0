@@ -19,6 +19,7 @@ import {
   DeckCard,
   CardEffect,
   GameStartHint,
+  CardRank,
 } from "../../policies/cardGame";
 
 export interface RevealedCardState {
@@ -66,7 +67,25 @@ export interface HistoryItem {
 
 function parseDeck(raw: Prisma.JsonValue): DeckCard[] {
   if (!Array.isArray(raw)) throw new UnprocessableError("Deck corrompu");
-  return raw as unknown as DeckCard[];
+  const deck = raw as unknown as DeckCard[];
+
+  // Gestion de la compatibilité : anciennes sessions sans 'rank'
+  if (deck.length > 0 && !('rank' in deck[0]!)) {
+    // Générer déterministiquement les valeurs basées sur le suit et l'index
+    // pour que la même session génère toujours les mêmes valeurs
+    const allRanks: CardRank[] = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "V", "D", "R"];
+
+    return deck.map((card, idx) => {
+      // Utiliser index comme seed pour un choix déterministe mais différent par carte
+      const rankIdx = (card.index * 7 + card.suit.charCodeAt(0)) % allRanks.length;
+      return {
+        ...card,
+        rank: allRanks[rankIdx]!,
+      };
+    });
+  }
+
+  return deck;
 }
 
 function getRevealedCards(deck: DeckCard[], revealed: number): RevealedCardState[] {
@@ -177,7 +196,7 @@ export async function reveal(
     if (!card) throw new BadRequestError("Index de carte invalide");
 
     const newRevealed = markCardRevealed(session.revealed, cardIndex);
-    const effect = applyCardEffect(card.suit, session.gainsCurrent, newRevealed, deck);
+    const effect = applyCardEffect(card.suit, card.rank, session.gainsCurrent, newRevealed, deck);
 
     await tx.cardGameSession.update({
       where: { id: sessionId },

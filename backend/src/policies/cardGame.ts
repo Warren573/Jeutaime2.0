@@ -9,15 +9,18 @@
  */
 
 export type CardSuit = "heart" | "spade" | "club" | "diamond";
+export type CardRank = "A" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "V" | "D" | "R";
 export type CardRow = 1 | 2;
 
 export interface DeckCard {
   index: number; // 0–9
   suit: CardSuit;
+  rank: CardRank;
 }
 
 export interface CardEffect {
   suit: CardSuit;
+  rank?: CardRank;       // valeur de la carte révélée (si applicable)
   gainsDelta: number;    // variation appliquée (pour affichage)
   newGains: number;      // solde résultant
   allRevealed: boolean;
@@ -27,6 +30,7 @@ export interface CardEffect {
 export interface DiamondHint {
   row: CardRow;
   suit: CardSuit;
+  rank: CardRank;        // valeur de la carte indiquée
 }
 
 export interface GameStartHint {
@@ -47,6 +51,7 @@ export const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
 /**
  * Génère un deck de 10 cartes mélangées côté serveur.
  * Garantit au moins 2 cœurs et 1 pique.
+ * Chaque carte a une valeur unique (A, 2-10, V, D, R).
  */
 export function buildDeck(): DeckCard[] {
   const heartCount   = 2 + Math.floor(Math.random() * 3); // 2, 3 ou 4
@@ -61,7 +66,7 @@ export function buildDeck(): DeckCard[] {
     ...Array<CardSuit>(Math.max(0, diamondCount)).fill("diamond"),
   ];
 
-  // Fisher-Yates
+  // Fisher-Yates shuffle suits
   for (let i = suits.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     const tmp = suits[i] as CardSuit;
@@ -69,7 +74,24 @@ export function buildDeck(): DeckCard[] {
     suits[j] = tmp;
   }
 
-  return suits.map((suit, index) => ({ index, suit }));
+  // Toutes les valeurs possibles
+  const allRanks: CardRank[] = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "V", "D", "R"];
+
+  // Mélanger les valeurs et en sélectionner 10
+  const shuffledRanks: CardRank[] = [...allRanks];
+  for (let i = shuffledRanks.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = shuffledRanks[i] as CardRank;
+    shuffledRanks[i] = shuffledRanks[j] as CardRank;
+    shuffledRanks[j] = tmp;
+  }
+  const selectedRanks = shuffledRanks.slice(0, TOTAL_CARDS);
+
+  return suits.map((suit, index) => ({
+    index,
+    suit,
+    rank: selectedRanks[index]!
+  }));
 }
 
 // ── Bitmask helpers ──────────────────────────────────────────────────────────
@@ -95,6 +117,7 @@ export function areAllCardsRevealed(revealed: number): boolean {
  */
 export function applyCardEffect(
   suit: CardSuit,
+  rank: CardRank,
   gainsCurrent: number,
   newRevealed: number,
   deck: DeckCard[],
@@ -125,14 +148,14 @@ export function applyCardEffect(
     ? computeDiamondHint(deck, newRevealed)
     : undefined;
 
-  return { suit, gainsDelta, newGains, allRevealed, diamondHint };
+  return { suit, rank, gainsDelta, newGains, allRevealed, diamondHint };
 }
 
 // ── computeDiamondHint ───────────────────────────────────────────────────────
 
 /**
  * Retourne un indice sur une carte encore non révélée.
- * Révèle son suit et sa rangée (1 = indices 0-4, 2 = indices 5-9).
+ * Révèle son suit, sa valeur et sa rangée (1 = indices 0-4, 2 = indices 5-9).
  */
 export function computeDiamondHint(
   deck: DeckCard[],
@@ -144,6 +167,7 @@ export function computeDiamondHint(
   return {
     row: (pick.index < COLS ? 1 : 2) as CardRow,
     suit: pick.suit,
+    rank: pick.rank,
   };
 }
 

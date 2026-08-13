@@ -1,6 +1,7 @@
 import { apiFetch } from "./client";
 
 export type CardSuit = "heart" | "spade" | "club" | "diamond";
+export type CardRank = "A" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "V" | "D" | "R";
 
 export interface GameStartHint {
   suit: CardSuit;
@@ -10,10 +11,12 @@ export interface GameStartHint {
 export interface DiamondHint {
   row: 1 | 2;
   suit: CardSuit;
+  rank: CardRank;
 }
 
 export interface CardEffect {
   suit: CardSuit;
+  rank?: CardRank;
   gainsDelta: number;
   newGains: number;
   allRevealed: boolean;

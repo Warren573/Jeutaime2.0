@@ -15,6 +15,7 @@ import {
   claimCardGame,
   betCardGame,
   type CardSuit,
+  type CardRank,
   type StartResult,
   type RevealResult,
 } from '../../api/card-game';
@@ -33,7 +34,8 @@ interface Props {
 
 interface LocalCard {
   index: number;
-  suit: CardSuit | null;
+  suit: CardSuit | null; // null = face cachée
+  rank: CardRank | null; // null = face cachée
   revealed: boolean;
 }
 
@@ -55,15 +57,7 @@ const SUIT_LABEL: Record<CardSuit, string> = {
 const ENTRY_COST = 20;
 
 function buildLocalCards(): LocalCard[] {
-  return Array.from({ length: 10 }, (_, i) => ({ index: i, suit: null, revealed: false }));
-}
-
-function buildCardsFromStart(result: StartResult): LocalCard[] {
-  const revealedByIndex = new Map(result.revealedCards.map((card) => [card.index, card.suit]));
-  return buildLocalCards().map((card) => {
-    const suit = revealedByIndex.get(card.index);
-    return suit ? { ...card, suit, revealed: true } : card;
-  });
+  return Array.from({ length: 10 }, (_, i) => ({ index: i, suit: null, rank: null, revealed: false }));
 }
 
 type Phase = 'lobby' | 'playing' | 'done' | 'expired';
@@ -88,6 +82,7 @@ function getErrorMessage(err: unknown): string {
 
 export default function CardGame({ onEnd }: Props) {
   const loadWallet = useStore((s) => s.loadWallet);
+  const isAuthenticated = useStore((s) => s.isAuthenticated);
 
   const [phase, setPhase]             = useState<Phase>('lobby');
   const [sessionId, setSessionId]     = useState<string | null>(null);
@@ -98,15 +93,16 @@ export default function CardGame({ onEnd }: Props) {
   const [isLoading, setIsLoading]     = useState(false);
   const [pendingIndex, setPendingIndex] = useState<number | null>(null);
 
+  // ── Démarrage ────────────────────────────────────────────────────────────────
   const handleStart = useCallback(async () => {
     if (isLoading) return;
     try {
       setIsLoading(true);
       const result: StartResult = await startCardGame();
       setSessionId(result.sessionId);
-      setCards(buildCardsFromStart(result));
-      setGainsCurrent(result.gainsCurrent);
-      setMessage(result.resumed ? 'Partie en cours restaurée.' : '');
+      setCards(buildLocalCards());
+      setGainsCurrent(0);
+      setMessage('');
       setStartHint(
         `Il y a ${result.hint.count} ${EMOJI[result.hint.suit]} dans cette partie`,
       );
@@ -122,24 +118,7 @@ export default function CardGame({ onEnd }: Props) {
     }
   }, [isLoading]);
 
-  const doClaimAfterAllRevealed = useCallback(async (sid: string) => {
-    try {
-      const result = await claimCardGame(sid);
-      await loadWallet();
-      setPhase('done');
-      onEnd(result.gained > 0, result.gained);
-    } catch (err: any) {
-      if (isExpiredError(err)) {
-        setPhase('expired');
-        return;
-      }
-      Alert.alert(
-        'Encaissement impossible',
-        `${getErrorMessage(err)}\n\nTes gains ne sont pas affichés comme crédités tant que le serveur ne confirme pas l'encaissement.`,
-      );
-    }
-  }, [loadWallet, onEnd]);
-
+  // ── Révélation ───────────────────────────────────────────────────────────────
   const handleReveal = useCallback(async (index: number) => {
     if (!sessionId || pendingIndex !== null) return;
     const card = cards[index];
@@ -148,13 +127,14 @@ export default function CardGame({ onEnd }: Props) {
     try {
       setPendingIndex(index);
       const result: RevealResult = await revealCard(sessionId, index);
-      const { suit, gainsDelta, newGains, allRevealed, diamondHint } = result.effect;
+      const { suit, rank, gainsDelta, newGains, allRevealed, diamondHint } = result.effect;
 
       setCards((prev) =>
-        prev.map((c) => c.index === index ? { ...c, suit, revealed: true } : c),
+        prev.map((c) => c.index === index ? { ...c, suit, rank: rank || null, revealed: true } : c),
       );
       setGainsCurrent(newGains);
 
+      // Message
       switch (suit) {
         case 'heart':
           setMessage(`❤️ +${gainsDelta} pièces !`);
@@ -168,7 +148,7 @@ export default function CardGame({ onEnd }: Props) {
         case 'diamond':
           if (diamondHint) {
             setMessage(
-              `♦️ Indice : il y a un ${SUIT_LABEL[diamondHint.suit]} en rangée ${diamondHint.row}`,
+              `♦️ Indice : il y a un ${diamondHint.rank} de ${SUIT_LABEL[diamondHint.suit]} en rangée ${diamondHint.row}`,
             );
           } else {
             setMessage('♦️ Plus aucune carte cachée.');
@@ -177,7 +157,7 @@ export default function CardGame({ onEnd }: Props) {
       }
 
       if (allRevealed) {
-        await doClaimAfterAllRevealed(sessionId);
+        await doClaimAfterAllRevealed(sessionId, newGains);
       }
     } catch (err: any) {
       if (isExpiredError(err)) { setPhase('expired'); return; }
@@ -185,8 +165,23 @@ export default function CardGame({ onEnd }: Props) {
     } finally {
       setPendingIndex(null);
     }
-  }, [sessionId, cards, pendingIndex, doClaimAfterAllRevealed]);
+  }, [sessionId, cards, pendingIndex]);
 
+  // ── Claim automatique (toutes les cartes révélées) ───────────────────────────
+  const doClaimAfterAllRevealed = async (sid: string, gains: number) => {
+    try {
+      await claimCardGame(sid);
+      await loadWallet();
+      setPhase('done');
+      onEnd(gains > 0, gains);
+    } catch {
+      // On ne bloque pas l'UI — les gains sont déjà crédités ou nuls
+      setPhase('done');
+      onEnd(gains > 0, gains);
+    }
+  };
+
+  // ── Encaisser ────────────────────────────────────────────────────────────────
   const handleClaim = useCallback(async () => {
     if (!sessionId || isLoading) return;
     try {
@@ -203,6 +198,7 @@ export default function CardGame({ onEnd }: Props) {
     }
   }, [sessionId, isLoading, loadWallet, onEnd]);
 
+  // ── Pari "plus de cœurs" ─────────────────────────────────────────────────────
   const handleBet = useCallback(async () => {
     if (!sessionId || isLoading) return;
     try {
@@ -224,6 +220,7 @@ export default function CardGame({ onEnd }: Props) {
     }
   }, [sessionId, isLoading, loadWallet, onEnd]);
 
+  // ── Expired ──────────────────────────────────────────────────────────────────
   if (phase === 'expired') {
     return (
       <View style={styles.screen}>
@@ -250,6 +247,7 @@ export default function CardGame({ onEnd }: Props) {
     );
   }
 
+  // ── Lobby ────────────────────────────────────────────────────────────────────
   if (phase === 'lobby') {
     return (
       <View style={styles.screen}>
@@ -285,6 +283,7 @@ export default function CardGame({ onEnd }: Props) {
     );
   }
 
+  // ── Jeu en cours ou terminé ──────────────────────────────────────────────────
   const row1 = cards.slice(0, COLS);
   const row2 = cards.slice(COLS);
   const isDone = phase === 'done';
@@ -358,6 +357,8 @@ export default function CardGame({ onEnd }: Props) {
   );
 }
 
+// ── Composants ────────────────────────────────────────────────────────────────
+
 function RuleRow({ emoji, text }: { emoji: string; text: string }) {
   return (
     <View style={styles.ruleRow}>
@@ -387,6 +388,7 @@ function CardTile({
   }
 
   const cs = card.suit ? CARD_STYLES[card.suit] : null;
+  const color = cs ? (card.suit === 'heart' || card.suit === 'diamond' ? '#E91E63' : '#1A237E') : null;
 
   return (
     <TouchableOpacity
@@ -398,10 +400,11 @@ function CardTile({
       disabled={card.revealed || disabled}
       activeOpacity={0.75}
     >
-      {card.revealed && cs && card.suit ? (
+      {card.revealed && cs && card.suit && card.rank ? (
         <>
-          <Text style={styles.cardCorner}>{EMOJI[card.suit]}</Text>
-          <Text style={[styles.cardCenter, { color: cs.text }]}>{EMOJI[card.suit]}</Text>
+          <Text style={[styles.cardCorner, { color }]}>{card.rank}</Text>
+          <Text style={[styles.cardCenter, { color }]}>{EMOJI[card.suit]}</Text>
+          <Text style={[styles.cardCornerBottom, { color }]}>{card.rank}</Text>
         </>
       ) : (
         <Text style={styles.cardBackEmoji}>🎴</Text>
@@ -410,6 +413,7 @@ function CardTile({
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -464,7 +468,8 @@ const styles = StyleSheet.create({
   },
   cardBack:       { backgroundColor: '#1E1545', borderColor: '#4A3080' },
   cardBackEmoji:  { fontSize: CARD_W * 0.52 },
-  cardCorner:     { position: 'absolute', top: 4, left: 5, fontSize: 10 },
+  cardCorner:     { position: 'absolute', top: 4, left: 5, fontSize: 10, fontWeight: '700' },
+  cardCornerBottom: { position: 'absolute', bottom: 4, right: 5, fontSize: 10, fontWeight: '700', transform: [{ rotate: '180deg' }] },
   cardCenter:     { fontSize: CARD_W * 0.40 },
   betBtn: {
     backgroundColor: '#3B1F6B', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16,
