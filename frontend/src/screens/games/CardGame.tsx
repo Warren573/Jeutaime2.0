@@ -1,95 +1,29 @@
 import React, { useState, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  ActivityIndicator,
-  Alert,
-  Image,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Alert, Image } from 'react-native';
 import { useStore } from '../../store/useStore';
-import {
-  startCardGame,
-  revealCard,
-  claimCardGame,
-  betCardGame,
-  type CardSuit,
-  type CardRank,
-  type StartResult,
-  type RevealResult,
-} from '../../api/card-game';
+import { startCardGame, revealCard, claimCardGame, betCardGame, type CardSuit, type CardRank, type StartResult, type RevealResult } from '../../api/card-game';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAME_BG = require('../../../assets/images/games/card-game-bg.png');
-
-const H_PAD   = 16;
-const CARD_GAP = 8;
-const COLS     = 5;
-const CARD_W   = Math.floor((SCREEN_WIDTH - H_PAD * 2 - CARD_GAP * (COLS - 1)) / COLS);
-const CARD_H   = Math.floor(CARD_W * 1.45);
-
-interface Props {
-  onEnd: (won: boolean, gained: number) => void;
-}
-
-interface LocalCard {
-  index: number;
-  suit: CardSuit | null;
-  rank: CardRank | null;
-  revealed: boolean;
-}
-
-const CARD_STYLES: Record<CardSuit, { bg: string; border: string; text: string }> = {
-  heart:   { bg: '#FFF0F5', border: '#E91E63', text: '#C2185B' },
-  spade:   { bg: '#EEF2FF', border: '#3949AB', text: '#1A237E' },
-  club:    { bg: '#F0FBF1', border: '#2E7D32', text: '#1B5E20' },
-  diamond: { bg: '#FFF8E7', border: '#F57C00', text: '#E65100' },
-};
-
-const EMOJI: Record<CardSuit, string> = {
-  heart: '❤️', spade: '♠️', club: '♣️', diamond: '♦️',
-};
-
-const SUIT_LABEL: Record<CardSuit, string> = {
-  heart: 'cœur', spade: 'pique', club: 'trèfle', diamond: 'carreau',
-};
-
+const H_PAD = 16, CARD_GAP = 8, COLS = 5;
+const CARD_W = Math.floor((SCREEN_WIDTH - H_PAD * 2 - CARD_GAP * (COLS - 1)) / COLS);
+const CARD_H = Math.floor(CARD_W * 1.45);
 const ENTRY_COST = 20;
 
-function buildLocalCards(): LocalCard[] {
-  return Array.from({ length: 10 }, (_, i) => ({ index: i, suit: null, rank: null, revealed: false }));
-}
+interface Props { onEnd: (won: boolean, gained: number) => void; }
+interface LocalCard { index: number; suit: CardSuit | null; rank: CardRank | null; revealed: boolean; }
 
+const EMOJI: Record<CardSuit, string> = { heart: '♥', spade: '♠', club: '♣', diamond: '♦' };
+const SUIT_LABEL: Record<CardSuit, string> = { heart: 'cœur', spade: 'pique', club: 'trèfle', diamond: 'carreau' };
+function buildLocalCards(): LocalCard[] { return Array.from({ length: 10 }, (_, i) => ({ index: i, suit: null, rank: null, revealed: false })); }
 type Phase = 'lobby' | 'playing' | 'done' | 'expired';
-
-function isExpiredError(err: unknown): boolean {
-  const msg: string = (err as any)?.message ?? '';
-  return msg.toLowerCase().includes('expir');
-}
-
-function isInsufficientCoinsError(err: unknown): boolean {
-  const status = (err as any)?.statusCode ?? (err as any)?.status ?? 0;
-  return status === 402;
-}
-
-function getErrorMessage(err: unknown): string {
-  const error = err as any;
-  if (isInsufficientCoinsError(error)) {
-    return `Pièces insuffisantes — il t'en faut ${ENTRY_COST} 🪙`;
-  }
-  return error?.message ?? 'Une erreur est survenue';
-}
-
-function Background() {
-  return <Image source={CARD_GAME_BG} resizeMode="stretch" style={styles.backgroundImage} pointerEvents="none" />;
-}
+function isExpiredError(err: unknown) { return ((err as any)?.message ?? '').toLowerCase().includes('expir'); }
+function isInsufficientCoinsError(err: unknown) { const e = err as any; return (e?.statusCode ?? e?.status ?? 0) === 402; }
+function getErrorMessage(err: unknown) { if (isInsufficientCoinsError(err)) return `Pièces insuffisantes — il t'en faut ${ENTRY_COST} 🪙`; return (err as any)?.message ?? 'Une erreur est survenue'; }
+function Background() { return <Image source={CARD_GAME_BG} resizeMode="stretch" style={styles.backgroundImage} pointerEvents="none" />; }
 
 export default function CardGame({ onEnd }: Props) {
   const loadWallet = useStore((s) => s.loadWallet);
-  const isAuthenticated = useStore((s) => s.isAuthenticated);
-
   const [phase, setPhase] = useState<Phase>('lobby');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [cards, setCards] = useState<LocalCard[]>(buildLocalCards());
@@ -101,256 +35,63 @@ export default function CardGame({ onEnd }: Props) {
 
   const handleStart = useCallback(async () => {
     if (isLoading) return;
-    try {
-      setIsLoading(true);
-      const result: StartResult = await startCardGame();
-      setSessionId(result.sessionId);
-      setCards(buildLocalCards());
-      setGainsCurrent(0);
-      setMessage('');
-      setStartHint(`Il y a ${result.hint.count} ${EMOJI[result.hint.suit]} dans cette partie`);
-      setPhase('playing');
-    } catch (err: any) {
-      if (isExpiredError(err)) setPhase('expired');
-      else Alert.alert('Erreur', getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
+    try { setIsLoading(true); const result: StartResult = await startCardGame(); setSessionId(result.sessionId); setCards(buildLocalCards()); setGainsCurrent(0); setMessage(''); setStartHint(`Il y a ${result.hint.count} ${EMOJI[result.hint.suit]} dans cette partie`); setPhase('playing'); }
+    catch (err: any) { if (isExpiredError(err)) setPhase('expired'); else Alert.alert('Erreur', getErrorMessage(err)); }
+    finally { setIsLoading(false); }
   }, [isLoading]);
 
+  const doClaimAfterAllRevealed = async (sid: string, gains: number) => { try { await claimCardGame(sid); await loadWallet(); } catch {} setPhase('done'); onEnd(gains > 0, gains); };
+
   const handleReveal = useCallback(async (index: number) => {
-    if (!sessionId || pendingIndex !== null) return;
-    const card = cards[index];
-    if (!card || card.revealed) return;
-
+    if (!sessionId || pendingIndex !== null || cards[index]?.revealed) return;
     try {
-      setPendingIndex(index);
-      const result: RevealResult = await revealCard(sessionId, index);
+      setPendingIndex(index); const result: RevealResult = await revealCard(sessionId, index);
       const { suit, rank, gainsDelta, newGains, allRevealed, diamondHint } = result.effect;
-
-      setCards((prev) => prev.map((c) => c.index === index ? { ...c, suit, rank: rank || null, revealed: true } : c));
-      setGainsCurrent(newGains);
-
-      switch (suit) {
-        case 'heart': setMessage(`❤️ +${gainsDelta} pièces !`); break;
-        case 'spade': setMessage('♠️ Tout perdu !'); break;
-        case 'club': setMessage(`♣️ Gains divisés par 2 — ${newGains} 🪙`); break;
-        case 'diamond':
-          if (diamondHint) {
-            setMessage(`♦️ Indice : il y a un ${diamondHint.rank} de ${SUIT_LABEL[diamondHint.suit]} en rangée ${diamondHint.row}`);
-          } else {
-            setMessage('♦️ Plus aucune carte cachée.');
-          }
-          break;
-      }
-
+      setCards((prev) => prev.map((c) => c.index === index ? { ...c, suit, rank: rank || null, revealed: true } : c)); setGainsCurrent(newGains);
+      if (suit === 'heart') setMessage(`♥ +${gainsDelta} pièces !`);
+      if (suit === 'spade') setMessage('♠ Tout perdu !');
+      if (suit === 'club') setMessage(`♣ Gains divisés par 2 — ${newGains} 🪙`);
+      if (suit === 'diamond') setMessage(diamondHint ? `♦ Indice : il y a un ${diamondHint.rank} de ${SUIT_LABEL[diamondHint.suit]} en rangée ${diamondHint.row}` : '♦ Plus aucune carte cachée.');
       if (allRevealed) await doClaimAfterAllRevealed(sessionId, newGains);
-    } catch (err: any) {
-      if (isExpiredError(err)) { setPhase('expired'); return; }
-      Alert.alert('Erreur', getErrorMessage(err));
-    } finally {
-      setPendingIndex(null);
-    }
+    } catch (err: any) { if (isExpiredError(err)) { setPhase('expired'); return; } Alert.alert('Erreur', getErrorMessage(err)); }
+    finally { setPendingIndex(null); }
   }, [sessionId, cards, pendingIndex]);
 
-  const doClaimAfterAllRevealed = async (sid: string, gains: number) => {
-    try {
-      await claimCardGame(sid);
-      await loadWallet();
-      setPhase('done');
-      onEnd(gains > 0, gains);
-    } catch {
-      setPhase('done');
-      onEnd(gains > 0, gains);
-    }
-  };
+  const handleClaim = useCallback(async () => { if (!sessionId || isLoading) return; try { setIsLoading(true); const r = await claimCardGame(sessionId); await loadWallet(); setPhase('done'); onEnd(r.gained > 0, r.gained); } catch (e: any) { if (isExpiredError(e)) setPhase('expired'); else Alert.alert('Erreur', getErrorMessage(e)); } finally { setIsLoading(false); } }, [sessionId, isLoading, loadWallet, onEnd]);
+  const handleBet = useCallback(async () => { if (!sessionId || isLoading) return; try { setIsLoading(true); const r = await betCardGame(sessionId); await loadWallet(); setMessage(r.won ? `Bravo ! Il ne restait plus de cœurs — +${r.gained} 🪙` : `Raté ! Il restait ${r.heartsRemaining} cœur${r.heartsRemaining > 1 ? 's' : ''} caché${r.heartsRemaining > 1 ? 's' : ''}.`); setPhase('done'); onEnd(r.won, r.gained); } catch (e: any) { if (isExpiredError(e)) setPhase('expired'); else Alert.alert('Erreur', getErrorMessage(e)); } finally { setIsLoading(false); } }, [sessionId, isLoading, loadWallet, onEnd]);
 
-  const handleClaim = useCallback(async () => {
-    if (!sessionId || isLoading) return;
-    try {
-      setIsLoading(true);
-      const result = await claimCardGame(sessionId);
-      await loadWallet();
-      setPhase('done');
-      onEnd(result.gained > 0, result.gained);
-    } catch (err: any) {
-      if (isExpiredError(err)) { setPhase('expired'); return; }
-      Alert.alert('Erreur', getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [sessionId, isLoading, loadWallet, onEnd]);
+  if (phase === 'expired') return <View style={styles.screen}><Background/><View style={styles.expiredBox}><Text style={styles.expiredEmoji}>⏰</Text><Text style={styles.expiredTitle}>Session expirée</Text><Text style={styles.expiredText}>Ta partie a expiré après 30 minutes d&apos;inactivité.{'\n'}Les {ENTRY_COST} 🪙 de mise de départ ne sont pas remboursés.</Text></View><TouchableOpacity style={styles.startBtn} onPress={handleStart}><Text style={styles.startText}>Rejouer — {ENTRY_COST} 🪙</Text></TouchableOpacity></View>;
+  if (phase === 'lobby') return <View style={styles.screen}><Background/><View style={styles.titleRow}><Text style={styles.titleEmoji}>♠</Text><Text style={styles.title}>Jeu de Cartes</Text></View><View style={styles.rulesBox}><Text style={styles.rulesTitle}>Règles</Text><RuleRow emoji="♥" text="Cœur → +15 pièces"/><RuleRow emoji="♠" text="Pique → tout perdu"/><RuleRow emoji="♣" text="Trèfle → gains ÷ 2"/><RuleRow emoji="♦" text="Carreau → indice sur une carte cachée"/><View style={styles.separator}/><Text style={styles.tipText}>Pariez qu'il n'y a plus de cœurs pour empocher vos gains avant un piège.</Text></View><TouchableOpacity style={styles.startBtn} onPress={handleStart} disabled={isLoading}>{isLoading ? <ActivityIndicator color="#F7E9CC"/> : <Text style={styles.startText}>Jouer — {ENTRY_COST} 🪙</Text>}</TouchableOpacity></View>;
 
-  const handleBet = useCallback(async () => {
-    if (!sessionId || isLoading) return;
-    try {
-      setIsLoading(true);
-      const result = await betCardGame(sessionId);
-      await loadWallet();
-      if (result.won) setMessage(`🎉 Bravo ! Il ne restait plus de cœurs — +${result.gained} 🪙`);
-      else setMessage(`💔 Raté ! Il restait ${result.heartsRemaining} cœur${result.heartsRemaining > 1 ? 's' : ''} caché${result.heartsRemaining > 1 ? 's' : ''}.`);
-      setPhase('done');
-      onEnd(result.won, result.gained);
-    } catch (err: any) {
-      if (isExpiredError(err)) { setPhase('expired'); return; }
-      Alert.alert('Erreur', getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [sessionId, isLoading, loadWallet, onEnd]);
-
-  if (phase === 'expired') {
-    return (
-      <View style={styles.screen}>
-        <Background />
-        <View style={styles.expiredBox}>
-          <Text style={styles.expiredEmoji}>⏰</Text>
-          <Text style={styles.expiredTitle}>Session expirée</Text>
-          <Text style={styles.expiredText}>
-            Ta partie a expiré après 30 minutes d&apos;inactivité.{'\n'}
-            Les {ENTRY_COST} 🪙 de mise de départ ne sont pas remboursés.
-          </Text>
-        </View>
-        <TouchableOpacity style={[styles.startBtn, isLoading && { opacity: 0.5 }]} onPress={handleStart} disabled={isLoading}>
-          {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.startText}>Rejouer — {ENTRY_COST} 🪙</Text>}
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (phase === 'lobby') {
-    return (
-      <View style={styles.screen}>
-        <Background />
-        <View style={styles.titleRow}>
-          <Text style={styles.titleEmoji}>🎴</Text>
-          <Text style={styles.title}>Jeu de Cartes</Text>
-        </View>
-        <View style={styles.rulesBox}>
-          <Text style={styles.rulesTitle}>Règles</Text>
-          <RuleRow emoji="❤️" text={`Cœur → +15 pièces`} />
-          <RuleRow emoji="♠️" text="Pique → tout perdu" />
-          <RuleRow emoji="♣️" text="Trèfle → gains ÷ 2" />
-          <RuleRow emoji="♦️" text="Carreau → indice sur une carte cachée" />
-          <View style={styles.separator} />
-          <Text style={styles.tipText}>💡 Pariez qu'il n'y a plus de cœurs pour empocher vos gains avant un piège.</Text>
-        </View>
-        <TouchableOpacity style={[styles.startBtn, isLoading && { opacity: 0.5 }]} onPress={handleStart} disabled={isLoading}>
-          {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.startText}>Jouer — {ENTRY_COST} 🪙</Text>}
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const row1 = cards.slice(0, COLS);
-  const row2 = cards.slice(COLS);
-  const isDone = phase === 'done';
-
-  return (
-    <View style={styles.screen}>
-      <Background />
-      <View style={styles.hintBox}><Text style={styles.hintText}>💌 {startHint}</Text></View>
-      <View style={styles.coinsRow}>
-        <Text style={styles.coinsLabel}>Gains</Text>
-        <Text style={styles.coinsValue}>💰 {gainsCurrent}</Text>
-      </View>
-      <View style={message ? styles.msgBox : styles.msgBoxEmpty}>{!!message && <Text style={styles.msgText}>{message}</Text>}</View>
-      <Text style={styles.rowLabel}>Rangée 1</Text>
-      <View style={styles.row}>
-        {row1.map((card) => <CardTile key={card.index} card={card} pending={pendingIndex === card.index} onPress={() => handleReveal(card.index)} disabled={isDone || pendingIndex !== null} />)}
-      </View>
-      <Text style={styles.rowLabel}>Rangée 2</Text>
-      <View style={styles.row}>
-        {row2.map((card) => <CardTile key={card.index} card={card} pending={pendingIndex === card.index} onPress={() => handleReveal(card.index)} disabled={isDone || pendingIndex !== null} />)}
-      </View>
-      {!isDone && (
-        <>
-          <TouchableOpacity style={[styles.betBtn, isLoading && { opacity: 0.5 }]} onPress={handleBet} disabled={isLoading}>
-            <Text style={styles.betText}>🤞 Parier qu'il n'y a plus de cœurs</Text>
-            <Text style={styles.betSub}>Gagner {gainsCurrent} 🪙 si vrai — tout perdre si faux</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.claimBtn, isLoading && { opacity: 0.5 }]} onPress={handleClaim} disabled={isLoading}>
-            {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.claimText}>✅ Encaisser {gainsCurrent} 🪙</Text>}
-          </TouchableOpacity>
-        </>
-      )}
-    </View>
-  );
+  const row1 = cards.slice(0, COLS), row2 = cards.slice(COLS), isDone = phase === 'done';
+  return <View style={styles.screen}><Background/>
+    <View style={styles.hintBox}><Text style={styles.hintText}>✉ {startHint}</Text></View>
+    <View style={styles.coinsRow}><Text style={styles.coinsLabel}>Gains</Text><Text style={styles.coinsValue}>🪙 {gainsCurrent}</Text></View>
+    <View style={message ? styles.msgBox : styles.msgBoxEmpty}>{!!message && <Text style={styles.msgText}>{message}</Text>}</View>
+    <Text style={styles.rowLabel}>Rangée 1</Text><View style={styles.row}>{row1.map((c) => <CardTile key={c.index} card={c} pending={pendingIndex === c.index} onPress={() => handleReveal(c.index)} disabled={isDone || pendingIndex !== null}/>)}</View>
+    <Text style={styles.rowLabel}>Rangée 2</Text><View style={styles.row}>{row2.map((c) => <CardTile key={c.index} card={c} pending={pendingIndex === c.index} onPress={() => handleReveal(c.index)} disabled={isDone || pendingIndex !== null}/>)}</View>
+    {!isDone && <><TouchableOpacity style={styles.betBtn} onPress={handleBet} disabled={isLoading}><Text style={styles.betText}>Parier qu'il n'y a plus de cœurs</Text><Text style={styles.betSub}>Gagner {gainsCurrent} 🪙 si vrai — tout perdre si faux</Text></TouchableOpacity><TouchableOpacity style={styles.claimBtn} onPress={handleClaim} disabled={isLoading}>{isLoading ? <ActivityIndicator color="#F7E9CC"/> : <Text style={styles.claimText}>Encaisser {gainsCurrent} 🪙</Text>}</TouchableOpacity></>}
+  </View>;
 }
 
-function RuleRow({ emoji, text }: { emoji: string; text: string }) {
-  return <View style={styles.ruleRow}><Text style={styles.ruleEmoji}>{emoji}</Text><Text style={styles.ruleText}>{text}</Text></View>;
-}
-
+function RuleRow({ emoji, text }: { emoji: string; text: string }) { const red = emoji === '♥' || emoji === '♦'; return <View style={styles.ruleRow}><Text style={[styles.ruleEmoji, red && styles.redSuit]}>{emoji}</Text><Text style={styles.ruleText}>{text}</Text></View>; }
 function CardTile({ card, onPress, disabled, pending }: { card: LocalCard; onPress: () => any; disabled: boolean; pending: boolean }) {
-  if (pending) {
-    return <View style={[styles.card, styles.cardBack, { justifyContent: 'center', alignItems: 'center' }]}><ActivityIndicator color="#C9B8FF" size="small" /></View>;
-  }
-  const cs = card.suit ? CARD_STYLES[card.suit] : null;
-  const color = cs ? (card.suit === 'heart' || card.suit === 'diamond' ? '#E91E63' : '#1A237E') : null;
-  return (
-    <TouchableOpacity style={[styles.card, card.revealed && cs ? { backgroundColor: cs.bg, borderColor: cs.border } : styles.cardBack]} onPress={onPress} disabled={card.revealed || disabled} activeOpacity={0.75}>
-      {card.revealed && cs && card.suit && card.rank ? (
-        <>
-          <Text style={[styles.cardCorner, { color }]}>{card.rank}</Text>
-          <Text style={[styles.cardCenter, { color }]}>{EMOJI[card.suit]}</Text>
-          <Text style={[styles.cardCornerBottom, { color }]}>{card.rank}</Text>
-        </>
-      ) : <Text style={styles.cardBackEmoji}>🎴</Text>}
-    </TouchableOpacity>
-  );
+  const red = card.suit === 'heart' || card.suit === 'diamond'; const color = red ? '#9E2F35' : '#2D251E';
+  if (pending) return <View style={[styles.card, styles.cardBack]}><ActivityIndicator color="#E7D3A7" size="small"/></View>;
+  return <TouchableOpacity style={[styles.card, card.revealed ? styles.cardFace : styles.cardBack]} onPress={onPress} disabled={card.revealed || disabled} activeOpacity={0.8}>{card.revealed && card.suit && card.rank ? <><Text style={[styles.cardCorner,{color}]}>{card.rank}{'\n'}{EMOJI[card.suit]}</Text><Text style={[styles.cardCenter,{color}]}>{EMOJI[card.suit]}</Text><Text style={[styles.cardCornerBottom,{color}]}>{card.rank}{'\n'}{EMOJI[card.suit]}</Text></> : <><View style={styles.backInner}><Text style={styles.backMark}>JT</Text></View></>}</TouchableOpacity>;
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    width: '100%',
-    backgroundColor: 'transparent',
-    paddingHorizontal: H_PAD,
-    paddingTop: 12,
-    paddingBottom: 24,
-    overflow: 'hidden',
-  },
-  backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-  },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 24 },
-  titleEmoji: { fontSize: 36 },
-  title: { fontSize: 28, fontWeight: '900', color: '#F0E6FF', letterSpacing: 0.5 },
-  rulesBox: { backgroundColor: '#1A1A30', borderRadius: 16, padding: 20, marginBottom: 28, borderWidth: 1, borderColor: '#2E2A50' },
-  rulesTitle: { fontSize: 13, fontWeight: '800', color: '#7B6FA0', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 16 },
-  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-  ruleEmoji: { fontSize: 22, width: 30, textAlign: 'center' },
-  ruleText: { fontSize: 14, color: '#C0B8D8', flex: 1, fontWeight: '600' },
-  separator: { height: 1, backgroundColor: '#2E2A50', marginVertical: 14 },
-  tipText: { fontSize: 13, color: '#A89CC0', textAlign: 'center', lineHeight: 20 },
-  startBtn: { backgroundColor: '#7C3AED', borderRadius: 14, paddingVertical: 16, alignItems: 'center', shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6 },
-  startText: { fontSize: 18, fontWeight: '900', color: '#fff' },
-  hintBox: { backgroundColor: '#1C1A2E', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 10, borderWidth: 1, borderColor: '#4A3080' },
-  hintText: { fontSize: 14, color: '#C9B8FF', textAlign: 'center', fontStyle: 'italic' },
-  coinsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  coinsLabel: { fontSize: 13, color: '#7B6FA0', fontWeight: '600' },
-  coinsValue: { fontSize: 22, fontWeight: '900', color: '#F59E0B' },
-  msgBox: { backgroundColor: '#1C1A2E', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, marginBottom: 12, borderWidth: 1, borderColor: '#3D3560', minHeight: 40, alignItems: 'center', justifyContent: 'center' },
-  msgBoxEmpty: { height: 40, marginBottom: 12 },
-  msgText: { fontSize: 14, fontWeight: '700', color: '#E0D8FF', textAlign: 'center' },
-  rowLabel: { fontSize: 11, fontWeight: '700', color: '#5A527A', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
-  row: { flexDirection: 'row', gap: CARD_GAP, marginBottom: 14 },
-  card: { width: CARD_W, height: CARD_H, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center', padding: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 4, elevation: 4 },
-  cardBack: { backgroundColor: '#1E1545', borderColor: '#4A3080' },
-  cardBackEmoji: { fontSize: CARD_W * 0.52 },
-  cardCorner: { position: 'absolute', top: 4, left: 5, fontSize: 10, fontWeight: '700' },
-  cardCornerBottom: { position: 'absolute', bottom: 4, right: 5, fontSize: 10, fontWeight: '700', transform: [{ rotate: '180deg' }] },
-  cardCenter: { fontSize: CARD_W * 0.40 },
-  betBtn: { backgroundColor: '#3B1F6B', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center', marginTop: 4, marginBottom: 8, borderWidth: 1, borderColor: '#7C3AED80' },
-  betText: { fontSize: 15, fontWeight: '900', color: '#D4AAFF' },
-  betSub: { fontSize: 11, color: '#9B82CC', marginTop: 3, textAlign: 'center' },
-  claimBtn: { backgroundColor: '#7C3AED', borderRadius: 14, paddingVertical: 14, alignItems: 'center', shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6 },
-  claimText: { fontSize: 17, fontWeight: '900', color: '#fff' },
-  expiredBox: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  expiredEmoji: { fontSize: 56, marginBottom: 16 },
-  expiredTitle: { fontSize: 24, fontWeight: '900', color: '#F0E6FF', marginBottom: 12 },
-  expiredText: { fontSize: 14, color: '#A89CC0', textAlign: 'center', lineHeight: 22 },
+const PAPER='rgba(247,235,207,0.93)', INK='#3B2A1C', BORDER='#9A7447';
+const styles=StyleSheet.create({
+ screen:{flex:1,width:'100%',backgroundColor:'transparent',paddingHorizontal:H_PAD,paddingTop:12,paddingBottom:10,overflow:'hidden'},backgroundImage:{...StyleSheet.absoluteFillObject,width:'100%',height:'100%'},
+ titleRow:{flexDirection:'row',alignItems:'center',justifyContent:'center',gap:10,marginBottom:24},titleEmoji:{fontSize:34,color:INK},title:{fontSize:28,fontWeight:'800',color:INK},
+ rulesBox:{backgroundColor:PAPER,borderRadius:10,padding:20,marginBottom:28,borderWidth:1,borderColor:BORDER,shadowColor:'#2A1609',shadowOffset:{width:0,height:4},shadowOpacity:.22,shadowRadius:5,elevation:4},rulesTitle:{fontSize:14,fontWeight:'800',color:'#76552F',letterSpacing:1.5,textTransform:'uppercase',marginBottom:16},ruleRow:{flexDirection:'row',alignItems:'center',gap:12,marginBottom:10},ruleEmoji:{fontSize:24,width:30,textAlign:'center',color:'#2D251E'},redSuit:{color:'#9E2F35'},ruleText:{fontSize:14,color:INK,flex:1,fontWeight:'600'},separator:{height:1,backgroundColor:'#B99A70',marginVertical:14},tipText:{fontSize:13,color:'#654B31',textAlign:'center',lineHeight:20,fontStyle:'italic'},
+ startBtn:{backgroundColor:'rgba(92,45,29,.94)',borderRadius:9,paddingVertical:16,alignItems:'center',borderWidth:1,borderColor:'#C59A61',shadowColor:'#1F1008',shadowOffset:{width:0,height:4},shadowOpacity:.3,shadowRadius:6,elevation:5},startText:{fontSize:18,fontWeight:'800',color:'#F7E9CC'},
+ hintBox:{backgroundColor:PAPER,borderRadius:8,paddingVertical:10,paddingHorizontal:14,marginBottom:10,borderWidth:1,borderColor:BORDER,shadowColor:'#2A1609',shadowOffset:{width:0,height:2},shadowOpacity:.2,shadowRadius:3,elevation:2},hintText:{fontSize:14,color:INK,textAlign:'center',fontStyle:'italic',fontWeight:'600'},
+ coinsRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:8,paddingHorizontal:4},coinsLabel:{fontSize:14,color:'#F3E2BF',fontWeight:'800',textShadowColor:'rgba(0,0,0,.65)',textShadowOffset:{width:0,height:1},textShadowRadius:2},coinsValue:{fontSize:22,fontWeight:'900',color:'#F3D28B',textShadowColor:'rgba(0,0,0,.7)',textShadowOffset:{width:0,height:1},textShadowRadius:2},
+ msgBox:{backgroundColor:PAPER,borderRadius:8,paddingVertical:9,paddingHorizontal:14,marginBottom:12,borderWidth:1,borderColor:BORDER,minHeight:40,alignItems:'center',justifyContent:'center'},msgBoxEmpty:{height:40,marginBottom:12},msgText:{fontSize:14,fontWeight:'700',color:INK,textAlign:'center'},
+ rowLabel:{fontSize:11,fontWeight:'800',color:'#F1DFBC',textTransform:'uppercase',letterSpacing:1.4,marginBottom:6,textShadowColor:'rgba(0,0,0,.75)',textShadowOffset:{width:0,height:1},textShadowRadius:2},row:{flexDirection:'row',gap:CARD_GAP,marginBottom:14},
+ card:{width:CARD_W,height:CARD_H,borderRadius:7,borderWidth:1,alignItems:'center',justifyContent:'center',padding:4,shadowColor:'#160C06',shadowOffset:{width:0,height:3},shadowOpacity:.45,shadowRadius:4,elevation:4},cardFace:{backgroundColor:'#F8EFD9',borderColor:'#8D744F'},cardBack:{backgroundColor:'#6F2D2D',borderColor:'#D1B47C'},backInner:{width:'82%',height:'88%',borderWidth:2,borderColor:'#D6BD89',alignItems:'center',justifyContent:'center',backgroundColor:'#7E3535'},backMark:{fontSize:14,fontWeight:'900',color:'#E8D2A4',fontFamily:'serif'},cardCorner:{position:'absolute',top:4,left:5,fontSize:10,fontWeight:'800',lineHeight:10,textAlign:'center'},cardCornerBottom:{position:'absolute',bottom:4,right:5,fontSize:10,fontWeight:'800',lineHeight:10,textAlign:'center',transform:[{rotate:'180deg'}]},cardCenter:{fontSize:CARD_W*.42,fontWeight:'700'},
+ betBtn:{backgroundColor:'rgba(239,220,181,.94)',borderRadius:9,paddingVertical:12,paddingHorizontal:16,alignItems:'center',marginTop:4,marginBottom:8,borderWidth:1,borderColor:'#987143',shadowColor:'#1F1008',shadowOffset:{width:0,height:3},shadowOpacity:.25,shadowRadius:4,elevation:3},betText:{fontSize:15,fontWeight:'800',color:INK},betSub:{fontSize:11,color:'#765A3B',marginTop:3,textAlign:'center'},claimBtn:{backgroundColor:'rgba(102,48,30,.96)',borderRadius:9,paddingVertical:14,alignItems:'center',borderWidth:1,borderColor:'#C69B61',shadowColor:'#1F1008',shadowOffset:{width:0,height:4},shadowOpacity:.32,shadowRadius:5,elevation:4},claimText:{fontSize:17,fontWeight:'900',color:'#F7E9CC'},
+ expiredBox:{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:24},expiredEmoji:{fontSize:56,marginBottom:16},expiredTitle:{fontSize:24,fontWeight:'900',color:'#F7E9CC',textShadowColor:'#2A1609',textShadowOffset:{width:0,height:2},textShadowRadius:3},expiredText:{fontSize:14,color:'#F3E2BF',textAlign:'center',lineHeight:22,textShadowColor:'#2A1609',textShadowOffset:{width:0,height:1},textShadowRadius:2}
 });
