@@ -7,6 +7,7 @@ export interface DuelProfileDTO {
   city: string;
   bio: string | null;
   avatarConfig: Record<string, unknown> | null;
+  gender: "HOMME" | "FEMME" | "AUTRE";
 }
 
 export interface DuelDTO {
