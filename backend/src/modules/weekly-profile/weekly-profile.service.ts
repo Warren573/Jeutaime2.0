@@ -24,6 +24,12 @@ export function getWeekKey(date: Date): string {
 }
 function getPreviousWeekKey(now: Date): string { const prev = new Date(now); prev.setUTCDate(prev.getUTCDate() - 7); return getWeekKey(prev); }
 function getDayKey(date: Date): string { return date.toISOString().slice(0, 10); }
+function getWeekStartUtc(date: Date): Date {
+  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayNum = (start.getUTCDay() + 6) % 7;
+  start.setUTCDate(start.getUTCDate() - dayNum);
+  return start;
+}
 function computeAge(birthDate: Date): number { const now = new Date(); let age = now.getUTCFullYear() - birthDate.getUTCFullYear(); const monthDiff = now.getUTCMonth() - birthDate.getUTCMonth(); if (monthDiff < 0 || (monthDiff === 0 && now.getUTCDate() < birthDate.getUTCDate())) age--; return age; }
 function dailyLimitFor(isPremium: boolean): number { return isPremium ? DAILY_LIMIT_PREMIUM : DAILY_LIMIT_FREE; }
 function pairKey(a: string, b: string): string { return [a, b].sort().join("::"); }
@@ -52,14 +58,22 @@ function toDuelProfileDto(p: EligibleProfile): DuelProfileDto { return { id: p.i
 function rankProfiles(eligible: EligibleProfile[], seenProfileIds: Set<string>, exposure: Map<string, number>): EligibleProfile[] { return [...eligible].sort((a,b) => { const seenDiff=(seenProfileIds.has(a.id)?1:0)-(seenProfileIds.has(b.id)?1:0); if(seenDiff) return seenDiff; const exp=(exposure.get(a.id)??0)-(exposure.get(b.id)??0); return exp || a.id.localeCompare(b.id); }); }
 function pickPair(ranked: EligibleProfile[], seenPairs: Set<string>): [EligibleProfile, EligibleProfile] | null {
   for(let i=0;i<ranked.length;i++) for(let j=i+1;j<ranked.length;j++) { const a=ranked[i],b=ranked[j]; if(a&&b&&!seenPairs.has(pairKey(a.id,b.id))) return [a,b]; }
+  // Petit pool : une fois toutes les combinaisons de la semaine épuisées,
+  // on réutilise la paire la mieux classée plutôt que de bloquer le vote.
+  if (ranked.length >= 2 && ranked[0] && ranked[1]) return [ranked[0], ranked[1]];
   return null;
 }
 async function preferredGenderForNextComparison(voterId: string, now: Date): Promise<Gender> {
   const votesToday = await prisma.weeklyProfileDuel.count({ where: { userId: voterId, dayKey: getDayKey(now), usedAt: { not: null } } });
   return votesToday % 2 === 0 ? Gender.HOMME : Gender.FEMME;
 }
-async function historyForVoter(voterId: string) {
-  const past = await prisma.weeklyProfileDuel.findMany({ where: { userId: voterId }, select: { candidateAId: true, candidateBId: true } });
+async function historyForVoter(voterId: string, now: Date) {
+  // L'historique sert uniquement à varier les profils pendant la semaine en cours.
+  // Il est remis à zéro chaque lundi pour ne jamais épuiser définitivement les paires.
+  const past = await prisma.weeklyProfileDuel.findMany({
+    where: { userId: voterId, createdAt: { gte: getWeekStartUtc(now) } },
+    select: { candidateAId: true, candidateBId: true },
+  });
   const seenProfileIds = new Set<string>();
   const seenPairs = new Set<string>();
   for (const d of past) { seenProfileIds.add(d.candidateAId); seenProfileIds.add(d.candidateBId); seenPairs.add(pairKey(d.candidateAId, d.candidateBId)); }
@@ -75,18 +89,18 @@ async function exposureFor(ids: string[]): Promise<Map<string, number>> {
   for(const e of eb) exposure.set(e.candidateBId,(exposure.get(e.candidateBId)??0)+e._count.candidateBId);
   return exposure;
 }
-async function buildDuelCandidates(voterId: string, targetGender: Gender): Promise<[EligibleProfile, EligibleProfile] | null> {
+async function buildDuelCandidates(voterId: string, targetGender: Gender, now: Date): Promise<[EligibleProfile, EligibleProfile] | null> {
   const eligible=(await getEligibleProfiles(voterId)).filter((p) => p.gender === targetGender);
   if(eligible.length<2) return null;
-  const { seenProfileIds, seenPairs } = await historyForVoter(voterId);
+  const { seenProfileIds, seenPairs } = await historyForVoter(voterId, now);
   return pickPair(rankProfiles(eligible, seenProfileIds, await exposureFor(eligible.map(p=>p.id))), seenPairs);
 }
-async function buildMixedCandidates(voterId: string): Promise<[EligibleProfile, EligibleProfile] | null> {
+async function buildMixedCandidates(voterId: string, now: Date): Promise<[EligibleProfile, EligibleProfile] | null> {
   const eligible = await getEligibleProfiles(voterId);
   const men = eligible.filter((p) => p.gender === Gender.HOMME);
   const women = eligible.filter((p) => p.gender === Gender.FEMME);
   if (!men.length || !women.length) return null;
-  const { seenProfileIds, seenPairs } = await historyForVoter(voterId);
+  const { seenProfileIds, seenPairs } = await historyForVoter(voterId, now);
   const exposure = await exposureFor(eligible.map((p) => p.id));
   const rankedMen = rankProfiles(men, seenProfileIds, exposure);
   const rankedWomen = rankProfiles(women, seenProfileIds, exposure);
@@ -95,7 +109,8 @@ async function buildMixedCandidates(voterId: string): Promise<[EligibleProfile, 
       if (!seenPairs.has(pairKey(man.id, woman.id))) return [man, woman];
     }
   }
-  return null;
+  // Même logique de dernier recours pour les petits pools mixtes.
+  return rankedMen[0] && rankedWomen[0] ? [rankedMen[0], rankedWomen[0]] : null;
 }
 async function getOrCreateDuel(voterId:string):Promise<DuelDto|null>{
   const now=new Date();
@@ -105,9 +120,9 @@ async function getOrCreateDuel(voterId:string):Promise<DuelDto|null>{
     if(await candidatePairIsEligible(voterId,pending.candidateAId,pending.candidateBId)) return {duelId:pending.id,candidateA:await profileDtoFor(pending.candidateAId),candidateB:await profileDtoFor(pending.candidateBId)};
     await prisma.weeklyProfileDuel.updateMany({where:{id:pending.id,usedAt:null},data:{expiresAt:now}});
   }
-  let pair=await buildDuelCandidates(voterId, preferredGender);
-  if(!pair) pair=await buildDuelCandidates(voterId, otherMainGender(preferredGender));
-  if(!pair) pair=await buildMixedCandidates(voterId);
+  let pair=await buildDuelCandidates(voterId, preferredGender, now);
+  if(!pair) pair=await buildDuelCandidates(voterId, otherMainGender(preferredGender), now);
+  if(!pair) pair=await buildMixedCandidates(voterId, now);
   if(!pair) return null;
   const [a,b]=pair; const created=await prisma.weeklyProfileDuel.create({data:{userId:voterId,candidateAId:a.id,candidateBId:b.id,expiresAt:new Date(now.getTime()+DUEL_TTL_MS)}}); return {duelId:created.id,candidateA:toDuelProfileDto(a),candidateB:toDuelProfileDto(b)};
 }
