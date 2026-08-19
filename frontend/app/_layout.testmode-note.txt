@@ -1,0 +1,1 @@
+Mode Test integration pending: wire TestModeLink into app/_layout.tsx after inspecting current layout structure.
