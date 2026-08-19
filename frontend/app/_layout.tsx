@@ -5,6 +5,7 @@ import { getToken } from "../src/utils/session";
 import { useNotificationPolling } from "../src/hooks/useNotificationPolling";
 import { usePushNotifications } from "../src/hooks/usePushNotifications";
 import { API_URL } from "../src/api/client";
+import { TestModeLink } from "../src/dev/TestModeLink";
 
 // Paths that don't require authentication (auth flows + in-progress onboarding)
 const AUTH_EXCLUDED: string[] = [
@@ -12,6 +13,7 @@ const AUTH_EXCLUDED: string[] = [
   '/register',
   '/create-profile',
   '/setup-questions',
+  '/test-mode',
 ];
 
 // Paths where the profile gate must NOT redirect
@@ -20,6 +22,7 @@ const PROFILE_GATE_EXCLUDED: string[] = [
   '/setup-questions',
   '/login',
   '/register',
+  '/test-mode',
 ];
 
 export default function RootLayout() {
@@ -85,5 +88,10 @@ export default function RootLayout() {
   useNotificationPolling();
   usePushNotifications();
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+      <TestModeLink />
+    </>
+  );
 }
