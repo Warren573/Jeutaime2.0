@@ -1,16 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { getPublicProfile, reportUser, type PublicProfileResponse } from '../api/profiles';
 import { Avatar } from '../avatar/png/Avatar';
 import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
@@ -18,256 +9,46 @@ import { useStore } from '../store/useStore';
 import { AppBackButton } from '../components/AppBackButton';
 
 const LOOKING_FOR_LABEL: Record<string, string> = {
-  relation: 'Relation sérieuse', RELATION: 'Relation sérieuse',
-  serieux: 'Relation sérieuse', SERIEUX: 'Relation sérieuse',
-  flirt: 'Flirt', FLIRT: 'Flirt',
-  amitie: 'Amitié', AMITIE: 'Amitié',
-  discussion: 'Discussion', DISCUSSION: 'Discussion',
+  relation: "L'âme sœur, rien que ça", RELATION: "L'âme sœur, rien que ça", serieux: "L'âme sœur, rien que ça", SERIEUX: "L'âme sœur, rien que ça",
+  flirt: 'Rien de trop sérieux', FLIRT: 'Rien de trop sérieux',
+  amitie: "Des affinités d'abord", AMITIE: "Des affinités d'abord",
+  discussion: "J'ai vu de la lumière, je suis entré·e", DISCUSSION: "J'ai vu de la lumière, je suis entré·e",
 };
-
 const INTERESTED_IN_LABEL: Record<string, string> = {
-  F: 'Femmes', FEMME: 'Femmes', women: 'Femmes', WOMEN: 'Femmes',
-  M: 'Hommes', HOMME: 'Hommes', men: 'Hommes', MEN: 'Hommes',
-  NB: 'Non-binaires', AUTRE: 'Non-binaires', other: 'Non-binaires', OTHER: 'Non-binaires',
+  F:'Femmes', FEMME:'Femmes', women:'Femmes', WOMEN:'Femmes', M:'Hommes', HOMME:'Hommes', men:'Hommes', MEN:'Hommes', NB:'Non-binaires', AUTRE:'Non-binaires', other:'Non-binaires', OTHER:'Non-binaires',
 };
-
-const PHYSICAL_DESC_LABEL: Record<string, string> = {
-  filiforme: 'Filiforme',
-  ras_motte: 'Ras des mottes',
-  grande_gigue: 'Grande gigue',
-  doux: 'Grande beauté intérieure',
-  beaute_int: 'Grande beauté intérieure',
-  athletique: 'Athlétique',
-  costaud: 'En formes généreuses',
-  genereuse: 'En formes généreuses',
-  mignon: 'Moyenne',
-  moyenne: 'Moyenne',
-  mysterieux: 'Musclé·e',
-  muscle: 'Musclé·e',
+const PHYSICAL_DESC_LABEL: Record<string, {label:string;sub:string}> = {
+  filiforme:{label:'Filiforme',sub:'Le vent me connaît bien.'}, ras_motte:{label:'Ras des mottes',sub:'Petit format, grande présence.'}, grande_gigue:{label:'Grande gigue',sub:'Les étagères du haut sont pour moi.'},
+  doux:{label:'Grande beauté intérieure',sub:"Et c'est déjà beaucoup."}, beaute_int:{label:'Grande beauté intérieure',sub:"Et c'est déjà beaucoup."}, athletique:{label:'Athlétique',sub:'Toujours plus ou moins en mouvement.'},
+  costaud:{label:'En formes généreuses',sub:'Les courbes ont aussi leur mot à dire.'}, genereuse:{label:'En formes généreuses',sub:'Les courbes ont aussi leur mot à dire.'}, mignon:{label:'Dans la moyenne',sub:'Ni trop, ni pas assez.'}, moyenne:{label:'Dans la moyenne',sub:'Ni trop, ni pas assez.'}, mysterieux:{label:'Musclé·e',sub:'Ça se remarque parfois sous le t-shirt.'}, muscle:{label:'Musclé·e',sub:'Ça se remarque parfois sous le t-shirt.'},
 };
+function calcAge(birthDate?: string | null): number | null { if(!birthDate)return null; const b=new Date(birthDate); if(Number.isNaN(b.getTime()))return null; const n=new Date(); let a=n.getFullYear()-b.getFullYear(); if(n.getMonth()<b.getMonth()||(n.getMonth()===b.getMonth()&&n.getDate()<b.getDate()))a--; return a; }
+function cleanArray(value: unknown): string[] { return Array.isArray(value)?value.map(v=>String(v).trim()).filter(Boolean):[]; }
+function PaperCard({title,note,children,tilt}:{title:string;note?:string;children:React.ReactNode;tilt?:'left'|'right'}) { return <View style={[styles.paperCard,tilt==='left'&&styles.tiltLeft,tilt==='right'&&styles.tiltRight]}><View style={styles.tape}/><Text style={styles.cardTitle}>{title}</Text>{!!note&&<Text style={styles.cardNote}>{note}</Text>}{children}</View>; }
 
-function calcAge(birthDate?: string | null): number | null {
-  if (!birthDate) return null;
-  const birth = new Date(birthDate);
-  if (Number.isNaN(birth.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - birth.getFullYear();
-  if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) age--;
-  return age;
+export default function ProfileDetailScreen(){
+ const router=useRouter(); const insets=useSafeAreaInsets(); const params=useLocalSearchParams<{id?:string}>(); const profileId=Array.isArray(params.id)?params.id[0]:params.id; const currentUser=useStore(s=>s.currentUser);
+ const[data,setData]=useState<PublicProfileResponse|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState<string|null>(null),[reporting,setReporting]=useState(false); const isOwnProfile=!!profileId&&currentUser?.id===profileId;
+ useEffect(()=>{let mounted=true; const load=async()=>{if(!profileId){setError('Profil introuvable');setLoading(false);return;} try{setLoading(true);const result=await getPublicProfile(profileId);if(mounted)setData(result);}catch(err:any){if(mounted)setError(err?.message||'Impossible de charger le profil');}finally{if(mounted)setLoading(false);}};void load();return()=>{mounted=false;};},[profileId]);
+ const profile=data?.profile as any; const age=useMemo(()=>calcAge(profile?.birthDate),[profile?.birthDate]);
+ const report=async()=>{if(!profileId||isOwnProfile||reporting)return;try{setReporting(true);await reportUser(profileId,'OTHER');Alert.alert('Signalement envoyé','Merci, le profil sera examiné.');}catch(err:any){Alert.alert('Erreur',err?.message||'Impossible de signaler ce profil');}finally{setReporting(false);}};
+ if(loading)return <View style={[styles.container,styles.center]}><ActivityIndicator size="large" color="#A7324B"/></View>;
+ if(error||!profile)return <View style={[styles.container,{paddingTop:insets.top}]}><View style={styles.header}><AppBackButton onPress={()=>router.back()}/><Text style={styles.headerTitle}>PROFIL</Text><View style={styles.headerSpacer}/></View><View style={styles.center}><Text style={styles.errorText}>{error??'Profil introuvable'}</Text></View></View>;
+ const avatar=resolveAvatarConfig(profile.userId??profile.id,profile.avatarConfig,profile.gender,'ProfileDetailScreen').config;
+ const lookingFor=cleanArray(profile.lookingFor).map(v=>LOOKING_FOR_LABEL[v]??v); const interestedIn=cleanArray(profile.interestedIn).map(v=>INTERESTED_IN_LABEL[v]??v); const identityTags=cleanArray(profile.identityTags); const skills=Array.isArray(profile.skills)?profile.skills.filter((s:any)=>s?.label||s?.detail).slice(0,3):[]; const physical=PHYSICAL_DESC_LABEL[String(profile.physicalDesc??'')];
+ return <View style={[styles.container,{paddingTop:insets.top}]}>
+  <View style={styles.header}><AppBackButton onPress={()=>router.back()}/><Text style={styles.headerTitle}>PROFIL</Text>{isOwnProfile?<TouchableOpacity style={styles.headerAction} onPress={()=>router.push('/edit-profile' as any)}><Text style={styles.headerActionText}>Modifier</Text></TouchableOpacity>:<TouchableOpacity style={styles.headerAction} onPress={report} disabled={reporting}><Text style={styles.headerActionText}>{reporting?'...':'Signaler'}</Text></TouchableOpacity>}</View>
+  <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+   <View style={styles.heroPaper}><View style={styles.heroTape}/><View style={styles.avatarCircle}><Avatar size={118} {...avatar}/></View><Text style={styles.name}>{profile.pseudo||profile.name||'Profil'}</Text><Text style={styles.meta}>{[age?`${age} ans`:'',profile.city||''].filter(Boolean).join(' · ')}</Text><Text style={styles.heroCaption}>Quelques pages pour se dévoiler doucement.</Text></View>
+   {!!profile.bio&&<PaperCard title="EN QUELQUES MOTS" note="La partie où on essaie de résumer une personne entière en quelques lignes." tilt="left"><Text style={styles.bodyText}>{String(profile.bio).trim()}</Text></PaperCard>}
+   {(lookingFor.length>0||interestedIn.length>0)&&<PaperCard title="CE QUE JE CHERCHE ICI" tilt="right">{lookingFor.map((item,i)=><View key={`${item}-${i}`} style={styles.statement}><Text style={styles.statementText}>{item}</Text></View>)}{interestedIn.length>0&&<View style={styles.freeLine}><Text style={styles.smallLabel}>J'aimerais rencontrer</Text><Text style={styles.bodyStrong}>{interestedIn.join(' · ')}</Text></View>}</PaperCard>}
+   {(profile.height||physical)&&<PaperCard title="LE PORTRAIT RAPIDE" note="À prendre comme une indication, pas comme une fiche technique.">{!!profile.height&&<View style={styles.detailRow}><Text style={styles.detailLabel}>Taille</Text><Text style={styles.detailValue}>{profile.height} cm</Text></View>}{!!physical&&<View style={styles.physicalNote}><Text style={styles.physicalTitle}>{physical.label}</Text><Text style={styles.physicalSub}>{physical.sub}</Text></View>}</PaperCard>}
+   {((profile.hasChildren!==null&&profile.hasChildren!==undefined)||(profile.wantsChildren!==null&&profile.wantsChildren!==undefined))&&<PaperCard title="CÔTÉ FAMILLE" tilt="left">{profile.hasChildren!==null&&profile.hasChildren!==undefined&&<View style={styles.detailRow}><Text style={styles.detailLabel}>Enfants</Text><Text style={styles.detailValue}>{profile.hasChildren?'Oui':'Non'}</Text></View>}{profile.wantsChildren!==null&&profile.wantsChildren!==undefined&&<View style={styles.detailRow}><Text style={styles.detailLabel}>Pour plus tard</Text><Text style={styles.detailValue}>{profile.wantsChildren?'Pourquoi pas agrandir la troupe':'La troupe est très bien comme ça'}</Text></View>}</PaperCard>}
+   {identityTags.length>0&&<PaperCard title="QUI JE SUIS" note="Quelques étiquettes, en attendant qu'on trouve mieux."><View style={styles.chipWrap}>{identityTags.map((tag,index)=><View style={styles.chip} key={`${tag}-${index}`}><Text style={styles.chipText}>{tag}</Text></View>)}</View></PaperCard>}
+   {skills.length>0&&<PaperCard title="CE QUE JE GÈRE (PLUS OU MOINS BIEN)" tilt="right">{skills.map((skill:any,index:number)=><View style={styles.skillCard} key={`${skill.label??'skill'}-${index}`}><Text style={styles.skillIndex}>{String(index+1).padStart(2,'0')}</Text><View style={styles.skillBody}>{!!skill.label&&<Text style={styles.skillTitle}>{skill.label}</Text>}{!!skill.detail&&<Text style={styles.bodyText}>{skill.detail}</Text>}</View></View>)}</PaperCard>}
+   <Text style={styles.footerNote}>Le reste se découvre en parlant.</Text>
+  </ScrollView>
+ </View>;
 }
-
-function cleanArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.map(v => String(v).trim()).filter(Boolean) : [];
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-
-export default function ProfileDetailScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ id?: string }>();
-  const profileId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const currentUser = useStore(s => s.currentUser);
-
-  const [data, setData] = useState<PublicProfileResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [reporting, setReporting] = useState(false);
-
-  const isOwnProfile = !!profileId && currentUser?.id === profileId;
-
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      if (!profileId) {
-        setError('Profil introuvable');
-        setLoading(false);
-        return;
-      }
-      try {
-        setLoading(true);
-        const result = await getPublicProfile(profileId);
-        if (mounted) setData(result);
-      } catch (err: any) {
-        if (mounted) setError(err?.message || 'Impossible de charger le profil');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-    void load();
-    return () => { mounted = false; };
-  }, [profileId]);
-
-  const profile = data?.profile as any;
-  const age = useMemo(() => calcAge(profile?.birthDate), [profile?.birthDate]);
-
-  const report = async () => {
-    if (!profileId || isOwnProfile || reporting) return;
-    try {
-      setReporting(true);
-      await reportUser(profileId, 'OTHER');
-      Alert.alert('Signalement envoyé', 'Merci, le profil sera examiné.');
-    } catch (err: any) {
-      Alert.alert('Erreur', err?.message || 'Impossible de signaler ce profil');
-    } finally {
-      setReporting(false);
-    }
-  };
-
-  if (loading) {
-    return <View style={[styles.container, styles.center]}><ActivityIndicator size="large" color="#9C2F45" /></View>;
-  }
-
-  if (error || !profile) {
-    return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <AppBackButton onPress={() => router.back()} />
-          <Text style={styles.headerTitle}>PROFIL</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-        <View style={styles.center}><Text style={styles.errorText}>{error ?? 'Profil introuvable'}</Text></View>
-      </View>
-    );
-  }
-
-  const avatar = resolveAvatarConfig(profile.userId ?? profile.id, profile.avatarConfig, profile.gender, 'ProfileDetailScreen').config;
-  const lookingFor = cleanArray(profile.lookingFor).map(v => LOOKING_FOR_LABEL[v] ?? v);
-  const interestedIn = cleanArray(profile.interestedIn).map(v => INTERESTED_IN_LABEL[v] ?? v);
-  const identityTags = cleanArray(profile.identityTags);
-  const skills = Array.isArray(profile.skills) ? profile.skills.filter((s: any) => s?.label || s?.detail).slice(0, 3) : [];
-  const physicalDesc = PHYSICAL_DESC_LABEL[String(profile.physicalDesc ?? '')] ?? String(profile.physicalDesc ?? '');
-
-  return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <AppBackButton onPress={() => router.back()} />
-        <Text style={styles.headerTitle}>PROFIL</Text>
-        {isOwnProfile ? (
-          <TouchableOpacity style={styles.headerAction} onPress={() => router.push('/edit-profile' as any)}>
-            <Text style={styles.headerActionText}>Modifier</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.headerAction} onPress={report} disabled={reporting}>
-            <Text style={styles.headerActionText}>{reporting ? '...' : 'Signaler'}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.hero}>
-          <Avatar size={112} {...avatar} />
-          <Text style={styles.name}>{profile.pseudo || profile.name || 'Profil'}</Text>
-          <Text style={styles.meta}>{[age ? `${age} ans` : '', profile.city || ''].filter(Boolean).join(' · ')}</Text>
-        </View>
-
-        {!!profile.bio && (
-          <Section title="BIO / DESCRIPTION">
-            <Text style={styles.bodyText}>{String(profile.bio).trim()}</Text>
-          </Section>
-        )}
-
-        {(lookingFor.length > 0 || interestedIn.length > 0) && (
-          <Section title="CE QUE JE RECHERCHE">
-            {lookingFor.length > 0 && <Text style={styles.bodyText}>{lookingFor.join(' · ')}</Text>}
-            {interestedIn.length > 0 && (
-              <View style={styles.lineBlock}>
-                <Text style={styles.label}>Intéressé·e par</Text>
-                <Text style={styles.bodyText}>{interestedIn.join(' · ')}</Text>
-              </View>
-            )}
-          </Section>
-        )}
-
-        {(profile.height || physicalDesc) && (
-          <Section title="DESCRIPTION PHYSIQUE">
-            {!!profile.height && <Text style={styles.bodyText}>{profile.height} cm</Text>}
-            {!!physicalDesc && <Text style={styles.bodyText}>{physicalDesc}</Text>}
-          </Section>
-        )}
-
-        {(profile.hasChildren !== null && profile.hasChildren !== undefined) || (profile.wantsChildren !== null && profile.wantsChildren !== undefined) ? (
-          <Section title="ENFANTS">
-            {profile.hasChildren !== null && profile.hasChildren !== undefined && (
-              <View style={styles.lineBlock}>
-                <Text style={styles.label}>A des enfants</Text>
-                <Text style={styles.bodyText}>{profile.hasChildren ? 'Oui' : 'Non'}</Text>
-              </View>
-            )}
-            {profile.wantsChildren !== null && profile.wantsChildren !== undefined && (
-              <View style={styles.lineBlock}>
-                <Text style={styles.label}>Souhaite avoir des enfants</Text>
-                <Text style={styles.bodyText}>{profile.wantsChildren ? 'Oui' : 'Non'}</Text>
-              </View>
-            )}
-          </Section>
-        ) : null}
-
-        {identityTags.length > 0 && (
-          <Section title="TRAITS D’IDENTITÉ">
-            <View style={styles.chipWrap}>
-              {identityTags.map((tag, index) => (
-                <View style={styles.chip} key={`${tag}-${index}`}>
-                  <Text style={styles.chipText}>{tag}</Text>
-                </View>
-              ))}
-            </View>
-          </Section>
-        )}
-
-        {skills.length > 0 && (
-          <Section title="COMPÉTENCES / TALENTS">
-            {skills.map((skill: any, index: number) => (
-              <View style={styles.skillCard} key={`${skill.label ?? 'skill'}-${index}`}>
-                {!!skill.label && <Text style={styles.skillTitle}>{skill.label}</Text>}
-                {!!skill.detail && <Text style={styles.bodyText}>{skill.detail}</Text>}
-              </View>
-            ))}
-          </Section>
-        )}
-      </ScrollView>
-    </View>
-  );
-}
-
-const COLORS = {
-  background: '#F7F0E5',
-  paper: '#FFFDF8',
-  border: '#DFD0BC',
-  ink: '#34271F',
-  muted: '#7D6D5D',
-  accent: '#9C2F45',
-  soft: '#F4E7DD',
-};
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  errorText: { color: COLORS.muted, fontSize: 14, textAlign: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.paper },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '900', color: COLORS.ink, letterSpacing: 1.2 },
-  headerSpacer: { width: 64 },
-  headerAction: { minWidth: 64, alignItems: 'flex-end' },
-  headerActionText: { fontSize: 12, fontWeight: '800', color: COLORS.accent },
-  scroll: { padding: 16, paddingBottom: 60 },
-  hero: { alignItems: 'center', backgroundColor: COLORS.paper, borderWidth: 1, borderColor: COLORS.border, borderRadius: 20, paddingVertical: 20, paddingHorizontal: 16 },
-  name: { marginTop: 10, fontSize: 23, fontWeight: '900', color: COLORS.ink },
-  meta: { marginTop: 4, fontSize: 13, color: COLORS.muted },
-  section: { backgroundColor: COLORS.paper, borderWidth: 1, borderColor: COLORS.border, borderRadius: 18, padding: 16, marginTop: 14 },
-  sectionTitle: { fontSize: 13, fontWeight: '900', color: COLORS.ink, letterSpacing: 0.7, marginBottom: 10 },
-  bodyText: { fontSize: 14, lineHeight: 21, color: COLORS.ink },
-  label: { fontSize: 11, fontWeight: '800', color: COLORS.muted, marginBottom: 3 },
-  lineBlock: { marginTop: 10 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { backgroundColor: COLORS.soft, borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 7 },
-  chipText: { fontSize: 12, fontWeight: '700', color: COLORS.ink },
-  skillCard: { backgroundColor: COLORS.soft, borderRadius: 13, padding: 12, marginTop: 8 },
-  skillTitle: { fontSize: 14, fontWeight: '800', color: COLORS.ink, marginBottom: 4 },
-});
+const C={bg:'#F3EBDD',paper:'#FFFDF8',paper2:'#F7EEE4',line:'#DCC9B2',ink:'#34271F',muted:'#8D7A67',burgundy:'#A7324B',burgundySoft:'#F5E5E5',tape:'#E6D2B8'};
+const styles=StyleSheet.create({container:{flex:1,backgroundColor:C.bg},center:{flex:1,alignItems:'center',justifyContent:'center',padding:24},errorText:{color:C.muted,fontSize:14,textAlign:'center'},header:{flexDirection:'row',alignItems:'center',paddingHorizontal:12,paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.paper},headerTitle:{flex:1,textAlign:'center',fontSize:18,fontWeight:'900',color:C.ink,letterSpacing:1.6},headerSpacer:{width:64},headerAction:{minWidth:64,alignItems:'flex-end'},headerActionText:{fontSize:13,fontWeight:'800',color:C.burgundy},scroll:{padding:16,paddingBottom:70},heroPaper:{position:'relative',alignItems:'center',backgroundColor:C.paper,borderWidth:1,borderColor:C.line,borderRadius:26,paddingVertical:24,paddingHorizontal:16,marginBottom:18,shadowColor:'#000',shadowOffset:{width:0,height:3},shadowOpacity:.05,shadowRadius:8,elevation:2},heroTape:{position:'absolute',top:-7,width:82,height:20,backgroundColor:C.tape,opacity:.75,transform:[{rotate:'-2deg'}]},avatarCircle:{width:136,height:136,borderRadius:68,alignItems:'center',justifyContent:'center',backgroundColor:C.paper2,borderWidth:1,borderColor:C.line},name:{marginTop:12,fontSize:25,fontWeight:'900',color:C.ink},meta:{marginTop:4,fontSize:14,color:C.muted},heroCaption:{marginTop:10,fontSize:12,color:C.muted,fontStyle:'italic'},paperCard:{position:'relative',backgroundColor:C.paper,borderWidth:1,borderColor:C.line,borderRadius:22,padding:18,paddingTop:23,marginBottom:18,shadowColor:'#000',shadowOffset:{width:0,height:2},shadowOpacity:.035,shadowRadius:5,elevation:1},tiltLeft:{transform:[{rotate:'-.35deg'}]},tiltRight:{transform:[{rotate:'.35deg'}]},tape:{position:'absolute',top:-7,left:28,width:68,height:18,backgroundColor:C.tape,opacity:.7,transform:[{rotate:'-3deg'}]},cardTitle:{fontSize:16,fontWeight:'900',letterSpacing:.9,color:C.ink},cardNote:{fontSize:12,color:C.muted,fontStyle:'italic',lineHeight:18,marginTop:5,marginBottom:12},bodyText:{fontSize:15,lineHeight:22,color:C.ink},bodyStrong:{fontSize:15,fontWeight:'800',color:C.ink,marginTop:3},statement:{backgroundColor:C.burgundySoft,borderRadius:14,padding:12,marginTop:10,borderWidth:1,borderColor:'#E9CECE'},statementText:{fontSize:15,fontWeight:'800',color:C.ink},freeLine:{marginTop:16,borderTopWidth:1,borderTopColor:C.line,paddingTop:13},smallLabel:{fontSize:11,fontWeight:'800',color:C.muted,textTransform:'uppercase',letterSpacing:.7},detailRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingVertical:10,borderBottomWidth:1,borderBottomColor:'#EFE4D8'},detailLabel:{fontSize:13,fontWeight:'800',color:C.muted},detailValue:{fontSize:14,fontWeight:'800',color:C.ink,maxWidth:'65%',textAlign:'right'},physicalNote:{marginTop:12,backgroundColor:C.paper2,borderRadius:14,padding:13},physicalTitle:{fontSize:15,fontWeight:'900',color:C.ink},physicalSub:{fontSize:12,color:C.muted,fontStyle:'italic',marginTop:3},chipWrap:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},chip:{backgroundColor:C.paper2,borderWidth:1,borderColor:C.line,borderRadius:16,paddingHorizontal:11,paddingVertical:7},chipText:{fontSize:12,fontWeight:'700',color:C.ink},skillCard:{flexDirection:'row',alignItems:'flex-start',backgroundColor:C.paper2,borderRadius:15,padding:12,marginTop:10},skillIndex:{fontSize:11,fontWeight:'900',color:C.burgundy,marginRight:10,marginTop:2},skillBody:{flex:1},skillTitle:{fontSize:15,fontWeight:'900',color:C.ink,marginBottom:3},footerNote:{textAlign:'center',fontSize:12,color:C.muted,fontStyle:'italic',marginTop:2}});
