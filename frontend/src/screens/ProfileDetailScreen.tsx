@@ -140,7 +140,6 @@ export default function ProfileDetailScreen() {
   const interestedIn = cleanArray(profile.interestedIn).map(v => INTERESTED_IN_LABEL[v] ?? v);
   const identityTags = cleanArray(profile.identityTags);
   const skills = Array.isArray(profile.skills) ? profile.skills.filter(skill => skill?.label || skill?.detail).slice(0, 3) : [];
-  const questions = Array.isArray(profile.questions) ? profile.questions.filter(question => question?.questionText).slice(0, 3) : [];
   const physical = PHYSICAL_DESC_LABEL[String(profile.physicalDesc ?? '')];
 
   return (
@@ -160,17 +159,16 @@ export default function ProfileDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.introCard}>
-          <View style={styles.avatarFrame}><Avatar size={106} {...avatar} /></View>
-          <Text style={styles.introTitle}>Petit carnet de présentation</Text>
-          <Text style={styles.introSub}>Pas un CV. Juste assez pour donner envie d'en savoir plus.</Text>
+        <View style={styles.profileHeaderCard}>
+          <View style={styles.avatarBox}>
+            <Avatar size={106} {...avatar} />
+          </View>
+          <View style={styles.profileHeaderInfo}>
+            <Text style={styles.profilePseudo}>{profile.pseudo || '—'}</Text>
+            <Text style={styles.profileAge}>{age != null ? `${age} ans` : 'Âge non précisé'}</Text>
+            <Text style={styles.profileCity}>{profile.city || 'Ville non précisée'}</Text>
+          </View>
         </View>
-
-        <PaperSection title="IDENTITÉ" note="Les bases. Rien de très mystérieux pour l'instant.">
-          <View style={styles.infoRow}><Text style={styles.label}>Pseudo</Text><Text style={styles.value}>{profile.pseudo || '—'}</Text></View>
-          <View style={styles.infoRow}><Text style={styles.label}>Âge</Text><Text style={styles.value}>{age != null ? `${age} ans` : '—'}</Text></View>
-          <View style={styles.infoRow}><Text style={styles.label}>Ville</Text><Text style={styles.value}>{profile.city || '—'}</Text></View>
-        </PaperSection>
 
         <PaperSection title="BIO / DESCRIPTION" note="Quelques lignes valent mieux qu'une liste de courses.">
           <Text style={styles.bodyText}>{profile.bio?.trim() || 'Rien d’écrit pour le moment.'}</Text>
@@ -229,15 +227,6 @@ export default function ProfileDetailScreen() {
             </View>
           )) : <Text style={styles.emptyText}>Aucun talent déclaré. Ça ne veut pas dire qu’il n’y en a pas.</Text>}
         </PaperSection>
-
-        <PaperSection title="MES 3 QUESTIONS" note="Les réponses restent secrètes. Sinon ce serait beaucoup trop facile.">
-          {questions.length > 0 ? questions.map((question, index) => (
-            <View style={styles.questionCard} key={question.questionId || index}>
-              <Text style={styles.questionNumber}>QUESTION {index + 1}</Text>
-              <Text style={styles.questionText}>{question.questionText}</Text>
-            </View>
-          )) : <Text style={styles.emptyText}>Les questions ne sont pas encore renseignées.</Text>}
-        </PaperSection>
       </ScrollView>
     </View>
   );
@@ -258,10 +247,12 @@ const styles = StyleSheet.create({
   headerAction: { minWidth: 64, alignItems: 'flex-end' },
   headerActionText: { fontSize: 13, fontWeight: '800', color: C.burgundy },
   scroll: { padding: 16, paddingBottom: 70 },
-  introCard: { alignItems: 'center', backgroundColor: C.paper, borderWidth: 1, borderColor: C.line, borderRadius: 24, padding: 18, marginBottom: 18 },
-  avatarFrame: { width: 128, height: 128, borderRadius: 64, alignItems: 'center', justifyContent: 'center', backgroundColor: C.paper2, borderWidth: 1, borderColor: C.line },
-  introTitle: { marginTop: 12, fontSize: 18, fontWeight: '900', color: C.ink },
-  introSub: { marginTop: 5, fontSize: 12, color: C.muted, fontStyle: 'italic', textAlign: 'center', lineHeight: 18 },
+  profileHeaderCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.paper, borderWidth: 1, borderColor: C.line, borderRadius: 22, padding: 16, marginBottom: 18 },
+  avatarBox: { width: 128, height: 128, alignItems: 'center', justifyContent: 'center', backgroundColor: C.paper2, borderWidth: 1, borderColor: C.line, borderRadius: 18 },
+  profileHeaderInfo: { flex: 1, paddingLeft: 18, justifyContent: 'center' },
+  profilePseudo: { fontSize: 24, fontWeight: '900', color: C.ink },
+  profileAge: { marginTop: 7, fontSize: 16, fontWeight: '700', color: C.muted },
+  profileCity: { marginTop: 5, fontSize: 15, color: C.muted },
   paperSection: { position: 'relative', backgroundColor: C.paper, borderWidth: 1, borderColor: C.line, borderRadius: 22, padding: 18, paddingTop: 23, marginBottom: 18 },
   tape: { position: 'absolute', top: -7, left: 28, width: 68, height: 18, backgroundColor: C.tape, opacity: 0.7, transform: [{ rotate: '-3deg' }] },
   sectionTitle: { fontSize: 16, fontWeight: '900', letterSpacing: 0.9, color: C.ink },
@@ -283,7 +274,4 @@ const styles = StyleSheet.create({
   physicalSub: { fontSize: 12, color: C.muted, fontStyle: 'italic', marginTop: 3 },
   skillCard: { backgroundColor: C.paper2, borderRadius: 15, padding: 12, marginTop: 10 },
   skillTitle: { fontSize: 15, fontWeight: '900', color: C.ink, marginBottom: 3 },
-  questionCard: { backgroundColor: C.paper2, borderRadius: 14, padding: 13, marginTop: 9, borderWidth: 1, borderColor: C.line },
-  questionNumber: { fontSize: 10, fontWeight: '900', color: C.burgundy, letterSpacing: 0.8, marginBottom: 5 },
-  questionText: { fontSize: 14, fontWeight: '700', lineHeight: 20, color: C.ink },
 });
