@@ -96,8 +96,8 @@ export function EditProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { currentUser, hydrateFromApi } = useStore();
-  const [pseudo, setPseudo] = useState(currentUser?.pseudo ?? currentUser?.name ?? '');
-  const [birthDate, setBirthDate] = useState(currentUser?.birthDate ? String(currentUser.birthDate).slice(0, 10) : '');
+  const pseudo = currentUser?.pseudo ?? currentUser?.name ?? '';
+  const birthDate = currentUser?.birthDate ? String(currentUser.birthDate).slice(0, 10) : '';
   const [city, setCity] = useState(currentUser?.city ?? '');
   const [bio, setBio] = useState(currentUser?.bio ?? '');
   const [height, setHeight] = useState(currentUser?.height != null ? String(currentUser.height) : '');
@@ -119,14 +119,12 @@ export function EditProfileScreen() {
   const toggle = (value: string, list: string[], setter: (v: string[]) => void) => setter(list.includes(value) ? list.filter(item => item !== value) : [...list, value]);
 
   const save = async () => {
-    if (!pseudo.trim()) return Alert.alert('Profil incomplet', 'Renseigne ton pseudo.');
     if (saving) return;
     const heightNumber = Number.parseInt(height, 10);
     const validSkills = skills.filter(s => s.label.trim() || s.detail.trim()).slice(0, 3).map(s => ({ ...s, label: s.label.trim(), detail: s.detail.trim() }));
     try {
       setSaving(true);
       await apiFetch('/profiles/me', { method: 'PATCH', body: JSON.stringify({
-        pseudo: pseudo.trim(), birthDate: birthDate.trim() ? new Date(`${birthDate.trim()}T00:00:00.000Z`).toISOString() : undefined,
         city: city.trim(), bio: bio.trim(), physicalDesc: physicalDesc || undefined, lookingFor, interestedIn,
         ...(heightNumber >= 100 && heightNumber <= 250 ? { height: heightNumber } : {}),
         ...(hasChildren !== null ? { hasChildren } : {}), ...(wantsChildren !== null ? { wantsChildren } : {}),
@@ -156,9 +154,9 @@ export function EditProfileScreen() {
           <TouchableOpacity onPress={() => router.push('/my-photos' as any)}><Text style={styles.textLink}>Gérer mes photos</Text></TouchableOpacity>
         </View>
 
-        <PaperSection title="IDENTITÉ" note="Les bases. Rien de très mystérieux pour l'instant.">
-          <Text style={styles.label}>Pseudo</Text><TextInput style={styles.input} value={pseudo} onChangeText={setPseudo} placeholder="Le nom sous lequel on te connaîtra" placeholderTextColor="#A8957C" />
-          <Text style={styles.label}>Date de naissance</Text><TextInput style={styles.input} value={birthDate} onChangeText={setBirthDate} placeholder="AAAA-MM-JJ" placeholderTextColor="#A8957C" />
+        <PaperSection title="IDENTITÉ" note="Le pseudo et la date de naissance sont définis à l'inscription et ne peuvent pas être modifiés ici.">
+          <Text style={styles.label}>Pseudo</Text><TextInput style={[styles.input, styles.lockedInput]} value={pseudo} editable={false} selectTextOnFocus={false} />
+          <Text style={styles.label}>Date de naissance</Text><TextInput style={[styles.input, styles.lockedInput]} value={birthDate} editable={false} selectTextOnFocus={false} />
           <Text style={styles.label}>Ville</Text><TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Là où tu poses tes valises" placeholderTextColor="#A8957C" />
         </PaperSection>
 
@@ -233,7 +231,7 @@ const C = { bg:'#F5EDE0', paper:'#FFFDF8', paper2:'#F7EEE4', ink:'#34271F', mute
 const styles = StyleSheet.create({
   container:{flex:1,backgroundColor:C.bg}, header:{height:64,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:20,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.paper}, headerTitle:{fontSize:19,fontWeight:'900',letterSpacing:2,color:C.ink}, headerAction:{fontSize:15,fontWeight:'800',color:C.burgundy}, scroll:{padding:16,paddingBottom:70},
   introCard:{backgroundColor:C.paper,borderRadius:26,borderWidth:1,borderColor:C.line,padding:18,alignItems:'center',marginBottom:18}, avatarFrame:{width:126,height:126,borderRadius:63,backgroundColor:C.paper2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:C.line}, introText:{alignItems:'center',marginVertical:12}, introTitle:{fontSize:19,fontWeight:'900',color:C.ink}, introSub:{fontSize:13,color:C.muted,lineHeight:19,textAlign:'center',marginTop:5,maxWidth:310}, textLink:{fontSize:13,fontWeight:'800',color:C.burgundy,marginTop:7},
-  paperSection:{position:'relative',backgroundColor:C.paper,borderRadius:25,borderWidth:1,borderColor:C.line,padding:20,paddingTop:24,marginBottom:18}, tape:{position:'absolute',top:-7,left:34,width:74,height:18,backgroundColor:'#E9D8C1',opacity:.7,transform:[{rotate:'-2deg'}]}, sectionTitle:{fontSize:20,fontWeight:'900',letterSpacing:1.2,color:C.ink}, sectionNote:{fontSize:13,color:C.muted,lineHeight:19,fontStyle:'italic',marginTop:5,marginBottom:15}, label:{fontSize:14,fontWeight:'800',color:'#745F4B',marginTop:13,marginBottom:7}, input:{borderWidth:1,borderColor:C.line,borderRadius:15,backgroundColor:C.paper2,paddingHorizontal:14,paddingVertical:12,fontSize:15,color:C.ink}, multiline:{minHeight:130,textAlignVertical:'top'},
+  paperSection:{position:'relative',backgroundColor:C.paper,borderRadius:25,borderWidth:1,borderColor:C.line,padding:20,paddingTop:24,marginBottom:18}, tape:{position:'absolute',top:-7,left:34,width:74,height:18,backgroundColor:'#E9D8C1',opacity:.7,transform:[{rotate:'-2deg'}]}, sectionTitle:{fontSize:20,fontWeight:'900',letterSpacing:1.2,color:C.ink}, sectionNote:{fontSize:13,color:C.muted,lineHeight:19,fontStyle:'italic',marginTop:5,marginBottom:15}, label:{fontSize:14,fontWeight:'800',color:'#745F4B',marginTop:13,marginBottom:7}, input:{borderWidth:1,borderColor:C.line,borderRadius:15,backgroundColor:C.paper2,paddingHorizontal:14,paddingVertical:12,fontSize:15,color:C.ink}, lockedInput:{opacity:.72}, multiline:{minHeight:130,textAlignVertical:'top'},
   chipWrap:{flexDirection:'row',flexWrap:'wrap',gap:8}, chip:{paddingHorizontal:14,paddingVertical:10,borderRadius:22,borderWidth:1,borderColor:C.line,backgroundColor:C.paper2}, chipActive:{backgroundColor:C.burgundy,borderColor:C.burgundy}, chipText:{fontSize:13,fontWeight:'700',color:C.ink}, chipTextActive:{color:'#FFF'},
   bigChoice:{borderWidth:1,borderColor:C.line,borderRadius:16,padding:14,marginBottom:9,backgroundColor:C.paper2}, bigChoiceActive:{borderColor:C.burgundy,backgroundColor:C.burgundySoft}, bigChoiceTitle:{fontSize:15,fontWeight:'900',color:C.ink}, bigChoiceSub:{fontSize:12,color:C.muted,marginTop:3,fontStyle:'italic'}, physicalCard:{borderWidth:1,borderColor:C.line,borderRadius:16,padding:14,marginBottom:9,backgroundColor:C.paper2}, physicalCardActive:{borderColor:C.burgundy,backgroundColor:C.burgundySoft}, physicalTitle:{fontSize:15,fontWeight:'900',color:C.ink}, physicalSub:{fontSize:12,color:C.muted,fontStyle:'italic',marginTop:3},
   skillCard:{backgroundColor:C.burgundySoft,borderRadius:18,padding:12,marginBottom:10}, removeText:{fontSize:13,fontWeight:'800',color:C.burgundy,textAlign:'right',paddingTop:9}, outlineButton:{borderWidth:1.5,borderColor:C.burgundy,borderRadius:18,paddingVertical:14,alignItems:'center',marginTop:4}, outlineButtonText:{fontSize:14,fontWeight:'900',color:C.burgundy},
