@@ -8,23 +8,17 @@ import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import { useStore } from '../store/useStore';
 import { AppBackButton } from '../components/AppBackButton';
 
-const LOOKING_FOR_LABEL: Record<string, string> = {
-  relation: "J'ai vu de la lumière, je suis entré·e",
-  RELATION: "J'ai vu de la lumière, je suis entré·e",
-  serieux: "Je cherche l'âme sœur",
-  SERIEUX: "Je cherche l'âme sœur",
-  serious: "Je cherche l'âme sœur",
-  SERIOUS: "Je cherche l'âme sœur",
-  flirt: 'Rien de trop sérieux',
-  FLIRT: 'Rien de trop sérieux',
-  fun: 'Rien de trop sérieux',
-  FUN: 'Rien de trop sérieux',
-  amitie: "Des affinités, d'abord",
-  AMITIE: "Des affinités, d'abord",
-  friendship: "Des affinités, d'abord",
-  FRIENDSHIP: "Des affinités, d'abord",
-  discussion: 'Je cherche à discuter',
-  DISCUSSION: 'Je cherche à discuter',
+const LOOKING_FOR_LABEL: Record<string, { label: string; sub: string }> = {
+  relation: { label: "L'âme sœur, rien que ça", sub: 'On peut rêver grand.' },
+  RELATION: { label: "L'âme sœur, rien que ça", sub: 'On peut rêver grand.' },
+  serieux: { label: "L'âme sœur, rien que ça", sub: 'On peut rêver grand.' },
+  SERIEUX: { label: "L'âme sœur, rien que ça", sub: 'On peut rêver grand.' },
+  flirt: { label: 'Rien de trop sérieux', sub: 'On verra bien où ça mène.' },
+  FLIRT: { label: 'Rien de trop sérieux', sub: 'On verra bien où ça mène.' },
+  amitie: { label: "Des affinités d'abord", sub: 'Les belles histoires commencent parfois comme ça.' },
+  AMITIE: { label: "Des affinités d'abord", sub: 'Les belles histoires commencent parfois comme ça.' },
+  discussion: { label: "J'ai vu de la lumière", sub: 'Je suis entré·e, on discute.' },
+  DISCUSSION: { label: "J'ai vu de la lumière", sub: 'Je suis entré·e, on discute.' },
 };
 
 const INTERESTED_IN_LABEL: Record<string, string> = {
@@ -34,18 +28,18 @@ const INTERESTED_IN_LABEL: Record<string, string> = {
 };
 
 const PHYSICAL_DESC_LABEL: Record<string, { label: string; sub: string }> = {
-  filiforme: { label: 'Filiforme', sub: 'Comme un spaghetti.' },
-  ras_motte: { label: 'Ras motte', sub: 'Petite taille.' },
-  grande_gigue: { label: 'Grande gigue', sub: 'Très grand·e.' },
-  doux: { label: 'Grande beauté intérieure', sub: 'Ce qui compte vraiment.' },
-  beaute_int: { label: 'Grande beauté intérieure', sub: 'Ce qui compte vraiment.' },
-  athletique: { label: 'Athlétique', sub: 'Toujours en mouvement.' },
-  costaud: { label: 'En formes généreuses', sub: 'Que de courbes !' },
-  genereuse: { label: 'En formes généreuses', sub: 'Que de courbes !' },
-  mignon: { label: 'Moyenne', sub: 'Le juste milieu parfait.' },
-  moyenne: { label: 'Moyenne', sub: 'Le juste milieu parfait.' },
-  mysterieux: { label: 'Musclé·e', sub: 'Ça se voit sous le t-shirt.' },
-  muscle: { label: 'Musclé·e', sub: 'Ça se voit sous le t-shirt.' },
+  filiforme: { label: 'Filiforme', sub: 'Le vent me connaît bien.' },
+  ras_motte: { label: 'Ras des mottes', sub: 'Petit format, grande présence.' },
+  grande_gigue: { label: 'Grande gigue', sub: 'Les étagères du haut sont pour moi.' },
+  doux: { label: 'Grande beauté intérieure', sub: "Et c'est déjà beaucoup." },
+  beaute_int: { label: 'Grande beauté intérieure', sub: "Et c'est déjà beaucoup." },
+  athletique: { label: 'Athlétique', sub: 'Toujours plus ou moins en mouvement.' },
+  costaud: { label: 'En formes généreuses', sub: 'Les courbes ont aussi leur mot à dire.' },
+  genereuse: { label: 'En formes généreuses', sub: 'Les courbes ont aussi leur mot à dire.' },
+  mignon: { label: 'Dans la moyenne', sub: 'Ni trop, ni pas assez.' },
+  moyenne: { label: 'Dans la moyenne', sub: 'Ni trop, ni pas assez.' },
+  mysterieux: { label: 'Musclé·e', sub: 'Ça se remarque parfois sous le t-shirt.' },
+  muscle: { label: 'Musclé·e', sub: 'Ça se remarque parfois sous le t-shirt.' },
 };
 
 function calcAge(birthDate?: string | null): number | null {
@@ -60,18 +54,6 @@ function calcAge(birthDate?: string | null): number | null {
 
 function cleanArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map(v => String(v).trim()).filter(Boolean) : [];
-}
-
-function childrenSummary(hasChildren?: boolean | null, wantsChildren?: boolean | null): string | null {
-  if (hasChildren === true && wantsChildren === true) return 'A des enfants — et prêt·e à agrandir la troupe.';
-  if (hasChildren === true && wantsChildren === false) return "A des enfants, c'est largement suffisant.";
-  if (hasChildren === true && wantsChildren == null) return 'A des enfants.';
-  if (hasChildren === false && wantsChildren === true) return "Pas d'enfants — compte se lancer dans l'élevage de pingouins.";
-  if (hasChildren === false && wantsChildren === false) return "Pas d'enfants, et ça ne changera pas.";
-  if (hasChildren === false && wantsChildren == null) return "Pas d'enfants.";
-  if (hasChildren == null && wantsChildren === true) return 'En réflexion — probablement oui.';
-  if (hasChildren == null && wantsChildren === false) return "Pas vraiment prévu d'enfants.";
-  return null;
 }
 
 function PaperSection({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
@@ -154,12 +136,11 @@ export default function ProfileDetailScreen() {
   }
 
   const avatar = resolveAvatarConfig(profile.userId ?? profile.id, profile.avatarConfig, profile.gender, 'ProfileDetailScreen').config;
-  const lookingFor = cleanArray(profile.lookingFor).map(v => LOOKING_FOR_LABEL[v] ?? v);
+  const lookingFor = cleanArray(profile.lookingFor).map(v => LOOKING_FOR_LABEL[v] ?? { label: v, sub: '' });
   const interestedIn = cleanArray(profile.interestedIn).map(v => INTERESTED_IN_LABEL[v] ?? v);
   const identityTags = cleanArray(profile.identityTags);
   const skills = Array.isArray(profile.skills) ? profile.skills.filter(skill => skill?.label || skill?.detail).slice(0, 3) : [];
   const physical = PHYSICAL_DESC_LABEL[String(profile.physicalDesc ?? '')];
-  const familySummary = childrenSummary(profile.hasChildren, profile.wantsChildren);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -189,17 +170,18 @@ export default function ProfileDetailScreen() {
           </View>
         </View>
 
-        <PaperSection title="BIO / DESCRIPTION">
+        <PaperSection title="BIO / DESCRIPTION" note="Quelques lignes valent mieux qu'une liste de courses.">
           <Text style={styles.bodyText}>{profile.bio?.trim() || 'Rien d’écrit pour le moment.'}</Text>
         </PaperSection>
 
-        <PaperSection title="CE QUE JE CHERCHE ICI">
-          {lookingFor.length > 0 ? lookingFor.map((item, index) => (
-            <View key={`${item}-${index}`} style={styles.bigChoice}>
-              <Text style={styles.bigChoiceTitle}>{item}</Text>
+        <PaperSection title="CE QUE JE CHERCHE" note="Pas besoin de signer un contrat. Voilà ce qui lui ressemble aujourd'hui.">
+          {lookingFor.length > 0 ? lookingFor.map((option, index) => (
+            <View key={`${option.label}-${index}`} style={styles.bigChoice}>
+              <Text style={styles.bigChoiceTitle}>{option.label}</Text>
+              {!!option.sub && <Text style={styles.bigChoiceSub}>{option.sub}</Text>}
             </View>
           )) : <Text style={styles.emptyText}>Pas encore précisé.</Text>}
-          <Text style={styles.labelStandalone}>Intéressé·e par</Text>
+          <Text style={styles.labelStandalone}>Qui aimerait-il·elle rencontrer ?</Text>
           <View style={styles.chipWrap}>
             {interestedIn.length > 0 ? interestedIn.map((item, index) => (
               <View style={styles.chip} key={`${item}-${index}`}><Text style={styles.chipText}>{item}</Text></View>
@@ -207,10 +189,8 @@ export default function ProfileDetailScreen() {
           </View>
         </PaperSection>
 
-        <PaperSection title="UN PEU DE MOI">
-          {!!profile.height && (
-            <View style={styles.infoRow}><Text style={styles.label}>Taille</Text><Text style={styles.value}>{profile.height} cm</Text></View>
-          )}
+        <PaperSection title="UN PEU DE MOI" note="Les mensurations exactes ne sont pas exigées par huissier.">
+          <View style={styles.infoRow}><Text style={styles.label}>Taille</Text><Text style={styles.value}>{profile.height ? `${profile.height} cm` : '—'}</Text></View>
           <Text style={styles.labelStandalone}>Description physique</Text>
           {physical ? (
             <View style={styles.physicalCard}>
@@ -220,7 +200,7 @@ export default function ProfileDetailScreen() {
           ) : <Text style={styles.emptyText}>Pas encore précisée.</Text>}
         </PaperSection>
 
-        <PaperSection title="ENFANTS">
+        <PaperSection title="ENFANTS" note="Sujet important, réponses simples. Et sans interrogatoire familial.">
           <View style={styles.infoRow}>
             <Text style={styles.label}>As-tu des enfants ?</Text>
             <Text style={styles.value}>{profile.hasChildren === true ? 'Oui' : profile.hasChildren === false ? 'Non' : 'Je préfère ne pas préciser'}</Text>
@@ -229,10 +209,9 @@ export default function ProfileDetailScreen() {
             <Text style={styles.label}>Souhaites-tu avoir des enfants ?</Text>
             <Text style={styles.value}>{profile.wantsChildren === true ? 'Oui' : profile.wantsChildren === false ? 'Non' : 'Je ne sais pas encore'}</Text>
           </View>
-          {!!familySummary && <Text style={styles.familySummary}>{familySummary}</Text>}
         </PaperSection>
 
-        <PaperSection title="TRAITS D’IDENTITÉ">
+        <PaperSection title="TRAITS D’IDENTITÉ" note="On garde cette partie pour l'instant. On la retravaillera ensuite.">
           <View style={styles.chipWrap}>
             {identityTags.length > 0 ? identityTags.map((tag, index) => (
               <View style={styles.chip} key={`${tag}-${index}`}><Text style={styles.chipText}>{tag}</Text></View>
@@ -240,7 +219,7 @@ export default function ProfileDetailScreen() {
           </View>
         </PaperSection>
 
-        <PaperSection title="CE QUE JE GÈRE (plus ou moins bien)">
+        <PaperSection title="COMPÉTENCES / TALENTS" note="Les vrais talents, les inutiles, les étrangement spécifiques : tout compte.">
           {skills.length > 0 ? skills.map((skill, index) => (
             <View style={styles.skillCard} key={`${skill.label || 'skill'}-${index}`}>
               {!!skill.label && <Text style={styles.skillTitle}>{skill.label}</Text>}
@@ -286,13 +265,13 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 13, lineHeight: 20, color: C.muted, fontStyle: 'italic' },
   bigChoice: { backgroundColor: C.burgundySoft, borderRadius: 14, padding: 12, marginTop: 9, borderWidth: 1, borderColor: '#E9CECE' },
   bigChoiceTitle: { fontSize: 15, fontWeight: '900', color: C.ink },
+  bigChoiceSub: { fontSize: 12, color: C.muted, fontStyle: 'italic', marginTop: 3 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { backgroundColor: C.paper2, borderWidth: 1, borderColor: C.line, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 7 },
   chipText: { fontSize: 12, fontWeight: '700', color: C.ink },
   physicalCard: { marginTop: 2, backgroundColor: C.paper2, borderRadius: 14, padding: 13, borderWidth: 1, borderColor: C.line },
   physicalTitle: { fontSize: 15, fontWeight: '900', color: C.ink },
   physicalSub: { fontSize: 12, color: C.muted, fontStyle: 'italic', marginTop: 3 },
-  familySummary: { marginTop: 12, fontSize: 13, lineHeight: 19, color: C.muted, fontStyle: 'italic' },
   skillCard: { backgroundColor: C.paper2, borderRadius: 15, padding: 12, marginTop: 10 },
   skillTitle: { fontSize: 15, fontWeight: '900', color: C.ink, marginBottom: 3 },
 });
