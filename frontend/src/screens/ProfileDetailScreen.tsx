@@ -56,19 +56,17 @@ function cleanArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map(v => String(v).trim()).filter(Boolean) : [];
 }
 
-type SectionProps = { title: string; note?: string; index: number; children: React.ReactNode };
+type PaperSectionProps = {
+  title: string;
+  note?: string;
+  tone: 'paper' | 'grid' | 'pink' | 'lavender' | 'yellow';
+  children: React.ReactNode;
+};
 
-function PaperSection({ title, note, index, children }: SectionProps) {
-  const postIt = index === 1 || index === 4 || index === 6;
+function PaperSection({ title, note, tone, children }: PaperSectionProps) {
   return (
-    <View style={[styles.paperSection, index > 0 && styles.paperSectionSeparated]}>
-      {index !== 2 && <View style={[styles.tape, index % 3 === 0 ? styles.tapeLeft : styles.tapeRight]} />}
-      {postIt && (
-        <View style={[styles.postIt, index % 2 === 0 ? styles.postItRight : styles.postItLeft]}>
-          <View style={styles.postItLine} />
-          <View style={styles.postItLineShort} />
-        </View>
-      )}
+    <View style={[styles.noteCard, styles[`tone_${tone}`]]}>
+      <View style={styles.cardTape} />
       <Text style={styles.sectionTitle}>{title}</Text>
       {!!note && <Text style={styles.sectionNote}>{note}</Text>}
       {children}
@@ -91,7 +89,11 @@ export default function ProfileDetailScreen() {
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      if (!profileId) { setError('Profil introuvable'); setLoading(false); return; }
+      if (!profileId) {
+        setError('Profil introuvable');
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         const result = await getPublicProfile(profileId);
@@ -117,10 +119,14 @@ export default function ProfileDetailScreen() {
       Alert.alert('Signalement envoyé', 'Merci, le profil sera examiné.');
     } catch (err: any) {
       Alert.alert('Erreur', err?.message || 'Impossible de signaler ce profil');
-    } finally { setReporting(false); }
+    } finally {
+      setReporting(false);
+    }
   };
 
-  if (loading) return <View style={[styles.container, styles.center]}><ActivityIndicator size="large" color="#A7324B" /></View>;
+  if (loading) {
+    return <View style={[styles.container, styles.center]}><ActivityIndicator size="large" color="#A7324B" /></View>;
+  }
 
   if (error || !profile) {
     return (
@@ -148,57 +154,110 @@ export default function ProfileDetailScreen() {
         <AppBackButton onPress={() => router.back()} />
         <Text style={styles.headerTitle}>PROFIL</Text>
         {isOwnProfile ? (
-          <TouchableOpacity style={styles.headerAction} onPress={() => router.push('/edit-profile' as any)}><Text style={styles.headerActionText}>Modifier</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.headerAction} onPress={() => router.push('/edit-profile' as any)}>
+            <Text style={styles.headerActionText}>Modifier</Text>
+          </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={styles.headerAction} onPress={report} disabled={reporting}><Text style={styles.headerActionText}>{reporting ? '...' : 'Signaler'}</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.headerAction} onPress={report} disabled={reporting}>
+            <Text style={styles.headerActionText}>{reporting ? '...' : 'Signaler'}</Text>
+          </TouchableOpacity>
         )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.profileSheet}>
-          <View style={styles.sheetCornerTape} />
+          <View style={styles.sheetTape} />
+          <View style={styles.paperClip} />
+
           <View style={styles.profileHeader}>
-            <View style={styles.avatarBox}><Avatar size={106} {...avatar} /></View>
+            <View style={styles.avatarBox}>
+              <Avatar size={106} {...avatar} />
+            </View>
             <View style={styles.profileHeaderInfo}>
               <Text style={styles.profilePseudo}>{profile.pseudo || '—'}</Text>
+              <View style={styles.underNameLine} />
               <Text style={styles.profileAge}>{age != null ? `${age} ans` : 'Âge non précisé'}</Text>
               <Text style={styles.profileCity}>{profile.city || 'Ville non précisée'}</Text>
             </View>
+            <View style={styles.headerNote}>
+              <View style={styles.headerNoteLine} />
+              <View style={styles.headerNoteLineShort} />
+            </View>
           </View>
 
-          <PaperSection title="BIO / DESCRIPTION" note="Quelques lignes valent mieux qu'une liste de courses." index={0}>
-            <Text style={styles.bodyText}>{profile.bio?.trim() || 'Rien d’écrit pour le moment.'}</Text>
-          </PaperSection>
+          <View style={styles.grid}>
+            <View style={styles.column}>
+              <PaperSection title="BIO / DESCRIPTION" note="Quelques lignes valent mieux qu'une liste de courses." tone="paper">
+                <Text style={styles.bodyText}>{profile.bio?.trim() || 'Rien d’écrit pour le moment.'}</Text>
+              </PaperSection>
 
-          <PaperSection title="CE QUE JE CHERCHE" note="Pas besoin de signer un contrat. Voilà ce qui lui ressemble aujourd'hui." index={1}>
-            {lookingFor.length > 0 ? lookingFor.map((option, i) => (
-              <View key={`${option.label}-${i}`} style={styles.bigChoice}>
-                <Text style={styles.bigChoiceTitle}>{option.label}</Text>
-                {!!option.sub && <Text style={styles.bigChoiceSub}>{option.sub}</Text>}
-              </View>
-            )) : <Text style={styles.emptyText}>Pas encore précisé.</Text>}
-            <Text style={styles.labelStandalone}>Qui aimerait-il·elle rencontrer ?</Text>
-            <View style={styles.chipWrap}>{interestedIn.length > 0 ? interestedIn.map((item, i) => <View style={styles.chip} key={`${item}-${i}`}><Text style={styles.chipText}>{item}</Text></View>) : <Text style={styles.emptyText}>Pas encore précisé.</Text>}</View>
-          </PaperSection>
+              <PaperSection title="UN PEU DE MOI" note="Les mensurations exactes ne sont pas exigées par huissier." tone="paper">
+                <View style={styles.infoRow}><Text style={styles.label}>Taille</Text><Text style={styles.value}>{profile.height ? `${profile.height} cm` : '—'}</Text></View>
+                <Text style={styles.labelStandalone}>Description physique</Text>
+                {physical ? (
+                  <View style={styles.physicalCard}>
+                    <Text style={styles.physicalTitle}>{physical.label}</Text>
+                    <Text style={styles.physicalSub}>{physical.sub}</Text>
+                  </View>
+                ) : <Text style={styles.emptyText}>Pas encore précisée.</Text>}
+              </PaperSection>
 
-          <PaperSection title="UN PEU DE MOI" note="Les mensurations exactes ne sont pas exigées par huissier." index={2}>
-            <View style={styles.infoRow}><Text style={styles.label}>Taille</Text><Text style={styles.value}>{profile.height ? `${profile.height} cm` : '—'}</Text></View>
-            <Text style={styles.labelStandalone}>Description physique</Text>
-            {physical ? <View style={styles.physicalCard}><Text style={styles.physicalTitle}>{physical.label}</Text><Text style={styles.physicalSub}>{physical.sub}</Text></View> : <Text style={styles.emptyText}>Pas encore précisée.</Text>}
-          </PaperSection>
+              <PaperSection title="TRAITS D’IDENTITÉ" note="On garde cette partie pour l'instant. On la retravaillera ensuite." tone="lavender">
+                <View style={styles.chipWrap}>
+                  {identityTags.length > 0 ? identityTags.map((tag, i) => (
+                    <View style={styles.chip} key={`${tag}-${i}`}><Text style={styles.chipText}>{tag}</Text></View>
+                  )) : <Text style={styles.emptyText}>Aucun trait renseigné pour le moment.</Text>}
+                </View>
+              </PaperSection>
+            </View>
 
-          <PaperSection title="ENFANTS" note="Sujet important, réponses simples. Et sans interrogatoire familial." index={3}>
-            <View style={styles.infoRow}><Text style={styles.label}>As-tu des enfants ?</Text><Text style={styles.value}>{profile.hasChildren === true ? 'Oui' : profile.hasChildren === false ? 'Non' : 'Je préfère ne pas préciser'}</Text></View>
-            <View style={styles.infoRow}><Text style={styles.label}>Souhaites-tu avoir des enfants ?</Text><Text style={styles.value}>{profile.wantsChildren === true ? 'Oui' : profile.wantsChildren === false ? 'Non' : 'Je ne sais pas encore'}</Text></View>
-          </PaperSection>
+            <View style={styles.column}>
+              <PaperSection title="CE QUE JE CHERCHE" note="Pas besoin de signer un contrat. Voilà ce qui lui ressemble aujourd'hui." tone="paper">
+                {lookingFor.length > 0 ? lookingFor.map((option, i) => (
+                  <View key={`${option.label}-${i}`} style={styles.bigChoice}>
+                    <Text style={styles.bigChoiceTitle}>{option.label}</Text>
+                    {!!option.sub && <Text style={styles.bigChoiceSub}>{option.sub}</Text>}
+                  </View>
+                )) : <Text style={styles.emptyText}>Pas encore précisé.</Text>}
+                <Text style={styles.labelStandalone}>Qui aimerait-il·elle rencontrer ?</Text>
+                <View style={styles.chipWrap}>
+                  {interestedIn.length > 0 ? interestedIn.map((item, i) => (
+                    <View style={styles.chip} key={`${item}-${i}`}><Text style={styles.chipText}>{item}</Text></View>
+                  )) : <Text style={styles.emptyText}>Pas encore précisé.</Text>}
+                </View>
+              </PaperSection>
 
-          <PaperSection title="TRAITS D’IDENTITÉ" note="On garde cette partie pour l'instant. On la retravaillera ensuite." index={4}>
-            <View style={styles.chipWrap}>{identityTags.length > 0 ? identityTags.map((tag, i) => <View style={styles.chip} key={`${tag}-${i}`}><Text style={styles.chipText}>{tag}</Text></View>) : <Text style={styles.emptyText}>Aucun trait renseigné pour le moment.</Text>}</View>
-          </PaperSection>
+              <PaperSection title="ENFANTS" note="Sujet important, réponses simples. Et sans interrogatoire familial." tone="grid">
+                <View style={styles.questionBlock}>
+                  <Text style={styles.question}>As-tu des enfants ?</Text>
+                  <Text style={styles.answer}>{profile.hasChildren === true ? 'Oui' : profile.hasChildren === false ? 'Non' : 'Je préfère ne pas préciser'}</Text>
+                </View>
+                <View style={styles.questionBlock}>
+                  <Text style={styles.question}>Souhaites-tu avoir des enfants ?</Text>
+                  <Text style={styles.answer}>{profile.wantsChildren === true ? 'Oui' : profile.wantsChildren === false ? 'Non' : 'Je ne sais pas encore'}</Text>
+                </View>
+              </PaperSection>
 
-          <PaperSection title="COMPÉTENCES / TALENTS" note="Les vrais talents, les inutiles, les étrangement spécifiques : tout compte." index={6}>
-            {skills.length > 0 ? skills.map((skill, i) => <View style={styles.skillCard} key={`${skill.label || 'skill'}-${i}`}>{!!skill.label && <Text style={styles.skillTitle}>{skill.label}</Text>}{!!skill.detail && <Text style={styles.bodyText}>{skill.detail}</Text>}</View>) : <Text style={styles.emptyText}>Aucun talent déclaré. Ça ne veut pas dire qu’il n’y en a pas.</Text>}
-          </PaperSection>
+              <PaperSection title="COMPÉTENCES / TALENTS" note="Les vrais talents, les inutiles, les étrangement spécifiques : tout compte." tone="yellow">
+                {skills.length > 0 ? skills.map((skill, i) => (
+                  <View style={styles.skillCard} key={`${skill.label || 'skill'}-${i}`}>
+                    {!!skill.label && <Text style={styles.skillTitle}>{skill.label}</Text>}
+                    {!!skill.detail && <Text style={styles.bodyText}>{skill.detail}</Text>}
+                  </View>
+                )) : <Text style={styles.emptyText}>Aucun talent déclaré. Ça ne veut pas dire qu’il n’y en a pas.</Text>}
+              </PaperSection>
+            </View>
+          </View>
+
+          <View style={styles.reportStrip}>
+            <View style={styles.reportPaperClip} />
+            <Text style={styles.reportText}>Tu peux toujours signaler ou bloquer ce profil si quelque chose cloche.</Text>
+            {!isOwnProfile && (
+              <TouchableOpacity onPress={report} disabled={reporting}>
+                <Text style={styles.reportAction}>{reporting ? '...' : 'Signaler / Bloquer →'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -206,9 +265,10 @@ export default function ProfileDetailScreen() {
 }
 
 const C = {
-  bg: '#F3EBDD', paper: '#FFFDF8', paper2: '#F7EEE4', line: '#DCC9B2', ink: '#34271F',
-  muted: '#8D7A67', burgundy: '#A7324B', burgundySoft: '#F5E5E5', tape: '#E6D2B8',
-  postIt: '#F4E3A9', postItLine: '#D7C58F', shadow: '#BCA994',
+  bg: '#F3EBDD', paper: '#FFFDF8', gridPaper: '#F9F7F0', pinkPaper: '#F6E6E6',
+  lavender: '#EDE5F2', yellow: '#F3E4A8', paper2: '#F7EEE4', line: '#D9C5AC',
+  ink: '#34271F', muted: '#8D7A67', burgundy: '#A7324B', tape: '#DCC7A9',
+  shadow: '#B8A58E', gridLine: '#D8D4C8',
 };
 
 const styles = StyleSheet.create({
@@ -220,42 +280,53 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 64 },
   headerAction: { minWidth: 64, alignItems: 'flex-end' },
   headerActionText: { fontSize: 13, fontWeight: '800', color: C.burgundy },
-  scroll: { padding: 16, paddingBottom: 70 },
-  profileSheet: { position: 'relative', backgroundColor: C.paper, borderWidth: 1, borderColor: C.line, borderRadius: 8, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24, shadowColor: C.shadow, shadowOpacity: 0.13, shadowRadius: 7, shadowOffset: { width: 1, height: 4 }, elevation: 2 },
-  sheetCornerTape: { position: 'absolute', top: -8, left: '43%', width: 92, height: 21, backgroundColor: C.tape, opacity: 0.82, transform: [{ rotate: '-2deg' }] },
-  profileHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 22, borderBottomWidth: 1, borderBottomColor: '#E8D9C7' },
-  avatarBox: { width: 128, height: 128, alignItems: 'center', justifyContent: 'center', backgroundColor: C.paper2, borderWidth: 1, borderColor: C.line, borderRadius: 8 },
+  scroll: { padding: 14, paddingBottom: 70 },
+  profileSheet: { position: 'relative', backgroundColor: C.paper, borderWidth: 1, borderColor: C.line, borderRadius: 2, padding: 12, shadowColor: C.shadow, shadowOpacity: 0.2, shadowRadius: 7, shadowOffset: { width: 1, height: 4 }, elevation: 2 },
+  sheetTape: { position: 'absolute', zIndex: 5, top: -9, left: '44%', width: 92, height: 21, backgroundColor: C.tape, opacity: 0.8, transform: [{ rotate: '-4deg' }] },
+  paperClip: { position: 'absolute', zIndex: 6, top: 15, left: 10, width: 26, height: 55, borderLeftWidth: 2, borderTopWidth: 2, borderRightWidth: 2, borderColor: '#9D9386', borderRadius: 13, transform: [{ rotate: '-12deg' }] },
+  profileHeader: { position: 'relative', flexDirection: 'row', alignItems: 'center', minHeight: 165, padding: 10, paddingLeft: 34, borderBottomWidth: 1, borderBottomColor: '#E4D9C9' },
+  avatarBox: { width: 128, height: 128, alignItems: 'center', justifyContent: 'center', backgroundColor: C.paper2, borderWidth: 1, borderColor: C.line, borderRadius: 10 },
   profileHeaderInfo: { flex: 1, paddingLeft: 18 },
-  profilePseudo: { fontSize: 25, fontWeight: '900', color: C.ink },
-  profileAge: { marginTop: 7, fontSize: 17, fontWeight: '800', color: C.muted },
-  profileCity: { marginTop: 5, fontSize: 15, color: C.muted },
-  paperSection: { position: 'relative', paddingVertical: 24, paddingHorizontal: 2 },
-  paperSectionSeparated: { borderTopWidth: 1, borderTopColor: '#E8D9C7' },
-  tape: { position: 'absolute', top: -7, width: 76, height: 19, backgroundColor: C.tape, opacity: 0.72 },
-  tapeLeft: { left: 10, transform: [{ rotate: '-3deg' }] },
-  tapeRight: { right: 18, transform: [{ rotate: '2deg' }] },
-  postIt: { position: 'absolute', zIndex: 3, width: 70, height: 60, backgroundColor: C.postIt, paddingTop: 15, paddingHorizontal: 10, shadowColor: C.shadow, shadowOpacity: 0.18, shadowRadius: 4, shadowOffset: { width: 1, height: 2 }, elevation: 3 },
-  postItLeft: { top: -10, left: 118, transform: [{ rotate: '2deg' }] },
-  postItRight: { top: -10, right: 18, transform: [{ rotate: '-3deg' }] },
-  postItLine: { height: 1, backgroundColor: C.postItLine, opacity: 0.72, marginBottom: 8 },
-  postItLineShort: { width: '62%', height: 1, backgroundColor: C.postItLine, opacity: 0.55 },
-  sectionTitle: { fontSize: 18, fontWeight: '900', letterSpacing: 1.05, color: C.ink, paddingRight: 8 },
-  sectionNote: { fontSize: 13, color: C.muted, fontStyle: 'italic', lineHeight: 19, marginTop: 5, marginBottom: 13 },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#EFE4D8', gap: 16 },
-  label: { flex: 1, fontSize: 14, fontWeight: '800', color: C.muted },
-  value: { flex: 1, fontSize: 14, fontWeight: '900', color: C.ink, textAlign: 'right' },
-  labelStandalone: { fontSize: 14, fontWeight: '900', color: C.ink, marginTop: 17, marginBottom: 8 },
-  bodyText: { fontSize: 15, lineHeight: 23, color: C.ink },
-  emptyText: { fontSize: 13, lineHeight: 20, color: C.muted, fontStyle: 'italic' },
-  bigChoice: { backgroundColor: C.burgundySoft, borderRadius: 8, padding: 13, marginTop: 9, borderWidth: 1, borderColor: '#E9CECE' },
-  bigChoiceTitle: { fontSize: 16, fontWeight: '900', color: C.ink },
-  bigChoiceSub: { fontSize: 13, color: C.muted, fontStyle: 'italic', marginTop: 3 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { backgroundColor: C.paper2, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 7 },
-  chipText: { fontSize: 12, fontWeight: '800', color: C.ink },
-  physicalCard: { marginTop: 2, backgroundColor: C.paper2, borderRadius: 8, padding: 13, borderWidth: 1, borderColor: C.line },
-  physicalTitle: { fontSize: 15, fontWeight: '900', color: C.ink },
-  physicalSub: { fontSize: 12, color: C.muted, fontStyle: 'italic', marginTop: 3 },
-  skillCard: { backgroundColor: C.paper2, borderRadius: 8, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#E9DED1' },
-  skillTitle: { fontSize: 15, fontWeight: '900', color: C.ink, marginBottom: 3 },
+  profilePseudo: { fontSize: 26, fontWeight: '900', color: C.ink },
+  underNameLine: { width: 150, height: 2, backgroundColor: C.burgundy, marginTop: 3, marginBottom: 10, transform: [{ rotate: '-2deg' }] },
+  profileAge: { fontSize: 16, fontWeight: '900', color: C.ink, marginTop: 2 },
+  profileCity: { fontSize: 15, color: C.muted, marginTop: 7 },
+  headerNote: { position: 'absolute', right: 8, bottom: 22, width: 94, height: 70, backgroundColor: '#F0C9C6', padding: 12, transform: [{ rotate: '4deg' }], shadowColor: C.shadow, shadowOpacity: 0.15, shadowRadius: 3, shadowOffset: { width: 1, height: 2 } },
+  headerNoteLine: { height: 1, backgroundColor: '#C99591', marginBottom: 8, opacity: 0.7 },
+  headerNoteLineShort: { width: '65%', height: 1, backgroundColor: '#C99591', opacity: 0.55 },
+  grid: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingTop: 16 },
+  column: { flex: 1, gap: 10 },
+  noteCard: { position: 'relative', padding: 14, borderWidth: 1, borderColor: C.line, borderRadius: 2, shadowColor: C.shadow, shadowOpacity: 0.14, shadowRadius: 4, shadowOffset: { width: 1, height: 2 }, elevation: 1, overflow: 'visible' },
+  tone_paper: { backgroundColor: C.paper },
+  tone_grid: { backgroundColor: C.gridPaper },
+  tone_pink: { backgroundColor: C.pinkPaper },
+  tone_lavender: { backgroundColor: C.lavender },
+  tone_yellow: { backgroundColor: C.yellow },
+  cardTape: { position: 'absolute', top: -6, left: 18, width: 66, height: 18, backgroundColor: C.tape, opacity: 0.8, transform: [{ rotate: '-3deg' }] },
+  sectionTitle: { fontSize: 16, lineHeight: 20, fontWeight: '900', letterSpacing: 0.65, color: C.ink, paddingRight: 4 },
+  sectionNote: { fontSize: 11.5, lineHeight: 17, color: C.muted, fontStyle: 'italic', marginTop: 5, marginBottom: 10 },
+  bodyText: { fontSize: 13, lineHeight: 19, color: C.ink },
+  emptyText: { fontSize: 12, lineHeight: 18, color: C.muted, fontStyle: 'italic' },
+  bigChoice: { backgroundColor: C.pinkPaper, borderWidth: 1, borderColor: '#E5CACA', padding: 10, marginTop: 7, transform: [{ rotate: '-1deg' }] },
+  bigChoiceTitle: { fontSize: 14, lineHeight: 18, fontWeight: '900', color: C.ink },
+  bigChoiceSub: { fontSize: 11.5, lineHeight: 16, color: C.muted, fontStyle: 'italic', marginTop: 2 },
+  labelStandalone: { fontSize: 12, lineHeight: 16, fontWeight: '900', color: C.ink, marginTop: 13, marginBottom: 7 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip: { backgroundColor: '#F7EEE4', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
+  chipText: { fontSize: 11.5, fontWeight: '800', color: C.ink },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#E5DACD', gap: 10 },
+  label: { flex: 1, fontSize: 12.5, fontWeight: '800', color: C.ink },
+  value: { flex: 1, fontSize: 12.5, fontWeight: '900', color: C.ink, textAlign: 'right' },
+  physicalCard: { marginTop: 4, backgroundColor: C.paper2, borderWidth: 1, borderColor: C.line, padding: 10, borderRadius: 7 },
+  physicalTitle: { fontSize: 13.5, fontWeight: '900', color: C.ink },
+  physicalSub: { fontSize: 11.5, lineHeight: 16, color: C.muted, fontStyle: 'italic', marginTop: 3 },
+  questionBlock: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.gridLine },
+  question: { fontSize: 12.5, lineHeight: 17, fontWeight: '800', color: C.ink },
+  answer: { alignSelf: 'flex-start', marginTop: 7, backgroundColor: C.paper, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5, fontSize: 11.5, fontWeight: '800', color: C.ink },
+  skillCard: { backgroundColor: 'rgba(255,253,248,0.55)', borderWidth: 1, borderStyle: 'dashed', borderColor: '#B8A36B', padding: 9, marginTop: 8, borderRadius: 5 },
+  skillTitle: { fontSize: 13.5, fontWeight: '900', color: C.ink, marginBottom: 3 },
+  reportStrip: { position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14, padding: 11, backgroundColor: '#F7F0E6', borderWidth: 1, borderColor: C.line, minHeight: 52 },
+  reportPaperClip: { position: 'absolute', left: 9, top: -10, width: 18, height: 30, borderLeftWidth: 2, borderTopWidth: 2, borderRightWidth: 2, borderColor: '#9D9386', borderRadius: 9, transform: [{ rotate: '-10deg' }] },
+  reportText: { flex: 1, paddingLeft: 10, fontSize: 10.5, lineHeight: 15, color: C.muted },
+  reportAction: { fontSize: 11, fontWeight: '900', color: C.burgundy },
 });
