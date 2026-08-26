@@ -57,9 +57,14 @@ function cleanArray(value: unknown): string[] {
 }
 
 function PaperSection({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+  const postItSide = title === 'CE QUE JE CHERCHE' || title === 'ENFANTS' || title === 'COMPÉTENCES / TALENTS' ? 'right' : 'left';
   return (
     <View style={styles.paperSection}>
       <View style={styles.tape} />
+      <View style={[styles.postIt, postItSide === 'right' ? styles.postItRight : styles.postItLeft]}>
+        <View style={styles.postItLine} />
+        <View style={styles.postItLineShort} />
+      </View>
       <Text style={styles.sectionTitle}>{title}</Text>
       {!!note && <Text style={styles.sectionNote}>{note}</Text>}
       {children}
@@ -160,6 +165,7 @@ export default function ProfileDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeaderCard}>
+          <View style={styles.headerTape} />
           <View style={styles.avatarBox}>
             <Avatar size={106} {...avatar} />
           </View>
@@ -235,6 +241,7 @@ export default function ProfileDetailScreen() {
 const C = {
   bg: '#F3EBDD', paper: '#FFFDF8', paper2: '#F7EEE4', line: '#DCC9B2', ink: '#34271F',
   muted: '#8D7A67', burgundy: '#A7324B', burgundySoft: '#F5E5E5', tape: '#E6D2B8',
+  postIt: '#F4E3A9', postItLine: '#D7C58F', shadow: '#BCA994',
 };
 
 const styles = StyleSheet.create({
@@ -247,31 +254,37 @@ const styles = StyleSheet.create({
   headerAction: { minWidth: 64, alignItems: 'flex-end' },
   headerActionText: { fontSize: 13, fontWeight: '800', color: C.burgundy },
   scroll: { padding: 16, paddingBottom: 70 },
-  profileHeaderCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.paper, borderWidth: 1, borderColor: C.line, borderRadius: 22, padding: 16, marginBottom: 18 },
-  avatarBox: { width: 128, height: 128, alignItems: 'center', justifyContent: 'center', backgroundColor: C.paper2, borderWidth: 1, borderColor: C.line, borderRadius: 18 },
+  profileHeaderCard: { position: 'relative', flexDirection: 'row', alignItems: 'center', backgroundColor: C.paper, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 18, marginBottom: 22, shadowColor: C.shadow, shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  headerTape: { position: 'absolute', top: -8, left: '39%', width: 86, height: 20, backgroundColor: C.tape, opacity: 0.78, transform: [{ rotate: '-2deg' }] },
+  avatarBox: { width: 128, height: 128, alignItems: 'center', justifyContent: 'center', backgroundColor: C.paper2, borderWidth: 1, borderColor: C.line, borderRadius: 12 },
   profileHeaderInfo: { flex: 1, paddingLeft: 18, justifyContent: 'center' },
   profilePseudo: { fontSize: 24, fontWeight: '900', color: C.ink },
   profileAge: { marginTop: 7, fontSize: 16, fontWeight: '700', color: C.muted },
   profileCity: { marginTop: 5, fontSize: 15, color: C.muted },
-  paperSection: { position: 'relative', backgroundColor: C.paper, borderWidth: 1, borderColor: C.line, borderRadius: 22, padding: 18, paddingTop: 23, marginBottom: 18 },
-  tape: { position: 'absolute', top: -7, left: 28, width: 68, height: 18, backgroundColor: C.tape, opacity: 0.7, transform: [{ rotate: '-3deg' }] },
-  sectionTitle: { fontSize: 16, fontWeight: '900', letterSpacing: 0.9, color: C.ink },
-  sectionNote: { fontSize: 12, color: C.muted, fontStyle: 'italic', lineHeight: 18, marginTop: 5, marginBottom: 12 },
+  paperSection: { position: 'relative', backgroundColor: C.paper, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 18, paddingTop: 25, marginBottom: 22, shadowColor: C.shadow, shadowOpacity: 0.09, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
+  tape: { position: 'absolute', top: -8, left: 22, width: 74, height: 19, backgroundColor: C.tape, opacity: 0.72, transform: [{ rotate: '-3deg' }] },
+  postIt: { position: 'absolute', zIndex: 2, width: 72, height: 62, backgroundColor: C.postIt, paddingTop: 15, paddingHorizontal: 10, shadowColor: C.shadow, shadowOpacity: 0.16, shadowRadius: 3, shadowOffset: { width: 1, height: 2 }, elevation: 2 },
+  postItLeft: { top: -5, left: 118, transform: [{ rotate: '2deg' }] },
+  postItRight: { top: -6, right: 26, transform: [{ rotate: '-3deg' }] },
+  postItLine: { height: 1, backgroundColor: C.postItLine, opacity: 0.7, marginBottom: 8 },
+  postItLineShort: { width: '65%', height: 1, backgroundColor: C.postItLine, opacity: 0.55 },
+  sectionTitle: { fontSize: 17, fontWeight: '900', letterSpacing: 1.0, color: C.ink, paddingRight: 82 },
+  sectionNote: { fontSize: 12, color: C.muted, fontStyle: 'italic', lineHeight: 18, marginTop: 5, marginBottom: 12, paddingRight: 8 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#EFE4D8', gap: 16 },
   label: { flex: 1, fontSize: 13, fontWeight: '700', color: C.muted },
   value: { flex: 1, fontSize: 14, fontWeight: '800', color: C.ink, textAlign: 'right' },
   labelStandalone: { fontSize: 13, fontWeight: '800', color: C.ink, marginTop: 16, marginBottom: 8 },
   bodyText: { fontSize: 15, lineHeight: 22, color: C.ink },
   emptyText: { fontSize: 13, lineHeight: 20, color: C.muted, fontStyle: 'italic' },
-  bigChoice: { backgroundColor: C.burgundySoft, borderRadius: 14, padding: 12, marginTop: 9, borderWidth: 1, borderColor: '#E9CECE' },
+  bigChoice: { backgroundColor: C.burgundySoft, borderRadius: 10, padding: 12, marginTop: 9, borderWidth: 1, borderColor: '#E9CECE' },
   bigChoiceTitle: { fontSize: 15, fontWeight: '900', color: C.ink },
   bigChoiceSub: { fontSize: 12, color: C.muted, fontStyle: 'italic', marginTop: 3 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { backgroundColor: C.paper2, borderWidth: 1, borderColor: C.line, borderRadius: 16, paddingHorizontal: 11, paddingVertical: 7 },
+  chip: { backgroundColor: C.paper2, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7 },
   chipText: { fontSize: 12, fontWeight: '700', color: C.ink },
-  physicalCard: { marginTop: 2, backgroundColor: C.paper2, borderRadius: 14, padding: 13, borderWidth: 1, borderColor: C.line },
+  physicalCard: { marginTop: 2, backgroundColor: C.paper2, borderRadius: 10, padding: 13, borderWidth: 1, borderColor: C.line },
   physicalTitle: { fontSize: 15, fontWeight: '900', color: C.ink },
   physicalSub: { fontSize: 12, color: C.muted, fontStyle: 'italic', marginTop: 3 },
-  skillCard: { backgroundColor: C.paper2, borderRadius: 15, padding: 12, marginTop: 10 },
+  skillCard: { backgroundColor: C.paper2, borderRadius: 10, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#E9DED1' },
   skillTitle: { fontSize: 15, fontWeight: '900', color: C.ink, marginBottom: 3 },
 });
