@@ -57,14 +57,17 @@ function cleanArray(value: unknown): string[] {
 }
 
 function PaperSection({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
-  const postItSide = title === 'CE QUE JE CHERCHE' || title === 'ENFANTS' || title === 'COMPÉTENCES / TALENTS' ? 'right' : 'left';
+  const postItSide = title === 'CE QUE JE CHERCHE' || title === 'COMPÉTENCES / TALENTS' ? 'right' : 'left';
+  const hasPostIt = title === 'BIO / DESCRIPTION' || title === 'CE QUE JE CHERCHE' || title === 'COMPÉTENCES / TALENTS';
   return (
     <View style={styles.paperSection}>
       <View style={styles.tape} />
-      <View style={[styles.postIt, postItSide === 'right' ? styles.postItRight : styles.postItLeft]}>
-        <View style={styles.postItLine} />
-        <View style={styles.postItLineShort} />
-      </View>
+      {hasPostIt && (
+        <View style={[styles.postIt, postItSide === 'right' ? styles.postItRight : styles.postItLeft]}>
+          <View style={styles.postItLine} />
+          <View style={styles.postItLineShort} />
+        </View>
+      )}
       <Text style={styles.sectionTitle}>{title}</Text>
       {!!note && <Text style={styles.sectionNote}>{note}</Text>}
       {children}
@@ -263,13 +266,13 @@ const styles = StyleSheet.create({
   profileCity: { marginTop: 5, fontSize: 15, color: C.muted },
   paperSection: { position: 'relative', backgroundColor: C.paper, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 18, paddingTop: 25, marginBottom: 22, shadowColor: C.shadow, shadowOpacity: 0.09, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   tape: { position: 'absolute', top: -8, left: 22, width: 74, height: 19, backgroundColor: C.tape, opacity: 0.72, transform: [{ rotate: '-3deg' }] },
-  postIt: { position: 'absolute', zIndex: 2, width: 72, height: 62, backgroundColor: C.postIt, paddingTop: 15, paddingHorizontal: 10, shadowColor: C.shadow, shadowOpacity: 0.16, shadowRadius: 3, shadowOffset: { width: 1, height: 2 }, elevation: 2 },
-  postItLeft: { top: -5, left: 118, transform: [{ rotate: '2deg' }] },
-  postItRight: { top: -6, right: 26, transform: [{ rotate: '-3deg' }] },
-  postItLine: { height: 1, backgroundColor: C.postItLine, opacity: 0.7, marginBottom: 8 },
+  postIt: { position: 'absolute', zIndex: 2, width: 62, height: 50, backgroundColor: C.postIt, paddingTop: 13, paddingHorizontal: 9, shadowColor: C.shadow, shadowOpacity: 0.18, shadowRadius: 3, shadowOffset: { width: 1, height: 2 }, elevation: 2 },
+  postItLeft: { top: -31, left: 112, transform: [{ rotate: '2deg' }] },
+  postItRight: { top: -31, right: 24, transform: [{ rotate: '-3deg' }] },
+  postItLine: { height: 1, backgroundColor: C.postItLine, opacity: 0.7, marginBottom: 7 },
   postItLineShort: { width: '65%', height: 1, backgroundColor: C.postItLine, opacity: 0.55 },
-  sectionTitle: { fontSize: 17, fontWeight: '900', letterSpacing: 1.0, color: C.ink, paddingRight: 82 },
-  sectionNote: { fontSize: 12, color: C.muted, fontStyle: 'italic', lineHeight: 18, marginTop: 5, marginBottom: 12, paddingRight: 8 },
+  sectionTitle: { fontSize: 17, fontWeight: '900', letterSpacing: 1.0, color: C.ink },
+  sectionNote: { fontSize: 12, color: C.muted, fontStyle: 'italic', lineHeight: 18, marginTop: 5, marginBottom: 12 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#EFE4D8', gap: 16 },
   label: { flex: 1, fontSize: 13, fontWeight: '700', color: C.muted },
   value: { flex: 1, fontSize: 14, fontWeight: '800', color: C.ink, textAlign: 'right' },
