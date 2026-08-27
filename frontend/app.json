@@ -1,24 +1,24 @@
 {
   "expo": {
-    "name": "JeuTaime",
-    "slug": "jeutaime",
-    "version": "2.0.0",
+    "name": "JeuTaime TEST",
+    "slug": "jeutaime-test",
+    "version": "2.0.0-test",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
-    "scheme": "jeutaime",
+    "scheme": "jeutaime-test",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jeutaime.app",
+      "bundleIdentifier": "com.jeutaime.test",
       "requiresFullScreen": false
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#FFF8E7"
+        "backgroundColor": "#F2F2F2"
       },
-      "package": "com.jeutaime.app"
+      "package": "com.jeutaime.test"
     },
     "web": {
       "bundler": "metro",
@@ -34,7 +34,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#FFF8E7"
+          "backgroundColor": "#F2F2F2"
         }
       ]
     ],
