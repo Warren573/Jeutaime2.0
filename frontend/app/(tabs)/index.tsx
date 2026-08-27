@@ -1,3 +1,3 @@
-import HomeScreen from "../../src/screens/HomeScreen";
+import TestCoreHomeScreen from "../../src/screens/TestCoreHomeScreen";
 
-export default HomeScreen;
+export default TestCoreHomeScreen;
