@@ -1,0 +1,2 @@
+Force Vercel Preview redeploy for test-core after adding TEST DATABASE_URL.
+Do not merge this marker into main.
