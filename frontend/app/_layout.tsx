@@ -1,4 +1,3 @@
-import "./test-core-default.css";
 import { Stack, usePathname, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { useStore } from "../src/store/useStore";
