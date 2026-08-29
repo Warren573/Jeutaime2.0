@@ -1,38 +1,119 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Alert, Image } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Alert, Button, ScrollView, Text, View } from 'react-native';
 import { useStore } from '../../store/useStore';
 import { startCardGame, revealCard, claimCardGame, betCardGame, type CardSuit, type CardRank, type StartResult, type RevealResult } from '../../api/card-game';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_GAME_BG = require('../../../assets/images/games/card-game-bg.png');
-const H_PAD = 16, CARD_GAP = 8, COLS = 5;
-const CARD_W = Math.floor((SCREEN_WIDTH - H_PAD * 2 - CARD_GAP * (COLS - 1)) / COLS);
-const CARD_H = Math.floor(CARD_W * 1.45);
 const ENTRY_COST = 20;
 interface Props { onEnd: (won: boolean, gained: number) => void; }
 interface LocalCard { index: number; suit: CardSuit | null; rank: CardRank | null; revealed: boolean; }
-const EMOJI: Record<CardSuit, string> = { heart: '♥', spade: '♠', club: '♣', diamond: '♦' };
 const SUIT_LABEL: Record<CardSuit, string> = { heart: 'cœur', spade: 'pique', club: 'trèfle', diamond: 'carreau' };
 function buildLocalCards(): LocalCard[] { return Array.from({ length: 10 }, (_, i) => ({ index: i, suit: null, rank: null, revealed: false })); }
 type Phase = 'lobby' | 'playing' | 'done' | 'expired';
 function isExpiredError(err: unknown) { return ((err as any)?.message ?? '').toLowerCase().includes('expir'); }
 function isInsufficientCoinsError(err: unknown) { const e = err as any; return (e?.statusCode ?? e?.status ?? 0) === 402; }
-function getErrorMessage(err: unknown) { if (isInsufficientCoinsError(err)) return `Pièces insuffisantes — il t'en faut ${ENTRY_COST} 🪙`; return (err as any)?.message ?? 'Une erreur est survenue'; }
-function Background() { return <Image source={CARD_GAME_BG} resizeMode="stretch" style={styles.backgroundImage} pointerEvents="none" />; }
+function getErrorMessage(err: unknown) { if (isInsufficientCoinsError(err)) return `Pièces insuffisantes — il t'en faut ${ENTRY_COST}`; return (err as any)?.message ?? 'Une erreur est survenue'; }
+function suitName(suit: CardSuit | null) { return suit ? SUIT_LABEL[suit] : ''; }
 
 export default function CardGame({ onEnd }: Props) {
- const loadWallet=useStore(s=>s.loadWallet); const [phase,setPhase]=useState<Phase>('lobby'); const [sessionId,setSessionId]=useState<string|null>(null); const [cards,setCards]=useState<LocalCard[]>(buildLocalCards()); const [gainsCurrent,setGainsCurrent]=useState(0); const [message,setMessage]=useState(''); const [startHint,setStartHint]=useState(''); const [isLoading,setIsLoading]=useState(false); const [pendingIndex,setPendingIndex]=useState<number|null>(null);
- const handleStart=useCallback(async()=>{if(isLoading)return;try{setIsLoading(true);const r:StartResult=await startCardGame();setSessionId(r.sessionId);setCards(buildLocalCards());setGainsCurrent(0);setMessage('');setStartHint(`Il y a ${r.hint.count} ${EMOJI[r.hint.suit]} dans cette partie`);setPhase('playing')}catch(e:any){if(isExpiredError(e))setPhase('expired');else Alert.alert('Erreur',getErrorMessage(e))}finally{setIsLoading(false)}},[isLoading]);
- const doClaimAfterAllRevealed=async(sid:string,gains:number)=>{try{await claimCardGame(sid);await loadWallet()}catch{}setPhase('done');onEnd(gains>0,gains)};
- const handleReveal=useCallback(async(index:number)=>{if(!sessionId||pendingIndex!==null||cards[index]?.revealed)return;try{setPendingIndex(index);const r:RevealResult=await revealCard(sessionId,index);const{suit,rank,gainsDelta,newGains,allRevealed,diamondHint}=r.effect;setCards(p=>p.map(c=>c.index===index?{...c,suit,rank:rank||null,revealed:true}:c));setGainsCurrent(newGains);if(suit==='heart')setMessage(`♥ +${gainsDelta} pièces !`);if(suit==='spade')setMessage('♠ Tout perdu !');if(suit==='club')setMessage(`♣ Gains divisés par 2 — ${newGains} 🪙`);if(suit==='diamond')setMessage(diamondHint?`♦ Indice : il y a un ${diamondHint.rank} de ${SUIT_LABEL[diamondHint.suit]} en rangée ${diamondHint.row}`:'♦ Plus aucune carte cachée.');if(allRevealed)await doClaimAfterAllRevealed(sessionId,newGains)}catch(e:any){if(isExpiredError(e)){setPhase('expired');return}Alert.alert('Erreur',getErrorMessage(e))}finally{setPendingIndex(null)}},[sessionId,cards,pendingIndex]);
- const handleClaim=useCallback(async()=>{if(!sessionId||isLoading)return;try{setIsLoading(true);const r=await claimCardGame(sessionId);await loadWallet();setPhase('done');onEnd(r.gained>0,r.gained)}catch(e:any){if(isExpiredError(e))setPhase('expired');else Alert.alert('Erreur',getErrorMessage(e))}finally{setIsLoading(false)}},[sessionId,isLoading,loadWallet,onEnd]);
- const handleBet=useCallback(async()=>{if(!sessionId||isLoading)return;try{setIsLoading(true);const r=await betCardGame(sessionId);await loadWallet();setMessage(r.won?`Bravo ! Il ne restait plus de cœurs — +${r.gained} 🪙`:`Raté ! Il restait ${r.heartsRemaining} cœur${r.heartsRemaining>1?'s':''} caché${r.heartsRemaining>1?'s':''}.`);setPhase('done');onEnd(r.won,r.gained)}catch(e:any){if(isExpiredError(e))setPhase('expired');else Alert.alert('Erreur',getErrorMessage(e))}finally{setIsLoading(false)}},[sessionId,isLoading,loadWallet,onEnd]);
- if(phase==='expired')return <View style={styles.screen}><Background/><View style={styles.expiredBox}><Text style={styles.expiredEmoji}>⏰</Text><Text style={styles.expiredTitle}>Session expirée</Text><Text style={styles.expiredText}>Ta partie a expiré après 30 minutes d&apos;inactivité.{'\n'}Les {ENTRY_COST} 🪙 de mise de départ ne sont pas remboursés.</Text></View><TouchableOpacity style={styles.startBtn} onPress={handleStart}><Text style={styles.startText}>Rejouer — {ENTRY_COST} 🪙</Text></TouchableOpacity></View>;
- if(phase==='lobby')return <View style={styles.screen}><Background/><View style={styles.titlePlate}><Text style={styles.titleEmoji}>♠</Text><Text style={styles.title}>Jeu de Cartes</Text></View><View style={styles.rulesBox}><Text style={styles.rulesTitle}>Règles</Text><RuleRow emoji="♥" text="Cœur → +15 pièces"/><RuleRow emoji="♠" text="Pique → tout perdu"/><RuleRow emoji="♣" text="Trèfle → gains ÷ 2"/><RuleRow emoji="♦" text="Carreau → indice sur une carte cachée"/><View style={styles.separator}/><Text style={styles.tipText}>Pariez qu'il n'y a plus de cœurs pour empocher vos gains avant un piège.</Text></View><TouchableOpacity style={styles.startBtn} onPress={handleStart} disabled={isLoading}>{isLoading?<ActivityIndicator color="#F7E9CC"/>:<Text style={styles.startText}>Jouer — {ENTRY_COST} 🪙</Text>}</TouchableOpacity></View>;
- const row1=cards.slice(0,COLS),row2=cards.slice(COLS),isDone=phase==='done';
- return <View style={styles.screen}><Background/><View style={styles.hintBox}><Text style={styles.hintText}>✉ {startHint}</Text></View><View style={styles.coinsRow}><Text style={styles.coinsLabel}>Gains</Text><Text style={styles.coinsValue}>🪙 {gainsCurrent}</Text></View><View style={message?styles.msgBox:styles.msgBoxEmpty}>{!!message&&<Text style={styles.msgText}>{message}</Text>}</View><Text style={styles.rowLabel}>Rangée 1</Text><View style={styles.row}>{row1.map(c=><CardTile key={c.index} card={c} pending={pendingIndex===c.index} onPress={()=>handleReveal(c.index)} disabled={isDone||pendingIndex!==null}/>)}</View><Text style={styles.rowLabel}>Rangée 2</Text><View style={styles.row}>{row2.map(c=><CardTile key={c.index} card={c} pending={pendingIndex===c.index} onPress={()=>handleReveal(c.index)} disabled={isDone||pendingIndex!==null}/>)}</View>{!isDone&&<><TouchableOpacity style={styles.betBtn} onPress={handleBet} disabled={isLoading}><Text style={styles.betText}>Parier qu'il n'y a plus de cœurs</Text><Text style={styles.betSub}>Gagner {gainsCurrent} 🪙 si vrai — tout perdre si faux</Text></TouchableOpacity><TouchableOpacity style={styles.claimBtn} onPress={handleClaim} disabled={isLoading}>{isLoading?<ActivityIndicator color="#F7E9CC"/>:<Text style={styles.claimText}>Encaisser {gainsCurrent} 🪙</Text>}</TouchableOpacity></>}</View>;
+  const loadWallet = useStore((s) => s.loadWallet);
+  const [phase, setPhase] = useState<Phase>('lobby');
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [cards, setCards] = useState<LocalCard[]>(buildLocalCards());
+  const [gainsCurrent, setGainsCurrent] = useState(0);
+  const [message, setMessage] = useState('');
+  const [startHint, setStartHint] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [pendingIndex, setPendingIndex] = useState<number | null>(null);
+
+  const handleStart = useCallback(async () => {
+    if (isLoading) return;
+    try {
+      setIsLoading(true);
+      const r: StartResult = await startCardGame();
+      setSessionId(r.sessionId);
+      setCards(buildLocalCards());
+      setGainsCurrent(0);
+      setMessage('');
+      setStartHint(`Il y a ${r.hint.count} ${SUIT_LABEL[r.hint.suit]} dans cette partie.`);
+      setPhase('playing');
+    } catch (e: any) {
+      if (isExpiredError(e)) setPhase('expired');
+      else Alert.alert('Erreur', getErrorMessage(e));
+    } finally { setIsLoading(false); }
+  }, [isLoading]);
+
+  const doClaimAfterAllRevealed = async (sid: string, gains: number) => {
+    try { await claimCardGame(sid); await loadWallet(); } catch {}
+    setPhase('done');
+    onEnd(gains > 0, gains);
+  };
+
+  const handleReveal = useCallback(async (index: number) => {
+    if (!sessionId || pendingIndex !== null || cards[index]?.revealed) return;
+    try {
+      setPendingIndex(index);
+      const r: RevealResult = await revealCard(sessionId, index);
+      const { suit, rank, gainsDelta, newGains, allRevealed, diamondHint } = r.effect;
+      setCards((prev) => prev.map((c) => c.index === index ? { ...c, suit, rank: rank || null, revealed: true } : c));
+      setGainsCurrent(newGains);
+      if (suit === 'heart') setMessage(`Cœur : +${gainsDelta} pièces.`);
+      if (suit === 'spade') setMessage('Pique : gains perdus.');
+      if (suit === 'club') setMessage(`Trèfle : gains divisés par 2. Nouveau total : ${newGains} pièces.`);
+      if (suit === 'diamond') setMessage(diamondHint ? `Carreau : indice — un ${diamondHint.rank} de ${SUIT_LABEL[diamondHint.suit]} se trouve en rangée ${diamondHint.row}.` : 'Carreau : aucune autre carte cachée.');
+      if (allRevealed) await doClaimAfterAllRevealed(sessionId, newGains);
+    } catch (e: any) {
+      if (isExpiredError(e)) setPhase('expired');
+      else Alert.alert('Erreur', getErrorMessage(e));
+    } finally { setPendingIndex(null); }
+  }, [sessionId, cards, pendingIndex]);
+
+  const handleClaim = useCallback(async () => {
+    if (!sessionId || isLoading) return;
+    try {
+      setIsLoading(true);
+      const r = await claimCardGame(sessionId);
+      await loadWallet();
+      setPhase('done');
+      onEnd(r.gained > 0, r.gained);
+    } catch (e: any) {
+      if (isExpiredError(e)) setPhase('expired');
+      else Alert.alert('Erreur', getErrorMessage(e));
+    } finally { setIsLoading(false); }
+  }, [sessionId, isLoading, loadWallet, onEnd]);
+
+  const handleBet = useCallback(async () => {
+    if (!sessionId || isLoading) return;
+    try {
+      setIsLoading(true);
+      const r = await betCardGame(sessionId);
+      await loadWallet();
+      setMessage(r.won ? `Pari gagné : +${r.gained} pièces.` : `Pari perdu : il restait ${r.heartsRemaining} cœur${r.heartsRemaining > 1 ? 's' : ''} caché${r.heartsRemaining > 1 ? 's' : ''}.`);
+      setPhase('done');
+      onEnd(r.won, r.gained);
+    } catch (e: any) {
+      if (isExpiredError(e)) setPhase('expired');
+      else Alert.alert('Erreur', getErrorMessage(e));
+    } finally { setIsLoading(false); }
+  }, [sessionId, isLoading, loadWallet, onEnd]);
+
+  if (phase === 'expired') return <View><Text>Session expirée</Text><Text>La partie a expiré après 30 minutes d'inactivité. Les {ENTRY_COST} pièces de mise ne sont pas remboursées.</Text><Button title={`Rejouer — ${ENTRY_COST} pièces`} onPress={() => void handleStart()} /></View>;
+  if (phase === 'lobby') return <ScrollView><Text>Jeu de cartes</Text><Text>Règles</Text><Text>Cœur : +15 pièces</Text><Text>Pique : tout perdre</Text><Text>Trèfle : gains divisés par 2</Text><Text>Carreau : indice sur une carte cachée</Text><Text>Tu peux parier qu'il ne reste plus de cœurs ou encaisser tes gains.</Text><Button title={isLoading ? 'Démarrage...' : `Jouer — ${ENTRY_COST} pièces`} onPress={() => void handleStart()} disabled={isLoading} /></ScrollView>;
+
+  const isDone = phase === 'done';
+  return <ScrollView>
+    <Text>Jeu de cartes</Text>
+    <Text>{startHint}</Text>
+    <Text>Gains : {gainsCurrent} pièces</Text>
+    {message ? <Text>{message}</Text> : null}
+    <Text>Cartes</Text>
+    {cards.map((card) => <View key={card.index}>
+      <Text>Carte {card.index + 1} : {card.revealed ? `${card.rank ?? ''} de ${suitName(card.suit)}` : 'cachée'}</Text>
+      {!card.revealed && !isDone ? <Button title={pendingIndex === card.index ? 'Révélation...' : 'Révéler'} onPress={() => void handleReveal(card.index)} disabled={pendingIndex !== null} /> : null}
+    </View>)}
+    {!isDone ? <>
+      <Button title="Parier qu'il n'y a plus de cœurs" onPress={() => void handleBet()} disabled={isLoading} />
+      <Text>Si le pari est vrai, tu gagnes tes gains actuels. Sinon tu perds tout.</Text>
+      <Button title={`Encaisser ${gainsCurrent} pièces`} onPress={() => void handleClaim()} disabled={isLoading} />
+    </> : null}
+  </ScrollView>;
 }
-function RuleRow({emoji,text}:{emoji:string;text:string}){const red=emoji==='♥'||emoji==='♦';return <View style={styles.ruleRow}><Text style={[styles.ruleEmoji,red&&styles.redSuit]}>{emoji}</Text><Text style={styles.ruleText}>{text}</Text></View>}
-function CardTile({card,onPress,disabled,pending}:{card:LocalCard;onPress:()=>any;disabled:boolean;pending:boolean}){const red=card.suit==='heart'||card.suit==='diamond',color=red?'#9E2F35':'#2D251E';if(pending)return <View style={[styles.card,styles.cardBack]}><ActivityIndicator color="#E7D3A7" size="small"/></View>;return <TouchableOpacity style={[styles.card,card.revealed?styles.cardFace:styles.cardBack]} onPress={onPress} disabled={card.revealed||disabled} activeOpacity={.8}>{card.revealed&&card.suit&&card.rank?<><Text style={[styles.cardCorner,{color}]}>{card.rank}{'\n'}{EMOJI[card.suit]}</Text><Text style={[styles.cardCenter,{color}]}>{EMOJI[card.suit]}</Text><Text style={[styles.cardCornerBottom,{color}]}>{card.rank}{'\n'}{EMOJI[card.suit]}</Text></>:<View style={styles.backInner}><Text style={styles.backMark}>JT</Text></View>}</TouchableOpacity>}
-const PAPER='rgba(247,235,207,0.93)',INK='#3B2A1C',BORDER='#9A7447';
-const styles=StyleSheet.create({screen:{flex:1,width:'100%',backgroundColor:'transparent',paddingHorizontal:H_PAD,paddingTop:12,paddingBottom:10,overflow:'hidden'},backgroundImage:{...StyleSheet.absoluteFillObject,width:'100%',height:'100%'},titlePlate:{alignSelf:'center',flexDirection:'row',alignItems:'center',justifyContent:'center',gap:10,marginBottom:22,backgroundColor:'rgba(247,235,207,.90)',borderWidth:1,borderColor:BORDER,borderRadius:8,paddingVertical:8,paddingHorizontal:22,shadowColor:'#241207',shadowOffset:{width:0,height:3},shadowOpacity:.3,shadowRadius:4,elevation:3},titleEmoji:{fontSize:28,color:INK},title:{fontSize:27,fontWeight:'900',color:'#2D1B10'},rulesBox:{backgroundColor:PAPER,borderRadius:10,padding:20,marginBottom:28,borderWidth:1,borderColor:BORDER,shadowColor:'#2A1609',shadowOffset:{width:0,height:4},shadowOpacity:.22,shadowRadius:5,elevation:4},rulesTitle:{fontSize:14,fontWeight:'800',color:'#76552F',letterSpacing:1.5,textTransform:'uppercase',marginBottom:16},ruleRow:{flexDirection:'row',alignItems:'center',gap:12,marginBottom:10},ruleEmoji:{fontSize:24,width:30,textAlign:'center',color:'#2D251E'},redSuit:{color:'#9E2F35'},ruleText:{fontSize:14,color:INK,flex:1,fontWeight:'600'},separator:{height:1,backgroundColor:'#B99A70',marginVertical:14},tipText:{fontSize:13,color:'#654B31',textAlign:'center',lineHeight:20,fontStyle:'italic'},startBtn:{backgroundColor:'rgba(92,45,29,.94)',borderRadius:9,paddingVertical:16,alignItems:'center',borderWidth:1,borderColor:'#C59A61',shadowColor:'#1F1008',shadowOffset:{width:0,height:4},shadowOpacity:.3,shadowRadius:6,elevation:5},startText:{fontSize:18,fontWeight:'800',color:'#F7E9CC'},hintBox:{backgroundColor:PAPER,borderRadius:8,paddingVertical:10,paddingHorizontal:14,marginBottom:10,borderWidth:1,borderColor:BORDER},hintText:{fontSize:14,color:INK,textAlign:'center',fontStyle:'italic',fontWeight:'600'},coinsRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:8,paddingHorizontal:4},coinsLabel:{fontSize:14,color:'#F3E2BF',fontWeight:'800',textShadowColor:'rgba(0,0,0,.65)',textShadowOffset:{width:0,height:1},textShadowRadius:2},coinsValue:{fontSize:22,fontWeight:'900',color:'#F3D28B',textShadowColor:'rgba(0,0,0,.7)',textShadowOffset:{width:0,height:1},textShadowRadius:2},msgBox:{backgroundColor:PAPER,borderRadius:8,paddingVertical:9,paddingHorizontal:14,marginBottom:12,borderWidth:1,borderColor:BORDER,minHeight:40,alignItems:'center',justifyContent:'center'},msgBoxEmpty:{height:40,marginBottom:12},msgText:{fontSize:14,fontWeight:'700',color:INK,textAlign:'center'},rowLabel:{fontSize:11,fontWeight:'800',color:'#F1DFBC',textTransform:'uppercase',letterSpacing:1.4,marginBottom:6,textShadowColor:'rgba(0,0,0,.75)',textShadowOffset:{width:0,height:1},textShadowRadius:2},row:{flexDirection:'row',gap:CARD_GAP,marginBottom:14},card:{width:CARD_W,height:CARD_H,borderRadius:7,borderWidth:1,alignItems:'center',justifyContent:'center',padding:4,shadowColor:'#160C06',shadowOffset:{width:0,height:3},shadowOpacity:.45,shadowRadius:4,elevation:4},cardFace:{backgroundColor:'#F8EFD9',borderColor:'#8D744F'},cardBack:{backgroundColor:'#6F2D2D',borderColor:'#D1B47C'},backInner:{width:'82%',height:'88%',borderWidth:2,borderColor:'#D6BD89',alignItems:'center',justifyContent:'center',backgroundColor:'#7E3535'},backMark:{fontSize:14,fontWeight:'900',color:'#E8D2A4',fontFamily:'serif'},cardCorner:{position:'absolute',top:4,left:5,fontSize:10,fontWeight:'800',lineHeight:10,textAlign:'center'},cardCornerBottom:{position:'absolute',bottom:4,right:5,fontSize:10,fontWeight:'800',lineHeight:10,textAlign:'center',transform:[{rotate:'180deg'}]},cardCenter:{fontSize:CARD_W*.42,fontWeight:'700'},betBtn:{backgroundColor:'rgba(239,220,181,.94)',borderRadius:9,paddingVertical:12,paddingHorizontal:16,alignItems:'center',marginTop:4,marginBottom:8,borderWidth:1,borderColor:'#987143'},betText:{fontSize:15,fontWeight:'800',color:INK},betSub:{fontSize:11,color:'#765A3B',marginTop:3,textAlign:'center'},claimBtn:{backgroundColor:'rgba(102,48,30,.96)',borderRadius:9,paddingVertical:14,alignItems:'center',borderWidth:1,borderColor:'#C69B61'},claimText:{fontSize:17,fontWeight:'900',color:'#F7E9CC'},expiredBox:{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:24},expiredEmoji:{fontSize:56,marginBottom:16},expiredTitle:{fontSize:24,fontWeight:'900',color:'#F7E9CC'},expiredText:{fontSize:14,color:'#F3E2BF',textAlign:'center',lineHeight:22}});
