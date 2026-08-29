@@ -1,0 +1,1 @@
+Trigger Vercel Preview redeploy for test-core after DIRECT_URL was added on 2026-08-29.
