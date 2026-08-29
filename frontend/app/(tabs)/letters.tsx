@@ -1,8 +1,3 @@
-import { useRouteGuard } from '../../src/components/FeatureGate';
-import LettersScreen from '../../src/screens/LettersScreen';
+import TestCoreLettersScreen from '../../src/screens/TestCoreLettersScreen';
 
-export default function LettersPage() {
-  const state = useRouteGuard('letters');
-  if (state === 'hidden') return null;
-  return <LettersScreen />;
-}
+export default TestCoreLettersScreen;
