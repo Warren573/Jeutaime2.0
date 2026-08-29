@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useState } from 'react';
+import { Alert, Button, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { refugeApi } from '../../src/api/refuge-api';
-import { BouncyButton } from '../../src/components/BouncyButton';
 import { REFUGE_ANIMALS, ANIMAL_LABELS } from '../../src/data/refugeAnimals';
 
-const ANIMALS = REFUGE_ANIMALS.map((value) => ({ value, label: ANIMAL_LABELS[value] }));
 const PREFERENCES = [
   { value: 'HOMME_FEMME', label: 'Tous (Homme et Femme)' },
   { value: 'HOMME', label: 'Homme uniquement' },
@@ -15,288 +12,42 @@ const PREFERENCES = [
 
 export default function ProposePage() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [selectedAnimal, setSelectedAnimal] = useState<string | null>(null);
-  const [selectedPreference, setSelectedPreference] = useState<string>('HOMME_FEMME');
+  const [animal, setAnimal] = useState<string | null>(null);
+  const [preference, setPreference] = useState('HOMME_FEMME');
   const [loading, setLoading] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(true);
+  const [error, setError] = useState('');
 
-  // Check if user has an active session - if so, redirect
   useEffect(() => {
-    const checkActiveSession = async () => {
-      try {
-        const activeSession = await refugeApi.getActive();
-        if (activeSession?.id) {
-          router.replace('/refuge');
-          return;
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        setError(message);
-      } finally {
-        setCheckingSession(false);
-      }
-    };
-
-    checkActiveSession();
+    refugeApi.getActive().then((active) => {
+      if (active?.id) router.replace('/refuge');
+    }).catch((e) => setError(e instanceof Error ? e.message : String(e))).finally(() => setChecking(false));
   }, [router]);
 
-  const handlePropose = async () => {
-    if (!selectedAnimal) {
-      Alert.alert('Erreur', 'Veuillez choisir un type d\'animal');
-      return;
-    }
-
+  const submit = async () => {
+    if (!animal) return Alert.alert('Erreur', 'Choisissez un animal');
     setLoading(true);
     try {
-      const result = await refugeApi.propose({
-        animalType: selectedAnimal,
-        acceptedSexe: selectedPreference,
-      });
-
-      if (result && result.id) {
-        router.replace('/refuge');
-      }
-    } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Erreur lors de la proposition du compagnon');
+      const result = await refugeApi.propose({ animalType: animal, acceptedSexe: preference });
+      if (result?.id) router.replace('/refuge');
+    } catch (e) {
+      Alert.alert('Erreur', e instanceof Error ? e.message : 'Proposition impossible');
       setLoading(false);
     }
   };
 
-  // Show loading while checking for active session
-  if (checkingSession) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#2196F3" />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Show error if session check failed
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <Text style={styles.errorTitle}>Erreur de chargement</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={() => router.back()} style={styles.errorButton}>
-            <Text style={styles.errorButtonText}>Retour</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (checking) return <View><Text>Chargement...</Text></View>;
+  if (error) return <View><Text>Erreur : {error}</Text><Button title="Retour" onPress={() => router.back()} /></View>;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.backButton}>← Retour</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>🎭 Incarner un compagnon</Text>
-        </View>
-
-        {/* Step 1: Animal */}
-        {step >= 1 && (
-          <View style={styles.step}>
-            <Text style={styles.stepTitle}>Quel compagnon proposez-vous?</Text>
-            <View style={styles.grid}>
-              {ANIMALS.map((animal) => (
-                <TouchableOpacity
-                  key={animal.value}
-                  style={[
-                    styles.choice,
-                    selectedAnimal === animal.value && styles.choiceSelected,
-                  ]}
-                  onPress={() => {
-                    setSelectedAnimal(animal.value);
-                    setStep(2);
-                  }}
-                >
-                  <Text style={[
-                    styles.choiceText,
-                    selectedAnimal === animal.value && styles.choiceSelectedText,
-                  ]}>
-                    {animal.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Step 2: Preference */}
-        {step >= 2 && selectedAnimal && (
-          <View style={styles.step}>
-            <Text style={styles.stepTitle}>Quelle préférence pour l&apos;Adoptant?</Text>
-            <View style={styles.preferencesContainer}>
-              {PREFERENCES.map((pref) => (
-                <TouchableOpacity
-                  key={pref.value}
-                  style={[
-                    styles.preferenceButton,
-                    selectedPreference === pref.value && styles.preferenceSelected,
-                  ]}
-                  onPress={() => setSelectedPreference(pref.value)}
-                >
-                  <Text
-                    style={[
-                      styles.preferenceText,
-                      selectedPreference === pref.value && styles.preferenceTextSelected,
-                    ]}
-                  >
-                    {pref.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Submit Button */}
-            <BouncyButton
-              style={styles.submitButton}
-              onPress={handlePropose}
-              disabled={loading}
-            >
-              <Text style={styles.submitButtonText}>
-                {loading ? 'Chargement...' : 'Proposer ce compagnon'}
-              </Text>
-            </BouncyButton>
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+    <ScrollView>
+      <Text>Proposer un compagnon</Text>
+      <Text>Animal choisi : {animal ? ANIMAL_LABELS[animal] : 'aucun'}</Text>
+      {REFUGE_ANIMALS.map((value) => <Button key={value} title={ANIMAL_LABELS[value]} onPress={() => setAnimal(value)} />)}
+      <Text>Préférence : {PREFERENCES.find((p) => p.value === preference)?.label}</Text>
+      {PREFERENCES.map((p) => <Button key={p.value} title={p.label} onPress={() => setPreference(p.value)} />)}
+      <Button title={loading ? 'Chargement...' : 'Proposer ce compagnon'} disabled={loading || !animal} onPress={submit} />
+      <Button title="Retour" onPress={() => router.back()} />
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F4ED',
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#d32f2f',
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  errorButton: {
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    backgroundColor: '#2196F3',
-    borderRadius: 8,
-  },
-  errorButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  header: {
-    marginVertical: 20,
-  },
-  backButton: {
-    fontSize: 16,
-    color: '#2196F3',
-    marginBottom: 12,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2B2B2B',
-  },
-  step: {
-    marginBottom: 28,
-  },
-  stepTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2B2B2B',
-    marginBottom: 12,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  choice: {
-    flex: 1,
-    minWidth: '30%',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#E0D5C8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  choiceSelected: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
-  },
-  choiceText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#2B2B2B',
-  },
-  choiceSelectedText: {
-    color: '#FFFFFF',
-  },
-  preferencesContainer: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  preferenceButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#E0D5C8',
-  },
-  preferenceSelected: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
-  },
-  preferenceText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#2B2B2B',
-  },
-  preferenceTextSelected: {
-    color: '#FFFFFF',
-  },
-  submitButton: {
-    paddingVertical: 16,
-    backgroundColor: '#4CAF50',
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-});
