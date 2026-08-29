@@ -1,59 +1,35 @@
-import React, { useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { View, Text } from 'react-native';
-import { RefugePolishedScreen } from '../../src/screens/RefugePolishedScreen';
-import { RefugeHomeScreen } from '../../src/screens/RefugeHomeScreen';
+import React, { useCallback, useState } from 'react';
+import { Button, View, Text } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import RefugeDefaultSessionScreen from '../../src/screens/RefugeDefaultSessionScreen';
 import { refugeApi } from '../../src/api/refuge-api';
 
 export default function RefugePage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useFocusEffect(() => {
-    async function load() {
-      try {
-        const active = await refugeApi.getActive();
-        if (active?.id) {
-          setSessionId(active.id);
-        } else {
-          setSessionId(null);
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        setError(message);
-      } finally {
-        setLoading(false);
-      }
-    }
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    refugeApi.getActive()
+      .then((session) => { if (active) setSessionId(session?.id ?? null); })
+      .catch((e) => { if (active) setError(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []));
 
-    load();
-  });
+  if (loading) return <View><Text>Chargement...</Text></View>;
+  if (error) return <View><Text>Erreur de chargement du Refuge : {error}</Text></View>;
+  if (sessionId) return <RefugeDefaultSessionScreen sessionId={sessionId} />;
 
-  if (loading && !sessionId) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E7' }}>
-        <Text style={{ fontSize: 14, color: '#8B6F47' }}>Chargement...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
-        <Text style={{ fontSize: 16, color: '#d32f2f', textAlign: 'center' }}>
-          Erreur de chargement du Refuge
-        </Text>
-        <Text style={{ fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center' }}>
-          {error}
-        </Text>
-      </View>
-    );
-  }
-
-  if (sessionId) {
-    return <RefugePolishedScreen sessionIdProp={sessionId} />;
-  }
-
-  return <RefugeHomeScreen />;
+  return (
+    <View>
+      <Text>Refuge</Text>
+      <Text>Aucune session active.</Text>
+      <Button title="Proposer un animal" onPress={() => router.push('/refuge/propose')} />
+      <Button title="Adopter" onPress={() => router.push('/refuge/adopt')} />
+      <Button title="Historique" onPress={() => router.push('/refuge/history')} />
+    </View>
+  );
 }
