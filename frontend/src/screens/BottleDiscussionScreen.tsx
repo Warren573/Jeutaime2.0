@@ -1,504 +1,102 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator,
-  Image,
-  Modal,
-  Keyboard,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Button, ScrollView, Text, TextInput, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   getCurrentBottle,
-  postBottleMessage,
-  markBottleAsRead,
   getRevealStatus,
+  markBottleAsRead,
+  postBottleMessage,
 } from '../api/bottles';
-import { BottleParchmentCard } from '../components/BottleParchmentCard';
-import { BottleCorrespondenceMenu } from '../components/BottleCorrespondenceMenu';
 import { generateUUID } from '../utils/uuid';
 import type { GetCurrentBottleResponse } from '../api/bottles';
 
-const COLORS = {
-  bg: '#F5F1E8',
-  card: '#FFFFFF',
-  text: '#2B2B2B',
-  textSecondary: '#6B6B6B',
-  border: '#D8D2C4',
-  accent: '#8B2E3C',
-  accentLight: '#E8CFCF',
-};
-
 export default function BottleDiscussionScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const bottleId = params.bottleId as string;
-  const textInputRef = useRef<TextInput>(null);
-  const idempotencyKeyRef = useRef<string>(generateUUID());
+  const idempotencyKeyRef = useRef(generateUUID());
+  const [state, setState] = useState<GetCurrentBottleResponse | null>(null);
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const [revealPending, setRevealPending] = useState(false);
+  const [revealRequester, setRevealRequester] = useState(false);
 
-  const [bottleState, setBottleState] = useState<GetCurrentBottleResponse | null>(null);
-  const [messageText, setMessageText] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSending, setIsSending] = useState(false);
-  const [hasRevealRequest, setHasRevealRequest] = useState(false);
-  const [isRevealRequester, setIsRevealRequester] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      setShowMenu(false);
-      Keyboard.dismiss();
-      const timer = setTimeout(() => {
-        if (textInputRef.current) {
-          textInputRef.current.blur();
-        }
-      }, 100);
-      return () => clearTimeout(timer);
-    }, [])
-  );
-
-  const loadData = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
-      setError(null);
+      setError('');
       const current = await getCurrentBottle();
-      setBottleState(current);
-
+      setState(current);
       if (current.bottle?.id === bottleId) {
         await markBottleAsRead(bottleId);
-
-        const revealStatus = await getRevealStatus(bottleId);
-        setHasRevealRequest(revealStatus.hasPendingRequest);
-        setIsRevealRequester(revealStatus.isRequester);
+        const reveal = await getRevealStatus(bottleId);
+        setRevealPending(reveal.hasPendingRequest);
+        setRevealRequester(reveal.isRequester);
       }
-    } catch (err: any) {
-      console.error('[BottleDiscussionScreen] Error:', err);
-      setError(err?.message || 'Erreur de chargement');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur de chargement');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }, [bottleId]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { load(); }, [load]);
 
-  const handleSendMessage = async () => {
-    if (!messageText.trim()) {
-      Alert.alert('Erreur', 'Écris un message');
-      return;
-    }
-
-    if (messageText.length > 500) {
-      Alert.alert('Erreur', `Maximum 500 caractères (tu as ${messageText.length})`);
-      return;
-    }
-
-    setIsSending(true);
-    setError(null);
-
+  const send = async () => {
+    const value = text.trim();
+    if (!value) return Alert.alert('Erreur', 'Écris un message');
+    if (value.length > 500) return Alert.alert('Erreur', 'Maximum 500 caractères');
+    setSending(true);
+    setError('');
     try {
-      await postBottleMessage(bottleId, messageText.trim(), idempotencyKeyRef.current);
-      setMessageText('');
-
-      // Refetch /bottles/current pour obtenir le nouvel état
-      await loadData();
-
-      // Réinitialiser l'idempotency key pour le prochain envoi
+      await postBottleMessage(bottleId, value, idempotencyKeyRef.current);
+      setText('');
       idempotencyKeyRef.current = generateUUID();
-    } catch (err: any) {
-      const code = err?.code || err?.message;
-
-      if (code === 'LETTER_TURN_VIOLATION') {
-        setError("Ce n'est pas ton tour de répondre. Attends la réponse de l'autre.");
-        // Refetch pour obtenir l'état réel
-        await loadData();
-      } else if (code === 'BOTTLE_NOT_ACTIVE') {
-        setError('Cette bouteille n\'est plus active.');
-        await loadData();
-      } else {
-        setError(err?.message || 'Erreur lors de l\'envoi');
-      }
+      await load();
+    } catch (e: any) {
+      if (e?.code === 'LETTER_TURN_VIOLATION') setError("Ce n'est pas ton tour de répondre.");
+      else if (e?.code === 'BOTTLE_NOT_ACTIVE') setError("Cette bouteille n'est plus active.");
+      else setError(e?.message || "Erreur lors de l'envoi");
+      await load();
     } finally {
-      setIsSending(false);
+      setSending(false);
     }
   };
 
-
-  if (isLoading) {
-    return (
-      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-      </View>
-    );
-  }
-
-  if (!bottleState?.bottle || !bottleState?.latestLetter) {
-    return (
-      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <Text style={styles.errorText}>Correspondance non trouvée</Text>
-          <TouchableOpacity
-            style={[styles.sendBtn, { marginTop: 20 }]}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.sendBtnText}>Retour</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  const charRemaining = 500 - messageText.length;
-  const canReply = bottleState.canReply;
-  const waitingForReply = bottleState.waitingForReply;
+  if (loading) return <View><Text>Chargement...</Text></View>;
+  if (!state?.bottle || !state.latestLetter) return <View><Text>Correspondance non trouvée</Text><Button title="Retour" onPress={() => router.back()} /></View>;
 
   return (
-    <>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={styles.headerBack}>←</Text>
-          </TouchableOpacity>
-          <View style={styles.headerTitle}>
-            <Text style={styles.headerTitleText} numberOfLines={1}>
-              Lettre en transit
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => setShowMenu(true)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={styles.menuDots}>⋯</Text>
-          </TouchableOpacity>
-        </View>
+    <ScrollView>
+      <Text>Bouteille à la mer</Text>
+      <Text>Dernière lettre</Text>
+      <Text>{state.latestLetter.content}</Text>
+      <Text>Messages échangés : {state.messageCount}</Text>
+      {error ? <Text>Erreur : {error}</Text> : null}
+      {state.canReply ? <Text>C'est votre tour de répondre.</Text> : null}
+      {state.waitingForReply ? <Text>En attente de la réponse de l'autre personne.</Text> : null}
+      {revealPending ? <Text>{revealRequester ? 'Demande de dévoilement envoyée.' : 'Demande de dévoilement reçue.'}</Text> : null}
 
-        {/* Affichage de la dernière lettre - PLEINE LARGEUR */}
-        <View style={styles.parchmentWrapper}>
-          <BottleParchmentCard
-            content={bottleState.latestLetter.content}
+      {state.canReply && (
+        <View>
+          <TextInput
+            placeholder="Écris ta réponse"
+            value={text}
+            onChangeText={setText}
+            multiline
+            maxLength={500}
+            editable={!sending}
           />
+          <Text>{500 - text.length} caractères restants</Text>
+          <Button title={sending ? 'Envoi...' : 'Envoyer'} disabled={sending || !text.trim()} onPress={send} />
         </View>
-
-        {/* Contenu avec padding */}
-        <View style={styles.mainScroll}>
-          {/* Message d'erreur ou feedback */}
-          {error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorBoxText}>{error}</Text>
-            </View>
-          )}
-
-          {/* Bouton Répondre SI canReply */}
-          {canReply && !isSending && (
-            <View style={styles.replyPrompt}>
-              <Text style={styles.replyPromptText}>
-                💬 À toi de répondre!
-              </Text>
-            </View>
-          )}
-
-          {/* Message d'attente SI waitingForReply */}
-          {waitingForReply && (
-            <View style={styles.waitingBox}>
-              <Text style={styles.waitingText}>
-                ✈️ Votre lettre est en voyage...
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Zone de réponse (visible seulement si canReply) */}
-        {canReply && (
-          <>
-            {/* Zone de saisie */}
-            <View style={styles.bottomControls}>
-              <TextInput
-                ref={textInputRef}
-                style={styles.messageInput}
-                placeholder="Écris ta réponse..."
-                placeholderTextColor={COLORS.textSecondary}
-                value={messageText}
-                onChangeText={setMessageText}
-                multiline
-                maxLength={500}
-                editable={!isSending}
-                underlineColorAndroid="transparent"
-                selectionColor="transparent"
-                scrollEnabled={false}
-              />
-            </View>
-
-            {/* Bouton Envoyer */}
-            <View style={styles.sendFooter}>
-              <Text
-                style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
-              >
-                {charRemaining} caractères
-              </Text>
-              <TouchableOpacity
-                style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
-                onPress={handleSendMessage}
-                disabled={isSending || !messageText.trim()}
-              >
-                {isSending ? (
-                  <ActivityIndicator size="small" color={COLORS.card} />
-                ) : (
-                  <Text style={styles.sendBtnText}>Envoyer</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {/* Boutons secondaires (historique) */}
-        {!canReply && (
-          <View style={styles.secondaryActions}>
-            <TouchableOpacity
-              style={styles.historyBtn}
-              onPress={() =>
-                router.push({
-                  pathname: '/bottles-history',
-                  params: { bottleId },
-                })
-              }
-            >
-              <Text style={styles.historyBtnText}>📖 Historique</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </KeyboardAvoidingView>
-
-      {bottleState?.bottle && (
-        <BottleCorrespondenceMenu
-          visible={showMenu}
-          bottleId={bottleState.bottle.id}
-          canBreak={bottleState.canBreak}
-          onClose={() => setShowMenu(false)}
-          onRefresh={loadData}
-          onBroken={() => router.back()}
-        />
       )}
-    </>
+
+      <Button title="Historique" onPress={() => router.push({ pathname: '/bottles-history', params: { bottleId } })} />
+      <Button title="Actions de la correspondance" onPress={() => router.push({ pathname: '/bottles-discussions', params: { bottleId } })} />
+      <Button title="Actualiser" onPress={load} />
+      <Button title="Retour" onPress={() => router.back()} />
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FBF8F3',
-    position: 'relative',
-    zIndex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-  },
-  headerBack: {
-    fontSize: 24,
-    color: COLORS.accent,
-    fontWeight: '600',
-  },
-  headerTitle: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 8,
-  },
-  headerTitleText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#4A3A28',
-  },
-  menuDots: {
-    fontSize: 26,
-    lineHeight: 26,
-    color: COLORS.accent,
-    fontWeight: '700',
-  },
-  mainScroll: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    paddingHorizontal: 16,
-  },
-  parchmentWrapper: {
-    marginVertical: 20,
-    width: '100%',
-  },
-  replyPrompt: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    backgroundColor: '#E8F5E9',
-    borderLeftWidth: 4,
-    borderLeftColor: '#2E7D32',
-    marginBottom: 16,
-  },
-  replyPromptText: {
-    fontSize: 13,
-    color: '#2E7D32',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  waitingBox: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#FFF3E0',
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF9800',
-    marginBottom: 16,
-  },
-  waitingText: {
-    fontSize: 14,
-    color: '#E65100',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  errorBox: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    backgroundColor: '#FDECEA',
-    borderLeftWidth: 4,
-    borderLeftColor: '#E5534B',
-    marginBottom: 16,
-  },
-  errorBoxText: {
-    fontSize: 13,
-    color: '#B3261E',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  bottomControls: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'transparent',
-  },
-  messageInput: {
-    minHeight: 80,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderWidth: 1,
-    borderColor: '#D8D2C4',
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#2B2B2B',
-    fontStyle: 'italic',
-  },
-  sendFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'transparent',
-  },
-  charCount: {
-    fontSize: 11,
-    color: '#8A6E3C',
-    flex: 1,
-  },
-  charCountWarning: {
-    color: COLORS.accent,
-    fontWeight: '600',
-  },
-  sendBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: COLORS.accent,
-    marginLeft: 8,
-    justifyContent: 'center',
-  },
-  sendBtnDisabled: {
-    opacity: 0.6,
-  },
-  sendBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.card,
-    textAlign: 'center',
-  },
-  secondaryActions: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'transparent',
-  },
-  historyBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: COLORS.card,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-  },
-  historyBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    textAlign: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    color: COLORS.accent,
-    textAlign: 'center',
-  },
-  menuBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-  menuCard: {
-    position: 'absolute',
-    right: 12,
-    minWidth: 230,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(200,162,90,0.4)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  menuItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  menuItemText: {
-    fontSize: 14,
-    color: '#3A2C18',
-    fontWeight: '500',
-  },
-  menuItemDisabled: {
-    fontSize: 14,
-    color: '#9C8560',
-    fontStyle: 'italic',
-  },
-  menuItemDanger: {
-    color: '#B23A48',
-  },
-  menuDivider: {
-    height: 1,
-    backgroundColor: 'rgba(200,162,90,0.3)',
-    marginVertical: 4,
-  },
-});
