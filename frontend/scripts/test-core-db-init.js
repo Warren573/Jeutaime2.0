@@ -27,5 +27,6 @@ run("npx ts-node scripts/assert-test-core-db.ts");
 run("npx prisma generate");
 run("npx prisma db push");
 run("npx ts-node prisma/seed-test-core.ts");
+run("npx tsc --project tsconfig.json");
 
-console.log("[TEST-CORE INIT] database schema + fake users ready");
+console.log("[TEST-CORE INIT] database schema + fake users + backend build ready");
