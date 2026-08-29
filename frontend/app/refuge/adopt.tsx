@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useState } from 'react';
+import { Alert, Button, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStore } from '../../src/store/useStore';
 import { refugeApi, RefugeSession } from '../../src/api/refuge-api';
-import { BouncyButton } from '../../src/components/BouncyButton';
 import { formatAnimalAge } from '../../src/modules/refuge/refugeAgeDisplay';
-import { getAnimalEmoji, getAnimalLabel, getAnimalSexeSymbol } from '../../src/data/refugeAnimals';
+import { getAnimalLabel } from '../../src/data/refugeAnimals';
 
 export default function AdoptPage() {
   const router = useRouter();
@@ -14,330 +12,54 @@ export default function AdoptPage() {
   const [refuges, setRefuges] = useState<RefugeSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [adopting, setAdopting] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
-  // Check if user has an active session - if so, redirect
   useEffect(() => {
-    const checkActiveSession = async () => {
+    let active = true;
+    (async () => {
       try {
-        const activeSession = await refugeApi.getActive();
-        if (activeSession?.id) {
-          // User has an active session, redirect to it
-          router.replace('/refuge');
-          return;
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        setError(message);
-      } finally {
-        setCheckingSession(false);
-      }
-    };
+        const session = await refugeApi.getActive();
+        if (session?.id) return router.replace('/refuge');
+        const available = await refugeApi.getAvailable(currentUser?.gender || 'HOMME_FEMME');
+        if (active) setRefuges(available.filter((r) => r.adopteId !== currentUser?.id));
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : String(e));
+      } finally { if (active) setLoading(false); }
+    })();
+    return () => { active = false; };
+  }, [currentUser?.gender, currentUser?.id, router]);
 
-    checkActiveSession();
-  }, [router]);
-
-  // Fetch available refuges only if no active session
-  useEffect(() => {
-    if (checkingSession) return;
-
-    const fetchRefuges = async () => {
-      try {
-        setLoading(true);
-        // Get user gender from profile if available
-        const gender = currentUser?.gender || 'HOMME_FEMME';
-
-        const available = await refugeApi.getAvailable(gender);
-        // Filter out user's own proposals (extra safety, backend also filters)
-        const filtered = available.filter(r => r.adopteId !== currentUser?.id);
-        setRefuges(filtered);
-      } catch (error: any) {
-        console.error('Error fetching available refuges:', error);
-        Alert.alert('Erreur', 'Impossible de charger les compagnons disponibles');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRefuges();
-  }, [currentUser?.gender, currentUser?.id, checkingSession]);
-
-  const handleAdopt = async (refugeSessionId: string) => {
+  const adopt = async (id: string) => {
     setAdopting(true);
     try {
-      const result = await refugeApi.adopt(refugeSessionId);
-      if (result && result.id) {
-        router.replace('/refuge');
-      }
-    } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Erreur lors de l&apos;adoption');
+      const result = await refugeApi.adopt(id);
+      if (result?.id) router.replace('/refuge');
+    } catch (e) {
+      Alert.alert('Erreur', e instanceof Error ? e.message : 'Adoption impossible');
       setAdopting(false);
     }
   };
 
-  // Show loading while checking for active session
-  if (checkingSession) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#2196F3" />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Show error if session check failed
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <Text style={styles.errorTitle}>Erreur de chargement</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <BouncyButton onPress={() => router.back()} style={styles.errorButton}>
-            <Text style={styles.errorButtonText}>Retour</Text>
-          </BouncyButton>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (loading) return <View><Text>Chargement...</Text></View>;
+  if (error) return <View><Text>Erreur : {error}</Text><Button title="Retour" onPress={() => router.back()} /></View>;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <BouncyButton onPress={() => router.back()}>
-          <Text style={styles.backButton}>← Retour</Text>
-        </BouncyButton>
-        <Text style={styles.title}>🔍 Adopter un compagnon</Text>
-      </View>
-
-      {loading ? (
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#2196F3" />
-          <Text style={styles.loadingText}>Chargement des compagnons...</Text>
+    <ScrollView>
+      <Text>Adopter un compagnon</Text>
+      <Text>{refuges.length} compagnon(s) disponible(s)</Text>
+      {refuges.length === 0 && <Text>Aucun compagnon disponible pour le moment.</Text>}
+      {refuges.map((refuge) => (
+        <View key={refuge.id}>
+          <Text>Animal : {getAnimalLabel(refuge.animalType)}</Text>
+          <Text>Sexe : {refuge.animalSexe}</Text>
+          <Text>Catégorie : {refuge.animalCategory}</Text>
+          <Text>Âge : {formatAnimalAge(refuge.animalAgeMonths)}</Text>
+          <Text>Préférence : {refuge.acceptedSexe === 'HOMME_FEMME' ? 'Tous' : refuge.acceptedSexe === 'HOMME' ? 'Hommes' : 'Femmes'}</Text>
+          <Text>Durée : 7 jours</Text>
+          <Button title={adopting ? 'Adoption en cours...' : 'Adopter'} disabled={adopting} onPress={() => adopt(refuge.id)} />
         </View>
-      ) : refuges.length === 0 ? (
-        <View style={styles.centerContent}>
-          <Text style={styles.emptyText}>Aucun compagnon disponible pour le moment</Text>
-          <BouncyButton
-            style={styles.retryButton}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.retryButtonText}>Retour</Text>
-          </BouncyButton>
-        </View>
-      ) : (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.subtitle}>
-            {refuges.length} compagnon{refuges.length > 1 ? 's' : ''} en attente d&apos;adoption
-          </Text>
-
-          {refuges.map((refuge) => (
-            <View
-              key={refuge.id}
-              style={styles.refugeCard}
-            >
-              <View style={styles.refugeHeader}>
-                <Text style={styles.animalEmoji}>{getAnimalEmoji(refuge.animalType)}</Text>
-                <View style={styles.refugeInfo}>
-                  <Text style={styles.refugeTitle}>
-                    {getAnimalLabel(refuge.animalType)} {getAnimalSexeSymbol(refuge.animalSexe)}
-                  </Text>
-                  <Text style={styles.refugeCategory}>{refuge.animalCategory}</Text>
-                </View>
-              </View>
-
-              <View style={styles.refugeDetails}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Âge:</Text>
-                  <Text style={styles.detailValue}>
-                    {formatAnimalAge(refuge.animalAgeMonths)}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Préférence:</Text>
-                  <Text style={styles.detailValue}>
-                    {refuge.acceptedSexe === 'HOMME_FEMME'
-                      ? 'Tous'
-                      : refuge.acceptedSexe === 'HOMME'
-                        ? 'Hommes'
-                        : 'Femmes'}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Durée:</Text>
-                  <Text style={styles.detailValue}>7 jours</Text>
-                </View>
-              </View>
-
-              <BouncyButton
-                style={[styles.adoptButton, adopting && styles.adoptButtonDisabled]}
-                disabled={adopting}
-                onPress={() => handleAdopt(refuge.id)}
-              >
-                <Text style={styles.adoptButtonText}>
-                  {adopting ? 'Adoption en cours...' : 'Adopter'}
-                </Text>
-              </BouncyButton>
-            </View>
-          ))}
-
-          <View style={styles.bottomSpacer} />
-        </ScrollView>
-      )}
-    </SafeAreaView>
+      ))}
+      <Button title="Retour" onPress={() => router.back()} />
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F4ED',
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-  backButton: {
-    fontSize: 16,
-    color: '#2196F3',
-    marginBottom: 12,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2B2B2B',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6B6B6B',
-    marginBottom: 16,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: '#6B6B6B',
-    marginTop: 12,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#6B6B6B',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  retryButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: '#2196F3',
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  refugeCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  refugeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  animalEmoji: {
-    fontSize: 40,
-    marginRight: 12,
-  },
-  refugeInfo: {
-    flex: 1,
-  },
-  refugeTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2B2B2B',
-    marginBottom: 4,
-  },
-  refugeCategory: {
-    fontSize: 13,
-    color: '#6B6B6B',
-  },
-  refugeDetails: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  detailLabel: {
-    fontSize: 12,
-    color: '#6B6B6B',
-  },
-  detailValue: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#2B2B2B',
-  },
-  adoptButton: {
-    paddingVertical: 12,
-    backgroundColor: '#4CAF50',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  adoptButtonDisabled: {
-    opacity: 0.6,
-  },
-  adoptButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  bottomSpacer: {
-    height: 40,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#d32f2f',
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  errorButton: {
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    backgroundColor: '#2196F3',
-    borderRadius: 8,
-  },
-  errorButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-});
