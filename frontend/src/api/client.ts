@@ -1,9 +1,28 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://jeutaime-staging.onrender.com/api";
+function resolveApiUrl(): string {
+  // TEST-CORE: on the dedicated Vercel preview, always use the backend
+  // deployed on the same origin. This intentionally takes precedence over
+  // Vercel EXPO_PUBLIC_API_URL / NEXT_PUBLIC_API_URL values, which may still
+  // point at the shared Render staging service.
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (
+      hostname.includes("git-test-core") ||
+      hostname.includes("jeutaime2-0-") && hostname.endsWith(".vercel.app")
+    ) {
+      return "/api";
+    }
+  }
+
+  return (
+    process.env.EXPO_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "https://jeutaime-staging.onrender.com/api"
+  );
+}
+
+export const API_URL = resolveApiUrl();
 
 const ACCESS_TOKEN_KEY  = "auth_token";
 const REFRESH_TOKEN_KEY = "auth_refresh_token";
