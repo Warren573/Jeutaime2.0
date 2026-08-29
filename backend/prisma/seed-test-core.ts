@@ -16,6 +16,20 @@ async function main() {
   if (process.env.NODE_ENV !== "test") {
     throw new Error('seed-test-core refusé: NODE_ENV doit être "test"');
   }
+
+  // This table is used through raw SQL by accountLifecycle.service.ts and is not
+  // represented in schema.prisma, so `prisma db push` cannot create it.
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "AccountDeactivation" (
+      "userId" TEXT PRIMARY KEY,
+      "previousShowInDiscovery" BOOLEAN NOT NULL DEFAULT TRUE,
+      "deactivatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "AccountDeactivation_userId_fkey"
+        FOREIGN KEY ("userId") REFERENCES "User"("id")
+        ON DELETE CASCADE ON UPDATE CASCADE
+    )
+  `);
+
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
 
   for (const item of users) {
