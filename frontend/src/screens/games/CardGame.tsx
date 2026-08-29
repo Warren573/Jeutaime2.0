@@ -96,6 +96,11 @@ export default function CardGame({ onEnd }: Props) {
     } finally { setIsLoading(false); }
   }, [sessionId, isLoading, loadWallet, onEnd]);
 
+  const renderCard = (card: LocalCard) => <View key={card.index}>
+    <Text>Carte {card.index + 1} : {card.revealed ? `${card.rank ?? ''} de ${suitName(card.suit)}` : 'cachée'}</Text>
+    {!card.revealed && phase !== 'done' ? <Button title={pendingIndex === card.index ? 'Révélation...' : 'Révéler'} onPress={() => void handleReveal(card.index)} disabled={pendingIndex !== null} /> : null}
+  </View>;
+
   if (phase === 'expired') return <View><Text>Session expirée</Text><Text>La partie a expiré après 30 minutes d'inactivité. Les {ENTRY_COST} pièces de mise ne sont pas remboursées.</Text><Button title={`Rejouer — ${ENTRY_COST} pièces`} onPress={() => void handleStart()} /></View>;
   if (phase === 'lobby') return <ScrollView><Text>Jeu de cartes</Text><Text>Règles</Text><Text>Cœur : +15 pièces</Text><Text>Pique : tout perdre</Text><Text>Trèfle : gains divisés par 2</Text><Text>Carreau : indice sur une carte cachée</Text><Text>Tu peux parier qu'il ne reste plus de cœurs ou encaisser tes gains.</Text><Button title={isLoading ? 'Démarrage...' : `Jouer — ${ENTRY_COST} pièces`} onPress={() => void handleStart()} disabled={isLoading} /></ScrollView>;
 
@@ -105,11 +110,10 @@ export default function CardGame({ onEnd }: Props) {
     <Text>{startHint}</Text>
     <Text>Gains : {gainsCurrent} pièces</Text>
     {message ? <Text>{message}</Text> : null}
-    <Text>Cartes</Text>
-    {cards.map((card) => <View key={card.index}>
-      <Text>Carte {card.index + 1} : {card.revealed ? `${card.rank ?? ''} de ${suitName(card.suit)}` : 'cachée'}</Text>
-      {!card.revealed && !isDone ? <Button title={pendingIndex === card.index ? 'Révélation...' : 'Révéler'} onPress={() => void handleReveal(card.index)} disabled={pendingIndex !== null} /> : null}
-    </View>)}
+    <Text>Rangée 1</Text>
+    {cards.slice(0, 5).map(renderCard)}
+    <Text>Rangée 2</Text>
+    {cards.slice(5, 10).map(renderCard)}
     {!isDone ? <>
       <Button title="Parier qu'il n'y a plus de cœurs" onPress={() => void handleBet()} disabled={isLoading} />
       <Text>Si le pari est vrai, tu gagnes tes gains actuels. Sinon tu perds tout.</Text>
