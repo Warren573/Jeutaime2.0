@@ -1,19 +1,11 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { RefugePolishedScreen } from '../../src/screens/RefugePolishedScreen';
+import RefugeDefaultSessionScreen from '../../src/screens/RefugeDefaultSessionScreen';
 
 export default function RefugeGamePage() {
   const params = useLocalSearchParams();
   const sessionId = typeof params.sessionId === 'string' ? params.sessionId : null;
-
-  if (!sessionId) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Session invalide</Text>
-      </View>
-    );
-  }
-
-  return <RefugePolishedScreen sessionIdProp={sessionId} />;
+  if (!sessionId) return <View><Text>Session invalide</Text></View>;
+  return <RefugeDefaultSessionScreen sessionId={sessionId} />;
 }
