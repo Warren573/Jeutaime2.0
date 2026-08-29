@@ -1,0 +1,17 @@
+/* TEST-CORE ONLY — intentionally unstyled/default UI.
+   Keep mechanics/content; remove JeuTaime visual assets and decorative styling. */
+html, body, #root { background: white !important; color: black !important; }
+
+/* Custom PNG/JPG/SVG assets are design, not default UI. */
+img, svg, video, canvas { display: none !important; }
+
+/* Neutralize decorative backgrounds/effects from production screens. */
+* {
+  background-image: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  animation: none !important;
+  transition: none !important;
+}
