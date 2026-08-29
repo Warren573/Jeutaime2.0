@@ -1,26 +1,174 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
-import { Avatar } from '../avatar/png/Avatar';
-import { getAvatarConfig } from '../avatar/resolveAvatarConfig';
-import { AppBackButton } from '../components/AppBackButton';
-import { APP_COLORS, APP_RADIUS, APP_SHADOWS, APP_SPACING } from '../theme/appTheme';
-import { getWeeklyProfileState, voteForDuel, getWeeklyProfileWinners, type WeeklyProfileStateDTO, type WeeklyProfileWinnersDTO, type DuelProfileDTO } from '../api/weeklyProfile';
-const VOTE_REWARD=5;
-function errorMessage(err:unknown,fallback:string){const m=err instanceof Error?err.message:'';return m.trim()||fallback}
-function isExpiredComparisonError(err:unknown){const m=err instanceof Error?err.message.toLowerCase():'';return m.includes('expir')||m.includes('déjà été utilisé')}
-export default function WeeklyProfileScreen(){
- const router=useRouter(),insets=useSafeAreaInsets(),loadWallet=useStore(s=>s.loadWallet);const[activeTab,setActiveTab]=useState<'winners'|'vote'>('vote');const[state,setState]=useState<WeeklyProfileStateDTO|null>(null),[stateLoading,setStateLoading]=useState(true),[voting,setVoting]=useState<string|null>(null),[error,setError]=useState<string|null>(null),[flash]=useState(new Animated.Value(0)),[winners,setWinners]=useState<WeeklyProfileWinnersDTO|null>(null),[winnersLoading,setWinnersLoading]=useState(true),[winnersError,setWinnersError]=useState<string|null>(null);
- const loadState=async()=>{setStateLoading(true);setError(null);try{setState(await getWeeklyProfileState())}catch(e){setState(null);setError(errorMessage(e,'Impossible de charger la comparaison de profils.'))}finally{setStateLoading(false)}};
- const loadWinners=async()=>{setWinnersLoading(true);setWinnersError(null);try{setWinners(await getWeeklyProfileWinners())}catch(e){setWinners(null);setWinnersError(errorMessage(e,'Impossible de charger les gagnants de la semaine.'))}finally{setWinnersLoading(false)}};
- useEffect(()=>{void loadState();void loadWinners()},[]);const playFlash=()=>{flash.setValue(1);Animated.timing(flash,{toValue:0,duration:500,useNativeDriver:true}).start()};
- const handleVote=async(chosenId:string)=>{if(!state?.duel||voting!==null)return;setError(null);setVoting(chosenId);try{setState(await voteForDuel(state.duel.duelId,chosenId));playFlash();await loadWallet()}catch(e){if(isExpiredComparisonError(e)){setError('Cette comparaison n’était plus disponible. Une nouvelle vient d’être chargée.');try{setState(await getWeeklyProfileState())}catch(r){setState(null);setError(errorMessage(r,'Impossible de charger une nouvelle comparaison.'))}}else setError(errorMessage(e,"Impossible d'enregistrer ton vote."))}finally{setVoting(null)}};
- const DuelCard=({profile,disabled}:{profile:DuelProfileDTO;disabled:boolean})=>{const avatar=getAvatarConfig(profile.avatarConfig,profile.gender);return <View style={styles.duelCard}><View style={styles.avatarContainer}><Avatar size={82} {...(avatar as any)}/></View><Text style={styles.duelName}>{profile.pseudo}, {profile.age}</Text>{!!profile.city&&<Text style={styles.duelCity}>📍 {profile.city}</Text>}{!!profile.bio&&<View style={styles.bioBox}><Text style={styles.bioText} numberOfLines={4} ellipsizeMode="tail">&quot;{profile.bio}&quot;</Text></View>}<TouchableOpacity style={[styles.voteBtn,disabled&&styles.voteBtnDisabled]} onPress={()=>handleVote(profile.id)} disabled={disabled} activeOpacity={.78}>{voting===profile.id?<ActivityIndicator size="small" color={APP_COLORS.white}/>:<Text style={styles.voteBtnText}>Choisir ce profil · +{VOTE_REWARD} 🪙</Text>}</TouchableOpacity></View>};
- const WinnerCard=({profile,label,emoji}:{profile:WeeklyProfileWinnersDTO['male'];label:string;emoji:string})=><><Text style={styles.sectionTitle}>{emoji} {label}</Text>{profile?(()=>{const avatar=getAvatarConfig(profile.avatarConfig,profile.gender);return <View style={styles.winnerCard}><View style={styles.crownBadge}><Text style={styles.crownText}>👑</Text></View><View style={styles.avatarContainer}><Avatar size={102} {...(avatar as any)}/></View><Text style={styles.duelName}>{profile.pseudo}, {profile.age}</Text>{!!profile.city&&<Text style={styles.duelCity}>📍 {profile.city}</Text>}{!!profile.bio&&<View style={styles.bioBox}><Text style={styles.bioText} numberOfLines={4} ellipsizeMode="tail">&quot;{profile.bio}&quot;</Text></View>}<Text style={styles.voteCount}>♥ {profile.totalVotes} vote{profile.totalVotes>1?'s':''}</Text></View>})():<View style={styles.emptyCard}><Text style={styles.emptyText}>Pas encore de gagnant·e pour cette catégorie.</Text></View>}</>;
- const limitReached=!!state?.limitReached,disabled=limitReached||voting!==null||!state?.duel;
- return <View style={[styles.container,{paddingTop:insets.top}]}><View style={styles.header}><AppBackButton onPress={()=>router.back()}/><View style={styles.headerText}><Text style={styles.kicker}>JEUX & CONCOURS</Text><Text style={styles.title}>Élection Hebdomadaire</Text><Text style={styles.subtitle}>Choisissez votre profil préféré et remportez des pièces.</Text></View><View style={styles.headerSpacer}/></View><View style={styles.tabsRow}><TouchableOpacity style={[styles.tab,activeTab==='vote'&&styles.tabActive]} onPress={()=>setActiveTab('vote')}><Text style={[styles.tabText,activeTab==='vote'&&styles.tabTextActive]}>Voter</Text></TouchableOpacity><TouchableOpacity style={[styles.tab,activeTab==='winners'&&styles.tabActive]} onPress={()=>setActiveTab('winners')}><Text style={[styles.tabText,activeTab==='winners'&&styles.tabTextActive]}>Gagnants</Text></TouchableOpacity></View>
- {activeTab==='vote'?(stateLoading?<View style={styles.centerContent}><ActivityIndicator size="large" color={APP_COLORS.burgundy}/></View>:<ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>{!!error&&<View style={styles.errorCard}><Text style={styles.errorText}>{error}</Text>{!state&&<TouchableOpacity style={styles.retryButton} onPress={loadState}><Text style={styles.retryButtonText}>Réessayer</Text></TouchableOpacity>}</View>}{!!state&&<View style={styles.statusBar}><View><Text style={styles.statusLabel}>Votes restants aujourd'hui</Text><Text style={styles.statusValue}>{state.remainingToday} <Text style={styles.statusTotal}>/ {state.dailyLimit}</Text></Text></View><View style={styles.rewardPill}><Text style={styles.rewardCoin}>🪙</Text><View><Text style={styles.rewardText}>+{VOTE_REWARD} pièces</Text><Text style={styles.rewardSub}>par vote</Text></View></View></View>}<Animated.View pointerEvents="none" style={[styles.flashOverlay,{opacity:flash}]}><Text style={styles.flashText}>+{VOTE_REWARD} 🪙</Text></Animated.View>{limitReached&&<View style={styles.emptyCard}><Text style={styles.emptyText}>Tu as atteint ta limite quotidienne. Reviens demain pour continuer.</Text></View>}{!limitReached&&state?.notEnoughCandidates&&<View style={styles.emptyCard}><Text style={styles.emptyText}>Pas assez de profils disponibles pour proposer une comparaison pour le moment.</Text></View>}{!limitReached&&state?.duel&&<><DuelCard profile={state.duel.candidateA} disabled={disabled}/><View style={styles.vsLine}><View style={styles.vsRule}/><View style={styles.vsWrap}><Text style={styles.vsText}>OU</Text></View><View style={styles.vsRule}/></View><DuelCard profile={state.duel.candidateB} disabled={disabled}/></>}</ScrollView>):(winnersLoading?<View style={styles.centerContent}><ActivityIndicator size="large" color={APP_COLORS.burgundy}/></View>:<ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>{!!winnersError&&<View style={styles.errorCard}><Text style={styles.errorText}>{winnersError}</Text><TouchableOpacity style={styles.retryButton} onPress={loadWinners}><Text style={styles.retryButtonText}>Réessayer</Text></TouchableOpacity></View>}{!winnersError&&<><WinnerCard profile={winners?.female??null} label="Profil féminin de la semaine" emoji="♀"/><WinnerCard profile={winners?.male??null} label="Profil masculin de la semaine" emoji="♂"/></>}</ScrollView>)}</View>
+import {
+  getWeeklyProfileState,
+  voteForDuel,
+  getWeeklyProfileWinners,
+  type WeeklyProfileStateDTO,
+  type WeeklyProfileWinnersDTO,
+  type DuelProfileDTO,
+} from '../api/weeklyProfile';
+
+const VOTE_REWARD = 5;
+
+function errorMessage(err: unknown, fallback: string) {
+  const message = err instanceof Error ? err.message : '';
+  return message.trim() || fallback;
 }
-const styles=StyleSheet.create({container:{flex:1,backgroundColor:APP_COLORS.background},header:{minHeight:94,flexDirection:'row',alignItems:'center',paddingHorizontal:APP_SPACING.md,paddingVertical:APP_SPACING.sm,backgroundColor:APP_COLORS.paper,borderBottomWidth:1,borderBottomColor:APP_COLORS.border},headerText:{flex:1,alignItems:'center',paddingHorizontal:6},headerSpacer:{width:52},kicker:{fontSize:9,fontWeight:'800',color:APP_COLORS.gold,letterSpacing:2},title:{fontSize:21,fontWeight:'900',color:APP_COLORS.ink,marginTop:3,textAlign:'center'},subtitle:{fontSize:11,color:APP_COLORS.muted,marginTop:4,textAlign:'center',lineHeight:15},tabsRow:{flexDirection:'row',marginHorizontal:APP_SPACING.md,marginTop:12,padding:4,borderRadius:APP_RADIUS.md,backgroundColor:APP_COLORS.paperSoft,borderWidth:1,borderColor:APP_COLORS.border},tab:{flex:1,paddingVertical:9,alignItems:'center',borderRadius:APP_RADIUS.sm},tabActive:{backgroundColor:APP_COLORS.paper,...(APP_SHADOWS.card??{})},tabText:{fontSize:13,fontWeight:'700',color:APP_COLORS.muted},tabTextActive:{color:APP_COLORS.burgundy},centerContent:{flex:1,justifyContent:'center',alignItems:'center'},scrollView:{flex:1},scrollContent:{padding:APP_SPACING.md,paddingBottom:80},errorCard:{backgroundColor:APP_COLORS.paper,borderRadius:APP_RADIUS.md,borderWidth:1,borderColor:APP_COLORS.danger,padding:APP_SPACING.md,marginBottom:APP_SPACING.md,alignItems:'center'},errorText:{fontSize:13,color:APP_COLORS.danger,textAlign:'center'},retryButton:{marginTop:APP_SPACING.sm,paddingHorizontal:APP_SPACING.md,paddingVertical:8,borderRadius:APP_RADIUS.md,backgroundColor:APP_COLORS.burgundy},retryButtonText:{color:APP_COLORS.white,fontSize:12,fontWeight:'800'},emptyCard:{backgroundColor:APP_COLORS.paperSoft,borderRadius:APP_RADIUS.md,borderWidth:1,borderColor:APP_COLORS.border,padding:APP_SPACING.lg,marginBottom:APP_SPACING.md},emptyText:{fontSize:13,color:APP_COLORS.muted,textAlign:'center',lineHeight:19},statusBar:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',backgroundColor:APP_COLORS.paper,borderRadius:APP_RADIUS.lg,paddingHorizontal:16,paddingVertical:13,marginBottom:16,borderWidth:1,borderColor:APP_COLORS.border,...(APP_SHADOWS.card??{})},statusLabel:{fontSize:10,color:APP_COLORS.muted,marginBottom:2},statusValue:{fontSize:22,fontWeight:'900',color:APP_COLORS.ink},statusTotal:{fontSize:13,fontWeight:'700',color:APP_COLORS.muted},rewardPill:{flexDirection:'row',alignItems:'center',gap:7,backgroundColor:APP_COLORS.backgroundWarm,borderRadius:APP_RADIUS.pill,paddingHorizontal:11,paddingVertical:7,borderWidth:1,borderColor:APP_COLORS.goldSoft},rewardCoin:{fontSize:18},rewardText:{fontSize:11,fontWeight:'900',color:APP_COLORS.gold},rewardSub:{fontSize:9,color:APP_COLORS.muted,marginTop:1},flashOverlay:{position:'absolute',top:8,alignSelf:'center',zIndex:10},flashText:{fontSize:19,fontWeight:'900',color:APP_COLORS.gold},sectionTitle:{fontSize:15,fontWeight:'800',color:APP_COLORS.ink,marginBottom:APP_SPACING.sm,marginTop:APP_SPACING.sm},avatarContainer:{width:104,height:104,borderRadius:52,alignItems:'center',justifyContent:'center',backgroundColor:APP_COLORS.paperSoft,marginBottom:12,borderWidth:1,borderColor:APP_COLORS.border},duelCard:{backgroundColor:APP_COLORS.paper,borderRadius:18,paddingHorizontal:18,paddingVertical:18,alignItems:'center',borderWidth:1,borderColor:APP_COLORS.border,...(APP_SHADOWS.card??{})},winnerCard:{position:'relative',backgroundColor:APP_COLORS.paper,borderRadius:APP_RADIUS.xl,padding:APP_SPACING.lg,marginBottom:APP_SPACING.lg,alignItems:'center',borderWidth:1.5,borderColor:APP_COLORS.goldSoft,...(APP_SHADOWS.elevated??{})},crownBadge:{position:'absolute',top:-14,right:18,backgroundColor:APP_COLORS.backgroundWarm,borderRadius:APP_RADIUS.pill,padding:6,borderWidth:1,borderColor:APP_COLORS.goldSoft},crownText:{fontSize:17},duelName:{fontSize:20,fontWeight:'900',color:APP_COLORS.ink},duelCity:{fontSize:12,color:APP_COLORS.muted,marginTop:4},bioBox:{backgroundColor:APP_COLORS.paperSoft,borderRadius:12,paddingHorizontal:14,paddingVertical:11,marginTop:12,width:'100%',borderWidth:1,borderColor:APP_COLORS.border},bioText:{fontSize:13,color:APP_COLORS.text,lineHeight:19,textAlign:'center',fontStyle:'italic'},voteCount:{fontSize:13,fontWeight:'800',color:APP_COLORS.burgundy,marginTop:APP_SPACING.md},vsLine:{flexDirection:'row',alignItems:'center',marginVertical:10,paddingHorizontal:22},vsRule:{flex:1,height:1,backgroundColor:APP_COLORS.border},vsWrap:{marginHorizontal:10,backgroundColor:APP_COLORS.backgroundWarm,paddingHorizontal:12,paddingVertical:5,borderRadius:APP_RADIUS.pill,borderWidth:1,borderColor:APP_COLORS.goldSoft},vsText:{fontSize:10,fontWeight:'900',color:APP_COLORS.gold,letterSpacing:1.2},voteBtn:{marginTop:14,minHeight:46,width:'100%',backgroundColor:APP_COLORS.burgundy,paddingHorizontal:APP_SPACING.md,borderRadius:12,alignItems:'center',justifyContent:'center'},voteBtnDisabled:{opacity:.45},voteBtnText:{color:APP_COLORS.white,fontWeight:'800',fontSize:13}});
+
+function isExpiredComparisonError(err: unknown) {
+  const message = err instanceof Error ? err.message.toLowerCase() : '';
+  return message.includes('expir') || message.includes('déjà été utilisé');
+}
+
+export default function WeeklyProfileScreen() {
+  const router = useRouter();
+  const loadWallet = useStore((state) => state.loadWallet);
+  const [activeTab, setActiveTab] = useState<'vote' | 'winners'>('vote');
+  const [state, setState] = useState<WeeklyProfileStateDTO | null>(null);
+  const [stateLoading, setStateLoading] = useState(true);
+  const [voting, setVoting] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [winners, setWinners] = useState<WeeklyProfileWinnersDTO | null>(null);
+  const [winnersLoading, setWinnersLoading] = useState(true);
+  const [winnersError, setWinnersError] = useState<string | null>(null);
+
+  const loadState = async () => {
+    setStateLoading(true);
+    setError(null);
+    try {
+      setState(await getWeeklyProfileState());
+    } catch (err) {
+      setState(null);
+      setError(errorMessage(err, 'Impossible de charger la comparaison de profils.'));
+    } finally {
+      setStateLoading(false);
+    }
+  };
+
+  const loadWinners = async () => {
+    setWinnersLoading(true);
+    setWinnersError(null);
+    try {
+      setWinners(await getWeeklyProfileWinners());
+    } catch (err) {
+      setWinners(null);
+      setWinnersError(errorMessage(err, 'Impossible de charger les gagnants de la semaine.'));
+    } finally {
+      setWinnersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadState();
+    void loadWinners();
+  }, []);
+
+  const handleVote = async (chosenId: string) => {
+    if (!state?.duel || voting !== null) return;
+    setError(null);
+    setVoting(chosenId);
+    try {
+      setState(await voteForDuel(state.duel.duelId, chosenId));
+      await loadWallet();
+    } catch (err) {
+      if (isExpiredComparisonError(err)) {
+        setError('Cette comparaison n’était plus disponible. Une nouvelle vient d’être chargée.');
+        try {
+          setState(await getWeeklyProfileState());
+        } catch (reloadError) {
+          setState(null);
+          setError(errorMessage(reloadError, 'Impossible de charger une nouvelle comparaison.'));
+        }
+      } else {
+        setError(errorMessage(err, "Impossible d'enregistrer ton vote."));
+      }
+    } finally {
+      setVoting(null);
+    }
+  };
+
+  const renderProfile = (profile: DuelProfileDTO, disabled: boolean) => (
+    <View key={profile.id}>
+      <Text>{profile.pseudo}, {profile.age}</Text>
+      {profile.city ? <Text>Ville : {profile.city}</Text> : null}
+      {profile.bio ? <Text>Bio : {profile.bio}</Text> : null}
+      <Button
+        title={voting === profile.id ? 'Vote en cours...' : `Choisir ce profil (+${VOTE_REWARD} pièces)`}
+        onPress={() => void handleVote(profile.id)}
+        disabled={disabled}
+      />
+    </View>
+  );
+
+  const renderWinner = (profile: WeeklyProfileWinnersDTO['male'], label: string) => (
+    <View>
+      <Text>{label}</Text>
+      {profile ? (
+        <>
+          <Text>{profile.pseudo}, {profile.age}</Text>
+          {profile.city ? <Text>Ville : {profile.city}</Text> : null}
+          {profile.bio ? <Text>Bio : {profile.bio}</Text> : null}
+          <Text>Votes : {profile.totalVotes}</Text>
+        </>
+      ) : (
+        <Text>Pas encore de gagnant pour cette catégorie.</Text>
+      )}
+    </View>
+  );
+
+  const limitReached = !!state?.limitReached;
+  const disabled = limitReached || voting !== null || !state?.duel;
+
+  return (
+    <ScrollView>
+      <Text>Élection hebdomadaire</Text>
+      <Text>Choisis ton profil préféré et gagne {VOTE_REWARD} pièces par vote.</Text>
+      <Button title="Voter" onPress={() => setActiveTab('vote')} />
+      <Button title="Gagnants" onPress={() => setActiveTab('winners')} />
+
+      {activeTab === 'vote' ? (
+        stateLoading ? (
+          <Text>Chargement...</Text>
+        ) : (
+          <View>
+            {error ? <Text>{error}</Text> : null}
+            {!state && error ? <Button title="Réessayer" onPress={() => void loadState()} /> : null}
+            {state ? (
+              <>
+                <Text>Votes restants aujourd'hui : {state.remainingToday} / {state.dailyLimit}</Text>
+                <Text>Récompense par vote : {VOTE_REWARD} pièces</Text>
+              </>
+            ) : null}
+            {limitReached ? <Text>Limite quotidienne atteinte. Reviens demain.</Text> : null}
+            {!limitReached && state?.notEnoughCandidates ? <Text>Pas assez de profils disponibles pour proposer une comparaison.</Text> : null}
+            {!limitReached && state?.duel ? (
+              <>
+                {renderProfile(state.duel.candidateA, disabled)}
+                <Text>OU</Text>
+                {renderProfile(state.duel.candidateB, disabled)}
+              </>
+            ) : null}
+          </View>
+        )
+      ) : winnersLoading ? (
+        <Text>Chargement...</Text>
+      ) : (
+        <View>
+          {winnersError ? <><Text>{winnersError}</Text><Button title="Réessayer" onPress={() => void loadWinners()} /></> : null}
+          {!winnersError ? (
+            <>
+              {renderWinner(winners?.female ?? null, 'Profil féminin de la semaine')}
+              {renderWinner(winners?.male ?? null, 'Profil masculin de la semaine')}
+            </>
+          ) : null}
+        </View>
+      )}
+
+      <Button title="Actualiser" onPress={() => { void loadState(); void loadWinners(); }} />
+      <Button title="Retour" onPress={() => router.back()} />
+    </ScrollView>
+  );
+}
