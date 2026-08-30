@@ -8,6 +8,7 @@ import { getOfferingsCatalog, getSalonOfferings, sendOffering, sendOfferingToSes
 import { breakSpell, castSpell, getMagiesCatalog, getSalonMagies, type MagieCatalogDTO, type MagieCatalogItemDTO, type SalonMagieDTO } from '../api/magies';
 
 const SLUG_TO_KIND: Record<string, string> = { piscine: 'PISCINE', cafe_paris: 'CAFE_DE_PARIS', 'cafe-paris': 'CAFE_DE_PARIS', pirates: 'ILE_PIRATES', theatre: 'THEATRE', cocktails: 'BAR_COCKTAILS', metal: 'METAL', psy: 'PSY' };
+const BREAK_CONDITION_TO_ANTISPELL: Readonly<Record<string, string>> = { kiss: 'mag_bisou', compliment: 'mag_compliment', water: 'mag_eau', dance: 'mag_danse', laughter: 'mag_rire', music: 'mag_musique' };
 
 export default function TestCoreSalonScreen() {
   const router = useRouter();
@@ -80,6 +81,7 @@ export default function TestCoreSalonScreen() {
   async function handleSpell(magieId: string, name: string) { if (!targetId || !salon?.id) return; setBusy(true); try { await castSpell({ magieId, toUserId: targetId, salonId: salon.id }); await loadWallet(); setNotice(`${name} lancé sur ${target?.pseudo || 'la personne sélectionnée'}.`); await refresh(); } catch (e) { Alert.alert('Erreur', e instanceof Error ? e.message : 'Sort non lancé.'); } finally { setBusy(false); } }
   async function handleBreakSpell(cast: SalonMagieDTO, antiSpell: MagieCatalogItemDTO) { setBusy(true); try { await breakSpell(cast.castId, antiSpell.id); await loadWallet(); setNotice(`${antiSpell.name} utilisé contre ${cast.name}.`); await refresh(); } catch (e) { Alert.alert('Erreur', e instanceof Error ? e.message : 'Anti-sort impossible.'); } finally { setBusy(false); } }
   async function handleConsume(action: 'drink' | 'eat') { if (!sessionId) return; try { const result = action === 'drink' ? await performDrinkAction(sessionId) : await performEatAction(sessionId); setNotice(result.success ? (action === 'drink' ? 'Action boire effectuée.' : 'Action manger effectuée.') : 'Action impossible.'); await refresh(); } catch (e) { Alert.alert('Erreur', e instanceof Error ? e.message : 'Action impossible.'); } }
+  function compatibleAntiSpell(cast: SalonMagieDTO) { if (!cast.breakConditionId || !magies) return null; const antiId = BREAK_CONDITION_TO_ANTISPELL[cast.breakConditionId]; return antiId ? magies.antiSpells.find((anti) => anti.id === antiId) || null : null; }
 
   return <View style={{ flex: 1 }}>
     <Text>{salon?.name || 'Salon'}</Text><Text>{salon?.description || ''}</Text>{notice ? <Text>{notice}</Text> : null}<Button title="Quitter le salon" onPress={() => void handleLeave()} disabled={busy || !sessionId} />
@@ -90,7 +92,7 @@ export default function TestCoreSalonScreen() {
       {p.userId !== currentUser?.id ? <Button title="Envoyer un sourire" onPress={() => void handleSmile(p.userId)} /> : null}
       <Button title={targetId === p.userId ? 'Cible sélectionnée' : 'Sélectionner comme cible'} onPress={() => setTargetId(p.userId)} />
       {salonOfferings.filter((o) => o.toUserId === p.userId && o.isActive).map((o) => <Text key={o.id}>Offrande active : {o.name} — étape {o.currentStage}</Text>)}
-      {salonMagies.filter((m) => m.toUserId === p.userId && m.isActive).map((m) => <View key={m.castId}><Text>Sort actif : {m.name} — jusqu’au {new Date(m.expiresAt).toLocaleTimeString('fr-FR')}</Text>{(magies?.antiSpells || []).map((anti) => <Button key={anti.id} title={`Utiliser ${anti.name}`} onPress={() => void handleBreakSpell(m, anti)} disabled={busy} />)}</View>)}
+      {salonMagies.filter((m) => m.toUserId === p.userId && m.isActive).map((m) => { const anti = compatibleAntiSpell(m); return <View key={m.castId}><Text>Sort actif : {m.name} — jusqu’au {new Date(m.expiresAt).toLocaleTimeString('fr-FR')}</Text>{m.breakConditionId ? <Text>Condition de rupture : {m.breakConditionId}</Text> : null}{anti ? <Button title={`Utiliser ${anti.name}`} onPress={() => void handleBreakSpell(m, anti)} disabled={busy} /> : null}</View>; })}
     </View>)}
     <Text>Actions</Text><Button title="Boire" onPress={() => void handleConsume('drink')} /><Button title="Manger" onPress={() => void handleConsume('eat')} />
     <Text>Offrandes</Text>{offerings.map((item) => <View key={item.id}><Text>{item.name} — {item.cost} pièces</Text><Button title="Envoyer à la cible" onPress={() => void handleOffering(item)} disabled={!targetId || busy} /><Button title="Tournée générale" onPress={() => void handleRound(item)} disabled={!sessionId || busy} /></View>)}
