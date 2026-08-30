@@ -3,7 +3,7 @@ import { Button, ScrollView, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { getCommunityStats, getDailyStats, getRefugeStats, type CommunityStatsDTO, type DailyStatsDTO, type RefugeStatsDTO } from '../api/stats';
-import { getWeeklyProfileWinners, type WeeklyProfileWinnersDTO } from '../api/weeklyProfile';
+import { getWeeklyProfileWinners, type WeeklyProfileWinnerDTO, type WeeklyProfileWinnersDTO } from '../api/weeklyProfile';
 
 const todayHeadline = () => new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 const formatNumber = (n: number) => n.toLocaleString('fr-FR');
@@ -38,7 +38,7 @@ export default function JournalScreen() {
     setRefreshing(false);
   };
 
-  const winner = (label: string, value: WeeklyProfileWinnersDTO['male']) => value ? <>
+  const winner = (label: string, value: WeeklyProfileWinnerDTO | null) => value ? <>
     <Text>{label} : {value.pseudo} — {value.totalVotes} votes</Text>
     <Button title={`Voir le profil de ${value.pseudo}`} onPress={() => router.push(`/profiles?userId=${value.id}`)} />
   </> : <Text>{label} : aucun résultat</Text>;
