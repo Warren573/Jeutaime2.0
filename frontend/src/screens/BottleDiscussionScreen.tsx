@@ -7,6 +7,7 @@ import {
   markBottleAsRead,
   postBottleMessage,
 } from '../api/bottles';
+import { BottleCorrespondenceMenu } from '../components/BottleCorrespondenceMenu';
 import { generateUUID } from '../utils/uuid';
 import type { GetCurrentBottleResponse } from '../api/bottles';
 
@@ -22,6 +23,7 @@ export default function BottleDiscussionScreen() {
   const [error, setError] = useState('');
   const [revealPending, setRevealPending] = useState(false);
   const [revealRequester, setRevealRequester] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -41,7 +43,7 @@ export default function BottleDiscussionScreen() {
     }
   }, [bottleId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const send = async () => {
     const value = text.trim();
@@ -68,35 +70,46 @@ export default function BottleDiscussionScreen() {
   if (!state?.bottle || !state.latestLetter) return <View><Text>Correspondance non trouvée</Text><Button title="Retour" onPress={() => router.back()} /></View>;
 
   return (
-    <ScrollView>
-      <Text>Bouteille à la mer</Text>
-      <Text>Dernière lettre</Text>
-      <Text>{state.latestLetter.content}</Text>
-      <Text>Messages échangés : {state.messageCount}</Text>
-      {error ? <Text>Erreur : {error}</Text> : null}
-      {state.canReply ? <Text>C'est votre tour de répondre.</Text> : null}
-      {state.waitingForReply ? <Text>En attente de la réponse de l'autre personne.</Text> : null}
-      {revealPending ? <Text>{revealRequester ? 'Demande de dévoilement envoyée.' : 'Demande de dévoilement reçue.'}</Text> : null}
+    <>
+      <ScrollView>
+        <Text>Bouteille à la mer</Text>
+        <Text>Dernière lettre</Text>
+        <Text>{state.latestLetter.content}</Text>
+        <Text>Messages échangés : {state.messageCount}</Text>
+        {error ? <Text>Erreur : {error}</Text> : null}
+        {state.canReply ? <Text>C'est votre tour de répondre.</Text> : null}
+        {state.waitingForReply ? <Text>En attente de la réponse de l'autre personne.</Text> : null}
+        {revealPending ? <Text>{revealRequester ? 'Demande de dévoilement envoyée.' : 'Demande de dévoilement reçue.'}</Text> : null}
 
-      {state.canReply && (
-        <View>
-          <TextInput
-            placeholder="Écris ta réponse"
-            value={text}
-            onChangeText={setText}
-            multiline
-            maxLength={500}
-            editable={!sending}
-          />
-          <Text>{500 - text.length} caractères restants</Text>
-          <Button title={sending ? 'Envoi...' : 'Envoyer'} disabled={sending || !text.trim()} onPress={send} />
-        </View>
-      )}
+        {state.canReply && (
+          <View>
+            <TextInput
+              placeholder="Écris ta réponse"
+              value={text}
+              onChangeText={setText}
+              multiline
+              maxLength={500}
+              editable={!sending}
+            />
+            <Text>{500 - text.length} caractères restants</Text>
+            <Button title={sending ? 'Envoi...' : 'Envoyer'} disabled={sending || !text.trim()} onPress={() => void send()} />
+          </View>
+        )}
 
-      <Button title="Historique" onPress={() => router.push({ pathname: '/bottles-history', params: { bottleId } })} />
-      <Button title="Actions de la correspondance" onPress={() => router.push({ pathname: '/bottles-discussions', params: { bottleId } })} />
-      <Button title="Actualiser" onPress={load} />
-      <Button title="Retour" onPress={() => router.back()} />
-    </ScrollView>
+        <Button title="Historique" onPress={() => router.push({ pathname: '/bottles-history', params: { bottleId } })} />
+        <Button title="Actions de la correspondance" onPress={() => setShowMenu(true)} />
+        <Button title="Actualiser" onPress={() => void load()} />
+        <Button title="Retour" onPress={() => router.back()} />
+      </ScrollView>
+
+      <BottleCorrespondenceMenu
+        visible={showMenu}
+        bottleId={state.bottle.id}
+        canBreak={state.canBreak}
+        onClose={() => setShowMenu(false)}
+        onRefresh={load}
+        onBroken={() => router.back()}
+      />
+    </>
   );
 }
