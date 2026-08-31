@@ -6,6 +6,7 @@ on:
     branches:
       - claude/duel-validation-profiles-r85y7z
       - main
+      - test-core
     paths:
       - 'backend/src/modules/bottles/**'
       - 'backend/tests/integration/bottles-*.test.ts'
