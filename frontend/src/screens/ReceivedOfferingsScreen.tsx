@@ -47,7 +47,6 @@ export default function ReceivedOfferingsScreen() {
           <Text>Date : {new Date(item.createdAt).toLocaleString('fr-FR')}</Text>
           <Text>Active : {item.isActive ? 'oui' : 'non'}</Text>
           <Text>Consommations : {item.consumptionCount}</Text>
-          {item.message ? <Text>Message : {item.message}</Text> : null}
         </View>
       ))}
       <Button title="Actualiser" onPress={load} />
