@@ -8,6 +8,7 @@ import {
   getWeeklyProfileWinners,
   type WeeklyProfileStateDTO,
   type WeeklyProfileWinnersDTO,
+  type WeeklyProfileWinnerDTO,
   type DuelProfileDTO,
 } from '../api/weeklyProfile';
 
@@ -103,7 +104,7 @@ export default function WeeklyProfileScreen() {
     </View>
   );
 
-  const renderWinner = (profile: WeeklyProfileWinnersDTO['male'], label: string) => (
+  const renderWinner = (profile: WeeklyProfileWinnerDTO | null, label: string) => (
     <View>
       <Text>{label}</Text>
       {profile ? (
