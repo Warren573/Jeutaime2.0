@@ -61,7 +61,9 @@ function Tape({ variant = 'a', large = false }: { variant?: Variant; large?: boo
 function PaperClip() {
   return (
     <View pointerEvents="none" style={styles.paperClip}>
-      <View style={styles.paperClipInner} />
+      <View style={styles.paperClipOuter} />
+      <View style={styles.paperClipInnerLeg} />
+      <View style={styles.paperClipHighlight} />
     </View>
   );
 }
@@ -154,7 +156,11 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#DCCEBB', backgroundColor: C.white }, headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '900', color: C.ink, letterSpacing: 1.7 }, headerSpacer: { width: 64 }, headerAction: { minWidth: 64, alignItems: 'flex-end' }, headerActionText: { fontSize: 13, fontWeight: '800', color: C.burgundy },
   scroll: { padding: 14, paddingTop: 18, paddingBottom: 80 }, dossier: { position: 'relative', backgroundColor: '#F9F2E7', borderWidth: 1, borderColor: '#D1B996', padding: 12, shadowColor: C.shadow, shadowOpacity: 0.24, shadowRadius: 10, shadowOffset: { width: 2, height: 5 }, elevation: 3 },
   headerSheet: { minHeight: 205, position: 'relative', overflow: 'visible', backgroundColor: '#FBF8F0', borderBottomWidth: 1, borderBottomColor: '#D9CBB7', flexDirection: 'row', paddingHorizontal: 38, paddingVertical: 25 }, paperLines: { ...StyleSheet.absoluteFillObject, opacity: 0.42 }, paperLine: { height: 1, backgroundColor: C.gridLine, marginTop: 28 },
-  avatarClipSlot: { position: 'absolute', zIndex: 12, left: -12, top: 8 }, paperClip: { width: 25, height: 62, borderWidth: 2.5, borderColor: '#8D857B', borderRadius: 14, transform: [{ rotate: '-11deg' }], backgroundColor: 'transparent' }, paperClipInner: { position: 'absolute', left: 5, top: 6, width: 13, height: 46, borderWidth: 2, borderColor: '#8D857B', borderRadius: 9, borderBottomColor: 'transparent', transform: [{ rotate: '1deg' }] },
+  avatarClipSlot: { position: 'absolute', zIndex: 20, left: -18, top: -17, width: 48, height: 82, overflow: 'visible' },
+  paperClip: { width: 48, height: 82, position: 'relative', transform: [{ rotate: '-31deg' }] },
+  paperClipOuter: { position: 'absolute', left: 8, top: 2, width: 31, height: 71, borderTopWidth: 4, borderRightWidth: 4, borderBottomWidth: 4, borderLeftWidth: 0, borderColor: '#81796F', borderTopRightRadius: 17, borderBottomRightRadius: 18, borderBottomLeftRadius: 16, backgroundColor: 'transparent' },
+  paperClipInnerLeg: { position: 'absolute', left: 11, top: 22, width: 4, height: 46, borderRadius: 3, backgroundColor: '#81796F', transform: [{ rotate: '-1deg' }] },
+  paperClipHighlight: { position: 'absolute', left: 13, top: 8, width: 2, height: 55, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.34)', transform: [{ rotate: '-1deg' }] },
   headerAvatarWrap: { width: 155, zIndex: 2, position: 'relative', overflow: 'visible' }, avatarBox: { width: 132, height: 132, backgroundColor: C.warm, borderWidth: 1, borderColor: C.line, borderRadius: 10, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-1.5deg' }] }, avatarCaption: { fontSize: 9, color: C.ink, marginTop: 8, transform: [{ rotate: '-1deg' }] }, avatarSubcaption: { fontSize: 8, color: C.burgundy, marginTop: 2, fontStyle: 'italic' }, headerInfo: { flex: 1, paddingLeft: 18, paddingTop: 18, zIndex: 2 }, profilePseudo: { fontSize: 29, lineHeight: 34, fontWeight: '900', color: C.ink }, nameUnderline: { width: 145, height: 3, backgroundColor: C.burgundy, marginTop: 4, marginBottom: 13, transform: [{ rotate: '-2deg' }] }, metaRow: { fontSize: 16, fontWeight: '800', color: C.ink, marginBottom: 8 },
   stack: { paddingTop: 16 }, noteCard: { position: 'relative', overflow: 'visible', marginBottom: 12, paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16, borderWidth: 1, borderColor: C.line, shadowColor: C.shadow, shadowOpacity: 0.18, shadowRadius: 4, shadowOffset: { width: 2, height: 3 }, elevation: 2 }, tone_paper: { backgroundColor: C.paper }, tone_grid: { backgroundColor: C.grid }, tone_pink: { backgroundColor: C.pink }, tone_lavender: { backgroundColor: C.lavender }, tone_yellow: { backgroundColor: C.yellow },
   card_a: { transform: [{ rotate: '-0.35deg' }], marginHorizontal: 2 }, card_b: { transform: [{ rotate: '0.45deg' }], marginLeft: 4, marginRight: 1 }, card_c: { transform: [{ rotate: '-0.55deg' }], marginLeft: 1, marginRight: 5 }, card_d: { transform: [{ rotate: '0.5deg' }], marginLeft: 5, marginRight: 1 },
