@@ -60,24 +60,14 @@ function Tape({ variant = 'a', large = false }: { variant?: Variant; large?: boo
 }
 
 function PaperClip() {
+  const d = "M31 5 C23 1 15 5 13 14 L6 48 C4 58 9 68 18 71 C27 74 36 68 38 59 L43 29 C44.5 21 39 15 32 14 C25 13 20 18 18.5 25 L13 52 C12 57 15 61 19 62 C24 63 28 60 29 55 L34 28";
   return (
     <View pointerEvents="none" style={styles.paperClipSlot}>
-      <Svg width="58" height="92" viewBox="0 0 58 92">
-        <Path
-          d="M40 8 C29 0 17 6 14 18 L6 55 C3 68 10 82 22 85 C35 88 47 80 49 67 L54 34 C56 23 49 15 40 13 C31 11 23 17 21 27 L15 60 C13 67 17 73 23 74 C29 75 35 71 36 65 L42 31"
-          fill="none"
-          stroke="#8A8277"
-          strokeWidth="4.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <Path
-          d="M39 9 C29 3 19 7 16 18"
-          fill="none"
-          stroke="rgba(255,255,255,0.42)"
-          strokeWidth="1.2"
-          strokeLinecap="round"
-        />
+      <Svg width="50" height="78" viewBox="0 0 50 78">
+        <Path d={d} fill="none" stroke="rgba(55,48,42,0.16)" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" transform="translate(1.3 1.5)" />
+        <Path d={d} fill="none" stroke="#716D66" strokeWidth="3.15" strokeLinecap="round" strokeLinejoin="round" />
+        <Path d="M30.5 5.4 C23.3 2.5 16.5 5.8 14.5 14.6 L7.5 47.6" fill="none" stroke="rgba(238,235,229,0.72)" strokeWidth="0.85" strokeLinecap="round" />
+        <Path d="M20.3 18.5 C24 14.6 28.3 13.7 32 14.6" fill="none" stroke="rgba(255,255,255,0.34)" strokeWidth="0.7" strokeLinecap="round" />
       </Svg>
     </View>
   );
@@ -172,7 +162,7 @@ const styles = StyleSheet.create({
   scroll: { padding: 14, paddingTop: 18, paddingBottom: 80 }, dossier: { position: 'relative', backgroundColor: '#F9F2E7', borderWidth: 1, borderColor: '#D1B996', padding: 12, shadowColor: C.shadow, shadowOpacity: 0.24, shadowRadius: 10, shadowOffset: { width: 2, height: 5 }, elevation: 3 },
   headerSheet: { minHeight: 205, position: 'relative', overflow: 'visible', backgroundColor: '#FBF8F0', borderBottomWidth: 1, borderBottomColor: '#D9CBB7', flexDirection: 'row', paddingHorizontal: 38, paddingVertical: 25 }, paperLines: { ...StyleSheet.absoluteFillObject, opacity: 0.42 }, paperLine: { height: 1, backgroundColor: C.gridLine, marginTop: 28 },
   headerAvatarWrap: { width: 155, zIndex: 2, position: 'relative', overflow: 'visible' },
-  paperClipSlot: { position: 'absolute', zIndex: 8, left: -25, top: -25, width: 58, height: 92, transform: [{ rotate: '-18deg' }] },
+  paperClipSlot: { position: 'absolute', zIndex: 8, left: -17, top: -20, width: 50, height: 78, transform: [{ rotate: '-11deg' }] },
   avatarBox: { width: 132, height: 132, zIndex: 2, backgroundColor: C.warm, borderWidth: 1, borderColor: C.line, borderRadius: 10, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-1.5deg' }], shadowColor: C.shadow, shadowOpacity: 0.09, shadowRadius: 2, shadowOffset: { width: 1, height: 2 } }, avatarCaption: { fontSize: 9, color: C.ink, marginTop: 8, transform: [{ rotate: '-1deg' }] }, avatarSubcaption: { fontSize: 8, color: C.burgundy, marginTop: 2, fontStyle: 'italic' }, headerInfo: { flex: 1, paddingLeft: 18, paddingTop: 18, zIndex: 2 }, profilePseudo: { fontSize: 29, lineHeight: 34, fontWeight: '900', color: C.ink }, nameUnderline: { width: 145, height: 3, backgroundColor: C.burgundy, marginTop: 4, marginBottom: 13, transform: [{ rotate: '-2deg' }] }, metaRow: { fontSize: 16, fontWeight: '800', color: C.ink, marginBottom: 8 },
   stack: { paddingTop: 16 }, noteCard: { position: 'relative', overflow: 'visible', marginBottom: 12, paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16, borderWidth: 1, borderColor: C.line, shadowColor: C.shadow, shadowOpacity: 0.18, shadowRadius: 4, shadowOffset: { width: 2, height: 3 }, elevation: 2 }, tone_paper: { backgroundColor: C.paper }, tone_grid: { backgroundColor: C.grid }, tone_pink: { backgroundColor: C.pink }, tone_lavender: { backgroundColor: C.lavender }, tone_yellow: { backgroundColor: C.yellow },
   card_a: { transform: [{ rotate: '-0.35deg' }], marginHorizontal: 2 }, card_b: { transform: [{ rotate: '0.45deg' }], marginLeft: 4, marginRight: 1 }, card_c: { transform: [{ rotate: '-0.55deg' }], marginLeft: 1, marginRight: 5 }, card_d: { transform: [{ rotate: '0.5deg' }], marginLeft: 5, marginRight: 1 },
