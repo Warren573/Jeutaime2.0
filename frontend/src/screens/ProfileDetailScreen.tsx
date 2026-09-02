@@ -58,12 +58,20 @@ function Tape({ variant = 'a', large = false }: { variant?: Variant; large?: boo
   );
 }
 
-function PaperClip() {
+function PaperClipBack() {
   return (
-    <View pointerEvents="none" style={styles.paperClip}>
-      <View style={styles.paperClipOuter} />
-      <View style={styles.paperClipInnerLeg} />
-      <View style={styles.paperClipHighlight} />
+    <View pointerEvents="none" style={styles.paperClipBackSlot}>
+      <View style={styles.paperClipBackLoop} />
+    </View>
+  );
+}
+
+function PaperClipFront() {
+  return (
+    <View pointerEvents="none" style={styles.paperClipFrontSlot}>
+      <View style={styles.paperClipFrontLoop} />
+      <View style={styles.paperClipFrontTail} />
+      <View style={styles.paperClipFrontHighlight} />
     </View>
   );
 }
@@ -122,8 +130,9 @@ export default function ProfileDetailScreen() {
           <View style={styles.headerSheet}>
             <PaperLines count={7} />
             <View style={styles.headerAvatarWrap}>
-              <View style={styles.avatarClipSlot}><PaperClip /></View>
+              <PaperClipBack />
               <View style={styles.avatarBox}><Avatar size={106} {...avatar} /></View>
+              <PaperClipFront />
               <Text style={styles.avatarCaption}>Avatar, pas ma vraie tête.</Text>
               <Text style={styles.avatarSubcaption}>La surprise, c'est plus amusant.</Text>
             </View>
@@ -156,12 +165,14 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#DCCEBB', backgroundColor: C.white }, headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '900', color: C.ink, letterSpacing: 1.7 }, headerSpacer: { width: 64 }, headerAction: { minWidth: 64, alignItems: 'flex-end' }, headerActionText: { fontSize: 13, fontWeight: '800', color: C.burgundy },
   scroll: { padding: 14, paddingTop: 18, paddingBottom: 80 }, dossier: { position: 'relative', backgroundColor: '#F9F2E7', borderWidth: 1, borderColor: '#D1B996', padding: 12, shadowColor: C.shadow, shadowOpacity: 0.24, shadowRadius: 10, shadowOffset: { width: 2, height: 5 }, elevation: 3 },
   headerSheet: { minHeight: 205, position: 'relative', overflow: 'visible', backgroundColor: '#FBF8F0', borderBottomWidth: 1, borderBottomColor: '#D9CBB7', flexDirection: 'row', paddingHorizontal: 38, paddingVertical: 25 }, paperLines: { ...StyleSheet.absoluteFillObject, opacity: 0.42 }, paperLine: { height: 1, backgroundColor: C.gridLine, marginTop: 28 },
-  avatarClipSlot: { position: 'absolute', zIndex: 20, left: -18, top: -17, width: 48, height: 82, overflow: 'visible' },
-  paperClip: { width: 48, height: 82, position: 'relative', transform: [{ rotate: '-31deg' }] },
-  paperClipOuter: { position: 'absolute', left: 8, top: 2, width: 31, height: 71, borderTopWidth: 4, borderRightWidth: 4, borderBottomWidth: 4, borderLeftWidth: 0, borderColor: '#81796F', borderTopRightRadius: 17, borderBottomRightRadius: 18, borderBottomLeftRadius: 16, backgroundColor: 'transparent' },
-  paperClipInnerLeg: { position: 'absolute', left: 11, top: 22, width: 4, height: 46, borderRadius: 3, backgroundColor: '#81796F', transform: [{ rotate: '-1deg' }] },
-  paperClipHighlight: { position: 'absolute', left: 13, top: 8, width: 2, height: 55, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.34)', transform: [{ rotate: '-1deg' }] },
-  headerAvatarWrap: { width: 155, zIndex: 2, position: 'relative', overflow: 'visible' }, avatarBox: { width: 132, height: 132, backgroundColor: C.warm, borderWidth: 1, borderColor: C.line, borderRadius: 10, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-1.5deg' }] }, avatarCaption: { fontSize: 9, color: C.ink, marginTop: 8, transform: [{ rotate: '-1deg' }] }, avatarSubcaption: { fontSize: 8, color: C.burgundy, marginTop: 2, fontStyle: 'italic' }, headerInfo: { flex: 1, paddingLeft: 18, paddingTop: 18, zIndex: 2 }, profilePseudo: { fontSize: 29, lineHeight: 34, fontWeight: '900', color: C.ink }, nameUnderline: { width: 145, height: 3, backgroundColor: C.burgundy, marginTop: 4, marginBottom: 13, transform: [{ rotate: '-2deg' }] }, metaRow: { fontSize: 16, fontWeight: '800', color: C.ink, marginBottom: 8 },
+  headerAvatarWrap: { width: 155, zIndex: 2, position: 'relative', overflow: 'visible' },
+  paperClipBackSlot: { position: 'absolute', zIndex: 0, left: -18, top: -17, width: 54, height: 88, transform: [{ rotate: '-31deg' }] },
+  paperClipBackLoop: { position: 'absolute', left: 9, top: 2, width: 34, height: 74, borderWidth: 3.2, borderLeftColor: 'transparent', borderColor: '#877E72', borderTopRightRadius: 18, borderBottomRightRadius: 18, borderBottomLeftRadius: 15, backgroundColor: 'transparent', shadowColor: '#4A433A', shadowOpacity: 0.15, shadowRadius: 1.5, shadowOffset: { width: 1, height: 1 } },
+  paperClipFrontSlot: { position: 'absolute', zIndex: 6, left: -18, top: -17, width: 54, height: 88, transform: [{ rotate: '-31deg' }] },
+  paperClipFrontLoop: { position: 'absolute', left: 16, top: 17, width: 19, height: 49, borderWidth: 3.2, borderLeftColor: 'transparent', borderColor: '#877E72', borderTopRightRadius: 11, borderBottomRightRadius: 11, borderBottomLeftRadius: 9, backgroundColor: 'transparent' },
+  paperClipFrontTail: { position: 'absolute', left: 16, top: 16, width: 3.2, height: 30, borderRadius: 2, backgroundColor: '#877E72' },
+  paperClipFrontHighlight: { position: 'absolute', left: 19, top: 20, width: 1.2, height: 37, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.36)' },
+  avatarBox: { width: 132, height: 132, zIndex: 2, backgroundColor: C.warm, borderWidth: 1, borderColor: C.line, borderRadius: 10, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-1.5deg' }], shadowColor: C.shadow, shadowOpacity: 0.09, shadowRadius: 2, shadowOffset: { width: 1, height: 2 } }, avatarCaption: { fontSize: 9, color: C.ink, marginTop: 8, transform: [{ rotate: '-1deg' }] }, avatarSubcaption: { fontSize: 8, color: C.burgundy, marginTop: 2, fontStyle: 'italic' }, headerInfo: { flex: 1, paddingLeft: 18, paddingTop: 18, zIndex: 2 }, profilePseudo: { fontSize: 29, lineHeight: 34, fontWeight: '900', color: C.ink }, nameUnderline: { width: 145, height: 3, backgroundColor: C.burgundy, marginTop: 4, marginBottom: 13, transform: [{ rotate: '-2deg' }] }, metaRow: { fontSize: 16, fontWeight: '800', color: C.ink, marginBottom: 8 },
   stack: { paddingTop: 16 }, noteCard: { position: 'relative', overflow: 'visible', marginBottom: 12, paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16, borderWidth: 1, borderColor: C.line, shadowColor: C.shadow, shadowOpacity: 0.18, shadowRadius: 4, shadowOffset: { width: 2, height: 3 }, elevation: 2 }, tone_paper: { backgroundColor: C.paper }, tone_grid: { backgroundColor: C.grid }, tone_pink: { backgroundColor: C.pink }, tone_lavender: { backgroundColor: C.lavender }, tone_yellow: { backgroundColor: C.yellow },
   card_a: { transform: [{ rotate: '-0.35deg' }], marginHorizontal: 2 }, card_b: { transform: [{ rotate: '0.45deg' }], marginLeft: 4, marginRight: 1 }, card_c: { transform: [{ rotate: '-0.55deg' }], marginLeft: 1, marginRight: 5 }, card_d: { transform: [{ rotate: '0.5deg' }], marginLeft: 5, marginRight: 1 },
   tape: { position: 'absolute', zIndex: 12, top: -9, width: 76, height: 21, backgroundColor: C.tape, opacity: 0.74, shadowColor: '#8F7758', shadowOpacity: 0.08, shadowRadius: 1, shadowOffset: { width: 0, height: 1 } }, tapeLarge: { top: -11, left: '43%', width: 112, height: 26, transform: [{ rotate: '-3deg' }] }, tape_a: { left: 26, transform: [{ rotate: '-4deg' }] }, tape_b: { right: 28, transform: [{ rotate: '3deg' }] }, tape_c: { left: '42%', transform: [{ rotate: '-1.5deg' }] }, tape_d: { right: 38, transform: [{ rotate: '4.5deg' }] }, tapeSheen: { position: 'absolute', top: 2, left: 5, right: 5, height: 5, backgroundColor: 'rgba(255,255,255,0.18)' }, tapeEdgeLeft: { position: 'absolute', left: -2, top: 2, bottom: 2, width: 5, backgroundColor: 'rgba(202,177,137,0.45)', transform: [{ rotate: '-5deg' }] }, tapeEdgeRight: { position: 'absolute', right: -2, top: 3, bottom: 1, width: 5, backgroundColor: 'rgba(202,177,137,0.35)', transform: [{ rotate: '5deg' }] },
