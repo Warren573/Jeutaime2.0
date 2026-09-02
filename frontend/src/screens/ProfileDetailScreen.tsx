@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getPublicProfile, reportUser, type PublicProfileResponse } from '../api/profiles';
@@ -58,20 +59,26 @@ function Tape({ variant = 'a', large = false }: { variant?: Variant; large?: boo
   );
 }
 
-function PaperClipBack() {
+function PaperClip() {
   return (
-    <View pointerEvents="none" style={styles.paperClipBackSlot}>
-      <View style={styles.paperClipBackLoop} />
-    </View>
-  );
-}
-
-function PaperClipFront() {
-  return (
-    <View pointerEvents="none" style={styles.paperClipFrontSlot}>
-      <View style={styles.paperClipFrontLoop} />
-      <View style={styles.paperClipFrontTail} />
-      <View style={styles.paperClipFrontHighlight} />
+    <View pointerEvents="none" style={styles.paperClipSlot}>
+      <Svg width="58" height="92" viewBox="0 0 58 92">
+        <Path
+          d="M40 8 C29 0 17 6 14 18 L6 55 C3 68 10 82 22 85 C35 88 47 80 49 67 L54 34 C56 23 49 15 40 13 C31 11 23 17 21 27 L15 60 C13 67 17 73 23 74 C29 75 35 71 36 65 L42 31"
+          fill="none"
+          stroke="#8A8277"
+          strokeWidth="4.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M39 9 C29 3 19 7 16 18"
+          fill="none"
+          stroke="rgba(255,255,255,0.42)"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+        />
+      </Svg>
     </View>
   );
 }
@@ -130,9 +137,8 @@ export default function ProfileDetailScreen() {
           <View style={styles.headerSheet}>
             <PaperLines count={7} />
             <View style={styles.headerAvatarWrap}>
-              <PaperClipBack />
               <View style={styles.avatarBox}><Avatar size={106} {...avatar} /></View>
-              <PaperClipFront />
+              <PaperClip />
               <Text style={styles.avatarCaption}>Avatar, pas ma vraie tête.</Text>
               <Text style={styles.avatarSubcaption}>La surprise, c'est plus amusant.</Text>
             </View>
@@ -166,12 +172,7 @@ const styles = StyleSheet.create({
   scroll: { padding: 14, paddingTop: 18, paddingBottom: 80 }, dossier: { position: 'relative', backgroundColor: '#F9F2E7', borderWidth: 1, borderColor: '#D1B996', padding: 12, shadowColor: C.shadow, shadowOpacity: 0.24, shadowRadius: 10, shadowOffset: { width: 2, height: 5 }, elevation: 3 },
   headerSheet: { minHeight: 205, position: 'relative', overflow: 'visible', backgroundColor: '#FBF8F0', borderBottomWidth: 1, borderBottomColor: '#D9CBB7', flexDirection: 'row', paddingHorizontal: 38, paddingVertical: 25 }, paperLines: { ...StyleSheet.absoluteFillObject, opacity: 0.42 }, paperLine: { height: 1, backgroundColor: C.gridLine, marginTop: 28 },
   headerAvatarWrap: { width: 155, zIndex: 2, position: 'relative', overflow: 'visible' },
-  paperClipBackSlot: { position: 'absolute', zIndex: 0, left: -18, top: -17, width: 54, height: 88, transform: [{ rotate: '-31deg' }] },
-  paperClipBackLoop: { position: 'absolute', left: 9, top: 2, width: 34, height: 74, borderWidth: 3.2, borderLeftColor: 'transparent', borderColor: '#877E72', borderTopRightRadius: 18, borderBottomRightRadius: 18, borderBottomLeftRadius: 15, backgroundColor: 'transparent', shadowColor: '#4A433A', shadowOpacity: 0.15, shadowRadius: 1.5, shadowOffset: { width: 1, height: 1 } },
-  paperClipFrontSlot: { position: 'absolute', zIndex: 6, left: -18, top: -17, width: 54, height: 88, transform: [{ rotate: '-31deg' }] },
-  paperClipFrontLoop: { position: 'absolute', left: 16, top: 17, width: 19, height: 49, borderWidth: 3.2, borderLeftColor: 'transparent', borderColor: '#877E72', borderTopRightRadius: 11, borderBottomRightRadius: 11, borderBottomLeftRadius: 9, backgroundColor: 'transparent' },
-  paperClipFrontTail: { position: 'absolute', left: 16, top: 16, width: 3.2, height: 30, borderRadius: 2, backgroundColor: '#877E72' },
-  paperClipFrontHighlight: { position: 'absolute', left: 19, top: 20, width: 1.2, height: 37, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.36)' },
+  paperClipSlot: { position: 'absolute', zIndex: 8, left: -25, top: -25, width: 58, height: 92, transform: [{ rotate: '-18deg' }] },
   avatarBox: { width: 132, height: 132, zIndex: 2, backgroundColor: C.warm, borderWidth: 1, borderColor: C.line, borderRadius: 10, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-1.5deg' }], shadowColor: C.shadow, shadowOpacity: 0.09, shadowRadius: 2, shadowOffset: { width: 1, height: 2 } }, avatarCaption: { fontSize: 9, color: C.ink, marginTop: 8, transform: [{ rotate: '-1deg' }] }, avatarSubcaption: { fontSize: 8, color: C.burgundy, marginTop: 2, fontStyle: 'italic' }, headerInfo: { flex: 1, paddingLeft: 18, paddingTop: 18, zIndex: 2 }, profilePseudo: { fontSize: 29, lineHeight: 34, fontWeight: '900', color: C.ink }, nameUnderline: { width: 145, height: 3, backgroundColor: C.burgundy, marginTop: 4, marginBottom: 13, transform: [{ rotate: '-2deg' }] }, metaRow: { fontSize: 16, fontWeight: '800', color: C.ink, marginBottom: 8 },
   stack: { paddingTop: 16 }, noteCard: { position: 'relative', overflow: 'visible', marginBottom: 12, paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16, borderWidth: 1, borderColor: C.line, shadowColor: C.shadow, shadowOpacity: 0.18, shadowRadius: 4, shadowOffset: { width: 2, height: 3 }, elevation: 2 }, tone_paper: { backgroundColor: C.paper }, tone_grid: { backgroundColor: C.grid }, tone_pink: { backgroundColor: C.pink }, tone_lavender: { backgroundColor: C.lavender }, tone_yellow: { backgroundColor: C.yellow },
   card_a: { transform: [{ rotate: '-0.35deg' }], marginHorizontal: 2 }, card_b: { transform: [{ rotate: '0.45deg' }], marginLeft: 4, marginRight: 1 }, card_c: { transform: [{ rotate: '-0.55deg' }], marginLeft: 1, marginRight: 5 }, card_d: { transform: [{ rotate: '0.5deg' }], marginLeft: 5, marginRight: 1 },
