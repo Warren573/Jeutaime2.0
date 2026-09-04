@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import { getPublicProfile, reportUser, type PublicProfileResponse } from '../api/profiles';
 import { Avatar } from '../avatar/png/Avatar';
 import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
@@ -23,7 +24,38 @@ function calcAge(birthDate?:string|null):number|null { if(!birthDate)return null
 function cleanArray(value:unknown):string[]{ return Array.isArray(value)?value.map(v=>String(v).trim()).filter(Boolean):[]; }
 type Tone='paper'|'grid'|'pink'|'lavender'|'yellow'; type Variant='a'|'b'|'c'|'d';
 type PaperSectionProps={title:string;note?:string;tone:Tone;variant?:Variant;children:React.ReactNode};
-function PaperSection({title,note,tone,variant='a',children}:PaperSectionProps){ return <View style={[styles.noteCard,styles[`tone_${tone}`],styles[`card_${variant}`]]}><View pointerEvents="none" style={styles.paperPatinaTop}/><View pointerEvents="none" style={styles.paperPatinaBottom}/><View pointerEvents="none" style={styles.paperPatinaLeft}/><View pointerEvents="none" style={styles.paperPatinaRight}/><View style={styles.sectionTop}><Text style={styles.sectionTitle}>{title}</Text></View>{!!note&&<Text style={styles.sectionNote}>{note}</Text>}<View style={styles.sectionContent}>{children}</View></View>; }
+
+const PAPER_FILL: Record<Tone,string> = { paper:'#FCF6EA', grid:'#F7F0E3', pink:'#F1D7D7', lavender:'#E5DCEB', yellow:'#F0D783' };
+function paperPath(w:number,h:number,variant:Variant){
+  const v = variant === 'a' ? 0 : variant === 'b' ? 1 : variant === 'c' ? 2 : 3;
+  const a = 2 + v * 0.4;
+  return [
+    `M ${6+a} ${5-a/2}`,
+    `C ${w*0.12} ${2+a}, ${w*0.20} ${6-a}, ${w*0.31} ${4+a/2}`,
+    `C ${w*0.43} ${2-a/2}, ${w*0.53} ${6+a/3}, ${w*0.64} ${4-a/3}`,
+    `C ${w*0.76} ${2+a/2}, ${w*0.86} ${6-a/2}, ${w-7} ${4+a/3}`,
+    `C ${w-3} ${h*0.17}, ${w-7-a/2} ${h*0.30}, ${w-4} ${h*0.43}`,
+    `C ${w-7} ${h*0.56}, ${w-3-a/3} ${h*0.70}, ${w-6} ${h*0.84}`,
+    `C ${w-4} ${h*0.91}, ${w-6-a/2} ${h*0.96}, ${w-8} ${h-6}`,
+    `C ${w*0.84} ${h-3-a/3}, ${w*0.74} ${h-7+a/2}, ${w*0.62} ${h-4}`,
+    `C ${w*0.50} ${h-7-a/2}, ${w*0.40} ${h-3+a/3}, ${w*0.29} ${h-5}`,
+    `C ${w*0.18} ${h-3-a/3}, ${w*0.10} ${h-7+a/2}, ${7+a/2} ${h-5}`,
+    `C ${3+a/3} ${h*0.84}, ${7-a/3} ${h*0.70}, ${4+a/2} ${h*0.56}`,
+    `C ${7-a/2} ${h*0.42}, ${3+a/2} ${h*0.28}, ${6} ${h*0.15}`,
+    'Z'
+  ].join(' ');
+}
+function PaperSection({title,note,tone,variant='a',children}:PaperSectionProps){
+  const [size,setSize]=useState({w:0,h:0});
+  const d=size.w>0&&size.h>0?paperPath(size.w,size.h,variant):'';
+  return <View style={[styles.noteCard,styles[`card_${variant}`]]} onLayout={e=>{const {width,height}=e.nativeEvent.layout; if(width!==size.w||height!==size.h)setSize({w:width,h:height});}}>
+    {d ? <Svg pointerEvents="none" style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox={`0 0 ${size.w} ${size.h}`}>
+      <Path d={d} fill="rgba(82,61,42,0.10)" transform="translate(2 3)" />
+      <Path d={d} fill={PAPER_FILL[tone]} stroke="#C3A278" strokeWidth="1.1" />
+    </Svg> : null}
+    <View style={styles.sectionTop}><Text style={styles.sectionTitle}>{title}</Text></View>{!!note&&<Text style={styles.sectionNote}>{note}</Text>}<View style={styles.sectionContent}>{children}</View>
+  </View>;
+}
 
 export default function ProfileDetailScreen(){
  const router=useRouter(); const insets=useSafeAreaInsets(); const params=useLocalSearchParams<{id?:string}>(); const profileId=Array.isArray(params.id)?params.id[0]:params.id; const currentUser=useStore(s=>s.currentUser);
@@ -48,8 +80,7 @@ const styles=StyleSheet.create({
  header:{flexDirection:'row',alignItems:'center',paddingHorizontal:12,paddingVertical:10,borderBottomWidth:1,borderBottomColor:'#DCCEBB',backgroundColor:C.white},headerTitle:{flex:1,textAlign:'center',fontSize:18,fontWeight:'900',color:C.ink,letterSpacing:1.7},headerSpacer:{width:64},headerAction:{minWidth:64,alignItems:'flex-end'},headerActionText:{fontSize:13,fontWeight:'800',color:C.burgundy},
  scroll:{padding:14,paddingTop:18,paddingBottom:80},dossier:{position:'relative',backgroundColor:'#F9F2E7',borderWidth:1,borderColor:'#D1B996',padding:12,shadowColor:C.shadow,shadowOpacity:0.2,shadowRadius:9,shadowOffset:{width:2,height:5},elevation:3},
  headerSheet:{minHeight:205,position:'relative',overflow:'visible',backgroundColor:'#FBF8F0',borderBottomWidth:1,borderBottomColor:'#D9CBB7',flexDirection:'row',paddingLeft:24,paddingRight:28,paddingVertical:25},headerAvatarWrap:{width:150,zIndex:2,position:'relative',overflow:'visible'},avatarBox:{width:132,height:132,zIndex:2,backgroundColor:C.warm,borderWidth:1,borderColor:C.line,borderRadius:8,alignItems:'center',justifyContent:'center',transform:[{rotate:'-1.5deg'}],shadowColor:C.shadow,shadowOpacity:0.09,shadowRadius:2,shadowOffset:{width:1,height:2}},avatarCaption:{fontSize:9,color:C.ink,marginTop:8,transform:[{rotate:'-1deg'}]},avatarSubcaption:{fontSize:8,color:C.burgundy,marginTop:2,fontStyle:'italic'},headerInfo:{flex:1,minWidth:0,paddingLeft:12,paddingTop:18,zIndex:2},profilePseudo:{fontSize:23,lineHeight:28,fontWeight:'900',color:C.ink,marginBottom:13},metaRow:{fontSize:16,fontWeight:'800',color:C.ink,marginBottom:8},
- stack:{paddingTop:16},noteCard:{position:'relative',overflow:'hidden',marginBottom:14,paddingHorizontal:18,paddingTop:20,paddingBottom:17,borderWidth:1,borderColor:'#C6A77D',borderRadius:2,shadowColor:C.shadow,shadowOpacity:0.12,shadowRadius:3,shadowOffset:{width:1,height:3},elevation:2},tone_paper:{backgroundColor:'#FCF6EA'},tone_grid:{backgroundColor:'#F7F0E3'},tone_pink:{backgroundColor:'#F1D7D7'},tone_lavender:{backgroundColor:'#E5DCEB'},tone_yellow:{backgroundColor:'#F0D783'},
- paperPatinaTop:{position:'absolute',left:17,right:38,top:0,height:1,backgroundColor:'rgba(112,76,39,0.28)'},paperPatinaBottom:{position:'absolute',left:48,right:14,bottom:0,height:1,backgroundColor:'rgba(117,80,43,0.25)'},paperPatinaLeft:{position:'absolute',left:0,top:27,bottom:52,width:1,backgroundColor:'rgba(121,84,47,0.22)'},paperPatinaRight:{position:'absolute',right:0,top:49,bottom:21,width:1,backgroundColor:'rgba(109,72,37,0.23)'},
+ stack:{paddingTop:16},noteCard:{position:'relative',overflow:'visible',marginBottom:14,paddingHorizontal:22,paddingTop:23,paddingBottom:20,backgroundColor:'transparent'},
  card_a:{transform:[{rotate:'-0.28deg'}],marginHorizontal:2},card_b:{transform:[{rotate:'0.34deg'}],marginLeft:4,marginRight:1},card_c:{transform:[{rotate:'-0.4deg'}],marginLeft:1,marginRight:5},card_d:{transform:[{rotate:'0.38deg'}],marginLeft:5,marginRight:1},
  sectionTop:{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between'},sectionTitle:{flex:1,fontSize:17,lineHeight:21,fontWeight:'900',letterSpacing:0.5,color:C.ink},sectionNote:{fontSize:11.5,lineHeight:17,color:C.muted,fontStyle:'italic',marginTop:6},sectionContent:{marginTop:12},bodyText:{fontSize:14,lineHeight:23,color:C.ink},emptyText:{fontSize:13,lineHeight:20,color:C.muted,fontStyle:'italic'},bigChoice:{marginBottom:10},bigChoiceTitle:{fontSize:14,fontWeight:'900',color:C.ink},bigChoiceSub:{fontSize:11.5,lineHeight:17,color:C.muted,fontStyle:'italic',marginTop:3},labelStandalone:{fontSize:12.5,fontWeight:'900',color:C.ink,marginTop:9,marginBottom:8},chipWrap:{flexDirection:'row',flexWrap:'wrap',gap:6},chip:{borderWidth:1,borderColor:C.line,backgroundColor:'#FBF4E9',borderRadius:18,paddingHorizontal:11,paddingVertical:6},chipText:{fontSize:12,fontWeight:'800',color:C.ink},
  infoRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingBottom:9,borderBottomWidth:1,borderBottomColor:'#DDCDB8'},label:{fontSize:13,fontWeight:'800',color:C.ink},value:{fontSize:16,fontWeight:'900',color:C.ink},physicalCard:{maxWidth:'70%',backgroundColor:C.warm,borderWidth:1,borderColor:C.line,padding:11,marginTop:4,borderRadius:12},physicalTitle:{fontSize:14,fontWeight:'900',color:C.ink},physicalSub:{fontSize:11.5,lineHeight:17,color:C.muted,fontStyle:'italic',marginTop:3},childrenRow:{flexDirection:'row',gap:16},childQuestion:{flex:1},question:{fontSize:12.5,lineHeight:18,fontWeight:'800',color:C.ink,marginBottom:7},answerSlip:{alignSelf:'flex-start',backgroundColor:'#FBF8F0',borderWidth:1,borderColor:C.line,borderRadius:17,paddingHorizontal:11,paddingVertical:7},answer:{fontSize:11.5,lineHeight:16,fontWeight:'800',color:C.ink},skillCard:{backgroundColor:'rgba(255,255,255,0.32)',borderWidth:1,borderColor:'#D6BC70',padding:10,marginBottom:7,borderRadius:4},skillTitle:{fontSize:13,fontWeight:'900',color:C.ink,marginBottom:3},fakePlus:{borderWidth:1,borderStyle:'dashed',borderColor:'#C7A958',paddingVertical:9,alignItems:'center',marginTop:5},fakePlusText:{fontSize:11,fontWeight:'800',color:C.ink},reportStrip:{position:'relative',marginTop:3,borderWidth:1,borderColor:C.line,backgroundColor:'#F7EFE3',padding:12,minHeight:58,flexDirection:'row',alignItems:'center',gap:10},reportText:{flex:1,fontSize:10.5,lineHeight:16,color:C.muted},reportAction:{fontSize:11,fontWeight:'900',color:C.burgundy}
