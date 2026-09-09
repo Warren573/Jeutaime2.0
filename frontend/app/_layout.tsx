@@ -91,6 +91,12 @@ export default function RootLayout() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false, orientation: 'portrait_up' }}>
+        {/* The whole tabbed app is explicitly locked upright. This is the
+            screen that stays mounted while navigating between Home/Search/
+            Social/Letters/Journal, so the lock must live here too. */}
+        <Stack.Screen name="(tabs)" options={{ orientation: 'portrait_up' }} />
+
+        {/* Only an opened salon may rotate. */}
         <Stack.Screen name="salon/[id]" options={{ orientation: 'all' }} />
         <Stack.Screen name="salon/cafe-paris" options={{ orientation: 'all' }} />
       </Stack>
