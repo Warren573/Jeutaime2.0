@@ -90,7 +90,10 @@ export default function RootLayout() {
 
   return (
     <>
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false, orientation: 'portrait_up' }}>
+        <Stack.Screen name="salon/[id]" options={{ orientation: 'all' }} />
+        <Stack.Screen name="salon/cafe-paris" options={{ orientation: 'all' }} />
+      </Stack>
       <TestModeLink />
     </>
   );
