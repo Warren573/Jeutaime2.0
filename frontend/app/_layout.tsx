@@ -1,5 +1,6 @@
 import { Stack, usePathname, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+import * as ScreenOrientation from "expo-screen-orientation";
 import { useStore } from "../src/store/useStore";
 import { getToken } from "../src/utils/session";
 import { useNotificationPolling } from "../src/hooks/useNotificationPolling";
@@ -7,7 +8,6 @@ import { usePushNotifications } from "../src/hooks/usePushNotifications";
 import { API_URL } from "../src/api/client";
 import { TestModeLink } from "../src/dev/TestModeLink";
 
-// Paths that don't require authentication (auth flows + in-progress onboarding)
 const AUTH_EXCLUDED: string[] = [
   '/login',
   '/register',
@@ -16,7 +16,6 @@ const AUTH_EXCLUDED: string[] = [
   '/test-mode',
 ];
 
-// Paths where the profile gate must NOT redirect
 const PROFILE_GATE_EXCLUDED: string[] = [
   '/create-profile',
   '/setup-questions',
@@ -34,13 +33,10 @@ export default function RootLayout() {
   const pathname = usePathname();
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Wakeup ping — réveille le backend Render Free dès le chargement de l'app
-  // (fire-and-forget, silencieux en cas d'erreur)
   useEffect(() => {
     fetch(`${API_URL}/health`, { method: "GET" }).catch(() => {});
   }, []);
 
-  // Initial hydration
   useEffect(() => {
     (async () => {
       const token = await getToken();
@@ -49,7 +45,23 @@ export default function RootLayout() {
     })();
   }, [hydrateFromApi]);
 
-  // Auth gate — unauthenticated users must go to /login
+  useEffect(() => {
+    const applyOrientation = async () => {
+      try {
+        const isSalon = pathname.startsWith('/salon/');
+        await ScreenOrientation.lockAsync(
+          isSalon
+            ? ScreenOrientation.OrientationLock.ALL
+            : ScreenOrientation.OrientationLock.PORTRAIT_UP
+        );
+      } catch {
+        // Ignore unsupported platform-specific orientation errors.
+      }
+    };
+
+    void applyOrientation();
+  }, [pathname]);
+
   useEffect(() => {
     if (!isHydrated) return;
     if (isAuthenticated) return;
@@ -57,16 +69,11 @@ export default function RootLayout() {
     router.replace('/login');
   }, [isHydrated, isAuthenticated, pathname, router]);
 
-  // Profile gate — only fires for authenticated users whose profile is
-  // critically incomplete (canDiscover=false: missing gender, city, bio, etc.)
-  // Users who just haven't added questions yet (canDiscover=true) are NOT blocked.
   useEffect(() => {
     if (!isHydrated) return;
     if (!isAuthenticated) return;
-    // canDiscover=undefined means unknown (old account, backend didn't return it) — don't gate
     if (canDiscover !== false) return;
 
-    // DEBUG LOG
     console.log("[profile-gate] REDIRECT TRIGGERED", {
       userId: currentUser?.id,
       email: currentUser?.email,
@@ -91,12 +98,7 @@ export default function RootLayout() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false, orientation: 'portrait_up' }}>
-        {/* The whole tabbed app is explicitly locked upright. This is the
-            screen that stays mounted while navigating between Home/Search/
-            Social/Letters/Journal, so the lock must live here too. */}
         <Stack.Screen name="(tabs)" options={{ orientation: 'portrait_up' }} />
-
-        {/* Only an opened salon may rotate. */}
         <Stack.Screen name="salon/[id]" options={{ orientation: 'all' }} />
         <Stack.Screen name="salon/cafe-paris" options={{ orientation: 'all' }} />
       </Stack>
