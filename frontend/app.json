@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jeutaime.app",
-      "requiresFullScreen": false
+      "requireFullScreen": true
     },
     "android": {
       "adaptiveIcon": {
@@ -28,6 +28,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "DEFAULT"
+        }
+      ],
       [
         "expo-splash-screen",
         {
