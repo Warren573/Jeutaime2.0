@@ -24,7 +24,7 @@ import { salonsData } from '../data/salonsData';
 import { getAnimalImage } from '../data/refugeAnimalImages';
 import { ANIMAL_LABELS } from '../data/refugeAnimals';
 import { apiFetch } from '../api/client';
-import { APP_COLORS, APP_RADIUS, APP_SHADOWS, APP_SPACING } from '../theme/appTheme';
+import { APP_COLORS, APP_RADIUS, APP_SPACING } from '../theme/appTheme';
 
 const WOOD_BG = require('../../assets/images/home/board-wood-bg.png');
 const WOOD_BG_WIDTH = 853;
@@ -35,9 +35,12 @@ const KIND_TO_SLUG: Record<string, string> = { PISCINE: 'piscine', CAFE_DE_PARIS
 
 interface PaperProps { children: React.ReactNode; onPress?: () => void; style?: any; }
 const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
-  <TouchableOpacity style={[styles.paper, style]} onPress={onPress} activeOpacity={0.78}>
-    {onPress && <View style={styles.magnet} pointerEvents="none" />}{children}
-  </TouchableOpacity>
+  <View style={[styles.paperWrap, style]}>
+    <View pointerEvents="none" style={styles.paperShadow} />
+    <TouchableOpacity style={styles.paper} onPress={onPress} activeOpacity={0.78}>
+      {onPress && <View style={styles.magnet} pointerEvents="none" />}{children}
+    </TouchableOpacity>
+  </View>
 );
 
 export function PersonalBoard() {
@@ -95,7 +98,7 @@ export function PersonalBoard() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: J.bgBoard }, loadingText: { color: APP_COLORS.muted, textAlign: 'center', marginTop: 50 }, board: { position: 'relative', width: '100%', overflow: 'hidden', backgroundColor: J.bgBoard }, woodBackground: { position: 'absolute', top: 0, left: 0, width: '100%' }, paper: { backgroundColor: APP_COLORS.paper, borderRadius: APP_RADIUS.sm, borderWidth: 1, borderColor: APP_COLORS.border, padding: APP_SPACING.sm, alignItems: 'center', ...(APP_SHADOWS.card ?? {}) }, magnet: { position: 'absolute', width: 14, height: 14, borderRadius: 7, backgroundColor: '#666', top: -7, left: '50%', marginLeft: -7, zIndex: 10 },
+  container: { flex: 1, backgroundColor: J.bgBoard }, loadingText: { color: APP_COLORS.muted, textAlign: 'center', marginTop: 50 }, board: { position: 'relative', width: '100%', overflow: 'hidden', backgroundColor: J.bgBoard }, woodBackground: { position: 'absolute', top: 0, left: 0, width: '100%' }, paperWrap: { borderRadius: APP_RADIUS.sm }, paperShadow: { position: 'absolute', top: 5, left: 5, right: -5, bottom: -5, borderRadius: APP_RADIUS.sm, backgroundColor: 'rgba(0,0,0,0.14)' }, paper: { width: '100%', backgroundColor: APP_COLORS.paper, borderRadius: APP_RADIUS.sm, borderWidth: 1, borderColor: APP_COLORS.border, padding: APP_SPACING.sm, alignItems: 'center' }, magnet: { position: 'absolute', width: 14, height: 14, borderRadius: 7, backgroundColor: '#666', top: -7, left: '50%', marginLeft: -7, zIndex: 10 },
   settingsButton: { position: 'absolute', width: 36, height: 36, alignItems: 'center', justifyContent: 'center', zIndex: 30 },
   profileName: { fontSize: 14, fontWeight: '700', color: J.textMain, marginTop: 2 }, animalTitle: { fontSize: 13, fontWeight: '700', color: J.textMain, marginBottom: 4 }, animalImage: { width: 54, height: 54, resizeMode: 'contain' }, animalIcon: { fontSize: 30, marginVertical: 4 }, animalName: { fontSize: 13, color: J.textMain }, animalStatus: { fontSize: 10, color: J.accentPrimary, fontWeight: '600', textAlign: 'center', marginTop: 3 }, sectionTitle: { fontSize: 14, fontWeight: '700', color: J.textMain }, lettersContainer: { marginTop: 5, width: '100%' }, letterItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 2 }, letterEnvelope: { fontSize: 12, marginRight: 5 }, letterSenderName: { fontSize: 11, color: J.textSecondary, maxWidth: '75%' }, emptyLetters: { fontSize: 12, color: J.textSecondary, marginTop: 7 }, smilesTitle: { fontSize: 12, fontWeight: '700', color: J.textMain }, smilesCount: { fontSize: 25, fontWeight: '700', color: J.accentPrimary, marginTop: 5 }, postcardShadow: { position: 'absolute', top: 5, left: 5, right: -5, bottom: -5, borderRadius: APP_RADIUS.sm, backgroundColor: 'rgba(0,0,0,0.14)' }, postcardTouchable: { flex: 1, borderRadius: APP_RADIUS.sm, overflow: 'hidden', borderWidth: 1, borderColor: APP_COLORS.border }, bottleWrapper: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' }, giftsTitle: { fontSize: 14, fontWeight: '700', color: J.textMain, marginBottom: 5 }, giftItem: { fontSize: 11, color: J.textMain, marginTop: 4 }, offeringsContainer: { width: '100%', alignItems: 'center' }, offeringItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 2, minHeight: 20 }, offeringPNG: { width: 28, height: 28, resizeMode: 'contain' }, offeringName: { fontSize: 11, color: J.textMain }, moreIndicator: { fontSize: 10, color: J.textSecondary, marginTop: 2 }, salonTitle: { fontSize: 12, fontWeight: '700', color: J.textMain }, salonIcon: { fontSize: 24, marginVertical: 4 }, salonName: { fontSize: 11, color: J.textSecondary }, statsTitle: { fontSize: 12, fontWeight: '700', color: J.textMain, marginBottom: 5 }, statValue: { fontSize: 11, color: J.textMain, marginTop: 2 },
 });
