@@ -1,5 +1,6 @@
 import { Stack, usePathname, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { AppState, Platform } from "react-native";
+import { useEffect, useRef, useState } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useStore } from "../src/store/useStore";
 import { getToken } from "../src/utils/session";
@@ -31,7 +32,10 @@ export default function RootLayout() {
   const currentUser = useStore((s) => s.currentUser);
   const router = useRouter();
   const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
   const [isHydrated, setIsHydrated] = useState(false);
+
+  pathnameRef.current = pathname;
 
   useEffect(() => {
     fetch(`${API_URL}/health`, { method: "GET" }).catch(() => {});
@@ -46,20 +50,53 @@ export default function RootLayout() {
   }, [hydrateFromApi]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const applyOrientation = async () => {
+      if (cancelled) return;
+      const isSalon = pathnameRef.current.startsWith('/salon/');
+
       try {
-        const isSalon = pathname.startsWith('/salon/');
-        await ScreenOrientation.lockAsync(
-          isSalon
-            ? ScreenOrientation.OrientationLock.ALL
-            : ScreenOrientation.OrientationLock.PORTRAIT_UP
-        );
-      } catch {
-        // Ignore unsupported platform-specific orientation errors.
+        if (Platform.OS === 'ios') {
+          await ScreenOrientation.lockPlatformAsync({
+            screenOrientationArrayIOS: isSalon
+              ? [
+                  ScreenOrientation.Orientation.PORTRAIT_UP,
+                  ScreenOrientation.Orientation.PORTRAIT_DOWN,
+                  ScreenOrientation.Orientation.LANDSCAPE_LEFT,
+                  ScreenOrientation.Orientation.LANDSCAPE_RIGHT,
+                ]
+              : [ScreenOrientation.Orientation.PORTRAIT_UP],
+          });
+        } else {
+          await ScreenOrientation.lockAsync(
+            isSalon
+              ? ScreenOrientation.OrientationLock.ALL
+              : ScreenOrientation.OrientationLock.PORTRAIT_UP
+          );
+        }
+      } catch (error) {
+        console.warn('[orientation-lock]', error);
       }
     };
 
     void applyOrientation();
+
+    const orientationSubscription = ScreenOrientation.addOrientationChangeListener(() => {
+      if (!pathnameRef.current.startsWith('/salon/')) {
+        void applyOrientation();
+      }
+    });
+
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void applyOrientation();
+    });
+
+    return () => {
+      cancelled = true;
+      orientationSubscription.remove();
+      appStateSubscription.remove();
+    };
   }, [pathname]);
 
   useEffect(() => {
