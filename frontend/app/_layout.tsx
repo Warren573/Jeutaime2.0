@@ -1,6 +1,6 @@
 import { Stack, usePathname, useRouter } from "expo-router";
-import { AppState, Platform } from "react-native";
-import { useEffect, useRef, useState } from "react";
+import { LogBox } from "react-native";
+import { useEffect, useState } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useStore } from "../src/store/useStore";
 import { getToken } from "../src/utils/session";
@@ -8,6 +8,10 @@ import { useNotificationPolling } from "../src/hooks/useNotificationPolling";
 import { usePushNotifications } from "../src/hooks/usePushNotifications";
 import { API_URL } from "../src/api/client";
 import { TestModeLink } from "../src/dev/TestModeLink";
+
+if (__DEV__) {
+  LogBox.ignoreAllLogs(true);
+}
 
 const AUTH_EXCLUDED: string[] = [
   '/login',
@@ -32,10 +36,16 @@ export default function RootLayout() {
   const currentUser = useStore((s) => s.currentUser);
   const router = useRouter();
   const pathname = usePathname();
-  const pathnameRef = useRef(pathname);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  pathnameRef.current = pathname;
+  useEffect(() => {
+    ScreenOrientation.lockAsync(
+      ScreenOrientation.OrientationLock.PORTRAIT_UP
+    ).catch((error) => {
+      console.warn('[orientation-default-portrait]', error);
+    });
+  }, []);
+
 
   useEffect(() => {
     fetch(`${API_URL}/health`, { method: "GET" }).catch(() => {});
@@ -48,56 +58,6 @@ export default function RootLayout() {
       setIsHydrated(true);
     })();
   }, [hydrateFromApi]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const applyOrientation = async () => {
-      if (cancelled) return;
-      const isSalon = pathnameRef.current.startsWith('/salon/');
-
-      try {
-        if (Platform.OS === 'ios') {
-          await ScreenOrientation.lockPlatformAsync({
-            screenOrientationArrayIOS: isSalon
-              ? [
-                  ScreenOrientation.Orientation.PORTRAIT_UP,
-                  ScreenOrientation.Orientation.PORTRAIT_DOWN,
-                  ScreenOrientation.Orientation.LANDSCAPE_LEFT,
-                  ScreenOrientation.Orientation.LANDSCAPE_RIGHT,
-                ]
-              : [ScreenOrientation.Orientation.PORTRAIT_UP],
-          });
-        } else {
-          await ScreenOrientation.lockAsync(
-            isSalon
-              ? ScreenOrientation.OrientationLock.ALL
-              : ScreenOrientation.OrientationLock.PORTRAIT_UP
-          );
-        }
-      } catch (error) {
-        console.warn('[orientation-lock]', error);
-      }
-    };
-
-    void applyOrientation();
-
-    const orientationSubscription = ScreenOrientation.addOrientationChangeListener(() => {
-      if (!pathnameRef.current.startsWith('/salon/')) {
-        void applyOrientation();
-      }
-    });
-
-    const appStateSubscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void applyOrientation();
-    });
-
-    return () => {
-      cancelled = true;
-      orientationSubscription.remove();
-      appStateSubscription.remove();
-    };
-  }, [pathname]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -134,10 +94,10 @@ export default function RootLayout() {
 
   return (
     <>
-      <Stack screenOptions={{ headerShown: false, orientation: 'portrait_up' }}>
-        <Stack.Screen name="(tabs)" options={{ orientation: 'portrait_up' }} />
-        <Stack.Screen name="salon/[id]" options={{ orientation: 'all' }} />
-        <Stack.Screen name="salon/cafe-paris" options={{ orientation: 'all' }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="salon/[id]" />
+        <Stack.Screen name="salon/cafe-paris" />
       </Stack>
       <TestModeLink />
     </>

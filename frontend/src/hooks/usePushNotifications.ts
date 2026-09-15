@@ -89,7 +89,14 @@ export function usePushNotifications() {
         await registerDevice(token, platform);
         console.debug(`[push] token registered (${platform})`);
       } catch (err) {
-        console.error('[push] setup error', err);
+        const message = err instanceof Error ? err.message : String(err);
+
+        if (Platform.OS === "ios" && message.includes("aps-environment")) {
+          console.debug("[push] notifications indisponibles sur ce build iOS local");
+          return;
+        }
+
+        console.error("[push] setup error", err);
       }
     }
 

@@ -15,8 +15,16 @@ console.log("✅ [useStore.ts] Line 7: AsyncStorage imported");
 
 // Web/RN compatible storage
 console.log("🔍 [useStore.ts] Line 10: Creating storage object - typeof window:", typeof window);
-const storage = typeof window !== 'undefined'
-  ? { getItem: (k: string) => localStorage.getItem(k), setItem: (k: string, v: string) => localStorage.setItem(k, v), removeItem: (k: string) => localStorage.removeItem(k) }
+const hasWebLocalStorage =
+  typeof globalThis !== 'undefined' &&
+  typeof (globalThis as any).localStorage !== 'undefined';
+
+const storage = hasWebLocalStorage
+  ? {
+      getItem: (k: string) => (globalThis as any).localStorage.getItem(k),
+      setItem: (k: string, v: string) => (globalThis as any).localStorage.setItem(k, v),
+      removeItem: (k: string) => (globalThis as any).localStorage.removeItem(k),
+    }
   : AsyncStorage;
 console.log("✅ [useStore.ts] Line 12: storage object created successfully, storage type:", typeof storage);
 

@@ -3,15 +3,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import { TEST_MODE_ENABLED } from './TestMode';
 
 export function TestModeLink() {
-  if (!TEST_MODE_ENABLED) {
-    return null;
-  }
-
-  return (
-    <Pressable style={styles.button} onPress={() => router.push('/test-mode')}>
-      <Text style={styles.text}>Mode Test</Text>
-    </Pressable>
-  );
+  return null;
 }
 
 const styles = StyleSheet.create({

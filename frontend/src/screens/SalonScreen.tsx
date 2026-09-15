@@ -54,6 +54,8 @@ function getTransfoImage(
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { SalonParticipant } from '../data/salonsData';
 import { getSalonBackgroundImage } from '../data/salonBackgroundImages';
 import { useStore, Message } from '../store/useStore';
@@ -111,8 +113,18 @@ const SLUG_TO_KIND: Record<string, string> = {
 };
 
 // Helper: Format message time
-function formatMessageTime(createdAt: string): { time: string; dateSeparator?: string } {
-  const msgDate = new Date(createdAt);
+function formatMessageTime(createdAt?: string | number | null): { time: string; dateSeparator?: string } {
+  if (createdAt == null) return { time: "" };
+
+  const raw =
+    typeof createdAt === "string" && /^\d+$/.test(createdAt)
+      ? Number(createdAt)
+      : createdAt;
+
+  const msgDate = new Date(raw);
+  if (Number.isNaN(msgDate.getTime())) {
+    return { time: "" };
+  }
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today);
@@ -344,6 +356,42 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
 // ============================================
 export default function SalonScreen() {
   const router = useRouter();
+
+  useFocusEffect(
+    useCallback(() => {
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.ALL
+      ).catch((error) => {
+        console.warn('[salon-only-rotation]', error);
+      });
+
+      return () => {
+        ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.PORTRAIT_UP
+        ).catch((error) => {
+          console.warn('[salon-only-rotation-reset]', error);
+        });
+      };
+    }, [])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.ALL
+      ).catch((error) => {
+        console.warn('[salon-orientation]', error);
+      });
+
+      return () => {
+        ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.PORTRAIT_UP
+        ).catch((error) => {
+          console.warn('[salon-orientation-reset]', error);
+        });
+      };
+    }, [])
+  );
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -1649,7 +1697,7 @@ export default function SalonScreen() {
           </View>
 
           {/* Debug panel - test mode only */}
-          {isTestMode() && (
+          {false && isTestMode() && (
             <View style={{ backgroundColor: '#222', padding: 10, marginTop: 10, borderRadius: 5, borderWidth: 1, borderColor: '#666' }}>
               <Text style={{ color: '#0f0', fontSize: 10, fontFamily: 'monospace', marginBottom: 4 }}>
                 ME ID: {currentUser?.id?.substring(0, 8) || 'N/A'}
