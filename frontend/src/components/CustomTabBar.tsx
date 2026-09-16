@@ -6,6 +6,8 @@ import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import { FEATURES } from "../config/features";
 
 const BAR_HEIGHT = 72;
+const BAR_BOTTOM_GAP = 18;
+const BAR_TOP_GAP = 12;
 const INACTIVE = "#3C2A1E";
 const ACTIVE = "#A12E46";
 
@@ -67,8 +69,8 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const activeVisibleRouteName = ROUTE_ACTIVE_TAB_ALIAS[currentRoute?.name] || currentRoute?.name;
 
   return (
-    <View style={[styles.safeArea, { height: BAR_HEIGHT + insets.bottom + 30 }]}> 
-      <View style={[styles.bar, { bottom: insets.bottom + 18 }]}> 
+    <View style={[styles.safeArea, { height: BAR_HEIGHT + BAR_BOTTOM_GAP + BAR_TOP_GAP + insets.bottom }]}> 
+      <View style={[styles.bar, { bottom: insets.bottom + BAR_BOTTOM_GAP }]}> 
         {visibleRoutes.map((route) => {
           const focused = route.name === activeVisibleRouteName;
           return (
@@ -88,13 +90,14 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    position: "absolute",
+    position: "relative",
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: "transparent",
     overflow: "visible",
     zIndex: 50,
+    flexShrink: 0,
   },
   bar: {
     position: "absolute", left: 12, right: 12, height: BAR_HEIGHT, flexDirection: "row", alignItems: "center",
