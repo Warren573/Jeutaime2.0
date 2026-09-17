@@ -1,5 +1,5 @@
 import { Stack, usePathname, useRouter } from "expo-router";
-import { LogBox } from "react-native";
+import { LogBox, useWindowDimensions } from "react-native";
 import { useEffect, useState } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useStore } from "../src/store/useStore";
@@ -8,6 +8,7 @@ import { useNotificationPolling } from "../src/hooks/useNotificationPolling";
 import { usePushNotifications } from "../src/hooks/usePushNotifications";
 import { API_URL } from "../src/api/client";
 import { TestModeLink } from "../src/dev/TestModeLink";
+import { getResponsiveScale } from "../src/utils/responsive";
 
 if (__DEV__) {
   LogBox.ignoreAllLogs(true);
@@ -23,14 +24,16 @@ export default function RootLayout() {
   const currentUser = useStore((s) => s.currentUser);
   const router = useRouter();
   const pathname = usePathname();
+  const { width, height } = useWindowDimensions();
+  const responsive = getResponsiveScale(width, height);
   const [isHydrated, setIsHydrated] = useState(false);
+  const isSalon = pathname.startsWith('/salon/');
 
   useEffect(() => {
-    const isSalon = pathname.startsWith('/salon/');
     ScreenOrientation.lockAsync(
       isSalon ? ScreenOrientation.OrientationLock.ALL : ScreenOrientation.OrientationLock.PORTRAIT_UP
     ).catch((error) => console.warn('[orientation-lock]', error));
-  }, [pathname]);
+  }, [isSalon]);
 
   useEffect(() => { fetch(`${API_URL}/health`, { method: "GET" }).catch(() => {}); }, []);
 
@@ -65,12 +68,27 @@ export default function RootLayout() {
   useNotificationPolling();
   usePushNotifications();
 
+  const proportionalContentStyle = isSalon
+    ? undefined
+    : {
+        width: responsive.logicalWidth,
+        height: responsive.logicalHeight,
+        transform: [{ scale: responsive.scale }],
+        transformOrigin: 'left top' as const,
+      };
+
   return (
     <>
-      <Stack screenOptions={{ headerShown: false, orientation: 'portrait_up' }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          orientation: 'portrait_up',
+          contentStyle: proportionalContentStyle,
+        }}
+      >
         <Stack.Screen name="(tabs)" options={{ orientation: 'portrait_up' }} />
-        <Stack.Screen name="salon/[id]" options={{ orientation: 'all' }} />
-        <Stack.Screen name="salon/cafe-paris" options={{ orientation: 'all' }} />
+        <Stack.Screen name="salon/[id]" options={{ orientation: 'all', contentStyle: undefined }} />
+        <Stack.Screen name="salon/cafe-paris" options={{ orientation: 'all', contentStyle: undefined }} />
       </Stack>
       <TestModeLink />
     </>
