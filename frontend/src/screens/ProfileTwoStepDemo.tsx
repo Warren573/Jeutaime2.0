@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStore } from "../store/useStore";
 import { Avatar } from "../avatar/png/Avatar";
 import { resolveAvatarConfig } from "../avatar/resolveAvatarConfig";
@@ -23,6 +24,7 @@ import {
   type ReportReason,
 } from "../api/profiles";
 import { sendReaction } from "../api/reactions";
+import { apiFetch } from "../api/client";
 import {
   APP_COLORS,
   APP_COMPONENTS,
@@ -142,6 +144,7 @@ export function ProfileMedia({
 
 export default function ProfileTwoStepDemo() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const searchParams = useLocalSearchParams<{ filter?: string }>();
   const currentUser = useStore((s) => s.currentUser);
   const allMatches = useStore((s) => s.matches);
@@ -272,6 +275,34 @@ export default function ProfileTwoStepDemo() {
     }
   };
 
+  const handleDevResetProfiles = async () => {
+    try {
+      await apiFetch("/test/reset-profiles", {
+        method: "POST",
+      });
+
+      setCurrentProfile(null);
+      setRemainingProfiles([]);
+      setRemovedIds(new Set());
+      setShowSafetyMenu(false);
+      setShowReportReasons(false);
+
+      await load();
+
+      Alert.alert(
+        "Profils réinitialisés",
+        "Les réactions et matchs de test ont été remis à zéro."
+      );
+    } catch (err) {
+      Alert.alert(
+        "Erreur",
+        err instanceof Error
+          ? err.message
+          : "Impossible de réinitialiser les profils."
+      );
+    }
+  };
+
   const handleReact = async (type: "SMILE" | "GRIMACE", targetProfile: DiscoveryProfileDto | null) => {
     if (!targetProfile || reacting || !currentUser?.id) return;
     if (targetProfile.userId === currentUser.id) {
@@ -359,13 +390,17 @@ export default function ProfileTwoStepDemo() {
     .map((id) => LOOKING_FOR_LABEL[id] ?? id)
     .join(" · ");
   const displayName = (profile.pseudo ?? "").trim();
-  const headerLine = [displayName, age !== null ? String(age) : ""].filter(Boolean).join(", ");
+  const headerLine = displayName;
+  const profileMeta = [
+    age !== null ? `${age} ans` : "",
+    displayCity,
+  ].filter(Boolean).join(" · ");
   const displayBio = (profile.bio ?? "").trim();
   const displayCity = (profile.city ?? "").trim();
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.stageOneContent}>
+      <View style={[styles.stageOneContent, { paddingTop: insets.top + 8 }]}>
         <View style={styles.stageOneCard}>
           <View style={styles.topBar}>
             <Text style={styles.topBarTitle}>
@@ -429,24 +464,88 @@ export default function ProfileTwoStepDemo() {
             </View>
 
             <View style={styles.stageOneHeaderText}>
-              {!!headerLine && <Text style={styles.stageOneName}>{headerLine}</Text>}
-              {!!displayCity && <Text style={styles.metaInline}>📍 {displayCity}</Text>}
+              <View style={styles.profileIdentityRow}>
+                <View style={styles.profileIdentityText}>
+                  {!!headerLine && <Text style={styles.stageOneName}>{headerLine}</Text>}
+                  {!!profileMeta && <Text style={styles.metaInline}>{profileMeta}</Text>}
+                </View>
+
+                <Pressable
+                  style={styles.safetyButtonCompact}
+                  onPress={() => {
+                    setShowReportReasons(false);
+                    setShowSafetyMenu((value) => !value);
+                  }}
+                  disabled={safetyActioning}
+                >
+                  <Text style={styles.safetyButtonCompactText}>⚠️</Text>
+                </Pressable>
+              </View>
+
+              {showSafetyMenu && (
+                <View style={styles.safetyMenuHeader}>
+                  {!showReportReasons ? (
+                    <>
+                      <Pressable style={styles.safetyMenuItem} onPress={() => setShowReportReasons(true)}>
+                        <Text style={styles.safetyMenuText}>⚠️ Signaler</Text>
+                      </Pressable>
+                      <Pressable style={styles.safetyMenuItem} onPress={() => void handleBlockProfile()} disabled={safetyActioning}>
+                        <Text style={[styles.safetyMenuText, styles.safetyMenuDanger]}>🚫 Bloquer</Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.safetyMenuTitle}>Motif du signalement</Text>
+                      {REPORT_REASONS.map(({ value, label }) => (
+                        <Pressable
+                          key={value}
+                          style={styles.reasonMenuItem}
+                          onPress={() => void handleReportProfile(value)}
+                          disabled={safetyActioning}
+                        >
+                          <Text style={styles.reasonMenuText}>{label}</Text>
+                        </Pressable>
+                      ))}
+                      <Pressable style={styles.reasonBack} onPress={() => setShowReportReasons(false)}>
+                        <Text style={styles.reasonBackText}>← Retour</Text>
+                      </Pressable>
+                    </>
+                  )}
+                </View>
+              )}
               <View style={styles.arrowLineWrap}>
                 <Text style={styles.arrowLine}>⟵ 〜〜〜〜〜〜〜〜〜</Text>
               </View>
             </View>
           </View>
 
-          {!!displayBio && <Text style={styles.stageOneBlabla}>{displayBio}</Text>}
-          {!!intentionSentence && <Text style={styles.vibeTag}>{intentionSentence}</Text>}
-          {physique && <Text style={styles.vibeTag}>{physique.emoji} {physique.label}</Text>}
-
-          <Pressable
-            onPress={() => router.push({ pathname: '/profile/[id]', params: { id: profile.userId } })}
-            style={styles.discoverWrap}
+          <ScrollView
+            style={styles.profileTextScroll}
+            contentContainerStyle={styles.profileTextContent}
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled
           >
-            <Text style={styles.discoverLink}>Découvrir le profil →</Text>
-          </Pressable>
+            {!!displayBio && <Text style={styles.stageOneBlabla}>{displayBio}</Text>}
+
+
+            <Pressable
+              onPress={() => router.push({ pathname: '/profile/[id]', params: { id: profile.userId } })}
+              style={styles.discoverWrap}
+            >
+              <Text style={styles.discoverLink}>Découvrir le profil →</Text>
+            </Pressable>
+          </ScrollView>
+
+          {__DEV__ && (
+            <Pressable
+              style={styles.devResetProfiles}
+              onPress={() => void handleDevResetProfiles()}
+            >
+              <Text style={styles.devResetProfilesText}>
+                ↻ Réinitialiser les profils
+              </Text>
+            </Pressable>
+          )}
 
           <View style={styles.stageOneActions}>
             <Pressable
@@ -466,7 +565,7 @@ export default function ProfileTwoStepDemo() {
             </Pressable>
           </View>
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -491,11 +590,13 @@ const styles = StyleSheet.create({
   },
   retryBtnText: { fontSize: 15, fontWeight: "700", color: APP_COLORS.burgundy },
   stageOneContent: {
+    flex: 1,
     paddingHorizontal: APP_SIZES.screenPadding,
-    paddingBottom: APP_SPACING.xxl,
     paddingTop: APP_SPACING.sm,
+    paddingBottom: 118,
   },
   stageOneCard: {
+    flex: 1,
     backgroundColor: PAPER,
     borderRadius: APP_RADIUS.xl,
     borderWidth: 1,
@@ -505,6 +606,7 @@ const styles = StyleSheet.create({
     ...(APP_SHADOWS.elevated ?? {}),
   },
   topBar: {
+    display: "none",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -555,7 +657,7 @@ const styles = StyleSheet.create({
   reasonMenuText: { fontSize: 14, color: INK, fontWeight: '600' },
   reasonBack: { paddingHorizontal: 10, paddingTop: 10, paddingBottom: APP_SPACING.xs, marginTop: 4, borderTopWidth: 1, borderTopColor: LINE },
   reasonBackText: { fontSize: 14, fontWeight: '700', color: APP_COLORS.burgundy },
-  stageOneHeader: { flexDirection: "row", alignItems: "flex-start", marginBottom: APP_SPACING.lg },
+  stageOneHeader: { flexDirection: "row", alignItems: "flex-start", marginBottom: APP_SPACING.md },
   photoCard: {
     width: 126,
     height: 156,
@@ -579,16 +681,69 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "-6deg" }],
     zIndex: 3,
   },
-  stageOneHeaderText: { flex: 1, paddingTop: 4 },
-  stageOneName: { fontSize: 32, lineHeight: 37, fontWeight: "800", color: INK, marginBottom: 6 },
-  metaInline: { fontSize: 15, color: INK_SOFT, marginBottom: 6 },
+  stageOneHeaderText: { flex: 1, paddingTop: 4, position: "relative" },
+  profileIdentityRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
+  profileIdentityText: { flex: 1 },
+  safetyButtonCompact: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: APP_COLORS.paperSoft,
+    borderWidth: 1,
+    borderColor: LINE,
+  },
+  safetyButtonCompactText: { fontSize: 18 },
+  safetyMenuHeader: {
+    position: "absolute",
+    top: 44,
+    right: 0,
+    width: 210,
+    zIndex: 100,
+    backgroundColor: APP_COLORS.paper,
+    borderRadius: APP_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: LINE,
+    paddingVertical: APP_SPACING.xs,
+    paddingHorizontal: APP_SPACING.xs,
+    ...(APP_SHADOWS.elevated ?? {}),
+  },
+  stageOneName: { fontSize: 24, lineHeight: 28, fontWeight: "800", color: INK, marginBottom: 4 },
+  metaInline: { fontSize: 14, color: INK_SOFT, marginBottom: 4 },
   arrowLineWrap: { marginTop: 4, marginBottom: APP_SPACING.xs },
   arrowLine: { fontSize: 14, color: APP_COLORS.borderStrong, letterSpacing: 1 },
-  stageOneBlabla: { fontSize: 24, lineHeight: 38, color: INK, marginBottom: APP_SPACING.md, letterSpacing: -0.2 },
+  profileTextScroll: { flex: 1, minHeight: 0 },
+  profileTextContent: { paddingBottom: APP_SPACING.sm },
+  stageOneBlabla: { fontSize: 18, lineHeight: 28, color: INK, marginBottom: APP_SPACING.md, letterSpacing: -0.1 },
   vibeTag: { fontSize: 16, color: INK_SOFT, fontStyle: "italic", marginBottom: 10 },
-  discoverWrap: { alignSelf: "flex-start", marginBottom: APP_SPACING.lg, minHeight: APP_SIZES.touchTarget, justifyContent: 'center' },
+  discoverWrap: { alignSelf: "flex-start", marginBottom: APP_SPACING.sm, minHeight: APP_SIZES.touchTarget, justifyContent: 'center' },
   discoverLink: { fontSize: 17, color: APP_COLORS.burgundy, fontWeight: "700" },
-  stageOneActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: APP_SPACING.sm },
+  devResetProfiles: {
+    alignSelf: "center",
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.18)",
+    backgroundColor: "rgba(255,255,255,0.82)",
+  },
+  devResetProfilesText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: INK_SOFT,
+  },
+
+  stageOneActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: APP_SPACING.sm,
+    paddingTop: APP_SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: LINE,
+  },
   actionButton: {
     flex: 1,
     minHeight: APP_SIZES.buttonHeightLarge,
