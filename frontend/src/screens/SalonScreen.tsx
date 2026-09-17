@@ -1656,13 +1656,19 @@ export default function SalonScreen() {
   // RENDU MODE PAYSAGE (INTERACTIONS)
   // ============================================
   const renderLandscapeMode = () => (
-    <View style={[styles.landscapeContainer, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
+    <View style={[styles.landscapeContainer, { paddingTop: insets.top }]}>
       {/* Header compact */}
       <LinearGradient
         colors={salon.gradient || ['#667eea', '#764ba2']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={styles.landscapeHeader}
+        style={[
+          styles.landscapeHeader,
+          {
+            paddingLeft: 20 + insets.left,
+            paddingRight: 20 + insets.right,
+          },
+        ]}
       >
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>←</Text>
@@ -1674,7 +1680,15 @@ export default function SalonScreen() {
         <Text style={styles.coinsText}>💰 {coins}</Text>
       </LinearGradient>
 
-      <View style={styles.landscapeContent}>
+      <View
+        style={[
+          styles.landscapeContent,
+          {
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          },
+        ]}
+      >
         {/* Zone des avatars (gauche) - GRANDE */}
         <View style={styles.avatarsZone}>
           <View style={styles.avatarsGrid}>
