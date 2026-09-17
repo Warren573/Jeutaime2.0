@@ -3629,4 +3629,29 @@ const resetMyBottlesHandler = asyncHandler(
 router.get("/reset-my-bottles", resetMyBottlesHandler);
 router.post("/reset-my-bottles", resetMyBottlesHandler);
 
+
+/**
+ * DEV/STAGING — remet à zéro les réactions et matchs des profils de test.
+ * Permet de refaire défiler les mêmes profils pendant les tests UI.
+ */
+router.post(
+  "/reset-profiles",
+  asyncHandler(async (_req: Request, res: Response) => {
+    const nodeEnv = process.env.NODE_ENV || "development";
+    const isRenderStaging =
+      process.env.RENDER_SERVICE_NAME === "jeutaime-staging";
+    const allowTestEndpoints =
+      process.env.ALLOW_TEST_ENDPOINTS === "true";
+
+    if (nodeEnv === "production" && !isRenderStaging && !allowTestEndpoints) {
+      return res.status(403).json({
+        error: "Test endpoint disabled in production",
+      });
+    }
+
+    const data = await debugService.resetTestMatches();
+    return res.json({ data });
+  }),
+);
+
 export default router;
