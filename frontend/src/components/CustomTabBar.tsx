@@ -5,7 +5,7 @@ import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import { FEATURES } from "../config/features";
 
-const BAR_HEIGHT = 72;
+const BAR_HEIGHT = 64;
 const INACTIVE = "#3C2A1E";
 const ACTIVE = "#A12E46";
 
@@ -67,8 +67,8 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const activeVisibleRouteName = ROUTE_ACTIVE_TAB_ALIAS[currentRoute?.name] || currentRoute?.name;
 
   return (
-    <View style={[styles.safeArea, { height: BAR_HEIGHT + insets.bottom + 30 }]}> 
-      <View style={[styles.bar, { bottom: insets.bottom + 18 }]}> 
+    <View style={[styles.safeArea, { height: BAR_HEIGHT + insets.bottom + 14 }]}> 
+      <View style={[styles.bar, { bottom: insets.bottom + 6 }]}> 
         {visibleRoutes.map((route) => {
           const focused = route.name === activeVisibleRouteName;
           return (
@@ -101,8 +101,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#F7ECD9", borderRadius: 24, borderWidth: 0.7, borderColor: "rgba(116,82,51,0.11)",
     shadowColor: "#6B4A2D", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.12, shadowRadius: 14, elevation: 7,
   },
-  tabItem: { flex: 1, height: "100%", alignItems: "center", justifyContent: "center", paddingTop: 4, overflow: "visible" },
-  iconWrap: { width: 58, height: 46, alignItems: "center", justifyContent: "center", overflow: "visible" },
+  tabItem: { flex: 1, height: "100%", alignItems: "center", justifyContent: "center", paddingTop: 2, overflow: "visible" },
+  iconWrap: { width: 58, height: 42, alignItems: "center", justifyContent: "center", overflow: "visible" },
   underline: { width: 38, height: 2.5, marginTop: 0, borderRadius: 3, backgroundColor: "transparent", transform: [{ rotate: "-3deg" }] },
   underlineActive: { backgroundColor: ACTIVE },
 });
