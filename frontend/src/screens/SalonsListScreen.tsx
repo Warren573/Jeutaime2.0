@@ -134,9 +134,7 @@ export default function SalonsListScreen() {
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <View style={styles.header}>
         <AppBackButton onPress={() => router.back()} style={styles.backButton} />
-        <Text style={styles.headerKicker}>JEUTAIME</Text>
         <Text style={styles.headerTitle}>Salons</Text>
-        <Text style={styles.headerSubtitle}>Choisissez l'ambiance qui vous ressemble.</Text>
       </View>
 
       {currentSessionId && currentSalonName && currentSalonKind && (
@@ -205,7 +203,9 @@ export default function SalonsListScreen() {
               {bgImage ? (
                 <ImageBackground source={bgImage} style={[styles.salonBanner, { height: bannerHeight }]} resizeMode="cover">
                   <View style={[StyleSheet.absoluteFill, styles.imageOverlay]} />
-                  {cardContent}
+                  <View style={styles.salonBannerContent}>
+                    {cardContent}
+                  </View>
                 </ImageBackground>
               ) : (
                 <LinearGradient colors={salon.gradient} style={styles.salonGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>{cardContent}</LinearGradient>
@@ -222,8 +222,8 @@ export default function SalonsListScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF8E7' },
-  header: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 18, borderBottomWidth: 1, borderBottomColor: '#E6D6C2', backgroundColor: 'rgba(255,248,231,0.92)' },
-  backButton: { marginBottom: 10 },
+  header: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#E6D6C2', backgroundColor: 'rgba(255,248,231,0.92)' },
+  backButton: { marginBottom: 6 },
   headerKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 2.4, color: '#9B704A', marginBottom: 5 },
   headerTitle: { fontSize: 29, lineHeight: 34, fontWeight: '900', color: '#2F1E15', letterSpacing: -0.4 },
   headerSubtitle: { fontSize: 14, lineHeight: 20, color: '#806149', marginTop: 5 },
@@ -232,7 +232,8 @@ const styles = StyleSheet.create({
   salonCard: { marginBottom: 14, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(91,58,29,0.16)', shadowColor: '#4B2D18', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.16, shadowRadius: 10, elevation: 5, backgroundColor: '#F4E7D6' },
   salonCardDisabled: { opacity: 0.48 },
   salonGradient: { padding: 16, minHeight: 118, justifyContent: 'center' },
-  salonBanner: { width: '100%', padding: 15, justifyContent: 'center', overflow: 'hidden' },
+  salonBanner: { width: '100%', justifyContent: 'center', overflow: 'hidden', position: 'relative' },
+  salonBannerContent: { ...StyleSheet.absoluteFillObject, padding: 15, justifyContent: 'center' },
   imageOverlay: { backgroundColor: 'rgba(28,16,8,0.38)' },
   salonContent: { flexDirection: 'row', alignItems: 'center' },
   salonIconWrap: { width: 48, height: 48, borderRadius: 15, marginRight: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,248,231,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' },
@@ -252,14 +253,14 @@ const styles = StyleSheet.create({
   gateBannerTitle: { fontSize: 13, fontWeight: '800', color: '#5C3E28', marginBottom: 4 },
   gateBannerText: { fontSize: 13, color: '#74563D', marginBottom: 9, lineHeight: 19 },
   gateBannerBtnText: { fontSize: 13, fontWeight: '800', color: '#8B2E3C' },
-  activeSalonBanner: { backgroundColor: '#F7EEDD', borderRadius: 16, marginHorizontal: 16, marginTop: 14, padding: 15, borderWidth: 1, borderColor: '#D8C1A0', shadowColor: '#4B2D18', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 5, elevation: 2 },
-  activeSalonHeading: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  activeSalonBanner: { backgroundColor: '#F7EEDD', borderRadius: 16, marginHorizontal: 16, marginTop: 10, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 1, borderColor: '#D8C1A0', shadowColor: '#4B2D18', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 5, elevation: 2 },
+  activeSalonHeading: { flexDirection: 'row', alignItems: 'center', marginBottom: 3 },
   activeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#5F8A5E', marginRight: 7 },
   activeSalonLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.4, color: '#7B6048' },
-  activeSalonText: { fontSize: 16, fontWeight: '800', color: '#352319', marginBottom: 13 },
+  activeSalonText: { fontSize: 16, fontWeight: '800', color: '#352319', marginBottom: 9 },
   activeSalonButtons: { flexDirection: 'row', gap: 9 },
-  returnButton: { flex: 1, backgroundColor: '#8B2E3C', minHeight: 44, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  returnButton: { flex: 1, backgroundColor: '#8B2E3C', minHeight: 40, paddingVertical: 9, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   returnButtonText: { fontSize: 13, fontWeight: '800', color: '#FFF8E7' },
-  leaveButtonList: { minWidth: 88, minHeight: 44, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F2E4D3', borderWidth: 1, borderColor: '#D8BFA6' },
+  leaveButtonList: { minWidth: 84, minHeight: 40, paddingVertical: 9, paddingHorizontal: 13, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F2E4D3', borderWidth: 1, borderColor: '#D8BFA6' },
   leaveButtonListText: { fontSize: 13, fontWeight: '700', color: '#7A3941' },
 });
