@@ -1,5 +1,5 @@
 import { Stack, usePathname, useRouter } from "expo-router";
-import { LogBox } from "react-native";
+import { LogBox, View, useWindowDimensions } from "react-native";
 import { useEffect, useState } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useStore } from "../src/store/useStore";
@@ -8,6 +8,7 @@ import { useNotificationPolling } from "../src/hooks/useNotificationPolling";
 import { usePushNotifications } from "../src/hooks/usePushNotifications";
 import { API_URL } from "../src/api/client";
 import { TestModeLink } from "../src/dev/TestModeLink";
+import { getResponsiveScale } from "../src/utils/responsive";
 
 if (__DEV__) {
   LogBox.ignoreAllLogs(true);
@@ -37,6 +38,8 @@ export default function RootLayout() {
   const router = useRouter();
   const pathname = usePathname();
   const [isHydrated, setIsHydrated] = useState(false);
+  const { width, height } = useWindowDimensions();
+  const responsive = getResponsiveScale(width, height);
 
   useEffect(() => {
     ScreenOrientation.lockAsync(
@@ -45,7 +48,6 @@ export default function RootLayout() {
       console.warn('[orientation-default-portrait]', error);
     });
   }, []);
-
 
   useEffect(() => {
     fetch(`${API_URL}/health`, { method: "GET" }).catch(() => {});
@@ -92,14 +94,31 @@ export default function RootLayout() {
   useNotificationPolling();
   usePushNotifications();
 
+  // Les salons gardent leur gestion portrait/paysage propre. Pour le reste de
+  // l'app, toute la surface de référence est mise à l'échelle d'un seul bloc :
+  // mêmes proportions pour fonds, cartes, images, textes et espacements.
+  const isSalon = pathname.startsWith('/salon/');
+  const scale = isSalon ? 1 : responsive.scale;
+  const referenceWidth = width / scale;
+  const referenceHeight = height / scale;
+
   return (
-    <>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="salon/[id]" />
-        <Stack.Screen name="salon/cafe-paris" />
-      </Stack>
-      <TestModeLink />
-    </>
+    <View style={{ width, height, overflow: 'hidden' }}>
+      <View
+        style={{
+          width: referenceWidth,
+          height: referenceHeight,
+          transform: [{ scale }],
+          transformOrigin: 'top left',
+        }}
+      >
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="salon/[id]" />
+          <Stack.Screen name="salon/cafe-paris" />
+        </Stack>
+        <TestModeLink />
+      </View>
+    </View>
   );
 }
