@@ -82,7 +82,7 @@ export default function JournalScreen() {
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 150 }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3A2818" />
         }
@@ -250,7 +250,7 @@ const RULE = '#B8A377';
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: 18, paddingBottom: 100 },
+  scrollContent: { paddingHorizontal: 18 },
 
   // ── Masthead ─────────────────────────────────────────────────────────────
   masthead: { alignItems: 'center', paddingTop: 14, paddingBottom: 10 },
