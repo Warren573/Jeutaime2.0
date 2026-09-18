@@ -98,8 +98,8 @@ const styles = StyleSheet.create({
   },
   bar: {
     position: "absolute", left: 12, right: 12, height: BAR_HEIGHT, flexDirection: "row", alignItems: "center",
-    backgroundColor: "#5A3A24", borderRadius: 24, borderWidth: 1, borderColor: "rgba(45,27,16,0.55)",
-    shadowColor: "#4A301D", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.2, shadowRadius: 14, elevation: 9,
+    backgroundColor: "#C8AD86", borderRadius: 24, borderWidth: 1, borderColor: "rgba(91,62,38,0.32)",
+    shadowColor: "#5B3E26", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.2, shadowRadius: 14, elevation: 9,
   },
   tabItem: { flex: 1, height: "100%", alignItems: "center", justifyContent: "center", paddingTop: 2, overflow: "visible" },
   iconWrap: { width: 58, height: 42, alignItems: "center", justifyContent: "center", overflow: "visible" },
