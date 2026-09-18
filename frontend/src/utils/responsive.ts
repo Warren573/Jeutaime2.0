@@ -1,8 +1,17 @@
 import { useWindowDimensions } from 'react-native';
 
 /**
- * Référence JeuTaime : iPhone 16e en portrait = 100 %.
- * React Native travaille en points logiques : 390 x 844.
+ * RÈGLE UNIQUE ET OBLIGATOIRE DE MISE À L'ÉCHELLE JEUTAIME
+ *
+ * iPhone 16e portrait = référence 100 % (390 x 844 points logiques).
+ *
+ * Toute l'interface utilise UN SEUL coefficient uniforme. Il est interdit
+ * d'appliquer une échelle X différente d'une échelle Y : cela déformerait les
+ * proportions. Le coefficient qui permet de conserver intégralement le dessin
+ * de référence dans le support est le plus petit des deux rapports.
+ *
+ * Exemple : scale 0,8 => dimensions, textes, images, marges et espacements
+ * valent tous 80 % de leur valeur de référence.
  */
 export const REFERENCE_SCREEN = {
   width: 390,
@@ -27,7 +36,11 @@ export function getResponsiveScale(width: number, height: number): ResponsiveSca
   const portraitHeight = Math.max(width, height);
   const widthScale = portraitWidth / REFERENCE_SCREEN.width;
   const heightScale = portraitHeight / REFERENCE_SCREEN.height;
-  const scale = widthScale;
+
+  // Homothétie stricte : un seul coefficient pour absolument tout.
+  const scale = Math.min(widthScale, heightScale);
+
+  const proportional = (value: number) => value * scale;
 
   return {
     width,
@@ -37,9 +50,9 @@ export function getResponsiveScale(width: number, height: number): ResponsiveSca
     scale,
     logicalWidth: width / scale,
     logicalHeight: height / scale,
-    size: (value: number) => value * scale,
-    x: (value: number) => value * widthScale,
-    y: (value: number) => value * heightScale,
+    size: proportional,
+    x: proportional,
+    y: proportional,
   };
 }
 
