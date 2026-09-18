@@ -391,12 +391,12 @@ export default function ProfileTwoStepDemo() {
     .join(" · ");
   const displayName = (profile.pseudo ?? "").trim();
   const headerLine = displayName;
+  const displayBio = (profile.bio ?? "").trim();
+  const displayCity = (profile.city ?? "").trim();
   const profileMeta = [
     age !== null ? `${age} ans` : "",
     displayCity,
   ].filter(Boolean).join(" · ");
-  const displayBio = (profile.bio ?? "").trim();
-  const displayCity = (profile.city ?? "").trim();
 
   return (
     <View style={styles.screen}>
