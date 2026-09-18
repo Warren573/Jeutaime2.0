@@ -1,23 +1,16 @@
 import React from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
-import { REFERENCE_SCREEN } from '../utils/responsive';
+import { getResponsiveScale } from '../utils/responsive';
 
 /**
  * Canvas proportionnel JeuTaime.
  *
- * Le contenu est dessiné dans la largeur de référence iPhone 16e puis mis à
- * l'échelle selon la largeur réelle du téléphone. Le wrapper extérieur reste
- * aux dimensions natives : safe areas, clavier, navigation et gestes système
- * ne sont donc jamais artificiellement mis à l'échelle.
- *
- * À utiliser autour du contenu visuel d'un écran portrait (pas les Salons).
+ * Utilise exclusivement la règle globale définie dans responsive.ts :
+ * un seul coefficient uniforme pour conserver tous les rapports.
  */
 export function ResponsiveScreen({ children }: { children: React.ReactNode }) {
   const { width, height } = useWindowDimensions();
-  const portraitWidth = Math.min(width, height);
-  const scale = portraitWidth / REFERENCE_SCREEN.width;
-  const logicalWidth = width / scale;
-  const logicalHeight = height / scale;
+  const responsive = getResponsiveScale(width, height);
 
   return (
     <View style={styles.viewport}>
@@ -25,9 +18,9 @@ export function ResponsiveScreen({ children }: { children: React.ReactNode }) {
         style={[
           styles.canvas,
           {
-            width: logicalWidth,
-            height: logicalHeight,
-            transform: [{ scale }],
+            width: responsive.logicalWidth,
+            height: responsive.logicalHeight,
+            transform: [{ scale: responsive.scale }],
           },
         ]}
       >
