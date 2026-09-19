@@ -23,6 +23,7 @@ import { reportUser, type ReportReason } from '../api/profiles';
 import { getSouvenirs, type SouvenirDTO } from '../api/souvenirs';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
+import { LetterPaginatedView } from '../components/letters/LetterPaginatedView';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import { FEATURES } from '../config/features';
@@ -413,9 +414,15 @@ interface LetterCardProps {
   onSeen: () => void;
 }
 
-function LetterCard({ letter, isOwn, otherName, formatTime }: Omit<LetterCardProps, 'isNew' | 'onSeen'>) {
+function LetterCard({
+  letter,
+  isOwn,
+  otherName,
+  formatTime,
+  onPress,
+}: Omit<LetterCardProps, 'isNew' | 'onSeen'> & { onPress: () => void }) {
   return (
-    <View style={lcStyles.wrapper}>
+    <TouchableOpacity style={lcStyles.wrapper} activeOpacity={0.8} onPress={onPress}>
       <Text style={lcStyles.header}>
         {isOwn ? 'Ta lettre' : `Lettre de ${otherName}`}
       </Text>
@@ -423,7 +430,7 @@ function LetterCard({ letter, isOwn, otherName, formatTime }: Omit<LetterCardPro
         <Text style={lcStyles.text}>{letter.content}</Text>
         <Text style={lcStyles.time}>{formatTime(letter.createdAt)}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -503,6 +510,8 @@ export default function LettersScreen() {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [showCompose, setShowCompose] = useState(false);
+  const [showLetterPreview, setShowLetterPreview] = useState(false);
+  const [readingLetter, setReadingLetter] = useState<{ letter: Letter; isOwn: boolean } | null>(null);
   const [showQGame, setShowQGame] = useState(false);
   const [qGameMatch, setQGameMatch] = useState<Match | null>(null);
   const [qSelectedAnswers, setQSelectedAnswers] = useState<Record<string, string>>({});
@@ -607,21 +616,36 @@ export default function LettersScreen() {
     return match.canSend;
   };
 
-  const handleSend = async () => {
-    if (!newMessage.trim() || !selectedMatch) return;
-    if (!selectedMatch.canSend || isSending) return;
+  const wordCount = useMemo(
+    () => (newMessage.trim().length === 0 ? 0 : newMessage.trim().split(/\s+/).length),
+    [newMessage],
+  );
+  const MAX_LETTER_WORDS = 500;
 
+  const handleSend = async (): Promise<boolean> => {
     const content = newMessage.trim();
-    setNewMessage('');
+    if (!content || !selectedMatch) return false;
+    if (!selectedMatch.canSend || isSending) return false;
+
+    const contentWordCount = content.split(/\s+/).length;
+    if (contentWordCount > MAX_LETTER_WORDS) {
+      Alert.alert(
+        'Lettre trop longue',
+        `Votre lettre contient ${contentWordCount} mots. La limite est de ${MAX_LETTER_WORDS} mots.`,
+      );
+      return false;
+    }
+
     setIsSending(true);
 
     try {
       await sendApiLetter(selectedMatch.id, content);
+      setNewMessage('');
       // Sync selectedMatch avec la mise à jour déjà faite dans le store
       const updatedMatch = useStore.getState().matches.find(m => m.id === selectedMatch.id);
       if (updatedMatch) setSelectedMatch(updatedMatch);
+      return true;
     } catch (err: any) {
-      setNewMessage(content);
       const msg: string = err?.message ?? '';
       if (msg.includes('AWAITING_REPLY') || msg.includes('alternation') || msg.includes('tour')) {
         Alert.alert('Pas encore ton tour', "Tu dois attendre la réponse de l'autre avant d'écrire à nouveau.");
@@ -630,6 +654,7 @@ export default function LettersScreen() {
       } else {
         Alert.alert('Erreur', "La lettre n'a pas pu être envoyée. Vérifie ta connexion et réessaie.");
       }
+      return false;
     } finally {
       setIsSending(false);
     }
@@ -982,8 +1007,7 @@ export default function LettersScreen() {
             onPress={() => setActiveTab('journal')}
           >
             <Text style={[styles.tabText, activeTab === 'journal' && styles.tabTextActive]}>
-              📔 Journal Intime
-            </Text>
+              📔 Journal Intime            </Text>
           </TouchableOpacity>
         )}
 
@@ -1028,24 +1052,17 @@ export default function LettersScreen() {
 
           {selectedMatch && (() => {
             const conv = getConversation(selectedMatch);
-            const rel  = getRelationInfo(conv.length, currentUser?.isPremium ?? false);
             const myTurn = isMyTurn(selectedMatch);
-            const isViewerA = selectedMatch.userAId === (currentUser?.id ?? 'me');
-            const myLetters = isViewerA ? selectedMatch.letterCountA : selectedMatch.letterCountB;
-            const theirLetters = isViewerA ? selectedMatch.letterCountB : selectedMatch.letterCountA;
             return (
               <>
-                {/* ── Niveau de la relation ── */}
-                <View style={styles.relationBanner}>
-                  <Text style={styles.relationBannerStars}>{rel.stars}</Text>
-                  <View style={styles.relationBannerText}>
-                    <Text style={styles.relationBannerLevel}>
-                      Niveau {rel.level} — {rel.label}
-                    </Text>
-                    <Text style={styles.relationBannerProgress}>
-                      Mes lettres : {myLetters}  ·  Ses lettres : {theirLetters}
-                    </Text>
-                  </View>
+                {/* ── Sous-titre de correspondance ── */}
+                <View style={styles.correspondenceSubtitle}>
+                  <Text style={styles.correspondenceSubtitleText}>
+                    Votre correspondance
+                    {conv.length > 0
+                      ? ` · ${conv.length} lettre${conv.length > 1 ? 's' : ''} échangée${conv.length > 1 ? 's' : ''}`
+                      : ''}
+                  </Text>
                 </View>
 
                 {/* ── Tour de parole ── */}
@@ -1076,6 +1093,7 @@ export default function LettersScreen() {
                     isOwn={isOwn}
                     otherName={otherName}
                     formatTime={formatTime}
+                    onPress={() => setReadingLetter({ letter, isOwn })}
                   />
                 );
               })}
@@ -1102,20 +1120,33 @@ export default function LettersScreen() {
           <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
             <TextInput
               style={styles.input}
-              placeholder={selectedMatch?.canSend ? 'Écrivez votre lettre...' : "En attente de réponse..."}
+              placeholder={
+                selectedMatch?.canSend
+                  ? 'Écrire votre lettre'
+                  : `En attente de la prochaine lettre de ${selectedMatch ? getOtherName(selectedMatch) : ''}`
+              }
               placeholderTextColor="#8B6F47"
               value={newMessage}
               onChangeText={setNewMessage}
               multiline
               editable={selectedMatch?.canSend ?? false}
             />
-            <TouchableOpacity
-              style={[styles.sendBtn, (!(selectedMatch?.canSend) || isSending) && styles.sendBtnDisabled]}
-              onPress={handleSend}
-              disabled={!(selectedMatch?.canSend) || isSending}
-            >
-              <Text style={styles.sendBtnText}>➤</Text>
-            </TouchableOpacity>
+            <View style={styles.composerFooter}>
+              <Text style={[styles.wordCounter, wordCount > MAX_LETTER_WORDS && styles.wordCounterOver]}>
+                {wordCount} / {MAX_LETTER_WORDS} mots
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.reviewBtn,
+                  (!(selectedMatch?.canSend) || !newMessage.trim() || wordCount > MAX_LETTER_WORDS) &&
+                    styles.reviewBtnDisabled,
+                ]}
+                onPress={() => setShowLetterPreview(true)}
+                disabled={!(selectedMatch?.canSend) || !newMessage.trim() || wordCount > MAX_LETTER_WORDS}
+              >
+                <Text style={styles.reviewBtnText}>Relire ma lettre</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
 
@@ -1125,6 +1156,79 @@ export default function LettersScreen() {
             </View>
           )}
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Aperçu avant envoi ("Relire ma lettre") ─────────────────────────── */}
+      <Modal visible={showLetterPreview} animationType="slide">
+        <View style={[styles.previewContainer, { paddingTop: insets.top }]}>
+          <View style={styles.previewHeader}>
+            <Text style={styles.previewHeaderTitle}>Aperçu de votre lettre</Text>
+          </View>
+
+          <View style={styles.previewBody}>
+            <LetterPaginatedView
+              content={newMessage}
+              signatureName={currentUser?.pseudo || currentUser?.name || ''}
+            />
+          </View>
+
+          <Text style={styles.previewReminder}>
+            Après envoi, vous devrez attendre la prochaine lettre
+            {selectedMatch ? ` de ${getOtherName(selectedMatch)}` : ''}.
+          </Text>
+
+          <View style={[styles.previewActions, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+            <TouchableOpacity
+              style={styles.previewEditBtn}
+              onPress={() => setShowLetterPreview(false)}
+              disabled={isSending}
+            >
+              <Text style={styles.previewEditBtnText}>Modifier</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.previewSendBtn, isSending && styles.reviewBtnDisabled]}
+              disabled={isSending}
+              onPress={async () => {
+                const sent = await handleSend();
+                if (sent) setShowLetterPreview(false);
+              }}
+            >
+              <Text style={styles.previewSendBtnText}>
+                {isSending ? 'Envoi…' : 'Envoyer la lettre'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Relecture d'une ancienne lettre ──────────────────────────────────── */}
+      <Modal visible={!!readingLetter} animationType="slide">
+        <View style={[styles.previewContainer, { paddingTop: insets.top }]}>
+          <View style={styles.previewHeader}>
+            <TouchableOpacity onPress={() => setReadingLetter(null)}>
+              <Text style={styles.closeText}>← Retour</Text>
+            </TouchableOpacity>
+            <Text style={styles.previewHeaderTitle}>
+              {readingLetter?.isOwn ? 'Ta lettre' : selectedMatch ? `Lettre de ${getOtherName(selectedMatch)}` : ''}
+            </Text>
+            <View style={{ width: 60 }} />
+          </View>
+
+          <View style={styles.previewBody}>
+            {readingLetter && (
+              <LetterPaginatedView
+                content={readingLetter.letter.content}
+                signatureName={
+                  readingLetter.isOwn
+                    ? currentUser?.pseudo || currentUser?.name || ''
+                    : selectedMatch
+                      ? getOtherName(selectedMatch)
+                      : ''
+                }
+              />
+            )}
+          </View>
+        </View>
       </Modal>
 
       {/* ── Actions Menu (Bottom Sheet) ─────────────────────────────────────── */}
@@ -1671,6 +1775,49 @@ const styles = StyleSheet.create({
   },
 
   modalContainer: { flex: 1, backgroundColor: '#F4ECD8' },
+  previewContainer: { flex: 1, backgroundColor: '#F4ECD8' },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#C4A882',
+    backgroundColor: '#2C1A0E',
+  },
+  previewHeaderTitle: { fontSize: 15, fontWeight: '700', color: '#F0D98C', letterSpacing: 0.3 },
+  previewBody: { flex: 1, margin: 16, backgroundColor: '#FEFAF0', borderRadius: 14, borderWidth: 1.5, borderColor: '#D4B896', overflow: 'hidden' },
+  previewReminder: {
+    fontSize: 11,
+    color: '#9A7040',
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+    fontStyle: 'italic',
+  },
+  previewActions: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+  },
+  previewEditBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: '#5A3A1A',
+  },
+  previewEditBtnText: { color: '#F0D98C', fontWeight: '700', fontSize: 14 },
+  previewSendBtn: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: '#8B2E3C',
+  },
+  previewSendBtnText: { color: '#F0D98C', fontWeight: '700', fontSize: 14 },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1685,18 +1832,59 @@ const styles = StyleSheet.create({
   modalTitleBtn:  { flex: 1, alignItems: 'center' },
   modalTitle:     { fontSize: 17, fontWeight: '700', color: '#F0D98C', letterSpacing: 0.3 },
   modalTitleHint: { fontSize: 10, color: '#B87333', marginTop: 2, letterSpacing: 0.5 },
+  correspondenceSubtitle: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
+    alignItems: 'center',
+  },
+  correspondenceSubtitleText: {
+    fontSize: 12,
+    color: '#9A7040',
+    letterSpacing: 0.3,
+  },
   messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
 
   startConv: { alignItems: 'center', paddingVertical: 60 },
   startEmoji: { fontSize: 50, marginBottom: 12 },
   startText: { fontSize: 16, color: '#9A7040' },
   inputContainer: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     padding: 12,
     backgroundColor: '#2C1A0E',
     borderTopWidth: 1,
     borderTopColor: '#5A3A1A',
     gap: 8,
+  },
+  composerFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  wordCounter: {
+    fontSize: 11,
+    color: '#B8956A',
+    letterSpacing: 0.3,
+  },
+  wordCounterOver: {
+    color: '#E07856',
+    fontWeight: '700',
+  },
+  reviewBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#8B2E3C',
+  },
+  reviewBtnDisabled: {
+    backgroundColor: '#5A3A1A',
+    opacity: 0.6,
+  },
+  reviewBtnText: {
+    color: '#F0D98C',
+    fontWeight: '700',
+    fontSize: 13,
   },
   input: {
     flex: 1,
@@ -1818,8 +2006,7 @@ const styles = StyleSheet.create({
   },
   reportModalTitle: { fontSize: 16, fontWeight: '700', color: '#2C1A0E' },
   reportModalLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 12,    fontWeight: '600',
     color: '#3A2818',
     marginTop: 10,
     marginBottom: 6,
