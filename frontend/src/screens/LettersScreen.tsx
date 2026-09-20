@@ -484,11 +484,15 @@ function LetterCard({
             <View style={lcStyles.airmailBottom}><AirmailEdge /></View>
             <View style={lcStyles.airmailLeft}><AirmailEdge vertical /></View>
             <View style={lcStyles.airmailRight}><AirmailEdge vertical /></View>
+            <View style={lcStyles.paperInset} pointerEvents="none" />
           </>
         ) : (
-          <View style={lcStyles.flapArea}>
-            <View style={lcStyles.flapDiamond} />
-          </View>
+          <>
+            <View style={lcStyles.flapArea}>
+              <View style={lcStyles.flapDiamond} />
+            </View>
+            <View style={lcStyles.paperInsetSoft} pointerEvents="none" />
+          </>
         )}
 
         <View style={lcStyles.topRow}>
@@ -518,35 +522,36 @@ function LetterCard({
 
 const lcStyles = StyleSheet.create({
   wrapper: {
-    marginBottom: 10,
+    marginBottom: 9,
   },
   card: {
-    minHeight: 116,
-    backgroundColor: '#FBF5E9',
-    borderRadius: 14,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 15,
+    minHeight: 108,
+    backgroundColor: '#FCF7EC',
+    borderRadius: 16,
+    paddingHorizontal: 19,
+    paddingTop: 16,
+    paddingBottom: 14,
     borderWidth: 1,
-    borderColor: '#DDD0BC',
+    borderColor: '#DED1BD',
     shadowColor: '#4A2D1A',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.13,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.11,
+    shadowRadius: 9,
+    elevation: 3,
     overflow: 'hidden',
   },
   cardOwn: {
-    backgroundColor: '#FCF6EC',
+    backgroundColor: '#FFF9F1',
   },
   cardLatest: {
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.18,
     shadowRadius: 12,
-    elevation: 7,
+    elevation: 6,
   },
   cardAirmail: {
-    borderColor: '#D4B89D',
-    paddingTop: 22,
+    borderColor: '#D7BFA6',
+    paddingTop: 19,
+    paddingBottom: 16,
   },
 
   airmailTop: {
@@ -554,7 +559,7 @@ const lcStyles = StyleSheet.create({
     top: 0,
     left: 10,
     right: 10,
-    height: 7,
+    height: 6,
     overflow: 'hidden',
   },
   airmailBottom: {
@@ -570,7 +575,7 @@ const lcStyles = StyleSheet.create({
     left: 0,
     top: 10,
     bottom: 10,
-    width: 7,
+    width: 6,
     overflow: 'hidden',
   },
   airmailRight: {
@@ -603,22 +608,43 @@ const lcStyles = StyleSheet.create({
     backgroundColor: '#EFE2CF',
   },
 
+  paperInset: {
+    position: 'absolute',
+    top: 11,
+    left: 11,
+    right: 11,
+    bottom: 11,
+    borderRadius: 11,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(164,128,86,0.20)',
+  },
+  paperInsetSoft: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    right: 5,
+    bottom: 5,
+    borderRadius: 13,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(164,128,86,0.12)',
+  },
+
   flapArea: {
     position: 'absolute',
-    top: -77,
+    top: -94,
     left: 0,
     right: 0,
-    height: 134,
+    height: 132,
     alignItems: 'center',
     overflow: 'hidden',
-    opacity: 0.5,
+    opacity: 0.34,
   },
   flapDiamond: {
-    width: 280,
-    height: 280,
-    backgroundColor: '#E8DCC9',
-    borderWidth: 1,
-    borderColor: '#D6C5AC',
+    width: 300,
+    height: 300,
+    backgroundColor: '#E8DDCC',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#D7C7AF',
     transform: [{ rotate: '45deg' }],
   },
 
@@ -627,11 +653,11 @@ const lcStyles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 9,
   },
   titleBlock: { flex: 1 },
   header: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#28180F',
     fontWeight: '700',
   },
@@ -639,14 +665,14 @@ const lcStyles = StyleSheet.create({
     color: '#8B2E3C',
   },
   dateLine: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: '#8B6F47',
-    marginTop: 3,
+    marginTop: 2,
   },
   iconBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -654,10 +680,10 @@ const lcStyles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   text: {
-    fontSize: 15,
+    fontSize: 14.5,
     color: '#2C1A0E',
-    lineHeight: 21,
-    paddingRight: 34,
+    lineHeight: 20,
+    paddingRight: 30,
   },
 });
 
@@ -2151,7 +2177,7 @@ const styles = StyleSheet.create({
   composeTabTextDisabled: {
     opacity: 0.38,
   },
-  messagesContainer: { flex: 1, paddingHorizontal: 15, paddingTop: 14, paddingBottom: 18 },
+  messagesContainer: { flex: 1, paddingHorizontal: 15, paddingTop: 12, paddingBottom: 16 },
 
   startConv: { alignItems: 'center', paddingVertical: 60 },
   startEmoji: { fontSize: 50, marginBottom: 12 },
@@ -2163,22 +2189,24 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
   },
   waitingComposerBar: {
-    minHeight: 58,
-    borderRadius: 14,
-    backgroundColor: '#E4D9C9',
+    minHeight: 54,
+    borderRadius: 15,
+    backgroundColor: '#E2D7C7',
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#D7C8B4',
   },
   waitingComposerText: {
     flex: 1,
-    fontSize: 13,
-    color: '#9A8B79',
+    fontSize: 12.5,
+    color: '#948574',
   },
   waitingWordCounter: {
-    marginTop: 8,
-    fontSize: 12,
+    marginTop: 7,
+    fontSize: 11.5,
     color: '#7F674E',
   },
   inputContainer: {
@@ -2414,14 +2442,14 @@ const styles = StyleSheet.create({
 
   turnBanner: {
     paddingHorizontal: 16,
-    paddingVertical: 9,
+    paddingVertical: 7,
     alignItems: 'center',
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#5A3A1A',
   },
   turnBannerMine: { backgroundColor: '#1A2E1A' },
   turnBannerWait: { backgroundColor: '#2A1A0A' },
-  turnBannerText: { fontSize: 13, fontWeight: '600', color: '#C4A882' },
+  turnBannerText: { fontSize: 12.5, fontWeight: '600', color: '#C9AE87' },
 
   journalModalBg: {
     flex: 1,
