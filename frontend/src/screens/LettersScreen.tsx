@@ -17,6 +17,7 @@ import {
   Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter, Link, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matches';
@@ -415,6 +416,22 @@ interface LetterCardProps {
   onSeen: () => void;
 }
 
+function AirmailStrip() {
+  return (
+    <View style={lcStyles.airmailStrip}>
+      {Array.from({ length: 12 }).map((_, index) => (
+        <View
+          key={index}
+          style={[
+            lcStyles.airmailSegment,
+            index % 2 === 0 ? lcStyles.airmailSegmentRed : lcStyles.airmailSegmentCream,
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
 function LetterCard({
   letter,
   isOwn,
@@ -447,10 +464,12 @@ function LetterCard({
   return (
     <TouchableOpacity
       style={[lcStyles.wrapper, isLatest && lcStyles.wrapperLatest]}
-      activeOpacity={0.82}
+      activeOpacity={0.84}
       onPress={onPress}
     >
       <View style={[lcStyles.card, isOwn && lcStyles.cardOwn, isLatest && lcStyles.cardLatest]}>
+        {isLatest && <AirmailStrip />}
+
         <View style={lcStyles.flapArea}>
           <View style={lcStyles.flapDiamond} />
         </View>
@@ -464,17 +483,17 @@ function LetterCard({
           </View>
 
           <View style={[lcStyles.iconBadge, isOwn && lcStyles.iconBadgeOwn]}>
-            <Text style={[lcStyles.mailIcon, isOwn && lcStyles.mailIconOwn]}>
-              {isOwn ? '↗' : '✉'}
-            </Text>
+            <Ionicons
+              name={isOwn ? 'paper-plane-outline' : 'mail-outline'}
+              size={19}
+              color={isOwn ? '#8B2E3C' : '#8B6F47'}
+            />
           </View>
         </View>
 
         <Text style={lcStyles.text} numberOfLines={2}>
           {preview}
         </Text>
-
-        {isLatest && <View style={lcStyles.latestAccent} />}
       </View>
     </TouchableOpacity>
   );
@@ -482,54 +501,74 @@ function LetterCard({
 
 const lcStyles = StyleSheet.create({
   wrapper: {
-    marginBottom: -10,
+    marginBottom: -4,
     zIndex: 1,
   },
   wrapperLatest: {
     zIndex: 4,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   card: {
-    minHeight: 128,
-    backgroundColor: '#FEFAF0',
-    borderRadius: 16,
+    minHeight: 116,
+    backgroundColor: '#FCF6EA',
+    borderRadius: 15,
     paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 16,
+    paddingTop: 17,
+    paddingBottom: 14,
     borderWidth: 1,
-    borderColor: '#D8C7AE',
-    shadowColor: '#5A3A1A',
+    borderColor: '#D9C8AD',
+    shadowColor: '#4A2D1A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.14,
-    shadowRadius: 9,
+    shadowOpacity: 0.13,
+    shadowRadius: 8,
     elevation: 4,
     overflow: 'hidden',
   },
   cardOwn: {
-    borderColor: '#D3A7AF',
+    borderColor: '#D4ADB4',
     backgroundColor: '#FFF8F4',
   },
   cardLatest: {
+    minHeight: 122,
     shadowOpacity: 0.22,
-    shadowRadius: 12,
+    shadowRadius: 11,
     elevation: 7,
+  },
+  airmailStrip: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 8,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  airmailSegment: {
+    flex: 1,
+    transform: [{ skewX: '-24deg' }],
+  },
+  airmailSegmentRed: {
+    backgroundColor: '#8B2E3C',
+  },
+  airmailSegmentCream: {
+    backgroundColor: '#EADCC6',
   },
   flapArea: {
     position: 'absolute',
-    top: -44,
+    top: -62,
     left: 0,
     right: 0,
-    height: 94,
+    height: 108,
     alignItems: 'center',
     overflow: 'hidden',
-    opacity: 0.38,
+    opacity: 0.34,
   },
   flapDiamond: {
-    width: 230,
-    height: 230,
-    backgroundColor: '#E9DCC7',
+    width: 250,
+    height: 250,
+    backgroundColor: '#E7D7BE',
     borderWidth: 1,
-    borderColor: '#D5C2A5',
+    borderColor: '#D3BE9D',
     transform: [{ rotate: '45deg' }],
   },
   topRow: {
@@ -537,7 +576,7 @@ const lcStyles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   titleBlock: { flex: 1 },
   header: {
@@ -554,36 +593,20 @@ const lcStyles = StyleSheet.create({
     marginTop: 3,
   },
   iconBadge: {
-    minWidth: 34,
+    width: 34,
     height: 34,
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(154,112,64,0.10)',
+    backgroundColor: 'rgba(139,111,71,0.08)',
   },
   iconBadgeOwn: {
-    backgroundColor: 'rgba(139,46,60,0.10)',
-  },
-  mailIcon: {
-    fontSize: 18,
-    color: '#8B6F47',
-  },
-  mailIconOwn: {
-    color: '#8B2E3C',
-    fontWeight: '700',
+    backgroundColor: 'rgba(139,46,60,0.09)',
   },
   text: {
     fontSize: 15,
     color: '#2C1A0E',
     lineHeight: 21,
-  },
-  latestAccent: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-    backgroundColor: '#8B2E3C',
   },
 });
 
@@ -1175,7 +1198,10 @@ export default function LettersScreen() {
 
                 <View style={styles.composeTabs}>
                   <TouchableOpacity style={[styles.composeTab, styles.composeTabActive]} activeOpacity={1}>
-                    <Text style={[styles.composeTabText, styles.composeTabTextActive]}>✎  Écrire</Text>
+                    <View style={styles.composeTabInner}>
+                      <Ionicons name="pencil-outline" size={17} color="#F0D98C" />
+                      <Text style={[styles.composeTabText, styles.composeTabTextActive]}>Écrire</Text>
+                    </View>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.composeTab}
@@ -1187,21 +1213,35 @@ export default function LettersScreen() {
                     }}
                     activeOpacity={newMessage.trim() ? 0.75 : 1}
                   >
-                    <Text style={[styles.composeTabText, !newMessage.trim() && styles.composeTabTextDisabled]}>
-                      ▱  Aperçu
-                    </Text>
+                    <View style={styles.composeTabInner}>
+                      <Ionicons
+                        name="document-text-outline"
+                        size={17}
+                        color={newMessage.trim() ? '#5A3A1A' : '#B6A58D'}
+                      />
+                      <Text style={[styles.composeTabText, !newMessage.trim() && styles.composeTabTextDisabled]}>
+                        Aperçu
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
 
                 {/* ── Tour de parole ── */}
                 <View style={[styles.turnBanner, myTurn ? styles.turnBannerMine : styles.turnBannerWait]}>
-                  <Text style={styles.turnBannerText}>
-                    {conv.length === 0
-                      ? '🪶  Écrivez la première lettre'
-                      : myTurn
-                        ? "📬  C'est votre tour — répondez à la lettre reçue"
-                        : '⏳  Lettre envoyée — en attente de réponse'}
-                  </Text>
+                  <View style={styles.turnBannerInner}>
+                    <Ionicons
+                      name={conv.length === 0 ? 'pencil-outline' : myTurn ? 'mail-open-outline' : 'hourglass-outline'}
+                      size={17}
+                      color={myTurn ? '#D6C29A' : '#C9AD82'}
+                    />
+                    <Text style={styles.turnBannerText}>
+                      {conv.length === 0
+                        ? 'Écrivez la première lettre'
+                        : myTurn
+                          ? "C'est votre tour — répondez à la lettre reçue"
+                          : 'Lettre envoyée — en attente de réponse'}
+                    </Text>
+                  </View>
                 </View>
               </>
             );
@@ -2020,6 +2060,12 @@ const styles = StyleSheet.create({
   composeTabActive: {
     backgroundColor: '#3A2415',
   },
+  composeTabInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   composeTabText: {
     fontSize: 14,
     fontWeight: '600',
@@ -2031,7 +2077,7 @@ const styles = StyleSheet.create({
   composeTabTextDisabled: {
     opacity: 0.38,
   },
-  messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
+  messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 18 },
 
   startConv: { alignItems: 'center', paddingVertical: 60 },
   startEmoji: { fontSize: 50, marginBottom: 12 },
