@@ -601,24 +601,27 @@ const lcStyles = StyleSheet.create({
 
   envelopeFlapWrap: {
     position: 'absolute',
-    top: -58,
     left: 0,
     right: 0,
-    height: 108,
+    bottom: 0,
+    height: 70,
     alignItems: 'center',
+    justifyContent: 'flex-end',
     overflow: 'hidden',
   },
   envelopeFlap: {
-    width: 245,
-    height: 245,
-    backgroundColor: '#E9DDCB',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#D6C4AA',
-    transform: [{ rotate: '45deg' }],
-    opacity: 0.68,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 150,
+    borderRightWidth: 150,
+    borderBottomWidth: 70,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: 'rgba(232,221,203,0.68)',
   },
 
   topRow: {
+    zIndex: 2,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -644,6 +647,7 @@ const lcStyles = StyleSheet.create({
     color: '#2C1A0E',
     lineHeight: 20,
     paddingRight: 28,
+    zIndex: 2,
   },
 });
 
