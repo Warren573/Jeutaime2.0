@@ -509,7 +509,7 @@ const lcStyles = StyleSheet.create({
     marginBottom: 12,
   },
   card: {
-    minHeight: 116,
+    minHeight: 110,
     backgroundColor: '#FCF6EA',
     borderRadius: 15,
     paddingHorizontal: 18,
@@ -529,7 +529,7 @@ const lcStyles = StyleSheet.create({
     backgroundColor: '#FFF8F4',
   },
   cardLatest: {
-    minHeight: 122,
+    minHeight: 116,
     shadowOpacity: 0.22,
     shadowRadius: 11,
     elevation: 7,
@@ -539,7 +539,7 @@ const lcStyles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    height: 8,
+    height: 6,
     flexDirection: 'row',
     overflow: 'hidden',
   },
@@ -1288,40 +1288,46 @@ export default function LettersScreen() {
             )}
           </ScrollView>
 
-          <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-            <TextInput
-              style={styles.input}
-              placeholder={
-                selectedMatch?.canSend
-                  ? 'Écrire votre lettre'
-                  : `En attente de la prochaine lettre de ${selectedMatch ? getOtherName(selectedMatch) : ''}`
-              }
-              placeholderTextColor="#8B6F47"
-              value={newMessage}
-              onChangeText={setNewMessage}
-              multiline
-              editable={selectedMatch?.canSend ?? false}
-            />
-            <View style={styles.composerFooter}>
-              <Text style={[styles.wordCounter, wordCount > MAX_LETTER_WORDS && styles.wordCounterOver]}>
-                {wordCount} / {MAX_LETTER_WORDS} mots
-              </Text>
-              <TouchableOpacity
-                style={[
-                  styles.reviewBtn,
-                  (!(selectedMatch?.canSend) || !newMessage.trim() || wordCount > MAX_LETTER_WORDS) &&
-                    styles.reviewBtnDisabled,
-                ]}
-                onPress={() => {
-                  Keyboard.dismiss();
-                  setShowLetterPreview(true);
-                }}
-                disabled={!(selectedMatch?.canSend) || !newMessage.trim() || wordCount > MAX_LETTER_WORDS}
-              >
-                <Text style={styles.reviewBtnText}>Voir l’aperçu</Text>
-              </TouchableOpacity>
+          {selectedMatch?.canSend ? (
+            <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+              <TextInput
+                style={styles.input}
+                placeholder="Écrire votre lettre"
+                placeholderTextColor="#8B6F47"
+                value={newMessage}
+                onChangeText={setNewMessage}
+                multiline
+                editable
+              />
+              <View style={styles.composerFooter}>
+                <Text style={[styles.wordCounter, wordCount > MAX_LETTER_WORDS && styles.wordCounterOver]}>
+                  {wordCount} / {MAX_LETTER_WORDS} mots
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.reviewBtn,
+                    (!newMessage.trim() || wordCount > MAX_LETTER_WORDS) && styles.reviewBtnDisabled,
+                  ]}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setShowLetterPreview(true);
+                  }}
+                  disabled={!newMessage.trim() || wordCount > MAX_LETTER_WORDS}
+                >
+                  <Text style={styles.reviewBtnText}>Voir l’aperçu</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          ) : (
+            <View style={[styles.waitingComposer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+              <View style={styles.waitingComposerBar}>
+                <Ionicons name="time-outline" size={17} color="#8B6F47" />
+                <Text style={styles.waitingComposerText} numberOfLines={1}>
+                  En attente de la prochaine lettre de {selectedMatch ? getOtherName(selectedMatch) : ''}
+                </Text>
+              </View>
+            </View>
+          )}
 
 
 
@@ -2082,6 +2088,29 @@ const styles = StyleSheet.create({
   startConv: { alignItems: 'center', paddingVertical: 60 },
   startEmoji: { fontSize: 50, marginBottom: 12 },
   startText: { fontSize: 16, color: '#9A7040' },
+  waitingComposer: {
+    paddingHorizontal: 14,
+    paddingTop: 9,
+    backgroundColor: '#F3EAD9',
+    borderTopWidth: 1,
+    borderTopColor: '#D8C7AE',
+  },
+  waitingComposerBar: {
+    minHeight: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#D6C2A3',
+    backgroundColor: '#FFFDF8',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  waitingComposerText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#8B6F47',
+  },
   inputContainer: {
     flexDirection: 'column',
     paddingHorizontal: 14,
@@ -2107,9 +2136,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   reviewBtn: {
-    minWidth: 132,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    minWidth: 126,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
     borderRadius: 12,
     backgroundColor: '#8B2E3C',
     alignItems: 'center',
@@ -2125,7 +2154,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 54,
+    minHeight: 50,
     backgroundColor: '#FFFDF8',
     borderRadius: 14,
     paddingHorizontal: 14,
