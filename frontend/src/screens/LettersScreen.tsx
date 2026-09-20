@@ -1350,6 +1350,17 @@ export default function LettersScreen() {
                 <LetterPaginatedView
                   content={newMessage}
                   signatureName={currentUser?.pseudo || currentUser?.name || ''}
+                  dateLabel={
+                    new Date().toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'short',
+                    }).replace('.', '') +
+                    ' · ' +
+                    new Date().toLocaleTimeString('fr-FR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  }
                 />
               </View>
 
@@ -1408,6 +1419,19 @@ export default function LettersScreen() {
                         : selectedMatch
                           ? getOtherName(selectedMatch)
                           : ''
+                    }
+                    dateLabel={
+                      new Date(readingLetter.letter.createdAt)
+                        .toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                        })
+                        .replace('.', '') +
+                      ' · ' +
+                      new Date(readingLetter.letter.createdAt).toLocaleTimeString('fr-FR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
                     }
                   />
                 )}
@@ -1989,14 +2013,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#2C1A0E',
   },
   previewHeaderTitle: { fontSize: 15, fontWeight: '700', color: '#F0D98C', letterSpacing: 0.3 },
-  previewBody: { flex: 1, margin: 16, backgroundColor: '#FEFAF0', borderRadius: 14, borderWidth: 1.5, borderColor: '#D4B896', overflow: 'hidden' },
+  previewBody: {
+    flex: 1,
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 10,
+    backgroundColor: '#FFFDF8',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#D8C7AE',
+    overflow: 'hidden',
+    shadowColor: '#5A3A1A',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
+  },
   previewReminder: {
     fontSize: 11,
-    color: '#9A7040',
+    color: '#8B6F47',
     textAlign: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 8,
-    fontStyle: 'italic',
+    paddingHorizontal: 28,
+    paddingBottom: 10,
+    lineHeight: 15,
   },
   previewActions: {
     flexDirection: 'row',
@@ -2006,18 +2045,25 @@ const styles = StyleSheet.create({
   },
   previewEditBtn: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 13,
+    borderRadius: 13,
     alignItems: 'center',
-    backgroundColor: '#5A3A1A',
+    backgroundColor: '#E7DCCB',
+    borderWidth: 1,
+    borderColor: '#D2BE9F',
   },
-  previewEditBtnText: { color: '#F0D98C', fontWeight: '700', fontSize: 14 },
+  previewEditBtnText: { color: '#5A3A1A', fontWeight: '700', fontSize: 14 },
   previewSendBtn: {
     flex: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 13,
+    borderRadius: 13,
     alignItems: 'center',
     backgroundColor: '#8B2E3C',
+    shadowColor: '#8B2E3C',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 7,
+    elevation: 3,
   },
   previewSendBtnText: { color: '#F0D98C', fontWeight: '700', fontSize: 14 },
   modalHeader: {
