@@ -603,10 +603,10 @@ const lcStyles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
-    height: 70,
+    top: 0,
+    height: 72,
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
     overflow: 'hidden',
   },
   envelopeFlap: {
@@ -614,10 +614,10 @@ const lcStyles = StyleSheet.create({
     height: 0,
     borderLeftWidth: 150,
     borderRightWidth: 150,
-    borderBottomWidth: 70,
+    borderTopWidth: 72,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: 'rgba(232,221,203,0.68)',
+    borderTopColor: 'rgba(232,221,203,0.62)',
   },
 
   topRow: {
