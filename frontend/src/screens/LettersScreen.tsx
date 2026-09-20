@@ -419,7 +419,7 @@ interface LetterCardProps {
 function AirmailEdge({ vertical = false }: { vertical?: boolean }) {
   return (
     <View style={vertical ? lcStyles.airmailEdgeVertical : lcStyles.airmailEdgeHorizontal}>
-      {Array.from({ length: vertical ? 7 : 12 }).map((_, index) => (
+      {Array.from({ length: vertical ? 8 : 14 }).map((_, index) => (
         <View
           key={index}
           style={[
@@ -465,11 +465,7 @@ function LetterCard({
   const showAirmailFrame = Boolean(isOwn && isLatest);
 
   return (
-    <TouchableOpacity
-      style={lcStyles.wrapper}
-      activeOpacity={0.84}
-      onPress={onPress}
-    >
+    <TouchableOpacity style={lcStyles.wrapper} activeOpacity={0.84} onPress={onPress}>
       <View
         style={[
           lcStyles.card,
@@ -484,15 +480,11 @@ function LetterCard({
             <View style={lcStyles.airmailBottom}><AirmailEdge /></View>
             <View style={lcStyles.airmailLeft}><AirmailEdge vertical /></View>
             <View style={lcStyles.airmailRight}><AirmailEdge vertical /></View>
-            <View style={lcStyles.paperInset} pointerEvents="none" />
           </>
         ) : (
-          <>
-            <View style={lcStyles.flapArea}>
-              <View style={lcStyles.flapDiamond} />
-            </View>
-            <View style={lcStyles.paperInsetSoft} pointerEvents="none" />
-          </>
+          <View style={lcStyles.envelopeFlapWrap} pointerEvents="none">
+            <View style={lcStyles.envelopeFlap} />
+          </View>
         )}
 
         <View style={lcStyles.topRow}>
@@ -503,13 +495,11 @@ function LetterCard({
             <Text style={lcStyles.dateLine}>{dayLabel} · {hhmm}</Text>
           </View>
 
-          <View style={[lcStyles.iconBadge, isOwn && lcStyles.iconBadgeOwn]}>
-            <Ionicons
-              name={isOwn ? 'paper-plane-outline' : 'mail'}
-              size={21}
-              color={isOwn ? '#8B2E3C' : '#9A8060'}
-            />
-          </View>
+          <Ionicons
+            name={isOwn ? 'paper-plane-outline' : 'mail'}
+            size={22}
+            color={isOwn ? '#8B2E3C' : '#9A8060'}
+          />
         </View>
 
         <Text style={lcStyles.text} numberOfLines={2}>
@@ -522,68 +512,69 @@ function LetterCard({
 
 const lcStyles = StyleSheet.create({
   wrapper: {
-    marginBottom: 9,
+    marginBottom: 8,
   },
   card: {
-    minHeight: 108,
+    minHeight: 106,
     backgroundColor: '#FCF7EC',
-    borderRadius: 16,
-    paddingHorizontal: 19,
-    paddingTop: 16,
+    borderRadius: 10,
+    paddingHorizontal: 18,
+    paddingTop: 15,
     paddingBottom: 14,
-    borderWidth: 1,
-    borderColor: '#DED1BD',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#D8C9B3',
     shadowColor: '#4A2D1A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.11,
-    shadowRadius: 9,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    elevation: 4,
     overflow: 'hidden',
   },
   cardOwn: {
-    backgroundColor: '#FFF9F1',
+    backgroundColor: '#FFF8F0',
   },
   cardLatest: {
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.19,
     shadowRadius: 12,
     elevation: 6,
   },
   cardAirmail: {
-    borderColor: '#D7BFA6',
-    paddingTop: 19,
+    minHeight: 112,
+    paddingTop: 18,
     paddingBottom: 16,
+    borderColor: '#D6B89E',
   },
 
   airmailTop: {
     position: 'absolute',
     top: 0,
-    left: 10,
-    right: 10,
+    left: 0,
+    right: 0,
     height: 6,
     overflow: 'hidden',
   },
   airmailBottom: {
     position: 'absolute',
     bottom: 0,
-    left: 10,
-    right: 10,
-    height: 7,
+    left: 0,
+    right: 0,
+    height: 6,
     overflow: 'hidden',
   },
   airmailLeft: {
     position: 'absolute',
     left: 0,
-    top: 10,
-    bottom: 10,
+    top: 0,
+    bottom: 0,
     width: 6,
     overflow: 'hidden',
   },
   airmailRight: {
     position: 'absolute',
     right: 0,
-    top: 10,
-    bottom: 10,
-    width: 7,
+    top: 0,
+    bottom: 0,
+    width: 6,
     overflow: 'hidden',
   },
   airmailEdgeHorizontal: {
@@ -605,47 +596,26 @@ const lcStyles = StyleSheet.create({
     backgroundColor: '#8B2E3C',
   },
   airmailSegmentCream: {
-    backgroundColor: '#EFE2CF',
+    backgroundColor: '#F1E5D4',
   },
 
-  paperInset: {
+  envelopeFlapWrap: {
     position: 'absolute',
-    top: 11,
-    left: 11,
-    right: 11,
-    bottom: 11,
-    borderRadius: 11,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(164,128,86,0.20)',
-  },
-  paperInsetSoft: {
-    position: 'absolute',
-    top: 5,
-    left: 5,
-    right: 5,
-    bottom: 5,
-    borderRadius: 13,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(164,128,86,0.12)',
-  },
-
-  flapArea: {
-    position: 'absolute',
-    top: -94,
+    top: -58,
     left: 0,
     right: 0,
-    height: 132,
+    height: 108,
     alignItems: 'center',
     overflow: 'hidden',
-    opacity: 0.34,
   },
-  flapDiamond: {
-    width: 300,
-    height: 300,
-    backgroundColor: '#E8DDCC',
+  envelopeFlap: {
+    width: 245,
+    height: 245,
+    backgroundColor: '#E9DDCB',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#D7C7AF',
+    borderColor: '#D6C4AA',
     transform: [{ rotate: '45deg' }],
+    opacity: 0.68,
   },
 
   topRow: {
@@ -657,7 +627,7 @@ const lcStyles = StyleSheet.create({
   },
   titleBlock: { flex: 1 },
   header: {
-    fontSize: 15,
+    fontSize: 15.5,
     color: '#28180F',
     fontWeight: '700',
   },
@@ -669,21 +639,11 @@ const lcStyles = StyleSheet.create({
     color: '#8B6F47',
     marginTop: 2,
   },
-  iconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconBadgeOwn: {
-    backgroundColor: 'transparent',
-  },
   text: {
     fontSize: 14.5,
     color: '#2C1A0E',
     lineHeight: 20,
-    paddingRight: 30,
+    paddingRight: 28,
   },
 });
 
@@ -2177,7 +2137,7 @@ const styles = StyleSheet.create({
   composeTabTextDisabled: {
     opacity: 0.38,
   },
-  messagesContainer: { flex: 1, paddingHorizontal: 15, paddingTop: 12, paddingBottom: 16 },
+  messagesContainer: { flex: 1, paddingHorizontal: 15, paddingTop: 13, paddingBottom: 16 },
 
   startConv: { alignItems: 'center', paddingVertical: 60 },
   startEmoji: { fontSize: 50, marginBottom: 12 },
@@ -2189,15 +2149,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
   },
   waitingComposerBar: {
-    minHeight: 54,
-    borderRadius: 15,
-    backgroundColor: '#E2D7C7',
-    paddingHorizontal: 16,
+    minHeight: 52,
+    borderRadius: 11,
+    backgroundColor: '#DED2C2',
+    paddingHorizontal: 15,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#D7C8B4',
+    borderWidth: 0,
   },
   waitingComposerText: {
     flex: 1,
@@ -2444,12 +2403,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 7,
     alignItems: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#5A3A1A',
+    justifyContent: 'center',
+    borderBottomWidth: 0,
   },
   turnBannerMine: { backgroundColor: '#1A2E1A' },
-  turnBannerWait: { backgroundColor: '#2A1A0A' },
-  turnBannerText: { fontSize: 12.5, fontWeight: '600', color: '#C9AE87' },
+  turnBannerWait: { backgroundColor: '#2C1A0E' },
+  turnBannerText: { fontSize: 12.5, fontWeight: '600', color: '#D1B98F' },
 
   journalModalBg: {
     flex: 1,
