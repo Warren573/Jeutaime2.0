@@ -420,7 +420,8 @@ function LetterCard({
   isOwn,
   otherName,
   onPress,
-}: Omit<LetterCardProps, 'isNew' | 'onSeen' | 'formatTime'> & { onPress: () => void }) {
+  isLatest,
+}: Omit<LetterCardProps, 'isNew' | 'onSeen' | 'formatTime'> & { onPress: () => void; isLatest?: boolean }) {
   const date = new Date(letter.createdAt);
   const now = new Date();
   const sameDay =
@@ -444,9 +445,16 @@ function LetterCard({
   const preview = letter.content.trim().replace(/\s+/g, ' ');
 
   return (
-    <TouchableOpacity style={lcStyles.wrapper} activeOpacity={0.82} onPress={onPress}>
-      <View style={[lcStyles.card, isOwn && lcStyles.cardOwn]}>
-        <View style={lcStyles.envelopeFold} />
+    <TouchableOpacity
+      style={[lcStyles.wrapper, isLatest && lcStyles.wrapperLatest]}
+      activeOpacity={0.82}
+      onPress={onPress}
+    >
+      <View style={[lcStyles.card, isOwn && lcStyles.cardOwn, isLatest && lcStyles.cardLatest]}>
+        <View style={lcStyles.flapArea}>
+          <View style={lcStyles.flapDiamond} />
+        </View>
+
         <View style={lcStyles.topRow}>
           <View style={lcStyles.titleBlock}>
             <Text style={[lcStyles.header, isOwn && lcStyles.headerOwn]}>
@@ -454,13 +462,19 @@ function LetterCard({
             </Text>
             <Text style={lcStyles.dateLine}>{dayLabel} · {hhmm}</Text>
           </View>
-          <Text style={[lcStyles.mailIcon, isOwn && lcStyles.mailIconOwn]}>
-            {isOwn ? '↗' : '✉'}
-          </Text>
+
+          <View style={[lcStyles.iconBadge, isOwn && lcStyles.iconBadgeOwn]}>
+            <Text style={[lcStyles.mailIcon, isOwn && lcStyles.mailIconOwn]}>
+              {isOwn ? '↗' : '✉'}
+            </Text>
+          </View>
         </View>
+
         <Text style={lcStyles.text} numberOfLines={2}>
           {preview}
         </Text>
+
+        {isLatest && <View style={lcStyles.latestAccent} />}
       </View>
     </TouchableOpacity>
   );
@@ -468,10 +482,15 @@ function LetterCard({
 
 const lcStyles = StyleSheet.create({
   wrapper: {
-    marginBottom: -8,
+    marginBottom: -10,
+    zIndex: 1,
+  },
+  wrapperLatest: {
+    zIndex: 4,
+    marginBottom: 10,
   },
   card: {
-    minHeight: 132,
+    minHeight: 128,
     backgroundColor: '#FEFAF0',
     borderRadius: 16,
     paddingHorizontal: 18,
@@ -481,24 +500,37 @@ const lcStyles = StyleSheet.create({
     borderColor: '#D8C7AE',
     shadowColor: '#5A3A1A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.14,
+    shadowRadius: 9,
+    elevation: 4,
     overflow: 'hidden',
   },
   cardOwn: {
-    borderColor: '#CDA8A8',
-    backgroundColor: '#FFF9F4',
+    borderColor: '#D3A7AF',
+    backgroundColor: '#FFF8F4',
   },
-  envelopeFold: {
+  cardLatest: {
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 7,
+  },
+  flapArea: {
     position: 'absolute',
+    top: -44,
     left: 0,
     right: 0,
-    top: 0,
-    height: 46,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(176, 145, 105, 0.18)',
-    backgroundColor: 'rgba(228, 211, 187, 0.18)',
+    height: 94,
+    alignItems: 'center',
+    overflow: 'hidden',
+    opacity: 0.38,
+  },
+  flapDiamond: {
+    width: 230,
+    height: 230,
+    backgroundColor: '#E9DCC7',
+    borderWidth: 1,
+    borderColor: '#D5C2A5',
+    transform: [{ rotate: '45deg' }],
   },
   topRow: {
     flexDirection: 'row',
@@ -521,10 +553,20 @@ const lcStyles = StyleSheet.create({
     color: '#8B6F47',
     marginTop: 3,
   },
+  iconBadge: {
+    minWidth: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(154,112,64,0.10)',
+  },
+  iconBadgeOwn: {
+    backgroundColor: 'rgba(139,46,60,0.10)',
+  },
   mailIcon: {
-    fontSize: 20,
-    color: '#9A7040',
-    marginTop: 1,
+    fontSize: 18,
+    color: '#8B6F47',
   },
   mailIconOwn: {
     color: '#8B2E3C',
@@ -534,6 +576,14 @@ const lcStyles = StyleSheet.create({
     fontSize: 15,
     color: '#2C1A0E',
     lineHeight: 21,
+  },
+  latestAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: '#8B2E3C',
   },
 });
 
@@ -1161,7 +1211,7 @@ export default function LettersScreen() {
             {selectedMatch &&
               [...getConversation(selectedMatch)]
                 .sort((a, b) => b.createdAt - a.createdAt)
-                .map((letter) => {
+                .map((letter, index) => {
                 const isOwn =
                   letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
                 const otherName = getOtherName(selectedMatch);
@@ -1174,6 +1224,7 @@ export default function LettersScreen() {
                     otherName={otherName}
                     formatTime={formatTime}
                     onPress={() => setReadingLetter({ letter, isOwn })}
+                    isLatest={index === 0}
                   />
                 );
               })}
@@ -1952,15 +2003,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: 16,
     marginTop: 10,
-    marginBottom: 8,
+    marginBottom: 10,
     backgroundColor: '#EDE3D2',
-    borderRadius: 12,
-    padding: 3,
+    borderRadius: 14,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#E1D3BE',
   },
   composeTab: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: 9,
+    minHeight: 46,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1985,11 +2038,12 @@ const styles = StyleSheet.create({
   startText: { fontSize: 16, color: '#9A7040' },
   inputContainer: {
     flexDirection: 'column',
-    padding: 12,
-    backgroundColor: '#2C1A0E',
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    backgroundColor: '#F3EAD9',
     borderTopWidth: 1,
-    borderTopColor: '#5A3A1A',
-    gap: 8,
+    borderTopColor: '#D8C7AE',
+    gap: 9,
   },
   composerFooter: {
     flexDirection: 'row',
@@ -1998,19 +2052,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   wordCounter: {
-    fontSize: 11,
-    color: '#B8956A',
-    letterSpacing: 0.3,
+    fontSize: 12,
+    color: '#8B6F47',
+    letterSpacing: 0.2,
   },
   wordCounterOver: {
     color: '#E07856',
     fontWeight: '700',
   },
   reviewBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
+    minWidth: 132,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
     backgroundColor: '#8B2E3C',
+    alignItems: 'center',
   },
   reviewBtnDisabled: {
     backgroundColor: '#5A3A1A',
@@ -2023,14 +2079,15 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#FEFAF0',
-    borderRadius: 12,
+    minHeight: 54,
+    backgroundColor: '#FFFDF8',
+    borderRadius: 14,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
     fontSize: 15,
-    borderWidth: 1.5,
-    borderColor: '#B8956A',
-    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: '#CBB18B',
+    maxHeight: 112,
     color: '#2C1A0E',
   },
   sendBtn: {
