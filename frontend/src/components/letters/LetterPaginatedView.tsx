@@ -18,9 +18,10 @@ const PAGE_INDICATOR_HEIGHT = 28;
 interface LetterPaginatedViewProps {
   content: string;
   signatureName: string;
+  dateLabel?: string;
 }
 
-export function LetterPaginatedView({ content, signatureName }: LetterPaginatedViewProps) {
+export function LetterPaginatedView({ content, signatureName, dateLabel }: LetterPaginatedViewProps) {
   const [fontsLoaded] = useFonts({ Caveat_600SemiBold });
   const [viewportSize, setViewportSize] = useState<{ w: number; h: number } | null>(null);
   const [measuredLines, setMeasuredLines] = useState<MeasuredLine[] | null>(null);
@@ -89,16 +90,29 @@ export function LetterPaginatedView({ content, signatureName }: LetterPaginatedV
               <View key={i} style={{ width: viewportSize.w, height: viewportSize.h }}>
                 <View style={styles.pageInner}>
                   <View>
-                    {pageLines.map((line, li) => (
-                      <Text key={`${i}-${li}`} style={styles.bodyText}>
-                        {line.length > 0 ? line : ' '}
-                      </Text>
-                    ))}
+                    {i === 0 && dateLabel ? (
+                      <View style={styles.letterMetaRow}>
+                        <Text style={styles.letterMetaLabel}>LETTRE</Text>
+                        <Text style={styles.letterMetaDate}>{dateLabel}</Text>
+                      </View>
+                    ) : null}
+
+                    <View style={styles.bodyBlock}>
+                      {pageLines.map((line, li) => (
+                        <Text key={`${i}-${li}`} style={styles.bodyText}>
+                          {line.length > 0 ? line : ' '}
+                        </Text>
+                      ))}
+                    </View>
                   </View>
+
                   {i === pages.length - 1 && (
-                    <Text style={[styles.signature, !fontsLoaded && styles.signatureFallback]}>
-                      {signatureName}
-                    </Text>
+                    <View style={styles.signatureBlock}>
+                      <Text style={styles.signatureHint}>signé</Text>
+                      <Text style={[styles.signature, !fontsLoaded && styles.signatureFallback]}>
+                        {signatureName}
+                      </Text>
+                    </View>
                   )}
                 </View>
               </View>
@@ -109,9 +123,19 @@ export function LetterPaginatedView({ content, signatureName }: LetterPaginatedV
 
       <View style={styles.pageIndicatorArea}>
         {pages && pages.length > 1 ? (
-          <Text style={styles.pageIndicator}>
-            {Math.min(pageIndex + 1, pages.length)} / {pages.length}
-          </Text>
+          <View style={styles.pageIndicatorWrap}>
+            <View style={styles.pageDots}>
+              {pages.map((_, index) => (
+                <View
+                  key={index}
+                  style={[styles.pageDot, index === pageIndex && styles.pageDotActive]}
+                />
+              ))}
+            </View>
+            <Text style={styles.pageIndicator}>
+              Page {Math.min(pageIndex + 1, pages.length)} / {pages.length}
+            </Text>
+          </View>
         ) : null}
       </View>
     </View>
@@ -130,17 +154,55 @@ const styles = StyleSheet.create({
   },
   pageInner: {
     flex: 1,
-    padding: PAGE_PADDING,
+    paddingHorizontal: PAGE_PADDING,
+    paddingTop: 20,
+    paddingBottom: 22,
     justifyContent: 'space-between',
   },
+  letterMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    marginBottom: 18,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#D9C7AA',
+  },
+  letterMetaLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    color: '#9A7040',
+  },
+  letterMetaDate: {
+    fontSize: 11,
+    color: '#9A7040',
+  },
+  bodyBlock: {
+    paddingHorizontal: 2,
+  },
   bodyText: {
-    fontSize: 15,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 25,
     color: '#2C1A0E',
+  },
+  signatureBlock: {
+    alignSelf: 'flex-end',
+    alignItems: 'flex-end',
+    minHeight: SIGNATURE_BLOCK_HEIGHT,
+    justifyContent: 'flex-end',
+  },
+  signatureHint: {
+    fontSize: 9,
+    color: '#B09876',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: -2,
+    marginRight: 4,
   },
   signature: {
     fontFamily: 'Caveat_600SemiBold',
-    fontSize: 34,
+    fontSize: 36,
     color: '#5A3A1A',
     alignSelf: 'flex-end',
   },
@@ -155,10 +217,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  pageIndicatorWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  pageDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  pageDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#D8C7AE',
+  },
+  pageDotActive: {
+    width: 12,
+    backgroundColor: '#8B2E3C',
+  },
   pageIndicator: {
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 11,
     color: '#9A7040',
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
 });
