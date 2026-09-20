@@ -924,6 +924,7 @@ export default function LettersScreen() {
                       isInitiator={match.initiatorId === (currentUser?.id ?? '')}
                       onAccept={() => handleAccept(match)}
                       onPlayQuestions={() => handleQGameOpen(match)}
+                      formatTime={formatTime}
                       onOpen={() => {
                         const shouldAnimate = match.hasUnreadIncomingLetter;
 
