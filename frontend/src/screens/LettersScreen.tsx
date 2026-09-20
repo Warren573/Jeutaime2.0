@@ -416,14 +416,15 @@ interface LetterCardProps {
   onSeen: () => void;
 }
 
-function AirmailStrip() {
+function AirmailEdge({ vertical = false }: { vertical?: boolean }) {
   return (
-    <View style={lcStyles.airmailStrip}>
-      {Array.from({ length: 12 }).map((_, index) => (
+    <View style={vertical ? lcStyles.airmailEdgeVertical : lcStyles.airmailEdgeHorizontal}>
+      {Array.from({ length: vertical ? 7 : 12 }).map((_, index) => (
         <View
           key={index}
           style={[
             lcStyles.airmailSegment,
+            vertical && lcStyles.airmailSegmentVertical,
             index % 2 === 0 ? lcStyles.airmailSegmentRed : lcStyles.airmailSegmentCream,
           ]}
         />
@@ -445,6 +446,7 @@ function LetterCard({
     date.getFullYear() === now.getFullYear() &&
     date.getMonth() === now.getMonth() &&
     date.getDate() === now.getDate();
+
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   const isYesterday =
@@ -460,19 +462,34 @@ function LetterCard({
       : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
 
   const preview = letter.content.trim().replace(/\s+/g, ' ');
+  const showAirmailFrame = Boolean(isOwn && isLatest);
 
   return (
     <TouchableOpacity
-      style={[lcStyles.wrapper, isLatest && lcStyles.wrapperLatest]}
+      style={lcStyles.wrapper}
       activeOpacity={0.84}
       onPress={onPress}
     >
-      <View style={[lcStyles.card, isOwn && lcStyles.cardOwn, isLatest && lcStyles.cardLatest]}>
-        {isLatest && <AirmailStrip />}
-
-        <View style={lcStyles.flapArea}>
-          <View style={lcStyles.flapDiamond} />
-        </View>
+      <View
+        style={[
+          lcStyles.card,
+          isOwn && lcStyles.cardOwn,
+          isLatest && lcStyles.cardLatest,
+          showAirmailFrame && lcStyles.cardAirmail,
+        ]}
+      >
+        {showAirmailFrame ? (
+          <>
+            <View style={lcStyles.airmailTop}><AirmailEdge /></View>
+            <View style={lcStyles.airmailBottom}><AirmailEdge /></View>
+            <View style={lcStyles.airmailLeft}><AirmailEdge vertical /></View>
+            <View style={lcStyles.airmailRight}><AirmailEdge vertical /></View>
+          </>
+        ) : (
+          <View style={lcStyles.flapArea}>
+            <View style={lcStyles.flapDiamond} />
+          </View>
+        )}
 
         <View style={lcStyles.topRow}>
           <View style={lcStyles.titleBlock}>
@@ -484,9 +501,9 @@ function LetterCard({
 
           <View style={[lcStyles.iconBadge, isOwn && lcStyles.iconBadgeOwn]}>
             <Ionicons
-              name={isOwn ? 'paper-plane-outline' : 'mail-outline'}
-              size={19}
-              color={isOwn ? '#8B2E3C' : '#8B6F47'}
+              name={isOwn ? 'paper-plane-outline' : 'mail'}
+              size={21}
+              color={isOwn ? '#8B2E3C' : '#9A8060'}
             />
           </View>
         </View>
@@ -501,76 +518,110 @@ function LetterCard({
 
 const lcStyles = StyleSheet.create({
   wrapper: {
-    marginBottom: -4,
-    zIndex: 1,
-  },
-  wrapperLatest: {
-    zIndex: 4,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   card: {
-    minHeight: 110,
-    backgroundColor: '#FCF6EA',
-    borderRadius: 15,
-    paddingHorizontal: 18,
-    paddingTop: 17,
-    paddingBottom: 14,
+    minHeight: 116,
+    backgroundColor: '#FBF5E9',
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 15,
     borderWidth: 1,
-    borderColor: '#D9C8AD',
+    borderColor: '#DDD0BC',
     shadowColor: '#4A2D1A',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.13,
-    shadowRadius: 8,
+    shadowRadius: 10,
     elevation: 4,
     overflow: 'hidden',
   },
   cardOwn: {
-    borderColor: '#D4ADB4',
-    backgroundColor: '#FFF8F4',
+    backgroundColor: '#FCF6EC',
   },
   cardLatest: {
-    minHeight: 116,
-    shadowOpacity: 0.22,
-    shadowRadius: 11,
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
     elevation: 7,
   },
-  airmailStrip: {
+  cardAirmail: {
+    borderColor: '#D4B89D',
+    paddingTop: 22,
+  },
+
+  airmailTop: {
+    position: 'absolute',
+    top: 0,
+    left: 10,
+    right: 10,
+    height: 7,
+    overflow: 'hidden',
+  },
+  airmailBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 10,
+    right: 10,
+    height: 7,
+    overflow: 'hidden',
+  },
+  airmailLeft: {
     position: 'absolute',
     left: 0,
-    right: 0,
-    top: 0,
-    height: 6,
-    flexDirection: 'row',
+    top: 10,
+    bottom: 10,
+    width: 7,
     overflow: 'hidden',
+  },
+  airmailRight: {
+    position: 'absolute',
+    right: 0,
+    top: 10,
+    bottom: 10,
+    width: 7,
+    overflow: 'hidden',
+  },
+  airmailEdgeHorizontal: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  airmailEdgeVertical: {
+    flex: 1,
+    flexDirection: 'column',
   },
   airmailSegment: {
     flex: 1,
-    transform: [{ skewX: '-24deg' }],
+    transform: [{ skewX: '-26deg' }],
+  },
+  airmailSegmentVertical: {
+    transform: [{ skewY: '-26deg' }],
   },
   airmailSegmentRed: {
     backgroundColor: '#8B2E3C',
   },
   airmailSegmentCream: {
-    backgroundColor: '#EADCC6',
+    backgroundColor: '#EFE2CF',
   },
+
   flapArea: {
     position: 'absolute',
-    top: -62,
+    top: -77,
     left: 0,
     right: 0,
-    height: 108,
+    height: 134,
     alignItems: 'center',
     overflow: 'hidden',
-    opacity: 0.34,
+    opacity: 0.5,
   },
   flapDiamond: {
-    width: 250,
-    height: 250,
-    backgroundColor: '#E7D7BE',
+    width: 280,
+    height: 280,
+    backgroundColor: '#E8DCC9',
     borderWidth: 1,
-    borderColor: '#D3BE9D',
+    borderColor: '#D6C5AC',
     transform: [{ rotate: '45deg' }],
   },
+
   topRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -581,7 +632,7 @@ const lcStyles = StyleSheet.create({
   titleBlock: { flex: 1 },
   header: {
     fontSize: 16,
-    color: '#2C1A0E',
+    color: '#28180F',
     fontWeight: '700',
   },
   headerOwn: {
@@ -598,15 +649,15 @@ const lcStyles = StyleSheet.create({
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(139,111,71,0.08)',
   },
   iconBadgeOwn: {
-    backgroundColor: 'rgba(139,46,60,0.09)',
+    backgroundColor: 'transparent',
   },
   text: {
     fontSize: 15,
     color: '#2C1A0E',
     lineHeight: 21,
+    paddingRight: 34,
   },
 });
 
@@ -1196,41 +1247,11 @@ export default function LettersScreen() {
                   </Text>
                 </View>
 
-                <View style={styles.composeTabs}>
-                  <TouchableOpacity style={[styles.composeTab, styles.composeTabActive]} activeOpacity={1}>
-                    <View style={styles.composeTabInner}>
-                      <Ionicons name="pencil-outline" size={17} color="#F0D98C" />
-                      <Text style={[styles.composeTabText, styles.composeTabTextActive]}>Écrire</Text>
-                    </View>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.composeTab}
-                    onPress={() => {
-                      if (newMessage.trim()) {
-                        Keyboard.dismiss();
-                        setShowLetterPreview(true);
-                      }
-                    }}
-                    activeOpacity={newMessage.trim() ? 0.75 : 1}
-                  >
-                    <View style={styles.composeTabInner}>
-                      <Ionicons
-                        name="document-text-outline"
-                        size={17}
-                        color={newMessage.trim() ? '#5A3A1A' : '#B6A58D'}
-                      />
-                      <Text style={[styles.composeTabText, !newMessage.trim() && styles.composeTabTextDisabled]}>
-                        Aperçu
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-
                 {/* ── Tour de parole ── */}
                 <View style={[styles.turnBanner, myTurn ? styles.turnBannerMine : styles.turnBannerWait]}>
                   <View style={styles.turnBannerInner}>
                     <Ionicons
-                      name={conv.length === 0 ? 'pencil-outline' : myTurn ? 'mail-open-outline' : 'hourglass-outline'}
+                      name={conv.length === 0 ? 'pencil-outline' : myTurn ? 'mail-open-outline' : 'mail-outline'}
                       size={17}
                       color={myTurn ? '#D6C29A' : '#C9AD82'}
                     />
@@ -1321,11 +1342,12 @@ export default function LettersScreen() {
           ) : (
             <View style={[styles.waitingComposer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
               <View style={styles.waitingComposerBar}>
-                <Ionicons name="time-outline" size={17} color="#8B6F47" />
                 <Text style={styles.waitingComposerText} numberOfLines={1}>
                   En attente de la prochaine lettre de {selectedMatch ? getOtherName(selectedMatch) : ''}
                 </Text>
+                <Ionicons name="paper-plane-outline" size={22} color="#B4A28A" />
               </View>
+              <Text style={styles.waitingWordCounter}>0 / {MAX_LETTER_WORDS} mots</Text>
             </View>
           )}
 
@@ -2082,9 +2104,9 @@ const styles = StyleSheet.create({
   modalTitleHint: { fontSize: 10, color: '#B87333', marginTop: 2, letterSpacing: 0.5 },
   correspondenceSubtitle: {
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 4,
+    paddingVertical: 10,
     alignItems: 'center',
+    backgroundColor: '#F8F1E5',
   },
   correspondenceSubtitleText: {
     fontSize: 12,
@@ -2129,33 +2151,35 @@ const styles = StyleSheet.create({
   composeTabTextDisabled: {
     opacity: 0.38,
   },
-  messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 18 },
+  messagesContainer: { flex: 1, paddingHorizontal: 15, paddingTop: 14, paddingBottom: 18 },
 
   startConv: { alignItems: 'center', paddingVertical: 60 },
   startEmoji: { fontSize: 50, marginBottom: 12 },
   startText: { fontSize: 16, color: '#9A7040' },
   waitingComposer: {
-    paddingHorizontal: 14,
-    paddingTop: 9,
-    backgroundColor: '#F3EAD9',
-    borderTopWidth: 1,
-    borderTopColor: '#D8C7AE',
+    paddingHorizontal: 15,
+    paddingTop: 10,
+    backgroundColor: '#F4ECD8',
+    borderTopWidth: 0,
   },
   waitingComposerBar: {
-    minHeight: 48,
+    minHeight: 58,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#D6C2A3',
-    backgroundColor: '#FFFDF8',
-    paddingHorizontal: 14,
+    backgroundColor: '#E4D9C9',
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    gap: 12,
   },
   waitingComposerText: {
     flex: 1,
     fontSize: 13,
-    color: '#8B6F47',
+    color: '#9A8B79',
+  },
+  waitingWordCounter: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#7F674E',
   },
   inputContainer: {
     flexDirection: 'column',
