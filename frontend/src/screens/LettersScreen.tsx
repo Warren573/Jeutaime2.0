@@ -8,6 +8,7 @@ import {
   TextInput,
   Modal,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Dimensions,
   Alert,
@@ -1141,7 +1142,10 @@ export default function LettersScreen() {
                   (!(selectedMatch?.canSend) || !newMessage.trim() || wordCount > MAX_LETTER_WORDS) &&
                     styles.reviewBtnDisabled,
                 ]}
-                onPress={() => setShowLetterPreview(true)}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setShowLetterPreview(true);
+                }}
                 disabled={!(selectedMatch?.canSend) || !newMessage.trim() || wordCount > MAX_LETTER_WORDS}
               >
                 <Text style={styles.reviewBtnText}>Relire ma lettre</Text>
@@ -1150,85 +1154,97 @@ export default function LettersScreen() {
           </View>
 
 
+
+          {/* ── Aperçu/relecture dans LA MÊME modal native.
+              iOS ne présente pas fiablement une 2e Modal par-dessus showCompose. ── */}
+          {showLetterPreview && (
+            <View style={[styles.previewOverlay, { paddingTop: insets.top }]}>
+              <View style={styles.previewHeader}>
+                <TouchableOpacity
+                  onPress={() => setShowLetterPreview(false)}
+                  disabled={isSending}
+                >
+                  <Text style={styles.closeText}>← Modifier</Text>
+                </TouchableOpacity>
+                <Text style={styles.previewHeaderTitle}>Aperçu de votre lettre</Text>
+                <View style={{ width: 72 }} />
+              </View>
+
+              <View style={styles.previewBody}>
+                <LetterPaginatedView
+                  content={newMessage}
+                  signatureName={currentUser?.pseudo || currentUser?.name || ''}
+                />
+              </View>
+
+              <Text style={styles.previewReminder}>
+                Après envoi, vous devrez attendre la prochaine lettre
+                {selectedMatch ? ` de ${getOtherName(selectedMatch)}` : ''}.
+              </Text>
+
+              <View style={[styles.previewActions, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+                <TouchableOpacity
+                  style={styles.previewEditBtn}
+                  onPress={() => setShowLetterPreview(false)}
+                  disabled={isSending}
+                >
+                  <Text style={styles.previewEditBtnText}>Modifier</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.previewSendBtn, isSending && styles.reviewBtnDisabled]}
+                  disabled={isSending}
+                  onPress={async () => {
+                    const sent = await handleSend();
+                    if (sent) setShowLetterPreview(false);
+                  }}
+                >
+                  <Text style={styles.previewSendBtnText}>
+                    {isSending ? 'Envoi…' : 'Envoyer la lettre'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {!!readingLetter && (
+            <View style={[styles.previewOverlay, { paddingTop: insets.top }]}>
+              <View style={styles.previewHeader}>
+                <TouchableOpacity onPress={() => setReadingLetter(null)}>
+                  <Text style={styles.closeText}>← Retour</Text>
+                </TouchableOpacity>
+                <Text style={styles.previewHeaderTitle}>
+                  {readingLetter?.isOwn
+                    ? 'Ta lettre'
+                    : selectedMatch
+                      ? `Lettre de ${getOtherName(selectedMatch)}`
+                      : ''}
+                </Text>
+                <View style={{ width: 60 }} />
+              </View>
+
+              <View style={styles.previewBody}>
+                {readingLetter && (
+                  <LetterPaginatedView
+                    content={readingLetter.letter.content}
+                    signatureName={
+                      readingLetter.isOwn
+                        ? currentUser?.pseudo || currentUser?.name || ''
+                        : selectedMatch
+                          ? getOtherName(selectedMatch)
+                          : ''
+                    }
+                  />
+                )}
+              </View>
+            </View>
+          )}
+
           {envAnimVisible && (
             <View style={styles.envAnimOverlay}>
               <PremiumLetterAnimation senderName={envAnimSender} />
             </View>
           )}
         </KeyboardAvoidingView>
-      </Modal>
-
-      {/* ── Aperçu avant envoi ("Relire ma lettre") ─────────────────────────── */}
-      <Modal visible={showLetterPreview} animationType="slide">
-        <View style={[styles.previewContainer, { paddingTop: insets.top }]}>
-          <View style={styles.previewHeader}>
-            <Text style={styles.previewHeaderTitle}>Aperçu de votre lettre</Text>
-          </View>
-
-          <View style={styles.previewBody}>
-            <LetterPaginatedView
-              content={newMessage}
-              signatureName={currentUser?.pseudo || currentUser?.name || ''}
-            />
-          </View>
-
-          <Text style={styles.previewReminder}>
-            Après envoi, vous devrez attendre la prochaine lettre
-            {selectedMatch ? ` de ${getOtherName(selectedMatch)}` : ''}.
-          </Text>
-
-          <View style={[styles.previewActions, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-            <TouchableOpacity
-              style={styles.previewEditBtn}
-              onPress={() => setShowLetterPreview(false)}
-              disabled={isSending}
-            >
-              <Text style={styles.previewEditBtnText}>Modifier</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.previewSendBtn, isSending && styles.reviewBtnDisabled]}
-              disabled={isSending}
-              onPress={async () => {
-                const sent = await handleSend();
-                if (sent) setShowLetterPreview(false);
-              }}
-            >
-              <Text style={styles.previewSendBtnText}>
-                {isSending ? 'Envoi…' : 'Envoyer la lettre'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── Relecture d'une ancienne lettre ──────────────────────────────────── */}
-      <Modal visible={!!readingLetter} animationType="slide">
-        <View style={[styles.previewContainer, { paddingTop: insets.top }]}>
-          <View style={styles.previewHeader}>
-            <TouchableOpacity onPress={() => setReadingLetter(null)}>
-              <Text style={styles.closeText}>← Retour</Text>
-            </TouchableOpacity>
-            <Text style={styles.previewHeaderTitle}>
-              {readingLetter?.isOwn ? 'Ta lettre' : selectedMatch ? `Lettre de ${getOtherName(selectedMatch)}` : ''}
-            </Text>
-            <View style={{ width: 60 }} />
-          </View>
-
-          <View style={styles.previewBody}>
-            {readingLetter && (
-              <LetterPaginatedView
-                content={readingLetter.letter.content}
-                signatureName={
-                  readingLetter.isOwn
-                    ? currentUser?.pseudo || currentUser?.name || ''
-                    : selectedMatch
-                      ? getOtherName(selectedMatch)
-                      : ''
-                }
-              />
-            )}
-          </View>
-        </View>
       </Modal>
 
       {/* ── Actions Menu (Bottom Sheet) ─────────────────────────────────────── */}
@@ -1775,6 +1791,16 @@ const styles = StyleSheet.create({
   },
 
   modalContainer: { flex: 1, backgroundColor: '#F4ECD8' },
+  previewOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    elevation: 100,
+    backgroundColor: '#F4ECD8',
+  },
   previewContainer: { flex: 1, backgroundColor: '#F4ECD8' },
   previewHeader: {
     flexDirection: 'row',
