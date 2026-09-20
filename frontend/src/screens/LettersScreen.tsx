@@ -419,64 +419,121 @@ function LetterCard({
   letter,
   isOwn,
   otherName,
-  formatTime,
   onPress,
-}: Omit<LetterCardProps, 'isNew' | 'onSeen'> & { onPress: () => void }) {
+}: Omit<LetterCardProps, 'isNew' | 'onSeen' | 'formatTime'> & { onPress: () => void }) {
+  const date = new Date(letter.createdAt);
+  const now = new Date();
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    date.getFullYear() === yesterday.getFullYear() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getDate() === yesterday.getDate();
+
+  const hhmm = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const dayLabel = sameDay
+    ? "Aujourd’hui"
+    : isYesterday
+      ? 'Hier'
+      : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
+
+  const preview = letter.content.trim().replace(/\s+/g, ' ');
+
   return (
-    <TouchableOpacity style={lcStyles.wrapper} activeOpacity={0.8} onPress={onPress}>
-      <Text style={lcStyles.header}>
-        {isOwn ? 'Ta lettre' : `Lettre de ${otherName}`}
-      </Text>
+    <TouchableOpacity style={lcStyles.wrapper} activeOpacity={0.82} onPress={onPress}>
       <View style={[lcStyles.card, isOwn && lcStyles.cardOwn]}>
-        <Text style={lcStyles.text}>{letter.content}</Text>
-        <Text style={lcStyles.time}>{formatTime(letter.createdAt)}</Text>
+        <View style={lcStyles.envelopeFold} />
+        <View style={lcStyles.topRow}>
+          <View style={lcStyles.titleBlock}>
+            <Text style={[lcStyles.header, isOwn && lcStyles.headerOwn]}>
+              {isOwn ? 'Ta lettre' : `Lettre de ${otherName}`}
+            </Text>
+            <Text style={lcStyles.dateLine}>{dayLabel} · {hhmm}</Text>
+          </View>
+          <Text style={[lcStyles.mailIcon, isOwn && lcStyles.mailIconOwn]}>
+            {isOwn ? '↗' : '✉'}
+          </Text>
+        </View>
+        <Text style={lcStyles.text} numberOfLines={2}>
+          {preview}
+        </Text>
       </View>
     </TouchableOpacity>
   );
 }
 
 const lcStyles = StyleSheet.create({
-  wrapper: { marginBottom: 24 },
-  header: {
-    fontSize: 11,
-    letterSpacing: 1.5,
-    color: '#6B6B6B',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  animContainer: {
-    alignItems: 'center',
-    marginBottom: 12,
+  wrapper: {
+    marginBottom: -8,
   },
   card: {
+    minHeight: 132,
     backgroundColor: '#FEFAF0',
-    borderRadius: 14,
-    padding: 18,
-    borderWidth: 1.5,
-    borderColor: '#D4B896',
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 16,
+    borderWidth: 1,
+    borderColor: '#D8C7AE',
     shadowColor: '#5A3A1A',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 3,
+    overflow: 'hidden',
   },
   cardOwn: {
-    backgroundColor: '#FFF5F0',
-    borderColor: '#E8C8B8',
+    borderColor: '#CDA8A8',
+    backgroundColor: '#FFF9F4',
+  },
+  envelopeFold: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 46,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(176, 145, 105, 0.18)',
+    backgroundColor: 'rgba(228, 211, 187, 0.18)',
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 14,
+  },
+  titleBlock: { flex: 1 },
+  header: {
+    fontSize: 16,
+    color: '#2C1A0E',
+    fontWeight: '700',
+  },
+  headerOwn: {
+    color: '#8B2E3C',
+  },
+  dateLine: {
+    fontSize: 12,
+    color: '#8B6F47',
+    marginTop: 3,
+  },
+  mailIcon: {
+    fontSize: 20,
+    color: '#9A7040',
+    marginTop: 1,
+  },
+  mailIconOwn: {
+    color: '#8B2E3C',
+    fontWeight: '700',
   },
   text: {
     fontSize: 15,
     color: '#2C1A0E',
-    lineHeight: 25,
-    fontStyle: 'italic',
-  },
-  time: {
-    fontSize: 10,
-    color: '#9A7040',
-    marginTop: 12,
-    textAlign: 'right',
-    letterSpacing: 0.5,
+    lineHeight: 21,
   },
 });
 
@@ -886,8 +943,7 @@ export default function LettersScreen() {
                           }, 5100);
                         }
                       }}
-                      formatTime={formatTime}
-                    />
+                      />
                   );
                 })}
               </ScrollView>
@@ -1066,6 +1122,26 @@ export default function LettersScreen() {
                   </Text>
                 </View>
 
+                <View style={styles.composeTabs}>
+                  <TouchableOpacity style={[styles.composeTab, styles.composeTabActive]} activeOpacity={1}>
+                    <Text style={[styles.composeTabText, styles.composeTabTextActive]}>✎  Écrire</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.composeTab}
+                    onPress={() => {
+                      if (newMessage.trim()) {
+                        Keyboard.dismiss();
+                        setShowLetterPreview(true);
+                      }
+                    }}
+                    activeOpacity={newMessage.trim() ? 0.75 : 1}
+                  >
+                    <Text style={[styles.composeTabText, !newMessage.trim() && styles.composeTabTextDisabled]}>
+                      ▱  Aperçu
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
                 {/* ── Tour de parole ── */}
                 <View style={[styles.turnBanner, myTurn ? styles.turnBannerMine : styles.turnBannerWait]}>
                   <Text style={styles.turnBannerText}>
@@ -1082,7 +1158,9 @@ export default function LettersScreen() {
 
           <ScrollView style={styles.messagesContainer}>
             {selectedMatch &&
-              getConversation(selectedMatch).map((letter) => {
+              [...getConversation(selectedMatch)]
+                .sort((a, b) => b.createdAt - a.createdAt)
+                .map((letter) => {
                 const isOwn =
                   letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
                 const otherName = getOtherName(selectedMatch);
@@ -1148,7 +1226,7 @@ export default function LettersScreen() {
                 }}
                 disabled={!(selectedMatch?.canSend) || !newMessage.trim() || wordCount > MAX_LETTER_WORDS}
               >
-                <Text style={styles.reviewBtnText}>Relire ma lettre</Text>
+                <Text style={styles.reviewBtnText}>Voir l’aperçu</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1869,7 +1947,37 @@ const styles = StyleSheet.create({
     color: '#9A7040',
     letterSpacing: 0.3,
   },
-  messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
+  composeTabs: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 8,
+    backgroundColor: '#EDE3D2',
+    borderRadius: 12,
+    padding: 3,
+  },
+  composeTab: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composeTabActive: {
+    backgroundColor: '#3A2415',
+  },
+  composeTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#5A3A1A',
+  },
+  composeTabTextActive: {
+    color: '#F0D98C',
+  },
+  composeTabTextDisabled: {
+    opacity: 0.38,
+  },
+  messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
 
   startConv: { alignItems: 'center', paddingVertical: 60 },
   startEmoji: { fontSize: 50, marginBottom: 12 },
