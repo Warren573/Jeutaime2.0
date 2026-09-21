@@ -12,6 +12,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getBottleMessages } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import type { BottleMessageWithMetadata } from '../api/bottles';
+import { AppBackButton } from '../components/AppBackButton';
 
 const CREAM_BG = '#FBF8F3';
 
@@ -91,20 +92,18 @@ export default function BottleOldLetterScreen() {
   return (
     <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <AppBackButton onPress={() => router.back()} />
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerTitle}>Lettre en transit</Text>
+          </View>
+          <View style={styles.headerSpacer} />
+        </View>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.paddedSection}>
-            <TouchableOpacity
-              style={styles.back}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.backText}>← Retour</Text>
-            </TouchableOpacity>
-          </View>
-
           <BottleParchmentCard content={message.content} />
         </ScrollView>
       </View>
@@ -124,20 +123,32 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 0,
-    paddingTop: 80,
+    paddingTop: 16,
     paddingBottom: 80,
   },
-  paddedSection: {
+  header: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    marginTop: 40,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E7D9C6',
+    backgroundColor: 'rgba(254,250,240,0.94)',
   },
-  back: {
-    marginBottom: 16,
+  headerTitleWrap: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 8,
   },
-  backText: {
-    fontSize: 16,
-    color: COLORS.accent,
-    fontWeight: '600',
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  headerSpacer: {
+    width: 42,
+    height: 42,
   },
   errorContainer: {
     flex: 1,
