@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { useRouter, Link, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matches';
@@ -440,50 +440,53 @@ function EnvelopeFlap() {
       <Svg
         width="100%"
         height="100%"
-        viewBox="0 0 100 48"
+        viewBox="0 0 100 50"
         preserveAspectRatio="none"
       >
-        <Defs>
-          <LinearGradient id="flapShadow" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#6F563C" stopOpacity="0.14" />
-            <Stop offset="0.55" stopColor="#6F563C" stopOpacity="0.07" />
-            <Stop offset="1" stopColor="#6F563C" stopOpacity="0" />
-          </LinearGradient>
-        </Defs>
-
+        {/* Paper flap */}
         <Path
           d="M 0 0 H 100 C 78 8 66 32 50 38 C 34 32 22 8 0 0 Z"
           fill="#FBF6EC"
         />
 
-        {/* Real soft shadow cast just below the flap edge */}
+        {/* Soft natural shadow: several offset translucent strokes */}
         <Path
-          d="M 0 0 C 22 8 34 32 50 38 C 66 32 78 8 100 0
-             L 100 5 C 78 13 66 37 50 43 C 34 37 22 13 0 5 Z"
-          fill="url(#flapShadow)"
-        />
-
-        {/* Fine fold lines */}
-        <Path
-          d="M 0 0 C 22 8 34 32 50 38"
+          d="M 0 1.2 C 22 9.2 34 33.2 50 39.2 C 66 33.2 78 9.2 100 1.2"
           fill="none"
-          stroke="rgba(167,143,111,0.26)"
-          strokeWidth="0.48"
+          stroke="rgba(92,69,46,0.14)"
+          strokeWidth="1.5"
           strokeLinecap="round"
         />
         <Path
-          d="M 100 0 C 78 8 66 32 50 38"
+          d="M 0 2.6 C 22 10.6 34 34.6 50 40.6 C 66 34.6 78 10.6 100 2.6"
           fill="none"
-          stroke="rgba(167,143,111,0.26)"
-          strokeWidth="0.48"
+          stroke="rgba(92,69,46,0.075)"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+        <Path
+          d="M 0 4.4 C 22 12.4 34 36.4 50 42.4 C 66 36.4 78 12.4 100 4.4"
+          fill="none"
+          stroke="rgba(92,69,46,0.035)"
+          strokeWidth="3.4"
           strokeLinecap="round"
         />
 
+        {/* Fine fold edge */}
+        <Path
+          d="M 0 0 C 22 8 34 32 50 38 C 66 32 78 8 100 0"
+          fill="none"
+          stroke="rgba(170,146,116,0.28)"
+          strokeWidth="0.5"
+          strokeLinecap="round"
+        />
+
+        {/* Subtle paper highlight on the flap itself */}
         <Path
           d="M 0 0 C 22 7 34 30 50 36 C 66 30 78 7 100 0"
           fill="none"
           stroke="rgba(255,255,255,0.42)"
-          strokeWidth="0.36"
+          strokeWidth="0.34"
           strokeLinecap="round"
         />
       </Svg>
@@ -660,7 +663,7 @@ const lcStyles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    height: 60,
+    height: 64,
     overflow: 'hidden',
   },
 
