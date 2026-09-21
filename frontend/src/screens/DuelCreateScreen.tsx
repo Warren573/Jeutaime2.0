@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
@@ -27,6 +27,8 @@ interface Contact {
 
 export default function DuelCreateScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ matchId?: string }>();
+  const directMatchId = typeof params.matchId === 'string' ? params.matchId : '';
   const insets = useSafeAreaInsets();
   const { matches, currentUser, matchPartners, loadMatches } = useStore();
 
@@ -48,7 +50,7 @@ export default function DuelCreateScreen() {
           id: otherUserId,
           matchId: m.id,
           name: partner?.pseudo ?? 'Contact',
-        };
+        }
       });
   }, [matches, currentUser?.id, matchPartners]);
 
@@ -70,11 +72,18 @@ export default function DuelCreateScreen() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!directMatchId || loading || creatingMatchId) return;
+    const contact = contacts.find((item) => item.matchId === directMatchId);
+    if (!contact) return;
+    void handleSelect(contact);
+  }, [directMatchId, loading, contacts, creatingMatchId]);
+
   const openDuel = (duelId: string) => {
     router.push({ pathname: '/duel/play', params: { duelId } });
   };
 
-  const handleSelect = async (contact: Contact) => {
+  async function handleSelect(contact: Contact) {
     if (creatingMatchId) return;
     try {
       setError(null);
