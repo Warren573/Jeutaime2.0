@@ -13,6 +13,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { getBottleMessages } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import type { BottleMessageWithMetadata } from '../api/bottles';
+import { AppBackButton } from '../components/AppBackButton';
 
 const CREAM_BG = '#FBF8F3';
 
@@ -73,6 +74,13 @@ export default function BottleHistoryScreen() {
   return (
     <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <AppBackButton onPress={() => router.back()} />
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerTitle}>Notre correspondance</Text>
+          </View>
+          <View style={styles.headerSpacer} />
+        </View>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
@@ -89,15 +97,6 @@ export default function BottleHistoryScreen() {
           }
         >
           <View style={styles.paddedSection}>
-            <TouchableOpacity
-              style={styles.back}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.backText}>← Retour</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.title}>Notre correspondance</Text>
-
             {error && (
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>{error}</Text>
@@ -150,24 +149,34 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 0,
-    paddingVertical: 16,
+    paddingTop: 16,
+  },
+  header: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E7D9C6',
+    backgroundColor: 'rgba(254,250,240,0.94)',
+  },
+  headerTitleWrap: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  headerSpacer: {
+    width: 42,
+    height: 42,
   },
   paddedSection: {
     paddingHorizontal: 16,
-  },
-  back: {
-    marginBottom: 8,
-  },
-  backText: {
-    fontSize: 16,
-    color: COLORS.accent,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 16,
   },
   letterTouchable: {
     marginBottom: 8,
