@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const CreatePrivateDuelSchema = z.object({
-  matchId: z.string().min(1, "Match requis"),
+  targetUserId: z.string().min(1, "Adversaire requis"),
 });
 
 export const SubmitPrivateDuelChoiceSchema = z.object({
