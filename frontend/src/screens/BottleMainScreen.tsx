@@ -173,13 +173,71 @@ export default function BottleMainScreen() {
             onBack={() => router.back()}
             onMenu={() => setShowMenu(true)}
           />
-          <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
-            <BottleParchmentCard content={state.latestLetter.content} />
-            <View style={styles.paddedSection}>
-              {state.canReply && <TouchableOpacity style={styles.replyBtn} onPress={() => router.push({ pathname: '/bottles-discussion', params: { bottleId: state.bottle!.id } })}><Text style={styles.replyBtnText}>Écrire une réponse</Text></TouchableOpacity>}
-              {state.waitingForReply && <View style={styles.waitingBox}><Text style={styles.waitingText}>✈️ Votre lettre est en voyage...</Text></View>}
-              <TouchableOpacity style={styles.historyBtn} onPress={() => router.push({ pathname: '/bottles-history', params: { bottleId: state.bottle!.id } })}><Text style={styles.historyBtnText}>Relire notre correspondance</Text></TouchableOpacity>
-            </View>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[
+              state.waitingForReply ? styles.correspondenceWaitingContent : styles.content,
+              { paddingBottom: insets.bottom + 100 },
+            ]}
+            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}
+            showsVerticalScrollIndicator={false}
+          >
+            {state.waitingForReply ? (
+              <>
+                <View style={styles.correspondenceWaitingIntro}>
+                  <Text style={styles.sentEyebrow}>LETTRE ENVOYÉE</Text>
+                  <Text style={styles.sentTitle}>Votre réponse est partie</Text>
+                  <Text style={styles.sentSubtitle}>
+                    Elle poursuit maintenant son voyage. Vous pourrez répondre à nouveau dès qu’une nouvelle lettre arrivera.
+                  </Text>
+                </View>
+
+                <View style={styles.sentParchmentCard}>
+                  <BottleParchmentCard content={state.latestLetter.content} compact />
+                </View>
+
+                <View style={styles.sentStatusCard}>
+                  <View style={styles.sentStatusIcon}>
+                    <Text style={styles.sentStatusIconText}>✈️</Text>
+                  </View>
+                  <View style={styles.sentStatusCopy}>
+                    <Text style={styles.sentStatusTitle}>En attente de la prochaine lettre</Text>
+                    <Text style={styles.sentStatusText}>
+                      Revenez plus tard pour poursuivre la correspondance.
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.waitingHistoryWrap}>
+                  <TouchableOpacity
+                    style={styles.historyBtn}
+                    onPress={() => router.push({ pathname: '/bottles-history', params: { bottleId: state.bottle!.id } })}
+                  >
+                    <Text style={styles.historyBtnText}>📖 Relire notre correspondance</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <BottleParchmentCard content={state.latestLetter.content} />
+                <View style={styles.paddedSection}>
+                  {state.canReply && (
+                    <TouchableOpacity
+                      style={styles.replyBtn}
+                      onPress={() => router.push({ pathname: '/bottles-discussion', params: { bottleId: state.bottle!.id } })}
+                    >
+                      <Text style={styles.replyBtnText}>Écrire une réponse</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    style={styles.historyBtn}
+                    onPress={() => router.push({ pathname: '/bottles-history', params: { bottleId: state.bottle!.id } })}
+                  >
+                    <Text style={styles.historyBtnText}>Relire notre correspondance</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </ScrollView>
           <BottleCorrespondenceMenu visible={showMenu} bottleId={state.bottle.id} canBreak={state.canBreak} onClose={() => setShowMenu(false)} onRefresh={loadState} onBroken={() => router.back()} />
         </View>
@@ -304,6 +362,18 @@ const styles = StyleSheet.create({
   sentContent: {
     paddingHorizontal: 16,
     paddingTop: 24,
+  },
+  correspondenceWaitingContent: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+  },
+  correspondenceWaitingIntro: {
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    marginBottom: 18,
+  },
+  waitingHistoryWrap: {
+    marginTop: 14,
   },
   sentIntro: {
     alignItems: 'center',
