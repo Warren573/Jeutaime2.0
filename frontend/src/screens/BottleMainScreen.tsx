@@ -26,6 +26,31 @@ const BottleItem: React.FC<{ id: string; index: number; onPress: () => void; pos
   );
 };
 
+
+const BottleHeader: React.FC<{
+  title: string;
+  onBack: () => void;
+  onMenu?: () => void;
+}> = ({ title, onBack, onMenu }) => (
+  <View style={styles.header}>
+    <AppBackButton onPress={onBack} />
+    <View style={styles.headerTitle}>
+      <Text style={styles.headerTitleText} numberOfLines={1}>{title}</Text>
+    </View>
+    {onMenu ? (
+      <TouchableOpacity
+        style={styles.menuButton}
+        onPress={onMenu}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Text style={styles.menuDots}>⋯</Text>
+      </TouchableOpacity>
+    ) : (
+      <View style={styles.headerSpacer} />
+    )}
+  </View>
+);
+
 export default function BottleMainScreen() {
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -117,6 +142,7 @@ export default function BottleMainScreen() {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
+          <BottleHeader title="Bouteille à la mer" onBack={() => router.back()} />
           <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
             {error && <View style={styles.paddedSection}><View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View></View>}
             <View style={styles.selectionHeader}>
@@ -142,11 +168,11 @@ export default function BottleMainScreen() {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          <View style={styles.header}>
-            <AppBackButton onPress={() => router.back()} />
-            <View style={styles.headerTitle}><Text style={styles.headerTitleText}>Lettre en transit</Text></View>
-            <TouchableOpacity style={styles.menuButton} onPress={() => setShowMenu(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={styles.menuDots}>⋯</Text></TouchableOpacity>
-          </View>
+          <BottleHeader
+            title="Lettre en transit"
+            onBack={() => router.back()}
+            onMenu={() => setShowMenu(true)}
+          />
           <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
             <BottleParchmentCard content={state.latestLetter.content} />
             <View style={styles.paddedSection}>
@@ -165,7 +191,7 @@ export default function BottleMainScreen() {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          <AppBackButton onPress={() => router.back()} style={styles.landingBackButton} />
+          <BottleHeader title="Lettre en transit" onBack={() => router.back()} />
           <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
             <BottleParchmentCard content={displayState.bottle?.message || ''} />
             <View style={styles.paddedSection}><View style={styles.infoBox}><Text style={styles.infoText}>Revenez bientôt pour voir si quelqu'un a répondu à votre lettre.</Text></View></View>
@@ -179,7 +205,7 @@ export default function BottleMainScreen() {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          <AppBackButton onPress={() => router.back()} style={styles.landingBackButton} />
+          <BottleHeader title="Bouteille à la mer" onBack={() => router.back()} />
           <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}>
             <View style={styles.paddedSection}>
               <View style={styles.emptyState}>
@@ -198,6 +224,7 @@ export default function BottleMainScreen() {
   return (
     <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
+        <BottleHeader title="Bouteille à la mer" onBack={() => router.back()} />
         <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
           <View style={styles.paddedSection}>
             {error && <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>}
@@ -222,7 +249,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 0, paddingVertical: 0 },
   paddedSection: { paddingHorizontal: 16 },
   header: { flexDirection: 'row', alignItems: 'center', minHeight: 58, paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E7D9C6', backgroundColor: 'rgba(254,250,240,0.94)' },
-  landingBackButton: { position: 'absolute', top: 8, left: 16, zIndex: 20 },
+  headerSpacer: { width: 42, height: 42 },
   headerTitle: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
   headerTitleText: { fontSize: 17, fontWeight: '700', color: COLORS.text, letterSpacing: 0.2 },
   menuButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(139,46,60,0.07)' },
