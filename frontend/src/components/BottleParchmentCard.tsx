@@ -13,7 +13,7 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
   content,
   compact = false,
 }) => {
-  const compactWidth = Math.min(width * 0.46, 190);
+  const compactWidth = Math.min(width * 0.34, 145);
   const compactHeight = compactWidth * (885 / 624);
   const cardHeight = compact ? compactHeight : width * (885 / 624);
 
@@ -78,10 +78,10 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   textAreaCompact: {
-    width: '74%',
-    paddingTop: 54,
-    paddingBottom: 40,
-    paddingHorizontal: 10,
+    width: '72%',
+    paddingTop: 40,
+    paddingBottom: 30,
+    paddingHorizontal: 8,
   },
   message: {
     fontSize: 15,
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   messageCompact: {
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 10.5,
+    lineHeight: 14,
   },
 });
