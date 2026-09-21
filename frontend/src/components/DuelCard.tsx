@@ -10,6 +10,7 @@ interface Props {
   playerScale: Animated.Value;
   opponentScale: Animated.Value;
   result: DuelResult;
+  pendingLabel?: string;
 }
 
 const RESULT_LABELS: Record<DuelResult, string> = {
@@ -34,6 +35,7 @@ export default function DuelCard({
   playerScale,
   opponentScale,
   result,
+  pendingLabel,
 }: Props) {
   return (
     <View style={styles.card}>
@@ -76,7 +78,7 @@ export default function DuelCard({
       {/* Résultat */}
       <View style={styles.resultWrap}>
         <Text style={[styles.resultText, { color: RESULT_COLORS[result] }]}>
-          {RESULT_LABELS[result]}
+          {result === 'pending' && pendingLabel ? pendingLabel : RESULT_LABELS[result]}
         </Text>
       </View>
     </View>
