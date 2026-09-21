@@ -60,6 +60,35 @@ interface EnvelopeCardProps {
   formatTime: (ts: number) => string;
 }
 
+function MailboxPostalMark({ received }: { received: boolean }) {
+  const accent = received ? '#8B2E3C' : '#A88E70';
+  const line = received ? 'rgba(139,46,60,0.30)' : 'rgba(168,142,112,0.28)';
+
+  return (
+    <View style={envStyles.postalMark} pointerEvents="none">
+      <Svg
+        width="56"
+        height="30"
+        viewBox="0 0 56 30"
+        preserveAspectRatio="none"
+        style={envStyles.postalLines}
+      >
+        <Path d="M2 7 C 10 3 16 11 24 7 C 32 3 40 11 54 7" fill="none" stroke={line} strokeWidth="1.25" strokeLinecap="round" />
+        <Path d="M2 15 C 10 11 16 19 24 15 C 32 11 40 19 54 15" fill="none" stroke={line} strokeWidth="1.25" strokeLinecap="round" />
+        <Path d="M2 23 C 10 19 16 27 24 23 C 32 19 40 27 54 23" fill="none" stroke={line} strokeWidth="1.25" strokeLinecap="round" />
+      </Svg>
+
+      <View style={[envStyles.postageStamp, { borderColor: accent }]}>
+        <Ionicons
+          name={received ? 'mail-unread-outline' : 'heart-outline'}
+          size={13}
+          color={accent}
+        />
+      </View>
+    </View>
+  );
+}
+
 function MailboxPaperFold() {
   return (
     <View style={envStyles.paperFold} pointerEvents="none">
@@ -149,13 +178,7 @@ const EnvelopeCard = ({
       ]}
     >
       <MailboxPaperFold />
-      <View style={envStyles.mailBadge}>
-        <Ionicons
-          name={unread > 0 ? 'mail-unread-outline' : 'mail-outline'}
-          size={18}
-          color={unread > 0 ? '#8B2E3C' : '#9A8060'}
-        />
-      </View>
+      <MailboxPostalMark received={unread > 0 || myTurn} />
 
       <View style={envStyles.infoRow}>
         {(() => {
@@ -232,19 +255,19 @@ const envStyles = StyleSheet.create({
     backgroundColor: '#FBF6EC',
     borderRadius: 16,
     marginBottom: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#D9CCB8',
+    borderWidth: 1,
+    borderColor: '#CDBB9F',
     shadowColor: '#4A2D1A',
     shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.11,
+    shadowOpacity: 0.10,
     shadowRadius: 12,
     elevation: 4,
     overflow: 'hidden',
   },
   cardUnread: {
-    borderColor: '#C88E92',
+    borderColor: '#B97078',
     shadowColor: '#8B2E3C',
-    shadowOpacity: 0.16,
+    shadowOpacity: 0.15,
     shadowRadius: 14,
     elevation: 6,
   },
@@ -256,17 +279,29 @@ const envStyles = StyleSheet.create({
     height: 34,
     opacity: 0.9,
   },
-  mailBadge: {
+  postalMark: {
     position: 'absolute',
-    top: 14,
-    right: 15,
-    width: 32,
+    top: 12,
+    right: 12,
+    width: 78,
+    height: 42,
+    zIndex: 3,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  postalLines: {
+    position: 'absolute',
+    right: 20,
+    top: 6,
+  },
+  postageStamp: {
+    width: 28,
     height: 32,
-    borderRadius: 16,
+    borderWidth: 1.1,
+    borderRadius: 4,
+    backgroundColor: '#F8F1E6',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(244,236,216,0.86)',
-    zIndex: 3,
   },
   infoRow: {
     flexDirection: 'row',
@@ -276,7 +311,7 @@ const envStyles = StyleSheet.create({
     paddingBottom: 13,
     gap: 11,
   },
-  texts: { flex: 1, minWidth: 0 },
+  texts: { flex: 1, minWidth: 0, paddingRight: 42 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   name: { fontSize: 16.5, fontWeight: '700', color: '#2C1A0E' },
   badge: {
@@ -287,7 +322,7 @@ const envStyles = StyleSheet.create({
   badgeTxt: { color: '#FFF', fontSize: 11, fontWeight: '700' },
   preview:        { fontSize: 13, color: '#7F674E', marginTop: 3 },
   levelLine:      { fontSize: 11, color: '#A46F35', marginTop: 4, fontWeight: '600' },
-  time:           { fontSize: 11, color: '#8B6F47', marginRight: 36 },
+  time:           { fontSize: 11, color: '#8B6F47', marginRight: 74 },
   actionBar:      { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E1D5C3', minHeight: 38 },
   actionLeft:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9 },
   actionLeftText: { fontSize: 12, color: '#5A3A1A', fontWeight: '600' },
