@@ -141,6 +141,19 @@ enum ReactionType {
   GRIMACE
 }
 
+enum PrivateDuelChoice {
+  ROCK
+  PAPER
+  SCISSORS
+}
+
+enum PrivateDuelStatus {
+  PENDING
+  RESOLVED
+  CANCELLED
+  EXPIRED
+}
+
 // ============================================================
 // BOUTEILLE À LA MER (Chantier 1 - V1)
 // ============================================================
@@ -215,6 +228,9 @@ model User {
   encounters1              SalonEncounter[]          @relation("Encounter1")
   encounters2              SalonEncounter[]          @relation("Encounter2")
   weeklyProfileDuels       WeeklyProfileDuel[]       @relation("WeeklyDuelUser")
+  privateDuelsChallenged    PrivateDuel[]             @relation("PrivateDuelChallenger")
+  privateDuelsReceived      PrivateDuel[]             @relation("PrivateDuelOpponent")
+  privateDuelsWon           PrivateDuel[]             @relation("PrivateDuelWinner")
 
   bottlesSent                  MessageInABottle[]    @relation("BottleSender")
   bottlesAccepted              MessageInABottle[]    @relation("BottleAcceptedBy")
@@ -861,6 +877,31 @@ model PushToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ============================================================
+// DUELS PRIVÉS — Pierre / Papier / Ciseaux entre deux contacts
+// Les choix restent secrets jusqu'à ce que les deux joueurs aient joué.
+// ============================================================
+
+model PrivateDuel {
+  id               String            @id @default(cuid())
+  challengerId     String
+  challenger       User              @relation("PrivateDuelChallenger", fields: [challengerId], references: [id], onDelete: Cascade)
+  opponentId       String
+  opponent         User              @relation("PrivateDuelOpponent", fields: [opponentId], references: [id], onDelete: Cascade)
+  challengerChoice PrivateDuelChoice?
+  opponentChoice   PrivateDuelChoice?
+  status           PrivateDuelStatus @default(PENDING)
+  winnerId         String?
+  winner           User?             @relation("PrivateDuelWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  resolvedAt       DateTime?
+
+  @@index([challengerId, status, createdAt])
+  @@index([opponentId, status, createdAt])
+  @@index([status, createdAt])
 }
 
 // ============================================================
