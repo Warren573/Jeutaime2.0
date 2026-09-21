@@ -445,13 +445,28 @@ function EnvelopeFlap() {
       >
         <Path
           d="M 0 0 H 100 C 78 8 66 32 50 38 C 34 32 22 8 0 0 Z"
-          fill="rgba(232,221,203,0.58)"
+          fill="#FBF6EC"
         />
         <Path
-          d="M 0 0 C 22 8 34 32 50 38 C 66 32 78 8 100 0"
+          d="M 0 0 C 22 8 34 32 50 38"
           fill="none"
-          stroke="rgba(202,184,157,0.52)"
-          strokeWidth="0.55"
+          stroke="rgba(167,143,111,0.34)"
+          strokeWidth="0.7"
+          strokeLinecap="round"
+        />
+        <Path
+          d="M 100 0 C 78 8 66 32 50 38"
+          fill="none"
+          stroke="rgba(167,143,111,0.34)"
+          strokeWidth="0.7"
+          strokeLinecap="round"
+        />
+        <Path
+          d="M 0 0 C 22 7 34 30 50 36 C 66 30 78 7 100 0"
+          fill="none"
+          stroke="rgba(255,255,255,0.48)"
+          strokeWidth="0.45"
+          strokeLinecap="round"
         />
       </Svg>
     </View>
