@@ -604,7 +604,7 @@ const lcStyles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    height: 72,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'flex-start',
     overflow: 'hidden',
@@ -614,10 +614,10 @@ const lcStyles = StyleSheet.create({
     height: 0,
     borderLeftWidth: (SCREEN_W - 30) / 2,
     borderRightWidth: (SCREEN_W - 30) / 2,
-    borderTopWidth: 72,
+    borderTopWidth: 50,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderTopColor: 'rgba(232,221,203,0.62)',
+    borderTopColor: 'rgba(232,221,203,0.56)',
   },
 
   topRow: {
