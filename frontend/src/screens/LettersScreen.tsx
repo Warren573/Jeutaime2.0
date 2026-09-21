@@ -476,8 +476,8 @@ function LetterCard({
   isOwn,
   otherName,
   onPress,
-  isLatest,
-}: Omit<LetterCardProps, 'isNew' | 'onSeen' | 'formatTime'> & { onPress: () => void; isLatest?: boolean }) {
+  isLatestReceived,
+}: Omit<LetterCardProps, 'isNew' | 'onSeen' | 'formatTime'> & { onPress: () => void; isLatestReceived?: boolean }) {
   const date = new Date(letter.createdAt);
   const now = new Date();
   const sameDay =
@@ -500,11 +500,9 @@ function LetterCard({
       : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
 
   const preview = letter.content.trim().replace(/\s+/g, ' ');
-  // Style stable par auteur : toutes mes lettres gardent le cadre "courrier aérien",
-  // tandis que les lettres reçues gardent le rabat d'enveloppe.
-  // Ne pas faire dépendre ce style de la position "dernière lettre", sinon il change
-  // visuellement dès qu'une nouvelle lettre arrive.
-  const showAirmailFrame = Boolean(isOwn);
+  // Le cadre "courrier aérien" met en avant la dernière lettre reçue,
+  // même si elle a déjà été lue. Les autres cartes gardent leur style enveloppe.
+  const showAirmailFrame = Boolean(!isOwn && isLatestReceived);
 
   return (
     <TouchableOpacity style={lcStyles.wrapper} activeOpacity={0.84} onPress={onPress}>
@@ -512,7 +510,7 @@ function LetterCard({
         style={[
           lcStyles.card,
           isOwn && lcStyles.cardOwn,
-          isLatest && lcStyles.cardLatest,
+          isLatestReceived && lcStyles.cardLatest,
           showAirmailFrame && lcStyles.cardAirmail,
         ]}
       >
@@ -1287,10 +1285,17 @@ export default function LettersScreen() {
           })()}
 
           <ScrollView style={styles.messagesContainer}>
-            {selectedMatch &&
-              [...getConversation(selectedMatch)]
-                .sort((a, b) => b.createdAt - a.createdAt)
-                .map((letter, index) => {
+            {selectedMatch && (() => {
+              const sortedConversation = [...getConversation(selectedMatch)]
+                .sort((a, b) => b.createdAt - a.createdAt);
+
+              const latestReceivedId = sortedConversation.find((letter) => {
+                const isOwn =
+                  letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
+                return !isOwn;
+              })?.id;
+
+              return sortedConversation.map((letter) => {
                 const isOwn =
                   letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
                 const otherName = getOtherName(selectedMatch);
@@ -1303,10 +1308,11 @@ export default function LettersScreen() {
                     otherName={otherName}
                     formatTime={formatTime}
                     onPress={() => setReadingLetter({ letter, isOwn })}
-                    isLatest={index === 0}
+                    isLatestReceived={!isOwn && letter.id === latestReceivedId}
                   />
                 );
-              })}
+              });
+            })()}
 
             {selectedMatch && getConversation(selectedMatch).length === 0 && (
               selectedMatch.canSend ? (
