@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
@@ -11,56 +13,207 @@ import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
+import {
+  createPrivateDuel,
+  listPrivateDuels,
+  type PrivateDuelDTO,
+} from '../api/privateDuels';
+
+interface Contact {
+  id: string;
+  matchId: string;
+  name: string;
+}
 
 export default function DuelCreateScreen() {
-  const router  = useRouter();
-  const insets  = useSafeAreaInsets();
-  const { matches, currentUser } = useStore();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { matches, currentUser, matchPartners, loadMatches } = useStore();
 
-  // Construire la liste des contacts à partir des matchs réels
-  const contacts = matches.map((m) => {
-    const name = m.userAId === 'me' ? m.userBId : m.userAId;
-    return { id: m.id, name };
-  });
+  const [duels, setDuels] = useState<PrivateDuelDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [creatingMatchId, setCreatingMatchId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSelect = (contact: { id: string; name: string }) => {
-    router.push({
-      pathname: '/duel/play',
-      params: { opponentId: contact.id, opponentName: contact.name },
-    });
+  const contacts = useMemo<Contact[]>(() => {
+    if (!currentUser?.id) return [];
+
+    return matches
+      .filter((m) => m.status === 'active' || m.status === 'pending')
+      .map((m) => {
+        const otherUserId = m.userAId === currentUser.id ? m.userBId : m.userAId;
+        const partner = matchPartners[otherUserId];
+        return {
+          id: otherUserId,
+          matchId: m.id,
+          name: partner?.pseudo ?? 'Contact',
+        };
+      });
+  }, [matches, currentUser?.id, matchPartners]);
+
+  const load = useCallback(async () => {
+    try {
+      setError(null);
+      await loadMatches();
+      const data = await listPrivateDuels();
+      setDuels(data);
+    } catch (err: any) {
+      setError(err?.message || 'Impossible de charger les duels.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [loadMatches]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const openDuel = (duelId: string) => {
+    router.push({ pathname: '/duel/play', params: { duelId } });
   };
+
+  const handleSelect = async (contact: Contact) => {
+    if (creatingMatchId) return;
+    try {
+      setError(null);
+      setCreatingMatchId(contact.matchId);
+      const duel = await createPrivateDuel(contact.matchId);
+      openDuel(duel.id);
+    } catch (err: any) {
+      setError(err?.message || 'Impossible de créer ce duel.');
+    } finally {
+      setCreatingMatchId(null);
+    }
+  };
+
+  const pendingDuels = duels.filter((d) => d.status === 'PENDING');
+  const recentResolved = duels.filter((d) => d.status === 'RESOLVED').slice(0, 5);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={styles.back}>← Retour</Text>
         </Pressable>
-        <Text style={styles.title}>⚔️ Lancer un duel</Text>
-        <Text style={styles.subtitle}>Choisis un contact à défier</Text>
+        <Text style={styles.title}>⚔️ Duels privés</Text>
+        <Text style={styles.subtitle}>Pierre • Papier • Ciseaux entre deux vrais joueurs</Text>
       </View>
 
-      {contacts.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>⚔️</Text>
-          <Text style={styles.emptyText}>Aucun contact disponible</Text>
-          <Text style={styles.emptySubtext}>Fais des matchs d'abord pour pouvoir défier quelqu'un</Text>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color="#7A1A1A" />
         </View>
       ) : (
         <FlatList
           data={contacts}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.matchId}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                void load();
+              }}
+              tintColor="#7A1A1A"
+            />
+          }
           contentContainerStyle={styles.list}
+          ListHeaderComponent={
+            <>
+              {!!error && (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
+
+              {pendingDuels.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>DUELS EN ATTENTE</Text>
+                  {pendingDuels.map((duel) => {
+                    const waitingForMe = !duel.hasPlayed;
+                    return (
+                      <Pressable
+                        key={duel.id}
+                        style={styles.pendingCard}
+                        onPress={() => openDuel(duel.id)}
+                      >
+                        <View style={styles.pendingIcon}>
+                          <Text style={styles.pendingIconText}>⚔️</Text>
+                        </View>
+                        <View style={styles.pendingCopy}>
+                          <Text style={styles.pendingName}>{duel.opponentPseudo}</Text>
+                          <Text style={styles.pendingStatus}>
+                            {waitingForMe
+                              ? 'À toi de jouer'
+                              : duel.opponentHasPlayed
+                              ? 'Résultat prêt'
+                              : 'En attente de son choix'}
+                          </Text>
+                        </View>
+                        <Text style={styles.pendingArrow}>›</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>LANCER UN NOUVEAU DUEL</Text>
+                <Text style={styles.sectionSubtitle}>Choisis un contact à défier.</Text>
+              </View>
+            </>
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyEmoji}>⚔️</Text>
+              <Text style={styles.emptyText}>Aucun contact disponible</Text>
+              <Text style={styles.emptySubtext}>
+                Il faut d'abord avoir un contact pour lancer un duel.
+              </Text>
+            </View>
+          }
           renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => handleSelect(item)}>
+            <Pressable
+              style={styles.row}
+              onPress={() => void handleSelect(item)}
+              disabled={creatingMatchId !== null}
+            >
               <Avatar size={50} {...DEFAULT_AVATAR} />
               <Text style={styles.name}>{item.name}</Text>
               <View style={styles.challengeBtn}>
-                <Text style={styles.challengeText}>Défier</Text>
+                {creatingMatchId === item.matchId ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.challengeText}>Défier</Text>
+                )}
               </View>
             </Pressable>
           )}
+          ListFooterComponent={
+            recentResolved.length > 0 ? (
+              <View style={styles.historySection}>
+                <Text style={styles.sectionTitle}>DERNIERS DUELS</Text>
+                {recentResolved.map((duel) => (
+                  <Pressable
+                    key={duel.id}
+                    style={styles.historyRow}
+                    onPress={() => openDuel(duel.id)}
+                  >
+                    <Text style={styles.historyName}>{duel.opponentPseudo}</Text>
+                    <Text style={styles.historyResult}>
+                      {duel.result === 'WIN'
+                        ? 'Victoire'
+                        : duel.result === 'LOSE'
+                        ? 'Défaite'
+                        : 'Nul'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null
+          }
         />
       )}
     </View>
@@ -68,10 +221,8 @@ export default function DuelCreateScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F4ECD8',
-  },
+  container: { flex: 1, backgroundColor: '#F4ECD8' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: {
     paddingHorizontal: 20,
     paddingTop: 12,
@@ -80,28 +231,51 @@ const styles = StyleSheet.create({
     borderBottomColor: '#C4A882',
     backgroundColor: '#2C1A0E',
   },
-  back: {
-    color: '#F0D98C',
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 14,
+  back: { color: '#F0D98C', fontSize: 15, fontWeight: '600', marginBottom: 14 },
+  title: { color: '#F0D98C', fontSize: 26, fontWeight: '800' },
+  subtitle: { color: '#A08870', fontSize: 14, marginTop: 6, fontStyle: 'italic' },
+  list: { padding: 16, paddingBottom: 40, gap: 12 },
+  section: { marginBottom: 4 },
+  sectionTitle: {
+    color: '#7A5C3A',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.3,
+    marginBottom: 8,
   },
-  title: {
-    color: '#F0D98C',
-    fontSize: 26,
-    fontWeight: '800',
+  sectionSubtitle: { color: '#9A7040', fontSize: 13, marginBottom: 8 },
+  errorBox: {
+    backgroundColor: '#FFF0E8',
+    borderWidth: 1,
+    borderColor: '#D5A49A',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
   },
-  subtitle: {
-    color: '#A08870',
-    fontSize: 14,
-    marginTop: 6,
-    fontStyle: 'italic',
+  errorText: { color: '#7A1A1A', fontSize: 13 },
+  pendingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E9',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#C4924A',
+    padding: 14,
+    marginBottom: 10,
   },
-
-  list: {
-    padding: 16,
-    gap: 12,
+  pendingIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F4ECD8',
   },
+  pendingIconText: { fontSize: 20 },
+  pendingCopy: { flex: 1, marginLeft: 12 },
+  pendingName: { color: '#2C1A0E', fontSize: 16, fontWeight: '800' },
+  pendingStatus: { color: '#8A6847', fontSize: 12.5, marginTop: 3 },
+  pendingArrow: { color: '#7A1A1A', fontSize: 28, fontWeight: '600' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -116,63 +290,28 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: '#2C1A0E',
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  name: {
-    flex: 1,
-    color: '#2C1A0E',
-    fontSize: 17,
-    fontWeight: '700',
-    marginLeft: 14,
-  },
+  name: { flex: 1, color: '#2C1A0E', fontSize: 17, fontWeight: '700', marginLeft: 14 },
   challengeBtn: {
+    minWidth: 70,
+    alignItems: 'center',
     backgroundColor: '#7A1A1A',
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 999,
-    shadowColor: '#7A1A1A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 4,
   },
-  challengeText: {
-    color: '#FFF',
-    fontSize: 13,
-    fontWeight: '800',
+  challengeText: { color: '#FFF', fontSize: 13, fontWeight: '800' },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: 46, paddingHorizontal: 40 },
+  emptyEmoji: { fontSize: 56, marginBottom: 16 },
+  emptyText: { color: '#2C1A0E', fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  emptySubtext: { color: '#7A5C3A', fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  historySection: { marginTop: 22 },
+  historyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#C9B18E',
   },
-
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-  },
-  emptyEmoji: {
-    fontSize: 56,
-    marginBottom: 16,
-  },
-  emptyText: {
-    color: '#2C1A0E',
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    color: '#7A5C3A',
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
-  },
+  historyName: { color: '#2C1A0E', fontSize: 14, fontWeight: '700' },
+  historyResult: { color: '#7A5C3A', fontSize: 13 },
 });
