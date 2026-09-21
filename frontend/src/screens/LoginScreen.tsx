@@ -58,14 +58,6 @@ export default function LoginScreen() {
 
       await storeLogin(email.trim().toLowerCase(), password);
 
-      // storeLogin has completed only after /auth/login succeeded and the
-      // access/refresh tokens were saved. hydrateFromApi may intentionally
-      // swallow a secondary loading error, so do not let the route guard
-      // invalidate an otherwise valid authenticated session.
-      if (!useStore.getState().isAuthenticated) {
-        useStore.setState({ isAuthenticated: true });
-      }
-
       setDebugLoginFlow(prev => ({
         ...prev,
         setAuthCalled: true,
