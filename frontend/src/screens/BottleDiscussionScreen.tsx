@@ -12,6 +12,7 @@ import {
   Image,
   Modal,
   Keyboard,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -51,6 +52,8 @@ export default function BottleDiscussionScreen() {
   const [hasRevealRequest, setHasRevealRequest] = useState(false);
   const [isRevealRequester, setIsRevealRequester] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showSendPreview, setShowSendPreview] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
@@ -91,17 +94,41 @@ export default function BottleDiscussionScreen() {
     loadData();
   }, [loadData]);
 
-  const handleSendMessage = async () => {
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const validateMessage = () => {
     if (!messageText.trim()) {
       Alert.alert('Erreur', 'Écris un message');
-      return;
+      return false;
     }
 
     if (messageText.length > 500) {
       Alert.alert('Erreur', `Maximum 500 caractères (tu as ${messageText.length})`);
-      return;
+      return false;
     }
 
+    return true;
+  };
+
+  const handleSendPress = () => {
+    if (!validateMessage()) return;
+    Keyboard.dismiss();
+    setShowSendPreview(true);
+  };
+
+  const handleSendMessage = async () => {
+    if (!validateMessage()) return;
+
+    setShowSendPreview(false);
     setIsSending(true);
     setError(null);
 
@@ -185,15 +212,16 @@ export default function BottleDiscussionScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Affichage de la dernière lettre - PLEINE LARGEUR */}
-        <View style={styles.parchmentWrapper}>
+        {/* La lettre reçue reste visible, mais se compacte pendant la réponse */}
+        <View style={[styles.parchmentWrapper, canReply && styles.parchmentWrapperReply]}>
           <BottleParchmentCard
             content={bottleState.latestLetter.content}
+            compact={canReply}
           />
         </View>
 
         {/* Contenu avec padding */}
-        <View style={styles.mainScroll}>
+        <View style={[styles.mainScroll, canReply && styles.mainScrollReply]}>
           {/* Message d'erreur ou feedback */}
           {error && (
             <View style={styles.errorBox}>
@@ -201,12 +229,16 @@ export default function BottleDiscussionScreen() {
             </View>
           )}
 
-          {/* Bouton Répondre SI canReply */}
+          {/* Titre de réponse, plus compact que l'ancien bandeau vert */}
           {canReply && !isSending && (
-            <View style={styles.replyPrompt}>
-              <Text style={styles.replyPromptText}>
-                💬 À toi de répondre!
-              </Text>
+            <View style={styles.replyHeading}>
+              <Text style={styles.replyHeadingIcon}>🪶</Text>
+              <View style={styles.replyHeadingCopy}>
+                <Text style={styles.replyHeadingTitle}>Répondre à cette lettre</Text>
+                {!isKeyboardVisible && (
+                  <Text style={styles.replyHeadingSubtitle}>Écris ta réponse et poursuis l’échange.</Text>
+                )}
+              </View>
             </View>
           )}
 
@@ -224,7 +256,7 @@ export default function BottleDiscussionScreen() {
         {canReply && (
           <>
             {/* Zone de saisie */}
-            <View style={styles.bottomControls}>
+            <View style={[styles.bottomControls, isKeyboardVisible && styles.bottomControlsKeyboard]}>
               <TextInput
                 ref={textInputRef}
                 style={styles.messageInput}
@@ -236,8 +268,8 @@ export default function BottleDiscussionScreen() {
                 maxLength={500}
                 editable={!isSending}
                 underlineColorAndroid="transparent"
-                selectionColor="transparent"
-                scrollEnabled={false}
+                selectionColor={COLORS.accent}
+                scrollEnabled
               />
             </View>
 
@@ -246,25 +278,25 @@ export default function BottleDiscussionScreen() {
               <Text
                 style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
               >
-                {charRemaining} caractères
+                {messageText.length} / 500 caractères
               </Text>
               <TouchableOpacity
                 style={[styles.sendBtn, (isSending || !messageText.trim()) && styles.sendBtnDisabled]}
-                onPress={handleSendMessage}
+                onPress={handleSendPress}
                 disabled={isSending || !messageText.trim()}
               >
                 {isSending ? (
                   <ActivityIndicator size="small" color={COLORS.card} />
                 ) : (
-                  <Text style={styles.sendBtnText}>Envoyer</Text>
+                  <Text style={styles.sendBtnText}>Envoyer  ➤</Text>
                 )}
               </TouchableOpacity>
             </View>
           </>
         )}
 
-        {/* Boutons secondaires (historique) */}
-        {!canReply && (
+        {/* Correspondance : disponible aussi pendant la réponse, cachée quand le clavier est ouvert */}
+        {(!canReply || !isKeyboardVisible) && (
           <View style={styles.secondaryActions}>
             <TouchableOpacity
               style={styles.historyBtn}
@@ -275,11 +307,60 @@ export default function BottleDiscussionScreen() {
                 })
               }
             >
-              <Text style={styles.historyBtnText}>📖 Historique</Text>
+              <Text style={styles.historyBtnText}>📖 Relire notre correspondance</Text>
             </TouchableOpacity>
           </View>
         )}
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showSendPreview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSendPreview(false)}
+      >
+        <View style={styles.previewOverlay}>
+          <View style={[styles.previewCard, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+            <Text style={styles.previewKicker}>APERÇU AVANT ENVOI</Text>
+            <Text style={styles.previewTitle}>Ta réponse est prête</Text>
+            <Text style={styles.previewSubtitle}>Relis-la une dernière fois avant de l’envoyer.</Text>
+
+            <ScrollView
+              style={styles.previewScroll}
+              contentContainerStyle={styles.previewPaper}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.previewMessage}>{messageText.trim()}</Text>
+            </ScrollView>
+
+            <Text style={styles.previewCount}>{messageText.length} / 500 caractères</Text>
+
+            <View style={styles.previewActions}>
+              <TouchableOpacity
+                style={styles.previewEditBtn}
+                onPress={() => {
+                  setShowSendPreview(false);
+                  setTimeout(() => textInputRef.current?.focus(), 250);
+                }}
+                disabled={isSending}
+              >
+                <Text style={styles.previewEditText}>Modifier</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.previewSendBtn, isSending && styles.sendBtnDisabled]}
+                onPress={handleSendMessage}
+                disabled={isSending}
+              >
+                {isSending ? (
+                  <ActivityIndicator size="small" color={COLORS.card} />
+                ) : (
+                  <Text style={styles.previewSendText}>Confirmer l’envoi  ➤</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {bottleState?.bottle && (
         <BottleCorrespondenceMenu
@@ -335,9 +416,42 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingHorizontal: 16,
   },
+  mainScrollReply: {
+    flex: 0,
+  },
   parchmentWrapper: {
     marginVertical: 20,
     width: '100%',
+  },
+  parchmentWrapperReply: {
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 16,
+  },
+  replyHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    marginBottom: 4,
+  },
+  replyHeadingIcon: {
+    fontSize: 22,
+    marginRight: 8,
+  },
+  replyHeadingCopy: {
+    flex: 1,
+  },
+  replyHeadingTitle: {
+    fontSize: 17,
+    lineHeight: 21,
+    fontWeight: '800',
+    color: '#3A2818',
+  },
+  replyHeadingSubtitle: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#7A6856',
+    marginTop: 2,
   },
   replyPrompt: {
     paddingVertical: 12,
@@ -386,11 +500,16 @@ const styles = StyleSheet.create({
   },
   bottomControls: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 6,
+    paddingBottom: 4,
     backgroundColor: 'transparent',
   },
+  bottomControlsKeyboard: {
+    paddingTop: 2,
+  },
   messageInput: {
-    minHeight: 80,
+    minHeight: 104,
+    maxHeight: 150,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -407,7 +526,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 6,
+    paddingBottom: 8,
     backgroundColor: 'transparent',
   },
   charCount: {
@@ -500,5 +620,103 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(200,162,90,0.3)',
     marginVertical: 4,
+  },
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(30,22,16,0.48)',
+    justifyContent: 'flex-end',
+  },
+  previewCard: {
+    maxHeight: '82%',
+    backgroundColor: '#FBF8F3',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 22,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  previewKicker: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.6,
+    color: COLORS.accent,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  previewTitle: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '800',
+    color: '#3A2818',
+    textAlign: 'center',
+  },
+  previewSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#766554',
+    textAlign: 'center',
+    marginTop: 5,
+    marginBottom: 16,
+  },
+  previewScroll: {
+    maxHeight: 280,
+  },
+  previewPaper: {
+    minHeight: 150,
+    backgroundColor: '#F7E7C4',
+    borderWidth: 1,
+    borderColor: '#C9A46A',
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  previewMessage: {
+    fontSize: 16,
+    lineHeight: 25,
+    color: '#3A2A1A',
+    fontFamily: 'Georgia',
+    fontStyle: 'italic',
+  },
+  previewCount: {
+    fontSize: 11,
+    color: '#8A6E3C',
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  previewActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  previewEditBtn: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#B99563',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFDF8',
+  },
+  previewEditText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.accent,
+  },
+  previewSendBtn: {
+    flex: 1.6,
+    minHeight: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.accent,
+  },
+  previewSendText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.card,
   },
 });
