@@ -105,6 +105,36 @@ export default function DuelCreateScreen() {
   const pendingDuels = duels.filter((d) => d.status === 'PENDING');
   const recentResolved = duels.filter((d) => d.status === 'RESOLVED').slice(0, 5);
 
+  if (directMatchId) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Text style={styles.back}>← Retour</Text>
+          </Pressable>
+          <Text style={styles.title}>⚔️ Duel privé</Text>
+          <Text style={styles.subtitle}>Pierre • Papier • Ciseaux</Text>
+        </View>
+
+        <View style={styles.center}>
+          {error ? (
+            <>
+              <Text style={styles.errorText}>{error}</Text>
+              <Pressable style={styles.retryBtn} onPress={() => router.back()}>
+                <Text style={styles.retryText}>Retour</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <ActivityIndicator size="large" color="#7A1A1A" />
+              <Text style={styles.preparingText}>Préparation du duel…</Text>
+            </>
+          )}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -328,4 +358,24 @@ const styles = StyleSheet.create({
   },
   historyName: { color: '#2C1A0E', fontSize: 14, fontWeight: '700' },
   historyResult: { color: '#7A5C3A', fontSize: 13 },
+  preparingText: {
+    marginTop: 14,
+    color: '#7A5C3A',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  retryBtn: {
+    marginTop: 16,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#C4924A',
+    backgroundColor: '#FEFAF0',
+  },
+  retryText: {
+    color: '#7A1A1A',
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });
