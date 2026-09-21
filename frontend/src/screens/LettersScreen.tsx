@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import { useRouter, Link, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matches';
@@ -440,39 +440,50 @@ function EnvelopeFlap() {
       <Svg
         width="100%"
         height="100%"
-        viewBox="0 0 100 42"
+        viewBox="0 0 100 48"
         preserveAspectRatio="none"
       >
+        <Defs>
+          <LinearGradient id="flapShadow" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#6F563C" stopOpacity="0.14" />
+            <Stop offset="0.55" stopColor="#6F563C" stopOpacity="0.07" />
+            <Stop offset="1" stopColor="#6F563C" stopOpacity="0" />
+          </LinearGradient>
+        </Defs>
+
         <Path
           d="M 0 0 H 100 C 78 8 66 32 50 38 C 34 32 22 8 0 0 Z"
           fill="#FBF6EC"
         />
+
+        {/* Real soft shadow cast just below the flap edge */}
         <Path
-          d="M 0 0 C 22 8 34 32 50 38 C 66 32 78 8 100 0"
-          fill="none"
-          stroke="rgba(102,82,60,0.12)"
-          strokeWidth="1.35"
-          strokeLinecap="round"
+          d="M 0 0 C 22 8 34 32 50 38 C 66 32 78 8 100 0
+             L 100 5 C 78 13 66 37 50 43 C 34 37 22 13 0 5 Z"
+          fill="url(#flapShadow)"
         />
+
+        {/* Fine fold lines */}
         <Path
           d="M 0 0 C 22 8 34 32 50 38"
           fill="none"
-          stroke="rgba(167,143,111,0.34)"
-          strokeWidth="0.7"
+          stroke="rgba(167,143,111,0.26)"
+          strokeWidth="0.48"
           strokeLinecap="round"
         />
         <Path
           d="M 100 0 C 78 8 66 32 50 38"
           fill="none"
-          stroke="rgba(167,143,111,0.34)"
-          strokeWidth="0.7"
+          stroke="rgba(167,143,111,0.26)"
+          strokeWidth="0.48"
           strokeLinecap="round"
         />
+
         <Path
           d="M 0 0 C 22 7 34 30 50 36 C 66 30 78 7 100 0"
           fill="none"
-          stroke="rgba(255,255,255,0.48)"
-          strokeWidth="0.45"
+          stroke="rgba(255,255,255,0.42)"
+          strokeWidth="0.36"
           strokeLinecap="round"
         />
       </Svg>
@@ -649,7 +660,7 @@ const lcStyles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    height: 54,
+    height: 60,
     overflow: 'hidden',
   },
 
