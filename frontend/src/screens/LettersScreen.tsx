@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import { useRouter, Link, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matches';
@@ -433,6 +434,30 @@ function AirmailEdge({ vertical = false }: { vertical?: boolean }) {
   );
 }
 
+function EnvelopeFlap() {
+  return (
+    <View style={lcStyles.envelopeFlapWrap} pointerEvents="none">
+      <Svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 100 42"
+        preserveAspectRatio="none"
+      >
+        <Path
+          d="M 0 0 H 100 C 78 8 66 32 50 38 C 34 32 22 8 0 0 Z"
+          fill="rgba(232,221,203,0.58)"
+        />
+        <Path
+          d="M 0 0 C 22 8 34 32 50 38 C 66 32 78 8 100 0"
+          fill="none"
+          stroke="rgba(202,184,157,0.52)"
+          strokeWidth="0.55"
+        />
+      </Svg>
+    </View>
+  );
+}
+
 function LetterCard({
   letter,
   isOwn,
@@ -482,9 +507,7 @@ function LetterCard({
             <View style={lcStyles.airmailRight}><AirmailEdge vertical /></View>
           </>
         ) : (
-          <View style={lcStyles.envelopeFlapWrap} pointerEvents="none">
-            <View style={lcStyles.envelopeFlap} />
-          </View>
+          <EnvelopeFlap />
         )}
 
         <View style={lcStyles.topRow}>
@@ -512,26 +535,26 @@ function LetterCard({
 
 const lcStyles = StyleSheet.create({
   wrapper: {
-    marginBottom: 8,
+    marginBottom: 10,
   },
   card: {
-    minHeight: 106,
-    backgroundColor: '#FCF7EC',
-    borderRadius: 10,
+    minHeight: 104,
+    backgroundColor: '#FBF6EC',
+    borderRadius: 15,
     paddingHorizontal: 18,
     paddingTop: 15,
-    paddingBottom: 14,
+    paddingBottom: 13,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#D8C9B3',
+    borderColor: '#D8CBB8',
     shadowColor: '#4A2D1A',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.14,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.13,
+    shadowRadius: 12,
     elevation: 4,
     overflow: 'hidden',
   },
   cardOwn: {
-    backgroundColor: '#FFF8F0',
+    backgroundColor: '#FCF6EC',
   },
   cardLatest: {
     shadowOpacity: 0.19,
@@ -604,20 +627,8 @@ const lcStyles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
+    height: 54,
     overflow: 'hidden',
-  },
-  envelopeFlap: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: (SCREEN_W - 30) / 2,
-    borderRightWidth: (SCREEN_W - 30) / 2,
-    borderTopWidth: 50,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: 'rgba(232,221,203,0.56)',
   },
 
   topRow: {
@@ -626,7 +637,7 @@ const lcStyles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 9,
+    marginBottom: 8,
   },
   titleBlock: { flex: 1 },
   header: {
@@ -646,7 +657,7 @@ const lcStyles = StyleSheet.create({
     fontSize: 14.5,
     color: '#2C1A0E',
     lineHeight: 20,
-    paddingRight: 28,
+    paddingRight: 26,
     zIndex: 2,
   },
 });
