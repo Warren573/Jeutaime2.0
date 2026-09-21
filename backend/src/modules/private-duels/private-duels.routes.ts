@@ -19,6 +19,9 @@ const wrap = (fn: (req: AuthedRequest, res: Response) => Promise<void>) =>
 // GET /api/private-duels
 router.get("/", wrap(ctrl.handleListMine));
 
+// GET /api/private-duels/candidates
+router.get("/candidates", wrap(ctrl.handleListCandidates));
+
 // POST /api/private-duels
 router.post("/", validate(CreatePrivateDuelSchema), wrap(ctrl.handleCreate));
 
