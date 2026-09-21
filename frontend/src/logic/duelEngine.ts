@@ -9,21 +9,6 @@ export const DUEL_CHOICES = [
 export type DuelChoice = typeof DUEL_CHOICES[number];
 export type DuelResult = 'win' | 'lose' | 'draw' | 'pending';
 
-// ─── Logique du jeu ───────────────────────────────────────────────────────────
-
-export function getRandomChoice(): DuelChoice {
-  return DUEL_CHOICES[Math.floor(Math.random() * DUEL_CHOICES.length)];
-}
-
-export function getResult(player: DuelChoice, opponent: DuelChoice): DuelResult {
-  if (player.key === opponent.key) return 'draw';
-  const wins =
-    (player.key === 'rock'     && opponent.key === 'scissors') ||
-    (player.key === 'paper'    && opponent.key === 'rock')     ||
-    (player.key === 'scissors' && opponent.key === 'paper');
-  return wins ? 'win' : 'lose';
-}
-
 // ─── Messages humoristiques pour le journal ───────────────────────────────────
 
 const WIN_MESSAGES = [
