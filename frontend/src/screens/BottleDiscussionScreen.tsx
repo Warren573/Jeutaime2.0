@@ -212,8 +212,11 @@ export default function BottleDiscussionScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* La lettre reçue reste visible, mais se compacte pendant la réponse */}
+        {/* La lettre reçue reste visible. En réponse, on affiche un mini-parchemin complet. */}
         <View style={[styles.parchmentWrapper, canReply && styles.parchmentWrapperReply]}>
+          {canReply && (
+            <Text style={styles.receivedLabel}>LETTRE REÇUE</Text>
+          )}
           <BottleParchmentCard
             content={bottleState.latestLetter.content}
             compact={canReply}
@@ -273,7 +276,7 @@ export default function BottleDiscussionScreen() {
               />
             </View>
 
-            {/* Bouton Envoyer */}
+            {/* Compteur + bouton Envoyer pleine largeur */}
             <View style={styles.sendFooter}>
               <Text
                 style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
@@ -288,7 +291,7 @@ export default function BottleDiscussionScreen() {
                 {isSending ? (
                   <ActivityIndicator size="small" color={COLORS.card} />
                 ) : (
-                  <Text style={styles.sendBtnText}>Envoyer  ➤</Text>
+                  <Text style={styles.sendBtnText}>Aperçu avant envoi  ➤</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -325,13 +328,9 @@ export default function BottleDiscussionScreen() {
             <Text style={styles.previewTitle}>Ta réponse est prête</Text>
             <Text style={styles.previewSubtitle}>Relis-la une dernière fois avant de l’envoyer.</Text>
 
-            <ScrollView
-              style={styles.previewScroll}
-              contentContainerStyle={styles.previewPaper}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.previewMessage}>{messageText.trim()}</Text>
-            </ScrollView>
+            <View style={styles.previewParchmentWrap}>
+              <BottleParchmentCard content={messageText.trim()} compact />
+            </View>
 
             <Text style={styles.previewCount}>{messageText.length} / 500 caractères</Text>
 
@@ -425,8 +424,16 @@ const styles = StyleSheet.create({
   },
   parchmentWrapperReply: {
     marginTop: 8,
-    marginBottom: 4,
+    marginBottom: 0,
     paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  receivedLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    color: '#9A765A',
+    marginBottom: 2,
   },
   replyHeading: {
     flexDirection: 'row',
@@ -508,23 +515,25 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   messageInput: {
-    minHeight: 104,
-    maxHeight: 150,
-    paddingVertical: 12,
+    minHeight: 120,
+    maxHeight: 170,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderWidth: 1,
-    borderColor: '#D8D2C4',
-    fontSize: 14,
-    lineHeight: 20,
+    borderRadius: 14,
+    backgroundColor: '#FFFDF8',
+    borderWidth: 1.5,
+    borderColor: '#D7C4A8',
+    fontSize: 15,
+    lineHeight: 22,
     color: '#2B2B2B',
     fontStyle: 'italic',
+    shadowColor: '#5A3A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   sendFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 6,
     paddingBottom: 8,
@@ -533,19 +542,25 @@ const styles = StyleSheet.create({
   charCount: {
     fontSize: 11,
     color: '#8A6E3C',
-    flex: 1,
+    marginBottom: 7,
   },
   charCountWarning: {
     color: COLORS.accent,
     fontWeight: '600',
   },
   sendBtn: {
-    paddingVertical: 12,
+    minHeight: 50,
+    paddingVertical: 13,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 14,
     backgroundColor: COLORS.accent,
-    marginLeft: 8,
     justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#5A3A1A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 7,
+    elevation: 4,
   },
   sendBtnDisabled: {
     opacity: 0.6,
@@ -558,21 +573,22 @@ const styles = StyleSheet.create({
   },
   secondaryActions: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 2,
+    paddingBottom: 10,
     backgroundColor: 'transparent',
   },
   historyBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: COLORS.card,
-    borderWidth: 2,
-    borderColor: COLORS.border,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#D9C9B4',
   },
   historyBtnText: {
-    fontSize: 14,
+    fontSize: 12.5,
     fontWeight: '600',
-    color: COLORS.text,
+    color: '#6F5A45',
     textAlign: 'center',
   },
   errorText: {
@@ -662,24 +678,12 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 16,
   },
-  previewScroll: {
-    maxHeight: 280,
-  },
-  previewPaper: {
-    minHeight: 150,
-    backgroundColor: '#F7E7C4',
-    borderWidth: 1,
-    borderColor: '#C9A46A',
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  previewMessage: {
-    fontSize: 16,
-    lineHeight: 25,
-    color: '#3A2A1A',
-    fontFamily: 'Georgia',
-    fontStyle: 'italic',
+  previewParchmentWrap: {
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: 2,
+    maxHeight: 260,
+    overflow: 'hidden',
   },
   previewCount: {
     fontSize: 11,
