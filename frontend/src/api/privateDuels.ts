@@ -4,6 +4,11 @@ export type PrivateDuelChoice = "ROCK" | "PAPER" | "SCISSORS";
 export type PrivateDuelStatus = "PENDING" | "RESOLVED" | "CANCELLED" | "EXPIRED";
 export type PrivateDuelResult = "WIN" | "LOSE" | "DRAW" | "PENDING";
 
+export interface PrivateDuelCandidate {
+  id: string;
+  pseudo: string;
+}
+
 export interface PrivateDuelDTO {
   id: string;
   status: PrivateDuelStatus;
@@ -23,10 +28,15 @@ export interface PrivateDuelDTO {
   result: PrivateDuelResult;
 }
 
-export async function createPrivateDuel(matchId: string): Promise<PrivateDuelDTO> {
+export async function listPrivateDuelCandidates(): Promise<PrivateDuelCandidate[]> {
+  const res = await apiFetch("/private-duels/candidates") as { data: PrivateDuelCandidate[] };
+  return res?.data ?? [];
+}
+
+export async function createPrivateDuel(targetUserId: string): Promise<PrivateDuelDTO> {
   const res = await apiFetch("/private-duels", {
     method: "POST",
-    body: JSON.stringify({ matchId }),
+    body: JSON.stringify({ targetUserId }),
   }) as { data: PrivateDuelDTO };
   return res.data;
 }
