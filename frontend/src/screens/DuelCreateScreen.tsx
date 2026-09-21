@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,125 +9,69 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useStore } from '../store/useStore';
+import { useRouter } from 'expo-router';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import {
   createPrivateDuel,
+  listPrivateDuelCandidates,
   listPrivateDuels,
+  type PrivateDuelCandidate,
   type PrivateDuelDTO,
 } from '../api/privateDuels';
 
-interface Contact {
-  id: string;
-  matchId: string;
-  name: string;
-}
-
 export default function DuelCreateScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ matchId?: string }>();
-  const directMatchId = typeof params.matchId === 'string' ? params.matchId : '';
   const insets = useSafeAreaInsets();
-  const { apiMatches, loadMatches } = useStore();
 
+  const [candidates, setCandidates] = useState<PrivateDuelCandidate[]>([]);
   const [duels, setDuels] = useState<PrivateDuelDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [creatingMatchId, setCreatingMatchId] = useState<string | null>(null);
+  const [creatingUserId, setCreatingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const directLaunchAttempted = useRef<string | null>(null);
-
-  const contacts = useMemo<Contact[]>(() => {
-    return apiMatches
-      .filter((m) => m.status === 'ACTIVE' || m.status === 'PENDING')
-      .map((m) => ({
-        id: m.otherUserId,
-        matchId: m.id,
-        name: m.otherProfile?.pseudo ?? 'Contact',
-      }));
-  }, [apiMatches]);
 
   const load = useCallback(async () => {
     try {
       setError(null);
-      await loadMatches();
-      const data = await listPrivateDuels();
-      setDuels(data);
+      const [candidateData, duelData] = await Promise.all([
+        listPrivateDuelCandidates(),
+        listPrivateDuels(),
+      ]);
+      setCandidates(candidateData);
+      setDuels(duelData);
     } catch (err: any) {
       setError(err?.message || 'Impossible de charger les duels.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [loadMatches]);
+  }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (!directMatchId || loading) return;
-    if (directLaunchAttempted.current === directMatchId) return;
-
-    const contact = contacts.find((item) => item.matchId === directMatchId);
-    if (!contact) return;
-
-    directLaunchAttempted.current = directMatchId;
-    void handleSelect(contact);
-  }, [directMatchId, loading, contacts]);
-
   const openDuel = (duelId: string) => {
     router.push({ pathname: '/duel/play', params: { duelId } });
   };
 
-  async function handleSelect(contact: Contact) {
-    if (creatingMatchId) return;
+  async function handleSelect(candidate: PrivateDuelCandidate) {
+    if (creatingUserId) return;
     try {
       setError(null);
-      setCreatingMatchId(contact.matchId);
-      const duel = await createPrivateDuel(contact.matchId);
+      setCreatingUserId(candidate.id);
+      const duel = await createPrivateDuel(candidate.id);
       openDuel(duel.id);
     } catch (err: any) {
       setError(err?.message || 'Impossible de créer ce duel.');
     } finally {
-      setCreatingMatchId(null);
+      setCreatingUserId(null);
     }
   };
 
   const pendingDuels = duels.filter((d) => d.status === 'PENDING');
   const recentResolved = duels.filter((d) => d.status === 'RESOLVED').slice(0, 5);
-
-  if (directMatchId) {
-    return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Text style={styles.back}>← Retour</Text>
-          </Pressable>
-          <Text style={styles.title}>⚔️ Duel privé</Text>
-          <Text style={styles.subtitle}>Pierre • Papier • Ciseaux</Text>
-        </View>
-
-        <View style={styles.center}>
-          {error ? (
-            <>
-              <Text style={styles.errorText}>{error}</Text>
-              <Pressable style={styles.retryBtn} onPress={() => router.back()}>
-                <Text style={styles.retryText}>Retour</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <ActivityIndicator size="large" color="#7A1A1A" />
-              <Text style={styles.preparingText}>Préparation du duel…</Text>
-            </>
-          )}
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -136,7 +80,7 @@ export default function DuelCreateScreen() {
           <Text style={styles.back}>← Retour</Text>
         </Pressable>
         <Text style={styles.title}>⚔️ Duels privés</Text>
-        <Text style={styles.subtitle}>Pierre • Papier • Ciseaux entre deux vrais joueurs</Text>
+        <Text style={styles.subtitle}>Défie un correspondant de l’un de tes correspondants</Text>
       </View>
 
       {loading ? (
@@ -145,8 +89,8 @@ export default function DuelCreateScreen() {
         </View>
       ) : (
         <FlatList
-          data={contacts}
-          keyExtractor={(item) => item.matchId}
+          data={candidates}
+          keyExtractor={(item) => item.id}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -198,17 +142,19 @@ export default function DuelCreateScreen() {
               )}
 
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>LANCER UN NOUVEAU DUEL</Text>
-                <Text style={styles.sectionSubtitle}>Choisis un contact à défier.</Text>
+                <Text style={styles.sectionTitle}>ADVERSAIRES DISPONIBLES</Text>
+                <Text style={styles.sectionSubtitle}>
+                  Uniquement des correspondants de tes correspondants. Tes propres correspondants sont exclus.
+                </Text>
               </View>
             </>
           }
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>⚔️</Text>
-              <Text style={styles.emptyText}>Aucun contact disponible</Text>
+              <Text style={styles.emptyText}>Aucun adversaire disponible</Text>
               <Text style={styles.emptySubtext}>
-                Il faut d'abord avoir un contact pour lancer un duel.
+                Aucun de tes correspondants n’a actuellement un autre correspondant que tu puisses défier.
               </Text>
             </View>
           }
@@ -216,12 +162,12 @@ export default function DuelCreateScreen() {
             <Pressable
               style={styles.row}
               onPress={() => void handleSelect(item)}
-              disabled={creatingMatchId !== null}
+              disabled={creatingUserId !== null}
             >
               <Avatar size={50} {...DEFAULT_AVATAR} />
-              <Text style={styles.name}>{item.name}</Text>
+              <Text style={styles.name}>{item.pseudo}</Text>
               <View style={styles.challengeBtn}>
-                {creatingMatchId === item.matchId ? (
+                {creatingUserId === item.id ? (
                   <ActivityIndicator size="small" color="#FFF" />
                 ) : (
                   <Text style={styles.challengeText}>Défier</Text>
