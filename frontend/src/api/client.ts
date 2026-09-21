@@ -20,8 +20,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === "AbortError";
+}
+
 function isNetworkError(err: unknown): boolean {
-  if (err instanceof DOMException && err.name === "AbortError") return true;
+  if (isAbortError(err)) return true;
   if (err instanceof TypeError) return true;
   return false;
 }
@@ -91,7 +95,7 @@ async function doFetch(
     if (DEV_HTTP_LOGS) {
       console.warn('[HTTP] network error', { method, path, error: err instanceof Error ? err.message : String(err) });
     }
-    if (err instanceof DOMException && err.name === "AbortError") {
+    if (isAbortError(err)) {
       throw new TypeError(`Délai dépassé (${TIMEOUT_MS / 1000}s) — le serveur ne répond pas.`);
     }
     if (err instanceof TypeError && err.message.includes('fetch')) {
