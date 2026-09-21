@@ -448,6 +448,13 @@ function EnvelopeFlap() {
           fill="#FBF6EC"
         />
         <Path
+          d="M 0 0 C 22 8 34 32 50 38 C 66 32 78 8 100 0"
+          fill="none"
+          stroke="rgba(102,82,60,0.12)"
+          strokeWidth="1.35"
+          strokeLinecap="round"
+        />
+        <Path
           d="M 0 0 C 22 8 34 32 50 38"
           fill="none"
           stroke="rgba(167,143,111,0.34)"
