@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -37,6 +37,7 @@ export default function DuelCreateScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [creatingMatchId, setCreatingMatchId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const directLaunchAttempted = useRef<string | null>(null);
 
   const contacts = useMemo<Contact[]>(() => {
     if (!currentUser?.id) return [];
@@ -73,11 +74,15 @@ export default function DuelCreateScreen() {
   }, [load]);
 
   useEffect(() => {
-    if (!directMatchId || loading || creatingMatchId) return;
+    if (!directMatchId || loading) return;
+    if (directLaunchAttempted.current === directMatchId) return;
+
     const contact = contacts.find((item) => item.matchId === directMatchId);
     if (!contact) return;
+
+    directLaunchAttempted.current = directMatchId;
     void handleSelect(contact);
-  }, [directMatchId, loading, contacts, creatingMatchId]);
+  }, [directMatchId, loading, contacts]);
 
   const openDuel = (duelId: string) => {
     router.push({ pathname: '/duel/play', params: { duelId } });
