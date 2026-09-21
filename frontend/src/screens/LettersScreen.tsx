@@ -1016,7 +1016,19 @@ export default function LettersScreen() {
       case 'lettres':
         return (
           <>
-            <TouchableOpacity style={styles.duelBtn} onPress={() => router.push('/duel/create')}>
+            <TouchableOpacity
+              style={styles.duelBtn}
+              onPress={() => {
+                if (visibleMatches.length === 1) {
+                  router.push({
+                    pathname: '/duel/create',
+                    params: { matchId: visibleMatches[0].id },
+                  });
+                } else {
+                  router.push('/duel/create');
+                }
+              }}
+            >
               <Text style={styles.duelBtnEmoji}>⚔️</Text>
               <View style={styles.duelBtnTextWrap}>
                 <Text style={styles.duelBtnTitle}>Lancer un duel</Text>
