@@ -3,6 +3,9 @@ import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
 import type { AuthedRequest } from "../../core/types";
+import { prisma } from "../../config/prisma";
+import { isPremiumActive } from "../../policies/premium";
+import { MAX_FLOATING_FREE, MAX_FLOATING_PREMIUM } from "./bottles.service";
 import * as controller from "./bottles.controller";
 import {
   CreateBottleBodySchema,
