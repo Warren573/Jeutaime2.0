@@ -1197,6 +1197,11 @@ export default function LettersScreen() {
         <Text style={styles.headerKicker}>JEUTAIME</Text>
         <Text style={styles.headerTitle}>Boîte aux lettres</Text>
         <Text style={styles.headerSubtitle}>Correspondances privées</Text>
+        {__DEV__ && (
+          <Text style={styles.devAccountBadge}>
+            Compte connecté : {currentUser?.pseudo ?? currentUser?.name ?? currentUser?.id ?? 'inconnu'}
+          </Text>
+        )}
       </View>
 
       <View style={styles.tabsContainer}>
@@ -1898,6 +1903,17 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   headerTitle: { fontSize: 24, fontWeight: '800', color: '#F0D98C' },
+  devAccountBadge: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: '#F2D88F',
+    color: '#3A2414',
+    fontSize: 12,
+    fontWeight: '800',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
   headerSubtitle: {
     fontSize: 12,
     color: '#B7A28B',
