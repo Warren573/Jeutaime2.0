@@ -93,35 +93,86 @@ async function loadDuel(duelId: string): Promise<DuelWithPlayers> {
   return duel;
 }
 
-export async function create(userId: string, matchId: string) {
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
+async function eligibleCandidateIds(userId: string): Promise<Set<string>> {
+  const directMatches = await prisma.match.findMany({
+    where: {
+      status: { in: [MatchStatus.ACTIVE, MatchStatus.PENDING] },
+      OR: [{ userAId: userId }, { userBId: userId }],
+    },
+    select: { userAId: true, userBId: true },
+  });
+
+  const directContactIds = new Set(
+    directMatches.map((match) => (match.userAId === userId ? match.userBId : match.userAId)),
+  );
+
+  if (directContactIds.size === 0) return new Set();
+
+  const contactIds = [...directContactIds];
+  const secondDegreeMatches = await prisma.match.findMany({
+    where: {
+      status: { in: [MatchStatus.ACTIVE, MatchStatus.PENDING] },
+      OR: [
+        { userAId: { in: contactIds } },
+        { userBId: { in: contactIds } },
+      ],
+    },
+    select: { userAId: true, userBId: true },
+  });
+
+  const candidates = new Set<string>();
+  for (const match of secondDegreeMatches) {
+    const aIsDirect = directContactIds.has(match.userAId);
+    const bIsDirect = directContactIds.has(match.userBId);
+
+    if (aIsDirect && match.userBId !== userId && !directContactIds.has(match.userBId)) {
+      candidates.add(match.userBId);
+    }
+    if (bIsDirect && match.userAId !== userId && !directContactIds.has(match.userAId)) {
+      candidates.add(match.userAId);
+    }
+  }
+
+  return candidates;
+}
+
+export async function listCandidates(userId: string) {
+  const candidateIds = [...(await eligibleCandidateIds(userId))];
+  if (candidateIds.length === 0) return [];
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: candidateIds } },
     select: {
       id: true,
-      userAId: true,
-      userBId: true,
-      status: true,
+      profile: { select: { pseudo: true } },
     },
   });
 
-  if (!match) throw new NotFoundError("Contact");
-  if (match.userAId !== userId && match.userBId !== userId) {
-    throw new ForbiddenError("Ce contact ne t'appartient pas");
-  }
-  if (match.status === MatchStatus.BLOCKED || match.status === MatchStatus.BROKEN || match.status === MatchStatus.GHOSTED) {
-    throw new ConflictError("Ce contact n'est plus disponible pour un duel");
+  return users
+    .map((user) => ({
+      id: user.id,
+      pseudo: pseudoOf(user),
+    }))
+    .sort((a, b) => a.pseudo.localeCompare(b.pseudo, "fr"));
+}
+
+export async function create(userId: string, targetUserId: string) {
+  if (targetUserId === userId) {
+    throw new BadRequestError("Impossible de te défier toi-même");
   }
 
-  const opponentId = match.userAId === userId ? match.userBId : match.userAId;
-  if (opponentId === userId) throw new BadRequestError("Impossible de te défier toi-même");
+  const allowedIds = await eligibleCandidateIds(userId);
+  if (!allowedIds.has(targetUserId)) {
+    throw new ForbiddenError("Cet utilisateur n'est pas un correspondant de l'un de tes correspondants");
+  }
 
   // Un seul duel non résolu à la fois entre ces deux personnes.
   const existing = await prisma.privateDuel.findFirst({
     where: {
       status: PrivateDuelStatus.PENDING,
       OR: [
-        { challengerId: userId, opponentId },
-        { challengerId: opponentId, opponentId: userId },
+        { challengerId: userId, opponentId: targetUserId },
+        { challengerId: targetUserId, opponentId: userId },
       ],
     },
     orderBy: { createdAt: "desc" },
@@ -133,7 +184,7 @@ export async function create(userId: string, matchId: string) {
   const duel = await prisma.privateDuel.create({
     data: {
       challengerId: userId,
-      opponentId,
+      opponentId: targetUserId,
     },
     include: duelInclude,
   });
