@@ -500,7 +500,11 @@ function LetterCard({
       : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
 
   const preview = letter.content.trim().replace(/\s+/g, ' ');
-  const showAirmailFrame = Boolean(isOwn && isLatest);
+  // Style stable par auteur : toutes mes lettres gardent le cadre "courrier aérien",
+  // tandis que les lettres reçues gardent le rabat d'enveloppe.
+  // Ne pas faire dépendre ce style de la position "dernière lettre", sinon il change
+  // visuellement dès qu'une nouvelle lettre arrive.
+  const showAirmailFrame = Boolean(isOwn);
 
   return (
     <TouchableOpacity style={lcStyles.wrapper} activeOpacity={0.84} onPress={onPress}>
