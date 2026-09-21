@@ -89,22 +89,6 @@ function MailboxPostalMark({ received }: { received: boolean }) {
   );
 }
 
-function MailboxPaperFold() {
-  return (
-    <View style={envStyles.paperFold} pointerEvents="none">
-      <Svg width="100%" height="100%" viewBox="0 0 100 26" preserveAspectRatio="none">
-        <Path
-          d="M 0 0 C 24 4 38 17 50 21 C 62 17 76 4 100 0"
-          fill="none"
-          stroke="rgba(164,140,109,0.18)"
-          strokeWidth="0.45"
-          strokeLinecap="round"
-        />
-      </Svg>
-    </View>
-  );
-}
-
 const EnvelopeCard = ({
   matchId,
   otherUserId,
@@ -177,7 +161,6 @@ const EnvelopeCard = ({
         { transform: [{ translateX: shakeX }] },
       ]}
     >
-      <MailboxPaperFold />
       <MailboxPostalMark received={unread > 0 || myTurn} />
 
       <View style={envStyles.infoRow}>
@@ -270,14 +253,6 @@ const envStyles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 14,
     elevation: 6,
-  },
-  paperFold: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    height: 34,
-    opacity: 0.9,
   },
   postalMark: {
     position: 'absolute',
