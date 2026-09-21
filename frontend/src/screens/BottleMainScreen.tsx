@@ -192,9 +192,42 @@ export default function BottleMainScreen() {
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <BottleHeader title="Lettre en transit" onBack={() => router.back()} />
-          <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
-            <BottleParchmentCard content={displayState.bottle?.message || ''} />
-            <View style={styles.paddedSection}><View style={styles.infoBox}><Text style={styles.infoText}>Revenez bientôt pour voir si quelqu'un a répondu à votre lettre.</Text></View></View>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[styles.sentContent, { paddingBottom: insets.bottom + 80 }]}
+            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.sentIntro}>
+              <Text style={styles.sentEyebrow}>BOUTEILLE ENVOYÉE</Text>
+              <Text style={styles.sentTitle}>Votre lettre est à la mer</Text>
+              <Text style={styles.sentSubtitle}>
+                Elle attend qu’une personne la découvre et décide d’y répondre.
+              </Text>
+            </View>
+
+            <View style={styles.sentParchmentCard}>
+              <BottleParchmentCard
+                content={displayState.bottle?.message || ''}
+                compact
+              />
+            </View>
+
+            <View style={styles.sentStatusCard}>
+              <View style={styles.sentStatusIcon}>
+                <Text style={styles.sentStatusIconText}>🌊</Text>
+              </View>
+              <View style={styles.sentStatusCopy}>
+                <Text style={styles.sentStatusTitle}>En attente d’une réponse</Text>
+                <Text style={styles.sentStatusText}>
+                  Revenez plus tard pour voir si quelqu’un a récupéré votre bouteille.
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.sentHint}>
+              Tirez vers le bas pour actualiser l’état de votre bouteille.
+            </Text>
           </ScrollView>
         </View>
       </View>
@@ -268,6 +301,84 @@ const styles = StyleSheet.create({
   createBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF', textAlign: 'center' },
   infoBox: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14, backgroundColor: '#EEF2EA', borderWidth: 1, borderColor: '#CAD7C7' },
   infoText: { fontSize: 13, color: COLORS.success, fontWeight: '600', lineHeight: 19 },
+  sentContent: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+  },
+  sentIntro: {
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    marginBottom: 18,
+  },
+  sentEyebrow: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.8,
+    color: COLORS.accent,
+    marginBottom: 6,
+  },
+  sentTitle: {
+    fontSize: 23,
+    lineHeight: 29,
+    fontWeight: '800',
+    color: COLORS.text,
+    textAlign: 'center',
+  },
+  sentSubtitle: {
+    maxWidth: 320,
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  sentParchmentCard: {
+    overflow: 'hidden',
+    borderRadius: 18,
+    marginBottom: 16,
+  },
+  sentStatusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: '#FFF9F0',
+    borderWidth: 1,
+    borderColor: '#DEC6A5',
+  },
+  sentStatusIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F4E7D2',
+    marginRight: 12,
+  },
+  sentStatusIconText: {
+    fontSize: 22,
+  },
+  sentStatusCopy: {
+    flex: 1,
+  },
+  sentStatusTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.text,
+    marginBottom: 3,
+  },
+  sentStatusText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: COLORS.textSecondary,
+  },
+  sentHint: {
+    marginTop: 14,
+    fontSize: 11.5,
+    color: '#9B856D',
+    textAlign: 'center',
+  },
   errorBox: { paddingVertical: 13, paddingHorizontal: 15, borderRadius: 14, backgroundColor: '#F8E8E5', borderWidth: 1, borderColor: '#E7C0BA', marginBottom: 16 },
   errorText: { fontSize: 13, color: COLORS.error, fontWeight: '600', lineHeight: 19 },
   selectionHeader: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 18, alignItems: 'center' },
