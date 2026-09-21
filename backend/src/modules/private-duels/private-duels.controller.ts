@@ -8,9 +8,14 @@ import type {
 } from "./private-duels.schemas";
 
 export async function handleCreate(req: AuthedRequest, res: Response) {
-  const { matchId } = req.body as CreatePrivateDuelDto;
-  const result = await svc.create(req.user.userId, matchId);
+  const { targetUserId } = req.body as CreatePrivateDuelDto;
+  const result = await svc.create(req.user.userId, targetUserId);
   res.status(201).json({ data: result });
+}
+
+export async function handleListCandidates(req: AuthedRequest, res: Response) {
+  const result = await svc.listCandidates(req.user.userId);
+  res.json({ data: result });
 }
 
 export async function handleListMine(req: AuthedRequest, res: Response) {
