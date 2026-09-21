@@ -13,7 +13,7 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
   content,
   compact = false,
 }) => {
-  const cardHeight = width * (885 / 624);
+  const cardHeight = compact ? Math.min(width * 0.34, 150) : width * (885 / 624);
 
   return (
     <View style={[styles.container, compact && styles.containerCompact]}>
@@ -28,7 +28,11 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
         resizeMode="cover"
       >
         <View style={[styles.textArea, compact && styles.textAreaCompact]}>
-          <Text style={[styles.message, compact && styles.messageCompact]}>
+          <Text
+            style={[styles.message, compact && styles.messageCompact]}
+            numberOfLines={compact ? 3 : undefined}
+            ellipsizeMode={compact ? 'tail' : undefined}
+          >
             {content}
           </Text>
         </View>
@@ -48,7 +52,9 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   containerCompact: {
-    marginBottom: 12,
+    marginTop: 0,
+    marginBottom: 8,
+    overflow: 'hidden',
   },
   parchment: {
     width: '100%',
@@ -64,7 +70,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   textAreaCompact: {
-    paddingVertical: 24,
+    width: '84%',
+    paddingTop: 34,
+    paddingBottom: 18,
     paddingHorizontal: 20,
   },
   message: {
