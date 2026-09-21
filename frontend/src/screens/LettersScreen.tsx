@@ -60,6 +60,22 @@ interface EnvelopeCardProps {
   formatTime: (ts: number) => string;
 }
 
+function MailboxPaperFold() {
+  return (
+    <View style={envStyles.paperFold} pointerEvents="none">
+      <Svg width="100%" height="100%" viewBox="0 0 100 26" preserveAspectRatio="none">
+        <Path
+          d="M 0 0 C 24 4 38 17 50 21 C 62 17 76 4 100 0"
+          fill="none"
+          stroke="rgba(164,140,109,0.18)"
+          strokeWidth="0.45"
+          strokeLinecap="round"
+        />
+      </Svg>
+    </View>
+  );
+}
+
 const EnvelopeCard = ({
   matchId,
   otherUserId,
@@ -132,20 +148,14 @@ const EnvelopeCard = ({
         { transform: [{ translateX: shakeX }] },
       ]}
     >
-      <View style={envStyles.flapMini}>
-        <View style={envStyles.foldLinesWrap}>
-          <View style={[envStyles.foldLine, envStyles.foldLineLL]} />
-          <View style={[envStyles.foldLine, envStyles.foldLineLR]} />
-        </View>
-        {unread > 0 ? (
-          <View style={envStyles.sealMini}>
-            <Text style={envStyles.sealEmoji}>⚜️</Text>
-          </View>
-        ) : (
-          <Text style={envStyles.sealEmpty}>✉️</Text>
-        )}
+      <MailboxPaperFold />
+      <View style={envStyles.mailBadge}>
+        <Ionicons
+          name={unread > 0 ? 'mail-unread-outline' : 'mail-outline'}
+          size={18}
+          color={unread > 0 ? '#8B2E3C' : '#9A8060'}
+        />
       </View>
-      <View style={envStyles.divider} />
 
       <View style={envStyles.infoRow}>
         {(() => {
@@ -218,93 +228,71 @@ const EnvelopeCard = ({
 
 const envStyles = StyleSheet.create({
   card: {
-    backgroundColor: '#FEFAF0',
-    borderRadius: 14,
-    marginBottom: 14,
-    borderWidth: 1.5,
-    borderColor: '#B8956A',
-    shadowColor: '#5A3A1A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 8,
-    elevation: 5,
+    position: 'relative',
+    backgroundColor: '#FBF6EC',
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#D9CCB8',
+    shadowColor: '#4A2D1A',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.11,
+    shadowRadius: 12,
+    elevation: 4,
     overflow: 'hidden',
   },
   cardUnread: {
-    borderColor: '#C9621A',
-    shadowColor: '#C9621A',
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-    elevation: 9,
+    borderColor: '#C88E92',
+    shadowColor: '#8B2E3C',
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 6,
   },
-  flapMini: {
-    height: MINI_FLAP_H,
-    backgroundColor: '#C4924A',
+  paperFold: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 34,
+    opacity: 0.9,
+  },
+  mailBadge: {
+    position: 'absolute',
+    top: 14,
+    right: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    backgroundColor: 'rgba(244,236,216,0.86)',
+    zIndex: 3,
   },
-  foldLinesWrap: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-  },
-  foldLine: {
-    position: 'absolute',
-    height: 1.5,
-    backgroundColor: '#7A4A18',
-    opacity: 0.35,
-  },
-  foldLineLL: {
-    width: CARD_W * 0.75,
-    top: MINI_FLAP_H * 0.28,
-    left: -CARD_W * 0.12,
-    transform: [{ rotate: '22deg' }],
-  },
-  foldLineLR: {
-    width: CARD_W * 0.75,
-    top: MINI_FLAP_H * 0.28,
-    right: -CARD_W * 0.12,
-    transform: [{ rotate: '-22deg' }],
-  },
-  sealMini: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#7A1A1A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#7A1A1A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.55,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  sealEmoji: { fontSize: 20 },
-  sealEmpty: { fontSize: 20, opacity: 0.35 },
-  divider: { height: 1.5, backgroundColor: '#C4A882' },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 13,
+    gap: 11,
   },
   texts: { flex: 1, minWidth: 0 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { fontSize: 16, fontWeight: '700', color: '#2C1A0E' },
+  name: { fontSize: 16.5, fontWeight: '700', color: '#2C1A0E' },
   badge: {
     width: 20, height: 20, borderRadius: 10,
     backgroundColor: '#8B2E3C',
     alignItems: 'center', justifyContent: 'center',
   },
   badgeTxt: { color: '#FFF', fontSize: 11, fontWeight: '700' },
-  preview:        { fontSize: 13, color: '#7A5C3A', marginTop: 2 },
-  levelLine:      { fontSize: 11, color: '#B87333', marginTop: 4, fontWeight: '600' },
-  time:           { fontSize: 11, color: '#9A7040' },
-  actionBar:      { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#E8D9C6', minHeight: 40 },
-  actionLeft:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
-  actionLeftText: { fontSize: 12, color: '#5A3A1A', fontWeight: '700' },
-  actionSep:      { width: 1, backgroundColor: '#E8D9C6' },
-  actionRight:       { flex: 1, textAlign: 'center', paddingVertical: 10, fontSize: 12, color: '#9C4D1A', fontWeight: '700', letterSpacing: 0.3, textDecorationLine: 'none' },
+  preview:        { fontSize: 13, color: '#7F674E', marginTop: 3 },
+  levelLine:      { fontSize: 11, color: '#A46F35', marginTop: 4, fontWeight: '600' },
+  time:           { fontSize: 11, color: '#8B6F47', marginRight: 36 },
+  actionBar:      { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E1D5C3', minHeight: 38 },
+  actionLeft:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9 },
+  actionLeftText: { fontSize: 12, color: '#5A3A1A', fontWeight: '600' },
+  actionSep:      { width: StyleSheet.hairlineWidth, backgroundColor: '#E1D5C3' },
+  actionRight:       { flex: 1, textAlign: 'center', paddingVertical: 9, fontSize: 12, color: '#8B5B34', fontWeight: '600', letterSpacing: 0.2, textDecorationLine: 'none' },
   actionDisabled:    { opacity: 0.4 },
   actionDisabledText:{ color: '#9A7040' },
   letterCounter:     { fontSize: 10, color: '#B87333', fontWeight: '600' },
@@ -1864,44 +1852,46 @@ export default function LettersScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F4ECD8' },
   header: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 13,
     borderBottomWidth: 0,
     backgroundColor: '#2C1A0E',
   },
   headerKicker: {
-    fontSize: 10,
-    letterSpacing: 3,
+    fontSize: 9.5,
+    letterSpacing: 3.2,
     color: '#B87333',
     fontWeight: '700',
     marginBottom: 4,
   },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: '#F0D98C' },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#F0D98C' },
   headerSubtitle: {
     fontSize: 12,
-    color: '#A08870',
-    marginTop: 4,
+    color: '#B7A28B',
+    marginTop: 3,
     fontStyle: 'italic',
   },
 
   tabsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#C4A882',
-    backgroundColor: '#2C1A0E',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#D8C9B3',
+    backgroundColor: '#F4ECD8',
   },
   tab: {
     flex: 1,
     paddingVertical: 9,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 12,
     marginHorizontal: 3,
+    backgroundColor: '#EDE2D0',
   },
-  tabActive: { backgroundColor: '#8B2E3C' },
-  tabText: { fontSize: 12, fontWeight: '600', color: '#A08870' },
-  tabTextActive: { color: '#FFF' },
+  tabActive: { backgroundColor: '#3A2415' },
+  tabText: { fontSize: 11.5, fontWeight: '600', color: '#8B735D' },
+  tabTextActive: { color: '#F0D98C' },
 
   scrollView: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 160 },
@@ -1988,25 +1978,21 @@ const styles = StyleSheet.create({
   duelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEFAF0',
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: '#F8F1E5',
+    borderRadius: 13,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    borderWidth: 1.5,
-    borderColor: '#B8956A',
-    shadowColor: '#5A3A1A',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 4,
+    marginTop: 10,
+    marginBottom: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#D7C5AA',
   },
-  duelBtnEmoji: { fontSize: 26, marginRight: 12 },
+  duelBtnEmoji: { fontSize: 19, marginRight: 10 },
   duelBtnTextWrap: { flex: 1, minWidth: 0 },
-  duelBtnTitle: { color: '#2C1A0E', fontSize: 16, fontWeight: '800' },
-  duelBtnSubtitle: { color: '#9A7040', fontSize: 12, marginTop: 3 },
-  duelBtnArrow: { fontSize: 14, color: '#7A1A1A', marginLeft: 8 },
+  duelBtnTitle: { color: '#3A2818', fontSize: 13.5, fontWeight: '700' },
+  duelBtnSubtitle: { color: '#9A7A55', fontSize: 10.5, marginTop: 2 },
+  duelBtnArrow: { fontSize: 11, color: '#8B2E3C', marginLeft: 8 },
 
   journalSectionTitle: {
     fontSize: 13,
