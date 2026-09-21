@@ -8,6 +8,7 @@ import {
   TextInput,
   Modal,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Dimensions,
   Alert,
@@ -16,6 +17,8 @@ import {
   Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import { useRouter, Link, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matches';
@@ -23,6 +26,7 @@ import { reportUser, type ReportReason } from '../api/profiles';
 import { getSouvenirs, type SouvenirDTO } from '../api/souvenirs';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
+import { LetterPaginatedView } from '../components/letters/LetterPaginatedView';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import { FEATURES } from '../config/features';
@@ -54,6 +58,35 @@ interface EnvelopeCardProps {
   onPlayQuestions: () => void | Promise<void>;
   onAccept: () => void | Promise<void>;
   formatTime: (ts: number) => string;
+}
+
+function MailboxPostalMark({ received }: { received: boolean }) {
+  const accent = received ? '#8B2E3C' : '#A88E70';
+  const line = received ? 'rgba(139,46,60,0.30)' : 'rgba(168,142,112,0.28)';
+
+  return (
+    <View style={envStyles.postalMark} pointerEvents="none">
+      <Svg
+        width="56"
+        height="30"
+        viewBox="0 0 56 30"
+        preserveAspectRatio="none"
+        style={envStyles.postalLines}
+      >
+        <Path d="M2 7 C 10 3 16 11 24 7 C 32 3 40 11 54 7" fill="none" stroke={line} strokeWidth="1.25" strokeLinecap="round" />
+        <Path d="M2 15 C 10 11 16 19 24 15 C 32 11 40 19 54 15" fill="none" stroke={line} strokeWidth="1.25" strokeLinecap="round" />
+        <Path d="M2 23 C 10 19 16 27 24 23 C 32 19 40 27 54 23" fill="none" stroke={line} strokeWidth="1.25" strokeLinecap="round" />
+      </Svg>
+
+      <View style={[envStyles.postageStamp, { borderColor: accent }]}>
+        <Ionicons
+          name={received ? 'mail-unread-outline' : 'heart-outline'}
+          size={13}
+          color={accent}
+        />
+      </View>
+    </View>
+  );
 }
 
 const EnvelopeCard = ({
@@ -128,20 +161,7 @@ const EnvelopeCard = ({
         { transform: [{ translateX: shakeX }] },
       ]}
     >
-      <View style={envStyles.flapMini}>
-        <View style={envStyles.foldLinesWrap}>
-          <View style={[envStyles.foldLine, envStyles.foldLineLL]} />
-          <View style={[envStyles.foldLine, envStyles.foldLineLR]} />
-        </View>
-        {unread > 0 ? (
-          <View style={envStyles.sealMini}>
-            <Text style={envStyles.sealEmoji}>⚜️</Text>
-          </View>
-        ) : (
-          <Text style={envStyles.sealEmpty}>✉️</Text>
-        )}
-      </View>
-      <View style={envStyles.divider} />
+      <MailboxPostalMark received={unread > 0 || myTurn} />
 
       <View style={envStyles.infoRow}>
         {(() => {
@@ -214,93 +234,75 @@ const EnvelopeCard = ({
 
 const envStyles = StyleSheet.create({
   card: {
-    backgroundColor: '#FEFAF0',
-    borderRadius: 14,
-    marginBottom: 14,
-    borderWidth: 1.5,
-    borderColor: '#B8956A',
-    shadowColor: '#5A3A1A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 8,
-    elevation: 5,
+    position: 'relative',
+    backgroundColor: '#FBF6EC',
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#CDBB9F',
+    shadowColor: '#4A2D1A',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    elevation: 4,
     overflow: 'hidden',
   },
   cardUnread: {
-    borderColor: '#C9621A',
-    shadowColor: '#C9621A',
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-    elevation: 9,
+    borderColor: '#B97078',
+    shadowColor: '#8B2E3C',
+    shadowOpacity: 0.15,
+    shadowRadius: 14,
+    elevation: 6,
   },
-  flapMini: {
-    height: MINI_FLAP_H,
-    backgroundColor: '#C4924A',
+  postalMark: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 78,
+    height: 42,
+    zIndex: 3,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  postalLines: {
+    position: 'absolute',
+    right: 20,
+    top: 6,
+  },
+  postageStamp: {
+    width: 28,
+    height: 32,
+    borderWidth: 1.1,
+    borderRadius: 4,
+    backgroundColor: '#F8F1E6',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
-  foldLinesWrap: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-  },
-  foldLine: {
-    position: 'absolute',
-    height: 1.5,
-    backgroundColor: '#7A4A18',
-    opacity: 0.35,
-  },
-  foldLineLL: {
-    width: CARD_W * 0.75,
-    top: MINI_FLAP_H * 0.28,
-    left: -CARD_W * 0.12,
-    transform: [{ rotate: '22deg' }],
-  },
-  foldLineLR: {
-    width: CARD_W * 0.75,
-    top: MINI_FLAP_H * 0.28,
-    right: -CARD_W * 0.12,
-    transform: [{ rotate: '-22deg' }],
-  },
-  sealMini: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#7A1A1A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#7A1A1A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.55,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  sealEmoji: { fontSize: 20 },
-  sealEmpty: { fontSize: 20, opacity: 0.35 },
-  divider: { height: 1.5, backgroundColor: '#C4A882' },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 13,
+    gap: 11,
   },
-  texts: { flex: 1, minWidth: 0 },
+  texts: { flex: 1, minWidth: 0, paddingRight: 42 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { fontSize: 16, fontWeight: '700', color: '#2C1A0E' },
+  name: { fontSize: 16.5, fontWeight: '700', color: '#2C1A0E' },
   badge: {
     width: 20, height: 20, borderRadius: 10,
     backgroundColor: '#8B2E3C',
     alignItems: 'center', justifyContent: 'center',
   },
   badgeTxt: { color: '#FFF', fontSize: 11, fontWeight: '700' },
-  preview:        { fontSize: 13, color: '#7A5C3A', marginTop: 2 },
-  levelLine:      { fontSize: 11, color: '#B87333', marginTop: 4, fontWeight: '600' },
-  time:           { fontSize: 11, color: '#9A7040' },
-  actionBar:      { flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#E8D9C6', minHeight: 40 },
-  actionLeft:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
-  actionLeftText: { fontSize: 12, color: '#5A3A1A', fontWeight: '700' },
-  actionSep:      { width: 1, backgroundColor: '#E8D9C6' },
-  actionRight:       { flex: 1, textAlign: 'center', paddingVertical: 10, fontSize: 12, color: '#9C4D1A', fontWeight: '700', letterSpacing: 0.3, textDecorationLine: 'none' },
+  preview:        { fontSize: 13, color: '#7F674E', marginTop: 3 },
+  levelLine:      { fontSize: 11, color: '#A46F35', marginTop: 4, fontWeight: '600' },
+  time:           { fontSize: 11, color: '#8B6F47', marginRight: 74 },
+  actionBar:      { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E1D5C3', minHeight: 38 },
+  actionLeft:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9 },
+  actionLeftText: { fontSize: 12, color: '#5A3A1A', fontWeight: '600' },
+  actionSep:      { width: StyleSheet.hairlineWidth, backgroundColor: '#E1D5C3' },
+  actionRight:       { flex: 1, textAlign: 'center', paddingVertical: 9, fontSize: 12, color: '#8B5B34', fontWeight: '600', letterSpacing: 0.2, textDecorationLine: 'none' },
   actionDisabled:    { opacity: 0.4 },
   actionDisabledText:{ color: '#9A7040' },
   letterCounter:     { fontSize: 10, color: '#B87333', fontWeight: '600' },
@@ -413,62 +415,263 @@ interface LetterCardProps {
   onSeen: () => void;
 }
 
-function LetterCard({ letter, isOwn, otherName, formatTime }: Omit<LetterCardProps, 'isNew' | 'onSeen'>) {
+function AirmailEdge({ vertical = false }: { vertical?: boolean }) {
   return (
-    <View style={lcStyles.wrapper}>
-      <Text style={lcStyles.header}>
-        {isOwn ? 'Ta lettre' : `Lettre de ${otherName}`}
-      </Text>
-      <View style={[lcStyles.card, isOwn && lcStyles.cardOwn]}>
-        <Text style={lcStyles.text}>{letter.content}</Text>
-        <Text style={lcStyles.time}>{formatTime(letter.createdAt)}</Text>
-      </View>
+    <View style={vertical ? lcStyles.airmailEdgeVertical : lcStyles.airmailEdgeHorizontal}>
+      {Array.from({ length: vertical ? 8 : 14 }).map((_, index) => (
+        <View
+          key={index}
+          style={[
+            lcStyles.airmailSegment,
+            vertical && lcStyles.airmailSegmentVertical,
+            index % 2 === 0 ? lcStyles.airmailSegmentRed : lcStyles.airmailSegmentCream,
+          ]}
+        />
+      ))}
     </View>
   );
 }
 
+function EnvelopeFlap() {
+  return (
+    <View style={lcStyles.envelopeFlapWrap} pointerEvents="none">
+      <Svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 100 42"
+        preserveAspectRatio="none"
+      >
+        <Path
+          d="M 0 0 H 100 C 78 8 66 32 50 38 C 34 32 22 8 0 0 Z"
+          fill="#FBF6EC"
+        />
+        <Path
+          d="M 0 0 C 22 8 34 32 50 38"
+          fill="none"
+          stroke="rgba(167,143,111,0.34)"
+          strokeWidth="0.7"
+          strokeLinecap="round"
+        />
+        <Path
+          d="M 100 0 C 78 8 66 32 50 38"
+          fill="none"
+          stroke="rgba(167,143,111,0.34)"
+          strokeWidth="0.7"
+          strokeLinecap="round"
+        />
+        <Path
+          d="M 0 0 C 22 7 34 30 50 36 C 66 30 78 7 100 0"
+          fill="none"
+          stroke="rgba(255,255,255,0.48)"
+          strokeWidth="0.45"
+          strokeLinecap="round"
+        />
+      </Svg>
+    </View>
+  );
+}
+
+function LetterCard({
+  letter,
+  isOwn,
+  otherName,
+  onPress,
+  isLatest,
+}: Omit<LetterCardProps, 'isNew' | 'onSeen' | 'formatTime'> & { onPress: () => void; isLatest?: boolean }) {
+  const date = new Date(letter.createdAt);
+  const now = new Date();
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    date.getFullYear() === yesterday.getFullYear() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getDate() === yesterday.getDate();
+
+  const hhmm = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const dayLabel = sameDay
+    ? "Aujourd’hui"
+    : isYesterday
+      ? 'Hier'
+      : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }).replace('.', '');
+
+  const preview = letter.content.trim().replace(/\s+/g, ' ');
+  const showAirmailFrame = Boolean(isOwn && isLatest);
+
+  return (
+    <TouchableOpacity style={lcStyles.wrapper} activeOpacity={0.84} onPress={onPress}>
+      <View
+        style={[
+          lcStyles.card,
+          isOwn && lcStyles.cardOwn,
+          isLatest && lcStyles.cardLatest,
+          showAirmailFrame && lcStyles.cardAirmail,
+        ]}
+      >
+        {showAirmailFrame ? (
+          <>
+            <View style={lcStyles.airmailTop}><AirmailEdge /></View>
+            <View style={lcStyles.airmailBottom}><AirmailEdge /></View>
+            <View style={lcStyles.airmailLeft}><AirmailEdge vertical /></View>
+            <View style={lcStyles.airmailRight}><AirmailEdge vertical /></View>
+          </>
+        ) : (
+          <EnvelopeFlap />
+        )}
+
+        <View style={lcStyles.topRow}>
+          <View style={lcStyles.titleBlock}>
+            <Text style={[lcStyles.header, isOwn && lcStyles.headerOwn]}>
+              {isOwn ? 'Ta lettre' : `Lettre de ${otherName}`}
+            </Text>
+            <Text style={lcStyles.dateLine}>{dayLabel} · {hhmm}</Text>
+          </View>
+
+          <Ionicons
+            name={isOwn ? 'paper-plane-outline' : 'mail'}
+            size={22}
+            color={isOwn ? '#8B2E3C' : '#9A8060'}
+          />
+        </View>
+
+        <Text style={lcStyles.text} numberOfLines={2}>
+          {preview}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 const lcStyles = StyleSheet.create({
-  wrapper: { marginBottom: 24 },
-  header: {
-    fontSize: 11,
-    letterSpacing: 1.5,
-    color: '#6B6B6B',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  animContainer: {
-    alignItems: 'center',
-    marginBottom: 12,
+  wrapper: {
+    marginBottom: 10,
   },
   card: {
-    backgroundColor: '#FEFAF0',
-    borderRadius: 14,
-    padding: 18,
-    borderWidth: 1.5,
-    borderColor: '#D4B896',
-    shadowColor: '#5A3A1A',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    minHeight: 104,
+    backgroundColor: '#FBF6EC',
+    borderRadius: 15,
+    paddingHorizontal: 18,
+    paddingTop: 15,
+    paddingBottom: 13,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#D8CBB8',
+    shadowColor: '#4A2D1A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.13,
+    shadowRadius: 12,
+    elevation: 4,
+    overflow: 'hidden',
   },
   cardOwn: {
-    backgroundColor: '#FFF5F0',
-    borderColor: '#E8C8B8',
+    backgroundColor: '#FCF6EC',
+  },
+  cardLatest: {
+    shadowOpacity: 0.19,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  cardAirmail: {
+    minHeight: 112,
+    paddingTop: 18,
+    paddingBottom: 16,
+    borderColor: '#D6B89E',
+  },
+
+  airmailTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 6,
+    overflow: 'hidden',
+  },
+  airmailBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 6,
+    overflow: 'hidden',
+  },
+  airmailLeft: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 6,
+    overflow: 'hidden',
+  },
+  airmailRight: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 6,
+    overflow: 'hidden',
+  },
+  airmailEdgeHorizontal: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  airmailEdgeVertical: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  airmailSegment: {
+    flex: 1,
+    transform: [{ skewX: '-26deg' }],
+  },
+  airmailSegmentVertical: {
+    transform: [{ skewY: '-26deg' }],
+  },
+  airmailSegmentRed: {
+    backgroundColor: '#8B2E3C',
+  },
+  airmailSegmentCream: {
+    backgroundColor: '#F1E5D4',
+  },
+
+  envelopeFlapWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 54,
+    overflow: 'hidden',
+  },
+
+  topRow: {
+    zIndex: 2,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 8,
+  },
+  titleBlock: { flex: 1 },
+  header: {
+    fontSize: 15.5,
+    color: '#28180F',
+    fontWeight: '700',
+  },
+  headerOwn: {
+    color: '#8B2E3C',
+  },
+  dateLine: {
+    fontSize: 11.5,
+    color: '#8B6F47',
+    marginTop: 2,
   },
   text: {
-    fontSize: 15,
+    fontSize: 14.5,
     color: '#2C1A0E',
-    lineHeight: 25,
-    fontStyle: 'italic',
-  },
-  time: {
-    fontSize: 10,
-    color: '#9A7040',
-    marginTop: 12,
-    textAlign: 'right',
-    letterSpacing: 0.5,
+    lineHeight: 20,
+    paddingRight: 26,
+    zIndex: 2,
   },
 });
 
@@ -503,6 +706,8 @@ export default function LettersScreen() {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [showCompose, setShowCompose] = useState(false);
+  const [showLetterPreview, setShowLetterPreview] = useState(false);
+  const [readingLetter, setReadingLetter] = useState<{ letter: Letter; isOwn: boolean } | null>(null);
   const [showQGame, setShowQGame] = useState(false);
   const [qGameMatch, setQGameMatch] = useState<Match | null>(null);
   const [qSelectedAnswers, setQSelectedAnswers] = useState<Record<string, string>>({});
@@ -607,21 +812,36 @@ export default function LettersScreen() {
     return match.canSend;
   };
 
-  const handleSend = async () => {
-    if (!newMessage.trim() || !selectedMatch) return;
-    if (!selectedMatch.canSend || isSending) return;
+  const wordCount = useMemo(
+    () => (newMessage.trim().length === 0 ? 0 : newMessage.trim().split(/\s+/).length),
+    [newMessage],
+  );
+  const MAX_LETTER_WORDS = 500;
 
+  const handleSend = async (): Promise<boolean> => {
     const content = newMessage.trim();
-    setNewMessage('');
+    if (!content || !selectedMatch) return false;
+    if (!selectedMatch.canSend || isSending) return false;
+
+    const contentWordCount = content.split(/\s+/).length;
+    if (contentWordCount > MAX_LETTER_WORDS) {
+      Alert.alert(
+        'Lettre trop longue',
+        `Votre lettre contient ${contentWordCount} mots. La limite est de ${MAX_LETTER_WORDS} mots.`,
+      );
+      return false;
+    }
+
     setIsSending(true);
 
     try {
       await sendApiLetter(selectedMatch.id, content);
+      setNewMessage('');
       // Sync selectedMatch avec la mise à jour déjà faite dans le store
       const updatedMatch = useStore.getState().matches.find(m => m.id === selectedMatch.id);
       if (updatedMatch) setSelectedMatch(updatedMatch);
+      return true;
     } catch (err: any) {
-      setNewMessage(content);
       const msg: string = err?.message ?? '';
       if (msg.includes('AWAITING_REPLY') || msg.includes('alternation') || msg.includes('tour')) {
         Alert.alert('Pas encore ton tour', "Tu dois attendre la réponse de l'autre avant d'écrire à nouveau.");
@@ -630,6 +850,7 @@ export default function LettersScreen() {
       } else {
         Alert.alert('Erreur', "La lettre n'a pas pu être envoyée. Vérifie ta connexion et réessaie.");
       }
+      return false;
     } finally {
       setIsSending(false);
     }
@@ -841,6 +1062,7 @@ export default function LettersScreen() {
                       isInitiator={match.initiatorId === (currentUser?.id ?? '')}
                       onAccept={() => handleAccept(match)}
                       onPlayQuestions={() => handleQGameOpen(match)}
+                      formatTime={formatTime}
                       onOpen={() => {
                         const shouldAnimate = match.hasUnreadIncomingLetter;
 
@@ -860,8 +1082,7 @@ export default function LettersScreen() {
                           }, 5100);
                         }
                       }}
-                      formatTime={formatTime}
-                    />
+                      />
                   );
                 })}
               </ScrollView>
@@ -982,8 +1203,7 @@ export default function LettersScreen() {
             onPress={() => setActiveTab('journal')}
           >
             <Text style={[styles.tabText, activeTab === 'journal' && styles.tabTextActive]}>
-              📔 Journal Intime
-            </Text>
+              📔 Journal Intime            </Text>
           </TouchableOpacity>
         )}
 
@@ -1028,35 +1248,35 @@ export default function LettersScreen() {
 
           {selectedMatch && (() => {
             const conv = getConversation(selectedMatch);
-            const rel  = getRelationInfo(conv.length, currentUser?.isPremium ?? false);
             const myTurn = isMyTurn(selectedMatch);
-            const isViewerA = selectedMatch.userAId === (currentUser?.id ?? 'me');
-            const myLetters = isViewerA ? selectedMatch.letterCountA : selectedMatch.letterCountB;
-            const theirLetters = isViewerA ? selectedMatch.letterCountB : selectedMatch.letterCountA;
             return (
               <>
-                {/* ── Niveau de la relation ── */}
-                <View style={styles.relationBanner}>
-                  <Text style={styles.relationBannerStars}>{rel.stars}</Text>
-                  <View style={styles.relationBannerText}>
-                    <Text style={styles.relationBannerLevel}>
-                      Niveau {rel.level} — {rel.label}
-                    </Text>
-                    <Text style={styles.relationBannerProgress}>
-                      Mes lettres : {myLetters}  ·  Ses lettres : {theirLetters}
-                    </Text>
-                  </View>
+                {/* ── Sous-titre de correspondance ── */}
+                <View style={styles.correspondenceSubtitle}>
+                  <Text style={styles.correspondenceSubtitleText}>
+                    Votre correspondance
+                    {conv.length > 0
+                      ? ` · ${conv.length} lettre${conv.length > 1 ? 's' : ''} échangée${conv.length > 1 ? 's' : ''}`
+                      : ''}
+                  </Text>
                 </View>
 
                 {/* ── Tour de parole ── */}
                 <View style={[styles.turnBanner, myTurn ? styles.turnBannerMine : styles.turnBannerWait]}>
-                  <Text style={styles.turnBannerText}>
-                    {conv.length === 0
-                      ? '🪶  Écrivez la première lettre'
-                      : myTurn
-                        ? "📬  C'est votre tour — répondez à la lettre reçue"
-                        : '⏳  Lettre envoyée — en attente de réponse'}
-                  </Text>
+                  <View style={styles.turnBannerInner}>
+                    <Ionicons
+                      name={conv.length === 0 ? 'pencil-outline' : myTurn ? 'mail-open-outline' : 'mail-outline'}
+                      size={17}
+                      color={myTurn ? '#D6C29A' : '#C9AD82'}
+                    />
+                    <Text style={styles.turnBannerText}>
+                      {conv.length === 0
+                        ? 'Écrivez la première lettre'
+                        : myTurn
+                          ? "C'est votre tour — répondez à la lettre reçue"
+                          : 'Lettre envoyée — en attente de réponse'}
+                    </Text>
+                  </View>
                 </View>
               </>
             );
@@ -1064,7 +1284,9 @@ export default function LettersScreen() {
 
           <ScrollView style={styles.messagesContainer}>
             {selectedMatch &&
-              getConversation(selectedMatch).map((letter) => {
+              [...getConversation(selectedMatch)]
+                .sort((a, b) => b.createdAt - a.createdAt)
+                .map((letter, index) => {
                 const isOwn =
                   letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
                 const otherName = getOtherName(selectedMatch);
@@ -1076,6 +1298,8 @@ export default function LettersScreen() {
                     isOwn={isOwn}
                     otherName={otherName}
                     formatTime={formatTime}
+                    onPress={() => setReadingLetter({ letter, isOwn })}
+                    isLatest={index === 0}
                   />
                 );
               })}
@@ -1099,25 +1323,157 @@ export default function LettersScreen() {
             )}
           </ScrollView>
 
-          <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-            <TextInput
-              style={styles.input}
-              placeholder={selectedMatch?.canSend ? 'Écrivez votre lettre...' : "En attente de réponse..."}
-              placeholderTextColor="#8B6F47"
-              value={newMessage}
-              onChangeText={setNewMessage}
-              multiline
-              editable={selectedMatch?.canSend ?? false}
-            />
-            <TouchableOpacity
-              style={[styles.sendBtn, (!(selectedMatch?.canSend) || isSending) && styles.sendBtnDisabled]}
-              onPress={handleSend}
-              disabled={!(selectedMatch?.canSend) || isSending}
-            >
-              <Text style={styles.sendBtnText}>➤</Text>
-            </TouchableOpacity>
-          </View>
+          {selectedMatch?.canSend ? (
+            <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+              <TextInput
+                style={styles.input}
+                placeholder="Écrire votre lettre"
+                placeholderTextColor="#8B6F47"
+                value={newMessage}
+                onChangeText={setNewMessage}
+                multiline
+                editable
+              />
+              <View style={styles.composerFooter}>
+                <Text style={[styles.wordCounter, wordCount > MAX_LETTER_WORDS && styles.wordCounterOver]}>
+                  {wordCount} / {MAX_LETTER_WORDS} mots
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.reviewBtn,
+                    (!newMessage.trim() || wordCount > MAX_LETTER_WORDS) && styles.reviewBtnDisabled,
+                  ]}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setShowLetterPreview(true);
+                  }}
+                  disabled={!newMessage.trim() || wordCount > MAX_LETTER_WORDS}
+                >
+                  <Text style={styles.reviewBtnText}>Voir l’aperçu</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.waitingComposer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+              <View style={styles.waitingComposerBar}>
+                <Text style={styles.waitingComposerText} numberOfLines={1}>
+                  En attente de la prochaine lettre de {selectedMatch ? getOtherName(selectedMatch) : ''}
+                </Text>
+                <Ionicons name="paper-plane-outline" size={22} color="#B4A28A" />
+              </View>
+              <Text style={styles.waitingWordCounter}>0 / {MAX_LETTER_WORDS} mots</Text>
+            </View>
+          )}
 
+
+
+          {/* ── Aperçu/relecture dans LA MÊME modal native.
+              iOS ne présente pas fiablement une 2e Modal par-dessus showCompose. ── */}
+          {showLetterPreview && (
+            <View style={[styles.previewOverlay, { paddingTop: insets.top }]}>
+              <View style={styles.previewHeader}>
+                <TouchableOpacity
+                  onPress={() => setShowLetterPreview(false)}
+                  disabled={isSending}
+                >
+                  <Text style={styles.closeText}>← Modifier</Text>
+                </TouchableOpacity>
+                <Text style={styles.previewHeaderTitle}>Aperçu de votre lettre</Text>
+                <View style={{ width: 72 }} />
+              </View>
+
+              <View style={styles.previewBody}>
+                <LetterPaginatedView
+                  content={newMessage}
+                  signatureName={currentUser?.pseudo || currentUser?.name || ''}
+                  dateLabel={
+                    new Date().toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'short',
+                    }).replace('.', '') +
+                    ' · ' +
+                    new Date().toLocaleTimeString('fr-FR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  }
+                />
+              </View>
+
+              <Text style={styles.previewReminder}>
+                Après envoi, vous devrez attendre la prochaine lettre
+                {selectedMatch ? ` de ${getOtherName(selectedMatch)}` : ''}.
+              </Text>
+
+              <View style={[styles.previewActions, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+                <TouchableOpacity
+                  style={styles.previewEditBtn}
+                  onPress={() => setShowLetterPreview(false)}
+                  disabled={isSending}
+                >
+                  <Text style={styles.previewEditBtnText}>Modifier</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.previewSendBtn, isSending && styles.reviewBtnDisabled]}
+                  disabled={isSending}
+                  onPress={async () => {
+                    const sent = await handleSend();
+                    if (sent) setShowLetterPreview(false);
+                  }}
+                >
+                  <Text style={styles.previewSendBtnText}>
+                    {isSending ? 'Envoi…' : 'Envoyer la lettre'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {!!readingLetter && (
+            <View style={[styles.previewOverlay, { paddingTop: insets.top }]}>
+              <View style={styles.previewHeader}>
+                <TouchableOpacity onPress={() => setReadingLetter(null)}>
+                  <Text style={styles.closeText}>← Retour</Text>
+                </TouchableOpacity>
+                <Text style={styles.previewHeaderTitle}>
+                  {readingLetter?.isOwn
+                    ? 'Ta lettre'
+                    : selectedMatch
+                      ? `Lettre de ${getOtherName(selectedMatch)}`
+                      : ''}
+                </Text>
+                <View style={{ width: 60 }} />
+              </View>
+
+              <View style={styles.previewBody}>
+                {readingLetter && (
+                  <LetterPaginatedView
+                    content={readingLetter.letter.content}
+                    signatureName={
+                      readingLetter.isOwn
+                        ? currentUser?.pseudo || currentUser?.name || ''
+                        : selectedMatch
+                          ? getOtherName(selectedMatch)
+                          : ''
+                    }
+                    dateLabel={
+                      new Date(readingLetter.letter.createdAt)
+                        .toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                        })
+                        .replace('.', '') +
+                      ' · ' +
+                      new Date(readingLetter.letter.createdAt).toLocaleTimeString('fr-FR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    }
+                  />
+                )}
+              </View>
+            </View>
+          )}
 
           {envAnimVisible && (
             <View style={styles.envAnimOverlay}>
@@ -1506,44 +1862,46 @@ export default function LettersScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F4ECD8' },
   header: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 13,
     borderBottomWidth: 0,
     backgroundColor: '#2C1A0E',
   },
   headerKicker: {
-    fontSize: 10,
-    letterSpacing: 3,
+    fontSize: 9.5,
+    letterSpacing: 3.2,
     color: '#B87333',
     fontWeight: '700',
     marginBottom: 4,
   },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: '#F0D98C' },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#F0D98C' },
   headerSubtitle: {
     fontSize: 12,
-    color: '#A08870',
-    marginTop: 4,
+    color: '#B7A28B',
+    marginTop: 3,
     fontStyle: 'italic',
   },
 
   tabsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#C4A882',
-    backgroundColor: '#2C1A0E',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#D8C9B3',
+    backgroundColor: '#F4ECD8',
   },
   tab: {
     flex: 1,
     paddingVertical: 9,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 12,
     marginHorizontal: 3,
+    backgroundColor: '#EDE2D0',
   },
-  tabActive: { backgroundColor: '#8B2E3C' },
-  tabText: { fontSize: 12, fontWeight: '600', color: '#A08870' },
-  tabTextActive: { color: '#FFF' },
+  tabActive: { backgroundColor: '#3A2415' },
+  tabText: { fontSize: 11.5, fontWeight: '600', color: '#8B735D' },
+  tabTextActive: { color: '#F0D98C' },
 
   scrollView: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 160 },
@@ -1630,25 +1988,21 @@ const styles = StyleSheet.create({
   duelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEFAF0',
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: '#F8F1E5',
+    borderRadius: 13,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    borderWidth: 1.5,
-    borderColor: '#B8956A',
-    shadowColor: '#5A3A1A',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 4,
+    marginTop: 10,
+    marginBottom: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#D7C5AA',
   },
-  duelBtnEmoji: { fontSize: 26, marginRight: 12 },
+  duelBtnEmoji: { fontSize: 19, marginRight: 10 },
   duelBtnTextWrap: { flex: 1, minWidth: 0 },
-  duelBtnTitle: { color: '#2C1A0E', fontSize: 16, fontWeight: '800' },
-  duelBtnSubtitle: { color: '#9A7040', fontSize: 12, marginTop: 3 },
-  duelBtnArrow: { fontSize: 14, color: '#7A1A1A', marginLeft: 8 },
+  duelBtnTitle: { color: '#3A2818', fontSize: 13.5, fontWeight: '700' },
+  duelBtnSubtitle: { color: '#9A7A55', fontSize: 10.5, marginTop: 2 },
+  duelBtnArrow: { fontSize: 11, color: '#8B2E3C', marginLeft: 8 },
 
   journalSectionTitle: {
     fontSize: 13,
@@ -1671,6 +2025,81 @@ const styles = StyleSheet.create({
   },
 
   modalContainer: { flex: 1, backgroundColor: '#F4ECD8' },
+  previewOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    elevation: 100,
+    backgroundColor: '#F4ECD8',
+  },
+  previewContainer: { flex: 1, backgroundColor: '#F4ECD8' },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#C4A882',
+    backgroundColor: '#2C1A0E',
+  },
+  previewHeaderTitle: { fontSize: 15, fontWeight: '700', color: '#F0D98C', letterSpacing: 0.3 },
+  previewBody: {
+    flex: 1,
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 10,
+    backgroundColor: '#FFFDF8',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#D8C7AE',
+    overflow: 'hidden',
+    shadowColor: '#5A3A1A',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  previewReminder: {
+    fontSize: 11,
+    color: '#8B6F47',
+    textAlign: 'center',
+    paddingHorizontal: 28,
+    paddingBottom: 10,
+    lineHeight: 15,
+  },
+  previewActions: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+  },
+  previewEditBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 13,
+    alignItems: 'center',
+    backgroundColor: '#E7DCCB',
+    borderWidth: 1,
+    borderColor: '#D2BE9F',
+  },
+  previewEditBtnText: { color: '#5A3A1A', fontWeight: '700', fontSize: 14 },
+  previewSendBtn: {
+    flex: 2,
+    paddingVertical: 13,
+    borderRadius: 13,
+    alignItems: 'center',
+    backgroundColor: '#8B2E3C',
+    shadowColor: '#8B2E3C',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 7,
+    elevation: 3,
+  },
+  previewSendBtnText: { color: '#F0D98C', fontWeight: '700', fontSize: 14 },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1685,29 +2114,138 @@ const styles = StyleSheet.create({
   modalTitleBtn:  { flex: 1, alignItems: 'center' },
   modalTitle:     { fontSize: 17, fontWeight: '700', color: '#F0D98C', letterSpacing: 0.3 },
   modalTitleHint: { fontSize: 10, color: '#B87333', marginTop: 2, letterSpacing: 0.5 },
-  messagesContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
+  correspondenceSubtitle: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#F8F1E5',
+  },
+  correspondenceSubtitleText: {
+    fontSize: 12,
+    color: '#9A7040',
+    letterSpacing: 0.3,
+  },
+  composeTabs: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 10,
+    backgroundColor: '#EDE3D2',
+    borderRadius: 14,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#E1D3BE',
+  },
+  composeTab: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composeTabActive: {
+    backgroundColor: '#3A2415',
+  },
+  composeTabInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  composeTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#5A3A1A',
+  },
+  composeTabTextActive: {
+    color: '#F0D98C',
+  },
+  composeTabTextDisabled: {
+    opacity: 0.38,
+  },
+  messagesContainer: { flex: 1, paddingHorizontal: 15, paddingTop: 13, paddingBottom: 16 },
 
   startConv: { alignItems: 'center', paddingVertical: 60 },
   startEmoji: { fontSize: 50, marginBottom: 12 },
   startText: { fontSize: 16, color: '#9A7040' },
-  inputContainer: {
+  waitingComposer: {
+    paddingHorizontal: 15,
+    paddingTop: 10,
+    backgroundColor: '#F4ECD8',
+    borderTopWidth: 0,
+  },
+  waitingComposerBar: {
+    minHeight: 52,
+    borderRadius: 11,
+    backgroundColor: '#DED2C2',
+    paddingHorizontal: 15,
     flexDirection: 'row',
-    padding: 12,
-    backgroundColor: '#2C1A0E',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 0,
+  },
+  waitingComposerText: {
+    flex: 1,
+    fontSize: 12.5,
+    color: '#948574',
+  },
+  waitingWordCounter: {
+    marginTop: 7,
+    fontSize: 11.5,
+    color: '#7F674E',
+  },
+  inputContainer: {
+    flexDirection: 'column',
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    backgroundColor: '#F3EAD9',
     borderTopWidth: 1,
-    borderTopColor: '#5A3A1A',
+    borderTopColor: '#D8C7AE',
+    gap: 9,
+  },
+  composerFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
+  },
+  wordCounter: {
+    fontSize: 12,
+    color: '#8B6F47',
+    letterSpacing: 0.2,
+  },
+  wordCounterOver: {
+    color: '#E07856',
+    fontWeight: '700',
+  },
+  reviewBtn: {
+    minWidth: 126,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: '#8B2E3C',
+    alignItems: 'center',
+  },
+  reviewBtnDisabled: {
+    backgroundColor: '#5A3A1A',
+    opacity: 0.6,
+  },
+  reviewBtnText: {
+    color: '#F0D98C',
+    fontWeight: '700',
+    fontSize: 13,
   },
   input: {
     flex: 1,
-    backgroundColor: '#FEFAF0',
-    borderRadius: 12,
+    minHeight: 50,
+    backgroundColor: '#FFFDF8',
+    borderRadius: 14,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
     fontSize: 15,
-    borderWidth: 1.5,
-    borderColor: '#B8956A',
-    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: '#CBB18B',
+    maxHeight: 112,
     color: '#2C1A0E',
   },
   sendBtn: {
@@ -1818,8 +2356,7 @@ const styles = StyleSheet.create({
   },
   reportModalTitle: { fontSize: 16, fontWeight: '700', color: '#2C1A0E' },
   reportModalLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 12,    fontWeight: '600',
     color: '#3A2818',
     marginTop: 10,
     marginBottom: 6,
@@ -1890,14 +2427,14 @@ const styles = StyleSheet.create({
 
   turnBanner: {
     paddingHorizontal: 16,
-    paddingVertical: 9,
+    paddingVertical: 7,
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#5A3A1A',
+    justifyContent: 'center',
+    borderBottomWidth: 0,
   },
   turnBannerMine: { backgroundColor: '#1A2E1A' },
-  turnBannerWait: { backgroundColor: '#2A1A0A' },
-  turnBannerText: { fontSize: 13, fontWeight: '600', color: '#C4A882' },
+  turnBannerWait: { backgroundColor: '#2C1A0E' },
+  turnBannerText: { fontSize: 12.5, fontWeight: '600', color: '#D1B98F' },
 
   journalModalBg: {
     flex: 1,
