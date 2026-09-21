@@ -1547,6 +1547,23 @@ export default function SalonScreen() {
               </View>
             );
           })}
+          {Array.from({ length: Math.max(0, 4 - participants.length) }).map((_, index) => (
+            <View key={`empty-portrait-${index}`} style={styles.participantItem}>
+              <View
+                style={[
+                  styles.emptyParticipantCircle,
+                  {
+                    width: avatarSizePortrait,
+                    height: avatarSizePortrait,
+                    borderRadius: avatarSizePortrait / 2,
+                  },
+                ]}
+              >
+                <Text style={styles.emptyParticipantIcon}>＋</Text>
+                <Text style={styles.emptyParticipantText}>Place libre</Text>
+              </View>
+            </View>
+          ))}
         </View>
       </View>
 
@@ -1706,6 +1723,23 @@ export default function SalonScreen() {
                   }}
                   isSelected={selectedPlayer?.id === p.id}
                 />
+              </View>
+            ))}
+            {Array.from({ length: Math.max(0, 4 - participants.length) }).map((_, index) => (
+              <View key={`empty-landscape-${index}`} style={styles.avatarGridItem}>
+                <View
+                  style={[
+                    styles.emptyParticipantCircle,
+                    {
+                      width: avatarSizeLandscape,
+                      height: avatarSizeLandscape,
+                      borderRadius: avatarSizeLandscape / 2,
+                    },
+                  ]}
+                >
+                  <Text style={styles.emptyParticipantIcon}>＋</Text>
+                  <Text style={styles.emptyParticipantText}>Place libre</Text>
+                </View>
               </View>
             ))}
           </View>
@@ -2291,6 +2325,29 @@ const styles = StyleSheet.create({
   },
   participantSelected: {
     backgroundColor: 'rgba(102, 126, 234, 0.15)',
+  },
+  emptyParticipantCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(93,64,55,0.55)',
+    backgroundColor: 'rgba(255,255,255,0.38)',
+    paddingHorizontal: 4,
+  },
+  emptyParticipantIcon: {
+    fontSize: 18,
+    lineHeight: 20,
+    color: '#7A6A5A',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  emptyParticipantText: {
+    fontSize: 9,
+    lineHeight: 11,
+    color: '#5D4037',
+    fontWeight: '700',
+    textAlign: 'center',
   },
   selectedHint: {
     textAlign: 'center',
