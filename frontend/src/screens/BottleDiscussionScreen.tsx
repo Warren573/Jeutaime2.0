@@ -213,18 +213,32 @@ export default function BottleDiscussionScreen() {
         </View>
 
         {/* La lettre reçue reste visible. En réponse, on affiche un mini-parchemin complet. */}
-        <View style={[styles.parchmentWrapper, canReply && styles.parchmentWrapperReply]}>
-          {canReply && (
+        <View
+          style={[
+            styles.parchmentWrapper,
+            canReply && styles.parchmentWrapperReply,
+            isKeyboardVisible && styles.parchmentWrapperKeyboard,
+          ]}
+        >
+          {canReply && !isKeyboardVisible && (
             <Text style={styles.receivedLabel}>LETTRE REÇUE</Text>
           )}
-          <BottleParchmentCard
-            content={bottleState.latestLetter.content}
-            compact={canReply}
-          />
+          {!isKeyboardVisible && (
+            <BottleParchmentCard
+              content={bottleState.latestLetter.content}
+              compact={canReply}
+            />
+          )}
         </View>
 
         {/* Contenu avec padding */}
-        <View style={[styles.mainScroll, canReply && styles.mainScrollReply]}>
+        <View
+          style={[
+            styles.mainScroll,
+            canReply && styles.mainScrollReply,
+            isKeyboardVisible && styles.mainScrollKeyboard,
+          ]}
+        >
           {/* Message d'erreur ou feedback */}
           {error && (
             <View style={styles.errorBox}>
@@ -234,7 +248,7 @@ export default function BottleDiscussionScreen() {
 
           {/* Titre de réponse, plus compact que l'ancien bandeau vert */}
           {canReply && !isSending && (
-            <View style={styles.replyHeading}>
+            <View style={[styles.replyHeading, isKeyboardVisible && styles.replyHeadingKeyboard]}>
               <Text style={styles.replyHeadingIcon}>🪶</Text>
               <View style={styles.replyHeadingCopy}>
                 <Text style={styles.replyHeadingTitle}>Répondre à cette lettre</Text>
@@ -277,7 +291,7 @@ export default function BottleDiscussionScreen() {
             </View>
 
             {/* Compteur + bouton Envoyer pleine largeur */}
-            <View style={styles.sendFooter}>
+            <View style={[styles.sendFooter, isKeyboardVisible && styles.sendFooterKeyboard]}>
               <Text
                 style={[styles.charCount, charRemaining < 50 && styles.charCountWarning]}
               >
@@ -418,6 +432,9 @@ const styles = StyleSheet.create({
   mainScrollReply: {
     flex: 0,
   },
+  mainScrollKeyboard: {
+    paddingTop: 0,
+  },
   parchmentWrapper: {
     marginVertical: 20,
     width: '100%',
@@ -427,6 +444,12 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     paddingHorizontal: 16,
     alignItems: 'center',
+  },
+  parchmentWrapperKeyboard: {
+    height: 0,
+    marginTop: 0,
+    marginBottom: 0,
+    overflow: 'hidden',
   },
   receivedLabel: {
     fontSize: 9.5,
@@ -440,6 +463,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
     marginBottom: 4,
+  },
+  replyHeadingKeyboard: {
+    paddingTop: 2,
+    paddingBottom: 2,
+    marginBottom: 0,
   },
   replyHeadingIcon: {
     fontSize: 22,
@@ -513,6 +541,7 @@ const styles = StyleSheet.create({
   },
   bottomControlsKeyboard: {
     paddingTop: 2,
+    paddingBottom: 2,
   },
   messageInput: {
     minHeight: 120,
@@ -538,6 +567,10 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 8,
     backgroundColor: 'transparent',
+  },
+  sendFooterKeyboard: {
+    paddingTop: 4,
+    paddingBottom: 6,
   },
   charCount: {
     fontSize: 11,
