@@ -30,7 +30,7 @@ export default function DuelCreateScreen() {
   const params = useLocalSearchParams<{ matchId?: string }>();
   const directMatchId = typeof params.matchId === 'string' ? params.matchId : '';
   const insets = useSafeAreaInsets();
-  const { matches, currentUser, matchPartners, loadMatches } = useStore();
+  const { apiMatches, loadMatches } = useStore();
 
   const [duels, setDuels] = useState<PrivateDuelDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,20 +40,14 @@ export default function DuelCreateScreen() {
   const directLaunchAttempted = useRef<string | null>(null);
 
   const contacts = useMemo<Contact[]>(() => {
-    if (!currentUser?.id) return [];
-
-    return matches
-      .filter((m) => m.status === 'active' || m.status === 'pending')
-      .map((m) => {
-        const otherUserId = m.userAId === currentUser.id ? m.userBId : m.userAId;
-        const partner = matchPartners[otherUserId];
-        return {
-          id: otherUserId,
-          matchId: m.id,
-          name: partner?.pseudo ?? 'Contact',
-        }
-      });
-  }, [matches, currentUser?.id, matchPartners]);
+    return apiMatches
+      .filter((m) => m.status === 'ACTIVE' || m.status === 'PENDING')
+      .map((m) => ({
+        id: m.otherUserId,
+        matchId: m.id,
+        name: m.otherProfile?.pseudo ?? 'Contact',
+      }));
+  }, [apiMatches]);
 
   const load = useCallback(async () => {
     try {
