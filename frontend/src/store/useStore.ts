@@ -495,8 +495,34 @@ export const useStore = create<StoreState>()(
 
       login: async (email, password) => {
         const result = await apiLogin({ email, password });
+
+        // Toujours repartir d'un état de compte vierge avant de charger
+        // le nouveau compte. Sinon, si /auth/me échoue, l'ancien currentUser
+        // peut rester affiché alors que les nouveaux tokens sont déjà actifs.
+        set({
+          currentUser: null,
+          isAuthenticated: false,
+          matchPartners: {},
+          apiMatches: [],
+          matches: [],
+          letters: [],
+          lettersByMatch: {},
+          questionsByMatch: {},
+          notifications: [],
+          unreadNotificationsCount: 0,
+          likedProfiles: [],
+          dislikedProfiles: [],
+        });
+
         await saveSession(result.tokens);
         await get().hydrateFromApi();
+
+        // Un login n'est considéré comme terminé que si le profil du compte
+        // associé aux nouveaux tokens a bien été chargé.
+        if (!get().currentUser?.id) {
+          await clearApiSession();
+          throw new Error("Impossible de charger le compte connecté. Réessaie.");
+        }
       },
 
       register: async (payload) => {
