@@ -612,8 +612,8 @@ const lcStyles = StyleSheet.create({
   envelopeFlap: {
     width: 0,
     height: 0,
-    borderLeftWidth: 150,
-    borderRightWidth: 150,
+    borderLeftWidth: (SCREEN_W - 30) / 2,
+    borderRightWidth: (SCREEN_W - 30) / 2,
     borderTopWidth: 72,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
