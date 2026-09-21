@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Pressable,
   ScrollView,
@@ -14,12 +15,17 @@ import ChoiceButton from '../components/ChoiceButton';
 import {
   DUEL_CHOICES,
   generateJournalMessage,
-  getRandomChoice,
-  getResult,
   type DuelChoice,
   type DuelResult,
 } from '../logic/duelEngine';
-import { useStore } from '../store/useStore';
+import {
+  getPrivateDuel,
+  listPrivateDuels,
+  rematchPrivateDuel,
+  submitPrivateDuelChoice,
+  type PrivateDuelChoice,
+  type PrivateDuelDTO,
+} from '../api/privateDuels';
 
 interface Score {
   wins: number;
@@ -27,23 +33,39 @@ interface Score {
   draws: number;
 }
 
+function toApiChoice(choice: DuelChoice): PrivateDuelChoice {
+  if (choice.key === 'rock') return 'ROCK';
+  if (choice.key === 'paper') return 'PAPER';
+  return 'SCISSORS';
+}
+
+function fromApiChoice(choice: PrivateDuelChoice | null): DuelChoice | null {
+  if (!choice) return null;
+  const key = choice === 'ROCK' ? 'rock' : choice === 'PAPER' ? 'paper' : 'scissors';
+  return DUEL_CHOICES.find((item) => item.key === key) ?? null;
+}
+
+function mapResult(result: PrivateDuelDTO['result']): DuelResult {
+  if (result === 'WIN') return 'win';
+  if (result === 'LOSE') return 'lose';
+  if (result === 'DRAW') return 'draw';
+  return 'pending';
+}
+
 export default function DuelPlayScreen() {
-  const router  = useRouter();
-  const insets  = useSafeAreaInsets();
-  const params  = useLocalSearchParams<{ opponentName: string; opponentId: string }>();
-  const { currentUser, addDuelEntry, addPoints, incrementStat } = useStore();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ duelId?: string }>();
+  const duelId = typeof params.duelId === 'string' ? params.duelId : '';
 
-  const opponentName = params.opponentName ?? 'Inconnu';
-  const playerName   = currentUser?.name ?? 'Vous';
+  const [duel, setDuel] = useState<PrivateDuelDTO | null>(null);
+  const [score, setScore] = useState<Score>({ wins: 0, losses: 0, draws: 0 });
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [rematching, setRematching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [playerChoice,   setPlayerChoice]   = useState<DuelChoice | null>(null);
-  const [opponentChoice, setOpponentChoice] = useState<DuelChoice | null>(null);
-  const [result,         setResult]         = useState<DuelResult>('pending');
-  const [score,          setScore]          = useState<Score>({ wins: 0, losses: 0, draws: 0 });
-  const [journalMsg,     setJournalMsg]     = useState('');
-  const [canPlay,        setCanPlay]        = useState(true);
-
-  const playerScale   = useRef(new Animated.Value(1)).current;
+  const playerScale = useRef(new Animated.Value(1)).current;
   const opponentScale = useRef(new Animated.Value(1)).current;
   const resultOpacity = useRef(new Animated.Value(0)).current;
 
@@ -51,61 +73,148 @@ export default function DuelPlayScreen() {
     resultOpacity.setValue(0);
     Animated.sequence([
       Animated.parallel([
-        Animated.spring(playerScale,   { toValue: 1.12, useNativeDriver: true, speed: 40 }),
+        Animated.spring(playerScale, { toValue: 1.12, useNativeDriver: true, speed: 40 }),
         Animated.spring(opponentScale, { toValue: 1.12, useNativeDriver: true, speed: 40 }),
       ]),
       Animated.parallel([
-        Animated.spring(playerScale,   { toValue: 1, useNativeDriver: true, speed: 20 }),
+        Animated.spring(playerScale, { toValue: 1, useNativeDriver: true, speed: 20 }),
         Animated.spring(opponentScale, { toValue: 1, useNativeDriver: true, speed: 20 }),
       ]),
       Animated.timing(resultOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
     ]).start();
   };
 
-  const handlePlay = (choice: DuelChoice) => {
-    if (!canPlay) {
-      // Rejouer — remettre à zéro
-      setPlayerChoice(null);
-      setOpponentChoice(null);
-      setResult('pending');
-      setJournalMsg('');
-      setCanPlay(true);
+  const refreshScore = async (current: PrivateDuelDTO) => {
+    try {
+      const all = await listPrivateDuels();
+      const resolved = all.filter(
+        (item) =>
+          item.status === 'RESOLVED' &&
+          item.opponentId === current.opponentId,
+      );
+      setScore({
+        wins: resolved.filter((item) => item.result === 'WIN').length,
+        losses: resolved.filter((item) => item.result === 'LOSE').length,
+        draws: resolved.filter((item) => item.result === 'DRAW').length,
+      });
+    } catch {
+      // Le duel reste jouable même si l'historique est temporairement indisponible.
+    }
+  };
+
+  const loadDuel = async (silent = false) => {
+    if (!duelId) {
+      setError('Duel introuvable.');
+      setLoading(false);
       return;
     }
 
-    const enemyChoice = getRandomChoice();
-    const duelResult  = getResult(choice, enemyChoice);
-
-    setPlayerChoice(choice);
-    setOpponentChoice(enemyChoice);
-    setResult(duelResult);
-    setCanPlay(false);
-
-    setScore((prev) => ({
-      wins:   prev.wins   + (duelResult === 'win'  ? 1 : 0),
-      losses: prev.losses + (duelResult === 'lose' ? 1 : 0),
-      draws:  prev.draws  + (duelResult === 'draw' ? 1 : 0),
-    }));
-
-    const msg = generateJournalMessage({
-      result: duelResult,
-      playerName,
-      opponentName,
-      playerChoice: choice,
-    });
-    setJournalMsg(msg);
-
-    // Intégration store : journal + stats + points
-    addDuelEntry({ text: msg, players: [playerName, opponentName] });
-    if (duelResult === 'win') {
-      incrementStat('gamesWon');
-      addPoints(10, 'Victoire en duel');
-    } else {
-      addPoints(2, 'Participation duel');
+    try {
+      if (!silent) setLoading(true);
+      const data = await getPrivateDuel(duelId);
+      setDuel((previous) => {
+        if (previous?.status !== 'RESOLVED' && data.status === 'RESOLVED') {
+          setTimeout(animateBattle, 0);
+        }
+        return data;
+      });
+      setError(null);
+      await refreshScore(data);
+    } catch (err: any) {
+      if (!silent) setError(err?.message || 'Impossible de charger ce duel.');
+    } finally {
+      if (!silent) setLoading(false);
     }
-
-    animateBattle();
   };
+
+  useEffect(() => {
+    setDuel(null);
+    setError(null);
+    void loadDuel(false);
+  }, [duelId]);
+
+  useEffect(() => {
+    if (!duel || duel.status !== 'PENDING') return;
+
+    const timer = setInterval(() => {
+      void loadDuel(true);
+    }, 2500);
+
+    return () => clearInterval(timer);
+  }, [duel?.id, duel?.status]);
+
+  const playerChoice = fromApiChoice(duel?.myChoice ?? null);
+  const opponentChoice = fromApiChoice(duel?.opponentChoice ?? null);
+  const result = duel ? mapResult(duel.result) : 'pending';
+
+  const pendingLabel = useMemo(() => {
+    if (!duel) return 'Chargement…';
+    if (!duel.hasPlayed) return 'Choisissez une option';
+    if (!duel.opponentHasPlayed) return `En attente de ${duel.opponentPseudo}…`;
+    return 'Résultat en cours…';
+  }, [duel]);
+
+  const journalMsg = useMemo(() => {
+    if (!duel || duel.status !== 'RESOLVED' || !playerChoice) return '';
+    return generateJournalMessage({
+      result,
+      playerName: duel.myPseudo,
+      opponentName: duel.opponentPseudo,
+      playerChoice,
+    });
+  }, [duel?.id, duel?.status, duel?.result, playerChoice?.key]);
+
+  const handlePlay = async (choice: DuelChoice) => {
+    if (!duel || duel.status !== 'PENDING' || duel.hasPlayed || submitting) return;
+
+    try {
+      setSubmitting(true);
+      setError(null);
+      const updated = await submitPrivateDuelChoice(duel.id, toApiChoice(choice));
+      setDuel(updated);
+      await refreshScore(updated);
+      if (updated.status === 'RESOLVED') animateBattle();
+    } catch (err: any) {
+      setError(err?.message || "Impossible d'enregistrer ton choix.");
+      await loadDuel(true);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRematch = async () => {
+    if (!duel || duel.status !== 'RESOLVED' || rematching) return;
+
+    try {
+      setRematching(true);
+      setError(null);
+      const next = await rematchPrivateDuel(duel.id);
+      router.replace({ pathname: '/duel/play', params: { duelId: next.id } });
+    } catch (err: any) {
+      setError(err?.message || 'Impossible de lancer la revanche.');
+    } finally {
+      setRematching(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color="#7A1A1A" />
+      </View>
+    );
+  }
+
+  if (!duel) {
+    return (
+      <View style={[styles.container, styles.center, { paddingTop: insets.top }]}>
+        <Text style={styles.errorText}>{error || 'Duel introuvable.'}</Text>
+        <Pressable style={styles.replayBtn} onPress={() => router.back()}>
+          <Text style={styles.replayText}>Retour</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -113,7 +222,6 @@ export default function DuelPlayScreen() {
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Text style={styles.back}>← Retour</Text>
@@ -122,18 +230,23 @@ export default function DuelPlayScreen() {
           <View style={{ width: 60 }} />
         </View>
 
-        {/* Carte de duel */}
+        {!!error && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
         <DuelCard
-          playerName={playerName}
-          opponentName={opponentName}
+          playerName={duel.myPseudo}
+          opponentName={duel.opponentPseudo}
           playerChoice={playerChoice}
           opponentChoice={opponentChoice}
           playerScale={playerScale}
           opponentScale={opponentScale}
           result={result}
+          pendingLabel={pendingLabel}
         />
 
-        {/* Score */}
         <View style={styles.scoreRow}>
           <View style={styles.scoreItem}>
             <Text style={styles.scoreValue}>{score.wins}</Text>
@@ -149,26 +262,41 @@ export default function DuelPlayScreen() {
           </View>
         </View>
 
-        {/* Choix */}
-        <View style={styles.choicesRow}>
-          {DUEL_CHOICES.map((choice) => (
-            <ChoiceButton
-              key={choice.key}
-              choice={choice}
-              onPress={handlePlay}
-              disabled={!canPlay}
-            />
-          ))}
-        </View>
+        {duel.status === 'PENDING' && !duel.hasPlayed && (
+          <View style={styles.choicesRow}>
+            {DUEL_CHOICES.map((choice) => (
+              <ChoiceButton
+                key={choice.key}
+                choice={choice}
+                onPress={handlePlay}
+                disabled={submitting}
+              />
+            ))}
+          </View>
+        )}
 
-        {/* Rejouer */}
-        {!canPlay && (
-          <Pressable style={styles.replayBtn} onPress={() => handlePlay(DUEL_CHOICES[0])}>
-            <Text style={styles.replayText}>🔄 Rejouer</Text>
+        {duel.status === 'PENDING' && duel.hasPlayed && (
+          <View style={styles.waitingCard}>
+            <ActivityIndicator size="small" color="#7A1A1A" />
+            <View style={styles.waitingTextWrap}>
+              <Text style={styles.waitingTitle}>Ton choix est enregistré</Text>
+              <Text style={styles.waitingText}>
+                Le choix de {duel.opponentPseudo} reste secret jusqu'à ce qu'il ou elle joue.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {duel.status === 'RESOLVED' && (
+          <Pressable style={styles.replayBtn} onPress={() => void handleRematch()} disabled={rematching}>
+            {rematching ? (
+              <ActivityIndicator size="small" color="#7A1A1A" />
+            ) : (
+              <Text style={styles.replayText}>🔄 Proposer une revanche</Text>
+            )}
           </Pressable>
         )}
 
-        {/* Journal */}
         {!!journalMsg && (
           <Animated.View style={[styles.journalCard, { opacity: resultOpacity }]}>
             <Text style={styles.journalLabel}>📰 Annonce du journal</Text>
@@ -181,44 +309,32 @@ export default function DuelPlayScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F4ECD8',
-  },
-  scroll: {
-    paddingHorizontal: 16,
-    gap: 16,
-  },
-
+  container: { flex: 1, backgroundColor: '#F4ECD8' },
+  center: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  scroll: { paddingHorizontal: 16, gap: 16 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 14,
-    paddingHorizontal: 4,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#C4A882',
     backgroundColor: '#2C1A0E',
     marginHorizontal: -16,
-    paddingHorizontal: 16,
     marginBottom: 4,
   },
-  back: {
-    color: '#F0D98C',
-    fontSize: 15,
-    fontWeight: '600',
+  back: { color: '#F0D98C', fontSize: 15, fontWeight: '600' },
+  headerTitle: { color: '#F0D98C', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
+  errorBox: {
+    backgroundColor: '#FFF0E8',
+    borderWidth: 1,
+    borderColor: '#D5A49A',
+    borderRadius: 12,
+    padding: 12,
   },
-  headerTitle: {
-    color: '#F0D98C',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-
-  scoreRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
+  errorText: { color: '#7A1A1A', fontSize: 13, textAlign: 'center' },
+  scoreRow: { flexDirection: 'row', gap: 10 },
   scoreItem: {
     flex: 1,
     backgroundColor: '#FEFAF0',
@@ -233,27 +349,27 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  scoreItemCenter: {
-    borderColor: '#C4924A',
-  },
-  scoreValue: {
-    color: '#2C1A0E',
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  scoreLabel: {
-    color: '#9A7040',
-    fontSize: 12,
-    marginTop: 4,
-  },
-
-  choicesRow: {
+  scoreItemCenter: { borderColor: '#C4924A' },
+  scoreValue: { color: '#2C1A0E', fontSize: 22, fontWeight: '800' },
+  scoreLabel: { color: '#9A7040', fontSize: 12, marginTop: 4 },
+  choicesRow: { flexDirection: 'row', gap: 10 },
+  waitingCard: {
     flexDirection: 'row',
-    gap: 10,
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FEFAF0',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#C4924A',
+    padding: 16,
   },
-
+  waitingTextWrap: { flex: 1 },
+  waitingTitle: { color: '#2C1A0E', fontSize: 14, fontWeight: '800' },
+  waitingText: { color: '#7A5C3A', fontSize: 12.5, lineHeight: 18, marginTop: 3 },
   replayBtn: {
     alignSelf: 'center',
+    minWidth: 190,
+    alignItems: 'center',
     backgroundColor: '#FEFAF0',
     paddingHorizontal: 24,
     paddingVertical: 12,
@@ -266,12 +382,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  replayText: {
-    color: '#7A1A1A',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-
+  replayText: { color: '#7A1A1A', fontSize: 14, fontWeight: '700' },
   journalCard: {
     backgroundColor: '#FEFAF0',
     borderRadius: 16,
@@ -286,16 +397,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  journalLabel: {
-    color: '#2C1A0E',
-    fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 10,
-  },
-  journalText: {
-    color: '#5A3A1A',
-    fontSize: 15,
-    lineHeight: 22,
-    fontStyle: 'italic',
-  },
+  journalLabel: { color: '#2C1A0E', fontSize: 14, fontWeight: '800', marginBottom: 10 },
+  journalText: { color: '#5A3A1A', fontSize: 15, lineHeight: 22, fontStyle: 'italic' },
 });
