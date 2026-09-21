@@ -13,7 +13,9 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
   content,
   compact = false,
 }) => {
-  const cardHeight = compact ? Math.min(width * 0.34, 150) : width * (885 / 624);
+  const compactWidth = Math.min(width * 0.46, 190);
+  const compactHeight = compactWidth * (885 / 624);
+  const cardHeight = compact ? compactHeight : width * (885 / 624);
 
   return (
     <View style={[styles.container, compact && styles.containerCompact]}>
@@ -21,11 +23,13 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
         source={PARCHMENT_BG}
         style={[
           styles.parchment,
+          compact && styles.parchmentCompact,
           {
             height: cardHeight,
+            ...(compact ? { width: compactWidth } : null),
           },
         ]}
-        resizeMode="cover"
+        resizeMode={compact ? "contain" : "cover"}
       >
         <View style={[styles.textArea, compact && styles.textAreaCompact]}>
           <Text
@@ -54,12 +58,16 @@ const styles = StyleSheet.create({
   containerCompact: {
     marginTop: 0,
     marginBottom: 8,
-    overflow: 'hidden',
+    alignItems: 'center',
+    overflow: 'visible',
   },
   parchment: {
     width: '100%',
     justifyContent: 'flex-start',
     alignItems: 'stretch',
+  },
+  parchmentCompact: {
+    alignSelf: 'center',
   },
   textArea: {
     width: '85%',
@@ -70,10 +78,10 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   textAreaCompact: {
-    width: '84%',
-    paddingTop: 34,
-    paddingBottom: 18,
-    paddingHorizontal: 20,
+    width: '74%',
+    paddingTop: 54,
+    paddingBottom: 40,
+    paddingHorizontal: 10,
   },
   message: {
     fontSize: 15,
@@ -84,7 +92,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   messageCompact: {
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 17,
   },
 });
