@@ -154,8 +154,8 @@ export default function MatchProfileScreen() {
           <TouchableOpacity activeOpacity={0.78} onPress={openOfferings} style={styles.offeringsTab}>
             <Text style={styles.offeringsTabIcon}>🎁</Text>
             <View style={styles.offeringsTabTextWrap}>
-              <Text style={styles.offeringsTabTitle}>Offrandes</Text>
-              <Text style={styles.offeringsTabSubtitle}>Déposer une attention sur son bureau</Text>
+              <Text style={styles.offeringsTabTitle}>Offrir</Text>
+              <Text style={styles.offeringsTabSubtitle}>Choisir une offrande pour ce contact</Text>
             </View>
             <Text style={styles.offeringsTabArrow}>›</Text>
           </TouchableOpacity>
