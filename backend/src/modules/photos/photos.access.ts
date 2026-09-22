@@ -33,6 +33,7 @@ export function resolvePhotoAccess(ctx: PhotoAccessContext): PhotoAccessResult {
 
   if (viewerId === ownerId) return { allowed: true, reason: "OWNER", level: 3, variant: "original" };
   if (hasBlock) return { allowed: false, reason: "BLOCKED" };
+  if (viewerIsPremium) return { allowed: true, reason: "LEVEL_3", level: 3, variant: "original" };
   if (!match) return { allowed: false, reason: "NO_MATCH" };
 
   const totalLetters = match.letterCountA + match.letterCountB;
