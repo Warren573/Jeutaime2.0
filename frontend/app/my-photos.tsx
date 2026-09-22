@@ -199,7 +199,7 @@ export default function MyPhotosScreen() {
                       key={authToken}
                       source={{ uri: primaryPhotoUrl, headers: photoHeaders }}
                       style={styles.previewPhoto}
-                      contentFit="cover"
+                      contentFit="contain"
                       cachePolicy="none"
                     />
                   </View>
@@ -226,7 +226,7 @@ export default function MyPhotosScreen() {
                   key={authToken}
                   source={{ uri: makePhotoUrl(photo.url), headers: photoHeaders }}
                   style={styles.photoThumb}
-                  contentFit="cover"
+                  contentFit="contain"
                   cachePolicy="none"
                 />
                 <View style={styles.photoMeta}>
@@ -268,8 +268,8 @@ export default function MyPhotosScreen() {
         <View style={styles.privacyNote}>
           <Text style={styles.privacyIcon}>🔒</Text>
           <Text style={styles.privacyText}>
-            Cette section est privée.{'\n'}
-            Ta photo ne sera jamais visible dès le premier regard — la relation évolue d'abord.
+            Cette section est privée.{ '\n' }
+            Dans les aperçus, l'avatar reste affiché. La photo apparaît sur le profil complet lorsqu'elle est débloquée.
           </Text>
         </View>
 
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   previewRow:       { flexDirection: 'row', gap: 16, marginBottom: 16 },
   previewBlock:     { flex: 1, alignItems: 'center' },
   previewLabel:     { fontSize: 13, fontWeight: '700', color: BROWN, marginBottom: 8 },
-  previewFrame:     { width: 90, height: 90, borderRadius: 14, borderWidth: 2, borderColor: SAND, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9F3E8' },
+  previewFrame:     { width: 96, height: 120, borderRadius: 14, borderWidth: 2, borderColor: SAND, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9F3E8' },
   previewPhoto:     { width: '100%', height: '100%' },
   previewEmpty:     { justifyContent: 'center', borderStyle: 'dashed', borderColor: '#C8B8A0' },
   previewEmptyIcon: { fontSize: 28, marginBottom: 4 },
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
 
 
   photoRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  photoThumb:  { width: 80, height: 80, borderRadius: 12, marginRight: 14 },
+  photoThumb:  { width: 88, height: 110, borderRadius: 12, marginRight: 14, backgroundColor: '#F9F3E8' },
   photoMeta:   { flex: 1, gap: 8 },
   mainBadge:   { backgroundColor: '#E8F8ED', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start' },
   mainBadgeText: { fontSize: 12, color: '#2E7D32', fontWeight: '700' },
