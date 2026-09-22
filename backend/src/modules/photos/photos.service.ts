@@ -190,22 +190,33 @@ export async function uploadPhoto(params: {
     throw new BadRequestError("Fichier vide");
   }
 
-  // Vérifier la limite par user
-  const current = await prisma.photo.count({ where: { userId } });
-  if (current >= MAX_PHOTOS_PER_USER) {
+  // Une seule photo de profil est autorisée. Un nouvel upload remplace
+  // l'ancienne uniquement après que le nouveau fichier a été traité avec succès.
+  const existingPhotos = await prisma.photo.findMany({
+    where: { userId },
+    select: {
+      id: true,
+      originalPath: true,
+      blurredPath: true,
+      blurMediumPath: true,
+    },
+  });
+  const replacingSinglePhoto = MAX_PHOTOS_PER_USER === 1 && existingPhotos.length >= 1;
+  if (!replacingSinglePhoto && existingPhotos.length >= MAX_PHOTOS_PER_USER) {
     throw new UnprocessableError(
-      `Limite atteinte : ${MAX_PHOTOS_PER_USER} photos maximum par profil`,
+      `Limite atteinte : ${MAX_PHOTOS_PER_USER} photo maximum par profil`,
     );
   }
 
-  // Étape 1 : créer la row avec paths placeholder pour obtenir le cuid
+  // Étape 1 : créer la nouvelle row avec paths placeholder pour obtenir le cuid.
+  // En remplacement, l'ancienne reste intacte jusqu'à la réussite du traitement.
   const created = await prisma.photo.create({
     data: {
       userId,
       originalPath: "__pending__",
       blurredPath: "__pending__",
-      position: current, // append à la fin
-      isPrimary: current === 0, // 1ère photo = primary
+      position: 0,
+      isPrimary: true,
     },
     select: {
       id: true,
@@ -236,6 +247,19 @@ export async function uploadPhoto(params: {
         createdAt: true,
       },
     });
+    if (replacingSinglePhoto) {
+      const oldIds = existingPhotos.map((photo) => photo.id);
+      await prisma.photo.deleteMany({
+        where: { id: { in: oldIds }, userId },
+      });
+      await Promise.all(
+        existingPhotos.map((photo) =>
+          deletePhotoFiles(photo.originalPath, photo.blurredPath, photo.blurMediumPath)
+            .catch(() => undefined),
+        ),
+      );
+    }
+
     return toDto(updated, "original");
   } catch (e) {
     // Étape 4 : rollback si sharp ou update échoue
