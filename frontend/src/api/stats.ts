@@ -5,6 +5,10 @@ export interface CommunityStatsDTO {
   lettersSent: number;
   giftsSent: number;
   activeMembers: number;
+  registrationsToday: number;
+  activeToday: number;
+  registrations7d: number;
+  active7d: number;
 }
 
 export interface DailyStatsDTO {
@@ -14,7 +18,14 @@ export interface DailyStatsDTO {
   grimacesSentToday: number;
   offeringsSentToday: number;
   duelsPlayedToday: number;
+  duelsResolvedToday: number;
+  duelsDeclinedToday: number;
+  duelsExpiredToday: number;
   lettersSentToday: number;
+  registrationsToday: number;
+  activeToday: number;
+  registrations7d: number;
+  active7d: number;
 }
 
 export interface RefugeStatsDTO {
