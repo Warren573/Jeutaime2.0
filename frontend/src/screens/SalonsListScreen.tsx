@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
+  Image,
   ImageBackground,
   useWindowDimensions,
 } from 'react-native';
@@ -22,6 +23,16 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { AppBackButton } from '../components/AppBackButton';
 
 const { width } = Dimensions.get('window');
+
+const SALON_UI_ICONS: Record<string, any> = {
+  piscine: require('../../assets/ui-icons/pool.png'),
+  cafe_paris: require('../../assets/ui-icons/coffee.png'),
+  pirates: require('../../assets/ui-icons/pirate.png'),
+  theatre: require('../../assets/ui-icons/theatre.png'),
+  cocktails: require('../../assets/ui-icons/cocktail.png'),
+  metal: require('../../assets/ui-icons/metal.png'),
+  psy: require('../../assets/ui-icons/psy.png'),
+};
 
 const KIND_TO_SLUG: Record<string, string> = {
   'PISCINE': 'piscine',
@@ -178,7 +189,7 @@ export default function SalonsListScreen() {
           const bgImage = getSalonCardImage(salon.id);
           const cardContent = (
             <View style={styles.salonContent}>
-              <View style={styles.salonIconWrap}><Text style={styles.salonIcon}>{salon.icon}</Text></View>
+              <View style={styles.salonIconWrap}>{SALON_UI_ICONS[salon.id]?<Image source={SALON_UI_ICONS[salon.id]} style={styles.salonIconImage} resizeMode="contain"/>:<Text style={styles.salonIcon}>{salon.icon}</Text>}</View>
               <View style={styles.salonInfo}>
                 <Text style={styles.salonName}>{salon.name}</Text>
                 <Text style={styles.salonDesc}>{salon.desc}</Text>
@@ -238,6 +249,7 @@ const styles = StyleSheet.create({
   salonContent: { flexDirection: 'row', alignItems: 'center' },
   salonIconWrap: { width: 48, height: 48, borderRadius: 15, marginRight: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,248,231,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' },
   salonIcon: { fontSize: 29 },
+  salonIconImage: { width: 36, height: 36 },
   salonInfo: { flex: 1, minWidth: 0 },
   salonName: { fontSize: 18, lineHeight: 22, fontWeight: '800', color: '#FFF9EF', textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   salonDesc: { fontSize: 12.5, lineHeight: 17, color: 'rgba(255,249,239,0.9)', marginTop: 3 },
