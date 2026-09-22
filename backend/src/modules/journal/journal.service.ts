@@ -55,6 +55,8 @@ export async function getTodayEdition(userId: string) {
     const challenger = name(meta.challengerId);
     const opponent = name(meta.opponentId);
     const common = name(meta.commonUserId);
+    const otherParticipant =
+      meta.challengerId === userId ? opponent : challenger;
 
     let text = "Un événement a eu lieu aujourd'hui.";
 
@@ -69,9 +71,9 @@ export async function getTodayEdition(userId: string) {
         text = `${challenger} et ${opponent} se sont lancé un duel autour de toi.`;
         break;
       case "DUEL_RESOLVED":
-        if (!meta.winnerId) text = `Ton duel avec ${challenger === name(userId) ? opponent : challenger} s'est terminé sur une égalité.`;
-        else if (meta.winnerId === userId) text = `Tu as remporté ton duel.`;
-        else text = `Ton duel s'est terminé par une défaite.`;
+        if (!meta.winnerId) text = `Ton duel avec ${otherParticipant} s'est terminé sur une égalité.`;
+        else if (meta.winnerId === userId) text = `Tu as remporté ton duel contre ${otherParticipant}.`;
+        else text = `Ton duel contre ${otherParticipant} s'est terminé par une défaite.`;
         break;
       case "DUEL_AROUND_YOU_RESOLVED":
         text = meta.winnerId
