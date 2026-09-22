@@ -47,6 +47,11 @@ export const ChangePasswordSchema = z.object({
   newPassword: StrongPasswordSchema,
 });
 
+export const ChangeEmailSchema = z.object({
+  currentPassword: z.string().min(1, "Mot de passe actuel requis"),
+  newEmail: z.string().email("Email invalide").max(255).toLowerCase(),
+});
+
 export const DeactivateAccountSchema = z.object({
   currentPassword: z.string().min(1, "Mot de passe requis"),
 });
@@ -60,5 +65,6 @@ export type RegisterDto = z.infer<typeof RegisterSchema>;
 export type LoginDto = z.infer<typeof LoginSchema>;
 export type RefreshDto = z.infer<typeof RefreshSchema>;
 export type ChangePasswordDto = z.infer<typeof ChangePasswordSchema>;
+export type ChangeEmailDto = z.infer<typeof ChangeEmailSchema>;
 export type DeactivateAccountDto = z.infer<typeof DeactivateAccountSchema>;
 export type DeleteAccountDto = z.infer<typeof DeleteAccountSchema>;
