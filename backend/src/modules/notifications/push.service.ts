@@ -66,7 +66,7 @@ export async function sendPushToUser(params: {
 }): Promise<void> {
   const settings = await prisma.userSettings.findUnique({
     where: { userId: params.userId },
-    select: { notifPush: true },
+    select: { notifPush: true, soundEnabled: true },
   });
 
   // Le réglage est créé à l'inscription et vaut true par défaut. Si une
@@ -86,7 +86,7 @@ export async function sendPushToUser(params: {
     title: params.title,
     body: params.body,
     data: params.data ?? {},
-    sound: "default",
+    sound: settings?.soundEnabled === false ? null : "default",
     priority: "high",
     channelId: "default",
   }));
@@ -164,7 +164,7 @@ export async function sendDailyEditionPush(params: {
       userId: true,
       user: {
         select: {
-          settings: { select: { notifPush: true } },
+          settings: { select: { notifPush: true, soundEnabled: true } },
         },
       },
     },
@@ -179,7 +179,7 @@ export async function sendDailyEditionPush(params: {
       title: params.title,
       body: params.body,
       data: { route: "/journal", editionKey: params.editionKey },
-      sound: "default",
+      sound: row.user.settings?.soundEnabled === false ? null : "default",
       priority: "high",
       channelId: "default",
     }));
