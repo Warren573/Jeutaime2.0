@@ -873,6 +873,7 @@ model PushToken {
   userId    String
   token     String   @unique
   platform  String // 'ios' | 'android' | 'web'
+  lastDailyEditionKey String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
