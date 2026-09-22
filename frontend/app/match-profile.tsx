@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -35,6 +36,7 @@ export default function MatchProfileScreen() {
   const insets = useSafeAreaInsets();
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('auth_token').then(setAuthToken);
@@ -113,16 +115,28 @@ export default function MatchProfileScreen() {
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
               {hasUnlockedPhoto ? (
-                <Image
-                  key={authToken ?? 'notoken'}
-                  source={{
-                    uri: makePhotoUrl(match.photoUrl as string),
-                    headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-                  }}
-                  style={styles.photoImg}
-                  contentFit="cover"
-                  cachePolicy="none"
-                />
+                <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.photoPager}>
+                  <TouchableOpacity activeOpacity={0.9} onPress={() => setPhotoOpen(true)}>
+                    <Image
+                      key={authToken ?? 'notoken'}
+                      source={{
+                        uri: makePhotoUrl(match.photoUrl as string),
+                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+                      }}
+                      style={styles.photoImg}
+                      contentFit="cover"
+                      cachePolicy="none"
+                    />
+                  </TouchableOpacity>
+                  <View style={styles.photoPlaceholder}>
+                    <Avatar
+                      size={106}
+                      {...(partner?.avatarConfig && Object.keys(partner.avatarConfig).length > 0
+                        ? (partner.avatarConfig as any)
+                        : DEFAULT_AVATAR)}
+                    />
+                  </View>
+                </ScrollView>
               ) : (
                 <View style={styles.photoPlaceholder}>
                   <Avatar
@@ -248,6 +262,24 @@ export default function MatchProfileScreen() {
           </View>
         </View>
       </ScrollView>
+      {hasUnlockedPhoto && (
+        <Modal visible={photoOpen} transparent animationType="fade" onRequestClose={() => setPhotoOpen(false)}>
+          <View style={styles.photoModalBackdrop}>
+            <TouchableOpacity style={styles.photoModalClose} onPress={() => setPhotoOpen(false)}>
+              <Text style={styles.photoModalCloseText}>✕</Text>
+            </TouchableOpacity>
+            <Image
+              source={{
+                uri: makePhotoUrl(match.photoUrl as string),
+                headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+              }}
+              style={styles.photoModalImage}
+              contentFit="contain"
+              cachePolicy="none"
+            />
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -282,6 +314,7 @@ const styles = StyleSheet.create({
     position: 'absolute', top: -6, alignSelf: 'center', width: 38, height: 14,
     backgroundColor: '#E7D5BF', borderRadius: 2, transform: [{ rotate: '-8deg' }], zIndex: 3,
   },
+  photoPager: { width: 106, height: 126, borderRadius: 6 },
   photoImg: { width: 106, height: 126, borderRadius: 6 },
   photoPlaceholder: {
     width: 106, height: 126, borderRadius: 6, backgroundColor: '#F3EDE3', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
@@ -323,4 +356,8 @@ const styles = StyleSheet.create({
   progressText: { marginTop: 4, fontSize: 13, color: INK_S, fontStyle: 'italic' },
   errorState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   errorText: { fontSize: 16, color: INK_S },
+  photoModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', alignItems: 'center', justifyContent: 'center' },
+  photoModalImage: { width: '100%', height: '100%' },
+  photoModalClose: { position: 'absolute', top: 50, right: 22, zIndex: 5, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
+  photoModalCloseText: { color: '#FFF', fontSize: 22, fontWeight: '700' },
 });
