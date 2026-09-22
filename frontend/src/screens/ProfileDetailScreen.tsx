@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -36,7 +36,7 @@ function PaperSection({title,note,tone,variant='a',children}:PaperSectionProps){
 
 export default function ProfileDetailScreen(){
  const router=useRouter(); const insets=useSafeAreaInsets(); const params=useLocalSearchParams<{id?:string}>(); const profileId=Array.isArray(params.id)?params.id[0]:params.id; const currentUser=useStore(s=>s.currentUser);
- const [data,setData]=useState<PublicProfileResponse|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null); const [reporting,setReporting]=useState(false); const [photoOpen,setPhotoOpen]=useState(false); const [authToken,setAuthToken]=useState<string|null>(null); const isOwnProfile=!!profileId&&currentUser?.id===profileId;
+ const [data,setData]=useState<PublicProfileResponse|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null); const [reporting,setReporting]=useState(false); const [photoOpen,setPhotoOpen]=useState(false); const [activeMedia,setActiveMedia]=useState<'photo'|'avatar'>('photo'); const mediaPagerRef=useRef<ScrollView>(null); const [authToken,setAuthToken]=useState<string|null>(null); const isOwnProfile=!!profileId&&currentUser?.id===profileId;
  useEffect(()=>{void AsyncStorage.getItem('auth_token').then(setAuthToken);},[]);
  useEffect(()=>{let mounted=true; const load=async()=>{if(!profileId){setError('Profil introuvable');setLoading(false);return;} try{setLoading(true);const result=await getPublicProfile(profileId);if(mounted)setData(result);}catch(err:any){if(mounted)setError(err?.message||'Impossible de charger le profil');}finally{if(mounted)setLoading(false);}};void load();return()=>{mounted=false;};},[profileId]);
  const profile=data?.profile; const age=useMemo(()=>calcAge(profile?.birthDate),[profile?.birthDate]);
@@ -47,14 +47,36 @@ export default function ProfileDetailScreen(){
  return <View style={[styles.container,{paddingTop:insets.top}]}><View style={styles.header}><AppBackButton onPress={()=>router.back()}/><Text style={styles.headerTitle}>PROFIL</Text>{isOwnProfile?<TouchableOpacity style={styles.headerAction} onPress={()=>router.push('/edit-profile' as any)}><Text style={styles.headerActionText}>Modifier</Text></TouchableOpacity>:<TouchableOpacity style={styles.headerAction} onPress={report} disabled={reporting}><Text style={styles.headerActionText}>{reporting?'...':'Signaler'}</Text></TouchableOpacity>}</View><ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}><View style={styles.dossier}><View style={styles.headerSheet}><View style={styles.headerAvatarWrap}>
   {photoUrl ? (
     <>
-      <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.mediaPager}>
+      <ScrollView
+        ref={mediaPagerRef}
+        horizontal
+        pagingEnabled
+        nestedScrollEnabled
+        directionalLockEnabled
+        showsHorizontalScrollIndicator={false}
+        style={styles.mediaPager}
+        onMomentumScrollEnd={(event)=>setActiveMedia(event.nativeEvent.contentOffset.x>=66?'avatar':'photo')}
+      >
         <TouchableOpacity style={styles.avatarBox} activeOpacity={0.9} onPress={()=>setPhotoOpen(true)}>
-          <Image source={{uri:photoUrl,headers:photoHeaders}} style={styles.profilePhoto} contentFit="cover" cachePolicy="none"/>
+          <Image source={{uri:photoUrl,headers:photoHeaders}} style={styles.profilePhoto} contentFit="contain" cachePolicy="none"/>
         </TouchableOpacity>
         <View style={styles.avatarBox}><Avatar size={106} {...avatar}/></View>
       </ScrollView>
-      <Text style={styles.avatarCaption}>Photo · glisse pour voir l’avatar</Text>
-      <Text style={styles.avatarSubcaption}>Touche la photo pour l’agrandir.</Text>
+      <View style={styles.mediaToggle}>
+        <TouchableOpacity
+          style={[styles.mediaToggleBtn,activeMedia==='photo'&&styles.mediaToggleBtnActive]}
+          onPress={()=>{setActiveMedia('photo');mediaPagerRef.current?.scrollTo({x:0,animated:true});}}
+        >
+          <Text style={[styles.mediaToggleText,activeMedia==='photo'&&styles.mediaToggleTextActive]}>Photo</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.mediaToggleBtn,activeMedia==='avatar'&&styles.mediaToggleBtnActive]}
+          onPress={()=>{setActiveMedia('avatar');mediaPagerRef.current?.scrollTo({x:132,animated:true});}}
+        >
+          <Text style={[styles.mediaToggleText,activeMedia==='avatar'&&styles.mediaToggleTextActive]}>Avatar</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.avatarSubcaption}>{activeMedia==='photo'?'Touche la photo pour l’agrandir.':'Glisse ou touche Photo pour revenir.'}</Text>
     </>
   ) : (
     <>
@@ -85,9 +107,10 @@ const styles=StyleSheet.create({
  container:{flex:1,backgroundColor:C.bg},center:{flex:1,alignItems:'center',justifyContent:'center',padding:24},errorText:{color:C.muted,fontSize:14,textAlign:'center'},
  header:{flexDirection:'row',alignItems:'center',paddingHorizontal:12,paddingVertical:10,borderBottomWidth:1,borderBottomColor:'#DCCEBB',backgroundColor:C.white},headerTitle:{flex:1,textAlign:'center',fontSize:18,fontWeight:'900',color:C.ink,letterSpacing:1.7},headerSpacer:{width:64},headerAction:{minWidth:64,alignItems:'flex-end'},headerActionText:{fontSize:13,fontWeight:'800',color:C.burgundy},
  scroll:{padding:14,paddingTop:18,paddingBottom:80},dossier:{position:'relative',backgroundColor:'#F9F2E7',borderWidth:1,borderColor:'#D1B996',padding:12,shadowColor:C.shadow,shadowOpacity:0.2,shadowRadius:9,shadowOffset:{width:2,height:5},elevation:3},
- headerSheet:{minHeight:205,position:'relative',overflow:'visible',backgroundColor:'#FBF8F0',borderBottomWidth:1,borderBottomColor:'#D9CBB7',flexDirection:'row',paddingLeft:24,paddingRight:28,paddingVertical:25},headerAvatarWrap:{width:150,zIndex:2,position:'relative',overflow:'visible'},mediaPager:{width:132,height:132},avatarBox:{width:132,height:132,zIndex:2,backgroundColor:C.warm,borderWidth:1,borderColor:C.line,borderRadius:8,alignItems:'center',justifyContent:'center',overflow:'hidden',shadowColor:C.shadow,shadowOpacity:0.09,shadowRadius:2,shadowOffset:{width:1,height:2}},profilePhoto:{width:132,height:132},avatarCaption:{fontSize:9,color:C.ink,marginTop:8,transform:[{rotate:'-1deg'}]},avatarSubcaption:{fontSize:8,color:C.burgundy,marginTop:2,fontStyle:'italic'},headerInfo:{flex:1,minWidth:0,paddingLeft:12,paddingTop:18,zIndex:2},profilePseudo:{fontSize:23,lineHeight:28,fontWeight:'900',color:C.ink,marginBottom:13},metaRow:{fontSize:16,fontWeight:'800',color:C.ink,marginBottom:8},
+ headerSheet:{minHeight:245,position:'relative',overflow:'visible',backgroundColor:'#FBF8F0',borderBottomWidth:1,borderBottomColor:'#D9CBB7',flexDirection:'row',paddingLeft:24,paddingRight:28,paddingVertical:25},headerAvatarWrap:{width:150,zIndex:2,position:'relative',overflow:'visible'},mediaPager:{width:132,height:165},avatarBox:{width:132,height:165,zIndex:2,backgroundColor:C.warm,borderWidth:1,borderColor:C.line,borderRadius:8,alignItems:'center',justifyContent:'center',overflow:'hidden',shadowColor:C.shadow,shadowOpacity:0.09,shadowRadius:2,shadowOffset:{width:1,height:2}},profilePhoto:{width:132,height:165,backgroundColor:'#F3EDE3'},mediaToggle:{width:132,flexDirection:'row',marginTop:7,padding:2,borderRadius:12,backgroundColor:'#EEE2D2'},mediaToggleBtn:{flex:1,paddingVertical:4,alignItems:'center',borderRadius:10},mediaToggleBtnActive:{backgroundColor:C.white,borderWidth:1,borderColor:C.line},mediaToggleText:{fontSize:8.5,fontWeight:'800',color:C.muted},mediaToggleTextActive:{color:C.ink},avatarCaption:{fontSize:9,color:C.ink,marginTop:8,transform:[{rotate:'-1deg'}]},avatarSubcaption:{fontSize:8,color:C.burgundy,marginTop:4,fontStyle:'italic'},headerInfo:{flex:1,minWidth:0,paddingLeft:12,paddingTop:18,zIndex:2},profilePseudo:{fontSize:23,lineHeight:28,fontWeight:'900',color:C.ink,marginBottom:13},metaRow:{fontSize:16,fontWeight:'800',color:C.ink,marginBottom:8},
  stack:{paddingTop:16},noteCard:{position:'relative',overflow:'hidden',marginBottom:16,paddingHorizontal:20,paddingTop:22,paddingBottom:19,borderWidth:1,borderColor:'#BFA276',borderRadius:2,backgroundColor:C.paper,shadowColor:'#6F5338',shadowOpacity:0.10,shadowRadius:3,shadowOffset:{width:1,height:2},elevation:2},tone_paper:{backgroundColor:'#FCF6EA'},tone_grid:{backgroundColor:'#F7F0E3'},tone_pink:{backgroundColor:'#F1D7D7'},tone_lavender:{backgroundColor:'#E5DCEB'},tone_yellow:{backgroundColor:'#F0D783'},
  card_a:{transform:[{rotate:'-0.7deg'}],marginLeft:3,marginRight:7},card_b:{transform:[{rotate:'0.55deg'}],marginLeft:8,marginRight:2},card_c:{transform:[{rotate:'-0.45deg'}],marginLeft:1,marginRight:9},card_d:{transform:[{rotate:'0.8deg'}],marginLeft:9,marginRight:1},
  sectionTop:{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between'},sectionTitle:{flex:1,fontSize:17,lineHeight:21,fontWeight:'900',letterSpacing:0.5,color:C.ink},sectionNote:{fontSize:11.5,lineHeight:17,color:C.muted,fontStyle:'italic',marginTop:6},sectionContent:{marginTop:12},bodyText:{fontSize:14,lineHeight:23,color:C.ink},emptyText:{fontSize:13,lineHeight:20,color:C.muted,fontStyle:'italic'},bigChoice:{marginBottom:10},bigChoiceTitle:{fontSize:14,fontWeight:'900',color:C.ink},bigChoiceSub:{fontSize:11.5,lineHeight:17,color:C.muted,fontStyle:'italic',marginTop:3},labelStandalone:{fontSize:12.5,fontWeight:'900',color:C.ink,marginTop:9,marginBottom:8},chipWrap:{flexDirection:'row',flexWrap:'wrap',gap:6},chip:{borderWidth:1,borderColor:C.line,backgroundColor:'#FBF4E9',borderRadius:18,paddingHorizontal:11,paddingVertical:6},chipText:{fontSize:12,fontWeight:'800',color:C.ink},
- infoRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingBottom:9,borderBottomWidth:1,borderBottomColor:'#DDCDB8'},label:{fontSize:13,fontWeight:'800',color:C.ink},value:{fontSize:16,fontWeight:'900',color:C.ink},physicalCard:{maxWidth:'70%',backgroundColor:C.warm,borderWidth:1,borderColor:C.line,padding:11,marginTop:4,borderRadius:12},physicalTitle:{fontSize:14,fontWeight:'900',color:C.ink},physicalSub:{fontSize:11.5,lineHeight:17,color:C.muted,fontStyle:'italic',marginTop:3},childrenRow:{flexDirection:'row',gap:16},childQuestion:{flex:1},question:{fontSize:12.5,lineHeight:18,fontWeight:'800',color:C.ink,marginBottom:7},answerSlip:{alignSelf:'flex-start',backgroundColor:'#FBF8F0',borderWidth:1,borderColor:C.line,borderRadius:17,paddingHorizontal:11,paddingVertical:7},answer:{fontSize:11.5,lineHeight:16,fontWeight:'800',color:C.ink},skillCard:{backgroundColor:'rgba(255,255,255,0.32)',borderWidth:1,borderColor:'#D6BC70',padding:10,marginBottom:7,borderRadius:4},skillTitle:{fontSize:13,fontWeight:'900',color:C.ink,marginBottom:3},fakePlus:{borderWidth:1,borderStyle:'dashed',borderColor:'#C7A958',paddingVertical:9,alignItems:'center',marginTop:5},fakePlusText:{fontSize:11,fontWeight:'800',color:C.ink},reportStrip:{position:'relative',marginTop:3,borderWidth:1,borderColor:C.line,backgroundColor:'#F7EFE3',padding:12,minHeight:58,flexDirection:'row',alignItems:'center',gap:10},reportText:{flex:1,fontSize:10.5,lineHeight:16,color:C.muted},reportAction:{fontSize:11,fontWeight:'900',color:C.burgundy}
+ infoRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingBottom:9,borderBottomWidth:1,borderBottomColor:'#DDCDB8'},label:{fontSize:13,fontWeight:'800',color:C.ink},value:{fontSize:16,fontWeight:'900',color:C.ink},physicalCard:{maxWidth:'70%',backgroundColor:C.warm,borderWidth:1,borderColor:C.line,padding:11,marginTop:4,borderRadius:12},physicalTitle:{fontSize:14,fontWeight:'900',color:C.ink},physicalSub:{fontSize:11.5,lineHeight:17,color:C.muted,fontStyle:'italic',marginTop:3},childrenRow:{flexDirection:'row',gap:16},childQuestion:{flex:1},question:{fontSize:12.5,lineHeight:18,fontWeight:'800',color:C.ink,marginBottom:7},answerSlip:{alignSelf:'flex-start',backgroundColor:'#FBF8F0',borderWidth:1,borderColor:C.line,borderRadius:17,paddingHorizontal:11,paddingVertical:7},answer:{fontSize:11.5,lineHeight:16,fontWeight:'800',color:C.ink},skillCard:{backgroundColor:'rgba(255,255,255,0.32)',borderWidth:1,borderColor:'#D6BC70',padding:10,marginBottom:7,borderRadius:4},skillTitle:{fontSize:13,fontWeight:'900',color:C.ink,marginBottom:3},fakePlus:{borderWidth:1,borderStyle:'dashed',borderColor:'#C7A958',paddingVertical:9,alignItems:'center',marginTop:5},fakePlusText:{fontSize:11,fontWeight:'800',color:C.ink},reportStrip:{position:'relative',marginTop:3,borderWidth:1,borderColor:C.line,backgroundColor:'#F7EFE3',padding:12,minHeight:58,flexDirection:'row',alignItems:'center',gap:10},reportText:{flex:1,fontSize:10.5,lineHeight:16,color:C.muted},reportAction:{fontSize:11,fontWeight:'900',color:C.burgundy},
+ photoModalBackdrop:{flex:1,backgroundColor:'rgba(0,0,0,0.94)',alignItems:'center',justifyContent:'center'},photoModalImage:{width:'100%',height:'100%'},photoModalClose:{position:'absolute',top:50,right:22,zIndex:5,width:42,height:42,borderRadius:21,backgroundColor:'rgba(255,255,255,0.16)',alignItems:'center',justifyContent:'center'},photoModalCloseText:{color:'#FFF',fontSize:22,fontWeight:'700'}
 });
