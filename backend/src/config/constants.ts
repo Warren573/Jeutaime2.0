@@ -9,11 +9,11 @@ export const MATCH_LIMIT_PREMIUM = 20; // validé
 // --- Révélation photos (binaire) ---
 /** Seuils de déblocage complet (total lettres, symétrique, profil uniquement) */
 export const PHOTO_THRESHOLD_FREE = 10;       // FREE: photo visible après 10 lettres
-export const PHOTO_THRESHOLD_PREMIUM = 3;     // PREMIUM: photo visible après 3 lettres
+export const PHOTO_THRESHOLD_PREMIUM = 0;     // PREMIUM: photo visible immédiatement sur le profil complet
 
 // --- Upload photos ---
 /** Nombre maximal de photos par utilisateur */
-export const MAX_PHOTOS_PER_USER = 6;
+export const MAX_PHOTOS_PER_USER = 1;
 /** Largeur max de l'image originale (redimensionnement côté serveur) */
 export const PHOTO_ORIGINAL_MAX_WIDTH = 1080;
 /** Largeur max de l'image floutée */
