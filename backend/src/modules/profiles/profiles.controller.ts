@@ -51,6 +51,8 @@ export async function handleUpdateSettings(req: AuthedRequest, res: Response) {
     "notifEmail",
     "notifPush",
     "soundEnabled",
+    "vibrationEnabled",
+    "vacationMode",
     "showInDiscovery",
     "locationShared",
   ];
