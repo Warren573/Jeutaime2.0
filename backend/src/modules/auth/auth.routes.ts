@@ -8,6 +8,7 @@ import {
   LoginSchema,
   RefreshSchema,
   ChangePasswordSchema,
+  ChangeEmailSchema,
   DeactivateAccountSchema,
   DeleteAccountSchema,
 } from "./auth.schemas";
@@ -52,6 +53,14 @@ router.post(
   requireAuth as never,
   validate(ChangePasswordSchema),
   asyncHandler((req, res, next) => ctrl.handleChangePassword(req as AuthedRequest, res).catch(next)),
+);
+
+// POST /api/auth/change-email (🔒)
+router.post(
+  "/change-email",
+  requireAuth as never,
+  validate(ChangeEmailSchema),
+  asyncHandler((req, res, next) => ctrl.handleChangeEmail(req as AuthedRequest, res).catch(next)),
 );
 
 // POST /api/auth/deactivate (🔒)
