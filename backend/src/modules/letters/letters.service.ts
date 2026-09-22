@@ -39,86 +39,86 @@ async function assertNoBlock(a: string, b: string) {
 // ============================================================
 
 export async function sendLetter(matchId: string, senderId: string, dto: SendLetterDto) {
-  // Double-guard : Zod valide déjà, mais on vérifie côté service pour défense en profondeur
   if (dto.content.length > LETTER_MAX_LENGTH) {
     throw new BadRequestError(
       `La lettre ne peut pas dépasser ${LETTER_MAX_LENGTH} caractères`,
     );
   }
 
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
-    select: {
-      id: true,
-      userAId: true,
-      userBId: true,
-      initiatorId: true,
-      status: true,
-      questionsValidated: true,
-      lastLetterBy: true,
-      lastLetterAt: true,
-      letterCountA: true,
-      letterCountB: true,
-    },
-  });
-  if (!match) throw new NotFoundError("Match");
+  const result = await prisma.$transaction(async (tx) => {
+    // Verrouille la ligne du match pendant toute la vérification + écriture.
+    // Ainsi, deux premières lettres envoyées presque simultanément sont
+    // réellement ordonnées par le serveur au lieu de lire toutes les deux
+    // lastLetterBy = null.
+    await tx.$queryRaw`
+      SELECT "id"
+      FROM "Match"
+      WHERE "id" = ${matchId}
+      FOR UPDATE
+    `;
 
-  await assertMatchParticipant(match, senderId);
+    const match = await tx.match.findUnique({
+      where: { id: matchId },
+      select: {
+        id: true,
+        userAId: true,
+        userBId: true,
+        initiatorId: true,
+        status: true,
+        questionsValidated: true,
+        lastLetterBy: true,
+        lastLetterAt: true,
+        letterCountA: true,
+        letterCountB: true,
+      },
+    });
+    if (!match) throw new NotFoundError("Match");
 
-  // Vérifier que le match est actif
-  if (match.status !== MatchStatus.ACTIVE) {
-    throw new UnprocessableError(
-      `Impossible d'envoyer une lettre — le match est en status "${match.status}"`,
-    );
-  }
+    await assertMatchParticipant(match, senderId);
 
-  // Vérifier les questions de validation
-  if (!match.questionsValidated) {
-    throw new UnprocessableError(
-      "Les deux profils doivent d'abord répondre à leurs 3 questions de validation",
-    );
-  }
-
-  const receiverId = match.userAId === senderId ? match.userBId : match.userAId;
-
-  // Vérifier les blocages
-  await assertNoBlock(senderId, receiverId);
-
-  // Vérifier l'alternation stricte
-  console.log("[sendLetter] DEBUG LETTER ALTERNATION CHECK:", {
-    matchId,
-    senderId,
-    userAId: match.userAId,
-    userBId: match.userBId,
-    initiatorId: match.initiatorId,
-    lastLetterBy: match.lastLetterBy,
-    letterCountA: match.letterCountA,
-    letterCountB: match.letterCountB,
-    questionsValidated: match.questionsValidated,
-    status: match.status,
-  });
-  assertCanSendLetter({
-    lastLetterBy: match.lastLetterBy,
-    senderId,
-    initiatorId: match.initiatorId,
-  });
-
-  // Vérifier la fenêtre anti-ghosting : si l'autre a envoyé en dernier
-  // et qu'il s'est écoulé plus de GHOST_RELANCE_MAX_DAYS sans réponse,
-  // la fenêtre est fermée (cohérence avec computeCanSend dans matches.service)
-  if (match.lastLetterAt && match.lastLetterBy !== null && match.lastLetterBy !== senderId) {
-    const daysSince = differenceInDays(new Date(), match.lastLetterAt);
-    if (daysSince > GHOST_RELANCE_MAX_DAYS) {
+    if (match.status !== MatchStatus.ACTIVE) {
       throw new UnprocessableError(
-        "La fenêtre de réponse est fermée — trop de temps s'est écoulé",
+        `Impossible d'envoyer une lettre — le match est en status "${match.status}"`,
       );
     }
-  }
 
-  const isUserA = match.userAId === senderId;
+    if (!match.questionsValidated) {
+      throw new UnprocessableError(
+        "Les deux profils doivent d'abord répondre à leurs 3 questions de validation",
+      );
+    }
 
-  // Transaction atomique : créer la lettre + màj compteurs du match
-  const { letter, updatedMatch } = await prisma.$transaction(async (tx) => {
+    const receiverId = match.userAId === senderId ? match.userBId : match.userAId;
+
+    const block = await tx.block.findFirst({
+      where: {
+        OR: [
+          { fromId: senderId, toId: receiverId },
+          { fromId: receiverId, toId: senderId },
+        ],
+      },
+      select: { id: true },
+    });
+    if (block) throw new ForbiddenError("Action impossible — un blocage existe");
+
+    assertCanSendLetter({
+      lastLetterBy: match.lastLetterBy,
+      senderId,
+      initiatorId: match.initiatorId,
+    });
+
+    if (match.lastLetterAt && match.lastLetterBy !== null && match.lastLetterBy !== senderId) {
+      const daysSince = differenceInDays(new Date(), match.lastLetterAt);
+      if (daysSince > GHOST_RELANCE_MAX_DAYS) {
+        throw new UnprocessableError(
+          "La fenêtre de réponse est fermée — trop de temps s'est écoulé",
+        );
+      }
+    }
+
+    const isUserA = match.userAId === senderId;
+    const now = new Date();
+
     const letter = await tx.letter.create({
       data: {
         matchId,
@@ -133,12 +133,10 @@ export async function sendLetter(matchId: string, senderId: string, dto: SendLet
       where: { id: matchId },
       data: {
         lastLetterBy: senderId,
-        lastLetterAt: new Date(),
-        // Incrémenter le bon compteur
+        lastLetterAt: now,
         ...(isUserA
           ? { letterCountA: { increment: 1 } }
           : { letterCountB: { increment: 1 } }),
-        // Reset du ghost si présent
         ghostDetectedAt: null,
       },
       select: {
@@ -149,20 +147,19 @@ export async function sendLetter(matchId: string, senderId: string, dto: SendLet
       },
     });
 
-    return { letter, updatedMatch };
+    return { letter, updatedMatch, receiverId };
   });
 
-  // Event fire-and-forget (hors transaction)
   emitLetterSent({
     matchId,
     fromUserId: senderId,
-    toUserId: receiverId,
-    matchLetterCountA: updatedMatch.letterCountA,
-    matchLetterCountB: updatedMatch.letterCountB,
+    toUserId: result.receiverId,
+    matchLetterCountA: result.updatedMatch.letterCountA,
+    matchLetterCountB: result.updatedMatch.letterCountB,
     isGhostRelance: false,
   });
 
-  return letter;
+  return result.letter;
 }
 
 // ============================================================
