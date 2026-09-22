@@ -8,8 +8,8 @@ import type {
 } from "./private-duels.schemas";
 
 export async function handleCreate(req: AuthedRequest, res: Response) {
-  const { targetUserId } = req.body as CreatePrivateDuelDto;
-  const result = await svc.create(req.user.userId, targetUserId);
+  const { targetUserId, commonUserId } = req.body as CreatePrivateDuelDto;
+  const result = await svc.create(req.user.userId, targetUserId, commonUserId);
   res.status(201).json({ data: result });
 }
 
@@ -41,4 +41,14 @@ export async function handleSubmitChoice(req: AuthedRequest, res: Response) {
 export async function handleRematch(req: AuthedRequest, res: Response) {
   const result = await svc.rematch(req.user.userId, req.params["id"] as string);
   res.status(201).json({ data: result });
+}
+
+export async function handleGetStats(req: AuthedRequest, res: Response) {
+  const result = await svc.getStats(req.user.userId);
+  res.json({ data: result });
+}
+
+export async function handleDecline(req: AuthedRequest, res: Response) {
+  const result = await svc.decline(req.user.userId, req.params["id"] as string);
+  res.json({ data: result });
 }
