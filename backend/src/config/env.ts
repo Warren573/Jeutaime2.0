@@ -40,6 +40,8 @@ const envSchema = z.object({
     .transform((v) => v.toLowerCase() === "true"),
   SCHEDULER_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
   REFRESH_TOKEN_PURGE_GRACE_MS: z.coerce.number().int().min(0).default(3_600_000),
+  DAILY_EDITION_PUSH_HOUR: z.coerce.number().int().min(0).max(23).default(19),
+  DAILY_EDITION_TIMEZONE: z.string().default("Europe/Paris"),
 });
 
 const parsed = envSchema.safeParse(process.env);
