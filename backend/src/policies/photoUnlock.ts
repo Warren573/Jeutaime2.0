@@ -12,8 +12,8 @@ export interface UnlockContext {
 }
 
 export function getPhotoLevel(ctx: UnlockContext): PhotoLevel {
-  const threshold = ctx.viewerIsPremium ? PHOTO_THRESHOLD_PREMIUM : PHOTO_THRESHOLD_FREE;
-  return ctx.totalLetters >= threshold ? 3 : 0;
+  if (ctx.viewerIsPremium) return 3;
+  return ctx.totalLetters >= PHOTO_THRESHOLD_FREE ? 3 : 0;
 }
 
 export function getPhotoVariant(level: PhotoLevel): PhotoVariant | null {
@@ -30,7 +30,7 @@ export function getPhotoUnlockProgress(ctx: UnlockContext): {
   const level = getPhotoLevel(ctx);
 
   if (level === 0) {
-    const progressPercent = Math.round((ctx.totalLetters / threshold) * 100);
+    const progressPercent = threshold > 0 ? Math.round((ctx.totalLetters / threshold) * 100) : 100;
     return {
       level: 0,
       totalLetters: ctx.totalLetters,
