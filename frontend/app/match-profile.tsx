@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -37,6 +37,8 @@ export default function MatchProfileScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [activeMedia, setActiveMedia] = useState<'photo' | 'avatar'>('photo');
+  const photoPagerRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     AsyncStorage.getItem('auth_token').then(setAuthToken);
@@ -115,28 +117,61 @@ export default function MatchProfileScreen() {
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
               {hasUnlockedPhoto ? (
-                <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} style={styles.photoPager}>
-                  <TouchableOpacity activeOpacity={0.9} onPress={() => setPhotoOpen(true)}>
-                    <Image
-                      key={authToken ?? 'notoken'}
-                      source={{
-                        uri: makePhotoUrl(match.photoUrl as string),
-                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+                <>
+                  <ScrollView
+                    ref={photoPagerRef}
+                    horizontal
+                    pagingEnabled
+                    nestedScrollEnabled
+                    directionalLockEnabled
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.photoPager}
+                    onMomentumScrollEnd={(event) =>
+                      setActiveMedia(event.nativeEvent.contentOffset.x >= 53 ? 'avatar' : 'photo')
+                    }
+                  >
+                    <TouchableOpacity activeOpacity={0.9} onPress={() => setPhotoOpen(true)}>
+                      <Image
+                        key={authToken ?? 'notoken'}
+                        source={{
+                          uri: makePhotoUrl(match.photoUrl as string),
+                          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+                        }}
+                        style={styles.photoImg}
+                        contentFit="contain"
+                        cachePolicy="none"
+                      />
+                    </TouchableOpacity>
+                    <View style={styles.photoPlaceholder}>
+                      <Avatar
+                        size={96}
+                        {...(partner?.avatarConfig && Object.keys(partner.avatarConfig).length > 0
+                          ? (partner.avatarConfig as any)
+                          : DEFAULT_AVATAR)}
+                      />
+                    </View>
+                  </ScrollView>
+                  <View style={styles.mediaToggle}>
+                    <TouchableOpacity
+                      style={[styles.mediaToggleBtn, activeMedia === 'photo' && styles.mediaToggleBtnActive]}
+                      onPress={() => {
+                        setActiveMedia('photo');
+                        photoPagerRef.current?.scrollTo({ x: 0, animated: true });
                       }}
-                      style={styles.photoImg}
-                      contentFit="cover"
-                      cachePolicy="none"
-                    />
-                  </TouchableOpacity>
-                  <View style={styles.photoPlaceholder}>
-                    <Avatar
-                      size={106}
-                      {...(partner?.avatarConfig && Object.keys(partner.avatarConfig).length > 0
-                        ? (partner.avatarConfig as any)
-                        : DEFAULT_AVATAR)}
-                    />
+                    >
+                      <Text style={[styles.mediaToggleText, activeMedia === 'photo' && styles.mediaToggleTextActive]}>Photo</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.mediaToggleBtn, activeMedia === 'avatar' && styles.mediaToggleBtnActive]}
+                      onPress={() => {
+                        setActiveMedia('avatar');
+                        photoPagerRef.current?.scrollTo({ x: 106, animated: true });
+                      }}
+                    >
+                      <Text style={[styles.mediaToggleText, activeMedia === 'avatar' && styles.mediaToggleTextActive]}>Avatar</Text>
+                    </TouchableOpacity>
                   </View>
-                </ScrollView>
+                </>
               ) : (
                 <View style={styles.photoPlaceholder}>
                   <Avatar
@@ -307,18 +342,23 @@ const styles = StyleSheet.create({
   pageTitle: { fontSize: 32, fontWeight: '900', color: INK, marginBottom: 12 },
   hero: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 18 },
   photoCard: {
-    width: 106, height: 126, backgroundColor: '#FFF', borderRadius: 6, borderWidth: 1,
-    borderColor: '#E7DAC8', alignItems: 'center', justifyContent: 'center', marginRight: 14, position: 'relative',
+    width: 106, height: 156, backgroundColor: '#FFF', borderRadius: 6, borderWidth: 1,
+    borderColor: '#E7DAC8', alignItems: 'center', justifyContent: 'flex-start', marginRight: 14, position: 'relative',
   },
   photoTape: {
     position: 'absolute', top: -6, alignSelf: 'center', width: 38, height: 14,
     backgroundColor: '#E7D5BF', borderRadius: 2, transform: [{ rotate: '-8deg' }], zIndex: 3,
   },
   photoPager: { width: 106, height: 126, borderRadius: 6 },
-  photoImg: { width: 106, height: 126, borderRadius: 6 },
+  photoImg: { width: 106, height: 126, borderRadius: 6, backgroundColor: '#F3EDE3' },
   photoPlaceholder: {
     width: 106, height: 126, borderRadius: 6, backgroundColor: '#F3EDE3', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
+  mediaToggle: { width: 98, flexDirection: 'row', padding: 2, marginTop: 4, borderRadius: 10, backgroundColor: '#EADCCA' },
+  mediaToggleBtn: { flex: 1, paddingVertical: 3, alignItems: 'center', borderRadius: 8 },
+  mediaToggleBtnActive: { backgroundColor: '#FFF', borderWidth: 1, borderColor: LINE },
+  mediaToggleText: { fontSize: 8, fontWeight: '800', color: INK_S },
+  mediaToggleTextActive: { color: INK },
   heroRight: { flex: 1, paddingTop: 4 },
   heroName: { fontSize: 28, fontWeight: '800', color: INK, lineHeight: 34, marginBottom: 4 },
   heroCity: { fontSize: 14, color: INK_S, marginBottom: 10 },
