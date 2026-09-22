@@ -16,7 +16,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../src/store/useStore';
 import { Avatar } from '../src/avatar/png/Avatar';
 import { resolveAvatarConfig } from '../src/avatar/resolveAvatarConfig';
-import { RELATION_THRESHOLDS } from '../src/engine/RelationEngine';
 import { API_URL } from '../src/api/client';
 import {
   getMyPhotos,
@@ -129,8 +128,6 @@ export default function MyPhotosScreen() {
     }
   };
 
-  const t = isPremium ? RELATION_THRESHOLDS.premium : RELATION_THRESHOLDS.normal;
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── Header ── */}
@@ -166,8 +163,8 @@ export default function MyPhotosScreen() {
           </View>
           <Text style={styles.revealThreshold}>
             {isPremium
-              ? `✨ Premium : déblocage dès ${t.level3} lettres par côté`
-              : `Déblocage après ${t.level3} lettres échangées par chacun`}
+              ? '✨ Premium : photo visible immédiatement sur le profil complet'
+              : 'Déblocage après 10 lettres échangées au total'}
           </Text>
         </View>
 
