@@ -43,3 +43,7 @@ ON "JournalEvent"("userId", "occurredAt");
 
 CREATE INDEX "JournalEvent_kind_occurredAt_idx"
 ON "JournalEvent"("kind", "occurredAt");
+
+
+ALTER TABLE "PushToken"
+ADD COLUMN "lastDailyEditionKey" TEXT;
