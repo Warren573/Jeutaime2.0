@@ -193,7 +193,13 @@ export async function discoverProfiles(viewerId: string, query: DiscoveryQuery) 
 
   const where = {
     userId: { notIn: excludeIds },
-    user: { isBanned: false, settings: { showInDiscovery: true } },
+    user: {
+      isBanned: false,
+      settings: {
+        showInDiscovery: true,
+        vacationMode: false,
+      },
+    },
     ...(gender && { gender }),
     ...(city && { city: { contains: city, mode: "insensitive" as const } }),
     ...(lookingFor && { lookingFor: { has: lookingFor } }),
