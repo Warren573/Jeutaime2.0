@@ -14,10 +14,12 @@ import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import {
   createPrivateDuel,
+  getPrivateDuelStats,
   listPrivateDuelCandidates,
   listPrivateDuels,
   type PrivateDuelCandidate,
   type PrivateDuelDTO,
+  type PrivateDuelStats,
 } from '../api/privateDuels';
 
 export default function DuelCreateScreen() {
@@ -26,6 +28,7 @@ export default function DuelCreateScreen() {
 
   const [candidates, setCandidates] = useState<PrivateDuelCandidate[]>([]);
   const [duels, setDuels] = useState<PrivateDuelDTO[]>([]);
+  const [stats, setStats] = useState<PrivateDuelStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [creatingUserId, setCreatingUserId] = useState<string | null>(null);
@@ -34,12 +37,14 @@ export default function DuelCreateScreen() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const [candidateData, duelData] = await Promise.all([
+      const [candidateData, duelData, statsData] = await Promise.all([
         listPrivateDuelCandidates(),
         listPrivateDuels(),
+        getPrivateDuelStats(),
       ]);
       setCandidates(candidateData);
       setDuels(duelData);
+      setStats(statsData);
     } catch (err: any) {
       setError(err?.message || 'Impossible de charger les duels.');
     } finally {
@@ -104,6 +109,19 @@ export default function DuelCreateScreen() {
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             <>
+              {stats && (
+                <View style={styles.pointsRow}>
+                  <View style={styles.pointsBox}>
+                    <Text style={styles.pointsValue}>{stats.participationPoints}</Text>
+                    <Text style={styles.pointsLabel}>Points de participation</Text>
+                  </View>
+                  <View style={styles.pointsBox}>
+                    <Text style={styles.pointsValue}>{stats.victoryPoints}</Text>
+                    <Text style={styles.pointsLabel}>Points de victoire</Text>
+                  </View>
+                </View>
+              )}
+
               {!!error && (
                 <View style={styles.errorBox}>
                   <Text style={styles.errorText}>{error}</Text>
@@ -231,6 +249,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionSubtitle: { color: '#9A7040', fontSize: 13, marginBottom: 8 },
+  pointsRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  pointsBox: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#C4924A',
+    borderRadius: 14,
+    backgroundColor: '#FEFAF0',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  pointsValue: { color: '#2C1A0E', fontSize: 22, fontWeight: '800' },
+  pointsLabel: { color: '#8A6847', fontSize: 11.5, marginTop: 3, textAlign: 'center' },
   errorBox: {
     backgroundColor: '#FFF0E8',
     borderWidth: 1,
