@@ -14,7 +14,7 @@ export type PhotoVisibility = 'avatar' | 'revealed';
 // Binary system: photo visible only after threshold
 export const RELATION_THRESHOLDS = {
   normal:  { threshold: 10 },
-  premium: { threshold: 3  },
+  premium: { threshold: 0  },
 } as const;
 
 // ── Labels affichés dans l'UI ────────────────────────────────
@@ -37,8 +37,8 @@ export function getRelationLevel(
   letterCount: number,
   isPremium = false,
 ): RelationLevel {
-  const t = isPremium ? RELATION_THRESHOLDS.premium : RELATION_THRESHOLDS.normal;
-  return letterCount >= t.threshold ? 3 : 0;
+  if (isPremium) return 3;
+  return letterCount >= RELATION_THRESHOLDS.normal.threshold ? 3 : 0;
 }
 
 export function getPhotoVisibility(level: RelationLevel): PhotoVisibility {
@@ -68,7 +68,7 @@ export function getRelationInfo(
 
   if (level === 0) {
     const remaining = t.threshold - letterCount;
-    progressPercent = Math.round((letterCount / t.threshold) * 100);
+    progressPercent = t.threshold > 0 ? Math.round((letterCount / t.threshold) * 100) : 100;
     progressText =
       remaining === 1
         ? '💌 Encore 1 lettre pour révéler la photo'
