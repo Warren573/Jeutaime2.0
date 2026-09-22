@@ -241,7 +241,6 @@ export default function SettingsScreen() {
       title: 'Notifications',
       items: [
         { icon: '🔔', label: 'Notifications', route: '/notification-settings' },
-        { icon: '🔊', label: 'Sons et vibrations', route: '/sounds' },
       ],
     },
     {
