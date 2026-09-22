@@ -27,6 +27,11 @@ import { BottleCorrespondenceMenu } from '../components/BottleCorrespondenceMenu
 import { generateUUID } from '../utils/uuid';
 import type { GetCurrentBottleResponse } from '../api/bottles';
 
+const UI_ICONS = {
+  transit: require('../../assets/ui-icons/transit.png'),
+  book: require('../../assets/ui-icons/book.png'),
+} as const;
+
 const COLORS = {
   bg: '#F5F1E8',
   card: '#FFFFFF',
@@ -262,9 +267,7 @@ export default function BottleDiscussionScreen() {
           {/* Message d'attente SI waitingForReply */}
           {waitingForReply && (
             <View style={styles.waitingBox}>
-              <Text style={styles.waitingText}>
-                ✈️ Votre lettre est en voyage...
-              </Text>
+              <View style={styles.waitingContent}><Image source={UI_ICONS.transit} style={styles.waitingIcon} resizeMode="contain"/><Text style={styles.waitingText}>Votre lettre est en voyage...</Text></View>
             </View>
           )}
         </View>
@@ -324,7 +327,7 @@ export default function BottleDiscussionScreen() {
                 })
               }
             >
-              <Text style={styles.historyBtnText}>📖 Relire notre correspondance</Text>
+              <View style={styles.historyBtnContent}><Image source={UI_ICONS.book} style={styles.historyBtnIcon} resizeMode="contain"/><Text style={styles.historyBtnText}>Relire notre correspondance</Text></View>
             </TouchableOpacity>
           </View>
         )}
@@ -512,6 +515,16 @@ const styles = StyleSheet.create({
     borderLeftColor: '#FF9800',
     marginBottom: 16,
   },
+  waitingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  waitingIcon: {
+    width: 24,
+    height: 24,
+  },
   waitingText: {
     fontSize: 14,
     color: '#E65100',
@@ -617,6 +630,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#D9C9B4',
+  },
+  historyBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  historyBtnIcon: {
+    width: 20,
+    height: 20,
   },
   historyBtnText: {
     fontSize: 12.5,
