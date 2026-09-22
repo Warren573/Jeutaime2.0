@@ -1,15 +1,20 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { registerDevice } from '../api/notifications';
 import { useStore } from '../store/useStore';
+import { getUserSettings } from '../api/userSettings';
+
+let foregroundSoundEnabled = true;
+let foregroundVibrationEnabled = true;
 // Show push in foreground as banner + badge + sound
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
     shouldShowList: true,
-    shouldPlaySound: true,
+    shouldPlaySound: foregroundSoundEnabled,
     shouldSetBadge: true,
   }),
 });
@@ -57,6 +62,12 @@ export function usePushNotifications() {
 
     async function setup() {
       try {
+        const preferences = await getUserSettings().catch(() => null);
+        if (preferences) {
+          foregroundSoundEnabled = preferences.soundEnabled;
+          foregroundVibrationEnabled = preferences.vibrationEnabled;
+          if (!preferences.notifPush) return;
+        }
         const { status: existing } = await Notifications.getPermissionsAsync();
         let finalStatus = existing;
 
@@ -75,7 +86,8 @@ export function usePushNotifications() {
           await Notifications.setNotificationChannelAsync('default', {
             name: 'JeuTaime',
             importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
+            sound: foregroundSoundEnabled ? 'default' : null,
+            vibrationPattern: foregroundVibrationEnabled ? [0, 250, 250, 250] : null,
             lightColor: '#FF231F7C',
           });
         }
@@ -104,6 +116,9 @@ export function usePushNotifications() {
 
     // Foreground: refresh unread count when a notification arrives
     receivedListenerRef.current = Notifications.addNotificationReceivedListener(() => {
+      if (foregroundVibrationEnabled) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
       void loadUnreadCount();
     });
 
