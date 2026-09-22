@@ -109,20 +109,19 @@ export async function getPublicProfile(viewerId: string, targetUserId: string, v
   // Trouver le match entre les deux pour calculer le unlock
   const match = await findMatchBetween(viewerId, targetUserId);
 
-  let photoUnlockInfo = {
-    level: 0 as PhotoLevel,
-    totalLetters: 0,
-    nextLevelAt: (viewerIsPremium ? 1 : 3) as number | null,
-    progressPercent: 0,
-  };
-
-  if (match) {
-    const totalLetters = match.letterCountA + match.letterCountB;
-    photoUnlockInfo = getPhotoUnlockProgress({
-      totalLetters,
-      viewerIsPremium,
-    });
-  }
+  const isOwner = viewerId === targetUserId;
+  const totalLetters = match ? match.letterCountA + match.letterCountB : 0;
+  const photoUnlockInfo = isOwner
+    ? {
+        level: 3 as PhotoLevel,
+        totalLetters,
+        nextLevelAt: null,
+        progressPercent: 100,
+      }
+    : getPhotoUnlockProgress({
+        totalLetters,
+        viewerIsPremium,
+      });
 
   const targetSettings = await prisma.userSettings.findUnique({
     where: { userId: targetUserId },
@@ -130,7 +129,7 @@ export async function getPublicProfile(viewerId: string, targetUserId: string, v
   });
   const showPhotoByDefault = targetSettings?.showPhotoByDefault ?? true;
 
-  const servedPhotos = photoUnlockInfo.level >= 3 && showPhotoByDefault
+  const servedPhotos = photoUnlockInfo.level >= 3
     ? (await prisma.photo.findMany({
         where: { userId: targetUserId },
         orderBy: [{ isPrimary: "desc" }, { position: "asc" }],
