@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
+import { getUserSettings, updateUserSettings } from '../api/userSettings';
 
 interface SettingsItem {
   icon: string;
@@ -123,6 +124,38 @@ export default function SettingsScreen() {
     Record<string, boolean>
   >({});
   const [vacationMode, setVacationMode] = useState(false);
+  const [vacationSaving, setVacationSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getUserSettings()
+      .then((settings) => {
+        if (active) setVacationMode(settings.vacationMode);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleVacationChange = async (value: boolean) => {
+    if (vacationSaving) return;
+    const previous = vacationMode;
+    setVacationMode(value);
+    setVacationSaving(true);
+    try {
+      const updated = await updateUserSettings({ vacationMode: value });
+      setVacationMode(updated.vacationMode);
+    } catch (err) {
+      setVacationMode(previous);
+      Alert.alert(
+        value ? 'Mode vacances' : 'Retour de vacances',
+        err instanceof Error ? err.message : 'Modification impossible.',
+      );
+    } finally {
+      setVacationSaving(false);
+    }
+  };
 
   const toggleSection = (key: string) =>
     setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
@@ -207,9 +240,8 @@ export default function SettingsScreen() {
       key: 'notifs',
       title: 'Notifications',
       items: [
-        { icon: '🔔', label: 'Notifications', route: '/notifications' },
-        { icon: '🔊', label: 'Sons', route: '/sounds' },
-        { icon: '📳', label: 'Vibrations', route: '/sounds' },
+        { icon: '🔔', label: 'Notifications', route: '/notification-settings' },
+        { icon: '🔊', label: 'Sons et vibrations', route: '/sounds' },
       ],
     },
     {
@@ -241,6 +273,7 @@ export default function SettingsScreen() {
       items: [
         { icon: '❓', label: 'Centre d’aide', route: '/help' },
         { icon: '🐛', label: 'Signaler un problème', route: '/report-bug' },
+        { icon: '💬', label: 'Contacter le support', route: '/contact-support' },
         { icon: '📜', label: 'Règles de la communauté', route: '/game-rules' },
       ],
     },
@@ -338,7 +371,8 @@ export default function SettingsScreen() {
 
           <Switch
             value={vacationMode}
-            onValueChange={setVacationMode}
+            onValueChange={(value) => void handleVacationChange(value)}
+            disabled={vacationSaving}
             trackColor={{ false: '#E9DDCF', true: '#D7B98E' }}
             thumbColor={vacationMode ? '#8B6F47' : '#FFFFFF'}
             ios_backgroundColor="#E9DDCF"
