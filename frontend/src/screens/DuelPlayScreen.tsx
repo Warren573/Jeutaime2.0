@@ -19,6 +19,7 @@ import {
   type DuelResult,
 } from '../logic/duelEngine';
 import {
+  declinePrivateDuel,
   getPrivateDuel,
   listPrivateDuels,
   rematchPrivateDuel,
@@ -63,6 +64,7 @@ export default function DuelPlayScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [rematching, setRematching] = useState(false);
+  const [declining, setDeclining] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const playerScale = useRef(new Animated.Value(1)).current;
@@ -182,6 +184,20 @@ export default function DuelPlayScreen() {
     }
   };
 
+  const handleDecline = async () => {
+    if (!duel || duel.status !== 'PENDING' || duel.isChallenger || declining) return;
+    try {
+      setDeclining(true);
+      setError(null);
+      const updated = await declinePrivateDuel(duel.id);
+      setDuel(updated);
+    } catch (err: any) {
+      setError(err?.message || 'Impossible de décliner ce duel.');
+    } finally {
+      setDeclining(false);
+    }
+  };
+
   const handleRematch = async () => {
     if (!duel || duel.status !== 'RESOLVED' || rematching) return;
 
@@ -263,6 +279,7 @@ export default function DuelPlayScreen() {
         </View>
 
         {duel.status === 'PENDING' && !duel.hasPlayed && (
+          <>
           <View style={styles.choicesRow}>
             {DUEL_CHOICES.map((choice) => (
               <ChoiceButton
@@ -273,6 +290,20 @@ export default function DuelPlayScreen() {
               />
             ))}
           </View>
+          {!duel.isChallenger && (
+            <Pressable
+              style={styles.declineBtn}
+              onPress={() => void handleDecline()}
+              disabled={declining}
+            >
+              {declining ? (
+                <ActivityIndicator size="small" color="#7A5C3A" />
+              ) : (
+                <Text style={styles.declineText}>Décliner poliment</Text>
+              )}
+            </Pressable>
+          )}
+          </>
         )}
 
         {duel.status === 'PENDING' && duel.hasPlayed && (
@@ -284,6 +315,20 @@ export default function DuelPlayScreen() {
                 Le choix de {duel.opponentPseudo} reste secret jusqu'à ce qu'il ou elle joue.
               </Text>
             </View>
+          </View>
+        )}
+
+        {duel.status === 'CANCELLED' && (
+          <View style={styles.waitingCard}>
+            <Text style={styles.waitingTitle}>Duel décliné</Text>
+            <Text style={styles.waitingText}>Aucune pénalité et aucun point n'est attribué.</Text>
+          </View>
+        )}
+
+        {duel.status === 'EXPIRED' && (
+          <View style={styles.waitingCard}>
+            <Text style={styles.waitingTitle}>Duel expiré</Text>
+            <Text style={styles.waitingText}>Les 48 heures sont écoulées. Aucun point n'est attribué.</Text>
           </View>
         )}
 
@@ -366,6 +411,17 @@ const styles = StyleSheet.create({
   waitingTextWrap: { flex: 1 },
   waitingTitle: { color: '#2C1A0E', fontSize: 14, fontWeight: '800' },
   waitingText: { color: '#7A5C3A', fontSize: 12.5, lineHeight: 18, marginTop: 3 },
+  declineBtn: {
+    alignSelf: 'center',
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+  },
+  declineText: {
+    color: '#7A5C3A',
+    fontSize: 13,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
   replayBtn: {
     alignSelf: 'center',
     minWidth: 190,
