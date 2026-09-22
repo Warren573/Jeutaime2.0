@@ -138,3 +138,93 @@ export async function sendPushToUser(params: {
     logger.error({ err, userId: params.userId }, "[push] Erreur envoi Expo push");
   }
 }
+
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < items.length; i += size) result.push(items.slice(i, i + size));
+  return result;
+}
+
+export async function sendDailyEditionPush(params: {
+  editionKey: string;
+  title: string;
+  body: string;
+}): Promise<{ scanned: number; sent: number }> {
+  const rows = await prisma.pushToken.findMany({
+    where: {
+      OR: [
+        { lastDailyEditionKey: null },
+        { lastDailyEditionKey: { not: params.editionKey } },
+      ],
+    },
+    select: {
+      id: true,
+      token: true,
+      userId: true,
+      user: {
+        select: {
+          settings: { select: { notifPush: true } },
+        },
+      },
+    },
+  });
+
+  const eligible = rows.filter((row) => row.user.settings?.notifPush !== false);
+  let sent = 0;
+
+  for (const batch of chunk(eligible, 100)) {
+    const messages: ExpoPushMessage[] = batch.map((row) => ({
+      to: row.token,
+      title: params.title,
+      body: params.body,
+      data: { route: "/journal", editionKey: params.editionKey },
+      sound: "default",
+      priority: "high",
+      channelId: "default",
+    }));
+
+    try {
+      const res = await fetch(EXPO_PUSH_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Accept-Encoding": "gzip, deflate",
+        },
+        body: JSON.stringify(messages),
+      });
+      if (!res.ok) continue;
+
+      const json = (await res.json()) as { data: ExpoPushTicket[] | ExpoPushTicket };
+      const tickets = Array.isArray(json.data) ? json.data : [json.data];
+      const deliveredIds: string[] = [];
+      const invalidIds: string[] = [];
+
+      tickets.forEach((ticket, index) => {
+        const row = batch[index];
+        if (!row) return;
+        if (ticket.status === "ok") {
+          deliveredIds.push(row.id);
+          sent += 1;
+        } else if (ticket.details?.error === "DeviceNotRegistered") {
+          invalidIds.push(row.id);
+        }
+      });
+
+      if (deliveredIds.length > 0) {
+        await prisma.pushToken.updateMany({
+          where: { id: { in: deliveredIds } },
+          data: { lastDailyEditionKey: params.editionKey },
+        });
+      }
+      if (invalidIds.length > 0) {
+        await prisma.pushToken.deleteMany({ where: { id: { in: invalidIds } } });
+      }
+    } catch (err) {
+      logger.error({ err }, "[push] Erreur envoi édition quotidienne");
+    }
+  }
+
+  return { scanned: rows.length, sent };
+}
