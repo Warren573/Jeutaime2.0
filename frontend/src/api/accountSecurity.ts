@@ -9,3 +9,15 @@ export async function changePassword(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+
+export async function changeEmail(payload: {
+  currentPassword: string;
+  newEmail: string;
+}): Promise<{ email: string }> {
+  const res = await apiFetch('/auth/change-email', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return res.data as { email: string };
+}
