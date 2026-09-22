@@ -33,6 +33,11 @@ const SALON_UI_ICONS: Record<string, any> = {
   metal: require('../../assets/ui-icons/metal.png'),
   psy: require('../../assets/ui-icons/psy.png'),
 };
+const BADGE_ICONS = {
+  conversation: require('../../assets/ui-icons/book.png'),
+  male: require('../../assets/ui-icons/male.png'),
+  female: require('../../assets/ui-icons/female.png'),
+} as const;
 
 const KIND_TO_SLUG: Record<string, string> = {
   'PISCINE': 'piscine',
@@ -195,7 +200,11 @@ export default function SalonsListScreen() {
                 <Text style={styles.salonDesc}>{salon.desc}</Text>
                 <View style={styles.badgeRow}>
                   <View style={styles.specialBadge}>
-                    <Text style={styles.specialBadgeText}>{salon.layout === 'vertical' ? '💬 Conversation' : '👥 Groupe'}</Text>
+                    {salon.layout === 'vertical' ? (
+                      <View style={styles.specialBadgeContent}><Image source={BADGE_ICONS.conversation} style={styles.specialBadgeIcon} resizeMode="contain"/><Text style={styles.specialBadgeText}>Conversation</Text></View>
+                    ) : (
+                      <View style={styles.specialBadgeContent}><View style={styles.badgeGroupPair}><Image source={BADGE_ICONS.male} style={styles.badgeGroupIcon} resizeMode="contain"/><Image source={BADGE_ICONS.female} style={[styles.badgeGroupIcon,styles.badgeGroupOverlap]} resizeMode="contain"/></View><Text style={styles.specialBadgeText}>Groupe</Text></View>
+                    )}
                   </View>
                 </View>
               </View>
@@ -255,6 +264,11 @@ const styles = StyleSheet.create({
   salonDesc: { fontSize: 12.5, lineHeight: 17, color: 'rgba(255,249,239,0.9)', marginTop: 3 },
   badgeRow: { flexDirection: 'row', marginTop: 7 },
   specialBadge: { backgroundColor: 'rgba(255,248,231,0.18)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  specialBadgeContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  specialBadgeIcon: { width: 16, height: 16 },
+  badgeGroupPair: { flexDirection: 'row', alignItems: 'center' },
+  badgeGroupIcon: { width: 14, height: 14 },
+  badgeGroupOverlap: { marginLeft: -5 },
   specialBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFF9EF' },
   salonStats: { alignItems: 'center', marginLeft: 10 },
   participantsBadge: { minWidth: 52, backgroundColor: 'rgba(255,248,231,0.18)', paddingHorizontal: 9, paddingVertical: 6, borderRadius: 13, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
