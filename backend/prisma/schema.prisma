@@ -892,8 +892,8 @@ model PrivateDuel {
   challenger       User              @relation("PrivateDuelChallenger", fields: [challengerId], references: [id], onDelete: Cascade)
   opponentId       String
   opponent         User              @relation("PrivateDuelOpponent", fields: [opponentId], references: [id], onDelete: Cascade)
-  commonUserId     String
-  commonUser       User              @relation("PrivateDuelCommonUser", fields: [commonUserId], references: [id], onDelete: Cascade)
+  commonUserId     String?
+  commonUser       User?             @relation("PrivateDuelCommonUser", fields: [commonUserId], references: [id], onDelete: SetNull)
   challengerChoice PrivateDuelChoice?
   opponentChoice   PrivateDuelChoice?
   status           PrivateDuelStatus @default(PENDING)
