@@ -15,6 +15,7 @@ import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import { useStore } from '../store/useStore';
 import { getCommunityStats, getDailyStats, getRefugeStats, type CommunityStatsDTO, type DailyStatsDTO, type RefugeStatsDTO } from '../api/stats';
 import { getWeeklyProfileWinners, type WeeklyProfileWinnersDTO } from '../api/weeklyProfile';
+import { getJournalEdition, type JournalEditionDTO } from '../api/journal';
 
 const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 
@@ -38,10 +39,11 @@ export default function JournalScreen() {
   const [dailyStats, setDailyStats] = useState<DailyStatsDTO | null>(null);
   const [refugeStats, setRefugeStats] = useState<RefugeStatsDTO | null>(null);
   const [weeklyWinners, setWeeklyWinners] = useState<WeeklyProfileWinnersDTO | null>(null);
+  const [edition, setEdition] = useState<JournalEditionDTO | null>(null);
 
   const loadAllData = async () => {
     try {
-      const [commStats, dayStats, refStats, winners] = await Promise.all([
+      const [commStats, dayStats, refStats, winners, personalEdition] = await Promise.all([
         getCommunityStats().catch(err => {
           console.error('[JournalScreen] Error loading community stats:', err);
           return null;
@@ -58,11 +60,16 @@ export default function JournalScreen() {
           console.error('[JournalScreen] Error loading weekly winners:', err);
           return null;
         }),
+        getJournalEdition().catch(err => {
+          console.error('[JournalScreen] Error loading personal edition:', err);
+          return null;
+        }),
       ]);
       if (commStats) setCommunityStats(commStats);
       if (dayStats) setDailyStats(dayStats);
       if (refStats) setRefugeStats(refStats);
       if (winners) setWeeklyWinners(winners);
+      if (personalEdition) setEdition(personalEdition);
     } catch (error) {
       console.error('[JournalScreen] Unexpected error loading data:', error);
     }
@@ -98,6 +105,26 @@ export default function JournalScreen() {
             <Text style={styles.dateline}>{todayHeadline()}</Text>
           </View>
         </View>
+
+        {edition && edition.personalEvents.length > 0 && (
+          <>
+            <View style={styles.sectionRule} />
+            <Text style={styles.sectionLabel}>VOTRE JOURNÉE</Text>
+            <View style={styles.personalSection}>
+              {edition.personalEvents.map((event) => (
+                <View key={event.id} style={styles.personalEvent}>
+                  <Text style={styles.personalEventText}>{event.text}</Text>
+                  <Text style={styles.personalEventTime}>
+                    {new Date(event.occurredAt).toLocaleTimeString('fr-FR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
 
         {/* ── Encadré lecteur (à la une, en bref) ────────────────────────── */}
         <View style={styles.briefBox}>
@@ -204,7 +231,19 @@ export default function JournalScreen() {
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{dailyStats.duelsPlayedToday}</Text>
-                <Text style={styles.statName}>Duels joués</Text>
+                <Text style={styles.statName}>Duels lancés</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{dailyStats.duelsResolvedToday}</Text>
+                <Text style={styles.statName}>Duels terminés</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{dailyStats.registrationsToday}</Text>
+                <Text style={styles.statName}>Nouveaux inscrits</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{dailyStats.activeToday}</Text>
+                <Text style={styles.statName}>Connectés aujourd’hui</Text>
               </View>
             </View>
           </>
@@ -230,8 +269,12 @@ export default function JournalScreen() {
                 <Text style={styles.statLabel}>Offrandes envoyées (depuis le lancement)</Text>
               </View>
               <View style={styles.statBox}>
-                <Text style={styles.statValue}>{formatNumber(communityStats.activeMembers)}</Text>
-                <Text style={styles.statLabel}>Membres actifs (7 derniers jours)</Text>
+                <Text style={styles.statValue}>{formatNumber(communityStats.registrations7d)}</Text>
+                <Text style={styles.statLabel}>Nouveaux inscrits (7 jours)</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{formatNumber(communityStats.active7d)}</Text>
+                <Text style={styles.statLabel}>Connectés (7 jours)</Text>
               </View>
             </View>
           </>
@@ -279,6 +322,29 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   dateline: { fontSize: 14, fontFamily: SERIF, fontStyle: 'italic', color: INK_SOFT, textTransform: 'capitalize' },
+
+  personalSection: {
+    marginTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: RULE,
+  },
+  personalEvent: {
+    paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: RULE,
+  },
+  personalEventText: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontFamily: SERIF,
+    color: INK,
+  },
+  personalEventTime: {
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: SERIF,
+    color: INK_SOFT,
+  },
 
   // ── Encadré "En bref" ────────────────────────────────────────────────────
   briefBox: {
