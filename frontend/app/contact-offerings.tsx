@@ -194,7 +194,9 @@ export default function ContactOfferingsPage() {
                     <Text style={styles.spotlightName}>{spotlightItem.name}</Text>
                     <Text style={styles.spotlightCost}>{spotlightItem.cost} pièces</Text>
                   </View>
-                  <Text style={styles.spotlightArrow}>›</Text>
+                  <View style={styles.offerAction}>
+                    <Text style={styles.offerActionText}>Offrir</Text>
+                  </View>
                 </View>
               </TouchableOpacity>
             )}
@@ -223,7 +225,11 @@ export default function ContactOfferingsPage() {
                           {owned ? 'Déjà sur son bureau' : sending ? 'Dépôt en cours…' : `${item.cost} pièces`}
                         </Text>
                       </View>
-                      {!owned && <Text style={styles.chevron}>›</Text>}
+                      {!owned && (
+                        <View style={styles.offerAction}>
+                          <Text style={styles.offerActionText}>Offrir</Text>
+                        </View>
+                      )}
                     </TouchableOpacity>
                   );
                 })}
@@ -268,5 +274,16 @@ const styles = StyleSheet.create({
   name: { fontFamily: 'Georgia', fontSize: 17, lineHeight: 21, color: '#3B2417', fontWeight: '700' },
   cost: { marginTop: 5, fontSize: 11, color: '#8A6D57' },
   ownedText: { color: '#765137', fontWeight: '700' },
+  offerAction: {
+    marginLeft: 10,
+    minWidth: 62,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#8A2F3C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  offerActionText: { color: '#FFF8E7', fontSize: 12, fontWeight: '800' },
   chevron: { marginLeft: 8, fontSize: 28, lineHeight: 30, color: '#A68467' },
 });
