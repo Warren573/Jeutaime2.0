@@ -34,6 +34,7 @@ import adminSupportRoutes from "./modules/admin/support/adminSupport.routes";
 import reactionsRoutes from "./modules/reactions/reactions.routes";
 import cardGameRoutes from "./modules/card-game/card-game.routes";
 import privateDuelsRoutes from "./modules/private-duels/private-duels.routes";
+import journalRoutes from "./modules/journal/journal.routes";
 import bottlesRoutes from "./modules/bottles/bottles.routes";
 import refugeRoutes from "./modules/refuge/refuge.routes";
 import souvenirsRoutes from "./modules/souvenirs/souvenirs.routes";
@@ -103,6 +104,7 @@ app.use(`${api}/support`, supportRoutes);
 app.use(`${api}/discover`, reactionsRoutes);
 app.use(`${api}/card-game`, cardGameRoutes);
 app.use(`${api}/private-duels`, privateDuelsRoutes);
+app.use(`${api}/journal`, journalRoutes);
 // Redeploy marker: private duels route
 app.use(`${api}/bottles`, bottlesRoutes);
 app.use(`${api}/refuge`, refugeRoutes);
