@@ -231,6 +231,8 @@ model User {
   privateDuelsChallenged    PrivateDuel[]             @relation("PrivateDuelChallenger")
   privateDuelsReceived      PrivateDuel[]             @relation("PrivateDuelOpponent")
   privateDuelsWon           PrivateDuel[]             @relation("PrivateDuelWinner")
+  privateDuelsCommon        PrivateDuel[]             @relation("PrivateDuelCommonUser")
+  journalEvents             JournalEvent[]
 
   bottlesSent                  MessageInABottle[]    @relation("BottleSender")
   bottlesAccepted              MessageInABottle[]    @relation("BottleAcceptedBy")
@@ -890,18 +892,36 @@ model PrivateDuel {
   challenger       User              @relation("PrivateDuelChallenger", fields: [challengerId], references: [id], onDelete: Cascade)
   opponentId       String
   opponent         User              @relation("PrivateDuelOpponent", fields: [opponentId], references: [id], onDelete: Cascade)
+  commonUserId     String
+  commonUser       User              @relation("PrivateDuelCommonUser", fields: [commonUserId], references: [id], onDelete: Cascade)
   challengerChoice PrivateDuelChoice?
   opponentChoice   PrivateDuelChoice?
   status           PrivateDuelStatus @default(PENDING)
   winnerId         String?
   winner           User?             @relation("PrivateDuelWinner", fields: [winnerId], references: [id], onDelete: SetNull)
   createdAt        DateTime          @default(now())
+  expiresAt        DateTime
   updatedAt        DateTime          @updatedAt
   resolvedAt       DateTime?
+  declinedAt       DateTime?
 
   @@index([challengerId, status, createdAt])
   @@index([opponentId, status, createdAt])
-  @@index([status, createdAt])
+  @@index([commonUserId, status, createdAt])
+  @@index([status, expiresAt])
+}
+
+model JournalEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind       String
+  meta       Json?
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([kind, occurredAt])
 }
 
 // ============================================================
