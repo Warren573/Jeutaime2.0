@@ -270,7 +270,7 @@ export default function ProfileRoute() {
 
           {hasActiveRelation && (
             <TouchableOpacity style={styles.offeringsButton} onPress={handleOfferings}>
-              <Text style={styles.offeringsButtonText}>🎁 Offrandes</Text>
+              <Text style={styles.offeringsButtonText}>🎁 Offrir</Text>
             </TouchableOpacity>
           )}
 
