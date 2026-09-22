@@ -14,7 +14,16 @@ export async function handleRegister(req: Request, res: Response) {
 
 export async function handleLogin(req: Request, res: Response) {
   const tokens = await authService.login(req.body);
-  const reactivated = await reactivateAccountByEmail(req.body.email);
+
+  // La réactivation est un effet secondaire : elle ne doit jamais empêcher
+  // une connexion valide si la table/migration de cycle de vie est indisponible.
+  let reactivated = false;
+  try {
+    reactivated = await reactivateAccountByEmail(req.body.email);
+  } catch {
+    reactivated = false;
+  }
+
   res.json({ data: tokens, meta: { reactivated } });
 }
 
