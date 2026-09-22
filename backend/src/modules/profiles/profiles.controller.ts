@@ -27,7 +27,11 @@ export async function handleGetProfile(req: AuthedRequest, res: Response) {
     req.params["id"] as string,
     req.user.isPremium,
   );
-  const profile = await applyLocationPrivacy(result.profile);
+  const profile =
+    req.user.userId === (req.params["id"] as string)
+      ? result.profile
+      : await applyLocationPrivacy(result.profile);
+
   res.json({ data: { ...result, profile } });
 }
 
