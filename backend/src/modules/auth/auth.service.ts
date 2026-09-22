@@ -281,7 +281,17 @@ export async function getMe(userId: string) {
         include: { questions: true },
       },
       wallet: { select: { coins: true, lastDailyBonus: true } },
-      settings: true,
+      settings: {
+        select: {
+          notifEmail: true,
+          notifPush: true,
+          soundEnabled: true,
+          language: true,
+          showInDiscovery: true,
+          locationShared: true,
+          showPhotoByDefault: true,
+        },
+      },
     },
   });
 
