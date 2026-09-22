@@ -22,6 +22,9 @@ router.get("/", wrap(ctrl.handleListMine));
 // GET /api/private-duels/candidates
 router.get("/candidates", wrap(ctrl.handleListCandidates));
 
+// GET /api/private-duels/stats
+router.get("/stats", wrap(ctrl.handleGetStats));
+
 // POST /api/private-duels
 router.post("/", validate(CreatePrivateDuelSchema), wrap(ctrl.handleCreate));
 
@@ -38,6 +41,13 @@ router.post(
   validate(PrivateDuelIdParamsSchema, "params"),
   validate(SubmitPrivateDuelChoiceSchema),
   wrap(ctrl.handleSubmitChoice),
+);
+
+// POST /api/private-duels/:id/decline
+router.post(
+  "/:id/decline",
+  validate(PrivateDuelIdParamsSchema, "params"),
+  wrap(ctrl.handleDecline),
 );
 
 // POST /api/private-duels/:id/rematch
