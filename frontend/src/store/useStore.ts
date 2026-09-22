@@ -934,6 +934,15 @@ export const useStore = create<StoreState>()(
         get().incrementStat('lettersSent');
         get().addPoints(ProgressionEngine.POINTS.sendLetter, 'Lettre envoyée');
         void get().loadUnreadCount();
+
+        // Reprendre l'état serveur après l'envoi. C'est important si les deux
+        // participants envoient leur première lettre presque au même moment :
+        // le backend les ordonne correctement, puis ce rafraîchissement évite
+        // que chaque téléphone reste bloqué sur son état optimiste local.
+        void get().loadMatches();
+        setTimeout(() => {
+          void get().loadMatches();
+        }, 1200);
       },
 
       markLetterReadApi: async (letterId: string) => {
