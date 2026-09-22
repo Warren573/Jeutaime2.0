@@ -217,23 +217,21 @@ export default function SettingsScreen() {
             ]
           : []),
         { icon: '✏️', label: 'Modifier mon profil', route: '/edit-profile' },
-        {
-          icon: '🎨',
-          label: 'Personnaliser mon avatar',
-          route: '/avatar-builder',
-        },
+        { icon: '🎨', label: 'Personnaliser mon avatar', route: '/avatar-builder' },
         { icon: '📸', label: 'Mes photos', route: '/my-photos' },
-        {
-          icon: '🎯',
-          label: 'Préférences de rencontre',
-          route: '/matching-preferences',
-        },
+        { icon: '🎯', label: 'Préférences de rencontre', route: '/matching-preferences' },
         { icon: '📍', label: 'Localisation', route: '/location' },
-        {
-          icon: '✅',
-          label: 'Vérification du profil',
-          route: '/profile-verification',
-        },
+        { icon: '✅', label: 'Vérification du profil', route: '/profile-verification' },
+      ],
+    },
+    {
+      key: 'account',
+      title: 'Compte',
+      items: [
+        { icon: '✉️', label: 'E-mail', route: '/email' },
+        { icon: '🔑', label: 'Mot de passe', route: '/password' },
+        { icon: '⭐', label: 'Abonnement', route: '/premium' },
+        { icon: '⏸️', label: 'Désactiver temporairement mon compte', route: '/deactivate' },
       ],
     },
     {
@@ -247,17 +245,9 @@ export default function SettingsScreen() {
       key: 'privacy',
       title: 'Confidentialité',
       items: [
-        {
-          icon: '🚫',
-          label: 'Utilisateurs bloqués',
-          route: '/blocked-users',
-        },
-        {
-          icon: '🗄️',
-          label: 'Données personnelles',
-          route: '/personal-data',
-        },
-        { icon: '🔑', label: 'Mot de passe', route: '/password' },
+        { icon: '👁️', label: 'Visibilité du profil et partage de la ville', route: '/privacy' },
+        { icon: '🚫', label: 'Utilisateurs bloqués', route: '/blocked-users' },
+        { icon: '🗄️', label: 'Données personnelles', route: '/personal-data' },
         {
           icon: '🗑️',
           label: 'Supprimer mon compte',
@@ -280,16 +270,9 @@ export default function SettingsScreen() {
       key: 'about',
       title: 'À propos',
       items: [
-        {
-          icon: '📋',
-          label: "Conditions d'utilisation",
-          route: '/terms',
-        },
-        {
-          icon: '🛡️',
-          label: 'Politique de confidentialité',
-          route: '/privacy-policy',
-        },
+        { icon: '📋', label: "Conditions d'utilisation", route: '/terms' },
+        { icon: '🛡️', label: 'Politique de confidentialité', route: '/privacy-policy' },
+        { icon: '⚖️', label: 'Mentions légales', route: '/legal-notice' },
         { icon: 'ℹ️', label: 'JeuTaime v2.0.0' },
       ],
     },
