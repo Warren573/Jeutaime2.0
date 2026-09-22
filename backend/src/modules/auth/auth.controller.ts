@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import * as authService from "./auth.service";
-import { changePassword } from "./accountSecurity.service";
+import { changeEmail, changePassword } from "./accountSecurity.service";
 import { exportPersonalData } from "./dataExport.service";
 import { deactivateAccount, reactivateAccountByEmail } from "./accountLifecycle.service";
 import { deleteAccountPermanently } from "./accountDeletion.service";
@@ -43,6 +43,11 @@ export async function handleLogout(req: AuthedRequest, res: Response) {
 export async function handleChangePassword(req: AuthedRequest, res: Response) {
   await changePassword(req.user.userId, req.body.currentPassword, req.body.newPassword);
   res.json({ data: { message: "Mot de passe modifié" } });
+}
+
+export async function handleChangeEmail(req: AuthedRequest, res: Response) {
+  const email = await changeEmail(req.user.userId, req.body.currentPassword, req.body.newEmail);
+  res.json({ data: { message: "Adresse e-mail modifiée", email } });
 }
 
 export async function handleDeactivate(req: AuthedRequest, res: Response) {
