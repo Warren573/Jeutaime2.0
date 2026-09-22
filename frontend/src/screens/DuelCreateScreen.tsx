@@ -61,7 +61,7 @@ export default function DuelCreateScreen() {
     try {
       setError(null);
       setCreatingUserId(candidate.id);
-      const duel = await createPrivateDuel(candidate.id);
+      const duel = await createPrivateDuel(candidate.id, candidate.commonUserId);
       openDuel(duel.id);
     } catch (err: any) {
       setError(err?.message || 'Impossible de créer ce duel.');
@@ -90,7 +90,7 @@ export default function DuelCreateScreen() {
       ) : (
         <FlatList
           data={candidates}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => `${item.id}:${item.commonUserId}`}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -165,7 +165,10 @@ export default function DuelCreateScreen() {
               disabled={creatingUserId !== null}
             >
               <Avatar size={50} {...DEFAULT_AVATAR} />
-              <Text style={styles.name}>{item.pseudo}</Text>
+              <View style={styles.candidateCopy}>
+                <Text style={styles.name}>{item.pseudo}</Text>
+                <Text style={styles.via}>Correspondant de {item.commonPseudo}</Text>
+              </View>
               <View style={styles.challengeBtn}>
                 {creatingUserId === item.id ? (
                   <ActivityIndicator size="small" color="#FFF" />
@@ -274,7 +277,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  name: { flex: 1, color: '#2C1A0E', fontSize: 17, fontWeight: '700', marginLeft: 14 },
+  candidateCopy: { flex: 1, marginLeft: 14 },
+  name: { color: '#2C1A0E', fontSize: 17, fontWeight: '700' },
+  via: { color: '#8A6847', fontSize: 12, marginTop: 3 },
   challengeBtn: {
     minWidth: 70,
     alignItems: 'center',
