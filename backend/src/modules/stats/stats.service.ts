@@ -5,6 +5,10 @@ export interface CommunityStatsDto {
   lettersSent: number;
   giftsSent: number;
   activeMembers: number;
+  registrationsToday: number;
+  activeToday: number;
+  registrations7d: number;
+  active7d: number;
 }
 
 export interface DailyStatsDto {
@@ -14,7 +18,14 @@ export interface DailyStatsDto {
   grimacesSentToday: number;
   offeringsSentToday: number;
   duelsPlayedToday: number;
+  duelsResolvedToday: number;
+  duelsDeclinedToday: number;
+  duelsExpiredToday: number;
   lettersSentToday: number;
+  registrationsToday: number;
+  activeToday: number;
+  registrations7d: number;
+  active7d: number;
 }
 
 // Chiffres réels de la communauté (affichés dans le Journal) — aucune
@@ -26,20 +37,45 @@ export async function getCommunityStats(): Promise<CommunityStatsDto> {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const [matchesToday, lettersSent, giftsSent, activeMembers] = await Promise.all([
+  const [
+    matchesToday,
+    lettersSent,
+    giftsSent,
+    activeMembers,
+    registrationsToday,
+    activeToday,
+    registrations7d,
+    active7d,
+  ] = await Promise.all([
     prisma.match.count({ where: { createdAt: { gte: startOfDay } } }),
     prisma.letter.count(),
     prisma.offeringSent.count(),
     prisma.user.count({ where: { lastLoginAt: { gte: sevenDaysAgo } } }),
+    prisma.user.count({ where: { createdAt: { gte: startOfDay } } }),
+    prisma.user.count({ where: { lastLoginAt: { gte: startOfDay } } }),
+    prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+    prisma.user.count({ where: { lastLoginAt: { gte: sevenDaysAgo } } }),
   ]);
 
-  return { matchesToday, lettersSent, giftsSent, activeMembers };
+  return {
+    matchesToday,
+    lettersSent,
+    giftsSent,
+    activeMembers,
+    registrationsToday,
+    activeToday,
+    registrations7d,
+    active7d,
+  };
 }
 
 // Statistiques complètes du jour pour le Journal
 export async function getDailyStats(): Promise<DailyStatsDto> {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
   const [
     matchesToday,
@@ -48,15 +84,29 @@ export async function getDailyStats(): Promise<DailyStatsDto> {
     grimacesSentToday,
     offeringsSentToday,
     duelsPlayedToday,
+    duelsResolvedToday,
+    duelsDeclinedToday,
+    duelsExpiredToday,
     lettersSentToday,
+    registrationsToday,
+    activeToday,
+    registrations7d,
+    active7d,
   ] = await Promise.all([
     prisma.match.count({ where: { createdAt: { gte: startOfDay } } }),
     prisma.messageInABottle.count({ where: { createdAt: { gte: startOfDay } } }),
     prisma.reaction.count({ where: { type: "SMILE", createdAt: { gte: startOfDay } } }),
     prisma.reaction.count({ where: { type: "GRIMACE", createdAt: { gte: startOfDay } } }),
     prisma.offeringSent.count({ where: { createdAt: { gte: startOfDay } } }),
-    prisma.weeklyProfileDuel.count({ where: { createdAt: { gte: startOfDay } } }),
+    prisma.privateDuel.count({ where: { createdAt: { gte: startOfDay } } }),
+    prisma.privateDuel.count({ where: { status: "RESOLVED", resolvedAt: { gte: startOfDay } } }),
+    prisma.privateDuel.count({ where: { status: "CANCELLED", declinedAt: { gte: startOfDay } } }),
+    prisma.privateDuel.count({ where: { status: "EXPIRED", updatedAt: { gte: startOfDay } } }),
     prisma.letter.count({ where: { sentAt: { gte: startOfDay } } }),
+    prisma.user.count({ where: { createdAt: { gte: startOfDay } } }),
+    prisma.user.count({ where: { lastLoginAt: { gte: startOfDay } } }),
+    prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+    prisma.user.count({ where: { lastLoginAt: { gte: sevenDaysAgo } } }),
   ]);
 
   return {
@@ -66,7 +116,14 @@ export async function getDailyStats(): Promise<DailyStatsDto> {
     grimacesSentToday,
     offeringsSentToday,
     duelsPlayedToday,
+    duelsResolvedToday,
+    duelsDeclinedToday,
+    duelsExpiredToday,
     lettersSentToday,
+    registrationsToday,
+    activeToday,
+    registrations7d,
+    active7d,
   };
 }
 
