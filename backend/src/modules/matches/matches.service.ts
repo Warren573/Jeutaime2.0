@@ -51,12 +51,27 @@ async function assertParticipant(match: { userAId: string; userBId: string }, us
 }
 
 async function countActiveMatches(userId: string): Promise<number> {
-  return prisma.match.count({
+  const matches = await prisma.match.findMany({
     where: {
       OR: [{ userAId: userId }, { userBId: userId }],
       status: { in: [MatchStatus.ACTIVE, MatchStatus.PENDING] },
     },
+    select: {
+      userAId: true,
+      userBId: true,
+      userA: { select: { settings: { select: { vacationMode: true } } } },
+      userB: { select: { settings: { select: { vacationMode: true } } } },
+    },
   });
+
+  const hasVacationContact = matches.some((match) => {
+    const otherIsA = match.userBId === userId;
+    return otherIsA
+      ? match.userA.settings?.vacationMode === true
+      : match.userB.settings?.vacationMode === true;
+  });
+
+  return Math.max(0, matches.length - (hasVacationContact ? 1 : 0));
 }
 
 
@@ -182,7 +197,7 @@ async function enrichMatch(
     viewerIsPremium,
   });
 
-  const [otherProfile, primaryPhoto, canSendResult, unreadCount] = await Promise.all([
+  const [otherProfile, primaryPhoto, canSendResult, unreadCount, otherSettings] = await Promise.all([
     prisma.profile.findUnique({
       where: { userId: otherUserId },
       select: {
@@ -205,6 +220,10 @@ async function enrichMatch(
     prisma.letter.count({
       where: { matchId: match.id, toUserId: viewerId, status: LetterStatus.SENT },
     }),
+    prisma.userSettings.findUnique({
+      where: { userId: otherUserId },
+      select: { vacationMode: true },
+    }),
   ]);
 
   const photoUrl = primaryPhoto && photoUnlock.level === 3
@@ -218,13 +237,18 @@ async function enrichMatch(
     currentUserSide: isViewerA ? "A" : "B",
     canSend: canSendResult.canSend,
     canSendReason: canSendResult.reason,
-    isGhosting: isGhosting({
-      lastLetterAt: match.lastLetterAt,
-      lastLetterBy: match.lastLetterBy,
-      relancingUserId: viewerId,
-      ghostRelanceUsedBy: match.ghostRelanceUsedBy,
-    }),
-    canRelance: computeCanRelance(match, viewerId),
+    otherUserVacationMode: otherSettings?.vacationMode === true,
+    isGhosting: otherSettings?.vacationMode === true
+      ? false
+      : isGhosting({
+          lastLetterAt: match.lastLetterAt,
+          lastLetterBy: match.lastLetterBy,
+          relancingUserId: viewerId,
+          ghostRelanceUsedBy: match.ghostRelanceUsedBy,
+        }),
+    canRelance: otherSettings?.vacationMode === true
+      ? false
+      : computeCanRelance(match, viewerId),
     hasUnreadIncomingLetter: unreadCount > 0,
     photoUnlock,
     photoUrl,
@@ -449,6 +473,14 @@ export async function ghostRelance(matchId: string, userId: string, dto: GhostRe
   // Vérifier les blocages (sécurité)
   const otherUserId = match.userAId === userId ? match.userBId : match.userAId;
   await assertNoBlock(userId, otherUserId);
+
+  const otherSettings = await prisma.userSettings.findUnique({
+    where: { userId: otherUserId },
+    select: { vacationMode: true },
+  });
+  if (otherSettings?.vacationMode) {
+    throw new BadRequestError("Ce contact est en mode vacances. La relance anti-ghosting est suspendue.");
+  }
 
   // Valider la policy anti-ghosting
   assertCanRelance({
