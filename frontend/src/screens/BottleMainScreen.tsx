@@ -12,6 +12,11 @@ import { useStore } from '../store/useStore';
 const CREAM_BG = '#F6F0E4';
 const BOTTLE_IMG = require('../../assets/images/bottle/BOTTLE-22.png');
 const OCEAN_BG = require('../../assets/images/ocean.png');
+const UI_ICONS = {
+  transit: require('../../assets/ui-icons/transit.png'),
+  book: require('../../assets/ui-icons/book.png'),
+  bottle: require('../../assets/ui-icons/bottle.png'),
+} as const;
 const COLORS = { text: '#2C1A0E', textSecondary: '#7A5C3A', accent: '#8B2E3C', border: '#D4B896', paper: '#FEFAF0', success: '#466B4E', error: '#A43A3A' };
 
 const BottleItem: React.FC<{ id: string; index: number; onPress: () => void; position: { left: string; top: string }; isAccepting: boolean }> = ({ index, onPress, position, isAccepting }) => {
@@ -198,7 +203,7 @@ export default function BottleMainScreen() {
 
                 <View style={styles.sentStatusCard}>
                   <View style={styles.sentStatusIcon}>
-                    <Text style={styles.sentStatusIconText}>✈️</Text>
+                    <Image source={UI_ICONS.transit} style={styles.sentStatusIconImage} resizeMode="contain" />
                   </View>
                   <View style={styles.sentStatusCopy}>
                     <Text style={styles.sentStatusTitle}>En attente de la prochaine lettre</Text>
@@ -213,7 +218,7 @@ export default function BottleMainScreen() {
                     style={styles.historyBtn}
                     onPress={() => router.push({ pathname: '/bottles-history', params: { bottleId: state.bottle!.id } })}
                   >
-                    <Text style={styles.historyBtnText}>📖 Relire notre correspondance</Text>
+                    <View style={styles.historyBtnContent}><Image source={UI_ICONS.book} style={styles.historyBtnIcon} resizeMode="contain"/><Text style={styles.historyBtnText}>Relire notre correspondance</Text></View>
                   </TouchableOpacity>
                 </View>
               </>
@@ -273,7 +278,7 @@ export default function BottleMainScreen() {
 
             <View style={styles.sentStatusCard}>
               <View style={styles.sentStatusIcon}>
-                <Text style={styles.sentStatusIconText}>🌊</Text>
+                <Image source={UI_ICONS.bottle} style={styles.sentStatusIconImage} resizeMode="contain" />
               </View>
               <View style={styles.sentStatusCopy}>
                 <Text style={styles.sentStatusTitle}>En attente d’une réponse</Text>
@@ -350,6 +355,8 @@ const styles = StyleSheet.create({
   waitingBox: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14, backgroundColor: '#F4E7D2', borderWidth: 1, borderColor: '#DEC6A5', marginBottom: 12 },
   waitingText: { fontSize: 14, color: '#7A5C3A', fontWeight: '600', textAlign: 'center' },
   historyBtn: { minHeight: 46, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 14, backgroundColor: COLORS.paper, borderWidth: 1.5, borderColor: '#B8956A' },
+  historyBtnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  historyBtnIcon: { width: 22, height: 22 },
   historyBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.accent, textAlign: 'center' },
   emptyState: { paddingTop: 90, paddingBottom: 32, alignItems: 'center', marginBottom: 10 },
   emptyEmoji: { fontSize: 58, marginBottom: 18 },
@@ -428,6 +435,10 @@ const styles = StyleSheet.create({
   },
   sentStatusIconText: {
     fontSize: 22,
+  },
+  sentStatusIconImage: {
+    width: 30,
+    height: 30,
   },
   sentStatusCopy: {
     flex: 1,
