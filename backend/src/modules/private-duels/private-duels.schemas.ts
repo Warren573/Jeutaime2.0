@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const CreatePrivateDuelSchema = z.object({
   targetUserId: z.string().min(1, "Adversaire requis"),
+  commonUserId: z.string().min(1, "Correspondant commun requis"),
 });
 
 export const SubmitPrivateDuelChoiceSchema = z.object({
