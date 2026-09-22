@@ -4,6 +4,9 @@ export interface UserSettingsDTO {
   notifEmail: boolean;
   notifPush: boolean;
   soundEnabled: boolean;
+  vibrationEnabled: boolean;
+  vacationMode: boolean;
+  vacationStartedAt?: string | null;
   showInDiscovery: boolean;
   locationShared: boolean;
 }
