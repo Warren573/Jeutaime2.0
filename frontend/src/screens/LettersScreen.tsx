@@ -23,13 +23,11 @@ import { useRouter, Link, useFocusEffect, useLocalSearchParams } from 'expo-rout
 import { useStore } from '../store/useStore';
 import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matches';
 import { reportUser, type ReportReason } from '../api/profiles';
-import { getSouvenirs, type SouvenirDTO } from '../api/souvenirs';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
 import { LetterPaginatedView } from '../components/letters/LetterPaginatedView';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
-import { FEATURES } from '../config/features';
 import { getRelationInfo } from '../engine/RelationEngine';
 import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 
@@ -681,16 +679,6 @@ const lcStyles = StyleSheet.create({
   },
 });
 
-type TabType = 'lettres' | 'journal' | 'souvenirs';
-
-interface JournalEntry {
-  id: string;
-  date: string;
-  title: string;
-  content: string;
-  mood: string;
-}
-
 export default function LettersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -699,7 +687,7 @@ export default function LettersScreen() {
     matches, letters, lettersByMatch, questionsByMatch,
     addLetter, markLetterRead, markLetterReadApi,
     loadLetters, openAndMarkRead, sendApiLetter, loadQuestions, submitAnswers,
-    loadMatches, currentUser, matchPartners, addPoints, duelEntries,
+    loadMatches, currentUser, matchPartners,
   } = useStore();
 
   useFocusEffect(
@@ -720,9 +708,6 @@ export default function LettersScreen() {
   const [qCurrentStep, setQCurrentStep] = useState(0);
   const [qSubmitting, setQSubmitting] = useState(false);
   const [qResult, setQResult] = useState<{ myScore: number; passed: boolean; questionsValidated: boolean; waitingForOther: boolean; matchBroken: boolean } | null>(null);
-  const initialTab: TabType =
-    params.tab === 'souvenirs' || params.tab === 'journal' ? params.tab : 'lettres';
-  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
 
   const [envAnimVisible, setEnvAnimVisible] = useState(false);
   const [envAnimSender, setEnvAnimSender] = useState('');
@@ -740,51 +725,10 @@ export default function LettersScreen() {
     };
   }, []);
 
-  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([
-    {
-      id: '1',
-      date: '2025-03-12',
-      title: 'Premier jour sur JeuTaime',
-      content: "Aujourd'hui j'ai découvert cette application incroyable...",
-      mood: '😊',
-    },
-  ]);
-
-  const [showJournalModal, setShowJournalModal] = useState(false);
-  const [journalTitle, setJournalTitle] = useState('');
-  const [journalContent, setJournalContent] = useState('');
-  const [journalMood, setJournalMood] = useState('😊');
-
-  const [souvenirs, setSouvenirs] = useState<SouvenirDTO[]>([]);
-  const [souvenirsLoading, setSouvenirsLoading] = useState(true);
-
-  useEffect(() => {
-    getSouvenirs()
-      .then(setSouvenirs)
-      .catch(() => setSouvenirs([]))
-      .finally(() => setSouvenirsLoading(false));
-  }, []);
-
-  const visibleTabs = useMemo(() => {
-    const tabs: TabType[] = [];
-
-    if (FEATURES.letters !== 'hidden') tabs.push('lettres');
-    if (FEATURES.journal !== 'hidden') tabs.push('journal');
-    tabs.push('souvenirs');
-
-    return tabs;
-  }, []);
-
   const visibleMatches = useMemo(
     () => matches.filter(m => m.status === 'pending' || m.status === 'active'),
     [matches]
   );
-
-  useEffect(() => {
-    if (!visibleTabs.includes(activeTab)) {
-      setActiveTab(visibleTabs[0] ?? 'souvenirs');
-    }
-  }, [activeTab, visibleTabs]);
 
   const getOtherUserId = (match: Match): string => {
     const myId = currentUser?.id ?? 'me';
@@ -902,24 +846,6 @@ export default function LettersScreen() {
     }
   };
 
-  const handleAddJournal = () => {
-    if (!journalTitle.trim() || !journalContent.trim()) return;
-
-    const entry: JournalEntry = {
-      id: Date.now().toString(),
-      date: new Date().toISOString().split('T')[0],
-      title: journalTitle.trim(),
-      content: journalContent.trim(),
-      mood: journalMood,
-    };
-
-    setJournalEntries(prev => [entry, ...prev]);
-    addPoints(5);
-    setJournalTitle('');
-    setJournalContent('');
-    setShowJournalModal(false);
-  };
-
   const handleBreakMatch = async () => {
     if (!selectedMatch) return;
 
@@ -1013,12 +939,7 @@ export default function LettersScreen() {
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
 
-  const moods = ['😊', '😍', '🥰', '😢', '😤', '🤔', '😴', '🎉'];
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'lettres':
-        return (
+  const renderLettersContent = () => (
           <>
             <TouchableOpacity
               style={styles.duelBtn}
@@ -1098,90 +1019,7 @@ export default function LettersScreen() {
             )}
           </>
         );
-
-      case 'journal':
-        return (
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-            <TouchableOpacity style={styles.addBtn} onPress={() => setShowJournalModal(true)}>
-              <Text style={styles.addBtnEmoji}>✏️</Text>
-              <Text style={styles.addBtnText}>Nouvelle entrée</Text>
-            </TouchableOpacity>
-
-            {duelEntries.length > 0 && (
-              <>
-                <View style={styles.journalSectionTitleRow}><MaterialCommunityIcons name="sword-cross" size={17} color="#8B5A2B" /><Text style={styles.journalSectionTitle}>Duels récents</Text></View>
-                {duelEntries.slice(0, 5).map(entry => (
-                  <View key={entry.id} style={[styles.journalCard, styles.duelJournalCard]}>
-                    <View style={styles.journalHeader}>
-                      <MaterialCommunityIcons name="sword-cross" size={20} color="#8B5A2B" />
-                      <Text style={styles.journalDate}>
-                        {new Date(entry.createdAt).toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'short',
-                        })}
-                      </Text>
-                    </View>
-                    <Text style={styles.journalContent}>{entry.text}</Text>
-                  </View>
-                ))}
-              </>
-            )}
-
-            {journalEntries.length === 0 && duelEntries.length === 0 ? (
-              <View style={styles.emptyJournal}>
-                <Ionicons name="book-outline" size={34} color="#A88E70" />
-                <Text style={styles.emptyJournalText}>Ton journal est vide</Text>
-                <Text style={styles.emptyJournalSubtext}>
-                  Écris tes pensées et garde un souvenir de ton aventure
-                </Text>
-              </View>
-            ) : (
-              journalEntries.map(entry => (
-                <View key={entry.id} style={styles.journalCard}>
-                  <View style={styles.journalHeader}>
-                    <Text style={styles.journalMood}>{entry.mood}</Text>
-                    <Text style={styles.journalDate}>{entry.date}</Text>
-                  </View>
-                  <Text style={styles.journalTitle}>{entry.title}</Text>
-                  <Text style={styles.journalContent}>{entry.content}</Text>
-                </View>
-              ))
-            )}
-          </ScrollView>
-        );
-
-      case 'souvenirs':
-      default:
-        return (
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-            {souvenirsLoading ? (
-              <ActivityIndicator size="large" color="#8B2E3C" style={{ marginTop: 40 }} />
-            ) : souvenirs.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyEmoji}>📦</Text>
-                <Text style={styles.emptyText}>Boîte à souvenirs vide</Text>
-                <Text style={styles.emptySubtext}>Tes moments spéciaux apparaîtront ici</Text>
-              </View>
-            ) : (
-              souvenirs.map(souvenir => (
-                <View key={souvenir.id} style={styles.souvenirCard}>
-                  <Text style={styles.souvenirEmoji}>{souvenir.emoji}</Text>
-                  <View style={styles.souvenirInfo}>
-                    <Text style={styles.souvenirTitle}>{souvenir.title}</Text>
-                    <Text style={styles.souvenirDesc}>{souvenir.description}</Text>
-                    <Text style={styles.souvenirDate}>
-                      {new Date(souvenir.date).toLocaleDateString('fr-FR', {
-                        day: 'numeric', month: 'long', year: 'numeric',
-                      })}
-                    </Text>
-                  </View>
-                </View>
-              ))
-            )}
-          </ScrollView>
-        );
-    }
-  };
+  ;
 
   const filteredMatches = matches.filter(m => m.status === 'pending' || m.status === 'active');
   const debugMatchStatuses = matches.map(m => `${m.id.substring(0, 8)}:${m.status}`).join(' | ');
@@ -1199,43 +1037,7 @@ export default function LettersScreen() {
         )}
       </View>
 
-      <View style={styles.tabsContainer}>
-        {FEATURES.letters !== 'hidden' && (
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'lettres' && styles.tabActive]}
-            onPress={() => setActiveTab('lettres')}
-          >
-            <View style={styles.tabContent}>
-              <Ionicons name="mail-outline" size={18} color={activeTab === 'lettres' ? '#FFE9A8' : '#927B63'} />
-              <Text style={[styles.tabText, activeTab === 'lettres' && styles.tabTextActive]}>Lettres</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {FEATURES.journal !== 'hidden' && (
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'journal' && styles.tabActive]}
-            onPress={() => setActiveTab('journal')}
-          >
-            <View style={styles.tabContent}>
-              <Ionicons name="book-outline" size={18} color={activeTab === 'journal' ? '#FFE9A8' : '#927B63'} />
-              <Text style={[styles.tabText, activeTab === 'journal' && styles.tabTextActive]}>Journal Intime</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'souvenirs' && styles.tabActive]}
-          onPress={() => setActiveTab('souvenirs')}
-        >
-          <View style={styles.tabContent}>
-            <Ionicons name="gift-outline" size={18} color={activeTab === 'souvenirs' ? '#FFE9A8' : '#927B63'} />
-            <Text style={[styles.tabText, activeTab === 'souvenirs' && styles.tabTextActive]}>Souvenirs</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {renderTabContent()}
+      {renderLettersContent()}
 
       <Modal visible={showCompose} animationType="slide">
         <KeyboardAvoidingView
@@ -1920,35 +1722,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  tabsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#D8C9B3',
-    backgroundColor: '#F4ECD8',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 9,
-    alignItems: 'center',
-    borderRadius: 12,
-    marginHorizontal: 3,
-    backgroundColor: '#EDE2D0',
-  },
-  tabActive: { backgroundColor: '#3A2415' },
-  tabContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  tabText: { fontSize: 11.5, fontWeight: '600', color: '#8B735D' },
-  tabTextActive: { color: '#F0D98C' },
-
-  scrollView: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 160 },
-  listCount: {
-    fontSize: 12,
-    color: '#8B6F47',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
 
   emptyState: {
     flex: 1,
@@ -1966,76 +1739,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
 
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#4CAF50',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-  },
-  addBtnEmoji: { fontSize: 20, marginRight: 8 },
-  addBtnText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
-  emptyJournal: { alignItems: 'center', paddingVertical: 40 },
-  emptyJournalEmoji: { fontSize: 50, marginBottom: 12 },
-  emptyJournalText: { fontSize: 18, fontWeight: '700', color: '#3A2818' },
-  emptyJournalSubtext: {
-    fontSize: 14,
-    color: '#8B6F47',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  journalCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#DAA520',
-  },
-  journalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  journalMood: { fontSize: 24 },
-  journalDate: { fontSize: 12, color: '#8B6F47' },
-  journalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#3A2818',
-    marginBottom: 6,
-  },
-  journalContent: { fontSize: 14, color: '#5D4037', lineHeight: 20 },
-
-  souvenirCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  souvenirEmoji: { fontSize: 40, marginRight: 14 },
-  souvenirInfo: { flex: 1 },
-  souvenirTitle: { fontSize: 16, fontWeight: '700', color: '#3A2818' },
-  souvenirDesc: { fontSize: 13, color: '#5D4037', marginTop: 2 },
-  souvenirDate: { fontSize: 11, color: '#8B6F47', marginTop: 4 },
-
-  duelBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8F1E5',
-    borderRadius: 13,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    marginHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#D7C5AA',
-  },
   duelBtnIconBox: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3E8D5', marginRight: 12 },
   duelBtnEmoji: { fontSize: 19, marginRight: 10 },
   duelBtnTextWrap: { flex: 1, minWidth: 0 },
@@ -2043,26 +1746,6 @@ const styles = StyleSheet.create({
   duelBtnSubtitle: { color: '#9A7A55', fontSize: 10.5, marginTop: 2 },
   duelBtnArrow: { fontSize: 11, color: '#8B2E3C', marginLeft: 8 },
 
-  journalSectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
-  journalSectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#8B6F47',
-    marginBottom: 8,
-    marginTop: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  duelJournalCard: { borderLeftColor: '#B47CFF' },
-
-  envAnimOverlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: '#F4ECD8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 50,
-  },
 
   modalContainer: { flex: 1, backgroundColor: '#F4ECD8' },
   previewOverlay: {
@@ -2476,11 +2159,6 @@ const styles = StyleSheet.create({
   turnBannerWait: { backgroundColor: '#2C1A0E' },
   turnBannerText: { fontSize: 12.5, fontWeight: '600', color: '#D1B98F' },
 
-  journalModalBg: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
   journalModalBox: {
     backgroundColor: '#FFF8E7',
     borderTopLeftRadius: 24,
@@ -2495,32 +2173,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   journalModalTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  journalModalTitle: { fontSize: 20, fontWeight: '700', color: '#3A2818' },
-  closeX: { fontSize: 24, color: '#8B6F47' },
-  moodSelector: { marginBottom: 16 },
-  moodLabel: { fontSize: 14, color: '#5D4037', marginBottom: 10 },
-  moodsRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  moodBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  moodBtnActive: { borderColor: '#E91E63', backgroundColor: '#FFE4EC' },
-  moodBtnText: { fontSize: 24 },
-  journalInput: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E8D5B7',
-  },
   journalTextarea: { height: 120, textAlignVertical: 'top' },
   saveJournalBtn: {
     backgroundColor: '#4CAF50',
