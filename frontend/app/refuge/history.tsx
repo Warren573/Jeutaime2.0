@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { BouncyButton } from '../../src/components/BouncyButton';
 import { RefugeDayResultIcon } from '../../src/components/RefugeDayResultIcon';
 import { refugeApi, type RefugeHistoryEntry } from '../../src/api/refuge-api';
+import { CoinIcon } from '../../src/components/CoinIcon';
 import { getAnimalEmoji, getAnimalLabel } from '../../src/data/refugeAnimals';
 
 const SMILE_LABELS: Record<RefugeHistoryEntry['smileState'], string> = {
@@ -97,11 +98,16 @@ export default function RefugeHistoryScreen() {
                 ))}
               </View>
 
-              <Text style={styles.counters}>
-                ❤️ {item.heartsCount} · ❌ {item.failuresCount} · ⚠️ {item.incompleteCount} · —{' '}
-                {item.notPlayedCount} · 🪙 {item.totalCoinsDelta >= 0 ? '+' : ''}
-                {item.totalCoinsDelta}
-              </Text>
+              <View style={styles.countersRow}>
+                <Text style={styles.counters}>
+                  ❤️ {item.heartsCount} · ❌ {item.failuresCount} · ⚠️ {item.incompleteCount} · —{' '}
+                  {item.notPlayedCount} ·
+                </Text>
+                <CoinIcon size={13} />
+                <Text style={styles.counters}>
+                  {item.totalCoinsDelta >= 0 ? '+' : ''}{item.totalCoinsDelta}
+                </Text>
+              </View>
 
               {item.revealed && item.otherUserSummary && (
                 <Text style={styles.otherPseudo}>Avec {item.otherUserSummary.pseudo}</Text>
@@ -228,10 +234,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  countersRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, flexWrap: 'wrap' },
   counters: {
     fontSize: 12,
     color: '#4A3B28',
-    marginTop: 6,
   },
   otherPseudo: {
     fontSize: 13,
