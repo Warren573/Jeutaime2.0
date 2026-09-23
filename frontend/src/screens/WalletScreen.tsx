@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { AppBackButton } from '../components/AppBackButton';
+import { CoinIcon } from '../components/CoinIcon';
 import {
   getWallet,
   listTransactions,
@@ -91,7 +92,7 @@ export default function WalletScreen() {
       setWallet(result.wallet);
       setTransactions((prev) => [result.transaction, ...prev]);
       await loadWallet();
-      Alert.alert('Succès', `Bonus quotidien reçu : +${result.amount} 🪙`);
+      Alert.alert('Succès', `Bonus quotidien reçu : +${result.amount} pièces`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Impossible de réclamer le bonus';
       Alert.alert('Erreur', msg);
@@ -146,7 +147,7 @@ export default function WalletScreen() {
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Solde actuel</Text>
           <View style={styles.balanceRow}>
-            <Text style={styles.balanceEmoji}>🪙</Text>
+            <CoinIcon size={31} />
             <Text style={styles.balanceValue}>{wallet.coins}</Text>
           </View>
           <Text style={styles.balanceDate}>
@@ -232,9 +233,9 @@ function TransactionRow({ transaction }: { transaction: CoinTxnDTO }) {
       </View>
       <View style={styles.txnAmount}>
         <Text style={[styles.txnAmountText, isPositive ? styles.txnPositive : styles.txnNegative]}>
-          {isPositive ? '+' : ''}{transaction.amount} 🪙
+          {isPositive ? '+' : ''}{transaction.amount} pièces
         </Text>
-        <Text style={styles.txnBalance}>Solde: {transaction.balance} 🪙</Text>
+        <Text style={styles.txnBalance}>Solde: {transaction.balance} pièces</Text>
       </View>
     </View>
   );
@@ -286,7 +287,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  balanceEmoji: { fontSize: 31 },
   balanceValue: { fontSize: 36, fontWeight: '900', color: APP_COLORS.ink },
   balanceDate: { fontSize: 10, color: APP_COLORS.muted, fontStyle: 'italic' },
   shopBtn: {
