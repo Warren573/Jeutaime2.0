@@ -58,6 +58,7 @@ export function LetterPaginatedView({ content, signatureName, dateLabel }: Lette
   const measureWidth = viewportSize ? Math.max(0, viewportSize.w - PAGE_PADDING * 2) : 0;
 
   useEffect(() => {
+    setMeasuredLines(null);
     setPageIndex(0);
     scrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [content, viewportSize?.w, viewportSize?.h]);
@@ -67,6 +68,7 @@ export function LetterPaginatedView({ content, signatureName, dateLabel }: Lette
       <View style={styles.pageViewport} onLayout={onViewportLayout}>
         {viewportSize && measureWidth > 0 && (
           <Text
+            key={`measure-${content}-${measureWidth}`}
             style={[styles.bodyText, styles.measureHidden, { width: measureWidth }]}
             onTextLayout={onMeasureLayout}
           >
@@ -119,6 +121,32 @@ export function LetterPaginatedView({ content, signatureName, dateLabel }: Lette
             ))}
           </ScrollView>
         )}
+
+        {!pages && viewportSize && (
+          <View style={[styles.pageInner, styles.fallbackPage]}>
+            <View>
+              {dateLabel ? (
+                <View style={styles.letterMetaRow}>
+                  <Text style={styles.letterMetaLabel}>LETTRE</Text>
+                  <Text style={styles.letterMetaDate}>{dateLabel}</Text>
+                </View>
+              ) : null}
+
+              <View style={styles.bodyBlock}>
+                <Text style={styles.bodyText}>
+                  {content}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.signatureBlock}>
+              <Text style={styles.signatureHint}>signé</Text>
+              <Text style={[styles.signature, !fontsLoaded && styles.signatureFallback]}>
+                {signatureName}
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
 
       <View style={styles.pageIndicatorArea}>
@@ -146,11 +174,17 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   pageViewport: { flex: 1, overflow: 'hidden' },
   pager: { flex: 1 },
+  fallbackPage: {
+    width: '100%',
+    height: '100%',
+  },
   measureHidden: {
     position: 'absolute',
     opacity: 0,
-    left: -9999,
+    left: PAGE_PADDING,
+    right: PAGE_PADDING,
     top: 0,
+    zIndex: -1,
   },
   pageInner: {
     flex: 1,
