@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -18,6 +19,22 @@ import {
   ImageBackground,
   Alert,
 } from 'react-native';
+
+
+const SALON_UI_ICONS: Record<string, any> = {
+  piscine: require('../../assets/ui-icons/pool.png'),
+  cafe_paris: require('../../assets/ui-icons/coffee.png'),
+  pirates: require('../../assets/ui-icons/pirate.png'),
+  theatre: require('../../assets/ui-icons/theatre.png'),
+  cocktails: require('../../assets/ui-icons/cocktail.png'),
+  metal: require('../../assets/ui-icons/metal.png'),
+  psy: require('../../assets/ui-icons/psy.png'),
+};
+
+const cleanSalonSystemText = (value?: string) =>
+  (value || '')
+    .replace(/^\s*[👋📣✨🎉💬]+\s*/u, '')
+    .trim();
 
 // Transformations multi-étapes : power id → [étape1, étape2, étape3, ...]
 // Ajouter un PNG = déposer dans assets/avatar/transformations/ et l'ajouter ici
@@ -1454,13 +1471,13 @@ export default function SalonScreen() {
 
   // Salon metadata (layout, gradient, emoji, etc.) — dados estáticos, não participantes
   const salonMetadata: Record<string, any> = {
-    piscine: { emoji: '🏊', name: 'Piscine', layout: 'vertical', gradient: ['#4FC3F7', '#0288D1'] },
-    cafe_paris: { emoji: '☕', name: 'Café de Paris', layout: 'horizontal', gradient: ['#8D6E63', '#5D4037'] },
-    pirates: { emoji: '🏴‍☠️', name: 'Île des pirates', layout: 'horizontal', gradient: ['#FFD54F', '#5D4037'] },
-    theatre: { emoji: '🎭', name: 'Théâtre improvisé', layout: 'vertical', gradient: ['#CE93D8', '#7B1FA2'] },
-    cocktails: { emoji: '🍸', name: 'Bar à cocktails', layout: 'horizontal', gradient: ['#F48FB1', '#C2185B'] },
-    metal: { emoji: '🤘', name: 'Métal', layout: 'horizontal', gradient: ['#424242', '#212121'] },
-    psy: { emoji: '🛋️', name: 'Cabinet du Psy', layout: 'vertical', gradient: ['#00BCD4', '#0097A7'] },
+    piscine: { icon: SALON_UI_ICONS.piscine, name: 'Piscine', layout: 'vertical', gradient: ['#4FC3F7', '#0288D1'] },
+    cafe_paris: { icon: SALON_UI_ICONS.cafe_paris, name: 'Café de Paris', layout: 'horizontal', gradient: ['#8D6E63', '#5D4037'] },
+    pirates: { icon: SALON_UI_ICONS.pirates, name: 'Île des pirates', layout: 'horizontal', gradient: ['#FFD54F', '#5D4037'] },
+    theatre: { icon: SALON_UI_ICONS.theatre, name: 'Théâtre improvisé', layout: 'vertical', gradient: ['#CE93D8', '#7B1FA2'] },
+    cocktails: { icon: SALON_UI_ICONS.cocktails, name: 'Bar à cocktails', layout: 'horizontal', gradient: ['#F48FB1', '#C2185B'] },
+    metal: { icon: SALON_UI_ICONS.metal, name: 'Métal', layout: 'horizontal', gradient: ['#424242', '#212121'] },
+    psy: { icon: SALON_UI_ICONS.psy, name: 'Cabinet du Psy', layout: 'vertical', gradient: ['#00BCD4', '#0097A7'] },
   };
 
   const salon = salonMetadata[salonId];
@@ -1501,7 +1518,7 @@ export default function SalonScreen() {
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerEmoji}>{salon.emoji}</Text>
+          <Image source={salon.icon} style={styles.headerSalonIcon} resizeMode="contain" />
           <Text style={styles.headerTitle} numberOfLines={1}>{salon.name}</Text>
         </View>
         <TouchableOpacity onPress={handleLeaveSession} style={styles.leaveButton}>
@@ -1595,7 +1612,7 @@ export default function SalonScreen() {
               )}
               {isSystem ? (
                 <View style={styles.systemMessage}>
-                  <Text style={styles.systemText}>{item.content || item.text}</Text>
+                  <Text style={styles.systemText}>{cleanSalonSystemText(item.content || item.text)}</Text>
                 </View>
               ) : (
                 <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
@@ -1615,7 +1632,7 @@ export default function SalonScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.emptyMessages}>
-            <Text style={styles.emptyEmoji}>💬</Text>
+            <Ionicons name="chatbubble-ellipses-outline" size={28} color="#8B6F47" />
             <Text style={styles.emptyText}>Commencez la conversation!</Text>
           </View>
         }
@@ -1646,13 +1663,13 @@ export default function SalonScreen() {
           style={styles.actionButton}
           onPress={handleDrink}
         >
-          <Text style={styles.actionEmoji}>🍷</Text>
+          <MaterialCommunityIcons name="glass-wine" size={22} color="#8B2E3C" />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
           onPress={handleEat}
         >
-          <Text style={styles.actionEmoji}>🥐</Text>
+          <MaterialCommunityIcons name="food-croissant" size={22} color="#B8782E" />
         </TouchableOpacity>
         <TextInput
           style={styles.textInput}
@@ -1691,7 +1708,7 @@ export default function SalonScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.landscapeTitle}>{salon.emoji} {salon.name}</Text>
+        <View style={styles.landscapeTitleRow}><Image source={salon.icon} style={styles.landscapeSalonIcon} resizeMode="contain" /><Text style={styles.landscapeTitle}>{salon.name}</Text></View>
         <TouchableOpacity onPress={handleLeaveSession} style={styles.leaveButton}>
           <Text style={styles.leaveText}>Quitter</Text>
         </TouchableOpacity>
@@ -1775,7 +1792,7 @@ export default function SalonScreen() {
 
         {/* Zone des interactions (droite) */}
         <View style={styles.interactionsZone}>
-          <Text style={styles.interactionsTitle}>📜 INTERACTIONS RÉCENTES</Text>
+          <View style={styles.interactionsTitleRow}><Ionicons name="list-outline" size={16} color="#8B6F47" /><Text style={styles.interactionsTitle}>INTERACTIONS RÉCENTES</Text></View>
           
           <ScrollView style={styles.interactionsList} showsVerticalScrollIndicator={false}>
             {recentInteractions.length === 0 ? (
@@ -1800,19 +1817,19 @@ export default function SalonScreen() {
               style={[styles.bigActionButton, styles.profileButton]}
               onPress={() => setShowProfileTargetMenu(true)}
             >
-              <Text style={styles.bigActionText}>👤 Profil</Text>
+              <View style={styles.bigActionContent}><Ionicons name="person-outline" size={18} color="#FFF" /><Text style={styles.bigActionText}>Profil</Text></View>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.bigActionButton, styles.giftButton]}
               onPress={() => setShowOfferingTargetMenu(true)}
             >
-              <Text style={styles.bigActionText}>🎁 Offrir</Text>
+              <View style={styles.bigActionContent}><Ionicons name="gift-outline" size={18} color="#FFF" /><Text style={styles.bigActionText}>Offrir</Text></View>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.bigActionButton, styles.magicButton]}
               onPress={() => setShowMagieTargetMenu(true)}
             >
-              <Text style={styles.bigActionText}>✨ Magie</Text>
+              <View style={styles.bigActionContent}><Ionicons name="sparkles-outline" size={18} color="#FFF" /><Text style={styles.bigActionText}>Magie</Text></View>
             </TouchableOpacity>
           </View>
         </View>
@@ -2284,6 +2301,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerSalonIcon: { width: 28, height: 28, marginRight: 8 },
   headerEmoji: {
     fontSize: 22,
     marginRight: 8,
@@ -2562,9 +2580,6 @@ const styles = StyleSheet.create({
   actionButtonDisabled: {
     opacity: 0.5,
   },
-  actionEmoji: {
-    fontSize: 22,
-  },
   textInput: {
     flex: 1,
     height: 44,
@@ -2604,6 +2619,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
+  landscapeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'center' },
+  landscapeSalonIcon: { width: 26, height: 26 },
   landscapeTitle: {
     fontSize: 16,
     fontWeight: '700',
@@ -2641,11 +2658,11 @@ const styles = StyleSheet.create({
     borderLeftColor: '#E8D5B7',
     padding: 12,
   },
+  interactionsTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
   interactionsTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: '#8B6F47',
-    marginBottom: 10,
     letterSpacing: 0.5,
   },
   interactionsList: {
@@ -2726,6 +2743,7 @@ const styles = StyleSheet.create({
   magicButton: {
     backgroundColor: '#9C27B0',
   },
+  bigActionContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   bigActionText: {
     fontSize: 15,
     fontWeight: '700',
