@@ -1,9 +1,9 @@
 // ─── Choix disponibles ────────────────────────────────────────────────────────
 
 export const DUEL_CHOICES = [
-  { key: 'rock',     label: 'Pierre',  icon: 'hammer' },
-  { key: 'paper',    label: 'Papier',  icon: 'file-document-outline' },
-  { key: 'scissors', label: 'Ciseaux', icon: 'content-cut' },
+  { key: 'rock',     label: 'Pierre',  icon: 'hand-rock' },
+  { key: 'paper',    label: 'Papier',  icon: 'hand-paper' },
+  { key: 'scissors', label: 'Ciseaux', icon: 'hand-scissors' },
 ] as const;
 
 export type DuelChoice = typeof DUEL_CHOICES[number];
