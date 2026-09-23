@@ -11,12 +11,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../store/useStore';
 import { getUserSettings, updateUserSettings } from '../api/userSettings';
 import { CoinIcon } from '../components/CoinIcon';
 
+type SettingsIconName = React.ComponentProps<typeof Ionicons>['name'];
+
 interface SettingsItem {
-  icon: string;
+  icon: SettingsIconName;
   label: string;
   route?: string;
   action?: () => void;
@@ -51,8 +54,16 @@ function SettingsSectionList({
             onPress={() => tappable && onItemPress(item)}
             activeOpacity={tappable ? 0.65 : 1}
           >
-            <View style={styles.itemIconBox}>
-              <Text style={styles.itemIcon}>{item.icon}</Text>
+            <View style={[
+              styles.itemIconBox,
+              item.danger && styles.itemIconBoxDanger,
+              item.warning && styles.itemIconBoxWarning,
+            ]}>
+              <Ionicons
+                name={item.icon}
+                size={18}
+                color={item.danger ? '#C0392B' : item.warning ? '#D35400' : '#8B6F47'}
+              />
             </View>
 
             <Text
@@ -158,7 +169,7 @@ export default function SettingsScreen() {
         ...(canDiscover === false
           ? [
               {
-                icon: '⚠️',
+                icon: 'alert-circle-outline',
                 label: 'Compléter mon profil',
                 route: '/create-profile',
                 warning: true,
@@ -168,46 +179,46 @@ export default function SettingsScreen() {
         ...(isAuthenticated && !hasQuestions
           ? [
               {
-                icon: '❓',
+                icon: 'help-circle-outline',
                 label: 'Mes 3 questions',
                 route: '/setup-questions',
               } as SettingsItem,
             ]
           : []),
-        { icon: '✏️', label: 'Modifier mon profil', route: '/edit-profile' },
-        { icon: '🎨', label: 'Personnaliser mon avatar', route: '/avatar-builder' },
-        { icon: '📸', label: 'Mes photos', route: '/my-photos' },
-        { icon: '🎯', label: 'Préférences de rencontre', route: '/matching-preferences' },
-        { icon: '📍', label: 'Localisation', route: '/location' },
-        { icon: '✅', label: 'Vérification du profil', route: '/profile-verification' },
+        { icon: 'create-outline', label: 'Modifier mon profil', route: '/edit-profile' },
+        { icon: 'color-palette-outline', label: 'Personnaliser mon avatar', route: '/avatar-builder' },
+        { icon: 'images-outline', label: 'Mes photos', route: '/my-photos' },
+        { icon: 'options-outline', label: 'Préférences de rencontre', route: '/matching-preferences' },
+        { icon: 'location-outline', label: 'Localisation', route: '/location' },
+        { icon: 'shield-checkmark-outline', label: 'Vérification du profil', route: '/profile-verification' },
       ],
     },
     {
       key: 'account',
       title: 'Compte',
       items: [
-        { icon: '✉️', label: 'E-mail', route: '/email' },
-        { icon: '🔑', label: 'Mot de passe', route: '/password' },
-        { icon: '⭐', label: 'Abonnement', route: '/premium' },
-        { icon: '⏸️', label: 'Désactiver temporairement mon compte', route: '/deactivate' },
+        { icon: 'mail-outline', label: 'E-mail', route: '/email' },
+        { icon: 'key-outline', label: 'Mot de passe', route: '/password' },
+        { icon: 'diamond-outline', label: 'Abonnement', route: '/premium' },
+        { icon: 'pause-circle-outline', label: 'Désactiver temporairement mon compte', route: '/deactivate' },
       ],
     },
     {
       key: 'notifs',
       title: 'Notifications',
       items: [
-        { icon: '🔔', label: 'Notifications', route: '/notification-settings' },
+        { icon: 'notifications-outline', label: 'Notifications', route: '/notification-settings' },
       ],
     },
     {
       key: 'privacy',
       title: 'Confidentialité',
       items: [
-        { icon: '👁️', label: 'Visibilité du profil et partage de la ville', route: '/privacy' },
-        { icon: '🚫', label: 'Utilisateurs bloqués', route: '/blocked-users' },
-        { icon: '🗄️', label: 'Données personnelles', route: '/personal-data' },
+        { icon: 'eye-outline', label: 'Visibilité du profil et partage de la ville', route: '/privacy' },
+        { icon: 'ban-outline', label: 'Utilisateurs bloqués', route: '/blocked-users' },
+        { icon: 'folder-open-outline', label: 'Données personnelles', route: '/personal-data' },
         {
-          icon: '🗑️',
+          icon: 'trash-outline',
           label: 'Supprimer mon compte',
           route: '/delete-account',
           danger: true,
@@ -218,20 +229,20 @@ export default function SettingsScreen() {
       key: 'support',
       title: 'Aide & sécurité',
       items: [
-        { icon: '❓', label: 'Centre d’aide', route: '/help' },
-        { icon: '🐛', label: 'Signaler un problème', route: '/report-bug' },
-        { icon: '💬', label: 'Contacter le support', route: '/contact-support' },
-        { icon: '📜', label: 'Règles de la communauté', route: '/game-rules' },
+        { icon: 'help-circle-outline', label: 'Centre d’aide', route: '/help' },
+        { icon: 'bug-outline', label: 'Signaler un problème', route: '/report-bug' },
+        { icon: 'chatbubble-ellipses-outline', label: 'Contacter le support', route: '/contact-support' },
+        { icon: 'book-outline', label: 'Règles de la communauté', route: '/game-rules' },
       ],
     },
     {
       key: 'about',
       title: 'À propos',
       items: [
-        { icon: '📋', label: "Conditions d'utilisation", route: '/terms' },
-        { icon: '🛡️', label: 'Politique de confidentialité', route: '/privacy-policy' },
-        { icon: '⚖️', label: 'Mentions légales', route: '/legal-notice' },
-        { icon: 'ℹ️', label: 'JeuTaime v2.0.0' },
+        { icon: 'document-text-outline', label: "Conditions d'utilisation", route: '/terms' },
+        { icon: 'shield-outline', label: 'Politique de confidentialité', route: '/privacy-policy' },
+        { icon: 'scale-outline', label: 'Mentions légales', route: '/legal-notice' },
+        { icon: 'information-circle-outline', label: 'JeuTaime v2.0.0' },
       ],
     },
   ];
@@ -258,7 +269,7 @@ export default function SettingsScreen() {
           activeOpacity={0.8}
         >
           <View style={styles.shopIconBox}>
-            <Text style={styles.shopIcon}>🛍️</Text>
+            <Ionicons name="bag-handle-outline" size={21} color="#8B6F47" />
           </View>
 
           <View style={styles.shopMain}>
@@ -288,7 +299,7 @@ export default function SettingsScreen() {
           activeOpacity={0.7}
         >
           <View style={styles.bottomIconBox}>
-            <Text style={styles.bottomIcon}>↪️</Text>
+            <Ionicons name="log-out-outline" size={19} color="#D6453A" />
           </View>
           <Text style={styles.logoutText}>Se déconnecter</Text>
           <Text style={styles.bottomArrow}>›</Text>
@@ -297,7 +308,7 @@ export default function SettingsScreen() {
         <View style={styles.vacationCard}>
           <View style={styles.vacationContent}>
             <View style={styles.vacationIconBox}>
-              <Text style={styles.bottomIcon}>🏖️</Text>
+              <Ionicons name="airplane-outline" size={19} color="#8B6F47" />
             </View>
             <View style={styles.vacationTextBlock}>
               <Text style={styles.vacationTitle}>Mode vacances</Text>
@@ -350,7 +361,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  shopIcon: { fontSize: 22 },
   shopMain: { flex: 1, paddingRight: 8 },
   shopTitle: { fontSize: 16, fontWeight: '800', color: '#3A2818' },
   shopSubtitle: { fontSize: 11, color: '#9A7C5A', marginTop: 2 },
@@ -399,11 +409,15 @@ const styles = StyleSheet.create({
   },
   itemIconBox: {
     width: 30,
+    height: 30,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 10,
+    backgroundColor: '#F6ECDD',
   },
-  itemIcon: { fontSize: 18 },
+  itemIconBoxDanger: { backgroundColor: '#FBEAE7' },
+  itemIconBoxWarning: { backgroundColor: '#FFF0E2' },
   itemLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: '#3A2818' },
   itemLabelDanger: { color: '#C0392B', fontWeight: '600' },
   itemLabelWarning: { color: '#D35400', fontWeight: '600' },
@@ -424,11 +438,13 @@ const styles = StyleSheet.create({
   },
   bottomIconBox: {
     width: 30,
+    height: 30,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 10,
+    backgroundColor: '#FBEAE7',
   },
-  bottomIcon: { fontSize: 18 },
   logoutText: { flex: 1, fontSize: 15, fontWeight: '700', color: '#D6453A' },
   bottomArrow: { fontSize: 21, color: '#C6A271', fontWeight: '300' },
 
@@ -452,9 +468,12 @@ const styles = StyleSheet.create({
   },
   vacationIconBox: {
     width: 30,
+    height: 30,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 10,
+    backgroundColor: '#F6ECDD',
   },
   vacationTextBlock: { flex: 1 },
   vacationTitle: { fontSize: 15, fontWeight: '600', color: '#3A2818' },
