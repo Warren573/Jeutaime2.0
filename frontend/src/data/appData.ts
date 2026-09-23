@@ -73,7 +73,7 @@ export const salons: Salon[] = [
       name: 'Chercher un trésor',
       emoji: '💎',
       animation: 'treasure',
-      message: 'Trésor trouvé! +50 pièces! 💰✨'
+      message: 'Trésor trouvé ! +50 pièces ! ✨'
     },
     participants: [
       { name: 'Océane', gender: 'F', age: 29, online: true },
