@@ -1,5 +1,6 @@
 import React from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import type { DuelChoice, DuelResult } from '../logic/duelEngine';
 
 interface Props {
@@ -15,9 +16,9 @@ interface Props {
 
 const RESULT_LABELS: Record<DuelResult, string> = {
   pending: 'Choisissez une option',
-  win:     'Vous remportez le duel ! 🏆',
-  lose:    'Duel perdu… 😤',
-  draw:    'Match nul 🤝',
+  win:     'Vous remportez le duel !',
+  lose:    'Duel perdu…',
+  draw:    'Match nul',
 };
 
 const RESULT_COLORS: Record<DuelResult, string> = {
@@ -47,9 +48,9 @@ export default function DuelCard({
         <Animated.View style={[styles.fighter, { transform: [{ scale: playerScale }] }]}>
           <Text style={styles.fighterName} numberOfLines={1}>{playerName}</Text>
           <View style={styles.fighterEmojiBg}>
-            <Text style={styles.fighterEmoji}>
-              {playerChoice ? playerChoice.emoji : '❔'}
-            </Text>
+            {playerChoice
+              ? <MaterialCommunityIcons name={playerChoice.icon} size={36} color="#6A472E" />
+              : <Ionicons name="help-outline" size={34} color="#B9A990" />}
           </View>
           <Text style={styles.fighterChoice}>
             {playerChoice ? playerChoice.label : '—'}
@@ -65,9 +66,9 @@ export default function DuelCard({
         <Animated.View style={[styles.fighter, styles.fighterRight, { transform: [{ scale: opponentScale }] }]}>
           <Text style={styles.fighterName} numberOfLines={1}>{opponentName}</Text>
           <View style={[styles.fighterEmojiBg, styles.fighterEmojiBgRight]}>
-            <Text style={styles.fighterEmoji}>
-              {opponentChoice ? opponentChoice.emoji : '❔'}
-            </Text>
+            {opponentChoice
+              ? <MaterialCommunityIcons name={opponentChoice.icon} size={36} color="#6A472E" />
+              : <Ionicons name="help-outline" size={34} color="#B9A990" />}
           </View>
           <Text style={styles.fighterChoice}>
             {opponentChoice ? opponentChoice.label : '—'}
@@ -151,9 +152,6 @@ const styles = StyleSheet.create({
   },
   fighterEmojiBgRight: {
     backgroundColor: '#FFF0E8',
-  },
-  fighterEmoji: {
-    fontSize: 36,
   },
   fighterChoice: {
     fontSize: 13,
