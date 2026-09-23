@@ -1,8 +1,8 @@
 // ─── Choix disponibles ────────────────────────────────────────────────────────
 
 export const DUEL_CHOICES = [
-  { key: 'rock',     label: 'Pierre',  icon: 'hand-fist' },
-  { key: 'paper',    label: 'Papier',  icon: 'hand-back-right-outline' },
+  { key: 'rock',     label: 'Pierre',  icon: 'hammer' },
+  { key: 'paper',    label: 'Papier',  icon: 'file-document-outline' },
   { key: 'scissors', label: 'Ciseaux', icon: 'content-cut' },
 ] as const;
 
