@@ -110,7 +110,6 @@ export function LetterPaginatedView({ content, signatureName, dateLabel }: Lette
 
                   {i === pages.length - 1 && (
                     <View style={styles.signatureBlock}>
-                      <Text style={styles.signatureHint}>signé</Text>
                       <Text style={[styles.signature, !fontsLoaded && styles.signatureFallback]}>
                         {signatureName}
                       </Text>
@@ -140,7 +139,6 @@ export function LetterPaginatedView({ content, signatureName, dateLabel }: Lette
             </View>
 
             <View style={styles.signatureBlock}>
-              <Text style={styles.signatureHint}>signé</Text>
               <Text style={[styles.signature, !fontsLoaded && styles.signatureFallback]}>
                 {signatureName}
               </Text>
@@ -225,14 +223,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     minHeight: SIGNATURE_BLOCK_HEIGHT,
     justifyContent: 'flex-end',
-  },
-  signatureHint: {
-    fontSize: 9,
-    color: '#B09876',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: -2,
-    marginRight: 4,
   },
   signature: {
     fontFamily: 'Caveat_600SemiBold',
