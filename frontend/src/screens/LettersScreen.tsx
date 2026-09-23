@@ -682,7 +682,6 @@ const lcStyles = StyleSheet.create({
 export default function LettersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const params = useLocalSearchParams<{ tab?: string }>();
   const {
     matches, letters, lettersByMatch, questionsByMatch,
     addLetter, markLetterRead, markLetterReadApi,
