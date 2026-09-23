@@ -158,6 +158,7 @@ import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE } from '../avatar/png/defaults';
 import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { CoinIcon } from '../components/CoinIcon';
 
 // ============================================
 // COMPOSANT AVATAR AVEC ANIMATION BREATHING
