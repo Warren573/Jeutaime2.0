@@ -1694,7 +1694,7 @@ export default function SalonScreen() {
         <TouchableOpacity onPress={handleLeaveSession} style={styles.leaveButton}>
           <Text style={styles.leaveText}>Quitter</Text>
         </TouchableOpacity>
-        <Text style={styles.coinsText}>💰 {coins}</Text>
+        <View style={styles.coinsDisplay}><CoinIcon size={16} /><Text style={styles.coinsText}>{coins}</Text></View>
       </LinearGradient>
 
       <View
@@ -1897,7 +1897,7 @@ export default function SalonScreen() {
                 <Text style={styles.offeringEmoji}>{item.emoji}</Text>
                 <View style={styles.offeringInfo}>
                   <Text style={styles.offeringName}>{item.name}</Text>
-                  <Text style={styles.offeringCost}>💰 {item.cost}</Text>
+                  <View style={styles.offeringCostRow}><CoinIcon size={13} /><Text style={styles.offeringCost}>{item.cost}</Text></View>
                 </View>
               </TouchableOpacity>
             ))}
@@ -2294,6 +2294,9 @@ const styles = StyleSheet.create({
     maxWidth: 150,
   },
   coinsDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -2789,6 +2792,7 @@ const styles = StyleSheet.create({
     color: '#3A2818',
     marginBottom: 2,
   },
+  offeringCostRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   offeringCost: {
     fontSize: 12,
     fontWeight: '600',
