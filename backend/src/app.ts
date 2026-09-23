@@ -37,7 +37,6 @@ import privateDuelsRoutes from "./modules/private-duels/private-duels.routes";
 import journalRoutes from "./modules/journal/journal.routes";
 import bottlesRoutes from "./modules/bottles/bottles.routes";
 import refugeRoutes from "./modules/refuge/refuge.routes";
-import souvenirsRoutes from "./modules/souvenirs/souvenirs.routes";
 import statsRoutes from "./modules/stats/stats.routes";
 import weeklyProfileRoutes from "./modules/weekly-profile/weekly-profile.routes";
 import testRoutes from "./modules/test/test.routes";
@@ -108,7 +107,6 @@ app.use(`${api}/journal`, journalRoutes);
 // Redeploy marker: private duels route
 app.use(`${api}/bottles`, bottlesRoutes);
 app.use(`${api}/refuge`, refugeRoutes);
-app.use(`${api}/souvenirs`, souvenirsRoutes);
 app.use(`${api}/stats`, statsRoutes);
 app.use(`${api}/weekly-profile`, weeklyProfileRoutes);
 
