@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { DuelChoice } from '../logic/duelEngine';
 
 interface Props {
@@ -29,7 +30,7 @@ export default function ChoiceButton({ choice, onPress, disabled = false }: Prop
       style={styles.pressable}
     >
       <Animated.View style={[styles.button, disabled && styles.disabled, { transform: [{ scale }] }]}>
-        <Text style={styles.emoji}>{choice.emoji}</Text>
+        <MaterialCommunityIcons name={choice.icon} size={32} color="#6A472E" style={styles.choiceIcon} />
         <Text style={styles.label}>{choice.label}</Text>
       </Animated.View>
     </Pressable>
@@ -58,8 +59,7 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.45,
   },
-  emoji: {
-    fontSize: 32,
+  choiceIcon: {
     marginBottom: 8,
   },
   label: {
