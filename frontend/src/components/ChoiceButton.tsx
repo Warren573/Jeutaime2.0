@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 import type { DuelChoice } from '../logic/duelEngine';
 
 interface Props {
@@ -30,7 +30,7 @@ export default function ChoiceButton({ choice, onPress, disabled = false }: Prop
       style={styles.pressable}
     >
       <Animated.View style={[styles.button, disabled && styles.disabled, { transform: [{ scale }] }]}>
-        <MaterialCommunityIcons name={choice.icon} size={32} color="#6A472E" style={styles.choiceIcon} />
+        <FontAwesome5 name={choice.icon} size={31} color="#6A472E" style={styles.choiceIcon} />
         <Text style={styles.label}>{choice.label}</Text>
       </Animated.View>
     </Pressable>
