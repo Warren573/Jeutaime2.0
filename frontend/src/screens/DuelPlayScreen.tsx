@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import DuelCard from '../components/DuelCard';
 import ChoiceButton from '../components/ChoiceButton';
 import {
@@ -337,14 +338,14 @@ export default function DuelPlayScreen() {
             {rematching ? (
               <ActivityIndicator size="small" color="#7A1A1A" />
             ) : (
-              <Text style={styles.replayText}>🔄 Proposer une revanche</Text>
+              <View style={styles.replayContent}><Ionicons name="refresh-outline" size={18} color="#7A1A1A" /><Text style={styles.replayText}>Proposer une revanche</Text></View>
             )}
           </Pressable>
         )}
 
         {!!journalMsg && (
           <Animated.View style={[styles.journalCard, { opacity: resultOpacity }]}>
-            <Text style={styles.journalLabel}>📰 Annonce du journal</Text>
+            <View style={styles.journalLabelRow}><Ionicons name="newspaper-outline" size={18} color="#2C1A0E" /><Text style={styles.journalLabel}>Annonce du journal</Text></View>
             <Text style={styles.journalText}>{journalMsg}</Text>
           </Animated.View>
         )}
@@ -438,6 +439,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
+  replayContent: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   replayText: { color: '#7A1A1A', fontSize: 14, fontWeight: '700' },
   journalCard: {
     backgroundColor: '#FEFAF0',
@@ -453,6 +455,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  journalLabel: { color: '#2C1A0E', fontSize: 14, fontWeight: '800', marginBottom: 10 },
+  journalLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 10 },
+  journalLabel: { color: '#2C1A0E', fontSize: 14, fontWeight: '800' },
   journalText: { color: '#5A3A1A', fontSize: 15, lineHeight: 22, fontStyle: 'italic' },
 });
