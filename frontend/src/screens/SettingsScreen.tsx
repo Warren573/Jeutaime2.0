@@ -30,83 +30,46 @@ interface SettingsSection {
   items: SettingsItem[];
 }
 
-function SectionAccordion({
+function SettingsSectionList({
   section,
-  expanded,
-  onToggle,
   onItemPress,
 }: {
   section: SettingsSection;
-  expanded: boolean;
-  onToggle: () => void;
   onItemPress: (item: SettingsItem) => void;
 }) {
   return (
     <View style={styles.sectionCard}>
-      <TouchableOpacity
-        style={[
-          styles.sectionHeaderRow,
-          expanded && styles.sectionHeaderRowExpanded,
-        ]}
-        onPress={onToggle}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.sectionHeaderText}>{section.title.toUpperCase()}</Text>
-        <Text style={styles.sectionChevron}>{expanded ? '⌃' : '⌄'}</Text>
-      </TouchableOpacity>
+      <Text style={styles.sectionHeaderText}>{section.title.toUpperCase()}</Text>
 
-      {expanded &&
-        section.items.map((item, idx) => {
-          const tappable = !!(item.route || item.action);
+      {section.items.map((item, idx) => {
+        const tappable = !!(item.route || item.action);
+        return (
+          <TouchableOpacity
+            key={`${section.key}-${idx}`}
+            style={[styles.item, idx < section.items.length - 1 && styles.itemBorder]}
+            onPress={() => tappable && onItemPress(item)}
+            activeOpacity={tappable ? 0.65 : 1}
+          >
+            <View style={styles.itemIconBox}>
+              <Text style={styles.itemIcon}>{item.icon}</Text>
+            </View>
 
-          return (
-            <TouchableOpacity
-              key={`${section.key}-${idx}`}
+            <Text
               style={[
-                styles.item,
-                idx < section.items.length - 1 && styles.itemBorder,
+                styles.itemLabel,
+                item.danger && styles.itemLabelDanger,
+                item.warning && styles.itemLabelWarning,
               ]}
-              onPress={() => tappable && onItemPress(item)}
-              activeOpacity={tappable ? 0.65 : 1}
             >
-              <View
-                style={[
-                  styles.itemIconBox,
-                  item.danger && styles.itemIconDanger,
-                  item.warning && styles.itemIconWarning,
-                ]}
-              >
-                <Text style={styles.itemIcon}>{item.icon}</Text>
-              </View>
+              {item.label}
+            </Text>
 
-              <Text
-                style={[
-                  styles.itemLabel,
-                  item.danger && styles.itemLabelDanger,
-                  item.warning && styles.itemLabelWarning,
-                ]}
-              >
-                {item.label}
-              </Text>
+            {item.badge != null && <Text style={styles.itemBadge}>{item.badge}</Text>}
 
-              {item.badge != null && (
-                <Text style={styles.itemBadge}>{item.badge}</Text>
-              )}
-
-              {tappable && (
-                <Text
-                  style={[
-                    styles.itemArrow,
-                    item.danger && styles.itemArrowDanger,
-                    item.warning && styles.itemArrowWarning,
-                  ]}
-                >
-                  ›
-                </Text>
-              )}
-            </TouchableOpacity>
-          );
-        })}
+            {tappable && <Text style={styles.itemArrow}>›</Text>}
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -120,9 +83,6 @@ export default function SettingsScreen() {
     s => s.screenBackgrounds?.['settings'] ?? '#FFF8E7'
   );
 
-  const [expandedSections, setExpandedSections] = useState<
-    Record<string, boolean>
-  >({});
   const [vacationMode, setVacationMode] = useState(false);
   const [vacationSaving, setVacationSaving] = useState(false);
 
@@ -156,9 +116,6 @@ export default function SettingsScreen() {
       setVacationSaving(false);
     }
   };
-
-  const toggleSection = (key: string) =>
-    setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
 
   const nav = (route: string) => router.push(route as any);
 
@@ -305,7 +262,7 @@ export default function SettingsScreen() {
 
           <View style={styles.shopMain}>
             <Text style={styles.shopTitle}>Boutique</Text>
-            <Text style={styles.shopSubtitle}>Offrandes, bonus et avantages</Text>
+            <Text style={styles.shopSubtitle}>Obtiens des pièces et des options Premium</Text>
           </View>
 
           <View style={styles.coinPill}>
@@ -317,11 +274,9 @@ export default function SettingsScreen() {
         </TouchableOpacity>
 
         {SECTIONS.map(section => (
-          <SectionAccordion
+          <SettingsSectionList
             key={section.key}
             section={section}
-            expanded={!!expandedSections[section.key]}
-            onToggle={() => toggleSection(section.key)}
             onItemPress={handlePress}
           />
         ))}
@@ -367,196 +322,127 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 44 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 44 },
 
   shopCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 16,
+    backgroundColor: '#FFFDF8',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.09,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#E8D6BD',
+    shadowColor: '#7D6040',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
   shopIconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: '#FFF3D8',
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#FFF2DF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 13,
+    marginRight: 12,
   },
-  shopIcon: { fontSize: 27 },
+  shopIcon: { fontSize: 22 },
   shopMain: { flex: 1, paddingRight: 8 },
-  shopTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#3A2818',
-  },
-  shopSubtitle: {
-    fontSize: 12,
-    color: '#8B6F47',
-    marginTop: 3,
-  },
+  shopTitle: { fontSize: 16, fontWeight: '800', color: '#3A2818' },
+  shopSubtitle: { fontSize: 11, color: '#9A7C5A', marginTop: 2 },
   coinPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF8E7',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    marginRight: 7,
+    borderLeftWidth: 1,
+    borderLeftColor: '#E8D6BD',
+    paddingLeft: 12,
+    marginRight: 8,
   },
   coinEmoji: { fontSize: 15, marginRight: 4 },
-  coinValue: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#6E512E',
-  },
-  shopArrow: {
-    fontSize: 24,
-    color: '#C4A77D',
-    fontWeight: '300',
-  },
+  coinValue: { fontSize: 14, fontWeight: '800', color: '#3A2818' },
+  shopArrow: { fontSize: 22, color: '#C8A878', fontWeight: '300' },
 
   sectionCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#FFFDF8',
     borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: 12,
-    shadowColor: '#000',
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E8D6BD',
+    shadowColor: '#7D6040',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.04,
     shadowRadius: 4,
-    elevation: 2,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  sectionHeaderRowExpanded: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5EFE6',
+    elevation: 1,
   },
   sectionHeaderText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#B8956A',
-    letterSpacing: 1.2,
+    fontWeight: '800',
+    color: '#A7324B',
+    letterSpacing: 1.8,
+    paddingHorizontal: 16,
+    paddingTop: 13,
+    paddingBottom: 8,
   },
-  sectionChevron: {
-    fontSize: 16,
-    color: '#C4A77D',
-    fontWeight: '700',
-  },
-
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    minHeight: 48,
     paddingHorizontal: 14,
   },
   itemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F5EFE6',
+    borderBottomColor: '#EFE4D4',
   },
   itemIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FFF8E7',
+    width: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 8,
   },
-  itemIconDanger: { backgroundColor: '#FFF0F0' },
-  itemIconWarning: { backgroundColor: '#FFF5E8' },
-  itemIcon: { fontSize: 19 },
-  itemLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#3A2818',
-  },
-  itemLabelDanger: {
-    color: '#C0392B',
-    fontWeight: '600',
-  },
-  itemLabelWarning: {
-    color: '#D35400',
-    fontWeight: '600',
-  },
-  itemBadge: {
-    fontSize: 14,
-    color: '#8B6F47',
-    fontWeight: '600',
-    marginRight: 6,
-  },
-  itemArrow: {
-    fontSize: 22,
-    color: '#C4A77D',
-    fontWeight: '300',
-  },
-  itemArrowDanger: { color: '#E57373' },
-  itemArrowWarning: { color: '#F0A060' },
+  itemIcon: { fontSize: 18 },
+  itemLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: '#3A2818' },
+  itemLabelDanger: { color: '#C0392B', fontWeight: '600' },
+  itemLabelWarning: { color: '#D35400', fontWeight: '600' },
+  itemBadge: { fontSize: 13, color: '#8B6F47', fontWeight: '600', marginRight: 6 },
+  itemArrow: { fontSize: 21, color: '#C6A271', fontWeight: '300' },
 
   logoutRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 4,
+    backgroundColor: '#FFF6F4',
+    borderRadius: 14,
+    minHeight: 50,
+    paddingHorizontal: 14,
+    marginTop: 2,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F0CFC8',
   },
   bottomIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FFF5E8',
+    width: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 8,
   },
   bottomIcon: { fontSize: 18 },
-  logoutText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#D35400',
-  },
-  bottomArrow: {
-    fontSize: 22,
-    color: '#C4A77D',
-    fontWeight: '300',
-  },
+  logoutText: { flex: 1, fontSize: 15, fontWeight: '700', color: '#D6453A' },
+  bottomArrow: { fontSize: 21, color: '#C6A271', fontWeight: '300' },
 
   vacationCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 14,
+    backgroundColor: '#FFFDF8',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     marginBottom: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E8D6BD',
   },
   vacationContent: {
     flex: 1,
@@ -565,24 +451,12 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   vacationIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FFF8E7',
+    width: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 8,
   },
   vacationTextBlock: { flex: 1 },
-  vacationTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#3A2818',
-  },
-  vacationSubtitle: {
-    fontSize: 11,
-    color: '#8B6F47',
-    marginTop: 3,
-    lineHeight: 15,
-  },
+  vacationTitle: { fontSize: 15, fontWeight: '600', color: '#3A2818' },
+  vacationSubtitle: { fontSize: 11, color: '#9A7C5A', marginTop: 2, lineHeight: 15 },
 });
