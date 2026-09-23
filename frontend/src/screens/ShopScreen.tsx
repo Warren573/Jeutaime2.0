@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { AppBackButton } from '../components/AppBackButton';
+import { CoinIcon } from '../components/CoinIcon';
 import {
   getOfferingsCatalog,
   type OfferingCatalogItemDTO,
@@ -29,6 +30,7 @@ interface ShopTileProps {
   onPress: () => void;
   badge?: string;
   emphasized?: boolean;
+  coinIcon?: boolean;
 }
 
 function ShopTile({
@@ -39,6 +41,7 @@ function ShopTile({
   onPress,
   badge,
   emphasized = false,
+  coinIcon = false,
 }: ShopTileProps) {
   return (
     <TouchableOpacity
@@ -47,7 +50,7 @@ function ShopTile({
       activeOpacity={0.78}
     >
       <View style={[styles.tileIconWrap, emphasized && styles.tileIconWrapEmphasized]}>
-        <Text style={styles.tileIcon}>{icon}</Text>
+        {coinIcon ? <CoinIcon size={28} /> : <Text style={styles.tileIcon}>{icon}</Text>}
       </View>
       <View style={styles.tileBody}>
         <View style={styles.tileTitleRow}>
@@ -106,7 +109,7 @@ export default function ShopScreen() {
             <Text style={styles.balanceHint}>Voir le solde et l'historique</Text>
           </View>
           <View style={styles.balanceValueWrap}>
-            <Text style={styles.balanceCoin}>🪙</Text>
+            <CoinIcon size={25} />
             <Text style={styles.balanceValue}>{coins ?? 0}</Text>
           </View>
         </TouchableOpacity>
@@ -130,7 +133,8 @@ export default function ShopScreen() {
         <Text style={styles.sectionLabel}>MONNAIE & OBJETS</Text>
 
         <ShopTile
-          icon="🪙"
+          icon=""
+          coinIcon
           title="Pièces"
           description="Consulte ton solde, récupère ton bonus quotidien et retrouve toutes tes transactions."
           actionLabel="Ouvrir le portefeuille"
@@ -154,7 +158,7 @@ export default function ShopScreen() {
                 <View key={item.id} style={styles.catalogItem}>
                   <Text style={styles.catalogEmoji}>{item.emoji}</Text>
                   <Text style={styles.catalogName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={styles.catalogPrice}>{item.cost} 🪙</Text>
+                  <View style={styles.catalogPriceRow}><Text style={styles.catalogPrice}>{item.cost}</Text><CoinIcon size={13} /></View>
                 </View>
               ))}
             </View>
@@ -250,7 +254,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
   },
-  balanceCoin: { fontSize: 25 },
   balanceValue: {
     fontSize: 26,
     fontWeight: '900',
@@ -379,6 +382,7 @@ const styles = StyleSheet.create({
     color: APP_COLORS.ink,
     textAlign: 'center',
   },
+  catalogPriceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
   catalogPrice: {
     fontSize: 11,
     fontWeight: '800',
