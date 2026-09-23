@@ -17,7 +17,7 @@ import {
   Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter, Link, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useStore } from '../store/useStore';
@@ -228,7 +228,7 @@ const EnvelopeCard = ({
           href={{ pathname: '/profile/[id]', params: { id: otherUserId } }}
           style={envStyles.actionRight}
         >
-          {'Profil →'}
+          <><Ionicons name="person-outline" size={16} color="#8B5A2B" />{' Profil →'}</>
         </Link>
       </View>
     </Animated.View>
@@ -1024,7 +1024,7 @@ export default function LettersScreen() {
               style={styles.duelBtn}
               onPress={() => router.push('/duel/create')}
             >
-              <View style={styles.duelBtnIconBox}><Ionicons name="game-controller-outline" size={25} color="#5A3825" /></View>
+              <View style={styles.duelBtnIconBox}><MaterialCommunityIcons name="sword-cross" size={24} color="#5A3825" /></View>
               <View style={styles.duelBtnTextWrap}>
                 <Text style={styles.duelBtnTitle}>Lancer un duel</Text>
                 <Text style={styles.duelBtnSubtitle}>Défiez un contact en Pierre • Papier • Ciseaux</Text>
@@ -1109,11 +1109,11 @@ export default function LettersScreen() {
 
             {duelEntries.length > 0 && (
               <>
-                <View style={styles.journalSectionTitleRow}><Ionicons name="game-controller-outline" size={17} color="#8B5A2B" /><Text style={styles.journalSectionTitle}>Duels récents</Text></View>
+                <View style={styles.journalSectionTitleRow}><MaterialCommunityIcons name="sword-cross" size={17} color="#8B5A2B" /><Text style={styles.journalSectionTitle}>Duels récents</Text></View>
                 {duelEntries.slice(0, 5).map(entry => (
                   <View key={entry.id} style={[styles.journalCard, styles.duelJournalCard]}>
                     <View style={styles.journalHeader}>
-                      <Ionicons name="game-controller-outline" size={20} color="#8B5A2B" />
+                      <MaterialCommunityIcons name="sword-cross" size={20} color="#8B5A2B" />
                       <Text style={styles.journalDate}>
                         {new Date(entry.createdAt).toLocaleDateString('fr-FR', {
                           day: 'numeric',
@@ -1129,7 +1129,7 @@ export default function LettersScreen() {
 
             {journalEntries.length === 0 && duelEntries.length === 0 ? (
               <View style={styles.emptyJournal}>
-                <Ionicons name="journal-outline" size={34} color="#A88E70" />
+                <Ionicons name="book-outline" size={34} color="#A88E70" />
                 <Text style={styles.emptyJournalText}>Ton journal est vide</Text>
                 <Text style={styles.emptyJournalSubtext}>
                   Écris tes pensées et garde un souvenir de ton aventure
@@ -1218,7 +1218,7 @@ export default function LettersScreen() {
             onPress={() => setActiveTab('journal')}
           >
             <View style={styles.tabContent}>
-              <Ionicons name="journal-outline" size={18} color={activeTab === 'journal' ? '#FFE9A8' : '#927B63'} />
+              <Ionicons name="book-outline" size={18} color={activeTab === 'journal' ? '#FFE9A8' : '#927B63'} />
               <Text style={[styles.tabText, activeTab === 'journal' && styles.tabTextActive]}>Journal Intime</Text>
             </View>
           </TouchableOpacity>
@@ -1229,7 +1229,7 @@ export default function LettersScreen() {
           onPress={() => setActiveTab('souvenirs')}
         >
           <View style={styles.tabContent}>
-            <Ionicons name="archive-outline" size={18} color={activeTab === 'souvenirs' ? '#FFE9A8' : '#927B63'} />
+            <Ionicons name="gift-outline" size={18} color={activeTab === 'souvenirs' ? '#FFE9A8' : '#927B63'} />
             <Text style={[styles.tabText, activeTab === 'souvenirs' && styles.tabTextActive]}>Souvenirs</Text>
           </View>
         </TouchableOpacity>
@@ -1836,7 +1836,7 @@ export default function LettersScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
             <View style={styles.journalModalHeader}>
-              <View style={styles.journalModalTitleRow}><Ionicons name="journal-outline" size={20} color="#5A3825" /><Text style={styles.journalModalTitle}>Nouvelle entrée</Text></View>
+              <View style={styles.journalModalTitleRow}><Ionicons name="book-outline" size={20} color="#5A3825" /><Text style={styles.journalModalTitle}>Nouvelle entrée</Text></View>
               <TouchableOpacity onPress={() => setShowJournalModal(false)}>
                 <Text style={styles.closeX}>✕</Text>
               </TouchableOpacity>
