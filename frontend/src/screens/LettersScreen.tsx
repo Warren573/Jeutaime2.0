@@ -1665,6 +1665,28 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 160 },
+  listCount: {
+    fontSize: 12,
+    color: '#8B6F47',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+
+  duelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F1E5',
+    borderRadius: 13,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#D7C5AA',
+  },
 
   emptyState: {
     flex: 1,
