@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { AppBackButton } from '../components/AppBackButton';
+import { Ionicons } from '@expo/vector-icons';
 import { CoinIcon } from '../components/CoinIcon';
 import {
   getWallet,
@@ -30,21 +31,30 @@ import {
 } from '../theme/appTheme';
 
 const TRANSACTION_TYPE_LABELS: Record<string, string> = {
-  DAILY_BONUS: '📅 Bonus quotidien',
-  GAME_ENTRY: '🎴 Entrée jeu des cartes',
-  GAME_WIN: '🎉 Gain jeu des cartes',
-  MATCH_CREATION: '❤️ Création match',
-  LETTER_SEND: '📬 Lettre envoyée',
-  OTHER: '❓ Autre',
+  DAILY_BONUS: 'Bonus quotidien',
+  GAME_ENTRY: 'Entrée jeu des cartes',
+  GAME_WIN: 'Gain jeu des cartes',
+  MATCH_CREATION: 'Création match',
+  LETTER_SEND: 'Lettre envoyée',
+  OTHER: 'Autre',
 };
 
-const TRANSACTION_TYPE_COLORS: Record<string, { bg: string; icon: string }> = {
-  DAILY_BONUS: { bg: '#FFF3CD', icon: '📅' },
-  GAME_ENTRY: { bg: '#E7F3FF', icon: '🎴' },
-  GAME_WIN: { bg: '#D4EDDA', icon: '🎉' },
-  MATCH_CREATION: { bg: '#F8D7DA', icon: '❤️' },
-  LETTER_SEND: { bg: '#D1ECF1', icon: '📬' },
-  OTHER: { bg: '#E2E3E5', icon: '❓' },
+const TRANSACTION_TYPE_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  DAILY_BONUS: 'calendar-outline',
+  GAME_ENTRY: 'layers-outline',
+  GAME_WIN: 'trophy-outline',
+  MATCH_CREATION: 'heart-outline',
+  LETTER_SEND: 'mail-outline',
+  OTHER: 'help-circle-outline',
+};
+
+const TRANSACTION_TYPE_COLORS: Record<string, { bg: string; fg: string }> = {
+  DAILY_BONUS: { bg: '#FFF3CD', fg: '#8A6D00' },
+  GAME_ENTRY: { bg: '#E7F3FF', fg: '#456A8A' },
+  GAME_WIN: { bg: '#D4EDDA', fg: '#3F7B3F' },
+  MATCH_CREATION: { bg: '#F8D7DA', fg: '#8B2E3C' },
+  LETTER_SEND: { bg: '#D1ECF1', fg: '#3C6F7A' },
+  OTHER: { bg: '#E2E3E5', fg: '#6B6F73' },
 };
 
 export default function WalletScreen() {
@@ -161,7 +171,7 @@ export default function WalletScreen() {
           activeOpacity={0.8}
         >
           <View style={styles.shopBtnIconWrap}>
-            <Text style={styles.shopBtnIcon}>🛍️</Text>
+            <Ionicons name="bag-handle-outline" size={22} color={APP_COLORS.burgundy} />
           </View>
           <View style={styles.shopBtnContent}>
             <Text style={styles.shopBtnTitle}>Boutique</Text>
@@ -180,7 +190,7 @@ export default function WalletScreen() {
               <ActivityIndicator color={APP_COLORS.white} />
             ) : (
               <>
-                <Text style={styles.bonusEmoji}>📅</Text>
+                <Ionicons name="calendar-outline" size={27} color={APP_COLORS.white} />
                 <View style={styles.bonusContent}>
                   <Text style={styles.bonusTitle}>Bonus quotidien disponible</Text>
                   <Text style={styles.bonusSub}>Touchez pour recevoir votre bonus</Text>
@@ -220,12 +230,13 @@ export default function WalletScreen() {
 function TransactionRow({ transaction }: { transaction: CoinTxnDTO }) {
   const label = TRANSACTION_TYPE_LABELS[transaction.type] || TRANSACTION_TYPE_LABELS.OTHER;
   const colors = TRANSACTION_TYPE_COLORS[transaction.type] || TRANSACTION_TYPE_COLORS.OTHER;
+  const iconName = TRANSACTION_TYPE_ICONS[transaction.type] || TRANSACTION_TYPE_ICONS.OTHER;
   const isPositive = transaction.amount > 0;
 
   return (
     <View style={styles.transactionRow}>
       <View style={[styles.txnIcon, { backgroundColor: colors.bg }]}>
-        <Text style={styles.txnIconEmoji}>{colors.icon}</Text>
+        <Ionicons name={iconName} size={23} color={colors.fg} />
       </View>
       <View style={styles.txnInfo}>
         <Text style={styles.txnLabel}>{label}</Text>
@@ -309,7 +320,6 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.paperSoft,
     marginRight: 12,
   },
-  shopBtnIcon: { fontSize: 22 },
   shopBtnContent: { flex: 1 },
   shopBtnTitle: { fontSize: 15, fontWeight: '800', color: APP_COLORS.ink },
   shopBtnSub: { fontSize: 11, color: APP_COLORS.muted, marginTop: 2 },
@@ -325,7 +335,6 @@ const styles = StyleSheet.create({
     ...(APP_SHADOWS.card ?? {}),
   },
   bonusBtnDisabled: { opacity: 0.6 },
-  bonusEmoji: { fontSize: 27 },
   bonusContent: { flex: 1 },
   bonusTitle: { fontSize: 15, fontWeight: '800', color: APP_COLORS.white, marginBottom: 2 },
   bonusSub: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
@@ -358,7 +367,6 @@ const styles = StyleSheet.create({
     borderColor: APP_COLORS.border,
   },
   txnIcon: { width: 46, height: 46, borderRadius: APP_RADIUS.md, alignItems: 'center', justifyContent: 'center' },
-  txnIconEmoji: { fontSize: 23 },
   txnInfo: { flex: 1 },
   txnLabel: { fontSize: 13, fontWeight: '700', color: APP_COLORS.ink, marginBottom: 2 },
   txnDate: { fontSize: 10, color: APP_COLORS.muted },
