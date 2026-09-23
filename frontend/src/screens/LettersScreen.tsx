@@ -135,12 +135,12 @@ const EnvelopeCard = ({
   }, [unread]);
 
   const previewText = () => {
-    if (matchStatus?.toUpperCase() === 'PENDING') return '⏳ En attente d\'acceptation';
-    if (matchStatus?.toUpperCase() === 'BROKEN' || matchStatus?.toUpperCase() === 'BLOCKED') return '🚫 Match terminé';
-    if (!questionsValidated) return '🎮 Jeu des questions à compléter';
-    if (letterCount === 0) return myTurn ? '✍️ Écrivez la première lettre !' : '⏳ En attente de la première lettre...';
-    if (unread > 0) return '📨 Nouvelle lettre reçue!';
-    return myTurn ? "✍️ À vous d'écrire..." : '⏳ En attente de réponse...';
+    if (matchStatus?.toUpperCase() === 'PENDING') return 'En attente d\'acceptation';
+    if (matchStatus?.toUpperCase() === 'BROKEN' || matchStatus?.toUpperCase() === 'BLOCKED') return 'Match terminé';
+    if (!questionsValidated) return 'Jeu des questions à compléter';
+    if (letterCount === 0) return myTurn ? 'Écrivez la première lettre !' : 'En attente de la première lettre...';
+    if (unread > 0) return 'Nouvelle lettre reçue !';
+    return myTurn ? "À vous d'écrire..." : 'En attente de réponse...';
   };
 
   const timeText = () => {
@@ -194,11 +194,11 @@ const EnvelopeCard = ({
         {matchStatus?.toUpperCase() === 'PENDING' ? (
           isInitiator ? (
             <View style={[envStyles.actionLeft, envStyles.actionDisabled]}>
-              <Text style={[envStyles.actionLeftText, envStyles.actionDisabledText]}>⏳ En attente</Text>
+              <View style={envStyles.actionContent}><Ionicons name="time-outline" size={17} color="#B9A990" /><Text style={[envStyles.actionLeftText, envStyles.actionDisabledText]}>En attente</Text></View>
             </View>
           ) : (
             <TouchableOpacity style={envStyles.actionLeft} onPress={onAccept} activeOpacity={0.75}>
-              <Text style={envStyles.actionLeftText}>✅ Accepter le match</Text>
+              <View style={envStyles.actionContent}><Ionicons name="checkmark-circle-outline" size={17} color="#8B5A2B" /><Text style={envStyles.actionLeftText}>Accepter le match</Text></View>
             </TouchableOpacity>
           )
         ) : isActive && !questionsValidated ? (
@@ -215,9 +215,12 @@ const EnvelopeCard = ({
             }}
             activeOpacity={canReadLetters ? 0.75 : 1}
           >
-            <Text style={[envStyles.actionLeftText, !canReadLetters && envStyles.actionDisabledText]}>
-              📬 Lettres
-            </Text>
+            <View style={envStyles.actionContent}>
+              <Ionicons name="mail-outline" size={17} color={canReadLetters ? '#8B5A2B' : '#B9A990'} />
+              <Text style={[envStyles.actionLeftText, !canReadLetters && envStyles.actionDisabledText]}>
+                Lettres
+              </Text>
+            </View>
           </TouchableOpacity>
         )}
         <View style={envStyles.actionSep} />
@@ -225,7 +228,7 @@ const EnvelopeCard = ({
           href={{ pathname: '/profile/[id]', params: { id: otherUserId } }}
           style={envStyles.actionRight}
         >
-          {'👤 Profil →'}
+          {'Profil →'}
         </Link>
       </View>
     </Animated.View>
@@ -300,6 +303,7 @@ const envStyles = StyleSheet.create({
   time:           { fontSize: 11, color: '#8B6F47', marginRight: 74 },
   actionBar:      { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E1D5C3', minHeight: 38 },
   actionLeft:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9 },
+  actionContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   actionLeftText: { fontSize: 12, color: '#5A3A1A', fontWeight: '600' },
   actionSep:      { width: StyleSheet.hairlineWidth, backgroundColor: '#E1D5C3' },
   actionRight:       { flex: 1, textAlign: 'center', paddingVertical: 9, fontSize: 12, color: '#8B5B34', fontWeight: '600', letterSpacing: 0.2, textDecorationLine: 'none' },
@@ -1020,12 +1024,12 @@ export default function LettersScreen() {
               style={styles.duelBtn}
               onPress={() => router.push('/duel/create')}
             >
-              <Text style={styles.duelBtnEmoji}>⚔️</Text>
+              <View style={styles.duelBtnIconBox}><Ionicons name="game-controller-outline" size={25} color="#5A3825" /></View>
               <View style={styles.duelBtnTextWrap}>
                 <Text style={styles.duelBtnTitle}>Lancer un duel</Text>
                 <Text style={styles.duelBtnSubtitle}>Défiez un contact en Pierre • Papier • Ciseaux</Text>
               </View>
-              <Text style={styles.duelBtnArrow}>▶</Text>
+              <Ionicons name="chevron-forward" size={20} color="#9C3045" />
             </TouchableOpacity>
 
             {visibleMatches.length === 0 ? (
@@ -1105,11 +1109,11 @@ export default function LettersScreen() {
 
             {duelEntries.length > 0 && (
               <>
-                <Text style={styles.journalSectionTitle}>⚔️ Duels récents</Text>
+                <View style={styles.journalSectionTitleRow}><Ionicons name="game-controller-outline" size={17} color="#8B5A2B" /><Text style={styles.journalSectionTitle}>Duels récents</Text></View>
                 {duelEntries.slice(0, 5).map(entry => (
                   <View key={entry.id} style={[styles.journalCard, styles.duelJournalCard]}>
                     <View style={styles.journalHeader}>
-                      <Text style={styles.journalMood}>⚔️</Text>
+                      <Ionicons name="game-controller-outline" size={20} color="#8B5A2B" />
                       <Text style={styles.journalDate}>
                         {new Date(entry.createdAt).toLocaleDateString('fr-FR', {
                           day: 'numeric',
@@ -1125,7 +1129,7 @@ export default function LettersScreen() {
 
             {journalEntries.length === 0 && duelEntries.length === 0 ? (
               <View style={styles.emptyJournal}>
-                <Text style={styles.emptyJournalEmoji}>📔</Text>
+                <Ionicons name="journal-outline" size={34} color="#A88E70" />
                 <Text style={styles.emptyJournalText}>Ton journal est vide</Text>
                 <Text style={styles.emptyJournalSubtext}>
                   Écris tes pensées et garde un souvenir de ton aventure
@@ -1201,9 +1205,10 @@ export default function LettersScreen() {
             style={[styles.tab, activeTab === 'lettres' && styles.tabActive]}
             onPress={() => setActiveTab('lettres')}
           >
-            <Text style={[styles.tabText, activeTab === 'lettres' && styles.tabTextActive]}>
-              📬 Lettres
-            </Text>
+            <View style={styles.tabContent}>
+              <Ionicons name="mail-outline" size={18} color={activeTab === 'lettres' ? '#FFE9A8' : '#927B63'} />
+              <Text style={[styles.tabText, activeTab === 'lettres' && styles.tabTextActive]}>Lettres</Text>
+            </View>
           </TouchableOpacity>
         )}
 
@@ -1212,8 +1217,10 @@ export default function LettersScreen() {
             style={[styles.tab, activeTab === 'journal' && styles.tabActive]}
             onPress={() => setActiveTab('journal')}
           >
-            <Text style={[styles.tabText, activeTab === 'journal' && styles.tabTextActive]}>
-              📔 Journal Intime            </Text>
+            <View style={styles.tabContent}>
+              <Ionicons name="journal-outline" size={18} color={activeTab === 'journal' ? '#FFE9A8' : '#927B63'} />
+              <Text style={[styles.tabText, activeTab === 'journal' && styles.tabTextActive]}>Journal Intime</Text>
+            </View>
           </TouchableOpacity>
         )}
 
@@ -1221,9 +1228,10 @@ export default function LettersScreen() {
           style={[styles.tab, activeTab === 'souvenirs' && styles.tabActive]}
           onPress={() => setActiveTab('souvenirs')}
         >
-          <Text style={[styles.tabText, activeTab === 'souvenirs' && styles.tabTextActive]}>
-            🎁 Souvenirs
-          </Text>
+          <View style={styles.tabContent}>
+            <Ionicons name="archive-outline" size={18} color={activeTab === 'souvenirs' ? '#FFE9A8' : '#927B63'} />
+            <Text style={[styles.tabText, activeTab === 'souvenirs' && styles.tabTextActive]}>Souvenirs</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -1325,12 +1333,12 @@ export default function LettersScreen() {
             {selectedMatch && getConversation(selectedMatch).length === 0 && (
               selectedMatch.canSend ? (
                 <View style={styles.startConv}>
-                  <Text style={styles.startEmoji}>🖊</Text>
+                  <Ionicons name="create-outline" size={23} color="#8B5A2B" />
                   <Text style={styles.startText}>Tu peux écrire la première lettre</Text>
                 </View>
               ) : (
                 <View style={styles.startConv}>
-                  <Text style={styles.startEmoji}>⏳</Text>
+                  <Ionicons name="time-outline" size={23} color="#8B5A2B" />
                   <Text style={styles.startText}>
                     {selectedMatch.canSendReason === 'AWAITING_REPLY'
                       ? "L'autre doit envoyer la première lettre.\nTu pourras répondre ensuite."
@@ -1677,7 +1685,7 @@ export default function LettersScreen() {
                   </>
                 ) : qResult.waitingForOther ? (
                   <>
-                    <Text style={qStyles.resultEmoji}>⏳</Text>
+                    <Ionicons name="time-outline" size={34} color="#8B5A2B" />
                     <Text style={qStyles.resultTitle}>Réponses envoyées !</Text>
                     <Text style={qStyles.resultSub}>
                       Tu as obtenu {qResult.myScore}/3.{'\n'}En attente de l'autre joueur…
@@ -1706,7 +1714,7 @@ export default function LettersScreen() {
                         }
                       }}
                     >
-                      <Text style={qStyles.closeBtnText}>📬 Écrire une lettre</Text>
+                      <View style={qStyles.closeBtnContent}><Ionicons name="mail-outline" size={17} color="#FFF8E7" /><Text style={qStyles.closeBtnText}>Écrire une lettre</Text></View>
                     </TouchableOpacity>
                   </>
                 ) : null}
@@ -1828,7 +1836,7 @@ export default function LettersScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
             <View style={styles.journalModalHeader}>
-              <Text style={styles.journalModalTitle}>📔 Nouvelle entrée</Text>
+              <View style={styles.journalModalTitleRow}><Ionicons name="journal-outline" size={20} color="#5A3825" /><Text style={styles.journalModalTitle}>Nouvelle entrée</Text></View>
               <TouchableOpacity onPress={() => setShowJournalModal(false)}>
                 <Text style={styles.closeX}>✕</Text>
               </TouchableOpacity>
@@ -1929,6 +1937,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EDE2D0',
   },
   tabActive: { backgroundColor: '#3A2415' },
+  tabContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   tabText: { fontSize: 11.5, fontWeight: '600', color: '#8B735D' },
   tabTextActive: { color: '#F0D98C' },
 
@@ -2027,12 +2036,14 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#D7C5AA',
   },
+  duelBtnIconBox: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3E8D5', marginRight: 12 },
   duelBtnEmoji: { fontSize: 19, marginRight: 10 },
   duelBtnTextWrap: { flex: 1, minWidth: 0 },
   duelBtnTitle: { color: '#3A2818', fontSize: 13.5, fontWeight: '700' },
   duelBtnSubtitle: { color: '#9A7A55', fontSize: 10.5, marginTop: 2 },
   duelBtnArrow: { fontSize: 11, color: '#8B2E3C', marginLeft: 8 },
 
+  journalSectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
   journalSectionTitle: {
     fontSize: 13,
     fontWeight: '700',
@@ -2483,6 +2494,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  journalModalTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   journalModalTitle: { fontSize: 20, fontWeight: '700', color: '#3A2818' },
   closeX: { fontSize: 24, color: '#8B6F47' },
   moodSelector: { marginBottom: 16 },
@@ -2553,6 +2565,7 @@ const qStyles = StyleSheet.create({
   resultSub:      { fontSize: 14, color: '#7A5C3A', textAlign: 'center', lineHeight: 22 },
   closeBtn:       { backgroundColor: '#5A3A1A', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28, marginTop: 8 },
   closeBtnSuccess:{ backgroundColor: '#9C2F45' },
+  closeBtnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   closeBtnText:   { color: '#FFF', fontWeight: '700', fontSize: 15 },
 });
 // Build cache bust: 1779184220
