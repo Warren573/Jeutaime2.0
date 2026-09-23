@@ -1991,7 +1991,7 @@ export default function SalonScreen() {
                       <Text style={styles.offeringName}>
                         {antiSpell.name} — casse {cast.magie.emoji} {cast.magie.name}
                       </Text>
-                      <Text style={styles.offeringCost}>💰 {antiSpell.cost}</Text>
+                      <View style={styles.offeringCostRow}><CoinIcon size={13} /><Text style={styles.offeringCost}>{antiSpell.cost}</Text></View>
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -2010,7 +2010,7 @@ export default function SalonScreen() {
                 <Text style={styles.offeringEmoji}>{item.emoji}</Text>
                 <View style={styles.offeringInfo}>
                   <Text style={styles.offeringName}>{item.name}</Text>
-                  <Text style={styles.offeringCost}>💰 {item.cost}</Text>
+                  <View style={styles.offeringCostRow}><CoinIcon size={13} /><Text style={styles.offeringCost}>{item.cost}</Text></View>
                 </View>
               </TouchableOpacity>
             ))}
