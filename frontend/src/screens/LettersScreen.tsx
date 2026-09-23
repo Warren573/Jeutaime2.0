@@ -19,7 +19,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
-import { useRouter, Link, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useRouter, Link, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matches';
 import { reportUser, type ReportReason } from '../api/profiles';
@@ -1019,10 +1019,6 @@ export default function LettersScreen() {
             )}
           </>
         );
-  ;
-
-  const filteredMatches = matches.filter(m => m.status === 'pending' || m.status === 'active');
-  const debugMatchStatuses = matches.map(m => `${m.id.substring(0, 8)}:${m.status}`).join(' | ');
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: screenBg }]}>
@@ -1631,58 +1627,6 @@ export default function LettersScreen() {
         </View>
       </Modal>
 
-      <Modal visible={showJournalModal} animationType="slide" transparent>
-        <View style={styles.journalModalBg}>
-          <KeyboardAvoidingView
-            style={styles.journalModalBox}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          >
-            <View style={styles.journalModalHeader}>
-              <View style={styles.journalModalTitleRow}><Ionicons name="book-outline" size={20} color="#5A3825" /><Text style={styles.journalModalTitle}>Nouvelle entrée</Text></View>
-              <TouchableOpacity onPress={() => setShowJournalModal(false)}>
-                <Text style={styles.closeX}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.moodSelector}>
-              <Text style={styles.moodLabel}>Comment te sens-tu?</Text>
-              <View style={styles.moodsRow}>
-                {moods.map(mood => (
-                  <TouchableOpacity
-                    key={mood}
-                    style={[styles.moodBtn, journalMood === mood && styles.moodBtnActive]}
-                    onPress={() => setJournalMood(mood)}
-                  >
-                    <Text style={styles.moodBtnText}>{mood}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <TextInput
-              style={styles.journalInput}
-              placeholder="Titre de ton entrée..."
-              placeholderTextColor="#8B6F47"
-              value={journalTitle}
-              onChangeText={setJournalTitle}
-            />
-
-            <TextInput
-              style={[styles.journalInput, styles.journalTextarea]}
-              placeholder="Qu'as-tu envie de raconter aujourd'hui?"
-              placeholderTextColor="#8B6F47"
-              value={journalContent}
-              onChangeText={setJournalContent}
-              multiline
-              numberOfLines={6}
-            />
-
-            <TouchableOpacity style={styles.saveJournalBtn} onPress={handleAddJournal}>
-              <Text style={styles.saveJournalText}>💾 Sauvegarder</Text>
-            </TouchableOpacity>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -2159,29 +2103,6 @@ const styles = StyleSheet.create({
   turnBannerWait: { backgroundColor: '#2C1A0E' },
   turnBannerText: { fontSize: 12.5, fontWeight: '600', color: '#D1B98F' },
 
-  journalModalBox: {
-    backgroundColor: '#FFF8E7',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    maxHeight: '80%',
-  },
-  journalModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  journalModalTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  journalTextarea: { height: 120, textAlignVertical: 'top' },
-  saveJournalBtn: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  saveJournalText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
 });
 
 // ── Styles du jeu des 3 questions ────────────────────────────────
