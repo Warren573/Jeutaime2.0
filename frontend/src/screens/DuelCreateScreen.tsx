@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import {
@@ -84,7 +85,7 @@ export default function DuelCreateScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Text style={styles.back}>← Retour</Text>
         </Pressable>
-        <Text style={styles.title}>⚔️ Duels privés</Text>
+        <View style={styles.titleRow}><MaterialCommunityIcons name="sword-cross" size={34} color="#F4D77D" /><Text style={styles.title}>Duels privés</Text></View>
         <Text style={styles.subtitle}>Défie un correspondant de l’un de tes correspondants</Text>
       </View>
 
@@ -140,7 +141,7 @@ export default function DuelCreateScreen() {
                         onPress={() => openDuel(duel.id)}
                       >
                         <View style={styles.pendingIcon}>
-                          <Text style={styles.pendingIconText}>⚔️</Text>
+                          <MaterialCommunityIcons name="sword-cross" size={23} color="#6A472E" />
                         </View>
                         <View style={styles.pendingCopy}>
                           <Text style={styles.pendingName}>{duel.opponentPseudo}</Text>
@@ -169,7 +170,7 @@ export default function DuelCreateScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>⚔️</Text>
+              <MaterialCommunityIcons name="sword-cross" size={34} color="#A88E70" />
               <Text style={styles.emptyText}>Aucun adversaire disponible</Text>
               <Text style={styles.emptySubtext}>
                 Aucun de tes correspondants n’a actuellement un autre correspondant que tu puisses défier.
@@ -237,6 +238,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2C1A0E',
   },
   back: { color: '#F0D98C', fontSize: 15, fontWeight: '600', marginBottom: 14 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
   title: { color: '#F0D98C', fontSize: 26, fontWeight: '800' },
   subtitle: { color: '#A08870', fontSize: 14, marginTop: 6, fontStyle: 'italic' },
   list: { padding: 16, paddingBottom: 40, gap: 12 },
@@ -288,7 +290,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F4ECD8',
   },
-  pendingIconText: { fontSize: 20 },
   pendingCopy: { flex: 1, marginLeft: 12 },
   pendingName: { color: '#2C1A0E', fontSize: 16, fontWeight: '800' },
   pendingStatus: { color: '#8A6847', fontSize: 12.5, marginTop: 3 },
