@@ -13,6 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import { useStore } from "../src/store/useStore";
 import { AppBackButton } from "../src/components/AppBackButton";
+import { CoinIcon } from "../src/components/CoinIcon";
 import {
   getPremiumPlans,
   getMyPremiumStatus,
@@ -31,7 +32,7 @@ import {
 const ADVANTAGES = [
   { icon: "💌", text: "Jusqu'à 20 matches simultanés (5 en free)" },
   { icon: "📸", text: "Photos dévoilées plus tôt dans la relation" },
-  { icon: "🌟", text: "Bonus quotidien doublé (50 🪙)" },
+  { icon: "🌟", text: "Bonus quotidien doublé (50 pièces)" },
   { icon: "🎭", text: "Accès à toutes les magies" },
   { icon: "✨", text: "Priorité dans la découverte" },
 ];
@@ -88,7 +89,7 @@ export default function PremiumScreen() {
 
     Alert.alert(
       "Confirmer l'abonnement",
-      `Souscrire au plan ${plan.label} (${plan.durationDays} jours) pour ${plan.priceCoins} 🪙 ?`,
+      `Souscrire au plan ${plan.label} (${plan.durationDays} jours) pour ${plan.priceCoins} pièces ?`,
       [
         { text: "Annuler", style: "cancel" },
         {
@@ -179,7 +180,7 @@ export default function PremiumScreen() {
             </>
           )}
           <TouchableOpacity onPress={() => router.push('/coins')} activeOpacity={0.75}>
-            <Text style={styles.coinsBalance}>Solde : {coins} 🪙  →</Text>
+            <View style={styles.coinsBalanceRow}><Text style={styles.coinsBalance}>Solde : {coins}</Text><CoinIcon size={16}/><Text style={styles.coinsBalance}>→</Text></View>
           </TouchableOpacity>
         </View>
 
@@ -212,7 +213,7 @@ export default function PremiumScreen() {
                     <Text style={styles.planDuration}>{p.durationDays} jours</Text>
                   </View>
                   <View style={styles.planRight}>
-                    <Text style={[styles.planCoins, !affordable && styles.planCoinsLow]}>{p.priceCoins} 🪙</Text>
+                    <View style={styles.planCoinsRow}><Text style={[styles.planCoins, !affordable && styles.planCoinsLow]}>{p.priceCoins}</Text><CoinIcon size={16}/></View>
                     {!affordable && <Text style={styles.planCoinsLowLabel}>solde insuffisant</Text>}
                   </View>
                   {isSelected && <View style={styles.planDot} />}
@@ -229,7 +230,7 @@ export default function PremiumScreen() {
                 <ActivityIndicator color={APP_COLORS.white} />
               ) : (
                 <Text style={styles.subscribeBtnText}>
-                  {canAfford ? `Souscrire — ${plan?.priceCoins ?? "…"} 🪙` : "Voir la boutique"}
+                  {canAfford ? `Souscrire — ${plan?.priceCoins ?? "…"} pièces` : "Voir la boutique"}
                 </Text>
               )}
             </Pressable>
@@ -284,6 +285,7 @@ const styles = StyleSheet.create({
   statusCardFree: { backgroundColor: APP_COLORS.paperSoft, borderColor: APP_COLORS.border },
   statusBadge: { fontSize: 17, fontWeight: "800", color: APP_COLORS.ink, marginBottom: 4 },
   statusSub: { fontSize: 13, color: APP_COLORS.muted, marginBottom: 14, lineHeight: 20 },
+  coinsBalanceRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   coinsBalance: { fontSize: 14, fontWeight: "800", color: APP_COLORS.burgundy },
   sectionTitle: {
     fontSize: 11,
@@ -321,6 +323,7 @@ const styles = StyleSheet.create({
   planLabel: { fontSize: 16, fontWeight: "700", color: APP_COLORS.ink },
   planDuration: { fontSize: 13, color: APP_COLORS.muted, marginTop: 2 },
   planRight: { alignItems: "flex-end" },
+  planCoinsRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   planCoins: { fontSize: 16, fontWeight: "800", color: APP_COLORS.ink },
   planCoinsLow: { color: APP_COLORS.muted },
   planCoinsLowLabel: { fontSize: 11, color: APP_COLORS.muted, marginTop: 2 },
