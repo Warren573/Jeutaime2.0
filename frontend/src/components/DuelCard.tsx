@@ -1,6 +1,6 @@
 import React from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import type { DuelChoice, DuelResult } from '../logic/duelEngine';
 
 interface Props {
@@ -49,7 +49,7 @@ export default function DuelCard({
           <Text style={styles.fighterName} numberOfLines={1}>{playerName}</Text>
           <View style={styles.fighterEmojiBg}>
             {playerChoice
-              ? <MaterialCommunityIcons name={playerChoice.icon} size={36} color="#6A472E" />
+              ? <FontAwesome5 name={playerChoice.icon} size={36} color="#6A472E" />
               : <Ionicons name="help-outline" size={34} color="#B9A990" />}
           </View>
           <Text style={styles.fighterChoice}>
@@ -67,7 +67,7 @@ export default function DuelCard({
           <Text style={styles.fighterName} numberOfLines={1}>{opponentName}</Text>
           <View style={[styles.fighterEmojiBg, styles.fighterEmojiBgRight]}>
             {opponentChoice
-              ? <MaterialCommunityIcons name={opponentChoice.icon} size={36} color="#6A472E" />
+              ? <FontAwesome5 name={opponentChoice.icon} size={36} color="#6A472E" />
               : <Ionicons name="help-outline" size={34} color="#B9A990" />}
           </View>
           <Text style={styles.fighterChoice}>
