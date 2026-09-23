@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { getUserSettings, updateUserSettings } from '../api/userSettings';
+import { CoinIcon } from '../components/CoinIcon';
 
 interface SettingsItem {
   icon: string;
@@ -266,7 +267,7 @@ export default function SettingsScreen() {
           </View>
 
           <View style={styles.coinPill}>
-            <Text style={styles.coinEmoji}>🪙</Text>
+            <CoinIcon size={15} style={{ marginRight: 4 }} />
             <Text style={styles.coinValue}>{coins}</Text>
           </View>
 
@@ -361,7 +362,6 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     marginRight: 8,
   },
-  coinEmoji: { fontSize: 15, marginRight: 4 },
   coinValue: { fontSize: 14, fontWeight: '800', color: '#3A2818' },
   shopArrow: { fontSize: 22, color: '#C8A878', fontWeight: '300' },
 
