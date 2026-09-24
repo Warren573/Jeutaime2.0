@@ -293,27 +293,27 @@ const RULE = '#B8A377';
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: 18 },
+  scrollContent: { paddingHorizontal: 18, paddingTop: 2 },
 
   // ── Masthead ─────────────────────────────────────────────────────────────
-  masthead: { alignItems: 'center', paddingTop: 14, paddingBottom: 10 },
-  kicker: { fontSize: 13, letterSpacing: 2, color: INK_SOFT, fontFamily: SERIF },
+  masthead: { alignItems: 'center', paddingTop: 16, paddingBottom: 12 },
+  kicker: { fontSize: 11.5, letterSpacing: 2.5, color: INK_SOFT, fontFamily: SERIF, textTransform: 'uppercase' },
   mastheadTitle: {
-    fontSize: 44,
+    fontSize: 48,
     fontWeight: '700',
     fontFamily: SERIF,
     color: INK,
-    marginTop: 4,
-    letterSpacing: 0.5,
+    marginTop: 2,
+    letterSpacing: 0.3,
   },
   mastheadTagline: {
-    fontSize: 15,
+    fontSize: 15.5,
     fontStyle: 'italic',
     fontFamily: SERIF,
     color: INK_SOFT,
-    marginTop: 2,
+    marginTop: 1,
   },
-  mastheadRuleThick: { height: 3, backgroundColor: INK, width: '100%', marginTop: 12 },
+  mastheadRuleThick: { height: 3, backgroundColor: INK, width: '100%', marginTop: 14 },
   mastheadRuleThin: { height: 1, backgroundColor: INK, width: '100%', marginTop: 3 },
   datelineRow: {
     flexDirection: 'row',
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 6,
   },
-  dateline: { fontSize: 14, fontFamily: SERIF, fontStyle: 'italic', color: INK_SOFT, textTransform: 'capitalize' },
+  dateline: { fontSize: 14.5, fontFamily: SERIF, fontStyle: 'italic', color: INK_SOFT, textTransform: 'capitalize', letterSpacing: 0.2 },
 
   personalSection: {
     marginTop: 10,
@@ -350,18 +350,19 @@ const styles = StyleSheet.create({
   briefBox: {
     borderWidth: 1,
     borderColor: RULE,
-    marginTop: 16,
-    paddingVertical: 10,
+    marginTop: 18,
+    paddingVertical: 12,
     paddingHorizontal: 14,
+    backgroundColor: 'rgba(255,252,245,0.22)',
   },
   briefBoxTitle: {
-    fontSize: 13,
-    letterSpacing: 1.5,
+    fontSize: 13.5,
+    letterSpacing: 2,
     fontFamily: SERIF,
     fontWeight: '700',
     color: INK_SOFT,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   briefRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
   briefItem: { alignItems: 'center', flex: 1 },
@@ -369,13 +370,13 @@ const styles = StyleSheet.create({
   briefValue: { fontSize: 21, fontWeight: '700', fontFamily: SERIF, color: INK },
   briefLabel: { fontSize: 13, color: INK_SOFT, marginTop: 2, fontFamily: SERIF },
 
-  sectionRule: { height: 1, backgroundColor: RULE, marginTop: 22, marginBottom: 10 },
+  sectionRule: { height: 1, backgroundColor: RULE, marginTop: 24, marginBottom: 10 },
   sectionLabel: {
-    fontSize: 14,
-    letterSpacing: 1.5,
+    fontSize: 15,
+    letterSpacing: 1.8,
     fontFamily: SERIF,
     fontWeight: '700',
-    color: INK_SOFT,
+    color: '#4C3A2A',
   },
 
   // ── Gagnants de la semaine ──────────────────────────────────────────────────
@@ -423,10 +424,11 @@ const styles = StyleSheet.create({
   refugeBox: {
     borderWidth: 1,
     borderColor: RULE,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 14,
     marginTop: 12,
     marginBottom: 16,
+    backgroundColor: 'rgba(255,252,245,0.18)',
   },
   refugeText: {
     fontSize: 17,
@@ -452,15 +454,16 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginTop: 12,
     marginBottom: 16,
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
   },
   statItem: {
     alignItems: 'center',
-    width: '45%',
+    width: '48%',
     marginBottom: 16,
+    paddingVertical: 3,
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
     fontFamily: SERIF,
     color: INK,
