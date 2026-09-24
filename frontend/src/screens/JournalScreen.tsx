@@ -96,7 +96,7 @@ export default function JournalScreen() {
       >
         {/* ── Masthead ─────────────────────────────────────────────── */}
         <View style={styles.masthead}>
-          <Text style={styles.kicker}>L'ÉDITION DU JOUR · GRATUIT</Text>
+          <Text style={styles.kicker}>JOURNAL · L'ÉDITION DU JOUR · GRATUIT</Text>
           <Text style={styles.mastheadTitle}>Le JeuTaime</Text>
           <Text style={styles.mastheadTagline}>Nouvelles du cœur & de la communauté</Text>
           <View style={styles.mastheadRuleThick} />
@@ -299,12 +299,12 @@ const styles = StyleSheet.create({
   masthead: { alignItems: 'center', paddingTop: 16, paddingBottom: 12 },
   kicker: { fontSize: 11.5, letterSpacing: 2.5, color: INK_SOFT, fontFamily: SERIF, textTransform: 'uppercase' },
   mastheadTitle: {
-    fontSize: 48,
+    fontSize: 52,
     fontWeight: '700',
     fontFamily: SERIF,
     color: INK,
-    marginTop: 2,
-    letterSpacing: 0.3,
+    marginTop: 1,
+    letterSpacing: 0.1,
   },
   mastheadTagline: {
     fontSize: 15.5,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     color: INK_SOFT,
     marginTop: 1,
   },
-  mastheadRuleThick: { height: 3, backgroundColor: INK, width: '100%', marginTop: 14 },
+  mastheadRuleThick: { height: 4, backgroundColor: INK, width: '100%', marginTop: 14 },
   mastheadRuleThin: { height: 1, backgroundColor: INK, width: '100%', marginTop: 3 },
   datelineRow: {
     flexDirection: 'row',
@@ -348,12 +348,12 @@ const styles = StyleSheet.create({
 
   // ── Encadré "En bref" ────────────────────────────────────────────────────
   briefBox: {
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: RULE,
     marginTop: 18,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 14,
-    backgroundColor: 'rgba(255,252,245,0.22)',
+    backgroundColor: '#F8F0DE',
   },
   briefBoxTitle: {
     fontSize: 13.5,
@@ -372,20 +372,26 @@ const styles = StyleSheet.create({
 
   sectionRule: { height: 1, backgroundColor: RULE, marginTop: 24, marginBottom: 10 },
   sectionLabel: {
-    fontSize: 15,
-    letterSpacing: 1.8,
+    fontSize: 16.5,
+    letterSpacing: 1.9,
     fontFamily: SERIF,
     fontWeight: '700',
-    color: '#4C3A2A',
+    color: '#3A2A1D',
+    marginBottom: 3,
   },
 
   // ── Gagnants de la semaine ──────────────────────────────────────────────────
   winnersSection: {
     flexDirection: 'row',
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 16,
     justifyContent: 'space-around',
     gap: 24,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: RULE,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(255,252,245,0.20)',
   },
   emptyStateBox: {
     marginTop: 12,
@@ -422,13 +428,13 @@ const styles = StyleSheet.create({
 
   // ── Le Refuge ───────────────────────────────────────────────────────────────
   refugeBox: {
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: RULE,
-    paddingVertical: 14,
+    paddingVertical: 15,
     paddingHorizontal: 14,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 16,
-    backgroundColor: 'rgba(255,252,245,0.18)',
+    backgroundColor: '#F8F0DE',
   },
   refugeText: {
     fontSize: 17,
@@ -452,15 +458,20 @@ const styles = StyleSheet.create({
   statsSection: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 16,
     justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: RULE,
+    paddingTop: 12,
+    paddingBottom: 2,
   },
   statItem: {
     alignItems: 'center',
     width: '48%',
-    marginBottom: 16,
-    paddingVertical: 3,
+    marginBottom: 14,
+    paddingVertical: 4,
   },
   statNumber: {
     fontSize: 26,
