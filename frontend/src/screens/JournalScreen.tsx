@@ -106,48 +106,50 @@ export default function JournalScreen() {
           <Text style={styles.editionNote}>L'ÉDITION DU JOUR · GRATUIT</Text>
         </View>
 
-        {edition && edition.personalEvents.length > 0 && (
-          <>
-            <View style={styles.sectionRule} />
-            <Text style={styles.sectionLabel}>VOTRE JOURNÉE</Text>
-            <View style={styles.personalSection}>
-              {edition.personalEvents.map((event) => (
-                <View key={event.id} style={styles.personalEvent}>
-                  <Text style={styles.personalEventText}>{event.text}</Text>
-                  <Text style={styles.personalEventTime}>
-                    {new Date(event.occurredAt).toLocaleTimeString('fr-FR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </>
-        )}
+        <View style={styles.frontPageGrid}>
+          <View style={styles.frontPageColumn}>
+            {edition && edition.personalEvents.length > 0 && (
+              <View style={styles.newsBlock}>
+                <Text style={styles.newsHeadline}>DERNIÈRES ACTIONS</Text>
+                <View style={styles.newsRule} />
+                {edition.personalEvents.slice(0, 4).map((event) => (
+                  <View key={event.id} style={styles.newsItem}>
+                    <Text style={styles.newsItemText}>{event.text}</Text>
+                    <Text style={styles.newsItemTime}>
+                      {new Date(event.occurredAt).toLocaleTimeString('fr-FR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
 
-        {/* ── Encadré lecteur (à la une, en bref) ────────────────────────── */}
-        <View style={styles.briefBox}>
-          <Text style={styles.briefBoxTitle}>EN BREF</Text>
-          <View style={styles.briefRow}>
-            <View style={styles.briefItem}>
-              <Text style={styles.briefValue}>{coins}</Text>
-              <Text style={styles.briefLabel}>Pièces</Text>
-            </View>
-            <View style={styles.briefDivider} />
-            <View style={styles.briefItem}>
-              <Text style={styles.briefValue}>{points}</Text>
-              <Text style={styles.briefLabel}>Points</Text>
+          <View style={[styles.frontPageColumn, styles.frontPageColumnRight]}>
+            <View style={styles.newsBlock}>
+              <Text style={styles.newsHeadline}>EN BREF</Text>
+              <View style={styles.newsRule} />
+              <View style={styles.briefCompactRow}>
+                <View style={styles.briefCompactItem}>
+                  <Text style={styles.briefCompactValue}>{coins}</Text>
+                  <Text style={styles.briefCompactLabel}>Pièces</Text>
+                </View>
+                <View style={styles.briefCompactDivider} />
+                <View style={styles.briefCompactItem}>
+                  <Text style={styles.briefCompactValue}>{points}</Text>
+                  <Text style={styles.briefCompactLabel}>Points</Text>
+                </View>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* ── Gagnants de la semaine ──────────────────────────────────────── */}
         {weeklyWinners && (
           <>
             <View style={styles.sectionRule} />
             <Text style={styles.sectionLabel}>GAGNANTS DE LA SEMAINE</Text>
-
             {weeklyWinners.male || weeklyWinners.female ? (
               <View style={styles.winnersSection}>
                 {weeklyWinners.female && (
@@ -156,7 +158,7 @@ export default function JournalScreen() {
                       onPress={() => router.push(`/profiles?userId=${weeklyWinners.female!.id}`)}
                       style={styles.avatarWrapper}
                     >
-                      <Avatar size={60} {...resolveAvatarConfig(weeklyWinners.female.id, weeklyWinners.female.avatarConfig, weeklyWinners.female.gender, 'JournalScreen').config} />
+                      <Avatar size={58} {...resolveAvatarConfig(weeklyWinners.female.id, weeklyWinners.female.avatarConfig, weeklyWinners.female.gender, 'JournalScreen').config} />
                     </TouchableOpacity>
                     <Text style={styles.winnerName}>{weeklyWinners.female.pseudo}</Text>
                     <Text style={styles.winnerVotes}>{weeklyWinners.female.totalVotes} votes</Text>
@@ -168,7 +170,7 @@ export default function JournalScreen() {
                       onPress={() => router.push(`/profiles?userId=${weeklyWinners.male!.id}`)}
                       style={styles.avatarWrapper}
                     >
-                      <Avatar size={60} {...resolveAvatarConfig(weeklyWinners.male.id, weeklyWinners.male.avatarConfig, weeklyWinners.male.gender, 'JournalScreen').config} />
+                      <Avatar size={58} {...resolveAvatarConfig(weeklyWinners.male.id, weeklyWinners.male.avatarConfig, weeklyWinners.male.gender, 'JournalScreen').config} />
                     </TouchableOpacity>
                     <Text style={styles.winnerName}>{weeklyWinners.male.pseudo}</Text>
                     <Text style={styles.winnerVotes}>{weeklyWinners.male.totalVotes} votes</Text>
@@ -183,99 +185,66 @@ export default function JournalScreen() {
           </>
         )}
 
-        {/* ── Le Refuge ───────────────────────────────────────────────────── */}
-        {refugeStats && (
-          <>
-            <View style={styles.sectionRule} />
-            <Text style={styles.sectionLabel}>LE REFUGE</Text>
+        <View style={styles.frontPageGrid}>
+          <View style={styles.frontPageColumn}>
+            {refugeStats && (
+              <View style={styles.newsBlock}>
+                <Text style={styles.newsHeadline}>LE REFUGE</Text>
+                <View style={styles.newsRule} />
+                <Text style={styles.refugeText}>
+                  <Text style={styles.refugeHighlight}>{refugeStats.activeRefuges}</Text> refuge{refugeStats.activeRefuges !== 1 ? 's' : ''} en cours.
+                </Text>
+                <Text style={styles.refugeText}>
+                  <Text style={styles.refugeHighlight}>{refugeStats.awaitingReveal}</Text> révélation{refugeStats.awaitingReveal !== 1 ? 's' : ''} en attente.
+                </Text>
+                <Text style={styles.refugeSubtext}>
+                  {refugeStats.completedRefuges} refuge{refugeStats.completedRefuges !== 1 ? 's' : ''} terminé{refugeStats.completedRefuges !== 1 ? 's' : ''}.
+                </Text>
+              </View>
+            )}
+          </View>
 
-            <View style={styles.refugeBox}>
-              <Text style={styles.refugeText}>
-                <Text style={styles.refugeHighlight}>{refugeStats.activeRefuges}</Text> refuge{refugeStats.activeRefuges !== 1 ? 's' : ''} en cours. <Text style={styles.refugeHighlight}>{refugeStats.awaitingReveal}</Text> révélation{refugeStats.awaitingReveal !== 1 ? 's' : ''} en attente.
-              </Text>
-              <Text style={styles.refugeSubtext}>{refugeStats.completedRefuges} refuge{refugeStats.completedRefuges !== 1 ? 's' : ''} terminé{refugeStats.completedRefuges !== 1 ? 's' : ''}.</Text>
-            </View>
-          </>
-        )}
+          <View style={[styles.frontPageColumn, styles.frontPageColumnRight]}>
+            {dailyStats && (
+              <View style={styles.newsBlock}>
+                <Text style={styles.newsHeadline}>STATISTIQUES DU JOUR</Text>
+                <View style={styles.newsRule} />
+                <View style={styles.compactStats}>
+                  <View style={styles.compactStat}><Text style={styles.compactStatNumber}>{dailyStats.matchesToday}</Text><Text style={styles.compactStatLabel}>Matchs</Text></View>
+                  <View style={styles.compactStat}><Text style={styles.compactStatNumber}>{dailyStats.lettersSentToday}</Text><Text style={styles.compactStatLabel}>Lettres</Text></View>
+                  <View style={styles.compactStat}><Text style={styles.compactStatNumber}>{dailyStats.duelsPlayedToday}</Text><Text style={styles.compactStatLabel}>Duels</Text></View>
+                  <View style={styles.compactStat}><Text style={styles.compactStatNumber}>{dailyStats.registrationsToday}</Text><Text style={styles.compactStatLabel}>Inscrits</Text></View>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
 
-        {/* ── Statistiques du jour ─────────────────────────────────────────── */}
         {dailyStats && (
           <>
             <View style={styles.sectionRule} />
-            <Text style={styles.sectionLabel}>STATISTIQUES DU JOUR</Text>
-
+            <Text style={styles.sectionLabel}>TOUTE L'ACTIVITÉ DU JOUR</Text>
             <View style={styles.statsSection}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.matchesToday}</Text>
-                <Text style={styles.statName}>Matchs créés</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.lettersSentToday}</Text>
-                <Text style={styles.statName}>Lettres envoyées</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.bottlesSentToday}</Text>
-                <Text style={styles.statName}>Bouteilles envoyées</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.smilesSentToday}</Text>
-                <Text style={styles.statName}>Sourires envoyés</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.grimacesSentToday}</Text>
-                <Text style={styles.statName}>Grimaces envoyées</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.offeringsSentToday}</Text>
-                <Text style={styles.statName}>Offrandes envoyées</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.duelsPlayedToday}</Text>
-                <Text style={styles.statName}>Duels lancés</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.duelsResolvedToday}</Text>
-                <Text style={styles.statName}>Duels terminés</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.registrationsToday}</Text>
-                <Text style={styles.statName}>Nouveaux inscrits</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{dailyStats.activeToday}</Text>
-                <Text style={styles.statName}>Connectés aujourd’hui</Text>
-              </View>
+              <View style={styles.statItem}><Text style={styles.statNumber}>{dailyStats.bottlesSentToday}</Text><Text style={styles.statName}>Bouteilles envoyées</Text></View>
+              <View style={styles.statItem}><Text style={styles.statNumber}>{dailyStats.smilesSentToday}</Text><Text style={styles.statName}>Sourires envoyés</Text></View>
+              <View style={styles.statItem}><Text style={styles.statNumber}>{dailyStats.grimacesSentToday}</Text><Text style={styles.statName}>Grimaces envoyées</Text></View>
+              <View style={styles.statItem}><Text style={styles.statNumber}>{dailyStats.offeringsSentToday}</Text><Text style={styles.statName}>Offrandes envoyées</Text></View>
+              <View style={styles.statItem}><Text style={styles.statNumber}>{dailyStats.duelsResolvedToday}</Text><Text style={styles.statName}>Duels terminés</Text></View>
+              <View style={styles.statItem}><Text style={styles.statNumber}>{dailyStats.activeToday}</Text><Text style={styles.statName}>Connectés aujourd’hui</Text></View>
             </View>
           </>
         )}
 
-        {/* ── Chiffres de la communauté ────────────────────────────────────── */}
         {communityStats && (
           <>
             <View style={styles.sectionRule} />
-            <Text style={styles.sectionLabel}>LES CHIFFRES DE LA COMMUNAUTÉ</Text>
-
+            <Text style={styles.sectionLabel}>CHIFFRES DE LA COMMUNAUTÉ</Text>
             <View style={styles.statsGrid}>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>{formatNumber(communityStats.matchesToday)}</Text>
-                <Text style={styles.statLabel}>Matchs (depuis le lancement)</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>{formatNumber(communityStats.lettersSent)}</Text>
-                <Text style={styles.statLabel}>Lettres échangées (depuis le lancement)</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>{formatNumber(communityStats.giftsSent)}</Text>
-                <Text style={styles.statLabel}>Offrandes envoyées (depuis le lancement)</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>{formatNumber(communityStats.registrations7d)}</Text>
-                <Text style={styles.statLabel}>Nouveaux inscrits (7 jours)</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>{formatNumber(communityStats.active7d)}</Text>
-                <Text style={styles.statLabel}>Connectés (7 jours)</Text>
-              </View>
+              <View style={styles.statBox}><Text style={styles.statValue}>{formatNumber(communityStats.matchesToday)}</Text><Text style={styles.statLabel}>Matchs depuis le lancement</Text></View>
+              <View style={styles.statBox}><Text style={styles.statValue}>{formatNumber(communityStats.lettersSent)}</Text><Text style={styles.statLabel}>Lettres échangées</Text></View>
+              <View style={styles.statBox}><Text style={styles.statValue}>{formatNumber(communityStats.giftsSent)}</Text><Text style={styles.statLabel}>Offrandes envoyées</Text></View>
+              <View style={styles.statBox}><Text style={styles.statValue}>{formatNumber(communityStats.registrations7d)}</Text><Text style={styles.statLabel}>Nouveaux inscrits · 7 j</Text></View>
+              <View style={styles.statBox}><Text style={styles.statValue}>{formatNumber(communityStats.active7d)}</Text><Text style={styles.statLabel}>Connectés · 7 j</Text></View>
             </View>
           </>
         )}
@@ -293,14 +262,14 @@ const RULE = '#B8A377';
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: 18, paddingTop: 2 },
+  scrollContent: { paddingHorizontal: 18, paddingTop: 0 },
 
   // ── Masthead ─────────────────────────────────────────────────────────────
-  masthead: { alignItems: 'center', paddingTop: 10, paddingBottom: 12 },
+  masthead: { alignItems: 'center', paddingTop: 4, paddingBottom: 8 },
   kicker: { fontSize: 11, letterSpacing: 2.4, color: INK_SOFT, fontFamily: SERIF, textTransform: 'uppercase' },
   mastheadTitle: {
-    fontSize: 68,
-    lineHeight: 72,
+    fontSize: 62,
+    lineHeight: 66,
     fontWeight: '700',
     fontFamily: SERIF,
     color: '#1E1813',
@@ -327,6 +296,106 @@ const styles = StyleSheet.create({
     fontFamily: SERIF,
     color: INK_SOFT,
     marginTop: 7,
+  },
+
+  frontPageGrid: {
+    flexDirection: 'row',
+    marginTop: 18,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: INK,
+  },
+  frontPageColumn: {
+    width: '50%',
+    paddingVertical: 12,
+    paddingRight: 12,
+  },
+  frontPageColumnRight: {
+    borderLeftWidth: 1,
+    borderLeftColor: INK,
+    paddingLeft: 12,
+    paddingRight: 0,
+  },
+  newsBlock: {
+    flex: 1,
+  },
+  newsHeadline: {
+    fontSize: 17,
+    lineHeight: 21,
+    fontFamily: SERIF,
+    fontWeight: '700',
+    color: '#211A14',
+  },
+  newsRule: {
+    height: 1,
+    backgroundColor: INK,
+    marginTop: 7,
+    marginBottom: 9,
+  },
+  newsItem: {
+    paddingBottom: 10,
+    marginBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: RULE,
+  },
+  newsItemText: {
+    fontSize: 14,
+    lineHeight: 19,
+    fontFamily: SERIF,
+    color: INK,
+  },
+  newsItemTime: {
+    fontSize: 11,
+    marginTop: 4,
+    fontFamily: SERIF,
+    color: INK_SOFT,
+  },
+  briefCompactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  briefCompactItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  briefCompactValue: {
+    fontSize: 25,
+    fontWeight: '700',
+    fontFamily: SERIF,
+    color: INK,
+  },
+  briefCompactLabel: {
+    fontSize: 12,
+    fontFamily: SERIF,
+    color: INK_SOFT,
+    marginTop: 2,
+  },
+  briefCompactDivider: {
+    width: 1,
+    height: 34,
+    backgroundColor: RULE,
+  },
+  compactStats: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  compactStat: {
+    width: '50%',
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  compactStatNumber: {
+    fontSize: 22,
+    fontFamily: SERIF,
+    fontWeight: '700',
+    color: INK,
+  },
+  compactStatLabel: {
+    fontSize: 11,
+    fontFamily: SERIF,
+    color: INK_SOFT,
+    marginTop: 1,
   },
 
   personalSection: {
@@ -377,9 +446,9 @@ const styles = StyleSheet.create({
   briefValue: { fontSize: 21, fontWeight: '700', fontFamily: SERIF, color: INK },
   briefLabel: { fontSize: 13, color: INK_SOFT, marginTop: 2, fontFamily: SERIF },
 
-  sectionRule: { height: 1, backgroundColor: INK, marginTop: 22, marginBottom: 8 },
+  sectionRule: { height: 1, backgroundColor: INK, marginTop: 18, marginBottom: 7 },
   sectionLabel: {
-    fontSize: 18,
+    fontSize: 19,
     letterSpacing: 0.8,
     fontFamily: SERIF,
     fontWeight: '700',
