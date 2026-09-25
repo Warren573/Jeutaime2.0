@@ -114,32 +114,37 @@ export default function BottleHistoryScreen() {
 
           {messages.length > 0 && (
             <View style={styles.stackWrap}>
-              {messages.map((message, index) => (
-                <TouchableOpacity
-                  key={message.id}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/bottles-old-letter',
-                      params: { bottleId, messageId: message.id },
-                    })
-                  }
-                  style={[
-                    styles.letterTouchable,
-                    index % 2 === 0 ? styles.letterTiltLeft : styles.letterTiltRight,
-                  ]}
-                >
-                  <BottleParchmentCard
-                    content={message.content}
-                    compact={true}
-                    variant={message.isMine ? 'sent' : 'received'}
-                    label={message.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
-                    dateLabel={new Date(message.createdAt).toLocaleDateString('fr-FR', {
-                      day: '2-digit',
-                      month: 'short',
-                    })}
-                  />
-                </TouchableOpacity>
-              ))}
+              {messages.map((message, index) => {
+                const isLatest = index === messages.length - 1;
+                return (
+                  <TouchableOpacity
+                    key={message.id}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/bottles-old-letter',
+                        params: { bottleId, messageId: message.id },
+                      })
+                    }
+                    style={[
+                      styles.letterTouchable,
+                      !isLatest && styles.letterBehind,
+                      index % 2 === 0 ? styles.letterTiltLeft : styles.letterTiltRight,
+                      { zIndex: index + 1 },
+                    ]}
+                  >
+                    <BottleParchmentCard
+                      content={message.content}
+                      compact={true}
+                      variant={message.isMine ? 'sent' : 'received'}
+                      label={message.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
+                      dateLabel={new Date(message.createdAt).toLocaleDateString('fr-FR', {
+                        day: '2-digit',
+                        month: 'short',
+                      })}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
         </ScrollView>
@@ -196,6 +201,11 @@ const styles = StyleSheet.create({
   letterTouchable: {
     marginBottom: 8,
     position: 'relative',
+  },
+  // Les anciennes lettres passent sous la suivante : seul leur haut reste visible.
+  // La dernière lettre, rendue en dernier avec le zIndex le plus élevé, reste entière devant.
+  letterBehind: {
+    marginBottom: -118,
   },
   letterTiltLeft: { transform: [{ rotate: '-0.7deg' }] },
   letterTiltRight: { transform: [{ rotate: '0.7deg' }] },
