@@ -96,14 +96,14 @@ export default function JournalScreen() {
       >
         {/* ── Masthead ─────────────────────────────────────────────── */}
         <View style={styles.masthead}>
-          <Text style={styles.kicker}>JOURNAL · L'ÉDITION DU JOUR · GRATUIT</Text>
-          <Text style={styles.mastheadTitle}>Le JeuTaime</Text>
-          <Text style={styles.mastheadTagline}>Nouvelles du cœur & de la communauté</Text>
-          <View style={styles.mastheadRuleThick} />
+          <Text style={styles.mastheadTitle}>JOURNAL</Text>
+          <View style={styles.mastheadRuleThin} />
+          <Text style={styles.mastheadTagline}>Actualités de la communauté</Text>
           <View style={styles.mastheadRuleThin} />
           <View style={styles.datelineRow}>
             <Text style={styles.dateline}>{todayHeadline()}</Text>
           </View>
+          <Text style={styles.editionNote}>L'ÉDITION DU JOUR · GRATUIT</Text>
         </View>
 
         {edition && edition.personalEvents.length > 0 && (
@@ -296,32 +296,38 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 18, paddingTop: 2 },
 
   // ── Masthead ─────────────────────────────────────────────────────────────
-  masthead: { alignItems: 'center', paddingTop: 16, paddingBottom: 12 },
-  kicker: { fontSize: 11.5, letterSpacing: 2.5, color: INK_SOFT, fontFamily: SERIF, textTransform: 'uppercase' },
+  masthead: { alignItems: 'center', paddingTop: 10, paddingBottom: 12 },
+  kicker: { fontSize: 11, letterSpacing: 2.4, color: INK_SOFT, fontFamily: SERIF, textTransform: 'uppercase' },
   mastheadTitle: {
-    fontSize: 52,
+    fontSize: 68,
+    lineHeight: 72,
     fontWeight: '700',
     fontFamily: SERIF,
-    color: INK,
-    marginTop: 1,
-    letterSpacing: 0.1,
+    color: '#1E1813',
+    letterSpacing: 1.2,
   },
   mastheadTagline: {
-    fontSize: 15.5,
-    fontStyle: 'italic',
+    fontSize: 17,
     fontFamily: SERIF,
-    color: INK_SOFT,
-    marginTop: 1,
+    color: '#2F261D',
+    marginVertical: 8,
   },
-  mastheadRuleThick: { height: 4, backgroundColor: INK, width: '100%', marginTop: 14 },
-  mastheadRuleThin: { height: 1, backgroundColor: INK, width: '100%', marginTop: 3 },
+  mastheadRuleThick: { height: 3, backgroundColor: INK, width: '100%', marginTop: 10 },
+  mastheadRuleThin: { height: 1, backgroundColor: INK, width: '100%', marginTop: 4 },
   datelineRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     width: '100%',
-    marginTop: 6,
+    marginTop: 10,
   },
-  dateline: { fontSize: 14.5, fontFamily: SERIF, fontStyle: 'italic', color: INK_SOFT, textTransform: 'capitalize', letterSpacing: 0.2 },
+  dateline: { fontSize: 14, fontFamily: SERIF, fontStyle: 'italic', color: INK_SOFT, textTransform: 'capitalize', letterSpacing: 0.25 },
+  editionNote: {
+    fontSize: 10,
+    letterSpacing: 2,
+    fontFamily: SERIF,
+    color: INK_SOFT,
+    marginTop: 7,
+  },
 
   personalSection: {
     marginTop: 10,
@@ -348,12 +354,13 @@ const styles = StyleSheet.create({
 
   // ── Encadré "En bref" ────────────────────────────────────────────────────
   briefBox: {
-    borderWidth: 1.2,
-    borderColor: RULE,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: INK,
     marginTop: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    backgroundColor: '#F8F0DE',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    backgroundColor: 'transparent',
   },
   briefBoxTitle: {
     fontSize: 13.5,
@@ -370,28 +377,28 @@ const styles = StyleSheet.create({
   briefValue: { fontSize: 21, fontWeight: '700', fontFamily: SERIF, color: INK },
   briefLabel: { fontSize: 13, color: INK_SOFT, marginTop: 2, fontFamily: SERIF },
 
-  sectionRule: { height: 1, backgroundColor: RULE, marginTop: 24, marginBottom: 10 },
+  sectionRule: { height: 1, backgroundColor: INK, marginTop: 22, marginBottom: 8 },
   sectionLabel: {
-    fontSize: 16.5,
-    letterSpacing: 1.9,
+    fontSize: 18,
+    letterSpacing: 0.8,
     fontFamily: SERIF,
     fontWeight: '700',
-    color: '#3A2A1D',
-    marginBottom: 3,
+    color: '#211A14',
+    marginBottom: 4,
   },
 
   // ── Gagnants de la semaine ──────────────────────────────────────────────────
   winnersSection: {
     flexDirection: 'row',
-    marginTop: 10,
+    marginTop: 8,
     marginBottom: 16,
     justifyContent: 'space-around',
-    gap: 24,
+    gap: 18,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: RULE,
+    borderColor: INK,
     paddingVertical: 14,
-    backgroundColor: 'rgba(255,252,245,0.20)',
+    backgroundColor: 'transparent',
   },
   emptyStateBox: {
     marginTop: 12,
@@ -428,13 +435,14 @@ const styles = StyleSheet.create({
 
   // ── Le Refuge ───────────────────────────────────────────────────────────────
   refugeBox: {
-    borderWidth: 1.2,
-    borderColor: RULE,
-    paddingVertical: 15,
-    paddingHorizontal: 14,
-    marginTop: 10,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: INK,
+    paddingVertical: 14,
+    paddingHorizontal: 2,
+    marginTop: 8,
     marginBottom: 16,
-    backgroundColor: '#F8F0DE',
+    backgroundColor: 'transparent',
   },
   refugeText: {
     fontSize: 17,
@@ -458,13 +466,13 @@ const styles = StyleSheet.create({
   statsSection: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 10,
+    marginTop: 8,
     marginBottom: 16,
     justifyContent: 'space-between',
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: RULE,
-    paddingTop: 12,
+    borderColor: INK,
+    paddingTop: 10,
     paddingBottom: 2,
   },
   statItem: {
