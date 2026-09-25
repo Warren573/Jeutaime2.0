@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   // Les anciennes lettres passent sous la suivante : seul leur haut reste visible.
   // La dernière lettre, rendue en dernier avec le zIndex le plus élevé, reste entière devant.
   letterBehind: {
-    marginBottom: -236,
+    marginBottom: -205,
   },
   letterTiltLeft: { transform: [{ rotate: '-0.7deg' }] },
   letterTiltRight: { transform: [{ rotate: '0.7deg' }] },
