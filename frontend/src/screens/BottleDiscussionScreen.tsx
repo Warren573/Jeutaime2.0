@@ -232,6 +232,8 @@ export default function BottleDiscussionScreen() {
             <BottleParchmentCard
               content={bottleState.latestLetter.content}
               compact={canReply}
+              variant={bottleState.latestLetter.isMine ? 'sent' : 'received'}
+              label={bottleState.latestLetter.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
             />
           )}
         </View>
@@ -346,7 +348,7 @@ export default function BottleDiscussionScreen() {
             <Text style={styles.previewSubtitle}>Relis-la une dernière fois avant de l’envoyer.</Text>
 
             <View style={styles.previewParchmentWrap}>
-              <BottleParchmentCard content={messageText.trim()} compact />
+              <BottleParchmentCard content={messageText.trim()} compact variant="sent" label="TA LETTRE" />
             </View>
 
             <Text style={styles.previewCount}>{messageText.length} / 500 caractères</Text>
