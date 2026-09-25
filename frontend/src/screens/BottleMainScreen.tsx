@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   createHeroImage: {
     width: '100%',
     height: '100%',
-    transform: [{ scale: 1.08 }],
+    transform: [{ scale: 1.12 }, { translateY: 52 }],
   },
   createHeroVeil: {
     ...StyleSheet.absoluteFillObject,
