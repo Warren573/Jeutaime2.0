@@ -199,7 +199,12 @@ export default function BottleMainScreen() {
                 </View>
 
                 <View style={styles.sentParchmentCard}>
-                  <BottleParchmentCard content={state.latestLetter.content} compact />
+                  <BottleParchmentCard
+                    content={state.latestLetter.content}
+                    compact
+                    variant={state.latestLetter.isMine ? 'sent' : 'received'}
+                    label={state.latestLetter.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
+                  />
                 </View>
 
                 <View style={styles.sentStatusCard}>
@@ -225,7 +230,11 @@ export default function BottleMainScreen() {
               </>
             ) : (
               <>
-                <BottleParchmentCard content={state.latestLetter.content} />
+                <BottleParchmentCard
+                  content={state.latestLetter.content}
+                  variant={state.latestLetter.isMine ? 'sent' : 'received'}
+                  label={state.latestLetter.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
+                />
                 <View style={styles.paddedSection}>
                   {state.canReply && (
                     <TouchableOpacity
@@ -274,6 +283,8 @@ export default function BottleMainScreen() {
               <BottleParchmentCard
                 content={displayState.bottle?.message || ''}
                 compact
+                variant="sent"
+                label="TA LETTRE"
               />
             </View>
 
@@ -485,9 +496,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   sentParchmentCard: {
-    overflow: 'hidden',
-    borderRadius: 18,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sentStatusCard: {
     flexDirection: 'row',
