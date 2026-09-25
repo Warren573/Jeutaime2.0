@@ -320,7 +320,11 @@ export default function BottleMainScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.createHero}>
-              <Image source={SEA_BG} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+              <Image
+                source={SEA_BG}
+                style={styles.createHeroImage}
+                resizeMode="cover"
+              />
               <View style={styles.createHeroVeil} />
             </View>
             <View style={styles.createPaperPanel}>
@@ -389,16 +393,21 @@ const styles = StyleSheet.create({
   historyBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.accent, textAlign: 'center' },
   createContent: { paddingHorizontal: 0, paddingTop: 0 },
   createHero: {
-    height: 320,
+    height: 390,
     overflow: 'hidden',
     backgroundColor: '#DCC7A8',
   },
+  createHeroImage: {
+    width: '100%',
+    height: '100%',
+    transform: [{ scale: 1.08 }],
+  },
   createHeroVeil: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,244,225,0.12)',
+    backgroundColor: 'rgba(245,241,232,0.16)',
   },
   createPaperPanel: {
-    marginTop: -18,
+    marginTop: -22,
     paddingTop: 34,
     paddingHorizontal: 24,
     paddingBottom: 34,
