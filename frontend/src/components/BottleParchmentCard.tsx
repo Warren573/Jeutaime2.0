@@ -49,17 +49,6 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
             compact ? styles.contentCompact : styles.contentFull,
           ]}
         >
-          {(label || dateLabel) && (
-            <View style={styles.metaRow}>
-              <Text style={[styles.metaLabel, isSent && styles.metaLabelSent]}>
-                {label || (isSent ? 'TA LETTRE' : 'LETTRE REÇUE')}
-              </Text>
-              {dateLabel ? <Text style={styles.metaDate}>{dateLabel}</Text> : null}
-            </View>
-          )}
-
-          <View style={[styles.rule, compact && styles.ruleCompact]} />
-
           <Text
             style={[styles.message, compact && styles.messageCompact]}
             numberOfLines={compact ? 6 : undefined}
@@ -118,39 +107,8 @@ const styles = StyleSheet.create({
   },
   contentFull: {
     paddingHorizontal: 52,
-    paddingTop: 64,
+    paddingTop: 54,
     paddingBottom: 56,
-  },
-
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  metaLabel: {
-    fontSize: 10.5,
-    letterSpacing: 2.4,
-    fontWeight: '800',
-    color: '#7F5D3E',
-  },
-  metaLabelSent: {
-    color: '#9E3E50',
-  },
-  metaDate: {
-    fontSize: 12,
-    color: '#8D7358',
-    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-  },
-
-  rule: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(113,82,50,0.34)',
-    marginTop: 14,
-    marginBottom: 24,
-  },
-  ruleCompact: {
-    marginTop: 12,
-    marginBottom: 16,
   },
 
   message: {
