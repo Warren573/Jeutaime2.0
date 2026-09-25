@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -28,6 +29,7 @@ export default function BottleOldLetterScreen() {
   const params = useLocalSearchParams();
   const bottleId = params.bottleId as string;
   const messageId = params.messageId as string;
+  const safeTop = Math.max(insets.top, Platform.OS === 'web' ? 44 : 0);
 
   const [message, setMessage] = useState<BottleMessageWithMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,7 +64,7 @@ export default function BottleOldLetterScreen() {
   if (isLoading) {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
-        <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={[styles.container, { paddingTop: safeTop }]}>
           <ActivityIndicator size="large" color={COLORS.accent} />
         </View>
       </View>
@@ -72,7 +74,7 @@ export default function BottleOldLetterScreen() {
   if (error || !message) {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
-        <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={[styles.container, { paddingTop: safeTop }]}>
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>
               {error || 'Lettre non trouvée'}
@@ -91,7 +93,7 @@ export default function BottleOldLetterScreen() {
 
   return (
     <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingTop: safeTop }]}>
         <View style={styles.header}>
           <AppBackButton onPress={() => router.back()} />
           <View style={styles.headerTitleWrap}>
