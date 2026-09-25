@@ -104,7 +104,15 @@ export default function BottleOldLetterScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <BottleParchmentCard content={message.content} />
+          <BottleParchmentCard
+            content={message.content}
+            variant={message.isMine ? 'sent' : 'received'}
+            label={message.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
+            dateLabel={new Date(message.createdAt).toLocaleDateString('fr-FR', {
+              day: '2-digit',
+              month: 'short',
+            })}
+          />
         </ScrollView>
       </View>
     </View>
@@ -123,7 +131,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 0,
-    paddingTop: 16,
+    paddingTop: 10,
     paddingBottom: 80,
   },
   header: {
