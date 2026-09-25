@@ -79,11 +79,7 @@ const styles = StyleSheet.create({
     width: '100%',
     position: 'relative',
     alignSelf: 'center',
-    shadowColor: '#3C291B',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 11,
-    elevation: 5,
+    backgroundColor: 'transparent',
   },
   paperCompact: {
     aspectRatio: 1.5,
@@ -95,6 +91,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
+    backgroundColor: 'transparent',
   },
 
   content: {
