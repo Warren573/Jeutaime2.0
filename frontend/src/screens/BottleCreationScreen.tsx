@@ -164,7 +164,7 @@ export default function BottleCreationScreen() {
         <View
           style={[
             StyleSheet.absoluteFill,
-            { backgroundColor: 'rgba(245,241,232,0.62)' },
+            { backgroundColor: 'rgba(245,241,232,0.34)' },
           ]}
         />
       </View>
@@ -194,6 +194,7 @@ export default function BottleCreationScreen() {
 
         {/* Title */}
         <Text style={styles.title}>Bouteille à la mer</Text>
+        <Text style={styles.subtitle}>Laisse un message voguer vers quelqu’un de spécial...</Text>
 
         {/* Gender Selection */}
         <View style={styles.section}>
@@ -429,7 +430,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 18,
+    paddingHorizontal: 2,
   },
   headerBack: {
     fontSize: 14,
@@ -442,19 +444,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   title: {
-    fontSize: 28,
+    fontSize: 34,
+    lineHeight: 40,
     fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 24,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    color: '#2F1C10',
+    marginBottom: 6,
+  },
+  subtitle: {
+    maxWidth: 320,
+    fontSize: 17,
+    lineHeight: 23,
+    color: '#6D533B',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    marginBottom: 22,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 22,
+    paddingHorizontal: 2,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#352315',
     marginBottom: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
   },
   genderRow: {
     flexDirection: 'row',
@@ -462,12 +476,19 @@ const styles = StyleSheet.create({
   },
   genderBtn: {
     flex: 1,
+    minHeight: 58,
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: COLORS.card,
-    borderWidth: 2,
-    borderColor: COLORS.border,
+    paddingHorizontal: 10,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,250,240,0.92)',
+    borderWidth: 1,
+    borderColor: '#D6BA92',
+    justifyContent: 'center',
+    shadowColor: '#5A3A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.09,
+    shadowRadius: 5,
+    elevation: 2,
   },
   genderBtnActive: {
     backgroundColor: COLORS.accent,
@@ -499,12 +520,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 14,
-    borderRadius: 8,
-    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,248,233,0.94)',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#D2B384',
+    shadowColor: '#5A3A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   ageSelectValue: {
     fontSize: 16,
@@ -581,25 +607,23 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   messageInput: {
-    minHeight: 150,
-    paddingVertical: 18,
+    minHeight: 210,
+    paddingVertical: 20,
     paddingHorizontal: 20,
-    borderRadius: 6,
-    // Parchemin vieilli : papier crème chaud, bordure ambrée, texte « encre ».
-    backgroundColor: '#F3E7C6',
-    borderWidth: 2,
-    borderColor: '#C8A25A',
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#4A3A28',
+    borderRadius: 14,
+    backgroundColor: 'rgba(246,229,194,0.93)',
+    borderWidth: 1.5,
+    borderColor: '#C79B5E',
+    fontSize: 17,
+    lineHeight: 26,
+    color: '#4A3523',
     fontStyle: 'italic',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
-    // Léger relief pour l'effet papier posé.
     shadowColor: '#3B2C18',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 4,
   },
   charCount: {
     fontSize: 12,
