@@ -111,8 +111,8 @@ export default function BottleHistoryScreen() {
           </View>
 
           {messages.length > 0 && (
-            <View>
-              {messages.map((message) => (
+            <View style={styles.stackWrap}>
+              {messages.map((message, index) => (
                 <TouchableOpacity
                   key={message.id}
                   onPress={() =>
@@ -121,8 +121,12 @@ export default function BottleHistoryScreen() {
                       params: { bottleId, messageId: message.id },
                     })
                   }
-                  style={styles.letterTouchable}
+                  style={[
+                    styles.letterTouchable,
+                    index % 2 === 0 ? styles.letterTiltLeft : styles.letterTiltRight,
+                  ]}
                 >
+                  <View style={styles.paperBackLayer} />
                   <BottleParchmentCard
                     content={message.content}
                     compact={true}
@@ -178,8 +182,30 @@ const styles = StyleSheet.create({
   paddedSection: {
     paddingHorizontal: 16,
   },
+  stackWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 6,
+  },
   letterTouchable: {
-    marginBottom: 8,
+    marginBottom: 14,
+    position: 'relative',
+  },
+  letterTiltLeft: { transform: [{ rotate: '-0.7deg' }] },
+  letterTiltRight: { transform: [{ rotate: '0.7deg' }] },
+  paperBackLayer: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    top: 8,
+    bottom: 0,
+    borderRadius: 8,
+    backgroundColor: '#E9D3AF',
+    transform: [{ rotate: '-1.2deg' }],
+    shadowColor: '#4A2F1B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    elevation: 2,
   },
   emptyState: {
     paddingVertical: 48,
