@@ -286,6 +286,104 @@ export async function resetTestMatches() {
 }
 
 // ============================================================
+// Reset Test Letters + Bottles
+// ============================================================
+export async function resetTestLettersAndBottles() {
+  const testUsers = await prisma.user.findMany({
+    where: {
+      email: { endsWith: "@jeutaime.test" },
+    },
+    select: { id: true },
+  });
+
+  const testUserIds = testUsers.map((u) => u.id);
+
+  if (testUserIds.length === 0) {
+    return {
+      success: true,
+      message: "No test users found",
+      usersAffected: 0,
+      lettersDeleted: 0,
+      matchesReset: 0,
+      bottlesDeleted: 0,
+      bottleMatchesDeleted: 0,
+    };
+  }
+
+  return prisma.$transaction(async (tx) => {
+    // Keep the profile/match/question journey intact, but restart letter exchange at zero.
+    const lettersDeleted = await tx.letter.deleteMany({
+      where: {
+        OR: [
+          { fromUserId: { in: testUserIds } },
+          { toUserId: { in: testUserIds } },
+        ],
+      },
+    });
+
+    const matchesReset = await tx.match.updateMany({
+      where: {
+        OR: [
+          { userAId: { in: testUserIds } },
+          { userBId: { in: testUserIds } },
+        ],
+      },
+      data: {
+        letterCountA: 0,
+        letterCountB: 0,
+        lastLetterBy: null,
+        lastLetterAt: null,
+        ghostRelanceUsedBy: null,
+        ghostDetectedAt: null,
+      },
+    });
+
+    // Gather bottle-created match ids before deleting bottles (relations cascade from bottle).
+    const bottleRows = await tx.messageInABottle.findMany({
+      where: {
+        OR: [
+          { senderId: { in: testUserIds } },
+          { acceptedById: { in: testUserIds } },
+        ],
+      },
+      select: { id: true, matchId: true },
+    });
+
+    const bottleMatchIds = Array.from(
+      new Set(
+        bottleRows
+          .map((b) => b.matchId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+
+    const bottlesDeleted = await tx.messageInABottle.deleteMany({
+      where: {
+        id: { in: bottleRows.map((b) => b.id) },
+      },
+    });
+
+    // A match created specifically by a revealed bottle belongs to that bottle journey.
+    const bottleMatchesDeleted = bottleMatchIds.length
+      ? await tx.match.deleteMany({
+          where: { id: { in: bottleMatchIds } },
+        })
+      : { count: 0 };
+
+    return {
+      success: true,
+      message: "Test letters and bottles reset",
+      usersAffected: testUserIds.length,
+      lettersDeleted: lettersDeleted.count,
+      matchesReset: matchesReset.count,
+      bottlesDeleted: bottlesDeleted.count,
+      bottleMatchesDeleted: bottleMatchesDeleted.count,
+      timestamp: new Date().toISOString(),
+    };
+  });
+}
+
+// ============================================================
 // Reset Test Salons
 // ============================================================
 export async function resetTestSalons() {
