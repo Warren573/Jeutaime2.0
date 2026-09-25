@@ -398,9 +398,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#DCC7A8',
   },
   createHeroImage: {
+    ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
-    transform: [{ scale: 1.12 }, { translateY: 52 }],
+    ...(Platform.OS === 'web'
+      ? ({ objectFit: 'cover', objectPosition: 'center top' } as any)
+      : {}),
   },
   createHeroVeil: {
     ...StyleSheet.absoluteFillObject,
