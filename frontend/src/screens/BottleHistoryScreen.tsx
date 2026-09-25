@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -28,6 +29,7 @@ export default function BottleHistoryScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const bottleId = params.bottleId as string;
+  const safeTop = Math.max(insets.top, Platform.OS === 'web' ? 44 : 0);
 
   const [messages, setMessages] = useState<BottleMessageWithMetadata[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,7 +66,7 @@ export default function BottleHistoryScreen() {
   if (isLoading) {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
-        <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={[styles.container, { paddingTop: safeTop }]}>
           <ActivityIndicator size="large" color={COLORS.accent} />
         </View>
       </View>
@@ -73,7 +75,7 @@ export default function BottleHistoryScreen() {
 
   return (
     <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingTop: safeTop }]}>
         <View style={styles.header}>
           <AppBackButton onPress={() => router.back()} />
           <View style={styles.headerTitleWrap}>
