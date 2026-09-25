@@ -126,10 +126,15 @@ export default function BottleHistoryScreen() {
                     index % 2 === 0 ? styles.letterTiltLeft : styles.letterTiltRight,
                   ]}
                 >
-                  <View style={styles.paperBackLayer} />
                   <BottleParchmentCard
                     content={message.content}
                     compact={true}
+                    variant={message.isMine ? 'sent' : 'received'}
+                    label={message.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
+                    dateLabel={new Date(message.createdAt).toLocaleDateString('fr-FR', {
+                      day: '2-digit',
+                      month: 'short',
+                    })}
                   />
                 </TouchableOpacity>
               ))}
@@ -187,26 +192,11 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   letterTouchable: {
-    marginBottom: 14,
+    marginBottom: 8,
     position: 'relative',
   },
   letterTiltLeft: { transform: [{ rotate: '-0.7deg' }] },
   letterTiltRight: { transform: [{ rotate: '0.7deg' }] },
-  paperBackLayer: {
-    position: 'absolute',
-    left: 18,
-    right: 18,
-    top: 8,
-    bottom: 0,
-    borderRadius: 8,
-    backgroundColor: '#E9D3AF',
-    transform: [{ rotate: '-1.2deg' }],
-    shadowColor: '#4A2F1B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.10,
-    shadowRadius: 6,
-    elevation: 2,
-  },
   emptyState: {
     paddingVertical: 48,
     alignItems: 'center',
