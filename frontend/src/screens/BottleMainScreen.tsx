@@ -12,6 +12,7 @@ import { useStore } from '../store/useStore';
 const CREAM_BG = '#F6F0E4';
 const BOTTLE_IMG = require('../../assets/images/bottle/BOTTLE-22.png');
 const OCEAN_BG = require('../../assets/images/ocean.png');
+const SEA_BG = require('../../assets/images/bottle/sea-bg.jpg');
 const UI_ICONS = {
   transit: require('../../assets/ui-icons/transit.png'),
   book: require('../../assets/ui-icons/book.png'),
@@ -302,14 +303,31 @@ export default function BottleMainScreen() {
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           <BottleHeader title="Bouteille à la mer" onBack={() => router.back()} />
-          <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}>
-            <View style={styles.paddedSection}>
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyEmoji}>🌊</Text>
-                <Text style={styles.emptyTitle}>Lancez une bouteille</Text>
-                <Text style={styles.emptySubtext}>Écrivez une lettre et laissez-la naviguer vers quelqu'un de spécial.</Text>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[styles.createContent, { paddingBottom: insets.bottom + 100 }]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.createHero}>
+              <Image source={SEA_BG} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+              <View style={styles.createHeroVeil} />
+            </View>
+            <View style={styles.createPaperPanel}>
+              <Text style={styles.createTitle}>Lancez une bouteille</Text>
+              <View style={styles.createDividerRow}>
+                <View style={styles.createDivider} />
+                <Text style={styles.createHeart}>♥</Text>
+                <View style={styles.createDivider} />
               </View>
-              <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/bottles-create')}><Text style={styles.createBtnText}>Créer une nouvelle bouteille</Text></TouchableOpacity>
+              <Text style={styles.createSubtitle}>
+                Écrivez une lettre et laissez-la naviguer vers quelqu'un de spécial.
+              </Text>
+              <TouchableOpacity style={styles.createBtn} onPress={() => router.push('/bottles-create')}>
+                <View style={styles.createBtnContent}>
+                  <Image source={UI_ICONS.bottle} style={styles.createBtnIcon} resizeMode="contain" />
+                  <Text style={styles.createBtnText}>Créer une nouvelle bouteille</Text>
+                </View>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </View>
@@ -358,12 +376,69 @@ const styles = StyleSheet.create({
   historyBtnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   historyBtnIcon: { width: 22, height: 22 },
   historyBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.accent, textAlign: 'center' },
-  emptyState: { paddingTop: 90, paddingBottom: 32, alignItems: 'center', marginBottom: 10 },
-  emptyEmoji: { fontSize: 58, marginBottom: 18 },
-  emptyTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
-  emptySubtext: { maxWidth: 310, fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 21 },
-  createBtn: { minHeight: 50, justifyContent: 'center', paddingHorizontal: 18, borderRadius: 14, backgroundColor: COLORS.accent, marginTop: 10, shadowColor: '#5A3A1A', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.16, shadowRadius: 7, elevation: 4 },
-  createBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF', textAlign: 'center' },
+  createContent: { paddingHorizontal: 0, paddingTop: 0 },
+  createHero: {
+    height: 320,
+    overflow: 'hidden',
+    backgroundColor: '#DCC7A8',
+  },
+  createHeroVeil: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,244,225,0.12)',
+  },
+  createPaperPanel: {
+    marginTop: -18,
+    paddingTop: 34,
+    paddingHorizontal: 24,
+    paddingBottom: 34,
+    backgroundColor: '#F8F0DF',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderTopWidth: 1,
+    borderColor: '#D8BF98',
+  },
+  createTitle: {
+    fontSize: 30,
+    lineHeight: 36,
+    fontFamily: 'Georgia',
+    fontWeight: '700',
+    color: '#2D1B0F',
+    textAlign: 'center',
+  },
+  createDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    marginBottom: 12,
+  },
+  createDivider: { width: 62, height: 1, backgroundColor: '#C9A777' },
+  createHeart: { marginHorizontal: 12, color: '#C9A777', fontSize: 15 },
+  createSubtitle: {
+    maxWidth: 330,
+    alignSelf: 'center',
+    fontSize: 17,
+    lineHeight: 24,
+    color: '#6E543A',
+    textAlign: 'center',
+    fontFamily: 'Georgia',
+  },
+  createBtn: {
+    minHeight: 58,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    backgroundColor: COLORS.accent,
+    marginTop: 26,
+    shadowColor: '#5A3A1A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 9,
+    elevation: 5,
+  },
+  createBtnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  createBtnIcon: { width: 24, height: 24, tintColor: '#FFF9EF' },
+  createBtnText: { fontSize: 17, fontWeight: '700', color: '#FFF9EF', textAlign: 'center', fontFamily: 'Georgia' },
   infoBox: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14, backgroundColor: '#EEF2EA', borderWidth: 1, borderColor: '#CAD7C7' },
   infoText: { fontSize: 13, color: COLORS.success, fontWeight: '600', lineHeight: 19 },
   sentContent: {
