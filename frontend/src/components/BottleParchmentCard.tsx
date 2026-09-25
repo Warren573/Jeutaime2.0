@@ -43,6 +43,12 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
           pointerEvents="none"
         />
 
+        {!!dateLabel && (
+          <Text style={[styles.dateLabel, compact && styles.dateLabelCompact]}>
+            {isSent ? 'Envoyée' : 'Reçue'} · {dateLabel}
+          </Text>
+        )}
+
         <View
           style={[
             styles.content,
@@ -92,6 +98,22 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: 'transparent',
+  },
+
+  dateLabel: {
+    position: 'absolute',
+    top: 42,
+    right: 48,
+    zIndex: 2,
+    fontSize: 10,
+    color: 'rgba(82, 58, 39, 0.58)',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontStyle: 'italic',
+  },
+  dateLabelCompact: {
+    top: 22,
+    right: 30,
+    fontSize: 9,
   },
 
   content: {
