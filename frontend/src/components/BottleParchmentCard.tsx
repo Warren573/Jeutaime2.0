@@ -69,29 +69,23 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
 
           {/* Main weathered sheet with intentionally irregular edges */}
           <Path
-            d="M42 47
-               C92 28 145 45 197 37
-               C257 28 318 43 374 35
-               C433 27 487 43 546 34
-               C610 24 671 43 733 34
-               C791 26 848 43 909 35
-               C941 31 964 42 966 69
-               C972 112 957 148 966 190
-               C974 233 959 270 966 313
-               C974 360 956 402 966 446
-               C973 491 958 529 964 573
-               C967 596 950 612 926 616
-               C870 624 822 611 768 618
-               C704 627 644 610 583 619
-               C521 629 459 611 398 620
-               C339 629 285 611 226 620
-               C169 628 115 612 61 618
-               C34 615 22 597 24 572
-               C31 522 16 478 25 432
-               C33 389 18 347 26 304
-               C34 261 19 217 27 174
-               C34 132 18 91 28 61
-               C31 54 35 50 42 47 Z"
+            d="M42 49
+               L72 39 L91 44 L118 35 L142 42 L170 33 L201 39
+               L232 34 L258 41 L289 32 L321 38 L351 31 L384 39
+               L416 33 L444 41 L475 31 L506 38 L536 30 L568 40
+               L597 32 L628 39 L662 30 L694 38 L724 32 L756 40
+               L789 31 L818 39 L851 34 L881 41 L912 35 L940 43
+               L960 58 L963 83 L958 109 L966 136 L960 166 L967 195
+               L958 224 L965 254 L959 286 L967 314 L958 346 L966 378
+               L957 409 L965 439 L958 472 L965 503 L956 536 L962 566
+               L956 591 L937 610 L910 614 L884 608 L853 619 L821 612
+               L790 620 L758 611 L726 619 L695 610 L662 621 L630 612
+               L599 620 L568 611 L536 621 L503 612 L472 620 L440 611
+               L408 621 L376 611 L345 620 L313 612 L281 621 L249 611
+               L218 619 L188 611 L157 620 L128 611 L98 617 L70 610
+               L47 613 L31 596 L27 573 L34 545 L25 517 L33 486 L24 455
+               L32 424 L24 394 L33 362 L24 331 L32 300 L24 270 L33 240
+               L25 208 L34 179 L26 148 L35 119 L27 90 L31 65 Z"
             fill="url(#frontPaper)"
             stroke={edge}
             strokeWidth="3.2"
@@ -112,9 +106,13 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
           <Path d="M168 352 C310 330 443 370 585 348 C710 329 796 359 874 346" fill="none" stroke={stain} strokeWidth="2" opacity="0.04" />
           <Path d="M430 80 C452 192 423 304 449 423 C459 472 462 528 450 585" fill="none" stroke={stain} strokeWidth="2" opacity="0.035" />
 
-          {/* Tiny edge wear */}
-          <Path d="M70 66 L104 53 L136 61 L166 50" fill="none" stroke={edge} strokeWidth="5" opacity="0.26" />
-          <Path d="M820 606 L851 593 L884 601 L914 590" fill="none" stroke={edge} strokeWidth="5" opacity="0.22" />
+          {/* Torn fibres / little missing bites on the edges */}
+          <Path d="M68 61 L91 52 L111 60 L133 49 L153 56" fill="none" stroke={edge} strokeWidth="4.5" opacity="0.28" />
+          <Path d="M842 608 L860 596 L880 605 L900 592 L921 600" fill="none" stroke={edge} strokeWidth="4.5" opacity="0.24" />
+          <Path d="M30 198 L45 207 L31 221" fill="none" stroke={edge} strokeWidth="3.5" opacity="0.34" />
+          <Path d="M958 383 L942 392 L960 407" fill="none" stroke={edge} strokeWidth="3.5" opacity="0.30" />
+          <Ellipse cx="325" cy="43" rx="15" ry="5" fill={stain} opacity="0.08" />
+          <Ellipse cx="620" cy="614" rx="20" ry="6" fill={stain} opacity="0.07" />
         </Svg>
 
         <View style={styles.content}>
@@ -157,6 +155,7 @@ const styles = StyleSheet.create({
   shadowWrap: {
     width: '100%',
     position: 'relative',
+    backgroundColor: 'transparent',
     shadowColor: '#3C291B',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.17,
