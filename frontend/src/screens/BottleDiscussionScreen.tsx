@@ -225,9 +225,6 @@ export default function BottleDiscussionScreen() {
             isKeyboardVisible && styles.parchmentWrapperKeyboard,
           ]}
         >
-          {canReply && !isKeyboardVisible && (
-            <Text style={styles.receivedLabel}>LETTRE REÇUE</Text>
-          )}
           {!isKeyboardVisible && (
             <BottleParchmentCard
               content={bottleState.latestLetter.content}
