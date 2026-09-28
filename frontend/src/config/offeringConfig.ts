@@ -30,6 +30,36 @@ export const OFFERING_CONFIG: Record<string, OfferingConfig> = {
     label: 'Manger',
     consumptionMode: 'SHARED',
   },
+  off_cafe: {
+    id: 'off_cafe',
+    action: 'BOIRE',
+    label: 'Boire',
+    consumptionMode: 'SHARED',
+  },
+  off_cocktail: {
+    id: 'off_cocktail',
+    action: 'BOIRE',
+    label: 'Boire',
+    consumptionMode: 'SHARED',
+  },
+  off_cookie: {
+    id: 'off_cookie',
+    action: 'MANGER',
+    label: 'Manger',
+    consumptionMode: 'SHARED',
+  },
+  off_glace: {
+    id: 'off_glace',
+    action: 'MANGER',
+    label: 'Manger',
+    consumptionMode: 'SHARED',
+  },
+  off_pizza: {
+    id: 'off_pizza',
+    action: 'MANGER',
+    label: 'Manger',
+    consumptionMode: 'SHARED',
+  },
 
   // Futurs offerings seront ajoutés ici
 };
