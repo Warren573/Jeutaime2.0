@@ -82,7 +82,7 @@ const petsData = [
   { id: "pet_ours", name: "Ours", emoji: "🐻", cost: 800 },
   { id: "pet_dragon", name: "Dragon", emoji: "🐲", cost: 2000 },
   { id: "pet_licorne", name: "Licorne", emoji: "🦄", cost: 5000 },
-  { id: "pet_pingouin", name: "Pingouin", emoji: "🐧", cost: 500 },
+  { id: "pet_pingouin", name: "Manchot", emoji: "🐧", cost: 500 },
   { id: "pet_tigre", name: "Tigre", emoji: "🐯", cost: 1200 },
   { id: "pet_koala", name: "Koala", emoji: "🐨", cost: 700 },
 ];
