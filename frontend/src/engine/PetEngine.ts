@@ -108,7 +108,7 @@ export const PETS_CATALOG: Pet[] = [
   },
   {
     id: 'penguin',
-    name: 'Pingouin',
+    name: 'Manchot',
     emoji: '🐧',
     rarity: 'peu_commun',
     cost: 700,
