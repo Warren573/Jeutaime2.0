@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,6 +6,7 @@ import { AnimalIllustration } from '../components/AnimalIllustration';
 import { AppBackButton } from '../components/AppBackButton';
 import { isRefugeAnimal } from '../data/refugeAnimals';
 import { type RefugeActionType } from '../data/refugeActions';
+import { type RefugeAnimalVisualState } from '../data/refugeAnimalImages';
 import { useRefugeDailyChoices } from '../hooks/useRefugeDailyChoices';
 import { useRefugeSession } from '../hooks/useRefugeSession';
 
@@ -25,6 +26,8 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const refuge = useRefugeSession(sessionIdProp);
   const { selectedMyActions, selectedGuessActions, toggleMyAction, toggleGuessAction, resetDay } = useRefugeDailyChoices();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [animalState, setAnimalState] = useState<RefugeAnimalVisualState>('assis');
+  const previousDayCompleted = useRef<boolean | null>(null);
 
   const artWidth = Math.min(width, 520);
   const availableHeight = Math.max(height - insets.top - insets.bottom, artWidth * 1.72);
@@ -34,8 +37,67 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const isWaiting = refuge.status === 'WAITING_FOR_ADOPTANT' || refuge.status === 'CREATION';
   const selected = refuge.role === 'adoptant' ? selectedGuessActions : selectedMyActions;
   const disabled = isWaiting || isSubmitting || (refuge.role === 'adopte' && refuge.adopteSubmittedToday) || (refuge.role === 'adoptant' && refuge.adoptantSubmittedToday);
+  const bothParticipantsDone = refuge.adopteSubmittedToday && refuge.adoptantSubmittedToday;
+  const hideActionsForToday = refuge.dayCompleted || bothParticipantsDone;
 
   useEffect(() => { resetDay(); }, [refuge.currentDay, resetDay]);
+
+  // Avant la résolution du jour, seule la personne incarnant l'animal voit
+  // une réaction à SES propres choix. L'Adoptant ne reçoit jamais d'indice
+  // visuel avant d'avoir validé sa tentative.
+  useEffect(() => {
+    if (isWaiting || refuge.dayCompleted) return;
+
+    if (refuge.role === 'adopte' && !refuge.adopteSubmittedToday) {
+      if (selectedMyActions.includes('play')) {
+        setAnimalState('joue');
+      } else if (selectedMyActions.length > 0) {
+        setAnimalState('content');
+      } else {
+        setAnimalState('assis');
+      }
+      return;
+    }
+
+    setAnimalState('assis');
+  }, [
+    isWaiting,
+    refuge.dayCompleted,
+    refuge.role,
+    refuge.adopteSubmittedToday,
+    selectedMyActions,
+  ]);
+
+  // Quand la journée vient juste de se terminer, on montre brièvement la
+  // réaction au résultat, puis l'animal dort jusqu'au jour suivant.
+  useEffect(() => {
+    if (!refuge.dayCompleted) {
+      previousDayCompleted.current = false;
+      return;
+    }
+
+    // Si l'écran est ouvert/rechargé alors que la journée était déjà finie,
+    // on arrive directement sur l'état de repos.
+    if (previousDayCompleted.current === null) {
+      setAnimalState('dort');
+      previousDayCompleted.current = true;
+      return;
+    }
+
+    if (previousDayCompleted.current === false) {
+      const matches = refuge.todayResult?.matches;
+      const reaction: RefugeAnimalVisualState =
+        matches === 2 ? 'content' : matches === 0 ? 'boude' : 'assis';
+
+      setAnimalState(reaction);
+      previousDayCompleted.current = true;
+
+      const timer = setTimeout(() => setAnimalState('dort'), 3500);
+      return () => clearTimeout(timer);
+    }
+
+    setAnimalState('dort');
+  }, [refuge.dayCompleted, refuge.todayResult?.matches]);
 
   const handleAction = (action: RefugeActionType) => {
     if (disabled) return;
@@ -56,8 +118,25 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
 
   if (refuge.isLoading) return <SafeAreaView style={styles.loading}><ActivityIndicator /><Text>Chargement du refuge…</Text></SafeAreaView>;
 
-  const statusTitle = isWaiting ? "En attente d’un adoptant…" : refuge.role === 'adoptant' ? (refuge.adopteSubmittedToday ? 'À toi de le deviner…' : 'Ton compagnon réfléchit encore…') : refuge.adopteSubmittedToday ? 'Tes choix sont notés pour aujourd’hui' : 'Choisis deux gestes aujourd’hui';
-  const statusBody = isWaiting ? 'Ton compagnon apparaîtra dans la liste des refuges disponibles. Le jeu commence dès qu’il est adopté.' : refuge.role === 'adoptant' ? (refuge.adopteSubmittedToday ? 'Choisis les deux gestes qui lui ressemblent le plus.' : 'Dès que ses choix sont faits, tu pourras essayer de les deviner.') : refuge.adopteSubmittedToday ? 'Il ne reste plus qu’à attendre la réponse de ton compagnon.' : '';
+  const statusTitle = hideActionsForToday
+    ? 'Journée terminée'
+    : isWaiting
+      ? "En attente d’un adoptant…"
+      : refuge.role === 'adoptant'
+        ? (refuge.adopteSubmittedToday ? 'À toi de le deviner…' : 'Ton compagnon réfléchit encore…')
+        : refuge.adopteSubmittedToday
+          ? 'Tes choix sont notés pour aujourd’hui'
+          : 'Choisis deux gestes aujourd’hui';
+
+  const statusBody = hideActionsForToday
+    ? (refuge.todayResult?.message || 'Rendez-vous demain pour la suite du Refuge.')
+    : isWaiting
+      ? 'Ton compagnon apparaîtra dans la liste des refuges disponibles. Le jeu commence dès qu’il est adopté.'
+      : refuge.role === 'adoptant'
+        ? (refuge.adopteSubmittedToday ? 'Choisis les deux gestes qui lui ressemblent le plus.' : 'Dès que ses choix sont faits, tu pourras essayer de les deviner.')
+        : refuge.adopteSubmittedToday
+          ? 'Il ne reste plus qu’à attendre la réponse de ton compagnon.'
+          : '';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -71,8 +150,17 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
             <View style={styles.days}>{Array.from({ length: 7 }, (_, i) => { const day=i+1; const today=day===currentDay; const heart=refuge.hearts?.[i]; return <View key={day} style={styles.day}><Text style={[styles.dayNumber,today&&styles.today]}>{day}</Text><Text style={[styles.heart,heart==='❤️'&&styles.heartFull]}>{heart==='❤️'?'♥':today?'◐':'♡'}</Text></View>; })}</View>
             <Text style={styles.dayCaption}>Jour {currentDay} sur 7</Text>
           </View>
-          <View style={styles.animal} pointerEvents="none">{isRefugeAnimal(refuge.companion?.animalType) && <AnimalIllustration animal={refuge.companion.animalType} size={animalSize} />}</View>
-          <View style={styles.actions}>{ACTIONS.map(action => { const active=selected.includes(action.key); return <TouchableOpacity key={action.key} disabled={disabled} onPress={() => handleAction(action.key)} style={[styles.tag,active&&styles.tagActive,disabled&&!isWaiting&&styles.tagDisabled]}><View style={styles.string}/><View style={styles.hole}/><Text style={[styles.mark,active&&styles.markActive]}>{action.mark}</Text><Text style={styles.tagTitle}>{action.title}</Text></TouchableOpacity>; })}</View>
+          <View style={styles.animal} pointerEvents="none">{isRefugeAnimal(refuge.companion?.animalType) && <AnimalIllustration animal={refuge.companion.animalType} state={animalState} size={animalSize} />}</View>
+          {hideActionsForToday ? (
+            <View style={styles.dayDone}>
+              <Text style={styles.dayDoneTitle}>C’est tout pour aujourd’hui</Text>
+              <Text style={styles.dayDoneText}>
+                Vous avez tous les deux terminé. Votre compagnon se repose jusqu’à demain.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.actions}>{ACTIONS.map(action => { const active=selected.includes(action.key); return <TouchableOpacity key={action.key} disabled={disabled} onPress={() => handleAction(action.key)} style={[styles.tag,active&&styles.tagActive,disabled&&!isWaiting&&styles.tagDisabled]}><View style={styles.string}/><View style={styles.hole}/><Text style={[styles.mark,active&&styles.markActive]}>{action.mark}</Text><Text style={styles.tagTitle}>{action.title}</Text></TouchableOpacity>; })}</View>
+          )}
           <View style={styles.status}><View style={styles.tape}/><Text style={styles.statusTitle}>{statusTitle}</Text>{!!statusBody&&<Text style={styles.statusBody}>{statusBody}</Text>}{!isWaiting&&selected.length===2&&!disabled&&<TouchableOpacity style={styles.validate} onPress={submit}><Text style={styles.validateText}>{isSubmitting?'Envoi…':'Valider mes 2 choix'}</Text></TouchableOpacity>}</View>
         </ImageBackground>
       </ScrollView>
@@ -85,6 +173,6 @@ const styles=StyleSheet.create({
   container:{flex:1,backgroundColor:'#F3E8D6'},scroll:{flexGrow:1,alignItems:'center',justifyContent:'flex-start'},scene:{position:'relative',overflow:'hidden'},backgroundImage:{width:'100%',height:'100%'},
   back:{position:'absolute',top:'4%',left:'4%',zIndex:22},titleBlock:{position:'absolute',top:'3.3%',left:'25%',width:'60%',alignItems:'center',zIndex:22},title:{color:burgundy,fontFamily:'Georgia',fontSize:30},subtitle:{color:ink,fontFamily:'Georgia',fontSize:10.5,marginTop:5,textAlign:'center'},
   calendar:{position:'absolute',top:'13.5%',left:'29%',width:'42%',height:'13%',backgroundColor:parchment,borderWidth:1,borderColor:'#AE8458',borderRadius:4,paddingHorizontal:11,paddingTop:15,zIndex:10,shadowColor:'#231308',shadowOpacity:.3,shadowRadius:4,shadowOffset:{width:0,height:3}},rings:{position:'absolute',top:-7,left:10,right:10,flexDirection:'row',justifyContent:'space-between'},ring:{width:4,height:15,borderRadius:4,borderWidth:2,borderColor:'#4A3525',backgroundColor:'#B78A57'},calendarTitle:{textAlign:'center',color:ink,fontFamily:'Georgia',fontSize:15,marginBottom:4},days:{flexDirection:'row',justifyContent:'space-between'},day:{flex:1,alignItems:'center'},dayNumber:{color:ink,fontFamily:'Georgia',fontSize:12,fontWeight:'600'},today:{color:burgundy,fontWeight:'900'},heart:{color:'#9E876C',fontSize:15},heartFull:{color:burgundy},dayCaption:{color:'#6E4B32',fontFamily:'Georgia',fontStyle:'italic',fontSize:9,textAlign:'right',marginTop:0},
-  animal:{position:'absolute',top:'40%',left:0,right:0,alignItems:'center',zIndex:12},actions:{position:'absolute',top:'68%',left:'8%',width:'84%',height:'10.5%',flexDirection:'row',justifyContent:'space-between',zIndex:16},tag:{width:'21.5%',height:'100%',backgroundColor:'rgba(239,211,167,.94)',borderWidth:1,borderColor:'#A77746',alignItems:'center',justifyContent:'center',paddingTop:8,shadowColor:'#261407',shadowOpacity:.25,shadowRadius:3,shadowOffset:{width:0,height:2}},tagActive:{borderWidth:3,borderColor:burgundy,backgroundColor:'#EACBA0'},tagDisabled:{opacity:.72},string:{position:'absolute',top:-10,width:2,height:15,backgroundColor:'#6B4B30'},hole:{position:'absolute',top:3,width:7,height:7,borderRadius:7,borderWidth:2,borderColor:'#7A5332',backgroundColor:'#BA966A'},mark:{color:'#74412F',fontFamily:'Georgia',fontSize:19,marginBottom:3},markActive:{color:burgundy},tagTitle:{color:ink,fontFamily:'Georgia',fontSize:11,fontWeight:'700',textAlign:'center'},
+  animal:{position:'absolute',top:'40%',left:0,right:0,alignItems:'center',zIndex:12},actions:{position:'absolute',top:'68%',left:'8%',width:'84%',height:'10.5%',flexDirection:'row',justifyContent:'space-between',zIndex:16},dayDone:{position:'absolute',top:'68%',left:'10%',width:'80%',minHeight:'10.5%',backgroundColor:'rgba(239,211,167,.95)',borderWidth:1,borderColor:'#A77746',alignItems:'center',justifyContent:'center',paddingHorizontal:18,paddingVertical:12,zIndex:16,shadowColor:'#261407',shadowOpacity:.22,shadowRadius:3,shadowOffset:{width:0,height:2}},dayDoneTitle:{color:burgundy,fontFamily:'Georgia',fontSize:17,fontWeight:'700',textAlign:'center',marginBottom:5},dayDoneText:{color:ink,fontFamily:'Georgia',fontSize:10.5,lineHeight:14,textAlign:'center'},tag:{width:'21.5%',height:'100%',backgroundColor:'rgba(239,211,167,.94)',borderWidth:1,borderColor:'#A77746',alignItems:'center',justifyContent:'center',paddingTop:8,shadowColor:'#261407',shadowOpacity:.25,shadowRadius:3,shadowOffset:{width:0,height:2}},tagActive:{borderWidth:3,borderColor:burgundy,backgroundColor:'#EACBA0'},tagDisabled:{opacity:.72},string:{position:'absolute',top:-10,width:2,height:15,backgroundColor:'#6B4B30'},hole:{position:'absolute',top:3,width:7,height:7,borderRadius:7,borderWidth:2,borderColor:'#7A5332',backgroundColor:'#BA966A'},mark:{color:'#74412F',fontFamily:'Georgia',fontSize:19,marginBottom:3},markActive:{color:burgundy},tagTitle:{color:ink,fontFamily:'Georgia',fontSize:11,fontWeight:'700',textAlign:'center'},
   status:{position:'absolute',top:'84.5%',left:'7%',width:'86%',minHeight:'12.5%',backgroundColor:'rgba(238,211,170,.95)',borderWidth:1,borderColor:'#A77548',paddingHorizontal:18,paddingVertical:15,alignItems:'center',zIndex:17,shadowColor:'#241208',shadowOpacity:.25,shadowRadius:3,shadowOffset:{width:0,height:2}},tape:{position:'absolute',top:-7,width:70,height:14,backgroundColor:'rgba(205,170,112,.76)'},statusTitle:{color:burgundy,fontFamily:'Georgia',fontWeight:'700',fontSize:18,textAlign:'center',marginBottom:6},statusBody:{color:ink,fontFamily:'Georgia',fontSize:10.5,lineHeight:14,textAlign:'center'},validate:{marginTop:8,backgroundColor:burgundy,paddingHorizontal:18,paddingVertical:8,borderRadius:3},validateText:{color:'#FFF2DE',fontFamily:'Georgia',fontWeight:'700',fontSize:11},loading:{flex:1,alignItems:'center',justifyContent:'center',gap:10}
 });
