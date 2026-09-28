@@ -134,7 +134,11 @@ export async function sendOffering(
 ): Promise<OfferingSentDto> {
   // 1. Sanity checks hors DB
   console.log('[VALIDATION-1] assertNotSelfOffering');
-  assertNotSelfOffering(fromUserId, dto.toUserId);
+  // Dans un salon, s'offrir à soi-même correspond à une commande personnelle.
+  // Hors salon, la protection anti-auto-cadeau reste inchangée.
+  if (dto.salonId === undefined) {
+    assertNotSelfOffering(fromUserId, dto.toUserId);
+  }
 
   // 2. Lectures hors transaction : catalog, target, salon
   console.log('[VALIDATION-2] checking catalog existence');
