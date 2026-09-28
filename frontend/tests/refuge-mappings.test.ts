@@ -27,7 +27,7 @@ import {
 // Valeurs canoniques — copie de l'enum Prisma RefugeAnimalType (schema.prisma)
 const PRISMA_ANIMAL_TYPES = [
   "HAMSTER", "LAPIN", "CHAT", "CHIEN", "RENARD",
-  "PINGOUIN", "IGUANE", "PANDA", "LICORNE", "DRAGON",
+  "MANCHOT", "IGUANE", "PANDA", "LICORNE", "DRAGON", "TOUCAN", "PERROQUET",
 ] as const;
 
 // Copie de l'enum Prisma RefugeBackground
@@ -38,16 +38,16 @@ const PRISMA_BACKGROUNDS = [
 // Copie de l'enum Prisma RefugeAnimalSexe
 const PRISMA_ANIMAL_SEXES = ["MALE", "FEMELLE", "NEUTRE"] as const;
 
-describe("Mapping des 10 animaux", () => {
+describe("Mapping des 12 animaux", () => {
   it("REFUGE_ANIMALS couvre exactement les valeurs de l'enum backend", () => {
     expect([...REFUGE_ANIMALS].sort()).toEqual([...PRISMA_ANIMAL_TYPES].sort());
   });
 
-  it("ANIMAL_LABELS couvre exactement les 10 valeurs, sans extra ni manque", () => {
+  it("ANIMAL_LABELS couvre exactement les 12 valeurs, sans extra ni manque", () => {
     expect(Object.keys(ANIMAL_LABELS).sort()).toEqual([...PRISMA_ANIMAL_TYPES].sort());
   });
 
-  it("ANIMAL_EMOJIS couvre exactement les 10 valeurs, sans extra ni manque", () => {
+  it("ANIMAL_EMOJIS couvre exactement les 12 valeurs, sans extra ni manque", () => {
     expect(Object.keys(ANIMAL_EMOJIS).sort()).toEqual([...PRISMA_ANIMAL_TYPES].sort());
   });
 
@@ -61,6 +61,10 @@ describe("Mapping des 10 animaux", () => {
   it("isRefugeAnimal accepte les valeurs backend et rejette les variantes localisées", () => {
     expect(isRefugeAnimal("CHAT")).toBe(true);
     expect(isRefugeAnimal("Chat")).toBe(false);
+    expect(isRefugeAnimal("MANCHOT")).toBe(true);
+    expect(isRefugeAnimal("TOUCAN")).toBe(true);
+    expect(isRefugeAnimal("PERROQUET")).toBe(true);
+    expect(isRefugeAnimal("PINGOUIN")).toBe(false);
     expect(isRefugeAnimal("OISEAU")).toBe(false);
     expect(isRefugeAnimal("Perroquet")).toBe(false);
     expect(isRefugeAnimal(null)).toBe(false);
