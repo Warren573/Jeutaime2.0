@@ -40,8 +40,38 @@ const cleanSalonSystemText = (value?: string) =>
 // Ajouter un PNG = déposer dans assets/avatar/transformations/ et l'ajouter ici
 const TRANSFO_STAGES: Partial<Record<string, any[]>> = {
   ane: [
-    require('../../assets/avatar/transformations/ane_1.png'),
-    // ane_2.png et ane_3.png à ajouter quand disponibles
+    require('../../assets/avatar/transformations/ANE01.png'),
+    require('../../assets/avatar/transformations/ANE02.png'),
+    require('../../assets/avatar/transformations/ANE03.png'),
+  ],
+  chat_noir: [
+    require('../../assets/avatar/transformations/CHAT_DEMONIAQUE_1.png'),
+    require('../../assets/avatar/transformations/CHAT_DEMONIAQUE_2.png'),
+    require('../../assets/avatar/transformations/CHAT_DEMONIAQUE_3.png'),
+    require('../../assets/avatar/transformations/CHAT_DEMONIAQUE_4.png'),
+    require('../../assets/avatar/transformations/CHAT_DEMONIAQUE_5.png'),
+  ],
+  fantome: [
+    require('../../assets/avatar/transformations/GHOST01.png'),
+    require('../../assets/avatar/transformations/GHOST02.png'),
+    require('../../assets/avatar/transformations/GHOST03.png'),
+  ],
+  grenouille: [
+    require('../../assets/avatar/transformations/GRENNOUILLE01.png'),
+    require('../../assets/avatar/transformations/GRENNOUILLE02.png'),
+    require('../../assets/avatar/transformations/GRENNOUILLE03.png'),
+  ],
+  poule: [
+    require('../../assets/avatar/transformations/POULE01.png'),
+    require('../../assets/avatar/transformations/POULE02.png'),
+    require('../../assets/avatar/transformations/POULE03.png'),
+    require('../../assets/avatar/transformations/POULE04.png'),
+  ],
+  statue: [
+    require('../../assets/avatar/transformations/STATUE01.png'),
+    require('../../assets/avatar/transformations/STATUE02.png'),
+    require('../../assets/avatar/transformations/STATUE03.png'),
+    require('../../assets/avatar/transformations/STATUE04.png'),
   ],
 };
 
@@ -53,13 +83,13 @@ const TRANSFO_STAGES: Partial<Record<string, any[]>> = {
 function getTransfoImage(
   powerId: string,
   expiresAt: number,
-  durationMinutes: number,
+  durationSeconds: number,
 ): any | null {
   const id = powerId.startsWith('mag_') ? powerId.slice(4) : powerId;
   const stages = TRANSFO_STAGES[id];
   if (!stages || stages.length === 0) return null;
   if (stages.length === 1) return stages[0];
-  const totalMs = durationMinutes * 60 * 1000;
+  const totalMs = durationSeconds * 1000;
   const startTime = expiresAt - totalMs;
   const elapsed = Date.now() - startTime;
   const stageIndex = Math.min(
