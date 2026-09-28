@@ -133,11 +133,16 @@ export async function castSpell(
   if (dto.salonId !== undefined) {
     const salon = await prisma.salon.findUnique({
       where: { id: dto.salonId },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, kind: true },
     });
     if (!salon || !salon.isActive) {
       throw new NotFoundError("Salon");
     }
+    if (catalog.id === "mag_chat_noir" && salon.kind !== "METAL") {
+      throw new ForbiddenError("Le Chat noir démoniaque est réservé au salon Métal");
+    }
+  } else if (catalog.id === "mag_chat_noir") {
+    throw new ForbiddenError("Le Chat noir démoniaque est réservé au salon Métal");
   }
 
   const now = new Date();
