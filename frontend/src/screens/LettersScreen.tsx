@@ -201,7 +201,7 @@ const EnvelopeCard = ({
           )
         ) : isActive && !questionsValidated ? (
           <TouchableOpacity style={envStyles.actionLeft} onPress={onPlayQuestions} activeOpacity={0.75}>
-            <Text style={envStyles.actionLeftText}>🎮 Jouer aux questions</Text>
+            <View style={envStyles.actionLabelRow}><MaterialCommunityIcons name="help-circle-outline" size={22} color="#6B4527" /><Text style={envStyles.actionLeftText}>Jouer aux questions</Text></View>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -234,6 +234,7 @@ const EnvelopeCard = ({
 };
 
 const envStyles = StyleSheet.create({
+  actionLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   card: {
     position: 'relative',
     backgroundColor: '#FFFDF8',
