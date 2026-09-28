@@ -189,6 +189,27 @@ export async function sendOffering(
   const now = new Date();
   const expiresAt = computeOfferingExpiry(now, catalog.durationMs);
 
+  // Dans un salon : un participant ne peut avoir qu'une boisson et une nourriture actives.
+  // Tant que l'offrande de la même catégorie n'est pas entièrement consommée, aucun remplacement/cumul.
+  if (salon && (catalog.category === 'BOISSON' || catalog.category === 'NOURRITURE')) {
+    const existing = await prisma.offeringSent.findFirst({
+      where: {
+        toUserId: dto.toUserId,
+        salonId: salon.id,
+        consumptionCount: { lt: 3 },
+        offering: { category: catalog.category },
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new BadRequestError(
+        catalog.category === 'BOISSON'
+          ? 'Cette personne a déjà une boisson à terminer'
+          : 'Cette personne a déjà quelque chose à manger à terminer',
+      );
+    }
+  }
+
   // 3. Transaction : débit wallet + CoinTransaction + OfferingSent
   console.log('[VALIDATION-7] entering transaction for wallet debit');
   const result = await prisma.$transaction(async (tx) => {
@@ -307,7 +328,28 @@ export async function sendOfferingToSession(
     { isActive: session.salon.isActive, kind: session.salon.kind }
   );
 
-  // 6. Calculate total cost and validate wallet
+  // 6. Une seule offrande active par catégorie et par participant.
+  // Une tournée est refusée si au moins un participant possède encore cette catégorie.
+  if (catalog.category === 'BOISSON' || catalog.category === 'NOURRITURE') {
+    const occupied = await prisma.offeringSent.findFirst({
+      where: {
+        toUserId: { in: recipients },
+        salonId: session.salon.id,
+        consumptionCount: { lt: 3 },
+        offering: { category: catalog.category },
+      },
+      select: { id: true },
+    });
+    if (occupied) {
+      throw new BadRequestError(
+        catalog.category === 'BOISSON'
+          ? 'Une boisson doit être terminée avant d’en commander ou d’en offrir une autre'
+          : 'La nourriture doit être terminée avant d’en commander ou d’en offrir une autre',
+      );
+    }
+  }
+
+  // 7. Calculate total cost and validate wallet
   const totalCost = catalog.cost * recipients.length;
   const now = new Date();
   const expiresAt = computeOfferingExpiry(now, catalog.durationMs);
