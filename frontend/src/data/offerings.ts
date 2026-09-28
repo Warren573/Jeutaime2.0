@@ -242,7 +242,7 @@ export const metalPowers: Power[] = [
 // ─── Exports regroupés ────────────────────────────────────────────────────────
 
 export const allOfferings = [...boissons, ...nourriture, ...symbolique];
-export const allPowers    = [...transformations, ...cancellers, ...effects];
+export const allPowers    = [...transformations, ...cancellers, ...effects, ...metalPowers];
 
 /** Durée en ms d'un pouvoir (duration est en secondes dans le type legacy) */
 export function getPowerDurationMs(p: Power): number {
