@@ -379,18 +379,19 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
             {participant.name}
           </Text>
         )}
-        {/* Indice de rupture du sort */}
-        {isTransformed && activePower?.breakHint && (
-          <Text style={[styles.breakHint, { maxWidth: size + 30 }]} numberOfLines={2}>
-            {activePower.breakHint}
-          </Text>
-        )}
       </TouchableOpacity>
 
       {showBadges && participant.offerings && participant.offerings.length > 0 && (
         <View style={styles.badgesColumn}>
           {(() => {
-            const visibleOfferings = participant.offerings.slice(-3);
+            const latestByCategory = [...participant.offerings].reverse().reduce<{ drink?: any; food?: any }>((acc, offering: any) => {
+              const catalogItem = allOfferings.find((item: any) => item.id === offering.offeringId);
+              const category = String(catalogItem?.category || offering.category || '').toUpperCase();
+              if (!acc.drink && category === 'BOISSON') acc.drink = offering;
+              if (!acc.food && (category === 'NOURRITURE' || category === 'FOOD')) acc.food = offering;
+              return acc;
+            }, {});
+            const visibleOfferings = [latestByCategory.drink, latestByCategory.food].filter(Boolean);
             return (
               <View style={styles.badgesRow}>
                 {visibleOfferings.map((o, idx) => (
@@ -2719,14 +2720,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,248,231,0.30)',
   },
   avatarsGrid: {
+    width: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignContent: 'center',
   },
   avatarGridItem: {
-    margin: 10,
+    width: '50%',
+    aspectRatio: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
   },
 
   // Zone interactions (droite)
