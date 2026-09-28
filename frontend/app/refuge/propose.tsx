@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { refugeApi } from '../../src/api/refuge-api';
 import { BouncyButton } from '../../src/components/BouncyButton';
 import { REFUGE_ANIMALS, ANIMAL_LABELS } from '../../src/data/refugeAnimals';
+import { AnimalIllustration } from '../../src/components/AnimalIllustration';
 
 const ANIMALS = REFUGE_ANIMALS.map((value) => ({ value, label: ANIMAL_LABELS[value] }));
 const PREFERENCES = [
@@ -118,6 +119,7 @@ export default function ProposePage() {
                     setStep(2);
                   }}
                 >
+                  <AnimalIllustration animal={animal.value} state="assis" size={64} />
                   <Text style={[
                     styles.choiceText,
                     selectedAnimal === animal.value && styles.choiceSelectedText,
@@ -242,14 +244,15 @@ const styles = StyleSheet.create({
   choice: {
     flex: 1,
     minWidth: '30%',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     borderWidth: 2,
     borderColor: '#E0D5C8',
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 108,
   },
   choiceSelected: {
     backgroundColor: '#2196F3',
@@ -259,6 +262,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#2B2B2B',
+    marginTop: 4,
+    textAlign: 'center',
   },
   choiceSelectedText: {
     color: '#FFFFFF',
