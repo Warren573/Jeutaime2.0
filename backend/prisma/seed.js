@@ -76,6 +76,11 @@ const offeringCatalog = [
   { id: "off_biere", emoji: "🍺", name: "Bière pression", cost: 30, category: "BOISSON", durationMs: null, stackPriority: 1, salonOnly: null, consumptionMode: "SHARED" },
   { id: "off_fraises", emoji: "🍓", name: "Fraises", cost: 35, category: "NOURRITURE", durationMs: null, stackPriority: 1, salonOnly: null, consumptionMode: "SHARED" },
   { id: "off_bonbons", emoji: "🍬", name: "Bonbons", cost: 20, category: "NOURRITURE", durationMs: null, stackPriority: 1, salonOnly: null, consumptionMode: "SHARED" },
+  { id: "off_cafe", emoji: "☕", name: "Café", cost: 20, category: "BOISSON", durationMs: null, stackPriority: 1, salonOnly: null, consumptionMode: "SHARED" },
+  { id: "off_cocktail", emoji: "🍸", name: "Cocktail", cost: 50, category: "BOISSON", durationMs: null, stackPriority: 2, salonOnly: null, consumptionMode: "SHARED" },
+  { id: "off_cookie", emoji: "🍪", name: "Cookie", cost: 25, category: "NOURRITURE", durationMs: null, stackPriority: 1, salonOnly: null, consumptionMode: "SHARED" },
+  { id: "off_glace", emoji: "🍦", name: "Glace", cost: 30, category: "NOURRITURE", durationMs: null, stackPriority: 2, salonOnly: null, consumptionMode: "SHARED" },
+  { id: "off_pizza", emoji: "🍕", name: "Pizza", cost: 45, category: "NOURRITURE", durationMs: null, stackPriority: 2, salonOnly: null, consumptionMode: "SHARED" },
 ];
 
 // ============================================================
