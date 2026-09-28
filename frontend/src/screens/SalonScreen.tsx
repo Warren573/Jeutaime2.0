@@ -1920,11 +1920,11 @@ export default function SalonScreen() {
   const renderOfferingsModal = () => {
     // Get all possible targets: self + other participants
     const possibleTargets = [
-      ...(currentUser?.id ? [{ id: currentUser.id, name: 'Moi-même', isMe: true }] : []),
+      { id: currentUser?.id || '', name: 'Moi-même', isMe: true },
       ...participants.filter(p => !p.isMe).map(p => ({ id: p.id, name: p.name, isMe: false }))
     ];
 
-    const isModalTargetMode = true;
+    const isModalTargetMode = isTestMode() || participants.filter(p => !p.isMe).length === 0;
 
     // Determine target from modal selection, fallback to effectiveSelectedPlayer, or default to first possible target
     let target = null;
@@ -2006,11 +2006,13 @@ export default function SalonScreen() {
   const renderPowersModal = () => {
     // Get all possible targets: self + other participants
     const possibleTargets = [
-      { id: currentUser?.id || '', name: 'Moi-même', isMe: true },
+      ...(currentUser?.id ? [{ id: currentUser.id, name: 'Moi-même', isMe: true }] : []),
       ...participants.filter(p => !p.isMe).map(p => ({ id: p.id, name: p.name, isMe: false }))
     ];
 
-    const isModalTargetMode = isTestMode() || participants.filter(p => !p.isMe).length === 0;
+    // Pour la magie, la cible est toujours choisissable.
+    // Cela permet notamment les transformations sur soi-même.
+    const isModalTargetMode = true;
 
     // Determine target from modal selection, fallback to effectiveSelectedPlayer, or default to first possible target
     let target = null;
