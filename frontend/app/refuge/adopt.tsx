@@ -6,7 +6,8 @@ import { useStore } from '../../src/store/useStore';
 import { refugeApi, RefugeSession } from '../../src/api/refuge-api';
 import { BouncyButton } from '../../src/components/BouncyButton';
 import { formatAnimalAge } from '../../src/modules/refuge/refugeAgeDisplay';
-import { getAnimalEmoji, getAnimalLabel, getAnimalSexeSymbol } from '../../src/data/refugeAnimals';
+import { getAnimalLabel, getAnimalSexeSymbol, isRefugeAnimal } from '../../src/data/refugeAnimals';
+import { AnimalIllustration } from '../../src/components/AnimalIllustration';
 
 export default function AdoptPage() {
   const router = useRouter();
@@ -139,7 +140,11 @@ export default function AdoptPage() {
               style={styles.refugeCard}
             >
               <View style={styles.refugeHeader}>
-                <Text style={styles.animalEmoji}>{getAnimalEmoji(refuge.animalType)}</Text>
+                {isRefugeAnimal(refuge.animalType) && (
+                  <View style={styles.animalPreview}>
+                    <AnimalIllustration animal={refuge.animalType} state="assis" size={72} />
+                  </View>
+                )}
                 <View style={styles.refugeInfo}>
                   <Text style={styles.refugeTitle}>
                     {getAnimalLabel(refuge.animalType)} {getAnimalSexeSymbol(refuge.animalSexe)}
@@ -263,9 +268,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  animalEmoji: {
-    fontSize: 40,
+  animalPreview: {
+    width: 78,
+    height: 78,
     marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   refugeInfo: {
     flex: 1,
