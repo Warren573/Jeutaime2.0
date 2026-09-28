@@ -62,7 +62,7 @@ CREATE TYPE "SalonSessionStatus" AS ENUM ('ACTIVE', 'EXPIRED');
 CREATE TYPE "SalonSessionParticipantStatus" AS ENUM ('ACTIVE', 'LEFT');
 
 -- CreateEnum
-CREATE TYPE "RefugeAnimalType" AS ENUM ('HAMSTER', 'LAPIN', 'CHAT', 'CHIEN', 'RENARD', 'PINGOUIN', 'IGUANE', 'PANDA', 'LICORNE', 'DRAGON');
+CREATE TYPE "RefugeAnimalType" AS ENUM ('HAMSTER', 'LAPIN', 'CHAT', 'CHIEN', 'RENARD', 'MANCHOT', 'IGUANE', 'PANDA', 'LICORNE', 'DRAGON', 'TOUCAN', 'PERROQUET');
 
 -- CreateEnum
 CREATE TYPE "RefugeAnimalCategory" AS ENUM ('SIMPLE', 'RARE', 'EXOTIQUE');
