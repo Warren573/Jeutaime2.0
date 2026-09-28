@@ -1317,8 +1317,31 @@ export default function SalonScreen() {
         if (/insuffisant|insufficient|coins/i.test(msg)) {
           alert('Pas assez de pièces !');
           return;
-        } else if (/toi-même/i.test(msg)) {
-          // En mode test, allow self-casting silently - continue with local UI update
+        } else if (/toi-même/i.test(msg) && isTestMode() && isSelf) {
+          // En mode test/staging, le backend peut refuser l'auto-cast :
+          // on applique alors réellement la transformation localement.
+          const durationSec =
+            typeof item.durationSec === 'number'
+              ? item.durationSec
+              : typeof item.duration === 'number'
+                ? item.duration
+                : 60;
+          const durationMs = durationSec * 1000;
+          const expiresAt = Date.now() + durationMs;
+          if (transfoTimers.current[targetId]) clearTimeout(transfoTimers.current[targetId]);
+          setParticipants(prev => prev.map(p =>
+            p.id === targetId
+              ? { ...p, transformation: item.id, transformationExpiresAt: expiresAt }
+              : p
+          ));
+          transfoTimers.current[targetId] = setTimeout(() => {
+            setParticipants(prev => prev.map(p =>
+              p.id === targetId
+                ? { ...p, transformation: null, transformationExpiresAt: undefined }
+                : p
+            ));
+            delete transfoTimers.current[targetId];
+          }, durationMs);
         } else {
           alert('Sort non lancé. Réessaie.');
           return;
