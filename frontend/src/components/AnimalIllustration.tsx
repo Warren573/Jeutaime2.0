@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Image, StyleSheet, StyleProp, ViewStyle, Animated, Easing } from "react-native";
 import { ANIMAL_EMOJIS, RefugeAnimal } from "../data/refugeAnimals";
-import { ANIMAL_IMAGES } from "../data/refugeAnimalImages";
+import { ANIMAL_IMAGES, type RefugeAnimalVisualState } from "../data/refugeAnimalImages";
 
 interface AnimalIllustrationProps {
   animal: RefugeAnimal;
   size?: number;
+  state?: RefugeAnimalVisualState;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -16,17 +17,15 @@ interface AnimalIllustrationProps {
  * `size` est la dimension maximale du cadre : le PNG garde son ratio
  * d'origine (portrait ou paysage) sans jamais être rogné ni étiré.
  */
-export function AnimalIllustration({ animal, size = 200, style }: AnimalIllustrationProps) {
+export function AnimalIllustration({ animal, size = 200, state = "assis", style }: AnimalIllustrationProps) {
   const [failed, setFailed] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(1);
   const bob = useRef(new Animated.Value(0)).current;
 
-  const source = ANIMAL_IMAGES[animal];
-  const showImage = source !== null && !failed;
+  const source = ANIMAL_IMAGES[animal][state];
+  const showImage = !failed;
 
   useEffect(() => {
-    if (source === null) return;
-
     // Image.resolveAssetSource only exists on React Native native, not web
     if (typeof Image.resolveAssetSource === 'function') {
       try {
