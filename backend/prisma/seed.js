@@ -95,12 +95,14 @@ const magieCatalog = [
   { id: "mag_poule", emoji: "🐔", name: "Transformation Poule", cost: 70, durationSec: 60, type: "TRANSFORMATION", breakConditionId: "laughter" },
   { id: "mag_invisibilite", emoji: "🫥", name: "Invisibilité", cost: 150, durationSec: 120, type: "VISUAL_EFFECT", breakConditionId: "laughter" },
   { id: "mag_rockstar", emoji: "🎸", name: "Rockstar", cost: 130, durationSec: 90, type: "VISUAL_EFFECT", breakConditionId: "music" },
+  { id: "mag_chat_noir", emoji: "🐈‍⬛", name: "Chat noir démoniaque", cost: 100, durationSec: 60, type: "TRANSFORMATION", breakConditionId: "rainbow" },
   { id: "mag_bisou", emoji: "💋", name: "Bisou (anti-grenouille)", cost: 20, durationSec: 0, type: "TRANSFORMATION", breakConditionId: null },
   { id: "mag_compliment", emoji: "👏", name: "Compliment", cost: 30, durationSec: 0, type: "TRANSFORMATION", breakConditionId: null },
   { id: "mag_eau", emoji: "💧", name: "Eau bénite", cost: 20, durationSec: 0, type: "TRANSFORMATION", breakConditionId: null },
   { id: "mag_danse", emoji: "💃", name: "Danse", cost: 25, durationSec: 0, type: "TRANSFORMATION", breakConditionId: null },
   { id: "mag_rire", emoji: "😂", name: "Fou rire", cost: 20, durationSec: 0, type: "TRANSFORMATION", breakConditionId: null },
   { id: "mag_musique", emoji: "🎵", name: "Mélodie apaisante", cost: 25, durationSec: 0, type: "VISUAL_EFFECT", breakConditionId: null },
+  { id: "mag_arc_en_ciel", emoji: "🌈", name: "Arc-en-ciel", cost: 30, durationSec: 0, type: "VISUAL_EFFECT", breakConditionId: null },
 ];
 
 // ============================================================
