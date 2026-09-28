@@ -110,16 +110,19 @@ export async function castSpell(
   actorId: string,
   dto: CastMagieDto,
 ): Promise<MagieCastDto> {
-  // 1. Sanity checks hors DB
-  assertNotSelfCast(actorId, dto.toUserId);
-
-  // 2. Catalog + cible + salon : lectures hors transaction pour éviter
+  // 1. Catalog + cible + salon : lectures hors transaction pour éviter
   //    de polluer la transaction avec des reads longs
   const catalog = await prisma.magieCatalog.findUnique({
     where: { id: dto.magieId },
   });
   if (!catalog) throw new NotFoundError("Magie");
   assertCastableSpell(catalog); // throws BadRequest si disabled ou anti-sort
+
+  // Les transformations peuvent être lancées sur soi-même.
+  // Les autres types de magie gardent l'interdiction d'auto-cast.
+  if (actorId === dto.toUserId && catalog.type !== "TRANSFORMATION") {
+    assertNotSelfCast(actorId, dto.toUserId);
+  }
 
   const target = await prisma.user.findUnique({
     where: { id: dto.toUserId },
