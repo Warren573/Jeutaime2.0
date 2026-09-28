@@ -1572,7 +1572,9 @@ export default function SalonScreen() {
 
   // Calcul de la taille des avatars en fonction de l'écran
   const avatarSizePortrait = Math.min((width - 40) / participants.length, 70);
-  const avatarSizeLandscape = Math.min(100, (height - 150) / 2.5);
+  // Paysage : 4 emplacements strictement identiques en grille 2 × 2.
+  // Taille calculée sur une cellule, jamais sur l'identité du participant.
+  const avatarSizeLandscape = Math.min(82, Math.max(58, (height - 150) / 3.25));
 
   // ============================================
   // RENDU MODE PORTRAIT (DISCUSSION)
@@ -1925,7 +1927,8 @@ export default function SalonScreen() {
       ...participants.filter(p => !p.isMe).map(p => ({ id: p.id, name: p.name, isMe: false }))
     ];
 
-    const isModalTargetMode = isTestMode() || participants.filter(p => !p.isMe).length === 0;
+    // En salon on peut toujours choisir : soi-même (commande personnelle) ou un autre participant.
+    const isModalTargetMode = true;
 
     // Determine target from modal selection, fallback to effectiveSelectedPlayer, or default to first possible target
     let target = null;
@@ -2714,24 +2717,28 @@ const styles = StyleSheet.create({
   // Zone avatars (gauche) - GRANDE
   avatarsZone: {
     flex: 1.5,
-    padding: 16,
-    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: 'stretch',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,248,231,0.30)',
   },
   avatarsGrid: {
     width: '100%',
+    flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignContent: 'center',
+    alignItems: 'stretch',
+    alignContent: 'stretch',
+    justifyContent: 'flex-start',
   },
   avatarGridItem: {
     width: '50%',
-    aspectRatio: 1,
+    height: '50%',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
   },
 
   // Zone interactions (droite)
