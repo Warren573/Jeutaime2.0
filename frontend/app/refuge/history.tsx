@@ -6,7 +6,8 @@ import { BouncyButton } from '../../src/components/BouncyButton';
 import { RefugeDayResultIcon } from '../../src/components/RefugeDayResultIcon';
 import { refugeApi, type RefugeHistoryEntry } from '../../src/api/refuge-api';
 import { CoinIcon } from '../../src/components/CoinIcon';
-import { getAnimalEmoji, getAnimalLabel } from '../../src/data/refugeAnimals';
+import { getAnimalLabel, isRefugeAnimal } from '../../src/data/refugeAnimals';
+import { AnimalIllustration } from '../../src/components/AnimalIllustration';
 
 const SMILE_LABELS: Record<RefugeHistoryEntry['smileState'], string> = {
   NONE: 'Aucun Sourire envoyé',
@@ -79,9 +80,12 @@ export default function RefugeHistoryScreen() {
               )}
 
               <View style={styles.cardHeader}>
-                <Text style={styles.animal}>
-                  {getAnimalEmoji(item.animalType)} {getAnimalLabel(item.animalType)}
-                </Text>
+                <View style={styles.animalIdentity}>
+                  {isRefugeAnimal(item.animalType) && (
+                    <AnimalIllustration animal={item.animalType} state="assis" size={44} />
+                  )}
+                  <Text style={styles.animal}>{getAnimalLabel(item.animalType)}</Text>
+                </View>
                 <Text style={styles.role}>{item.role === 'adopte' ? 'Adopté' : 'Adoptant'}</Text>
               </View>
 
@@ -204,6 +208,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  animalIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   animal: {
     fontSize: 15,
