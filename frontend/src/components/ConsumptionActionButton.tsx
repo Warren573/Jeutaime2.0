@@ -16,6 +16,11 @@ const OFFERING_ACTIONS: Record<string, string> = {
   off_biere: 'BOIRE',
   off_fraises: 'MANGER',
   off_bonbons: 'MANGER',
+  off_cafe: 'BOIRE',
+  off_cocktail: 'BOIRE',
+  off_cookie: 'MANGER',
+  off_glace: 'MANGER',
+  off_pizza: 'MANGER',
   off_rose: 'ADMIRER',
   off_hamburger: 'MANGER',
 };
@@ -24,6 +29,11 @@ const OFFERING_LABELS: Record<string, string> = {
   off_biere: 'Boire',
   off_fraises: 'Manger',
   off_bonbons: 'Manger',
+  off_cafe: 'Boire',
+  off_cocktail: 'Boire',
+  off_cookie: 'Manger',
+  off_glace: 'Manger',
+  off_pizza: 'Manger',
   off_rose: 'Admirer',
   off_hamburger: 'Manger',
 };
