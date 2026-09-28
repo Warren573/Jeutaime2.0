@@ -301,11 +301,13 @@ export function generateAnimalCategory(animalType: RefugeAnimalType): RefugeAnim
     [RefugeAnimalType.CHAT]: RefugeAnimalCategory.SIMPLE,
     [RefugeAnimalType.CHIEN]: RefugeAnimalCategory.SIMPLE,
     [RefugeAnimalType.RENARD]: RefugeAnimalCategory.RARE,
-    [RefugeAnimalType.PINGOUIN]: RefugeAnimalCategory.RARE,
+    [RefugeAnimalType.MANCHOT]: RefugeAnimalCategory.RARE,
     [RefugeAnimalType.IGUANE]: RefugeAnimalCategory.RARE,
     [RefugeAnimalType.PANDA]: RefugeAnimalCategory.EXOTIQUE,
     [RefugeAnimalType.LICORNE]: RefugeAnimalCategory.EXOTIQUE,
     [RefugeAnimalType.DRAGON]: RefugeAnimalCategory.EXOTIQUE,
+    [RefugeAnimalType.TOUCAN]: RefugeAnimalCategory.RARE,
+    [RefugeAnimalType.PERROQUET]: RefugeAnimalCategory.EXOTIQUE,
   };
   return categoryMapping[animalType];
 }
@@ -320,11 +322,13 @@ function getAgeRangeForAnimalType(animalType: RefugeAnimalType): { min: number; 
     [RefugeAnimalType.CHAT]: { min: 2, max: 180 },         // ~15 ans max
     [RefugeAnimalType.CHIEN]: { min: 2, max: 144 },        // ~12 ans max
     [RefugeAnimalType.RENARD]: { min: 6, max: 276 },       // ~23 ans
-    [RefugeAnimalType.PINGOUIN]: { min: 12, max: 312 },    // ~26 ans
+    [RefugeAnimalType.MANCHOT]: { min: 12, max: 312 },    // ~26 ans
     [RefugeAnimalType.IGUANE]: { min: 6, max: 328 },       // ~27 ans
     [RefugeAnimalType.PANDA]: { min: 12, max: 408 },       // ~34 ans
     [RefugeAnimalType.LICORNE]: { min: 12, max: 1200 },    // ~100 ans (fiction)
     [RefugeAnimalType.DRAGON]: { min: 24, max: 4800 },     // très ancien (fiction)
+    [RefugeAnimalType.TOUCAN]: { min: 12, max: 300 },
+    [RefugeAnimalType.PERROQUET]: { min: 12, max: 720 },
   };
   return ageRanges[animalType];
 }
