@@ -23,4 +23,5 @@ export const BREAK_CONDITION_TO_ANTISPELL: Readonly<Record<string, string>> = {
   dance: "mag_danse",
   laughter: "mag_rire",
   music: "mag_musique",
+  rainbow: "mag_arc_en_ciel",
 } as const;
