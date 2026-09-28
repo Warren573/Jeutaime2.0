@@ -14,11 +14,13 @@ export const REFUGE_ANIMALS = [
   "CHAT",
   "CHIEN",
   "RENARD",
-  "PINGOUIN",
+  "MANCHOT",
   "IGUANE",
   "PANDA",
   "LICORNE",
   "DRAGON",
+  "TOUCAN",
+  "PERROQUET",
 ] as const;
 
 export type RefugeAnimal = (typeof REFUGE_ANIMALS)[number];
@@ -34,11 +36,13 @@ export const ANIMAL_LABELS: Record<RefugeAnimal, string> = {
   CHAT: "Chat",
   CHIEN: "Chien",
   RENARD: "Renard",
-  PINGOUIN: "Pingouin",
+  MANCHOT: "Manchot",
   IGUANE: "Iguane",
   PANDA: "Panda",
   LICORNE: "Licorne",
   DRAGON: "Dragon",
+  TOUCAN: "Toucan",
+  PERROQUET: "Perroquet",
 };
 
 export const ANIMAL_EMOJIS: Record<RefugeAnimal, string> = {
@@ -47,11 +51,13 @@ export const ANIMAL_EMOJIS: Record<RefugeAnimal, string> = {
   CHAT: "🐱",
   CHIEN: "🐕",
   RENARD: "🦊",
-  PINGOUIN: "🐧",
+  MANCHOT: "🐧",
   IGUANE: "🦎",
   PANDA: "🐼",
   LICORNE: "🦄",
   DRAGON: "🐉",
+  TOUCAN: "🐦",
+  PERROQUET: "🦜",
 };
 
 /** Emoji de secours pour une valeur serveur, avec fallback neutre. */
