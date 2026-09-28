@@ -1920,11 +1920,11 @@ export default function SalonScreen() {
   const renderOfferingsModal = () => {
     // Get all possible targets: self + other participants
     const possibleTargets = [
-      { id: currentUser?.id || '', name: 'Moi-même', isMe: true },
+      ...(currentUser?.id ? [{ id: currentUser.id, name: 'Moi-même', isMe: true }] : []),
       ...participants.filter(p => !p.isMe).map(p => ({ id: p.id, name: p.name, isMe: false }))
     ];
 
-    const isModalTargetMode = isTestMode() || participants.filter(p => !p.isMe).length === 0;
+    const isModalTargetMode = true;
 
     // Determine target from modal selection, fallback to effectiveSelectedPlayer, or default to first possible target
     let target = null;
