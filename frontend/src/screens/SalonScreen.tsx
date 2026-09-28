@@ -156,6 +156,14 @@ const SLUG_TO_KIND: Record<string, string> = {
   psy: 'PSY',
 };
 
+const NEW_SALON_OFFERINGS: OfferingCatalogItemDTO[] = [
+  { id: 'off_cafe', emoji: '☕', name: 'Café', cost: 20, category: 'BOISSON', durationMs: null, stackPriority: 1, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_cocktail', emoji: '🍸', name: 'Cocktail', cost: 50, category: 'BOISSON', durationMs: null, stackPriority: 2, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_cookie', emoji: '🍪', name: 'Cookie', cost: 25, category: 'NOURRITURE', durationMs: null, stackPriority: 1, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_glace', emoji: '🍦', name: 'Glace', cost: 30, category: 'NOURRITURE', durationMs: null, stackPriority: 2, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_pizza', emoji: '🍕', name: 'Pizza', cost: 45, category: 'NOURRITURE', durationMs: null, stackPriority: 2, salonOnly: null as any, consumptionMode: 'SHARED' },
+];
+
 // Helper: Format message time
 function formatMessageTime(createdAt?: string | number | null): { time: string; dateSeparator?: string } {
   if (createdAt == null) return { time: "" };
@@ -578,10 +586,16 @@ export default function SalonScreen() {
   }, [isAuthenticated]);
 
   // Items affichés dans les modals (API si auth, local sinon)
-  const displayOfferings = useMemo(
-    () => (isAuthenticated && offeringsCatalog.length > 0 ? offeringsCatalog : allOfferings),
-    [isAuthenticated, offeringsCatalog],
-  );
+  const displayOfferings = useMemo(() => {
+    if (isAuthenticated && offeringsCatalog.length > 0) {
+      const merged = [...offeringsCatalog];
+      for (const offering of NEW_SALON_OFFERINGS) {
+        if (!merged.some((item) => item.id === offering.id)) merged.push(offering);
+      }
+      return merged;
+    }
+    return [...allOfferings, ...NEW_SALON_OFFERINGS];
+  }, [isAuthenticated, offeringsCatalog]);
   const displayPowers = useMemo(() => {
     const isMetalSalon = salonId === 'metal';
     if (isAuthenticated && magiesCatalog) {
@@ -1136,7 +1150,10 @@ export default function SalonScreen() {
     // Regular single-target offering
     let target = null;
     if (modalTargetId) {
-      target = participants.find(p => p.id === modalTargetId);
+      target = participants.find(p => p.id === modalTargetId) ||
+        (currentUser?.id === modalTargetId
+          ? { id: currentUser.id, name: currentUser.name || 'Moi', isMe: true }
+          : null);
     }
     if (!target) {
       target = effectiveSelectedPlayer;
@@ -1225,7 +1242,10 @@ export default function SalonScreen() {
     // Determine target from modal selection or fallback
     let target = null;
     if (modalTargetId) {
-      target = participants.find(p => p.id === modalTargetId);
+      target = participants.find(p => p.id === modalTargetId) ||
+        (currentUser?.id === modalTargetId
+          ? { id: currentUser.id, name: currentUser.name || 'Moi', isMe: true }
+          : null);
     }
     if (!target) {
       target = effectiveSelectedPlayer;
