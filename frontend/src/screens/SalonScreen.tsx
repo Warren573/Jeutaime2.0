@@ -197,6 +197,7 @@ const BREAK_CONDITION_TO_ANTISPELL: Readonly<Record<string, string>> = {
   dance: 'mag_danse',
   laughter: 'mag_rire',
   music: 'mag_musique',
+  rainbow: 'mag_arc_en_ciel',
 };
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE } from '../avatar/png/defaults';
@@ -582,12 +583,18 @@ export default function SalonScreen() {
     [isAuthenticated, offeringsCatalog],
   );
   const displayPowers = useMemo(() => {
+    const isMetalSalon = salonId === 'metal';
     if (isAuthenticated && magiesCatalog) {
-      // Anti-sorts nécessitent un castId — on n'expose que les vrais sorts
-      return magiesCatalog.spells;
+      // Anti-sorts nécessitent un castId — on n'expose que les vrais sorts.
+      // Le chat démoniaque est exclusif au salon Métal.
+      return magiesCatalog.spells.filter((spell) =>
+        spell.id !== 'mag_chat_noir' || isMetalSalon
+      );
     }
-    return allPowers;
-  }, [isAuthenticated, magiesCatalog]);
+    return allPowers.filter((power) =>
+      !power.salonOnly || power.salonOnly === salonId
+    );
+  }, [isAuthenticated, magiesCatalog, salonId]);
 
   // Résolution slug → cuid backend via GET /api/salons
   useEffect(() => {
