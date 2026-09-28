@@ -124,7 +124,7 @@ export const animals: Animal[] = [
   },
   { 
     id: 'penguin', 
-    name: 'Pingouin', 
+    name: 'Manchot', 
     emoji: '🐧', 
     cost: 700, 
     rarity: 'peu_commun',
