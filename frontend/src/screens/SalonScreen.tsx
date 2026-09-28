@@ -48,8 +48,6 @@ const TRANSFO_STAGES: Partial<Record<string, any[]>> = {
     require('../../assets/avatar/transformations/CHAT_DEMONIAQUE_1.png'),
     require('../../assets/avatar/transformations/CHAT_DEMONIAQUE_2.png'),
     require('../../assets/avatar/transformations/CHAT_DEMONIAQUE_3.png'),
-    require('../../assets/avatar/transformations/CHAT_DEMONIAQUE_4.png'),
-    require('../../assets/avatar/transformations/CHAT_DEMONIAQUE_5.png'),
   ],
   fantome: [
     require('../../assets/avatar/transformations/GHOST01.png'),
@@ -65,7 +63,6 @@ const TRANSFO_STAGES: Partial<Record<string, any[]>> = {
     require('../../assets/avatar/transformations/POULE01.png'),
     require('../../assets/avatar/transformations/POULE02.png'),
     require('../../assets/avatar/transformations/POULE03.png'),
-    require('../../assets/avatar/transformations/POULE04.png'),
   ],
   statue: [
     require('../../assets/avatar/transformations/STATUE01.png'),
