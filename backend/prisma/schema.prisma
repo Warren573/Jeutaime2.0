@@ -960,11 +960,13 @@ enum RefugeAnimalType {
   CHAT
   CHIEN
   RENARD
-  PINGOUIN
+  MANCHOT
   IGUANE
   PANDA
   LICORNE
   DRAGON
+  TOUCAN
+  PERROQUET
 }
 
 enum RefugeAnimalCategory {
