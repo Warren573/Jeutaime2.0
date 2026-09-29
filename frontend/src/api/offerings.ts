@@ -61,6 +61,7 @@ export async function sendOffering(payload: {
   offeringId: string;
   toUserId: string;
   salonId?: string;
+  sessionId?: string;
 }): Promise<OfferingSentDTO> {
   const res = (await apiFetch("/offerings/send", {
     method: "POST",
@@ -117,8 +118,12 @@ export interface SalonOfferingDTO {
   lastConsumedBy: string | null;
 }
 
-export async function getSalonOfferings(salonId: string): Promise<SalonOfferingDTO[]> {
-  const res = (await apiFetch(`/offerings/salon/${salonId}`)) as {
+export async function getSalonOfferings(
+  salonId: string,
+  sessionId?: string,
+): Promise<SalonOfferingDTO[]> {
+  const query = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+  const res = (await apiFetch(`/offerings/salon/${salonId}${query}`)) as {
     data: SalonOfferingDTO[];
   };
   return res.data;
