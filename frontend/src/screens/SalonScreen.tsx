@@ -731,7 +731,7 @@ export default function SalonScreen() {
     } catch {
       // silent — ne pas bloquer l'UI si le backend est indisponible
     }
-  }, [isAuthenticated, currentUser?.id, apiSalonId]);
+  }, [isAuthenticated, currentUser?.id, apiSalonId, screenSessionId]);
 
   // Consolidated polling: messages + participants + offrandes + magies every 3 seconds
   useEffect(() => {
