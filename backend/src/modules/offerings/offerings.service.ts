@@ -579,6 +579,7 @@ export interface SalonOfferingDto {
   consumptionCount: number;
   currentStage: number;
   consumptionMode: ConsumptionMode;
+  category: string;
   lastConsumedBy: string | null;
 }
 
@@ -624,7 +625,7 @@ export async function listSalonOfferings(
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: 100,
     include: {
-      offering: { select: { emoji: true, name: true, consumptionMode: true } },
+      offering: { select: { emoji: true, name: true, consumptionMode: true, category: true } },
       fromUser: { select: { profile: { select: { pseudo: true } } } },
       toUser: { select: { profile: { select: { pseudo: true } } } },
     },
@@ -648,6 +649,7 @@ export async function listSalonOfferings(
       consumptionCount: r.consumptionCount,
       currentStage: getCurrentStage(r.consumptionCount),
       consumptionMode: r.offering.consumptionMode,
+      category: r.offering.category,
       lastConsumedBy: r.lastConsumedBy,
     }));
 }
