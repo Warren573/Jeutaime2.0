@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Image, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SalonOfferingDTO } from '../api/offerings';
+import { getSalonOfferingStage1Asset } from '../config/salonOfferingAssets';
 
 interface OfferingBadgeProps {
   offering: SalonOfferingDTO;
@@ -13,13 +14,14 @@ interface OfferingBadgeProps {
  */
 export function OfferingBadge({ offering, size = 28 }: OfferingBadgeProps) {
   const pngPath = `/offerings/${offering.offeringId}_stage${offering.currentStage}.png`;
+  const stage1Asset = getSalonOfferingStage1Asset(offering.offeringId);
+  const [fallback, setFallback] = React.useState(false);
 
   const handleImageError = () => {
-    // Si PNG manquant, affiche juste l'emoji
+    // Sur natif, une URI relative peut échouer : on retombe sur le stage1 embarqué,
+    // jamais sur un emoji.
     setFallback(true);
   };
-
-  const [fallback, setFallback] = React.useState(false);
 
   const handlePress = () => {
     // Déterminer le message basé sur offeringId
@@ -59,12 +61,16 @@ export function OfferingBadge({ offering, size = 28 }: OfferingBadgeProps) {
           }}
           onError={handleImageError}
         />
-      ) : null}
-
-      {fallback || !pngPath ? (
-        <Text style={[styles.emoji, { fontSize: size * 0.6 }]}>
-          {offering.emoji}
-        </Text>
+      ) : stage1Asset ? (
+        <Image
+          source={stage1Asset}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+          }}
+          resizeMode="contain"
+        />
       ) : null}
     </TouchableOpacity>
   );
