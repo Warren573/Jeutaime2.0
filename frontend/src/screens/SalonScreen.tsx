@@ -671,7 +671,7 @@ export default function SalonScreen() {
       const [msgs, session, offers, magies, myOffers, activeMag] = await Promise.all([
         apiListMessages(apiSalonId, 50, screenSessionId),
         getSessionDetail(screenSessionId),
-        getSalonOfferings(apiSalonId),
+        getSalonOfferings(apiSalonId, screenSessionId),
         getSalonMagies(apiSalonId),
         getReceivedOfferings(1, 50, true),
         getActiveMagies(currentUser.id),
@@ -715,7 +715,7 @@ export default function SalonScreen() {
       const [offers, magies, salonOff, salonMag] = await Promise.all([
         getReceivedOfferings(1, 50, true),
         getActiveMagies(currentUser.id),
-        apiSalonId ? getSalonOfferings(apiSalonId) : Promise.resolve([]),
+        apiSalonId ? getSalonOfferings(apiSalonId, screenSessionId) : Promise.resolve([]),
         apiSalonId ? getSalonMagies(apiSalonId) : Promise.resolve([]),
       ]);
       setMyReceivedOfferings(offers);
@@ -1182,12 +1182,22 @@ export default function SalonScreen() {
     // Store pre-API call values
     offeringTargetIdAtCallRef.current = targetUserId;
     offeringIdRef.current = item.id;
-    offeringRequestBodyRef.current = { offeringId: item.id, toUserId: targetUserId, salonId: apiSalonId };
+    offeringRequestBodyRef.current = {
+      offeringId: item.id,
+      toUserId: targetUserId,
+      salonId: apiSalonId,
+      sessionId: screenSessionId,
+    };
 
 
     if (isAuthenticated && apiSalonId) {
       try {
-        const offeringResult = await sendOffering({ offeringId: item.id, toUserId: targetUserId, salonId: apiSalonId });
+        const offeringResult = await sendOffering({
+          offeringId: item.id,
+          toUserId: targetUserId,
+          salonId: apiSalonId,
+          sessionId: screenSessionId || undefined,
+        });
         // Store post-API call response
         offeringResponseStatusRef.current = 'success';
         offeringResponseBodyRef.current = offeringResult;
