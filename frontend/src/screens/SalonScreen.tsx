@@ -157,11 +157,15 @@ const SLUG_TO_KIND: Record<string, string> = {
 };
 
 const NEW_SALON_OFFERINGS: OfferingCatalogItemDTO[] = [
-  { id: 'off_cafe', emoji: '☕', name: 'Café', cost: 20, category: 'BOISSON', durationMs: null, stackPriority: 1, salonOnly: null as any, consumptionMode: 'SHARED' },
-  { id: 'off_cocktail', emoji: '🍸', name: 'Cocktail', cost: 50, category: 'BOISSON', durationMs: null, stackPriority: 2, salonOnly: null as any, consumptionMode: 'SHARED' },
-  { id: 'off_cookie', emoji: '🍪', name: 'Cookie', cost: 25, category: 'NOURRITURE', durationMs: null, stackPriority: 1, salonOnly: null as any, consumptionMode: 'SHARED' },
-  { id: 'off_glace', emoji: '🍦', name: 'Glace', cost: 30, category: 'NOURRITURE', durationMs: null, stackPriority: 2, salonOnly: null as any, consumptionMode: 'SHARED' },
-  { id: 'off_pizza', emoji: '🍕', name: 'Pizza', cost: 45, category: 'NOURRITURE', durationMs: null, stackPriority: 2, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_cafe', emoji: '', name: 'Café', cost: 20, category: 'BOISSON', durationMs: null, stackPriority: 1, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_cocktail', emoji: '', name: 'Cocktail', cost: 50, category: 'BOISSON', durationMs: null, stackPriority: 2, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_cookie', emoji: '', name: 'Cookie', cost: 25, category: 'NOURRITURE', durationMs: null, stackPriority: 1, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_glace', emoji: '', name: 'Glace', cost: 30, category: 'NOURRITURE', durationMs: null, stackPriority: 2, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_pizza', emoji: '', name: 'Pizza', cost: 45, category: 'NOURRITURE', durationMs: null, stackPriority: 2, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_coupechampagne', emoji: '', name: 'Coupe de champagne', cost: 150, category: 'BOISSON', durationMs: null, stackPriority: 4, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_verrevin', emoji: '', name: 'Verre de vin', cost: 45, category: 'BOISSON', durationMs: null, stackPriority: 2, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_sushismakis', emoji: '', name: 'Sushis & makis', cost: 60, category: 'NOURRITURE', durationMs: null, stackPriority: 3, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_the', emoji: '', name: 'Thé', cost: 20, category: 'BOISSON', durationMs: null, stackPriority: 1, salonOnly: null as any, consumptionMode: 'SHARED' },
 ];
 
 // Helper: Format message time
@@ -212,6 +216,10 @@ import { DEFAULT_AVATAR_FEMALE, DEFAULT_AVATAR_MALE } from '../avatar/png/defaul
 import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { CoinIcon } from '../components/CoinIcon';
+import {
+  getSalonOfferingStage1Asset,
+  SALON_OFFERING_IDS_WITH_PNG,
+} from '../config/salonOfferingAssets';
 
 // ============================================
 // COMPOSANT AVATAR AVEC ANIMATION BREATHING
@@ -593,9 +601,11 @@ export default function SalonScreen() {
       for (const offering of NEW_SALON_OFFERINGS) {
         if (!merged.some((item) => item.id === offering.id)) merged.push(offering);
       }
-      return merged;
+      return merged.filter((item) => SALON_OFFERING_IDS_WITH_PNG.has(item.id));
     }
-    return [...allOfferings, ...NEW_SALON_OFFERINGS];
+    return [...allOfferings, ...NEW_SALON_OFFERINGS].filter((item: any) =>
+      SALON_OFFERING_IDS_WITH_PNG.has(item.id),
+    );
   }, [isAuthenticated, offeringsCatalog]);
   const displayPowers = useMemo(() => {
     const isMetalSalon = salonId === 'metal';
@@ -1205,7 +1215,7 @@ export default function SalonScreen() {
       id: Date.now().toString(),
       from: currentUser?.name || 'Vous',
       to: isSelf ? 'Moi' : target.name,
-      emoji: item.emoji,
+      emoji: '',
       name: item.name,
       timestamp: Date.now(),
     }, ...prev].slice(0, 10));
@@ -1217,11 +1227,11 @@ export default function SalonScreen() {
       userName: 'Système',
       username: 'Système',
       content: isSelf
-        ? `${currentUser?.name || 'Vous'} s'offre ${item.emoji}!`
-        : `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} à ${target.name}!`,
+        ? `${currentUser?.name || 'Vous'} s'offre ${item.name} !`
+        : `${currentUser?.name || 'Vous'} a envoyé ${item.name} à ${target.name} !`,
       text: isSelf
-        ? `${currentUser?.name || 'Vous'} s'offre ${item.emoji}!`
-        : `${currentUser?.name || 'Vous'} a envoyé ${item.emoji} à ${target.name}!`,
+        ? `${currentUser?.name || 'Vous'} s'offre ${item.name} !`
+        : `${currentUser?.name || 'Vous'} a envoyé ${item.name} à ${target.name} !`,
       timestamp: Date.now(),
       type: 'offering',
       isSystem: true,
@@ -1993,7 +2003,13 @@ export default function SalonScreen() {
                 style={styles.offeringItem}
                 onPress={() => handleSendOffering(item)}
               >
-                <Text style={styles.offeringEmoji}>{item.emoji}</Text>
+                {getSalonOfferingStage1Asset(item.id) ? (
+                  <Image
+                    source={getSalonOfferingStage1Asset(item.id)}
+                    style={styles.offeringStageImage}
+                    resizeMode="contain"
+                  />
+                ) : null}
                 <View style={styles.offeringInfo}>
                   <Text style={styles.offeringName}>{item.name}</Text>
                   <View style={styles.offeringCostRow}><CoinIcon size={13} /><Text style={styles.offeringCost}>{item.cost}</Text></View>
@@ -2888,6 +2904,11 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     marginBottom: 10,
+  },
+  offeringStageImage: {
+    width: 58,
+    height: 58,
+    marginRight: 12,
   },
   offeringEmoji: {
     fontSize: 28,
