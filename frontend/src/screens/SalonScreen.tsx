@@ -396,8 +396,11 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
         <View style={styles.badgesColumn}>
           {(() => {
             const latestByCategory = [...participant.offerings].reverse().reduce<{ drink?: any; food?: any }>((acc, offering: any) => {
-              const catalogItem = allOfferings.find((item: any) => item.id === offering.offeringId);
-              const category = String(catalogItem?.category || offering.category || '').toUpperCase();
+              const catalogItem =
+                offeringsCatalog.find((item: any) => item.id === offering.offeringId) ||
+                NEW_SALON_OFFERINGS.find((item: any) => item.id === offering.offeringId) ||
+                allOfferings.find((item: any) => item.id === offering.offeringId);
+              const category = String(offering.category || catalogItem?.category || '').toUpperCase();
               if (!acc.drink && category === 'BOISSON') acc.drink = offering;
               if (!acc.food && (category === 'NOURRITURE' || category === 'FOOD')) acc.food = offering;
               return acc;
@@ -900,6 +903,7 @@ export default function SalonScreen() {
           isActive: o.isActive,
           consumptionCount: o.consumptionCount,
           consumptionMode: o.consumptionMode,
+          category: o.category,
           toUserId: o.toUserId,
           currentStage: o.currentStage,
         }));
