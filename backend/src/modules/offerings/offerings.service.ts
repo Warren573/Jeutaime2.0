@@ -316,14 +316,15 @@ export async function sendOfferingToSession(
     throw new BadRequestError("User is not an active participant in this session");
   }
 
-  // 4. Filter out banned users and get valid recipients
-  const recipients = session.participants
+  // 4. Participants actifs et non bannis.
+  // Une tournée générale vise tout le salon, y compris l'expéditeur.
+  let recipients = session.participants
     .map(p => p.user)
     .filter(u => !u.isBanned)
     .map(u => u.id);
 
   if (recipients.length === 0) {
-    throw new BadRequestError("No valid recipients in this session");
+    throw new BadRequestError("Aucun participant disponible pour la tournée générale");
   }
 
   // 5. Check salon-only restrictions
@@ -332,28 +333,33 @@ export async function sendOfferingToSession(
     { isActive: session.salon.isActive, kind: session.salon.kind }
   );
 
-  // 6. Une seule offrande active par catégorie et par participant.
-  // Une tournée est refusée si au moins un participant possède encore cette catégorie.
+  // 6. Une seule boisson et une seule nourriture actives par participant.
+  // Important : un participant déjà occupé ne doit plus faire échouer toute
+  // la tournée. On l'ignore et on sert les participants encore éligibles.
   if (catalog.category === 'BOISSON' || catalog.category === 'NOURRITURE') {
-    const occupied = await prisma.offeringSent.findFirst({
+    const occupied = await prisma.offeringSent.findMany({
       where: {
         toUserId: { in: recipients },
         salonId: session.salon.id,
         consumptionCount: { lt: 3 },
         offering: { category: catalog.category },
       },
-      select: { id: true },
+      select: { toUserId: true },
     });
-    if (occupied) {
+
+    const occupiedIds = new Set(occupied.map(row => row.toUserId));
+    recipients = recipients.filter(userId => !occupiedIds.has(userId));
+
+    if (recipients.length === 0) {
       throw new BadRequestError(
         catalog.category === 'BOISSON'
-          ? 'Une boisson doit être terminée avant d’en commander ou d’en offrir une autre'
-          : 'La nourriture doit être terminée avant d’en commander ou d’en offrir une autre',
+          ? 'Tous les participants ont déjà une boisson à terminer'
+          : 'Tous les participants ont déjà quelque chose à manger à terminer',
       );
     }
   }
 
-  // 7. Calculate total cost and validate wallet
+  // 7. Le prix d'une tournée est calculé uniquement sur les personnes servies.
   const totalCost = catalog.cost * recipients.length;
   const now = new Date();
   const expiresAt = computeOfferingExpiry(now, catalog.durationMs);
