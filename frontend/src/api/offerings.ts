@@ -115,6 +115,7 @@ export interface SalonOfferingDTO {
   consumptionCount: number;
   currentStage: number;
   consumptionMode: "PRIVATE" | "SHARED";
+  category: string;
   lastConsumedBy: string | null;
 }
 
