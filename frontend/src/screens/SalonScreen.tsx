@@ -157,6 +157,9 @@ const SLUG_TO_KIND: Record<string, string> = {
 };
 
 const NEW_SALON_OFFERINGS: OfferingCatalogItemDTO[] = [
+  { id: 'off_biere', emoji: '', name: 'Bière pression', cost: 30, category: 'BOISSON', durationMs: null, stackPriority: 1, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_fraises', emoji: '', name: 'Fraises', cost: 35, category: 'NOURRITURE', durationMs: null, stackPriority: 1, salonOnly: null as any, consumptionMode: 'SHARED' },
+  { id: 'off_bonbons', emoji: '', name: 'Bonbons', cost: 20, category: 'NOURRITURE', durationMs: null, stackPriority: 1, salonOnly: null as any, consumptionMode: 'SHARED' },
   { id: 'off_cafe', emoji: '', name: 'Café', cost: 20, category: 'BOISSON', durationMs: null, stackPriority: 1, salonOnly: null as any, consumptionMode: 'SHARED' },
   { id: 'off_cocktail', emoji: '', name: 'Cocktail', cost: 50, category: 'BOISSON', durationMs: null, stackPriority: 2, salonOnly: null as any, consumptionMode: 'SHARED' },
   { id: 'off_cookie', emoji: '', name: 'Cookie', cost: 25, category: 'NOURRITURE', durationMs: null, stackPriority: 1, salonOnly: null as any, consumptionMode: 'SHARED' },
@@ -1151,6 +1154,8 @@ export default function SalonScreen() {
         offeringErrorRef.current = msg;
         if (/insuffisant|insufficient|coins/i.test(msg)) {
           alert('Pas assez de pièces pour une tournée générale !');
+        } else if (msg) {
+          alert(msg);
         } else {
           alert('Tournée générale échouée. Réessaie.');
         }
