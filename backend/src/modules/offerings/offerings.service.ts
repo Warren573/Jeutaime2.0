@@ -168,9 +168,10 @@ export async function sendOffering(
     );
   }
 
-  // Charger le salon si fourni
-  console.log('[VALIDATION-5] checking salon if provided', { salonId: dto.salonId });
+  // Charger le salon si fourni et, en salon, rattacher la logique à la session active.
+  console.log('[VALIDATION-5] checking salon if provided', { salonId: dto.salonId, sessionId: dto.sessionId });
   let salon: { id: string; isActive: boolean; kind: SalonKind } | null = null;
+  let salonSessionStart: Date | null = null;
   if (dto.salonId !== undefined) {
     const s = await prisma.salon.findUnique({
       where: { id: dto.salonId },
@@ -181,6 +182,33 @@ export async function sendOffering(
       throw new NotFoundError("Salon");
     }
     salon = s;
+
+    if (dto.sessionId) {
+      const activeSession = await prisma.salonSession.findUnique({
+        where: { id: dto.sessionId },
+        select: {
+          id: true,
+          salonKind: true,
+          startedAt: true,
+          status: true,
+          participants: {
+            where: { userId: dto.toUserId, status: "ACTIVE" },
+            select: { userId: true },
+          },
+        },
+      });
+
+      if (
+        !activeSession ||
+        activeSession.status !== "ACTIVE" ||
+        activeSession.salonKind !== s.kind ||
+        activeSession.participants.length === 0
+      ) {
+        throw new BadRequestError("La cible n'appartient pas à cette session de salon");
+      }
+
+      salonSessionStart = activeSession.startedAt;
+    }
   }
 
   // Cohérence salonOnly
@@ -200,6 +228,7 @@ export async function sendOffering(
       where: {
         toUserId: dto.toUserId,
         salonId: salon.id,
+        ...(salonSessionStart ? { createdAt: { gte: salonSessionStart } } : {}),
         consumptionCount: { lt: 3 },
         offering: { category: catalog.category },
       },
@@ -341,6 +370,7 @@ export async function sendOfferingToSession(
       where: {
         toUserId: { in: recipients },
         salonId: session.salon.id,
+        createdAt: { gte: session.startedAt },
         consumptionCount: { lt: 3 },
         offering: { category: catalog.category },
       },
@@ -560,20 +590,36 @@ export interface SalonOfferingDto {
 // ============================================================
 export async function listSalonOfferings(
   salonId: string,
+  sessionId?: string,
   now: Date = new Date(),
 ): Promise<SalonOfferingDto[]> {
   const salon = await prisma.salon.findUnique({
     where: { id: salonId },
-    select: { id: true, isActive: true },
+    select: { id: true, isActive: true, kind: true },
   });
   if (!salon || !salon.isActive) throw new NotFoundError("Salon");
 
-  const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  let since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  if (sessionId) {
+    const session = await prisma.salonSession.findUnique({
+      where: { id: sessionId },
+      select: { salonKind: true, startedAt: true, status: true },
+    });
+
+    if (!session || session.status !== "ACTIVE" || session.salonKind !== salon.kind) {
+      throw new BadRequestError("Session de salon invalide");
+    }
+
+    // Les offrandes restent visibles pendant toute la session (jusqu'à 7 jours),
+    // au lieu de disparaître au bout de 24 h tout en continuant à bloquer.
+    since = session.startedAt;
+  }
 
   const rows = await prisma.offeringSent.findMany({
     where: {
       salonId,
-      createdAt: { gt: since },
+      createdAt: { gte: since },
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: 100,
@@ -584,7 +630,6 @@ export async function listSalonOfferings(
     },
   });
 
-  // Filtrer consumptionCount >= 3 (offrande disparue après 3 consommations)
   return rows
     .filter((r) => r.consumptionCount < 3)
     .map((r) => ({
@@ -596,7 +641,7 @@ export async function listSalonOfferings(
       fromPseudo: r.fromUser.profile?.pseudo ?? "Anonyme",
       toUserId: r.toUserId,
       toPseudo: r.toUser.profile?.pseudo ?? "Anonyme",
-      salonId: salonId,
+      salonId,
       createdAt: r.createdAt,
       expiresAt: r.expiresAt,
       isActive: isOfferingActive(r, now),
