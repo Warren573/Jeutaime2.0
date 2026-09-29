@@ -8,6 +8,7 @@ export const SendOfferingSchema = z
     offeringId: z.string().min(1).max(64),
     toUserId: z.string().min(1).max(64),
     salonId: z.string().min(1).max(64).optional(),
+    sessionId: z.string().min(1).max(64).optional(),
   })
   .strict();
 
