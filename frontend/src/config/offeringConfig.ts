@@ -60,6 +60,30 @@ export const OFFERING_CONFIG: Record<string, OfferingConfig> = {
     label: 'Manger',
     consumptionMode: 'SHARED',
   },
+  off_coupechampagne: {
+    id: 'off_coupechampagne',
+    action: 'BOIRE',
+    label: 'Boire',
+    consumptionMode: 'SHARED',
+  },
+  off_verrevin: {
+    id: 'off_verrevin',
+    action: 'BOIRE',
+    label: 'Boire',
+    consumptionMode: 'SHARED',
+  },
+  off_sushismakis: {
+    id: 'off_sushismakis',
+    action: 'MANGER',
+    label: 'Manger',
+    consumptionMode: 'SHARED',
+  },
+  off_the: {
+    id: 'off_the',
+    action: 'BOIRE',
+    label: 'Boire',
+    consumptionMode: 'SHARED',
+  },
 
   // Futurs offerings seront ajoutés ici
 };
