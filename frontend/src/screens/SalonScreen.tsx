@@ -2563,9 +2563,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   meNameBadge: {
-    marginTop: 1,
+    marginTop: 6,
     paddingHorizontal: 7,
-    paddingVertical: 0,
+    height: 15,
     borderRadius: 999,
     backgroundColor: '#5B78E6',
     alignItems: 'center',
@@ -2575,9 +2575,9 @@ const styles = StyleSheet.create({
   },
   meNameBadgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    lineHeight: 12,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 14,
   },
   avatarName: {
     fontSize: 12,
