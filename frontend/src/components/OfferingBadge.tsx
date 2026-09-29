@@ -13,7 +13,8 @@ interface OfferingBadgeProps {
  * PNG nommage: /offerings/{offeringId}_stage{currentStage}.png
  */
 export function OfferingBadge({ offering, size = 28 }: OfferingBadgeProps) {
-  const pngPath = `/offerings/${offering.offeringId}_stage${offering.currentStage}.png`;
+  const fileId = offering.offeringId === 'off_the' ? 'off_thé' : offering.offeringId;
+  const pngPath = `/offerings/${fileId}_stage${offering.currentStage}.png`;
   const stage1Asset = getSalonOfferingStage1Asset(offering.offeringId);
   const [fallback, setFallback] = React.useState(false);
 
