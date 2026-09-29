@@ -397,7 +397,6 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
           {(() => {
             const latestByCategory = [...participant.offerings].reverse().reduce<{ drink?: any; food?: any }>((acc, offering: any) => {
               const catalogItem =
-                offeringsCatalog.find((item: any) => item.id === offering.offeringId) ||
                 NEW_SALON_OFFERINGS.find((item: any) => item.id === offering.offeringId) ||
                 allOfferings.find((item: any) => item.id === offering.offeringId);
               const category = String(offering.category || catalogItem?.category || '').toUpperCase();
