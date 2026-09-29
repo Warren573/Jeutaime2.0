@@ -380,15 +380,16 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
           )}
         </View>
 
-        {participant.isMe && (
-          <View style={styles.meBadge}>
-            <Text style={styles.meBadgeText}>Moi</Text>
-          </View>
-        )}
         {showName && (
-          <Text style={[styles.avatarName, { maxWidth: size + 20 }]} numberOfLines={1}>
-            {participant.name}
-          </Text>
+          participant.isMe ? (
+            <View style={[styles.meNameBadge, { maxWidth: size + 20 }]}>
+              <Text style={styles.meNameBadgeText}>Moi</Text>
+            </View>
+          ) : (
+            <Text style={[styles.avatarName, { maxWidth: size + 20 }]} numberOfLines={1}>
+              {participant.name}
+            </Text>
+          )
         )}
       </TouchableOpacity>
 
@@ -2560,6 +2561,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#FFF',
     fontWeight: '700',
+  },
+  meNameBadge: {
+    marginTop: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: '#5B78E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  meNameBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 17,
   },
   avatarName: {
     fontSize: 12,
