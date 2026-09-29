@@ -74,7 +74,9 @@ export async function handleListSalonOfferings(
   res: Response,
 ) {
   const salonId = req.params["salonId"] as string;
-  const data = await svc.listSalonOfferings(salonId);
+  const sessionId =
+    typeof req.query["sessionId"] === "string" ? req.query["sessionId"] : undefined;
+  const data = await svc.listSalonOfferings(salonId, sessionId);
   res.json({ data });
 }
 
