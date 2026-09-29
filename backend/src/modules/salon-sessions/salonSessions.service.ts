@@ -661,8 +661,9 @@ export async function performDrinkAction(
     const offerings = await prisma.offeringSent.findMany({
       where: {
         salonId: session.salon.id,
+        createdAt: { gte: session.startedAt },
         consumptionCount: { lt: 3 },
-        // CRITICAL: Only offerings from ACTIVE participants in THIS session
+        // CRITICAL: Only offerings created during THIS session and from ACTIVE participants
         fromUser: {
           salonSessionParticipants: {
             some: {
@@ -755,8 +756,9 @@ export async function performEatAction(
     const offerings = await prisma.offeringSent.findMany({
       where: {
         salonId: session.salon.id,
+        createdAt: { gte: session.startedAt },
         consumptionCount: { lt: 3 },
-        // CRITICAL: Only offerings from ACTIVE participants in THIS session
+        // CRITICAL: Only offerings created during THIS session and from ACTIVE participants
         fromUser: {
           salonSessionParticipants: {
             some: {
