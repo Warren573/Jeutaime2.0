@@ -19,6 +19,7 @@ import { ANIMAL_LABELS } from '../data/refugeAnimals';
 import { apiFetch } from '../api/client';
 import { APP_COLORS, APP_RADIUS, APP_SPACING } from '../theme/appTheme';
 import { CoinIcon } from './CoinIcon';
+import Svg, { Path, Circle } from 'react-native-svg';
 
 const WOOD_BG = require('../../assets/images/home/board-wood-bg.png');
 const J = { bgBoard: APP_COLORS.background, textMain: APP_COLORS.ink, textSecondary: APP_COLORS.muted, accentPrimary: APP_COLORS.burgundy };
@@ -32,6 +33,21 @@ const SALON_UI_ICONS: Record<string, any> = {
   metal: require('../../assets/ui-icons/metal.png'),
   psy: require('../../assets/ui-icons/psy.png'),
 };
+
+// Le contour est vectoriel et son centre est réellement transparent : la plage reste visible.
+const POSTCARD_FRAME_PATH = (() => {
+  const parts = ['M 20 15'];
+  for (let x = 20; x < 880; x += 20) parts.push(`Q ${x + 10} 0 ${x + 20} 15`);
+  parts.push('L 885 20');
+  for (let y = 20; y < 580; y += 20) parts.push(`Q 900 ${y + 10} 885 ${y + 20}`);
+  parts.push('L 880 585');
+  for (let x = 880; x > 20; x -= 20) parts.push(`Q ${x - 10} 600 ${x - 20} 585`);
+  parts.push('L 15 580');
+  for (let y = 580; y > 20; y -= 20) parts.push(`Q 0 ${y - 10} 15 ${y - 20}`);
+  // Trou central : ne jamais recouvrir l'image de la plage.
+  parts.push('Z M 32 30 H 868 V 570 H 32 Z');
+  return parts.join(' ');
+})();
 
 interface PaperProps { children: React.ReactNode; onPress?: () => void; style?: any; }
 const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
@@ -95,7 +111,13 @@ export function PersonalBoard() {
         <TouchableOpacity onPress={() => router.push('/bottles-main')} activeOpacity={0.78} style={styles.postcardTouchable}>
           <View style={styles.postcardPaper}>
             <Image source={require('../../assets/images/bottle/beach.png')} style={styles.postcardImage} resizeMode="cover" />
-            <Image source={require('../../assets/images/home/postcard-frame.png')} style={styles.postcardFrame} resizeMode="stretch" pointerEvents="none" />
+            <Svg viewBox="0 0 900 600" preserveAspectRatio="none" style={styles.postcardFrame} pointerEvents="none">
+              <Path d={POSTCARD_FRAME_PATH} fill="#F4E7CE" fillRule="evenodd" stroke="#E3D0A7" strokeWidth={2} />
+              <Circle cx={783} cy={514} r={37} stroke="#5D4739" strokeWidth={4} fill="#F4E7CE" fillOpacity={0.65} />
+              <Circle cx={783} cy={514} r={29} stroke="#5D4739" strokeWidth={2} fill="none" strokeDasharray="2 10" />
+              <Path d="M 783 531 C 760 514 761 497 774 497 C 779 497 782 500 783 504 C 784 500 788 497 793 497 C 807 497 805 514 783 531 Z" fill="#FFF9EA" stroke="#5D4739" strokeWidth={2} />
+              <Path d="M 663 496 Q 685 488 708 496 T 752 496 M 663 508 Q 685 500 708 508 T 752 508 M 663 520 Q 685 512 708 520 T 752 520 M 663 532 Q 685 524 708 532 T 752 532" stroke="#5D4739" strokeWidth={3} fill="none" strokeLinecap="round" />
+            </Svg>
             {hasBottle && <View style={styles.bottleWrapper} pointerEvents="none"><Image source={require('../../assets/images/bottle-message.png')} style={{ width: bottleImgW, height: bottleImgH, resizeMode: 'contain' }} /></View>}
           </View>
         </TouchableOpacity>
@@ -110,5 +132,5 @@ export function PersonalBoard() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: J.bgBoard }, loadingText: { color: APP_COLORS.muted, textAlign: 'center', marginTop: 50 }, board: { flex: 1, position: 'relative', width: '100%', overflow: 'hidden', backgroundColor: J.bgBoard }, backgroundLayer: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' }, woodBackground: { width: '100%', height: '100%' }, paperWrap: { borderRadius: APP_RADIUS.sm, shadowColor: '#2F2118', shadowOpacity: 0.14, shadowRadius: 5, shadowOffset: { width: 2, height: 4 }, elevation: 4 }, paper: { width: '100%', backgroundColor: APP_COLORS.paper, borderRadius: APP_RADIUS.sm, borderWidth: 1, borderColor: APP_COLORS.border, padding: APP_SPACING.sm, alignItems: 'center' }, magnet: { position: 'absolute', width: 14, height: 14, borderRadius: 7, backgroundColor: '#666', top: -7, left: '50%', marginLeft: -7, zIndex: 10 },
   settingsButton: { position: 'absolute', width: 36, height: 36, alignItems: 'center', justifyContent: 'center', zIndex: 30 },
-  profileName: { fontSize: 14, fontWeight: '700', color: J.textMain, marginTop: 2 }, animalTitle: { fontSize: 13, fontWeight: '700', color: J.textMain, marginBottom: 4 }, animalImage: { width: 54, height: 54, resizeMode: 'contain' }, animalIcon: { fontSize: 30, marginVertical: 4 }, animalName: { fontSize: 13, color: J.textMain }, animalStatus: { fontSize: 10, color: J.accentPrimary, fontWeight: '600', textAlign: 'center', marginTop: 3 }, sectionTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }, sectionTitle: { fontSize: 14, fontWeight: '700', color: J.textMain }, lettersContainer: { marginTop: 5, width: '100%' }, letterItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 2 },  letterSenderName: { fontSize: 11, color: J.textSecondary, maxWidth: '75%' }, emptyLetters: { fontSize: 12, color: J.textSecondary, marginTop: 7 }, smilesTitle: { fontSize: 12, fontWeight: '700', color: J.textMain }, smilesCount: { fontSize: 25, fontWeight: '700', color: J.accentPrimary, marginTop: 5 }, postcardWrap: { shadowColor: '#2F2118', shadowOpacity: 0.22, shadowRadius: 6, shadowOffset: { width: 2, height: 5 }, elevation: 5, transform: [{ rotate: '-2deg' }] }, postcardTouchable: { flex: 1, overflow: 'visible' }, postcardPaper: { flex: 1, position: 'relative', overflow: 'visible' }, postcardImage: { position: 'absolute', left: 7, right: 7, top: 7, bottom: 7, width: undefined, height: undefined, borderRadius: 1 }, postcardFrame: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', zIndex: 3 }, bottleWrapper: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', zIndex: 5 }, giftsTitle: { fontSize: 14, fontWeight: '700', color: J.textMain, marginBottom: 5 }, giftItem: { fontSize: 11, color: J.textMain, marginTop: 4 }, offeringsContainer: { width: '100%', alignItems: 'center' }, offeringItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 2, minHeight: 20 }, offeringPNG: { width: 28, height: 28, resizeMode: 'contain' }, offeringName: { fontSize: 11, color: J.textMain }, moreIndicator: { fontSize: 10, color: J.textSecondary, marginTop: 2 }, salonTitle: { fontSize: 12, fontWeight: '700', color: J.textMain }, salonIconImage: { width: 32, height: 32, marginVertical: 4 }, salonName: { fontSize: 11, color: J.textSecondary }, statsTitle: { fontSize: 12, fontWeight: '700', color: J.textMain, marginBottom: 5 }, statCoinRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }, statValue: { fontSize: 11, color: J.textMain, marginTop: 2 },
+  profileName: { fontSize: 14, fontWeight: '700', color: J.textMain, marginTop: 2 }, animalTitle: { fontSize: 13, fontWeight: '700', color: J.textMain, marginBottom: 4 }, animalImage: { width: 54, height: 54, resizeMode: 'contain' }, animalIcon: { fontSize: 30, marginVertical: 4 }, animalName: { fontSize: 13, color: J.textMain }, animalStatus: { fontSize: 10, color: J.accentPrimary, fontWeight: '600', textAlign: 'center', marginTop: 3 }, sectionTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }, sectionTitle: { fontSize: 14, fontWeight: '700', color: J.textMain }, lettersContainer: { marginTop: 5, width: '100%' }, letterItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 2 },  letterSenderName: { fontSize: 11, color: J.textSecondary, maxWidth: '75%' }, emptyLetters: { fontSize: 12, color: J.textSecondary, marginTop: 7 }, smilesTitle: { fontSize: 12, fontWeight: '700', color: J.textMain }, smilesCount: { fontSize: 25, fontWeight: '700', color: J.accentPrimary, marginTop: 5 }, postcardWrap: { shadowColor: '#2F2118', shadowOpacity: 0.22, shadowRadius: 6, shadowOffset: { width: 2, height: 5 }, elevation: 5, transform: [{ rotate: '-2deg' }] }, postcardTouchable: { flex: 1, overflow: 'visible' }, postcardPaper: { flex: 1, position: 'relative', overflow: 'visible' }, postcardImage: { position: 'absolute', left: '3.5%', right: '3.5%', top: '5%', bottom: '5%', width: '93%', height: '90%' }, postcardFrame: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', zIndex: 3 }, bottleWrapper: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', zIndex: 5 }, giftsTitle: { fontSize: 14, fontWeight: '700', color: J.textMain, marginBottom: 5 }, giftItem: { fontSize: 11, color: J.textMain, marginTop: 4 }, offeringsContainer: { width: '100%', alignItems: 'center' }, offeringItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 2, minHeight: 20 }, offeringPNG: { width: 28, height: 28, resizeMode: 'contain' }, offeringName: { fontSize: 11, color: J.textMain }, moreIndicator: { fontSize: 10, color: J.textSecondary, marginTop: 2 }, salonTitle: { fontSize: 12, fontWeight: '700', color: J.textMain }, salonIconImage: { width: 32, height: 32, marginVertical: 4 }, salonName: { fontSize: 11, color: J.textSecondary }, statsTitle: { fontSize: 12, fontWeight: '700', color: J.textMain, marginBottom: 5 }, statCoinRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }, statValue: { fontSize: 11, color: J.textMain, marginTop: 2 },
 });
