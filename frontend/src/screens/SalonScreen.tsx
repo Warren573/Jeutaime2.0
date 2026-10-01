@@ -520,6 +520,7 @@ export default function SalonScreen() {
   const [showProfileTargetMenu, setShowProfileTargetMenu] = useState(false);
   const [showOfferingTargetMenu, setShowOfferingTargetMenu] = useState(false);
   const [showMagieTargetMenu, setShowMagieTargetMenu] = useState(false);
+  const [showMentionMenu, setShowMentionMenu] = useState(false);
   const [recentInteractions, setRecentInteractions] = useState<Array<{
     id: string;
     from: string;
@@ -1085,6 +1086,15 @@ export default function SalonScreen() {
     addMessage(salonId, newMessage);
     setMessageInput('');
     scrollToEnd();
+  };
+
+  const insertMention = (label: string) => {
+    const mention = label === 'Tout le monde' ? '@toutlemonde' : `@${label}`;
+    setMessageInput((prev) => {
+      const trimmedRight = prev.replace(/\s+$/, '');
+      return trimmedRight ? `${trimmedRight} ${mention} ` : `${mention} `;
+    });
+    setShowMentionMenu(false);
   };
 
   // Perform drink action
@@ -1728,7 +1738,18 @@ export default function SalonScreen() {
                   {!isOwn && <Text style={styles.messageSender}>{item.userName || item.username}</Text>}
                   <View style={[styles.messageBubble, isOwn && styles.messageBubbleOwn]}>
                     <Text style={[styles.messageText, isOwn && styles.messageTextOwn]}>
-                      {item.content || item.text}
+                      {String(item.content || item.text || '').split(/(@toutlemonde|@[A-Za-z0-9_.-]+)/g).map((part, partIndex) =>
+                        part.startsWith('@') ? (
+                          <Text
+                            key={`${item.id}-mention-${partIndex}`}
+                            style={[styles.mentionText, isOwn && styles.mentionTextOwn]}
+                          >
+                            {part}
+                          </Text>
+                        ) : (
+                          part
+                        )
+                      )}
                     </Text>
                     <Text style={[styles.messageTime, isOwn && styles.messageTimeOwn]}>
                       {time}
@@ -1779,6 +1800,13 @@ export default function SalonScreen() {
           onPress={handleEat}
         >
           <MaterialCommunityIcons name="food-croissant" size={22} color="#B8782E" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.mentionButton}
+          onPress={() => setShowMentionMenu(true)}
+          accessibilityLabel="Mentionner un participant"
+        >
+          <Text style={styles.mentionButtonText}>@</Text>
         </TouchableOpacity>
         <TextInput
           style={styles.textInput}
@@ -2265,6 +2293,48 @@ export default function SalonScreen() {
     );
   };
 
+  const renderMentionMenu = () => {
+    const mentionTargets = participants.filter((p) => !p.isMe);
+
+    return (
+      <Modal visible={showMentionMenu} animationType="fade" transparent>
+        <View style={styles.menuOverlay}>
+          <TouchableOpacity
+            style={styles.menuBackdrop}
+            onPress={() => setShowMentionMenu(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.menu}>
+            <Text style={styles.menuTitle}>S'adresser à :</Text>
+            <ScrollView style={styles.menuList}>
+              <TouchableOpacity
+                style={[styles.menuItem, styles.menuItemAll]}
+                onPress={() => insertMention('Tout le monde')}
+              >
+                <Text style={[styles.menuItemText, styles.menuItemAllText]}>@toutlemonde</Text>
+              </TouchableOpacity>
+              {mentionTargets.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.menuItem}
+                  onPress={() => insertMention(p.name)}
+                >
+                  <Text style={styles.menuItemText}>@{p.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.menuCloseButton}
+              onPress={() => setShowMentionMenu(false)}
+            >
+              <Text style={styles.menuCloseButtonText}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   const renderMagieTargetMenu = () => {
     // Allow targeting self + all other participants
     const allTargets = [
@@ -2337,6 +2407,7 @@ export default function SalonScreen() {
       {renderParticipantProfileModal()}
       {renderProfileTargetMenu()}
       {renderOfferingTargetMenu()}
+      {renderMentionMenu()}
       {renderMagieTargetMenu()}
 
       <ConfirmationModal
@@ -2648,6 +2719,13 @@ const styles = StyleSheet.create({
   messageTextOwn: {
     color: '#FFF',
   },
+  mentionText: {
+    color: '#4057C7',
+    fontWeight: '800',
+  },
+  mentionTextOwn: {
+    color: '#FFF3A6',
+  },
   systemMessage: {
     alignSelf: 'center',
     backgroundColor: 'rgba(102, 126, 234, 0.1)',
@@ -2714,6 +2792,21 @@ const styles = StyleSheet.create({
   },
   actionButtonDisabled: {
     opacity: 0.5,
+  },
+  mentionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EEE7D9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  mentionButtonText: {
+    fontSize: 20,
+    lineHeight: 22,
+    color: '#667eea',
+    fontWeight: '800',
   },
   textInput: {
     flex: 1,
