@@ -5,6 +5,7 @@ import app from "./app";
 import { buildScheduledJobs, startScheduler } from "./jobs";
 import { execSync } from "child_process";
 import { isTestMode } from "./core/testMode";
+import { ensureBootstrapAdmin } from "./modules/admin/adminBootstrap.service";
 
 // Enregistrement des handlers d'événements (doit être importé avant tout)
 import "./events/handlers";
@@ -48,6 +49,8 @@ async function main() {
     );
     await Promise.race([connectPromise, timeoutPromise]);
     logger.info("Base de données connectée");
+    await ensureBootstrapAdmin();
+    logger.info("Compte administrateur vérifié");
   } catch (err) {
     logger.error({ err }, "Impossible de connecter à la base de données");
     throw err;
