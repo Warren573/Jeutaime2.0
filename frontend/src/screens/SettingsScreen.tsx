@@ -162,6 +162,15 @@ export default function SettingsScreen() {
   const hasQuestions = (currentUser?.apiQuestions?.length ?? 0) > 0;
 
   const SECTIONS: SettingsSection[] = [
+    ...(currentUser?.role === 'ADMIN'
+      ? [{
+          key: 'administration',
+          title: 'Administration',
+          items: [
+            { icon: 'shield-half-outline', label: 'Panneau administrateur', route: '/admin' },
+          ],
+        } as SettingsSection]
+      : []),
     {
       key: 'profil',
       title: 'Mon profil',
