@@ -149,3 +149,29 @@ export async function warnUser(
 
   return toDto(target);
 }
+
+
+export async function listUsers(query?: string): Promise<AdminUserDto[]> {
+  const q = query?.trim();
+  const rows = await prisma.user.findMany({
+    where: q
+      ? {
+          OR: [
+            { email: { contains: q, mode: "insensitive" } },
+            { profile: { is: { pseudo: { contains: q, mode: "insensitive" } } } },
+          ],
+        }
+      : undefined,
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    take: 100,
+    select: {
+      ...adminUserSelect,
+      profile: { select: { pseudo: true } },
+    },
+  });
+
+  return rows.map((u) => ({
+    ...toDto(u),
+    pseudo: u.profile?.pseudo ?? null,
+  })) as Array<AdminUserDto & { pseudo: string | null }>;
+}
