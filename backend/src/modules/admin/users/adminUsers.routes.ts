@@ -20,6 +20,13 @@ const wrap = (
   fn: (req: AuthedRequest, res: Response) => Promise<void>,
 ) => asyncHandler((req, res, next) => fn(req as AuthedRequest, res).catch(next));
 
+// GET /api/admin/users — ADMIN only
+router.get(
+  "/",
+  requireRole(Role.ADMIN) as never,
+  wrap(ctrl.handleListUsers),
+);
+
 // POST /api/admin/users/:id/ban — ADMIN only
 router.post(
   "/:id/ban",
