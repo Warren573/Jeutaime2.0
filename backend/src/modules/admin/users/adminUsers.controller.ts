@@ -3,6 +3,13 @@ import { AuthedRequest } from "../../../core/types";
 import * as svc from "./adminUsers.service";
 import type { BanUserDto, WarnUserDto } from "./adminUsers.schemas";
 
+// GET /api/admin/users
+export async function handleListUsers(req: AuthedRequest, res: Response) {
+  const q = typeof req.query["q"] === "string" ? req.query["q"] : undefined;
+  const data = await svc.listUsers(q);
+  res.json({ data });
+}
+
 // POST /api/admin/users/:id/ban
 export async function handleBan(req: AuthedRequest, res: Response) {
   const id = req.params["id"] as string;
