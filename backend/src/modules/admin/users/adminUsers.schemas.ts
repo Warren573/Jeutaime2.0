@@ -96,14 +96,3 @@ export const ResetRefugeSchema = z
   .strict();
 
 export type ResetRefugeDto = z.infer<typeof ResetRefugeSchema>;
-
-// ============================================================
-// POST /api/admin/users/:id/journal-note
-// ============================================================
-export const JournalNoteSchema = z
-  .object({
-    text: z.string().trim().min(2).max(2000),
-  })
-  .strict();
-
-export type JournalNoteDto = z.infer<typeof JournalNoteSchema>;
