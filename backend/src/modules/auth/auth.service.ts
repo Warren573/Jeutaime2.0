@@ -12,6 +12,7 @@ import { RegisterDto, LoginDto } from "./auth.schemas";
 import { Gender } from "@prisma/client";
 import { isPremiumActive } from "../../policies/premium";
 import { computeProfileStatus } from "../../policies/profiles";
+import { recordLoginEvent } from "../operations/operations.service";
 
 // -----------------------------------------------------------------------
 // Helpers
@@ -166,13 +167,34 @@ export async function login(dto: LoginDto) {
     },
   });
 
-  if (!user) throw new UnauthorizedError("Email ou mot de passe incorrect");
+  if (!user) {
+    await recordLoginEvent({
+      email: dto.email,
+      success: false,
+      reason: "INVALID_CREDENTIALS",
+    });
+    throw new UnauthorizedError("Email ou mot de passe incorrect");
+  }
   if (user.isBanned) {
+    await recordLoginEvent({
+      email: dto.email,
+      userId: user.id,
+      success: false,
+      reason: "BANNED",
+    });
     throw new UnauthorizedError(`Compte suspendu${user.banReason ? " : " + user.banReason : ""}`);
   }
 
   const valid = await comparePassword(dto.password, user.passwordHash);
-  if (!valid) throw new UnauthorizedError("Email ou mot de passe incorrect");
+  if (!valid) {
+    await recordLoginEvent({
+      email: dto.email,
+      userId: user.id,
+      success: false,
+      reason: "INVALID_CREDENTIALS",
+    });
+    throw new UnauthorizedError("Email ou mot de passe incorrect");
+  }
 
   const isPremium = isPremiumActive(user);
 
@@ -183,6 +205,12 @@ export async function login(dto: LoginDto) {
 
   const { access, refresh, tokenId } = buildTokenPair(user.id, user.role, isPremium);
   await persistRefreshToken(user.id, tokenId, refresh);
+  await recordLoginEvent({
+    email: dto.email,
+    userId: user.id,
+    success: true,
+    reason: null,
+  });
 
   return { accessToken: access, refreshToken: refresh };
 }
