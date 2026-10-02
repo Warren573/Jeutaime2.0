@@ -33,11 +33,12 @@ const REPORT_REASONS: Array<{ value: ReportReason; label: string }> = [
 export default function ProfileRoute() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ id?: string; source?: string; bottleId?: string }>();
+  const params = useLocalSearchParams<{ id?: string; source?: string; bottleId?: string; adminPreview?: string }>();
   const currentUser = useStore((state) => state.currentUser);
   const profileId = Array.isArray(params.id) ? params.id[0] : params.id;
   const source = Array.isArray(params.source) ? params.source[0] : params.source;
   const isBottleContext = source === 'bottle';
+  const isAdminPreview = (Array.isArray(params.adminPreview) ? params.adminPreview[0] : params.adminPreview) === '1';
 
   const [matches, setMatches] = useState<MatchDTO[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
@@ -55,7 +56,7 @@ export default function ProfileRoute() {
 
   useEffect(() => {
     let active = true;
-    if (!profileId || isOwnProfile) return;
+    if (!profileId || isOwnProfile || isAdminPreview) return;
 
     setIsLoadingMatches(true);
     listMatches()
@@ -86,7 +87,7 @@ export default function ProfileRoute() {
     return () => {
       active = false;
     };
-  }, [profileId, isOwnProfile, isBottleContext]);
+  }, [profileId, isOwnProfile, isBottleContext, isAdminPreview]);
 
   const anyRelationMatch = useMemo(
     () => matches.find((match) => match.otherUserId === profileId),
@@ -228,7 +229,7 @@ export default function ProfileRoute() {
     <View style={styles.container}>
       <ProfileDetailScreen />
 
-      {!isOwnProfile && profileId && (
+      {!isAdminPreview && !isOwnProfile && profileId && (
         <TouchableOpacity
           style={[styles.warningHitArea, { top: insets.top + 13 }]}
           onPress={() => setShowSafetyMenu(true)}
@@ -238,7 +239,7 @@ export default function ProfileRoute() {
         </TouchableOpacity>
       )}
 
-      {!isOwnProfile && profileId && (
+      {!isAdminPreview && !isOwnProfile && profileId && (
         <View style={styles.actions} pointerEvents="box-none">
           {isBottleContext && !mutualSmile && (
             <TouchableOpacity
