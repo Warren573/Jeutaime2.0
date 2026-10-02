@@ -27,7 +27,7 @@ const todayHeadline = () =>
     year: 'numeric',
   });
 
-const formatNumber = (n: number) => n.toLocaleString('fr-FR');
+const formatNumber = (n?: number | null) => Number(n ?? 0).toLocaleString('fr-FR');
 
 export default function JournalScreen() {
   const insets = useSafeAreaInsets();
@@ -108,11 +108,11 @@ export default function JournalScreen() {
 
         <View style={styles.frontPageGrid}>
           <View style={styles.frontPageColumn}>
-            {edition && edition.communityPosts.length > 0 && (
+            {Array.isArray(edition?.communityPosts) && edition.communityPosts.length > 0 && (
               <View style={styles.newsBlock}>
                 <Text style={styles.newsHeadline}>À LA UNE</Text>
                 <View style={styles.newsRule} />
-                {edition.communityPosts.slice(0, 4).map((post) => (
+                {edition!.communityPosts.slice(0, 4).map((post) => (
                   <View key={post.id} style={styles.newsItem}>
                     <Text style={[styles.newsItemText, { fontWeight: '700', marginBottom: 4 }]}>{post.title}</Text>
                     <Text style={styles.newsItemText}>{post.body}</Text>
@@ -134,12 +134,12 @@ export default function JournalScreen() {
               <View style={styles.newsRule} />
               <View style={styles.briefCompactRow}>
                 <View style={styles.briefCompactItem}>
-                  <Text style={styles.briefCompactValue}>{coins}</Text>
+                  <Text style={styles.briefCompactValue}>{Number(coins ?? 0)}</Text>
                   <Text style={styles.briefCompactLabel}>Pièces</Text>
                 </View>
                 <View style={styles.briefCompactDivider} />
                 <View style={styles.briefCompactItem}>
-                  <Text style={styles.briefCompactValue}>{points}</Text>
+                  <Text style={styles.briefCompactValue}>{Number(points ?? 0)}</Text>
                   <Text style={styles.briefCompactLabel}>Points</Text>
                 </View>
               </View>
