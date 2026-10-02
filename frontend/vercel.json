@@ -2,6 +2,12 @@
   "buildCommand": "npx expo export -p web",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "github": {
+    "autoJobCancelation": false
+  }
 }
