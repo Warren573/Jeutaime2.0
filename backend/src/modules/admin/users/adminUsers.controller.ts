@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { AuthedRequest } from "../../../core/types";
 import * as svc from "./adminUsers.service";
-import type { AdjustCoinsDto, BanUserDto, UpdateRoleDto, WarnUserDto } from "./adminUsers.schemas";
+import type { AdjustCoinsDto, BanUserDto, GrantPremiumDto, JournalNoteDto, ResetRefugeDto, ResetSalonsDto, UpdateRoleDto, WarnUserDto } from "./adminUsers.schemas";
 
 // GET /api/admin/users
 export async function handleListUsers(req: AuthedRequest, res: Response) {
@@ -72,4 +72,50 @@ export async function handleUpdateRole(req: AuthedRequest, res: Response) {
     role,
   );
   res.json({ data });
+}
+
+
+export async function handleGrantPremium(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const { days, reason } = req.body as GrantPremiumDto;
+  const data = await svc.grantPremium(
+    { id: req.user.userId, role: req.user.role },
+    id,
+    days,
+    reason,
+  );
+  res.json({ data });
+}
+
+export async function handleResetSalons(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const { reason } = req.body as ResetSalonsDto;
+  const data = await svc.resetUserSalons(
+    { id: req.user.userId, role: req.user.role },
+    id,
+    reason,
+  );
+  res.json({ data });
+}
+
+export async function handleResetRefuge(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const { reason } = req.body as ResetRefugeDto;
+  const data = await svc.resetUserRefuge(
+    { id: req.user.userId, role: req.user.role },
+    id,
+    reason,
+  );
+  res.json({ data });
+}
+
+export async function handleJournalNote(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const { text } = req.body as JournalNoteDto;
+  const data = await svc.addUserJournalNote(
+    { id: req.user.userId, role: req.user.role },
+    id,
+    text,
+  );
+  res.status(201).json({ data });
 }
