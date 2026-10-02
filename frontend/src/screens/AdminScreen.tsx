@@ -1044,6 +1044,12 @@ export default function AdminScreen() {
                       >
                         <Text style={styles.secondaryText}>Voir le profil</Text>
                       </TouchableOpacity>
+                      <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab('economy')}>
+                        <Text style={styles.secondaryText}>Économie</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab('tools')}>
+                        <Text style={styles.secondaryText}>Support technique</Text>
+                      </TouchableOpacity>
                     </View>
                     {selectedUser.role !== 'ADMIN' && (
                       <View style={styles.actions}>
@@ -1167,7 +1173,37 @@ export default function AdminScreen() {
 
           {tab === 'content' && (
             <>
-              <Text style={styles.sectionTitle}>Modération des contenus</Text>
+              <Text style={styles.sectionTitle}>Contenus</Text>
+
+              <SectionCard title="Journal communautaire">
+                <Text style={styles.details}>Publier une information dans l’édition commune visible par tous les utilisateurs.</Text>
+                <TextInput
+                  value={communityJournalTitle}
+                  onChangeText={setCommunityJournalTitle}
+                  placeholder="Titre"
+                  placeholderTextColor="#A48C72"
+                  style={styles.search}
+                />
+                <TextInput
+                  value={communityJournalBody}
+                  onChangeText={setCommunityJournalBody}
+                  placeholder="Texte de l’article"
+                  placeholderTextColor="#A48C72"
+                  multiline
+                  style={[styles.search, styles.multiline]}
+                />
+                <TouchableOpacity style={styles.actionButton} onPress={() => void publishCommunityJournal()}>
+                  <Text style={styles.actionButtonText}>Publier dans le Journal</Text>
+                </TouchableOpacity>
+                {communityJournalPosts.slice(0, 5).map((post) => (
+                  <View key={post.id} style={styles.row}>
+                    <Text style={styles.rowTitle}>{post.title}</Text>
+                    <Text style={styles.rowSub}>{formatDate(post.publishedAt)}</Text>
+                  </View>
+                ))}
+              </SectionCard>
+
+              <Text style={styles.subSectionTitle}>Modération des contenus</Text>
 
               {moderationOverview && (
                 <View style={styles.statsGrid}>
@@ -1487,6 +1523,54 @@ export default function AdminScreen() {
           {tab === 'economy' && (
             <>
               <Text style={styles.sectionTitle}>Économie & Boutique</Text>
+
+              <SectionCard title="Opérations sur un utilisateur">
+                {selectedUser ? (
+                  <>
+                    <Text style={styles.cardTitle}>{selectedUser.profile?.pseudo || selectedUser.email}</Text>
+                    <DataLine label="Solde actuel" value={`${selectedUser.wallet?.coins ?? 0} pièces`} />
+                    <TextInput
+                      value={coinAmount}
+                      onChangeText={setCoinAmount}
+                      keyboardType="number-pad"
+                      placeholder="Nombre de pièces"
+                      placeholderTextColor="#A48C72"
+                      style={styles.search}
+                    />
+                    <TextInput
+                      value={coinReason}
+                      onChangeText={setCoinReason}
+                      placeholder="Motif (ex. geste commercial)"
+                      placeholderTextColor="#A48C72"
+                      style={styles.search}
+                    />
+                    <View style={styles.actionsLeft}>
+                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void adjustCoins(1)}>
+                        <Text style={styles.actionButtonText}>Offrir les pièces</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.dangerButton} onPress={() => void adjustCoins(-1)}>
+                        <Text style={styles.actionButtonText}>Retirer des pièces</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={[styles.cardTitle, { marginTop: 12 }]}>Premium</Text>
+                    <View style={styles.actionsLeft}>
+                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void grantPremiumToSelectedUser(1)}>
+                        <Text style={styles.actionButtonText}>Offrir 1 journée</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void grantPremiumToSelectedUser(30)}>
+                        <Text style={styles.actionButtonText}>Offrir 1 mois</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.details}>Choisis d’abord un utilisateur depuis l’onglet Utilisateurs.</Text>
+                    <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab('users')}>
+                      <Text style={styles.secondaryText}>Choisir un utilisateur</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </SectionCard>
               {economyOverview && (
                 <>
                   <View style={styles.statsGrid}>
@@ -1688,7 +1772,29 @@ export default function AdminScreen() {
 
           {tab === 'tools' && (
             <>
-              <Text style={styles.sectionTitle}>Outils</Text>
+              <Text style={styles.sectionTitle}>Outils & Support</Text>
+
+              <SectionCard title="Réparations techniques d’un compte">
+                <Text style={styles.details}>Ces actions servent uniquement à débloquer un état technique anormal. Elles ne sont pas des actions normales de gestion du profil.</Text>
+                {selectedUser ? (
+                  <>
+                    <Text style={styles.cardTitle}>Compte ciblé : {selectedUser.profile?.pseudo || selectedUser.email}</Text>
+                    <View style={styles.actionsLeft}>
+                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserSalons()}>
+                        <Text style={styles.secondaryText}>Réinitialiser ses salons</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserRefuge()}>
+                        <Text style={styles.secondaryText}>Réinitialiser son Refuge</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab('users')}>
+                    <Text style={styles.secondaryText}>Choisir un utilisateur</Text>
+                  </TouchableOpacity>
+                )}
+              </SectionCard>
+
               <SectionCard title="État technique">
                 <DataLine label="API" value={health?.service ?? 'jeutaime-api'} />
                 <DataLine label="Environnement" value={health?.environment ?? '—'} />
