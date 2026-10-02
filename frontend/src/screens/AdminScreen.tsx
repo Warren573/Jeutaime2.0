@@ -900,9 +900,37 @@ export default function AdminScreen() {
 
               <SectionCard title="Croissance">
                 <DataLine label="Inscriptions aujourd’hui" value={overview.users.registrationsToday} />
+                <DataLine label="Inscriptions sur 7 jours" value={overview.users.registrations7d} />
                 <DataLine label="Inscriptions sur 30 jours" value={overview.users.registrations30d} />
+                <DataLine label="Moyenne par jour · 7 jours" value={overview.analytics.registrations.averagePerDay7d} />
+                <DataLine label="Moyenne par jour · 30 jours" value={overview.analytics.registrations.averagePerDay30d} />
+                <DataLine
+                  label="Évolution vs semaine précédente"
+                  value={overview.analytics.registrations.weeklyChangePct === null ? '—' : `${overview.analytics.registrations.weeklyChangePct > 0 ? '+' : ''}${overview.analytics.registrations.weeklyChangePct} %`}
+                />
                 <DataLine label="Actifs sur 7 jours" value={overview.users.active7d} />
                 <DataLine label="Actifs sur 30 jours" value={overview.users.active30d} />
+              </SectionCard>
+
+              <SectionCard title="Répartition des utilisateurs">
+                <DataLine label="Âge moyen" value={overview.analytics.demographics.averageAge === null ? '—' : `${overview.analytics.demographics.averageAge} ans`} />
+                <DataLine label="Âge moyen · hommes" value={overview.analytics.demographics.averageAgeMen === null ? '—' : `${overview.analytics.demographics.averageAgeMen} ans`} />
+                <DataLine label="Âge moyen · femmes" value={overview.analytics.demographics.averageAgeWomen === null ? '—' : `${overview.analytics.demographics.averageAgeWomen} ans`} />
+                <DataLine label="Hommes" value={`${overview.analytics.demographics.men} · ${overview.analytics.demographics.menPct} %`} />
+                <DataLine label="Femmes" value={`${overview.analytics.demographics.women} · ${overview.analytics.demographics.womenPct} %`} />
+                <DataLine label="Autres" value={`${overview.analytics.demographics.other} · ${overview.analytics.demographics.otherPct} %`} />
+                <DataLine label="Actifs sur 7 jours · hommes" value={overview.analytics.demographics.active7dMen} />
+                <DataLine label="Actifs sur 7 jours · femmes" value={overview.analytics.demographics.active7dWomen} />
+                <DataLine label="Premium actifs · hommes" value={overview.analytics.demographics.premiumMen} />
+                <DataLine label="Premium actifs · femmes" value={overview.analytics.demographics.premiumWomen} />
+              </SectionCard>
+
+              <SectionCard title="Tranches d’âge">
+                <DataLine label="18–24 ans" value={overview.analytics.demographics.ageBands.age18to24} />
+                <DataLine label="25–34 ans" value={overview.analytics.demographics.ageBands.age25to34} />
+                <DataLine label="35–44 ans" value={overview.analytics.demographics.ageBands.age35to44} />
+                <DataLine label="45–54 ans" value={overview.analytics.demographics.ageBands.age45to54} />
+                <DataLine label="55 ans et +" value={overview.analytics.demographics.ageBands.age55plus} />
               </SectionCard>
 
               <SectionCard title="Dernières actions administrateur">
@@ -1042,7 +1070,37 @@ export default function AdminScreen() {
                   )}
 
                   <SectionCard title="Intervention administrateur">
-                    <Text style={styles.details}>Communiquer officiellement avec cet utilisateur, sans usurper son compte.</Text>
+                    <Text style={styles.cardTitle}>Avantages et réinitialisations</Text>
+                    <View style={styles.actionsLeft}>
+                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void grantPremiumToSelectedUser(1)}>
+                        <Text style={styles.actionButtonText}>Offrir 1 journée de Premium</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void grantPremiumToSelectedUser(30)}>
+                        <Text style={styles.actionButtonText}>Offrir 1 mois de Premium</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserSalons()}>
+                        <Text style={styles.secondaryText}>Réinitialiser les salons</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserRefuge()}>
+                        <Text style={styles.secondaryText}>Réinitialiser le Refuge</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <Text style={[styles.cardTitle, { marginTop: 16 }]}>Écrire dans son Journal</Text>
+                    <TextInput
+                      value={journalNote}
+                      onChangeText={setJournalNote}
+                      placeholder="Message visible dans son Journal du jour"
+                      placeholderTextColor="#A48C72"
+                      multiline
+                      style={[styles.search, styles.multiline]}
+                    />
+                    <TouchableOpacity style={styles.actionButton} onPress={() => void writeSelectedUserJournal()}>
+                      <Text style={styles.actionButtonText}>Ajouter au Journal</Text>
+                    </TouchableOpacity>
+
+                    <Text style={[styles.cardTitle, { marginTop: 18 }]}>Communiquer avec l’utilisateur</Text>
+                    <Text style={styles.details}>Le message est clairement identifié comme venant de l’administration JeuTaime.</Text>
                     <TextInput
                       value={adminMessageSubject}
                       onChangeText={setAdminMessageSubject}
