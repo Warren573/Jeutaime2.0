@@ -13,9 +13,12 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
+import { API_URL } from '../api/client';
 import {
   AdminOverview,
   AdminReport,
@@ -25,12 +28,23 @@ import {
   AdminUserDetail,
   AuditEntry,
   HealthVersion,
+  ModerationOverview,
+  ModerationPhoto,
+  ModerationProfile,
+  ModerationSalonMessage,
   adjustAdminUserCoins,
   banAdminUser,
   getAdminOverview,
   getAdminSalonSession,
   getAdminUser,
   getHealthVersion,
+  getModerationOverview,
+  getModerationProfile,
+  listModerationPhotos,
+  listModerationSalonMessages,
+  moderatePhoto,
+  moderateProfile,
+  moderateSalonMessage,
   listAdminReports,
   listAdminSalons,
   listAdminUsers,
@@ -43,12 +57,13 @@ import {
   warnAdminUser,
 } from '../api/admin';
 
-type Tab = 'dashboard' | 'users' | 'reports' | 'salons' | 'tools';
+type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'tools';
 type ReportFilter = 'ALL' | AdminReport['status'];
 
 const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
   { key: 'dashboard', label: 'Vue générale', icon: 'grid-outline' },
   { key: 'users', label: 'Utilisateurs', icon: 'people-outline' },
+  { key: 'content', label: 'Contenus', icon: 'images-outline' },
   { key: 'reports', label: 'Signalements', icon: 'flag-outline' },
   { key: 'salons', label: 'Salons', icon: 'chatbubbles-outline' },
   { key: 'tools', label: 'Outils', icon: 'construct-outline' },
@@ -77,6 +92,29 @@ function SectionCard({ title, children }: { title: string; children: React.React
   );
 }
 
+function auditLabel(action: string) {
+  const labels: Record<string, string> = {
+    'admin.salon.deactivate': 'Salon désactivé',
+    'admin.salon.activate': 'Salon activé',
+    'admin.report.update': 'Signalement mis à jour',
+    'admin.user.ban': 'Utilisateur suspendu',
+    'admin.user.unban': 'Utilisateur réactivé',
+    'admin.user.warn': 'Avertissement enregistré',
+    'admin.user.coins.adjust': 'Solde de pièces ajusté',
+    'admin.user.role.update': 'Rôle utilisateur modifié',
+    'admin.photo.hide': 'Photo masquée',
+    'admin.photo.remove': 'Photo retirée',
+    'admin.photo.restore': 'Photo restaurée',
+    'admin.profile.bio.clear': 'Bio supprimée par modération',
+    'admin.profile.discovery.hide': 'Profil retiré de la découverte',
+    'admin.profile.discovery.restore': 'Profil rétabli dans la découverte',
+    'admin.salon_message.hide': 'Message de salon masqué',
+    'admin.salon_message.restore': 'Message de salon restauré',
+    'admin.salon.participant.remove': 'Participant retiré d’un salon',
+  };
+  return labels[action] ?? action.replace(/^admin\./, '').replaceAll('.', ' · ');
+}
+
 function DataLine({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <View style={styles.dataLine}>
@@ -102,6 +140,12 @@ export default function AdminScreen() {
   const [salons, setSalons] = useState<AdminSalon[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [health, setHealth] = useState<HealthVersion | null>(null);
+  const [moderationOverview, setModerationOverview] = useState<ModerationOverview | null>(null);
+  const [moderationPhotos, setModerationPhotos] = useState<ModerationPhoto[]>([]);
+  const [moderationMessages, setModerationMessages] = useState<ModerationSalonMessage[]>([]);
+  const [moderationProfile, setModerationProfile] = useState<ModerationProfile | null>(null);
+  const [moderationReason, setModerationReason] = useState('');
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   const [query, setQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
@@ -114,13 +158,16 @@ export default function AdminScreen() {
   const [selectedSalonLoading, setSelectedSalonLoading] = useState(false);
 
   const loadAll = useCallback(async () => {
-    const [o, u, r, s, a, h] = await Promise.all([
+    const [o, u, r, s, a, h, mo, mp, mm] = await Promise.all([
       getAdminOverview(),
       listAdminUsers(),
       listAdminReports(),
       listAdminSalons(),
       listAuditLog(),
       getHealthVersion().catch(() => ({})),
+      getModerationOverview(),
+      listModerationPhotos(),
+      listModerationSalonMessages(),
     ]);
     setOverview(o);
     setUsers(u);
@@ -129,6 +176,13 @@ export default function AdminScreen() {
     setSalons(s);
     setAudit(a);
     setHealth(h);
+    setModerationOverview(mo);
+    setModerationPhotos(mp);
+    setModerationMessages(mm);
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem('auth_token').then(setAuthToken).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -187,6 +241,7 @@ export default function AdminScreen() {
     setSelectedUserLoading(true);
     try {
       setSelectedUser(await getAdminUser(id));
+      setModerationProfile(await getModerationProfile(id).catch(() => null));
       setWarningMessage('');
       setCoinAmount('');
       setCoinReason('');
@@ -309,6 +364,63 @@ export default function AdminScreen() {
     }
   };
 
+  const refreshModeration = async () => {
+    const [mo, mp, mm] = await Promise.all([
+      getModerationOverview(),
+      listModerationPhotos(),
+      listModerationSalonMessages(),
+    ]);
+    setModerationOverview(mo);
+    setModerationPhotos(mp);
+    setModerationMessages(mm);
+    setAudit(await listAuditLog());
+  };
+
+  const applyPhotoModeration = async (photo: ModerationPhoto, status: 'ACTIVE' | 'HIDDEN' | 'REMOVED') => {
+    const reason = moderationReason.trim() || (status === 'ACTIVE' ? 'Contenu vérifié par la modération' : 'Contenu non conforme');
+    try {
+      await moderatePhoto(photo.id, status, reason);
+      setModerationReason('');
+      await refreshModeration();
+    } catch (err) {
+      Alert.alert('Modération photo', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const applyProfileModeration = async (
+    action: 'HIDE_FROM_DISCOVERY' | 'RESTORE_DISCOVERY' | 'CLEAR_BIO',
+  ) => {
+    if (!moderationProfile) return;
+    const reason = moderationReason.trim() || 'Décision de modération';
+    try {
+      setModerationProfile(await moderateProfile(moderationProfile.id, action, reason));
+      setModerationReason('');
+      setAudit(await listAuditLog());
+    } catch (err) {
+      Alert.alert('Modération profil', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const applyMessageModeration = async (message: ModerationSalonMessage, hidden: boolean) => {
+    const reason = moderationReason.trim() || (hidden ? 'Contenu non conforme' : 'Contenu vérifié');
+    try {
+      await moderateSalonMessage(message.id, hidden, reason);
+      setModerationReason('');
+      await refreshModeration();
+    } catch (err) {
+      Alert.alert('Modération message', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const resolveTargetLabel = (target: string | null) => {
+    if (!target) return '—';
+    const user = users.find((u) => u.id === target);
+    if (user) return user.pseudo || user.email;
+    const salon = salons.find((s) => s.id === target);
+    if (salon) return salon.name;
+    return target;
+  };
+
   if (currentUser?.role !== 'ADMIN') return null;
 
   return (
@@ -383,8 +495,8 @@ export default function AdminScreen() {
                 {audit.length === 0 && <Text style={styles.mutedLeft}>Aucune action enregistrée.</Text>}
                 {audit.slice(0, 8).map((a) => (
                   <View key={a.id} style={styles.row}>
-                    <Text style={styles.rowTitle}>{a.action}</Text>
-                    <Text style={styles.rowSub}>{a.target ?? '—'} · {formatDate(a.createdAt)}</Text>
+                    <Text style={styles.rowTitle}>{auditLabel(a.action)}</Text>
+                    <Text style={styles.rowSub}>{resolveTargetLabel(a.target)} · {formatDate(a.createdAt)}</Text>
                   </View>
                 ))}
               </SectionCard>
@@ -534,7 +646,7 @@ export default function AdminScreen() {
                     {selectedUser.adminHistory.length === 0 && <Text style={styles.mutedLeft}>Aucune action administrative.</Text>}
                     {selectedUser.adminHistory.map((a) => (
                       <View key={a.id} style={styles.row}>
-                        <Text style={styles.rowTitle}>{a.action}</Text>
+                        <Text style={styles.rowTitle}>{auditLabel(a.action)}</Text>
                         <Text style={styles.rowSub}>{formatDate(a.createdAt)}</Text>
                       </View>
                     ))}
@@ -682,8 +794,8 @@ export default function AdminScreen() {
                 {audit.length === 0 && <Text style={styles.mutedLeft}>Aucune action enregistrée.</Text>}
                 {audit.map((a) => (
                   <View key={a.id} style={styles.row}>
-                    <Text style={styles.rowTitle}>{a.action}</Text>
-                    <Text style={styles.rowSub}>Cible : {a.target ?? '—'}</Text>
+                    <Text style={styles.rowTitle}>{auditLabel(a.action)}</Text>
+                    <Text style={styles.rowSub}>Cible : {resolveTargetLabel(a.target)}</Text>
                     <Text style={styles.rowSub}>{formatDate(a.createdAt)}</Text>
                   </View>
                 ))}
