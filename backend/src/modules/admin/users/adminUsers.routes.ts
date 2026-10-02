@@ -5,8 +5,10 @@ import { validate } from "../../../core/middleware/validate";
 import { requireAuth, requireRole } from "../../../core/middleware/auth";
 import { AuthedRequest } from "../../../core/types";
 import {
+  AdjustCoinsSchema,
   BanUserSchema,
   UnbanUserSchema,
+  UpdateRoleSchema,
   UserIdParamsSchema,
   WarnUserSchema,
 } from "./adminUsers.schemas";
@@ -25,6 +27,32 @@ router.get(
   "/",
   requireRole(Role.ADMIN) as never,
   wrap(ctrl.handleListUsers),
+);
+
+// GET /api/admin/users/:id — ADMIN only
+router.get(
+  "/:id",
+  requireRole(Role.ADMIN) as never,
+  validate(UserIdParamsSchema, "params"),
+  wrap(ctrl.handleGetUserDetail),
+);
+
+// POST /api/admin/users/:id/coins — ADMIN only
+router.post(
+  "/:id/coins",
+  requireRole(Role.ADMIN) as never,
+  validate(UserIdParamsSchema, "params"),
+  validate(AdjustCoinsSchema),
+  wrap(ctrl.handleAdjustCoins),
+);
+
+// PATCH /api/admin/users/:id/role — ADMIN only
+router.patch(
+  "/:id/role",
+  requireRole(Role.ADMIN) as never,
+  validate(UserIdParamsSchema, "params"),
+  validate(UpdateRoleSchema),
+  wrap(ctrl.handleUpdateRole),
 );
 
 // POST /api/admin/users/:id/ban — ADMIN only
