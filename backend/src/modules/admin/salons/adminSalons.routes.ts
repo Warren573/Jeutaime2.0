@@ -8,6 +8,7 @@ import {
   ActivateSalonSchema,
   CreateSalonSchema,
   SalonIdParamsSchema,
+  SalonParticipantParamsSchema,
   UpdateSalonSchema,
 } from "./adminSalons.schemas";
 import * as ctrl from "./adminSalons.controller";
@@ -23,6 +24,20 @@ const wrap = (
 
 // GET /api/admin/salons
 router.get("/", wrap(ctrl.handleList));
+
+// GET /api/admin/salons/:id/session
+router.get(
+  "/:id/session",
+  validate(SalonIdParamsSchema, "params"),
+  wrap(ctrl.handleGetActiveSession),
+);
+
+// POST /api/admin/salons/:id/session/:participantId/remove
+router.post(
+  "/:id/session/:participantId/remove",
+  validate(SalonParticipantParamsSchema, "params"),
+  wrap(ctrl.handleRemoveParticipant),
+);
 
 // POST /api/admin/salons
 router.post("/", validate(CreateSalonSchema), wrap(ctrl.handleCreate));
