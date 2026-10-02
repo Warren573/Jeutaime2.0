@@ -13,6 +13,14 @@ export interface JournalEditionDTO {
 }
 
 export async function getJournalEdition(): Promise<JournalEditionDTO> {
-  const res = await apiFetch("/journal/edition") as { data: JournalEditionDTO };
-  return res.data;
+  const res = await apiFetch("/journal/edition") as {
+    data?: Partial<JournalEditionDTO> & {
+      communityPosts?: CommunityJournalPostDTO[];
+    };
+  };
+
+  return {
+    date: typeof res?.data?.date === 'string' ? res.data.date : new Date().toISOString(),
+    communityPosts: Array.isArray(res?.data?.communityPosts) ? res.data.communityPosts : [],
+  };
 }
