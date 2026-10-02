@@ -37,12 +37,12 @@ import {
   EconomyCatalog,
   PremiumAdminUser,
   AdminPrivateSalon,
+  CommunityJournalAdminPost,
   ModerationOverview,
   ModerationPhoto,
   ModerationProfile,
   ModerationSalonMessage,
   adjustAdminUserCoins,
-  addAdminJournalNote,
   banAdminUser,
   grantAdminPremium,
   getAdminOverview,
@@ -64,6 +64,8 @@ import {
   sendAdminDirectMessage,
   createAdminPrivateSalon,
   listAdminPrivateSalons,
+  listCommunityJournalPosts,
+  publishCommunityJournalPost,
   inviteUserToPrivateSalon,
   removeUserFromPrivateSalon,
   getModerationOverview,
@@ -154,7 +156,7 @@ function auditLabel(action: string) {
     'admin.user.premium.grant': 'Premium offert',
     'admin.user.salons.reset': 'Salons réinitialisés',
     'admin.user.refuge.reset': 'Refuge réinitialisé',
-    'admin.user.journal.write': 'Message écrit dans le Journal',
+    'admin.journal.community.publish': 'Article publié dans le Journal communautaire',
   };
   return labels[action] ?? action.replace(/^admin\./, '').replaceAll('.', ' · ');
 }
@@ -341,7 +343,6 @@ export default function AdminScreen() {
   const [moderationPhotos, setModerationPhotos] = useState<ModerationPhoto[]>([]);
   const [moderationMessages, setModerationMessages] = useState<ModerationSalonMessage[]>([]);
   const [moderationProfile, setModerationProfile] = useState<ModerationProfile | null>(null);
-  const [moderationReason, setModerationReason] = useState('');
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [operationsOverview, setOperationsOverview] = useState<OperationsOverview | null>(null);
   const [loginEvents, setLoginEvents] = useState<LoginEvent[]>([]);
@@ -355,6 +356,9 @@ export default function AdminScreen() {
   const [adminMessageSubject, setAdminMessageSubject] = useState('');
   const [adminMessageBody, setAdminMessageBody] = useState('');
   const [privateSalonName, setPrivateSalonName] = useState('Sanctuaire privé');
+  const [communityJournalPosts, setCommunityJournalPosts] = useState<CommunityJournalAdminPost[]>([]);
+  const [communityJournalTitle, setCommunityJournalTitle] = useState('');
+  const [communityJournalBody, setCommunityJournalBody] = useState('');
 
   const [query, setQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
@@ -362,13 +366,12 @@ export default function AdminScreen() {
   const [warningMessage, setWarningMessage] = useState('');
   const [coinAmount, setCoinAmount] = useState('');
   const [coinReason, setCoinReason] = useState('');
-  const [journalNote, setJournalNote] = useState('');
 
   const [selectedSalon, setSelectedSalon] = useState<AdminSalonSession | null>(null);
   const [selectedSalonLoading, setSelectedSalonLoading] = useState(false);
 
   const loadAll = useCallback(async () => {
-    const [o, u, r, s, a, h, mo, mp, mm, oo, le, si, st, eo, et, ec, pu, ps] = await Promise.all([
+    const [o, u, r, s, a, h, mo, mp, mm, oo, le, si, st, eo, et, ec, pu, ps, cj] = await Promise.all([
       getAdminOverview(),
       listAdminUsers(),
       listAdminReports(),
@@ -387,6 +390,7 @@ export default function AdminScreen() {
       getEconomyCatalog(),
       listPremiumAdminUsers(),
       listAdminPrivateSalons(),
+      listCommunityJournalPosts(),
     ]);
     setOverview(o);
     setUsers(u);
@@ -407,6 +411,7 @@ export default function AdminScreen() {
     setEconomyCatalog(ec);
     setPremiumUsers(pu);
     setPrivateSalons(ps);
+    setCommunityJournalPosts(cj);
   }, []);
 
   useEffect(() => {
