@@ -27,6 +27,36 @@ export interface AdminOverviewDto {
     total: number;
     activeSessions: number;
   };
+  analytics: {
+    registrations: {
+      averagePerDay7d: number;
+      averagePerDay30d: number;
+      previous7d: number;
+      weeklyChangePct: number | null;
+    };
+    demographics: {
+      averageAge: number | null;
+      averageAgeMen: number | null;
+      averageAgeWomen: number | null;
+      men: number;
+      women: number;
+      other: number;
+      menPct: number;
+      womenPct: number;
+      otherPct: number;
+      active7dMen: number;
+      active7dWomen: number;
+      premiumMen: number;
+      premiumWomen: number;
+      ageBands: {
+        age18to24: number;
+        age25to34: number;
+        age35to44: number;
+        age45to54: number;
+        age55plus: number;
+      };
+    };
+  };
 }
 
 export async function getOverview(): Promise<AdminOverviewDto> {
@@ -39,6 +69,9 @@ export async function getOverview(): Promise<AdminOverviewDto> {
 
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const previousSevenDaysAgo = new Date(now);
+  previousSevenDaysAgo.setDate(previousSevenDaysAgo.getDate() - 14);
 
   const [
     total,
@@ -59,6 +92,8 @@ export async function getOverview(): Promise<AdminOverviewDto> {
     activeSalons,
     totalSalons,
     activeSessions,
+    previous7d,
+    demographicsRows,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gte: startOfDay } } }),
@@ -78,7 +113,61 @@ export async function getOverview(): Promise<AdminOverviewDto> {
     prisma.salon.count({ where: { isActive: true } }),
     prisma.salon.count(),
     prisma.salonSession.count({ where: { status: "ACTIVE", expiresAt: { gt: now } } }),
+    prisma.user.count({
+      where: {
+        createdAt: {
+          gte: previousSevenDaysAgo,
+          lt: sevenDaysAgo,
+        },
+      },
+    }),
+    prisma.$queryRaw<Array<{
+      men: bigint;
+      women: bigint;
+      other: bigint;
+      averageAge: number | null;
+      averageAgeMen: number | null;
+      averageAgeWomen: number | null;
+      active7dMen: bigint;
+      active7dWomen: bigint;
+      premiumMen: bigint;
+      premiumWomen: bigint;
+      age18to24: bigint;
+      age25to34: bigint;
+      age35to44: bigint;
+      age45to54: bigint;
+      age55plus: bigint;
+    }>>`
+      SELECT
+        COUNT(*) FILTER (WHERE p."gender" = 'HOMME')::bigint AS "men",
+        COUNT(*) FILTER (WHERE p."gender" = 'FEMME')::bigint AS "women",
+        COUNT(*) FILTER (WHERE p."gender" = 'AUTRE')::bigint AS "other",
+        ROUND(AVG(EXTRACT(YEAR FROM AGE(NOW(), p."birthDate")))::numeric, 1)::float8 AS "averageAge",
+        ROUND(AVG(EXTRACT(YEAR FROM AGE(NOW(), p."birthDate"))) FILTER (WHERE p."gender" = 'HOMME')::numeric, 1)::float8 AS "averageAgeMen",
+        ROUND(AVG(EXTRACT(YEAR FROM AGE(NOW(), p."birthDate"))) FILTER (WHERE p."gender" = 'FEMME')::numeric, 1)::float8 AS "averageAgeWomen",
+        COUNT(*) FILTER (WHERE p."gender" = 'HOMME' AND u."lastLoginAt" >= ${sevenDaysAgo})::bigint AS "active7dMen",
+        COUNT(*) FILTER (WHERE p."gender" = 'FEMME' AND u."lastLoginAt" >= ${sevenDaysAgo})::bigint AS "active7dWomen",
+        COUNT(*) FILTER (WHERE p."gender" = 'HOMME' AND u."premiumTier" = 'PREMIUM' AND u."premiumUntil" > NOW())::bigint AS "premiumMen",
+        COUNT(*) FILTER (WHERE p."gender" = 'FEMME' AND u."premiumTier" = 'PREMIUM' AND u."premiumUntil" > NOW())::bigint AS "premiumWomen",
+        COUNT(*) FILTER (WHERE EXTRACT(YEAR FROM AGE(NOW(), p."birthDate")) BETWEEN 18 AND 24)::bigint AS "age18to24",
+        COUNT(*) FILTER (WHERE EXTRACT(YEAR FROM AGE(NOW(), p."birthDate")) BETWEEN 25 AND 34)::bigint AS "age25to34",
+        COUNT(*) FILTER (WHERE EXTRACT(YEAR FROM AGE(NOW(), p."birthDate")) BETWEEN 35 AND 44)::bigint AS "age35to44",
+        COUNT(*) FILTER (WHERE EXTRACT(YEAR FROM AGE(NOW(), p."birthDate")) BETWEEN 45 AND 54)::bigint AS "age45to54",
+        COUNT(*) FILTER (WHERE EXTRACT(YEAR FROM AGE(NOW(), p."birthDate")) >= 55)::bigint AS "age55plus"
+      FROM "Profile" p
+      JOIN "User" u ON u."id" = p."userId"
+    `,
   ]);
+
+  const d = demographicsRows[0];
+  const men = Number(d?.men ?? 0);
+  const women = Number(d?.women ?? 0);
+  const other = Number(d?.other ?? 0);
+  const demographicTotal = men + women + other;
+  const pct = (value: number) => demographicTotal > 0 ? Math.round((value / demographicTotal) * 1000) / 10 : 0;
+  const weeklyChangePct = previous7d > 0
+    ? Math.round(((registrations7d - previous7d) / previous7d) * 1000) / 10
+    : null;
 
   return {
     users: {
@@ -95,5 +184,35 @@ export async function getOverview(): Promise<AdminOverviewDto> {
     moderation: { openReports, totalReports },
     activity: { matchesToday, lettersToday, bottlesActive, refugesActive },
     salons: { active: activeSalons, total: totalSalons, activeSessions },
+    analytics: {
+      registrations: {
+        averagePerDay7d: Math.round((registrations7d / 7) * 10) / 10,
+        averagePerDay30d: Math.round((registrations30d / 30) * 10) / 10,
+        previous7d,
+        weeklyChangePct,
+      },
+      demographics: {
+        averageAge: d?.averageAge ?? null,
+        averageAgeMen: d?.averageAgeMen ?? null,
+        averageAgeWomen: d?.averageAgeWomen ?? null,
+        men,
+        women,
+        other,
+        menPct: pct(men),
+        womenPct: pct(women),
+        otherPct: pct(other),
+        active7dMen: Number(d?.active7dMen ?? 0),
+        active7dWomen: Number(d?.active7dWomen ?? 0),
+        premiumMen: Number(d?.premiumMen ?? 0),
+        premiumWomen: Number(d?.premiumWomen ?? 0),
+        ageBands: {
+          age18to24: Number(d?.age18to24 ?? 0),
+          age25to34: Number(d?.age25to34 ?? 0),
+          age35to44: Number(d?.age35to44 ?? 0),
+          age45to54: Number(d?.age45to54 ?? 0),
+          age55plus: Number(d?.age55plus ?? 0),
+        },
+      },
+    },
   };
 }
