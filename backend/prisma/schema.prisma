@@ -134,6 +134,8 @@ enum NotificationType {
   MAGIE_BROKEN
   PREMIUM_SUBSCRIBED
   PREMIUM_CANCELLED
+  ADMIN_MESSAGE
+  PRIVATE_SALON_INVITE
 }
 
 enum ReactionType {
@@ -549,6 +551,7 @@ model SalonSession {
   status    SalonSessionStatus @default(ACTIVE)
   isPrivate Boolean            @default(false) // V1.1+: for private salons
   ownerId   String? // V1.1+: creator for private sessions
+  privateName String?
 
   participants SalonSessionParticipant[]
   encounters   SalonEncounter[]
@@ -1211,4 +1214,41 @@ model SystemIncident {
   @@index([resolved, createdAt])
   @@index([source, createdAt])
   @@index([userId, createdAt])
+}
+
+
+// ============================================================
+// COMMUNICATION ADMIN -> UTILISATEUR
+// ============================================================
+
+model AdminMessage {
+  id        String   @id @default(cuid())
+  adminId   String?
+  userId    String
+  subject   String?
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
+  @@index([adminId, createdAt])
+}
+
+// ============================================================
+// INVITATIONS SALONS PRIVÉS ADMIN
+// ============================================================
+
+model PrivateSalonInvitation {
+  id        String   @id @default(cuid())
+  sessionId String
+  userId    String
+  invitedBy String?
+  accepted  Boolean  @default(false)
+  acceptedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@unique([sessionId, userId])
+  @@index([userId, accepted, createdAt])
+  @@index([sessionId, createdAt])
 }
