@@ -746,9 +746,29 @@ export async function resetAdminUserRefuge(id: string, reason: string): Promise<
   return res.data;
 }
 
-export async function addAdminJournalNote(id: string, text: string): Promise<void> {
-  await apiFetch(`/admin/users/${id}/journal-note`, {
+
+
+export type CommunityJournalAdminPost = {
+  id: string;
+  title: string;
+  body: string;
+  createdBy: string | null;
+  publishedAt: string;
+  createdAt: string;
+};
+
+export async function listCommunityJournalPosts(): Promise<CommunityJournalAdminPost[]> {
+  const res = await apiFetch('/admin/journal');
+  return res?.data ?? [];
+}
+
+export async function publishCommunityJournalPost(
+  title: string,
+  body: string,
+): Promise<CommunityJournalAdminPost> {
+  const res = await apiFetch('/admin/journal', {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ title, body }),
   });
+  return res.data;
 }
