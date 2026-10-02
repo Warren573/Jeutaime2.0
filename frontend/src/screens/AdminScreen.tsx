@@ -42,7 +42,9 @@ import {
   ModerationProfile,
   ModerationSalonMessage,
   adjustAdminUserCoins,
+  addAdminJournalNote,
   banAdminUser,
+  grantAdminPremium,
   getAdminOverview,
   getAdminSalonSession,
   getAdminUser,
@@ -76,6 +78,8 @@ import {
   listAdminUsers,
   listAuditLog,
   removeAdminSalonParticipant,
+  resetAdminUserRefuge,
+  resetAdminUserSalons,
   setAdminSalonActive,
   unbanAdminUser,
   updateAdminReport,
@@ -147,6 +151,10 @@ function auditLabel(action: string) {
     'admin.shop.magie.update': 'Magie boutique modifiée',
     'admin.incident.resolve': 'Incident technique résolu',
     'admin.incident.reopen': 'Incident technique rouvert',
+    'admin.user.premium.grant': 'Premium offert',
+    'admin.user.salons.reset': 'Salons réinitialisés',
+    'admin.user.refuge.reset': 'Refuge réinitialisé',
+    'admin.user.journal.write': 'Message écrit dans le Journal',
   };
   return labels[action] ?? action.replace(/^admin\./, '').replaceAll('.', ' · ');
 }
@@ -354,6 +362,7 @@ export default function AdminScreen() {
   const [warningMessage, setWarningMessage] = useState('');
   const [coinAmount, setCoinAmount] = useState('');
   const [coinReason, setCoinReason] = useState('');
+  const [journalNote, setJournalNote] = useState('');
 
   const [selectedSalon, setSelectedSalon] = useState<AdminSalonSession | null>(null);
   const [selectedSalonLoading, setSelectedSalonLoading] = useState(false);
