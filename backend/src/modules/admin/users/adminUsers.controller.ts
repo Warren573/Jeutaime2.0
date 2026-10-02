@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { AuthedRequest } from "../../../core/types";
 import * as svc from "./adminUsers.service";
-import type { BanUserDto, WarnUserDto } from "./adminUsers.schemas";
+import type { AdjustCoinsDto, BanUserDto, UpdateRoleDto, WarnUserDto } from "./adminUsers.schemas";
 
 // GET /api/admin/users
 export async function handleListUsers(req: AuthedRequest, res: Response) {
@@ -40,6 +40,36 @@ export async function handleWarn(req: AuthedRequest, res: Response) {
     { id: req.user.userId, role: req.user.role },
     id,
     message,
+  );
+  res.json({ data });
+}
+
+
+export async function handleGetUserDetail(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const data = await svc.getUserDetail(id);
+  res.json({ data });
+}
+
+export async function handleAdjustCoins(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const { amount, reason } = req.body as AdjustCoinsDto;
+  const data = await svc.adjustCoins(
+    { id: req.user.userId, role: req.user.role },
+    id,
+    amount,
+    reason,
+  );
+  res.json({ data });
+}
+
+export async function handleUpdateRole(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const { role } = req.body as UpdateRoleDto;
+  const data = await svc.updateRole(
+    { id: req.user.userId, role: req.user.role },
+    id,
+    role,
   );
   res.json({ data });
 }
