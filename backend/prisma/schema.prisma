@@ -352,6 +352,10 @@ model Photo {
   blurMediumPath String?
   position       Int      @default(0)
   isPrimary      Boolean  @default(false)
+  moderationStatus String  @default("ACTIVE") // ACTIVE | HIDDEN | REMOVED
+  moderationReason String?
+  moderatedAt      DateTime?
+  moderatedBy      String?
   createdAt      DateTime @default(now())
 
   @@index([userId])
@@ -626,7 +630,11 @@ model SalonMessage {
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   kind      String // "message" | "offering" | "power" | "system"
   content   String        @db.Text
-  meta      Json?
+  meta         Json?
+  isHidden     Boolean   @default(false)
+  hiddenReason String?
+  hiddenAt     DateTime?
+  hiddenBy     String?
   createdAt DateTime      @default(now())
 
   @@index([salonId, createdAt])
@@ -771,9 +779,12 @@ model Report {
   details    String?      @db.Text
   status     ReportStatus @default(OPEN)
   resolution String?      @db.Text
-  resolvedBy String?
-  resolvedAt DateTime?
-  createdAt  DateTime     @default(now())
+  resolvedBy      String?
+  resolvedAt      DateTime?
+  contentType     String? // PHOTO | PROFILE_BIO | PROFILE_PSEUDO | SALON_MESSAGE
+  contentId       String?
+  contentSnapshot Json?
+  createdAt       DateTime     @default(now())
 
   @@index([status])
   @@index([targetId])
