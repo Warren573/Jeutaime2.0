@@ -25,10 +25,14 @@ export async function ensureBootstrapAdmin(): Promise<void> {
     return;
   }
 
-  if (existing.role !== "ADMIN") {
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: { role: "ADMIN" },
-    });
-  }
+  const passwordHash = await hashPassword(ADMIN_PASSWORD);
+  await prisma.user.update({
+    where: { id: existing.id },
+    data: {
+      role: "ADMIN",
+      passwordHash,
+      isVerified: true,
+      isBanned: false,
+    },
+  });
 }
