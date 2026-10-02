@@ -56,6 +56,28 @@ export interface AdminOverviewDto {
         age55plus: number;
       };
     };
+    funnel: {
+      registered: number;
+      profileCreated: number;
+      sentSmile: number;
+      matched: number;
+      sentLetter: number;
+      reachedTenLetters: number;
+      premiumActive: number;
+      profileRatePct: number;
+      smileRatePct: number;
+      matchRatePct: number;
+      letterRatePct: number;
+      tenLettersRatePct: number;
+      premiumRatePct: number;
+    };
+    features7d: {
+      salonJoins: number;
+      refugesStarted: number;
+      bottlesSent: number;
+      cardGamesStarted: number;
+      duelsCreated: number;
+    };
   };
 }
 
@@ -94,6 +116,13 @@ export async function getOverview(): Promise<AdminOverviewDto> {
     activeSessions,
     previous7d,
     demographicsRows,
+    profileCreated,
+    funnelRows,
+    salonJoins7d,
+    refugesStarted7d,
+    bottlesSent7d,
+    cardGamesStarted7d,
+    duelsCreated7d,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gte: startOfDay } } }),
@@ -157,6 +186,42 @@ export async function getOverview(): Promise<AdminOverviewDto> {
       FROM "Profile" p
       JOIN "User" u ON u."id" = p."userId"
     `,
+    prisma.profile.count(),
+    prisma.$queryRaw<Array<{
+      sentSmileUsers: bigint;
+      matchedUsers: bigint;
+      sentLetterUsers: bigint;
+      reachedTenLettersUsers: bigint;
+    }>>`
+      SELECT
+        (SELECT COUNT(DISTINCT r."fromId") FROM "Reaction" r WHERE r."type" = 'SMILE')::bigint AS "sentSmileUsers",
+        (
+          SELECT COUNT(DISTINCT x."userId")
+          FROM (
+            SELECT m."userAId" AS "userId" FROM "Match" m
+            UNION
+            SELECT m."userBId" AS "userId" FROM "Match" m
+          ) x
+        )::bigint AS "matchedUsers",
+        (SELECT COUNT(DISTINCT l."fromUserId") FROM "Letter" l)::bigint AS "sentLetterUsers",
+        (
+          SELECT COUNT(DISTINCT x."userId")
+          FROM (
+            SELECT m."userAId" AS "userId"
+            FROM "Match" m
+            WHERE (m."letterCountA" + m."letterCountB") >= 10
+            UNION
+            SELECT m."userBId" AS "userId"
+            FROM "Match" m
+            WHERE (m."letterCountA" + m."letterCountB") >= 10
+          ) x
+        )::bigint AS "reachedTenLettersUsers"
+    `,
+    prisma.salonSessionParticipant.count({ where: { joinedAt: { gte: sevenDaysAgo } } }),
+    prisma.refugeSession.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+    prisma.messageInABottle.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+    prisma.cardGameSession.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+    prisma.privateDuel.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
   ]);
 
   const d = demographicsRows[0];
@@ -168,6 +233,13 @@ export async function getOverview(): Promise<AdminOverviewDto> {
   const weeklyChangePct = previous7d > 0
     ? Math.round(((registrations7d - previous7d) / previous7d) * 1000) / 10
     : null;
+
+  const funnel = funnelRows[0];
+  const sentSmileUsers = Number(funnel?.sentSmileUsers ?? 0);
+  const matchedUsers = Number(funnel?.matchedUsers ?? 0);
+  const sentLetterUsers = Number(funnel?.sentLetterUsers ?? 0);
+  const reachedTenLettersUsers = Number(funnel?.reachedTenLettersUsers ?? 0);
+  const rate = (value: number) => total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
 
   return {
     users: {
@@ -212,6 +284,28 @@ export async function getOverview(): Promise<AdminOverviewDto> {
           age45to54: Number(d?.age45to54 ?? 0),
           age55plus: Number(d?.age55plus ?? 0),
         },
+      },
+      funnel: {
+        registered: total,
+        profileCreated,
+        sentSmile: sentSmileUsers,
+        matched: matchedUsers,
+        sentLetter: sentLetterUsers,
+        reachedTenLetters: reachedTenLettersUsers,
+        premiumActive,
+        profileRatePct: rate(profileCreated),
+        smileRatePct: rate(sentSmileUsers),
+        matchRatePct: rate(matchedUsers),
+        letterRatePct: rate(sentLetterUsers),
+        tenLettersRatePct: rate(reachedTenLettersUsers),
+        premiumRatePct: rate(premiumActive),
+      },
+      features7d: {
+        salonJoins: salonJoins7d,
+        refugesStarted: refugesStarted7d,
+        bottlesSent: bottlesSent7d,
+        cardGamesStarted: cardGamesStarted7d,
+        duelsCreated: duelsCreated7d,
       },
     },
   };
