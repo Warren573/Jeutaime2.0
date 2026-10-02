@@ -37,3 +37,27 @@ export const UserIdParamsSchema = z
     id: z.string().min(1),
   })
   .strict();
+
+
+// ============================================================
+// PATCH /api/admin/users/:id/role
+// ============================================================
+export const UpdateRoleSchema = z
+  .object({
+    role: z.enum(["USER", "MODERATOR"]),
+  })
+  .strict();
+
+export type UpdateRoleDto = z.infer<typeof UpdateRoleSchema>;
+
+// ============================================================
+// POST /api/admin/users/:id/coins
+// ============================================================
+export const AdjustCoinsSchema = z
+  .object({
+    amount: z.number().int().min(-100000).max(100000).refine((v) => v !== 0, "Montant non nul requis"),
+    reason: z.string().min(3).max(500),
+  })
+  .strict();
+
+export type AdjustCoinsDto = z.infer<typeof AdjustCoinsSchema>;
