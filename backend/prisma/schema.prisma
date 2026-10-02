@@ -1252,3 +1252,20 @@ model PrivateSalonInvitation {
   @@index([userId, accepted, createdAt])
   @@index([sessionId, createdAt])
 }
+
+
+// ============================================================
+// JOURNAL COMMUNAUTAIRE
+// ============================================================
+
+model CommunityJournalPost {
+  id          String   @id @default(cuid())
+  title       String
+  body        String   @db.Text
+  createdBy   String?
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([publishedAt])
+  @@index([createdBy, publishedAt])
+}
