@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { AuthedRequest } from "../../../core/types";
 import * as svc from "./adminUsers.service";
-import type { AdjustCoinsDto, BanUserDto, GrantPremiumDto, JournalNoteDto, ResetRefugeDto, ResetSalonsDto, UpdateRoleDto, WarnUserDto } from "./adminUsers.schemas";
+import type { AdjustCoinsDto, BanUserDto, GrantPremiumDto, ResetRefugeDto, ResetSalonsDto, UpdateRoleDto, WarnUserDto } from "./adminUsers.schemas";
 
 // GET /api/admin/users
 export async function handleListUsers(req: AuthedRequest, res: Response) {
@@ -107,15 +107,4 @@ export async function handleResetRefuge(req: AuthedRequest, res: Response) {
     reason,
   );
   res.json({ data });
-}
-
-export async function handleJournalNote(req: AuthedRequest, res: Response) {
-  const id = req.params["id"] as string;
-  const { text } = req.body as JournalNoteDto;
-  const data = await svc.addUserJournalNote(
-    { id: req.user.userId, role: req.user.role },
-    id,
-    text,
-  );
-  res.status(201).json({ data });
 }
