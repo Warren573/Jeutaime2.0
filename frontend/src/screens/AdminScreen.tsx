@@ -1047,7 +1047,10 @@ export default function AdminScreen() {
                     <DataLine label="Dernière connexion" value={formatDate(selectedUser.lastLoginAt)} />
                     <DataLine label="Ville" value={selectedUser.profile?.city ?? '—'} />
                     <DataLine label="Premium" value={selectedUser.premiumTier === 'PREMIUM' ? `Oui · jusqu’au ${formatDate(selectedUser.premiumUntil)}` : 'Non'} />
-                    <DataLine label="État" value={selectedUser.isBanned ? `Suspendu · ${selectedUser.banReason ?? ''}` : 'Actif'} />
+                    <DataLine label="État" value={selectedUser.isBanned ? 'Suspendu' : 'Actif'} />
+                    {selectedUser.isBanned && (
+                      <DataLine label="Motif de suspension" value={selectedUser.banReason || 'Non renseigné'} />
+                    )}
 
                     <View style={styles.actionsLeft}>
                       <TouchableOpacity
@@ -1123,7 +1126,7 @@ export default function AdminScreen() {
                       style={styles.search}
                     />
                     <View style={styles.actionsLeft}>
-                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void adjustCoins(1)}>
+                      <TouchableOpacity style={[styles.actionButton, styles.actionButtonGood]} onPress={() => void adjustCoins(1)}>
                         <Text style={styles.actionButtonText}>Offrir les pièces</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.dangerButton} onPress={() => void adjustCoins(-1)}>
@@ -1132,10 +1135,10 @@ export default function AdminScreen() {
                     </View>
 
                     <View style={[styles.actionsLeft, { marginTop: 12 }]}>
-                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void grantPremiumToSelectedUser(1)}>
+                      <TouchableOpacity style={[styles.secondaryButton, styles.compactAction]} onPress={() => void grantPremiumToSelectedUser(1)}>
                         <Text style={styles.secondaryText}>Offrir 1 jour Premium</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void grantPremiumToSelectedUser(30)}>
+                      <TouchableOpacity style={[styles.secondaryButton, styles.compactAction]} onPress={() => void grantPremiumToSelectedUser(30)}>
                         <Text style={styles.secondaryText}>Offrir 1 mois Premium</Text>
                       </TouchableOpacity>
                     </View>
@@ -1945,7 +1948,14 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   actionsLeft: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginVertical: 10 },
   actionButton: { backgroundColor: '#8B6F47', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9, alignSelf: 'flex-start' },
-  dangerButton: { backgroundColor: '#A7324B', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9 },
+  dangerButton: {
+    backgroundColor: '#A7324B',
+    borderRadius: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+  },
   actionButtonGood: {
     backgroundColor: '#5F7D58',
     borderRadius: 9,
@@ -1954,7 +1964,16 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   actionButtonText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
-  secondaryButton: { borderRadius: 9, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#D7C4AA' },
+  secondaryButton: {
+    borderRadius: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: '#D7C4AA',
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+  },
+  compactAction: { maxWidth: '100%' },
   selectedSecondary: { backgroundColor: '#EFE4D4' },
   secondaryText: { color: '#6F5943', fontSize: 12, fontWeight: '700' },
   smallButton: { borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#D7C4AA' },
