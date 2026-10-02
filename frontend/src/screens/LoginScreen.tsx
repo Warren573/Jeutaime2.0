@@ -65,7 +65,8 @@ export default function LoginScreen() {
         routerReplaceCalled: true,
       }));
 
-      router.replace("/(tabs)");
+      const loggedUser = useStore.getState().currentUser;
+      router.replace(loggedUser?.role === 'ADMIN' ? "/admin" : "/(tabs)");
     } catch (err: any) {
       const errorMsg = err?.message || "Une erreur est survenue.";
       setDebugLoginFlow(prev => ({
