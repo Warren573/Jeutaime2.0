@@ -8,6 +8,7 @@
  */
 import { prisma } from "../../config/prisma";
 import { logger } from "../../config/logger";
+import { recordSystemIncident } from "../operations/operations.service";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
@@ -107,6 +108,14 @@ export async function sendPushToUser(params: {
         { status: res.status, userId: params.userId },
         "[push] Expo push API non-ok",
       );
+      void recordSystemIncident({
+        level: "WARNING",
+        source: "push",
+        code: "EXPO_NON_OK",
+        message: `Expo Push API a répondu ${res.status}`,
+        userId: params.userId,
+        statusCode: res.status,
+      });
       return;
     }
 
@@ -136,6 +145,13 @@ export async function sendPushToUser(params: {
     }
   } catch (err) {
     logger.error({ err, userId: params.userId }, "[push] Erreur envoi Expo push");
+    void recordSystemIncident({
+      level: "ERROR",
+      source: "push",
+      code: "PUSH_SEND_FAILED",
+      message: err instanceof Error ? err.message : "Erreur envoi Expo push",
+      userId: params.userId,
+    });
   }
 }
 
@@ -194,7 +210,16 @@ export async function sendDailyEditionPush(params: {
         },
         body: JSON.stringify(messages),
       });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        void recordSystemIncident({
+          level: "WARNING",
+          source: "push",
+          code: "DAILY_PUSH_NON_OK",
+          message: `Expo Push API a répondu ${res.status} pour l'édition quotidienne`,
+          statusCode: res.status,
+        });
+        continue;
+      }
 
       const json = (await res.json()) as { data: ExpoPushTicket[] | ExpoPushTicket };
       const tickets = Array.isArray(json.data) ? json.data : [json.data];
@@ -223,6 +248,12 @@ export async function sendDailyEditionPush(params: {
       }
     } catch (err) {
       logger.error({ err }, "[push] Erreur envoi édition quotidienne");
+      void recordSystemIncident({
+        level: "ERROR",
+        source: "push",
+        code: "DAILY_PUSH_FAILED",
+        message: err instanceof Error ? err.message : "Erreur envoi édition quotidienne",
+      });
     }
   }
 
