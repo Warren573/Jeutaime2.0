@@ -478,6 +478,96 @@ export default function AdminScreen() {
     }
   };
 
+  const sendMessageToSelectedUser = async () => {
+    if (!selectedUser || adminMessageBody.trim().length < 2) return;
+    try {
+      await sendAdminDirectMessage(
+        selectedUser.id,
+        adminMessageBody.trim(),
+        adminMessageSubject.trim() || undefined,
+      );
+      setAdminMessageSubject('');
+      setAdminMessageBody('');
+      setAudit(await listAuditLog());
+      Alert.alert('Administration', 'Message envoyé à l’utilisateur.');
+    } catch (err) {
+      Alert.alert('Message', err instanceof Error ? err.message : 'Envoi impossible.');
+    }
+  };
+
+  const createPrivateSalon = async () => {
+    try {
+      await createAdminPrivateSalon({
+        name: privateSalonName.trim() || 'Sanctuaire privé',
+        salonKind: 'CAFE_DE_PARIS',
+        durationDays: 7,
+      });
+      setPrivateSalons(await listAdminPrivateSalons());
+      setAudit(await listAuditLog());
+      Alert.alert('Salon privé', 'Le Sanctuaire privé a été créé.');
+    } catch (err) {
+      Alert.alert('Salon privé', err instanceof Error ? err.message : 'Création impossible.');
+    }
+  };
+
+  const inviteSelectedUser = async (sessionId: string) => {
+    if (!selectedUser) return;
+    try {
+      await inviteUserToPrivateSalon(sessionId, selectedUser.id);
+      setPrivateSalons(await listAdminPrivateSalons());
+      setAudit(await listAuditLog());
+      Alert.alert('Salon privé', 'Invitation envoyée.');
+    } catch (err) {
+      Alert.alert('Salon privé', err instanceof Error ? err.message : 'Invitation impossible.');
+    }
+  };
+
+  const refreshEconomy = async () => {
+    const [eo, et, ec, pu] = await Promise.all([
+      getEconomyOverview(),
+      listEconomyTransactions(),
+      getEconomyCatalog(),
+      listPremiumAdminUsers(),
+    ]);
+    setEconomyOverview(eo);
+    setEconomyTransactions(et.items);
+    setEconomyCatalog(ec);
+    setPremiumUsers(pu);
+    setAudit(await listAuditLog());
+  };
+
+  const refreshOperations = async () => {
+    const [oo, le, si, st] = await Promise.all([
+      getOperationsOverview(),
+      listLoginEvents(),
+      listSystemIncidents(),
+      listAdminSupportTickets(),
+    ]);
+    setOperationsOverview(oo);
+    setLoginEvents(le.items);
+    setSystemIncidents(si.items);
+    setSupportTickets(st);
+    setAudit(await listAuditLog());
+  };
+
+  const resolveIncident = async (incident: SystemIncident) => {
+    try {
+      await updateSystemIncident(incident.id, !incident.resolved, incident.resolved ? undefined : 'Vérifié depuis le panneau admin');
+      await refreshOperations();
+    } catch (err) {
+      Alert.alert('Incident', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const changeTicketStatus = async (ticket: AdminSupportTicket, status: 'OPEN' | 'REVIEWING' | 'CLOSED') => {
+    try {
+      await updateAdminSupportTicket(ticket.id, status);
+      await refreshOperations();
+    } catch (err) {
+      Alert.alert('Support', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
   const resolveTargetLabel = (target: string | null) => {
     if (!target) return '—';
     const user = users.find((u) => u.id === target);
@@ -553,6 +643,18 @@ export default function AdminScreen() {
                 )}
                 {!!moderationOverview?.photos.removed && (
                   <Text style={styles.alertText}>{moderationOverview.photos.removed} photo(s) ont été retirées par la modération.</Text>
+                )}
+                {!!operationsOverview?.incidents.unresolved && (
+                  <Text style={styles.alertText}>{operationsOverview.incidents.unresolved} incident(s) technique(s) non résolu(s).</Text>
+                )}
+                {!!operationsOverview?.support.bugsOpen && (
+                  <Text style={styles.alertText}>{operationsOverview.support.bugsOpen} ticket(s) BUG attendent un traitement.</Text>
+                )}
+                {!!operationsOverview?.logins.failedLastHour && operationsOverview.logins.failedLastHour >= 3 && (
+                  <Text style={styles.alertText}>{operationsOverview.logins.failedLastHour} échec(s) de connexion durant la dernière heure.</Text>
+                )}
+                {!moderationOverview?.openReports && !operationsOverview?.incidents.unresolved && !operationsOverview?.support.bugsOpen && (
+                  <Text style={styles.goodText}>Aucune alerte prioritaire supplémentaire.</Text>
                 )}
               </SectionCard>
 
