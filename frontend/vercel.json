@@ -7,13 +7,11 @@
       "destination": "/index.html"
     }
   ],
-  "github": {
-    "autoJobCancelation": false
-  },
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
     "deploymentEnabled": {
       "main": true
     }
-  }
+  },
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./"
 }
