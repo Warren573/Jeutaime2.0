@@ -256,6 +256,21 @@ export default function SettingsScreen() {
     },
   ];
 
+  const visibleSections: SettingsSection[] = currentUser?.role === 'ADMIN'
+    ? SECTIONS
+        .filter((section) => ['administration', 'account', 'support', 'about'].includes(section.key))
+        .map((section) =>
+          section.key === 'account'
+            ? {
+                ...section,
+                items: section.items.filter((item) =>
+                  ['E-mail', 'Mot de passe'].includes(item.label)
+                ),
+              }
+            : section
+        )
+    : SECTIONS;
+
   const handlePress = (item: SettingsItem) => {
     if (item.action) item.action();
     else if (item.route) nav(item.route);
@@ -272,7 +287,7 @@ export default function SettingsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <TouchableOpacity
+        {currentUser?.role !== 'ADMIN' && <TouchableOpacity
           style={styles.shopCard}
           onPress={() => nav('/shop')}
           activeOpacity={0.8}
@@ -292,9 +307,9 @@ export default function SettingsScreen() {
           </View>
 
           <Text style={styles.shopArrow}>›</Text>
-        </TouchableOpacity>
+        </TouchableOpacity>}
 
-        {SECTIONS.map(section => (
+        {visibleSections.map(section => (
           <SettingsSectionList
             key={section.key}
             section={section}
@@ -314,7 +329,7 @@ export default function SettingsScreen() {
           <Text style={styles.bottomArrow}>›</Text>
         </TouchableOpacity>
 
-        <View style={styles.vacationCard}>
+        {currentUser?.role !== 'ADMIN' && <View style={styles.vacationCard}>
           <View style={styles.vacationContent}>
             <View style={styles.vacationIconBox}>
               <Ionicons name="airplane-outline" size={19} color="#8B6F47" />
@@ -335,7 +350,7 @@ export default function SettingsScreen() {
             thumbColor={vacationMode ? '#8B6F47' : '#FFFFFF'}
             ios_backgroundColor="#E9DDCF"
           />
-        </View>
+        </View>}
       </ScrollView>
     </View>
   );
