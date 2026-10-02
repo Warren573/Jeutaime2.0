@@ -520,15 +520,15 @@ export default function AdminScreen() {
     }
   };
 
-  const adjustCoins = async () => {
+  const adjustCoins = async (direction: 1 | -1) => {
     if (!selectedUser) return;
     const amount = Number(coinAmount);
-    if (!Number.isInteger(amount) || amount === 0 || coinReason.trim().length < 3) {
-      Alert.alert('Pièces', 'Indique un montant entier non nul et un motif.');
+    if (!Number.isInteger(amount) || amount <= 0 || coinReason.trim().length < 3) {
+      Alert.alert('Pièces', 'Indique un montant positif et un motif.');
       return;
     }
     try {
-      await adjustAdminUserCoins(selectedUser.id, amount, coinReason.trim());
+      await adjustAdminUserCoins(selectedUser.id, amount * direction, coinReason.trim());
       setCoinAmount('');
       setCoinReason('');
       setSelectedUser(await getAdminUser(selectedUser.id));
@@ -1037,6 +1037,14 @@ export default function AdminScreen() {
                     <DataLine label="Visible en découverte" value={selectedUser.settings?.showInDiscovery ? 'Oui' : 'Non'} />
                     <DataLine label="Mode vacances" value={selectedUser.settings?.vacationMode ? 'Oui' : 'Non'} />
                     <DataLine label="État" value={selectedUser.isBanned ? `Suspendu · ${selectedUser.banReason ?? ''}` : 'Actif'} />
+                    <View style={styles.actionsLeft}>
+                      <TouchableOpacity
+                        style={styles.secondaryButton}
+                        onPress={() => router.push(`/profile/${selectedUser.id}?adminPreview=1` as any)}
+                      >
+                        <Text style={styles.secondaryText}>Voir le profil</Text>
+                      </TouchableOpacity>
+                    </View>
                     {selectedUser.role !== 'ADMIN' && (
                       <View style={styles.actions}>
                         <TouchableOpacity style={[styles.actionButton, selectedUser.isBanned && styles.actionButtonGood]} onPress={() => void toggleBan(selectedUser)}>
@@ -1055,29 +1063,6 @@ export default function AdminScreen() {
                     <Metric value={selectedUser.stats.salonParticipations} label="Participations salons" />
                     <Metric value={selectedUser.stats.bottlesSent} label="Bouteilles envoyées" />
                   </View>
-
-                  <SectionCard title="Économie">
-                    <DataLine label="Solde actuel" value={`${selectedUser.wallet?.coins ?? 0} pièces`} />
-                    <TextInput
-                      value={coinAmount}
-                      onChangeText={setCoinAmount}
-                      keyboardType="numbers-and-punctuation"
-                      placeholder="+100 ou -100"
-                      placeholderTextColor="#A48C72"
-                      style={styles.search}
-                    />
-                    <TextInput
-                      value={coinReason}
-                      onChangeText={setCoinReason}
-                      placeholder="Motif obligatoire"
-                      placeholderTextColor="#A48C72"
-                      style={styles.search}
-                    />
-                    <TouchableOpacity style={styles.actionButton} onPress={() => void adjustCoins()}>
-                      <Text style={styles.actionButtonText}>Appliquer l’ajustement</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.helper}>Chaque ajustement est enregistré dans le journal administrateur.</Text>
-                  </SectionCard>
 
                   {selectedUser.role !== 'ADMIN' && (
                     <SectionCard title="Rôle et modération">
@@ -1109,37 +1094,8 @@ export default function AdminScreen() {
                     </SectionCard>
                   )}
 
-                  <SectionCard title="Intervention administrateur">
-                    <Text style={styles.cardTitle}>Avantages et réinitialisations</Text>
-                    <View style={styles.actionsLeft}>
-                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void grantPremiumToSelectedUser(1)}>
-                        <Text style={styles.actionButtonText}>Offrir 1 journée de Premium</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void grantPremiumToSelectedUser(30)}>
-                        <Text style={styles.actionButtonText}>Offrir 1 mois de Premium</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserSalons()}>
-                        <Text style={styles.secondaryText}>Réinitialiser les salons</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserRefuge()}>
-                        <Text style={styles.secondaryText}>Réinitialiser le Refuge</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <Text style={[styles.cardTitle, { marginTop: 16 }]}>Écrire dans son Journal</Text>
-                    <TextInput
-                      value={journalNote}
-                      onChangeText={setJournalNote}
-                      placeholder="Message visible dans son Journal du jour"
-                      placeholderTextColor="#A48C72"
-                      multiline
-                      style={[styles.search, styles.multiline]}
-                    />
-                    <TouchableOpacity style={styles.actionButton} onPress={() => void writeSelectedUserJournal()}>
-                      <Text style={styles.actionButtonText}>Ajouter au Journal</Text>
-                    </TouchableOpacity>
-
-                    <Text style={[styles.cardTitle, { marginTop: 18 }]}>Communiquer avec l’utilisateur</Text>
+                  <SectionCard title="Contact et invitation">
+                    <Text style={styles.cardTitle}>Communiquer avec l’utilisateur</Text>
                     <Text style={styles.details}>Le message est clairement identifié comme venant de l’administration JeuTaime.</Text>
                     <TextInput
                       value={adminMessageSubject}
@@ -1222,19 +1178,6 @@ export default function AdminScreen() {
                 </View>
               )}
 
-              <SectionCard title="Décision de modération">
-                <Text style={styles.details}>
-                  Vérifie d’abord le contenu. Le retrait d’un contenu et la sanction du compte sont deux décisions séparées.
-                </Text>
-                <TextInput
-                  value={moderationReason}
-                  onChangeText={setModerationReason}
-                  placeholder="Motif de la décision (facultatif si vérification simple)"
-                  placeholderTextColor="#A48C72"
-                  style={[styles.search, styles.multiline]}
-                  multiline
-                />
-              </SectionCard>
 
               <Text style={styles.subSectionTitle}>Photos récentes</Text>
               {moderationPhotos.length === 0 && <Text style={styles.muted}>Aucune photo.</Text>}
