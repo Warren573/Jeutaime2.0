@@ -25,6 +25,8 @@ const TYPE_EMOJI: Record<NotificationType, string> = {
   MAGIE_BROKEN:       '💥',
   PREMIUM_SUBSCRIBED: '👑',
   PREMIUM_CANCELLED:  '😔',
+  ADMIN_MESSAGE:      '📣',
+  PRIVATE_SALON_INVITE: '🔐',
 };
 
 function formatRelative(iso: string): string {
