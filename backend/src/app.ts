@@ -33,6 +33,8 @@ import adminAuditRoutes from "./modules/admin/audit/adminAudit.routes";
 import adminSupportRoutes from "./modules/admin/support/adminSupport.routes";
 import adminOverviewRoutes from "./modules/admin/overview/adminOverview.routes";
 import adminModerationRoutes from "./modules/admin/moderation/adminModeration.routes";
+import adminOperationsRoutes from "./modules/admin/operations/adminOperations.routes";
+import adminEconomyRoutes from "./modules/admin/economy/adminEconomy.routes";
 import reactionsRoutes from "./modules/reactions/reactions.routes";
 import cardGameRoutes from "./modules/card-game/card-game.routes";
 import privateDuelsRoutes from "./modules/private-duels/private-duels.routes";
@@ -138,6 +140,8 @@ app.use(`${api}/admin/audit-log`, adminAuditRoutes);
 app.use(`${api}/admin/support`, adminSupportRoutes);
 app.use(`${api}/admin/overview`, adminOverviewRoutes);
 app.use(`${api}/admin/moderation`, adminModerationRoutes);
+app.use(`${api}/admin/operations`, adminOperationsRoutes);
+app.use(`${api}/admin/economy`, adminEconomyRoutes);
 
 // Public stream de fichiers admin (URLs opaques, no auth)
 app.use(`${api}/files`, publicFilesRouter);
