@@ -8,6 +8,7 @@
  */
 import { logger } from "../config/logger";
 import type { Job, JobResult } from "./types";
+import { recordSystemIncident } from "../modules/operations/operations.service";
 
 export async function runJob(
   job: Job,
@@ -36,6 +37,12 @@ export async function runJob(
       { err, job: job.name, durationMs },
       `[jobs] failed ${job.name}`,
     );
+    void recordSystemIncident({
+      level: "ERROR",
+      source: "job",
+      code: `JOB_${job.name}`,
+      message,
+    });
     return {
       jobName: job.name,
       scanned: 0,
