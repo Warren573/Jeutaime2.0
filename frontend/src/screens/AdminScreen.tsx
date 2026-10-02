@@ -17,21 +17,34 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 import {
+  AdminOverview,
   AdminReport,
   AdminSalon,
+  AdminSalonSession,
   AdminUser,
+  AdminUserDetail,
   AuditEntry,
+  HealthVersion,
+  adjustAdminUserCoins,
   banAdminUser,
+  getAdminOverview,
+  getAdminSalonSession,
+  getAdminUser,
+  getHealthVersion,
   listAdminReports,
   listAdminSalons,
   listAdminUsers,
   listAuditLog,
+  removeAdminSalonParticipant,
   setAdminSalonActive,
   unbanAdminUser,
   updateAdminReport,
+  updateAdminUserRole,
+  warnAdminUser,
 } from '../api/admin';
 
 type Tab = 'dashboard' | 'users' | 'reports' | 'salons' | 'tools';
+type ReportFilter = 'ALL' | AdminReport['status'];
 
 const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
   { key: 'dashboard', label: 'Vue générale', icon: 'grid-outline' },
@@ -41,36 +54,81 @@ const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof I
   { key: 'tools', label: 'Outils', icon: 'construct-outline' },
 ];
 
-function formatDate(value: string) {
+function formatDate(value?: string | null) {
+  if (!value) return '—';
   return new Date(value).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function Metric({ value, label }: { value: string | number; label: string }) {
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+function DataLine({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <View style={styles.dataLine}>
+      <Text style={styles.dataLabel}>{label}</Text>
+      <Text style={styles.dataValue}>{String(value ?? '—')}</Text>
+    </View>
+  );
 }
 
 export default function AdminScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const currentUser = useStore((s) => s.currentUser);
+
   const [tab, setTab] = useState<Tab>('dashboard');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [reportTotal, setReportTotal] = useState(0);
+  const [reportFilter, setReportFilter] = useState<ReportFilter>('ALL');
   const [salons, setSalons] = useState<AdminSalon[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [health, setHealth] = useState<HealthVersion | null>(null);
+
   const [query, setQuery] = useState('');
+  const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
+  const [selectedUserLoading, setSelectedUserLoading] = useState(false);
+  const [warningMessage, setWarningMessage] = useState('');
+  const [coinAmount, setCoinAmount] = useState('');
+  const [coinReason, setCoinReason] = useState('');
+
+  const [selectedSalon, setSelectedSalon] = useState<AdminSalonSession | null>(null);
+  const [selectedSalonLoading, setSelectedSalonLoading] = useState(false);
 
   const loadAll = useCallback(async () => {
-    const [u, r, s, a] = await Promise.all([
+    const [o, u, r, s, a, h] = await Promise.all([
+      getAdminOverview(),
       listAdminUsers(),
       listAdminReports(),
       listAdminSalons(),
       listAuditLog(),
+      getHealthVersion().catch(() => ({})),
     ]);
+    setOverview(o);
     setUsers(u);
     setReports(r.items);
     setReportTotal(r.total);
     setSalons(s);
     setAudit(a);
+    setHealth(h);
   }, []);
 
   useEffect(() => {
@@ -85,7 +143,17 @@ export default function AdminScreen() {
 
   const refresh = async () => {
     setRefreshing(true);
-    try { await loadAll(); } finally { setRefreshing(false); }
+    try {
+      await loadAll();
+      if (selectedUser) {
+        setSelectedUser(await getAdminUser(selectedUser.id));
+      }
+      if (selectedSalon?.salon.id) {
+        setSelectedSalon(await getAdminSalonSession(selectedSalon.salon.id));
+      }
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const filteredUsers = useMemo(() => {
@@ -98,8 +166,15 @@ export default function AdminScreen() {
     );
   }, [query, users]);
 
+  const filteredReports = useMemo(
+    () => reportFilter === 'ALL' ? reports : reports.filter((r) => r.status === reportFilter),
+    [reportFilter, reports],
+  );
+
   const confirm = (title: string, message: string): Promise<boolean> => {
-    if (Platform.OS === 'web') return Promise.resolve(typeof window !== 'undefined' && window.confirm(message));
+    if (Platform.OS === 'web') {
+      return Promise.resolve(typeof window !== 'undefined' && window.confirm(message));
+    }
     return new Promise((resolve) => {
       Alert.alert(title, message, [
         { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
@@ -108,27 +183,93 @@ export default function AdminScreen() {
     });
   };
 
-  const toggleBan = async (user: AdminUser) => {
+  const openUser = async (id: string) => {
+    setSelectedUserLoading(true);
+    try {
+      setSelectedUser(await getAdminUser(id));
+      setWarningMessage('');
+      setCoinAmount('');
+      setCoinReason('');
+    } catch (err) {
+      Alert.alert('Utilisateur', err instanceof Error ? err.message : 'Chargement impossible.');
+    } finally {
+      setSelectedUserLoading(false);
+    }
+  };
+
+  const syncUserList = (updated: AdminUser) => {
+    setUsers((prev) => prev.map((u) => u.id === updated.id ? { ...u, ...updated } : u));
+  };
+
+  const toggleBan = async (user: AdminUser | AdminUserDetail) => {
     if (user.role === 'ADMIN') return;
     const ok = await confirm(
       user.isBanned ? 'Réactiver le compte' : 'Suspendre le compte',
-      user.isBanned ? `Réactiver ${user.pseudo ?? user.email} ?` : `Suspendre ${user.pseudo ?? user.email} ?`,
+      user.isBanned ? `Réactiver ${user.profile?.pseudo ?? user.email} ?` : `Suspendre ${user.profile?.pseudo ?? user.email} ?`,
     );
     if (!ok) return;
     try {
       const updated = user.isBanned
         ? await unbanAdminUser(user.id)
         : await banAdminUser(user.id, 'Suspension depuis le panneau administrateur');
-      setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, ...updated } : u));
+      syncUserList(updated);
+      setSelectedUser(await getAdminUser(user.id));
+      setOverview(await getAdminOverview());
     } catch (err) {
       Alert.alert('Administration', err instanceof Error ? err.message : 'Action impossible.');
     }
   };
 
+  const sendWarning = async () => {
+    if (!selectedUser || warningMessage.trim().length < 3) return;
+    try {
+      await warnAdminUser(selectedUser.id, warningMessage.trim());
+      setWarningMessage('');
+      setSelectedUser(await getAdminUser(selectedUser.id));
+      Alert.alert('Administration', 'Avertissement enregistré dans le journal administrateur.');
+    } catch (err) {
+      Alert.alert('Administration', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const adjustCoins = async () => {
+    if (!selectedUser) return;
+    const amount = Number(coinAmount);
+    if (!Number.isInteger(amount) || amount === 0 || coinReason.trim().length < 3) {
+      Alert.alert('Pièces', 'Indique un montant entier non nul et un motif.');
+      return;
+    }
+    try {
+      await adjustAdminUserCoins(selectedUser.id, amount, coinReason.trim());
+      setCoinAmount('');
+      setCoinReason('');
+      setSelectedUser(await getAdminUser(selectedUser.id));
+      setAudit(await listAuditLog());
+    } catch (err) {
+      Alert.alert('Pièces', err instanceof Error ? err.message : 'Modification impossible.');
+    }
+  };
+
+  const changeRole = async (role: 'USER' | 'MODERATOR') => {
+    if (!selectedUser || selectedUser.role === 'ADMIN') return;
+    try {
+      const updated = await updateAdminUserRole(selectedUser.id, role);
+      syncUserList(updated);
+      setSelectedUser(await getAdminUser(selectedUser.id));
+    } catch (err) {
+      Alert.alert('Rôle', err instanceof Error ? err.message : 'Modification impossible.');
+    }
+  };
+
   const changeReport = async (report: AdminReport, status: AdminReport['status']) => {
     try {
-      const updated = await updateAdminReport(report.id, status, status === 'DISMISSED' ? 'Signalement classé sans suite' : undefined);
+      const updated = await updateAdminReport(
+        report.id,
+        status,
+        status === 'DISMISSED' ? 'Signalement classé sans suite' : undefined,
+      );
       setReports((prev) => prev.map((r) => r.id === report.id ? updated : r));
+      setOverview(await getAdminOverview());
     } catch (err) {
       Alert.alert('Signalement', err instanceof Error ? err.message : 'Action impossible.');
     }
@@ -138,16 +279,37 @@ export default function AdminScreen() {
     try {
       const updated = await setAdminSalonActive(salon.id, value);
       setSalons((prev) => prev.map((s) => s.id === salon.id ? updated : s));
+      setOverview(await getAdminOverview());
     } catch (err) {
       Alert.alert('Salon', err instanceof Error ? err.message : 'Modification impossible.');
     }
   };
 
-  if (currentUser?.role !== 'ADMIN') return null;
+  const openSalon = async (salon: AdminSalon) => {
+    setSelectedSalonLoading(true);
+    try {
+      setSelectedSalon(await getAdminSalonSession(salon.id));
+    } catch (err) {
+      Alert.alert('Salon', err instanceof Error ? err.message : 'Chargement impossible.');
+    } finally {
+      setSelectedSalonLoading(false);
+    }
+  };
 
-  const openReports = reports.filter((r) => r.status === 'OPEN' || r.status === 'REVIEWING').length;
-  const bannedUsers = users.filter((u) => u.isBanned).length;
-  const activeSalons = salons.filter((s) => s.isActive).length;
+  const removeParticipant = async (participantId: string) => {
+    if (!selectedSalon) return;
+    const ok = await confirm('Retirer du salon', 'Retirer ce participant de la session active ?');
+    if (!ok) return;
+    try {
+      await removeAdminSalonParticipant(selectedSalon.salon.id, participantId);
+      setSelectedSalon(await getAdminSalonSession(selectedSalon.salon.id));
+      setAudit(await listAuditLog());
+    } catch (err) {
+      Alert.alert('Salon', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  if (currentUser?.role !== 'ADMIN') return null;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -162,10 +324,19 @@ export default function AdminScreen() {
         <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>ADMIN</Text></View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabsScroll}
+        contentContainerStyle={styles.tabs}
+      >
         {TABS.map((t) => (
-          <TouchableOpacity key={t.key} onPress={() => setTab(t.key)} style={[styles.tab, tab === t.key && styles.tabActive]}>
-            <Ionicons name={t.icon} size={17} color={tab === t.key ? '#FFF' : '#7D6348'} />
+          <TouchableOpacity
+            key={t.key}
+            onPress={() => setTab(t.key)}
+            style={[styles.tab, tab === t.key && styles.tabActive]}
+          >
+            <Ionicons name={t.icon} size={16} color={tab === t.key ? '#FFF' : '#7D6348'} />
             <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
@@ -179,79 +350,231 @@ export default function AdminScreen() {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         >
-          {tab === 'dashboard' && (
+          {tab === 'dashboard' && overview && (
             <>
               <Text style={styles.sectionTitle}>Vue générale</Text>
               <View style={styles.statsGrid}>
-                <View style={styles.stat}><Text style={styles.statValue}>{users.length}</Text><Text style={styles.statLabel}>Comptes récents</Text></View>
-                <View style={styles.stat}><Text style={styles.statValue}>{openReports}</Text><Text style={styles.statLabel}>À modérer</Text></View>
-                <View style={styles.stat}><Text style={styles.statValue}>{activeSalons}/{salons.length}</Text><Text style={styles.statLabel}>Salons actifs</Text></View>
-                <View style={styles.stat}><Text style={styles.statValue}>{bannedUsers}</Text><Text style={styles.statLabel}>Suspendus</Text></View>
+                <Metric value={overview.users.total} label="Utilisateurs" />
+                <Metric value={overview.users.activeToday} label="Actifs aujourd’hui" />
+                <Metric value={`+${overview.users.registrations7d}`} label="Inscrits sur 7 jours" />
+                <Metric value={overview.users.premiumActive} label="Premium actifs" />
+                <Metric value={overview.moderation.openReports} label="À modérer" />
+                <Metric value={overview.users.banned} label="Suspendus" />
+                <Metric value={`${overview.salons.active}/${overview.salons.total}`} label="Salons actifs" />
+                <Metric value={overview.salons.activeSessions} label="Sessions salons" />
               </View>
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Dernières actions</Text>
+
+              <Text style={styles.subSectionTitle}>Activité du jour</Text>
+              <View style={styles.statsGrid}>
+                <Metric value={overview.activity.matchesToday} label="Nouveaux matchs" />
+                <Metric value={overview.activity.lettersToday} label="Lettres envoyées" />
+                <Metric value={overview.activity.bottlesActive} label="Bouteilles actives" />
+                <Metric value={overview.activity.refugesActive} label="Refuges actifs" />
+              </View>
+
+              <SectionCard title="Croissance">
+                <DataLine label="Inscriptions aujourd’hui" value={overview.users.registrationsToday} />
+                <DataLine label="Inscriptions sur 30 jours" value={overview.users.registrations30d} />
+                <DataLine label="Actifs sur 7 jours" value={overview.users.active7d} />
+                <DataLine label="Actifs sur 30 jours" value={overview.users.active30d} />
+              </SectionCard>
+
+              <SectionCard title="Dernières actions administrateur">
+                {audit.length === 0 && <Text style={styles.mutedLeft}>Aucune action enregistrée.</Text>}
                 {audit.slice(0, 8).map((a) => (
                   <View key={a.id} style={styles.row}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowTitle}>{a.action}</Text>
-                      <Text style={styles.rowSub}>{a.target ?? '—'} · {formatDate(a.createdAt)}</Text>
-                    </View>
+                    <Text style={styles.rowTitle}>{a.action}</Text>
+                    <Text style={styles.rowSub}>{a.target ?? '—'} · {formatDate(a.createdAt)}</Text>
                   </View>
                 ))}
-              </View>
+              </SectionCard>
             </>
           )}
 
           {tab === 'users' && (
             <>
-              <Text style={styles.sectionTitle}>Utilisateurs</Text>
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Pseudo, e-mail ou identifiant"
-                placeholderTextColor="#A48C72"
-                style={styles.search}
-              />
-              {filteredUsers.map((u) => (
-                <View key={u.id} style={styles.card}>
-                  <View style={styles.userHead}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.cardTitle}>{u.pseudo || 'Sans pseudo'}</Text>
-                      <Text style={styles.rowSub}>{u.email}</Text>
-                    </View>
-                    <View style={[styles.rolePill, u.role === 'ADMIN' && styles.rolePillAdmin]}>
-                      <Text style={styles.roleText}>{u.role}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.actions}>
-                    <Text style={[styles.status, u.isBanned && styles.statusBad]}>
-                      {u.isBanned ? 'Suspendu' : 'Actif'}
-                    </Text>
-                    {u.role !== 'ADMIN' && (
-                      <TouchableOpacity style={[styles.actionButton, u.isBanned && styles.actionButtonGood]} onPress={() => void toggleBan(u)}>
-                        <Text style={styles.actionButtonText}>{u.isBanned ? 'Réactiver' : 'Suspendre'}</Text>
-                      </TouchableOpacity>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Utilisateurs</Text>
+                {selectedUser && (
+                  <TouchableOpacity style={styles.smallButton} onPress={() => setSelectedUser(null)}>
+                    <Text style={styles.smallButtonText}>Liste</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {!selectedUser && (
+                <>
+                  <TextInput
+                    value={query}
+                    onChangeText={setQuery}
+                    placeholder="Pseudo, e-mail ou identifiant"
+                    placeholderTextColor="#A48C72"
+                    style={styles.search}
+                  />
+                  {selectedUserLoading && <ActivityIndicator />}
+                  {filteredUsers.map((u) => (
+                    <TouchableOpacity key={u.id} style={styles.card} onPress={() => void openUser(u.id)}>
+                      <View style={styles.userHead}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.cardTitle}>{u.pseudo || 'Sans pseudo'}</Text>
+                          <Text style={styles.rowSub}>{u.email}</Text>
+                        </View>
+                        <View style={[styles.rolePill, u.role === 'ADMIN' && styles.rolePillAdmin, u.role === 'MODERATOR' && styles.rolePillModerator]}>
+                          <Text style={styles.roleText}>{u.role}</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.status, u.isBanned && styles.statusBad]}>
+                        {u.isBanned ? 'Suspendu' : 'Actif'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
+
+              {selectedUser && (
+                <>
+                  <SectionCard title={selectedUser.profile?.pseudo ?? 'Compte utilisateur'}>
+                    <DataLine label="E-mail" value={selectedUser.email} />
+                    <DataLine label="Rôle" value={selectedUser.role} />
+                    <DataLine label="Créé le" value={formatDate(selectedUser.createdAt)} />
+                    <DataLine label="Dernière connexion" value={formatDate(selectedUser.lastLoginAt)} />
+                    <DataLine label="Ville" value={selectedUser.profile?.city ?? '—'} />
+                    <DataLine label="Premium" value={selectedUser.premiumTier === 'PREMIUM' ? `Oui · jusqu’au ${formatDate(selectedUser.premiumUntil)}` : 'Non'} />
+                    <DataLine label="Visible en découverte" value={selectedUser.settings?.showInDiscovery ? 'Oui' : 'Non'} />
+                    <DataLine label="Mode vacances" value={selectedUser.settings?.vacationMode ? 'Oui' : 'Non'} />
+                    <DataLine label="État" value={selectedUser.isBanned ? `Suspendu · ${selectedUser.banReason ?? ''}` : 'Actif'} />
+                    {selectedUser.role !== 'ADMIN' && (
+                      <View style={styles.actions}>
+                        <TouchableOpacity style={[styles.actionButton, selectedUser.isBanned && styles.actionButtonGood]} onPress={() => void toggleBan(selectedUser)}>
+                          <Text style={styles.actionButtonText}>{selectedUser.isBanned ? 'Réactiver' : 'Suspendre'}</Text>
+                        </TouchableOpacity>
+                      </View>
                     )}
+                  </SectionCard>
+
+                  <Text style={styles.subSectionTitle}>Activité</Text>
+                  <View style={styles.statsGrid}>
+                    <Metric value={selectedUser.stats.matches} label="Matchs" />
+                    <Metric value={selectedUser.stats.lettersSent} label="Lettres envoyées" />
+                    <Metric value={selectedUser.stats.lettersReceived} label="Lettres reçues" />
+                    <Metric value={selectedUser.stats.reportsReceived} label="Signalements reçus" />
+                    <Metric value={selectedUser.stats.salonParticipations} label="Participations salons" />
+                    <Metric value={selectedUser.stats.bottlesSent} label="Bouteilles envoyées" />
                   </View>
-                </View>
-              ))}
+
+                  <SectionCard title="Économie">
+                    <DataLine label="Solde actuel" value={`${selectedUser.wallet?.coins ?? 0} pièces`} />
+                    <TextInput
+                      value={coinAmount}
+                      onChangeText={setCoinAmount}
+                      keyboardType="numbers-and-punctuation"
+                      placeholder="+100 ou -100"
+                      placeholderTextColor="#A48C72"
+                      style={styles.search}
+                    />
+                    <TextInput
+                      value={coinReason}
+                      onChangeText={setCoinReason}
+                      placeholder="Motif obligatoire"
+                      placeholderTextColor="#A48C72"
+                      style={styles.search}
+                    />
+                    <TouchableOpacity style={styles.actionButton} onPress={() => void adjustCoins()}>
+                      <Text style={styles.actionButtonText}>Appliquer l’ajustement</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.helper}>Chaque ajustement est enregistré dans le journal administrateur.</Text>
+                  </SectionCard>
+
+                  {selectedUser.role !== 'ADMIN' && (
+                    <SectionCard title="Rôle et modération">
+                      <View style={styles.actionsLeft}>
+                        <TouchableOpacity
+                          style={[styles.secondaryButton, selectedUser.role === 'USER' && styles.selectedSecondary]}
+                          onPress={() => void changeRole('USER')}
+                        >
+                          <Text style={styles.secondaryText}>Utilisateur</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.secondaryButton, selectedUser.role === 'MODERATOR' && styles.selectedSecondary]}
+                          onPress={() => void changeRole('MODERATOR')}
+                        >
+                          <Text style={styles.secondaryText}>Modérateur</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <TextInput
+                        value={warningMessage}
+                        onChangeText={setWarningMessage}
+                        placeholder="Motif / avertissement"
+                        placeholderTextColor="#A48C72"
+                        multiline
+                        style={[styles.search, styles.multiline]}
+                      />
+                      <TouchableOpacity style={styles.actionButton} onPress={() => void sendWarning()}>
+                        <Text style={styles.actionButtonText}>Enregistrer l’avertissement</Text>
+                      </TouchableOpacity>
+                    </SectionCard>
+                  )}
+
+                  <SectionCard title="Dernières transactions">
+                    {selectedUser.recentTransactions.length === 0 && <Text style={styles.mutedLeft}>Aucune transaction.</Text>}
+                    {selectedUser.recentTransactions.slice(0, 10).map((t) => (
+                      <View key={t.id} style={styles.row}>
+                        <View style={styles.rowSplit}>
+                          <Text style={styles.rowTitle}>{t.type}</Text>
+                          <Text style={[styles.amount, t.amount < 0 && styles.amountNegative]}>
+                            {t.amount > 0 ? '+' : ''}{t.amount}
+                          </Text>
+                        </View>
+                        <Text style={styles.rowSub}>Solde {t.balance} · {formatDate(t.createdAt)}</Text>
+                      </View>
+                    ))}
+                  </SectionCard>
+
+                  <SectionCard title="Historique administratif">
+                    {selectedUser.adminHistory.length === 0 && <Text style={styles.mutedLeft}>Aucune action administrative.</Text>}
+                    {selectedUser.adminHistory.map((a) => (
+                      <View key={a.id} style={styles.row}>
+                        <Text style={styles.rowTitle}>{a.action}</Text>
+                        <Text style={styles.rowSub}>{formatDate(a.createdAt)}</Text>
+                      </View>
+                    ))}
+                  </SectionCard>
+                </>
+              )}
             </>
           )}
 
           {tab === 'reports' && (
             <>
               <Text style={styles.sectionTitle}>Signalements ({reportTotal})</Text>
-              {reports.length === 0 && <Text style={styles.muted}>Aucun signalement.</Text>}
-              {reports.map((r) => (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
+                {(['ALL', 'OPEN', 'REVIEWING', 'ACTIONED', 'DISMISSED'] as ReportFilter[]).map((status) => (
+                  <TouchableOpacity
+                    key={status}
+                    onPress={() => setReportFilter(status)}
+                    style={[styles.filterChip, reportFilter === status && styles.filterChipActive]}
+                  >
+                    <Text style={[styles.filterText, reportFilter === status && styles.filterTextActive]}>
+                      {status === 'ALL' ? 'Tous' : status}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              {filteredReports.length === 0 && <Text style={styles.muted}>Aucun signalement.</Text>}
+              {filteredReports.map((r) => (
                 <View key={r.id} style={styles.card}>
                   <View style={styles.userHead}>
                     <Text style={styles.cardTitle}>{r.reason}</Text>
                     <Text style={styles.status}>{r.status}</Text>
                   </View>
-                  <Text style={styles.rowSub}>Cible : {r.target.email}</Text>
+                  <Text style={styles.rowSub}>Signalé : {r.target.email}</Text>
+                  <Text style={styles.rowSub}>Par : {r.reporter.email}</Text>
                   {!!r.details && <Text style={styles.details}>{r.details}</Text>}
                   <Text style={styles.rowSub}>{formatDate(r.createdAt)}</Text>
                   <View style={styles.actions}>
+                    <TouchableOpacity style={styles.secondaryButton} onPress={() => { setTab('users'); void openUser(r.target.id); }}>
+                      <Text style={styles.secondaryText}>Voir le compte</Text>
+                    </TouchableOpacity>
                     {r.status === 'OPEN' && (
                       <TouchableOpacity style={styles.actionButton} onPress={() => void changeReport(r, 'REVIEWING')}>
                         <Text style={styles.actionButtonText}>Prendre en charge</Text>
@@ -275,33 +598,96 @@ export default function AdminScreen() {
 
           {tab === 'salons' && (
             <>
-              <Text style={styles.sectionTitle}>Salons</Text>
-              {salons.map((s) => (
-                <View key={s.id} style={[styles.card, styles.salonRow]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardTitle}>{s.name}</Text>
-                    <Text style={styles.rowSub}>{s.kind} · ordre {s.order}</Text>
-                  </View>
-                  <Switch value={s.isActive} onValueChange={(v) => void toggleSalon(s, v)} />
-                </View>
-              ))}
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Salons</Text>
+                {selectedSalon && (
+                  <TouchableOpacity style={styles.smallButton} onPress={() => setSelectedSalon(null)}>
+                    <Text style={styles.smallButtonText}>Liste</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {!selectedSalon && (
+                <>
+                  {selectedSalonLoading && <ActivityIndicator />}
+                  {salons.map((s) => (
+                    <View key={s.id} style={[styles.card, styles.salonRow]}>
+                      <TouchableOpacity style={{ flex: 1 }} onPress={() => void openSalon(s)}>
+                        <Text style={styles.cardTitle}>{s.name}</Text>
+                        <Text style={styles.rowSub}>{s.kind} · ordre {s.order}</Text>
+                        <Text style={styles.linkText}>Voir la session et les participants</Text>
+                      </TouchableOpacity>
+                      <Switch value={s.isActive} onValueChange={(v) => void toggleSalon(s, v)} />
+                    </View>
+                  ))}
+                </>
+              )}
+
+              {selectedSalon && (
+                <>
+                  <SectionCard title={selectedSalon.salon.name}>
+                    <DataLine label="Type" value={selectedSalon.salon.kind} />
+                    <DataLine label="Session active" value={selectedSalon.session ? 'Oui' : 'Non'} />
+                    {selectedSalon.session && (
+                      <>
+                        <DataLine label="Début" value={formatDate(selectedSalon.session.startedAt)} />
+                        <DataLine label="Fin prévue" value={formatDate(selectedSalon.session.expiresAt)} />
+                        <DataLine label="Participants" value={selectedSalon.session.participants.filter((p) => p.status === 'ACTIVE').length} />
+                      </>
+                    )}
+                  </SectionCard>
+                  <Text style={styles.subSectionTitle}>Participants</Text>
+                  {!selectedSalon.session && <Text style={styles.muted}>Aucune session active.</Text>}
+                  {selectedSalon.session?.participants.map((p) => (
+                    <View key={p.id} style={styles.card}>
+                      <View style={styles.userHead}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.cardTitle}>{p.pseudo ?? p.email}</Text>
+                          <Text style={styles.rowSub}>{p.email}</Text>
+                        </View>
+                        <Text style={[styles.status, p.status !== 'ACTIVE' && styles.statusBad]}>{p.status}</Text>
+                      </View>
+                      <DataLine label="Arrivé le" value={formatDate(p.joinedAt)} />
+                      <DataLine label="Dernière connexion" value={formatDate(p.lastLoginAt)} />
+                      {p.status === 'ACTIVE' && (
+                        <View style={styles.actions}>
+                          <TouchableOpacity style={styles.dangerButton} onPress={() => void removeParticipant(p.id)}>
+                            <Text style={styles.actionButtonText}>Retirer de la session</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </>
+              )}
             </>
           )}
 
           {tab === 'tools' && (
             <>
               <Text style={styles.sectionTitle}>Outils</Text>
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Journal d’administration</Text>
-                <Text style={styles.details}>Toutes les actions sensibles sont tracées automatiquement.</Text>
-              </View>
-              {audit.map((a) => (
-                <View key={a.id} style={styles.card}>
-                  <Text style={styles.cardTitle}>{a.action}</Text>
-                  <Text style={styles.rowSub}>Cible : {a.target ?? '—'}</Text>
-                  <Text style={styles.rowSub}>{formatDate(a.createdAt)}</Text>
-                </View>
-              ))}
+              <SectionCard title="État technique">
+                <DataLine label="API" value={health?.service ?? 'jeutaime-api'} />
+                <DataLine label="Environnement" value={health?.environment ?? '—'} />
+                <DataLine label="Build" value={health?.buildSha ? health.buildSha.slice(0, 10) : '—'} />
+                <DataLine label="Backend" value={health?.error ? 'À vérifier' : 'En ligne'} />
+              </SectionCard>
+
+              <SectionCard title="Règles de confidentialité admin">
+                <Text style={styles.details}>Les lettres et conversations privées ne sont pas exposées ici. La modération passe par les signalements et les informations nécessaires au traitement.</Text>
+                <Text style={styles.details}>Les modifications de rôle, suspensions et ajustements de pièces sont journalisés.</Text>
+              </SectionCard>
+
+              <SectionCard title="Journal d’administration">
+                {audit.length === 0 && <Text style={styles.mutedLeft}>Aucune action enregistrée.</Text>}
+                {audit.map((a) => (
+                  <View key={a.id} style={styles.row}>
+                    <Text style={styles.rowTitle}>{a.action}</Text>
+                    <Text style={styles.rowSub}>Cible : {a.target ?? '—'}</Text>
+                    <Text style={styles.rowSub}>{formatDate(a.createdAt)}</Text>
+                  </View>
+                ))}
+              </SectionCard>
             </>
           )}
         </ScrollView>
@@ -312,43 +698,118 @@ export default function AdminScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F7F0E5' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E5D6C1', backgroundColor: '#FFFDF8' },
-  back: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5E9D8', marginRight: 10 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5D6C1',
+    backgroundColor: '#FFFDF8',
+  },
+  back: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5E9D8',
+    marginRight: 10,
+  },
   title: { fontSize: 22, fontWeight: '800', color: '#3A2818' },
   subtitle: { fontSize: 12, color: '#8F765C', marginTop: 2 },
   adminBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: '#A7324B' },
   adminBadgeText: { color: '#FFF', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
-  tabs: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
-  tab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 11, backgroundColor: '#FFFDF8', borderWidth: 1, borderColor: '#E5D6C1' },
+  tabsScroll: { flexGrow: 0, maxHeight: 58, backgroundColor: '#F7F0E5' },
+  tabs: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: 'center' },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#FFFDF8',
+    borderWidth: 1,
+    borderColor: '#E5D6C1',
+  },
   tabActive: { backgroundColor: '#8B6F47', borderColor: '#8B6F47' },
-  tabText: { color: '#6E563F', fontWeight: '700', fontSize: 13 },
+  tabText: { color: '#6E563F', fontWeight: '700', fontSize: 12 },
   tabTextActive: { color: '#FFF' },
-  content: { padding: 16, paddingBottom: 50 },
+  content: { padding: 16, paddingBottom: 60 },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  sectionTitle: { fontSize: 20, fontWeight: '800', color: '#3A2818', marginBottom: 12 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  sectionTitle: { fontSize: 21, fontWeight: '800', color: '#3A2818', marginBottom: 12 },
+  subSectionTitle: { fontSize: 16, fontWeight: '800', color: '#4D3726', marginBottom: 10, marginTop: 4 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
-  stat: { width: '47%', flexGrow: 1, backgroundColor: '#FFFDF8', borderRadius: 14, borderWidth: 1, borderColor: '#E5D6C1', padding: 14 },
-  statValue: { fontSize: 24, fontWeight: '900', color: '#A7324B' },
+  stat: {
+    width: '47%',
+    flexGrow: 1,
+    backgroundColor: '#FFFDF8',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5D6C1',
+    padding: 14,
+  },
+  statValue: { fontSize: 25, fontWeight: '900', color: '#A7324B' },
   statLabel: { fontSize: 12, color: '#8F765C', marginTop: 4 },
-  card: { backgroundColor: '#FFFDF8', borderRadius: 14, borderWidth: 1, borderColor: '#E5D6C1', padding: 14, marginBottom: 10 },
-  cardTitle: { fontSize: 15, fontWeight: '800', color: '#3A2818' },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E9DED0' },
-  rowTitle: { fontSize: 14, fontWeight: '700', color: '#4D3726' },
+  card: {
+    backgroundColor: '#FFFDF8',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5D6C1',
+    padding: 14,
+    marginBottom: 10,
+  },
+  cardTitle: { fontSize: 15, fontWeight: '800', color: '#3A2818', marginBottom: 4 },
+  row: { paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E9DED0' },
+  rowSplit: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  rowTitle: { fontSize: 13, fontWeight: '700', color: '#4D3726' },
   rowSub: { fontSize: 11, color: '#927960', marginTop: 3 },
-  search: { backgroundColor: '#FFFDF8', borderRadius: 12, borderWidth: 1, borderColor: '#DCCCB7', paddingHorizontal: 14, paddingVertical: 12, color: '#3A2818', marginBottom: 12 },
+  search: {
+    backgroundColor: '#FFFDF8',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DCCCB7',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    color: '#3A2818',
+    marginBottom: 10,
+  },
+  multiline: { minHeight: 76, textAlignVertical: 'top' },
   userHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   rolePill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: '#EFE4D4' },
   rolePillAdmin: { backgroundColor: '#F1D7DE' },
+  rolePillModerator: { backgroundColor: '#DCE8EF' },
   roleText: { fontSize: 10, fontWeight: '900', color: '#6A4F38' },
-  status: { fontSize: 12, fontWeight: '800', color: '#5A7B55' },
+  status: { fontSize: 12, fontWeight: '800', color: '#5A7B55', marginTop: 6 },
   statusBad: { color: '#B34343' },
-  details: { fontSize: 13, lineHeight: 19, color: '#5B4634', marginTop: 10 },
+  details: { fontSize: 13, lineHeight: 19, color: '#5B4634', marginTop: 8 },
   actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  actionButton: { backgroundColor: '#8B6F47', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 8 },
+  actionsLeft: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginVertical: 10 },
+  actionButton: { backgroundColor: '#8B6F47', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9, alignSelf: 'flex-start' },
+  dangerButton: { backgroundColor: '#A7324B', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9 },
   actionButtonGood: { backgroundColor: '#5F7D58' },
   actionButtonText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
   secondaryButton: { borderRadius: 9, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#D7C4AA' },
+  selectedSecondary: { backgroundColor: '#EFE4D4' },
   secondaryText: { color: '#6F5943', fontSize: 12, fontWeight: '700' },
-  salonRow: { flexDirection: 'row', alignItems: 'center' },
-  muted: { color: '#927960', textAlign: 'center' },
+  smallButton: { borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#D7C4AA' },
+  smallButtonText: { color: '#6F5943', fontSize: 12, fontWeight: '800' },
+  salonRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  muted: { color: '#927960', textAlign: 'center', marginVertical: 20 },
+  mutedLeft: { color: '#927960', marginTop: 6 },
+  helper: { fontSize: 11, color: '#927960', marginTop: 8, lineHeight: 16 },
+  dataLine: { flexDirection: 'row', justifyContent: 'space-between', gap: 14, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E9DED0' },
+  dataLabel: { flex: 1, fontSize: 12, color: '#8F765C' },
+  dataValue: { flex: 1, fontSize: 12, fontWeight: '700', color: '#4D3726', textAlign: 'right' },
+  amount: { fontSize: 13, fontWeight: '900', color: '#5A7B55' },
+  amountNegative: { color: '#B34343' },
+  linkText: { fontSize: 11, fontWeight: '700', color: '#8B6F47', marginTop: 8 },
+  filterScroll: { flexGrow: 0, marginBottom: 12 },
+  filterRow: { gap: 8 },
+  filterChip: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 16, backgroundColor: '#FFFDF8', borderWidth: 1, borderColor: '#DCCCB7' },
+  filterChipActive: { backgroundColor: '#8B6F47', borderColor: '#8B6F47' },
+  filterText: { fontSize: 11, fontWeight: '700', color: '#6F5943' },
+  filterTextActive: { color: '#FFF' },
 });
