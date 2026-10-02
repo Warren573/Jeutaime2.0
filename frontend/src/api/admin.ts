@@ -370,3 +370,216 @@ export async function moderateSalonMessage(
     body: JSON.stringify({ hidden, reason }),
   });
 }
+
+
+export type OperationsOverview = {
+  logins: {
+    failedToday: number;
+    failedLastHour: number;
+    successfulToday: number;
+  };
+  incidents: {
+    unresolved: number;
+    today: number;
+  };
+  support: {
+    open: number;
+    bugsOpen: number;
+  };
+};
+
+export type LoginEvent = {
+  id: string;
+  email: string;
+  userId: string | null;
+  success: boolean;
+  reason: string | null;
+  createdAt: string;
+};
+
+export type SystemIncident = {
+  id: string;
+  level: string;
+  source: string;
+  method: string | null;
+  path: string | null;
+  code: string | null;
+  message: string;
+  userId: string | null;
+  statusCode: number | null;
+  resolved: boolean;
+  resolution: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  createdAt: string;
+};
+
+export type AdminSupportTicket = {
+  id: string;
+  userId: string;
+  email: string;
+  pseudo: string | null;
+  kind: 'BUG' | 'SUPPORT';
+  subject: string;
+  message: string;
+  status: 'OPEN' | 'REVIEWING' | 'CLOSED';
+  createdAt: string;
+};
+
+export type EconomyOverview = {
+  wallets: {
+    count: number;
+    totalCoins: number;
+    averageCoins: number;
+    maxCoins: number;
+  };
+  today: {
+    transactions: number;
+    earnedCoins: number;
+    spentCoins: number;
+    coinPurchases: number;
+    premiumPurchases: number;
+    refunds: number;
+    offeringsSent: number;
+    magiesCast: number;
+  };
+  transactions7d: number;
+  premiumActive: number;
+  catalog: {
+    offeringsEnabled: number;
+    offeringsTotal: number;
+    magiesEnabled: number;
+    magiesTotal: number;
+  };
+};
+
+export type EconomyTransaction = {
+  id: string;
+  userId: string;
+  email: string;
+  pseudo: string | null;
+  type: string;
+  amount: number;
+  balance: number;
+  meta: unknown;
+  createdAt: string;
+};
+
+export type EconomyCatalog = {
+  offerings: Array<{
+    id: string;
+    emoji: string;
+    name: string;
+    cost: number;
+    category: string;
+    durationMs: number | null;
+    salonOnly: string | null;
+    enabled: boolean;
+    consumptionMode: string;
+    sentCount: number;
+  }>;
+  magies: Array<{
+    id: string;
+    emoji: string;
+    name: string;
+    cost: number;
+    durationSec: number;
+    type: string;
+    enabled: boolean;
+    castCount: number;
+  }>;
+};
+
+export type PremiumAdminUser = {
+  id: string;
+  email: string;
+  pseudo: string | null;
+  premiumUntil: string | null;
+  active: boolean;
+  coins: number;
+  createdAt: string;
+};
+
+export async function getOperationsOverview(): Promise<OperationsOverview> {
+  const res = await apiFetch('/admin/operations/overview');
+  return res.data;
+}
+
+export async function listLoginEvents(success?: boolean): Promise<{ items: LoginEvent[]; total: number }> {
+  const suffix = success === undefined ? '?page=1&pageSize=100' : `?success=${success ? 'true' : 'false'}&page=1&pageSize=100`;
+  const res = await apiFetch(`/admin/operations/logins${suffix}`);
+  return res.data;
+}
+
+export async function listSystemIncidents(resolved?: boolean): Promise<{ items: SystemIncident[]; total: number }> {
+  const suffix = resolved === undefined ? '?page=1&pageSize=100' : `?resolved=${resolved ? 'true' : 'false'}&page=1&pageSize=100`;
+  const res = await apiFetch(`/admin/operations/incidents${suffix}`);
+  return res.data;
+}
+
+export async function updateSystemIncident(
+  id: string,
+  resolved: boolean,
+  resolution?: string,
+): Promise<SystemIncident> {
+  const res = await apiFetch(`/admin/operations/incidents/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ resolved, ...(resolution ? { resolution } : {}) }),
+  });
+  return res.data;
+}
+
+export async function listAdminSupportTickets(): Promise<AdminSupportTicket[]> {
+  const res = await apiFetch('/admin/operations/support');
+  return res?.data ?? [];
+}
+
+export async function updateAdminSupportTicket(
+  id: string,
+  status: 'OPEN' | 'REVIEWING' | 'CLOSED',
+): Promise<void> {
+  await apiFetch(`/admin/support/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function getEconomyOverview(): Promise<EconomyOverview> {
+  const res = await apiFetch('/admin/economy/overview');
+  return res.data;
+}
+
+export async function listEconomyTransactions(): Promise<{ items: EconomyTransaction[]; total: number }> {
+  const res = await apiFetch('/admin/economy/transactions?page=1&pageSize=100');
+  return res.data;
+}
+
+export async function getEconomyCatalog(): Promise<EconomyCatalog> {
+  const res = await apiFetch('/admin/economy/catalog');
+  return res.data;
+}
+
+export async function listPremiumAdminUsers(): Promise<PremiumAdminUser[]> {
+  const res = await apiFetch('/admin/economy/premium-users');
+  return res?.data ?? [];
+}
+
+export async function updateOfferingCatalogItem(
+  id: string,
+  patch: { enabled?: boolean; cost?: number },
+): Promise<void> {
+  await apiFetch(`/admin/economy/offerings/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function updateMagieCatalogItem(
+  id: string,
+  patch: { enabled?: boolean; cost?: number },
+): Promise<void> {
+  await apiFetch(`/admin/economy/magies/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
