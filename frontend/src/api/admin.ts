@@ -583,3 +583,84 @@ export async function updateMagieCatalogItem(
     body: JSON.stringify(patch),
   });
 }
+
+
+export type AdminDirectMessage = {
+  id: string;
+  adminId: string | null;
+  userId: string;
+  subject: string | null;
+  message: string;
+  isRead: boolean;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type AdminPrivateSalon = {
+  id: string;
+  salonKind: string;
+  privateName: string | null;
+  startedAt: string;
+  expiresAt: string;
+  status: string;
+  ownerId: string | null;
+  invitedCount: number;
+  acceptedCount: number;
+  participants: Array<{
+    userId: string;
+    pseudo: string | null;
+    email: string;
+    joinedAt: string;
+  }>;
+};
+
+export async function sendAdminDirectMessage(
+  userId: string,
+  message: string,
+  subject?: string,
+): Promise<AdminDirectMessage> {
+  const res = await apiFetch(`/admin/engagement/users/${userId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ message, ...(subject?.trim() ? { subject: subject.trim() } : {}) }),
+  });
+  return res.data;
+}
+
+export async function listAdminDirectMessages(userId: string): Promise<AdminDirectMessage[]> {
+  const res = await apiFetch(`/admin/engagement/users/${userId}/messages`);
+  return res?.data ?? [];
+}
+
+export async function createAdminPrivateSalon(input: {
+  name: string;
+  salonKind?: 'PISCINE' | 'CAFE_DE_PARIS' | 'ILE_PIRATES' | 'THEATRE' | 'BAR_COCKTAILS' | 'METAL' | 'PSY';
+  durationDays?: number;
+}): Promise<AdminPrivateSalon> {
+  const res = await apiFetch('/admin/engagement/private-salons', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: input.name,
+      salonKind: input.salonKind ?? 'CAFE_DE_PARIS',
+      durationDays: input.durationDays ?? 7,
+    }),
+  });
+  return res.data;
+}
+
+export async function listAdminPrivateSalons(): Promise<AdminPrivateSalon[]> {
+  const res = await apiFetch('/admin/engagement/private-salons');
+  return res?.data ?? [];
+}
+
+export async function inviteUserToPrivateSalon(sessionId: string, userId: string): Promise<void> {
+  await apiFetch(`/admin/engagement/private-salons/${sessionId}/invite/${userId}`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export async function removeUserFromPrivateSalon(sessionId: string, userId: string): Promise<void> {
+  await apiFetch(`/admin/engagement/private-salons/${sessionId}/invite/${userId}`, {
+    method: 'DELETE',
+  });
+}
