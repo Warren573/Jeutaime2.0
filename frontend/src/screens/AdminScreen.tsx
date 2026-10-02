@@ -251,6 +251,46 @@ function incidentSourceLabel(source?: string | null) {
   return source ? (labels[source] ?? source) : 'Technique';
 }
 
+function reportReasonLabel(reason?: string | null) {
+  const labels: Record<string, string> = {
+    HARASSMENT: 'Harcèlement',
+    HATE_SPEECH: 'Propos haineux',
+    INAPPROPRIATE_CONTENT: 'Contenu inapproprié',
+    SEXUAL_CONTENT: 'Contenu sexuel',
+    VIOLENCE: 'Violence',
+    SPAM: 'Spam',
+    FAKE_PROFILE: 'Faux profil',
+    IMPERSONATION: 'Usurpation d’identité',
+    SCAM: 'Arnaque',
+    UNDERAGE: 'Utilisateur mineur',
+    OTHER: 'Autre motif',
+  };
+  return reason ? (labels[reason] ?? reason.replaceAll('_', ' ').toLowerCase()) : '—';
+}
+
+function catalogCategoryLabel(category?: string | null) {
+  const labels: Record<string, string> = {
+    BOISSON: 'Boisson',
+    NOURRITURE: 'Nourriture',
+    CADEAU: 'Cadeau',
+    ROMANTIQUE: 'Romantique',
+    ACCESSOIRE: 'Accessoire',
+    OTHER: 'Autre',
+  };
+  return category ? (labels[category] ?? category.replaceAll('_', ' ').toLowerCase()) : '—';
+}
+
+function magieTypeLabel(type?: string | null) {
+  const labels: Record<string, string> = {
+    TRANSFORMATION: 'Transformation',
+    SPELL: 'Sort',
+    ANTISPELL: 'Anti-sort',
+    BOOST: 'Bonus',
+    EFFECT: 'Effet',
+  };
+  return type ? (labels[type] ?? type.replaceAll('_', ' ').toLowerCase()) : '—';
+}
+
 function salonKindLabel(kind?: string | null) {
   const labels: Record<string, string> = {
     PISCINE: 'Piscine',
@@ -1182,7 +1222,7 @@ export default function AdminScreen() {
               {filteredReports.map((r) => (
                 <View key={r.id} style={styles.card}>
                   <View style={styles.userHead}>
-                    <Text style={styles.cardTitle}>{r.reason}</Text>
+                    <Text style={styles.cardTitle}>{reportReasonLabel(r.reason)}</Text>
                     <Text style={styles.status}>{reportStatusLabel(r.status)}</Text>
                   </View>
                   <Text style={styles.rowSub}>Signalé : {r.target.email}</Text>
@@ -1378,7 +1418,7 @@ export default function AdminScreen() {
                 <View key={item.id} style={[styles.card, styles.salonRow]}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardTitle}>{item.name}</Text>
-                    <Text style={styles.rowSub}>{item.cost} pièces · {item.category} · {item.sentCount} envoi(s)</Text>
+                    <Text style={styles.rowSub}>{item.cost} pièces · {catalogCategoryLabel(item.category)} · {item.sentCount} envoi(s)</Text>
                     <View style={styles.actionsLeft}>
                       <TouchableOpacity
                         style={styles.secondaryButton}
@@ -1415,7 +1455,7 @@ export default function AdminScreen() {
                 <View key={item.id} style={[styles.card, styles.salonRow]}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardTitle}>{item.name}</Text>
-                    <Text style={styles.rowSub}>{item.cost} pièces · {item.type} · {item.castCount} utilisation(s)</Text>
+                    <Text style={styles.rowSub}>{item.cost} pièces · {magieTypeLabel(item.type)} · {item.castCount} utilisation(s)</Text>
                     <View style={styles.actionsLeft}>
                       <TouchableOpacity
                         style={styles.secondaryButton}
