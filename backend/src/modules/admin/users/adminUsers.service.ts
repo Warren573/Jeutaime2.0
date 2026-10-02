@@ -1,4 +1,4 @@
-import { CoinTxnType, Prisma, Role, User } from "@prisma/client";
+import { CoinTxnType, PremiumTier, Prisma, Role, User } from "@prisma/client";
 import { prisma } from "../../../config/prisma";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../../core/errors";
 import { assertCanBanUser } from "../../../policies/moderation";
@@ -375,4 +375,170 @@ export async function updateRole(
   });
 
   return toDto(updated);
+}
+
+
+export async function grantPremium(
+  actor: { id: string; role: Role },
+  targetId: string,
+  days: number,
+  reason: string,
+) {
+  if (actor.role !== Role.ADMIN) throw new ForbiddenError();
+  if (!Number.isInteger(days) || days < 1 || days > 365) {
+    throw new BadRequestError("Durée Premium invalide");
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: { id: true, premiumTier: true, premiumUntil: true, role: true },
+  });
+  if (!target) throw new NotFoundError("Utilisateur");
+
+  const now = new Date();
+  const base = target.premiumUntil && target.premiumUntil > now ? target.premiumUntil : now;
+  const premiumUntil = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+
+  const updated = await prisma.user.update({
+    where: { id: targetId },
+    data: {
+      premiumTier: PremiumTier.PREMIUM,
+      premiumUntil,
+    },
+    select: {
+      id: true,
+      premiumTier: true,
+      premiumUntil: true,
+    },
+  });
+
+  await writeAudit({
+    actorId: actor.id,
+    action: "admin.user.premium.grant",
+    target: targetId,
+    meta: {
+      days,
+      reason,
+      previousTier: target.premiumTier,
+      previousUntil: target.premiumUntil?.toISOString() ?? null,
+      premiumUntil: premiumUntil.toISOString(),
+    } as Prisma.InputJsonValue,
+  });
+
+  return updated;
+}
+
+export async function resetUserSalons(
+  actor: { id: string; role: Role },
+  targetId: string,
+  reason: string,
+) {
+  if (actor.role !== Role.ADMIN) throw new ForbiddenError();
+
+  const target = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: { id: true },
+  });
+  if (!target) throw new NotFoundError("Utilisateur");
+
+  const result = await prisma.salonSessionParticipant.updateMany({
+    where: {
+      userId: targetId,
+      status: "ACTIVE",
+    },
+    data: {
+      status: "LEFT",
+      leftAt: new Date(),
+    },
+  });
+
+  await writeAudit({
+    actorId: actor.id,
+    action: "admin.user.salons.reset",
+    target: targetId,
+    meta: {
+      reason,
+      sessionsLeft: result.count,
+    } as Prisma.InputJsonValue,
+  });
+
+  return { resetCount: result.count };
+}
+
+export async function resetUserRefuge(
+  actor: { id: string; role: Role },
+  targetId: string,
+  reason: string,
+) {
+  if (actor.role !== Role.ADMIN) throw new ForbiddenError();
+
+  const target = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: { id: true },
+  });
+  if (!target) throw new NotFoundError("Utilisateur");
+
+  const result = await prisma.refugeSession.updateMany({
+    where: {
+      OR: [
+        { adopteId: targetId },
+        { adoptantId: targetId },
+      ],
+      status: {
+        in: ["CREATION", "WAITING_FOR_ADOPTANT", "ACTIVE", "AWAITING_REVEAL_CONSENT"],
+      },
+    },
+    data: {
+      status: "ABANDONED",
+    },
+  });
+
+  await writeAudit({
+    actorId: actor.id,
+    action: "admin.user.refuge.reset",
+    target: targetId,
+    meta: {
+      reason,
+      sessionsAbandoned: result.count,
+    } as Prisma.InputJsonValue,
+  });
+
+  return { resetCount: result.count };
+}
+
+export async function addUserJournalNote(
+  actor: { id: string; role: Role },
+  targetId: string,
+  text: string,
+) {
+  if (actor.role !== Role.ADMIN) throw new ForbiddenError();
+
+  const target = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: { id: true },
+  });
+  if (!target) throw new NotFoundError("Utilisateur");
+
+  const event = await prisma.journalEvent.create({
+    data: {
+      userId: targetId,
+      kind: "ADMIN_NOTE",
+      meta: {
+        text,
+        adminId: actor.id,
+      } as Prisma.InputJsonValue,
+    },
+  });
+
+  await writeAudit({
+    actorId: actor.id,
+    action: "admin.user.journal.write",
+    target: targetId,
+    meta: {
+      journalEventId: event.id,
+      text,
+    } as Prisma.InputJsonValue,
+  });
+
+  return event;
 }
