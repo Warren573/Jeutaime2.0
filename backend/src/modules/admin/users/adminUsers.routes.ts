@@ -8,7 +8,6 @@ import {
   AdjustCoinsSchema,
   BanUserSchema,
   GrantPremiumSchema,
-  JournalNoteSchema,
   ResetRefugeSchema,
   ResetSalonsSchema,
   UnbanUserSchema,
@@ -75,15 +74,6 @@ router.post(
   validate(UserIdParamsSchema, "params"),
   validate(ResetRefugeSchema),
   wrap(ctrl.handleResetRefuge),
-);
-
-// POST /api/admin/users/:id/journal-note — ADMIN only
-router.post(
-  "/:id/journal-note",
-  requireRole(Role.ADMIN) as never,
-  validate(UserIdParamsSchema, "params"),
-  validate(JournalNoteSchema),
-  wrap(ctrl.handleJournalNote),
 );
 
 // PATCH /api/admin/users/:id/role — ADMIN only
