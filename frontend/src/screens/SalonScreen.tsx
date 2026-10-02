@@ -501,6 +501,7 @@ export default function SalonScreen() {
 
   // Récupérer le salon
   const rawSalonId = params.id as string;
+  const privateSessionId = typeof params.privateSessionId === 'string' ? params.privateSessionId : null;
   const salonId = rawSalonId === 'cafe-paris' ? 'cafe_paris' : (rawSalonId || 'cafe_paris');
 
 
@@ -763,7 +764,9 @@ export default function SalonScreen() {
 
     (async () => {
       try {
-        const session = await joinSession(kind);
+        const session = privateSessionId
+          ? await getSessionDetail(privateSessionId)
+          : await joinSession(kind);
         console.log(`[DEBUG-SESSION] joinSession returned:`, {
           id: session.id,
           salonKind: session.salonKind,
@@ -774,6 +777,7 @@ export default function SalonScreen() {
         });
         setScreenSessionId(session.id);
         setActiveSessions([session]);
+        setApiSalonId(session.salonId);
         // Persist to store
         setCurrentSalonSession(session.id, session.salonKind, session.salonId, session.salonName);
       } catch (e) {
@@ -784,7 +788,7 @@ export default function SalonScreen() {
         });
       }
     })();
-  }, [isAuthenticated, salonId, setCurrentSalonSession]);
+  }, [isAuthenticated, salonId, privateSessionId, setCurrentSalonSession]);
 
   // Atualizar participants a partir da SalonSession ativa (dados REAIS)
   useEffect(() => {
