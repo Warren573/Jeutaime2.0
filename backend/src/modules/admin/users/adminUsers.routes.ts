@@ -7,6 +7,10 @@ import { AuthedRequest } from "../../../core/types";
 import {
   AdjustCoinsSchema,
   BanUserSchema,
+  GrantPremiumSchema,
+  JournalNoteSchema,
+  ResetRefugeSchema,
+  ResetSalonsSchema,
   UnbanUserSchema,
   UpdateRoleSchema,
   UserIdParamsSchema,
@@ -44,6 +48,42 @@ router.post(
   validate(UserIdParamsSchema, "params"),
   validate(AdjustCoinsSchema),
   wrap(ctrl.handleAdjustCoins),
+);
+
+// POST /api/admin/users/:id/premium — ADMIN only
+router.post(
+  "/:id/premium",
+  requireRole(Role.ADMIN) as never,
+  validate(UserIdParamsSchema, "params"),
+  validate(GrantPremiumSchema),
+  wrap(ctrl.handleGrantPremium),
+);
+
+// POST /api/admin/users/:id/reset-salons — ADMIN only
+router.post(
+  "/:id/reset-salons",
+  requireRole(Role.ADMIN) as never,
+  validate(UserIdParamsSchema, "params"),
+  validate(ResetSalonsSchema),
+  wrap(ctrl.handleResetSalons),
+);
+
+// POST /api/admin/users/:id/reset-refuge — ADMIN only
+router.post(
+  "/:id/reset-refuge",
+  requireRole(Role.ADMIN) as never,
+  validate(UserIdParamsSchema, "params"),
+  validate(ResetRefugeSchema),
+  wrap(ctrl.handleResetRefuge),
+);
+
+// POST /api/admin/users/:id/journal-note — ADMIN only
+router.post(
+  "/:id/journal-note",
+  requireRole(Role.ADMIN) as never,
+  validate(UserIdParamsSchema, "params"),
+  validate(JournalNoteSchema),
+  wrap(ctrl.handleJournalNote),
 );
 
 // PATCH /api/admin/users/:id/role — ADMIN only
