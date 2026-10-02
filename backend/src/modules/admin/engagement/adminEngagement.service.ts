@@ -1,6 +1,6 @@
 import { NotificationType, Prisma, SalonKind } from "@prisma/client";
 import { prisma } from "../../../config/prisma";
-import { NotFoundError } from "../../../core/errors";
+import { ConflictError, NotFoundError } from "../../../core/errors";
 import { createNotification } from "../../notifications/notifications.service";
 import { sendPushToUser } from "../../notifications/push.service";
 import { writeAudit } from "../admin.audit";
@@ -136,6 +136,11 @@ export async function listPrivateSalons() {
         ...s,
         invitedCount: invites.length,
         acceptedCount: invites.filter((i) => i.accepted).length,
+        invitations: invites.map((i) => ({
+          userId: i.userId,
+          accepted: i.accepted,
+          createdAt: i.createdAt,
+        })),
         participants: participants.map((p) => ({
           userId: p.userId,
           pseudo: p.user.profile?.pseudo ?? null,
@@ -155,10 +160,20 @@ export async function inviteToPrivateSalon(adminId: string, sessionId: string, u
   if (!session || !session.isPrivate) throw new NotFoundError("Salon privé");
   if (!user) throw new NotFoundError("Utilisateur");
 
-  const invite = await prisma.privateSalonInvitation.upsert({
+  const existingInvite = await prisma.privateSalonInvitation.findUnique({
     where: { sessionId_userId: { sessionId, userId } },
-    update: { invitedBy: adminId },
-    create: { sessionId, userId, invitedBy: adminId },
+    select: { id: true, accepted: true },
+  });
+  if (existingInvite) {
+    throw new ConflictError(
+      existingInvite.accepted
+        ? "Cet utilisateur participe déjà à ce salon privé."
+        : "Cet utilisateur a déjà été invité à ce salon privé.",
+    );
+  }
+
+  const invite = await prisma.privateSalonInvitation.create({
+    data: { sessionId, userId, invitedBy: adminId },
   });
 
   await createNotification({
