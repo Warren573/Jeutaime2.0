@@ -809,6 +809,47 @@ export default function AdminScreen() {
                     </SectionCard>
                   )}
 
+                  <SectionCard title="Intervention administrateur">
+                    <Text style={styles.details}>Communiquer officiellement avec cet utilisateur, sans usurper son compte.</Text>
+                    <TextInput
+                      value={adminMessageSubject}
+                      onChangeText={setAdminMessageSubject}
+                      placeholder="Sujet (facultatif)"
+                      placeholderTextColor="#A48C72"
+                      style={styles.search}
+                    />
+                    <TextInput
+                      value={adminMessageBody}
+                      onChangeText={setAdminMessageBody}
+                      placeholder="Message de l’administration"
+                      placeholderTextColor="#A48C72"
+                      multiline
+                      style={[styles.search, styles.multiline]}
+                    />
+                    <TouchableOpacity style={styles.actionButton} onPress={() => void sendMessageToSelectedUser()}>
+                      <Text style={styles.actionButtonText}>Envoyer le message</Text>
+                    </TouchableOpacity>
+
+                    <Text style={[styles.cardTitle, { marginTop: 18 }]}>Inviter dans un salon privé</Text>
+                    {privateSalons.filter((s) => s.status === 'ACTIVE').length === 0 ? (
+                      <Text style={styles.mutedLeft}>Aucun salon privé actif. Crée le Sanctuaire dans l’onglet Salons.</Text>
+                    ) : (
+                      privateSalons.filter((s) => s.status === 'ACTIVE').map((s) => (
+                        <View key={s.id} style={styles.row}>
+                          <View style={styles.rowSplit}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.rowTitle}>{s.privateName || 'Sanctuaire privé'}</Text>
+                              <Text style={styles.rowSub}>{s.acceptedCount}/{s.invitedCount} invitation(s) acceptée(s)</Text>
+                            </View>
+                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void inviteSelectedUser(s.id)}>
+                              <Text style={styles.secondaryText}>Inviter</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))
+                    )}
+                  </SectionCard>
+
                   <SectionCard title="Dernières transactions">
                     {selectedUser.recentTransactions.length === 0 && <Text style={styles.mutedLeft}>Aucune transaction.</Text>}
                     {selectedUser.recentTransactions.slice(0, 10).map((t) => (
@@ -1087,6 +1128,49 @@ export default function AdminScreen() {
                 </>
               )}
 
+              {!selectedSalon && (
+                <SectionCard title="Sanctuaire privé">
+                  <Text style={styles.details}>
+                    Salon invisible de la liste publique. Seuls les utilisateurs invités peuvent y entrer.
+                  </Text>
+                  <TextInput
+                    value={privateSalonName}
+                    onChangeText={setPrivateSalonName}
+                    placeholder="Nom du salon privé"
+                    placeholderTextColor="#A48C72"
+                    style={styles.search}
+                  />
+                  <TouchableOpacity style={styles.actionButton} onPress={() => void createPrivateSalon()}>
+                    <Text style={styles.actionButtonText}>Créer un salon privé</Text>
+                  </TouchableOpacity>
+                  {privateSalons.map((s) => (
+                    <View key={s.id} style={styles.row}>
+                      <Text style={styles.rowTitle}>{s.privateName || 'Salon privé'}</Text>
+                      <Text style={styles.rowSub}>État : {s.status} · expire le {formatDate(s.expiresAt)}</Text>
+                      <Text style={styles.rowSub}>{s.acceptedCount}/{s.invitedCount} invitation(s) acceptée(s)</Text>
+                      {s.participants.map((p) => (
+                        <View key={p.userId} style={styles.rowSplit}>
+                          <Text style={styles.rowSub}>{p.pseudo || p.email}</Text>
+                          <TouchableOpacity
+                            style={styles.secondaryButton}
+                            onPress={async () => {
+                              try {
+                                await removeUserFromPrivateSalon(s.id, p.userId);
+                                setPrivateSalons(await listAdminPrivateSalons());
+                              } catch (err) {
+                                Alert.alert('Salon privé', err instanceof Error ? err.message : 'Retrait impossible.');
+                              }
+                            }}
+                          >
+                            <Text style={styles.secondaryText}>Retirer</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                </SectionCard>
+              )}
+
               {selectedSalon && (
                 <>
                   <SectionCard title={selectedSalon.salon.name}>
@@ -1124,6 +1208,208 @@ export default function AdminScreen() {
                   ))}
                 </>
               )}
+            </>
+          )}
+
+          {tab === 'economy' && (
+            <>
+              <Text style={styles.sectionTitle}>Économie & Boutique</Text>
+              {economyOverview && (
+                <>
+                  <View style={styles.statsGrid}>
+                    <Metric value={economyOverview.wallets.totalCoins} label="Pièces en circulation" />
+                    <Metric value={economyOverview.wallets.averageCoins} label="Solde moyen" />
+                    <Metric value={economyOverview.today.transactions} label="Transactions aujourd’hui" />
+                    <Metric value={economyOverview.premiumActive} label="Premium actifs" />
+                    <Metric value={economyOverview.today.coinPurchases} label="Achats de pièces" />
+                    <Metric value={economyOverview.today.premiumPurchases} label="Achats Premium" />
+                    <Metric value={economyOverview.today.offeringsSent} label="Offrandes envoyées" />
+                    <Metric value={economyOverview.today.magiesCast} label="Magies lancées" />
+                  </View>
+
+                  <SectionCard title="Flux du jour">
+                    <DataLine label="Pièces gagnées" value={economyOverview.today.earnedCoins} />
+                    <DataLine label="Pièces dépensées" value={economyOverview.today.spentCoins} />
+                    <DataLine label="Remboursements" value={economyOverview.today.refunds} />
+                    <DataLine label="Transactions sur 7 jours" value={economyOverview.transactions7d} />
+                    <DataLine label="Solde maximum" value={economyOverview.wallets.maxCoins} />
+                  </SectionCard>
+                </>
+              )}
+
+              <Text style={styles.subSectionTitle}>Transactions récentes</Text>
+              {economyTransactions.slice(0, 50).map((tx) => (
+                <TouchableOpacity
+                  key={tx.id}
+                  style={styles.card}
+                  onPress={() => {
+                    setTab('users');
+                    void openUser(tx.userId);
+                  }}
+                >
+                  <View style={styles.rowSplit}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cardTitle}>{tx.pseudo || tx.email}</Text>
+                      <Text style={styles.rowSub}>{tx.type} · {formatDate(tx.createdAt)}</Text>
+                    </View>
+                    <Text style={[styles.amount, tx.amount < 0 && styles.amountNegative]}>
+                      {tx.amount > 0 ? '+' : ''}{tx.amount}
+                    </Text>
+                  </View>
+                  <Text style={styles.rowSub}>Solde après transaction : {tx.balance}</Text>
+                </TouchableOpacity>
+              ))}
+
+              <Text style={styles.subSectionTitle}>Catalogue des offrandes</Text>
+              {economyCatalog?.offerings.map((item) => (
+                <View key={item.id} style={[styles.card, styles.salonRow]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{item.name}</Text>
+                    <Text style={styles.rowSub}>{item.cost} pièces · {item.category} · {item.sentCount} envoi(s)</Text>
+                    <View style={styles.actionsLeft}>
+                      <TouchableOpacity
+                        style={styles.secondaryButton}
+                        onPress={async () => {
+                          await updateOfferingCatalogItem(item.id, { cost: Math.max(0, item.cost - 10) });
+                          await refreshEconomy();
+                        }}
+                      >
+                        <Text style={styles.secondaryText}>-10</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.secondaryButton}
+                        onPress={async () => {
+                          await updateOfferingCatalogItem(item.id, { cost: item.cost + 10 });
+                          await refreshEconomy();
+                        }}
+                      >
+                        <Text style={styles.secondaryText}>+10</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <Switch
+                    value={item.enabled}
+                    onValueChange={async (v) => {
+                      await updateOfferingCatalogItem(item.id, { enabled: v });
+                      await refreshEconomy();
+                    }}
+                  />
+                </View>
+              ))}
+
+              <Text style={styles.subSectionTitle}>Catalogue des magies</Text>
+              {economyCatalog?.magies.map((item) => (
+                <View key={item.id} style={[styles.card, styles.salonRow]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{item.name}</Text>
+                    <Text style={styles.rowSub}>{item.cost} pièces · {item.type} · {item.castCount} utilisation(s)</Text>
+                    <View style={styles.actionsLeft}>
+                      <TouchableOpacity
+                        style={styles.secondaryButton}
+                        onPress={async () => {
+                          await updateMagieCatalogItem(item.id, { cost: Math.max(0, item.cost - 10) });
+                          await refreshEconomy();
+                        }}
+                      >
+                        <Text style={styles.secondaryText}>-10</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.secondaryButton}
+                        onPress={async () => {
+                          await updateMagieCatalogItem(item.id, { cost: item.cost + 10 });
+                          await refreshEconomy();
+                        }}
+                      >
+                        <Text style={styles.secondaryText}>+10</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <Switch
+                    value={item.enabled}
+                    onValueChange={async (v) => {
+                      await updateMagieCatalogItem(item.id, { enabled: v });
+                      await refreshEconomy();
+                    }}
+                  />
+                </View>
+              ))}
+
+              <Text style={styles.subSectionTitle}>Abonnements Premium</Text>
+              {premiumUsers.map((u) => (
+                <TouchableOpacity key={u.id} style={styles.card} onPress={() => { setTab('users'); void openUser(u.id); }}>
+                  <Text style={styles.cardTitle}>{u.pseudo || u.email}</Text>
+                  <Text style={[styles.status, !u.active && styles.statusBad]}>{u.active ? 'ACTIF' : 'EXPIRÉ'}</Text>
+                  <Text style={styles.rowSub}>Jusqu’au {formatDate(u.premiumUntil)} · {u.coins} pièces</Text>
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
+
+          {tab === 'operations' && (
+            <>
+              <Text style={styles.sectionTitle}>Incidents & Support</Text>
+              {operationsOverview && (
+                <View style={styles.statsGrid}>
+                  <Metric value={operationsOverview.logins.failedToday} label="Échecs connexion aujourd’hui" />
+                  <Metric value={operationsOverview.logins.successfulToday} label="Connexions réussies" />
+                  <Metric value={operationsOverview.incidents.unresolved} label="Incidents non résolus" />
+                  <Metric value={operationsOverview.support.bugsOpen} label="Bugs ouverts" />
+                </View>
+              )}
+
+              <Text style={styles.subSectionTitle}>Incidents techniques</Text>
+              {systemIncidents.length === 0 && <Text style={styles.muted}>Aucun incident enregistré.</Text>}
+              {systemIncidents.map((incident) => (
+                <View key={incident.id} style={styles.card}>
+                  <View style={styles.rowSplit}>
+                    <Text style={styles.cardTitle}>{incident.source.toUpperCase()} · {incident.code || 'ERREUR'}</Text>
+                    <Text style={[styles.status, !incident.resolved && styles.statusBad]}>
+                      {incident.resolved ? 'RÉSOLU' : 'OUVERT'}
+                    </Text>
+                  </View>
+                  <Text style={styles.details}>{incident.message}</Text>
+                  <Text style={styles.rowSub}>{incident.method || ''} {incident.path || ''} · {formatDate(incident.createdAt)}</Text>
+                  <TouchableOpacity style={styles.secondaryButton} onPress={() => void resolveIncident(incident)}>
+                    <Text style={styles.secondaryText}>{incident.resolved ? 'Rouvrir' : 'Marquer résolu'}</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              <Text style={styles.subSectionTitle}>Problèmes de connexion</Text>
+              {loginEvents.filter((e) => !e.success).slice(0, 50).map((event) => (
+                <View key={event.id} style={styles.card}>
+                  <Text style={styles.cardTitle}>{event.email}</Text>
+                  <Text style={styles.rowSub}>Échec : {event.reason || 'raison inconnue'} · {formatDate(event.createdAt)}</Text>
+                  {!!event.userId && (
+                    <TouchableOpacity style={styles.secondaryButton} onPress={() => { setTab('users'); void openUser(event.userId!); }}>
+                      <Text style={styles.secondaryText}>Voir le compte</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+
+              <Text style={styles.subSectionTitle}>Tickets BUG / Support</Text>
+              {supportTickets.map((ticket) => (
+                <View key={ticket.id} style={styles.card}>
+                  <View style={styles.rowSplit}>
+                    <Text style={styles.cardTitle}>{ticket.kind} · {ticket.subject}</Text>
+                    <Text style={[styles.status, ticket.status === 'OPEN' && styles.statusBad]}>{ticket.status}</Text>
+                  </View>
+                  <Text style={styles.rowSub}>{ticket.pseudo || ticket.email} · {formatDate(ticket.createdAt)}</Text>
+                  <Text style={styles.details}>{ticket.message}</Text>
+                  <View style={styles.actionsLeft}>
+                    <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeTicketStatus(ticket, 'REVIEWING')}>
+                      <Text style={styles.secondaryText}>Prendre en charge</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.actionButtonGood} onPress={() => void changeTicketStatus(ticket, 'CLOSED')}>
+                      <Text style={styles.actionButtonText}>Clore</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.secondaryButton} onPress={() => { setTab('users'); void openUser(ticket.userId); }}>
+                      <Text style={styles.secondaryText}>Voir le compte</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
             </>
           )}
 
