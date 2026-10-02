@@ -1,8 +1,9 @@
-import { Prisma, Role, User } from "@prisma/client";
+import { CoinTxnType, Prisma, Role, User } from "@prisma/client";
 import { prisma } from "../../../config/prisma";
-import { NotFoundError } from "../../../core/errors";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../../../core/errors";
 import { assertCanBanUser } from "../../../policies/moderation";
 import { writeAudit } from "../admin.audit";
+import { creditWallet, debitWallet } from "../../wallet/wallet.service";
 
 // ============================================================
 // DTO de retour minimal
@@ -174,4 +175,204 @@ export async function listUsers(query?: string): Promise<AdminUserDto[]> {
     ...toDto(u),
     pseudo: u.profile?.pseudo ?? null,
   })) as Array<AdminUserDto & { pseudo: string | null }>;
+}
+
+
+export async function getUserDetail(id: string) {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      isVerified: true,
+      isBanned: true,
+      banReason: true,
+      premiumTier: true,
+      premiumUntil: true,
+      lastLoginAt: true,
+      createdAt: true,
+      updatedAt: true,
+      profile: {
+        select: {
+          pseudo: true,
+          city: true,
+          gender: true,
+          birthDate: true,
+        },
+      },
+      settings: {
+        select: {
+          showInDiscovery: true,
+          vacationMode: true,
+          notifPush: true,
+          notifEmail: true,
+        },
+      },
+      wallet: {
+        select: {
+          coins: true,
+          updatedAt: true,
+        },
+      },
+    },
+  });
+  if (!user) throw new NotFoundError("Utilisateur");
+
+  const [
+    matches,
+    lettersSent,
+    lettersReceived,
+    reportsReceived,
+    reportsMade,
+    salonParticipations,
+    offeringsSent,
+    offeringsReceived,
+    bottlesSent,
+    recentTransactions,
+    adminHistory,
+  ] = await Promise.all([
+    prisma.match.count({
+      where: { OR: [{ userAId: id }, { userBId: id }] },
+    }),
+    prisma.letter.count({ where: { fromUserId: id } }),
+    prisma.letter.count({ where: { toUserId: id } }),
+    prisma.report.count({ where: { targetId: id } }),
+    prisma.report.count({ where: { reporterId: id } }),
+    prisma.salonSessionParticipant.count({ where: { userId: id } }),
+    prisma.offeringSent.count({ where: { fromUserId: id } }),
+    prisma.offeringSent.count({ where: { toUserId: id } }),
+    prisma.messageInABottle.count({ where: { senderId: id } }),
+    prisma.coinTransaction.findMany({
+      where: { walletId: id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        type: true,
+        amount: true,
+        balance: true,
+        meta: true,
+        createdAt: true,
+      },
+    }),
+    prisma.auditLog.findMany({
+      where: { target: id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        actorId: true,
+        action: true,
+        target: true,
+        meta: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
+  return {
+    ...user,
+    stats: {
+      matches,
+      lettersSent,
+      lettersReceived,
+      reportsReceived,
+      reportsMade,
+      salonParticipations,
+      offeringsSent,
+      offeringsReceived,
+      bottlesSent,
+    },
+    recentTransactions,
+    adminHistory,
+  };
+}
+
+export async function adjustCoins(
+  actor: { id: string; role: Role },
+  targetId: string,
+  amount: number,
+  reason: string,
+) {
+  if (actor.role !== Role.ADMIN) throw new ForbiddenError();
+  if (!Number.isInteger(amount) || amount === 0) {
+    throw new BadRequestError("Le montant doit être un entier non nul");
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: { id: true, role: true, email: true },
+  });
+  if (!target) throw new NotFoundError("Utilisateur");
+
+  const meta = {
+    reason,
+    adjustedBy: actor.id,
+  } as Prisma.InputJsonValue;
+
+  const result = amount > 0
+    ? await creditWallet({
+        userId: targetId,
+        amount,
+        type: CoinTxnType.ADMIN_ADJUST,
+        meta,
+      })
+    : await debitWallet({
+        userId: targetId,
+        amount: Math.abs(amount),
+        type: CoinTxnType.ADMIN_ADJUST,
+        meta,
+      });
+
+  await writeAudit({
+    actorId: actor.id,
+    action: "admin.user.coins.adjust",
+    target: targetId,
+    meta: {
+      amount,
+      reason,
+      resultingBalance: result.wallet.coins,
+    } as Prisma.InputJsonValue,
+  });
+
+  return result;
+}
+
+export async function updateRole(
+  actor: { id: string; role: Role },
+  targetId: string,
+  nextRole: "USER" | "MODERATOR",
+) {
+  if (actor.role !== Role.ADMIN) throw new ForbiddenError();
+  if (actor.id === targetId) {
+    throw new BadRequestError("Tu ne peux pas modifier ton propre rôle");
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: adminUserSelect,
+  });
+  if (!target) throw new NotFoundError("Utilisateur");
+  if (target.role === Role.ADMIN) {
+    throw new ForbiddenError("Le rôle d'un administrateur ne se modifie pas ici");
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: targetId },
+    data: { role: nextRole as Role },
+    select: adminUserSelect,
+  });
+
+  await writeAudit({
+    actorId: actor.id,
+    action: "admin.user.role.update",
+    target: targetId,
+    meta: {
+      from: target.role,
+      to: nextRole,
+    } as Prisma.InputJsonValue,
+  });
+
+  return toDto(updated);
 }
