@@ -39,6 +39,12 @@ export function getNotificationTarget(notification: NotificationDto): string | n
     case 'PREMIUM_CANCELLED':
       return '/premium';
 
+    case 'ADMIN_MESSAGE':
+      return '/admin-messages';
+
+    case 'PRIVATE_SALON_INVITE':
+      return '/private-salons';
+
     default:
       return null;
   }
