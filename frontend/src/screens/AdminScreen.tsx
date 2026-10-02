@@ -151,6 +151,119 @@ function auditLabel(action: string) {
   return labels[action] ?? action.replace(/^admin\./, '').replaceAll('.', ' · ');
 }
 
+function roleLabel(role?: string | null) {
+  const labels: Record<string, string> = {
+    USER: 'Utilisateur',
+    MODERATOR: 'Modérateur',
+    ADMIN: 'Administrateur',
+  };
+  return role ? (labels[role] ?? role) : '—';
+}
+
+function reportStatusLabel(status?: string | null) {
+  const labels: Record<string, string> = {
+    OPEN: 'Ouvert',
+    REVIEWING: 'En cours',
+    ACTIONED: 'Traité',
+    DISMISSED: 'Classé',
+  };
+  return status ? (labels[status] ?? status) : '—';
+}
+
+function moderationStatusLabel(status?: string | null) {
+  const labels: Record<string, string> = {
+    ACTIVE: 'Publiée',
+    HIDDEN: 'Masquée',
+    REMOVED: 'Retirée',
+  };
+  return status ? (labels[status] ?? status) : '—';
+}
+
+function participantStatusLabel(status?: string | null) {
+  const labels: Record<string, string> = {
+    ACTIVE: 'Présent',
+    LEFT: 'Parti',
+    REMOVED: 'Retiré',
+    KICKED: 'Exclu',
+  };
+  return status ? (labels[status] ?? status) : '—';
+}
+
+function privateSalonStatusLabel(status?: string | null) {
+  const labels: Record<string, string> = {
+    ACTIVE: 'Actif',
+    ENDED: 'Terminé',
+    EXPIRED: 'Expiré',
+    CLOSED: 'Fermé',
+  };
+  return status ? (labels[status] ?? status) : '—';
+}
+
+function transactionTypeLabel(type?: string | null) {
+  const labels: Record<string, string> = {
+    DAILY_LOGIN: 'Connexion quotidienne',
+    CARD_GAME_REWARD: 'Gain au jeu de cartes',
+    PROFILE_WEEK_VOTE: 'Participation au profil de la semaine',
+    AD_REWARD: 'Récompense publicitaire',
+    PURCHASE_COINS: 'Achat de pièces',
+    PREMIUM_PURCHASE: 'Achat Premium',
+    OFFERING_PURCHASE: 'Achat d’une offrande',
+    MAGIE_PURCHASE: 'Achat d’une magie',
+    REFUND: 'Remboursement',
+    ADMIN_ADJUST: 'Ajustement administrateur',
+    BONUS: 'Bonus',
+    SPEND: 'Dépense',
+  };
+  return type ? (labels[type] ?? type.replaceAll('_', ' ').toLowerCase()) : '—';
+}
+
+function ticketKindLabel(kind?: string | null) {
+  const labels: Record<string, string> = {
+    BUG: 'Bug',
+    SUPPORT: 'Assistance',
+  };
+  return kind ? (labels[kind] ?? kind) : '—';
+}
+
+function ticketStatusLabel(status?: string | null) {
+  const labels: Record<string, string> = {
+    OPEN: 'Ouvert',
+    REVIEWING: 'En cours',
+    CLOSED: 'Clos',
+  };
+  return status ? (labels[status] ?? status) : '—';
+}
+
+function loginReasonLabel(reason?: string | null) {
+  const labels: Record<string, string> = {
+    INVALID_CREDENTIALS: 'Identifiants incorrects',
+    BANNED: 'Compte suspendu',
+  };
+  return reason ? (labels[reason] ?? reason.replaceAll('_', ' ').toLowerCase()) : 'Raison inconnue';
+}
+
+function incidentSourceLabel(source?: string | null) {
+  const labels: Record<string, string> = {
+    backend: 'Serveur',
+    push: 'Notifications',
+    job: 'Tâche automatique',
+  };
+  return source ? (labels[source] ?? source) : 'Technique';
+}
+
+function salonKindLabel(kind?: string | null) {
+  const labels: Record<string, string> = {
+    PISCINE: 'Piscine',
+    CAFE_DE_PARIS: 'Café de Paris',
+    ILE_PIRATES: 'Île des pirates',
+    THEATRE: 'Théâtre',
+    BAR_COCKTAILS: 'Bar à cocktails',
+    METAL: 'Métal',
+    PSY: 'Cabinet du psy',
+  };
+  return kind ? (labels[kind] ?? kind) : '—';
+}
+
 function DataLine({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <View style={styles.dataLine}>
@@ -589,7 +702,7 @@ export default function AdminScreen() {
           <Text style={styles.title}>Administration</Text>
           <Text style={styles.subtitle}>JeuTaime · accès administrateur</Text>
         </View>
-        <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>ADMIN</Text></View>
+        <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>ADMINISTRATEUR</Text></View>
       </View>
 
       <ScrollView
@@ -714,7 +827,7 @@ export default function AdminScreen() {
                           <Text style={styles.rowSub}>{u.email}</Text>
                         </View>
                         <View style={[styles.rolePill, u.role === 'ADMIN' && styles.rolePillAdmin, u.role === 'MODERATOR' && styles.rolePillModerator]}>
-                          <Text style={styles.roleText}>{u.role}</Text>
+                          <Text style={styles.roleText}>{roleLabel(u.role)}</Text>
                         </View>
                       </View>
                       <Text style={[styles.status, u.isBanned && styles.statusBad]}>
@@ -729,7 +842,7 @@ export default function AdminScreen() {
                 <>
                   <SectionCard title={selectedUser.profile?.pseudo ?? 'Compte utilisateur'}>
                     <DataLine label="E-mail" value={selectedUser.email} />
-                    <DataLine label="Rôle" value={selectedUser.role} />
+                    <DataLine label="Rôle" value={roleLabel(selectedUser.role)} />
                     <DataLine label="Créé le" value={formatDate(selectedUser.createdAt)} />
                     <DataLine label="Dernière connexion" value={formatDate(selectedUser.lastLoginAt)} />
                     <DataLine label="Ville" value={selectedUser.profile?.city ?? '—'} />
@@ -855,7 +968,7 @@ export default function AdminScreen() {
                     {selectedUser.recentTransactions.slice(0, 10).map((t) => (
                       <View key={t.id} style={styles.row}>
                         <View style={styles.rowSplit}>
-                          <Text style={styles.rowTitle}>{t.type}</Text>
+                          <Text style={styles.rowTitle}>{transactionTypeLabel(t.type)}</Text>
                           <Text style={[styles.amount, t.amount < 0 && styles.amountNegative]}>
                             {t.amount > 0 ? '+' : ''}{t.amount}
                           </Text>
@@ -921,7 +1034,7 @@ export default function AdminScreen() {
                         styles.status,
                         photo.moderationStatus !== 'ACTIVE' && styles.statusBad,
                       ]}>
-                        {photo.moderationStatus}
+                        {moderationStatusLabel(photo.moderationStatus)}
                       </Text>
                     </View>
 
@@ -1060,7 +1173,7 @@ export default function AdminScreen() {
                     style={[styles.filterChip, reportFilter === status && styles.filterChipActive]}
                   >
                     <Text style={[styles.filterText, reportFilter === status && styles.filterTextActive]}>
-                      {status === 'ALL' ? 'Tous' : status}
+                      {status === 'ALL' ? 'Tous' : reportStatusLabel(status)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -1070,7 +1183,7 @@ export default function AdminScreen() {
                 <View key={r.id} style={styles.card}>
                   <View style={styles.userHead}>
                     <Text style={styles.cardTitle}>{r.reason}</Text>
-                    <Text style={styles.status}>{r.status}</Text>
+                    <Text style={styles.status}>{reportStatusLabel(r.status)}</Text>
                   </View>
                   <Text style={styles.rowSub}>Signalé : {r.target.email}</Text>
                   <Text style={styles.rowSub}>Par : {r.reporter.email}</Text>
@@ -1119,7 +1232,7 @@ export default function AdminScreen() {
                     <View key={s.id} style={[styles.card, styles.salonRow]}>
                       <TouchableOpacity style={{ flex: 1 }} onPress={() => void openSalon(s)}>
                         <Text style={styles.cardTitle}>{s.name}</Text>
-                        <Text style={styles.rowSub}>{s.kind} · ordre {s.order}</Text>
+                        <Text style={styles.rowSub}>{salonKindLabel(s.kind)} · ordre {s.order}</Text>
                         <Text style={styles.linkText}>Voir la session et les participants</Text>
                       </TouchableOpacity>
                       <Switch value={s.isActive} onValueChange={(v) => void toggleSalon(s, v)} />
@@ -1146,7 +1259,7 @@ export default function AdminScreen() {
                   {privateSalons.map((s) => (
                     <View key={s.id} style={styles.row}>
                       <Text style={styles.rowTitle}>{s.privateName || 'Salon privé'}</Text>
-                      <Text style={styles.rowSub}>État : {s.status} · expire le {formatDate(s.expiresAt)}</Text>
+                      <Text style={styles.rowSub}>État : {privateSalonStatusLabel(s.status)} · expire le {formatDate(s.expiresAt)}</Text>
                       <Text style={styles.rowSub}>{s.acceptedCount}/{s.invitedCount} invitation(s) acceptée(s)</Text>
                       {s.participants.map((p) => (
                         <View key={p.userId} style={styles.rowSplit}>
@@ -1174,7 +1287,7 @@ export default function AdminScreen() {
               {selectedSalon && (
                 <>
                   <SectionCard title={selectedSalon.salon.name}>
-                    <DataLine label="Type" value={selectedSalon.salon.kind} />
+                    <DataLine label="Type" value={salonKindLabel(selectedSalon.salon.kind)} />
                     <DataLine label="Session active" value={selectedSalon.session ? 'Oui' : 'Non'} />
                     {selectedSalon.session && (
                       <>
@@ -1193,7 +1306,7 @@ export default function AdminScreen() {
                           <Text style={styles.cardTitle}>{p.pseudo ?? p.email}</Text>
                           <Text style={styles.rowSub}>{p.email}</Text>
                         </View>
-                        <Text style={[styles.status, p.status !== 'ACTIVE' && styles.statusBad]}>{p.status}</Text>
+                        <Text style={[styles.status, p.status !== 'ACTIVE' && styles.statusBad]}>{participantStatusLabel(p.status)}</Text>
                       </View>
                       <DataLine label="Arrivé le" value={formatDate(p.joinedAt)} />
                       <DataLine label="Dernière connexion" value={formatDate(p.lastLoginAt)} />
@@ -1250,7 +1363,7 @@ export default function AdminScreen() {
                   <View style={styles.rowSplit}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.cardTitle}>{tx.pseudo || tx.email}</Text>
-                      <Text style={styles.rowSub}>{tx.type} · {formatDate(tx.createdAt)}</Text>
+                      <Text style={styles.rowSub}>{transactionTypeLabel(tx.type)} · {formatDate(tx.createdAt)}</Text>
                     </View>
                     <Text style={[styles.amount, tx.amount < 0 && styles.amountNegative]}>
                       {tx.amount > 0 ? '+' : ''}{tx.amount}
@@ -1362,7 +1475,7 @@ export default function AdminScreen() {
               {systemIncidents.map((incident) => (
                 <View key={incident.id} style={styles.card}>
                   <View style={styles.rowSplit}>
-                    <Text style={styles.cardTitle}>{incident.source.toUpperCase()} · {incident.code || 'ERREUR'}</Text>
+                    <Text style={styles.cardTitle}>{incidentSourceLabel(incident.source)} · {incident.code ? incident.code.replaceAll('_', ' ').toLowerCase() : 'Erreur'}</Text>
                     <Text style={[styles.status, !incident.resolved && styles.statusBad]}>
                       {incident.resolved ? 'RÉSOLU' : 'OUVERT'}
                     </Text>
@@ -1379,7 +1492,7 @@ export default function AdminScreen() {
               {loginEvents.filter((e) => !e.success).slice(0, 50).map((event) => (
                 <View key={event.id} style={styles.card}>
                   <Text style={styles.cardTitle}>{event.email}</Text>
-                  <Text style={styles.rowSub}>Échec : {event.reason || 'raison inconnue'} · {formatDate(event.createdAt)}</Text>
+                  <Text style={styles.rowSub}>Échec : {loginReasonLabel(event.reason)} · {formatDate(event.createdAt)}</Text>
                   {!!event.userId && (
                     <TouchableOpacity style={styles.secondaryButton} onPress={() => { setTab('users'); void openUser(event.userId!); }}>
                       <Text style={styles.secondaryText}>Voir le compte</Text>
@@ -1392,8 +1505,8 @@ export default function AdminScreen() {
               {supportTickets.map((ticket) => (
                 <View key={ticket.id} style={styles.card}>
                   <View style={styles.rowSplit}>
-                    <Text style={styles.cardTitle}>{ticket.kind} · {ticket.subject}</Text>
-                    <Text style={[styles.status, ticket.status === 'OPEN' && styles.statusBad]}>{ticket.status}</Text>
+                    <Text style={styles.cardTitle}>{ticketKindLabel(ticket.kind)} · {ticket.subject}</Text>
+                    <Text style={[styles.status, ticket.status === 'OPEN' && styles.statusBad]}>{ticketStatusLabel(ticket.status)}</Text>
                   </View>
                   <Text style={styles.rowSub}>{ticket.pseudo || ticket.email} · {formatDate(ticket.createdAt)}</Text>
                   <Text style={styles.details}>{ticket.message}</Text>
