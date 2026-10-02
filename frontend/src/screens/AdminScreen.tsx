@@ -730,6 +730,76 @@ export default function AdminScreen() {
     }
   };
 
+  const grantPremiumToSelectedUser = async (days: number) => {
+    if (!selectedUser) return;
+    try {
+      await grantAdminPremium(
+        selectedUser.id,
+        days,
+        days === 1 ? 'Journée Premium offerte par l’administration' : 'Mois Premium offert par l’administration',
+      );
+      setSelectedUser(await getAdminUser(selectedUser.id));
+      setPremiumUsers(await listPremiumAdminUsers());
+      setOverview(await getAdminOverview());
+      setAudit(await listAuditLog());
+      Alert.alert('Premium', days === 1 ? '1 journée de Premium offerte.' : '1 mois de Premium offert.');
+    } catch (err) {
+      Alert.alert('Premium', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const resetSelectedUserSalons = async () => {
+    if (!selectedUser) return;
+    const ok = await confirm(
+      'Réinitialiser les salons',
+      'Retirer cet utilisateur de toutes ses sessions de salons actives ?',
+    );
+    if (!ok) return;
+    try {
+      const result = await resetAdminUserSalons(
+        selectedUser.id,
+        'Réinitialisation manuelle depuis le panneau administrateur',
+      );
+      setSelectedUser(await getAdminUser(selectedUser.id));
+      setAudit(await listAuditLog());
+      Alert.alert('Salons', `${result.resetCount} session(s) réinitialisée(s).`);
+    } catch (err) {
+      Alert.alert('Salons', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const resetSelectedUserRefuge = async () => {
+    if (!selectedUser) return;
+    const ok = await confirm(
+      'Réinitialiser le Refuge',
+      'Clôturer le Refuge en cours de cet utilisateur pour lui permettre de recommencer ?',
+    );
+    if (!ok) return;
+    try {
+      const result = await resetAdminUserRefuge(
+        selectedUser.id,
+        'Réinitialisation manuelle depuis le panneau administrateur',
+      );
+      setSelectedUser(await getAdminUser(selectedUser.id));
+      setAudit(await listAuditLog());
+      Alert.alert('Refuge', `${result.resetCount} session(s) réinitialisée(s).`);
+    } catch (err) {
+      Alert.alert('Refuge', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const writeSelectedUserJournal = async () => {
+    if (!selectedUser || journalNote.trim().length < 2) return;
+    try {
+      await addAdminJournalNote(selectedUser.id, journalNote.trim());
+      setJournalNote('');
+      setAudit(await listAuditLog());
+      Alert.alert('Journal', 'Le message a été ajouté au Journal de l’utilisateur.');
+    } catch (err) {
+      Alert.alert('Journal', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
   const resolveTargetLabel = (target: string | null) => {
     if (!target) return '—';
     const user = users.find((u) => u.id === target);
