@@ -16,6 +16,8 @@ const RETRY_DELAY_MS = 2_000;
 
 const DEV_HTTP_LOGS = typeof __DEV__ !== 'undefined' && __DEV__;
 
+let refreshInFlight: Promise<string | null> | null = null;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -108,36 +110,46 @@ async function doFetch(
 }
 
 async function attemptTokenRefresh(): Promise<string | null> {
-  const refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
-  if (!refreshToken) return null;
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) return null;
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      let res: Response;
+      try {
+        res = await fetch(`${API_URL}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+
+      if (!res.ok) return null;
+
+      const data = await res.json() as { data?: { accessToken?: string; refreshToken?: string } };
+      const newAccess = data?.data?.accessToken;
+      const newRefresh = data?.data?.refreshToken;
+      if (!newAccess) return null;
+
+      await AsyncStorage.setItem(ACCESS_TOKEN_KEY, newAccess);
+      if (newRefresh) await AsyncStorage.setItem(REFRESH_TOKEN_KEY, newRefresh);
+      return newAccess;
+    } catch {
+      return null;
+    }
+  })();
 
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    let res: Response;
-    try {
-      res = await fetch(`${API_URL}/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timer);
-    }
-
-    if (!res.ok) return null;
-
-    const data = await res.json() as { data?: { accessToken?: string; refreshToken?: string } };
-    const newAccess = data?.data?.accessToken;
-    const newRefresh = data?.data?.refreshToken;
-    if (!newAccess) return null;
-
-    await AsyncStorage.setItem(ACCESS_TOKEN_KEY, newAccess);
-    if (newRefresh) await AsyncStorage.setItem(REFRESH_TOKEN_KEY, newRefresh);
-    return newAccess;
-  } catch {
-    return null;
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
   }
 }
 
