@@ -21,6 +21,72 @@ export interface ReportMineDto {
   resolvedAt: Date | null;
 }
 
+async function resolveReportedContent(
+  targetId: string,
+  contentType?: string,
+  contentId?: string,
+): Promise<Prisma.InputJsonValue | undefined> {
+  if (!contentType || !contentId) return undefined;
+
+  if (contentType === "PHOTO") {
+    const photo = await prisma.photo.findUnique({
+      where: { id: contentId },
+      select: {
+        id: true,
+        userId: true,
+        moderationStatus: true,
+        createdAt: true,
+      },
+    });
+    if (!photo || photo.userId !== targetId) throw new NotFoundError("Photo signalée");
+    return {
+      type: "PHOTO",
+      id: photo.id,
+      moderationStatus: photo.moderationStatus,
+      createdAt: photo.createdAt.toISOString(),
+    };
+  }
+
+  if (contentType === "PROFILE_BIO" || contentType === "PROFILE_PSEUDO") {
+    const profile = await prisma.profile.findUnique({
+      where: { userId: targetId },
+      select: { userId: true, pseudo: true, bio: true, updatedAt: true },
+    });
+    if (!profile || contentId !== targetId) throw new NotFoundError("Profil signalé");
+    return {
+      type: contentType,
+      id: targetId,
+      text: contentType === "PROFILE_BIO" ? profile.bio : profile.pseudo,
+      updatedAt: profile.updatedAt.toISOString(),
+    };
+  }
+
+  if (contentType === "SALON_MESSAGE") {
+    const message = await prisma.salonMessage.findUnique({
+      where: { id: contentId },
+      select: {
+        id: true,
+        userId: true,
+        content: true,
+        salonId: true,
+        createdAt: true,
+        isHidden: true,
+      },
+    });
+    if (!message || message.userId !== targetId) throw new NotFoundError("Message signalé");
+    return {
+      type: "SALON_MESSAGE",
+      id: message.id,
+      text: message.content,
+      salonId: message.salonId,
+      createdAt: message.createdAt.toISOString(),
+      isHidden: message.isHidden,
+    };
+  }
+
+  return undefined;
+}
+
 function toMineDto(r: Report): ReportMineDto {
   return {
     id: r.id,
@@ -60,7 +126,15 @@ export async function createReport(
   });
   assertCanCreateNewReport(existingOpenCount);
 
-  // 4. Création
+  // 4. Si le signalement vise un contenu précis, on vérifie qu'il appartient
+  // réellement à la cible et on capture un instantané pour la modération.
+  const contentSnapshot = await resolveReportedContent(
+    dto.targetId,
+    dto.contentType,
+    dto.contentId,
+  );
+
+  // 5. Création
   const created = await prisma.report.create({
     data: {
       reporterId,
@@ -68,6 +142,9 @@ export async function createReport(
       reason: dto.reason,
       details: dto.details ?? null,
       status: ReportStatus.OPEN,
+      contentType: dto.contentType ?? null,
+      contentId: dto.contentId ?? null,
+      ...(contentSnapshot !== undefined ? { contentSnapshot } : {}),
     },
   });
 
