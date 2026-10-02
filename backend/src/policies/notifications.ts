@@ -87,6 +87,10 @@ export function buildNotificationMessage(type: NotificationType): string {
       return buildPremiumSubscribedMessage();
     case NotificationType.PREMIUM_CANCELLED:
       return buildPremiumCancelledMessage();
+    case NotificationType.ADMIN_MESSAGE:
+      return "Tu as reçu un message de l’administration JeuTaime";
+    case NotificationType.PRIVATE_SALON_INVITE:
+      return "Tu as été invité dans un salon privé";
   }
 }
 
@@ -107,6 +111,8 @@ export const ALLOWED_META_KEYS = [
   "magieCastId",
   "magieId",
   "salonId",
+  "adminMessageId",
+  "privateSalonSessionId",
 ] as const;
 
 export type AllowedMetaKey = (typeof ALLOWED_META_KEYS)[number];
@@ -152,6 +158,8 @@ export function buildPushPayload(
   if (meta?.matchId)  data["matchId"]  = meta.matchId;
   if (meta?.salonId)  data["salonId"]  = meta.salonId;
   if (meta?.fromUserId) data["fromUserId"] = meta.fromUserId;
+  if (meta?.adminMessageId) data["adminMessageId"] = meta.adminMessageId;
+  if (meta?.privateSalonSessionId) data["privateSalonSessionId"] = meta.privateSalonSessionId;
 
   switch (type) {
     case NotificationType.LETTER_RECEIVED:
@@ -162,6 +170,10 @@ export function buildPushPayload(
       return { title: "🎁 JeuTaime", body: "Quelqu'un vient de t'offrir quelque chose", data };
     case NotificationType.MAGIE_RECEIVED:
       return { title: "✨ JeuTaime", body: "Un sort vient d'être lancé sur toi", data };
+    case NotificationType.ADMIN_MESSAGE:
+      return { title: "JeuTaime · Administration", body: "Tu as reçu un message de l’administration", data };
+    case NotificationType.PRIVATE_SALON_INVITE:
+      return { title: "JeuTaime · Invitation", body: "Tu as été invité dans un salon privé", data };
     default:
       return { title: "JeuTaime", body: buildNotificationMessage(type), data };
   }
