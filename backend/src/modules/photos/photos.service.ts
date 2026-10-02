@@ -24,6 +24,8 @@ export interface PhotoDto {
   position: number;
   isPrimary: boolean;
   createdAt: Date;
+  moderationStatus: string;
+  moderationReason: string | null;
   url: string;
   variant: PhotoVariant;
 }
@@ -35,6 +37,8 @@ function toDto(
     position: number;
     isPrimary: boolean;
     createdAt: Date;
+    moderationStatus: string;
+    moderationReason: string | null;
   },
   variant: PhotoVariant,
 ): PhotoDto {
@@ -44,6 +48,8 @@ function toDto(
     position: photo.position,
     isPrimary: photo.isPrimary,
     createdAt: photo.createdAt,
+    moderationStatus: photo.moderationStatus,
+    moderationReason: photo.moderationReason,
     url: buildPhotoUrl(photo.id, variant),
     variant,
   };
@@ -92,6 +98,8 @@ export async function listMyPhotos(userId: string): Promise<PhotoDto[]> {
       position: true,
       isPrimary: true,
       createdAt: true,
+      moderationStatus: true,
+      moderationReason: true,
     },
   });
   // Propriétaire → toujours "original"
@@ -147,7 +155,7 @@ export async function listPhotosForViewer(params: {
   }
 
   const photos = await prisma.photo.findMany({
-    where: { userId: targetUserId },
+    where: { userId: targetUserId, moderationStatus: "ACTIVE" },
     orderBy: [
       { position: "asc" },
       { isPrimary: "desc" },
@@ -160,6 +168,8 @@ export async function listPhotosForViewer(params: {
       position: true,
       isPrimary: true,
       createdAt: true,
+      moderationStatus: true,
+      moderationReason: true,
     },
   });
 
@@ -224,6 +234,8 @@ export async function uploadPhoto(params: {
       position: true,
       isPrimary: true,
       createdAt: true,
+      moderationStatus: true,
+      moderationReason: true,
     },
   });
 
@@ -380,9 +392,13 @@ export async function resolvePhotoForStream(params: {
       originalPath: true,
       blurredPath: true,
       blurMediumPath: true,
+      moderationStatus: true,
     },
   });
   if (!photo) throw new NotFoundError("Photo");
+  if (photo.moderationStatus !== "ACTIVE") {
+    throw new ForbiddenError("Photo masquée par la modération");
+  }
 
   const isOwner = photo.userId === viewerId;
   let hasBlock = false;
