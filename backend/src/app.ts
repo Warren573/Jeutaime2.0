@@ -36,6 +36,7 @@ import adminModerationRoutes from "./modules/admin/moderation/adminModeration.ro
 import adminOperationsRoutes from "./modules/admin/operations/adminOperations.routes";
 import adminEconomyRoutes from "./modules/admin/economy/adminEconomy.routes";
 import adminEngagementRoutes from "./modules/admin/engagement/adminEngagement.routes";
+import adminJournalRoutes from "./modules/admin/journal/adminJournal.routes";
 import adminMessagesRoutes from "./modules/admin-messages/adminMessages.routes";
 import privateSalonsRoutes from "./modules/private-salons/privateSalons.routes";
 import reactionsRoutes from "./modules/reactions/reactions.routes";
@@ -146,6 +147,7 @@ app.use(`${api}/admin/moderation`, adminModerationRoutes);
 app.use(`${api}/admin/operations`, adminOperationsRoutes);
 app.use(`${api}/admin/economy`, adminEconomyRoutes);
 app.use(`${api}/admin/engagement`, adminEngagementRoutes);
+app.use(`${api}/admin/journal`, adminJournalRoutes);
 app.use(`${api}/admin-messages`, adminMessagesRoutes);
 app.use(`${api}/private-salons`, privateSalonsRoutes);
 
