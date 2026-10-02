@@ -7,6 +7,8 @@ type JournalMeta = {
   opponentId?: string;
   commonUserId?: string | null;
   winnerId?: string | null;
+  text?: string;
+  adminId?: string;
 };
 
 function asMeta(value: Prisma.JsonValue | null): JournalMeta {
@@ -94,6 +96,9 @@ export async function getTodayEdition(userId: string) {
         break;
       case "DUEL_AROUND_YOU_EXPIRED":
         text = `Un duel lancé autour de toi a expiré après 48 h.`;
+        break;
+      case "ADMIN_NOTE":
+        text = meta.text ? `Message de l’administration : ${meta.text}` : "Message de l’administration JeuTaime.";
         break;
     }
 
