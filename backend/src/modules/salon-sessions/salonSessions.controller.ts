@@ -44,7 +44,7 @@ export async function getSalonCounters(req: AuthedRequest, res: Response) {
 export async function getSessionDetail(req: AuthedRequest, res: Response) {
   const id = req.params["id"] as string;
 
-  const data = await salonSessionsService.getSessionDetail(id);
+  const data = await salonSessionsService.getSessionDetail(id, req.user.userId);
   const validated = GetSessionDetailResponseSchema.parse(data);
 
   res.json({ data: validated });
