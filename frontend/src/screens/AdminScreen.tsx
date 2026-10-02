@@ -28,6 +28,15 @@ import {
   AdminUserDetail,
   AuditEntry,
   HealthVersion,
+  OperationsOverview,
+  LoginEvent,
+  SystemIncident,
+  AdminSupportTicket,
+  EconomyOverview,
+  EconomyTransaction,
+  EconomyCatalog,
+  PremiumAdminUser,
+  AdminPrivateSalon,
   ModerationOverview,
   ModerationPhoto,
   ModerationProfile,
@@ -38,6 +47,23 @@ import {
   getAdminSalonSession,
   getAdminUser,
   getHealthVersion,
+  getOperationsOverview,
+  listLoginEvents,
+  listSystemIncidents,
+  updateSystemIncident,
+  listAdminSupportTickets,
+  updateAdminSupportTicket,
+  getEconomyOverview,
+  listEconomyTransactions,
+  getEconomyCatalog,
+  listPremiumAdminUsers,
+  updateOfferingCatalogItem,
+  updateMagieCatalogItem,
+  sendAdminDirectMessage,
+  createAdminPrivateSalon,
+  listAdminPrivateSalons,
+  inviteUserToPrivateSalon,
+  removeUserFromPrivateSalon,
   getModerationOverview,
   getModerationProfile,
   listModerationPhotos,
@@ -57,7 +83,7 @@ import {
   warnAdminUser,
 } from '../api/admin';
 
-type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'tools';
+type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'economy' | 'operations' | 'tools';
 type ReportFilter = 'ALL' | AdminReport['status'];
 
 const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
@@ -66,6 +92,8 @@ const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof I
   { key: 'content', label: 'Contenus', icon: 'images-outline' },
   { key: 'reports', label: 'Signalements', icon: 'flag-outline' },
   { key: 'salons', label: 'Salons', icon: 'chatbubbles-outline' },
+  { key: 'economy', label: 'Économie', icon: 'wallet-outline' },
+  { key: 'operations', label: 'Incidents', icon: 'pulse-outline' },
   { key: 'tools', label: 'Outils', icon: 'construct-outline' },
 ];
 
@@ -111,6 +139,14 @@ function auditLabel(action: string) {
     'admin.salon_message.hide': 'Message de salon masqué',
     'admin.salon_message.restore': 'Message de salon restauré',
     'admin.salon.participant.remove': 'Participant retiré d’un salon',
+    'admin.user.message.send': 'Message admin envoyé',
+    'admin.private_salon.create': 'Salon privé créé',
+    'admin.private_salon.invite': 'Invitation salon privé envoyée',
+    'admin.private_salon.remove': 'Participant retiré du salon privé',
+    'admin.shop.offering.update': 'Offrande boutique modifiée',
+    'admin.shop.magie.update': 'Magie boutique modifiée',
+    'admin.incident.resolve': 'Incident technique résolu',
+    'admin.incident.reopen': 'Incident technique rouvert',
   };
   return labels[action] ?? action.replace(/^admin\./, '').replaceAll('.', ' · ');
 }
@@ -146,6 +182,18 @@ export default function AdminScreen() {
   const [moderationProfile, setModerationProfile] = useState<ModerationProfile | null>(null);
   const [moderationReason, setModerationReason] = useState('');
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [operationsOverview, setOperationsOverview] = useState<OperationsOverview | null>(null);
+  const [loginEvents, setLoginEvents] = useState<LoginEvent[]>([]);
+  const [systemIncidents, setSystemIncidents] = useState<SystemIncident[]>([]);
+  const [supportTickets, setSupportTickets] = useState<AdminSupportTicket[]>([]);
+  const [economyOverview, setEconomyOverview] = useState<EconomyOverview | null>(null);
+  const [economyTransactions, setEconomyTransactions] = useState<EconomyTransaction[]>([]);
+  const [economyCatalog, setEconomyCatalog] = useState<EconomyCatalog | null>(null);
+  const [premiumUsers, setPremiumUsers] = useState<PremiumAdminUser[]>([]);
+  const [privateSalons, setPrivateSalons] = useState<AdminPrivateSalon[]>([]);
+  const [adminMessageSubject, setAdminMessageSubject] = useState('');
+  const [adminMessageBody, setAdminMessageBody] = useState('');
+  const [privateSalonName, setPrivateSalonName] = useState('Sanctuaire privé');
 
   const [query, setQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
@@ -158,7 +206,7 @@ export default function AdminScreen() {
   const [selectedSalonLoading, setSelectedSalonLoading] = useState(false);
 
   const loadAll = useCallback(async () => {
-    const [o, u, r, s, a, h, mo, mp, mm] = await Promise.all([
+    const [o, u, r, s, a, h, mo, mp, mm, oo, le, si, st, eo, et, ec, pu, ps] = await Promise.all([
       getAdminOverview(),
       listAdminUsers(),
       listAdminReports(),
@@ -168,6 +216,15 @@ export default function AdminScreen() {
       getModerationOverview(),
       listModerationPhotos(),
       listModerationSalonMessages(),
+      getOperationsOverview(),
+      listLoginEvents(),
+      listSystemIncidents(),
+      listAdminSupportTickets(),
+      getEconomyOverview(),
+      listEconomyTransactions(),
+      getEconomyCatalog(),
+      listPremiumAdminUsers(),
+      listAdminPrivateSalons(),
     ]);
     setOverview(o);
     setUsers(u);
@@ -179,6 +236,15 @@ export default function AdminScreen() {
     setModerationOverview(mo);
     setModerationPhotos(mp);
     setModerationMessages(mm);
+    setOperationsOverview(oo);
+    setLoginEvents(le.items);
+    setSystemIncidents(si.items);
+    setSupportTickets(st);
+    setEconomyOverview(eo);
+    setEconomyTransactions(et.items);
+    setEconomyCatalog(ec);
+    setPremiumUsers(pu);
+    setPrivateSalons(ps);
   }, []);
 
   useEffect(() => {
