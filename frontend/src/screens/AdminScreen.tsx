@@ -476,6 +476,20 @@ export default function AdminScreen() {
                 <Metric value={overview.salons.activeSessions} label="Sessions salons" />
               </View>
 
+              <SectionCard title="Alertes administrateur">
+                {moderationOverview?.openReports ? (
+                  <Text style={styles.alertText}>{moderationOverview.openReports} signalement(s) attendent une décision.</Text>
+                ) : (
+                  <Text style={styles.goodText}>Aucun signalement en attente.</Text>
+                )}
+                {!!moderationOverview?.photos.hidden && (
+                  <Text style={styles.alertText}>{moderationOverview.photos.hidden} photo(s) sont actuellement masquées.</Text>
+                )}
+                {!!moderationOverview?.photos.removed && (
+                  <Text style={styles.alertText}>{moderationOverview.photos.removed} photo(s) ont été retirées par la modération.</Text>
+                )}
+              </SectionCard>
+
               <Text style={styles.subSectionTitle}>Activité du jour</Text>
               <View style={styles.statsGrid}>
                 <Metric value={overview.activity.matchesToday} label="Nouveaux matchs" />
@@ -653,6 +667,176 @@ export default function AdminScreen() {
                   </SectionCard>
                 </>
               )}
+            </>
+          )}
+
+          {tab === 'content' && (
+            <>
+              <Text style={styles.sectionTitle}>Modération des contenus</Text>
+
+              {moderationOverview && (
+                <View style={styles.statsGrid}>
+                  <Metric value={moderationOverview.photos.active} label="Photos publiées" />
+                  <Metric value={moderationOverview.photos.hidden} label="Photos masquées" />
+                  <Metric value={moderationOverview.photos.removed} label="Photos retirées" />
+                  <Metric value={moderationOverview.salonMessages.hidden} label="Messages masqués" />
+                </View>
+              )}
+
+              <SectionCard title="Décision de modération">
+                <Text style={styles.details}>
+                  Vérifie d’abord le contenu. Le retrait d’un contenu et la sanction du compte sont deux décisions séparées.
+                </Text>
+                <TextInput
+                  value={moderationReason}
+                  onChangeText={setModerationReason}
+                  placeholder="Motif de la décision (facultatif si vérification simple)"
+                  placeholderTextColor="#A48C72"
+                  style={[styles.search, styles.multiline]}
+                  multiline
+                />
+              </SectionCard>
+
+              <Text style={styles.subSectionTitle}>Photos récentes</Text>
+              {moderationPhotos.length === 0 && <Text style={styles.muted}>Aucune photo.</Text>}
+              {moderationPhotos.map((photo) => {
+                const uri = API_URL + photo.adminPreviewUrl.replace(/^\/api/, '');
+                return (
+                  <View key={photo.id} style={styles.card}>
+                    <View style={styles.userHead}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.cardTitle}>{photo.pseudo || 'Sans pseudo'}</Text>
+                        <Text style={styles.rowSub}>{photo.email}</Text>
+                      </View>
+                      <Text style={[
+                        styles.status,
+                        photo.moderationStatus !== 'ACTIVE' && styles.statusBad,
+                      ]}>
+                        {photo.moderationStatus}
+                      </Text>
+                    </View>
+
+                    {authToken && (
+                      <Image
+                        source={{ uri, headers: { Authorization: `Bearer ${authToken}` } }}
+                        style={styles.moderationPhoto}
+                        contentFit="contain"
+                        cachePolicy="none"
+                      />
+                    )}
+
+                    <Text style={styles.rowSub}>Publiée le {formatDate(photo.createdAt)}</Text>
+                    {!!photo.moderationReason && (
+                      <Text style={styles.details}>Motif : {photo.moderationReason}</Text>
+                    )}
+
+                    <View style={styles.actionsLeft}>
+                      <TouchableOpacity
+                        style={styles.secondaryButton}
+                        onPress={() => {
+                          setTab('users');
+                          void openUser(photo.userId);
+                        }}
+                      >
+                        <Text style={styles.secondaryText}>Voir le compte</Text>
+                      </TouchableOpacity>
+
+                      {photo.moderationStatus !== 'ACTIVE' && (
+                        <TouchableOpacity
+                          style={styles.actionButtonGood}
+                          onPress={() => void applyPhotoModeration(photo, 'ACTIVE')}
+                        >
+                          <Text style={styles.actionButtonText}>Restaurer</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {photo.moderationStatus === 'ACTIVE' && (
+                        <TouchableOpacity
+                          style={styles.actionButton}
+                          onPress={() => void applyPhotoModeration(photo, 'HIDDEN')}
+                        >
+                          <Text style={styles.actionButtonText}>Masquer</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {photo.moderationStatus !== 'REMOVED' && (
+                        <TouchableOpacity
+                          style={styles.dangerButton}
+                          onPress={() => void applyPhotoModeration(photo, 'REMOVED')}
+                        >
+                          <Text style={styles.actionButtonText}>Retirer</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+
+              {moderationProfile && (
+                <>
+                  <Text style={styles.subSectionTitle}>Profil à contrôler</Text>
+                  <SectionCard title={moderationProfile.pseudo || moderationProfile.email}>
+                    <DataLine label="E-mail" value={moderationProfile.email} />
+                    <DataLine label="Découverte" value={moderationProfile.showInDiscovery ? 'Visible' : 'Masqué'} />
+                    <Text style={styles.details}>
+                      Bio : {moderationProfile.bio || 'Aucune bio'}
+                    </Text>
+                    <View style={styles.actionsLeft}>
+                      {moderationProfile.showInDiscovery ? (
+                        <TouchableOpacity style={styles.actionButton} onPress={() => void applyProfileModeration('HIDE_FROM_DISCOVERY')}>
+                          <Text style={styles.actionButtonText}>Retirer de la découverte</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity style={styles.actionButtonGood} onPress={() => void applyProfileModeration('RESTORE_DISCOVERY')}>
+                          <Text style={styles.actionButtonText}>Rétablir la découverte</Text>
+                        </TouchableOpacity>
+                      )}
+                      {!!moderationProfile.bio && (
+                        <TouchableOpacity style={styles.dangerButton} onPress={() => void applyProfileModeration('CLEAR_BIO')}>
+                          <Text style={styles.actionButtonText}>Supprimer la bio</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </SectionCard>
+                </>
+              )}
+
+              <Text style={styles.subSectionTitle}>Messages de salons récents</Text>
+              {moderationMessages.slice(0, 30).map((message) => (
+                <View key={message.id} style={styles.card}>
+                  <View style={styles.userHead}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cardTitle}>{message.salonName}</Text>
+                      <Text style={styles.rowSub}>{message.pseudo || message.email} · {formatDate(message.createdAt)}</Text>
+                    </View>
+                    <Text style={[styles.status, message.isHidden && styles.statusBad]}>
+                      {message.isHidden ? 'MASQUÉ' : 'VISIBLE'}
+                    </Text>
+                  </View>
+                  <Text style={styles.details}>{message.content}</Text>
+                  {!!message.hiddenReason && <Text style={styles.rowSub}>Motif : {message.hiddenReason}</Text>}
+                  <View style={styles.actionsLeft}>
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
+                      onPress={() => {
+                        setTab('users');
+                        void openUser(message.userId);
+                      }}
+                    >
+                      <Text style={styles.secondaryText}>Voir le compte</Text>
+                    </TouchableOpacity>
+                    {message.isHidden ? (
+                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void applyMessageModeration(message, false)}>
+                        <Text style={styles.actionButtonText}>Restaurer</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity style={styles.dangerButton} onPress={() => void applyMessageModeration(message, true)}>
+                        <Text style={styles.actionButtonText}>Masquer le message</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))}
             </>
           )}
 
@@ -924,4 +1108,7 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: '#8B6F47', borderColor: '#8B6F47' },
   filterText: { fontSize: 11, fontWeight: '700', color: '#6F5943' },
   filterTextActive: { color: '#FFF' },
+  moderationPhoto: { width: '100%', height: 260, borderRadius: 12, backgroundColor: '#F4EBDD', marginVertical: 12 },
+  alertText: { fontSize: 13, lineHeight: 19, color: '#A7324B', marginTop: 6, fontWeight: '700' },
+  goodText: { fontSize: 13, lineHeight: 19, color: '#5A7B55', marginTop: 6, fontWeight: '700' },
 });
