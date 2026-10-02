@@ -458,6 +458,19 @@ export default function AdminScreen() {
     [reportFilter, reports],
   );
 
+  const recentAudit = useMemo(() => {
+    const seen = new Set<string>();
+    return audit.filter((entry) => {
+      const minute = entry.createdAt ? entry.createdAt.slice(0, 16) : '';
+      const key = `${entry.action}|${entry.target ?? ''}|${minute}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [audit]);
+
+
+
   const confirm = (title: string, message: string): Promise<boolean> => {
     if (Platform.OS === 'web') {
       return Promise.resolve(typeof window !== 'undefined' && window.confirm(message));
@@ -956,13 +969,14 @@ export default function AdminScreen() {
               </SectionCard>
 
               <SectionCard title="Parcours utilisateur">
+                <Text style={styles.details}>Utilisateurs uniques depuis le lancement.</Text>
                 <DataLine label="Comptes inscrits" value={overview.analytics.funnel.registered} />
-                <DataLine label="Profil créé" value={`${overview.analytics.funnel.profileCreated} · ${overview.analytics.funnel.profileRatePct} %`} />
-                <DataLine label="A envoyé un sourire" value={`${overview.analytics.funnel.sentSmile} · ${overview.analytics.funnel.smileRatePct} %`} />
-                <DataLine label="A obtenu un match" value={`${overview.analytics.funnel.matched} · ${overview.analytics.funnel.matchRatePct} %`} />
-                <DataLine label="A envoyé une lettre" value={`${overview.analytics.funnel.sentLetter} · ${overview.analytics.funnel.letterRatePct} %`} />
-                <DataLine label="A atteint 10 lettres" value={`${overview.analytics.funnel.reachedTenLetters} · ${overview.analytics.funnel.tenLettersRatePct} %`} />
-                <DataLine label="Premium actif" value={`${overview.analytics.funnel.premiumActive} · ${overview.analytics.funnel.premiumRatePct} %`} />
+                <DataLine label="Utilisateurs avec un profil" value={`${overview.analytics.funnel.profileCreated} · ${overview.analytics.funnel.profileRatePct} %`} />
+                <DataLine label="Utilisateurs ayant envoyé un sourire" value={`${overview.analytics.funnel.sentSmile} · ${overview.analytics.funnel.smileRatePct} %`} />
+                <DataLine label="Utilisateurs ayant obtenu un match" value={`${overview.analytics.funnel.matched} · ${overview.analytics.funnel.matchRatePct} %`} />
+                <DataLine label="Utilisateurs ayant envoyé une lettre" value={`${overview.analytics.funnel.sentLetter} · ${overview.analytics.funnel.letterRatePct} %`} />
+                <DataLine label="Utilisateurs ayant atteint 10 lettres" value={`${overview.analytics.funnel.reachedTenLetters} · ${overview.analytics.funnel.tenLettersRatePct} %`} />
+                <DataLine label="Utilisateurs Premium actifs" value={`${overview.analytics.funnel.premiumActive} · ${overview.analytics.funnel.premiumRatePct} %`} />
               </SectionCard>
 
               <SectionCard title="Utilisation sur 7 jours">
@@ -975,7 +989,7 @@ export default function AdminScreen() {
 
               <SectionCard title="Dernières actions administrateur">
                 {audit.length === 0 && <Text style={styles.mutedLeft}>Aucune action enregistrée.</Text>}
-                {audit.slice(0, 8).map((a) => (
+                {recentAudit.slice(0, 8).map((a) => (
                   <View key={a.id} style={styles.row}>
                     <Text style={styles.rowTitle}>{auditLabel(a.action)}</Text>
                     <Text style={styles.rowSub}>{resolveTargetLabel(a.target)} · {formatDate(a.createdAt)}</Text>
@@ -1126,19 +1140,28 @@ export default function AdminScreen() {
                     {privateSalons.filter((s) => s.status === 'ACTIVE').length === 0 ? (
                       <Text style={styles.mutedLeft}>Aucun salon privé actif. Crée le Sanctuaire dans l’onglet Salons.</Text>
                     ) : (
-                      privateSalons.filter((s) => s.status === 'ACTIVE').map((s) => (
-                        <View key={s.id} style={styles.row}>
-                          <View style={styles.rowSplit}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.rowTitle}>{s.privateName || 'Sanctuaire privé'}</Text>
-                              <Text style={styles.rowSub}>{s.acceptedCount}/{s.invitedCount} invitation(s) acceptée(s)</Text>
+                      privateSalons.filter((s) => s.status === 'ACTIVE').map((s) => {
+                        const invitation = s.invitations?.find((i) => i.userId === selectedUser.id);
+                        return (
+                          <View key={s.id} style={styles.row}>
+                            <View style={styles.rowSplit}>
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.rowTitle}>{s.privateName || 'Sanctuaire privé'}</Text>
+                                <Text style={styles.rowSub}>{s.acceptedCount}/{s.invitedCount} invitation(s) acceptée(s)</Text>
+                              </View>
+                              {invitation ? (
+                                <View style={styles.rolePill}>
+                                  <Text style={styles.roleText}>{invitation.accepted ? 'Déjà présent' : 'Déjà invité'}</Text>
+                                </View>
+                              ) : (
+                                <TouchableOpacity style={styles.secondaryButton} onPress={() => void inviteSelectedUser(s.id)}>
+                                  <Text style={styles.secondaryText}>Inviter</Text>
+                                </TouchableOpacity>
+                              )}
                             </View>
-                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void inviteSelectedUser(s.id)}>
-                              <Text style={styles.secondaryText}>Inviter</Text>
-                            </TouchableOpacity>
                           </View>
-                        </View>
-                      ))
+                        );
+                      })
                     )}
                   </SectionCard>
 
