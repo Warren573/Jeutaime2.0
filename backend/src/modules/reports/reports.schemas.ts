@@ -9,8 +9,13 @@ export const CreateReportSchema = z
     targetId: z.string().min(1).max(64),
     reason: z.nativeEnum(ReportReason),
     details: z.string().max(2000).optional(),
+    contentType: z.enum(["PHOTO", "PROFILE_BIO", "PROFILE_PSEUDO", "SALON_MESSAGE"]).optional(),
+    contentId: z.string().min(1).max(128).optional(),
   })
-  .strict();
+  .strict()
+  .refine((d) => (!d.contentType && !d.contentId) || (!!d.contentType && !!d.contentId), {
+    message: "contentType et contentId doivent être fournis ensemble",
+  });
 
 export type CreateReportDto = z.infer<typeof CreateReportSchema>;
 
