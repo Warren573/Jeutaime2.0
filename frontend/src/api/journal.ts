@@ -1,15 +1,15 @@
 import { apiFetch } from "./client";
 
-export interface JournalPersonalEventDTO {
+export interface CommunityJournalPostDTO {
   id: string;
-  kind: string;
-  text: string;
-  occurredAt: string;
+  title: string;
+  body: string;
+  publishedAt: string;
 }
 
 export interface JournalEditionDTO {
   date: string;
-  personalEvents: JournalPersonalEventDTO[];
+  communityPosts: CommunityJournalPostDTO[];
 }
 
 export async function getJournalEdition(): Promise<JournalEditionDTO> {
