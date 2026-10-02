@@ -27,6 +27,36 @@ export type AdminOverview = {
     total: number;
     activeSessions: number;
   };
+  analytics: {
+    registrations: {
+      averagePerDay7d: number;
+      averagePerDay30d: number;
+      previous7d: number;
+      weeklyChangePct: number | null;
+    };
+    demographics: {
+      averageAge: number | null;
+      averageAgeMen: number | null;
+      averageAgeWomen: number | null;
+      men: number;
+      women: number;
+      other: number;
+      menPct: number;
+      womenPct: number;
+      otherPct: number;
+      active7dMen: number;
+      active7dWomen: number;
+      premiumMen: number;
+      premiumWomen: number;
+      ageBands: {
+        age18to24: number;
+        age25to34: number;
+        age35to44: number;
+        age45to54: number;
+        age55plus: number;
+      };
+    };
+  };
 };
 
 export type AdminUser = {
@@ -662,5 +692,41 @@ export async function inviteUserToPrivateSalon(sessionId: string, userId: string
 export async function removeUserFromPrivateSalon(sessionId: string, userId: string): Promise<void> {
   await apiFetch(`/admin/engagement/private-salons/${sessionId}/invite/${userId}`, {
     method: 'DELETE',
+  });
+}
+
+
+export async function grantAdminPremium(
+  id: string,
+  days: number,
+  reason: string,
+): Promise<{ id: string; premiumTier: string; premiumUntil: string }> {
+  const res = await apiFetch(`/admin/users/${id}/premium`, {
+    method: 'POST',
+    body: JSON.stringify({ days, reason }),
+  });
+  return res.data;
+}
+
+export async function resetAdminUserSalons(id: string, reason: string): Promise<{ resetCount: number }> {
+  const res = await apiFetch(`/admin/users/${id}/reset-salons`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+  return res.data;
+}
+
+export async function resetAdminUserRefuge(id: string, reason: string): Promise<{ resetCount: number }> {
+  const res = await apiFetch(`/admin/users/${id}/reset-refuge`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+  return res.data;
+}
+
+export async function addAdminJournalNote(id: string, text: string): Promise<void> {
+  await apiFetch(`/admin/users/${id}/journal-note`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
   });
 }
