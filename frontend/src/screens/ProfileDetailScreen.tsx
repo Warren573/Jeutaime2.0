@@ -35,7 +35,7 @@ function PaperSection({title,note,tone,variant='a',children}:PaperSectionProps){
 }
 
 export default function ProfileDetailScreen(){
- const router=useRouter(); const insets=useSafeAreaInsets(); const params=useLocalSearchParams<{id?:string}>(); const profileId=Array.isArray(params.id)?params.id[0]:params.id; const currentUser=useStore(s=>s.currentUser);
+ const router=useRouter(); const insets=useSafeAreaInsets(); const params=useLocalSearchParams<{id?:string;adminPreview?:string}>(); const profileId=Array.isArray(params.id)?params.id[0]:params.id; const isAdminPreview=(Array.isArray(params.adminPreview)?params.adminPreview[0]:params.adminPreview)==='1'; const currentUser=useStore(s=>s.currentUser);
  const [data,setData]=useState<PublicProfileResponse|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null); const [reporting,setReporting]=useState(false); const [photoOpen,setPhotoOpen]=useState(false); const [activeMedia,setActiveMedia]=useState<'photo'|'avatar'>('photo'); const mediaPagerRef=useRef<ScrollView>(null); const [authToken,setAuthToken]=useState<string|null>(null); const isOwnProfile=!!profileId&&currentUser?.id===profileId;
  useEffect(()=>{void AsyncStorage.getItem('auth_token').then(setAuthToken);},[]);
  useEffect(()=>{let mounted=true; const load=async()=>{if(!profileId){setError('Profil introuvable');setLoading(false);return;} try{setLoading(true);const result=await getPublicProfile(profileId);if(mounted)setData(result);}catch(err:any){if(mounted)setError(err?.message||'Impossible de charger le profil');}finally{if(mounted)setLoading(false);}};void load();return()=>{mounted=false;};},[profileId]);
@@ -78,7 +78,7 @@ export default function ProfileDetailScreen(){
         </TouchableOpacity>
       </View>
       <Text style={styles.avatarSubcaption}>{activeMedia==='photo'?'Touche la photo pour l’agrandir.':'Glisse ou touche Photo pour revenir.'}</Text>
-      {!isOwnProfile&&activeMedia==='photo'&&<TouchableOpacity onPress={reportPhoto} disabled={reporting}><Text style={styles.reportPhotoText}>Signaler cette photo</Text></TouchableOpacity>}
+      {!isAdminPreview&&!isOwnProfile&&activeMedia==='photo'&&<TouchableOpacity onPress={reportPhoto} disabled={reporting}><Text style={styles.reportPhotoText}>Signaler cette photo</Text></TouchableOpacity>}
     </>
   ) : (
     <>
