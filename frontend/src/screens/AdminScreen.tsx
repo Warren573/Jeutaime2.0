@@ -610,10 +610,14 @@ export default function AdminScreen() {
   };
 
   const applyPhotoModeration = async (photo: ModerationPhoto, status: 'ACTIVE' | 'HIDDEN' | 'REMOVED') => {
-    const reason = moderationReason.trim() || (status === 'ACTIVE' ? 'Contenu vérifié par la modération' : 'Contenu non conforme');
+    const reason =
+      status === 'ACTIVE'
+        ? 'Contenu vérifié et restauré par l’administration'
+        : status === 'HIDDEN'
+          ? 'Contenu masqué après contrôle administrateur'
+          : 'Contenu retiré après contrôle administrateur';
     try {
       await moderatePhoto(photo.id, status, reason);
-      setModerationReason('');
       await refreshModeration();
     } catch (err) {
       Alert.alert('Modération photo', err instanceof Error ? err.message : 'Action impossible.');
@@ -624,10 +628,14 @@ export default function AdminScreen() {
     action: 'HIDE_FROM_DISCOVERY' | 'RESTORE_DISCOVERY' | 'CLEAR_BIO',
   ) => {
     if (!moderationProfile) return;
-    const reason = moderationReason.trim() || 'Décision de modération';
+    const reason =
+      action === 'CLEAR_BIO'
+        ? 'Bio retirée après contrôle administrateur'
+        : action === 'HIDE_FROM_DISCOVERY'
+          ? 'Profil retiré temporairement de la découverte'
+          : 'Profil rétabli dans la découverte après contrôle';
     try {
       setModerationProfile(await moderateProfile(moderationProfile.id, action, reason));
-      setModerationReason('');
       setAudit(await listAuditLog());
     } catch (err) {
       Alert.alert('Modération profil', err instanceof Error ? err.message : 'Action impossible.');
@@ -635,10 +643,11 @@ export default function AdminScreen() {
   };
 
   const applyMessageModeration = async (message: ModerationSalonMessage, hidden: boolean) => {
-    const reason = moderationReason.trim() || (hidden ? 'Contenu non conforme' : 'Contenu vérifié');
+    const reason = hidden
+      ? 'Message masqué après contrôle administrateur'
+      : 'Message restauré après contrôle administrateur';
     try {
       await moderateSalonMessage(message.id, hidden, reason);
-      setModerationReason('');
       await refreshModeration();
     } catch (err) {
       Alert.alert('Modération message', err instanceof Error ? err.message : 'Action impossible.');
@@ -793,15 +802,23 @@ export default function AdminScreen() {
     }
   };
 
-  const writeSelectedUserJournal = async () => {
-    if (!selectedUser || journalNote.trim().length < 2) return;
+  const publishCommunityJournal = async () => {
+    if (communityJournalTitle.trim().length < 3 || communityJournalBody.trim().length < 3) {
+      Alert.alert('Journal communautaire', 'Ajoute un titre et un texte.');
+      return;
+    }
     try {
-      await addAdminJournalNote(selectedUser.id, journalNote.trim());
-      setJournalNote('');
+      await publishCommunityJournalPost(
+        communityJournalTitle.trim(),
+        communityJournalBody.trim(),
+      );
+      setCommunityJournalTitle('');
+      setCommunityJournalBody('');
+      setCommunityJournalPosts(await listCommunityJournalPosts());
       setAudit(await listAuditLog());
-      Alert.alert('Journal', 'Le message a été ajouté au Journal de l’utilisateur.');
+      Alert.alert('Journal communautaire', 'Publication ajoutée à l’édition du jour.');
     } catch (err) {
-      Alert.alert('Journal', err instanceof Error ? err.message : 'Action impossible.');
+      Alert.alert('Journal communautaire', err instanceof Error ? err.message : 'Publication impossible.');
     }
   };
 
