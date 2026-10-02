@@ -61,7 +61,7 @@ export default function JournalScreen() {
           return null;
         }),
         getJournalEdition().catch(err => {
-          console.error('[JournalScreen] Error loading personal edition:', err);
+          console.error('[JournalScreen] Error loading community edition:', err);
           return null;
         }),
       ]);
@@ -108,15 +108,16 @@ export default function JournalScreen() {
 
         <View style={styles.frontPageGrid}>
           <View style={styles.frontPageColumn}>
-            {edition && edition.personalEvents.length > 0 && (
+            {edition && edition.communityPosts.length > 0 && (
               <View style={styles.newsBlock}>
-                <Text style={styles.newsHeadline}>DERNIÈRES ACTIONS</Text>
+                <Text style={styles.newsHeadline}>À LA UNE</Text>
                 <View style={styles.newsRule} />
-                {edition.personalEvents.slice(0, 4).map((event) => (
-                  <View key={event.id} style={styles.newsItem}>
-                    <Text style={styles.newsItemText}>{event.text}</Text>
+                {edition.communityPosts.slice(0, 4).map((post) => (
+                  <View key={post.id} style={styles.newsItem}>
+                    <Text style={[styles.newsItemText, { fontWeight: '700', marginBottom: 4 }]}>{post.title}</Text>
+                    <Text style={styles.newsItemText}>{post.body}</Text>
                     <Text style={styles.newsItemTime}>
-                      {new Date(event.occurredAt).toLocaleTimeString('fr-FR', {
+                      {new Date(post.publishedAt).toLocaleTimeString('fr-FR', {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
