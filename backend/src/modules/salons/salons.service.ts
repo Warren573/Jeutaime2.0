@@ -124,7 +124,7 @@ export async function listMessages(
   if (!salon || !salon.isActive) throw new NotFoundError("Salon");
 
   // Build where clause: always filter by salonId, optionally by sessionId
-  const where: any = { salonId };
+  const where: any = { salonId, isHidden: false };
   if (sessionId) {
     where.sessionId = sessionId;
   }
