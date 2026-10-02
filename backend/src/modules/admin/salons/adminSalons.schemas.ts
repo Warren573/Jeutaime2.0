@@ -102,3 +102,9 @@ export type ActivateSalonDto = z.infer<typeof ActivateSalonSchema>;
 export const SalonIdParamsSchema = z.object({
   id: z.string().min(1),
 });
+
+
+export const SalonParticipantParamsSchema = z.object({
+  id: z.string().min(1),
+  participantId: z.string().min(1),
+});
