@@ -933,6 +933,24 @@ export default function AdminScreen() {
                 <DataLine label="55 ans et +" value={overview.analytics.demographics.ageBands.age55plus} />
               </SectionCard>
 
+              <SectionCard title="Parcours utilisateur">
+                <DataLine label="Comptes inscrits" value={overview.analytics.funnel.registered} />
+                <DataLine label="Profil créé" value={`${overview.analytics.funnel.profileCreated} · ${overview.analytics.funnel.profileRatePct} %`} />
+                <DataLine label="A envoyé un sourire" value={`${overview.analytics.funnel.sentSmile} · ${overview.analytics.funnel.smileRatePct} %`} />
+                <DataLine label="A obtenu un match" value={`${overview.analytics.funnel.matched} · ${overview.analytics.funnel.matchRatePct} %`} />
+                <DataLine label="A envoyé une lettre" value={`${overview.analytics.funnel.sentLetter} · ${overview.analytics.funnel.letterRatePct} %`} />
+                <DataLine label="A atteint 10 lettres" value={`${overview.analytics.funnel.reachedTenLetters} · ${overview.analytics.funnel.tenLettersRatePct} %`} />
+                <DataLine label="Premium actif" value={`${overview.analytics.funnel.premiumActive} · ${overview.analytics.funnel.premiumRatePct} %`} />
+              </SectionCard>
+
+              <SectionCard title="Utilisation sur 7 jours">
+                <DataLine label="Entrées dans les salons" value={overview.analytics.features7d.salonJoins} />
+                <DataLine label="Refuges commencés" value={overview.analytics.features7d.refugesStarted} />
+                <DataLine label="Bouteilles envoyées" value={overview.analytics.features7d.bottlesSent} />
+                <DataLine label="Parties de cartes commencées" value={overview.analytics.features7d.cardGamesStarted} />
+                <DataLine label="Duels créés" value={overview.analytics.features7d.duelsCreated} />
+              </SectionCard>
+
               <SectionCard title="Dernières actions administrateur">
                 {audit.length === 0 && <Text style={styles.mutedLeft}>Aucune action enregistrée.</Text>}
                 {audit.slice(0, 8).map((a) => (
