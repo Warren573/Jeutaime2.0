@@ -222,3 +222,116 @@ export async function setActive(
 
   return toDto(updated);
 }
+
+
+export async function getActiveSessionForSalon(id: string) {
+  const salon = await prisma.salon.findUnique({
+    where: { id },
+    select: { id: true, kind: true, name: true },
+  });
+  if (!salon) throw new NotFoundError("Salon");
+
+  const session = await prisma.salonSession.findFirst({
+    where: {
+      salonKind: salon.kind,
+      status: "ACTIVE",
+    },
+    orderBy: { startedAt: "desc" },
+    select: {
+      id: true,
+      startedAt: true,
+      expiresAt: true,
+      status: true,
+      isPrivate: true,
+      participants: {
+        orderBy: { joinedAt: "asc" },
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          joinedAt: true,
+          leftAt: true,
+          user: {
+            select: {
+              email: true,
+              lastLoginAt: true,
+              profile: { select: { pseudo: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return {
+    salon,
+    session: session
+      ? {
+          ...session,
+          participants: session.participants.map((p) => ({
+            id: p.id,
+            userId: p.userId,
+            pseudo: p.user.profile?.pseudo ?? null,
+            email: p.user.email,
+            lastLoginAt: p.user.lastLoginAt,
+            status: p.status,
+            joinedAt: p.joinedAt,
+            leftAt: p.leftAt,
+          })),
+        }
+      : null,
+  };
+}
+
+export async function removeSessionParticipant(
+  actorId: string,
+  salonId: string,
+  participantId: string,
+) {
+  const salon = await prisma.salon.findUnique({
+    where: { id: salonId },
+    select: { id: true, kind: true },
+  });
+  if (!salon) throw new NotFoundError("Salon");
+
+  const participant = await prisma.salonSessionParticipant.findUnique({
+    where: { id: participantId },
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      session: { select: { salonKind: true, status: true } },
+    },
+  });
+  if (!participant || participant.session.salonKind !== salon.kind) {
+    throw new NotFoundError("Participant");
+  }
+
+  const updated = await prisma.salonSessionParticipant.update({
+    where: { id: participantId },
+    data: {
+      status: "LEFT",
+      leftAt: new Date(),
+    },
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      joinedAt: true,
+      leftAt: true,
+    },
+  });
+
+  await writeAudit({
+    actorId,
+    action: "admin.salon.participant.remove",
+    target: participant.userId,
+    meta: {
+      salonId,
+      participantId,
+      previousStatus: participant.status,
+    } as Prisma.InputJsonValue,
+  });
+
+  return updated;
+}
