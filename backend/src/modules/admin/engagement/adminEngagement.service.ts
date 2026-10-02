@@ -115,8 +115,7 @@ export async function listPrivateSalons() {
       expiresAt: true,
       status: true,
       ownerId: true,
-      invitations: false as never,
-    } as any,
+    },
   }).then(async (sessions: any[]) => {
     return Promise.all(sessions.map(async (s) => {
       const [invites, participants] = await Promise.all([
