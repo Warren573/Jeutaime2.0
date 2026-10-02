@@ -33,6 +33,7 @@ export async function getActiveSessionsForSalon(
       expiresAt: {
         gt: now,
       },
+      isPrivate: false,
     },
     include: {
       participants: {
@@ -87,6 +88,7 @@ export async function getSalonCountersForAllKinds(): Promise<Record<string, numb
       salonKind: { in: [...salonKinds] },
       status: "ACTIVE",
       expiresAt: { gt: now },
+      isPrivate: false,
     },
     include: {
       participants: {
@@ -117,6 +119,7 @@ export async function getSalonCountersForAllKinds(): Promise<Record<string, numb
 // ============================================================
 export async function getSessionDetail(
   sessionId: string,
+  requesterId?: string,
 ): Promise<GetSessionDetailResponse> {
   const session = await prisma.salonSession.findUnique({
     where: { id: sessionId },
@@ -152,6 +155,11 @@ export async function getSessionDetail(
 
   if (!session) {
     throw new NotFoundError("SalonSession");
+  }
+
+  if (session.isPrivate && requesterId) {
+    const allowed = session.participants.some((p) => p.userId === requesterId);
+    if (!allowed) throw new ForbiddenError("Ce salon privé est accessible uniquement sur invitation");
   }
 
   return {
@@ -205,6 +213,7 @@ export async function joinSession(
         salonKind: salonKind as any,
         status: "ACTIVE",
         expiresAt: { gt: now },
+        isPrivate: false,
       },
     },
     select: { sessionId: true },
@@ -224,6 +233,7 @@ export async function joinSession(
       session: {
         status: "ACTIVE",
         expiresAt: { gt: now },
+        isPrivate: false,
         NOT: {
           salonKind: salonKind as any,
         },
@@ -245,6 +255,7 @@ export async function joinSession(
       salonKind: salonKind as any,
       status: "ACTIVE",
       expiresAt: { gt: now },
+      isPrivate: false,
     },
     include: {
       participants: {
@@ -267,6 +278,7 @@ export async function joinSession(
         salonKind: salonKind as any,
         expiresAt: sevenDaysFromNow,
         status: "ACTIVE",
+        isPrivate: false,
       },
     });
     sessionId = newSession.id;
