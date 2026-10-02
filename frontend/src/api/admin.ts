@@ -658,6 +658,11 @@ export type AdminPrivateSalon = {
   ownerId: string | null;
   invitedCount: number;
   acceptedCount: number;
+  invitations: Array<{
+    userId: string;
+    accepted: boolean;
+    createdAt: string;
+  }>;
   participants: Array<{
     userId: string;
     pseudo: string | null;
