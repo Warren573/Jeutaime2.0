@@ -21,6 +21,9 @@ export interface ReportAdminDto {
   details: string | null;
   status: ReportStatus;
   resolution: string | null;
+  contentType: string | null;
+  contentId: string | null;
+  contentSnapshot: Prisma.JsonValue | null;
   resolvedBy: string | null;
   resolvedAt: Date | null;
   createdAt: Date;
@@ -47,6 +50,9 @@ function toAdminDto(r: ReportWithUsers): ReportAdminDto {
     details: r.details,
     status: r.status,
     resolution: r.resolution,
+    contentType: r.contentType,
+    contentId: r.contentId,
+    contentSnapshot: r.contentSnapshot,
     resolvedBy: r.resolvedBy,
     resolvedAt: r.resolvedAt,
     createdAt: r.createdAt,
