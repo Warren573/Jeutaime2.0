@@ -61,3 +61,49 @@ export const AdjustCoinsSchema = z
   .strict();
 
 export type AdjustCoinsDto = z.infer<typeof AdjustCoinsSchema>;
+
+
+// ============================================================
+// POST /api/admin/users/:id/premium
+// ============================================================
+export const GrantPremiumSchema = z
+  .object({
+    days: z.number().int().min(1).max(365),
+    reason: z.string().min(3).max(500),
+  })
+  .strict();
+
+export type GrantPremiumDto = z.infer<typeof GrantPremiumSchema>;
+
+// ============================================================
+// POST /api/admin/users/:id/reset-salons
+// ============================================================
+export const ResetSalonsSchema = z
+  .object({
+    reason: z.string().min(3).max(500),
+  })
+  .strict();
+
+export type ResetSalonsDto = z.infer<typeof ResetSalonsSchema>;
+
+// ============================================================
+// POST /api/admin/users/:id/reset-refuge
+// ============================================================
+export const ResetRefugeSchema = z
+  .object({
+    reason: z.string().min(3).max(500),
+  })
+  .strict();
+
+export type ResetRefugeDto = z.infer<typeof ResetRefugeSchema>;
+
+// ============================================================
+// POST /api/admin/users/:id/journal-note
+// ============================================================
+export const JournalNoteSchema = z
+  .object({
+    text: z.string().trim().min(2).max(2000),
+  })
+  .strict();
+
+export type JournalNoteDto = z.infer<typeof JournalNoteSchema>;
