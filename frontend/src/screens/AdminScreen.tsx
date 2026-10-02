@@ -1155,7 +1155,10 @@ export default function AdminScreen() {
                                 {invitation.accepted ? 'Cet utilisateur est déjà présent.' : 'Invitation déjà envoyée.'}
                               </Text>
                             ) : (
-                              <TouchableOpacity style={styles.secondaryButton} onPress={() => void inviteSelectedUser(s.id)}>
+                              <TouchableOpacity
+                                style={[styles.secondaryButton, { alignSelf: 'flex-start', marginTop: 8 }]}
+                                onPress={() => void inviteSelectedUser(s.id)}
+                              >
                                 <Text style={styles.secondaryText}>Inviter</Text>
                               </TouchableOpacity>
                             )}
@@ -1943,7 +1946,13 @@ const styles = StyleSheet.create({
   actionsLeft: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginVertical: 10 },
   actionButton: { backgroundColor: '#8B6F47', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9, alignSelf: 'flex-start' },
   dangerButton: { backgroundColor: '#A7324B', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9 },
-  actionButtonGood: { backgroundColor: '#5F7D58' },
+  actionButtonGood: {
+    backgroundColor: '#5F7D58',
+    borderRadius: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    alignSelf: 'flex-start',
+  },
   actionButtonText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
   secondaryButton: { borderRadius: 9, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#D7C4AA' },
   selectedSecondary: { backgroundColor: '#EFE4D4' },
