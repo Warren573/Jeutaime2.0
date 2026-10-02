@@ -43,3 +43,21 @@ export async function handleSetActive(req: AuthedRequest, res: Response) {
   const updated = await svc.setActive(req.user.userId, id, isActive);
   res.json({ data: updated });
 }
+
+
+export async function handleGetActiveSession(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const data = await svc.getActiveSessionForSalon(id);
+  res.json({ data });
+}
+
+export async function handleRemoveParticipant(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const participantId = req.params["participantId"] as string;
+  const data = await svc.removeSessionParticipant(
+    req.user.userId,
+    id,
+    participantId,
+  );
+  res.json({ data });
+}
