@@ -56,6 +56,28 @@ export type AdminOverview = {
         age55plus: number;
       };
     };
+    funnel: {
+      registered: number;
+      profileCreated: number;
+      sentSmile: number;
+      matched: number;
+      sentLetter: number;
+      reachedTenLetters: number;
+      premiumActive: number;
+      profileRatePct: number;
+      smileRatePct: number;
+      matchRatePct: number;
+      letterRatePct: number;
+      tenLettersRatePct: number;
+      premiumRatePct: number;
+    };
+    features7d: {
+      salonJoins: number;
+      refugesStarted: number;
+      bottlesSent: number;
+      cardGamesStarted: number;
+      duelsCreated: number;
+    };
   };
 };
 
