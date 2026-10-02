@@ -1059,10 +1059,10 @@ export default function AdminScreen() {
                         <Text style={styles.secondaryText}>Voir le profil</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab('economy')}>
-                        <Text style={styles.secondaryText}>Économie</Text>
+                        <Text style={styles.secondaryText}>Gérer l’économie</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab('tools')}>
-                        <Text style={styles.secondaryText}>Support technique</Text>
+                        <Text style={styles.secondaryText}>Outils de support</Text>
                       </TouchableOpacity>
                     </View>
                     {selectedUser.role !== 'ADMIN' && (
@@ -1085,38 +1085,44 @@ export default function AdminScreen() {
                   </View>
 
                   {selectedUser.role !== 'ADMIN' && (
-                    <SectionCard title="Rôle et modération">
-                      <View style={styles.actionsLeft}>
-                        <TouchableOpacity
-                          style={[styles.secondaryButton, selectedUser.role === 'USER' && styles.selectedSecondary]}
-                          onPress={() => void changeRole('USER')}
-                        >
-                          <Text style={styles.secondaryText}>Utilisateur</Text>
+                    <>
+                      <SectionCard title="Droits du compte">
+                        <Text style={styles.details}>Choisir le niveau d’accès de ce compte.</Text>
+                        <View style={styles.actionsLeft}>
+                          <TouchableOpacity
+                            style={[styles.secondaryButton, selectedUser.role === 'USER' && styles.selectedSecondary]}
+                            onPress={() => void changeRole('USER')}
+                          >
+                            <Text style={styles.secondaryText}>Utilisateur</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.secondaryButton, selectedUser.role === 'MODERATOR' && styles.selectedSecondary]}
+                            onPress={() => void changeRole('MODERATOR')}
+                          >
+                            <Text style={styles.secondaryText}>Modérateur</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </SectionCard>
+
+                      <SectionCard title="Avertissement">
+                        <Text style={styles.details}>Enregistrer un avertissement administratif lié à ce compte.</Text>
+                        <TextInput
+                          value={warningMessage}
+                          onChangeText={setWarningMessage}
+                          placeholder="Motif de l’avertissement"
+                          placeholderTextColor="#A48C72"
+                          multiline
+                          style={[styles.search, styles.multiline]}
+                        />
+                        <TouchableOpacity style={styles.actionButton} onPress={() => void sendWarning()}>
+                          <Text style={styles.actionButtonText}>Enregistrer l’avertissement</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.secondaryButton, selectedUser.role === 'MODERATOR' && styles.selectedSecondary]}
-                          onPress={() => void changeRole('MODERATOR')}
-                        >
-                          <Text style={styles.secondaryText}>Modérateur</Text>
-                        </TouchableOpacity>
-                      </View>
-                      <TextInput
-                        value={warningMessage}
-                        onChangeText={setWarningMessage}
-                        placeholder="Motif / avertissement"
-                        placeholderTextColor="#A48C72"
-                        multiline
-                        style={[styles.search, styles.multiline]}
-                      />
-                      <TouchableOpacity style={styles.actionButton} onPress={() => void sendWarning()}>
-                        <Text style={styles.actionButtonText}>Enregistrer l’avertissement</Text>
-                      </TouchableOpacity>
-                    </SectionCard>
+                      </SectionCard>
+                    </>
                   )}
 
-                  <SectionCard title="Contact et invitation">
-                    <Text style={styles.cardTitle}>Communiquer avec l’utilisateur</Text>
-                    <Text style={styles.details}>Le message est clairement identifié comme venant de l’administration JeuTaime.</Text>
+                  <SectionCard title="Message de l’administration">
+                    <Text style={styles.details}>Ce message est séparé des Lettres et clairement identifié comme venant de l’administration JeuTaime.</Text>
                     <TextInput
                       value={adminMessageSubject}
                       onChangeText={setAdminMessageSubject}
@@ -1135,30 +1141,26 @@ export default function AdminScreen() {
                     <TouchableOpacity style={styles.actionButton} onPress={() => void sendMessageToSelectedUser()}>
                       <Text style={styles.actionButtonText}>Envoyer le message</Text>
                     </TouchableOpacity>
+                  </SectionCard>
 
-                    <Text style={[styles.cardTitle, { marginTop: 18 }]}>Inviter dans un salon privé</Text>
+                  <SectionCard title="Invitation dans un salon privé">
                     {privateSalons.filter((s) => s.status === 'ACTIVE').length === 0 ? (
                       <Text style={styles.mutedLeft}>Aucun salon privé actif. Crée le Sanctuaire dans l’onglet Salons.</Text>
                     ) : (
                       privateSalons.filter((s) => s.status === 'ACTIVE').map((s) => {
                         const invitation = s.invitations?.find((i) => i.userId === selectedUser.id);
+                        const statusLabel = invitation
+                          ? (invitation.accepted ? 'Déjà présent' : 'Déjà invité')
+                          : 'Non invité';
                         return (
                           <View key={s.id} style={styles.row}>
-                            <View style={styles.rowSplit}>
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.rowTitle}>{s.privateName || 'Sanctuaire privé'}</Text>
-                                <Text style={styles.rowSub}>{s.acceptedCount}/{s.invitedCount} invitation(s) acceptée(s)</Text>
-                              </View>
-                              {invitation ? (
-                                <View style={styles.rolePill}>
-                                  <Text style={styles.roleText}>{invitation.accepted ? 'Déjà présent' : 'Déjà invité'}</Text>
-                                </View>
-                              ) : (
-                                <TouchableOpacity style={styles.secondaryButton} onPress={() => void inviteSelectedUser(s.id)}>
-                                  <Text style={styles.secondaryText}>Inviter</Text>
-                                </TouchableOpacity>
-                              )}
-                            </View>
+                            <Text style={styles.rowTitle}>{s.privateName || 'Sanctuaire privé'}</Text>
+                            <Text style={styles.rowSub}>Statut de cet utilisateur : {statusLabel}</Text>
+                            {!invitation && (
+                              <TouchableOpacity style={styles.secondaryButton} onPress={() => void inviteSelectedUser(s.id)}>
+                                <Text style={styles.secondaryText}>Inviter</Text>
+                              </TouchableOpacity>
+                            )}
                           </View>
                         );
                       })
