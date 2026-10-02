@@ -96,6 +96,9 @@ export type AdminReport = {
   details: string | null;
   status: 'OPEN' | 'REVIEWING' | 'ACTIONED' | 'DISMISSED';
   resolution: string | null;
+  contentType?: string | null;
+  contentId?: string | null;
+  contentSnapshot?: unknown;
   createdAt: string;
 };
 
@@ -257,4 +260,113 @@ export async function listAuditLog(): Promise<AuditEntry[]> {
 export async function getHealthVersion(): Promise<HealthVersion> {
   const res = await apiFetch('/health/version');
   return res ?? {};
+}
+
+
+export type ModerationOverview = {
+  photos: { active: number; hidden: number; removed: number };
+  salonMessages: { visible: number; hidden: number };
+  openReports: number;
+};
+
+export type ModerationPhoto = {
+  id: string;
+  userId: string;
+  pseudo: string | null;
+  email: string;
+  createdAt: string;
+  isPrimary: boolean;
+  moderationStatus: 'ACTIVE' | 'HIDDEN' | 'REMOVED';
+  moderationReason: string | null;
+  moderatedAt: string | null;
+  moderatedBy: string | null;
+  adminPreviewUrl: string;
+};
+
+export type ModerationProfile = {
+  id: string;
+  email: string;
+  pseudo: string | null;
+  bio: string | null;
+  profileUpdatedAt: string | null;
+  showInDiscovery: boolean;
+  photos: Array<{
+    id: string;
+    moderationStatus: string;
+    moderationReason: string | null;
+    createdAt: string;
+    adminPreviewUrl: string;
+  }>;
+};
+
+export type ModerationSalonMessage = {
+  id: string;
+  salonId: string;
+  salonName: string;
+  userId: string;
+  pseudo: string | null;
+  email: string;
+  content: string;
+  kind: string;
+  isHidden: boolean;
+  hiddenReason: string | null;
+  hiddenAt: string | null;
+  hiddenBy: string | null;
+  createdAt: string;
+};
+
+export async function getModerationOverview(): Promise<ModerationOverview> {
+  const res = await apiFetch('/admin/moderation/overview');
+  return res.data;
+}
+
+export async function listModerationPhotos(status?: 'ACTIVE' | 'HIDDEN' | 'REMOVED'): Promise<ModerationPhoto[]> {
+  const suffix = status ? `?status=${encodeURIComponent(status)}` : '';
+  const res = await apiFetch(`/admin/moderation/photos${suffix}`);
+  return res?.data ?? [];
+}
+
+export async function moderatePhoto(
+  id: string,
+  status: 'ACTIVE' | 'HIDDEN' | 'REMOVED',
+  reason: string,
+): Promise<void> {
+  await apiFetch(`/admin/moderation/photos/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, reason }),
+  });
+}
+
+export async function getModerationProfile(id: string): Promise<ModerationProfile> {
+  const res = await apiFetch(`/admin/moderation/profiles/${id}`);
+  return res.data;
+}
+
+export async function moderateProfile(
+  id: string,
+  action: 'HIDE_FROM_DISCOVERY' | 'RESTORE_DISCOVERY' | 'CLEAR_BIO',
+  reason: string,
+): Promise<ModerationProfile> {
+  const res = await apiFetch(`/admin/moderation/profiles/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action, reason }),
+  });
+  return res.data;
+}
+
+export async function listModerationSalonMessages(hidden?: boolean): Promise<ModerationSalonMessage[]> {
+  const suffix = hidden === undefined ? '' : `?hidden=${hidden ? 'true' : 'false'}`;
+  const res = await apiFetch(`/admin/moderation/salon-messages${suffix}`);
+  return res?.data ?? [];
+}
+
+export async function moderateSalonMessage(
+  id: string,
+  hidden: boolean,
+  reason: string,
+): Promise<void> {
+  await apiFetch(`/admin/moderation/salon-messages/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ hidden, reason }),
+  });
 }
