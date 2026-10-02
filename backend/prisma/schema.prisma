@@ -1173,3 +1173,42 @@ model WeeklyProfileDuel {
   @@index([candidateAId])
   @@index([candidateBId])
 }
+
+
+// ============================================================
+// OPÉRATIONS / INCIDENTS ADMIN
+// ============================================================
+
+model LoginEvent {
+  id        String   @id @default(cuid())
+  email     String
+  userId    String?
+  success   Boolean
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([email, createdAt])
+  @@index([userId, createdAt])
+}
+
+model SystemIncident {
+  id         String   @id @default(cuid())
+  level      String   @default("ERROR") // ERROR | WARNING
+  source     String   @default("backend")
+  method     String?
+  path       String?
+  code       String?
+  message    String
+  userId     String?
+  statusCode Int?
+  resolved   Boolean  @default(false)
+  resolution String?
+  resolvedAt DateTime?
+  resolvedBy String?
+  createdAt  DateTime @default(now())
+
+  @@index([resolved, createdAt])
+  @@index([source, createdAt])
+  @@index([userId, createdAt])
+}
