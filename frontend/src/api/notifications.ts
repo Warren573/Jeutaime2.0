@@ -7,7 +7,9 @@ export type NotificationType =
   | 'MAGIE_RECEIVED'
   | 'MAGIE_BROKEN'
   | 'PREMIUM_SUBSCRIBED'
-  | 'PREMIUM_CANCELLED';
+  | 'PREMIUM_CANCELLED'
+  | 'ADMIN_MESSAGE'
+  | 'PRIVATE_SALON_INVITE';
 
 export interface NotificationDto {
   id: string;
