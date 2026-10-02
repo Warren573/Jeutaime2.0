@@ -257,6 +257,8 @@ export async function uploadPhoto(params: {
         position: true,
         isPrimary: true,
         createdAt: true,
+        moderationStatus: true,
+        moderationReason: true,
       },
     });
     if (replacingSinglePhoto) {
@@ -321,6 +323,8 @@ export async function updatePhoto(params: {
         position: true,
         isPrimary: true,
         createdAt: true,
+        moderationStatus: true,
+        moderationReason: true,
       },
     });
   });
