@@ -1043,14 +1043,12 @@ export default function AdminScreen() {
                 <>
                   <SectionCard title={selectedUser.profile?.pseudo ?? 'Compte utilisateur'}>
                     <DataLine label="E-mail" value={selectedUser.email} />
-                    <DataLine label="Rôle" value={roleLabel(selectedUser.role)} />
                     <DataLine label="Créé le" value={formatDate(selectedUser.createdAt)} />
                     <DataLine label="Dernière connexion" value={formatDate(selectedUser.lastLoginAt)} />
                     <DataLine label="Ville" value={selectedUser.profile?.city ?? '—'} />
                     <DataLine label="Premium" value={selectedUser.premiumTier === 'PREMIUM' ? `Oui · jusqu’au ${formatDate(selectedUser.premiumUntil)}` : 'Non'} />
-                    <DataLine label="Visible en découverte" value={selectedUser.settings?.showInDiscovery ? 'Oui' : 'Non'} />
-                    <DataLine label="Mode vacances" value={selectedUser.settings?.vacationMode ? 'Oui' : 'Non'} />
                     <DataLine label="État" value={selectedUser.isBanned ? `Suspendu · ${selectedUser.banReason ?? ''}` : 'Actif'} />
+
                     <View style={styles.actionsLeft}>
                       <TouchableOpacity
                         style={styles.secondaryButton}
@@ -1058,20 +1056,18 @@ export default function AdminScreen() {
                       >
                         <Text style={styles.secondaryText}>Voir le profil</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab('economy')}>
-                        <Text style={styles.secondaryText}>Gérer l’économie</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab('tools')}>
-                        <Text style={styles.secondaryText}>Outils de support</Text>
-                      </TouchableOpacity>
-                    </View>
-                    {selectedUser.role !== 'ADMIN' && (
-                      <View style={styles.actions}>
-                        <TouchableOpacity style={[styles.actionButton, selectedUser.isBanned && styles.actionButtonGood]} onPress={() => void toggleBan(selectedUser)}>
-                          <Text style={styles.actionButtonText}>{selectedUser.isBanned ? 'Réactiver' : 'Suspendre'}</Text>
+
+                      {selectedUser.role !== 'ADMIN' && (
+                        <TouchableOpacity
+                          style={[styles.actionButton, selectedUser.isBanned && styles.actionButtonGood]}
+                          onPress={() => void toggleBan(selectedUser)}
+                        >
+                          <Text style={styles.actionButtonText}>
+                            {selectedUser.isBanned ? 'Réactiver le compte' : 'Suspendre le compte'}
+                          </Text>
                         </TouchableOpacity>
-                      </View>
-                    )}
+                      )}
+                    </View>
                   </SectionCard>
 
                   <Text style={styles.subSectionTitle}>Activité</Text>
@@ -1084,45 +1080,10 @@ export default function AdminScreen() {
                     <Metric value={selectedUser.stats.bottlesSent} label="Bouteilles envoyées" />
                   </View>
 
-                  {selectedUser.role !== 'ADMIN' && (
-                    <>
-                      <SectionCard title="Droits du compte">
-                        <Text style={styles.details}>Choisir le niveau d’accès de ce compte.</Text>
-                        <View style={styles.actionsLeft}>
-                          <TouchableOpacity
-                            style={[styles.secondaryButton, selectedUser.role === 'USER' && styles.selectedSecondary]}
-                            onPress={() => void changeRole('USER')}
-                          >
-                            <Text style={styles.secondaryText}>Utilisateur</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.secondaryButton, selectedUser.role === 'MODERATOR' && styles.selectedSecondary]}
-                            onPress={() => void changeRole('MODERATOR')}
-                          >
-                            <Text style={styles.secondaryText}>Modérateur</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </SectionCard>
-
-                      <SectionCard title="Avertissement">
-                        <Text style={styles.details}>Enregistrer un avertissement administratif lié à ce compte.</Text>
-                        <TextInput
-                          value={warningMessage}
-                          onChangeText={setWarningMessage}
-                          placeholder="Motif de l’avertissement"
-                          placeholderTextColor="#A48C72"
-                          multiline
-                          style={[styles.search, styles.multiline]}
-                        />
-                        <TouchableOpacity style={styles.actionButton} onPress={() => void sendWarning()}>
-                          <Text style={styles.actionButtonText}>Enregistrer l’avertissement</Text>
-                        </TouchableOpacity>
-                      </SectionCard>
-                    </>
-                  )}
-
                   <SectionCard title="Message de l’administration">
-                    <Text style={styles.details}>Ce message est séparé des Lettres et clairement identifié comme venant de l’administration JeuTaime.</Text>
+                    <Text style={styles.details}>
+                      Message séparé des Lettres, clairement identifié comme venant de l’administration JeuTaime.
+                    </Text>
                     <TextInput
                       value={adminMessageSubject}
                       onChangeText={setAdminMessageSubject}
@@ -1133,30 +1094,67 @@ export default function AdminScreen() {
                     <TextInput
                       value={adminMessageBody}
                       onChangeText={setAdminMessageBody}
-                      placeholder="Message de l’administration"
+                      placeholder="Message"
                       placeholderTextColor="#A48C72"
                       multiline
                       style={[styles.search, styles.multiline]}
                     />
                     <TouchableOpacity style={styles.actionButton} onPress={() => void sendMessageToSelectedUser()}>
-                      <Text style={styles.actionButtonText}>Envoyer le message</Text>
+                      <Text style={styles.actionButtonText}>Envoyer</Text>
                     </TouchableOpacity>
                   </SectionCard>
 
-                  <SectionCard title="Invitation dans un salon privé">
+                  <SectionCard title="Pièces et Premium">
+                    <DataLine label="Solde" value={`${selectedUser.wallet?.coins ?? 0} pièces`} />
+
+                    <TextInput
+                      value={coinAmount}
+                      onChangeText={setCoinAmount}
+                      keyboardType="number-pad"
+                      placeholder="Nombre de pièces"
+                      placeholderTextColor="#A48C72"
+                      style={styles.search}
+                    />
+                    <TextInput
+                      value={coinReason}
+                      onChangeText={setCoinReason}
+                      placeholder="Motif"
+                      placeholderTextColor="#A48C72"
+                      style={styles.search}
+                    />
+                    <View style={styles.actionsLeft}>
+                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void adjustCoins(1)}>
+                        <Text style={styles.actionButtonText}>Offrir les pièces</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.dangerButton} onPress={() => void adjustCoins(-1)}>
+                        <Text style={styles.actionButtonText}>Retirer des pièces</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={[styles.actionsLeft, { marginTop: 12 }]}>
+                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void grantPremiumToSelectedUser(1)}>
+                        <Text style={styles.secondaryText}>Offrir 1 jour Premium</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void grantPremiumToSelectedUser(30)}>
+                        <Text style={styles.secondaryText}>Offrir 1 mois Premium</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </SectionCard>
+
+                  <SectionCard title="Salon privé">
                     {privateSalons.filter((s) => s.status === 'ACTIVE').length === 0 ? (
-                      <Text style={styles.mutedLeft}>Aucun salon privé actif. Crée le Sanctuaire dans l’onglet Salons.</Text>
+                      <Text style={styles.mutedLeft}>Aucun salon privé actif.</Text>
                     ) : (
                       privateSalons.filter((s) => s.status === 'ACTIVE').map((s) => {
                         const invitation = s.invitations?.find((i) => i.userId === selectedUser.id);
-                        const statusLabel = invitation
-                          ? (invitation.accepted ? 'Déjà présent' : 'Déjà invité')
-                          : 'Non invité';
                         return (
                           <View key={s.id} style={styles.row}>
                             <Text style={styles.rowTitle}>{s.privateName || 'Sanctuaire privé'}</Text>
-                            <Text style={styles.rowSub}>Statut de cet utilisateur : {statusLabel}</Text>
-                            {!invitation && (
+                            {invitation ? (
+                              <Text style={styles.rowSub}>
+                                {invitation.accepted ? 'Cet utilisateur est déjà présent.' : 'Invitation déjà envoyée.'}
+                              </Text>
+                            ) : (
                               <TouchableOpacity style={styles.secondaryButton} onPress={() => void inviteSelectedUser(s.id)}>
                                 <Text style={styles.secondaryText}>Inviter</Text>
                               </TouchableOpacity>
@@ -1167,30 +1165,32 @@ export default function AdminScreen() {
                     )}
                   </SectionCard>
 
-                  <SectionCard title="Dernières transactions">
-                    {selectedUser.recentTransactions.length === 0 && <Text style={styles.mutedLeft}>Aucune transaction.</Text>}
-                    {selectedUser.recentTransactions.slice(0, 10).map((t) => (
-                      <View key={t.id} style={styles.row}>
-                        <View style={styles.rowSplit}>
-                          <Text style={styles.rowTitle}>{transactionTypeLabel(t.type)}</Text>
-                          <Text style={[styles.amount, t.amount < 0 && styles.amountNegative]}>
-                            {t.amount > 0 ? '+' : ''}{t.amount}
-                          </Text>
+                  {selectedUser.recentTransactions.length > 0 && (
+                    <SectionCard title="Dernières transactions">
+                      {selectedUser.recentTransactions.slice(0, 10).map((t) => (
+                        <View key={t.id} style={styles.row}>
+                          <View style={styles.rowSplit}>
+                            <Text style={styles.rowTitle}>{transactionTypeLabel(t.type)}</Text>
+                            <Text style={[styles.amount, t.amount < 0 && styles.amountNegative]}>
+                              {t.amount > 0 ? '+' : ''}{t.amount}
+                            </Text>
+                          </View>
+                          <Text style={styles.rowSub}>Solde {t.balance} · {formatDate(t.createdAt)}</Text>
                         </View>
-                        <Text style={styles.rowSub}>Solde {t.balance} · {formatDate(t.createdAt)}</Text>
-                      </View>
-                    ))}
-                  </SectionCard>
+                      ))}
+                    </SectionCard>
+                  )}
 
-                  <SectionCard title="Historique administratif">
-                    {selectedUser.adminHistory.length === 0 && <Text style={styles.mutedLeft}>Aucune action administrative.</Text>}
-                    {selectedUser.adminHistory.map((a) => (
-                      <View key={a.id} style={styles.row}>
-                        <Text style={styles.rowTitle}>{auditLabel(a.action)}</Text>
-                        <Text style={styles.rowSub}>{formatDate(a.createdAt)}</Text>
-                      </View>
-                    ))}
-                  </SectionCard>
+                  {selectedUser.adminHistory.length > 0 && (
+                    <SectionCard title="Historique administratif">
+                      {selectedUser.adminHistory.map((a) => (
+                        <View key={a.id} style={styles.row}>
+                          <Text style={styles.rowTitle}>{auditLabel(a.action)}</Text>
+                          <Text style={styles.rowSub}>{formatDate(a.createdAt)}</Text>
+                        </View>
+                      ))}
+                    </SectionCard>
+                  )}
                 </>
               )}
             </>
