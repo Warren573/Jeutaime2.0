@@ -14,7 +14,7 @@ if (__DEV__) {
   LogBox.ignoreAllLogs(true);
 }
 
-const AUTH_EXCLUDED: string[] = ['/login','/register','/create-profile','/setup-questions','/test-mode'];
+const AUTH_EXCLUDED: string[] = ['/login','/register','/create-profile','/setup-questions','/test-mode','/terms','/privacy-policy','/game-rules','/legal-notice'];
 const PROFILE_GATE_EXCLUDED: string[] = ['/create-profile','/setup-questions','/login','/register','/test-mode'];
 
 export default function RootLayout() {
