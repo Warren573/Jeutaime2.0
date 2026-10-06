@@ -170,7 +170,7 @@ async function normalizeExpiredSuspension<T extends { id: string; isBanned: bool
 // Login
 // -----------------------------------------------------------------------
 export async function login(dto: LoginDto) {
-  const user = await prisma.user.findUnique({
+  let user = await prisma.user.findUnique({
     where: { email: dto.email },
     select: {
       id: true,
