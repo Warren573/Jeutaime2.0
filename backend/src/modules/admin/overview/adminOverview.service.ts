@@ -78,6 +78,11 @@ export interface AdminOverviewDto {
       cardGamesStarted: number;
       duelsCreated: number;
     };
+    retention: {
+      day1: { eligible: number; retained: number; ratePct: number };
+      day7: { eligible: number; retained: number; ratePct: number };
+      day30: { eligible: number; retained: number; ratePct: number };
+    };
   };
 }
 
@@ -123,6 +128,7 @@ export async function getOverview(): Promise<AdminOverviewDto> {
     bottlesSent7d,
     cardGamesStarted7d,
     duelsCreated7d,
+    retentionRows,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gte: startOfDay } } }),
@@ -222,6 +228,51 @@ export async function getOverview(): Promise<AdminOverviewDto> {
     prisma.messageInABottle.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
     prisma.cardGameSession.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
     prisma.privateDuel.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+    prisma.$queryRaw<Array<{
+      eligible1: bigint;
+      retained1: bigint;
+      eligible7: bigint;
+      retained7: bigint;
+      eligible30: bigint;
+      retained30: bigint;
+    }>>`
+      SELECT
+        COUNT(*) FILTER (WHERE u."createdAt" <= NOW() - INTERVAL '1 day')::bigint AS "eligible1",
+        COUNT(*) FILTER (
+          WHERE u."createdAt" <= NOW() - INTERVAL '1 day'
+          AND EXISTS (
+            SELECT 1 FROM "LoginEvent" le
+            WHERE le."userId" = u."id"
+              AND le."success" = true
+              AND le."createdAt" >= u."createdAt" + INTERVAL '1 day'
+              AND le."createdAt" <  u."createdAt" + INTERVAL '2 days'
+          )
+        )::bigint AS "retained1",
+        COUNT(*) FILTER (WHERE u."createdAt" <= NOW() - INTERVAL '7 days')::bigint AS "eligible7",
+        COUNT(*) FILTER (
+          WHERE u."createdAt" <= NOW() - INTERVAL '7 days'
+          AND EXISTS (
+            SELECT 1 FROM "LoginEvent" le
+            WHERE le."userId" = u."id"
+              AND le."success" = true
+              AND le."createdAt" >= u."createdAt" + INTERVAL '7 days'
+              AND le."createdAt" <  u."createdAt" + INTERVAL '8 days'
+          )
+        )::bigint AS "retained7",
+        COUNT(*) FILTER (WHERE u."createdAt" <= NOW() - INTERVAL '30 days')::bigint AS "eligible30",
+        COUNT(*) FILTER (
+          WHERE u."createdAt" <= NOW() - INTERVAL '30 days'
+          AND EXISTS (
+            SELECT 1 FROM "LoginEvent" le
+            WHERE le."userId" = u."id"
+              AND le."success" = true
+              AND le."createdAt" >= u."createdAt" + INTERVAL '30 days'
+              AND le."createdAt" <  u."createdAt" + INTERVAL '31 days'
+          )
+        )::bigint AS "retained30"
+      FROM "User" u
+      WHERE u."role" = 'USER'
+    `,
   ]);
 
   const d = demographicsRows[0];
@@ -240,6 +291,16 @@ export async function getOverview(): Promise<AdminOverviewDto> {
   const sentLetterUsers = Number(funnel?.sentLetterUsers ?? 0);
   const reachedTenLettersUsers = Number(funnel?.reachedTenLettersUsers ?? 0);
   const rate = (value: number) => total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
+  const rr = retentionRows[0];
+  const retentionMetric = (eligibleRaw: bigint | undefined, retainedRaw: bigint | undefined) => {
+    const eligible = Number(eligibleRaw ?? 0);
+    const retained = Number(retainedRaw ?? 0);
+    return {
+      eligible,
+      retained,
+      ratePct: eligible > 0 ? Math.round((retained / eligible) * 1000) / 10 : 0,
+    };
+  };
 
   return {
     users: {
@@ -306,6 +367,11 @@ export async function getOverview(): Promise<AdminOverviewDto> {
         bottlesSent: bottlesSent7d,
         cardGamesStarted: cardGamesStarted7d,
         duelsCreated: duelsCreated7d,
+      },
+      retention: {
+        day1: retentionMetric(rr?.eligible1, rr?.retained1),
+        day7: retentionMetric(rr?.eligible7, rr?.retained7),
+        day30: retentionMetric(rr?.eligible30, rr?.retained30),
       },
     },
   };
