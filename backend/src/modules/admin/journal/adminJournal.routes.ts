@@ -4,7 +4,11 @@ import { asyncHandler } from "../../../core/utils/asyncHandler";
 import { requireAuth, requireRole } from "../../../core/middleware/auth";
 import { validate } from "../../../core/middleware/validate";
 import { AuthedRequest } from "../../../core/types";
-import { CreateCommunityJournalPostSchema } from "./adminJournal.schemas";
+import {
+  CommunityJournalPostIdSchema,
+  CreateCommunityJournalPostSchema,
+  UpdateCommunityJournalPostSchema,
+} from "./adminJournal.schemas";
 import * as ctrl from "./adminJournal.controller";
 
 const router = Router();
@@ -16,5 +20,16 @@ const wrap = (fn: (req: AuthedRequest, res: Response) => Promise<void>) =>
 
 router.get("/", wrap(ctrl.handleList));
 router.post("/", validate(CreateCommunityJournalPostSchema), wrap(ctrl.handleCreate));
+router.patch(
+  "/:id",
+  validate(CommunityJournalPostIdSchema, "params"),
+  validate(UpdateCommunityJournalPostSchema),
+  wrap(ctrl.handleUpdate),
+);
+router.delete(
+  "/:id",
+  validate(CommunityJournalPostIdSchema, "params"),
+  wrap(ctrl.handleDelete),
+);
 
 export default router;
