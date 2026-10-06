@@ -13,11 +13,12 @@ export async function handleListUsers(req: AuthedRequest, res: Response) {
 // POST /api/admin/users/:id/ban
 export async function handleBan(req: AuthedRequest, res: Response) {
   const id = req.params["id"] as string;
-  const { reason } = req.body as BanUserDto;
+  const { reason, durationDays } = req.body as BanUserDto;
   const data = await svc.banUser(
     { id: req.user.userId, role: req.user.role },
     id,
     reason,
+    durationDays,
   );
   res.json({ data });
 }
