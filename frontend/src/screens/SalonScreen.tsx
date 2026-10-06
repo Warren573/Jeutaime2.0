@@ -144,6 +144,7 @@ import {
   type SalonMagieDTO,
 } from '../api/magies';
 import { isTestMode } from '../core/testMode';
+import { reportUser, blockProfile } from '../api/profiles';
 
 // Correspondance slug frontend → kind backend
 const SLUG_TO_KIND: Record<string, string> = {
@@ -522,6 +523,8 @@ export default function SalonScreen() {
   const [showOfferingTargetMenu, setShowOfferingTargetMenu] = useState(false);
   const [showMagieTargetMenu, setShowMagieTargetMenu] = useState(false);
   const [showMentionMenu, setShowMentionMenu] = useState(false);
+  const [selectedSafetyMessage, setSelectedSafetyMessage] = useState<Message | null>(null);
+  const [safetyActioning, setSafetyActioning] = useState(false);
   const [recentInteractions, setRecentInteractions] = useState<Array<{
     id: string;
     from: string;
@@ -1099,6 +1102,57 @@ export default function SalonScreen() {
       return trimmedRight ? `${trimmedRight} ${mention} ` : `${mention} `;
     });
     setShowMentionMenu(false);
+  };
+
+  const handleReportSalonMessage = async () => {
+    const message = selectedSafetyMessage;
+    if (!message || !message.userId || safetyActioning) return;
+    setSafetyActioning(true);
+    try {
+      await reportUser(
+        message.userId,
+        'INAPPROPRIATE_CONTENT',
+        'Message signalé depuis un salon',
+        { contentType: 'SALON_MESSAGE', contentId: message.id },
+      );
+      setSelectedSafetyMessage(null);
+      Alert.alert('Signalement envoyé', 'Le message a été transmis à la modération.');
+    } catch (err: any) {
+      Alert.alert('Signalement impossible', err?.message || 'Réessaie plus tard.');
+    } finally {
+      setSafetyActioning(false);
+    }
+  };
+
+  const handleBlockSalonUser = async () => {
+    const message = selectedSafetyMessage;
+    if (!message || !message.userId || safetyActioning) return;
+
+    const confirmed = Platform.OS === 'web'
+      ? (typeof window !== 'undefined' && window.confirm('Bloquer cet utilisateur ? Vous ne pourrez plus interagir avec cette personne.'))
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Bloquer cet utilisateur ?',
+            'Vous ne pourrez plus interagir avec cette personne.',
+            [
+              { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Bloquer', style: 'destructive', onPress: () => resolve(true) },
+            ],
+          );
+        });
+    if (!confirmed) return;
+
+    setSafetyActioning(true);
+    try {
+      await blockProfile(message.userId);
+      setSelectedSafetyMessage(null);
+      await loadSalonContent();
+      Alert.alert('Utilisateur bloqué', 'Cet utilisateur a été bloqué.');
+    } catch (err: any) {
+      Alert.alert('Blocage impossible', err?.message || 'Réessaie plus tard.');
+    } finally {
+      setSafetyActioning(false);
+    }
   };
 
   // Perform drink action
@@ -1739,7 +1793,20 @@ export default function SalonScreen() {
                 </View>
               ) : (
                 <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
-                  {!isOwn && <Text style={styles.messageSender}>{item.userName || item.username}</Text>}
+                  {!isOwn && (
+                    <View style={styles.messageSenderRow}>
+                      <Text style={styles.messageSender}>{item.userName || item.username}</Text>
+                      {isAuthenticated && (
+                        <TouchableOpacity
+                          style={styles.messageSafetyButton}
+                          onPress={() => setSelectedSafetyMessage(item)}
+                          accessibilityLabel="Options de sécurité du message"
+                        >
+                          <Ionicons name="ellipsis-horizontal" size={18} color="#8B6F47" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
                   <View style={[styles.messageBubble, isOwn && styles.messageBubbleOwn]}>
                     <Text style={[styles.messageText, isOwn && styles.messageTextOwn]}>
                       {String(item.content || item.text || '').split(/(@toutlemonde|@[A-Za-z0-9_.-]+)/g).map((part, partIndex) =>
@@ -2691,6 +2758,47 @@ const styles = StyleSheet.create({
   messageRowOwn: {
     alignItems: 'flex-end',
   },
+  messageSenderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3,
+  },
+  messageSafetyButton: {
+    minWidth: 32,
+    minHeight: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageSafetyOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(44, 26, 14, 0.42)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  messageSafetySheet: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#FFFDF8',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5D6C1',
+    padding: 16,
+  },
+  messageSafetyTitle: { fontSize: 18, fontWeight: '800', color: '#3A2818', marginBottom: 8 },
+  messageSafetyPreview: { fontSize: 13, lineHeight: 19, color: '#6E563F', marginBottom: 12 },
+  messageSafetyAction: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5D6C1',
+  },
+  messageSafetyDangerText: { color: '#A7324B', fontSize: 14, fontWeight: '700' },
+  messageSafetyCancel: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  messageSafetyCancelText: { color: '#8F765C', fontSize: 14, fontWeight: '700' },
   messageSender: {
     fontSize: 12,
     color: '#8B6F47',
