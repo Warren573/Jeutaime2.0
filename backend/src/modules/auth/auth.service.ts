@@ -103,7 +103,7 @@ export async function loginWithDebug(dto: LoginDto) {
   };
 
   try {
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { email: dto.email },
       select: {
         id: true,
@@ -113,8 +113,11 @@ export async function loginWithDebug(dto: LoginDto) {
         premiumTier: true,
         premiumUntil: true,
         banReason: true,
+        banUntil: true,
       },
     });
+
+    if (user) user = await normalizeExpiredSuspension(user);
 
     debug.userFound = !!user;
 
@@ -150,6 +153,19 @@ export async function loginWithDebug(dto: LoginDto) {
   }
 }
 
+async function normalizeExpiredSuspension<T extends { id: string; isBanned: boolean; banReason?: string | null; banUntil?: Date | null }>(
+  user: T,
+): Promise<T> {
+  if (user.isBanned && user.banUntil && user.banUntil <= new Date()) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { isBanned: false, banReason: null, banUntil: null },
+    });
+    return { ...user, isBanned: false, banReason: null, banUntil: null };
+  }
+  return user;
+}
+
 // -----------------------------------------------------------------------
 // Login
 // -----------------------------------------------------------------------
@@ -164,8 +180,11 @@ export async function login(dto: LoginDto) {
       premiumTier: true,
       premiumUntil: true,
       banReason: true,
+      banUntil: true,
     },
   });
+
+  if (user) user = await normalizeExpiredSuspension(user);
 
   if (!user) {
     await recordLoginEvent({
@@ -231,6 +250,8 @@ export async function refresh(rawToken: string) {
           isBanned: true,
           premiumTier: true,
           premiumUntil: true,
+          banUntil: true,
+          banReason: true,
         },
       },
     },
@@ -240,12 +261,13 @@ export async function refresh(rawToken: string) {
     throw new UnauthorizedError("Refresh token invalide");
   }
   if (stored.expiresAt < new Date()) throw new UnauthorizedError("Refresh token expiré");
-  if (stored.user.isBanned) throw new UnauthorizedError("Compte suspendu");
+  const refreshUser = await normalizeExpiredSuspension(stored.user);
+  if (refreshUser.isBanned) throw new UnauthorizedError("Compte suspendu");
 
-  const isPremium = isPremiumActive(stored.user);
+  const isPremium = isPremiumActive(refreshUser);
   const { access, refresh: newRefresh, tokenId: newTokenId } = buildTokenPair(
-    stored.user.id,
-    stored.user.role,
+    refreshUser.id,
+    refreshUser.role,
     isPremium,
   );
   const now = new Date();
@@ -263,7 +285,7 @@ export async function refresh(rawToken: string) {
     await tx.refreshToken.create({
       data: {
         id: newTokenId,
-        userId: stored.user.id,
+        userId: refreshUser.id,
         tokenHash: hashToken(newRefresh),
         expiresAt: newExpiresAt,
       },
