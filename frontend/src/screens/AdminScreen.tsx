@@ -66,6 +66,8 @@ import {
   listAdminPrivateSalons,
   listCommunityJournalPosts,
   publishCommunityJournalPost,
+  updateCommunityJournalPost,
+  deleteCommunityJournalPost,
   inviteUserToPrivateSalon,
   removeUserFromPrivateSalon,
   getModerationOverview,
@@ -89,7 +91,7 @@ import {
   warnAdminUser,
 } from '../api/admin';
 
-type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'economy' | 'support' | 'operations' | 'tools';
+type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'journal' | 'economy' | 'support' | 'operations' | 'tools';
 type ReportFilter = 'ALL' | AdminReport['status'];
 
 const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
@@ -98,6 +100,7 @@ const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof I
   { key: 'content', label: 'Contenus', icon: 'images-outline' },
   { key: 'reports', label: 'Signalements', icon: 'flag-outline' },
   { key: 'salons', label: 'Salons', icon: 'chatbubbles-outline' },
+  { key: 'journal', label: 'Journal', icon: 'newspaper-outline' },
   { key: 'economy', label: 'Économie', icon: 'wallet-outline' },
   { key: 'support', label: 'Support', icon: 'help-buoy-outline' },
   { key: 'operations', label: 'Technique', icon: 'pulse-outline' },
@@ -158,6 +161,10 @@ function auditLabel(action: string) {
     'admin.user.salons.reset': 'Salons réinitialisés',
     'admin.user.refuge.reset': 'Refuge réinitialisé',
     'admin.journal.community.publish': 'Article publié dans le Journal communautaire',
+    'admin.journal.community.update': 'Article du Journal communautaire modifié',
+    'admin.journal.community.delete': 'Article du Journal communautaire supprimé',
+    'admin.support.reply': 'Réponse support envoyée',
+    'admin.support.status.update': 'Statut support modifié',
   };
   return labels[action] ?? action.replace(/^admin\./, '').replaceAll('.', ' · ');
 }
@@ -376,6 +383,7 @@ export default function AdminScreen() {
   const [communityJournalPosts, setCommunityJournalPosts] = useState<CommunityJournalAdminPost[]>([]);
   const [communityJournalTitle, setCommunityJournalTitle] = useState('');
   const [communityJournalBody, setCommunityJournalBody] = useState('');
+  const [editingCommunityPostId, setEditingCommunityPostId] = useState<string | null>(null);
 
   const [query, setQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
@@ -962,17 +970,44 @@ export default function AdminScreen() {
       return;
     }
     try {
-      await publishCommunityJournalPost(
-        communityJournalTitle.trim(),
-        communityJournalBody.trim(),
-      );
+      if (editingCommunityPostId) {
+        await updateCommunityJournalPost(
+          editingCommunityPostId,
+          communityJournalTitle.trim(),
+          communityJournalBody.trim(),
+        );
+      } else {
+        await publishCommunityJournalPost(
+          communityJournalTitle.trim(),
+          communityJournalBody.trim(),
+        );
+      }
+      const wasEditing = !!editingCommunityPostId;
       setCommunityJournalTitle('');
       setCommunityJournalBody('');
+      setEditingCommunityPostId(null);
       setCommunityJournalPosts(await listCommunityJournalPosts());
       if (isAdmin) setAudit(await listAuditLog());
-      Alert.alert('Journal communautaire', 'Publication ajoutée à l’édition du jour.');
+      Alert.alert('Journal communautaire', wasEditing ? 'Publication modifiée.' : 'Publication ajoutée à l’édition du jour.');
     } catch (err) {
       Alert.alert('Journal communautaire', err instanceof Error ? err.message : 'Publication impossible.');
+    }
+  };
+
+  const deleteCommunityPost = async (post: CommunityJournalAdminPost) => {
+    const ok = await confirm('Supprimer la publication', `Supprimer « ${post.title} » ?`);
+    if (!ok) return;
+    try {
+      await deleteCommunityJournalPost(post.id);
+      setCommunityJournalPosts(await listCommunityJournalPosts());
+      if (editingCommunityPostId === post.id) {
+        setEditingCommunityPostId(null);
+        setCommunityJournalTitle('');
+        setCommunityJournalBody('');
+      }
+      if (isAdmin) setAudit(await listAuditLog());
+    } catch (err) {
+      Alert.alert('Journal communautaire', err instanceof Error ? err.message : 'Suppression impossible.');
     }
   };
 
