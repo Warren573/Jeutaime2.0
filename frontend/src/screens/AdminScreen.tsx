@@ -91,7 +91,7 @@ import {
   warnAdminUser,
 } from '../api/admin';
 
-type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'journal' | 'economy' | 'support' | 'operations' | 'tools';
+type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'journal' | 'economy' | 'subscriptions' | 'support' | 'staff' | 'audit' | 'operations' | 'tools';
 type ReportFilter = 'ALL' | AdminReport['status'];
 
 const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
@@ -102,7 +102,10 @@ const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof I
   { key: 'salons', label: 'Salons', icon: 'chatbubbles-outline' },
   { key: 'journal', label: 'Journal', icon: 'newspaper-outline' },
   { key: 'economy', label: 'Économie', icon: 'wallet-outline' },
+  { key: 'subscriptions', label: 'Abonnements', icon: 'diamond-outline' },
   { key: 'support', label: 'Support', icon: 'help-buoy-outline' },
+  { key: 'staff', label: 'Équipe', icon: 'shield-checkmark-outline' },
+  { key: 'audit', label: 'Historique', icon: 'time-outline' },
   { key: 'operations', label: 'Technique', icon: 'pulse-outline' },
   { key: 'tools', label: 'Outils', icon: 'construct-outline' },
 ];
@@ -386,6 +389,7 @@ export default function AdminScreen() {
   const [editingCommunityPostId, setEditingCommunityPostId] = useState<string | null>(null);
 
   const [query, setQuery] = useState('');
+  const [staffQuery, setStaffQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
   const [selectedUserLoading, setSelectedUserLoading] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
@@ -508,6 +512,22 @@ export default function AdminScreen() {
     [reportFilter, reports],
   );
 
+  const filteredStaffUsers = useMemo(() => {
+    const q = staffQuery.trim().toLowerCase();
+    const base = q
+      ? users.filter((u) =>
+          u.email.toLowerCase().includes(q) ||
+          (u.pseudo ?? '').toLowerCase().includes(q)
+        )
+      : users.filter((u) => u.role === 'ADMIN' || u.role === 'MODERATOR');
+    return base;
+  }, [staffQuery, users]);
+
+  const premiumStats = useMemo(() => ({
+    active: premiumUsers.filter((u) => u.active).length,
+    expired: premiumUsers.filter((u) => !u.active).length,
+  }), [premiumUsers]);
+
   const recentAudit = useMemo(() => {
     const seen = new Set<string>();
     return audit.filter((entry) => {
@@ -598,6 +618,24 @@ export default function AdminScreen() {
       if (isAdmin) setAudit(await listAuditLog());
     } catch (err) {
       Alert.alert('Pièces', err instanceof Error ? err.message : 'Modification impossible.');
+    }
+  };
+
+  const changeStaffRole = async (user: AdminUser, role: 'USER' | 'MODERATOR') => {
+    if (!isAdmin || user.role === 'ADMIN') return;
+    const ok = await confirm(
+      role === 'MODERATOR' ? 'Nommer modérateur' : 'Retirer le rôle modérateur',
+      role === 'MODERATOR'
+        ? `Donner les droits de modération à ${user.pseudo || user.email} ?`
+        : `Retirer les droits de modération à ${user.pseudo || user.email} ?`,
+    );
+    if (!ok) return;
+    try {
+      const updated = await updateAdminUserRole(user.id, role);
+      syncUserList(updated);
+      if (isAdmin) setAudit(await listAuditLog());
+    } catch (err) {
+      Alert.alert('Équipe', err instanceof Error ? err.message : 'Modification impossible.');
     }
   };
 
@@ -2099,6 +2137,101 @@ export default function AdminScreen() {
             </>
           )}
 
+          {tab === 'subscriptions' && (
+            <>
+              <Text style={styles.sectionTitle}>Abonnements</Text>
+              <View style={styles.statsGrid}>
+                <Metric value={premiumStats.active} label="Premium actifs" />
+                <Metric value={premiumStats.expired} label="Premium expirés" />
+              </View>
+
+              <Text style={styles.subSectionTitle}>Comptes Premium</Text>
+              {premiumUsers.length === 0 && <Text style={styles.muted}>Aucun compte Premium.</Text>}
+              {premiumUsers.map((user) => (
+                <View key={user.id} style={styles.card}>
+                  <View style={styles.rowSplit}>
+                    <Text style={styles.cardTitle}>{user.pseudo || user.email}</Text>
+                    <Text style={[styles.status, !user.active && styles.statusBad]}>
+                      {user.active ? 'ACTIF' : 'EXPIRÉ'}
+                    </Text>
+                  </View>
+                  <Text style={styles.rowSub}>Échéance : {formatDate(user.premiumUntil)}</Text>
+                  <Text style={styles.rowSub}>Compte créé : {formatDate(user.createdAt)}</Text>
+                  <TouchableOpacity style={styles.secondaryButton} onPress={() => { setTab('users'); void openUser(user.id); }}>
+                    <Text style={styles.secondaryText}>Voir le compte</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              <Text style={styles.subSectionTitle}>Transactions Premium / remboursements</Text>
+              {economyTransactions
+                .filter((t) => t.type === 'PREMIUM_PURCHASE' || t.type === 'REFUND')
+                .slice(0, 100)
+                .map((t) => (
+                  <View key={t.id} style={styles.card}>
+                    <Text style={styles.cardTitle}>{transactionTypeLabel(t.type)}</Text>
+                    <Text style={styles.rowSub}>{t.pseudo || t.email} · {formatDate(t.createdAt)}</Text>
+                    <Text style={styles.details}>{t.amount > 0 ? '+' : ''}{t.amount} pièce(s)</Text>
+                  </View>
+                ))}
+            </>
+          )}
+
+          {tab === 'staff' && (
+            <>
+              <Text style={styles.sectionTitle}>Administrateurs & modérateurs</Text>
+              <TextInput
+                value={staffQuery}
+                onChangeText={setStaffQuery}
+                placeholder="Rechercher un utilisateur à nommer modérateur"
+                placeholderTextColor="#A48C72"
+                style={styles.search}
+              />
+
+              {filteredStaffUsers.map((user) => (
+                <View key={user.id} style={styles.card}>
+                  <View style={styles.rowSplit}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cardTitle}>{user.pseudo || user.email}</Text>
+                      <Text style={styles.rowSub}>{user.email}</Text>
+                    </View>
+                    <View style={[styles.rolePill, user.role === 'ADMIN' && styles.rolePillAdmin, user.role === 'MODERATOR' && styles.rolePillModerator]}>
+                      <Text style={styles.roleText}>{roleLabel(user.role)}</Text>
+                    </View>
+                  </View>
+                  {user.role === 'USER' && (
+                    <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'MODERATOR')}>
+                      <Text style={styles.secondaryText}>Nommer modérateur</Text>
+                    </TouchableOpacity>
+                  )}
+                  {user.role === 'MODERATOR' && (
+                    <TouchableOpacity style={styles.dangerButton} onPress={() => void changeStaffRole(user, 'USER')}>
+                      <Text style={styles.actionButtonText}>Retirer le rôle modérateur</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+            </>
+          )}
+
+          {tab === 'audit' && (
+            <>
+              <Text style={styles.sectionTitle}>Historique administrateur</Text>
+              <Text style={styles.details}>
+                Toutes les actions sensibles sont tracées : sanctions, modération, rôles, économie, salons, support et Journal.
+              </Text>
+              {audit.length === 0 && <Text style={styles.muted}>Aucune action enregistrée.</Text>}
+              {audit.map((a) => (
+                <View key={a.id} style={styles.card}>
+                  <Text style={styles.cardTitle}>{auditLabel(a.action)}</Text>
+                  <Text style={styles.rowSub}>Cible : {resolveTargetLabel(a.target)}</Text>
+                  <Text style={styles.rowSub}>Administrateur : {a.actorId || 'Système'}</Text>
+                  <Text style={styles.rowSub}>{formatDate(a.createdAt)}</Text>
+                </View>
+              ))}
+            </>
+          )}
+
           {tab === 'support' && (
             <>
               <Text style={styles.sectionTitle}>Support utilisateur</Text>
@@ -2240,16 +2373,7 @@ export default function AdminScreen() {
                 <Text style={styles.details}>Les modifications de rôle, suspensions et ajustements de pièces sont journalisés.</Text>
               </SectionCard>
 
-              <SectionCard title="Journal d’administration">
-                {audit.length === 0 && <Text style={styles.mutedLeft}>Aucune action enregistrée.</Text>}
-                {audit.map((a) => (
-                  <View key={a.id} style={styles.row}>
-                    <Text style={styles.rowTitle}>{auditLabel(a.action)}</Text>
-                    <Text style={styles.rowSub}>Cible : {resolveTargetLabel(a.target)}</Text>
-                    <Text style={styles.rowSub}>{formatDate(a.createdAt)}</Text>
-                  </View>
-                ))}
-              </SectionCard>
+
             </>
           )}
         </ScrollView>
