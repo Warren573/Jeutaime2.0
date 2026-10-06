@@ -112,6 +112,11 @@ export async function unbanUser(
   });
   if (!target) throw new NotFoundError("Utilisateur");
 
+  assertCanBanUser(
+    { id: actor.id, role: actor.role },
+    { id: target.id, role: target.role },
+  );
+
   // Pas de no-op silencieux côté DB, mais pas d'audit si déjà OK
   if (!target.isBanned) {
     return toDto(target);
