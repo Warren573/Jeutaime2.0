@@ -1201,6 +1201,13 @@ export default function AdminScreen() {
                 <DataLine label="Duels créés" value={overview.analytics.features7d.duelsCreated} />
               </SectionCard>
 
+              <SectionCard title="Rétention">
+                <Text style={styles.details}>Part des utilisateurs revenus à l’échéance après leur inscription.</Text>
+                <DataLine label="J+1" value={`${overview.analytics.retention.day1.ratePct} % · ${overview.analytics.retention.day1.retained}/${overview.analytics.retention.day1.eligible}`} />
+                <DataLine label="J+7" value={`${overview.analytics.retention.day7.ratePct} % · ${overview.analytics.retention.day7.retained}/${overview.analytics.retention.day7.eligible}`} />
+                <DataLine label="J+30" value={`${overview.analytics.retention.day30.ratePct} % · ${overview.analytics.retention.day30.retained}/${overview.analytics.retention.day30.eligible}`} />
+              </SectionCard>
+
               <SectionCard title="Dernières actions administrateur">
                 {audit.length === 0 && <Text style={styles.mutedLeft}>Aucune action enregistrée.</Text>}
                 {recentAudit.slice(0, 8).map((a) => (
