@@ -78,6 +78,11 @@ export type AdminOverview = {
       cardGamesStarted: number;
       duelsCreated: number;
     };
+    retention: {
+      day1: { eligible: number; retained: number; ratePct: number };
+      day7: { eligible: number; retained: number; ratePct: number };
+      day30: { eligible: number; retained: number; ratePct: number };
+    };
   };
 };
 
