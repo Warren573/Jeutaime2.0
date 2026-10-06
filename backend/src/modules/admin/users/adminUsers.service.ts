@@ -4,6 +4,7 @@ import { BadRequestError, ForbiddenError, NotFoundError } from "../../../core/er
 import { assertCanBanUser } from "../../../policies/moderation";
 import { writeAudit } from "../admin.audit";
 import { creditWallet, debitWallet } from "../../wallet/wallet.service";
+import { sendAdminMessage } from "../engagement/adminEngagement.service";
 
 // ============================================================
 // DTO de retour minimal
@@ -154,11 +155,18 @@ export async function warnUser(
     return toDto(target);
   }
 
+  await sendAdminMessage(
+    actor.id,
+    targetId,
+    "Avertissement de l’administration",
+    message,
+  );
+
   await writeAudit({
     actorId: actor.id,
     action: "admin.user.warn",
     target: targetId,
-    meta: { message } as Prisma.InputJsonValue,
+    meta: { message, delivered: true } as Prisma.InputJsonValue,
   });
 
   return toDto(target);
