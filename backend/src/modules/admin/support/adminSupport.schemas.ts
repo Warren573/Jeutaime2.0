@@ -6,4 +6,5 @@ export const SupportTicketIdParamsSchema = z.object({
 
 export const UpdateSupportTicketSchema = z.object({
   status: z.enum(["OPEN", "REVIEWING", "CLOSED"]),
-});
+  reply: z.string().trim().min(2).max(4000).optional(),
+}).strict();
