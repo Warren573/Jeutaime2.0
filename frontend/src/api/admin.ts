@@ -88,6 +88,7 @@ export type AdminUser = {
   role: 'USER' | 'MODERATOR' | 'ADMIN';
   isBanned: boolean;
   banReason: string | null;
+  banUntil: string | null;
 };
 
 export type AdminUserDetail = {
@@ -97,6 +98,7 @@ export type AdminUserDetail = {
   isVerified: boolean;
   isBanned: boolean;
   banReason: string | null;
+  banUntil: string | null;
   premiumTier: 'FREE' | 'PREMIUM';
   premiumUntil: string | null;
   lastLoginAt: string | null;
@@ -220,10 +222,10 @@ export async function getAdminUser(id: string): Promise<AdminUserDetail> {
   return res.data;
 }
 
-export async function banAdminUser(id: string, reason: string): Promise<AdminUser> {
+export async function banAdminUser(id: string, reason: string, durationDays?: number): Promise<AdminUser> {
   const res = await apiFetch(`/admin/users/${id}/ban`, {
     method: 'POST',
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify({ reason, ...(durationDays ? { durationDays } : {}) }),
   });
   return res.data;
 }
