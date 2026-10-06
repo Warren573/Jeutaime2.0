@@ -52,7 +52,7 @@ export default function RootLayout() {
   }, [isHydrated, isAuthenticated, pathname, router]);
 
   useEffect(() => {
-    if (!isHydrated || !isAuthenticated || currentUser?.role === 'ADMIN' || canDiscover !== false) return;
+    if (!isHydrated || !isAuthenticated || currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR' || canDiscover !== false) return;
     console.log("[profile-gate] REDIRECT TRIGGERED", {
       userId: currentUser?.id,
       email: currentUser?.email,
