@@ -1484,53 +1484,202 @@ export default function AdminScreen() {
 
           {tab === 'reports' && (
             <>
-              <Text style={styles.sectionTitle}>Signalements ({reportTotal})</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
-                {(['ALL', 'OPEN', 'REVIEWING', 'ACTIONED', 'DISMISSED'] as ReportFilter[]).map((status) => (
-                  <TouchableOpacity
-                    key={status}
-                    onPress={() => setReportFilter(status)}
-                    style={[styles.filterChip, reportFilter === status && styles.filterChipActive]}
-                  >
-                    <Text style={[styles.filterText, reportFilter === status && styles.filterTextActive]}>
-                      {status === 'ALL' ? 'Tous' : reportStatusLabel(status)}
-                    </Text>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Signalements ({reportTotal})</Text>
+                {selectedReport && (
+                  <TouchableOpacity style={styles.smallButton} onPress={() => { setSelectedReport(null); setReportResolution(''); }}>
+                    <Text style={styles.smallButtonText}>Liste</Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
-              {filteredReports.length === 0 && <Text style={styles.muted}>Aucun signalement.</Text>}
-              {filteredReports.map((r) => (
-                <View key={r.id} style={styles.card}>
-                  <View style={styles.userHead}>
-                    <Text style={styles.cardTitle}>{reportReasonLabel(r.reason)}</Text>
-                    <Text style={styles.status}>{reportStatusLabel(r.status)}</Text>
-                  </View>
-                  <Text style={styles.rowSub}>Signalé : {r.target.email}</Text>
-                  <Text style={styles.rowSub}>Par : {r.reporter.email}</Text>
-                  {!!r.details && <Text style={styles.details}>{r.details}</Text>}
-                  <Text style={styles.rowSub}>{formatDate(r.createdAt)}</Text>
-                  <View style={styles.actions}>
-                    <TouchableOpacity style={styles.secondaryButton} onPress={() => { setTab('users'); void openUser(r.target.id); }}>
-                      <Text style={styles.secondaryText}>Voir le compte</Text>
+                )}
+              </View>
+
+              {!selectedReport && (
+                <>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
+                    {(['ALL', 'OPEN', 'REVIEWING', 'ACTIONED', 'DISMISSED'] as ReportFilter[]).map((status) => (
+                      <TouchableOpacity
+                        key={status}
+                        onPress={() => setReportFilter(status)}
+                        style={[styles.filterChip, reportFilter === status && styles.filterChipActive]}
+                      >
+                        <Text style={[styles.filterText, reportFilter === status && styles.filterTextActive]}>
+                          {status === 'ALL' ? 'Tous' : reportStatusLabel(status)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  {filteredReports.length === 0 && <Text style={styles.muted}>Aucun signalement.</Text>}
+                  {filteredReports.map((r) => (
+                    <TouchableOpacity
+                      key={r.id}
+                      style={styles.card}
+                      onPress={() => {
+                        setSelectedReport(r);
+                        setReportResolution(r.resolution ?? '');
+                      }}
+                    >
+                      <View style={styles.userHead}>
+                        <Text style={styles.cardTitle}>{reportReasonLabel(r.reason)}</Text>
+                        <Text style={[styles.status, (r.status === 'OPEN' || r.status === 'REVIEWING') && styles.statusBad]}>
+                          {reportStatusLabel(r.status)}
+                        </Text>
+                      </View>
+                      <Text style={styles.rowSub}>Utilisateur signalé : {r.target.email}</Text>
+                      <Text style={styles.rowSub}>Contenu : {reportContentTypeLabel(r.contentType)}</Text>
+                      <Text style={styles.rowSub}>{formatDate(r.createdAt)}</Text>
+                      <Text style={styles.linkText}>Examiner le signalement</Text>
                     </TouchableOpacity>
-                    {r.status === 'OPEN' && (
-                      <TouchableOpacity style={styles.actionButton} onPress={() => void changeReport(r, 'REVIEWING')}>
-                        <Text style={styles.actionButtonText}>Prendre en charge</Text>
-                      </TouchableOpacity>
+                  ))}
+                </>
+              )}
+
+              {selectedReport && (() => {
+                const snapshot = (selectedReport.contentSnapshot ?? {}) as Record<string, unknown>;
+                const snapshotText = typeof snapshot.text === 'string' ? snapshot.text : null;
+                const photoUri = selectedReport.contentType === 'PHOTO' && selectedReport.contentId
+                  ? `${API_URL}/admin/moderation/photos/${selectedReport.contentId}/file`
+                  : null;
+                const isOpen = selectedReport.status === 'OPEN' || selectedReport.status === 'REVIEWING';
+
+                return (
+                  <>
+                    <SectionCard title="Signalement">
+                      <DataLine label="Motif" value={reportReasonLabel(selectedReport.reason)} />
+                      <DataLine label="État" value={reportStatusLabel(selectedReport.status)} />
+                      <DataLine label="Type de contenu" value={reportContentTypeLabel(selectedReport.contentType)} />
+                      <DataLine label="Utilisateur signalé" value={selectedReport.target.email} />
+                      <DataLine label="Signalé par" value={selectedReport.reporter.email} />
+                      <DataLine label="Date" value={formatDate(selectedReport.createdAt)} />
+                      {!!selectedReport.details && (
+                        <Text style={styles.details}>Commentaire : {selectedReport.details}</Text>
+                      )}
+                      {!!selectedReport.resolution && (
+                        <Text style={styles.details}>Décision : {selectedReport.resolution}</Text>
+                      )}
+                    </SectionCard>
+
+                    <SectionCard title="Contenu concerné">
+                      {photoUri && authToken && (
+                        <Image
+                          source={{ uri: photoUri, headers: { Authorization: `Bearer ${authToken}` } }}
+                          style={styles.moderationPhoto}
+                          contentFit="contain"
+                          cachePolicy="none"
+                        />
+                      )}
+                      {snapshotText ? (
+                        <Text style={styles.details}>{snapshotText}</Text>
+                      ) : !photoUri ? (
+                        <Text style={styles.mutedLeft}>
+                          Le signalement concerne le profil ou l’utilisateur dans son ensemble.
+                        </Text>
+                      ) : null}
+                      <View style={styles.actionsLeft}>
+                        <TouchableOpacity
+                          style={styles.secondaryButton}
+                          onPress={() => router.push(`/profile/${selectedReport.target.id}?adminPreview=1` as any)}
+                        >
+                          <Text style={styles.secondaryText}>Voir le profil</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </SectionCard>
+
+                    {isOpen && (
+                      <SectionCard title="Décision de modération">
+                        <TextInput
+                          value={reportResolution}
+                          onChangeText={setReportResolution}
+                          placeholder="Note / motif de la décision"
+                          placeholderTextColor="#A48C72"
+                          multiline
+                          style={[styles.search, styles.multiline]}
+                        />
+
+                        {selectedReport.status === 'OPEN' && (
+                          <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={() => void changeReport(selectedReport, 'REVIEWING').then(() => {
+                              setSelectedReport((prev) => prev ? { ...prev, status: 'REVIEWING' } : prev);
+                            })}
+                          >
+                            <Text style={styles.actionButtonText}>Prendre en charge</Text>
+                          </TouchableOpacity>
+                        )}
+
+                        <Text style={[styles.cardTitle, { marginTop: 14 }]}>Action sur le contenu</Text>
+                        <View style={styles.actionsLeft}>
+                          {selectedReport.contentType === 'PHOTO' && (
+                            <>
+                              <TouchableOpacity style={styles.secondaryButton} onPress={() => void moderateReportedContent(selectedReport, 'HIDE')}>
+                                <Text style={styles.secondaryText}>Masquer la photo</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={styles.dangerButton} onPress={() => void moderateReportedContent(selectedReport, 'REMOVE')}>
+                                <Text style={styles.actionButtonText}>Supprimer la photo</Text>
+                              </TouchableOpacity>
+                            </>
+                          )}
+                          {selectedReport.contentType === 'PROFILE_BIO' && (
+                            <>
+                              <TouchableOpacity style={styles.secondaryButton} onPress={() => void moderateReportedContent(selectedReport, 'HIDE_PROFILE')}>
+                                <Text style={styles.secondaryText}>Masquer le profil</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={styles.dangerButton} onPress={() => void moderateReportedContent(selectedReport, 'CLEAR_BIO')}>
+                                <Text style={styles.actionButtonText}>Supprimer la bio</Text>
+                              </TouchableOpacity>
+                            </>
+                          )}
+                          {selectedReport.contentType === 'PROFILE_PSEUDO' && (
+                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void moderateReportedContent(selectedReport, 'HIDE_PROFILE')}>
+                              <Text style={styles.secondaryText}>Masquer le profil</Text>
+                            </TouchableOpacity>
+                          )}
+                          {selectedReport.contentType === 'SALON_MESSAGE' && (
+                            <TouchableOpacity style={styles.dangerButton} onPress={() => void moderateReportedContent(selectedReport, 'HIDE_MESSAGE')}>
+                              <Text style={styles.actionButtonText}>Masquer le message</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+
+                        <Text style={[styles.cardTitle, { marginTop: 14 }]}>Action sur le compte</Text>
+                        <View style={styles.actionsLeft}>
+                          <TouchableOpacity style={styles.secondaryButton} onPress={() => void warnReportedUser(selectedReport)}>
+                            <Text style={styles.secondaryText}>Avertir</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.secondaryButton} onPress={() => void suspendReportedUser(selectedReport, 1)}>
+                            <Text style={styles.secondaryText}>Suspendre 1 jour</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.secondaryButton} onPress={() => void suspendReportedUser(selectedReport, 7)}>
+                            <Text style={styles.secondaryText}>Suspendre 7 jours</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.secondaryButton} onPress={() => void suspendReportedUser(selectedReport, 30)}>
+                            <Text style={styles.secondaryText}>Suspendre 30 jours</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.dangerButton} onPress={() => void suspendReportedUser(selectedReport)}>
+                            <Text style={styles.actionButtonText}>Suspendre sans date de fin</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                          style={[styles.secondaryButton, { marginTop: 14 }]}
+                          onPress={async () => {
+                            const updated = await updateAdminReport(
+                              selectedReport.id,
+                              'DISMISSED',
+                              reportResolution.trim() || 'Signalement classé sans suite',
+                            );
+                            setReports((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+                            setSelectedReport(updated);
+                            setOverview(await getAdminOverview());
+                          }}
+                        >
+                          <Text style={styles.secondaryText}>Classer sans suite</Text>
+                        </TouchableOpacity>
+                      </SectionCard>
                     )}
-                    {(r.status === 'OPEN' || r.status === 'REVIEWING') && (
-                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeReport(r, 'DISMISSED')}>
-                        <Text style={styles.secondaryText}>Classer</Text>
-                      </TouchableOpacity>
-                    )}
-                    {r.status === 'REVIEWING' && (
-                      <TouchableOpacity style={styles.actionButton} onPress={() => void changeReport(r, 'ACTIONED')}>
-                        <Text style={styles.actionButtonText}>Action effectuée</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              ))}
+                  </>
+                );
+              })()}
             </>
           )}
 
