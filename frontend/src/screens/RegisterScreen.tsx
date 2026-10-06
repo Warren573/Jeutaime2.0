@@ -166,6 +166,8 @@ export default function RegisterScreen() {
   const [city,     setCity]     = useState("");
   const [gender,   setGender]   = useState("HOMME");
   const [password, setPassword] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedCommunityRules, setAcceptedCommunityRules] = useState(false);
 
   // Date — valeurs numériques, initialisées sur une date valide
   const [day,   setDay]   = useState(1);
@@ -240,7 +242,9 @@ export default function RegisterScreen() {
     !ageError &&
     city.trim().length > 0 &&
     password.length >= 8 &&
-    !passwordError;
+    !passwordError &&
+    acceptedTerms &&
+    acceptedCommunityRules;
 
   // ─── Submit ─────────────────────────────────────────────────────────────────
   const handleRegister = async () => {
@@ -260,6 +264,8 @@ export default function RegisterScreen() {
       if (ageError)                      errs.push(`Date : ${ageError}`);
       if (!city.trim())                  errs.push("Ville : requise");
       if (!password || passwordError)    errs.push(`Mot de passe : ${passwordError ?? "requis"}`);
+      if (!acceptedTerms)                 errs.push("Conditions d’utilisation : acceptation requise");
+      if (!acceptedCommunityRules)        errs.push("Règles de la communauté : acceptation requise");
       setLastError(errs.join("  •  "));
       setStatus("error");
       return;
@@ -272,6 +278,8 @@ export default function RegisterScreen() {
       city:      city.trim(),
       gender:    gender as "HOMME" | "FEMME" | "AUTRE",
       password,
+      acceptedTerms: true as const,
+      acceptedCommunityRules: true as const,
     };
     console.warn("[Register] payload:", JSON.stringify(payload));
 
@@ -423,6 +431,42 @@ export default function RegisterScreen() {
                 )}
               </View>
 
+              <View style={s.policyBlock}>
+                <Pressable
+                  style={s.policyRow}
+                  onPress={() => setAcceptedTerms((value) => !value)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: acceptedTerms }}
+                >
+                  <View style={[s.checkbox, acceptedTerms && s.checkboxChecked]}>
+                    {acceptedTerms && <Text style={s.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={s.policyText}>J’accepte les </Text>
+                  <Pressable onPress={() => router.push('/terms' as any)}>
+                    <Text style={s.policyLink}>Conditions d’utilisation</Text>
+                  </Pressable>
+                </Pressable>
+
+                <Pressable
+                  style={s.policyRow}
+                  onPress={() => setAcceptedCommunityRules((value) => !value)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: acceptedCommunityRules }}
+                >
+                  <View style={[s.checkbox, acceptedCommunityRules && s.checkboxChecked]}>
+                    {acceptedCommunityRules && <Text style={s.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={s.policyText}>J’accepte les </Text>
+                  <Pressable onPress={() => router.push('/game-rules' as any)}>
+                    <Text style={s.policyLink}>Règles de la communauté</Text>
+                  </Pressable>
+                </Pressable>
+
+                <Text style={s.policyHint}>
+                  Ces règles interdisent notamment le harcèlement, les contenus illégaux, les faux profils et les comportements abusifs.
+                </Text>
+              </View>
+
               {/* Bouton */}
               <Pressable
                 style={[s.btn, status === "submitting" && s.btnDim]}
@@ -561,6 +605,37 @@ const s = StyleSheet.create({
   genderActive:    { backgroundColor: "#9c2f45", borderColor: "#9c2f45" },
   genderTxt:       { fontSize: 15, fontWeight: "600", color: "#2a272c" },
   genderActiveTxt: { color: "#fff" },
+
+  policyBlock: {
+    gap: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e1d5c8",
+    borderRadius: 14,
+    backgroundColor: "#fff",
+  },
+  policyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    minHeight: 34,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#b9a99b",
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 9,
+  },
+  checkboxChecked: { backgroundColor: "#9c2f45", borderColor: "#9c2f45" },
+  checkmark: { color: "#fff", fontWeight: "900", fontSize: 15 },
+  policyText: { fontSize: 13, color: "#4a4247" },
+  policyLink: { fontSize: 13, color: "#9c2f45", fontWeight: "700", textDecorationLine: "underline" },
+  policyHint: { fontSize: 11, lineHeight: 16, color: "#7a746d" },
 
   // Bouton
   btn: {
