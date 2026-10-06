@@ -14,15 +14,17 @@ export interface AdminUserDto {
   role: Role;
   isBanned: boolean;
   banReason: string | null;
+  banUntil: Date | null;
 }
 
-function toDto(u: Pick<User, "id" | "email" | "role" | "isBanned" | "banReason">): AdminUserDto {
+function toDto(u: Pick<User, "id" | "email" | "role" | "isBanned" | "banReason" | "banUntil">): AdminUserDto {
   return {
     id: u.id,
     email: u.email,
     role: u.role,
     isBanned: u.isBanned,
     banReason: u.banReason,
+    banUntil: u.banUntil,
   };
 }
 
@@ -32,6 +34,7 @@ const adminUserSelect = {
   role: true,
   isBanned: true,
   banReason: true,
+  banUntil: true,
 } as const;
 
 // ============================================================
@@ -41,6 +44,7 @@ export async function banUser(
   actor: { id: string; role: Role },
   targetId: string,
   reason: string,
+  durationDays?: number,
 ): Promise<AdminUserDto> {
   const target = await prisma.user.findUnique({
     where: { id: targetId },
@@ -54,16 +58,22 @@ export async function banUser(
     { id: target.id, role: target.role },
   );
 
-  // Idempotent : si déjà banni avec la même raison, no-op
+  const banUntil = durationDays
+    ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
+    : null;
+
+  // Idempotent : si déjà suspendu avec la même raison et la même échéance de principe, no-op
   if (target.isBanned && target.banReason === reason) {
-    return toDto(target);
+    const bothPermanent = !target.banUntil && !banUntil;
+    const bothTemporary = !!target.banUntil && !!banUntil;
+    if (bothPermanent || bothTemporary) return toDto(target);
   }
 
-  // Ban + révocation de tous les refresh tokens (force logout immédiat)
+  // Suspension + révocation de tous les refresh tokens (force logout immédiat)
   const updated = await prisma.$transaction(async (tx) => {
     const u = await tx.user.update({
       where: { id: targetId },
-      data: { isBanned: true, banReason: reason },
+      data: { isBanned: true, banReason: reason, banUntil },
       select: adminUserSelect,
     });
     await tx.refreshToken.updateMany({
@@ -79,6 +89,8 @@ export async function banUser(
     target: targetId,
     meta: {
       reason,
+      durationDays: durationDays ?? null,
+      banUntil: banUntil?.toISOString() ?? null,
       previousBanned: target.isBanned,
     } as Prisma.InputJsonValue,
   });
@@ -106,7 +118,7 @@ export async function unbanUser(
 
   const updated = await prisma.user.update({
     where: { id: targetId },
-    data: { isBanned: false, banReason: null },
+    data: { isBanned: false, banReason: null, banUntil: null },
     select: adminUserSelect,
   });
 
@@ -116,6 +128,7 @@ export async function unbanUser(
     target: targetId,
     meta: {
       previousReason: target.banReason ?? null,
+      previousBanUntil: target.banUntil?.toISOString() ?? null,
     } as Prisma.InputJsonValue,
   });
 
@@ -188,6 +201,7 @@ export async function getUserDetail(id: string) {
       isVerified: true,
       isBanned: true,
       banReason: true,
+      banUntil: true,
       premiumTier: true,
       premiumUntil: true,
       lastLoginAt: true,
