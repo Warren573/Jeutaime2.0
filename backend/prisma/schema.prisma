@@ -193,6 +193,7 @@ model User {
   isVerified   Boolean     @default(false)
   isBanned     Boolean     @default(false)
   banReason    String?
+  banUntil     DateTime?
   premiumTier  PremiumTier @default(FREE)
   premiumUntil DateTime?
   lastLoginAt  DateTime?
