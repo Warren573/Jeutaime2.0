@@ -114,6 +114,7 @@ export interface SalonMessagePublicDto {
 // ============================================================
 export async function listMessages(
   salonId: string,
+  viewerId: string,
   limit = 50,
   sessionId?: string,
 ): Promise<SalonMessagePublicDto[]> {
@@ -123,8 +124,25 @@ export async function listMessages(
   });
   if (!salon || !salon.isActive) throw new NotFoundError("Salon");
 
-  // Build where clause: always filter by salonId, optionally by sessionId
-  const where: any = { salonId, isHidden: false };
+  const blocks = await prisma.block.findMany({
+    where: {
+      OR: [
+        { fromId: viewerId },
+        { toId: viewerId },
+      ],
+    },
+    select: { fromId: true, toId: true },
+  });
+  const blockedUserIds = blocks
+    .flatMap((block) => [block.fromId, block.toId])
+    .filter((id) => id !== viewerId);
+
+  // Build where clause: filter hidden content, current session and blocked users.
+  const where: any = {
+    salonId,
+    isHidden: false,
+    ...(blockedUserIds.length > 0 && { userId: { notIn: blockedUserIds } }),
+  };
   if (sessionId) {
     where.sessionId = sessionId;
   }
