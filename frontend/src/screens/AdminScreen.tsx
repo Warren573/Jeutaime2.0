@@ -261,6 +261,16 @@ function incidentSourceLabel(source?: string | null) {
   return source ? (labels[source] ?? source) : 'Technique';
 }
 
+function reportContentTypeLabel(type?: string | null) {
+  const labels: Record<string, string> = {
+    PHOTO: 'Photo',
+    PROFILE_BIO: 'Biographie',
+    PROFILE_PSEUDO: 'Pseudo',
+    SALON_MESSAGE: 'Message de salon',
+  };
+  return type ? (labels[type] ?? type) : 'Profil / utilisateur';
+}
+
 function reportReasonLabel(reason?: string | null) {
   const labels: Record<string, string> = {
     HARASSMENT: 'Harcèlement',
@@ -336,6 +346,8 @@ export default function AdminScreen() {
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [reportTotal, setReportTotal] = useState(0);
   const [reportFilter, setReportFilter] = useState<ReportFilter>('ALL');
+  const [selectedReport, setSelectedReport] = useState<AdminReport | null>(null);
+  const [reportResolution, setReportResolution] = useState('');
   const [salons, setSalons] = useState<AdminSalon[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [health, setHealth] = useState<HealthVersion | null>(null);
@@ -573,6 +585,87 @@ export default function AdminScreen() {
       setOverview(await getAdminOverview());
     } catch (err) {
       Alert.alert('Signalement', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const finishReport = async (
+    report: AdminReport,
+    resolution: string,
+  ) => {
+    const updated = await updateAdminReport(report.id, 'ACTIONED', resolution);
+    setReports((prev) => prev.map((r) => r.id === report.id ? updated : r));
+    setSelectedReport(updated);
+    setReportResolution(resolution);
+    setOverview(await getAdminOverview());
+    setAudit(await listAuditLog());
+  };
+
+  const warnReportedUser = async (report: AdminReport) => {
+    const message = reportResolution.trim() || `Avertissement suite à un signalement : ${reportReasonLabel(report.reason)}.`;
+    try {
+      await warnAdminUser(report.target.id, message);
+      await finishReport(report, `Avertissement envoyé : ${message}`);
+      Alert.alert('Modération', 'Avertissement envoyé à l’utilisateur.');
+    } catch (err) {
+      Alert.alert('Modération', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const suspendReportedUser = async (report: AdminReport, durationDays?: number) => {
+    const label = durationDays ? `${durationDays} jour(s)` : 'définitivement';
+    const reason = reportResolution.trim() || `Suspension suite à un signalement : ${reportReasonLabel(report.reason)}`;
+    const ok = await confirm('Suspendre le compte', `Suspendre ce compte ${label} ?`);
+    if (!ok) return;
+    try {
+      await banAdminUser(report.target.id, reason, durationDays);
+      await finishReport(
+        report,
+        durationDays
+          ? `Compte suspendu ${durationDays} jour(s) : ${reason}`
+          : `Compte suspendu sans date de fin : ${reason}`,
+      );
+      setUsers(await listAdminUsers());
+      Alert.alert('Modération', 'Suspension appliquée.');
+    } catch (err) {
+      Alert.alert('Modération', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const moderateReportedContent = async (
+    report: AdminReport,
+    action: 'HIDE' | 'REMOVE' | 'CLEAR_BIO' | 'HIDE_PROFILE' | 'RESTORE' | 'HIDE_MESSAGE',
+  ) => {
+    if (!report.contentType || !report.contentId) return;
+    try {
+      if (report.contentType === 'PHOTO') {
+        if (action === 'RESTORE') {
+          await moderatePhoto(report.contentId, 'ACTIVE', 'Photo restaurée après examen du signalement');
+          await finishReport(report, 'Photo vérifiée et restaurée.');
+        } else {
+          await moderatePhoto(
+            report.contentId,
+            action === 'REMOVE' ? 'REMOVED' : 'HIDDEN',
+            action === 'REMOVE' ? 'Photo retirée après signalement' : 'Photo masquée après signalement',
+          );
+          await finishReport(report, action === 'REMOVE' ? 'Photo retirée.' : 'Photo masquée.');
+        }
+      } else if (report.contentType === 'PROFILE_BIO') {
+        await moderateProfile(
+          report.target.id,
+          action === 'CLEAR_BIO' ? 'CLEAR_BIO' : 'HIDE_FROM_DISCOVERY',
+          action === 'CLEAR_BIO' ? 'Bio supprimée après signalement' : 'Profil masqué après signalement',
+        );
+        await finishReport(report, action === 'CLEAR_BIO' ? 'Bio supprimée.' : 'Profil retiré de la découverte.');
+      } else if (report.contentType === 'PROFILE_PSEUDO') {
+        await moderateProfile(report.target.id, 'HIDE_FROM_DISCOVERY', 'Pseudo signalé : profil retiré de la découverte');
+        await finishReport(report, 'Profil retiré de la découverte en attente de correction du pseudo.');
+      } else if (report.contentType === 'SALON_MESSAGE') {
+        await moderateSalonMessage(report.contentId, true, 'Message masqué après signalement');
+        await finishReport(report, 'Message de salon masqué.');
+      }
+      await refreshModeration();
+    } catch (err) {
+      Alert.alert('Modération', err instanceof Error ? err.message : 'Action impossible.');
     }
   };
 
