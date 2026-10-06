@@ -1469,11 +1469,15 @@ export default function AdminScreen() {
                       <TouchableOpacity
                         style={styles.secondaryButton}
                         onPress={() => {
-                          setTab('users');
-                          void openUser(photo.userId);
+                          if (isAdmin) {
+                            setTab('users');
+                            void openUser(photo.userId);
+                          } else {
+                            router.push(`/profile/${photo.userId}?adminPreview=1` as any);
+                          }
                         }}
                       >
-                        <Text style={styles.secondaryText}>Voir le compte</Text>
+                        <Text style={styles.secondaryText}>{isAdmin ? 'Voir le compte' : 'Voir le profil'}</Text>
                       </TouchableOpacity>
 
                       {photo.moderationStatus !== 'ACTIVE' && (
@@ -1554,11 +1558,15 @@ export default function AdminScreen() {
                     <TouchableOpacity
                       style={styles.secondaryButton}
                       onPress={() => {
-                        setTab('users');
-                        void openUser(message.userId);
+                        if (isAdmin) {
+                          setTab('users');
+                          void openUser(message.userId);
+                        } else {
+                          router.push(`/profile/${message.userId}?adminPreview=1` as any);
+                        }
                       }}
                     >
-                      <Text style={styles.secondaryText}>Voir le compte</Text>
+                      <Text style={styles.secondaryText}>{isAdmin ? 'Voir le compte' : 'Voir le profil'}</Text>
                     </TouchableOpacity>
                     {message.isHidden ? (
                       <TouchableOpacity style={styles.actionButtonGood} onPress={() => void applyMessageModeration(message, false)}>
