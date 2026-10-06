@@ -12,3 +12,17 @@ export async function handleCreate(req: AuthedRequest, res: Response) {
     data: await svc.createCommunityPost(req.user.userId, title, body),
   });
 }
+
+
+export async function handleUpdate(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const { title, body } = req.body;
+  res.json({
+    data: await svc.updateCommunityPost(req.user.userId, id, title, body),
+  });
+}
+
+export async function handleDelete(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  res.json({ data: await svc.deleteCommunityPost(req.user.userId, id) });
+}
