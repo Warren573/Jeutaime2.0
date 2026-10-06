@@ -9,6 +9,8 @@ export interface SupportTicketDTO {
   subject: string;
   message: string;
   status: SupportTicketStatus;
+  adminReply: string | null;
+  repliedAt: string | null;
   createdAt: string;
 }
 
