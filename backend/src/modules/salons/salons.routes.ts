@@ -46,7 +46,7 @@ router.get(
   wrap(async (req, res) => {
     const id = req.params["id"] as string;
     const { limit, sessionId } = req.query as unknown as ListSalonMessagesQuery;
-    const data = await svc.listMessages(id, limit, sessionId);
+    const data = await svc.listMessages(id, req.user.userId, limit, sessionId);
     res.json({ data });
   }),
 );
