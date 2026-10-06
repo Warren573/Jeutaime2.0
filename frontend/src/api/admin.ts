@@ -587,7 +587,7 @@ export async function updateSystemIncident(
 }
 
 export async function listAdminSupportTickets(): Promise<AdminSupportTicket[]> {
-  const res = await apiFetch('/admin/operations/support');
+  const res = await apiFetch('/admin/support');
   return res?.data ?? [];
 }
 
