@@ -89,7 +89,7 @@ import {
   warnAdminUser,
 } from '../api/admin';
 
-type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'economy' | 'operations' | 'tools';
+type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'economy' | 'support' | 'operations' | 'tools';
 type ReportFilter = 'ALL' | AdminReport['status'];
 
 const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
@@ -99,7 +99,8 @@ const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof I
   { key: 'reports', label: 'Signalements', icon: 'flag-outline' },
   { key: 'salons', label: 'Salons', icon: 'chatbubbles-outline' },
   { key: 'economy', label: 'Économie', icon: 'wallet-outline' },
-  { key: 'operations', label: 'Incidents', icon: 'pulse-outline' },
+  { key: 'support', label: 'Support', icon: 'help-buoy-outline' },
+  { key: 'operations', label: 'Technique', icon: 'pulse-outline' },
   { key: 'tools', label: 'Outils', icon: 'construct-outline' },
 ];
 
@@ -363,6 +364,7 @@ export default function AdminScreen() {
   const [loginEvents, setLoginEvents] = useState<LoginEvent[]>([]);
   const [systemIncidents, setSystemIncidents] = useState<SystemIncident[]>([]);
   const [supportTickets, setSupportTickets] = useState<AdminSupportTicket[]>([]);
+  const [supportReplies, setSupportReplies] = useState<Record<string, string>>({});
   const [economyOverview, setEconomyOverview] = useState<EconomyOverview | null>(null);
   const [economyTransactions, setEconomyTransactions] = useState<EconomyTransaction[]>([]);
   const [economyCatalog, setEconomyCatalog] = useState<EconomyCatalog | null>(null);
@@ -386,7 +388,7 @@ export default function AdminScreen() {
   const [selectedSalonLoading, setSelectedSalonLoading] = useState(false);
 
   const visibleTabs = useMemo(
-    () => isAdmin ? TABS : TABS.filter((t) => t.key === 'reports' || t.key === 'content'),
+    () => isAdmin ? TABS : TABS.filter((t) => t.key === 'reports' || t.key === 'content' || t.key === 'support'),
     [isAdmin],
   );
 
@@ -871,10 +873,28 @@ export default function AdminScreen() {
 
   const changeTicketStatus = async (ticket: AdminSupportTicket, status: 'OPEN' | 'REVIEWING' | 'CLOSED') => {
     try {
-      await updateAdminSupportTicket(ticket.id, status);
-      await refreshOperations();
+      const updated = await updateAdminSupportTicket(ticket.id, status);
+      setSupportTickets((prev) => prev.map((t) => t.id === ticket.id ? { ...t, ...updated } : t));
+      if (isAdmin) setAudit(await listAuditLog());
     } catch (err) {
       Alert.alert('Support', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const replyToSupportTicket = async (ticket: AdminSupportTicket) => {
+    const reply = supportReplies[ticket.id]?.trim() ?? '';
+    if (reply.length < 2) {
+      Alert.alert('Support', 'Écris une réponse avant de l’envoyer.');
+      return;
+    }
+    try {
+      const updated = await updateAdminSupportTicket(ticket.id, 'CLOSED', reply);
+      setSupportTickets((prev) => prev.map((t) => t.id === ticket.id ? { ...t, ...updated } : t));
+      setSupportReplies((prev) => ({ ...prev, [ticket.id]: '' }));
+      if (isAdmin) setAudit(await listAuditLog());
+      Alert.alert('Support', 'Réponse envoyée et ticket fermé.');
+    } catch (err) {
+      Alert.alert('Support', err instanceof Error ? err.message : 'Réponse impossible.');
     }
   };
 
@@ -2003,6 +2023,64 @@ export default function AdminScreen() {
             </>
           )}
 
+          {tab === 'support' && (
+            <>
+              <Text style={styles.sectionTitle}>Support utilisateur</Text>
+              {supportTickets.length === 0 && <Text style={styles.muted}>Aucun ticket.</Text>}
+              {supportTickets.map((ticket) => (
+                <View key={ticket.id} style={styles.card}>
+                  <View style={styles.rowSplit}>
+                    <Text style={styles.cardTitle}>{ticketKindLabel(ticket.kind)} · {ticket.subject}</Text>
+                    <Text style={[styles.status, ticket.status === 'OPEN' && styles.statusBad]}>
+                      {ticketStatusLabel(ticket.status)}
+                    </Text>
+                  </View>
+                  <Text style={styles.rowSub}>{ticket.pseudo || ticket.email} · {formatDate(ticket.createdAt)}</Text>
+                  <Text style={styles.details}>{ticket.message}</Text>
+
+                  {!!ticket.adminReply && (
+                    <View style={styles.supportReplyBox}>
+                      <Text style={styles.rowTitle}>Réponse envoyée</Text>
+                      <Text style={styles.details}>{ticket.adminReply}</Text>
+                      <Text style={styles.rowSub}>{formatDate(ticket.repliedAt)}</Text>
+                    </View>
+                  )}
+
+                  {ticket.status !== 'CLOSED' && (
+                    <>
+                      <TextInput
+                        value={supportReplies[ticket.id] ?? ''}
+                        onChangeText={(value) => setSupportReplies((prev) => ({ ...prev, [ticket.id]: value }))}
+                        placeholder="Réponse à l’utilisateur"
+                        placeholderTextColor="#A48C72"
+                        multiline
+                        style={[styles.search, styles.multiline]}
+                      />
+                      <View style={styles.actionsLeft}>
+                        {ticket.status === 'OPEN' && (
+                          <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeTicketStatus(ticket, 'REVIEWING')}>
+                            <Text style={styles.secondaryText}>Prendre en charge</Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity style={styles.actionButtonGood} onPress={() => void replyToSupportTicket(ticket)}>
+                          <Text style={styles.actionButtonText}>Répondre et fermer</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeTicketStatus(ticket, 'CLOSED')}>
+                          <Text style={styles.secondaryText}>Fermer sans réponse</Text>
+                        </TouchableOpacity>
+                        {isAdmin && (
+                          <TouchableOpacity style={styles.secondaryButton} onPress={() => { setTab('users'); void openUser(ticket.userId); }}>
+                            <Text style={styles.secondaryText}>Voir le compte</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </>
+                  )}
+                </View>
+              ))}
+            </>
+          )}
+
           {tab === 'operations' && (
             <>
               <Text style={styles.sectionTitle}>Incidents & Support</Text>
@@ -2046,28 +2124,6 @@ export default function AdminScreen() {
                 </View>
               ))}
 
-              <Text style={styles.subSectionTitle}>Tickets BUG / Support</Text>
-              {supportTickets.map((ticket) => (
-                <View key={ticket.id} style={styles.card}>
-                  <View style={styles.rowSplit}>
-                    <Text style={styles.cardTitle}>{ticketKindLabel(ticket.kind)} · {ticket.subject}</Text>
-                    <Text style={[styles.status, ticket.status === 'OPEN' && styles.statusBad]}>{ticketStatusLabel(ticket.status)}</Text>
-                  </View>
-                  <Text style={styles.rowSub}>{ticket.pseudo || ticket.email} · {formatDate(ticket.createdAt)}</Text>
-                  <Text style={styles.details}>{ticket.message}</Text>
-                  <View style={styles.actionsLeft}>
-                    <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeTicketStatus(ticket, 'REVIEWING')}>
-                      <Text style={styles.secondaryText}>Prendre en charge</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionButtonGood} onPress={() => void changeTicketStatus(ticket, 'CLOSED')}>
-                      <Text style={styles.actionButtonText}>Clore</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.secondaryButton} onPress={() => { setTab('users'); void openUser(ticket.userId); }}>
-                      <Text style={styles.secondaryText}>Voir le compte</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
             </>
           )}
 
@@ -2192,6 +2248,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cardTitle: { fontSize: 15, fontWeight: '800', color: '#3A2818', marginBottom: 4 },
+  supportReplyBox: {
+    marginTop: 10,
+    marginBottom: 10,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#F5EBDD',
+    borderWidth: 1,
+    borderColor: '#E2D0B8',
+  },
   row: { paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E9DED0' },
   rowSplit: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
   rowTitle: { fontSize: 13, fontWeight: '700', color: '#4D3726' },
