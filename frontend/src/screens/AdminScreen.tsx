@@ -1382,34 +1382,6 @@ export default function AdminScreen() {
             <>
               <Text style={styles.sectionTitle}>Contenus</Text>
 
-              <SectionCard title="Journal communautaire">
-                <Text style={styles.details}>Publier une information dans l’édition commune visible par tous les utilisateurs.</Text>
-                <TextInput
-                  value={communityJournalTitle}
-                  onChangeText={setCommunityJournalTitle}
-                  placeholder="Titre"
-                  placeholderTextColor="#A48C72"
-                  style={styles.search}
-                />
-                <TextInput
-                  value={communityJournalBody}
-                  onChangeText={setCommunityJournalBody}
-                  placeholder="Texte de l’article"
-                  placeholderTextColor="#A48C72"
-                  multiline
-                  style={[styles.search, styles.multiline]}
-                />
-                <TouchableOpacity style={styles.actionButton} onPress={() => void publishCommunityJournal()}>
-                  <Text style={styles.actionButtonText}>Publier dans le Journal</Text>
-                </TouchableOpacity>
-                {communityJournalPosts.slice(0, 5).map((post) => (
-                  <View key={post.id} style={styles.row}>
-                    <Text style={styles.rowTitle}>{post.title}</Text>
-                    <Text style={styles.rowSub}>{formatDate(post.publishedAt)}</Text>
-                  </View>
-                ))}
-              </SectionCard>
-
               <Text style={styles.subSectionTitle}>Modération des contenus</Text>
 
               {moderationOverview && (
@@ -1763,6 +1735,75 @@ export default function AdminScreen() {
                   </>
                 );
               })()}
+            </>
+          )}
+
+          {tab === 'journal' && (
+            <>
+              <Text style={styles.sectionTitle}>Journal communautaire</Text>
+
+              <SectionCard title={editingCommunityPostId ? 'Modifier la publication' : 'Nouvelle publication'}>
+                <Text style={styles.details}>
+                  Publication officielle visible dans l’édition communautaire.
+                </Text>
+                <TextInput
+                  value={communityJournalTitle}
+                  onChangeText={setCommunityJournalTitle}
+                  placeholder="Titre"
+                  placeholderTextColor="#A48C72"
+                  style={styles.search}
+                />
+                <TextInput
+                  value={communityJournalBody}
+                  onChangeText={setCommunityJournalBody}
+                  placeholder="Texte de l’article"
+                  placeholderTextColor="#A48C72"
+                  multiline
+                  style={[styles.search, styles.multiline]}
+                />
+                <View style={styles.actionsLeft}>
+                  <TouchableOpacity style={styles.actionButton} onPress={() => void publishCommunityJournal()}>
+                    <Text style={styles.actionButtonText}>{editingCommunityPostId ? 'Enregistrer' : 'Publier'}</Text>
+                  </TouchableOpacity>
+                  {!!editingCommunityPostId && (
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
+                      onPress={() => {
+                        setEditingCommunityPostId(null);
+                        setCommunityJournalTitle('');
+                        setCommunityJournalBody('');
+                      }}
+                    >
+                      <Text style={styles.secondaryText}>Annuler</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </SectionCard>
+
+              <Text style={styles.subSectionTitle}>Publications</Text>
+              {communityJournalPosts.length === 0 && <Text style={styles.muted}>Aucune publication.</Text>}
+              {communityJournalPosts.map((post) => (
+                <View key={post.id} style={styles.card}>
+                  <Text style={styles.cardTitle}>{post.title}</Text>
+                  <Text style={styles.rowSub}>{formatDate(post.publishedAt)}</Text>
+                  <Text style={styles.details}>{post.body}</Text>
+                  <View style={styles.actionsLeft}>
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
+                      onPress={() => {
+                        setEditingCommunityPostId(post.id);
+                        setCommunityJournalTitle(post.title);
+                        setCommunityJournalBody(post.body);
+                      }}
+                    >
+                      <Text style={styles.secondaryText}>Modifier</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.dangerButton} onPress={() => void deleteCommunityPost(post)}>
+                      <Text style={styles.actionButtonText}>Supprimer</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
             </>
           )}
 
