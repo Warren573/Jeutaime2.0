@@ -337,6 +337,9 @@ export default function AdminScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const currentUser = useStore((s) => s.currentUser);
+  const isAdmin = currentUser?.role === 'ADMIN';
+  const isModerator = currentUser?.role === 'MODERATOR';
+  const isStaff = isAdmin || isModerator;
 
   const [tab, setTab] = useState<Tab>('dashboard');
   const [loading, setLoading] = useState(true);
@@ -382,7 +385,31 @@ export default function AdminScreen() {
   const [selectedSalon, setSelectedSalon] = useState<AdminSalonSession | null>(null);
   const [selectedSalonLoading, setSelectedSalonLoading] = useState(false);
 
+  const visibleTabs = useMemo(
+    () => isAdmin ? TABS : TABS.filter((t) => t.key === 'reports' || t.key === 'content'),
+    [isAdmin],
+  );
+
   const loadAll = useCallback(async () => {
+    if (isModerator) {
+      const [r, mo, mp, mm, st] = await Promise.all([
+        listAdminReports(),
+        getModerationOverview(),
+        listModerationPhotos(),
+        listModerationSalonMessages(),
+        listAdminSupportTickets(),
+      ]);
+      setReports(r.items);
+      setReportTotal(r.total);
+      setModerationOverview(mo);
+      setModerationPhotos(mp);
+      setModerationMessages(mm);
+      setSupportTickets(st);
+      return;
+    }
+
+    if (!isAdmin) return;
+
     const [o, u, r, s, a, h, mo, mp, mm, oo, le, si, st, eo, et, ec, pu, ps, cj] = await Promise.all([
       getAdminOverview(),
       listAdminUsers(),
@@ -424,30 +451,31 @@ export default function AdminScreen() {
     setPremiumUsers(pu);
     setPrivateSalons(ps);
     setCommunityJournalPosts(cj);
-  }, []);
+  }, [isAdmin, isModerator]);
 
   useEffect(() => {
     AsyncStorage.getItem('auth_token').then(setAuthToken).catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    if (currentUser?.role !== 'ADMIN') {
+    if (!isStaff) {
       router.replace('/(tabs)/settings' as any);
       return;
     }
+    if (isModerator) setTab('reports');
     loadAll()
-      .catch((err) => Alert.alert('Administration', err instanceof Error ? err.message : 'Chargement impossible.'))
+      .catch((err) => Alert.alert(isAdmin ? 'Administration' : 'Modération', err instanceof Error ? err.message : 'Chargement impossible.'))
       .finally(() => setLoading(false));
-  }, [currentUser?.role, loadAll, router]);
+  }, [isStaff, isAdmin, isModerator, loadAll, router]);
 
   const refresh = async () => {
     setRefreshing(true);
     try {
       await loadAll();
-      if (selectedUser) {
+      if (isAdmin && selectedUser) {
         setSelectedUser(await getAdminUser(selectedUser.id));
       }
-      if (selectedSalon?.salon.id) {
+      if (isAdmin && selectedSalon?.salon.id) {
         setSelectedSalon(await getAdminSalonSession(selectedSalon.salon.id));
       }
     } finally {
@@ -527,7 +555,7 @@ export default function AdminScreen() {
         : await banAdminUser(user.id, 'Suspension depuis le panneau administrateur');
       syncUserList(updated);
       setSelectedUser(await getAdminUser(user.id));
-      setOverview(await getAdminOverview());
+      if (isAdmin) setOverview(await getAdminOverview());
     } catch (err) {
       Alert.alert('Administration', err instanceof Error ? err.message : 'Action impossible.');
     }
@@ -557,7 +585,7 @@ export default function AdminScreen() {
       setCoinAmount('');
       setCoinReason('');
       setSelectedUser(await getAdminUser(selectedUser.id));
-      setAudit(await listAuditLog());
+      if (isAdmin) setAudit(await listAuditLog());
     } catch (err) {
       Alert.alert('Pièces', err instanceof Error ? err.message : 'Modification impossible.');
     }
@@ -582,7 +610,7 @@ export default function AdminScreen() {
         status === 'DISMISSED' ? 'Signalement classé sans suite' : undefined,
       );
       setReports((prev) => prev.map((r) => r.id === report.id ? updated : r));
-      setOverview(await getAdminOverview());
+      if (isAdmin) setOverview(await getAdminOverview());
     } catch (err) {
       Alert.alert('Signalement', err instanceof Error ? err.message : 'Action impossible.');
     }
@@ -596,8 +624,8 @@ export default function AdminScreen() {
     setReports((prev) => prev.map((r) => r.id === report.id ? updated : r));
     setSelectedReport(updated);
     setReportResolution(resolution);
-    setOverview(await getAdminOverview());
-    setAudit(await listAuditLog());
+    if (isAdmin) setOverview(await getAdminOverview());
+    if (isAdmin) setAudit(await listAuditLog());
   };
 
   const warnReportedUser = async (report: AdminReport) => {
@@ -624,7 +652,7 @@ export default function AdminScreen() {
           ? `Compte suspendu ${durationDays} jour(s) : ${reason}`
           : `Compte suspendu sans date de fin : ${reason}`,
       );
-      setUsers(await listAdminUsers());
+      if (isAdmin) setUsers(await listAdminUsers());
       Alert.alert('Modération', 'Suspension appliquée.');
     } catch (err) {
       Alert.alert('Modération', err instanceof Error ? err.message : 'Action impossible.');
@@ -673,7 +701,7 @@ export default function AdminScreen() {
     try {
       const updated = await setAdminSalonActive(salon.id, value);
       setSalons((prev) => prev.map((s) => s.id === salon.id ? updated : s));
-      setOverview(await getAdminOverview());
+      if (isAdmin) setOverview(await getAdminOverview());
     } catch (err) {
       Alert.alert('Salon', err instanceof Error ? err.message : 'Modification impossible.');
     }
@@ -697,7 +725,7 @@ export default function AdminScreen() {
     try {
       await removeAdminSalonParticipant(selectedSalon.salon.id, participantId);
       setSelectedSalon(await getAdminSalonSession(selectedSalon.salon.id));
-      setAudit(await listAuditLog());
+      if (isAdmin) setAudit(await listAuditLog());
     } catch (err) {
       Alert.alert('Salon', err instanceof Error ? err.message : 'Action impossible.');
     }
@@ -712,7 +740,7 @@ export default function AdminScreen() {
     setModerationOverview(mo);
     setModerationPhotos(mp);
     setModerationMessages(mm);
-    setAudit(await listAuditLog());
+    if (isAdmin) setAudit(await listAuditLog());
   };
 
   const applyPhotoModeration = async (photo: ModerationPhoto, status: 'ACTIVE' | 'HIDDEN' | 'REMOVED') => {
@@ -742,7 +770,7 @@ export default function AdminScreen() {
           : 'Profil rétabli dans la découverte après contrôle';
     try {
       setModerationProfile(await moderateProfile(moderationProfile.id, action, reason));
-      setAudit(await listAuditLog());
+      if (isAdmin) setAudit(await listAuditLog());
     } catch (err) {
       Alert.alert('Modération profil', err instanceof Error ? err.message : 'Action impossible.');
     }
@@ -770,7 +798,7 @@ export default function AdminScreen() {
       );
       setAdminMessageSubject('');
       setAdminMessageBody('');
-      setAudit(await listAuditLog());
+      if (isAdmin) setAudit(await listAuditLog());
       Alert.alert('Administration', 'Message envoyé à l’utilisateur.');
     } catch (err) {
       Alert.alert('Message', err instanceof Error ? err.message : 'Envoi impossible.');
@@ -785,7 +813,7 @@ export default function AdminScreen() {
         durationDays: 7,
       });
       setPrivateSalons(await listAdminPrivateSalons());
-      setAudit(await listAuditLog());
+      if (isAdmin) setAudit(await listAuditLog());
       Alert.alert('Salon privé', 'Le Sanctuaire privé a été créé.');
     } catch (err) {
       Alert.alert('Salon privé', err instanceof Error ? err.message : 'Création impossible.');
@@ -797,7 +825,7 @@ export default function AdminScreen() {
     try {
       await inviteUserToPrivateSalon(sessionId, selectedUser.id);
       setPrivateSalons(await listAdminPrivateSalons());
-      setAudit(await listAuditLog());
+      if (isAdmin) setAudit(await listAuditLog());
       Alert.alert('Salon privé', 'Invitation envoyée.');
     } catch (err) {
       Alert.alert('Salon privé', err instanceof Error ? err.message : 'Invitation impossible.');
@@ -815,7 +843,7 @@ export default function AdminScreen() {
     setEconomyTransactions(et.items);
     setEconomyCatalog(ec);
     setPremiumUsers(pu);
-    setAudit(await listAuditLog());
+    if (isAdmin) setAudit(await listAuditLog());
   };
 
   const refreshOperations = async () => {
@@ -829,7 +857,7 @@ export default function AdminScreen() {
     setLoginEvents(le.items);
     setSystemIncidents(si.items);
     setSupportTickets(st);
-    setAudit(await listAuditLog());
+    if (isAdmin) setAudit(await listAuditLog());
   };
 
   const resolveIncident = async (incident: SystemIncident) => {
@@ -860,8 +888,8 @@ export default function AdminScreen() {
       );
       setSelectedUser(await getAdminUser(selectedUser.id));
       setPremiumUsers(await listPremiumAdminUsers());
-      setOverview(await getAdminOverview());
-      setAudit(await listAuditLog());
+      if (isAdmin) setOverview(await getAdminOverview());
+      if (isAdmin) setAudit(await listAuditLog());
       Alert.alert('Premium', days === 1 ? '1 journée de Premium offerte.' : '1 mois de Premium offert.');
     } catch (err) {
       Alert.alert('Premium', err instanceof Error ? err.message : 'Action impossible.');
@@ -881,7 +909,7 @@ export default function AdminScreen() {
         'Réinitialisation manuelle depuis le panneau administrateur',
       );
       setSelectedUser(await getAdminUser(selectedUser.id));
-      setAudit(await listAuditLog());
+      if (isAdmin) setAudit(await listAuditLog());
       Alert.alert('Salons', `${result.resetCount} session(s) réinitialisée(s).`);
     } catch (err) {
       Alert.alert('Salons', err instanceof Error ? err.message : 'Action impossible.');
@@ -901,7 +929,7 @@ export default function AdminScreen() {
         'Réinitialisation manuelle depuis le panneau administrateur',
       );
       setSelectedUser(await getAdminUser(selectedUser.id));
-      setAudit(await listAuditLog());
+      if (isAdmin) setAudit(await listAuditLog());
       Alert.alert('Refuge', `${result.resetCount} session(s) réinitialisée(s).`);
     } catch (err) {
       Alert.alert('Refuge', err instanceof Error ? err.message : 'Action impossible.');
@@ -921,7 +949,7 @@ export default function AdminScreen() {
       setCommunityJournalTitle('');
       setCommunityJournalBody('');
       setCommunityJournalPosts(await listCommunityJournalPosts());
-      setAudit(await listAuditLog());
+      if (isAdmin) setAudit(await listAuditLog());
       Alert.alert('Journal communautaire', 'Publication ajoutée à l’édition du jour.');
     } catch (err) {
       Alert.alert('Journal communautaire', err instanceof Error ? err.message : 'Publication impossible.');
@@ -937,7 +965,7 @@ export default function AdminScreen() {
     return target;
   };
 
-  if (currentUser?.role !== 'ADMIN') return null;
+  if (!isStaff) return null;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -946,10 +974,10 @@ export default function AdminScreen() {
           <Ionicons name="chevron-back" size={22} color="#4A3424" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Administration</Text>
-          <Text style={styles.subtitle}>JeuTaime · accès administrateur</Text>
+          <Text style={styles.title}>{isAdmin ? 'Administration' : 'Modération'}</Text>
+          <Text style={styles.subtitle}>JeuTaime · {isAdmin ? 'accès administrateur' : 'accès modérateur'}</Text>
         </View>
-        <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>ADMINISTRATEUR</Text></View>
+        <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>{isAdmin ? 'ADMINISTRATEUR' : 'MODÉRATEUR'}</Text></View>
       </View>
 
       <ScrollView
@@ -958,7 +986,7 @@ export default function AdminScreen() {
         style={styles.tabsScroll}
         contentContainerStyle={styles.tabs}
       >
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <TouchableOpacity
             key={t.key}
             onPress={() => setTab(t.key)}
@@ -1670,7 +1698,7 @@ export default function AdminScreen() {
                             );
                             setReports((prev) => prev.map((r) => r.id === updated.id ? updated : r));
                             setSelectedReport(updated);
-                            setOverview(await getAdminOverview());
+                            if (isAdmin) setOverview(await getAdminOverview());
                           }}
                         >
                           <Text style={styles.secondaryText}>Classer sans suite</Text>
