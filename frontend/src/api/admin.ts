@@ -784,3 +784,22 @@ export async function publishCommunityJournalPost(
   });
   return res.data;
 }
+
+
+export async function updateCommunityJournalPost(
+  id: string,
+  title: string,
+  body: string,
+): Promise<CommunityJournalAdminPost> {
+  const res = await apiFetch(`/admin/journal/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ title, body }),
+  });
+  return res.data;
+}
+
+export async function deleteCommunityJournalPost(id: string): Promise<void> {
+  await apiFetch(`/admin/journal/${id}`, {
+    method: 'DELETE',
+  });
+}
