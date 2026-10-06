@@ -1839,6 +1839,49 @@ export default function SalonScreen() {
         }
       />
 
+      <Modal
+        visible={!!selectedSafetyMessage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !safetyActioning && setSelectedSafetyMessage(null)}
+      >
+        <View style={styles.messageSafetyOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => !safetyActioning && setSelectedSafetyMessage(null)}
+          />
+          <View style={styles.messageSafetySheet}>
+            <Text style={styles.messageSafetyTitle}>Options de sécurité</Text>
+            <Text style={styles.messageSafetyPreview} numberOfLines={3}>
+              {selectedSafetyMessage?.content || selectedSafetyMessage?.text || ''}
+            </Text>
+            <TouchableOpacity
+              style={styles.messageSafetyAction}
+              onPress={() => void handleReportSalonMessage()}
+              disabled={safetyActioning}
+            >
+              <Ionicons name="flag-outline" size={19} color="#A7324B" />
+              <Text style={styles.messageSafetyDangerText}>Signaler ce message</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.messageSafetyAction}
+              onPress={() => void handleBlockSalonUser()}
+              disabled={safetyActioning}
+            >
+              <Ionicons name="ban-outline" size={19} color="#A7324B" />
+              <Text style={styles.messageSafetyDangerText}>Bloquer cet utilisateur</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.messageSafetyCancel}
+              onPress={() => setSelectedSafetyMessage(null)}
+              disabled={safetyActioning}
+            >
+              <Text style={styles.messageSafetyCancelText}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Action notice toast */}
       {actionNotice && (
         <View style={{
