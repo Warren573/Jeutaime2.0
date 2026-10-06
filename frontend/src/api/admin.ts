@@ -477,6 +477,9 @@ export type AdminSupportTicket = {
   subject: string;
   message: string;
   status: 'OPEN' | 'REVIEWING' | 'CLOSED';
+  adminReply: string | null;
+  repliedAt: string | null;
+  repliedBy: string | null;
   createdAt: string;
 };
 
@@ -591,11 +594,13 @@ export async function listAdminSupportTickets(): Promise<AdminSupportTicket[]> {
 export async function updateAdminSupportTicket(
   id: string,
   status: 'OPEN' | 'REVIEWING' | 'CLOSED',
-): Promise<void> {
-  await apiFetch(`/admin/support/${id}`, {
+  reply?: string,
+): Promise<AdminSupportTicket> {
+  const res = await apiFetch(`/admin/support/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, ...(reply?.trim() ? { reply: reply.trim() } : {}) }),
   });
+  return res.data;
 }
 
 export async function getEconomyOverview(): Promise<EconomyOverview> {
