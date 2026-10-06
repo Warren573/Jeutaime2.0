@@ -167,6 +167,15 @@ export default function SupportTicketScreen({ mode }: { mode: 'bug' | 'support' 
                 {new Date(ticket.createdAt).toLocaleString('fr-FR')}
               </Text>
               <Text style={styles.ticketMessage} numberOfLines={3}>{ticket.message}</Text>
+              {!!ticket.adminReply && (
+                <View style={styles.replyBox}>
+                  <Text style={styles.replyTitle}>Réponse de JeuTaime</Text>
+                  <Text style={styles.replyText}>{ticket.adminReply}</Text>
+                  {!!ticket.repliedAt && (
+                    <Text style={styles.replyDate}>{new Date(ticket.repliedAt).toLocaleString('fr-FR')}</Text>
+                  )}
+                </View>
+              )}
               <Text style={styles.ticketId}>Réf. {ticket.id}</Text>
             </View>
           ))
@@ -257,5 +266,16 @@ const styles = StyleSheet.create({
   ticketStatus: { fontSize: 10, fontWeight: '800', color: APP_COLORS.burgundy },
   ticketDate: { fontSize: 10, color: APP_COLORS.muted, marginTop: 4 },
   ticketMessage: { fontSize: 12, lineHeight: 18, color: APP_COLORS.ink, marginTop: 10 },
+  replyBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: APP_RADIUS.md,
+    backgroundColor: APP_COLORS.paperSoft,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+  },
+  replyTitle: { fontSize: 11, fontWeight: '900', color: APP_COLORS.burgundy, marginBottom: 4 },
+  replyText: { fontSize: 12, lineHeight: 18, color: APP_COLORS.ink },
+  replyDate: { fontSize: 9, color: APP_COLORS.muted, marginTop: 6 },
   ticketId: { fontSize: 9, color: APP_COLORS.muted, marginTop: 8 },
 });
