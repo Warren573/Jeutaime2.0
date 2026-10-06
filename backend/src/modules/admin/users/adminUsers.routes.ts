@@ -85,19 +85,19 @@ router.patch(
   wrap(ctrl.handleUpdateRole),
 );
 
-// POST /api/admin/users/:id/ban — ADMIN only
+// POST /api/admin/users/:id/ban — ADMIN ou MODERATOR
 router.post(
   "/:id/ban",
-  requireRole(Role.ADMIN) as never,
+  requireRole(Role.ADMIN, Role.MODERATOR) as never,
   validate(UserIdParamsSchema, "params"),
   validate(BanUserSchema),
   wrap(ctrl.handleBan),
 );
 
-// POST /api/admin/users/:id/unban — ADMIN only
+// POST /api/admin/users/:id/unban — ADMIN ou MODERATOR
 router.post(
   "/:id/unban",
-  requireRole(Role.ADMIN) as never,
+  requireRole(Role.ADMIN, Role.MODERATOR) as never,
   validate(UserIdParamsSchema, "params"),
   validate(UnbanUserSchema),
   wrap(ctrl.handleUnban),
