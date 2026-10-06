@@ -49,8 +49,15 @@ export async function register(dto: RegisterDto) {
   const passwordHash = await hashPassword(dto.password);
 
   const user = await prisma.$transaction(async (tx) => {
+    const acceptedAt = new Date();
     const newUser = await tx.user.create({
-      data: { email: dto.email, passwordHash },
+      data: {
+        email: dto.email,
+        passwordHash,
+        termsAcceptedAt: acceptedAt,
+        communityRulesAcceptedAt: acceptedAt,
+        termsVersion: "2026-10",
+      },
     });
 
     await tx.profile.create({
