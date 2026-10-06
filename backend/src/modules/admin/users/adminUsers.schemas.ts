@@ -6,6 +6,7 @@ import { z } from "zod";
 export const BanUserSchema = z
   .object({
     reason: z.string().min(3).max(500),
+    durationDays: z.number().int().min(1).max(3650).optional(),
   })
   .strict();
 
