@@ -95,7 +95,7 @@ type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'journal' 
 type ReportFilter = 'ALL' | AdminReport['status'];
 
 const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
-  { key: 'dashboard', label: 'À traiter', icon: 'grid-outline' },
+  { key: 'dashboard', label: 'Accueil', icon: 'home-outline' },
   { key: 'users', label: 'Utilisateurs', icon: 'people-outline' },
   { key: 'content', label: 'Contenus', icon: 'images-outline' },
   { key: 'reports', label: 'Signalements', icon: 'flag-outline' },
@@ -400,6 +400,7 @@ export default function AdminScreen() {
   const [coinAmount, setCoinAmount] = useState('');
   const [coinReason, setCoinReason] = useState('');
   const [showUserHistory, setShowUserHistory] = useState(false);
+  const [showUserActions, setShowUserActions] = useState(false);
   const [showOwnerRepairs, setShowOwnerRepairs] = useState(false);
   const [showDashboardStats, setShowDashboardStats] = useState(false);
 
@@ -581,6 +582,7 @@ export default function AdminScreen() {
       setCoinAmount('');
       setCoinReason('');
       setShowUserHistory(false);
+      setShowUserActions(false);
       setShowOwnerRepairs(false);
     } catch (err) {
       Alert.alert('Utilisateur', err instanceof Error ? err.message : 'Chargement impossible.');
@@ -1143,7 +1145,7 @@ export default function AdminScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>{isAdmin ? 'Administration' : 'Modération'}</Text>
-          <Text style={styles.subtitle}>JeuTaime · {isOwner ? 'administration + droits propriétaire' : isAdmin ? 'accès administrateur' : 'accès modérateur'}</Text>
+          <Text style={styles.subtitle}>{isOwner ? 'Gestion et dépannage propriétaire' : isAdmin ? 'Gestion quotidienne' : 'Signalements et support'}</Text>
         </View>
         <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>{isOwner ? 'PROPRIÉTAIRE' : isAdmin ? 'ADMINISTRATEUR' : 'MODÉRATEUR'}</Text></View>
       </View>
@@ -1195,7 +1197,7 @@ export default function AdminScreen() {
                     <Text style={styles.priorityCount}>{openReportsCount}</Text>
                   </View>
                   <Text style={styles.priorityTitle}>Signalements</Text>
-                  <Text style={styles.priorityHint}>Voir ceux qui attendent une décision</Text>
+                  <Text style={styles.priorityHint}>À examiner et traiter</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.priorityCard} onPress={() => setTab('support')}>
@@ -1204,28 +1206,47 @@ export default function AdminScreen() {
                     <Text style={styles.priorityCount}>{openSupportCount}</Text>
                   </View>
                   <Text style={styles.priorityTitle}>Support</Text>
-                  <Text style={styles.priorityHint}>Répondre aux demandes ouvertes</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.priorityCard} onPress={goToUserSearch}>
-                  <View style={styles.priorityHead}>
-                    <Ionicons name="search-outline" size={20} color="#8B6F47" />
-                  </View>
-                  <Text style={styles.priorityTitle}>Trouver un utilisateur</Text>
-                  <Text style={styles.priorityHint}>Pseudo, e-mail ou identifiant</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.priorityCard} onPress={() => { setReportFilter('OPEN'); setTab('reports'); }}>
-                  <View style={styles.priorityHead}>
-                    <Ionicons name="images-outline" size={20} color="#8B6F47" />
-                  </View>
-                  <Text style={styles.priorityTitle}>Contenu signalé</Text>
-                  <Text style={styles.priorityHint}>Photos, profils et messages</Text>
+                  <Text style={styles.priorityHint}>Demandes qui attendent une réponse</Text>
                 </TouchableOpacity>
               </View>
 
+              <TouchableOpacity style={styles.searchShortcut} onPress={goToUserSearch}>
+                <Ionicons name="search-outline" size={20} color="#6F5943" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.searchShortcutTitle}>Rechercher un utilisateur</Text>
+                  <Text style={styles.searchShortcutSub}>Pseudo, e-mail ou identifiant · aucun annuaire complet</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#8F765C" />
+              </TouchableOpacity>
+
+              <SectionCard title="Signalements récents">
+                {reports.filter((r) => r.status === 'OPEN' || r.status === 'REVIEWING').slice(0, 3).map((r) => (
+                  <TouchableOpacity key={r.id} style={styles.row} onPress={() => { setSelectedReport(r); setTab('reports'); }}>
+                    <View style={styles.rowSplit}>
+                      <Text style={styles.rowTitle}>{reportReasonLabel(r.reason)}</Text>
+                      <Text style={[styles.status, r.status === 'OPEN' && styles.statusBad]}>{reportStatusLabel(r.status)}</Text>
+                    </View>
+                    <Text style={styles.rowSub}>{reportContentTypeLabel(r.contentType)} · {formatDate(r.createdAt)}</Text>
+                  </TouchableOpacity>
+                ))}
+                {openReportsCount === 0 && <Text style={styles.mutedLeft}>Aucun signalement en attente.</Text>}
+              </SectionCard>
+
+              <SectionCard title="Support récent">
+                {supportTickets.filter((t) => t.status !== 'CLOSED').slice(0, 3).map((t) => (
+                  <TouchableOpacity key={t.id} style={styles.row} onPress={() => setTab('support')}>
+                    <View style={styles.rowSplit}>
+                      <Text style={styles.rowTitle}>{ticketKindLabel(t.kind)} · {t.subject || 'Demande utilisateur'}</Text>
+                      <Text style={styles.status}>{ticketStatusLabel(t.status)}</Text>
+                    </View>
+                    <Text style={styles.rowSub}>{formatDate(t.createdAt)}</Text>
+                  </TouchableOpacity>
+                ))}
+                {openSupportCount === 0 && <Text style={styles.mutedLeft}>Aucune demande ouverte.</Text>}
+              </SectionCard>
+
               {isAdmin && (
-                <SectionCard title="Gestion">
+                <SectionCard title="Gestion avancée">
                   <View style={styles.managementGrid}>
                     <TouchableOpacity style={styles.managementButton} onPress={() => setTab('salons')}>
                       <Ionicons name="chatbubbles-outline" size={18} color="#6F5943" />
@@ -1251,12 +1272,6 @@ export default function AdminScreen() {
                       <Ionicons name="time-outline" size={18} color="#6F5943" />
                       <Text style={styles.managementText}>Historique</Text>
                     </TouchableOpacity>
-                    {isOwner && (
-                      <TouchableOpacity style={styles.managementButton} onPress={() => setTab('tools')}>
-                        <Ionicons name="construct-outline" size={18} color="#6F5943" />
-                        <Text style={styles.managementText}>Dépannage</Text>
-                      </TouchableOpacity>
-                    )}
                     {isOwner && (
                       <TouchableOpacity style={styles.managementButton} onPress={() => setTab('staff')}>
                         <Ionicons name="key-outline" size={18} color="#6F5943" />
@@ -1419,7 +1434,14 @@ export default function AdminScreen() {
                     style={styles.search}
                   />
                   {query.trim().length < 2 && (
-                    <Text style={styles.mutedLeft}>Recherche uniquement : saisis au moins 2 caractères. Aucun annuaire complet n’est affiché.</Text>
+                    <View style={styles.searchEmpty}>
+                      <Ionicons name="search-outline" size={26} color="#9B856D" />
+                      <Text style={styles.searchEmptyTitle}>Commence ta recherche</Text>
+                      <Text style={styles.searchEmptyText}>Saisis au moins 2 caractères. Aucun annuaire complet n’est affiché.</Text>
+                    </View>
+                  )}
+                  {query.trim().length >= 2 && filteredUsers.length === 0 && !selectedUserLoading && (
+                    <Text style={styles.muted}>Aucun utilisateur trouvé.</Text>
                   )}
                   {selectedUserLoading && <ActivityIndicator />}
                   {filteredUsers.map((u) => (
@@ -1483,11 +1505,14 @@ export default function AdminScreen() {
                     </SectionCard>
                   )}
 
-                  <TouchableOpacity
-                    style={styles.historyToggle}
-                    onPress={() => setShowUserHistory((v) => !v)}
-                  >
-                    <Text style={styles.historyToggleText}>{showUserHistory ? 'Masquer l’historique' : 'Historique et détails'}</Text>
+                  <TouchableOpacity style={styles.sectionToggle} onPress={() => setShowUserHistory((v) => !v)}>
+                    <View style={styles.sectionToggleLeft}>
+                      <Ionicons name="time-outline" size={19} color="#6F5943" />
+                      <View>
+                        <Text style={styles.sectionToggleTitle}>Historique et détails</Text>
+                        <Text style={styles.sectionToggleSub}>Activité, transactions et historique administratif</Text>
+                      </View>
+                    </View>
                     <Ionicons name={showUserHistory ? 'chevron-up' : 'chevron-down'} size={18} color="#6F5943" />
                   </TouchableOpacity>
 
@@ -1505,125 +1530,85 @@ export default function AdminScreen() {
                     </>
                   )}
 
-                  <SectionCard title="Message de l’administration">
-                    <Text style={styles.details}>
-                      Message séparé des Lettres, clairement identifié comme venant de l’administration JeuTaime.
-                    </Text>
-                    <TextInput
-                      value={adminMessageSubject}
-                      onChangeText={setAdminMessageSubject}
-                      placeholder="Sujet (facultatif)"
-                      placeholderTextColor="#A48C72"
-                      style={styles.search}
-                    />
-                    <TextInput
-                      value={adminMessageBody}
-                      onChangeText={setAdminMessageBody}
-                      placeholder="Message"
-                      placeholderTextColor="#A48C72"
-                      multiline
-                      style={[styles.search, styles.multiline]}
-                    />
-                    <TouchableOpacity style={styles.actionButton} onPress={() => void sendMessageToSelectedUser()}>
-                      <Text style={styles.actionButtonText}>Envoyer</Text>
-                    </TouchableOpacity>
-                  </SectionCard>
-
-                  {(selectedUser.role !== 'OWNER' || isOwner) && <SectionCard title="Pièces et Premium">
-                    <DataLine label="Solde" value={`${selectedUser.wallet?.coins ?? 0} pièces`} />
-
-                    <TextInput
-                      value={coinAmount}
-                      onChangeText={setCoinAmount}
-                      keyboardType="number-pad"
-                      placeholder="Nombre de pièces"
-                      placeholderTextColor="#A48C72"
-                      style={styles.search}
-                    />
-                    <TextInput
-                      value={coinReason}
-                      onChangeText={setCoinReason}
-                      placeholder="Motif"
-                      placeholderTextColor="#A48C72"
-                      style={styles.search}
-                    />
-                    <View style={styles.actionsLeft}>
-                      <TouchableOpacity style={[styles.actionButton, styles.actionButtonGood]} onPress={() => void adjustCoins(1)}>
-                        <Text style={styles.actionButtonText}>Offrir les pièces</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.dangerButton} onPress={() => void adjustCoins(-1)}>
-                        <Text style={styles.actionButtonText}>Retirer des pièces</Text>
-                      </TouchableOpacity>
+                  <TouchableOpacity style={styles.sectionToggle} onPress={() => setShowUserActions((v) => !v)}>
+                    <View style={styles.sectionToggleLeft}>
+                      <Ionicons name="settings-outline" size={19} color="#6F5943" />
+                      <View>
+                        <Text style={styles.sectionToggleTitle}>Actions administratives</Text>
+                        <Text style={styles.sectionToggleSub}>Message, pièces, Premium et salon privé</Text>
+                      </View>
                     </View>
+                    <Ionicons name={showUserActions ? 'chevron-up' : 'chevron-down'} size={18} color="#6F5943" />
+                  </TouchableOpacity>
 
-                    <View style={[styles.actionsLeft, { marginTop: 12 }]}>
-                      <TouchableOpacity style={[styles.secondaryButton, styles.compactAction]} onPress={() => void grantPremiumToSelectedUser(1)}>
-                        <Text style={styles.secondaryText}>Offrir 1 jour Premium</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[styles.secondaryButton, styles.compactAction]} onPress={() => void grantPremiumToSelectedUser(30)}>
-                        <Text style={styles.secondaryText}>Offrir 1 mois Premium</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </SectionCard>}
+                  {showUserActions && (
+                    <>
+                      <SectionCard title="Message de l’administration">
+                        <TextInput value={adminMessageSubject} onChangeText={setAdminMessageSubject} placeholder="Sujet (facultatif)" placeholderTextColor="#A48C72" style={styles.search} />
+                        <TextInput value={adminMessageBody} onChangeText={setAdminMessageBody} placeholder="Message" placeholderTextColor="#A48C72" multiline style={[styles.search, styles.multiline]} />
+                        <TouchableOpacity style={styles.actionButton} onPress={() => void sendMessageToSelectedUser()}><Text style={styles.actionButtonText}>Envoyer le message</Text></TouchableOpacity>
+                      </SectionCard>
 
-                  <SectionCard title="Salon privé">
-                    {privateSalons.filter((s) => s.status === 'ACTIVE').length === 0 ? (
-                      <Text style={styles.mutedLeft}>Aucun salon privé actif.</Text>
-                    ) : (
-                      privateSalons.filter((s) => s.status === 'ACTIVE').map((s) => {
-                        const invitation = s.invitations?.find((i) => i.userId === selectedUser.id);
-                        return (
-                          <View key={s.id} style={styles.row}>
-                            <Text style={styles.rowTitle}>{s.privateName || 'Sanctuaire privé'}</Text>
-                            {invitation ? (
-                              <Text style={styles.rowSub}>
-                                {invitation.accepted ? 'Cet utilisateur est déjà présent.' : 'Invitation déjà envoyée.'}
-                              </Text>
-                            ) : (
-                              <TouchableOpacity
-                                style={[styles.secondaryButton, { alignSelf: 'flex-start', marginTop: 8 }]}
-                                onPress={() => void inviteSelectedUser(s.id)}
-                              >
-                                <Text style={styles.secondaryText}>Inviter</Text>
-                              </TouchableOpacity>
-                            )}
+                      {(selectedUser.role !== 'OWNER' || isOwner) && (
+                        <SectionCard title="Pièces et Premium">
+                          <DataLine label="Solde" value={`${selectedUser.wallet?.coins ?? 0} pièces`} />
+                          <TextInput value={coinAmount} onChangeText={setCoinAmount} keyboardType="number-pad" placeholder="Nombre de pièces" placeholderTextColor="#A48C72" style={styles.search} />
+                          <TextInput value={coinReason} onChangeText={setCoinReason} placeholder="Motif obligatoire" placeholderTextColor="#A48C72" style={styles.search} />
+                          <View style={styles.actionsLeft}>
+                            <TouchableOpacity style={[styles.actionButton, styles.actionButtonGood]} onPress={() => void adjustCoins(1)}><Text style={styles.actionButtonText}>Ajouter</Text></TouchableOpacity>
+                            <TouchableOpacity style={styles.dangerButton} onPress={() => void adjustCoins(-1)}><Text style={styles.actionButtonText}>Retirer</Text></TouchableOpacity>
                           </View>
-                        );
-                      })
-                    )}
-                  </SectionCard>
+                          <View style={styles.actionsLeft}>
+                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void grantPremiumToSelectedUser(1)}><Text style={styles.secondaryText}>Premium 1 jour</Text></TouchableOpacity>
+                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void grantPremiumToSelectedUser(30)}><Text style={styles.secondaryText}>Premium 1 mois</Text></TouchableOpacity>
+                          </View>
+                        </SectionCard>
+                      )}
+
+                      <SectionCard title="Salon privé">
+                        {privateSalons.filter((s) => s.status === 'ACTIVE').length === 0 ? (
+                          <Text style={styles.mutedLeft}>Aucun salon privé actif.</Text>
+                        ) : (
+                          privateSalons.filter((s) => s.status === 'ACTIVE').map((s) => {
+                            const invitation = s.invitations?.find((i) => i.userId === selectedUser.id);
+                            return (
+                              <View key={s.id} style={styles.row}>
+                                <Text style={styles.rowTitle}>{s.privateName || 'Sanctuaire privé'}</Text>
+                                {invitation ? <Text style={styles.rowSub}>{invitation.accepted ? 'Déjà présent.' : 'Invitation déjà envoyée.'}</Text> : (
+                                  <TouchableOpacity style={[styles.secondaryButton, { alignSelf: 'flex-start', marginTop: 8 }]} onPress={() => void inviteSelectedUser(s.id)}>
+                                    <Text style={styles.secondaryText}>Inviter</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                            );
+                          })
+                        )}
+                      </SectionCard>
+                    </>
+                  )}
 
                   {isOwner && (
-                    <SectionCard title="Dépannage propriétaire">
-                      <TouchableOpacity
-                        style={styles.historyToggle}
-                        onPress={() => setShowOwnerRepairs((v) => !v)}
-                      >
-                        <Text style={styles.historyToggleText}>{showOwnerRepairs ? 'Masquer les outils' : 'Ouvrir les outils de déblocage'}</Text>
-                        <Ionicons name={showOwnerRepairs ? 'chevron-up' : 'chevron-down'} size={18} color="#6F5943" />
+                    <>
+                      <TouchableOpacity style={[styles.sectionToggle, styles.ownerToggle]} onPress={() => setShowOwnerRepairs((v) => !v)}>
+                        <View style={styles.sectionToggleLeft}>
+                          <Ionicons name="construct-outline" size={19} color="#8A5A13" />
+                          <View>
+                            <Text style={[styles.sectionToggleTitle, styles.ownerToggleTitle]}>Dépannage propriétaire</Text>
+                            <Text style={styles.sectionToggleSub}>Uniquement pour débloquer un problème technique</Text>
+                          </View>
+                        </View>
+                        <Ionicons name={showOwnerRepairs ? 'chevron-up' : 'chevron-down'} size={18} color="#8A5A13" />
                       </TouchableOpacity>
                       {showOwnerRepairs && (
-                        <>
-                          <Text style={styles.helper}>
-                            Uniquement pour corriger un état bloqué. Aucun accès au contenu privé des Lettres.
-                          </Text>
-                          <View style={styles.actionsLeft}>
-                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserSalons()}>
-                              <Text style={styles.secondaryText}>Réinitialiser les salons</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserRefuge()}>
-                              <Text style={styles.secondaryText}>Réinitialiser Refuge / animal</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserBottles()}>
-                              <Text style={styles.secondaryText}>Réinitialiser les bouteilles</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void repairSelectedUserLetters()}>
-                              <Text style={styles.secondaryText}>Réparer l’état des Lettres</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </>
+                        <View style={styles.ownerRepairBox}>
+                          <Text style={styles.helper}>Aucun de ces outils ne donne accès au contenu privé des Lettres.</Text>
+                          <View style={styles.repairRow}><View style={styles.repairInfo}><Text style={styles.repairTitle}>Salons</Text><Text style={styles.repairText}>Sort l’utilisateur d’un état de salon bloqué.</Text></View><TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserSalons()}><Text style={styles.secondaryText}>Réinitialiser</Text></TouchableOpacity></View>
+                          <View style={styles.repairRow}><View style={styles.repairInfo}><Text style={styles.repairTitle}>Refuge / animal</Text><Text style={styles.repairText}>Répare la session Refuge et l’animal associé.</Text></View><TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserRefuge()}><Text style={styles.secondaryText}>Réinitialiser</Text></TouchableOpacity></View>
+                          <View style={styles.repairRow}><View style={styles.repairInfo}><Text style={styles.repairTitle}>Bouteilles à la mer</Text><Text style={styles.repairText}>Ferme seulement les bouteilles actives. L’historique reste conservé.</Text></View><TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserBottles()}><Text style={styles.secondaryText}>Fermer</Text></TouchableOpacity></View>
+                          <View style={styles.repairRow}><View style={styles.repairInfo}><Text style={styles.repairTitle}>Lettres</Text><Text style={styles.repairText}>Recalcule l’état technique sans lire, modifier ni supprimer les textes.</Text></View><TouchableOpacity style={styles.secondaryButton} onPress={() => void repairSelectedUserLetters()}><Text style={styles.secondaryText}>Réparer</Text></TouchableOpacity></View>
+                        </View>
                       )}
-                    </SectionCard>
+                    </>
                   )}
 
                   {showUserHistory && selectedUser.recentTransactions.length > 0 && (
@@ -2805,6 +2790,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#FBF5EB',
   },
   historyToggleText: { color: '#6F5943', fontSize: 12, fontWeight: '800' },
+  searchShortcut: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFDF8', borderRadius: 14, borderWidth: 1, borderColor: '#E5D6C1', padding: 14, marginBottom: 14 },
+  searchShortcutTitle: { fontSize: 14, fontWeight: '800', color: '#3A2818' },
+  searchShortcutSub: { fontSize: 11, lineHeight: 15, color: '#927960', marginTop: 2 },
+  searchEmpty: { alignItems: 'center', justifyContent: 'center', minHeight: 180, paddingHorizontal: 24, marginTop: 18, borderRadius: 14, backgroundColor: '#FBF5EB', borderWidth: 1, borderColor: '#E5D6C1' },
+  searchEmptyTitle: { fontSize: 15, fontWeight: '800', color: '#4D3726', marginTop: 10 },
+  searchEmptyText: { fontSize: 12, lineHeight: 18, color: '#927960', textAlign: 'center', marginTop: 6 },
+  sectionToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: '#D7C4AA', paddingHorizontal: 13, paddingVertical: 12, marginBottom: 10, backgroundColor: '#FFFDF8' },
+  sectionToggleLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sectionToggleTitle: { color: '#4D3726', fontSize: 13, fontWeight: '800' },
+  sectionToggleSub: { color: '#927960', fontSize: 10, lineHeight: 14, marginTop: 2 },
+  ownerToggle: { backgroundColor: '#FFF6E6', borderColor: '#E8C98F' },
+  ownerToggleTitle: { color: '#8A5A13' },
+  ownerRepairBox: { backgroundColor: '#FFFBF3', borderRadius: 12, borderWidth: 1, borderColor: '#E8C98F', padding: 12, marginBottom: 12 },
+  repairRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E7D8BF' },
+  repairInfo: { flex: 1 },
+  repairTitle: { fontSize: 12, fontWeight: '800', color: '#4D3726' },
+  repairText: { fontSize: 10, lineHeight: 14, color: '#927960', marginTop: 2 },
   smallButton: { borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#D7C4AA' },
   smallButtonText: { color: '#6F5943', fontSize: 12, fontWeight: '800' },
   salonRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
