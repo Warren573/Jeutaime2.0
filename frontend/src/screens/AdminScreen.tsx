@@ -1562,7 +1562,17 @@ export default function AdminScreen() {
                     </SectionCard>
                   )}
 
-                  <TouchableOpacity style={styles.sectionToggle} onPress={() => setShowUserHistory((v) => !v)}>
+                  <TouchableOpacity
+                    style={styles.sectionToggle}
+                    onPress={() => {
+                      const next = !showUserHistory;
+                      setShowUserHistory(next);
+                      if (next) {
+                        setShowUserActions(false);
+                        setShowOwnerRepairs(false);
+                      }
+                    }}
+                  >
                     <View style={styles.sectionToggleLeft}>
                       <Ionicons name="time-outline" size={19} color="#6F5943" />
                       <View>
@@ -1587,7 +1597,17 @@ export default function AdminScreen() {
                     </>
                   )}
 
-                  <TouchableOpacity style={styles.sectionToggle} onPress={() => setShowUserActions((v) => !v)}>
+                  <TouchableOpacity
+                    style={styles.sectionToggle}
+                    onPress={() => {
+                      const next = !showUserActions;
+                      setShowUserActions(next);
+                      if (next) {
+                        setShowUserHistory(false);
+                        setShowOwnerRepairs(false);
+                      }
+                    }}
+                  >
                     <View style={styles.sectionToggleLeft}>
                       <Ionicons name="settings-outline" size={19} color="#6F5943" />
                       <View>
@@ -1608,16 +1628,42 @@ export default function AdminScreen() {
 
                       {(selectedUser.role !== 'OWNER' || isOwner) && (
                         <SectionCard title="Pièces et Premium">
-                          <DataLine label="Solde" value={`${selectedUser.wallet?.coins ?? 0} pièces`} />
-                          <TextInput value={coinAmount} onChangeText={setCoinAmount} keyboardType="number-pad" placeholder="Nombre de pièces" placeholderTextColor="#A48C72" style={styles.search} />
-                          <TextInput value={coinReason} onChangeText={setCoinReason} placeholder="Motif obligatoire" placeholderTextColor="#A48C72" style={styles.search} />
-                          <View style={styles.actionsLeft}>
-                            <TouchableOpacity style={[styles.actionButton, styles.actionButtonGood]} onPress={() => void adjustCoins(1)}><Text style={styles.actionButtonText}>Ajouter</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.dangerButton} onPress={() => void adjustCoins(-1)}><Text style={styles.actionButtonText}>Retirer</Text></TouchableOpacity>
+                          <View style={styles.walletSummary}>
+                            <Text style={styles.walletLabel}>Solde</Text>
+                            <Text style={styles.walletValue}>{selectedUser.wallet?.coins ?? 0} pièces</Text>
                           </View>
-                          <View style={styles.actionsLeft}>
-                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void grantPremiumToSelectedUser(1)}><Text style={styles.secondaryText}>Premium 1 jour</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void grantPremiumToSelectedUser(30)}><Text style={styles.secondaryText}>Premium 1 mois</Text></TouchableOpacity>
+                          <View style={styles.inlineInputs}>
+                            <TextInput
+                              value={coinAmount}
+                              onChangeText={setCoinAmount}
+                              keyboardType="number-pad"
+                              placeholder="Pièces"
+                              placeholderTextColor="#A48C72"
+                              style={[styles.search, styles.inlineInput]}
+                            />
+                            <TextInput
+                              value={coinReason}
+                              onChangeText={setCoinReason}
+                              placeholder="Motif obligatoire"
+                              placeholderTextColor="#A48C72"
+                              style={[styles.search, styles.inlineInputWide]}
+                            />
+                          </View>
+                          <View style={styles.compactButtonRow}>
+                            <TouchableOpacity style={[styles.actionButton, styles.actionButtonGood, styles.compactFlexButton]} onPress={() => void adjustCoins(1)}>
+                              <Text style={styles.actionButtonText}>Ajouter</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.dangerButton, styles.compactFlexButton]} onPress={() => void adjustCoins(-1)}>
+                              <Text style={styles.actionButtonText}>Retirer</Text>
+                            </TouchableOpacity>
+                          </View>
+                          <View style={styles.compactButtonRow}>
+                            <TouchableOpacity style={[styles.secondaryButton, styles.compactFlexButton]} onPress={() => void grantPremiumToSelectedUser(1)}>
+                              <Text style={styles.secondaryText}>Premium 1 jour</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.secondaryButton, styles.compactFlexButton]} onPress={() => void grantPremiumToSelectedUser(30)}>
+                              <Text style={styles.secondaryText}>Premium 1 mois</Text>
+                            </TouchableOpacity>
                           </View>
                         </SectionCard>
                       )}
@@ -1646,7 +1692,17 @@ export default function AdminScreen() {
 
                   {isOwner && (
                     <>
-                      <TouchableOpacity style={[styles.sectionToggle, styles.ownerToggle]} onPress={() => setShowOwnerRepairs((v) => !v)}>
+                      <TouchableOpacity
+                        style={[styles.sectionToggle, styles.ownerToggle]}
+                        onPress={() => {
+                          const next = !showOwnerRepairs;
+                          setShowOwnerRepairs(next);
+                          if (next) {
+                            setShowUserHistory(false);
+                            setShowUserActions(false);
+                          }
+                        }}
+                      >
                         <View style={styles.sectionToggleLeft}>
                           <Ionicons name="construct-outline" size={19} color="#8A5A13" />
                           <View>
@@ -1657,7 +1713,7 @@ export default function AdminScreen() {
                         <Ionicons name={showOwnerRepairs ? 'chevron-up' : 'chevron-down'} size={18} color="#8A5A13" />
                       </TouchableOpacity>
                       {showOwnerRepairs && (
-                        <View style={styles.ownerRepairBox}>
+                        <View style={styles.ownerRepairBoxMerged}>
                           <Text style={styles.helper}>Aucun de ces outils ne donne accès au contenu privé des Lettres.</Text>
                           <View style={styles.repairRow}><View style={styles.repairInfo}><Text style={styles.repairTitle}>Salons</Text><Text style={styles.repairText}>Sort l’utilisateur d’un état de salon bloqué.</Text></View><TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserSalons()}><Text style={styles.secondaryText}>Réinitialiser</Text></TouchableOpacity></View>
                           <View style={styles.repairRow}><View style={styles.repairInfo}><Text style={styles.repairTitle}>Refuge / animal</Text><Text style={styles.repairText}>Répare la session Refuge et l’animal associé.</Text></View><TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserRefuge()}><Text style={styles.secondaryText}>Réinitialiser</Text></TouchableOpacity></View>
@@ -2875,6 +2931,14 @@ const styles = StyleSheet.create({
     color: '#3A2818',
     marginBottom: 10,
   },
+  walletSummary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, marginBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E9DED0' },
+  walletLabel: { fontSize: 13, color: '#8F765C' },
+  walletValue: { fontSize: 15, fontWeight: '900', color: '#3A2818' },
+  inlineInputs: { flexDirection: 'row', gap: 8 },
+  inlineInput: { flex: 0.38 },
+  inlineInputWide: { flex: 0.62 },
+  compactButtonRow: { flexDirection: 'row', gap: 8, marginTop: 2, marginBottom: 8 },
+  compactFlexButton: { flex: 1, alignItems: 'center', alignSelf: 'stretch' },
   multiline: { minHeight: 76, textAlignVertical: 'top' },
   userHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   rolePill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: '#EFE4D4' },
@@ -2942,6 +3006,7 @@ const styles = StyleSheet.create({
   ownerToggle: { backgroundColor: '#FFF6E6', borderColor: '#E8C98F' },
   ownerToggleTitle: { color: '#8A5A13' },
   ownerRepairBox: { backgroundColor: '#FFFBF3', borderRadius: 12, borderWidth: 1, borderColor: '#E8C98F', padding: 12, marginBottom: 12 },
+  ownerRepairBoxMerged: { backgroundColor: '#FFFBF3', borderWidth: 1, borderTopWidth: 0, borderColor: '#E8C98F', borderBottomLeftRadius: 12, borderBottomRightRadius: 12, padding: 12, marginTop: -10, marginBottom: 12 },
   repairRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E7D8BF' },
   repairInfo: { flex: 1 },
   repairTitle: { fontSize: 12, fontWeight: '800', color: '#4D3726' },
