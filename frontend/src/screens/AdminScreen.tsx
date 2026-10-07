@@ -2383,78 +2383,31 @@ export default function AdminScreen() {
           {tab === 'economy' && (
             <>
               <Text style={styles.sectionTitle}>Économie & Boutique</Text>
+              <Text style={styles.details}>
+                Vue globale de l’économie de l’app et gestion des prix de la boutique. Les opérations sur un compte se font depuis sa fiche utilisateur.
+              </Text>
 
-              <SectionCard title="Opérations sur un utilisateur">
-                {selectedUser ? (
-                  <>
-                    <Text style={styles.cardTitle}>{selectedUser.profile?.pseudo || selectedUser.email}</Text>
-                    <DataLine label="Solde actuel" value={`${selectedUser.wallet?.coins ?? 0} pièces`} />
-                    <TextInput
-                      value={coinAmount}
-                      onChangeText={setCoinAmount}
-                      keyboardType="number-pad"
-                      placeholder="Nombre de pièces"
-                      placeholderTextColor="#A48C72"
-                      style={styles.search}
-                    />
-                    <TextInput
-                      value={coinReason}
-                      onChangeText={setCoinReason}
-                      placeholder="Motif (ex. geste commercial)"
-                      placeholderTextColor="#A48C72"
-                      style={styles.search}
-                    />
-                    <View style={styles.actionsLeft}>
-                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void adjustCoins(1)}>
-                        <Text style={styles.actionButtonText}>Offrir les pièces</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.dangerButton} onPress={() => void adjustCoins(-1)}>
-                        <Text style={styles.actionButtonText}>Retirer des pièces</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <Text style={[styles.cardTitle, { marginTop: 12 }]}>Premium</Text>
-                    <View style={styles.actionsLeft}>
-                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void grantPremiumToSelectedUser(1)}>
-                        <Text style={styles.actionButtonText}>Offrir 1 journée</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void grantPremiumToSelectedUser(30)}>
-                        <Text style={styles.actionButtonText}>Offrir 1 mois</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.details}>Choisis d’abord un utilisateur depuis l’onglet Utilisateurs.</Text>
-                    <TouchableOpacity style={styles.secondaryButton} onPress={() => setTab('users')}>
-                      <Text style={styles.secondaryText}>Choisir un utilisateur</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-              </SectionCard>
               {economyOverview && (
                 <>
                   <View style={styles.statsGrid}>
                     <Metric value={economyOverview.wallets.totalCoins} label="Pièces en circulation" />
                     <Metric value={economyOverview.wallets.averageCoins} label="Solde moyen" />
-                    <Metric value={economyOverview.today.transactions} label="Transactions aujourd’hui" />
-                    <Metric value={economyOverview.premiumActive} label="Premium actifs" />
-                    <Metric value={economyOverview.today.coinPurchases} label="Achats de pièces" />
-                    <Metric value={economyOverview.today.premiumPurchases} label="Achats Premium" />
-                    <Metric value={economyOverview.today.offeringsSent} label="Offrandes envoyées" />
-                    <Metric value={economyOverview.today.magiesCast} label="Magies lancées" />
+                    <Metric value={economyOverview.today.earnedCoins} label="Pièces gagnées aujourd’hui" />
+                    <Metric value={economyOverview.today.spentCoins} label="Pièces dépensées aujourd’hui" />
                   </View>
 
-                  <SectionCard title="Flux du jour">
-                    <DataLine label="Pièces gagnées" value={economyOverview.today.earnedCoins} />
-                    <DataLine label="Pièces dépensées" value={economyOverview.today.spentCoins} />
+                  <SectionCard title="Activité du jour">
+                    <DataLine label="Transactions" value={economyOverview.today.transactions} />
+                    <DataLine label="Achats de pièces" value={economyOverview.today.coinPurchases} />
+                    <DataLine label="Offrandes envoyées" value={economyOverview.today.offeringsSent} />
+                    <DataLine label="Magies lancées" value={economyOverview.today.magiesCast} />
                     <DataLine label="Remboursements" value={economyOverview.today.refunds} />
                     <DataLine label="Transactions sur 7 jours" value={economyOverview.transactions7d} />
-                    <DataLine label="Solde maximum" value={economyOverview.wallets.maxCoins} />
                   </SectionCard>
                 </>
               )}
 
-              <Text style={styles.subSectionTitle}>Catalogue des offrandes</Text>
+              <Text style={styles.subSectionTitle}>Boutique · Offrandes</Text>
               {economyCatalog?.offerings.map((item) => (
                 <View key={item.id} style={[styles.card, styles.salonRow]}>
                   <View style={{ flex: 1 }}>
@@ -2491,7 +2444,7 @@ export default function AdminScreen() {
                 </View>
               ))}
 
-              <Text style={styles.subSectionTitle}>Catalogue des magies</Text>
+              <Text style={styles.subSectionTitle}>Boutique · Magies</Text>
               {economyCatalog?.magies.map((item) => (
                 <View key={item.id} style={[styles.card, styles.salonRow]}>
                   <View style={{ flex: 1 }}>
@@ -2527,15 +2480,6 @@ export default function AdminScreen() {
                   />
                 </View>
               ))}
-
-              <Text style={styles.subSectionTitle}>Abonnements Premium</Text>
-              {premiumUsers.map((u) => (
-                <TouchableOpacity key={u.id} style={styles.card} onPress={() => { setTab('users'); void openUser(u.id); }}>
-                  <Text style={styles.cardTitle}>{u.pseudo || u.email}</Text>
-                  <Text style={[styles.status, !u.active && styles.statusBad]}>{u.active ? 'ACTIF' : 'EXPIRÉ'}</Text>
-                  <Text style={styles.rowSub}>Jusqu’au {formatDate(u.premiumUntil)} · {u.coins} pièces</Text>
-                </TouchableOpacity>
-              ))}
             </>
           )}
 
@@ -2565,77 +2509,83 @@ export default function AdminScreen() {
                 </View>
               ))}
 
-              <Text style={styles.subSectionTitle}>Transactions Premium / remboursements</Text>
-              {economyTransactions
-                .filter((t) => t.type === 'PREMIUM_PURCHASE' || t.type === 'REFUND')
-                .slice(0, 100)
-                .map((t) => (
-                  <View key={t.id} style={styles.card}>
-                    <Text style={styles.cardTitle}>{transactionTypeLabel(t.type)}</Text>
-                    <Text style={styles.rowSub}>{t.pseudo || t.email} · {formatDate(t.createdAt)}</Text>
-                    <Text style={styles.details}>{t.amount > 0 ? '+' : ''}{t.amount} pièce(s)</Text>
-                  </View>
-                ))}
             </>
           )}
 
           {tab === 'staff' && (
             <>
-              <Text style={styles.sectionTitle}>Gestion propriétaire des accès</Text>
-              <Text style={styles.details}>Seul le propriétaire peut nommer ou rétrograder un administrateur. Le rôle propriétaire n’est pas attribuable depuis ce panneau.</Text>
-              <TextInput
-                value={staffQuery}
-                onChangeText={setStaffQuery}
-                placeholder="Rechercher un utilisateur à nommer dans l’équipe"
-                placeholderTextColor="#A48C72"
-                style={styles.search}
-              />
+              <Text style={styles.sectionTitle}>Équipe d’administration</Text>
+              <Text style={styles.details}>
+                Gère ici uniquement les rôles de modération et d’administration. Le rôle propriétaire est protégé et ne peut pas être attribué depuis l’app.
+              </Text>
 
-              {filteredStaffUsers.map((user) => (
-                <View key={user.id} style={styles.card}>
-                  <View style={styles.rowSplit}>
+              <SectionCard title="Équipe actuelle">
+                {users.filter((u) => u.role === 'OWNER' || u.role === 'ADMIN' || u.role === 'MODERATOR').map((user) => (
+                  <View key={user.id} style={styles.staffRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.cardTitle}>{user.pseudo || user.email}</Text>
+                      <Text style={styles.rowTitle}>{user.pseudo || user.email}</Text>
                       <Text style={styles.rowSub}>{user.email}</Text>
                     </View>
                     <View style={[styles.rolePill, user.role === 'OWNER' && styles.rolePillOwner, user.role === 'ADMIN' && styles.rolePillAdmin, user.role === 'MODERATOR' && styles.rolePillModerator]}>
                       <Text style={styles.roleText}>{roleLabel(user.role)}</Text>
                     </View>
+                    {user.role === 'MODERATOR' && (
+                      <View style={styles.staffActions}>
+                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'ADMIN')}>
+                          <Text style={styles.secondaryText}>Passer admin</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.dangerButton} onPress={() => void changeStaffRole(user, 'USER')}>
+                          <Text style={styles.actionButtonText}>Retirer</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    {user.role === 'ADMIN' && (
+                      <View style={styles.staffActions}>
+                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'MODERATOR')}>
+                          <Text style={styles.secondaryText}>Passer modérateur</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.dangerButton} onPress={() => void changeStaffRole(user, 'USER')}>
+                          <Text style={styles.actionButtonText}>Retirer</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    {user.role === 'OWNER' && <Text style={styles.helper}>Compte propriétaire protégé.</Text>}
                   </View>
-                  {user.role === 'USER' && (
-                    <View style={styles.actionsLeft}>
-                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'MODERATOR')}>
-                        <Text style={styles.secondaryText}>Nommer modérateur</Text>
-                      </TouchableOpacity>
-                      {isOwner && (
+                ))}
+              </SectionCard>
+
+              <Text style={styles.subSectionTitle}>Ajouter quelqu’un à l’équipe</Text>
+              <TextInput
+                value={staffQuery}
+                onChangeText={setStaffQuery}
+                placeholder="Pseudo ou e-mail"
+                placeholderTextColor="#A48C72"
+                style={styles.search}
+              />
+              {staffQuery.trim().length < 2 ? (
+                <Text style={styles.mutedLeft}>Saisis au moins 2 caractères. Aucun annuaire complet n’est affiché.</Text>
+              ) : (
+                users
+                  .filter((u) => u.role === 'USER')
+                  .filter((u) => {
+                    const q = staffQuery.trim().toLowerCase();
+                    return u.email.toLowerCase().includes(q) || (u.pseudo ?? '').toLowerCase().includes(q);
+                  })
+                  .map((user) => (
+                    <View key={user.id} style={styles.card}>
+                      <Text style={styles.cardTitle}>{user.pseudo || user.email}</Text>
+                      <Text style={styles.rowSub}>{user.email}</Text>
+                      <View style={styles.actionsLeft}>
+                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'MODERATOR')}>
+                          <Text style={styles.secondaryText}>Nommer modérateur</Text>
+                        </TouchableOpacity>
                         <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'ADMIN')}>
                           <Text style={styles.secondaryText}>Nommer administrateur</Text>
                         </TouchableOpacity>
-                      )}
+                      </View>
                     </View>
-                  )}
-                  {user.role === 'MODERATOR' && (
-                    <View style={styles.actionsLeft}>
-                      {isOwner && (
-                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'ADMIN')}>
-                          <Text style={styles.secondaryText}>Nommer administrateur</Text>
-                        </TouchableOpacity>
-                      )}
-                      <TouchableOpacity style={styles.dangerButton} onPress={() => void changeStaffRole(user, 'USER')}>
-                        <Text style={styles.actionButtonText}>Retirer le rôle modérateur</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                  {user.role === 'ADMIN' && isOwner && (
-                    <TouchableOpacity style={styles.dangerButton} onPress={() => void changeStaffRole(user, 'MODERATOR')}>
-                      <Text style={styles.actionButtonText}>Rétrograder en modérateur</Text>
-                    </TouchableOpacity>
-                  )}
-                  {user.role === 'OWNER' && (
-                    <Text style={styles.helper}>Compte propriétaire protégé.</Text>
-                  )}
-                </View>
-              ))}
+                  ))
+              )}
             </>
           )}
 
@@ -3056,6 +3006,8 @@ const styles = StyleSheet.create({
   smallButton: { borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#D7C4AA' },
   smallButtonText: { color: '#6F5943', fontSize: 12, fontWeight: '800' },
   salonRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  staffRow: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E9DED0' },
+  staffActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   muted: { color: '#927960', textAlign: 'center', marginVertical: 20 },
   mutedLeft: { color: '#927960', marginTop: 6 },
   helper: { fontSize: 11, color: '#927960', marginTop: 8, lineHeight: 16 },
