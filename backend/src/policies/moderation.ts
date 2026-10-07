@@ -35,12 +35,22 @@ export function assertCanBanUser(
   if (actor.id === target.id) {
     throw new ForbiddenError("Tu ne peux pas te bannir toi-même");
   }
-  if (target.role === Role.ADMIN) {
-    throw new ForbiddenError("Un administrateur ne peut pas être banni");
+
+  if (target.role === Role.OWNER) {
+    throw new ForbiddenError("Le propriétaire ne peut pas être suspendu");
   }
-  if (target.role === Role.MODERATOR && actor.role !== Role.ADMIN) {
+
+  if (target.role === Role.ADMIN && actor.role !== Role.OWNER) {
+    throw new ForbiddenError("Seul le propriétaire peut suspendre un administrateur");
+  }
+
+  if (
+    target.role === Role.MODERATOR &&
+    actor.role !== Role.ADMIN &&
+    actor.role !== Role.OWNER
+  ) {
     throw new ForbiddenError(
-      "Seul un administrateur peut bannir un modérateur",
+      "Seul un administrateur ou le propriétaire peut suspendre un modérateur",
     );
   }
 }
