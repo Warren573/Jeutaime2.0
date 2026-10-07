@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
-  Platform,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -403,6 +403,8 @@ export default function AdminScreen() {
   const [showUserActions, setShowUserActions] = useState(false);
   const [showOwnerRepairs, setShowOwnerRepairs] = useState(false);
   const [showDashboardStats, setShowDashboardStats] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string } | null>(null);
+  const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
 
   const [selectedSalon, setSelectedSalon] = useState<AdminSalonSession | null>(null);
   const [selectedSalonLoading, setSelectedSalonLoading] = useState(false);
@@ -569,15 +571,17 @@ export default function AdminScreen() {
 
 
   const confirm = (title: string, message: string): Promise<boolean> => {
-    if (Platform.OS === 'web') {
-      return Promise.resolve(typeof window !== 'undefined' && window.confirm(message));
-    }
     return new Promise((resolve) => {
-      Alert.alert(title, message, [
-        { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Confirmer', style: 'destructive', onPress: () => resolve(true) },
-      ]);
+      confirmResolverRef.current = resolve;
+      setConfirmDialog({ title, message });
     });
+  };
+
+  const closeConfirm = (value: boolean) => {
+    const resolver = confirmResolverRef.current;
+    confirmResolverRef.current = null;
+    setConfirmDialog(null);
+    resolver?.(value);
   };
 
   const openUser = async (id: string) => {
@@ -1187,6 +1191,31 @@ export default function AdminScreen() {
           );
         })}
       </View>
+
+      <Modal
+        transparent
+        visible={!!confirmDialog}
+        animationType="fade"
+        onRequestClose={() => closeConfirm(false)}
+      >
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <View style={styles.confirmIcon}>
+              <Ionicons name="warning-outline" size={22} color="#A7324B" />
+            </View>
+            <Text style={styles.confirmTitle}>{confirmDialog?.title}</Text>
+            <Text style={styles.confirmMessage}>{confirmDialog?.message}</Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.confirmCancel} onPress={() => closeConfirm(false)}>
+                <Text style={styles.confirmCancelText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmDanger} onPress={() => closeConfirm(true)}>
+                <Text style={styles.confirmDangerText}>Confirmer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {loading ? (
         <View style={styles.loader}><ActivityIndicator size="large" /><Text style={styles.muted}>Chargement…</Text></View>
@@ -2631,7 +2660,20 @@ export default function AdminScreen() {
           {tab === 'support' && (
             <>
               <Text style={styles.sectionTitle}>Support utilisateur</Text>
-              {supportTickets.length === 0 && <Text style={styles.muted}>Aucun ticket.</Text>}
+              {supportTickets.length === 0 && (
+                <View style={styles.emptySupportCard}>
+                  <View style={styles.emptySupportIcon}>
+                    <Ionicons name="checkmark-circle-outline" size={28} color="#5A7B55" />
+                  </View>
+                  <Text style={styles.emptySupportTitle}>Aucune demande support</Text>
+                  <Text style={styles.emptySupportText}>
+                    Les demandes envoyées depuis l’écran Aide / Support de l’app apparaîtront ici.
+                  </Text>
+                  <TouchableOpacity style={styles.secondaryButton} onPress={() => void refresh()}>
+                    <Text style={styles.secondaryText}>Actualiser</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               {supportTickets.map((ticket) => (
                 <View key={ticket.id} style={styles.card}>
                   <View style={styles.rowSplit}>
@@ -3041,6 +3083,20 @@ const styles = StyleSheet.create({
   reportMetaBox: { marginTop: 4, paddingTop: 4 },
   alertText: { fontSize: 13, lineHeight: 19, color: '#A7324B', marginTop: 6, fontWeight: '700' },
   goodText: { fontSize: 13, lineHeight: 19, color: '#5A7B55', marginTop: 6, fontWeight: '700' },
+  confirmOverlay: { flex: 1, backgroundColor: 'rgba(32,24,18,0.48)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  confirmCard: { width: '100%', maxWidth: 420, backgroundColor: '#FFFDF8', borderRadius: 18, borderWidth: 1, borderColor: '#E5D6C1', padding: 20 },
+  confirmIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FCEDEF', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  confirmTitle: { fontSize: 19, fontWeight: '900', color: '#3A2818' },
+  confirmMessage: { fontSize: 14, lineHeight: 21, color: '#6E563F', marginTop: 8 },
+  confirmActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end', marginTop: 18 },
+  confirmCancel: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#D7C4AA', paddingVertical: 11, alignItems: 'center' },
+  confirmCancelText: { color: '#6F5943', fontSize: 13, fontWeight: '800' },
+  confirmDanger: { flex: 1, borderRadius: 10, backgroundColor: '#A7324B', paddingVertical: 11, alignItems: 'center' },
+  confirmDangerText: { color: '#FFF', fontSize: 13, fontWeight: '900' },
+  emptySupportCard: { alignItems: 'center', justifyContent: 'center', minHeight: 220, backgroundColor: '#FFFDF8', borderRadius: 14, borderWidth: 1, borderColor: '#E5D6C1', padding: 24 },
+  emptySupportIcon: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#EEF5EA', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  emptySupportTitle: { fontSize: 17, fontWeight: '900', color: '#3A2818' },
+  emptySupportText: { fontSize: 12, lineHeight: 18, color: '#927960', textAlign: 'center', marginTop: 6, marginBottom: 14 },
 });
 
 // ADMIN_UI_DEPLOY_SYNC
