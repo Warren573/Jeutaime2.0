@@ -763,6 +763,22 @@ export async function resetAdminUserRefuge(id: string, reason: string): Promise<
   return res.data;
 }
 
+export async function resetAdminUserBottles(id: string, reason: string): Promise<{ resetCount: number }> {
+  const res = await apiFetch(`/admin/users/${id}/reset-bottles`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+  return res.data;
+}
+
+export async function repairAdminUserLetters(id: string, reason: string): Promise<{ resetCount: number }> {
+  const res = await apiFetch(`/admin/users/${id}/repair-letters`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+  return res.data;
+}
+
 
 
 export type CommunityJournalAdminPost = {
