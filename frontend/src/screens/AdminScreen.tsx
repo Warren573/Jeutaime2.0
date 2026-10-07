@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -406,6 +406,10 @@ export default function AdminScreen() {
 
   const [selectedSalon, setSelectedSalon] = useState<AdminSalonSession | null>(null);
   const [selectedSalonLoading, setSelectedSalonLoading] = useState(false);
+  const mainScrollRef = useRef<ScrollView>(null);
+  const primaryTabKeys: Tab[] = ['dashboard', 'users', 'reports', 'support'];
+  const isAdvancedTab = !primaryTabKeys.includes(tab);
+  const currentTabLabel = TABS.find((item) => item.key === tab)?.label ?? '';
 
   const visibleTabs = useMemo(
     () => {
@@ -551,7 +555,7 @@ export default function AdminScreen() {
   const openReportsCount = reports.filter((r) => r.status === 'OPEN' || r.status === 'REVIEWING').length;
   const openSupportCount = supportTickets.filter((t) => t.status !== 'CLOSED').length;
   const unresolvedIncidentsCount = systemIncidents.filter((i) => !i.resolved).length;
-  const urgentCount = openReportsCount + openSupportCount + unresolvedIncidentsCount;
+  const urgentCount = openReportsCount + openSupportCount;
 
   const goToUserSearch = () => {
     setSelectedUser(null);
@@ -559,6 +563,9 @@ export default function AdminScreen() {
     setTab('users');
   };
 
+  useEffect(() => {
+    requestAnimationFrame(() => mainScrollRef.current?.scrollTo({ y: 0, animated: false }));
+  }, [tab, selectedUser?.id, selectedReport?.id, selectedSalon?.salon.id]);
 
 
   const confirm = (title: string, message: string): Promise<boolean> => {
@@ -1150,39 +1157,51 @@ export default function AdminScreen() {
         <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>{isOwner ? 'PROPRIÉTAIRE' : isAdmin ? 'ADMINISTRATEUR' : 'MODÉRATEUR'}</Text></View>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabsScroll}
-        contentContainerStyle={styles.tabs}
-      >
+      <View style={styles.primaryTabs}>
         {visibleTabs.map((t) => (
           <TouchableOpacity
             key={t.key}
             onPress={() => setTab(t.key)}
-            style={[styles.tab, tab === t.key && styles.tabActive]}
+            style={[styles.primaryTab, tab === t.key && styles.tabActive]}
           >
-            <Ionicons name={t.icon} size={16} color={tab === t.key ? '#FFF' : '#7D6348'} />
-            <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>{t.label}</Text>
+            <Ionicons name={t.icon} size={18} color={tab === t.key ? '#FFF' : '#7D6348'} />
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              style={[styles.primaryTabText, tab === t.key && styles.tabTextActive]}
+            >
+              {t.label}
+            </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
 
       {loading ? (
         <View style={styles.loader}><ActivityIndicator size="large" /><Text style={styles.muted}>Chargement…</Text></View>
       ) : (
         <ScrollView
+          ref={mainScrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         >
+          {isAdvancedTab && (
+            <View style={styles.advancedBar}>
+              <TouchableOpacity style={styles.advancedBack} onPress={() => setTab('dashboard')}>
+                <Ionicons name="chevron-back" size={18} color="#6F5943" />
+                <Text style={styles.advancedBackText}>Gestion avancée</Text>
+              </TouchableOpacity>
+              <Text style={styles.advancedCurrent}>{currentTabLabel}</Text>
+            </View>
+          )}
+
           {tab === 'dashboard' && overview && (
             <>
               <View style={styles.sectionHeader}>
                 <View>
                   <Text style={styles.sectionTitle}>À traiter maintenant</Text>
                   <Text style={styles.rowSub}>
-                    {urgentCount > 0 ? `${urgentCount} élément(s) demandent une action` : 'Rien d’urgent pour le moment'}
+                    {urgentCount > 0 ? `${urgentCount} élément(s) à traiter` : 'Aucun signalement ni demande support en attente'}
                   </Text>
                 </View>
                 <TouchableOpacity style={styles.smallButton} onPress={() => void refresh()}>
@@ -1247,6 +1266,12 @@ export default function AdminScreen() {
 
               {isAdmin && (
                 <SectionCard title="Gestion avancée">
+                  {unresolvedIncidentsCount > 0 && (
+                    <View style={styles.technicalNotice}>
+                      <Ionicons name="warning-outline" size={17} color="#A7324B" />
+                      <Text style={styles.technicalNoticeText}>{unresolvedIncidentsCount} incident(s) technique(s) à vérifier</Text>
+                    </View>
+                  )}
                   <View style={styles.managementGrid}>
                     <TouchableOpacity style={styles.managementButton} onPress={() => setTab('salons')}>
                       <Ionicons name="chatbubbles-outline" size={18} color="#6F5943" />
@@ -2640,23 +2665,47 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 12, color: '#8F765C', marginTop: 2 },
   adminBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: '#A7324B' },
   adminBadgeText: { color: '#FFF', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
-  tabsScroll: { flexGrow: 0, maxHeight: 58, backgroundColor: '#F7F0E5' },
-  tabs: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: 'center' },
-  tab: {
+  primaryTabs: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 11,
-    height: 38,
-    borderRadius: 10,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: '#F7F0E5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5D6C1',
+  },
+  primaryTab: {
+    flex: 1,
+    minWidth: 0,
+    height: 54,
+    borderRadius: 11,
     backgroundColor: '#FFFDF8',
     borderWidth: 1,
     borderColor: '#E5D6C1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingHorizontal: 3,
   },
   tabActive: { backgroundColor: '#8B6F47', borderColor: '#8B6F47' },
-  tabText: { color: '#6E563F', fontWeight: '700', fontSize: 12 },
+  primaryTabText: { color: '#6E563F', fontWeight: '800', fontSize: 10.5, textAlign: 'center' },
   tabTextActive: { color: '#FFF' },
   content: { padding: 16, paddingBottom: 60 },
+  advancedBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5D6C1',
+  },
+  advancedBack: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
+  advancedBackText: { fontSize: 12, fontWeight: '800', color: '#6F5943' },
+  advancedCurrent: { flex: 1, textAlign: 'right', fontSize: 14, fontWeight: '900', color: '#3A2818' },
+  technicalNotice: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4, marginBottom: 10, padding: 9, borderRadius: 9, backgroundColor: '#FCEDEF' },
+  technicalNoticeText: { flex: 1, fontSize: 11, fontWeight: '800', color: '#A7324B' },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   sectionTitle: { fontSize: 21, fontWeight: '800', color: '#3A2818', marginBottom: 12 },
