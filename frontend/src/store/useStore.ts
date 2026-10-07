@@ -171,7 +171,7 @@ interface CurrentUser {
   name: string;
   pseudo?: string;
   email?: string;
-  role?: 'USER' | 'MODERATOR' | 'ADMIN';
+  role?: 'USER' | 'MODERATOR' | 'ADMIN' | 'OWNER';
   isPremium: boolean;
   avatarConfig: AvatarConfig;
   avatarDef?: AvatarDefinition;
