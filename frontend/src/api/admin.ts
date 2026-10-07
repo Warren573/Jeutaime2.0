@@ -90,7 +90,7 @@ export type AdminUser = {
   id: string;
   email: string;
   pseudo?: string | null;
-  role: 'USER' | 'MODERATOR' | 'ADMIN';
+  role: 'USER' | 'MODERATOR' | 'ADMIN' | 'OWNER';
   isBanned: boolean;
   banReason: string | null;
   banUntil: string | null;
@@ -99,7 +99,7 @@ export type AdminUser = {
 export type AdminUserDetail = {
   id: string;
   email: string;
-  role: 'USER' | 'MODERATOR' | 'ADMIN';
+  role: 'USER' | 'MODERATOR' | 'ADMIN' | 'OWNER';
   isVerified: boolean;
   isBanned: boolean;
   banReason: string | null;
@@ -259,7 +259,7 @@ export async function adjustAdminUserCoins(id: string, amount: number, reason: s
   return res.data;
 }
 
-export async function updateAdminUserRole(id: string, role: 'USER' | 'MODERATOR'): Promise<AdminUser> {
+export async function updateAdminUserRole(id: string, role: 'USER' | 'MODERATOR' | 'ADMIN'): Promise<AdminUser> {
   const res = await apiFetch(`/admin/users/${id}/role`, {
     method: 'PATCH',
     body: JSON.stringify({ role }),
