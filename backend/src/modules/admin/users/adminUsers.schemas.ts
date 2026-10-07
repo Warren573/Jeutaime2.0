@@ -45,7 +45,7 @@ export const UserIdParamsSchema = z
 // ============================================================
 export const UpdateRoleSchema = z
   .object({
-    role: z.enum(["USER", "MODERATOR"]),
+    role: z.enum(["USER", "MODERATOR", "ADMIN"]),
   })
   .strict();
 
