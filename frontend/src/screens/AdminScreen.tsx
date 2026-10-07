@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
 import { API_URL } from '../api/client';
@@ -104,7 +104,7 @@ const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof I
   { key: 'economy', label: 'Économie', icon: 'wallet-outline' },
   { key: 'subscriptions', label: 'Abonnements', icon: 'diamond-outline' },
   { key: 'support', label: 'Support', icon: 'help-buoy-outline' },
-  { key: 'staff', label: 'Équipe', icon: 'shield-checkmark-outline' },
+  { key: 'staff', label: 'Propriétaire', icon: 'shield-checkmark-outline' },
   { key: 'audit', label: 'Historique', icon: 'time-outline' },
   { key: 'operations', label: 'Technique', icon: 'pulse-outline' },
   { key: 'tools', label: 'Outils', icon: 'construct-outline' },
@@ -347,6 +347,7 @@ function DataLine({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default function AdminScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const insets = useSafeAreaInsets();
   const currentUser = useStore((s) => s.currentUser);
   const isOwner = currentUser?.role === 'OWNER';
@@ -483,10 +484,11 @@ export default function AdminScreen() {
       return;
     }
     if (isModerator) setTab('reports');
+    else if (isOwner && params.tab === 'staff') setTab('staff');
     loadAll()
       .catch((err) => Alert.alert(isOwner ? 'Propriétaire' : isAdmin ? 'Administration' : 'Modération', err instanceof Error ? err.message : 'Chargement impossible.'))
       .finally(() => setLoading(false));
-  }, [isStaff, isOwner, isAdmin, isModerator, loadAll, router]);
+  }, [isStaff, isOwner, isAdmin, isModerator, params.tab, loadAll, router]);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -1089,8 +1091,8 @@ export default function AdminScreen() {
           <Ionicons name="chevron-back" size={22} color="#4A3424" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{isOwner ? 'Propriétaire' : isAdmin ? 'Administration' : 'Modération'}</Text>
-          <Text style={styles.subtitle}>JeuTaime · {isOwner ? 'accès propriétaire' : isAdmin ? 'accès administrateur' : 'accès modérateur'}</Text>
+          <Text style={styles.title}>{isAdmin ? 'Administration' : 'Modération'}</Text>
+          <Text style={styles.subtitle}>JeuTaime · {isOwner ? 'administration + droits propriétaire' : isAdmin ? 'accès administrateur' : 'accès modérateur'}</Text>
         </View>
         <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>{isOwner ? 'PROPRIÉTAIRE' : isAdmin ? 'ADMINISTRATEUR' : 'MODÉRATEUR'}</Text></View>
       </View>
@@ -2216,7 +2218,8 @@ export default function AdminScreen() {
 
           {tab === 'staff' && (
             <>
-              <Text style={styles.sectionTitle}>Propriétaire, administrateurs & modérateurs</Text>
+              <Text style={styles.sectionTitle}>Gestion propriétaire des accès</Text>
+              <Text style={styles.details}>Seul le propriétaire peut nommer ou rétrograder un administrateur. Le rôle propriétaire n’est pas attribuable depuis ce panneau.</Text>
               <TextInput
                 value={staffQuery}
                 onChangeText={setStaffQuery}
