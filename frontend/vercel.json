@@ -12,6 +12,5 @@
     "deploymentEnabled": {
       "main": true
     }
-  },
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./"
+  }
 }
