@@ -109,3 +109,26 @@ export async function handleResetRefuge(req: AuthedRequest, res: Response) {
   );
   res.json({ data });
 }
+
+
+export async function handleResetBottles(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const { reason } = req.body as ResetRefugeDto;
+  const data = await svc.resetUserBottles(
+    { id: req.user.userId, role: req.user.role },
+    id,
+    reason,
+  );
+  res.json({ data });
+}
+
+export async function handleRepairLetters(req: AuthedRequest, res: Response) {
+  const id = req.params["id"] as string;
+  const { reason } = req.body as ResetRefugeDto;
+  const data = await svc.repairUserLetters(
+    { id: req.user.userId, role: req.user.role },
+    id,
+    reason,
+  );
+  res.json({ data });
+}
