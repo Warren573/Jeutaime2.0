@@ -66,7 +66,7 @@ export default function LoginScreen() {
       }));
 
       const loggedUser = useStore.getState().currentUser;
-      const isStaff = loggedUser?.role === 'ADMIN' || loggedUser?.role === 'MODERATOR';
+      const isStaff = loggedUser?.role === 'OWNER' || loggedUser?.role === 'ADMIN' || loggedUser?.role === 'MODERATOR';
       router.replace(isStaff ? "/admin" : "/(tabs)");
     } catch (err: any) {
       const errorMsg = err?.message || "Une erreur est survenue.";
