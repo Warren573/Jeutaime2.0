@@ -1305,7 +1305,7 @@ export default function AdminScreen() {
                         <Text style={styles.secondaryText}>Voir le profil</Text>
                       </TouchableOpacity>
 
-                      {selectedUser.role !== 'ADMIN' && (
+                      {selectedUser.role !== 'OWNER' && (selectedUser.role !== 'ADMIN' || isOwner) && (
                         <TouchableOpacity
                           style={[styles.actionButton, selectedUser.isBanned && styles.actionButtonGood]}
                           onPress={() => void toggleBan(selectedUser)}
@@ -1317,6 +1317,14 @@ export default function AdminScreen() {
                       )}
                     </View>
                   </SectionCard>
+
+                  {selectedUser.role === 'OWNER' && !isOwner && (
+                    <SectionCard title="Compte propriétaire protégé">
+                      <Text style={styles.details}>
+                        Ce compte peut être consulté, mais ses droits et paramètres sensibles ne peuvent pas être modifiés par un administrateur.
+                      </Text>
+                    </SectionCard>
+                  )}
 
                   <Text style={styles.subSectionTitle}>Activité</Text>
                   <View style={styles.statsGrid}>
@@ -1352,7 +1360,7 @@ export default function AdminScreen() {
                     </TouchableOpacity>
                   </SectionCard>
 
-                  <SectionCard title="Pièces et Premium">
+                  {(selectedUser.role !== 'OWNER' || isOwner) && <SectionCard title="Pièces et Premium">
                     <DataLine label="Solde" value={`${selectedUser.wallet?.coins ?? 0} pièces`} />
 
                     <TextInput
@@ -1387,7 +1395,7 @@ export default function AdminScreen() {
                         <Text style={styles.secondaryText}>Offrir 1 mois Premium</Text>
                       </TouchableOpacity>
                     </View>
-                  </SectionCard>
+                  </SectionCard>}
 
                   <SectionCard title="Salon privé">
                     {privateSalons.filter((s) => s.status === 'ACTIVE').length === 0 ? (
