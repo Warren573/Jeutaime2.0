@@ -162,12 +162,12 @@ export default function SettingsScreen() {
   const hasQuestions = (currentUser?.apiQuestions?.length ?? 0) > 0;
 
   const SECTIONS: SettingsSection[] = [
-    ...((currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR')
+    ...((currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR')
       ? [{
           key: 'administration',
-          title: currentUser?.role === 'ADMIN' ? 'Administration' : 'Modération',
+          title: currentUser?.role === 'OWNER' ? 'Propriétaire' : currentUser?.role === 'ADMIN' ? 'Administration' : 'Modération',
           items: [
-            { icon: 'shield-half-outline', label: currentUser?.role === 'ADMIN' ? 'Panneau administrateur' : 'Panneau de modération', route: '/admin' },
+            { icon: 'shield-half-outline', label: currentUser?.role === 'OWNER' ? 'Panneau propriétaire' : currentUser?.role === 'ADMIN' ? 'Panneau administrateur' : 'Panneau de modération', route: '/admin' },
           ],
         } as SettingsSection]
       : []),
@@ -256,7 +256,7 @@ export default function SettingsScreen() {
     },
   ];
 
-  const visibleSections: SettingsSection[] = (currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR')
+  const visibleSections: SettingsSection[] = (currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR')
     ? SECTIONS
         .filter((section) => ['administration', 'account', 'support', 'about'].includes(section.key))
         .map((section) =>
@@ -287,7 +287,7 @@ export default function SettingsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {(currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MODERATOR') && <TouchableOpacity
+        {(currentUser?.role !== 'OWNER' && currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MODERATOR') && <TouchableOpacity
           style={styles.shopCard}
           onPress={() => nav('/shop')}
           activeOpacity={0.8}
@@ -329,7 +329,7 @@ export default function SettingsScreen() {
           <Text style={styles.bottomArrow}>›</Text>
         </TouchableOpacity>
 
-        {(currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MODERATOR') && <View style={styles.vacationCard}>
+        {(currentUser?.role !== 'OWNER' && currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MODERATOR') && <View style={styles.vacationCard}>
           <View style={styles.vacationContent}>
             <View style={styles.vacationIconBox}>
               <Ionicons name="airplane-outline" size={19} color="#8B6F47" />
