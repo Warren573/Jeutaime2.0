@@ -1921,10 +1921,19 @@ export default function AdminScreen() {
               {selectedReport && (() => {
                 const snapshot = (selectedReport.contentSnapshot ?? {}) as Record<string, unknown>;
                 const snapshotText = typeof snapshot.text === 'string' ? snapshot.text : null;
+                const snapshotCreatedAt = typeof snapshot.createdAt === 'string' ? snapshot.createdAt : null;
+                const snapshotUpdatedAt = typeof snapshot.updatedAt === 'string' ? snapshot.updatedAt : null;
+                const snapshotSalonId = typeof snapshot.salonId === 'string' ? snapshot.salonId : null;
                 const photoUri = selectedReport.contentType === 'PHOTO' && selectedReport.contentId
                   ? `${API_URL}/admin/moderation/photos/${selectedReport.contentId}/file`
                   : null;
                 const isOpen = selectedReport.status === 'OPEN' || selectedReport.status === 'REVIEWING';
+                const reportedContentTitle =
+                  selectedReport.contentType === 'PHOTO' ? 'Photo signalée' :
+                  selectedReport.contentType === 'SALON_MESSAGE' ? 'Message signalé' :
+                  selectedReport.contentType === 'PROFILE_BIO' ? 'Biographie signalée' :
+                  selectedReport.contentType === 'PROFILE_PSEUDO' ? 'Pseudo signalé' :
+                  'Profil / utilisateur signalé';
 
                 return (
                   <>
@@ -1943,31 +1952,71 @@ export default function AdminScreen() {
                       )}
                     </SectionCard>
 
-                    <SectionCard title="Contenu concerné">
+                    <View style={styles.reportedContentCard}>
+                      <View style={styles.reportedContentHeader}>
+                        <View style={styles.reportedContentIcon}>
+                          <Ionicons
+                            name={
+                              selectedReport.contentType === 'PHOTO' ? 'image-outline' :
+                              selectedReport.contentType === 'SALON_MESSAGE' ? 'chatbubble-outline' :
+                              'person-outline'
+                            }
+                            size={20}
+                            color="#A7324B"
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.reportedContentEyebrow}>CONTENU SIGNALÉ</Text>
+                          <Text style={styles.reportedContentTitle}>{reportedContentTitle}</Text>
+                        </View>
+                      </View>
+
                       {photoUri && authToken && (
                         <Image
                           source={{ uri: photoUri, headers: { Authorization: `Bearer ${authToken}` } }}
-                          style={styles.moderationPhoto}
+                          style={styles.reportedPhoto}
                           contentFit="contain"
                           cachePolicy="none"
                         />
                       )}
-                      {snapshotText ? (
-                        <Text style={styles.details}>{snapshotText}</Text>
-                      ) : !photoUri ? (
+
+                      {selectedReport.contentType === 'SALON_MESSAGE' && snapshotText && (
+                        <View style={styles.reportedMessageBox}>
+                          <Text style={styles.reportedMessageText}>“{snapshotText}”</Text>
+                        </View>
+                      )}
+
+                      {(selectedReport.contentType === 'PROFILE_BIO' || selectedReport.contentType === 'PROFILE_PSEUDO') && snapshotText && (
+                        <View style={styles.reportedMessageBox}>
+                          <Text style={styles.reportedMessageText}>{snapshotText}</Text>
+                        </View>
+                      )}
+
+                      {!snapshotText && !photoUri && (
                         <Text style={styles.mutedLeft}>
                           Le signalement concerne le profil ou l’utilisateur dans son ensemble.
                         </Text>
-                      ) : null}
+                      )}
+
+                      <View style={styles.reportMetaBox}>
+                        <DataLine label="Utilisateur" value={selectedReport.target.email} />
+                        {!!snapshotSalonId && <DataLine label="Salon" value={snapshotSalonId} />}
+                        {!!snapshotCreatedAt && <DataLine label="Message / photo du" value={formatDate(snapshotCreatedAt)} />}
+                        {!!snapshotUpdatedAt && <DataLine label="Profil modifié le" value={formatDate(snapshotUpdatedAt)} />}
+                      </View>
+
                       <View style={styles.actionsLeft}>
                         <TouchableOpacity
                           style={styles.secondaryButton}
-                          onPress={() => router.push(`/profile/${selectedReport.target.id}?adminPreview=1` as any)}
+                          onPress={() => {
+                            setTab('users');
+                            void openUser(selectedReport.target.id);
+                          }}
                         >
-                          <Text style={styles.secondaryText}>Voir le profil</Text>
+                          <Text style={styles.secondaryText}>Ouvrir la fiche utilisateur</Text>
                         </TouchableOpacity>
                       </View>
-                    </SectionCard>
+                    </View>
 
                     {isOpen && (
                       <SectionCard title="Décision de modération">
@@ -2916,6 +2965,15 @@ const styles = StyleSheet.create({
   filterText: { fontSize: 11, fontWeight: '700', color: '#6F5943' },
   filterTextActive: { color: '#FFF' },
   moderationPhoto: { width: '100%', height: 260, borderRadius: 12, backgroundColor: '#F4EBDD', marginVertical: 12 },
+  reportedContentCard: { backgroundColor: '#FFFDF8', borderRadius: 14, borderWidth: 2, borderColor: '#D9A8B4', padding: 14, marginBottom: 12 },
+  reportedContentHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  reportedContentIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FCEDEF' },
+  reportedContentEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, color: '#A7324B' },
+  reportedContentTitle: { fontSize: 17, fontWeight: '900', color: '#3A2818', marginTop: 2 },
+  reportedPhoto: { width: '100%', height: 320, borderRadius: 12, backgroundColor: '#F4EBDD', marginBottom: 12 },
+  reportedMessageBox: { borderRadius: 12, backgroundColor: '#F7EFE5', borderWidth: 1, borderColor: '#E5D6C1', padding: 14, marginBottom: 12 },
+  reportedMessageText: { fontSize: 15, lineHeight: 22, fontWeight: '700', color: '#3A2818' },
+  reportMetaBox: { marginTop: 4, paddingTop: 4 },
   alertText: { fontSize: 13, lineHeight: 19, color: '#A7324B', marginTop: 6, fontWeight: '700' },
   goodText: { fontSize: 13, lineHeight: 19, color: '#5A7B55', marginTop: 6, fontWeight: '700' },
 });
