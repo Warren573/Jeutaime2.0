@@ -155,9 +155,18 @@ export async function warnUser(
   });
   if (!target) throw new NotFoundError("Utilisateur");
 
-  // Cohérent avec ban : on n'avertit pas un ADMIN
-  if (target.role === Role.ADMIN) {
-    return toDto(target);
+  if (target.role === Role.OWNER) {
+    throw new ForbiddenError("Le propriétaire ne peut pas recevoir d’avertissement administratif");
+  }
+  if (target.role === Role.ADMIN && actor.role !== Role.OWNER) {
+    throw new ForbiddenError("Seul le propriétaire peut avertir un administrateur");
+  }
+  if (
+    target.role === Role.MODERATOR &&
+    actor.role !== Role.ADMIN &&
+    actor.role !== Role.OWNER
+  ) {
+    throw new ForbiddenError("Seul un administrateur ou le propriétaire peut avertir un modérateur");
   }
 
   await sendAdminMessage(
@@ -322,7 +331,7 @@ export async function adjustCoins(
   amount: number,
   reason: string,
 ) {
-  if (actor.role !== Role.ADMIN) throw new ForbiddenError();
+  if (actor.role !== Role.ADMIN && actor.role !== Role.OWNER) throw new ForbiddenError();
   if (!Number.isInteger(amount) || amount === 0) {
     throw new BadRequestError("Le montant doit être un entier non nul");
   }
@@ -369,9 +378,11 @@ export async function adjustCoins(
 export async function updateRole(
   actor: { id: string; role: Role },
   targetId: string,
-  nextRole: "USER" | "MODERATOR",
+  nextRole: "USER" | "MODERATOR" | "ADMIN",
 ) {
-  if (actor.role !== Role.ADMIN) throw new ForbiddenError();
+  if (actor.role !== Role.ADMIN && actor.role !== Role.OWNER) {
+    throw new ForbiddenError();
+  }
   if (actor.id === targetId) {
     throw new BadRequestError("Tu ne peux pas modifier ton propre rôle");
   }
@@ -381,8 +392,18 @@ export async function updateRole(
     select: adminUserSelect,
   });
   if (!target) throw new NotFoundError("Utilisateur");
-  if (target.role === Role.ADMIN) {
-    throw new ForbiddenError("Le rôle d'un administrateur ne se modifie pas ici");
+
+  if (target.role === Role.OWNER) {
+    throw new ForbiddenError("Le rôle du propriétaire ne peut pas être modifié depuis l’administration");
+  }
+
+  if (actor.role === Role.ADMIN) {
+    if (target.role === Role.ADMIN) {
+      throw new ForbiddenError("Un administrateur ne peut pas modifier un autre administrateur");
+    }
+    if (nextRole === "ADMIN") {
+      throw new ForbiddenError("Seul le propriétaire peut nommer un administrateur");
+    }
   }
 
   const updated = await prisma.user.update({
@@ -404,14 +425,13 @@ export async function updateRole(
   return toDto(updated);
 }
 
-
 export async function grantPremium(
   actor: { id: string; role: Role },
   targetId: string,
   days: number,
   reason: string,
 ) {
-  if (actor.role !== Role.ADMIN) throw new ForbiddenError();
+  if (actor.role !== Role.ADMIN && actor.role !== Role.OWNER) throw new ForbiddenError();
   if (!Number.isInteger(days) || days < 1 || days > 365) {
     throw new BadRequestError("Durée Premium invalide");
   }
@@ -460,7 +480,7 @@ export async function resetUserSalons(
   targetId: string,
   reason: string,
 ) {
-  if (actor.role !== Role.ADMIN) throw new ForbiddenError();
+  if (actor.role !== Role.ADMIN && actor.role !== Role.OWNER) throw new ForbiddenError();
 
   const target = await prisma.user.findUnique({
     where: { id: targetId },
@@ -497,7 +517,7 @@ export async function resetUserRefuge(
   targetId: string,
   reason: string,
 ) {
-  if (actor.role !== Role.ADMIN) throw new ForbiddenError();
+  if (actor.role !== Role.ADMIN && actor.role !== Role.OWNER) throw new ForbiddenError();
 
   const target = await prisma.user.findUnique({
     where: { id: targetId },
