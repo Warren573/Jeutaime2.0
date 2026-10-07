@@ -45,7 +45,7 @@ export interface AuthTokensDTO {
 export type GenderEnum = 'HOMME' | 'FEMME' | 'AUTRE';
 export type LookingForEnum = 'AMITIE' | 'RELATION' | 'FLIRT' | 'DISCUSSION' | 'SERIEUX';
 export type PremiumTierEnum = 'FREE' | 'PREMIUM';
-export type RoleEnum = 'USER' | 'MODERATOR' | 'ADMIN';
+export type RoleEnum = 'USER' | 'MODERATOR' | 'ADMIN' | 'OWNER';
 
 export interface SkillDTO {
   id?: string;
