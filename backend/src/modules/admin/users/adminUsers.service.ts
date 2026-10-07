@@ -486,7 +486,7 @@ export async function resetUserSalons(
   targetId: string,
   reason: string,
 ) {
-  if (actor.role !== Role.ADMIN && actor.role !== Role.OWNER) throw new ForbiddenError();
+  if (actor.role !== Role.OWNER) throw new ForbiddenError();
 
   const target = await prisma.user.findUnique({
     where: { id: targetId },
@@ -526,7 +526,7 @@ export async function resetUserRefuge(
   targetId: string,
   reason: string,
 ) {
-  if (actor.role !== Role.ADMIN && actor.role !== Role.OWNER) throw new ForbiddenError();
+  if (actor.role !== Role.OWNER) throw new ForbiddenError();
 
   const target = await prisma.user.findUnique({
     where: { id: targetId },
@@ -563,4 +563,114 @@ export async function resetUserRefuge(
   });
 
   return { resetCount: result.count };
+}
+
+
+export async function resetUserBottles(
+  actor: { id: string; role: Role },
+  targetId: string,
+  reason: string,
+) {
+  if (actor.role !== Role.OWNER) throw new ForbiddenError();
+
+  const target = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: { id: true },
+  });
+  if (!target) throw new NotFoundError("Utilisateur");
+
+  const active = await prisma.messageInABottle.findMany({
+    where: {
+      OR: [{ senderId: targetId }, { acceptedById: targetId }],
+      status: { in: ["FLOATING", "ACCEPTED"] },
+    },
+    select: { id: true },
+  });
+
+  const ids = active.map((b) => b.id);
+  if (ids.length > 0) {
+    await prisma.$transaction([
+      prisma.messageInABottle.updateMany({
+        where: { id: { in: ids } },
+        data: { status: "BROKEN" },
+      }),
+      prisma.bottleReceipt.updateMany({
+        where: { bottleId: { in: ids }, status: "PENDING" },
+        data: { status: "TAKEN", actionAt: new Date() },
+      }),
+      prisma.bottleRevealRequest.updateMany({
+        where: { bottleId: { in: ids }, status: "PENDING" },
+        data: { status: "REFUSED", respondedAt: new Date() },
+      }),
+    ]);
+  }
+
+  await writeAudit({
+    actorId: actor.id,
+    action: "admin.user.bottles.reset",
+    target: targetId,
+    meta: { reason, bottlesClosed: ids.length } as Prisma.InputJsonValue,
+  });
+
+  return { resetCount: ids.length };
+}
+
+export async function repairUserLetters(
+  actor: { id: string; role: Role },
+  targetId: string,
+  reason: string,
+) {
+  if (actor.role !== Role.OWNER) throw new ForbiddenError();
+
+  const target = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: { id: true },
+  });
+  if (!target) throw new NotFoundError("Utilisateur");
+
+  const matches = await prisma.match.findMany({
+    where: { OR: [{ userAId: targetId }, { userBId: targetId }] },
+    select: {
+      id: true,
+      userAId: true,
+      userBId: true,
+      letters: {
+        orderBy: { sentAt: "asc" },
+        select: {
+          fromUserId: true,
+          isGhostRelance: true,
+          sentAt: true,
+        },
+      },
+    },
+  });
+
+  let repaired = 0;
+  for (const match of matches) {
+    const letterCountA = match.letters.filter((l) => l.fromUserId === match.userAId).length;
+    const letterCountB = match.letters.filter((l) => l.fromUserId === match.userBId).length;
+    const last = match.letters.length > 0 ? match.letters[match.letters.length - 1] : null;
+    const ghost = [...match.letters].reverse().find((l) => l.isGhostRelance) ?? null;
+
+    await prisma.match.update({
+      where: { id: match.id },
+      data: {
+        letterCountA,
+        letterCountB,
+        lastLetterBy: last?.fromUserId ?? null,
+        lastLetterAt: last?.sentAt ?? null,
+        ghostRelanceUsedBy: ghost?.fromUserId ?? null,
+      },
+    });
+    repaired += 1;
+  }
+
+  await writeAudit({
+    actorId: actor.id,
+    action: "admin.user.letters.repair",
+    target: targetId,
+    meta: { reason, matchesRecalculated: repaired } as Prisma.InputJsonValue,
+  });
+
+  return { resetCount: repaired };
 }
