@@ -660,9 +660,7 @@ export default function AdminScreen() {
     user: AdminUser,
     role: 'USER' | 'MODERATOR' | 'ADMIN',
   ) => {
-    if (user.role === 'OWNER') return;
-    if (!isOwner && user.role === 'ADMIN') return;
-    if (!isOwner && role === 'ADMIN') return;
+    if (!isOwner || user.role === 'OWNER') return;
 
     const actionLabel =
       role === 'ADMIN'
@@ -689,8 +687,7 @@ export default function AdminScreen() {
   };
 
   const changeRole = async (role: 'USER' | 'MODERATOR' | 'ADMIN') => {
-    if (!selectedUser || selectedUser.role === 'OWNER') return;
-    if (!isOwner && (selectedUser.role === 'ADMIN' || role === 'ADMIN')) return;
+    if (!isOwner || !selectedUser || selectedUser.role === 'OWNER') return;
     try {
       const updated = await updateAdminUserRole(selectedUser.id, role);
       syncUserList(updated);
