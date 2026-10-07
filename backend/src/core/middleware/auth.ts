@@ -54,7 +54,13 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
 export function requireRole(...roles: Role[]) {
   return (req: AuthedRequest, _res: Response, next: NextFunction) => {
     if (!req.user) throw new UnauthorizedError();
-    if (!roles.includes(req.user.role)) {
+
+    const role = req.user.role;
+    const ownerInheritsStaffAccess =
+      role === Role.OWNER &&
+      (roles.includes(Role.OWNER) || roles.includes(Role.ADMIN) || roles.includes(Role.MODERATOR));
+
+    if (!roles.includes(role) && !ownerInheritsStaffAccess) {
       throw new ForbiddenError("Permissions insuffisantes");
     }
     next();
