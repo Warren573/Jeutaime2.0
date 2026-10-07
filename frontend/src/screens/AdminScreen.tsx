@@ -177,6 +177,7 @@ function roleLabel(role?: string | null) {
     USER: 'Utilisateur',
     MODERATOR: 'Modérateur',
     ADMIN: 'Administrateur',
+    OWNER: 'Propriétaire',
   };
   return role ? (labels[role] ?? role) : '—';
 }
@@ -348,9 +349,10 @@ export default function AdminScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const currentUser = useStore((s) => s.currentUser);
-  const isAdmin = currentUser?.role === 'ADMIN';
+  const isOwner = currentUser?.role === 'OWNER';
+  const isAdmin = currentUser?.role === 'ADMIN' || isOwner;
   const isModerator = currentUser?.role === 'MODERATOR';
-  const isStaff = isAdmin || isModerator;
+  const isStaff = isOwner || isAdmin || isModerator;
 
   const [tab, setTab] = useState<Tab>('dashboard');
   const [loading, setLoading] = useState(true);
@@ -400,8 +402,12 @@ export default function AdminScreen() {
   const [selectedSalonLoading, setSelectedSalonLoading] = useState(false);
 
   const visibleTabs = useMemo(
-    () => isAdmin ? TABS : TABS.filter((t) => t.key === 'reports' || t.key === 'content' || t.key === 'support'),
-    [isAdmin],
+    () => {
+      if (isOwner) return TABS;
+      if (isAdmin) return TABS.filter((t) => t.key !== 'staff');
+      return TABS.filter((t) => t.key === 'reports' || t.key === 'content' || t.key === 'support');
+    },
+    [isOwner, isAdmin],
   );
 
   const loadAll = useCallback(async () => {
@@ -465,7 +471,7 @@ export default function AdminScreen() {
     setPremiumUsers(pu);
     setPrivateSalons(ps);
     setCommunityJournalPosts(cj);
-  }, [isAdmin, isModerator]);
+  }, [isOwner, isAdmin, isModerator]);
 
   useEffect(() => {
     AsyncStorage.getItem('auth_token').then(setAuthToken).catch(() => undefined);
@@ -478,9 +484,9 @@ export default function AdminScreen() {
     }
     if (isModerator) setTab('reports');
     loadAll()
-      .catch((err) => Alert.alert(isAdmin ? 'Administration' : 'Modération', err instanceof Error ? err.message : 'Chargement impossible.'))
+      .catch((err) => Alert.alert(isOwner ? 'Propriétaire' : isAdmin ? 'Administration' : 'Modération', err instanceof Error ? err.message : 'Chargement impossible.'))
       .finally(() => setLoading(false));
-  }, [isStaff, isAdmin, isModerator, loadAll, router]);
+  }, [isStaff, isOwner, isAdmin, isModerator, loadAll, router]);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -519,7 +525,7 @@ export default function AdminScreen() {
           u.email.toLowerCase().includes(q) ||
           (u.pseudo ?? '').toLowerCase().includes(q)
         )
-      : users.filter((u) => u.role === 'ADMIN' || u.role === 'MODERATOR');
+      : users.filter((u) => u.role === 'OWNER' || u.role === 'ADMIN' || u.role === 'MODERATOR');
     return base;
   }, [staffQuery, users]);
 
@@ -573,7 +579,8 @@ export default function AdminScreen() {
   };
 
   const toggleBan = async (user: AdminUser | AdminUserDetail) => {
-    if (user.role === 'ADMIN') return;
+    if (user.role === 'OWNER') return;
+    if (user.role === 'ADMIN' && !isOwner) return;
     const ok = await confirm(
       user.isBanned ? 'Réactiver le compte' : 'Suspendre le compte',
       user.isBanned ? `Réactiver ${user.profile?.pseudo ?? user.email} ?` : `Suspendre ${user.profile?.pseudo ?? user.email} ?`,
@@ -621,15 +628,29 @@ export default function AdminScreen() {
     }
   };
 
-  const changeStaffRole = async (user: AdminUser, role: 'USER' | 'MODERATOR') => {
-    if (!isAdmin || user.role === 'ADMIN') return;
+  const changeStaffRole = async (
+    user: AdminUser,
+    role: 'USER' | 'MODERATOR' | 'ADMIN',
+  ) => {
+    if (user.role === 'OWNER') return;
+    if (!isOwner && user.role === 'ADMIN') return;
+    if (!isOwner && role === 'ADMIN') return;
+
+    const actionLabel =
+      role === 'ADMIN'
+        ? 'Nommer administrateur'
+        : role === 'MODERATOR'
+          ? 'Nommer modérateur'
+          : user.role === 'ADMIN'
+            ? 'Retirer le rôle administrateur'
+            : 'Retirer le rôle modérateur';
+
     const ok = await confirm(
-      role === 'MODERATOR' ? 'Nommer modérateur' : 'Retirer le rôle modérateur',
-      role === 'MODERATOR'
-        ? `Donner les droits de modération à ${user.pseudo || user.email} ?`
-        : `Retirer les droits de modération à ${user.pseudo || user.email} ?`,
+      actionLabel,
+      `${actionLabel} pour ${user.pseudo || user.email} ?`,
     );
     if (!ok) return;
+
     try {
       const updated = await updateAdminUserRole(user.id, role);
       syncUserList(updated);
@@ -639,8 +660,9 @@ export default function AdminScreen() {
     }
   };
 
-  const changeRole = async (role: 'USER' | 'MODERATOR') => {
-    if (!selectedUser || selectedUser.role === 'ADMIN') return;
+  const changeRole = async (role: 'USER' | 'MODERATOR' | 'ADMIN') => {
+    if (!selectedUser || selectedUser.role === 'OWNER') return;
+    if (!isOwner && (selectedUser.role === 'ADMIN' || role === 'ADMIN')) return;
     try {
       const updated = await updateAdminUserRole(selectedUser.id, role);
       syncUserList(updated);
@@ -1067,10 +1089,10 @@ export default function AdminScreen() {
           <Ionicons name="chevron-back" size={22} color="#4A3424" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{isAdmin ? 'Administration' : 'Modération'}</Text>
-          <Text style={styles.subtitle}>JeuTaime · {isAdmin ? 'accès administrateur' : 'accès modérateur'}</Text>
+          <Text style={styles.title}>{isOwner ? 'Propriétaire' : isAdmin ? 'Administration' : 'Modération'}</Text>
+          <Text style={styles.subtitle}>JeuTaime · {isOwner ? 'accès propriétaire' : isAdmin ? 'accès administrateur' : 'accès modérateur'}</Text>
         </View>
-        <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>{isAdmin ? 'ADMINISTRATEUR' : 'MODÉRATEUR'}</Text></View>
+        <View style={styles.adminBadge}><Text style={styles.adminBadgeText}>{isOwner ? 'PROPRIÉTAIRE' : isAdmin ? 'ADMINISTRATEUR' : 'MODÉRATEUR'}</Text></View>
       </View>
 
       <ScrollView
@@ -1248,7 +1270,7 @@ export default function AdminScreen() {
                           <Text style={styles.cardTitle}>{u.pseudo || 'Sans pseudo'}</Text>
                           <Text style={styles.rowSub}>{u.email}</Text>
                         </View>
-                        <View style={[styles.rolePill, u.role === 'ADMIN' && styles.rolePillAdmin, u.role === 'MODERATOR' && styles.rolePillModerator]}>
+                        <View style={[styles.rolePill, u.role === 'OWNER' && styles.rolePillOwner, u.role === 'ADMIN' && styles.rolePillAdmin, u.role === 'MODERATOR' && styles.rolePillModerator]}>
                           <Text style={styles.roleText}>{roleLabel(u.role)}</Text>
                         </View>
                       </View>
@@ -2194,11 +2216,11 @@ export default function AdminScreen() {
 
           {tab === 'staff' && (
             <>
-              <Text style={styles.sectionTitle}>Administrateurs & modérateurs</Text>
+              <Text style={styles.sectionTitle}>Propriétaire, administrateurs & modérateurs</Text>
               <TextInput
                 value={staffQuery}
                 onChangeText={setStaffQuery}
-                placeholder="Rechercher un utilisateur à nommer modérateur"
+                placeholder="Rechercher un utilisateur à nommer dans l’équipe"
                 placeholderTextColor="#A48C72"
                 style={styles.search}
               />
@@ -2210,19 +2232,41 @@ export default function AdminScreen() {
                       <Text style={styles.cardTitle}>{user.pseudo || user.email}</Text>
                       <Text style={styles.rowSub}>{user.email}</Text>
                     </View>
-                    <View style={[styles.rolePill, user.role === 'ADMIN' && styles.rolePillAdmin, user.role === 'MODERATOR' && styles.rolePillModerator]}>
+                    <View style={[styles.rolePill, user.role === 'OWNER' && styles.rolePillOwner, user.role === 'ADMIN' && styles.rolePillAdmin, user.role === 'MODERATOR' && styles.rolePillModerator]}>
                       <Text style={styles.roleText}>{roleLabel(user.role)}</Text>
                     </View>
                   </View>
                   {user.role === 'USER' && (
-                    <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'MODERATOR')}>
-                      <Text style={styles.secondaryText}>Nommer modérateur</Text>
-                    </TouchableOpacity>
+                    <View style={styles.actionsLeft}>
+                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'MODERATOR')}>
+                        <Text style={styles.secondaryText}>Nommer modérateur</Text>
+                      </TouchableOpacity>
+                      {isOwner && (
+                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'ADMIN')}>
+                          <Text style={styles.secondaryText}>Nommer administrateur</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   )}
                   {user.role === 'MODERATOR' && (
-                    <TouchableOpacity style={styles.dangerButton} onPress={() => void changeStaffRole(user, 'USER')}>
-                      <Text style={styles.actionButtonText}>Retirer le rôle modérateur</Text>
+                    <View style={styles.actionsLeft}>
+                      {isOwner && (
+                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'ADMIN')}>
+                          <Text style={styles.secondaryText}>Nommer administrateur</Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity style={styles.dangerButton} onPress={() => void changeStaffRole(user, 'USER')}>
+                        <Text style={styles.actionButtonText}>Retirer le rôle modérateur</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {user.role === 'ADMIN' && isOwner && (
+                    <TouchableOpacity style={styles.dangerButton} onPress={() => void changeStaffRole(user, 'MODERATOR')}>
+                      <Text style={styles.actionButtonText}>Rétrograder en modérateur</Text>
                     </TouchableOpacity>
+                  )}
+                  {user.role === 'OWNER' && (
+                    <Text style={styles.helper}>Compte propriétaire protégé.</Text>
                   )}
                 </View>
               ))}
@@ -2489,6 +2533,7 @@ const styles = StyleSheet.create({
   multiline: { minHeight: 76, textAlignVertical: 'top' },
   userHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   rolePill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: '#EFE4D4' },
+  rolePillOwner: { backgroundColor: '#E8D9B7' },
   rolePillAdmin: { backgroundColor: '#F1D7DE' },
   rolePillModerator: { backgroundColor: '#DCE8EF' },
   roleText: { fontSize: 10, fontWeight: '900', color: '#6A4F38' },
