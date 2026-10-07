@@ -1158,22 +1158,34 @@ export default function AdminScreen() {
       </View>
 
       <View style={styles.primaryTabs}>
-        {visibleTabs.map((t) => (
-          <TouchableOpacity
-            key={t.key}
-            onPress={() => setTab(t.key)}
-            style={[styles.primaryTab, tab === t.key && styles.tabActive]}
-          >
-            <Ionicons name={t.icon} size={18} color={tab === t.key ? '#FFF' : '#7D6348'} />
-            <Text
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              style={[styles.primaryTabText, tab === t.key && styles.tabTextActive]}
+        {visibleTabs.map((t) => {
+          const badgeCount = t.key === 'reports' ? openReportsCount : t.key === 'support' ? openSupportCount : 0;
+          return (
+            <TouchableOpacity
+              key={t.key}
+              onPress={() => setTab(t.key)}
+              style={[styles.primaryTab, tab === t.key && styles.tabActive]}
             >
-              {t.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <View style={styles.primaryTabIconWrap}>
+                <Ionicons name={t.icon} size={18} color={tab === t.key ? '#FFF' : '#7D6348'} />
+                {badgeCount > 0 && (
+                  <View style={[styles.tabBadge, tab === t.key && styles.tabBadgeActive]}>
+                    <Text style={[styles.tabBadgeText, tab === t.key && styles.tabBadgeTextActive]}>
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={[styles.primaryTabText, tab === t.key && styles.tabTextActive]}
+              >
+                {t.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {loading ? (
@@ -1209,25 +1221,71 @@ export default function AdminScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.priorityGrid}>
-                <TouchableOpacity style={styles.priorityCard} onPress={() => { setReportFilter('OPEN'); setSelectedReport(null); setTab('reports'); }}>
-                  <View style={styles.priorityHead}>
-                    <Ionicons name="flag-outline" size={20} color="#A7324B" />
-                    <Text style={styles.priorityCount}>{openReportsCount}</Text>
+              {urgentCount === 0 ? (
+                <View style={styles.allClearCard}>
+                  <View style={styles.allClearIcon}>
+                    <Ionicons name="checkmark" size={19} color="#5A7B55" />
                   </View>
-                  <Text style={styles.priorityTitle}>Signalements</Text>
-                  <Text style={styles.priorityHint}>À examiner et traiter</Text>
-                </TouchableOpacity>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.allClearTitle}>Rien à traiter actuellement</Text>
+                    <Text style={styles.allClearText}>Aucun signalement ni demande support en attente.</Text>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.priorityGrid}>
+                    {openReportsCount > 0 && (
+                      <TouchableOpacity style={styles.priorityCard} onPress={() => { setReportFilter('OPEN'); setSelectedReport(null); setTab('reports'); }}>
+                        <View style={styles.priorityHead}>
+                          <Ionicons name="flag-outline" size={20} color="#A7324B" />
+                          <Text style={styles.priorityCount}>{openReportsCount}</Text>
+                        </View>
+                        <Text style={styles.priorityTitle}>Signalements</Text>
+                        <Text style={styles.priorityHint}>À examiner et traiter</Text>
+                      </TouchableOpacity>
+                    )}
 
-                <TouchableOpacity style={styles.priorityCard} onPress={() => setTab('support')}>
-                  <View style={styles.priorityHead}>
-                    <Ionicons name="help-buoy-outline" size={20} color="#A7324B" />
-                    <Text style={styles.priorityCount}>{openSupportCount}</Text>
+                    {openSupportCount > 0 && (
+                      <TouchableOpacity style={styles.priorityCard} onPress={() => setTab('support')}>
+                        <View style={styles.priorityHead}>
+                          <Ionicons name="help-buoy-outline" size={20} color="#A7324B" />
+                          <Text style={styles.priorityCount}>{openSupportCount}</Text>
+                        </View>
+                        <Text style={styles.priorityTitle}>Support</Text>
+                        <Text style={styles.priorityHint}>Demandes qui attendent une réponse</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  <Text style={styles.priorityTitle}>Support</Text>
-                  <Text style={styles.priorityHint}>Demandes qui attendent une réponse</Text>
-                </TouchableOpacity>
-              </View>
+
+                  {openReportsCount > 0 && (
+                    <SectionCard title="Signalements récents">
+                      {reports.filter((r) => r.status === 'OPEN' || r.status === 'REVIEWING').slice(0, 3).map((r) => (
+                        <TouchableOpacity key={r.id} style={styles.row} onPress={() => { setSelectedReport(r); setTab('reports'); }}>
+                          <View style={styles.rowSplit}>
+                            <Text style={styles.rowTitle}>{reportReasonLabel(r.reason)}</Text>
+                            <Text style={[styles.status, r.status === 'OPEN' && styles.statusBad]}>{reportStatusLabel(r.status)}</Text>
+                          </View>
+                          <Text style={styles.rowSub}>{reportContentTypeLabel(r.contentType)} · {formatDate(r.createdAt)}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </SectionCard>
+                  )}
+
+                  {openSupportCount > 0 && (
+                    <SectionCard title="Support récent">
+                      {supportTickets.filter((t) => t.status !== 'CLOSED').slice(0, 3).map((t) => (
+                        <TouchableOpacity key={t.id} style={styles.row} onPress={() => setTab('support')}>
+                          <View style={styles.rowSplit}>
+                            <Text style={styles.rowTitle}>{ticketKindLabel(t.kind)} · {t.subject || 'Demande utilisateur'}</Text>
+                            <Text style={styles.status}>{ticketStatusLabel(t.status)}</Text>
+                          </View>
+                          <Text style={styles.rowSub}>{formatDate(t.createdAt)}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </SectionCard>
+                  )}
+                </>
+              )}
 
               <TouchableOpacity style={styles.searchShortcut} onPress={goToUserSearch}>
                 <Ionicons name="search-outline" size={20} color="#6F5943" />
@@ -1237,32 +1295,6 @@ export default function AdminScreen() {
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#8F765C" />
               </TouchableOpacity>
-
-              <SectionCard title="Signalements récents">
-                {reports.filter((r) => r.status === 'OPEN' || r.status === 'REVIEWING').slice(0, 3).map((r) => (
-                  <TouchableOpacity key={r.id} style={styles.row} onPress={() => { setSelectedReport(r); setTab('reports'); }}>
-                    <View style={styles.rowSplit}>
-                      <Text style={styles.rowTitle}>{reportReasonLabel(r.reason)}</Text>
-                      <Text style={[styles.status, r.status === 'OPEN' && styles.statusBad]}>{reportStatusLabel(r.status)}</Text>
-                    </View>
-                    <Text style={styles.rowSub}>{reportContentTypeLabel(r.contentType)} · {formatDate(r.createdAt)}</Text>
-                  </TouchableOpacity>
-                ))}
-                {openReportsCount === 0 && <Text style={styles.mutedLeft}>Aucun signalement en attente.</Text>}
-              </SectionCard>
-
-              <SectionCard title="Support récent">
-                {supportTickets.filter((t) => t.status !== 'CLOSED').slice(0, 3).map((t) => (
-                  <TouchableOpacity key={t.id} style={styles.row} onPress={() => setTab('support')}>
-                    <View style={styles.rowSplit}>
-                      <Text style={styles.rowTitle}>{ticketKindLabel(t.kind)} · {t.subject || 'Demande utilisateur'}</Text>
-                      <Text style={styles.status}>{ticketStatusLabel(t.status)}</Text>
-                    </View>
-                    <Text style={styles.rowSub}>{formatDate(t.createdAt)}</Text>
-                  </TouchableOpacity>
-                ))}
-                {openSupportCount === 0 && <Text style={styles.mutedLeft}>Aucune demande ouverte.</Text>}
-              </SectionCard>
 
               {isAdmin && (
                 <SectionCard title="Gestion avancée">
@@ -2689,6 +2721,11 @@ const styles = StyleSheet.create({
   },
   tabActive: { backgroundColor: '#8B6F47', borderColor: '#8B6F47' },
   primaryTabText: { color: '#6E563F', fontWeight: '800', fontSize: 10.5, textAlign: 'center' },
+  primaryTabIconWrap: { position: 'relative', minWidth: 24, alignItems: 'center' },
+  tabBadge: { position: 'absolute', top: -8, right: -13, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#A7324B' },
+  tabBadgeActive: { backgroundColor: '#FFF' },
+  tabBadgeText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
+  tabBadgeTextActive: { color: '#A7324B' },
   tabTextActive: { color: '#FFF' },
   content: { padding: 16, paddingBottom: 60 },
   advancedBar: {
@@ -2710,6 +2747,10 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   sectionTitle: { fontSize: 21, fontWeight: '800', color: '#3A2818', marginBottom: 12 },
   subSectionTitle: { fontSize: 16, fontWeight: '800', color: '#4D3726', marginBottom: 10, marginTop: 4 },
+  allClearCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F2F7EF', borderRadius: 14, borderWidth: 1, borderColor: '#CFDDC8', padding: 14, marginBottom: 14 },
+  allClearIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#E4EFE0', alignItems: 'center', justifyContent: 'center' },
+  allClearTitle: { fontSize: 14, fontWeight: '900', color: '#476342' },
+  allClearText: { fontSize: 11, lineHeight: 15, color: '#6E8069', marginTop: 2 },
   priorityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
   priorityCard: {
     width: '47%',
