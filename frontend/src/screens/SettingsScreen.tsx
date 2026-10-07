@@ -165,10 +165,15 @@ export default function SettingsScreen() {
     ...((currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR')
       ? [{
           key: 'administration',
-          title: currentUser?.role === 'OWNER' ? 'Propriétaire' : currentUser?.role === 'ADMIN' ? 'Administration' : 'Modération',
-          items: [
-            { icon: 'shield-half-outline', label: currentUser?.role === 'OWNER' ? 'Panneau propriétaire' : currentUser?.role === 'ADMIN' ? 'Panneau administrateur' : 'Panneau de modération', route: '/admin' },
-          ],
+          title: currentUser?.role === 'MODERATOR' ? 'Modération' : 'Administration',
+          items: currentUser?.role === 'OWNER'
+            ? [
+                { icon: 'shield-half-outline', label: 'Panneau administrateur', route: '/admin' },
+                { icon: 'key-outline', label: 'Espace propriétaire', route: '/admin?tab=staff' },
+              ]
+            : [
+                { icon: 'shield-half-outline', label: currentUser?.role === 'ADMIN' ? 'Panneau administrateur' : 'Panneau de modération', route: '/admin' },
+              ],
         } as SettingsSection]
       : []),
     {
