@@ -33,7 +33,6 @@ import {
   SystemIncident,
   AdminSupportTicket,
   EconomyOverview,
-  EconomyTransaction,
   EconomyCatalog,
   PremiumAdminUser,
   AdminPrivateSalon,
@@ -56,7 +55,6 @@ import {
   listAdminSupportTickets,
   updateAdminSupportTicket,
   getEconomyOverview,
-  listEconomyTransactions,
   getEconomyCatalog,
   listPremiumAdminUsers,
   updateOfferingCatalogItem,
@@ -84,6 +82,8 @@ import {
   removeAdminSalonParticipant,
   resetAdminUserRefuge,
   resetAdminUserSalons,
+  resetAdminUserBottles,
+  repairAdminUserLetters,
   setAdminSalonActive,
   unbanAdminUser,
   updateAdminReport,
@@ -163,6 +163,8 @@ function auditLabel(action: string) {
     'admin.user.premium.grant': 'Premium offert',
     'admin.user.salons.reset': 'Salons réinitialisés',
     'admin.user.refuge.reset': 'Refuge réinitialisé',
+    'admin.user.bottles.reset': 'Bouteilles réinitialisées',
+    'admin.user.letters.repair': 'État des Lettres recalculé',
     'admin.journal.community.publish': 'Article publié dans le Journal communautaire',
     'admin.journal.community.update': 'Article du Journal communautaire modifié',
     'admin.journal.community.delete': 'Article du Journal communautaire supprimé',
@@ -379,7 +381,6 @@ export default function AdminScreen() {
   const [supportTickets, setSupportTickets] = useState<AdminSupportTicket[]>([]);
   const [supportReplies, setSupportReplies] = useState<Record<string, string>>({});
   const [economyOverview, setEconomyOverview] = useState<EconomyOverview | null>(null);
-  const [economyTransactions, setEconomyTransactions] = useState<EconomyTransaction[]>([]);
   const [economyCatalog, setEconomyCatalog] = useState<EconomyCatalog | null>(null);
   const [premiumUsers, setPremiumUsers] = useState<PremiumAdminUser[]>([]);
   const [privateSalons, setPrivateSalons] = useState<AdminPrivateSalon[]>([]);
@@ -398,6 +399,9 @@ export default function AdminScreen() {
   const [warningMessage, setWarningMessage] = useState('');
   const [coinAmount, setCoinAmount] = useState('');
   const [coinReason, setCoinReason] = useState('');
+  const [showUserHistory, setShowUserHistory] = useState(false);
+  const [showOwnerRepairs, setShowOwnerRepairs] = useState(false);
+  const [showDashboardStats, setShowDashboardStats] = useState(false);
 
   const [selectedSalon, setSelectedSalon] = useState<AdminSalonSession | null>(null);
   const [selectedSalonLoading, setSelectedSalonLoading] = useState(false);
@@ -405,14 +409,13 @@ export default function AdminScreen() {
   const visibleTabs = useMemo(
     () => {
       if (isModerator) {
-        return TABS.filter((t) => t.key === 'reports' || t.key === 'content' || t.key === 'support');
+        return TABS.filter((t) => t.key === 'reports' || t.key === 'support');
       }
       return TABS.filter((t) =>
         t.key === 'dashboard' ||
         t.key === 'reports' ||
         t.key === 'users' ||
-        t.key === 'support' ||
-        t.key === 'content'
+        t.key === 'support'
       );
     },
     [isModerator],
@@ -420,25 +423,21 @@ export default function AdminScreen() {
 
   const loadAll = useCallback(async () => {
     if (isModerator) {
-      const [r, mo, mp, mm, st] = await Promise.all([
+      const [r, mo, st] = await Promise.all([
         listAdminReports(),
         getModerationOverview(),
-        listModerationPhotos(),
-        listModerationSalonMessages(),
         listAdminSupportTickets(),
       ]);
       setReports(r.items);
       setReportTotal(r.total);
       setModerationOverview(mo);
-      setModerationPhotos(mp);
-      setModerationMessages(mm);
       setSupportTickets(st);
       return;
     }
 
     if (!isAdmin) return;
 
-    const [o, u, r, s, a, h, mo, mp, mm, oo, le, si, st, eo, et, ec, pu, ps, cj] = await Promise.all([
+    const [o, u, r, s, a, h, mo, oo, le, si, st, eo, ec, pu, ps, cj] = await Promise.all([
       getAdminOverview(),
       listAdminUsers(),
       listAdminReports(),
@@ -446,14 +445,11 @@ export default function AdminScreen() {
       listAuditLog(),
       getHealthVersion().catch(() => ({})),
       getModerationOverview(),
-      listModerationPhotos(),
-      listModerationSalonMessages(),
       getOperationsOverview(),
       listLoginEvents(),
       listSystemIncidents(),
       listAdminSupportTickets(),
       getEconomyOverview(),
-      listEconomyTransactions(),
       getEconomyCatalog(),
       listPremiumAdminUsers(),
       listAdminPrivateSalons(),
@@ -467,14 +463,11 @@ export default function AdminScreen() {
     setAudit(a);
     setHealth(h);
     setModerationOverview(mo);
-    setModerationPhotos(mp);
-    setModerationMessages(mm);
     setOperationsOverview(oo);
     setLoginEvents(le.items);
     setSystemIncidents(si.items);
     setSupportTickets(st);
     setEconomyOverview(eo);
-    setEconomyTransactions(et.items);
     setEconomyCatalog(ec);
     setPremiumUsers(pu);
     setPrivateSalons(ps);
@@ -514,7 +507,7 @@ export default function AdminScreen() {
 
   const filteredUsers = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return users;
+    if (q.length < 2) return [];
     return users.filter((u) =>
       u.email.toLowerCase().includes(q) ||
       (u.pseudo ?? '').toLowerCase().includes(q) ||
@@ -587,6 +580,8 @@ export default function AdminScreen() {
       setWarningMessage('');
       setCoinAmount('');
       setCoinReason('');
+      setShowUserHistory(false);
+      setShowOwnerRepairs(false);
     } catch (err) {
       Alert.alert('Utilisateur', err instanceof Error ? err.message : 'Chargement impossible.');
     } finally {
@@ -923,14 +918,12 @@ export default function AdminScreen() {
   };
 
   const refreshEconomy = async () => {
-    const [eo, et, ec, pu] = await Promise.all([
+    const [eo, ec, pu] = await Promise.all([
       getEconomyOverview(),
-      listEconomyTransactions(),
       getEconomyCatalog(),
       listPremiumAdminUsers(),
     ]);
     setEconomyOverview(eo);
-    setEconomyTransactions(et.items);
     setEconomyCatalog(ec);
     setPremiumUsers(pu);
     if (isAdmin) setAudit(await listAuditLog());
@@ -1041,6 +1034,46 @@ export default function AdminScreen() {
       Alert.alert('Refuge', `${result.resetCount} session(s) réinitialisée(s).`);
     } catch (err) {
       Alert.alert('Refuge', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const resetSelectedUserBottles = async () => {
+    if (!selectedUser || !isOwner) return;
+    const ok = await confirm(
+      'Réinitialiser les bouteilles',
+      'Fermer uniquement les bouteilles actives de cet utilisateur ? Les anciennes restent conservées.',
+    );
+    if (!ok) return;
+    try {
+      const result = await resetAdminUserBottles(
+        selectedUser.id,
+        'Déblocage technique par le propriétaire',
+      );
+      setSelectedUser(await getAdminUser(selectedUser.id));
+      setAudit(await listAuditLog());
+      Alert.alert('Bouteilles à la mer', `${result.resetCount} bouteille(s) active(s) fermée(s).`);
+    } catch (err) {
+      Alert.alert('Bouteilles à la mer', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  };
+
+  const repairSelectedUserLetters = async () => {
+    if (!selectedUser || !isOwner) return;
+    const ok = await confirm(
+      'Réparer les Lettres',
+      'Recalculer les compteurs et l’alternance à partir des lettres existantes ? Aucun contenu ne sera lu, modifié ou supprimé.',
+    );
+    if (!ok) return;
+    try {
+      const result = await repairAdminUserLetters(
+        selectedUser.id,
+        'Recalcul technique des échanges par le propriétaire',
+      );
+      setSelectedUser(await getAdminUser(selectedUser.id));
+      setAudit(await listAuditLog());
+      Alert.alert('Lettres', `${result.resetCount} échange(s) recalculé(s).`);
+    } catch (err) {
+      Alert.alert('Lettres', err instanceof Error ? err.message : 'Action impossible.');
     }
   };
 
@@ -1182,7 +1215,7 @@ export default function AdminScreen() {
                   <Text style={styles.priorityHint}>Pseudo, e-mail ou identifiant</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.priorityCard} onPress={() => setTab('content')}>
+                <TouchableOpacity style={styles.priorityCard} onPress={() => { setReportFilter('OPEN'); setTab('reports'); }}>
                   <View style={styles.priorityHead}>
                     <Ionicons name="images-outline" size={20} color="#8B6F47" />
                   </View>
@@ -1218,10 +1251,12 @@ export default function AdminScreen() {
                       <Ionicons name="time-outline" size={18} color="#6F5943" />
                       <Text style={styles.managementText}>Historique</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.managementButton} onPress={() => setTab('tools')}>
-                      <Ionicons name="construct-outline" size={18} color="#6F5943" />
-                      <Text style={styles.managementText}>Outils</Text>
-                    </TouchableOpacity>
+                    {isOwner && (
+                      <TouchableOpacity style={styles.managementButton} onPress={() => setTab('tools')}>
+                        <Ionicons name="construct-outline" size={18} color="#6F5943" />
+                        <Text style={styles.managementText}>Dépannage</Text>
+                      </TouchableOpacity>
+                    )}
                     {isOwner && (
                       <TouchableOpacity style={styles.managementButton} onPress={() => setTab('staff')}>
                         <Ionicons name="key-outline" size={18} color="#6F5943" />
@@ -1232,6 +1267,15 @@ export default function AdminScreen() {
                 </SectionCard>
               )}
 
+              <TouchableOpacity
+                style={styles.historyToggle}
+                onPress={() => setShowDashboardStats((v) => !v)}
+              >
+                <Text style={styles.historyToggleText}>{showDashboardStats ? 'Masquer les statistiques' : 'Voir les statistiques'}</Text>
+                <Ionicons name={showDashboardStats ? 'chevron-up' : 'chevron-down'} size={18} color="#6F5943" />
+              </TouchableOpacity>
+              {showDashboardStats && (
+                <>
               <Text style={styles.subSectionTitle}>Vue générale</Text>
               <View style={styles.statsGrid}>
                 <Metric value={overview.users.total} label="Utilisateurs" />
@@ -1348,6 +1392,9 @@ export default function AdminScreen() {
                   </View>
                 ))}
               </SectionCard>
+
+                </>
+              )}
             </>
           )}
 
@@ -1371,6 +1418,9 @@ export default function AdminScreen() {
                     placeholderTextColor="#A48C72"
                     style={styles.search}
                   />
+                  {query.trim().length < 2 && (
+                    <Text style={styles.mutedLeft}>Recherche uniquement : saisis au moins 2 caractères. Aucun annuaire complet n’est affiché.</Text>
+                  )}
                   {selectedUserLoading && <ActivityIndicator />}
                   {filteredUsers.map((u) => (
                     <TouchableOpacity key={u.id} style={styles.card} onPress={() => void openUser(u.id)}>
@@ -1433,15 +1483,27 @@ export default function AdminScreen() {
                     </SectionCard>
                   )}
 
-                  <Text style={styles.subSectionTitle}>Activité</Text>
-                  <View style={styles.statsGrid}>
-                    <Metric value={selectedUser.stats.matches} label="Matchs" />
-                    <Metric value={selectedUser.stats.lettersSent} label="Lettres envoyées" />
-                    <Metric value={selectedUser.stats.lettersReceived} label="Lettres reçues" />
-                    <Metric value={selectedUser.stats.reportsReceived} label="Signalements reçus" />
-                    <Metric value={selectedUser.stats.salonParticipations} label="Participations salons" />
-                    <Metric value={selectedUser.stats.bottlesSent} label="Bouteilles envoyées" />
-                  </View>
+                  <TouchableOpacity
+                    style={styles.historyToggle}
+                    onPress={() => setShowUserHistory((v) => !v)}
+                  >
+                    <Text style={styles.historyToggleText}>{showUserHistory ? 'Masquer l’historique' : 'Historique et détails'}</Text>
+                    <Ionicons name={showUserHistory ? 'chevron-up' : 'chevron-down'} size={18} color="#6F5943" />
+                  </TouchableOpacity>
+
+                  {showUserHistory && (
+                    <>
+                      <Text style={styles.subSectionTitle}>Activité</Text>
+                      <View style={styles.statsGrid}>
+                        <Metric value={selectedUser.stats.matches} label="Matchs" />
+                        <Metric value={selectedUser.stats.lettersSent} label="Lettres envoyées" />
+                        <Metric value={selectedUser.stats.lettersReceived} label="Lettres reçues" />
+                        <Metric value={selectedUser.stats.reportsReceived} label="Signalements reçus" />
+                        <Metric value={selectedUser.stats.salonParticipations} label="Participations salons" />
+                        <Metric value={selectedUser.stats.bottlesSent} label="Bouteilles envoyées" />
+                      </View>
+                    </>
+                  )}
 
                   <SectionCard title="Message de l’administration">
                     <Text style={styles.details}>
@@ -1531,7 +1593,40 @@ export default function AdminScreen() {
                     )}
                   </SectionCard>
 
-                  {selectedUser.recentTransactions.length > 0 && (
+                  {isOwner && (
+                    <SectionCard title="Dépannage propriétaire">
+                      <TouchableOpacity
+                        style={styles.historyToggle}
+                        onPress={() => setShowOwnerRepairs((v) => !v)}
+                      >
+                        <Text style={styles.historyToggleText}>{showOwnerRepairs ? 'Masquer les outils' : 'Ouvrir les outils de déblocage'}</Text>
+                        <Ionicons name={showOwnerRepairs ? 'chevron-up' : 'chevron-down'} size={18} color="#6F5943" />
+                      </TouchableOpacity>
+                      {showOwnerRepairs && (
+                        <>
+                          <Text style={styles.helper}>
+                            Uniquement pour corriger un état bloqué. Aucun accès au contenu privé des Lettres.
+                          </Text>
+                          <View style={styles.actionsLeft}>
+                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserSalons()}>
+                              <Text style={styles.secondaryText}>Réinitialiser les salons</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserRefuge()}>
+                              <Text style={styles.secondaryText}>Réinitialiser Refuge / animal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void resetSelectedUserBottles()}>
+                              <Text style={styles.secondaryText}>Réinitialiser les bouteilles</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.secondaryButton} onPress={() => void repairSelectedUserLetters()}>
+                              <Text style={styles.secondaryText}>Réparer l’état des Lettres</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </>
+                      )}
+                    </SectionCard>
+                  )}
+
+                  {showUserHistory && selectedUser.recentTransactions.length > 0 && (
                     <SectionCard title="Dernières transactions">
                       {selectedUser.recentTransactions.slice(0, 10).map((t) => (
                         <View key={t.id} style={styles.row}>
@@ -1547,7 +1642,7 @@ export default function AdminScreen() {
                     </SectionCard>
                   )}
 
-                  {selectedUser.adminHistory.length > 0 && (
+                  {showUserHistory && selectedUser.adminHistory.length > 0 && (
                     <SectionCard title="Historique administratif">
                       {selectedUser.adminHistory.map((a) => (
                         <View key={a.id} style={styles.row}>
@@ -2183,29 +2278,6 @@ export default function AdminScreen() {
                 </>
               )}
 
-              <Text style={styles.subSectionTitle}>Transactions récentes</Text>
-              {economyTransactions.slice(0, 50).map((tx) => (
-                <TouchableOpacity
-                  key={tx.id}
-                  style={styles.card}
-                  onPress={() => {
-                    setTab('users');
-                    void openUser(tx.userId);
-                  }}
-                >
-                  <View style={styles.rowSplit}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.cardTitle}>{tx.pseudo || tx.email}</Text>
-                      <Text style={styles.rowSub}>{transactionTypeLabel(tx.type)} · {formatDate(tx.createdAt)}</Text>
-                    </View>
-                    <Text style={[styles.amount, tx.amount < 0 && styles.amountNegative]}>
-                      {tx.amount > 0 ? '+' : ''}{tx.amount}
-                    </Text>
-                  </View>
-                  <Text style={styles.rowSub}>Solde après transaction : {tx.balance}</Text>
-                </TouchableOpacity>
-              ))}
-
               <Text style={styles.subSectionTitle}>Catalogue des offrandes</Text>
               {economyCatalog?.offerings.map((item) => (
                 <View key={item.id} style={[styles.card, styles.salonRow]}>
@@ -2513,7 +2585,7 @@ export default function AdminScreen() {
             </>
           )}
 
-          {tab === 'tools' && (
+          {tab === 'tools' && isOwner && (
             <>
               <Text style={styles.sectionTitle}>Outils & Support</Text>
 
@@ -2720,6 +2792,19 @@ const styles = StyleSheet.create({
   compactAction: { maxWidth: '100%' },
   selectedSecondary: { backgroundColor: '#EFE4D4' },
   secondaryText: { color: '#6F5943', fontSize: 12, fontWeight: '700' },
+  historyToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#D7C4AA',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+    backgroundColor: '#FBF5EB',
+  },
+  historyToggleText: { color: '#6F5943', fontSize: 12, fontWeight: '800' },
   smallButton: { borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#D7C4AA' },
   smallButtonText: { color: '#6F5943', fontSize: 12, fontWeight: '800' },
   salonRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
