@@ -58,22 +58,40 @@ router.post(
   wrap(ctrl.handleGrantPremium),
 );
 
-// POST /api/admin/users/:id/reset-salons — ADMIN only
+// POST /api/admin/users/:id/reset-salons — OWNER only
 router.post(
   "/:id/reset-salons",
-  requireRole(Role.ADMIN) as never,
+  requireRole(Role.OWNER) as never,
   validate(UserIdParamsSchema, "params"),
   validate(ResetSalonsSchema),
   wrap(ctrl.handleResetSalons),
 );
 
-// POST /api/admin/users/:id/reset-refuge — ADMIN only
+// POST /api/admin/users/:id/reset-refuge — OWNER only
 router.post(
   "/:id/reset-refuge",
-  requireRole(Role.ADMIN) as never,
+  requireRole(Role.OWNER) as never,
   validate(UserIdParamsSchema, "params"),
   validate(ResetRefugeSchema),
   wrap(ctrl.handleResetRefuge),
+);
+
+// POST /api/admin/users/:id/reset-bottles — OWNER only
+router.post(
+  "/:id/reset-bottles",
+  requireRole(Role.OWNER) as never,
+  validate(UserIdParamsSchema, "params"),
+  validate(ResetRefugeSchema),
+  wrap(ctrl.handleResetBottles),
+);
+
+// POST /api/admin/users/:id/repair-letters — OWNER only
+router.post(
+  "/:id/repair-letters",
+  requireRole(Role.OWNER) as never,
+  validate(UserIdParamsSchema, "params"),
+  validate(ResetRefugeSchema),
+  wrap(ctrl.handleRepairLetters),
 );
 
 // PATCH /api/admin/users/:id/role — ADMIN only
