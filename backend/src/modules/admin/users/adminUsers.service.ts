@@ -341,6 +341,9 @@ export async function adjustCoins(
     select: { id: true, role: true, email: true },
   });
   if (!target) throw new NotFoundError("Utilisateur");
+  if (target.role === Role.OWNER && actor.role !== Role.OWNER) {
+    throw new ForbiddenError("Le compte propriétaire est protégé");
+  }
 
   const meta = {
     reason,
@@ -441,6 +444,9 @@ export async function grantPremium(
     select: { id: true, premiumTier: true, premiumUntil: true, role: true },
   });
   if (!target) throw new NotFoundError("Utilisateur");
+  if (target.role === Role.OWNER && actor.role !== Role.OWNER) {
+    throw new ForbiddenError("Le compte propriétaire est protégé");
+  }
 
   const now = new Date();
   const base = target.premiumUntil && target.premiumUntil > now ? target.premiumUntil : now;
@@ -484,9 +490,12 @@ export async function resetUserSalons(
 
   const target = await prisma.user.findUnique({
     where: { id: targetId },
-    select: { id: true },
+    select: { id: true, role: true },
   });
   if (!target) throw new NotFoundError("Utilisateur");
+  if (target.role === Role.OWNER && actor.role !== Role.OWNER) {
+    throw new ForbiddenError("Le compte propriétaire est protégé");
+  }
 
   const result = await prisma.salonSessionParticipant.updateMany({
     where: {
@@ -521,9 +530,12 @@ export async function resetUserRefuge(
 
   const target = await prisma.user.findUnique({
     where: { id: targetId },
-    select: { id: true },
+    select: { id: true, role: true },
   });
   if (!target) throw new NotFoundError("Utilisateur");
+  if (target.role === Role.OWNER && actor.role !== Role.OWNER) {
+    throw new ForbiddenError("Le compte propriétaire est protégé");
+  }
 
   const result = await prisma.refugeSession.updateMany({
     where: {
