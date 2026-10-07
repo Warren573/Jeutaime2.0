@@ -95,7 +95,7 @@ type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'journal' 
 type ReportFilter = 'ALL' | AdminReport['status'];
 
 const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
-  { key: 'dashboard', label: 'Vue générale', icon: 'grid-outline' },
+  { key: 'dashboard', label: 'À traiter', icon: 'grid-outline' },
   { key: 'users', label: 'Utilisateurs', icon: 'people-outline' },
   { key: 'content', label: 'Contenus', icon: 'images-outline' },
   { key: 'reports', label: 'Signalements', icon: 'flag-outline' },
@@ -404,11 +404,18 @@ export default function AdminScreen() {
 
   const visibleTabs = useMemo(
     () => {
-      if (isOwner) return TABS;
-      if (isAdmin) return TABS.filter((t) => t.key !== 'staff');
-      return TABS.filter((t) => t.key === 'reports' || t.key === 'content' || t.key === 'support');
+      if (isModerator) {
+        return TABS.filter((t) => t.key === 'reports' || t.key === 'content' || t.key === 'support');
+      }
+      return TABS.filter((t) =>
+        t.key === 'dashboard' ||
+        t.key === 'reports' ||
+        t.key === 'users' ||
+        t.key === 'support' ||
+        t.key === 'content'
+      );
     },
-    [isOwner, isAdmin],
+    [isModerator],
   );
 
   const loadAll = useCallback(async () => {
@@ -546,6 +553,17 @@ export default function AdminScreen() {
       return true;
     });
   }, [audit]);
+
+  const openReportsCount = reports.filter((r) => r.status === 'OPEN' || r.status === 'REVIEWING').length;
+  const openSupportCount = supportTickets.filter((t) => t.status !== 'CLOSED').length;
+  const unresolvedIncidentsCount = systemIncidents.filter((i) => !i.resolved).length;
+  const urgentCount = openReportsCount + openSupportCount + unresolvedIncidentsCount;
+
+  const goToUserSearch = () => {
+    setSelectedUser(null);
+    setQuery('');
+    setTab('users');
+  };
 
 
 
@@ -1125,7 +1143,96 @@ export default function AdminScreen() {
         >
           {tab === 'dashboard' && overview && (
             <>
-              <Text style={styles.sectionTitle}>Vue générale</Text>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>À traiter maintenant</Text>
+                  <Text style={styles.rowSub}>
+                    {urgentCount > 0 ? `${urgentCount} élément(s) demandent une action` : 'Rien d’urgent pour le moment'}
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.smallButton} onPress={() => void refresh()}>
+                  <Text style={styles.smallButtonText}>Actualiser</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.priorityGrid}>
+                <TouchableOpacity style={styles.priorityCard} onPress={() => { setReportFilter('OPEN'); setSelectedReport(null); setTab('reports'); }}>
+                  <View style={styles.priorityHead}>
+                    <Ionicons name="flag-outline" size={20} color="#A7324B" />
+                    <Text style={styles.priorityCount}>{openReportsCount}</Text>
+                  </View>
+                  <Text style={styles.priorityTitle}>Signalements</Text>
+                  <Text style={styles.priorityHint}>Voir ceux qui attendent une décision</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.priorityCard} onPress={() => setTab('support')}>
+                  <View style={styles.priorityHead}>
+                    <Ionicons name="help-buoy-outline" size={20} color="#A7324B" />
+                    <Text style={styles.priorityCount}>{openSupportCount}</Text>
+                  </View>
+                  <Text style={styles.priorityTitle}>Support</Text>
+                  <Text style={styles.priorityHint}>Répondre aux demandes ouvertes</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.priorityCard} onPress={goToUserSearch}>
+                  <View style={styles.priorityHead}>
+                    <Ionicons name="search-outline" size={20} color="#8B6F47" />
+                  </View>
+                  <Text style={styles.priorityTitle}>Trouver un utilisateur</Text>
+                  <Text style={styles.priorityHint}>Pseudo, e-mail ou identifiant</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.priorityCard} onPress={() => setTab('content')}>
+                  <View style={styles.priorityHead}>
+                    <Ionicons name="images-outline" size={20} color="#8B6F47" />
+                  </View>
+                  <Text style={styles.priorityTitle}>Contenu signalé</Text>
+                  <Text style={styles.priorityHint}>Photos, profils et messages</Text>
+                </TouchableOpacity>
+              </View>
+
+              {isAdmin && (
+                <SectionCard title="Gestion">
+                  <View style={styles.managementGrid}>
+                    <TouchableOpacity style={styles.managementButton} onPress={() => setTab('salons')}>
+                      <Ionicons name="chatbubbles-outline" size={18} color="#6F5943" />
+                      <Text style={styles.managementText}>Salons</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.managementButton} onPress={() => setTab('journal')}>
+                      <Ionicons name="newspaper-outline" size={18} color="#6F5943" />
+                      <Text style={styles.managementText}>Journal</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.managementButton} onPress={() => setTab('economy')}>
+                      <Ionicons name="wallet-outline" size={18} color="#6F5943" />
+                      <Text style={styles.managementText}>Économie</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.managementButton} onPress={() => setTab('subscriptions')}>
+                      <Ionicons name="diamond-outline" size={18} color="#6F5943" />
+                      <Text style={styles.managementText}>Abonnements</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.managementButton} onPress={() => setTab('operations')}>
+                      <Ionicons name="pulse-outline" size={18} color={unresolvedIncidentsCount > 0 ? '#A7324B' : '#6F5943'} />
+                      <Text style={styles.managementText}>Technique{unresolvedIncidentsCount > 0 ? ` (${unresolvedIncidentsCount})` : ''}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.managementButton} onPress={() => setTab('audit')}>
+                      <Ionicons name="time-outline" size={18} color="#6F5943" />
+                      <Text style={styles.managementText}>Historique</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.managementButton} onPress={() => setTab('tools')}>
+                      <Ionicons name="construct-outline" size={18} color="#6F5943" />
+                      <Text style={styles.managementText}>Outils</Text>
+                    </TouchableOpacity>
+                    {isOwner && (
+                      <TouchableOpacity style={styles.managementButton} onPress={() => setTab('staff')}>
+                        <Ionicons name="key-outline" size={18} color="#6F5943" />
+                        <Text style={styles.managementText}>Propriétaire</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </SectionCard>
+              )}
+
+              <Text style={styles.subSectionTitle}>Vue générale</Text>
               <View style={styles.statsGrid}>
                 <Metric value={overview.users.total} label="Utilisateurs" />
                 <Metric value={overview.users.activeToday} label="Actifs aujourd’hui" />
@@ -1137,7 +1244,7 @@ export default function AdminScreen() {
                 <Metric value={overview.salons.activeSessions} label="Sessions salons" />
               </View>
 
-              <SectionCard title="Alertes administrateur">
+              <SectionCard title="Alertes">
                 {moderationOverview?.openReports ? (
                   <Text style={styles.alertText}>{moderationOverview.openReports} signalement(s) attendent une décision.</Text>
                 ) : (
@@ -2497,6 +2604,37 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   sectionTitle: { fontSize: 21, fontWeight: '800', color: '#3A2818', marginBottom: 12 },
   subSectionTitle: { fontSize: 16, fontWeight: '800', color: '#4D3726', marginBottom: 10, marginTop: 4 },
+  priorityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
+  priorityCard: {
+    width: '47%',
+    flexGrow: 1,
+    minHeight: 118,
+    backgroundColor: '#FFFDF8',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5D6C1',
+    padding: 14,
+    justifyContent: 'space-between',
+  },
+  priorityHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  priorityCount: { fontSize: 24, fontWeight: '900', color: '#A7324B' },
+  priorityTitle: { fontSize: 14, fontWeight: '800', color: '#3A2818', marginTop: 10 },
+  priorityHint: { fontSize: 11, lineHeight: 15, color: '#927960', marginTop: 4 },
+  managementGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  managementButton: {
+    minWidth: '46%',
+    flexGrow: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2D0B8',
+    backgroundColor: '#FBF5EB',
+  },
+  managementText: { fontSize: 12, fontWeight: '700', color: '#6F5943' },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
   stat: {
     width: '47%',
