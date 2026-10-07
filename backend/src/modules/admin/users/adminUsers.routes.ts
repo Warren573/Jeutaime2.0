@@ -94,10 +94,10 @@ router.post(
   wrap(ctrl.handleRepairLetters),
 );
 
-// PATCH /api/admin/users/:id/role — ADMIN only
+// PATCH /api/admin/users/:id/role — OWNER only
 router.patch(
   "/:id/role",
-  requireRole(Role.ADMIN) as never,
+  requireRole(Role.OWNER) as never,
   validate(UserIdParamsSchema, "params"),
   validate(UpdateRoleSchema),
   wrap(ctrl.handleUpdateRole),
