@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
  * Les illustrations femme/homme seront branchées ici dès leur ajout
  * aux assets locaux de l'application.
  */
-export function VacationNotice({ gender, compact = false }: { gender?: string | null; compact?: boolean }) {
+export function VacationNotice({ compact = false }: { gender?: string | null; compact?: boolean }) {
   return (
     <View style={[styles.card, compact && styles.compact]}>
       <View style={styles.header}>
