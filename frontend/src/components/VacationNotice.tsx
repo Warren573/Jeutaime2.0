@@ -1,49 +1,50 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 
-/**
- * Affichage du mode vacances dans les profils et les correspondances.
- * Les illustrations femme/homme seront branchées ici dès leur ajout
- * aux assets locaux de l'application.
- */
+/** Affiche le visuel de vacances dans le profil ou une correspondance existante. */
 export function VacationNotice({ gender, compact = false }: { gender?: string | null; compact?: boolean }) {
   const artwork = String(gender ?? '').toUpperCase() === 'FEMME'
     ? require('../../assets/images/vacances-femme.jpg')
     : require('../../assets/images/vacances-homme.jpg');
+  const { width } = useWindowDimensions();
+  const horizontal = compact && width >= 340;
   return (
-    <View style={[styles.card, compact && styles.compact]}>
-      <Image source={artwork} style={[styles.artwork, compact && styles.artworkCompact]} contentFit="contain" />
-      <View style={styles.header}>
-        <View style={styles.icon}><Ionicons name="airplane-outline" size={23} color="#A7324B" /></View>
-        <View style={styles.heading}>
-          <Text style={styles.title}>Mode vacances</Text>
-          <Text style={styles.subtitle}>Bientôt de retour</Text>
+    <View style={[styles.card, compact && styles.compact, horizontal && styles.horizontal]}>
+      <Image source={artwork} style={horizontal ? styles.artworkSide : styles.artwork} contentFit="contain" />
+      <View style={horizontal ? styles.sideContent : styles.fullContent}>
+        <View style={styles.header}>
+          <Ionicons name="airplane-outline" size={22} color="#A7324B" />
+          <View style={styles.heading}>
+            <Text style={styles.title} numberOfLines={2}>Mode vacances</Text>
+            <Text style={styles.subtitle}>Bientôt de retour</Text>
+          </View>
         </View>
+        <View style={styles.line} />
+        <Text style={styles.note}>
+          {compact
+            ? 'Ce profil est temporairement masqué dans la sélection de profils.'
+            : 'Correspondance en pause pendant les vacances. Vos anciennes lettres restent accessibles.'}
+        </Text>
       </View>
-      <View style={styles.line} />
-      <Text style={styles.note}>
-        {compact
-          ? 'Ce profil est temporairement masqué dans la sélection de profils.'
-          : 'Correspondance en pause pendant les vacances. Vos anciennes lettres restent accessibles.'}
-      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: { backgroundColor:'#FFF9F0', borderColor:'#D4BE9E', borderWidth:1,
-    borderRadius:16, padding:16, marginVertical:10 },
+    borderRadius:16, padding:12, marginVertical:10 },
   compact: { marginVertical:0 },
-  artwork: { width:'100%', aspectRatio: 4/3, borderRadius:12, marginBottom:12, backgroundColor:'#F7ECDD' },
-  artworkCompact: { aspectRatio: 4/3 },
-  header: { flexDirection:'row', alignItems:'center', gap:12 },
-  icon: { width:42, height:42, backgroundColor:'#F7ECDD', borderRadius:12,
-    alignItems:'center', justifyContent:'center' },
+  horizontal: { flexDirection:'row', alignItems:'center', gap:12 },
+  artwork: { width:'100%', aspectRatio:4/3, borderRadius:10, marginBottom:12, backgroundColor:'#F7ECDD' },
+  artworkSide: { width:'42%', aspectRatio:4/3, borderRadius:10, backgroundColor:'#F7ECDD' },
+  sideContent: { flex:1 },
+  fullContent: { width:'100%' },
+  header: { flexDirection:'row', alignItems:'flex-start', gap:8 },
   heading: { flex:1 },
-  title: { fontSize:18, fontWeight:'800', color:'#30241E' },
-  subtitle: { fontSize:15, color:'#907B65', marginTop:3 },
-  line: { height:1, backgroundColor:'#D4BE9E', marginVertical:12 },
-  note: { fontSize:13, lineHeight:20, color:'#907B65' },
+  title: { fontSize:16, fontWeight:'800', color:'#30241E' },
+  subtitle: { fontSize:14, color:'#907B65', marginTop:4 },
+  line: { height:1, backgroundColor:'#D4BE9E', marginVertical:10 },
+  note: { fontSize:12, lineHeight:17, color:'#907B65' },
 });
