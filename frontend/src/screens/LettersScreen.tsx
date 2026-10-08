@@ -1105,7 +1105,7 @@ export default function LettersScreen() {
           })()}
 
           <ScrollView style={styles.messagesContainer}>
-            {selectedMatch?.otherUserVacationMode && <VacationNotice gender={undefined} />}
+            {selectedMatch?.otherUserVacationMode && <VacationNotice gender={matchPartners[getOtherUserId(selectedMatch)]?.gender} />}
             {selectedMatch && (() => {
               const sortedConversation = [...getConversation(selectedMatch)]
                 .sort((a, b) => b.createdAt - a.createdAt);
