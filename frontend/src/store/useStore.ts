@@ -214,6 +214,7 @@ interface CurrentUser {
 // Profil d'un partenaire de match (subset des champs, toujours visible côté personnalité)
 export interface PartnerProfile {
   id: string;
+  gender?: string;
   pseudo: string;
   age?: number;
   bio?: string;
@@ -646,6 +647,7 @@ export const useStore = create<StoreState>()(
               newPartners[m.otherUserId] = {
                 id: m.otherUserId,
                 pseudo: m.otherProfile.pseudo,
+                gender: m.otherProfile.gender,
                 age,
                 bio: m.otherProfile.bio,
                 city: m.otherProfile.city,
