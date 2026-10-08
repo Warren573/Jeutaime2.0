@@ -383,8 +383,8 @@ export async function updateRole(
   targetId: string,
   nextRole: "USER" | "MODERATOR" | "ADMIN",
 ) {
-  if (actor.role !== Role.OWNER) {
-    throw new ForbiddenError("Seul le propriétaire peut modifier les rôles de l’équipe");
+  if (actor.role !== Role.ADMIN && actor.role !== Role.OWNER) {
+    throw new ForbiddenError();
   }
   if (actor.id === targetId) {
     throw new BadRequestError("Tu ne peux pas modifier ton propre rôle");
@@ -397,7 +397,22 @@ export async function updateRole(
   if (!target) throw new NotFoundError("Utilisateur");
 
   if (target.role === Role.OWNER) {
-    throw new ForbiddenError("Le rôle du propriétaire ne peut pas être modifié depuis l’administration");
+    throw new ForbiddenError("Le rôle du propriétaire ne peut jamais être modifié depuis l’administration");
+  }
+
+  if (actor.role === Role.ADMIN) {
+    if (target.role === Role.ADMIN) {
+      throw new ForbiddenError("Seul le propriétaire peut gérer les administrateurs");
+    }
+    if (nextRole === "ADMIN") {
+      throw new ForbiddenError("Seul le propriétaire peut nommer un administrateur");
+    }
+    if (target.role !== Role.USER && target.role !== Role.MODERATOR) {
+      throw new ForbiddenError();
+    }
+    if (nextRole !== "USER" && nextRole !== "MODERATOR") {
+      throw new ForbiddenError();
+    }
   }
 
   const updated = await prisma.user.update({
