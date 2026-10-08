@@ -91,7 +91,7 @@ import {
   warnAdminUser,
 } from '../api/admin';
 
-type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'journal' | 'economy' | 'subscriptions' | 'support' | 'staff' | 'audit' | 'operations' | 'tools';
+type Tab = 'dashboard' | 'users' | 'content' | 'reports' | 'salons' | 'journal' | 'economy' | 'subscriptions' | 'support' | 'moderators' | 'staff' | 'audit' | 'operations' | 'tools';
 type ReportFilter = 'ALL' | AdminReport['status'];
 
 const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
@@ -104,6 +104,7 @@ const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof I
   { key: 'economy', label: 'Économie', icon: 'wallet-outline' },
   { key: 'subscriptions', label: 'Abonnements', icon: 'diamond-outline' },
   { key: 'support', label: 'Support', icon: 'help-buoy-outline' },
+  { key: 'moderators', label: 'Modérateurs', icon: 'people-circle-outline' },
   { key: 'staff', label: 'Propriétaire', icon: 'shield-checkmark-outline' },
   { key: 'audit', label: 'Historique', icon: 'time-outline' },
   { key: 'operations', label: 'Technique', icon: 'pulse-outline' },
@@ -660,7 +661,15 @@ export default function AdminScreen() {
     user: AdminUser,
     role: 'USER' | 'MODERATOR' | 'ADMIN',
   ) => {
-    if (!isOwner || user.role === 'OWNER') return;
+    if (user.role === 'OWNER') return;
+    if (isOwner) {
+      if (role === 'MODERATOR' && tab === 'staff') return;
+    } else {
+      if (!isAdmin) return;
+      if (user.role === 'ADMIN' || role === 'ADMIN') return;
+      if (user.role !== 'USER' && user.role !== 'MODERATOR') return;
+      if (role !== 'USER' && role !== 'MODERATOR') return;
+    }
 
     const actionLabel =
       role === 'ADMIN'
@@ -687,7 +696,13 @@ export default function AdminScreen() {
   };
 
   const changeRole = async (role: 'USER' | 'MODERATOR' | 'ADMIN') => {
-    if (!isOwner || !selectedUser || selectedUser.role === 'OWNER') return;
+    if (!selectedUser || selectedUser.role === 'OWNER') return;
+    if (isOwner) {
+      if (role === 'MODERATOR') return;
+    } else {
+      if (!isAdmin || selectedUser.role === 'ADMIN' || role === 'ADMIN') return;
+      if (selectedUser.role !== 'USER' && selectedUser.role !== 'MODERATOR') return;
+    }
     try {
       const updated = await updateAdminUserRole(selectedUser.id, role);
       syncUserList(updated);
@@ -1351,16 +1366,14 @@ export default function AdminScreen() {
                       <Ionicons name="pulse-outline" size={18} color={unresolvedIncidentsCount > 0 ? '#A7324B' : '#6F5943'} />
                       <Text style={styles.managementText}>Technique{unresolvedIncidentsCount > 0 ? ` (${unresolvedIncidentsCount})` : ''}</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity style={styles.managementButton} onPress={() => setTab('moderators')}>
+                      <Ionicons name="people-circle-outline" size={18} color="#6F5943" />
+                      <Text style={styles.managementText}>Modérateurs</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity style={styles.managementButton} onPress={() => setTab('audit')}>
                       <Ionicons name="time-outline" size={18} color="#6F5943" />
                       <Text style={styles.managementText}>Historique</Text>
                     </TouchableOpacity>
-                    {isOwner && (
-                      <TouchableOpacity style={styles.managementButton} onPress={() => setTab('staff')}>
-                        <Ionicons name="key-outline" size={18} color="#6F5943" />
-                        <Text style={styles.managementText}>Propriétaire</Text>
-                      </TouchableOpacity>
-                    )}
                   </View>
                 </SectionCard>
               )}
@@ -2509,49 +2522,37 @@ export default function AdminScreen() {
             </>
           )}
 
-          {tab === 'staff' && (
+          {tab === 'moderators' && isAdmin && (
             <>
-              <Text style={styles.sectionTitle}>Équipe d’administration</Text>
+              <Text style={styles.sectionTitle}>Équipe de modération</Text>
               <Text style={styles.details}>
-                Gère ici uniquement les rôles de modération et d’administration. Le rôle propriétaire est protégé et ne peut pas être attribué depuis l’app.
+                Les administrateurs gèrent les modérateurs. Un modérateur ne peut gérer aucun rôle.
               </Text>
 
-              <SectionCard title="Équipe actuelle">
-                {users.filter((u) => u.role === 'OWNER' || u.role === 'ADMIN' || u.role === 'MODERATOR').map((user) => (
-                  <View key={user.id} style={styles.staffRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowTitle}>{user.pseudo || user.email}</Text>
-                      <Text style={styles.rowSub}>{user.email}</Text>
-                    </View>
-                    <View style={[styles.rolePill, user.role === 'OWNER' && styles.rolePillOwner, user.role === 'ADMIN' && styles.rolePillAdmin, user.role === 'MODERATOR' && styles.rolePillModerator]}>
-                      <Text style={styles.roleText}>{roleLabel(user.role)}</Text>
-                    </View>
-                    {user.role === 'MODERATOR' && (
+              <SectionCard title="Modérateurs actuels">
+                {users.filter((u) => u.role === 'MODERATOR').length === 0 ? (
+                  <Text style={styles.muted}>Aucun modérateur actuellement.</Text>
+                ) : (
+                  users.filter((u) => u.role === 'MODERATOR').map((user) => (
+                    <View key={user.id} style={styles.staffRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.rowTitle}>{user.pseudo || user.email}</Text>
+                        <Text style={styles.rowSub}>{user.email}</Text>
+                      </View>
+                      <View style={[styles.rolePill, styles.rolePillModerator]}>
+                        <Text style={styles.roleText}>Modérateur</Text>
+                      </View>
                       <View style={styles.staffActions}>
-                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'ADMIN')}>
-                          <Text style={styles.secondaryText}>Passer admin</Text>
-                        </TouchableOpacity>
                         <TouchableOpacity style={styles.dangerButton} onPress={() => void changeStaffRole(user, 'USER')}>
-                          <Text style={styles.actionButtonText}>Retirer</Text>
+                          <Text style={styles.actionButtonText}>Retirer le rôle modérateur</Text>
                         </TouchableOpacity>
                       </View>
-                    )}
-                    {user.role === 'ADMIN' && (
-                      <View style={styles.staffActions}>
-                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'MODERATOR')}>
-                          <Text style={styles.secondaryText}>Passer modérateur</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.dangerButton} onPress={() => void changeStaffRole(user, 'USER')}>
-                          <Text style={styles.actionButtonText}>Retirer</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                    {user.role === 'OWNER' && <Text style={styles.helper}>Compte propriétaire protégé.</Text>}
-                  </View>
-                ))}
+                    </View>
+                  ))
+                )}
               </SectionCard>
 
-              <Text style={styles.subSectionTitle}>Ajouter quelqu’un à l’équipe</Text>
+              <Text style={styles.subSectionTitle}>Nommer un modérateur</Text>
               <TextInput
                 value={staffQuery}
                 onChangeText={setStaffQuery}
@@ -2560,7 +2561,7 @@ export default function AdminScreen() {
                 style={styles.search}
               />
               {staffQuery.trim().length < 2 ? (
-                <Text style={styles.mutedLeft}>Saisis au moins 2 caractères. Aucun annuaire complet n’est affiché.</Text>
+                <Text style={styles.mutedLeft}>Saisis au moins 2 caractères.</Text>
               ) : (
                 users
                   .filter((u) => u.role === 'USER')
@@ -2572,14 +2573,69 @@ export default function AdminScreen() {
                     <View key={user.id} style={styles.card}>
                       <Text style={styles.cardTitle}>{user.pseudo || user.email}</Text>
                       <Text style={styles.rowSub}>{user.email}</Text>
-                      <View style={styles.actionsLeft}>
-                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'MODERATOR')}>
-                          <Text style={styles.secondaryText}>Nommer modérateur</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'ADMIN')}>
-                          <Text style={styles.secondaryText}>Nommer administrateur</Text>
+                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'MODERATOR')}>
+                        <Text style={styles.secondaryText}>Nommer modérateur</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))
+              )}
+            </>
+          )}
+
+          {tab === 'staff' && isOwner && (
+            <>
+              <Text style={styles.sectionTitle}>Administrateurs</Text>
+              <Text style={styles.details}>
+                Cet espace propriétaire sert uniquement à choisir les administrateurs de JeuTaime.
+              </Text>
+
+              <SectionCard title="Administrateurs actuels">
+                {users.filter((u) => u.role === 'ADMIN').length === 0 ? (
+                  <Text style={styles.muted}>Aucun administrateur actuellement.</Text>
+                ) : (
+                  users.filter((u) => u.role === 'ADMIN').map((user) => (
+                    <View key={user.id} style={styles.staffRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.rowTitle}>{user.pseudo || user.email}</Text>
+                        <Text style={styles.rowSub}>{user.email}</Text>
+                      </View>
+                      <View style={[styles.rolePill, styles.rolePillAdmin]}>
+                        <Text style={styles.roleText}>Administrateur</Text>
+                      </View>
+                      <View style={styles.staffActions}>
+                        <TouchableOpacity style={styles.dangerButton} onPress={() => void changeStaffRole(user, 'USER')}>
+                          <Text style={styles.actionButtonText}>Retirer le rôle administrateur</Text>
                         </TouchableOpacity>
                       </View>
+                    </View>
+                  ))
+                )}
+              </SectionCard>
+
+              <Text style={styles.subSectionTitle}>Nommer un administrateur</Text>
+              <TextInput
+                value={staffQuery}
+                onChangeText={setStaffQuery}
+                placeholder="Pseudo ou e-mail"
+                placeholderTextColor="#A48C72"
+                style={styles.search}
+              />
+              {staffQuery.trim().length < 2 ? (
+                <Text style={styles.mutedLeft}>Saisis au moins 2 caractères.</Text>
+              ) : (
+                users
+                  .filter((u) => u.role !== 'OWNER' && u.role !== 'ADMIN')
+                  .filter((u) => {
+                    const q = staffQuery.trim().toLowerCase();
+                    return u.email.toLowerCase().includes(q) || (u.pseudo ?? '').toLowerCase().includes(q);
+                  })
+                  .map((user) => (
+                    <View key={user.id} style={styles.card}>
+                      <Text style={styles.cardTitle}>{user.pseudo || user.email}</Text>
+                      <Text style={styles.rowSub}>{user.email}</Text>
+                      <TouchableOpacity style={styles.secondaryButton} onPress={() => void changeStaffRole(user, 'ADMIN')}>
+                        <Text style={styles.secondaryText}>Nommer administrateur</Text>
+                      </TouchableOpacity>
                     </View>
                   ))
               )}
