@@ -26,6 +26,7 @@ import { reportUser, type ReportReason } from '../api/profiles';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
 import { LetterPaginatedView } from '../components/letters/LetterPaginatedView';
+import { VacationNotice } from '../components/VacationNotice';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import { getRelationInfo } from '../engine/RelationEngine';
@@ -1104,6 +1105,7 @@ export default function LettersScreen() {
           })()}
 
           <ScrollView style={styles.messagesContainer}>
+            {selectedMatch?.otherUserVacationMode && <VacationNotice gender={matchPartners[getOtherUserId(selectedMatch)]?.gender} />}
             {selectedMatch && (() => {
               const sortedConversation = [...getConversation(selectedMatch)]
                 .sort((a, b) => b.createdAt - a.createdAt);
