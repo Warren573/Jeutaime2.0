@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Modal,
   RefreshControl,
   ScrollView,
@@ -410,6 +411,7 @@ export default function AdminScreen() {
   const [selectedSalon, setSelectedSalon] = useState<AdminSalonSession | null>(null);
   const [selectedSalonLoading, setSelectedSalonLoading] = useState(false);
   const mainScrollRef = useRef<ScrollView>(null);
+  const appStateRef = useRef(AppState.currentState);
   const primaryTabKeys: Tab[] = ['dashboard', 'users', 'reports', 'support'];
   const isAdvancedTab = !primaryTabKeys.includes(tab);
   const currentTabLabel = TABS.find((item) => item.key === tab)?.label ?? '';
@@ -491,12 +493,32 @@ export default function AdminScreen() {
       router.replace('/(tabs)/settings' as any);
       return;
     }
-    if (isModerator) setTab('reports');
-    else if (isOwner && params.tab === 'staff') setTab('staff');
+    if (isModerator) {
+      setTab('reports');
+    } else if (isOwner && params.tab === 'staff') {
+      setTab('staff');
+    } else if (isAdmin) {
+      setTab('dashboard');
+    }
     loadAll()
       .catch((err) => Alert.alert(isOwner ? 'Propriétaire' : isAdmin ? 'Administration' : 'Modération', err instanceof Error ? err.message : 'Chargement impossible.'))
       .finally(() => setLoading(false));
   }, [isStaff, isOwner, isAdmin, isModerator, params.tab, loadAll, router]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      const wasAway = appStateRef.current === 'background' || appStateRef.current === 'inactive';
+      appStateRef.current = nextState;
+      if (wasAway && nextState === 'active') {
+        router.replace('/(tabs)' as any);
+      }
+    });
+    return () => subscription.remove();
+  }, [router]);
+
+  const exitPanel = () => {
+    router.replace('/(tabs)/settings' as any);
+  };
 
   const refresh = async () => {
     setRefreshing(true);
@@ -1163,7 +1185,7 @@ export default function AdminScreen() {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.back}>
+        <TouchableOpacity onPress={exitPanel} style={styles.back}>
           <Ionicons name="chevron-back" size={22} color="#4A3424" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
