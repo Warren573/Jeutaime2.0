@@ -1,18 +1,15 @@
 import React from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 
 /** Affiche le visuel de vacances dans le profil ou une correspondance existante. */
 export function VacationNotice({ gender, compact = false }: { gender?: string | null; compact?: boolean }) {
-  const artwork = String(gender ?? '').toUpperCase() === 'FEMME'
-    ? require('../../assets/images/vacances-femme.jpg')
-    : require('../../assets/images/vacances-homme.jpg');
+
   const { width } = useWindowDimensions();
   const horizontal = compact && width >= 340;
   return (
     <View style={[styles.card, compact && styles.compact, horizontal && styles.horizontal]}>
-      <Image source={artwork} style={horizontal ? styles.artworkSide : styles.artwork} contentFit="contain" />
+
       <View style={horizontal ? styles.sideContent : styles.fullContent}>
         <View style={styles.header}>
           <Ionicons name="airplane-outline" size={22} color="#A7324B" />
