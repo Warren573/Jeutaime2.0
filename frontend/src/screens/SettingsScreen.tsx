@@ -331,19 +331,7 @@ export default function SettingsScreen() {
           />
         ))}
 
-        <TouchableOpacity
-          style={styles.logoutRow}
-          onPress={handleLogout}
-          activeOpacity={0.7}
-        >
-          <View style={styles.bottomIconBox}>
-            <Ionicons name="log-out-outline" size={19} color="#D6453A" />
-          </View>
-          <Text style={styles.logoutText}>Se déconnecter</Text>
-          <Text style={styles.bottomArrow}>›</Text>
-        </TouchableOpacity>
-
-        {(currentUser?.role !== 'OWNER' && currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MODERATOR') && <View style={styles.vacationCard}>
+        <View style={styles.vacationCard}>
           <View style={styles.vacationContent}>
             <View style={styles.vacationIconBox}>
               <Ionicons name="airplane-outline" size={19} color="#8B6F47" />
@@ -364,7 +352,21 @@ export default function SettingsScreen() {
             thumbColor={vacationMode ? '#8B6F47' : '#FFFFFF'}
             ios_backgroundColor="#E9DDCF"
           />
-        </View>}
+        </View>
+
+        <TouchableOpacity
+          style={styles.logoutRow}
+          onPress={handleLogout}
+          activeOpacity={0.7}
+        >
+          <View style={styles.bottomIconBox}>
+            <Ionicons name="log-out-outline" size={19} color="#D6453A" />
+          </View>
+          <Text style={styles.logoutText}>Se déconnecter</Text>
+          <Text style={styles.bottomArrow}>›</Text>
+        </TouchableOpacity>
+
+
       </ScrollView>
     </View>
   );
