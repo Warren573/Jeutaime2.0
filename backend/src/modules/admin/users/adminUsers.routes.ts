@@ -94,10 +94,10 @@ router.post(
   wrap(ctrl.handleRepairLetters),
 );
 
-// PATCH /api/admin/users/:id/role — OWNER only
+// PATCH /api/admin/users/:id/role — OWNER gère les ADMIN, ADMIN/OWNER gèrent les MODERATOR
 router.patch(
   "/:id/role",
-  requireRole(Role.OWNER) as never,
+  requireRole(Role.ADMIN, Role.OWNER) as never,
   validate(UserIdParamsSchema, "params"),
   validate(UpdateRoleSchema),
   wrap(ctrl.handleUpdateRole),
