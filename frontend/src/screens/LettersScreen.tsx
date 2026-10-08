@@ -53,6 +53,7 @@ interface EnvelopeCardProps {
   isInitiator: boolean;
   avatarConfig?: Record<string, unknown>;
   gender?: string;
+  vacationMode?: boolean;
   onOpen: () => void;
   onPlayQuestions: () => void | Promise<void>;
   onAccept: () => void | Promise<void>;
@@ -104,6 +105,7 @@ const EnvelopeCard = ({
   isInitiator,
   avatarConfig,
   gender,
+  vacationMode,
   onOpen,
   onPlayQuestions,
   onAccept,
@@ -176,7 +178,7 @@ const EnvelopeCard = ({
               </View>
             )}
           </View>
-          <Text style={envStyles.preview} numberOfLines={1}>{previewText()}</Text>
+          <Text style={envStyles.preview} numberOfLines={1}>{vacationMode ? 'En vacances · Bientôt de retour' : previewText()}</Text>
           {canInteract ? (
             <Text style={envStyles.levelLine}>
               {rel.stars} Niveau {rel.level} — {rel.label}{'  '}
@@ -992,6 +994,7 @@ export default function LettersScreen() {
                       letterCountB={match.letterCountB}
                       avatarConfig={partnerProfile?.avatarConfig}
                       gender={partnerProfile?.gender || 'HOMME'}
+                      vacationMode={match.otherUserVacationMode}
                       isPremium={currentUser?.isPremium}
                       questionsValidated={match.questionsValidated}
                       matchStatus={match.status}
