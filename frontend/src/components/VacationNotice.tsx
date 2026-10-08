@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
 /**
@@ -7,9 +8,13 @@ import { Ionicons } from '@expo/vector-icons';
  * Les illustrations femme/homme seront branchées ici dès leur ajout
  * aux assets locaux de l'application.
  */
-export function VacationNotice({ compact = false }: { gender?: string | null; compact?: boolean }) {
+export function VacationNotice({ gender, compact = false }: { gender?: string | null; compact?: boolean }) {
+  const artwork = String(gender ?? '').toUpperCase() === 'FEMME'
+    ? require('../../assets/images/vacances-femme.jpg')
+    : require('../../assets/images/vacances-homme.jpg');
   return (
     <View style={[styles.card, compact && styles.compact]}>
+      <Image source={artwork} style={[styles.artwork, compact && styles.artworkCompact]} contentFit="contain" />
       <View style={styles.header}>
         <View style={styles.icon}><Ionicons name="airplane-outline" size={23} color="#A7324B" /></View>
         <View style={styles.heading}>
@@ -31,6 +36,8 @@ const styles = StyleSheet.create({
   card: { backgroundColor:'#FFF9F0', borderColor:'#D4BE9E', borderWidth:1,
     borderRadius:16, padding:16, marginVertical:10 },
   compact: { marginVertical:0 },
+  artwork: { width:'100%', aspectRatio: 4/3, borderRadius:12, marginBottom:12, backgroundColor:'#F7ECDD' },
+  artworkCompact: { aspectRatio: 4/3 },
   header: { flexDirection:'row', alignItems:'center', gap:12 },
   icon: { width:42, height:42, backgroundColor:'#F7ECDD', borderRadius:12,
     alignItems:'center', justifyContent:'center' },
