@@ -29,6 +29,7 @@ export interface PublicProfileDto {
   hasChildren: boolean | null;
   wantsChildren: boolean | null;
   showPhotoByDefault: boolean;
+  vacationMode: boolean;
 }
 
 export interface PublicPhotoDto {
