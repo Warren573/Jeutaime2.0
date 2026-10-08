@@ -178,10 +178,10 @@ export default function SettingsScreen() {
                 ]
               : currentUser?.role === 'ADMIN'
                 ? [
-                    { icon: 'shield-half-outline', label: 'Panneau administrateur', route: '/admin' },
+                    { icon: 'shield-half-outline', label: 'Panneau administrateur', route: '/admin?tab=dashboard' },
                   ]
                 : [
-                    { icon: 'shield-half-outline', label: 'Panneau de modération', route: '/admin' },
+                    { icon: 'shield-half-outline', label: 'Panneau de modération', route: '/admin?tab=reports' },
                   ],
         } as SettingsSection]
       : []),
