@@ -125,7 +125,7 @@ export async function getPublicProfile(viewerId: string, targetUserId: string, v
 
   const targetSettings = await prisma.userSettings.findUnique({
     where: { userId: targetUserId },
-    select: { showPhotoByDefault: true },
+    select: { showPhotoByDefault: true, vacationMode: true },
   });
   const showPhotoByDefault = targetSettings?.showPhotoByDefault ?? true;
 
@@ -143,7 +143,7 @@ export async function getPublicProfile(viewerId: string, targetUserId: string, v
     : [];
 
   return {
-    profile: { ...profile, showPhotoByDefault },
+    profile: { ...profile, showPhotoByDefault, vacationMode: targetSettings?.vacationMode === true },
     photos: servedPhotos,
     photoUnlock: photoUnlockInfo,
   };
