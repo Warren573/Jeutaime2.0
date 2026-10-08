@@ -612,6 +612,7 @@ export const useStore = create<StoreState>()(
               questionsValidated: m.questionsValidated,
               canSend: m.canSend,
               canSendReason: m.canSendReason,
+              otherUserVacationMode: m.otherUserVacationMode === true,
               lastLetterAt: m.lastLetterAt ? new Date(m.lastLetterAt).getTime() : null,
               lastLetterBy: m.lastLetterBy,
               hasUnreadIncomingLetter: m.hasUnreadIncomingLetter,
