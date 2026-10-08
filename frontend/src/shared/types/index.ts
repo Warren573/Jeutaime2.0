@@ -199,6 +199,7 @@ export interface Match {
   /** Calculé par le backend : c'est ce tour-ci */
   canSend: boolean;
   canSendReason: string | null;
+  otherUserVacationMode?: boolean;
   /** Timestamp de la dernière lettre envoyée dans ce match (ms). null = aucune lettre. */
   lastLetterAt: number | null;
   /** userId de l'expéditeur de la dernière lettre. null = aucune lettre. */
