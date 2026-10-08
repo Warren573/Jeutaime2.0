@@ -5,6 +5,7 @@ import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getPublicProfile, reportUser, type PublicProfileResponse } from '../api/profiles';
+import { VacationNotice } from '../components/VacationNotice';
 import { Avatar } from '../avatar/png/Avatar';
 import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import { useStore } from '../store/useStore';
@@ -88,6 +89,7 @@ export default function ProfileDetailScreen(){
     </>
   )}
 </View><View style={styles.headerInfo}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} style={styles.profilePseudo}>{profile.pseudo||'—'}</Text><Text style={styles.metaRow}>{age!=null?`${age} ans`:'Âge non précisé'}</Text><Text style={styles.metaRow}>{profile.city||'Ville non précisée'}</Text></View></View><View style={styles.stack}>
+ {profile.vacationMode && <VacationNotice gender={profile.gender} compact />}
  <PaperSection title="BIO / DESCRIPTION" note="Quelques lignes valent mieux qu'une liste de courses." tone="paper" variant="a"><Text style={styles.bodyText}>{profile.bio?.trim()||'Rien d’écrit pour le moment.'}</Text></PaperSection>
  <PaperSection title="CE QUE JE CHERCHE" note="Pas besoin de signer un contrat. Voilà ce qui lui ressemble aujourd'hui." tone="paper" variant="d">{lookingFor.length?lookingFor.map((option,i)=><View key={`${option.label}-${i}`} style={styles.bigChoice}><Text style={styles.bigChoiceTitle}>{option.label}</Text>{!!option.sub&&<Text style={styles.bigChoiceSub}>{option.sub}</Text>}</View>):<Text style={styles.emptyText}>Pas encore précisé.</Text>}<Text style={styles.labelStandalone}>Qui aimerait-il·elle rencontrer ?</Text><View style={styles.chipWrap}>{interestedIn.length?interestedIn.map((item,i)=><View style={styles.chip} key={`${item}-${i}`}><Text style={styles.chipText}>{item}</Text></View>):<Text style={styles.emptyText}>Pas encore précisé.</Text>}</View></PaperSection>
  <PaperSection title="UN PEU DE MOI" note="Les mensurations exactes ne sont pas exigées par huissier." tone="paper" variant="c"><View style={styles.infoRow}><Text style={styles.label}>Taille</Text><Text style={styles.value}>{profile.height?`${profile.height} cm`:'—'}</Text></View><Text style={styles.labelStandalone}>Description physique</Text>{physical?<View style={styles.physicalCard}><Text style={styles.physicalTitle}>{physical.label}</Text><Text style={styles.physicalSub}>{physical.sub}</Text></View>:<Text style={styles.emptyText}>Pas encore précisée.</Text>}</PaperSection>
