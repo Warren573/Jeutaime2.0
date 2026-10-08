@@ -45,6 +45,7 @@ export interface MatchDTO {
   currentUserSide: "A" | "B";
   canSend: boolean;
   canSendReason: string | null;
+  otherUserVacationMode?: boolean;
   isGhosting: boolean;
   canRelance: boolean;
   hasUnreadIncomingLetter: boolean;
