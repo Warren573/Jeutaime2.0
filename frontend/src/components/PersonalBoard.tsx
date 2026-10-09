@@ -97,7 +97,7 @@ export function PersonalBoard() {
   const bottleImgH = Math.round(bouteilleH * 0.85), bottleImgW = Math.round(bottleImgH * (96 / 116));
 
   return (
-    <View style={styles.board} pointerEvents="box-none">
+    <View style={styles.board}>
       <View style={styles.backgroundLayer} pointerEvents="none">
         <Image source={WOOD_BG} resizeMode="stretch" style={styles.woodBackground} />
       </View>
