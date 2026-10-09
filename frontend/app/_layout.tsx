@@ -1,5 +1,5 @@
 import { Stack, usePathname, useRouter } from "expo-router";
-import { LogBox, useWindowDimensions } from "react-native";
+import { LogBox, Platform, useWindowDimensions } from "react-native";
 import { useEffect, useState } from "react";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useStore } from "../src/store/useStore";
@@ -68,7 +68,10 @@ export default function RootLayout() {
   useNotificationPolling();
   usePushNotifications();
 
-  const proportionalContentStyle = isSalon
+  // Sur Safari mobile, les barres du navigateur réduisent la hauteur du viewport.
+  // Ne pas réduire toute l'application web : elle doit remplir l'espace disponible.
+  // Garder la mise à l'échelle d'origine sur iOS et Android natifs.
+  const proportionalContentStyle = isSalon || Platform.OS === 'web'
     ? undefined
     : {
         width: responsive.logicalWidth,
