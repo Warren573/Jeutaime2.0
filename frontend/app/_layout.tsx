@@ -71,8 +71,10 @@ export default function RootLayout() {
   // Sur Safari mobile, les barres du navigateur réduisent la hauteur du viewport.
   // Ne pas réduire toute l'application web : elle doit remplir l'espace disponible.
   // Garder la mise à l'échelle d'origine sur iOS et Android natifs.
-  const proportionalContentStyle = isSalon || Platform.OS === 'web'
+  const proportionalContentStyle = isSalon
     ? undefined
+    : Platform.OS === 'web'
+    ? { width: '100%' as const, height: '100%' as const }
     : {
         width: responsive.logicalWidth,
         height: responsive.logicalHeight,
