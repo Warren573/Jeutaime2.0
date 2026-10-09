@@ -98,7 +98,6 @@ type ReportFilter = 'ALL' | AdminReport['status'];
 const TABS: Array<{ key: Tab; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
   { key: 'dashboard', label: 'Accueil', icon: 'home-outline' },
   { key: 'users', label: 'Utilisateurs', icon: 'people-outline' },
-  { key: 'content', label: 'Contenus', icon: 'images-outline' },
   { key: 'reports', label: 'Signalements', icon: 'flag-outline' },
   { key: 'salons', label: 'Salons', icon: 'chatbubbles-outline' },
   { key: 'journal', label: 'Journal', icon: 'newspaper-outline' },
@@ -1818,168 +1817,22 @@ export default function AdminScreen() {
 
           {tab === 'content' && (
             <>
-              <Text style={styles.sectionTitle}>Contenus</Text>
-
-              <Text style={styles.subSectionTitle}>Modération des contenus</Text>
-
-              {moderationOverview && (
-                <View style={styles.statsGrid}>
-                  <Metric value={moderationOverview.photos.active} label="Photos publiées" />
-                  <Metric value={moderationOverview.photos.hidden} label="Photos masquées" />
-                  <Metric value={moderationOverview.photos.removed} label="Photos retirées" />
-                  <Metric value={moderationOverview.salonMessages.hidden} label="Messages masqués" />
-                </View>
-              )}
-
-
-              <Text style={styles.subSectionTitle}>Photos récentes</Text>
-              {moderationPhotos.length === 0 && <Text style={styles.muted}>Aucune photo.</Text>}
-              {moderationPhotos.map((photo) => {
-                const uri = API_URL + photo.adminPreviewUrl.replace(/^\/api/, '');
-                return (
-                  <View key={photo.id} style={styles.card}>
-                    <View style={styles.userHead}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.cardTitle}>{photo.pseudo || 'Sans pseudo'}</Text>
-                        <Text style={styles.rowSub}>{photo.email}</Text>
-                      </View>
-                      <Text style={[
-                        styles.status,
-                        photo.moderationStatus !== 'ACTIVE' && styles.statusBad,
-                      ]}>
-                        {moderationStatusLabel(photo.moderationStatus)}
-                      </Text>
-                    </View>
-
-                    {authToken && (
-                      <Image
-                        source={{ uri, headers: { Authorization: `Bearer ${authToken}` } }}
-                        style={styles.moderationPhoto}
-                        contentFit="contain"
-                        cachePolicy="none"
-                      />
-                    )}
-
-                    <Text style={styles.rowSub}>Publiée le {formatDate(photo.createdAt)}</Text>
-                    {!!photo.moderationReason && (
-                      <Text style={styles.details}>Motif : {photo.moderationReason}</Text>
-                    )}
-
-                    <View style={styles.actionsLeft}>
-                      <TouchableOpacity
-                        style={styles.secondaryButton}
-                        onPress={() => {
-                          if (isAdmin) {
-                            setTab('users');
-                            void openUser(photo.userId);
-                          } else {
-                            router.push(`/profile/${photo.userId}?adminPreview=1` as any);
-                          }
-                        }}
-                      >
-                        <Text style={styles.secondaryText}>{isAdmin ? 'Voir le compte' : 'Voir le profil'}</Text>
-                      </TouchableOpacity>
-
-                      {photo.moderationStatus !== 'ACTIVE' && (
-                        <TouchableOpacity
-                          style={styles.actionButtonGood}
-                          onPress={() => void applyPhotoModeration(photo, 'ACTIVE')}
-                        >
-                          <Text style={styles.actionButtonText}>Restaurer</Text>
-                        </TouchableOpacity>
-                      )}
-
-                      {photo.moderationStatus === 'ACTIVE' && (
-                        <TouchableOpacity
-                          style={styles.actionButton}
-                          onPress={() => void applyPhotoModeration(photo, 'HIDDEN')}
-                        >
-                          <Text style={styles.actionButtonText}>Masquer</Text>
-                        </TouchableOpacity>
-                      )}
-
-                      {photo.moderationStatus !== 'REMOVED' && (
-                        <TouchableOpacity
-                          style={styles.dangerButton}
-                          onPress={() => void applyPhotoModeration(photo, 'REMOVED')}
-                        >
-                          <Text style={styles.actionButtonText}>Retirer</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                );
-              })}
-
-              {moderationProfile && (
-                <>
-                  <Text style={styles.subSectionTitle}>Profil à contrôler</Text>
-                  <SectionCard title={moderationProfile.pseudo || moderationProfile.email}>
-                    <DataLine label="E-mail" value={moderationProfile.email} />
-                    <DataLine label="Découverte" value={moderationProfile.showInDiscovery ? 'Visible' : 'Masqué'} />
-                    <Text style={styles.details}>
-                      Bio : {moderationProfile.bio || 'Aucune bio'}
-                    </Text>
-                    <View style={styles.actionsLeft}>
-                      {moderationProfile.showInDiscovery ? (
-                        <TouchableOpacity style={styles.actionButton} onPress={() => void applyProfileModeration('HIDE_FROM_DISCOVERY')}>
-                          <Text style={styles.actionButtonText}>Retirer de la découverte</Text>
-                        </TouchableOpacity>
-                      ) : (
-                        <TouchableOpacity style={styles.actionButtonGood} onPress={() => void applyProfileModeration('RESTORE_DISCOVERY')}>
-                          <Text style={styles.actionButtonText}>Rétablir la découverte</Text>
-                        </TouchableOpacity>
-                      )}
-                      {!!moderationProfile.bio && (
-                        <TouchableOpacity style={styles.dangerButton} onPress={() => void applyProfileModeration('CLEAR_BIO')}>
-                          <Text style={styles.actionButtonText}>Supprimer la bio</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </SectionCard>
-                </>
-              )}
-
-              <Text style={styles.subSectionTitle}>Messages de salons récents</Text>
-              {moderationMessages.slice(0, 30).map((message) => (
-                <View key={message.id} style={styles.card}>
-                  <View style={styles.userHead}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.cardTitle}>{message.salonName}</Text>
-                      <Text style={styles.rowSub}>{message.pseudo || message.email} · {formatDate(message.createdAt)}</Text>
-                    </View>
-                    <Text style={[styles.status, message.isHidden && styles.statusBad]}>
-                      {message.isHidden ? 'MASQUÉ' : 'VISIBLE'}
-                    </Text>
-                  </View>
-                  <Text style={styles.details}>{message.content}</Text>
-                  {!!message.hiddenReason && <Text style={styles.rowSub}>Motif : {message.hiddenReason}</Text>}
-                  <View style={styles.actionsLeft}>
-                    <TouchableOpacity
-                      style={styles.secondaryButton}
-                      onPress={() => {
-                        if (isAdmin) {
-                          setTab('users');
-                          void openUser(message.userId);
-                        } else {
-                          router.push(`/profile/${message.userId}?adminPreview=1` as any);
-                        }
-                      }}
-                    >
-                      <Text style={styles.secondaryText}>{isAdmin ? 'Voir le compte' : 'Voir le profil'}</Text>
-                    </TouchableOpacity>
-                    {message.isHidden ? (
-                      <TouchableOpacity style={styles.actionButtonGood} onPress={() => void applyMessageModeration(message, false)}>
-                        <Text style={styles.actionButtonText}>Restaurer</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity style={styles.dangerButton} onPress={() => void applyMessageModeration(message, true)}>
-                        <Text style={styles.actionButtonText}>Masquer le message</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              ))}
+              <Text style={styles.sectionTitle}>Modération des contenus</Text>
+              <SectionCard title="Modération sur signalement">
+                <Text style={styles.details}>
+                  Les photos, profils et messages ne sont pas parcourus en continu. Leur contenu est affiché uniquement lorsqu’un signalement ou un problème précis nécessite une décision.
+                </Text>
+                <TouchableOpacity
+                  style={[styles.actionButton, { marginTop: 12 }]}
+                  onPress={() => {
+                    setReportFilter('OPEN');
+                    setSelectedReport(null);
+                    setTab('reports');
+                  }}
+                >
+                  <Text style={styles.actionButtonText}>Voir les signalements</Text>
+                </TouchableOpacity>
+              </SectionCard>
             </>
           )}
 
