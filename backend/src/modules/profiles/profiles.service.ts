@@ -230,8 +230,27 @@ export async function discoverProfiles(viewerId: string, query: DiscoveryQuery) 
     }),
   ]);
 
+  // Plus : fournir l'URL de la photo principale sur la sélection.
+  // L'URL reste protégée par le contrôleur de fichier (authentification,
+  // statut Plus vérifié et règles de blocage appliquées à chaque lecture).
+  const viewer = await prisma.user.findUnique({
+    where: { id: viewerId },
+    select: { premiumTier: true, premiumUntil: true },
+  });
+  const isPlus = viewer?.premiumTier === "PREMIUM"
+    && viewer.premiumUntil !== null && viewer.premiumUntil > now;
+  const discoveryPhotos = isPlus
+    ? await prisma.photo.findMany({
+        where: { userId: { in: profiles.map(p => p.userId) }, isPrimary: true },
+        select: { id: true, userId: true },
+      })
+    : [];
+  const photoByUser = new Map(discoveryPhotos.map(p => [p.userId, buildPhotoUrl(p.id, "original")]));
   return {
-    data: profiles,
+    data: profiles.map(p => ({
+      ...p,
+      selectionPhotoUrl: isPlus ? (photoByUser.get(p.userId) ?? null) : null,
+    })),
     meta: buildMeta(total, { page, pageSize }),
   };
 }
