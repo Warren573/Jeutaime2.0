@@ -4,6 +4,7 @@ import { prisma } from "../../src/config/prisma";
 import { sendLetter } from "../../src/modules/letters/letters.service";
 import { submitMatchAnswers } from "../../src/modules/matches/questions.service";
 import { sendReaction } from "../../src/modules/reactions/reactions.service";
+import { acceptMatch } from "../../src/modules/matches/matches.service";
 
 const enabled = process.env.NODE_ENV === "test" &&
   !!process.env.TEST_DATABASE_URL &&
@@ -36,6 +37,10 @@ describe.skipIf(!enabled)("P0 encounters — isolated PostgreSQL", () => {
       const actual = await prisma.match.findUnique({ where: { id: second.matchId! } });
       expect(actual?.status).toBe("PENDING");
       expect(actual?.questionsValidated).toBe(false);
+      await expect(acceptMatch(second.matchId!, y)).rejects.toThrow();
+      const accepted = await acceptMatch(second.matchId!, x);
+      expect(accepted.status).toBe("ACTIVE");
+      expect(accepted.questionsValidated).toBe(false);
       await prisma.match.deleteMany({ where: { id: second.matchId } });
     } finally {
       await prisma.reaction.deleteMany({ where: { OR: [{ fromId: x }, { fromId: y }] } });
