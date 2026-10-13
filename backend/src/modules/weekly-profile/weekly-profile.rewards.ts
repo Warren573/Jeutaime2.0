@@ -13,7 +13,7 @@ export async function awardPreviousWeekWinners(): Promise<number> {
     if (!winner) continue;
     await prisma.$transaction(async tx => {
       // Verrou par semaine et catégorie : évite deux gagnants crédités si le classement change.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${winners.weekKey + ":" + category}))`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${winners.weekKey + ":" + category}))::text AS lock_result`;
       // La ligne du portefeuille sérialise aussi les versements concurrents au même compte.
       const lock = await tx.$queryRaw<Array<{ userId: string }>>`
         SELECT "userId" FROM "Wallet" WHERE "userId" = ${winner.id} FOR UPDATE
