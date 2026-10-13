@@ -99,8 +99,11 @@ describe.skipIf(!enabled)("P0 privacy with real PostgreSQL", () => {
       passwordHash: await hashPassword("correct-strong-password"),
     } });
     try {
+      // Verify a dependent record is removed as well as the user.
+      await prisma.userSettings.create({ data: { userId: accountId } });
       await deleteAccountPermanently(accountId, "correct-strong-password");
       expect(await prisma.user.findUnique({ where: { id: accountId } })).toBeNull();
+      expect(await prisma.userSettings.findUnique({ where: { userId: accountId } })).toBeNull();
     } finally {
       await prisma.user.deleteMany({ where: { id: accountId } });
     }
