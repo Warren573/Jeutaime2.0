@@ -968,12 +968,14 @@ export class RefugeService {
       include: { dailyChoices: true, guesses: true, dayResults: true },
     });
 
-    if (!session || session.status !== RefugeSessionStatus.ACTIVE) return;
-    if (!session.startedAt || !session.adoptantId) return;
+    if (!session || !session.startedAt || !session.adoptantId) return;
+    // Les sessions révélées ou terminées doivent également recevoir leur prime finale.
+    if (session.status === RefugeSessionStatus.ABANDONED || session.status === RefugeSessionStatus.CREATION) return;
 
     const now = new Date();
     const currentDay = getCurrentDay(session.createdAt, session.startedAt, now);
     const expired = isRefugeExpired(session.endsAt, now);
+    if (!expired && session.status !== RefugeSessionStatus.ACTIVE) return;
     const lastDueDay = expired ? REFUGE_DURATION_DAYS : Math.min(currentDay - 1, REFUGE_DURATION_DAYS);
 
     for (let day = 1; day <= lastDueDay; day++) {
@@ -995,10 +997,8 @@ export class RefugeService {
       const matches = choice && guess ? calculateDayResult(choice, guess).matches : null;
       const closure = computeDayClosure(!!choice, !!guess, matches, adoptantWasPresent);
 
-      // Jour complet (choix+réponse) : les récompenses ont déjà été versées à
-      // la soumission de la réponse — on ne persiste ici que le résultat.
-      const applyWallet = !(choice && guess);
-      await this.closeDay(session, day, closure, applyWallet);
+      // Le résultat journalier est enregistré sans versement de pièces.
+      await this.closeDay(session, day, closure, false);
     }
     if (expired) await this.creditFinalRefugeRewards(refugeSessionId);
   }
