@@ -54,5 +54,20 @@ jobs:
         run: npx prisma db push --skip-generate
       - name: Real PostgreSQL privacy integration tests
         run: npx vitest run tests/integration/security-p0-postgres.test.ts
+      - name: Verify Prisma schema drift against temporary PostgreSQL
+        run: npx prisma migrate diff --from-url "$DIRECT_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+      - name: Test database backup and restore (isolated CI only)
+        working-directory: .
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          pg_dump -h localhost -U postgres -d jeutaime_test -Fc -f "${RUNNER_TEMP}/jeutaime-test.dump"
+          createdb -h localhost -U postgres jeutaime_restore_test
+          pg_restore -h localhost -U postgres -d jeutaime_restore_test --no-owner --no-privileges "${RUNNER_TEMP}/jeutaime-test.dump"
+          psql -h localhost -U postgres -d jeutaime_restore_test -v ON_ERROR_STOP=1 -Atc 'SELECT COUNT(*) FROM "User";' > "${RUNNER_TEMP}/restored-users.txt"
+          psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -Atc 'SELECT COUNT(*) FROM "User";' > "${RUNNER_TEMP}/original-users.txt"
+          diff "${RUNNER_TEMP}/original-users.txt" "${RUNNER_TEMP}/restored-users.txt"
+          test "$(psql -h localhost -U postgres -d jeutaime_restore_test -Atc 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '\''public'\'';')" -gt 0
       - name: Backend typecheck
         run: npm run typecheck
