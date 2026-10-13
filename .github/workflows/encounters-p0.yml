@@ -54,6 +54,6 @@ jobs:
         run: |
           psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -f prisma/migrations/20260807143000_add_account_deactivation/migration.sql
       - name: Real PostgreSQL encounter integration
-        run: npx vitest run tests/integration/encounters-p0-postgres.test.ts
+        run: npx vitest run tests/integration/encounters-p0-postgres.test.ts tests/integration/encounters-failed-questions-p0-postgres.test.ts
       - name: Backend typecheck
         run: npm run typecheck
