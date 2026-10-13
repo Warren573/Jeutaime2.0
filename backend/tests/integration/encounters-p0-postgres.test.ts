@@ -16,7 +16,12 @@ describe.skipIf(!enabled)("P0 encounters — isolated PostgreSQL", () => {
   const b = "enc-b-" + suffix;
   let matchId = "";
   afterAll(async () => {
-    if (matchId) await prisma.match.deleteMany({ where: { id: matchId } });
+    if (matchId) {
+      await prisma.letter.deleteMany({ where: { matchId } });
+      await prisma.matchQuestionAttempt.deleteMany({ where: { matchId } });
+      await prisma.match.deleteMany({ where: { id: matchId } });
+    }
+    await prisma.reaction.deleteMany({ where: { OR: [{ fromId: a }, { fromId: b }] } });
     await prisma.user.deleteMany({ where: { id: { in: [a, b] } } });
     await prisma.$disconnect();
   });
@@ -52,10 +57,15 @@ describe.skipIf(!enabled)("P0 encounters — isolated PostgreSQL", () => {
       { id: a, email: a + "@example.invalid", passwordHash: "integration-test" },
       { id: b, email: b + "@example.invalid", passwordHash: "integration-test" },
     ] });
-    const match = await prisma.match.create({
-      data: { userAId: a, userBId: b, initiatorId: a, status: "ACTIVE" },
-    });
-    matchId = match.id;
+    const firstSmile = await sendReaction(a, { toId: b, type: "SMILE" });
+    expect(firstSmile.matchCreated).toBe(false);
+    const secondSmile = await sendReaction(b, { toId: a, type: "SMILE" });
+    expect(secondSmile.matchCreated).toBe(true);
+    matchId = secondSmile.matchId!;
+    const pending = await prisma.match.findUnique({ where: { id: matchId } });
+    expect(pending?.status).toBe("PENDING");
+    await acceptMatch(matchId, a);
+    expect((await prisma.match.findUnique({ where: { id: matchId } }))?.status).toBe("ACTIVE");
     await expect(sendLetter(matchId, a, { content: "Bonjour" })).rejects.toThrow();
     expect(await prisma.letter.count({ where: { matchId } })).toBe(0);
 
