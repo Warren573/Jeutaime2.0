@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { LETTER_MAX_LENGTH } from "../../config/constants";
+import { LETTER_MAX_WORDS } from "../../config/constants";
 
 export const SendLetterSchema = z.object({
   content: z
