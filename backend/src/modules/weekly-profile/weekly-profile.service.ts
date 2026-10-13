@@ -4,8 +4,9 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from ".
 import { computeProfileStatus } from "../../policies/profiles";
 
 const VOTE_REWARD = 5;
-const DAILY_LIMIT_FREE = 10;
-const DAILY_LIMIT_PREMIUM = 20;
+const DAILY_LIMIT_FREE = 999999;
+const DAILY_LIMIT_PREMIUM = 999999;
+const WEEKLY_PAID_VOTE_LIMIT = 5;
 const DUEL_TTL_MS = 15 * 60 * 1000;
 
 export interface DuelProfileDto { id: string; pseudo: string; age: number; city: string; bio: string | null; avatarConfig: Record<string, unknown> | null; }
@@ -132,7 +133,7 @@ export async function voteForDuel(voterId:string,isPremium:boolean,duelId:string
   const duel=await prisma.weeklyProfileDuel.findUnique({where:{id:duelId}});if(!duel)throw new NotFoundError("Duel");if(duel.userId!==voterId)throw new ForbiddenError("Ce duel ne t'appartient pas");if(duel.usedAt)throw new ConflictError("Ce duel a déjà été utilisé");const now=new Date();if(duel.expiresAt<=now)throw new ConflictError("Ce duel a expiré");if(chosenId!==duel.candidateAId&&chosenId!==duel.candidateBId)throw new BadRequestError("Le profil choisi ne fait pas partie de ce duel");
   if(!await candidatePairIsEligible(voterId,duel.candidateAId,duel.candidateBId)){await prisma.weeklyProfileDuel.updateMany({where:{id:duelId,usedAt:null},data:{expiresAt:now}});throw new ConflictError("Cette comparaison n'est plus disponible");}
   const dayKey=getDayKey(now),weekKey=getWeekKey(now),dailyLimit=dailyLimitFor(isPremium);const votesToday=await prisma.weeklyProfileDuel.count({where:{userId:voterId,dayKey,usedAt:{not:null}}});if(votesToday>=dailyLimit)throw new ConflictError("Limite quotidienne de votes atteinte");
-  await prisma.$transaction(async(tx)=>{const claimed=await tx.weeklyProfileDuel.updateMany({where:{id:duelId,usedAt:null},data:{usedAt:now,chosenId,weekKey,dayKey}});if(claimed.count!==1)throw new ConflictError("Ce duel a déjà été utilisé");const wallet=await tx.wallet.findUnique({where:{userId:voterId},select:{userId:true}});if(!wallet)throw new NotFoundError("Wallet");const updated=await tx.wallet.update({where:{userId:voterId},data:{coins:{increment:VOTE_REWARD}},select:{coins:true}});await tx.coinTransaction.create({data:{walletId:voterId,type:CoinTxnType.WEEKLY_PROFILE_VOTE,amount:VOTE_REWARD,balance:updated.coins,meta:{duelId,candidateAId:duel.candidateAId,candidateBId:duel.candidateBId,chosenId,weekKey} as Prisma.InputJsonValue}});});
+  await prisma.$transaction(async(tx)=>{const claimed=await tx.weeklyProfileDuel.updateMany({where:{id:duelId,usedAt:null},data:{usedAt:now,chosenId,weekKey,dayKey}});if(claimed.count!==1)throw new ConflictError("Ce duel a déjà été utilisé");const walletRows=await tx.$queryRawUnsafe<Array<{userId:string}>>(`SELECT "userId" FROM "Wallet" WHERE "userId" = $1 FOR UPDATE`,voterId);if(!walletRows.length)throw new NotFoundError("Wallet");const weeklyVotes=await tx.weeklyProfileDuel.count({where:{userId:voterId,weekKey,usedAt:{not:null}}});if(weeklyVotes<=WEEKLY_PAID_VOTE_LIMIT){const updated=await tx.wallet.update({where:{userId:voterId},data:{coins:{increment:VOTE_REWARD}},select:{coins:true}});await tx.coinTransaction.create({data:{walletId:voterId,type:CoinTxnType.WEEKLY_PROFILE_VOTE,amount:VOTE_REWARD,balance:updated.coins,meta:{duelId,candidateAId:duel.candidateAId,candidateBId:duel.candidateBId,chosenId,weekKey} as Prisma.InputJsonValue}});}});
   return getWeeklyProfileState(voterId,isPremium);
 }
 
