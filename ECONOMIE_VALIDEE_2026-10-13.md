@@ -73,7 +73,8 @@
 - [ ] Abonnement Plus : bonus mensuel 500, suppression des offres historiques, facturation réelle et gestion des droits.
 - [ ] Bouteilles : plafonds simultanés 1 / 5 (envois et réponses).
 - [ ] Photos de sélection visibles immédiatement pour Plus.
-- [ ] Catalogue des trois packs et achats sécurisés.
+- [x] Boutique existante `/shop` : affiche les trois packs 100/500/1000 aux prix validés et décrit Plus à 5,99 €/mois, sans faux paiement.
+- [ ] Connecter et valider les achats réels sécurisés sur iOS, Android et Web avant d'activer les boutons.
 - [ ] Historique des pièces, remboursement automatique, certification et protections anti-fraude.
 - [ ] Auditer jeu de cartes et conformité avant d'activer les mises en production.
 - [ ] Vérifier les tests d'intégration, builds web/iOS/Android, puis validation du propriétaire avant fusion.
