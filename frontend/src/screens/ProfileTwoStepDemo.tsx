@@ -137,7 +137,7 @@ export function ProfileMedia({
   }
   return (
     <Image
-      source={{ uri: photoUri.startsWith("http") ? photoUri : `${API_URL.replace(/\\/api$/, "")}${photoUri}`, headers: photoToken ? { Authorization: `Bearer ${photoToken}` } : undefined }}
+      source={{ uri: photoUri.startsWith("http") ? photoUri : `${API_URL.endsWith("/api") ? API_URL.slice(0, -4) : API_URL}${photoUri}`, headers: photoToken ? { Authorization: `Bearer ${photoToken}` } : undefined }}
       style={{ width: size, height: size, borderRadius: size * 0.12 }}
       contentFit="cover"
       blurRadius={visibility === "blurred" ? 20 : 0}
