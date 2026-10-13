@@ -12,13 +12,15 @@ export async function awardPreviousWeekWinners(): Promise<number> {
   for (const [category, winner] of [["male", winners.male], ["female", winners.female]] as const) {
     if (!winner) continue;
     await prisma.$transaction(async tx => {
-      // La ligne du portefeuille sérialise les attributions concurrentes au même compte.
+      // Verrou par semaine et catégorie : évite deux gagnants crédités si le classement change.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${winners.weekKey + ":" + category}))`;
+      // La ligne du portefeuille sérialise aussi les versements concurrents au même compte.
       const lock = await tx.$queryRaw<Array<{ userId: string }>>`
         SELECT "userId" FROM "Wallet" WHERE "userId" = ${winner.id} FOR UPDATE
       `;
       if (!lock.length) return;
       const existing = await tx.coinTransaction.findMany({
-        where: { walletId: winner.id, type: CoinTxnType.ADMIN_ADJUST },
+        where: { type: CoinTxnType.ADMIN_ADJUST },
         select: { meta: true },
       });
       if (existing.some(row => {
