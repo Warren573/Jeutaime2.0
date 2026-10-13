@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "../../src/config/prisma";
 import { sendLetter } from "../../src/modules/letters/letters.service";
 import { submitMatchAnswers } from "../../src/modules/matches/questions.service";
+import { sendReaction } from "../../src/modules/reactions/reactions.service";
 
 const enabled = process.env.NODE_ENV === "test" &&
   !!process.env.TEST_DATABASE_URL &&
@@ -19,6 +20,28 @@ describe.skipIf(!enabled)("P0 encounters — isolated PostgreSQL", () => {
     await prisma.$disconnect();
   });
 
+
+  it("creates a pending match only after mutual smiles on real PostgreSQL", async () => {
+    const x = "smile-a-" + suffix;
+    const y = "smile-b-" + suffix;
+    await prisma.user.createMany({ data: [
+      { id: x, email: x + "@example.invalid", passwordHash: "test" },
+      { id: y, email: y + "@example.invalid", passwordHash: "test" },
+    ] });
+    try {
+      const first = await sendReaction(x, { toId: y, type: "SMILE" });
+      expect(first.matchCreated).toBe(false);
+      const second = await sendReaction(y, { toId: x, type: "SMILE" });
+      expect(second.matchCreated).toBe(true);
+      const actual = await prisma.match.findUnique({ where: { id: second.matchId! } });
+      expect(actual?.status).toBe("PENDING");
+      expect(actual?.questionsValidated).toBe(false);
+      await prisma.match.deleteMany({ where: { id: second.matchId } });
+    } finally {
+      await prisma.reaction.deleteMany({ where: { OR: [{ fromId: x }, { fromId: y }] } });
+      await prisma.user.deleteMany({ where: { id: { in: [x, y] } } });
+    }
+  });
   it("enforces questions before correspondence and alternates letters", async () => {
     await prisma.user.createMany({ data: [
       { id: a, email: a + "@example.invalid", passwordHash: "integration-test" },
