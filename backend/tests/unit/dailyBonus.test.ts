@@ -113,7 +113,8 @@ describe("getDailyBonusAmount", () => {
     expect(getDailyBonusAmount(true)).toBe(DAILY_BONUS_PREMIUM);
   });
 
-  it("Premium > Free (sanité métier)", () => {
-    expect(getDailyBonusAmount(true)).toBeGreaterThan(getDailyBonusAmount(false));
+  it("Plus et Gratuit reçoivent 20 pièces par jour", () => {
+    expect(getDailyBonusAmount(true)).toBe(20);
+    expect(getDailyBonusAmount(false)).toBe(20);
   });
 });
