@@ -48,7 +48,9 @@ jobs:
       - name: Test production-route and role protections
         run: npx vitest run tests/unit/production-routes.security.test.ts tests/unit/roles.security.test.ts tests/unit/admin-routes.security.test.ts tests/unit/private-content.security.test.ts tests/unit/photos-privacy.security.test.ts
       - name: Initialize isolated PostgreSQL test schema
-        run: PGPASSWORD=postgres psql -h localhost -U postgres -d jeutaime_test -f prisma/ci-baseline/schema.sql
+        # A fresh CI-only database is synchronized from the CURRENT Prisma model.
+        # Do not use this command against staging or production databases.
+        run: npx prisma db push --skip-generate
       - name: Real PostgreSQL privacy integration tests
         run: npx vitest run tests/integration/security-p0-postgres.test.ts
       - name: Backend typecheck
