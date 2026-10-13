@@ -2,6 +2,11 @@ name: Generate Prisma CI baseline candidate
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/prisma/schema.prisma'
+      - '.github/workflows/generate-prisma-baseline-candidate.yml'
 
 permissions:
   contents: read
