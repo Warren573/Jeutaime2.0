@@ -18,8 +18,9 @@ describe("P0 encounter rules — baseline regressions", () => {
     expect(getPhotoLevel({ totalLetters: 9, viewerIsPremium: false })).toBe(0);
     expect(getPhotoLevel({ totalLetters: 10, viewerIsPremium: false })).toBe(3);
   });
-  it("verifies the current server letter length contract", () => {
-    expect(SendLetterSchema.safeParse({ content: "a".repeat(3000) }).success).toBe(true);
-    expect(SendLetterSchema.safeParse({ content: "a".repeat(3001) }).success).toBe(false);
+  it("enforces 500 words rather than a character cap", () => {
+    expect(SendLetterSchema.safeParse({ content: Array(500).fill("bonjour").join(" ") }).success).toBe(true);
+    expect(SendLetterSchema.safeParse({ content: Array(501).fill("bonjour").join(" ") }).success).toBe(false);
+    expect(SendLetterSchema.safeParse({ content: "a".repeat(3001) }).success).toBe(true);
   });
 });
