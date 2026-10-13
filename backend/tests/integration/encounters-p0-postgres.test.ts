@@ -33,11 +33,11 @@ describe.skipIf(!enabled)("P0 encounters — isolated PostgreSQL", () => {
 
     const qa = await prisma.profile.create({ data: {
       userId: a, pseudo: "enc-a-" + suffix, birthDate: new Date("1990-01-01"),
-      gender: "HOMME", interestedIn: ["FEMME"], city: "Paris",
+      gender: "HOMME", interestedIn: ["FEMME"], city: "Paris", interests: [], lookingFor: [], identityTags: [], qualities: [], defaults: [],
     } });
     const qb = await prisma.profile.create({ data: {
       userId: b, pseudo: "enc-b-" + suffix, birthDate: new Date("1990-01-01"),
-      gender: "FEMME", interestedIn: ["HOMME"], city: "Paris",
+      gender: "FEMME", interestedIn: ["HOMME"], city: "Paris", interests: [], lookingFor: [], identityTags: [], qualities: [], defaults: [],
     } });
     for (const [profileId, prefix] of [[qa.id, "qa"], [qb.id, "qb"]] as const) {
       await prisma.profileQuestion.createMany({ data: [1, 2, 3].map((n) => ({
