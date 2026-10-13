@@ -46,6 +46,18 @@ describe("P0 letters behind questions gate", () => {
     await expect(sendLetter("match-1", "alice", { content: "Encore moi" })).rejects.toThrow();
     expect(db.tx.letter.create).not.toHaveBeenCalled();
   });
+  it("rejects letters when either participant has blocked the other", async () => {
+    db.tx.block.findFirst.mockResolvedValue({ id: "block-1" });
+    await expect(sendLetter("match-1", "alice", { content: "Bonjour" })).rejects.toThrow();
+    expect(db.tx.letter.create).not.toHaveBeenCalled();
+  });
+  it("closes the reply window after more than seven days", async () => {
+    db.tx.match.findUnique.mockResolvedValue({
+      ...baseMatch, lastLetterBy: "bob", lastLetterAt: new Date("2026-09-01T12:00:00Z"),
+    });
+    await expect(sendLetter("match-1", "alice", { content: "Réponse tardive" })).rejects.toThrow();
+    expect(db.tx.letter.create).not.toHaveBeenCalled();
+  });
   it("refuses letters from non-participants", async () => {
     await expect(sendLetter("match-1", "intruder", { content: "Salut" })).rejects.toThrow();
     expect(db.tx.letter.create).not.toHaveBeenCalled();
