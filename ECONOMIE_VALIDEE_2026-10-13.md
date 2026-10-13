@@ -67,7 +67,8 @@
 - [x] Tarifs boissons/nourritures de salons dans le seed et les données frontend : 5/10 pièces ; **reste à mettre à jour les lignes déjà en base et vérifier les autres surfaces**.
 - [x] Huit magies validées : tarifs à 20 pièces dans seed et frontend ; **reste à mettre à jour les lignes déjà en base et vérifier toutes les surfaces**. Les antimagies restent inchangées.
 - [ ] Refuge : assiduité individuelle, score parfait collectif, attribution finale idempotente.
-- [ ] Élections : quota de cinq votes par semaine, récompenses des deux élus.
+- [x] Élections : cinq premiers votes rémunérés par semaine, les suivants restent gratuits (backend + libellés frontend) ; tests à effectuer.
+- [ ] Élections : créditer les deux élus de 50 pièces chacun à la clôture, de manière idempotente.
 - [ ] Régie publicitaire : pub quotidienne et validation des récompenses (cinq/jour).
 - [ ] Abonnement Plus : bonus mensuel 500, suppression des offres historiques, facturation réelle et gestion des droits.
 - [ ] Bouteilles : plafonds simultanés 1 / 5 (envois et réponses).
