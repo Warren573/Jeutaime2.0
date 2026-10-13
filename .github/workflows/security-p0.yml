@@ -13,10 +13,25 @@ permissions:
 jobs:
   security-p0:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jeutaime_test
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     defaults:
       run:
         working-directory: backend
     env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
       JWT_ACCESS_SECRET: test_access_secret_minimum_32_characters_123
@@ -32,5 +47,9 @@ jobs:
       - run: npx prisma generate
       - name: Test production-route and role protections
         run: npx vitest run tests/unit/production-routes.security.test.ts tests/unit/roles.security.test.ts tests/unit/admin-routes.security.test.ts tests/unit/private-content.security.test.ts tests/unit/photos-privacy.security.test.ts
+      - name: Initialize isolated PostgreSQL test schema
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d jeutaime_test -f prisma/ci-baseline/schema.sql
+      - name: Real PostgreSQL privacy integration tests
+        run: npx vitest run tests/integration/security-p0-postgres.test.ts
       - name: Backend typecheck
         run: npm run typecheck
