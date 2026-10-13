@@ -67,7 +67,8 @@
 - [x] Tarifs boissons/nourritures de salons dans le seed et les données frontend : 5/10 pièces ; **reste à mettre à jour les lignes déjà en base et vérifier les autres surfaces**.
 - [x] Huit magies validées : tarifs à 20 pièces dans seed et frontend ; **reste à mettre à jour les lignes déjà en base et vérifier toutes les surfaces**. Les antimagies restent inchangées.
 - [x] Refuge : fonction pure de calcul des récompenses finales (0/50/100) et six tests unitaires ajoutés (non exécutés).
-- [ ] Refuge : supprimer l'ancien paiement journalier, brancher ce calcul à la clôture des 7 jours et sécuriser le versement final idempotent ; **non terminé**.
+- [x] Refuge : anciens crédits journaliers supprimés dans le service, récompenses finales 0/50/100 branchées à la clôture des 7 jours et protégées contre le rejeu par verrou de session ; les anciennes sessions avec crédit sont ignorées pour éviter les doubles versements.
+- [ ] Refuge : exécuter les tests de non-régression et d'intégration (clôture, concurrence, anciennes sessions, retours API) ; **non validé en exécution**.
 - [x] Élections : cinq premiers votes rémunérés par semaine, les suivants restent gratuits (backend + libellés frontend) ; tests à effectuer.
 - [ ] Élections : créditer les deux élus de 50 pièces chacun à la clôture, de manière idempotente.
 - [ ] Régie publicitaire : pub quotidienne et validation des récompenses (cinq/jour).
