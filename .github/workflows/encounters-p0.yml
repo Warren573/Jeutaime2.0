@@ -32,6 +32,6 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - name: Encounter business rules
-        run: npx vitest run tests/unit/encounters-p0.regression.test.ts
+        run: npx vitest run tests/unit/encounters-p0.regression.test.ts tests/unit/encounters-smiles-p0.test.ts
       - name: Backend typecheck
         run: npm run typecheck
