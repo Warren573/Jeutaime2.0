@@ -47,7 +47,7 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - name: Test production-route and role protections
-        run: npx vitest run tests/unit/production-routes.security.test.ts tests/unit/roles.security.test.ts tests/unit/admin-routes.security.test.ts tests/unit/private-content.security.test.ts tests/unit/photos-privacy.security.test.ts
+        run: npx vitest run tests/unit/production-routes.security.test.ts tests/unit/roles.security.test.ts tests/unit/admin-routes.security.test.ts tests/unit/private-content.security.test.ts tests/unit/photos-privacy.security.test.ts tests/unit/admin-reports-routes.security.test.ts
       - name: Initialize isolated PostgreSQL test schema
         # A fresh CI-only database is synchronized from the CURRENT Prisma model.
         # Do not use this command against staging or production databases.
