@@ -9,6 +9,10 @@
 import { PrismaClient, OfferingCategory } from "@prisma/client";
 
 const prisma = new PrismaClient();
+const SALON_OFFERING_IDS = [
+  "off_biere", "off_fraises", "off_bonbons", "off_cafe", "off_cocktail", "off_cookie",
+  "off_glace", "off_pizza", "off_coupechampagne", "off_verrevin", "off_sushismakis", "off_the",
+] as const;
 const DRINK = 5;
 const FOOD = 10;
 const MAGIC_IDS = [
@@ -20,7 +24,7 @@ async function main() {
   const apply = process.argv.includes("--apply");
   if (apply && process.argv.includes("--dry-run")) throw new Error("Choisir un seul mode.");
   const offerings = await prisma.offeringCatalog.findMany({
-    where: { category: { in: [OfferingCategory.BOISSON, OfferingCategory.NOURRITURE] } },
+    where: { id: { in: [...SALON_OFFERING_IDS] }, category: { in: [OfferingCategory.BOISSON, OfferingCategory.NOURRITURE] } },
     select: { id: true, category: true, cost: true },
   });
   const magies = await prisma.magieCatalog.findMany({
@@ -29,7 +33,8 @@ async function main() {
   });
   const missing = MAGIC_IDS.filter(id => !magies.some(m => m.id === id));
   if (missing.length) throw new Error("Magies absentes : " + missing.join(", "));
-  if (!offerings.length) throw new Error("Aucune offrande BOISSON/NOURRITURE trouvée : vérifier la base.");
+  const missingOfferings = SALON_OFFERING_IDS.filter(id => !offerings.some(o => o.id === id));
+  if (missingOfferings.length) throw new Error("Offrandes absentes ou mauvaise catégorie : " + missingOfferings.join(", "));
 
   const changedOfferings = offerings
     .map(o => ({ ...o, target: o.category === OfferingCategory.BOISSON ? DRINK : FOOD }))
@@ -47,11 +52,11 @@ async function main() {
   await prisma.$transaction(async tx => {
     // Toutes les lignes d'une même catégorie sont tarifées identiquement.
     await tx.offeringCatalog.updateMany({
-      where: { category: OfferingCategory.BOISSON },
+      where: { id: { in: [...SALON_OFFERING_IDS] }, category: OfferingCategory.BOISSON },
       data: { cost: DRINK },
     });
     await tx.offeringCatalog.updateMany({
-      where: { category: OfferingCategory.NOURRITURE },
+      where: { id: { in: [...SALON_OFFERING_IDS] }, category: OfferingCategory.NOURRITURE },
       data: { cost: FOOD },
     });
     await tx.magieCatalog.updateMany({
