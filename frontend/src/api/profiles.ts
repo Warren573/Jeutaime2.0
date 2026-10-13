@@ -152,6 +152,7 @@ export async function patchMyPhoto(
 }
 
 export interface DiscoveryProfileDto {
+  selectionPhotoUrl?: string | null;
   id: string;
   userId: string;
   pseudo: string | null;
