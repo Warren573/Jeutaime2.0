@@ -21,6 +21,7 @@ on:
       - 'backend/tests/integration/bottles-*.test.ts'
       - 'backend/tests/unit/bottles*.test.ts'
       - 'backend/prisma/**'
+      - '.github/workflows/bottles-integration-tests.yml'
 
 jobs:
   bottles-integration:
