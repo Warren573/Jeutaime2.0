@@ -74,7 +74,7 @@
 - [ ] Plus : bonus mensuel 500 UNIQUEMENT sur confirmation de période facturée et idempotence ; source de paiement vérifiée non connectée.
 - [ ] Plus : facturation réelle, renouvellement et résiliation à échéance, suppression des autres offres et gestion des droits.
 - [x] Bouteilles : compteur backend de création étendu aux bouteilles actives envoyées ou reçues, avec quotas Gratuit 1 / Plus 5 ; tests et autres parcours de réception à vérifier.
-- [ ] Photos : l'accès aux images originales existe pour Premium actif côté serveur, mais la liste de découverte n'expose pas encore les photos ; intégrer le rendu sélection avec autorisation sécurisée.
+- [x] Photos : liste découverte renvoie l'URL photo principale pour Plus actif ; frontend tente son affichage avec en-tête d'authentification. Contrôler les images réelles sur iOS/Android/Web et les règles de confidentialité.
 - [x] Boutique existante `/shop` : affiche les trois packs 100/500/1000 aux prix validés et décrit Plus à 5,99 €/mois, sans faux paiement.
 - [ ] Connecter et valider les achats réels sécurisés sur iOS, Android et Web avant d'activer les boutons.
 - [ ] Historique des pièces, remboursement automatique, certification et protections anti-fraude.
