@@ -41,6 +41,20 @@ describe("Weekly H/F winner payouts (PostgreSQL)", () => {
       expect(await prisma.coinTransaction.count({where:{ walletId:id, type:"ADMIN_ADJUST"}})).toBe(1);
     }
   });
+  test("concurrent payouts remain idempotent", async () => {
+    const maleId = await createParticipant("concurrent-m");
+    const femaleId = await createParticipant("concurrent-f");
+    const winner = (id: string) => ({ id, totalVotes: 9 });
+    vi.mocked(getWeeklyProfileWinners).mockResolvedValue({
+      weekKey: "2026-W41", male: winner(maleId), female: winner(femaleId),
+    } as Awaited<ReturnType<typeof getWeeklyProfileWinners>>);
+    const results = await Promise.all(Array.from({ length: 4 }, () => awardPreviousWeekWinners()));
+    expect(results.reduce((sum, amount) => sum + amount, 0)).toBe(2);
+    for (const id of [maleId, femaleId]) {
+      expect((await prisma.wallet.findUniqueOrThrow({ where: { userId: id } })).coins).toBe(50);
+      expect(await prisma.coinTransaction.count({ where: { walletId: id, type: "ADMIN_ADJUST" } })).toBe(1);
+    }
+  });
   test("does not credit a week with no winners", async () => {
     vi.mocked(getWeeklyProfileWinners).mockResolvedValue({
       weekKey: "2026-W40", male: null, female: null,
