@@ -92,6 +92,19 @@ describe.skipIf(!enabled)("P0 privacy with real PostgreSQL", () => {
       await prisma.user.deleteMany({ where: { id: accountId } });
     }
   });
+  it("permanently deletes an isolated test account after password verification", async () => {
+    const accountId = "delete-ok-" + randomUUID().replace(/-/g, "");
+    await prisma.user.create({ data: {
+      id: accountId, email: accountId + "@example.invalid",
+      passwordHash: await hashPassword("correct-strong-password"),
+    } });
+    try {
+      await deleteAccountPermanently(accountId, "correct-strong-password");
+      expect(await prisma.user.findUnique({ where: { id: accountId } })).toBeNull();
+    } finally {
+      await prisma.user.deleteMany({ where: { id: accountId } });
+    }
+  });
   it("report list is restricted to requesting reporter", async () => {
     const result = await listMine(ids[2], { page: 1, pageSize: 20 } as any);
     expect(result.total).toBe(0);
