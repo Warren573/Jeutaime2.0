@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('USER', 'MODERATOR', 'ADMIN');
+CREATE TYPE "Role" AS ENUM ('USER', 'MODERATOR', 'ADMIN', 'OWNER');
 
 -- CreateEnum
 CREATE TYPE "Gender" AS ENUM ('HOMME', 'FEMME', 'AUTRE');
@@ -41,10 +41,16 @@ CREATE TYPE "ReportReason" AS ENUM ('HARASSMENT', 'SPAM', 'FAKE', 'INAPPROPRIATE
 CREATE TYPE "PremiumTier" AS ENUM ('FREE', 'PREMIUM');
 
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('LETTER_RECEIVED', 'MATCH_CREATED', 'OFFERING_RECEIVED', 'MAGIE_RECEIVED', 'MAGIE_BROKEN', 'PREMIUM_SUBSCRIBED', 'PREMIUM_CANCELLED');
+CREATE TYPE "NotificationType" AS ENUM ('LETTER_RECEIVED', 'MATCH_CREATED', 'OFFERING_RECEIVED', 'MAGIE_RECEIVED', 'MAGIE_BROKEN', 'PREMIUM_SUBSCRIBED', 'PREMIUM_CANCELLED', 'ADMIN_MESSAGE', 'PRIVATE_SALON_INVITE');
 
 -- CreateEnum
 CREATE TYPE "ReactionType" AS ENUM ('SMILE', 'GRIMACE');
+
+-- CreateEnum
+CREATE TYPE "PrivateDuelChoice" AS ENUM ('ROCK', 'PAPER', 'SCISSORS');
+
+-- CreateEnum
+CREATE TYPE "PrivateDuelStatus" AS ENUM ('PENDING', 'RESOLVED', 'CANCELLED', 'EXPIRED');
 
 -- CreateEnum
 CREATE TYPE "BottleStatus" AS ENUM ('FLOATING', 'ACCEPTED', 'REVEALED', 'BROKEN', 'EXPIRED');
@@ -98,8 +104,12 @@ CREATE TABLE "User" (
     "passwordHash" TEXT NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'USER',
     "isVerified" BOOLEAN NOT NULL DEFAULT false,
+    "termsAcceptedAt" TIMESTAMP(3),
+    "communityRulesAcceptedAt" TIMESTAMP(3),
+    "termsVersion" TEXT,
     "isBanned" BOOLEAN NOT NULL DEFAULT false,
     "banReason" TEXT,
+    "banUntil" TIMESTAMP(3),
     "premiumTier" "PremiumTier" NOT NULL DEFAULT 'FREE',
     "premiumUntil" TIMESTAMP(3),
     "lastLoginAt" TIMESTAMP(3),
@@ -173,6 +183,9 @@ CREATE TABLE "UserSettings" (
     "notifEmail" BOOLEAN NOT NULL DEFAULT true,
     "notifPush" BOOLEAN NOT NULL DEFAULT true,
     "soundEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "vibrationEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "vacationMode" BOOLEAN NOT NULL DEFAULT false,
+    "vacationStartedAt" TIMESTAMP(3),
     "language" TEXT NOT NULL DEFAULT 'fr',
     "showInDiscovery" BOOLEAN NOT NULL DEFAULT true,
     "locationShared" BOOLEAN NOT NULL DEFAULT false,
@@ -190,6 +203,10 @@ CREATE TABLE "Photo" (
     "blurMediumPath" TEXT,
     "position" INTEGER NOT NULL DEFAULT 0,
     "isPrimary" BOOLEAN NOT NULL DEFAULT false,
+    "moderationStatus" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "moderationReason" TEXT,
+    "moderatedAt" TIMESTAMP(3),
+    "moderatedBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Photo_pkey" PRIMARY KEY ("id")
@@ -323,6 +340,7 @@ CREATE TABLE "SalonSession" (
     "status" "SalonSessionStatus" NOT NULL DEFAULT 'ACTIVE',
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "ownerId" TEXT,
+    "privateName" TEXT,
 
     CONSTRAINT "SalonSession_pkey" PRIMARY KEY ("id")
 );
@@ -381,6 +399,10 @@ CREATE TABLE "SalonMessage" (
     "kind" TEXT NOT NULL,
     "content" TEXT NOT NULL,
     "meta" JSONB,
+    "isHidden" BOOLEAN NOT NULL DEFAULT false,
+    "hiddenReason" TEXT,
+    "hiddenAt" TIMESTAMP(3),
+    "hiddenBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "SalonMessage_pkey" PRIMARY KEY ("id")
@@ -498,6 +520,9 @@ CREATE TABLE "Report" (
     "resolution" TEXT,
     "resolvedBy" TEXT,
     "resolvedAt" TIMESTAMP(3),
+    "contentType" TEXT,
+    "contentId" TEXT,
+    "contentSnapshot" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Report_pkey" PRIMARY KEY ("id")
@@ -569,10 +594,42 @@ CREATE TABLE "PushToken" (
     "userId" TEXT NOT NULL,
     "token" TEXT NOT NULL,
     "platform" TEXT NOT NULL,
+    "lastDailyEditionKey" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "PushToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PrivateDuel" (
+    "id" TEXT NOT NULL,
+    "challengerId" TEXT NOT NULL,
+    "opponentId" TEXT NOT NULL,
+    "commonUserId" TEXT,
+    "challengerChoice" "PrivateDuelChoice",
+    "opponentChoice" "PrivateDuelChoice",
+    "status" "PrivateDuelStatus" NOT NULL DEFAULT 'PENDING',
+    "winnerId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "resolvedAt" TIMESTAMP(3),
+    "declinedAt" TIMESTAMP(3),
+
+    CONSTRAINT "PrivateDuel_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "JournalEvent" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "meta" JSONB,
+    "occurredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "JournalEvent_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -671,6 +728,77 @@ CREATE TABLE "WeeklyProfileDuel" (
     "dayKey" TEXT,
 
     CONSTRAINT "WeeklyProfileDuel_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LoginEvent" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "userId" TEXT,
+    "success" BOOLEAN NOT NULL,
+    "reason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "LoginEvent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SystemIncident" (
+    "id" TEXT NOT NULL,
+    "level" TEXT NOT NULL DEFAULT 'ERROR',
+    "source" TEXT NOT NULL DEFAULT 'backend',
+    "method" TEXT,
+    "path" TEXT,
+    "code" TEXT,
+    "message" TEXT NOT NULL,
+    "userId" TEXT,
+    "statusCode" INTEGER,
+    "resolved" BOOLEAN NOT NULL DEFAULT false,
+    "resolution" TEXT,
+    "resolvedAt" TIMESTAMP(3),
+    "resolvedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SystemIncident_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AdminMessage" (
+    "id" TEXT NOT NULL,
+    "adminId" TEXT,
+    "userId" TEXT NOT NULL,
+    "subject" TEXT,
+    "message" TEXT NOT NULL,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "readAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AdminMessage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PrivateSalonInvitation" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "invitedBy" TEXT,
+    "accepted" BOOLEAN NOT NULL DEFAULT false,
+    "acceptedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PrivateSalonInvitation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CommunityJournalPost" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "createdBy" TEXT,
+    "publishedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CommunityJournalPost_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -842,6 +970,24 @@ CREATE UNIQUE INDEX "PushToken_token_key" ON "PushToken"("token");
 CREATE INDEX "PushToken_userId_idx" ON "PushToken"("userId");
 
 -- CreateIndex
+CREATE INDEX "PrivateDuel_challengerId_status_createdAt_idx" ON "PrivateDuel"("challengerId", "status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PrivateDuel_opponentId_status_createdAt_idx" ON "PrivateDuel"("opponentId", "status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PrivateDuel_commonUserId_status_createdAt_idx" ON "PrivateDuel"("commonUserId", "status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PrivateDuel_status_expiresAt_idx" ON "PrivateDuel"("status", "expiresAt");
+
+-- CreateIndex
+CREATE INDEX "JournalEvent_userId_occurredAt_idx" ON "JournalEvent"("userId", "occurredAt");
+
+-- CreateIndex
+CREATE INDEX "JournalEvent_kind_occurredAt_idx" ON "JournalEvent"("kind", "occurredAt");
+
+-- CreateIndex
 CREATE INDEX "CardGameSession_userId_status_idx" ON "CardGameSession"("userId", "status");
 
 -- CreateIndex
@@ -894,6 +1040,45 @@ CREATE INDEX "WeeklyProfileDuel_candidateAId_idx" ON "WeeklyProfileDuel"("candid
 
 -- CreateIndex
 CREATE INDEX "WeeklyProfileDuel_candidateBId_idx" ON "WeeklyProfileDuel"("candidateBId");
+
+-- CreateIndex
+CREATE INDEX "LoginEvent_createdAt_idx" ON "LoginEvent"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "LoginEvent_email_createdAt_idx" ON "LoginEvent"("email", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "LoginEvent_userId_createdAt_idx" ON "LoginEvent"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "SystemIncident_resolved_createdAt_idx" ON "SystemIncident"("resolved", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "SystemIncident_source_createdAt_idx" ON "SystemIncident"("source", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "SystemIncident_userId_createdAt_idx" ON "SystemIncident"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AdminMessage_userId_isRead_createdAt_idx" ON "AdminMessage"("userId", "isRead", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AdminMessage_adminId_createdAt_idx" ON "AdminMessage"("adminId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PrivateSalonInvitation_userId_accepted_createdAt_idx" ON "PrivateSalonInvitation"("userId", "accepted", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PrivateSalonInvitation_sessionId_createdAt_idx" ON "PrivateSalonInvitation"("sessionId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PrivateSalonInvitation_sessionId_userId_key" ON "PrivateSalonInvitation"("sessionId", "userId");
+
+-- CreateIndex
+CREATE INDEX "CommunityJournalPost_publishedAt_idx" ON "CommunityJournalPost"("publishedAt");
+
+-- CreateIndex
+CREATE INDEX "CommunityJournalPost_createdBy_publishedAt_idx" ON "CommunityJournalPost"("createdBy", "publishedAt");
 
 -- AddForeignKey
 ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1053,6 +1238,21 @@ ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "PushToken" ADD CONSTRAINT "PushToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PrivateDuel" ADD CONSTRAINT "PrivateDuel_challengerId_fkey" FOREIGN KEY ("challengerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PrivateDuel" ADD CONSTRAINT "PrivateDuel_opponentId_fkey" FOREIGN KEY ("opponentId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PrivateDuel" ADD CONSTRAINT "PrivateDuel_commonUserId_fkey" FOREIGN KEY ("commonUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PrivateDuel" ADD CONSTRAINT "PrivateDuel_winnerId_fkey" FOREIGN KEY ("winnerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JournalEvent" ADD CONSTRAINT "JournalEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CardGameSession" ADD CONSTRAINT "CardGameSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
