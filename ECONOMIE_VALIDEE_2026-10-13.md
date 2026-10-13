@@ -70,7 +70,8 @@
 - [x] Refuge : anciens crédits journaliers supprimés dans le service, récompenses finales 0/50/100 branchées à la clôture des 7 jours et protégées contre le rejeu par verrou de session ; les anciennes sessions avec crédit sont ignorées pour éviter les doubles versements.
 - [ ] Refuge : exécuter les tests de non-régression et d'intégration (clôture, concurrence, anciennes sessions, retours API) ; **non validé en exécution**.
 - [x] Élections : cinq premiers votes rémunérés par semaine, les suivants restent gratuits (backend + libellés frontend) ; tests à effectuer.
-- [ ] Élections : créditer les deux élus de 50 pièces chacun à la clôture, de manière idempotente.
+- [x] Élections : job backend de récompense des deux élus à +50 pièces chacun, trace par semaine et catégorie, verrou transactionnel et enregistrement dans le planificateur ; exécution non vérifiée.
+- [ ] Élections : tester les primes dans une base PostgreSQL, la concurrence, la clôture et les changements de gagnants.
 - [ ] Régie publicitaire : pub quotidienne et validation des récompenses (cinq/jour).
 - [x] Boutique et présentation Plus 5,99 €/mois ; anciens achats Premium contre pièces bloqués.
 - [ ] Plus : bonus mensuel 500 UNIQUEMENT sur confirmation de période facturée et idempotence ; source de paiement vérifiée non connectée.
