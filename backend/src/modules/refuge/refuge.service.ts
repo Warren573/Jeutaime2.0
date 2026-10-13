@@ -870,7 +870,7 @@ export class RefugeService {
       dayResult: {
         matches: dayResult.matches,
         message: dayResult.message,
-        reward: dayResult.reward,
+        reward: 0, // Pas de pièces par jour : récompense à la clôture des 7 jours.
         emoji: dayResult.emoji,
       },
     };
