@@ -31,6 +31,6 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - name: Test production-route and role protections
-        run: npx vitest run tests/unit/production-routes.security.test.ts tests/unit/roles.security.test.ts
+        run: npx vitest run tests/unit/production-routes.security.test.ts tests/unit/roles.security.test.ts tests/unit/admin-routes.security.test.ts
       - name: Backend typecheck
         run: npm run typecheck
