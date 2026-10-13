@@ -63,8 +63,9 @@
 - [x] Constantes backend : +20 pièces quotidiennes pour Gratuit et Plus.
 - [x] Constantes backend : limite de 10 correspondances pour Plus.
 - [x] Test unitaire adapté pour le montant quotidien égal.
-- [ ] Identifier et mettre à jour le catalogue réel des offrandes personnelles et salons (éviter de modifier par erreur les objets historiques distincts).
-- [ ] Identifier et mettre à jour les huit magies sans modifier le prix des antimagies par supposition.
+- [ ] Offrandes personnelles : identifier les objets réels et adapter leur catalogue.
+- [x] Tarifs boissons/nourritures de salons dans le seed et les données frontend : 5/10 pièces ; **reste à mettre à jour les lignes déjà en base et vérifier les autres surfaces**.
+- [x] Huit magies validées : tarifs à 20 pièces dans seed et frontend ; **reste à mettre à jour les lignes déjà en base et vérifier toutes les surfaces**. Les antimagies restent inchangées.
 - [ ] Refuge : assiduité individuelle, score parfait collectif, attribution finale idempotente.
 - [ ] Élections : quota de cinq votes par semaine, récompenses des deux élus.
 - [ ] Régie publicitaire : pub quotidienne et validation des récompenses (cinq/jour).
