@@ -934,7 +934,7 @@ export class RefugeService {
     session: { id: string; adopteId: string; adoptantId: string | null },
     dayNumber: number,
     closure: { status: RefugeDayStatusName; matchCount: number | null; adopteCoinsDelta: number; adoptantCoinsDelta: number },
-    applyWalletMovements: boolean
+    _applyWalletMovements: boolean
   ): Promise<boolean> {
     try {
       await prisma.$transaction(async (tx) => {
@@ -949,25 +949,7 @@ export class RefugeService {
           },
         });
 
-        if (false && applyWalletMovements) { // Historique pré-2026 : plus aucun mouvement journalier
-          const meta = { refugeSessionId: session.id, dayNumber, status: closure.status };
-          await this.applyRefugeCoinsTx(
-            tx,
-            session.adopteId,
-            closure.adopteCoinsDelta,
-            this.closureTxnType(closure.status as RefugeDayStatus, closure.adopteCoinsDelta > 0),
-            { ...meta, role: "adopte", theoreticalDelta: closure.adopteCoinsDelta }
-          );
-          if (session.adoptantId) {
-            await this.applyRefugeCoinsTx(
-              tx,
-              session.adoptantId,
-              closure.adoptantCoinsDelta,
-              this.closureTxnType(closure.status as RefugeDayStatus, closure.adoptantCoinsDelta > 0),
-              { ...meta, role: "adoptant", theoreticalDelta: closure.adoptantCoinsDelta }
-            );
-          }
-        }
+
       });
       return true;
     } catch (err: any) {
