@@ -4,8 +4,6 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from ".
 import { computeProfileStatus } from "../../policies/profiles";
 
 const VOTE_REWARD = 5;
-const DAILY_LIMIT_FREE = 999999;
-const DAILY_LIMIT_PREMIUM = 999999;
 const WEEKLY_PAID_VOTE_LIMIT = 5;
 const DUEL_TTL_MS = 15 * 60 * 1000;
 
@@ -32,7 +30,6 @@ function getWeekStartUtc(date: Date): Date {
   return start;
 }
 function computeAge(birthDate: Date): number { const now = new Date(); let age = now.getUTCFullYear() - birthDate.getUTCFullYear(); const monthDiff = now.getUTCMonth() - birthDate.getUTCMonth(); if (monthDiff < 0 || (monthDiff === 0 && now.getUTCDate() < birthDate.getUTCDate())) age--; return age; }
-function dailyLimitFor(isPremium: boolean): number { return isPremium ? DAILY_LIMIT_PREMIUM : DAILY_LIMIT_FREE; }
 function pairKey(a: string, b: string): string { return [a, b].sort().join("::"); }
 function otherMainGender(gender: Gender): Gender { return gender === Gender.HOMME ? Gender.FEMME : Gender.HOMME; }
 
@@ -128,11 +125,18 @@ async function getOrCreateDuel(voterId:string):Promise<DuelDto|null>{
   const [a,b]=pair; const created=await prisma.weeklyProfileDuel.create({data:{userId:voterId,candidateAId:a.id,candidateBId:b.id,expiresAt:new Date(now.getTime()+DUEL_TTL_MS)}}); return {duelId:created.id,candidateA:toDuelProfileDto(a),candidateB:toDuelProfileDto(b)};
 }
 async function profileDtoFor(userId:string):Promise<DuelProfileDto>{const user=await prisma.user.findUnique({where:{id:userId},select:{profile:{select:{pseudo:true,city:true,bio:true,birthDate:true,avatarConfig:true}}}});if(!user?.profile)return{id:userId,pseudo:"Profil supprimé",age:0,city:"",bio:null,avatarConfig:null};return{id:userId,pseudo:user.profile.pseudo,age:computeAge(user.profile.birthDate),city:user.profile.city,bio:user.profile.bio,avatarConfig:user.profile.avatarConfig as Record<string,unknown>|null};}
-export async function getWeeklyProfileState(voterId:string,isPremium:boolean):Promise<WeeklyProfileStateDto>{const now=new Date(),dayKey=getDayKey(now),dailyLimit=dailyLimitFor(isPremium);const votesToday=await prisma.weeklyProfileDuel.count({where:{userId:voterId,dayKey,usedAt:{not:null}}});const remainingToday=Math.max(0,dailyLimit-votesToday);if(remainingToday<=0)return{remainingToday:0,dailyLimit,limitReached:true,notEnoughCandidates:false,duel:null};const duel=await getOrCreateDuel(voterId);return{remainingToday,dailyLimit,limitReached:false,notEnoughCandidates:duel===null,duel};}
+export async function getWeeklyProfileState(voterId:string,_isPremium:boolean):Promise<WeeklyProfileStateDto>{
+  const now=new Date(), weekKey=getWeekKey(now);
+  const votesThisWeek=await prisma.weeklyProfileDuel.count({where:{userId:voterId,weekKey,usedAt:{not:null}}});
+  const remainingToday=Math.max(0,WEEKLY_PAID_VOTE_LIMIT-votesThisWeek);
+  const duel=await getOrCreateDuel(voterId);
+  // Anciennes propriétés DTO conservées pour compatibilité ; il s'agit désormais du compteur hebdomadaire rémunéré.
+  return {remainingToday,dailyLimit:WEEKLY_PAID_VOTE_LIMIT,limitReached:false,notEnoughCandidates:duel===null,duel};
+}
 export async function voteForDuel(voterId:string,isPremium:boolean,duelId:string,chosenId:string):Promise<WeeklyProfileStateDto>{
   const duel=await prisma.weeklyProfileDuel.findUnique({where:{id:duelId}});if(!duel)throw new NotFoundError("Duel");if(duel.userId!==voterId)throw new ForbiddenError("Ce duel ne t'appartient pas");if(duel.usedAt)throw new ConflictError("Ce duel a déjà été utilisé");const now=new Date();if(duel.expiresAt<=now)throw new ConflictError("Ce duel a expiré");if(chosenId!==duel.candidateAId&&chosenId!==duel.candidateBId)throw new BadRequestError("Le profil choisi ne fait pas partie de ce duel");
   if(!await candidatePairIsEligible(voterId,duel.candidateAId,duel.candidateBId)){await prisma.weeklyProfileDuel.updateMany({where:{id:duelId,usedAt:null},data:{expiresAt:now}});throw new ConflictError("Cette comparaison n'est plus disponible");}
-  const dayKey=getDayKey(now),weekKey=getWeekKey(now),dailyLimit=dailyLimitFor(isPremium);const votesToday=await prisma.weeklyProfileDuel.count({where:{userId:voterId,dayKey,usedAt:{not:null}}});if(votesToday>=dailyLimit)throw new ConflictError("Limite quotidienne de votes atteinte");
+  const dayKey=getDayKey(now),weekKey=getWeekKey(now);
   await prisma.$transaction(async(tx)=>{const claimed=await tx.weeklyProfileDuel.updateMany({where:{id:duelId,usedAt:null},data:{usedAt:now,chosenId,weekKey,dayKey}});if(claimed.count!==1)throw new ConflictError("Ce duel a déjà été utilisé");const walletRows=await tx.$queryRawUnsafe<Array<{userId:string}>>(`SELECT "userId" FROM "Wallet" WHERE "userId" = $1 FOR UPDATE`,voterId);if(!walletRows.length)throw new NotFoundError("Wallet");const weeklyVotes=await tx.weeklyProfileDuel.count({where:{userId:voterId,weekKey,usedAt:{not:null}}});if(weeklyVotes<=WEEKLY_PAID_VOTE_LIMIT){const updated=await tx.wallet.update({where:{userId:voterId},data:{coins:{increment:VOTE_REWARD}},select:{coins:true}});await tx.coinTransaction.create({data:{walletId:voterId,type:CoinTxnType.WEEKLY_PROFILE_VOTE,amount:VOTE_REWARD,balance:updated.coins,meta:{duelId,candidateAId:duel.candidateAId,candidateBId:duel.candidateBId,chosenId,weekKey} as Prisma.InputJsonValue}});}});
   return getWeeklyProfileState(voterId,isPremium);
 }
