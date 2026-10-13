@@ -108,6 +108,15 @@ jobs:
           JWT_REFRESH_SECRET: test_refresh_secret_32chars_minimum_1
         run: npm test -- bottles.service.test bottles-get-current.test bottles-turn-by-turn.test bottles.e2e.test
 
+      - name: Run Refuge final reward unit tests
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+          JWT_ACCESS_SECRET: test_access_secret_32chars_minimum_1
+          JWT_REFRESH_SECRET: test_refresh_secret_32chars_minimum_1
+        run: npm test -- refugeFinalRewards.test.ts
+
       - name: Run integration tests (bottles concurrency)
         working-directory: backend
         env:
