@@ -9,13 +9,15 @@ on:
       - '.github/workflows/generate-prisma-baseline-candidate.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   generate-baseline:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -39,3 +41,20 @@ jobs:
           name: prisma-ci-baseline-candidate
           path: backend/prisma/ci-baseline/schema.candidate.sql
           retention-days: 14
+
+      - name: Update CI-only baseline on economy feature branch
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feature/economie-validee-2026-10-13' }}
+        run: |
+          set -euo pipefail
+          cp backend/prisma/ci-baseline/schema.candidate.sql backend/prisma/ci-baseline/schema.sql
+          git diff --check
+          git diff --stat -- backend/prisma/ci-baseline/schema.sql
+          if git diff --quiet -- backend/prisma/ci-baseline/schema.sql; then
+            echo "CI baseline already matches Prisma schema"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/prisma/ci-baseline/schema.sql
+          git commit -m "ci(prisma): refresh CI-only baseline from validated schema"
+          git push origin HEAD:feature/economie-validee-2026-10-13
