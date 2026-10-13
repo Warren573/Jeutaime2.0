@@ -1,20 +1,14 @@
-import { CoinTxnType, PremiumTier, Prisma } from "@prisma/client";
+import { PremiumTier, Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import {
-  BadRequestError,
   ForbiddenError,
   NotFoundError,
   UnprocessableError,
 } from "../../core/errors";
-import {
-  computeNewPremiumUntil,
-  isPremiumActive,
-} from "../../policies/premium";
-import { computeDebitBalance } from "../../policies/wallet";
-import { emitPremiumCancelled, emitPremiumSubscribed } from "../../events";
-import { PREMIUM_PLANS, PremiumPlan, findPlan } from "./premium.plans";
+import { isPremiumActive } from "../../policies/premium";
+import { emitPremiumCancelled } from "../../events";
+import { PREMIUM_PLANS, PremiumPlan } from "./premium.plans";
 import type { SubscribePremiumDto } from "./premium.schemas";
-import { env } from "../../config/env";
 
 // ============================================================
 // Types de retour
@@ -67,121 +61,11 @@ export async function getMyStatus(userId: string): Promise<PremiumStatusDto> {
 //   5. AuditLog
 // ============================================================
 export async function subscribe(
-  userId: string,
-  dto: SubscribePremiumDto,
+  _userId: string,
+  _dto: SubscribePremiumDto,
 ): Promise<SubscribeResult> {
-  // L’ancien achat en pièces et le paiement fictif sont désactivés jusqu’à vérification réelle des abonnements Apple/Google/Web.
+  // Aucune attribution de Plus sans vérification d'un paiement réel.
   throw new ForbiddenError("Souscription Plus indisponible : paiement sécurisé non encore connecté");
-
-  const plan = findPlan(dto.planId);
-  if (!plan) throw new BadRequestError("Plan Premium inconnu");
-
-  if (dto.paymentMethod === "stripe_stub" && env.NODE_ENV === "production") {
-    throw new ForbiddenError("Méthode de paiement non disponible en production");
-  }
-
-  const txResult = await prisma.$transaction(async (tx) => {
-    const user = await tx.user.findUnique({
-      where: { id: userId },
-      select: { id: true, premiumTier: true, premiumUntil: true },
-    });
-    if (!user) throw new NotFoundError("Utilisateur");
-
-    let coinsSpent: number | null = null;
-
-    // --- Paiement : coins ---
-    if (dto.paymentMethod === "coins") {
-      const wallet = await tx.wallet.findUnique({ where: { userId } });
-      if (!wallet) throw new NotFoundError("Wallet");
-
-      // Pure : throws NotEnoughCoinsError si insuffisant
-      const newBalance = computeDebitBalance(wallet.coins, plan.priceCoins);
-
-      await tx.wallet.update({
-        where: { userId },
-        data: { coins: newBalance },
-      });
-
-      await tx.coinTransaction.create({
-        data: {
-          walletId: userId,
-          type: CoinTxnType.PREMIUM_PURCHASE,
-          amount: -plan.priceCoins,
-          balance: newBalance,
-          meta: {
-            planId: plan.id,
-            durationDays: plan.durationDays,
-          } as Prisma.InputJsonValue,
-        },
-      });
-
-      coinsSpent = plan.priceCoins;
-    } else if (dto.paymentMethod === "stripe_stub") {
-      // Stub : on ne touche pas au wallet. Un vrai intégrateur appellerait
-      // ici Stripe, validerait le payment intent, puis poursuivrait.
-      coinsSpent = null;
-    } else {
-      // Typage exhaustif — ne devrait jamais arriver grâce au Zod enum
-      throw new UnprocessableError("Méthode de paiement non supportée");
-    }
-
-    const now = new Date();
-    const newUntil = computeNewPremiumUntil(
-      user.premiumUntil,
-      plan.durationDays,
-      now,
-    );
-
-    const updated = await tx.user.update({
-      where: { id: userId },
-      data: {
-        premiumTier: PremiumTier.PREMIUM,
-        premiumUntil: newUntil,
-      },
-      select: { premiumTier: true, premiumUntil: true },
-    });
-
-    await tx.auditLog.create({
-      data: {
-        actorId: userId,
-        action: "premium.subscribe",
-        target: userId,
-        meta: {
-          planId: plan.id,
-          paymentMethod: dto.paymentMethod,
-          durationDays: plan.durationDays,
-          priceCoins: plan.priceCoins,
-          newUntil: newUntil.toISOString(),
-        } as Prisma.InputJsonValue,
-      },
-    });
-
-    return {
-      result: {
-        status: {
-          tier: updated.premiumTier,
-          premiumUntil: updated.premiumUntil,
-          active: isPremiumActive(updated, now),
-        },
-        plan,
-        paymentMethod: dto.paymentMethod,
-        coinsSpent,
-      },
-      newUntil,
-    };
-  });
-
-  // Event émis après succès de la transaction — non bloquant
-  emitPremiumSubscribed({
-    userId,
-    planId: plan.id,
-    paymentMethod: dto.paymentMethod,
-    coinsSpent: txResult.result.coinsSpent,
-    newUntil: txResult.newUntil,
-    durationDays: plan.durationDays,
-  });
-
-  return txResult.result;
 }
 
 // ============================================================
