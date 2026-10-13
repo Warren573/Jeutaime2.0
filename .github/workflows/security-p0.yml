@@ -69,5 +69,12 @@ jobs:
           psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -Atc 'SELECT COUNT(*) FROM "User";' > "${RUNNER_TEMP}/original-users.txt"
           diff "${RUNNER_TEMP}/original-users.txt" "${RUNNER_TEMP}/restored-users.txt"
           test "$(psql -h localhost -U postgres -d jeutaime_restore_test -Atc 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '\''public'\'';')" -gt 0
+      - name: Verify strict Render startup preflight
+        run: |
+          node scripts/check-render-migrations.cjs
+          if env -u DIRECT_URL node scripts/check-render-migrations.cjs; then
+            echo "ERROR: startup must reject missing DIRECT_URL"
+            exit 1
+          fi
       - name: Backend typecheck
         run: npm run typecheck
