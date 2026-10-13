@@ -4,6 +4,8 @@ import { prisma } from "../../src/config/prisma";
 import { listLetters, markLetterRead } from "../../src/modules/letters/letters.service";
 import { listMine } from "../../src/modules/reports/reports.service";
 import { resolvePhotoForStream } from "../../src/modules/photos/photos.service";
+import { deleteAccountPermanently } from "../../src/modules/auth/accountDeletion.service";
+import { hashPassword } from "../../src/core/utils/hash";
 
 const enabled = !!process.env.TEST_DATABASE_URL &&
   process.env.DATABASE_URL === process.env.TEST_DATABASE_URL &&
@@ -76,6 +78,19 @@ describe.skipIf(!enabled)("P0 privacy with real PostgreSQL", () => {
     await prisma.photo.update({ where: { id: photoId }, data: { moderationStatus: "HIDDEN" } });
     await expect(resolvePhotoForStream({ viewerId: ids[0], viewerIsPremium: false, photoId, variant: "original" }))
       .rejects.toThrow("Photo masquée");
+  });
+  it("rejects account deletion with an incorrect password, leaving user intact", async () => {
+    const accountId = "deletion-" + randomUUID().replace(/-/g, "");
+    await prisma.user.create({ data: {
+      id: accountId, email: accountId + "@example.invalid",
+      passwordHash: await hashPassword("correct-strong-password"),
+    } });
+    try {
+      await expect(deleteAccountPermanently(accountId, "incorrect-password")).rejects.toThrow("Mot de passe incorrect");
+      expect(await prisma.user.findUnique({ where: { id: accountId } })).not.toBeNull();
+    } finally {
+      await prisma.user.deleteMany({ where: { id: accountId } });
+    }
   });
   it("report list is restricted to requesting reporter", async () => {
     const result = await listMine(ids[2], { page: 1, pageSize: 20 } as any);
