@@ -127,6 +127,16 @@ jobs:
           JWT_REFRESH_SECRET: test_refresh_secret_32chars_minimum_1
         run: npm test -- bottles-concurrency
 
+      - name: Test weekly winner payout idempotence on PostgreSQL
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+          JWT_ACCESS_SECRET: test_access_secret_32chars_minimum_1
+          JWT_REFRESH_SECRET: test_refresh_secret_32chars_minimum_1
+        run: npm test -- weekly-profile-rewards.test.ts
+
       - name: TypeScript build check
         working-directory: backend
         run: npm run typecheck
