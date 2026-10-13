@@ -70,6 +70,9 @@ export async function subscribe(
   userId: string,
   dto: SubscribePremiumDto,
 ): Promise<SubscribeResult> {
+  // L’ancien achat en pièces et le paiement fictif sont désactivés jusqu’à vérification réelle des abonnements Apple/Google/Web.
+  throw new ForbiddenError("Souscription Plus indisponible : paiement sécurisé non encore connecté");
+
   const plan = findPlan(dto.planId);
   if (!plan) throw new BadRequestError("Plan Premium inconnu");
 
