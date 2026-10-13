@@ -53,3 +53,11 @@ Future migrations after the baseline is created:
 - ✅ Production (Render) uses only `npx prisma migrate deploy`
 - ✅ CI baseline is auto-generated, never hand-written
 - ✅ Baseline must have zero schema drift vs schema.prisma
+
+## Known drift — 13 October 2026
+
+The bottles PostgreSQL CI run `38424634067` failed at the **zero-drift** check after the `DIRECT_URL` fix. The committed baseline does not reflect several Prisma models/enums/columns (including `OWNER`, the private duel models and vacation settings). **Do not disable the drift check or use `prisma db push` to bypass it.**
+
+The manual workflow `.github/workflows/generate-prisma-baseline-candidate.yml` generates a candidate SQL file **as a review artifact only**. It does not change any database or commit it to `main`.
+
+Review the artifact against `schema.sql`, validate the expected schema changes and update the baseline with a reviewed commit before rerunning the bottles integration workflow. This CI-only refresh must not be treated as a production migration.
