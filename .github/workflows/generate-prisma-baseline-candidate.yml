@@ -1,0 +1,36 @@
+name: Generate Prisma CI baseline candidate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Generate reviewed SQL candidate (no database modifications)
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+        run: |
+          npx prisma validate
+          npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/ci-baseline/schema.candidate.sql
+          test -s prisma/ci-baseline/schema.candidate.sql
+      - name: Upload candidate for manual comparison and review
+        uses: actions/upload-artifact@v4
+        with:
+          name: prisma-ci-baseline-candidate
+          path: backend/prisma/ci-baseline/schema.candidate.sql
+          retention-days: 14
