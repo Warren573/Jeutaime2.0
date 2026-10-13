@@ -10,7 +10,7 @@ import { addDays } from "date-fns";
 import { ConflictError } from "../../core/errors";
 import { isPremiumActive } from "../../policies/premium";
 
-// Nombre max de bouteilles "à la mer" (FLOATING) simultanées par utilisateur.
+// Nombre max de bouteilles actives simultanées par utilisateur (envoyées et reçues).
 export const MAX_FLOATING_FREE = 1;
 export const MAX_FLOATING_PREMIUM = 5;
 
@@ -42,9 +42,13 @@ export async function createBottle(
     console.log(`[S2-SERVICE] ${correlationId} | STARTING ATOMIC QUOTA CHECK + CREATION`);
     const bottle = await prisma.$transaction(
       async (tx) => {
-        // Count existing FLOATING bottles
+        // Le quota concerne toutes les bouteilles encore actives,
+        // qu'elles soient envoyées ou acceptées par l'utilisateur.
         const pendingCount = await tx.messageInABottle.count({
-          where: { senderId, status: "FLOATING" },
+          where: {
+            status: { in: ["FLOATING", "ACCEPTED", "REVEALED"] },
+            OR: [{ senderId }, { acceptedById: senderId }],
+          },
         });
 
         // Get sender's premium status
