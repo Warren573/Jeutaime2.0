@@ -42,20 +42,20 @@ export interface Power {
 // ─── BOISSONS ─────────────────────────────────────────────────────────────────
 
 export const boissons: Offering[] = [
-  { id: 'tournee',       emoji: '🍻', name: 'Tournée générale',  cost: 200, category: 'boisson',    durationMs: 8000,  stackPriority: 4 },
-  { id: 'cafe',          emoji: '☕', name: 'Café',              cost:  20, category: 'boisson',    durationMs: 5000,  stackPriority: 1 },
-  { id: 'espresso',      emoji: '☕', name: 'Espresso',          cost:  25, category: 'boisson',    durationMs: 4000,  stackPriority: 1 },
-  { id: 'chocolat_chaud',emoji: '🍫', name: 'Chocolat chaud',    cost:  25, category: 'boisson',    durationMs: 5000,  stackPriority: 1 },
-  { id: 'the',           emoji: '🍵', name: 'Thé',               cost:  20, category: 'boisson',    durationMs: 4500,  stackPriority: 1 },
+  { id: 'tournee',       emoji: '🍻', name: 'Tournée générale',  cost: 5, category: 'boisson',    durationMs: 8000,  stackPriority: 4 },
+  { id: 'cafe',          emoji: '☕', name: 'Café',              cost:  5, category: 'boisson',    durationMs: 5000,  stackPriority: 1 },
+  { id: 'espresso',      emoji: '☕', name: 'Espresso',          cost:  5, category: 'boisson',    durationMs: 4000,  stackPriority: 1 },
+  { id: 'chocolat_chaud',emoji: '🍫', name: 'Chocolat chaud',    cost:  5, category: 'boisson',    durationMs: 5000,  stackPriority: 1 },
+  { id: 'the',           emoji: '🍵', name: 'Thé',               cost:  5, category: 'boisson',    durationMs: 4500,  stackPriority: 1 },
   { id: 'eau',           emoji: '💧', name: "Verre d'eau",       cost:   5, category: 'boisson',    durationMs: 3000,  stackPriority: 1 },
-  { id: 'cocktail',      emoji: '🍸', name: 'Cocktail',          cost:  50, category: 'boisson',    durationMs: 6000,  stackPriority: 2 },
-  { id: 'mojito',        emoji: '🍹', name: 'Mojito',            cost:  60, category: 'boisson',    durationMs: 6500,  stackPriority: 2 },
-  { id: 'martini',       emoji: '🍸', name: 'Martini',           cost:  55, category: 'boisson',    durationMs: 6000,  stackPriority: 2 },
-  { id: 'champagne',     emoji: '🍾', name: 'Coupe de champagne',cost: 150, category: 'boisson',    durationMs: 10000, stackPriority: 4 },
-  { id: 'vin',           emoji: '🍷', name: 'Verre de vin',      cost:  45, category: 'boisson',    durationMs: 6000,  stackPriority: 2 },
-  { id: 'biere',         emoji: '🍺', name: 'Bière',             cost:  30, category: 'boisson',    durationMs: 5000,  stackPriority: 2 },
-  { id: 'rhum',          emoji: '🥃', name: 'Rhum',              cost:  40, category: 'boisson',    durationMs: 5500,  stackPriority: 2 },
-  { id: 'whisky',        emoji: '🥃', name: 'Whisky',            cost:  50, category: 'boisson',    durationMs: 6000,  stackPriority: 3 },
+  { id: 'cocktail',      emoji: '🍸', name: 'Cocktail',          cost:  5, category: 'boisson',    durationMs: 6000,  stackPriority: 2 },
+  { id: 'mojito',        emoji: '🍹', name: 'Mojito',            cost:  5, category: 'boisson',    durationMs: 6500,  stackPriority: 2 },
+  { id: 'martini',       emoji: '🍸', name: 'Martini',           cost:  5, category: 'boisson',    durationMs: 6000,  stackPriority: 2 },
+  { id: 'champagne',     emoji: '🍾', name: 'Coupe de champagne',cost: 5, category: 'boisson',    durationMs: 10000, stackPriority: 4 },
+  { id: 'vin',           emoji: '🍷', name: 'Verre de vin',      cost:  5, category: 'boisson',    durationMs: 6000,  stackPriority: 2 },
+  { id: 'biere',         emoji: '🍺', name: 'Bière',             cost:  5, category: 'boisson',    durationMs: 5000,  stackPriority: 2 },
+  { id: 'rhum',          emoji: '🥃', name: 'Rhum',              cost:  5, category: 'boisson',    durationMs: 5500,  stackPriority: 2 },
+  { id: 'whisky',        emoji: '🥃', name: 'Whisky',            cost:  5, category: 'boisson',    durationMs: 6000,  stackPriority: 3 },
   {
     id: 'vomito', emoji: '🤮', name: 'Cocktail Vomito',
     cost: 100, category: 'humour', durationMs: 8000, stackPriority: 3,
@@ -66,17 +66,17 @@ export const boissons: Offering[] = [
 // ─── NOURRITURE ───────────────────────────────────────────────────────────────
 
 export const nourriture: Offering[] = [
-  { id: 'croissant',    emoji: '🥐', name: 'Croissant',       cost:  25, category: 'nourriture', durationMs: 4000,  stackPriority: 1 },
-  { id: 'macaron',      emoji: '🧁', name: 'Macaron',         cost:  30, category: 'nourriture', durationMs: 4500,  stackPriority: 2 },
-  { id: 'chocolat',     emoji: '🍫', name: 'Chocolat',        cost:  35, category: 'nourriture', durationMs: 4500,  stackPriority: 2 },
-  { id: 'gateau',       emoji: '🍰', name: 'Part de gâteau',  cost:  45, category: 'nourriture', durationMs: 6000,  stackPriority: 3 },
-  { id: 'hamburger',    emoji: '🍔', name: 'Hamburger',       cost:  40, category: 'nourriture', durationMs: 5000,  stackPriority: 2 },
-  { id: 'sushis',       emoji: '🍣', name: 'Sushis',          cost:  60, category: 'nourriture', durationMs: 6000,  stackPriority: 3 },
-  { id: 'frites',       emoji: '🍟', name: 'Frites',          cost:  25, category: 'nourriture', durationMs: 4000,  stackPriority: 1 },
-  { id: 'fraises',      emoji: '🍓', name: 'Fraises',         cost:  35, category: 'nourriture', durationMs: 5000,  stackPriority: 2 },
-  { id: 'salade_fruits',emoji: '🥗', name: 'Salade de fruits',cost:  40, category: 'nourriture', durationMs: 5000,  stackPriority: 2 },
-  { id: 'glace',        emoji: '🍦', name: 'Glace',           cost:  30, category: 'nourriture', durationMs: 4500,  stackPriority: 2 },
-  { id: 'bonbons',      emoji: '🍬', name: 'Bonbons',         cost:  20, category: 'nourriture', durationMs: 5000,  stackPriority: 2 },
+  { id: 'croissant',    emoji: '🥐', name: 'Croissant',       cost:  10, category: 'nourriture', durationMs: 4000,  stackPriority: 1 },
+  { id: 'macaron',      emoji: '🧁', name: 'Macaron',         cost:  10, category: 'nourriture', durationMs: 4500,  stackPriority: 2 },
+  { id: 'chocolat',     emoji: '🍫', name: 'Chocolat',        cost:  10, category: 'nourriture', durationMs: 4500,  stackPriority: 2 },
+  { id: 'gateau',       emoji: '🍰', name: 'Part de gâteau',  cost:  10, category: 'nourriture', durationMs: 6000,  stackPriority: 3 },
+  { id: 'hamburger',    emoji: '🍔', name: 'Hamburger',       cost:  10, category: 'nourriture', durationMs: 5000,  stackPriority: 2 },
+  { id: 'sushis',       emoji: '🍣', name: 'Sushis',          cost:  10, category: 'nourriture', durationMs: 6000,  stackPriority: 3 },
+  { id: 'frites',       emoji: '🍟', name: 'Frites',          cost:  10, category: 'nourriture', durationMs: 4000,  stackPriority: 1 },
+  { id: 'fraises',      emoji: '🍓', name: 'Fraises',         cost:  10, category: 'nourriture', durationMs: 5000,  stackPriority: 2 },
+  { id: 'salade_fruits',emoji: '🥗', name: 'Salade de fruits',cost:  10, category: 'nourriture', durationMs: 5000,  stackPriority: 2 },
+  { id: 'glace',        emoji: '🍦', name: 'Glace',           cost:  10, category: 'nourriture', durationMs: 4500,  stackPriority: 2 },
+  { id: 'bonbons',      emoji: '🍬', name: 'Bonbons',         cost:  10, category: 'nourriture', durationMs: 5000,  stackPriority: 2 },
 ];
 
 // ─── SYMBOLIQUE ───────────────────────────────────────────────────────────────
@@ -97,51 +97,51 @@ export const symbolique: Offering[] = [
 export const transformations: Power[] = [
   {
     id: 'grenouille', emoji: '🐸', name: 'Transformer en grenouille',
-    cost: 100, duration: 60, type: 'transformation', stackPriority: 10,
+    cost: 20, duration: 60, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_kiss',
     breakHint: '💋 Envoie un Bisou pour libérer',
     cancelledBy: ['break_kiss'],
   },
   {
     id: 'ane', emoji: '🫏', name: 'Transformer en âne',
-    cost: 80, duration: 2160, type: 'transformation', stackPriority: 10,
+    cost: 20, duration: 2160, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_compliment',
     breakHint: '👏 Envoie un Compliment pour briser',
   },
   {
     id: 'fantome', emoji: '👻', name: 'Transformer en fantôme',
-    cost: 120, duration: 60, type: 'transformation', stackPriority: 10,
+    cost: 20, duration: 60, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_water',
     breakHint: "💧 Envoie de l'Eau pour chasser",
     cancelledBy: ['soleil', 'break_water'],
   },
   {
     id: 'pirate', emoji: '🏴‍☠️', name: 'Transformer en pirate',
-    cost: 90, duration: 60, type: 'transformation', stackPriority: 10,
+    cost: 20, duration: 60, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_dance',
     breakHint: '💃 Envoie une Danse pour briser',
   },
   {
     id: 'statue', emoji: '🗿', name: 'Transformer en statue',
-    cost: 110, duration: 30, type: 'transformation', stackPriority: 10,
+    cost: 20, duration: 30, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_compliment',
     breakHint: '👏 Envoie un Compliment pour réanimer',
   },
   {
     id: 'poule', emoji: '🐔', name: 'Transformer en poule',
-    cost: 70, duration: 60, type: 'transformation', stackPriority: 10,
+    cost: 20, duration: 60, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_laugh',
     breakHint: '😂 Envoie un Grand Rire pour libérer',
   },
   {
     id: 'invisibilite', emoji: '🫥', name: 'Invisibilité',
-    cost: 150, duration: 30, type: 'transformation', stackPriority: 10,
+    cost: 20, duration: 30, type: 'transformation', stackPriority: 10,
     breakConditionId: 'break_laugh',
     breakHint: '😂 Envoie un Grand Rire pour révéler',
   },
   {
     id: 'rockstar', emoji: '🎸', name: 'Transformer en rockstar',
-    cost: 130, duration: 45, type: 'transformation', stackPriority: 9,
+    cost: 20, duration: 45, type: 'transformation', stackPriority: 9,
     breakConditionId: 'break_music',
     breakHint: '🎵 Envoie de la Musique pour finir le concert',
   },
@@ -209,16 +209,16 @@ export const effects: Power[] = [
 // ─── Salon Métal ──────────────────────────────────────────────────────────────
 
 export const metalOfferings: Offering[] = [
-  { id: 'biere_pression', emoji: '🍺', name: 'Bière pression',            cost: 35, category: 'boisson',    durationMs: 5000, stackPriority: 2 },
-  { id: 'double_biere',   emoji: '🍻', name: 'Double bière',              cost: 60, category: 'boisson',    durationMs: 7000, stackPriority: 3 },
-  { id: 'whisky_rock',    emoji: '🥃', name: 'Whisky rock',               cost: 55, category: 'boisson',    durationMs: 6000, stackPriority: 3 },
-  { id: 'shot_tequila',   emoji: '🥃', name: 'Shot de tequila',           cost: 40, category: 'boisson',    durationMs: 4000, stackPriority: 2 },
-  { id: 'rhum_noir',      emoji: '🥃', name: 'Rhum noir',                 cost: 50, category: 'boisson',    durationMs: 5500, stackPriority: 2 },
-  { id: 'energy_drink',   emoji: '⚡', name: 'Energy drink',              cost: 30, category: 'boisson',    durationMs: 4000, stackPriority: 2 },
+  { id: 'biere_pression', emoji: '🍺', name: 'Bière pression',            cost: 5, category: 'boisson',    durationMs: 5000, stackPriority: 2 },
+  { id: 'double_biere',   emoji: '🍻', name: 'Double bière',              cost: 5, category: 'boisson',    durationMs: 7000, stackPriority: 3 },
+  { id: 'whisky_rock',    emoji: '🥃', name: 'Whisky rock',               cost: 5, category: 'boisson',    durationMs: 6000, stackPriority: 3 },
+  { id: 'shot_tequila',   emoji: '🥃', name: 'Shot de tequila',           cost: 5, category: 'boisson',    durationMs: 4000, stackPriority: 2 },
+  { id: 'rhum_noir',      emoji: '🥃', name: 'Rhum noir',                 cost: 5, category: 'boisson',    durationMs: 5500, stackPriority: 2 },
+  { id: 'energy_drink',   emoji: '⚡', name: 'Energy drink',              cost: 5, category: 'boisson',    durationMs: 4000, stackPriority: 2 },
   { id: 'eau_plate_metal',emoji: '💧', name: 'Eau plate (blasphème)',      cost:  5, category: 'humour',     durationMs: 3000, stackPriority: 1 },
-  { id: 'hotdog',         emoji: '🌭', name: 'Hot-dog',                   cost: 30, category: 'nourriture', durationMs: 4000, stackPriority: 1 },
-  { id: 'nachos',         emoji: '🧀', name: 'Nachos',                    cost: 35, category: 'nourriture', durationMs: 4500, stackPriority: 1 },
-  { id: 'wings',          emoji: '🍗', name: 'Wings',                     cost: 40, category: 'nourriture', durationMs: 5000, stackPriority: 2 },
+  { id: 'hotdog',         emoji: '🌭', name: 'Hot-dog',                   cost: 10, category: 'nourriture', durationMs: 4000, stackPriority: 1 },
+  { id: 'nachos',         emoji: '🧀', name: 'Nachos',                    cost: 10, category: 'nourriture', durationMs: 4500, stackPriority: 1 },
+  { id: 'wings',          emoji: '🍗', name: 'Wings',                     cost: 10, category: 'nourriture', durationMs: 5000, stackPriority: 2 },
 ];
 
 export const metalPowers: Power[] = [
