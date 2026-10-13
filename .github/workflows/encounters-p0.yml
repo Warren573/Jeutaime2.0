@@ -50,6 +50,9 @@ jobs:
         run: npx vitest run tests/unit/encounters-p0.regression.test.ts tests/unit/encounters-smiles-p0.test.ts tests/unit/encounters-questions-p0.test.ts tests/unit/encounters-letters-p0.test.ts tests/unit/encounters-ghosting-p0.test.ts tests/unit/encounters-vacation-p0.test.ts
       - name: Initialize isolated PostgreSQL schema
         run: npx prisma db push --skip-generate
+      - name: Initialize account deactivation auxiliary table (CI only)
+        run: |
+          psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -f prisma/migrations/20260807143000_add_account_deactivation/migration.sql
       - name: Real PostgreSQL encounter integration
         run: npx vitest run tests/integration/encounters-p0-postgres.test.ts
       - name: Backend typecheck
