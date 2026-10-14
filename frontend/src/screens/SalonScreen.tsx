@@ -696,7 +696,7 @@ export default function SalonScreen() {
       console.log('[MAGIES-DEBUG] loadSalonContent loaded:', {
         salonMagiesCount: magies.length,
         activeMagiesOnMeCount: activeMag.length,
-        salonMagies: magies.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.actorId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
+        salonMagies: magies.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.fromUserId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
         activeMagiesOnMe: activeMag.map(m => ({ id: m.id, magieId: m.magieId, expiresAt: m.expiresAt })),
       });
       // DO NOT reset participantsReady.current here - it would destroy local UI state
@@ -734,7 +734,7 @@ export default function SalonScreen() {
       console.log('[MAGIES-DEBUG] polling refreshed:', {
         salonMagiesCount: salonMag.length,
         activeMagiesOnMeCount: magies.length,
-        salonMagies: salonMag.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.actorId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
+        salonMagies: salonMag.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.fromUserId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
         activeMagiesOnMe: magies.map(m => ({ id: m.id, magieId: m.magieId, expiresAt: m.expiresAt })),
       });
     } catch {
@@ -973,7 +973,7 @@ export default function SalonScreen() {
         toUserId,
         castId: m.castId,
         magieId: m.magieId,
-        actorId: m.actorId,
+        actorId: m.fromUserId,
         expiresAt: m.expiresAt,
       })),
     });
@@ -1015,7 +1015,7 @@ export default function SalonScreen() {
           targetName: p.name,
           castId: cast.castId,
           magieId: cast.magieId,
-          actorId: cast.actorId,
+          actorId: cast.fromUserId,
           expiresAt: cast.expiresAt,
           currentUserId: currentUser?.id,
         });
