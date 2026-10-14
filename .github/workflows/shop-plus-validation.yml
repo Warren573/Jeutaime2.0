@@ -1,0 +1,29 @@
+name: Verify Shop and Plus
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/app/premium.tsx'
+      - 'frontend/src/screens/ShopScreen.tsx'
+      - '.github/workflows/shop-plus-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Export web
+        working-directory: frontend
+        env:
+          CI: '1'
+        run: npx expo export --platform web
