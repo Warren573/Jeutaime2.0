@@ -159,6 +159,7 @@ export interface Message {
   content: string;
   text?: string; // alias pour compatibilité
   timestamp: number;
+  createdAt?: string;
   type: 'message' | 'offering' | 'power' | 'system';
   isSystem?: boolean;
   giftData?: { emoji: string; from: string };
