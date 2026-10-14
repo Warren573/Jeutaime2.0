@@ -21,10 +21,15 @@ on:
       - 'backend/tests/integration/bottles-*.test.ts'
       - 'backend/tests/unit/bottles*.test.ts'
       - 'backend/prisma/**'
+      - '.github/workflows/bottles-integration-tests.yml'
 
 jobs:
   bottles-integration:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
 
     services:
       postgres:
@@ -77,11 +82,9 @@ jobs:
         env:
           PGPASSWORD: postgres
 
-      - name: Apply CI baseline schema
-        env:
-          PGPASSWORD: postgres
-        run: |
-          psql -h localhost -U postgres -d jeutaime_test -f backend/prisma/ci-baseline/schema.sql
+      - name: Initialize isolated PostgreSQL schema from current Prisma model
+        working-directory: backend
+        run: npx prisma db push --skip-generate
 
       - name: Verify schema consistency (zero drift)
         working-directory: backend
