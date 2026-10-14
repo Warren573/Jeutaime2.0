@@ -724,7 +724,7 @@ export default function SalonScreen() {
       const [offers, magies, salonOff, salonMag] = await Promise.all([
         getReceivedOfferings(1, 50, true),
         getActiveMagies(currentUser.id),
-        apiSalonId ? getSalonOfferings(apiSalonId, screenSessionId) : Promise.resolve([]),
+        apiSalonId ? getSalonOfferings(apiSalonId, screenSessionId ?? undefined) : Promise.resolve([]),
         apiSalonId ? getSalonMagies(apiSalonId) : Promise.resolve([]),
       ]);
       setMyReceivedOfferings(offers);
@@ -3398,8 +3398,5 @@ const styles = StyleSheet.create({
   targetSelectorButtons: {
     flexDirection: 'row',
     gap: 8,
-  },
-  targetSelectorButtonTextActive: {
-    color: '#FFF',
   },
 });
