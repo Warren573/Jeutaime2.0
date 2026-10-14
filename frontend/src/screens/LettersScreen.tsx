@@ -997,7 +997,7 @@ export default function LettersScreen() {
                       vacationMode={match.otherUserVacationMode}
                       isPremium={currentUser?.isPremium}
                       questionsValidated={match.questionsValidated}
-                      matchStatus={match.status}
+                      matchStatus={match.status.toUpperCase() as "ACTIVE" | "BROKEN" | "PENDING" | "BLOCKED"}
                       isInitiator={match.initiatorId === (currentUser?.id ?? '')}
                       onAccept={() => handleAccept(match)}
                       onPlayQuestions={() => handleQGameOpen(match)}
@@ -1130,7 +1130,6 @@ export default function LettersScreen() {
                     letter={letter}
                     isOwn={isOwn}
                     otherName={otherName}
-                    formatTime={formatTime}
                     onPress={() => setReadingLetter({ letter, isOwn })}
                     isLatestReceived={!isOwn && letter.id === latestReceivedId}
                   />
@@ -2180,5 +2179,8 @@ const qStyles = StyleSheet.create({
   closeBtnSuccess:{ backgroundColor: '#9C2F45' },
   closeBtnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   closeBtnText:   { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  turnBannerInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  envAnimOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 20 },
+  closeX: { fontSize: 22, color: '#3A2818', padding: 6 },
 });
 // Build cache bust: 1779184220
