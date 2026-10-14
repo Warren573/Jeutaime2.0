@@ -90,7 +90,7 @@ export default function ShopScreen() {
         <View style={styles.headerText}>
           <Text style={styles.kicker}>JEUTAIME</Text>
           <Text style={styles.title}>Boutique</Text>
-          <Text style={styles.subtitle}>Pièces, Premium et petits plaisirs.</Text>
+          <Text style={styles.subtitle}>Pièces, Plus et offrandes.</Text>
         </View>
         <View style={styles.headerSpacer} />
       </View>
@@ -117,18 +117,38 @@ export default function ShopScreen() {
         <Text style={styles.sectionLabel}>À LA UNE</Text>
 
         <ShopTile
-          icon="👑"
-          title="Premium"
+          icon="★"
+          title="JeuTaime Plus"
           description={
             currentUser?.isPremium
-              ? 'Tes avantages Premium sont actifs. Consulte ton statut et ton échéance.'
-              : 'Débloque davantage de confort et d’avantages dans JeuTaime.'
+              ? 'Ton abonnement Plus est actif. Consulte ton statut et ton échéance.'
+              : '5,99 €/mois · 500 pièces/mois, photos visibles, 10 lettres et 5 bouteilles simultanées, sans pub imposée.'
           }
-          actionLabel={currentUser?.isPremium ? 'Gérer mon Premium' : 'Découvrir Premium'}
+          actionLabel={currentUser?.isPremium ? 'Gérer mon Plus' : 'Découvrir Plus'}
           onPress={() => router.push('/premium')}
           badge={currentUser?.isPremium ? 'ACTIF' : undefined}
           emphasized
         />
+
+        <Text style={styles.sectionLabel}>ACHETER DES PIÈCES</Text>
+        <View style={styles.catalogCard}>
+          <Text style={styles.catalogTitle}>Packs de pièces</Text>
+          <Text style={styles.catalogSubtitle}>Tarifs validés · achat sécurisé à connecter</Text>
+          <View style={[styles.catalogGrid, { marginTop: 12 }]}>
+            {([
+              { id: '100', coins: 100, price: '0,99 €' },
+              { id: '500', coins: 500, price: '2,99 €' },
+              { id: '1000', coins: 1000, price: '4,99 €' },
+            ] as const).map((pack) => (
+              <View key={pack.id} style={styles.catalogItem}>
+                <CoinIcon size={25} />
+                <Text style={styles.catalogName}>{pack.coins.toLocaleString('fr-FR')} pièces</Text>
+                <Text style={styles.catalogPrice}>{pack.price}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.catalogNote}>Les achats ne sont pas encore activés. Aucun paiement ni crédit de pièces n'est effectué depuis cet écran.</Text>
+        </View>
 
         <Text style={styles.sectionLabel}>MONNAIE & OBJETS</Text>
 
