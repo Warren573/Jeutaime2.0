@@ -166,7 +166,7 @@ export default function SalonsListScreen() {
                 let slug = KIND_TO_SLUG[currentSalonKind];
                 if (!slug) {
                   const salonByName = salonsData.find(s => s.name.toLowerCase() === currentSalonName.toLowerCase());
-                  slug = salonByName?.id;
+                  slug = salonByName?.id ?? slug;
                 }
                 if (slug) router.push(`/salon/${slug}`);
               }}
