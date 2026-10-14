@@ -20,6 +20,7 @@ import {
   isOfferingActive,
 } from "../../policies/offerings";
 import { computeDebitBalance } from "../../policies/wallet";
+import { approvedOfferingCost, approvedOfferingName, isRetiredOfferingId } from "../../policies/economyCatalog";
 import { emitOfferingSent } from "../../events";
 import type {
   ListReceivedQueryDto,
@@ -77,8 +78,8 @@ function toCatalogDto(c: OfferingCatalog): OfferingCatalogDto {
   return {
     id: c.id,
     emoji: c.emoji,
-    name: c.name,
-    cost: c.cost,
+    name: approvedOfferingName(c.id, c.name),
+    cost: approvedOfferingCost(c.id, c.category, c.cost),
     category: c.category,
     durationMs: c.durationMs,
     stackPriority: c.stackPriority,
@@ -122,7 +123,7 @@ export async function listCatalog(): Promise<OfferingCatalogDto[]> {
       { id: "asc" },
     ],
   });
-  return rows.map(toCatalogDto);
+  return rows.filter(row => !isRetiredOfferingId(row.id)).map(toCatalogDto);
 }
 
 // ============================================================
@@ -151,6 +152,8 @@ export async function sendOffering(
   }
   console.log('[VALIDATION-3] assertOfferingUsable');
   assertOfferingUsable(catalog);
+  if (isRetiredOfferingId(catalog.id)) throw new BadRequestError("Cette offrande n’est plus disponible");
+  const effectiveCost = approvedOfferingCost(catalog.id, catalog.category, catalog.cost);
 
   console.log('[VALIDATION-4] checking target user');
   const target = await prisma.user.findUnique({
@@ -246,6 +249,7 @@ export async function sendOffering(
   // 3. Transaction : débit wallet + CoinTransaction + OfferingSent
   console.log('[VALIDATION-7] entering transaction for wallet debit');
   const result = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "userId" FROM "Wallet" WHERE "userId" = ${fromUserId} FOR UPDATE`;
     console.log('[VALIDATION-8] fetching wallet');
     const wallet = await tx.wallet.findUnique({
       where: { userId: fromUserId },
@@ -256,8 +260,8 @@ export async function sendOffering(
     }
 
     // Pure : throws NotEnoughCoinsError si fonds insuffisants
-    console.log('[VALIDATION-9] computing debit balance', { coins: wallet.coins, cost: catalog.cost });
-    const newBalance = computeDebitBalance(wallet.coins, catalog.cost);
+    console.log('[VALIDATION-9] computing debit balance', { coins: wallet.coins, cost: effectiveCost });
+    const newBalance = computeDebitBalance(wallet.coins, effectiveCost);
 
     await tx.wallet.update({
       where: { userId: fromUserId },
@@ -268,7 +272,7 @@ export async function sendOffering(
       data: {
         walletId: fromUserId,
         type: CoinTxnType.OFFERING_SENT,
-        amount: -catalog.cost,
+        amount: -effectiveCost,
         balance: newBalance,
         meta: {
           offeringId: catalog.id,
@@ -299,7 +303,7 @@ export async function sendOffering(
     fromUserId,
     toUserId: dto.toUserId,
     salonId: dto.salonId ?? null,
-    cost: catalog.cost,
+    cost: effectiveCost,
     expiresAt,
   });
 
@@ -323,6 +327,8 @@ export async function sendOfferingToSession(
     throw new NotFoundError("Offering");
   }
   assertOfferingUsable(catalog);
+  if (isRetiredOfferingId(catalog.id)) throw new BadRequestError("Cette offrande n’est plus disponible");
+  const effectiveCost = approvedOfferingCost(catalog.id, catalog.category, catalog.cost);
 
   // 2. Validate session and get active participants
   const session = await prisma.salonSession.findUnique({
@@ -390,12 +396,13 @@ export async function sendOfferingToSession(
   }
 
   // 7. Le prix d'une tournée est calculé uniquement sur les personnes servies.
-  const totalCost = catalog.cost * recipients.length;
+  const totalCost = effectiveCost * recipients.length;
   const now = new Date();
   const expiresAt = computeOfferingExpiry(now, catalog.durationMs);
 
   // 7. Transaction: debit wallet once and create OfferingSent for each recipient
   const result = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "userId" FROM "Wallet" WHERE "userId" = ${fromUserId} FOR UPDATE`;
     const wallet = await tx.wallet.findUnique({
       where: { userId: fromUserId },
     });
@@ -453,7 +460,7 @@ export async function sendOfferingToSession(
       fromUserId,
       toUserId,
       salonId: session.salon.id,
-      cost: catalog.cost,
+      cost: effectiveCost,
       expiresAt,
     });
   });
