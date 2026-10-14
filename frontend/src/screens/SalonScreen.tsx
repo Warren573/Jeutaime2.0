@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   TextInput,
   FlatList,
   KeyboardAvoidingView,
@@ -3394,35 +3395,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 10,
   },
-  targetSelectorLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#3A2818',
-    marginBottom: 6,
-  },
   targetSelectorButtons: {
     flexDirection: 'row',
     gap: 8,
-  },
-  targetSelectorButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    backgroundColor: '#F5F0E6',
-    borderWidth: 1,
-    borderColor: '#E8D5B7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  targetSelectorButtonActive: {
-    backgroundColor: '#E8B4B8',
-    borderColor: '#D48A8E',
-  },
-  targetSelectorButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#3A2818',
   },
   targetSelectorButtonTextActive: {
     color: '#FFF',
