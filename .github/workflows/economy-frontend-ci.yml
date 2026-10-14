@@ -23,8 +23,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         working-directory: frontend
-        run: npm install --no-package-lock --no-audit --no-fund
-        # Temporary CI workaround: package-lock is out of sync; fix before release.
+        run: npm ci
       - name: Typecheck React Native and Expo Router
         continue-on-error: true
         working-directory: frontend
