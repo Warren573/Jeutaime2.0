@@ -81,7 +81,8 @@ export default function ShopScreen() {
       .catch(() => setCatalog([]));
   }, [loadWallet]);
 
-  const catalogPreview = catalog.slice(0, 4);
+  // La boutique met en avant les cadeaux personnels, pas les consommables des salons.
+  const catalogPreview = catalog.filter((item) => item.id.startsWith('desk_')).slice(0, 5);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -122,7 +123,7 @@ export default function ShopScreen() {
           description={
             currentUser?.isPremium
               ? 'Ton abonnement Plus est actif. Consulte ton statut et ton échéance.'
-              : '5,99 €/mois · 500 pièces/mois, photos visibles, 10 lettres et 5 bouteilles simultanées, sans pub imposée.'
+              : '5,99 €/mois · 500 pièces/mois, photos visibles, 10 correspondances et 5 bouteilles simultanées, sans pub imposée.'
           }
           actionLabel={currentUser?.isPremium ? 'Gérer mon Plus' : 'Découvrir Plus'}
           onPress={() => router.push('/premium')}
@@ -165,7 +166,7 @@ export default function ShopScreen() {
           <View style={styles.catalogHeader}>
             <View>
               <Text style={styles.catalogTitle}>🎁 Offrandes</Text>
-              <Text style={styles.catalogSubtitle}>Aperçu du catalogue actuel</Text>
+              <Text style={styles.catalogSubtitle}>Cadeaux à envoyer à tes correspondants</Text>
             </View>
             <TouchableOpacity onPress={() => router.push('/offerings')} activeOpacity={0.75}>
               <Text style={styles.catalogLink}>Reçues →</Text>
