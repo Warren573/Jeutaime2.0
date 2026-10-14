@@ -85,6 +85,7 @@ export interface ParticipantDTO {
 }
 
 export interface SalonSessionDetailDTO extends SalonSessionDTO {
+  salonId: string;
   salonKind: string;
   salonName: string;
   status: "ACTIVE" | "EXPIRED";
@@ -164,18 +165,18 @@ export async function getCurrentSalonSession(): Promise<CurrentSalonSessionDTO |
   return res.data;
 }
 
-export async function performDrinkAction(sessionId: string): Promise<{ success: boolean; level?: number }> {
+export async function performDrinkAction(sessionId: string): Promise<{ success: boolean; level?: number; offeringConsumed?: boolean }> {
   const res = (await apiFetch(`/salon-sessions/${sessionId}/drink`, {
     method: 'POST',
     body: JSON.stringify({}),
-  })) as { data: { success: boolean; level?: number } };
+  })) as { data: { success: boolean; level?: number; offeringConsumed?: boolean } };
   return res.data;
 }
 
-export async function performEatAction(sessionId: string): Promise<{ success: boolean; level?: number }> {
+export async function performEatAction(sessionId: string): Promise<{ success: boolean; level?: number; offeringConsumed?: boolean }> {
   const res = (await apiFetch(`/salon-sessions/${sessionId}/eat`, {
     method: 'POST',
     body: JSON.stringify({}),
-  })) as { data: { success: boolean; level?: number } };
+  })) as { data: { success: boolean; level?: number; offeringConsumed?: boolean } };
   return res.data;
 }
