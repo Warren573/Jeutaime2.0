@@ -80,7 +80,7 @@ export function ConsumptionActionButton({
     setLoading(true);
     try {
       const updated = await consumeOffering(offering.id, action);
-      onSuccess?.(updated);
+      onSuccess?.({ ...offering, isActive: updated.isActive, consumptionCount: updated.consumptionCount, currentStage: updated.currentStage, lastConsumedBy: updated.lastConsumedBy });
       const notification = getNotificationMessage(action);
       Alert.alert(notification.title, notification.body);
     } catch (e: any) {
