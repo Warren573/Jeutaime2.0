@@ -20,6 +20,16 @@ const MAGIC_IDS = [
   "mag_pirate", "mag_statue", "mag_rockstar", "mag_invisibilite",
 ] as const;
 
+// Les cinq offrandes personnelles validées ; les anciens cadeaux achetés restent intacts.
+const PERSONAL_OFFERS = [
+  { id: "desk_chocolats", cost: 60, name: "Boîte de chocolats" },
+  { id: "desk_bouquet", cost: 80, name: "Bouquet de fleurs" },
+  { id: "desk_rose", cost: 120, name: "Rose éternelle" },
+  { id: "desk_grand_cru", cost: 180, name: "Bouteille de vin" },
+  { id: "desk_venise", cost: 300, name: "Passeport et deux billets" },
+] as const;
+const DEPRECATED_PERSONAL_OFFER_ID = "desk_parfum";
+
 async function main() {
   const apply = process.argv.includes("--apply");
   if (apply && process.argv.includes("--dry-run")) throw new Error("Choisir un seul mode.");
@@ -31,6 +41,12 @@ async function main() {
     where: { id: { in: [...MAGIC_IDS] } },
     select: { id: true, cost: true },
   });
+  const personal = await prisma.offeringCatalog.findMany({
+    where: { id: { in: [...PERSONAL_OFFERS.map(o => o.id), DEPRECATED_PERSONAL_OFFER_ID] } },
+    select: { id: true, cost: true, name: true, enabled: true },
+  });
+  const missingPersonal = PERSONAL_OFFERS.filter(o => !personal.some(row => row.id === o.id));
+  if (missingPersonal.length) throw new Error("Offrandes personnelles absentes : " + missingPersonal.map(o => o.id).join(", "));
   const missing = MAGIC_IDS.filter(id => !magies.some(m => m.id === id));
   if (missing.length) throw new Error("Magies absentes : " + missing.join(", "));
   const missingOfferings = SALON_OFFERING_IDS.filter(id => !offerings.some(o => o.id === id));
@@ -40,10 +56,17 @@ async function main() {
     .map(o => ({ ...o, target: o.category === OfferingCategory.BOISSON ? DRINK : FOOD }))
     .filter(o => o.cost !== o.target);
   const changedMagies = magies.filter(m => m.cost !== 20);
+  const changedPersonal = PERSONAL_OFFERS
+    .map(target => ({ target, previous: personal.find(p => p.id === target.id)! }))
+    .filter(({ target, previous }) => previous.cost !== target.cost || previous.name !== target.name || !previous.enabled);
+  const oldParfum = personal.find(row => row.id === DEPRECATED_PERSONAL_OFFER_ID);
+
   console.log(JSON.stringify({
     mode: apply ? "APPLY" : "DRY_RUN",
     offerings: changedOfferings,
     magies: changedMagies.map(m => ({ ...m, target: 20 })),
+    personal: changedPersonal,
+    deprecatedPersonalOffering: oldParfum?.enabled ? DEPRECATED_PERSONAL_OFFER_ID : null,
     untouchedHistoricalOfferings: true,
     untouchedWallets: true,
   }, null, 2));
@@ -62,6 +85,15 @@ async function main() {
     await tx.magieCatalog.updateMany({
       where: { id: { in: [...MAGIC_IDS] } },
       data: { cost: 20 },
+    });
+    for (const target of PERSONAL_OFFERS) {
+      await tx.offeringCatalog.update({
+        where: { id: target.id },
+        data: { name: target.name, cost: target.cost, enabled: true },
+      });
+    }
+    await tx.offeringCatalog.updateMany({
+      where: { id: DEPRECATED_PERSONAL_OFFER_ID }, data: { enabled: false },
     });
   });
   console.log("Synchronisation effectuée. Historique et solde des portefeuilles inchangés.");
