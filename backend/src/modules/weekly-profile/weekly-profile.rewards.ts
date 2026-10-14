@@ -19,17 +19,13 @@ export async function awardPreviousWeekWinners(): Promise<number> {
         SELECT "userId" FROM "Wallet" WHERE "userId" = ${winner.id} FOR UPDATE
       `;
       if (!lock.length) return;
-      const existing = await tx.coinTransaction.findMany({
-        where: { type: CoinTxnType.ADMIN_ADJUST },
-        select: { meta: true },
+      // Un identifiant unique en base garantit au maximum une prime par semaine/catégorie,
+      // indépendamment du nombre de gagnants successifs ou de jobs concurrents.
+      const payoutId = `weekly-profile-winner:${winners.weekKey}:${category}`;
+      const existing = await tx.coinTransaction.findUnique({
+        where: { id: payoutId }, select: { id: true },
       });
-      if (existing.some(row => {
-        const m = row.meta;
-        return m !== null && typeof m === "object" && !Array.isArray(m)
-          && m["source"] === "weekly_profile_winner"
-          && m["weekKey"] === winners.weekKey
-          && m["category"] === category;
-      })) return;
+      if (existing) return;
       const wallet = await tx.wallet.update({
         where: { userId: winner.id },
         data: { coins: { increment: 50 } },
@@ -37,6 +33,7 @@ export async function awardPreviousWeekWinners(): Promise<number> {
       });
       await tx.coinTransaction.create({
         data: {
+          id: payoutId,
           walletId: winner.id,
           type: CoinTxnType.ADMIN_ADJUST,
           amount: 50,
