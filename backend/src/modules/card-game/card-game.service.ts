@@ -120,6 +120,8 @@ async function loadActiveSession(
 
 export async function start(userId: string): Promise<StartResult> {
   return prisma.$transaction(async (tx) => {
+    // Une seule création de partie et un seul débit possibles par portefeuille.
+    await tx.$queryRaw`SELECT "userId" FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
     const existing = await tx.cardGameSession.findFirst({
       where: { userId, status: CardGameStatus.ACTIVE },
       orderBy: { createdAt: "desc" },
@@ -185,6 +187,8 @@ export async function reveal(
   cardIndex: number,
 ): Promise<RevealResult> {
   return prisma.$transaction(async (tx) => {
+    // Sérialise les actions simultanées sur une même session.
+    await tx.$queryRaw`SELECT "id" FROM "CardGameSession" WHERE "id" = ${sessionId} FOR UPDATE`;
     const session = await loadActiveSession(tx, sessionId, userId);
     const deck = parseDeck(session.deck);
 
@@ -215,7 +219,11 @@ export async function claim(
   sessionId: string,
 ): Promise<ClaimResult> {
   return prisma.$transaction(async (tx) => {
+    // Sérialise les actions simultanées sur une même session.
+    await tx.$queryRaw`SELECT "id" FROM "CardGameSession" WHERE "id" = ${sessionId} FOR UPDATE`;
     const session = await loadActiveSession(tx, sessionId, userId);
+    // Crédit atomique vis-à-vis des achats et autres gains.
+    await tx.$queryRaw`SELECT "userId" FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
 
     const gained = session.gainsCurrent;
     let newBalance: number;
@@ -260,7 +268,11 @@ export async function bet(
   sessionId: string,
 ): Promise<BetResult> {
   return prisma.$transaction(async (tx) => {
+    // Sérialise les actions simultanées sur une même session.
+    await tx.$queryRaw`SELECT "id" FROM "CardGameSession" WHERE "id" = ${sessionId} FOR UPDATE`;
     const session = await loadActiveSession(tx, sessionId, userId);
+    // Crédit atomique vis-à-vis des achats et autres gains.
+    await tx.$queryRaw`SELECT "userId" FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
     const deck = parseDeck(session.deck);
 
     const heartsRemaining = countHiddenHearts(deck, session.revealed);
