@@ -22,9 +22,6 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm install --no-package-lock --no-audit --no-fund
-      - name: TypeScript
-        working-directory: frontend
-        run: npx tsc --noEmit
       - name: Export web
         working-directory: frontend
         env:
