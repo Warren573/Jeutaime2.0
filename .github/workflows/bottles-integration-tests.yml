@@ -15,6 +15,7 @@ on:
       - 'backend/src/modules/magies/**'
       - 'backend/src/policies/economyCatalog.ts'
       - 'backend/tests/unit/economyCatalog.test.ts'
+      - 'backend/tests/integration/economy-wallet-integrity.test.ts'
       - 'backend/package.json'
       - '.github/workflows/bottles-integration-tests.yml'
   pull_request:
@@ -29,6 +30,7 @@ on:
       - 'backend/src/modules/magies/**'
       - 'backend/src/policies/economyCatalog.ts'
       - 'backend/tests/unit/economyCatalog.test.ts'
+      - 'backend/tests/integration/economy-wallet-integrity.test.ts'
 
 jobs:
   bottles-integration:
@@ -163,6 +165,16 @@ jobs:
           JWT_ACCESS_SECRET: test_access_secret_32chars_minimum_1
           JWT_REFRESH_SECRET: test_refresh_secret_32chars_minimum_1
         run: npm test -- refuge-final-credits.test.ts
+
+      - name: Economy wallet atomicity on PostgreSQL
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+          JWT_ACCESS_SECRET: test_access_secret_32chars_minimum_1
+          JWT_REFRESH_SECRET: test_refresh_secret_32chars_minimum_1
+        run: npm test -- economy-wallet-integrity.test.ts
 
       - name: TypeScript build check
         working-directory: backend
