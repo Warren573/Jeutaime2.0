@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStore } from "../store/useStore";
 import { Avatar } from "../avatar/png/Avatar";
@@ -24,7 +25,7 @@ import {
   type ReportReason,
 } from "../api/profiles";
 import { sendReaction } from "../api/reactions";
-import { apiFetch } from "../api/client";
+import { apiFetch, API_URL } from "../api/client";
 import {
   APP_COLORS,
   APP_COMPONENTS,
@@ -121,11 +122,13 @@ const badgeStyles = StyleSheet.create({
 export function ProfileMedia({
   avatarConfig,
   photoUri,
+  photoToken,
   visibility,
   size,
 }: {
   avatarConfig: Record<string, unknown>;
   photoUri?: string;
+  photoToken?: string | null;
   visibility: "avatar" | "blurred" | "revealed";
   size: number;
 }) {
@@ -134,7 +137,7 @@ export function ProfileMedia({
   }
   return (
     <Image
-      source={{ uri: photoUri }}
+      source={{ uri: photoUri.startsWith("http") ? photoUri : `${API_URL.endsWith("/api") ? API_URL.slice(0, -4) : API_URL}${photoUri}`, headers: photoToken ? { Authorization: `Bearer ${photoToken}` } : undefined }}
       style={{ width: size, height: size, borderRadius: size * 0.12 }}
       contentFit="cover"
       blurRadius={visibility === "blurred" ? 20 : 0}
@@ -153,6 +156,8 @@ export default function ProfileTwoStepDemo() {
 
   const isReceivedSmilesFilter = searchParams.filter === 'received-smiles';
 
+  const [photoToken, setPhotoToken] = useState<string | null>(null);
+  useEffect(() => { let active = true; AsyncStorage.getItem("auth_token").then(token => { if (active) setPhotoToken(token); }); return () => { active = false; }; }, [currentUser?.id]);
   const [currentProfile, setCurrentProfile] = useState<DiscoveryProfileDto | null>(null);
   const [remainingProfiles, setRemainingProfiles] = useState<DiscoveryProfileDto[]>([]);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
@@ -188,18 +193,21 @@ export default function ProfileTwoStepDemo() {
           .map(({ match, otherUserId }) => {
             const partner = matchPartners[otherUserId];
             return {
+              id: otherUserId,
               userId: otherUserId,
               pseudo: partner?.pseudo ?? "Anonyme",
-              birthDate: partner?.birthDate ? String(partner.birthDate) : undefined,
+              birthDate: null,
               gender: "AUTRE" as const,
               city: partner?.city ?? "",
               bio: partner?.bio ?? "",
-              physicalDesc: partner?.physicalDesc,
-              avatarConfig: partner?.avatarConfig,
+              physicalDesc: partner?.physicalDesc ?? null,
+              avatarConfig: partner?.avatarConfig ?? null,
               verified: false,
               photoUri: undefined,
               visibility: "avatar" as const,
               lookingFor: [],
+              interests: [],
+              interestedIn: [],
               points: 0,
               badges: [],
             };
@@ -460,7 +468,7 @@ export default function ProfileTwoStepDemo() {
           <View style={styles.stageOneHeader}>
             <View style={styles.photoCard}>
               <View style={styles.photoTape} />
-              <ProfileMedia avatarConfig={avatarConfig} visibility="avatar" size={96} />
+              <ProfileMedia avatarConfig={avatarConfig} photoUri={photoToken ? (profile.selectionPhotoUrl ?? undefined) : undefined} photoToken={photoToken} visibility={photoToken && profile.selectionPhotoUrl ? "revealed" : "avatar"} size={96} />
             </View>
 
             <View style={styles.stageOneHeaderText}>

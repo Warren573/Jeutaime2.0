@@ -175,7 +175,7 @@ export default function WalletScreen() {
           </View>
           <View style={styles.shopBtnContent}>
             <Text style={styles.shopBtnTitle}>Boutique</Text>
-            <Text style={styles.shopBtnSub}>Premium, pièces et offrandes</Text>
+            <Text style={styles.shopBtnSub}>Plus, packs de pièces et offrandes</Text>
           </View>
           <Text style={styles.shopBtnArrow}>›</Text>
         </TouchableOpacity>

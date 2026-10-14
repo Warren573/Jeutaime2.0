@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma";
+import { calculateRefugeFinalRewards } from "../../policies/refugeFinalRewards";
 import { emitRefugeRevealed } from "../../events";
 import { buildPhotoUrl } from "../photos/photos.urls";
 import {
@@ -845,21 +846,7 @@ export class RefugeService {
           },
         });
 
-        // Récompenses via le Wallet officiel — écritures CoinTransaction traçables
-        if (dayResult.reward > 0) {
-          const meta = { refugeSessionId, dayNumber, status: closure.status };
-          const txnType = this.closureTxnType(closure.status as RefugeDayStatus, true);
-          await this.applyRefugeCoinsTx(tx, refugeSession.adopteId, dayResult.reward, txnType, {
-            ...meta,
-            role: "adopte",
-            theoreticalDelta: dayResult.reward,
-          });
-          await this.applyRefugeCoinsTx(tx, adoptantId, dayResult.reward, txnType, {
-            ...meta,
-            role: "adoptant",
-            theoreticalDelta: dayResult.reward,
-          });
-        }
+        // Les gains ne sont plus versés par jour : calcul unique à la fin des sept jours.
 
         return created;
       });
@@ -883,7 +870,7 @@ export class RefugeService {
       dayResult: {
         matches: dayResult.matches,
         message: dayResult.message,
-        reward: dayResult.reward,
+        reward: 0, // Pas de pièces par jour : récompense à la clôture des 7 jours.
         emoji: dayResult.emoji,
       },
     };
@@ -947,7 +934,7 @@ export class RefugeService {
     session: { id: string; adopteId: string; adoptantId: string | null },
     dayNumber: number,
     closure: { status: RefugeDayStatusName; matchCount: number | null; adopteCoinsDelta: number; adoptantCoinsDelta: number },
-    applyWalletMovements: boolean
+    _applyWalletMovements: boolean
   ): Promise<boolean> {
     try {
       await prisma.$transaction(async (tx) => {
@@ -962,25 +949,7 @@ export class RefugeService {
           },
         });
 
-        if (applyWalletMovements) {
-          const meta = { refugeSessionId: session.id, dayNumber, status: closure.status };
-          await this.applyRefugeCoinsTx(
-            tx,
-            session.adopteId,
-            closure.adopteCoinsDelta,
-            this.closureTxnType(closure.status as RefugeDayStatus, closure.adopteCoinsDelta > 0),
-            { ...meta, role: "adopte", theoreticalDelta: closure.adopteCoinsDelta }
-          );
-          if (session.adoptantId) {
-            await this.applyRefugeCoinsTx(
-              tx,
-              session.adoptantId,
-              closure.adoptantCoinsDelta,
-              this.closureTxnType(closure.status as RefugeDayStatus, closure.adoptantCoinsDelta > 0),
-              { ...meta, role: "adoptant", theoreticalDelta: closure.adoptantCoinsDelta }
-            );
-          }
-        }
+
       });
       return true;
     } catch (err: any) {
@@ -999,12 +968,14 @@ export class RefugeService {
       include: { dailyChoices: true, guesses: true, dayResults: true },
     });
 
-    if (!session || session.status !== RefugeSessionStatus.ACTIVE) return;
-    if (!session.startedAt || !session.adoptantId) return;
+    if (!session || !session.startedAt || !session.adoptantId) return;
+    // Les sessions révélées ou terminées doivent également recevoir leur prime finale.
+    if (session.status === RefugeSessionStatus.ABANDONED || session.status === RefugeSessionStatus.CREATION) return;
 
     const now = new Date();
     const currentDay = getCurrentDay(session.createdAt, session.startedAt, now);
     const expired = isRefugeExpired(session.endsAt, now);
+    if (!expired && session.status !== RefugeSessionStatus.ACTIVE) return;
     const lastDueDay = expired ? REFUGE_DURATION_DAYS : Math.min(currentDay - 1, REFUGE_DURATION_DAYS);
 
     for (let day = 1; day <= lastDueDay; day++) {
@@ -1026,11 +997,71 @@ export class RefugeService {
       const matches = choice && guess ? calculateDayResult(choice, guess).matches : null;
       const closure = computeDayClosure(!!choice, !!guess, matches, adoptantWasPresent);
 
-      // Jour complet (choix+réponse) : les récompenses ont déjà été versées à
-      // la soumission de la réponse — on ne persiste ici que le résultat.
-      const applyWallet = !(choice && guess);
-      await this.closeDay(session, day, closure, applyWallet);
+      // Le résultat journalier est enregistré sans versement de pièces.
+      await this.closeDay(session, day, closure, false);
     }
+    if (expired) await this.creditFinalRefugeRewards(refugeSessionId);
+  }
+
+
+  /** Verse UNE fois les récompenses finales, sous verrou PostgreSQL sur la session.
+   * Les sessions déjà créditées par l'ancien mécanisme quotidien sont exclues
+   * pour ne pas payer deux fois la même participation.
+   */
+  private static async creditFinalRefugeRewards(refugeSessionId: string): Promise<void> {
+    await prisma.$transaction(async tx => {
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "RefugeSession" WHERE "id" = ${refugeSessionId} FOR UPDATE
+      `;
+      if (!locked.length) return;
+      const session = await tx.refugeSession.findUnique({
+        where: { id: refugeSessionId },
+        include: { dailyChoices: true, guesses: true, dayResults: true },
+      });
+      if (!session?.adoptantId || !session.endsAt || session.endsAt > new Date()) return;
+      if (session.dayResults.length < REFUGE_DURATION_DAYS) return;
+      const prior = await tx.coinTransaction.findMany({
+        where: {
+          walletId: { in: [session.adopteId, session.adoptantId] },
+          type: { in: [
+            CoinTxnType.REFUGE_PARTIAL_REWARD,
+            CoinTxnType.REFUGE_PERFECT_REWARD,
+            CoinTxnType.REFUGE_PARTICIPATION_REWARD,
+            CoinTxnType.REFUGE_INACTIVITY_PENALTY,
+          ] },
+        },
+        select: { meta: true },
+      });
+      if (prior.some(row => {
+        const meta = row.meta;
+        return meta !== null && typeof meta === "object" && !Array.isArray(meta)
+          && meta["refugeSessionId"] === refugeSessionId;
+      })) return;
+      const rewards = calculateRefugeFinalRewards({
+        adopteDays: session.dailyChoices.map(d => d.dayNumber),
+        adoptantDays: session.guesses.map(g => g.dayNumber),
+        perfectDays: session.dayResults.filter(d => d.status === RefugeDayStatus.PERFECT).map(d => d.dayNumber),
+      });
+      // Une trace unique par participant est indispensable même lorsque son gain vaut 0.
+      for (const [userId, amount, role] of [
+        [session.adopteId, rewards.adopte, "adopte"],
+        [session.adoptantId, rewards.adoptant, "adoptant"],
+      ] as const) {
+        const wallet = await tx.wallet.upsert({
+          where: { userId }, update: {}, create: { userId, coins: 0 },
+        });
+        const updated = amount > 0
+          ? await tx.wallet.update({ where: { userId }, data: { coins: { increment: amount } } })
+          : wallet;
+        await tx.coinTransaction.create({
+          data: {
+            walletId: userId, type: CoinTxnType.REFUGE_PARTICIPATION_REWARD,
+            amount, balance: updated.coins,
+            meta: { refugeSessionId, role, finalReward: true, collectivePerfect: rewards.collectivePerfect },
+          },
+        });
+      }
+    });
   }
 
   // ============================================================

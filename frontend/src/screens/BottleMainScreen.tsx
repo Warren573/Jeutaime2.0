@@ -200,10 +200,10 @@ export default function BottleMainScreen() {
 
                 <View style={styles.sentParchmentCard}>
                   <BottleParchmentCard
-                    content={state.latestLetter.content}
+                    content={state.latestLetter?.content ?? ""}
                     compact
-                    variant={state.latestLetter.isMine ? 'sent' : 'received'}
-                    label={state.latestLetter.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
+                    variant={state.latestLetter?.isMine ? 'sent' : 'received'}
+                    label={state.latestLetter?.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
                   />
                 </View>
 
@@ -231,9 +231,9 @@ export default function BottleMainScreen() {
             ) : (
               <>
                 <BottleParchmentCard
-                  content={state.latestLetter.content}
-                  variant={state.latestLetter.isMine ? 'sent' : 'received'}
-                  label={state.latestLetter.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
+                  content={state.latestLetter?.content ?? ""}
+                  variant={state.latestLetter?.isMine ? 'sent' : 'received'}
+                  label={state.latestLetter?.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
                 />
                 <View style={styles.paddedSection}>
                   {state.canReply && (

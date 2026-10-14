@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   TextInput,
   FlatList,
   KeyboardAvoidingView,
@@ -679,7 +680,7 @@ export default function SalonScreen() {
       const [msgs, session, offers, magies, myOffers, activeMag] = await Promise.all([
         apiListMessages(apiSalonId, 50, screenSessionId),
         getSessionDetail(screenSessionId),
-        getSalonOfferings(apiSalonId, screenSessionId),
+        getSalonOfferings(apiSalonId, screenSessionId ?? undefined),
         getSalonMagies(apiSalonId),
         getReceivedOfferings(1, 50, true),
         getActiveMagies(currentUser.id),
@@ -695,7 +696,7 @@ export default function SalonScreen() {
       console.log('[MAGIES-DEBUG] loadSalonContent loaded:', {
         salonMagiesCount: magies.length,
         activeMagiesOnMeCount: activeMag.length,
-        salonMagies: magies.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.actorId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
+        salonMagies: magies.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.fromUserId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
         activeMagiesOnMe: activeMag.map(m => ({ id: m.id, magieId: m.magieId, expiresAt: m.expiresAt })),
       });
       // DO NOT reset participantsReady.current here - it would destroy local UI state
@@ -723,7 +724,7 @@ export default function SalonScreen() {
       const [offers, magies, salonOff, salonMag] = await Promise.all([
         getReceivedOfferings(1, 50, true),
         getActiveMagies(currentUser.id),
-        apiSalonId ? getSalonOfferings(apiSalonId, screenSessionId) : Promise.resolve([]),
+        apiSalonId ? getSalonOfferings(apiSalonId, screenSessionId ?? undefined) : Promise.resolve([]),
         apiSalonId ? getSalonMagies(apiSalonId) : Promise.resolve([]),
       ]);
       setMyReceivedOfferings(offers);
@@ -733,7 +734,7 @@ export default function SalonScreen() {
       console.log('[MAGIES-DEBUG] polling refreshed:', {
         salonMagiesCount: salonMag.length,
         activeMagiesOnMeCount: magies.length,
-        salonMagies: salonMag.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.actorId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
+        salonMagies: salonMag.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.fromUserId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
         activeMagiesOnMe: magies.map(m => ({ id: m.id, magieId: m.magieId, expiresAt: m.expiresAt })),
       });
     } catch {
@@ -972,7 +973,7 @@ export default function SalonScreen() {
         toUserId,
         castId: m.castId,
         magieId: m.magieId,
-        actorId: m.actorId,
+        actorId: m.fromUserId,
         expiresAt: m.expiresAt,
       })),
     });
@@ -1014,7 +1015,7 @@ export default function SalonScreen() {
           targetName: p.name,
           castId: cast.castId,
           magieId: cast.magieId,
-          actorId: cast.actorId,
+          actorId: cast.fromUserId,
           expiresAt: cast.expiresAt,
           currentUserId: currentUser?.id,
         });
@@ -1680,7 +1681,7 @@ export default function SalonScreen() {
       <KeyboardAvoidingView
         style={[
           styles.container,
-          getSalonBackgroundImage(salonId) && styles.containerTransparent,
+          getSalonBackgroundImage(salonId) ? styles.containerTransparent : undefined,
         ]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
@@ -3394,37 +3395,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 10,
   },
-  targetSelectorLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#3A2818',
-    marginBottom: 6,
-  },
   targetSelectorButtons: {
     flexDirection: 'row',
     gap: 8,
-  },
-  targetSelectorButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    backgroundColor: '#F5F0E6',
-    borderWidth: 1,
-    borderColor: '#E8D5B7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  targetSelectorButtonActive: {
-    backgroundColor: '#E8B4B8',
-    borderColor: '#D48A8E',
-  },
-  targetSelectorButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#3A2818',
-  },
-  targetSelectorButtonTextActive: {
-    color: '#FFF',
   },
 });

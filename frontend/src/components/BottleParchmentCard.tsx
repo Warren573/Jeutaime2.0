@@ -40,7 +40,6 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
           source={paperSource}
           resizeMode="stretch"
           style={styles.paperImage}
-          pointerEvents="none"
         />
 
         {!!dateLabel && (

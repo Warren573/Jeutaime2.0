@@ -997,7 +997,7 @@ export default function LettersScreen() {
                       vacationMode={match.otherUserVacationMode}
                       isPremium={currentUser?.isPremium}
                       questionsValidated={match.questionsValidated}
-                      matchStatus={match.status}
+                      matchStatus={match.status.toUpperCase() as "ACTIVE" | "BROKEN" | "PENDING" | "BLOCKED"}
                       isInitiator={match.initiatorId === (currentUser?.id ?? '')}
                       onAccept={() => handleAccept(match)}
                       onPlayQuestions={() => handleQGameOpen(match)}
@@ -1130,7 +1130,6 @@ export default function LettersScreen() {
                     letter={letter}
                     isOwn={isOwn}
                     otherName={otherName}
-                    formatTime={formatTime}
                     onPress={() => setReadingLetter({ letter, isOwn })}
                     isLatestReceived={!isOwn && letter.id === latestReceivedId}
                   />
@@ -2142,6 +2141,10 @@ const styles = StyleSheet.create({
   turnBannerMine: { backgroundColor: '#1A2E1A' },
   turnBannerWait: { backgroundColor: '#2C1A0E' },
   turnBannerText: { fontSize: 12.5, fontWeight: '600', color: '#D1B98F' },
+
+  turnBannerInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  envAnimOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 20 },
+  closeX: { fontSize: 22, color: '#3A2818', padding: 6 },
 
 });
 

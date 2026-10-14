@@ -19,27 +19,7 @@ export interface PremiumPlan {
 }
 
 export const PREMIUM_PLANS: readonly PremiumPlan[] = [
-  {
-    id: "monthly",
-    label: "Mensuel",
-    durationDays: 30,
-    priceCoins: 500,
-    priceEur: 4.99,
-  },
-  {
-    id: "quarterly",
-    label: "Trimestriel",
-    durationDays: 90,
-    priceCoins: 1200,
-    priceEur: 12.99,
-  },
-  {
-    id: "yearly",
-    label: "Annuel",
-    durationDays: 365,
-    priceCoins: 4000,
-    priceEur: 39.99,
-  },
+  { id: "monthly", label: "JeuTaime Plus", durationDays: 30, priceCoins: 0, priceEur: 5.99 },
 ] as const;
 
 export function findPlan(planId: string): PremiumPlan | null {

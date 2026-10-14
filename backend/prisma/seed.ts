@@ -99,32 +99,32 @@ const questionCatalog = [
 // CATALOGUE OFFRANDES (MVP - 3 items uniquement pour validation)
 // ============================================================
 const offeringCatalog = [
-  { id: "off_biere",         emoji: "🍺",  name: "Bière pression",    cost: 30,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
-  { id: "off_fraises",       emoji: "🍓",  name: "Fraises",           cost: 35,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
-  { id: "off_bonbons",       emoji: "🍬",  name: "Bonbons",           cost: 20,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
-  { id: "off_cafe",          emoji: "☕",  name: "Café",              cost: 20,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
-  { id: "off_cocktail",      emoji: "🍸",  name: "Cocktail",          cost: 50,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 2, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
-  { id: "off_cookie",        emoji: "🍪",  name: "Cookie",            cost: 25,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
-  { id: "off_glace",         emoji: "🍦",  name: "Glace",             cost: 30,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 2, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
-  { id: "off_pizza",         emoji: "🍕",  name: "Pizza",             cost: 45,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 2, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
-  { id: "off_coupechampagne", emoji: "🥂", name: "Coupe de champagne", cost: 150, category: OfferingCategory.BOISSON,    durationMs: null, stackPriority: 4, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
-  { id: "off_verrevin",        emoji: "🍷", name: "Verre de vin",       cost: 45,  category: OfferingCategory.BOISSON,    durationMs: null, stackPriority: 2, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
-  { id: "off_sushismakis",     emoji: "🍣", name: "Sushis & makis",     cost: 60,  category: OfferingCategory.NOURRITURE, durationMs: null, stackPriority: 3, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
-  { id: "off_the",             emoji: "🍵", name: "Thé",                cost: 20,  category: OfferingCategory.BOISSON,    durationMs: null, stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_biere",         emoji: "🍺",  name: "Bière pression",    cost: 5,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_fraises",       emoji: "🍓",  name: "Fraises",           cost: 10,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_bonbons",       emoji: "🍬",  name: "Bonbons",           cost: 10,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_cafe",          emoji: "☕",  name: "Café",              cost: 5,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_cocktail",      emoji: "🍸",  name: "Cocktail",          cost: 5,  category: OfferingCategory.BOISSON,    durationMs: null,      stackPriority: 2, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_cookie",        emoji: "🍪",  name: "Cookie",            cost: 10,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_glace",         emoji: "🍦",  name: "Glace",             cost: 10,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 2, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_pizza",         emoji: "🍕",  name: "Pizza",             cost: 10,  category: OfferingCategory.NOURRITURE, durationMs: null,      stackPriority: 2, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_coupechampagne", emoji: "🥂", name: "Coupe de champagne", cost: 5, category: OfferingCategory.BOISSON,    durationMs: null, stackPriority: 4, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_verrevin",        emoji: "🍷", name: "Verre de vin",       cost: 5,  category: OfferingCategory.BOISSON,    durationMs: null, stackPriority: 2, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_sushismakis",     emoji: "🍣", name: "Sushis & makis",     cost: 10,  category: OfferingCategory.NOURRITURE, durationMs: null, stackPriority: 3, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
+  { id: "off_the",             emoji: "🍵", name: "Thé",                cost: 5,  category: OfferingCategory.BOISSON,    durationMs: null, stackPriority: 1, salonOnly: null, consumptionMode: ConsumptionMode.SHARED },
 ] as const;
 
 // ============================================================
 // CATALOGUE MAGIES / POUVOIRS (aligné sur frontend/src/data/offerings.ts)
 // ============================================================
 const magieCatalog = [
-  { id: "mag_grenouille",   emoji: "🐸",  name: "Transformation Grenouille",  cost: 100, durationSec: 120, type: MagieType.TRANSFORMATION,  breakConditionId: "kiss" },
-  { id: "mag_ane",          emoji: "🫏",  name: "Transformation Âne",         cost: 80,  durationSec: 90,  type: MagieType.TRANSFORMATION,  breakConditionId: "compliment" },
-  { id: "mag_fantome",      emoji: "👻",  name: "Transformation Fantôme",     cost: 120, durationSec: 60,  type: MagieType.TRANSFORMATION,  breakConditionId: "water" },
-  { id: "mag_pirate",       emoji: "🏴‍☠️", name: "Transformation Pirate",      cost: 90,  durationSec: 90,  type: MagieType.TRANSFORMATION,  breakConditionId: "dance" },
-  { id: "mag_statue",       emoji: "🗿",  name: "Transformation Statue",      cost: 110, durationSec: 120, type: MagieType.TRANSFORMATION,  breakConditionId: "compliment" },
-  { id: "mag_poule",        emoji: "🐔",  name: "Transformation Poule",       cost: 70,  durationSec: 60,  type: MagieType.TRANSFORMATION,  breakConditionId: "laughter" },
-  { id: "mag_invisibilite", emoji: "🫥",  name: "Invisibilité",               cost: 150, durationSec: 120, type: MagieType.VISUAL_EFFECT,   breakConditionId: "laughter" },
-  { id: "mag_rockstar",     emoji: "🎸",  name: "Rockstar",                   cost: 130, durationSec: 90,  type: MagieType.VISUAL_EFFECT,   breakConditionId: "music" },
+  { id: "mag_grenouille",   emoji: "🐸",  name: "Transformation Grenouille",  cost: 20, durationSec: 120, type: MagieType.TRANSFORMATION,  breakConditionId: "kiss" },
+  { id: "mag_ane",          emoji: "🫏",  name: "Transformation Âne",         cost: 20,  durationSec: 90,  type: MagieType.TRANSFORMATION,  breakConditionId: "compliment" },
+  { id: "mag_fantome",      emoji: "👻",  name: "Transformation Fantôme",     cost: 20, durationSec: 60,  type: MagieType.TRANSFORMATION,  breakConditionId: "water" },
+  { id: "mag_pirate",       emoji: "🏴‍☠️", name: "Transformation Pirate",      cost: 20,  durationSec: 90,  type: MagieType.TRANSFORMATION,  breakConditionId: "dance" },
+  { id: "mag_statue",       emoji: "🗿",  name: "Transformation Statue",      cost: 20, durationSec: 120, type: MagieType.TRANSFORMATION,  breakConditionId: "compliment" },
+  { id: "mag_poule",        emoji: "🐔",  name: "Transformation Poule",       cost: 20,  durationSec: 60,  type: MagieType.TRANSFORMATION,  breakConditionId: "laughter" },
+  { id: "mag_invisibilite", emoji: "🫥",  name: "Invisibilité",               cost: 20, durationSec: 120, type: MagieType.VISUAL_EFFECT,   breakConditionId: "laughter" },
+  { id: "mag_rockstar",     emoji: "🎸",  name: "Rockstar",                   cost: 20, durationSec: 90,  type: MagieType.VISUAL_EFFECT,   breakConditionId: "music" },
   { id: "mag_chat_noir",    emoji: "🐈‍⬛", name: "Chat noir démoniaque",       cost: 100, durationSec: 60,  type: MagieType.TRANSFORMATION,  breakConditionId: "rainbow" },
   // Anti-sorts
   { id: "mag_bisou",        emoji: "💋",  name: "Bisou (anti-grenouille)",    cost: 20,  durationSec: 0,   type: MagieType.TRANSFORMATION,  breakConditionId: null },

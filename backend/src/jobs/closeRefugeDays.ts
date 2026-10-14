@@ -3,7 +3,7 @@
  *
  * Clôture les journées de Refuge arrivées à échéance (jour strictement passé,
  * ou tous les jours restants si la session est expirée) : statut final
- * persisté (RefugeDayResult) + pièces via le Wallet officiel.
+ * persisté (RefugeDayResult), puis prime finale unique à J7.
  *
  * Idempotent : la contrainte unique (refugeSessionId, dayNumber) garantit
  * qu'une relance ne recrée jamais un résultat ni ne double les mouvements
@@ -19,14 +19,14 @@ const JOB_NAME = "closeRefugeDays";
 export const closeRefugeDaysJob: Job = {
   name: JOB_NAME,
   description:
-    "Clôture les journées de Refuge échues : résultat final persisté + pièces (idempotent).",
+    "Clôture les journées échues et crédite une seule fois la prime Refuge finale.",
 
   async run(now: Date = new Date()): Promise<JobResult> {
     // Sessions ACTIVE démarrées depuis plus de 24h : au moins un jour est échu.
     const dayMs = 24 * 60 * 60 * 1000;
     const sessions = await prisma.refugeSession.findMany({
       where: {
-        status: RefugeSessionStatus.ACTIVE,
+        status: { in: [RefugeSessionStatus.ACTIVE, RefugeSessionStatus.AWAITING_REVEAL_CONSENT, RefugeSessionStatus.REVEALED, RefugeSessionStatus.COMPLETED] },
         startedAt: { lte: new Date(now.getTime() - dayMs) },
       },
       select: { id: true },

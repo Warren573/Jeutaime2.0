@@ -17,6 +17,7 @@ import {
 } from "./purgeExpiredRefreshTokens";
 import { expireCardGamesJob } from "./expireCardGames";
 import { closeRefugeDaysJob } from "./closeRefugeDays";
+import { awardWeeklyProfileWinnersJob } from "./awardWeeklyProfileWinners";
 import { expireSalonSessionsJob } from "./expireSalonSessions";
 import { expirePrivateDuelsJob } from "./expirePrivateDuels";
 import { publishDailyJournalEditionJob } from "./publishDailyJournalEdition";
@@ -32,6 +33,7 @@ export {
   expireCardGamesJob,
   expireSalonSessionsJob,
   closeRefugeDaysJob,
+  awardWeeklyProfileWinnersJob,
   expirePrivateDuelsJob,
   publishDailyJournalEditionJob,
 };
@@ -49,6 +51,7 @@ export const ALL_JOBS: readonly Job[] = [
   expireCardGamesJob,
   expireSalonSessionsJob,
   closeRefugeDaysJob,
+  awardWeeklyProfileWinnersJob,
   expirePrivateDuelsJob,
   publishDailyJournalEditionJob,
 ];
@@ -66,6 +69,7 @@ export function buildScheduledJobs(options: { refreshTokenPurgeGraceMs: number }
     expireCardGamesJob,
     expireSalonSessionsJob,
     closeRefugeDaysJob,
+    awardWeeklyProfileWinnersJob,
     expirePrivateDuelsJob,
     publishDailyJournalEditionJob,
   ];

@@ -159,6 +159,7 @@ export interface Message {
   content: string;
   text?: string; // alias pour compatibilité
   timestamp: number;
+  createdAt?: string;
   type: 'message' | 'offering' | 'power' | 'system';
   isSystem?: boolean;
   giftData?: { emoji: string; from: string };
@@ -222,6 +223,9 @@ export interface PartnerProfile {
   height?: number;
   physicalDesc?: string;
   lookingFor?: string[];
+  interests?: string[];
+  questionTexts?: string[];
+  birthDate?: string;
   quote?: string;
   qualities?: string[];
   defaults?: string[];
