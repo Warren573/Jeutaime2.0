@@ -4,7 +4,7 @@
 
 // --- Limites de contacts actifs ---
 export const MATCH_LIMIT_FREE = 5;     // validé
-export const MATCH_LIMIT_PREMIUM = 20; // validé
+export const MATCH_LIMIT_PREMIUM = 10; // Plus : 10 correspondances simultanées (nom technique historique)
 
 // --- Révélation photos (binaire) ---
 /** Seuils de déblocage complet (total lettres, symétrique, profil uniquement) */
@@ -43,7 +43,7 @@ export const PROFILE_QUESTIONS_REQUIRED = 3;
 
 // --- Économie ---
 export const DAILY_BONUS_FREE = 20;
-export const DAILY_BONUS_PREMIUM = 50;
+export const DAILY_BONUS_PREMIUM = 20; // Plus reçoit les mêmes 20 pièces quotidiennes, +500 mensuelles séparément
 
 // --- Points d'expérience (progression) ---
 export const XP = {
