@@ -5,16 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { AppBackButton } from '../components/AppBackButton';
 import { CoinIcon } from '../components/CoinIcon';
-import {
-  getOfferingsCatalog,
-  type OfferingCatalogItemDTO,
-} from '../api/offerings';
 import {
   APP_COLORS,
   APP_RADIUS,
@@ -23,7 +20,7 @@ import {
 } from '../theme/appTheme';
 
 interface ShopTileProps {
-  icon: string;
+  icon?: string;
   title: string;
   description: string;
   actionLabel: string;
@@ -50,7 +47,7 @@ function ShopTile({
       activeOpacity={0.78}
     >
       <View style={[styles.tileIconWrap, emphasized && styles.tileIconWrapEmphasized]}>
-        {coinIcon ? <CoinIcon size={28} /> : <Text style={styles.tileIcon}>{icon}</Text>}
+        {coinIcon ? <CoinIcon size={28} /> : <Image source={require('../../assets/ui-icons/coin.png')} style={{ width: 28, height: 28 }} resizeMode="contain" />}
       </View>
       <View style={styles.tileBody}>
         <View style={styles.tileTitleRow}>
@@ -72,17 +69,9 @@ export default function ShopScreen() {
   const coins = useStore((s) => s.coins);
   const currentUser = useStore((s) => s.currentUser);
   const loadWallet = useStore((s) => s.loadWallet);
-  const [catalog, setCatalog] = useState<OfferingCatalogItemDTO[]>([]);
 
-  useEffect(() => {
-    void loadWallet();
-    getOfferingsCatalog()
-      .then(setCatalog)
-      .catch(() => setCatalog([]));
-  }, [loadWallet]);
+  useEffect(() => { void loadWallet(); }, [loadWallet]);
 
-  // La boutique met en avant les cadeaux personnels, pas les consommables des salons.
-  const catalogPreview = catalog.filter((item) => item.id.startsWith('desk_')).slice(0, 5);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -123,7 +112,7 @@ export default function ShopScreen() {
           description={
             currentUser?.isPremium
               ? 'Ton abonnement Plus est actif. Consulte ton statut et ton échéance.'
-              : '5,99 €/mois · 500 pièces/mois, photos visibles, 10 correspondances et 5 bouteilles simultanées, sans pub imposée.'
+              : '5,99 €/mois · 500 pièces mensuelles, photos visibles dès la sélection, 10 correspondances, 5 bouteilles et aucune publicité imposée.'
           }
           actionLabel={currentUser?.isPremium ? 'Gérer mon Plus' : 'Découvrir Plus'}
           onPress={() => router.push('/premium')}
@@ -134,7 +123,7 @@ export default function ShopScreen() {
         <Text style={styles.sectionLabel}>ACHETER DES PIÈCES</Text>
         <View style={styles.catalogCard}>
           <Text style={styles.catalogTitle}>Packs de pièces</Text>
-          <Text style={styles.catalogSubtitle}>Tarifs validés · achat sécurisé à connecter</Text>
+          <Text style={styles.catalogSubtitle}>Les packs seront disponibles prochainement</Text>
           <View style={[styles.catalogGrid, { marginTop: 12 }]}>
             {([
               { id: '100', coins: 100, price: '0,99 €' },
@@ -148,7 +137,7 @@ export default function ShopScreen() {
               </View>
             ))}
           </View>
-          <Text style={styles.catalogNote}>Les achats ne sont pas encore activés. Aucun paiement ni crédit de pièces n'est effectué depuis cet écran.</Text>
+          <Text style={styles.catalogNote}>Les paiements sont en cours de préparation. Aucun prélèvement n'est effectué.</Text>
         </View>
 
         <Text style={styles.sectionLabel}>MONNAIE & OBJETS</Text>
@@ -157,47 +146,24 @@ export default function ShopScreen() {
           icon=""
           coinIcon
           title="Pièces"
-          description="Consulte ton solde, récupère ton bonus quotidien et retrouve toutes tes transactions."
+          description="Consulter mon solde et l'historique de mes pièces."
           actionLabel="Ouvrir le portefeuille"
           onPress={() => router.push('/coins')}
         />
 
-        <View style={styles.catalogCard}>
-          <View style={styles.catalogHeader}>
-            <View>
-              <Text style={styles.catalogTitle}>🎁 Offrandes</Text>
-              <Text style={styles.catalogSubtitle}>Cadeaux à envoyer à tes correspondants</Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push('/offerings')} activeOpacity={0.75}>
-              <Text style={styles.catalogLink}>Reçues →</Text>
-            </TouchableOpacity>
-          </View>
-
-          {catalogPreview.length > 0 ? (
-            <View style={styles.catalogGrid}>
-              {catalogPreview.map((item) => (
-                <View key={item.id} style={styles.catalogItem}>
-                  <Text style={styles.catalogEmoji}>{item.emoji}</Text>
-                  <Text style={styles.catalogName} numberOfLines={1}>{item.name}</Text>
-                  <View style={styles.catalogPriceRow}><Text style={styles.catalogPrice}>{item.cost}</Text><CoinIcon size={13} /></View>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.catalogEmpty}>Catalogue indisponible pour le moment.</Text>
-          )}
-
-          <Text style={styles.catalogNote}>
-            Une offrande s’envoie depuis un profil ou un salon afin de conserver le bon destinataire.
-          </Text>
-        </View>
+        <ShopTile
+          title="Offrandes personnelles"
+          description="Choisis un correspondant depuis sa fiche pour lui envoyer une attention."
+          actionLabel="Voir mes correspondants"
+          onPress={() => router.push('/(tabs)/letters')}
+        />
 
         <View style={styles.infoCard}>
-          <Text style={styles.infoIcon}>💳</Text>
+          <Image source={require("../../assets/ui-icons/coin.png")} style={{ width: 28, height: 28 }} resizeMode="contain" />
           <View style={styles.infoBody}>
             <Text style={styles.infoTitle}>Achats en euros</Text>
             <Text style={styles.infoText}>
-              Le paiement par carte n’est pas encore activé. Aucun bouton de cette Boutique ne simule un achat réel.
+              Les achats seront disponibles après activation des paiements sécurisés.
             </Text>
           </View>
         </View>
