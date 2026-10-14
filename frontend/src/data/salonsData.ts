@@ -6,6 +6,7 @@ export interface SalonParticipant {
   gender: 'M' | 'F';
   age: number;
   online: boolean;
+  avatarConfig?: Record<string, unknown> | null;
   offerings?: { emoji: string; from: string; timestamp: number }[];
   /** ID du pouvoir de transformation actif (ex: 'grenouille', 'ane'…) */
   transformation?: string | null;
