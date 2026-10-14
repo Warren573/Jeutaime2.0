@@ -631,9 +631,10 @@ export default function AdminScreen() {
   const toggleBan = async (user: AdminUser | AdminUserDetail) => {
     if (user.role === 'OWNER') return;
     if (user.role === 'ADMIN' && !isOwner) return;
+    const displayName = 'profile' in user ? user.profile?.pseudo ?? user.email : user.email;
     const ok = await confirm(
       user.isBanned ? 'Réactiver le compte' : 'Suspendre le compte',
-      user.isBanned ? `Réactiver ${user.profile?.pseudo ?? user.email} ?` : `Suspendre ${user.profile?.pseudo ?? user.email} ?`,
+      user.isBanned ? `Réactiver ${displayName} ?` : `Suspendre ${displayName} ?`,
     );
     if (!ok) return;
     try {
