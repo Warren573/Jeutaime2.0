@@ -13,6 +13,8 @@ on:
       - 'backend/prisma/**'
       - 'backend/src/modules/offerings/**'
       - 'backend/src/modules/magies/**'
+      - 'backend/src/modules/card-game/**'
+      - 'backend/tests/integration/card-game-wallet-concurrency.test.ts'
       - 'backend/src/policies/economyCatalog.ts'
       - 'backend/tests/unit/economyCatalog.test.ts'
       - 'backend/tests/integration/economy-wallet-integrity.test.ts'
@@ -28,6 +30,8 @@ on:
       - 'backend/prisma/**'
       - 'backend/src/modules/offerings/**'
       - 'backend/src/modules/magies/**'
+      - 'backend/src/modules/card-game/**'
+      - 'backend/tests/integration/card-game-wallet-concurrency.test.ts'
       - 'backend/src/policies/economyCatalog.ts'
       - 'backend/tests/unit/economyCatalog.test.ts'
       - 'backend/tests/integration/economy-wallet-integrity.test.ts'
@@ -175,6 +179,16 @@ jobs:
           JWT_ACCESS_SECRET: test_access_secret_32chars_minimum_1
           JWT_REFRESH_SECRET: test_refresh_secret_32chars_minimum_1
         run: npm test -- economy-wallet-integrity.test.ts
+
+      - name: Card game PostgreSQL wallet concurrency
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+          JWT_ACCESS_SECRET: test_access_secret_32chars_minimum_1
+          JWT_REFRESH_SECRET: test_refresh_secret_32chars_minimum_1
+        run: npm test -- card-game-wallet-concurrency.test.ts
 
       - name: TypeScript build check
         working-directory: backend
