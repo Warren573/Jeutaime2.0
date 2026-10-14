@@ -25,11 +25,10 @@ jobs:
         working-directory: frontend
         run: npm ci
       - name: Typecheck React Native and Expo Router
-        continue-on-error: true
         working-directory: frontend
         run: npx tsc --noEmit
-      - name: Build web
+      - name: Export iOS Android and Web bundles
         working-directory: frontend
         env:
           CI: '1'
-        run: npx expo export --platform web
+        run: npx expo export --platform all
