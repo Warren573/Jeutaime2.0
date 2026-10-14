@@ -20,6 +20,7 @@ import {
   isMagieActive,
 } from "../../policies/magies";
 import { computeDebitBalance } from "../../policies/wallet";
+import { approvedMagieCost } from "../../policies/economyCatalog";
 import { emitMagieBroken, emitMagieCast } from "../../events";
 import type { CastMagieDto } from "./magies.schemas";
 
@@ -62,7 +63,7 @@ function toCatalogDto(c: MagieCatalog): MagieCatalogDto {
     id: c.id,
     emoji: c.emoji,
     name: c.name,
-    cost: c.cost,
+    cost: approvedMagieCost(c.id, c.cost),
     durationSec: c.durationSec,
     type: c.type,
     breakConditionId: c.breakConditionId,
@@ -117,6 +118,7 @@ export async function castSpell(
   });
   if (!catalog) throw new NotFoundError("Magie");
   assertCastableSpell(catalog); // throws BadRequest si disabled ou anti-sort
+  const effectiveCost = approvedMagieCost(catalog.id, catalog.cost);
 
   // Les transformations peuvent être lancées sur soi-même.
   // Les autres types de magie gardent l'interdiction d'auto-cast.
@@ -153,13 +155,14 @@ export async function castSpell(
 
   // 3. Transaction atomique : débit wallet + CoinTransaction + MagieCast
   const result = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "userId" FROM "Wallet" WHERE "userId" = ${actorId} FOR UPDATE`;
     const wallet = await tx.wallet.findUnique({
       where: { userId: actorId },
     });
     if (!wallet) throw new NotFoundError("Wallet");
 
     // Pure : throws NotEnoughCoinsError si fonds insuffisants
-    const newBalance = computeDebitBalance(wallet.coins, catalog.cost);
+    const newBalance = computeDebitBalance(wallet.coins, effectiveCost);
 
     await tx.wallet.update({
       where: { userId: actorId },
@@ -170,7 +173,7 @@ export async function castSpell(
       data: {
         walletId: actorId,
         type: CoinTxnType.POWER_USED,
-        amount: -catalog.cost,
+        amount: -effectiveCost,
         balance: newBalance,
         meta: {
           magieId: catalog.id,
@@ -203,7 +206,7 @@ export async function castSpell(
     toUserId: dto.toUserId,
     salonId: dto.salonId ?? null,
     expiresAt,
-    cost: catalog.cost,
+    cost: effectiveCost,
   });
 
   return toCastDto(result);
@@ -262,6 +265,7 @@ export async function breakMagie(
 
   // 2. Transaction : débit wallet + txn + update magieCast
   const result = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "userId" FROM "Wallet" WHERE "userId" = ${actorId} FOR UPDATE`;
     // Re-check sous lock pour éviter double-break concurrent
     const fresh = await tx.magieCast.findUnique({
       where: { id: castId },

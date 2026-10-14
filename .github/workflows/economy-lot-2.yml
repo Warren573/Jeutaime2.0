@@ -1,0 +1,73 @@
+name: Validate Economy Lot 2 PostgreSQL
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/src/modules/offerings/offerings.service.ts'
+      - 'backend/src/modules/magies/magies.service.ts'
+      - 'backend/src/modules/card-game/card-game.service.ts'
+      - 'backend/src/policies/economyCatalog.ts'
+      - 'backend/tests/integration/economy-wallet-integrity.test.ts'
+      - 'backend/tests/integration/card-game-wallet-concurrency.test.ts'
+      - 'backend/tests/unit/economyCatalog.test.ts'
+      - 'backend/prisma/ci-baseline/schema.sql'
+      - '.github/workflows/economy-lot-2.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      NODE_ENV: test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      JWT_ACCESS_SECRET: test_access_secret_32chars_minimum_1
+      JWT_REFRESH_SECRET: test_refresh_secret_32chars_minimum_1
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jeutaime_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+      - name: Apply isolated CI database schema
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d jeutaime_test -f backend/prisma/ci-baseline/schema.sql
+      - name: Confirm zero database schema drift
+        working-directory: backend
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+      - name: Approved catalog pricing unit tests
+        working-directory: backend
+        run: npm test -- economyCatalog.test.ts
+      - name: PostgreSQL offering/magic wallet integrity
+        working-directory: backend
+        run: npm test -- economy-wallet-integrity.test.ts
+      - name: PostgreSQL card game wallet concurrency
+        working-directory: backend
+        run: npm test -- card-game-wallet-concurrency.test.ts
+      - name: Backend TypeScript compilation
+        working-directory: backend
+        run: npm run typecheck
