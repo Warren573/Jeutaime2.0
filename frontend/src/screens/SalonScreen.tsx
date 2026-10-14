@@ -680,7 +680,7 @@ export default function SalonScreen() {
       const [msgs, session, offers, magies, myOffers, activeMag] = await Promise.all([
         apiListMessages(apiSalonId, 50, screenSessionId),
         getSessionDetail(screenSessionId),
-        getSalonOfferings(apiSalonId, screenSessionId),
+        getSalonOfferings(apiSalonId, screenSessionId ?? undefined),
         getSalonMagies(apiSalonId),
         getReceivedOfferings(1, 50, true),
         getActiveMagies(currentUser.id),
@@ -1681,7 +1681,7 @@ export default function SalonScreen() {
       <KeyboardAvoidingView
         style={[
           styles.container,
-          getSalonBackgroundImage(salonId) && styles.containerTransparent,
+          getSalonBackgroundImage(salonId) ? styles.containerTransparent : undefined,
         ]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
