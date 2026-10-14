@@ -162,9 +162,9 @@ export default function PremiumScreen() {
       >
         <AppBackButton onPress={() => router.back()} style={styles.backBtn} />
 
-        <Text style={styles.kicker}>JEUTAIME</Text>
+        <Text style={styles.kicker}>ABONNEMENT</Text>
         <Text style={styles.title}>JeuTaime Plus</Text>
-        <Text style={styles.subtitle}>5,99 € par mois. Un seul abonnement, des avantages clairs.</Text>
+        <Text style={styles.subtitle}>Plus de liberté pour faire des rencontres.</Text>
 
         <View style={[styles.statusCard, isActive ? styles.statusCardActive : styles.statusCardFree]}>
           {isActive ? (
@@ -185,22 +185,28 @@ export default function PremiumScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>Ce que tu débloques</Text>
+        <Text style={styles.sectionTitle}>LES AVANTAGES</Text>
         <View style={styles.advantagesCard}>
           {ADVANTAGES.map((a, i) => (
             <View key={i} style={[styles.advantageRow, i < ADVANTAGES.length - 1 && styles.advantageRowBorder]}>
-              <Text style={styles.advantageIcon}>•</Text>
+              <View style={styles.advantageDot} />
               <Text style={styles.advantageText}>{a.text}</Text>
             </View>
           ))}
         </View>
 
         {!isActive && (
-          <View style={styles.advantagesCard}>
-            <Text style={styles.sectionTitle}>Abonnement mensuel : 5,99 €</Text>
-            <Text style={styles.statusSub}>L'achat sera proposé dès l'activation du paiement sécurisé. Les pièces du portefeuille ne servent pas à payer l'abonnement.</Text>
-            <TouchableOpacity style={styles.subscribeBtn} onPress={() => router.push('/shop')}>
-              <Text style={styles.subscribeBtnText}>Retour à la boutique</Text>
+          <View style={styles.planOffer}>
+            <View style={styles.planOfferTop}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.offerLabel}>ABONNEMENT MENSUEL</Text>
+                <Text style={styles.offerPrice}>5,99 € <Text style={styles.offerPeriod}>/ mois</Text></Text>
+              </View>
+              <Text style={styles.offerHint}>500 pièces / mois</Text>
+            </View>
+            <Text style={styles.offerNote}>Souscription bientôt disponible. Aucun paiement n'est effectué.</Text>
+            <TouchableOpacity style={styles.offerButton} onPress={() => router.push('/shop')}>
+              <Text style={styles.offerButtonText}>Retour à la boutique →</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -226,8 +232,8 @@ export default function PremiumScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: APP_COLORS.background },
   loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
-  container: { padding: APP_SPACING.xl, paddingBottom: 60 },
-  backBtn: { marginBottom: APP_SPACING.md },
+  container: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 50 },
+  backBtn: { marginBottom: 22 },
   kicker: {
     fontSize: 9,
     fontWeight: "800",
@@ -236,12 +242,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 3,
   },
-  title: { fontSize: 32, fontWeight: "900", color: APP_COLORS.ink, textAlign: "center", marginBottom: 6 },
-  subtitle: { fontSize: 14, color: APP_COLORS.muted, textAlign: "center", marginBottom: APP_SPACING.xl },
+  title: { fontSize: 27, fontWeight: "900", color: APP_COLORS.ink, textAlign: "center", marginBottom: 6 },
+  subtitle: { fontSize: 14, color: APP_COLORS.muted, textAlign: "center", marginBottom: 20 },
   statusCard: {
     borderRadius: APP_RADIUS.lg,
-    padding: APP_SPACING.lg,
-    marginBottom: 28,
+    padding: 16,
+    marginBottom: 20,
     borderWidth: 1,
     ...(APP_SHADOWS.card ?? {}),
   },
@@ -262,16 +268,17 @@ const styles = StyleSheet.create({
   advantagesCard: {
     backgroundColor: APP_COLORS.paper,
     borderRadius: APP_RADIUS.lg,
-    marginBottom: 28,
+    marginBottom: 18,
     borderWidth: 1,
     borderColor: APP_COLORS.border,
     overflow: "hidden",
     ...(APP_SHADOWS.card ?? {}),
   },
-  advantageRow: { flexDirection: "row", alignItems: "flex-start", paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  advantageRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 15, paddingVertical: 12, gap: 12 },
   advantageRowBorder: { borderBottomWidth: 1, borderBottomColor: APP_COLORS.paperSoft },
   advantageIcon: { fontSize: 20, width: 26, textAlign: "center" },
-  advantageText: { flex: 1, fontSize: 14, color: APP_COLORS.text, lineHeight: 20 },
+  advantageText: { flex: 1, fontSize: 13, color: APP_COLORS.text, lineHeight: 19 },
+  advantageDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: APP_COLORS.burgundy },
   planCard: {
     backgroundColor: APP_COLORS.paper,
     borderRadius: APP_RADIUS.lg,
@@ -305,6 +312,15 @@ const styles = StyleSheet.create({
   subscribeBtnText: { color: APP_COLORS.white, fontSize: 16, fontWeight: "800" },
   stripeBanner: { alignItems: "center", paddingVertical: 14 },
   stripeText: { fontSize: 12, color: APP_COLORS.muted },
+  planOffer: { backgroundColor: APP_COLORS.paper, borderRadius: 17, padding: 17, borderWidth: 1, borderColor: APP_COLORS.border },
+  planOfferTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  offerLabel: { fontSize: 10, color: APP_COLORS.muted, fontWeight: '800', letterSpacing: 1.1 },
+  offerPrice: { fontSize: 27, color: APP_COLORS.ink, fontWeight: '800', marginTop: 5 },
+  offerPeriod: { fontSize: 13, fontWeight: '500', color: APP_COLORS.muted },
+  offerHint: { flexShrink: 1, textAlign: 'right', color: APP_COLORS.burgundy, fontSize: 11, fontWeight: '700', maxWidth: 115 },
+  offerNote: { fontSize: 12, color: APP_COLORS.muted, lineHeight: 18, marginTop: 12 },
+  offerButton: { backgroundColor: APP_COLORS.burgundy, alignItems: 'center', justifyContent: 'center', borderRadius: 12, minHeight: 46, marginTop: 14 },
+  offerButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   cancelBtn: {
     marginTop: 32,
     height: 52,
