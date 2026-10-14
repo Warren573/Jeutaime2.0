@@ -2142,6 +2142,10 @@ const styles = StyleSheet.create({
   turnBannerWait: { backgroundColor: '#2C1A0E' },
   turnBannerText: { fontSize: 12.5, fontWeight: '600', color: '#D1B98F' },
 
+  turnBannerInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  envAnimOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 20 },
+  closeX: { fontSize: 22, color: '#3A2818', padding: 6 },
+
 });
 
 // ── Styles du jeu des 3 questions ────────────────────────────────
@@ -2179,8 +2183,5 @@ const qStyles = StyleSheet.create({
   closeBtnSuccess:{ backgroundColor: '#9C2F45' },
   closeBtnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   closeBtnText:   { color: '#FFF', fontWeight: '700', fontSize: 15 },
-  turnBannerInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  envAnimOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 20 },
-  closeX: { fontSize: 22, color: '#3A2818', padding: 6 },
 });
 // Build cache bust: 1779184220
