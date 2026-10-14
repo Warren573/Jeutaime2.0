@@ -30,11 +30,12 @@ import {
 } from "../src/theme/appTheme";
 
 const ADVANTAGES = [
-  { icon: "💌", text: "Jusqu'à 20 matches simultanés (5 en free)" },
-  { icon: "📸", text: "Photos dévoilées plus tôt dans la relation" },
-  { icon: "🌟", text: "Bonus quotidien doublé (50 pièces)" },
-  { icon: "🎭", text: "Accès à toutes les magies" },
-  { icon: "✨", text: "Priorité dans la découverte" },
+  { text: "10 correspondances actives au lieu de 5" },
+  { text: "Photos visibles dès la sélection des profils" },
+  { text: "5 bouteilles simultanées au lieu de 1" },
+  { text: "500 pièces offertes à chaque mois facturé" },
+  { text: "Aucune publicité imposée" },
+  { text: "Bonus quotidien de 20 pièces, comme en Gratuit" },
 ];
 
 function formatDate(iso: string | null): string {
@@ -100,7 +101,7 @@ export default function PremiumScreen() {
               await subscribePremium({ planId: plan.id, paymentMethod: "coins" });
               await Promise.all([loadWallet(), hydrateFromApi()]);
               await load();
-              Alert.alert("🎉 Bienvenue en Premium !", "Tes avantages sont maintenant actifs.");
+              Alert.alert("Bienvenue dans Plus", "Tes avantages sont maintenant actifs.");
             } catch (err: any) {
               Alert.alert("Erreur", err?.message ?? "Souscription impossible.");
             } finally {
@@ -115,9 +116,9 @@ export default function PremiumScreen() {
   const handleCancel = () => {
     Alert.alert(
       "Annuler l'abonnement",
-      "Tu perdras immédiatement tes avantages Premium. Continuer ?",
+      "Confirmer la demande de résiliation de l'abonnement ?",
       [
-        { text: "Garder Premium", style: "cancel" },
+        { text: "Conserver Plus", style: "cancel" },
         {
           text: "Annuler quand même",
           style: "destructive",
@@ -162,21 +163,21 @@ export default function PremiumScreen() {
         <AppBackButton onPress={() => router.back()} style={styles.backBtn} />
 
         <Text style={styles.kicker}>JEUTAIME</Text>
-        <Text style={styles.title}>👑 Premium</Text>
-        <Text style={styles.subtitle}>Vis JeuTaime sans limites.</Text>
+        <Text style={styles.title}>JeuTaime Plus</Text>
+        <Text style={styles.subtitle}>5,99 € par mois. Un seul abonnement, des avantages clairs.</Text>
 
         <View style={[styles.statusCard, isActive ? styles.statusCardActive : styles.statusCardFree]}>
           {isActive ? (
             <>
-              <Text style={styles.statusBadge}>✨ Membre Premium</Text>
+              <Text style={styles.statusBadge}>Abonnement Plus actif</Text>
               {status?.premiumUntil && (
                 <Text style={styles.statusSub}>Actif jusqu'au {formatDate(status.premiumUntil)}</Text>
               )}
             </>
           ) : (
             <>
-              <Text style={styles.statusBadge}>Compte Free</Text>
-              <Text style={styles.statusSub}>Passe en Premium pour tout débloquer.</Text>
+              <Text style={styles.statusBadge}>Compte Gratuit</Text>
+              <Text style={styles.statusSub}>Découvre les avantages de Plus, sans modifier ton compte.</Text>
             </>
           )}
           <TouchableOpacity onPress={() => router.push('/coins')} activeOpacity={0.75}>
@@ -188,57 +189,20 @@ export default function PremiumScreen() {
         <View style={styles.advantagesCard}>
           {ADVANTAGES.map((a, i) => (
             <View key={i} style={[styles.advantageRow, i < ADVANTAGES.length - 1 && styles.advantageRowBorder]}>
-              <Text style={styles.advantageIcon}>{a.icon}</Text>
+              <Text style={styles.advantageIcon}>•</Text>
               <Text style={styles.advantageText}>{a.text}</Text>
             </View>
           ))}
         </View>
 
-        {!isActive && plans.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Choisir un plan</Text>
-
-            {plans.map((p) => {
-              const isSelected = selectedPlanId === p.id;
-              const affordable = coins >= p.priceCoins;
-              return (
-                <TouchableOpacity
-                  key={p.id}
-                  style={[styles.planCard, isSelected && styles.planCardSelected]}
-                  onPress={() => setSelectedPlanId(p.id)}
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.planLeft}>
-                    <Text style={styles.planLabel}>{p.label}</Text>
-                    <Text style={styles.planDuration}>{p.durationDays} jours</Text>
-                  </View>
-                  <View style={styles.planRight}>
-                    <View style={styles.planCoinsRow}><Text style={[styles.planCoins, !affordable && styles.planCoinsLow]}>{p.priceCoins}</Text><CoinIcon size={16}/></View>
-                    {!affordable && <Text style={styles.planCoinsLowLabel}>solde insuffisant</Text>}
-                  </View>
-                  {isSelected && <View style={styles.planDot} />}
-                </TouchableOpacity>
-              );
-            })}
-
-            <Pressable
-              style={[styles.subscribeBtn, subscribing && styles.subscribeBtnDisabled]}
-              onPress={handleSubscribe}
-              disabled={subscribing}
-            >
-              {subscribing ? (
-                <ActivityIndicator color={APP_COLORS.white} />
-              ) : (
-                <Text style={styles.subscribeBtnText}>
-                  {canAfford ? `Souscrire — ${plan?.priceCoins ?? "…"} pièces` : "Voir la boutique"}
-                </Text>
-              )}
-            </Pressable>
-
-            <View style={styles.stripeBanner}>
-              <Text style={styles.stripeText}>💳 Paiement par carte — bientôt disponible</Text>
-            </View>
-          </>
+        {!isActive && (
+          <View style={styles.advantagesCard}>
+            <Text style={styles.sectionTitle}>Abonnement mensuel : 5,99 €</Text>
+            <Text style={styles.statusSub}>L'achat sera proposé dès l'activation du paiement sécurisé. Les pièces du portefeuille ne servent pas à payer l'abonnement.</Text>
+            <TouchableOpacity style={styles.subscribeBtn} onPress={() => router.push('/shop')}>
+              <Text style={styles.subscribeBtnText}>Retour à la boutique</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {isActive && (
