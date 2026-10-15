@@ -191,7 +191,7 @@ export default function PremiumScreen() {
         <View style={styles.advantagesCard}>
           {ADVANTAGES.map((a, i) => (
             <View key={i} style={[styles.advantageRow, i < ADVANTAGES.length - 1 && styles.advantageRowBorder]}>
-              <View style={styles.advantageIconFrame}>{a.icon === "bottle" ? <Image source={require("../assets/ui-icons/bottle.png")} style={styles.advantagePng} resizeMode="contain" /> : a.icon === "coins" ? <Image source={require("../assets/ui-icons/coin.png")} style={styles.advantagePng} resizeMode="contain" /> : <Ionicons name={a.icon as React.ComponentProps<typeof Ionicons>["name"]} size={22} color={APP_COLORS.burgundy} />}</View>
+              <View style={styles.advantageIconFrame}>{a.icon === "bottle" ? <Image source={require("../assets/ui-icons/bottle.png")} style={styles.advantagePng} resizeMode="contain" /> : a.icon === "coins" ? <Image source={require("../assets/ui-icons/coin.png")} style={styles.advantagePng} resizeMode="contain" /> : <Ionicons name={a.icon as React.ComponentProps<typeof Ionicons>["name"]} size={24} color={APP_COLORS.burgundy} />}</View>
               <Text style={styles.advantageText}><Text style={styles.advantageLead}>{a.lead}</Text>{a.rest}</Text>
             </View>
           ))}
@@ -277,8 +277,8 @@ const styles = StyleSheet.create({
     ...(APP_SHADOWS.card ?? {}),
   },
   advantageRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 15, paddingVertical: 11, gap: 12 },
-  advantagePng: { width: 23, height: 23 },
-  advantageIconFrame: { width: 39, height: 39, borderRadius: 20, backgroundColor: "#F8E9E5", justifyContent: "center", alignItems: "center" },
+  advantagePng: { width: 26, height: 26 },
+  advantageIconFrame: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#F8E9E5", justifyContent: "center", alignItems: "center", flexShrink: 0 },
   advantageLead: { color: APP_COLORS.burgundy, fontWeight: "800" },
   advantageRowBorder: { borderBottomWidth: 1, borderBottomColor: APP_COLORS.paperSoft },
   advantageIcon: { fontSize: 20, width: 26, textAlign: "center" },
