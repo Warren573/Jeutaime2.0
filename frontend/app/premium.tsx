@@ -190,7 +190,7 @@ export default function PremiumScreen() {
         <View style={styles.advantagesCard}>
           {ADVANTAGES.map((a, i) => (
             <View key={i} style={[styles.advantageRow, i < ADVANTAGES.length - 1 && styles.advantageRowBorder]}>
-              <View style={styles.advantageIconFrame}><Image source={a.icon === "people" ? require("../assets/ui-icons/male.png") : a.icon === "photos" ? require("../assets/ui-icons/card.png") : a.icon === "bottle" ? require("../assets/ui-icons/bottle.png") : a.icon === "coin" ? require("../assets/ui-icons/coin.png") : a.icon === "gift" ? require("../assets/ui-icons/pet.png") : require("../assets/ui-icons/trophy.png")} style={styles.advantagePng} resizeMode="contain" /></View>
+              <View style={styles.advantageIconFrame}><Image source={a.icon === "people" ? require("../assets/ui-icons/heart.png") : a.icon === "photos" ? require("../assets/ui-icons/card.png") : a.icon === "bottle" ? require("../assets/ui-icons/bottle.png") : a.icon === "coin" ? require("../assets/ui-icons/coin.png") : a.icon === "gift" ? require("../assets/ui-icons/heart.png") : require("../assets/ui-icons/heart.png")} style={styles.advantagePng} resizeMode="contain" /></View>
               <Text style={styles.advantageText}><Text style={styles.advantageLead}>{a.lead}</Text>{a.rest}</Text>
             </View>
           ))}
