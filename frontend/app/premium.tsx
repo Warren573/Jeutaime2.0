@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -33,8 +34,8 @@ import {
 const ADVANTAGES = [
   { icon: "people-outline", lead: "10 correspondances", rest: " actives au lieu de 5" },
   { icon: "image-outline", lead: "Photos visibles", rest: " dès la sélection des profils" },
-  { icon: "wine-outline", lead: "5 bouteilles", rest: " simultanées au lieu de 1" },
-  { icon: "cash-outline", lead: "500 pièces", rest: " offertes à chaque mois facturé" },
+  { icon: "bottle", lead: "5 bouteilles", rest: " simultanées au lieu de 1" },
+  { icon: "coins", lead: "500 pièces", rest: " offertes à chaque mois facturé" },
   { icon: "ban-outline", lead: "Aucune publicité", rest: " imposée" },
   { icon: "gift-outline", lead: "20 pièces chaque jour", rest: ", comme en Gratuit" },
 ];
@@ -190,7 +191,7 @@ export default function PremiumScreen() {
         <View style={styles.advantagesCard}>
           {ADVANTAGES.map((a, i) => (
             <View key={i} style={[styles.advantageRow, i < ADVANTAGES.length - 1 && styles.advantageRowBorder]}>
-              <View style={styles.advantageIconFrame}><Ionicons name={a.icon as React.ComponentProps<typeof Ionicons>["name"]} size={22} color={APP_COLORS.burgundy} /></View>
+              <View style={styles.advantageIconFrame}>{a.icon === "bottle" ? <Image source={require("../assets/ui-icons/bottle.png")} style={styles.advantagePng} resizeMode="contain" /> : a.icon === "coins" ? <Image source={require("../assets/ui-icons/coin.png")} style={styles.advantagePng} resizeMode="contain" /> : <Ionicons name={a.icon as React.ComponentProps<typeof Ionicons>["name"]} size={22} color={APP_COLORS.burgundy} />}</View>
               <Text style={styles.advantageText}><Text style={styles.advantageLead}>{a.lead}</Text>{a.rest}</Text>
             </View>
           ))}
@@ -276,6 +277,7 @@ const styles = StyleSheet.create({
     ...(APP_SHADOWS.card ?? {}),
   },
   advantageRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 15, paddingVertical: 11, gap: 12 },
+  advantagePng: { width: 23, height: 23 },
   advantageIconFrame: { width: 39, height: 39, borderRadius: 20, backgroundColor: "#F8E9E5", justifyContent: "center", alignItems: "center" },
   advantageLead: { color: APP_COLORS.burgundy, fontWeight: "800" },
   advantageRowBorder: { borderBottomWidth: 1, borderBottomColor: APP_COLORS.paperSoft },
