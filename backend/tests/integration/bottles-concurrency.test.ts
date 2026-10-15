@@ -215,15 +215,15 @@ describe.skipIf(!ENABLED)('BOTTLES: Concurrency with Serializable Isolation (Int
 
     const results = await Promise.allSettled(promises);
 
-    // At least one should be rejected or at least error state
-    const settled = results.map(r => r.status);
-    // Count successes - should be limited by quota
+    // The free quota is already full: neither concurrent request may succeed.
+    expect(results.every(r => r.status === 'rejected')).toBe(true);
+    // Count successes - must remain at the validated free quota of one.
     const pendingCount = await prisma.messageInABottle.count({
       where: { senderId: userId, status: 'FLOATING' },
     });
 
     // Should NOT exceed quota of 1
-    expect(pendingCount).toBeLessThanOrEqual(2); // 1 created + at most 1 more
+    expect(pendingCount).toBe(1); // Already at the FREE quota: no extra bottle is allowed.
 
     // Cleanup quota test user
     await prisma.messageInABottle.deleteMany({
@@ -268,17 +268,15 @@ describe.skipIf(!ENABLED)('BOTTLES: Concurrency with Serializable Isolation (Int
 
     // At least one should fail (can't send twice in a row)
     const settled = results.map(r => r.status);
-    const hasFailure = settled.includes('rejected');
+    expect(settled).toContain('rejected');
 
-    // OR both succeed but only one actually creates a message (serialization)
-    // OR one succeeds and one fails with turn violation
-    // The key point: can't have both succeed and both create separate messages
+    // Exactly one of the concurrent replies may be persisted.
     const messages = await prisma.anonymousMessage.findMany({
       where: { bottleId: testBottleId },
       orderBy: { createdAt: 'asc' },
     });
 
     // Should have: B's message + exactly 1 of A's messages
-    expect(messages.length).toBeGreaterThanOrEqual(2);
+    expect(messages).toHaveLength(2);
   });
 });
