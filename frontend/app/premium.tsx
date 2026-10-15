@@ -11,7 +11,8 @@ import {
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import Svg, { Path, Ellipse } from "react-native-svg";
 import { useStore } from "../src/store/useStore";
 import { AppBackButton } from "../src/components/AppBackButton";
 import { CoinIcon } from "../src/components/CoinIcon";
@@ -33,11 +34,26 @@ import {
 const ADVANTAGES = [
   { icon: "people-outline", lead: "10 correspondances", rest: " actives au lieu de 5" },
   { icon: "image-outline", lead: "Photos visibles", rest: " dès la sélection des profils" },
-  { icon: "bottle-wine-outline", lead: "5 bouteilles", rest: " simultanées au lieu de 1" },
-  { icon: "circle-multiple-outline", lead: "500 pièces", rest: " offertes à chaque mois facturé" },
+  { icon: "bottle-custom", lead: "5 bouteilles", rest: " simultanées au lieu de 1" },
+  { icon: "coins-custom", lead: "500 pièces", rest: " offertes à chaque mois facturé" },
   { icon: "ban-outline", lead: "Aucune publicité", rest: " imposée" },
   { icon: "gift-outline", lead: "20 pièces chaque jour", rest: ", comme en Gratuit" },
 ];
+
+// Même contour, épaisseur et couleur que les icônes Ionicons de la liste.
+function PlusBottleIcon() {
+  return <Svg width={26} height={26} viewBox="0 0 26 26" fill="none">
+    <Path d="M10 2.5h6M11 2.5v5.2c0 1.3-1.2 2.1-2.5 3.4A5 5 0 0 0 7 14.6V22c0 1 .8 1.5 1.8 1.5h8.4c1 0 1.8-.5 1.8-1.5v-7.4a5 5 0 0 0-1.5-3.5C16.2 9.8 15 9 15 7.7V2.5M7.3 15.5h11.4M9 19h8" stroke={APP_COLORS.burgundy} strokeWidth={1.85} strokeLinecap="round" strokeLinejoin="round"/>
+  </Svg>;
+}
+function PlusCoinsIcon() {
+  return <Svg width={27} height={27} viewBox="0 0 27 27" fill="none">
+    <Ellipse cx={10} cy={8} rx={6.5} ry={2.7} stroke={APP_COLORS.burgundy} strokeWidth={1.85}/>
+    <Path d="M3.5 8v8c0 1.5 2.8 2.7 6.5 2.7M3.5 12c0 1.4 2.8 2.7 6.5 2.7M3.5 16c0 1.4 2.8 2.7 6.5 2.7" stroke={APP_COLORS.burgundy} strokeWidth={1.85} strokeLinecap="round"/>
+    <Ellipse cx={17} cy={15} rx={6.5} ry={2.7} stroke={APP_COLORS.burgundy} strokeWidth={1.85}/>
+    <Path d="M10.5 15v7c0 1.5 2.9 2.7 6.5 2.7s6.5-1.2 6.5-2.7v-7M10.5 19c0 1.5 2.9 2.7 6.5 2.7s6.5-1.2 6.5-2.7" stroke={APP_COLORS.burgundy} strokeWidth={1.85} strokeLinecap="round"/>
+  </Svg>;
+}
 
 function formatDate(iso: string | null): string {
   if (!iso) return "";
@@ -190,7 +206,7 @@ export default function PremiumScreen() {
         <View style={styles.advantagesCard}>
           {ADVANTAGES.map((a, i) => (
             <View key={i} style={[styles.advantageRow, i < ADVANTAGES.length - 1 && styles.advantageRowBorder]}>
-              <View style={styles.advantageIconFrame}>{a.icon === "bottle-wine-outline" || a.icon === "circle-multiple-outline" ? <MaterialCommunityIcons name={a.icon} size={24} color={APP_COLORS.burgundy} /> : <Ionicons name={a.icon as React.ComponentProps<typeof Ionicons>["name"]} size={24} color={APP_COLORS.burgundy} />}</View>
+              <View style={styles.advantageIconFrame}>{a.icon === "bottle-custom" ? <PlusBottleIcon /> : a.icon === "coins-custom" ? <PlusCoinsIcon /> : <Ionicons name={a.icon as React.ComponentProps<typeof Ionicons>["name"]} size={24} color={APP_COLORS.burgundy} />}</View>
               <Text style={styles.advantageText}><Text style={styles.advantageLead}>{a.lead}</Text>{a.rest}</Text>
             </View>
           ))}
