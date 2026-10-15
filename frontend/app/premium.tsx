@@ -9,9 +9,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useStore } from "../src/store/useStore";
 import { AppBackButton } from "../src/components/AppBackButton";
 import { CoinIcon } from "../src/components/CoinIcon";
@@ -31,12 +31,12 @@ import {
 } from "../src/theme/appTheme";
 
 const ADVANTAGES = [
-  { icon: "people", lead: "10 correspondances", rest: " actives au lieu de 5" },
-  { icon: "photos", lead: "Photos visibles", rest: " dès la sélection des profils" },
-  { icon: "bottle", lead: "5 bouteilles", rest: " simultanées au lieu de 1" },
-  { icon: "coin", lead: "500 pièces", rest: " offertes à chaque mois facturé" },
-  { icon: "ads", lead: "Aucune publicité", rest: " imposée" },
-  { icon: "gift", lead: "20 pièces chaque jour", rest: ", comme en Gratuit" },
+  { icon: "people-outline", lead: "10 correspondances", rest: " actives au lieu de 5" },
+  { icon: "image-outline", lead: "Photos visibles", rest: " dès la sélection des profils" },
+  { icon: "wine-outline", lead: "5 bouteilles", rest: " simultanées au lieu de 1" },
+  { icon: "cash-outline", lead: "500 pièces", rest: " offertes à chaque mois facturé" },
+  { icon: "ban-outline", lead: "Aucune publicité", rest: " imposée" },
+  { icon: "gift-outline", lead: "20 pièces chaque jour", rest: ", comme en Gratuit" },
 ];
 
 function formatDate(iso: string | null): string {
@@ -190,7 +190,7 @@ export default function PremiumScreen() {
         <View style={styles.advantagesCard}>
           {ADVANTAGES.map((a, i) => (
             <View key={i} style={[styles.advantageRow, i < ADVANTAGES.length - 1 && styles.advantageRowBorder]}>
-              <View style={styles.advantageIconFrame}><Image source={a.icon === "people" ? require("../assets/ui-icons/heart.png") : a.icon === "photos" ? require("../assets/ui-icons/card.png") : a.icon === "bottle" ? require("../assets/ui-icons/bottle.png") : a.icon === "coin" ? require("../assets/ui-icons/coin.png") : a.icon === "gift" ? require("../assets/ui-icons/heart.png") : require("../assets/ui-icons/heart.png")} style={styles.advantagePng} resizeMode="contain" /></View>
+              <View style={styles.advantageIconFrame}><Ionicons name={a.icon as React.ComponentProps<typeof Ionicons>["name"]} size={22} color={APP_COLORS.burgundy} /></View>
               <Text style={styles.advantageText}><Text style={styles.advantageLead}>{a.lead}</Text>{a.rest}</Text>
             </View>
           ))}
@@ -277,7 +277,6 @@ const styles = StyleSheet.create({
   },
   advantageRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 15, paddingVertical: 11, gap: 12 },
   advantageIconFrame: { width: 39, height: 39, borderRadius: 20, backgroundColor: "#F8E9E5", justifyContent: "center", alignItems: "center" },
-  advantagePng: { width: 24, height: 24 },
   advantageLead: { color: APP_COLORS.burgundy, fontWeight: "800" },
   advantageRowBorder: { borderBottomWidth: 1, borderBottomColor: APP_COLORS.paperSoft },
   advantageIcon: { fontSize: 20, width: 26, textAlign: "center" },
