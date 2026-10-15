@@ -423,7 +423,7 @@ model Letter {
   fromUser   User   @relation("LetterFrom", fields: [fromUserId], references: [id])
   toUser     User   @relation("LetterTo", fields: [toUserId], references: [id])
 
-  content        String       @db.Text // max 3000 chars validé côté Zod + service
+  content        String       @db.Text // Limite de 500 mots validée côté Zod + service
   status         LetterStatus @default(SENT)
   isGhostRelance Boolean      @default(false) // lettre de relance anti-ghosting
   sentAt         DateTime     @default(now())

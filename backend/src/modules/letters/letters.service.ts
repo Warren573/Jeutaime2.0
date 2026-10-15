@@ -7,7 +7,7 @@ import {
   UnprocessableError,
 } from "../../core/errors";
 import { assertCanSendLetter } from "../../policies/letterAlternation";
-import { LETTER_MAX_LENGTH, GHOST_RELANCE_MAX_DAYS } from "../../config/constants";
+import { LETTER_MAX_WORDS, GHOST_RELANCE_MAX_DAYS } from "../../config/constants";
 import { differenceInDays } from "../../core/utils/dateUtils";
 import { buildMeta, toPrismaSkipTake } from "../../core/utils/pagination";
 import { emitLetterSent } from "../../events";
@@ -39,9 +39,9 @@ async function assertNoBlock(a: string, b: string) {
 // ============================================================
 
 export async function sendLetter(matchId: string, senderId: string, dto: SendLetterDto) {
-  if (dto.content.length > LETTER_MAX_LENGTH) {
+  if (dto.content.trim().split(/\s+/u).length > LETTER_MAX_WORDS) {
     throw new BadRequestError(
-      `La lettre ne peut pas dépasser ${LETTER_MAX_LENGTH} caractères`,
+      `La lettre ne peut pas dépasser ${LETTER_MAX_WORDS} mots`,
     );
   }
 
