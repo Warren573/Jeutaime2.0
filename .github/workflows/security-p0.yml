@@ -1,0 +1,80 @@
+name: Security P0 checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [audit/security-p0-test-routes-20261013]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-p0:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jeutaime_test
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      JWT_ACCESS_SECRET: test_access_secret_minimum_32_characters_123
+      JWT_REFRESH_SECRET: test_refresh_secret_minimum_32_characters_123
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Test production-route and role protections
+        run: npx vitest run tests/unit/production-routes.security.test.ts tests/unit/roles.security.test.ts tests/unit/admin-routes.security.test.ts tests/unit/private-content.security.test.ts tests/unit/photos-privacy.security.test.ts tests/unit/admin-reports-routes.security.test.ts
+      - name: Initialize isolated PostgreSQL test schema
+        # A fresh CI-only database is synchronized from the CURRENT Prisma model.
+        # Do not use this command against staging or production databases.
+        run: npx prisma db push --skip-generate
+      - name: Real PostgreSQL privacy integration tests
+        run: npx vitest run tests/integration/security-p0-postgres.test.ts
+      - name: Verify Prisma schema drift against temporary PostgreSQL
+        run: npx prisma migrate diff --from-url "$DIRECT_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+      - name: Test database backup and restore (isolated CI only)
+        working-directory: .
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          pg_dump -h localhost -U postgres -d jeutaime_test -Fc -f "${RUNNER_TEMP}/jeutaime-test.dump"
+          createdb -h localhost -U postgres jeutaime_restore_test
+          pg_restore -h localhost -U postgres -d jeutaime_restore_test --no-owner --no-privileges "${RUNNER_TEMP}/jeutaime-test.dump"
+          psql -h localhost -U postgres -d jeutaime_restore_test -v ON_ERROR_STOP=1 -Atc 'SELECT COUNT(*) FROM "User";' > "${RUNNER_TEMP}/restored-users.txt"
+          psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -Atc 'SELECT COUNT(*) FROM "User";' > "${RUNNER_TEMP}/original-users.txt"
+          diff "${RUNNER_TEMP}/original-users.txt" "${RUNNER_TEMP}/restored-users.txt"
+          test "$(psql -h localhost -U postgres -d jeutaime_restore_test -Atc 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '\''public'\'';')" -gt 0
+      - name: Verify strict Render startup preflight
+        run: |
+          node scripts/check-render-migrations.cjs
+          if env -u DIRECT_URL node scripts/check-render-migrations.cjs; then
+            echo "ERROR: startup must reject missing DIRECT_URL"
+            exit 1
+          fi
+      - name: Backend typecheck
+        run: npm run typecheck
