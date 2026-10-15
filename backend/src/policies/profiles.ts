@@ -62,19 +62,6 @@ export function computeProfileStatus(profile: MinimalProfile | null): ProfileSta
   const isComplete = canDiscover && bioWords >= 50 && hasQuestions;
   const canMatch = isComplete;
 
-  // DEBUG LOG
-  console.log("[computeProfileStatus] DEBUG:", {
-    bio: profile.bio?.substring(0, 30),
-    bioWords,
-    interestedIn: profile.interestedIn,
-    lookingFor: profile.lookingFor,
-    physicalDesc: profile.physicalDesc,
-    questionsCount,
-    coreMissing,
-    canDiscover,
-    isComplete,
-  });
-
   return {
     isComplete,
     missingFields: [...coreMissing, ...bonusMissing],
