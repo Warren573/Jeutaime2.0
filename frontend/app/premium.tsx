@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useStore } from "../src/store/useStore";
@@ -30,12 +31,12 @@ import {
 } from "../src/theme/appTheme";
 
 const ADVANTAGES = [
-  { text: "10 correspondances actives au lieu de 5" },
-  { text: "Photos visibles dès la sélection des profils" },
-  { text: "5 bouteilles simultanées au lieu de 1" },
-  { text: "500 pièces offertes à chaque mois facturé" },
-  { text: "Aucune publicité imposée" },
-  { text: "Bonus quotidien de 20 pièces, comme en Gratuit" },
+  { icon: "people", lead: "10 correspondances", rest: " actives au lieu de 5" },
+  { icon: "photos", lead: "Photos visibles", rest: " dès la sélection des profils" },
+  { icon: "bottle", lead: "5 bouteilles", rest: " simultanées au lieu de 1" },
+  { icon: "coin", lead: "500 pièces", rest: " offertes à chaque mois facturé" },
+  { icon: "ads", lead: "Aucune publicité", rest: " imposée" },
+  { icon: "gift", lead: "20 pièces chaque jour", rest: ", comme en Gratuit" },
 ];
 
 function formatDate(iso: string | null): string {
@@ -189,8 +190,8 @@ export default function PremiumScreen() {
         <View style={styles.advantagesCard}>
           {ADVANTAGES.map((a, i) => (
             <View key={i} style={[styles.advantageRow, i < ADVANTAGES.length - 1 && styles.advantageRowBorder]}>
-              <View style={styles.advantageDot} />
-              <Text style={styles.advantageText}>{a.text}</Text>
+              <View style={styles.advantageIconFrame}><Image source={a.icon === "people" ? require("../assets/ui-icons/male.png") : a.icon === "photos" ? require("../assets/ui-icons/card.png") : a.icon === "bottle" ? require("../assets/ui-icons/bottle.png") : a.icon === "coin" ? require("../assets/ui-icons/coin.png") : a.icon === "gift" ? require("../assets/ui-icons/pet.png") : require("../assets/ui-icons/trophy.png")} style={styles.advantagePng} resizeMode="contain" /></View>
+              <Text style={styles.advantageText}><Text style={styles.advantageLead}>{a.lead}</Text>{a.rest}</Text>
             </View>
           ))}
         </View>
@@ -202,7 +203,7 @@ export default function PremiumScreen() {
                 <Text style={styles.offerLabel}>ABONNEMENT MENSUEL</Text>
                 <Text style={styles.offerPrice}>5,99 € <Text style={styles.offerPeriod}>/ mois</Text></Text>
               </View>
-              <Text style={styles.offerHint}>500 pièces / mois</Text>
+              <View style={styles.coinsPill}><CoinIcon size={17}/><Text style={styles.offerHint}>500 pièces / mois</Text></View>
             </View>
             <Text style={styles.offerNote}>Souscription bientôt disponible. Aucun paiement n'est effectué.</Text>
             <TouchableOpacity style={styles.offerButton} onPress={() => router.push('/shop')}>
@@ -274,7 +275,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     ...(APP_SHADOWS.card ?? {}),
   },
-  advantageRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 15, paddingVertical: 12, gap: 12 },
+  advantageRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 15, paddingVertical: 11, gap: 12 },
+  advantageIconFrame: { width: 39, height: 39, borderRadius: 20, backgroundColor: "#F8E9E5", justifyContent: "center", alignItems: "center" },
+  advantagePng: { width: 24, height: 24 },
+  advantageLead: { color: APP_COLORS.burgundy, fontWeight: "800" },
   advantageRowBorder: { borderBottomWidth: 1, borderBottomColor: APP_COLORS.paperSoft },
   advantageIcon: { fontSize: 20, width: 26, textAlign: "center" },
   advantageText: { flex: 1, fontSize: 13, color: APP_COLORS.text, lineHeight: 19 },
@@ -312,12 +316,13 @@ const styles = StyleSheet.create({
   subscribeBtnText: { color: APP_COLORS.white, fontSize: 16, fontWeight: "800" },
   stripeBanner: { alignItems: "center", paddingVertical: 14 },
   stripeText: { fontSize: 12, color: APP_COLORS.muted },
-  planOffer: { backgroundColor: APP_COLORS.paper, borderRadius: 17, padding: 17, borderWidth: 1, borderColor: APP_COLORS.border },
+  planOffer: { backgroundColor: APP_COLORS.paper, borderRadius: 18, padding: 17, borderWidth: 1, borderColor: APP_COLORS.gold },
   planOfferTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   offerLabel: { fontSize: 10, color: APP_COLORS.muted, fontWeight: '800', letterSpacing: 1.1 },
   offerPrice: { fontSize: 27, color: APP_COLORS.ink, fontWeight: '800', marginTop: 5 },
   offerPeriod: { fontSize: 13, fontWeight: '500', color: APP_COLORS.muted },
-  offerHint: { flexShrink: 1, textAlign: 'right', color: APP_COLORS.burgundy, fontSize: 11, fontWeight: '700', maxWidth: 115 },
+  offerHint: { flexShrink: 1, color: APP_COLORS.burgundy, fontSize: 11, fontWeight: "800" },
+  coinsPill: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#F8E9E5", borderRadius: 22, paddingVertical: 8, paddingHorizontal: 9, maxWidth: 150 },
   offerNote: { fontSize: 12, color: APP_COLORS.muted, lineHeight: 18, marginTop: 12 },
   offerButton: { backgroundColor: APP_COLORS.burgundy, alignItems: 'center', justifyContent: 'center', borderRadius: 12, minHeight: 46, marginTop: 14 },
   offerButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
