@@ -10,7 +10,7 @@ describe("payment receipt database uniqueness", () => {
     expect(migration).toContain('CREATE UNIQUE INDEX "PaymentReceipt_provider_providerTransactionId_key"');
   });
   it("tracks verification and fulfillment separately", () => {
-    expect(schema).toContain("verifiedAt           DateTime?");
-    expect(schema).toContain("fulfilledAt          DateTime?");
+    expect(schema).toMatch(/verifiedAt\s+DateTime\?/);
+    expect(schema).toMatch(/fulfilledAt\s+DateTime\?/);
   });
 });
