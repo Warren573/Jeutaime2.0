@@ -81,41 +81,6 @@ export default function PremiumScreen() {
     load();
   }, [load]);
 
-  const handleSubscribe = async () => {
-    if (!selectedPlanId || subscribing) return;
-    const plan = plans.find((p) => p.id === selectedPlanId);
-    if (!plan) return;
-
-    if (coins < plan.priceCoins) {
-      router.push('/shop');
-      return;
-    }
-
-    Alert.alert(
-      "Confirmer l'abonnement",
-      `Souscrire au plan ${plan.label} (${plan.durationDays} jours) pour ${plan.priceCoins} pièces ?`,
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Confirmer",
-          onPress: async () => {
-            try {
-              setSubscribing(true);
-              await subscribePremium({ planId: plan.id, paymentMethod: "coins" });
-              await Promise.all([loadWallet(), hydrateFromApi()]);
-              await load();
-              Alert.alert("Bienvenue dans Plus", "Tes avantages sont maintenant actifs.");
-            } catch (err: any) {
-              Alert.alert("Erreur", err?.message ?? "Souscription impossible.");
-            } finally {
-              setSubscribing(false);
-            }
-          },
-        },
-      ],
-    );
-  };
-
   const handleCancel = () => {
     Alert.alert(
       "Annuler l'abonnement",
