@@ -1,0 +1,31 @@
+name: Verify payment receipt schema
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/prisma/schema.prisma'
+      - 'backend/prisma/migrations/20261016160500_payment_receipt_ledger/**'
+      - 'backend/tests/unit/payment-receipt-schema.test.ts'
+      - '.github/workflows/payment-receipt-schema.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install backend
+        working-directory: backend
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Validate Prisma schema
+        working-directory: backend
+        run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DIRECT_URL: postgresql://test:test@localhost:5432/test
+      - name: Receipt schema tests
+        working-directory: backend
+        run: npx vitest run tests/unit/payment-receipt-schema.test.ts
