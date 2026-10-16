@@ -25,6 +25,7 @@ jobs:
         run: npx prisma validate
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DIRECT_URL: postgresql://test:test@localhost:5432/test
       - name: Receipt schema tests
         working-directory: backend
         run: npx vitest run tests/unit/payment-receipt-schema.test.ts
