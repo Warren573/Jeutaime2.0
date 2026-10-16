@@ -1,0 +1,33 @@
+name: Verify trusted payment ingestion
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/src/modules/premium/payment-receipt-ingest.service.ts'
+      - 'backend/tests/unit/payment-receipt-ingest.test.ts'
+      - '.github/workflows/payment-receipt-ingest.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DIRECT_URL: postgresql://test:test@localhost:5432/test
+      - name: Run verification tests
+        working-directory: backend
+        run: npx vitest run tests/unit/payment-receipt-ingest.test.ts
+      - name: Check TypeScript
+        working-directory: backend
+        run: npm run typecheck
