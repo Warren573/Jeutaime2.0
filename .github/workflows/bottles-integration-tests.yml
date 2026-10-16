@@ -86,6 +86,11 @@ jobs:
         run: |
           psql -h localhost -U postgres -d jeutaime_test -f backend/prisma/ci-baseline/schema.sql
 
+      - name: Apply payment receipt migration to CI baseline
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261016160500_payment_receipt_ledger/migration.sql
+
       - name: Verify schema consistency (zero drift)
         working-directory: backend
         env:
