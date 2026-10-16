@@ -1,0 +1,28 @@
+name: Verify Plus payment contract
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/tests/unit/premium-payment-safety.test.ts'
+      - 'backend/src/modules/premium/premium.schemas.ts'
+      - 'backend/src/modules/premium/premium.plans.ts'
+      - '.github/workflows/premium-payment-contract.yml'
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install backend
+        working-directory: backend
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Generate Prisma types
+        working-directory: backend
+        run: npx prisma generate
+      - name: Payment contract tests
+        working-directory: backend
+        run: npx vitest run tests/unit/premium-payment-safety.test.ts
