@@ -206,6 +206,7 @@ model User {
 
   profile       Profile?
   wallet        Wallet?
+  paymentReceipts PaymentReceipt[]
   settings      UserSettings?
   refreshTokens RefreshToken[]
 
@@ -444,6 +445,23 @@ model Wallet {
   lastDailyBonus DateTime?
   updatedAt      DateTime          @updatedAt
   transactions   CoinTransaction[]
+}
+
+// Verified store/web transaction identity; provider + transaction ID is globally unique.
+model PaymentReceipt {
+  id                    String    @id @default(cuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider              String
+  providerTransactionId String
+  productId             String
+  status                String    @default("PENDING")
+  verifiedAt            DateTime?
+  fulfilledAt           DateTime?
+  createdAt             DateTime  @default(now())
+
+  @@unique([provider, providerTransactionId])
+  @@index([userId, createdAt])
 }
 
 model CoinTransaction {
