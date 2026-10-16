@@ -5,7 +5,7 @@ import { z } from "zod";
 // ============================================================
 export const SubscribePremiumSchema = z.object({
   planId: z.string().min(1, "planId requis"),
-  paymentMethod: z.enum(["coins", "stripe_stub"]),
+  paymentMethod: z.enum(["apple", "google"]),
 });
 
 export type SubscribePremiumDto = z.infer<typeof SubscribePremiumSchema>;
