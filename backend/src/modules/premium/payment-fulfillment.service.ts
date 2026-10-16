@@ -1,4 +1,4 @@
-import { CoinTxnType, PremiumTier, Prisma } from "@prisma/client";
+import { CoinTxnType, Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { getPaidProduct } from "../../policies/paidProducts";
 
