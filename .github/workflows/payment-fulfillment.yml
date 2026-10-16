@@ -1,0 +1,30 @@
+name: Verify payment fulfillment
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/src/modules/premium/payment-fulfillment.service.ts'
+      - 'backend/tests/unit/payment-fulfillment.test.ts'
+      - '.github/workflows/payment-fulfillment.yml'
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install backend
+        working-directory: backend
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DIRECT_URL: postgresql://test:test@localhost:5432/test
+      - name: Run payment fulfillment unit tests
+        working-directory: backend
+        run: npx vitest run tests/unit/payment-fulfillment.test.ts
