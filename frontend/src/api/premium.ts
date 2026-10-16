@@ -17,7 +17,7 @@ export interface PremiumStatusDTO {
 export interface PremiumSubscribeResultDTO {
   status: PremiumStatusDTO;
   plan: PremiumPlanDTO;
-  paymentMethod: "coins" | "stripe_stub";
+  paymentMethod: "apple" | "google";
   coinsSpent: number | null;
 }
 
@@ -33,7 +33,7 @@ export async function getMyPremiumStatus(): Promise<PremiumStatusDTO> {
 
 export async function subscribePremium(payload: {
   planId: string;
-  paymentMethod: "coins";
+  paymentMethod: "apple" | "google";
 }): Promise<PremiumSubscribeResultDTO> {
   const res = (await apiFetch("/premium/subscribe", {
     method: "POST",
