@@ -36,8 +36,8 @@ export const GHOST_DAYS = 5; // validé
 export const GHOST_RELANCE_MAX_DAYS = 7; // validé
 
 // --- Lettres ---
-/** Longueur maximale d'une lettre en caractères */
-export const LETTER_MAX_LENGTH = 3000; // validé
+/** Nombre maximal de mots dans une lettre. */
+export const LETTER_MAX_WORDS = 500;
 /** Nombre de questions de validation requises par profil */
 export const PROFILE_QUESTIONS_REQUIRED = 3;
 
