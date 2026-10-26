@@ -166,6 +166,7 @@ describe("getWeeklyProfileState — sélection de duel", () => {
 
   it("réutilise un duel en attente non expiré plutôt que d'en générer un nouveau", async () => {
     (prisma.weeklyProfileDuel.count as any).mockResolvedValue(0);
+    (prisma.user.findMany as any).mockResolvedValue([eligibleUser("a"), eligibleUser("b")]);
     (prisma.weeklyProfileDuel.findFirst as any).mockResolvedValue({
       id: "pending-1",
       candidateAId: "a",
