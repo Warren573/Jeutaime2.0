@@ -1,0 +1,38 @@
+name: Backend CI
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+permissions:
+  contents: read
+jobs:
+  backend:
+    name: Backend tests and typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/jeutaime_ci
+          DIRECT_URL: postgresql://test:test@localhost:5432/jeutaime_ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
