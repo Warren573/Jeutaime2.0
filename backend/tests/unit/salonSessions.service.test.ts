@@ -8,6 +8,8 @@ vi.mock("../../src/config/prisma", () => {
       salon: {
         findUnique: vi.fn(),
       },
+      user: { findUnique: vi.fn() },
+      salonMessage: { findFirst: vi.fn(), create: vi.fn() },
       salonSession: {
         findMany: vi.fn(),
         findFirst: vi.fn(),
@@ -18,6 +20,7 @@ vi.mock("../../src/config/prisma", () => {
         delete: vi.fn(),
       },
       salonSessionParticipant: {
+        upsert: vi.fn(),
         findMany: vi.fn(),
         findFirst: vi.fn(),
         findUnique: vi.fn(),
@@ -50,7 +53,10 @@ describe("SalonSessions Service", () => {
   const salonKind = "PISCINE";
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    (prisma.salonSessionParticipant.findUnique as any).mockResolvedValue(null);
+    (prisma.salonSessionParticipant.upsert as any).mockResolvedValue({ id: "participant", status: "ACTIVE" });
+    (prisma.user.findUnique as any).mockResolvedValue({ profile: { pseudo: "Test" } });
+    (prisma.salonMessage.findFirst as any).mockResolvedValue({ id: "existing-welcome" });
   });
 
   afterEach(() => {
