@@ -382,7 +382,7 @@ export async function declineMatch(matchId: string, userId: string) {
 export async function breakMatch(matchId: string, userId: string) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
-    select: { id: true, userAId: true, userBId: true, status: true },
+    select: { id: true, userAId: true, userBId: true, status: true, createdAt: true, letterCountA: true, letterCountB: true },
   });
   if (!match) throw new NotFoundError("Match");
 
@@ -395,10 +395,29 @@ export async function breakMatch(matchId: string, userId: string) {
     throw new BadRequestError("Ce match est déjà rompu ou bloqué");
   }
 
-  return prisma.match.update({
-    where: { id: matchId },
-    data: { status: MatchStatus.BROKEN },
-    select: matchSelect,
+  // Only an immediate, unengaged mutual match counts. A safety block is separate.
+  // Never impose time-limited punishment; genuine conversation can restore rank.
+  const immediate = match.status === MatchStatus.ACTIVE
+    && Date.now() - match.createdAt.getTime() <= 5 * 60 * 1000
+    && match.letterCountA + match.letterCountB === 0;
+
+  return prisma.$transaction(async (tx) => {
+    // Conditional update ensures two concurrent requests cannot double-penalize.
+    const changed = await tx.match.updateMany({
+      where: { id: matchId, status: match.status },
+      data: { status: MatchStatus.BROKEN },
+    });
+    if (changed.count !== 1) throw new ConflictError("Ce match a déjà changé de statut");
+    if (immediate) {
+      await tx.profile.updateMany({
+        where: { userId },
+        data: {
+          discoveryActivityScore: { decrement: 40 },
+          discoveryBreakPenalty: { increment: 1 },
+        },
+      });
+    }
+    return tx.match.findUniqueOrThrow({ where: { id: matchId }, select: matchSelect });
   });
 }
 
