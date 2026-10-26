@@ -166,6 +166,7 @@ describe("getWeeklyProfileState — sélection de duel", () => {
 
   it("réutilise un duel en attente non expiré plutôt que d'en générer un nouveau", async () => {
     (prisma.weeklyProfileDuel.count as any).mockResolvedValue(0);
+    (prisma.user.findMany as any).mockResolvedValue([eligibleUser("a"), eligibleUser("b")]);
     (prisma.weeklyProfileDuel.findFirst as any).mockResolvedValue({
       id: "pending-1",
       candidateAId: "a",
@@ -197,7 +198,9 @@ describe("voteForDuel", () => {
 
   beforeEach(() => {
     (prisma.weeklyProfileDuel.count as any).mockResolvedValue(0);
+    (prisma.user.findMany as any).mockResolvedValue([eligibleUser("a"), eligibleUser("b")]);
     (prisma.wallet.findUnique as any).mockResolvedValue({ userId: "voter-1", coins: 100 });
+    (prisma.wallet.update as any).mockResolvedValue({ coins: 105 });
     (prisma.weeklyProfileDuel.updateMany as any).mockResolvedValue({ count: 1 });
   });
 
@@ -275,7 +278,8 @@ describe("voteForDuel", () => {
     });
     expect(prisma.wallet.update).toHaveBeenCalledWith({
       where: { userId: "voter-1" },
-      data: { coins: 105 },
+      data: { coins: { increment: 5 } },
+      select: { coins: true },
     });
     expect(prisma.coinTransaction.create).toHaveBeenCalledWith(
       expect.objectContaining({

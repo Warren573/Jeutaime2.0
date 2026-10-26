@@ -76,10 +76,10 @@ describe("photoUnlock", () => {
     expect(getPhotoLevel({ totalLetters: 50, viewerIsPremium: false })).toBe(3);
   });
 
-  it("getPhotoLevel Premium : level 0 avec < 3 lettres", () => {
-    expect(getPhotoLevel({ totalLetters: 0, viewerIsPremium: true })).toBe(0);
-    expect(getPhotoLevel({ totalLetters: 1, viewerIsPremium: true })).toBe(0);
-    expect(getPhotoLevel({ totalLetters: 2, viewerIsPremium: true })).toBe(0);
+  it("getPhotoLevel Premium : level 3 immédiat", () => {
+    expect(getPhotoLevel({ totalLetters: 0, viewerIsPremium: true })).toBe(3);
+    expect(getPhotoLevel({ totalLetters: 1, viewerIsPremium: true })).toBe(3);
+    expect(getPhotoLevel({ totalLetters: 2, viewerIsPremium: true })).toBe(3);
   });
 
   it("getPhotoLevel Premium : level 3 avec >= 3 lettres", () => {
@@ -122,7 +122,7 @@ describe("photoUnlock", () => {
 
 describe("contactLimits", () => {
   it("Free : limite à 5", () => expect(getMatchLimit(false)).toBe(5));
-  it("Premium : limite à 20", () => expect(getMatchLimit(true)).toBe(20));
+  it("Premium : limite à 10", () => expect(getMatchLimit(true)).toBe(10));
 
   it("Free : peut ouvrir si < 5", () => {
     expect(canOpenNewMatch(4, false)).toBe(true);
@@ -132,12 +132,12 @@ describe("contactLimits", () => {
     expect(canOpenNewMatch(5, false)).toBe(false);
   });
 
-  it("Premium : peut ouvrir si < 20", () => {
-    expect(canOpenNewMatch(19, true)).toBe(true);
+  it("Premium : peut ouvrir si < 10", () => {
+    expect(canOpenNewMatch(9, true)).toBe(true);
   });
 
-  it("Premium : ne peut pas ouvrir à exactement 20", () => {
-    expect(canOpenNewMatch(20, true)).toBe(false);
+  it("Premium : ne peut pas ouvrir à exactement 10", () => {
+    expect(canOpenNewMatch(10, true)).toBe(false);
   });
 });
 

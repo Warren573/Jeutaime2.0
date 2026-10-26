@@ -38,6 +38,10 @@ vi.mock('../../src/config/prisma', () => ({
   },
 }));
 
+vi.mock('../../src/modules/auth/accountLifecycle.service', () => ({
+  isAccountDeactivated: vi.fn().mockResolvedValue(false),
+}));
+
 vi.mock('../../src/events', () => ({
   emitMatchCreated: vi.fn(),
 }));
