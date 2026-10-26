@@ -224,7 +224,8 @@ export async function discoverProfiles(viewerId: string, query: DiscoveryQuery) 
         points: true,
         badges: true,
       },
-      orderBy: { points: "desc" },
+      // Activity ranking is independent from virtual currency, XP and Plus status.
+      orderBy: [{ discoveryActivityScore: "desc" }, { createdAt: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
