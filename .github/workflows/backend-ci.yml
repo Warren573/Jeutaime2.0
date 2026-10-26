@@ -18,6 +18,12 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://test:test@localhost:5432/jeutaime_ci
+      DIRECT_URL: postgresql://test:test@localhost:5432/jeutaime_ci
+      JWT_ACCESS_SECRET: ci_access_secret_0123456789_0123456789
+      JWT_REFRESH_SECRET: ci_refresh_secret_0123456789_0123456789
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
