@@ -76,6 +76,7 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
       - name: Prepare isolated test schema
-        run: npx prisma migrate deploy
+        # The historical migrations assume an existing baseline; this is a disposable CI DB only.
+        run: npx prisma db push --skip-generate
       - name: Test wallet concurrency
         run: npx vitest run tests/integration/card-game-wallet-concurrency.test.ts tests/integration/economy-wallet-integrity.test.ts --reporter=default
