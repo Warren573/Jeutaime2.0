@@ -1,0 +1,32 @@
+name: Mobile store preflight
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/mobile-store-preflight.yml"
+permissions:
+  contents: read
+jobs:
+  expo-preflight:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Validate Expo configuration
+        run: npx expo config --type public --json > /dev/null
+      - name: Validate store-test build profiles
+        run: |
+          node -e 'const e=require("./eas.json"); if(e.build["store-test"]?.distribution!=="store"||e.build["store-test"]?.android?.buildType!=="app-bundle"||e.submit["store-test"]?.android?.track!=="internal") process.exit(1)'
+      - name: Export iOS JavaScript bundle
+        run: npx expo export --platform ios --output-dir /tmp/jeutaime-ios-export
+      - name: Export Android JavaScript bundle
+        run: npx expo export --platform android --output-dir /tmp/jeutaime-android-export
