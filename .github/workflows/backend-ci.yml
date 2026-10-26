@@ -40,8 +40,8 @@ jobs:
           DIRECT_URL: postgresql://test:test@localhost:5432/jeutaime_ci
       - name: Typecheck
         run: npm run typecheck
-      - name: Unit tests
-        run: npm test
+      - name: Unit and mocked integration tests
+        run: npx vitest run --exclude tests/integration/session-isolation.test.ts --exclude tests/modules/offerings/offerings.consume.test.ts
 
   postgres-concurrency:
     name: PostgreSQL wallet concurrency
@@ -84,5 +84,7 @@ jobs:
       - name: Prepare isolated test schema
         # The historical migrations assume an existing baseline; this is a disposable CI DB only.
         run: npx prisma db push --skip-generate
-      - name: Test wallet concurrency
-        run: npx vitest run tests/integration/card-game-wallet-concurrency.test.ts tests/integration/economy-wallet-integrity.test.ts --reporter=default
+      - name: Seed isolated test database
+        run: node prisma/seed.js
+      - name: PostgreSQL integration and wallet concurrency tests
+        run: npx vitest run tests/integration/card-game-wallet-concurrency.test.ts tests/integration/economy-wallet-integrity.test.ts tests/integration/session-isolation.test.ts tests/modules/offerings/offerings.consume.test.ts --reporter=default
