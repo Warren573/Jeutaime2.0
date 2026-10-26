@@ -34,7 +34,7 @@ describe("BanUserSchema", () => {
 
   it("champ inconnu → rejeté (strict)", () => {
     expect(() =>
-      BanUserSchema.parse({ reason: "abc", durationDays: 7 }),
+      BanUserSchema.parse({ reason: "abc", unexpectedField: true }),
     ).toThrow();
   });
 });
