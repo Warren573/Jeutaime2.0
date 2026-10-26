@@ -118,13 +118,9 @@ app.use(`${api}/refuge`, refugeRoutes);
 app.use(`${api}/stats`, statsRoutes);
 app.use(`${api}/weekly-profile`, weeklyProfileRoutes);
 
-// Routes de test : disponibles en développement, sur le staging Render,
-// ou en production uniquement si ALLOW_TEST_ENDPOINTS=true est explicitement défini.
-// Les handlers sensibles conservent également leurs propres garde-fous.
-const allowTestRoutes =
-  env.NODE_ENV !== "production" ||
-  process.env.RENDER_SERVICE_NAME === "jeutaime-staging" ||
-  process.env.ALLOW_TEST_ENDPOINTS === "true";
+// Routes de test : uniquement hors production.
+// Aucune variable d'environnement ne peut réactiver ces routes en production.
+const allowTestRoutes = env.NODE_ENV !== "production";
 
 if (allowTestRoutes) {
   app.use(`${api}/test`, testRoutes);
