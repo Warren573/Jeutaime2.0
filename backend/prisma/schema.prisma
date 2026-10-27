@@ -401,6 +401,7 @@ model Match {
 
   // Questions de validation (les 2 doivent avoir répondu)
   questionsValidated Boolean @default(false)
+  activatedAt DateTime?
 
   // Anti-ghosting : ID de celui qui a utilisé sa relance unique
   ghostRelanceUsedBy String?
