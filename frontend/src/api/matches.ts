@@ -39,6 +39,7 @@ export interface MatchDTO {
   ghostRelanceUsedBy: string | null;
   ghostDetectedAt: string | null;
   createdAt: string;
+  activatedAt?: string | null;
   updatedAt: string;
   otherUserId: string;
   otherProfile: PublicProfileDTO | null;
