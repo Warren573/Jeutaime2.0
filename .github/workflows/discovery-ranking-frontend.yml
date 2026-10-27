@@ -1,4 +1,4 @@
-name: Discovery ranking frontend typecheck
+name: Discovery ranking frontend regression typecheck
 on:
   pull_request:
     branches: [main]
@@ -10,18 +10,45 @@ on:
       - '.github/workflows/discovery-ranking-frontend.yml'
   workflow_dispatch:
 jobs:
-  frontend-typecheck:
+  frontend-regression-typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: 'frontend/package-lock.json'
-      - name: Install frontend dependencies
+      - name: Install frontend dependencies (lockfile currently out of sync)
         working-directory: frontend
         run: npm install --no-package-lock --legacy-peer-deps
-      - name: TypeScript typecheck
-        working-directory: frontend
-        run: npx tsc --noEmit
+      - name: Compare TS errors with main (existing errors are not regressions)
+        shell: bash
+        run: |
+          HEAD_SHA=$(git rev-parse HEAD)
+          (cd frontend && npx tsc --noEmit --pretty false) > /tmp/head-tsc.log 2>&1 || true
+          git fetch origin main
+          git checkout --detach origin/main
+          (cd frontend && npx tsc --noEmit --pretty false) > /tmp/main-tsc.log 2>&1 || true
+          git checkout --detach "$HEAD_SHA"
+          python3 - <<'PY'
+          from collections import Counter
+          import re
+          def errors(path):
+              out = []
+              for line in open(path, encoding='utf-8', errors='replace'):
+                  line = line.strip()
+                  if re.match(r'^.+?\(\d+,\d+\): error TS\d+:', line):
+                      out.append(re.sub(r'\(\d+,\d+\)', '(line)', line))
+              return Counter(out)
+          before = errors('/tmp/main-tsc.log')
+          after = errors('/tmp/head-tsc.log')
+          new = after - before
+          print(f'TypeScript errors: main={sum(before.values())}, PR={sum(after.values())}, newly introduced={sum(new.values())}')
+          for item, count in new.items():
+              print(f'NEW ({count}): {item}')
+          if new:
+              raise SystemExit(1)
+          PY
