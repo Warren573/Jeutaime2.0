@@ -427,38 +427,16 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
 export default function SalonScreen() {
   const router = useRouter();
 
+  // Lock orientation only on native. Browser orientation APIs are not
+  // consistently available (particularly in iOS Safari / standalone PWAs).
   useFocusEffect(
     useCallback(() => {
-      ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.ALL
-      ).catch((error) => {
-        console.warn('[salon-only-rotation]', error);
-      });
-
+      if (Platform.OS === 'web') return;
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
+        .catch((error) => console.warn('[salon-orientation]', error));
       return () => {
-        ScreenOrientation.lockAsync(
-          ScreenOrientation.OrientationLock.PORTRAIT_UP
-        ).catch((error) => {
-          console.warn('[salon-only-rotation-reset]', error);
-        });
-      };
-    }, [])
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.ALL
-      ).catch((error) => {
-        console.warn('[salon-orientation]', error);
-      });
-
-      return () => {
-        ScreenOrientation.lockAsync(
-          ScreenOrientation.OrientationLock.PORTRAIT_UP
-        ).catch((error) => {
-          console.warn('[salon-orientation-reset]', error);
-        });
+        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
+          .catch((error) => console.warn('[salon-orientation-reset]', error));
       };
     }, [])
   );
@@ -1046,7 +1024,7 @@ export default function SalonScreen() {
         timestamp: new Date(msg.createdAt).getTime(),
         type: (msg.kind as Message['type']),
       }))
-    : (messagesBySalon[salonId] || []);
+    : (messagesBySalon?.[salonId] || []);
 
   // Fallback store local (non authentifié)
   useEffect(() => {
@@ -1668,7 +1646,7 @@ export default function SalonScreen() {
   }
 
   // Calcul de la taille des avatars en fonction de l'écran
-  const avatarSizePortrait = Math.min((width - 40) / participants.length, 70);
+  const avatarSizePortrait = Math.min(Math.max(40, (width - 40) / Math.max(1, participants.length)), 70);
   // Paysage : 4 emplacements strictement identiques en grille 2 × 2.
   // Taille calculée sur une cellule, jamais sur l'identité du participant.
   const avatarSizeLandscape = Math.min(82, Math.max(58, (height - 150) / 3.25));
