@@ -858,8 +858,9 @@ export default function LettersScreen() {
     if (!selectedMatch) return;
 
     const immediateBreak = selectedMatch.status === 'active'
-      && Number.isFinite(selectedMatch.createdAt)
-      && Date.now() - selectedMatch.createdAt <= 5 * 60 * 1000
+      && Number.isFinite(selectedMatch.activatedAt)
+      && Date.now() - (selectedMatch.activatedAt as number) >= 0
+      && Date.now() - (selectedMatch.activatedAt as number) <= 5 * 60 * 1000
       && (selectedMatch.letterCountA ?? 0) + (selectedMatch.letterCountB ?? 0) === 0;
     const message = immediateBreak
       ? "JeuTaime privilégie les rencontres et les discussions sérieuses. Rompre immédiatement après un match sans échange fera descendre ton profil dans les sélections, que tu sois abonné Plus ou non. Tu peux toujours bloquer ou signaler un comportement abusif sans cette pénalité. Confirmer la rupture ?"
