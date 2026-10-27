@@ -857,14 +857,21 @@ export default function LettersScreen() {
   const handleBreakMatch = async () => {
     if (!selectedMatch) return;
 
-    const immediateBreak = selectedMatch.status === 'ACTIVE'
-      && !!selectedMatch.createdAt
-      && Date.now() - new Date(selectedMatch.createdAt).getTime() <= 5 * 60 * 1000
+    const immediateBreak = selectedMatch.status === 'active'
+      && Number.isFinite(selectedMatch.createdAt)
+      && Date.now() - selectedMatch.createdAt <= 5 * 60 * 1000
       && (selectedMatch.letterCountA ?? 0) + (selectedMatch.letterCountB ?? 0) === 0;
     const message = immediateBreak
       ? "JeuTaime privilégie les rencontres et les discussions sérieuses. Rompre immédiatement après un match sans échange fera descendre ton profil dans les sélections, que tu sois abonné Plus ou non. Tu peux toujours bloquer ou signaler un comportement abusif sans cette pénalité. Confirmer la rupture ?"
       : 'Rompre cette relation ? Vous ne pourrez plus vous écrire. Cette action ne peut pas être annulée.';
-    const confirmed = window.confirm(message);
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm(message)
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert('Confirmer la rupture', message, [
+            { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Rompre', style: 'destructive', onPress: () => resolve(true) },
+          ], { cancelable: true, onDismiss: () => resolve(false) });
+        });
     if (!confirmed) return;
 
     setIsActioning(true);
