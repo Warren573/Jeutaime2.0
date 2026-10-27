@@ -1,0 +1,45 @@
+name: Manual store beta builds
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platform to compile (no store submission)"
+        required: true
+        type: choice
+        options:
+          - ios
+          - android
+          - all
+permissions:
+  contents: read
+concurrency:
+  group: manual-store-beta-build
+  cancel-in-progress: false
+jobs:
+  build:
+    name: EAS signed beta build
+    runs-on: ubuntu-latest
+    environment: store-beta
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Check Expo token is configured
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Set EXPO_TOKEN in the protected store-beta environment; no build has been started."
+            exit 1
+          fi
+      - name: Request signed builds (no submission)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli build --platform "${{ inputs.platform }}" --profile store-test --non-interactive --no-wait
