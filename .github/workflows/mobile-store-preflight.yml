@@ -19,10 +19,16 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      # The committed npm lock is currently missing a declared font package.
-      # Temporary preflight install; restore npm ci once the lockfile is regenerated.
-      - name: Install for preflight (lockfile repair pending)
-        run: npm install --no-save --package-lock=false
+      - name: Regenerate dependency lockfile for verification
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Verify reproducible installation
+        run: npm ci --no-audit --no-fund
+      - name: Upload corrected lockfile for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-package-lock-corrected
+          path: frontend/package-lock.json
+          retention-days: 7
       - name: Validate Expo configuration
         run: npx expo config --type public --json > /dev/null
       - name: Validate store-test build profiles
