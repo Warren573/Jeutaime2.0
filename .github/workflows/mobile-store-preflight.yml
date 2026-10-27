@@ -32,3 +32,5 @@ jobs:
         run: npx expo export --platform android --output-dir /tmp/jeutaime-android-export
       - name: Generate Android native project (no signing)
         run: npx expo prebuild --platform android --no-install
+      - name: Generate iOS native project (no signing)
+        run: npx expo prebuild --platform ios --no-install
