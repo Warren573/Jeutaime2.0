@@ -189,6 +189,7 @@ export interface Match {
   userBId: string;
   initiatorId: string;
   createdAt: number;
+  activatedAt?: number | null;
   questionValidation: QuestionValidation;
   /** Alias direct de questionValidation.isValid — préférer ce champ */
   questionsValidated: boolean;
