@@ -606,6 +606,7 @@ export const useStore = create<StoreState>()(
               userBId: m.userBId,
               initiatorId: m.initiatorId,
               createdAt: new Date(m.createdAt).getTime(),
+              activatedAt: m.activatedAt ? new Date(m.activatedAt).getTime() : null,
               status,
               letterCount: myCount + otherCount,
               letterCountA: m.letterCountA,
