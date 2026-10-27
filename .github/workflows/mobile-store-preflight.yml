@@ -5,7 +5,7 @@ on:
       - "frontend/**"
       - ".github/workflows/mobile-store-preflight.yml"
 permissions:
-  contents: write
+  contents: read
 jobs:
   expo-preflight:
     runs-on: ubuntu-latest
@@ -19,30 +19,8 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Regenerate dependency lockfile for verification
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Verify reproducible installation
+      - name: Install with committed lockfile
         run: npm ci --no-audit --no-fund
-      - name: Commit repaired dependency lock to beta branch
-        if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'release/store-beta-readiness'
-        run: |
-          if ! git diff --quiet -- package-lock.json; then
-            cp package-lock.json /tmp/jeutaime-package-lock-corrected.json
-            git fetch origin release/store-beta-readiness
-            git checkout -B release/store-beta-readiness origin/release/store-beta-readiness
-            cp /tmp/jeutaime-package-lock-corrected.json package-lock.json
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add package-lock.json
-            git commit -m 'fix: synchronize frontend package-lock for clean installs'
-            git push origin release/store-beta-readiness
-          fi
-      - name: Upload corrected lockfile for review
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-package-lock-corrected
-          path: frontend/package-lock.json
-          retention-days: 7
       - name: Validate Expo configuration
         run: npx expo config --type public --json > /dev/null
       - name: Validate store-test build profiles
