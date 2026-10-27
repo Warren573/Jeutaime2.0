@@ -42,6 +42,10 @@ const RULES = [
     '9. Abus du système de signalement',
     'Les signalements volontairement mensongers, répétés dans le but de nuire ou utilisés pour harceler un autre membre peuvent eux-mêmes faire l’objet d’une mesure de modération.',
   ],
+  [
+    '10. Visibilité et rencontres sérieuses',
+    'JeuTaime privilégie les membres qui participent aux discussions. Les échanges réels et réguliers font remonter les profils dans les sélections, sans avantage pour les abonnés Plus. Rompre sur-le-champ après un match sans avoir engagé de conversation peut diminuer la visibilité du profil : un avertissement est affiché avant confirmation. Cette baisse n’a pas de durée prédéfinie, et de nouveaux échanges permettent de remonter. Bloquer ou signaler pour sa sécurité ne provoque pas cette pénalité.',
+  ],
 ];
 
 export default function GameRulesScreen() {

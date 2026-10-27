@@ -305,6 +305,9 @@ model Profile {
 
   // Progression
   points Int      @default(0)
+  // Classement de découverte indépendant des pièces, niveaux et abonnement.
+  discoveryActivityScore Int @default(0)
+  discoveryBreakPenalty Int @default(0)
   badges String[] @default([])
 
   questions ProfileQuestion[]
@@ -315,6 +318,7 @@ model Profile {
   @@index([city])
   @@index([gender])
   @@index([points])
+  @@index([discoveryActivityScore])
 }
 
 model ProfileQuestion {
@@ -397,6 +401,7 @@ model Match {
 
   // Questions de validation (les 2 doivent avoir répondu)
   questionsValidated Boolean @default(false)
+  activatedAt DateTime?
 
   // Anti-ghosting : ID de celui qui a utilisé sa relance unique
   ghostRelanceUsedBy String?
