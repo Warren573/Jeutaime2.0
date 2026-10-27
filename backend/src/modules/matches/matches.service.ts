@@ -170,6 +170,7 @@ const matchSelect = {
   lastLetterBy: true,
   lastLetterAt: true,
   questionsValidated: true,
+  activatedAt: true,
   ghostRelanceUsedBy: true,
   ghostDetectedAt: true,
   createdAt: true,
@@ -341,7 +342,7 @@ export async function acceptMatch(matchId: string, userId: string) {
   // aient répondu aux questions via POST /matches/:id/questions/answers
   const updated = await prisma.match.update({
     where: { id: matchId },
-    data: { status: MatchStatus.ACTIVE },
+    data: { status: MatchStatus.ACTIVE, activatedAt: new Date() },
     select: matchSelect,
   });
 
@@ -382,7 +383,7 @@ export async function declineMatch(matchId: string, userId: string) {
 export async function breakMatch(matchId: string, userId: string) {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
-    select: { id: true, userAId: true, userBId: true, status: true, createdAt: true, letterCountA: true, letterCountB: true },
+    select: { id: true, userAId: true, userBId: true, status: true, activatedAt: true, letterCountA: true, letterCountB: true },
   });
   if (!match) throw new NotFoundError("Match");
 
@@ -398,7 +399,9 @@ export async function breakMatch(matchId: string, userId: string) {
   // Only an immediate, unengaged mutual match counts. A safety block is separate.
   // Never impose time-limited punishment; genuine conversation can restore rank.
   const immediate = match.status === MatchStatus.ACTIVE
-    && Date.now() - match.createdAt.getTime() <= 5 * 60 * 1000
+    && match.activatedAt !== null
+    && Date.now() - match.activatedAt.getTime() >= 0
+    && Date.now() - match.activatedAt.getTime() <= 5 * 60 * 1000
     && match.letterCountA + match.letterCountB === 0;
 
   return prisma.$transaction(async (tx) => {
@@ -643,6 +646,7 @@ export async function relanceMatch(matchId: string, userId: string) {
     where: { id: matchId },
     data: {
       status: MatchStatus.ACTIVE,
+      activatedAt: new Date(),
       questionsValidated: false,
     },
     select: matchSelect,
