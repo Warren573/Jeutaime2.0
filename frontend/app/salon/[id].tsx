@@ -16,7 +16,7 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => voi
       <Text style={styles.description}>
         Une erreur s'est produite pendant l'ouverture du salon. Vous pouvez réessayer.
       </Text>
-      {__DEV__ && <Text selectable style={styles.debug}>{String(error?.message || error)}</Text>}
+      {<Text selectable style={styles.debug}>Détail technique : {String(error?.message || error)}</Text>}
       <TouchableOpacity onPress={retry} style={styles.button}>
         <Text style={styles.buttonText}>Réessayer</Text>
       </TouchableOpacity>
