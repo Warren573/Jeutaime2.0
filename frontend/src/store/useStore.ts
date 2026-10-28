@@ -484,13 +484,18 @@ export const useStore = create<StoreState>()(
           };
           console.log("HYDRATE_SET_USER", mappedUser);
           get().setCurrentUser(mappedUser);
-          // Charger les vrais matchs, le wallet et le compteur notifs depuis l'API
-          await Promise.all([get().loadMatches(), get().loadWallet(), get().loadUnreadCount()]);
-          // Charger les conversations pour les matchs actifs/pending
-          const activeMatches = get().matches.filter(m => m.status === 'active' || m.status === 'pending');
-          if (activeMatches.length > 0) {
-            await Promise.all(activeMatches.map(m => get().loadLetters(m.id)));
-          }
+          // L'authentification est terminée dès que /auth/me a confirmé le compte.
+          // Les données secondaires ne doivent jamais bloquer l'écran de connexion.
+          void (async () => {
+            try {
+              await Promise.allSettled([get().loadMatches(), get().loadWallet(), get().loadUnreadCount()]);
+              if (get().currentUser?.id !== d.id) return;
+              const activeMatches = get().matches.filter(m => m.status === 'active' || m.status === 'pending');
+              await Promise.allSettled(activeMatches.map(m => get().loadLetters(m.id)));
+            } catch (error) {
+              console.warn('[HYDRATE] Background data load failed', error);
+            }
+          })();
         } catch {
           // token invalide ou réseau — user reste non-authentifié
         }
