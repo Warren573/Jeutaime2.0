@@ -24,11 +24,24 @@ export interface LoginPayload {
 
 // Direct fetch for auth endpoints (no Authorization header)
 async function authFetch(path: string, payload: unknown): Promise<unknown> {
-  const res = await fetch(`${API_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error("Le serveur ne répond pas (20 secondes). Réessaie dans un instant.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
