@@ -88,7 +88,7 @@ const PRIVACY: Section[] = [
   {
     title: '1. Responsable du traitement',
     paragraphs: [
-      "À COMPLÉTER AVANT PUBLICATION : identité et coordonnées du responsable du traitement JeuTaime, ainsi que l’adresse de contact dédiée aux demandes relatives aux données personnelles et, le cas échéant, les coordonnées du DPO.",
+      "JeuTaime est exploité sous le compte développeur Warren573. Pour toute question relative à la protection des données personnelles ou pour exercer vos droits : contact@jeutaime.app. À COMPLÉTER AVANT PUBLICATION : identité civile et adresse de contact du responsable du traitement ; coordonnées d’un délégué à la protection des données uniquement si un DPO est désigné.",
     ],
   },
   {
@@ -139,7 +139,7 @@ const PRIVACY: Section[] = [
     paragraphs: [
       "Dans les conditions prévues par la réglementation applicable, l’utilisateur peut demander l’accès à ses données, leur rectification, leur effacement, la limitation de certains traitements, s’opposer à certains traitements et exercer son droit à la portabilité lorsque celui-ci s’applique.",
       "JeuTaime propose déjà un export des données personnelles depuis les paramètres ainsi qu’une fonction de suppression définitive du compte.",
-      "À COMPLÉTER AVANT PUBLICATION : adresse de contact pour l’exercice des droits. L’utilisateur peut également introduire une réclamation auprès de la CNIL lorsqu’il estime que ses droits ne sont pas respectés.",
+      "Pour exercer ces droits, contactez contact@jeutaime.app. L’utilisateur peut également introduire une réclamation auprès de la CNIL lorsqu’il estime que ses droits ne sont pas respectés.",
     ],
   },
   {
