@@ -70,6 +70,11 @@ export function corsOriginCallback(
   // Always allow explicitly configured origins.
   if (corsOrigins.includes(origin)) return callback(null, true);
 
+  // First-party production domains for the public JeuTaime web app.
+  if (origin === "https://jeutaime.app" || origin === "https://www.jeutaime.app") {
+    return callback(null, true);
+  }
+
   // Convenience origins are development/test only. Production must be explicit.
   if (env.NODE_ENV !== "production") {
     if (origin.endsWith(".vercel.app")) return callback(null, true);
