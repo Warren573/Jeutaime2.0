@@ -88,7 +88,7 @@ const PRIVACY: Section[] = [
   {
     title: '1. Responsable du traitement',
     paragraphs: [
-      "JeuTaime est exploité sous le compte développeur Warren573. Pour toute question relative à la protection des données personnelles ou pour exercer vos droits : contact@jeutaime.app. À COMPLÉTER AVANT PUBLICATION : identité civile et adresse de contact du responsable du traitement ; coordonnées d’un délégué à la protection des données uniquement si un DPO est désigné.",
+      "Responsable du traitement : Warren Andrzejewski, éditeur de JeuTaime à titre personnel. Site officiel : https://jeutaime.app. Contact pour toute question relative aux données personnelles ou pour exercer vos droits : contact@jeutaime.app. À COMPLÉTER AVANT PUBLICATION : adresse de contact du responsable du traitement et, uniquement si un délégué à la protection des données est désigné, ses coordonnées.",
     ],
   },
   {
