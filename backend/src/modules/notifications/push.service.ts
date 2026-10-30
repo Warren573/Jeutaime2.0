@@ -67,13 +67,21 @@ export async function sendPushToUser(params: {
 }): Promise<void> {
   const settings = await prisma.userSettings.findUnique({
     where: { userId: params.userId },
-    select: { notifPush: true, soundEnabled: true },
+    select: { notifPush: true, soundEnabled: true, notifMeetings: true, notifLetters: true, notifSalons: true, notifActivities: true, notifNews: true },
   });
 
   // Le réglage est créé à l'inscription et vaut true par défaut. Si une
   // ancienne donnée n'a pas encore de ligne UserSettings, on conserve le
   // comportement historique (push autorisé) plutôt que de couper en silence.
   if (settings?.notifPush === false) return;
+  const type = params.data?.type;
+  const category = type === 'LETTER_RECEIVED' ? 'notifLetters'
+    : type === 'MATCH_CREATED' ? 'notifMeetings'
+    : type === 'PRIVATE_SALON_INVITE' || type === 'MAGIE_RECEIVED' || type === 'MAGIE_BROKEN' ? 'notifSalons'
+    : type === 'OFFERING_RECEIVED' ? 'notifActivities'
+    : type === 'DAILY_EDITION' ? 'notifNews'
+    : null;
+  if (category && settings?.[category] === false) return;
 
   const rows = await prisma.pushToken.findMany({
     where: { userId: params.userId },
@@ -180,13 +188,13 @@ export async function sendDailyEditionPush(params: {
       userId: true,
       user: {
         select: {
-          settings: { select: { notifPush: true, soundEnabled: true } },
+          settings: { select: { notifPush: true, soundEnabled: true, notifNews: true } },
         },
       },
     },
   });
 
-  const eligible = rows.filter((row) => row.user.settings?.notifPush !== false);
+  const eligible = rows.filter((row) => row.user.settings?.notifPush !== false && row.user.settings?.notifNews !== false);
   let sent = 0;
 
   for (const batch of chunk(eligible, 100)) {
