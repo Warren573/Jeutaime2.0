@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  useWindowDimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -52,6 +53,8 @@ function formatDate(iso: string | null): string {
 
 export default function PremiumScreen() {
   const router = useRouter();
+  const { height: screenHeight } = useWindowDimensions();
+  const compact = screenHeight < 920;
   const coins = useStore((s) => s.coins);
   const loadWallet = useStore((s) => s.loadWallet);
   const hydrateFromApi = useStore((s) => s.hydrateFromApi);
@@ -124,17 +127,17 @@ export default function PremiumScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, compact && styles.containerCompact]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <AppBackButton onPress={() => router.back()} style={styles.backBtn} />
+        <AppBackButton onPress={() => router.back()} style={[styles.backBtn, compact && styles.backBtnCompact]} />
 
         <Text style={styles.kicker}>ABONNEMENT</Text>
         <Text style={styles.title}>JeuTaime Plus</Text>
-        <Text style={styles.subtitle}>Plus de liberté pour faire des rencontres.</Text>
+        <Text style={[styles.subtitle, compact && styles.subtitleCompact]}>Plus de liberté pour faire des rencontres.</Text>
 
-        <View style={[styles.statusCard, isActive ? styles.statusCardActive : styles.statusCardFree]}>
+        <View style={[styles.statusCard, isActive ? styles.statusCardActive : styles.statusCardFree, compact && styles.statusCardCompact]}>
           {isActive ? (
             <>
               <Text style={styles.statusBadge}>Abonnement Plus actif</Text>
@@ -145,7 +148,7 @@ export default function PremiumScreen() {
           ) : (
             <>
               <Text style={styles.statusBadge}>Compte Gratuit</Text>
-              <Text style={styles.statusSub}>Découvre les avantages de Plus, sans modifier ton compte.</Text>
+              <Text style={[styles.statusSub, compact && styles.statusSubCompact]}>Découvre les avantages de Plus, sans modifier ton compte.</Text>
             </>
           )}
           <TouchableOpacity onPress={() => router.push('/coins')} activeOpacity={0.75}>
@@ -153,18 +156,18 @@ export default function PremiumScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>LES AVANTAGES</Text>
-        <View style={styles.advantagesCard}>
+        <Text style={[styles.sectionTitle, compact && styles.sectionTitleCompact]}>LES AVANTAGES</Text>
+        <View style={[styles.advantagesCard, compact && styles.advantagesCardCompact]}>
           {ADVANTAGES.map((a, i) => (
-            <View key={i} style={[styles.advantageRow, i < ADVANTAGES.length - 1 && styles.advantageRowBorder]}>
-              <View style={styles.advantageIconFrame}>{a.icon === "people-outline" ? <Image source={require("../assets/ui-icons/people.png")} style={styles.advantagePng} resizeMode="contain" /> : a.icon === "ban-outline" ? <Image source={require("../assets/ui-icons/stop-pub.png")} style={styles.advantagePng} resizeMode="contain" /> : a.icon === "bottle" ? <Image source={require("../assets/ui-icons/bottle.png")} style={styles.advantagePng} resizeMode="contain" /> : a.icon === "coins" ? <Image source={require("../assets/ui-icons/monthly.png")} style={styles.advantagePng} resizeMode="contain" /> : a.icon === "image-outline" ? <Image source={require("../assets/ui-icons/Image ChatGPT 15 oct. 2026, 11_34_26-1.png")} style={styles.advantagePng} resizeMode="contain" /> : a.icon === "gift-outline" ? <Image source={require("../assets/ui-icons/coin.png")} style={styles.advantagePng} resizeMode="contain" /> : <Ionicons name={a.icon as React.ComponentProps<typeof Ionicons>["name"]} size={24} color={APP_COLORS.burgundy} />}</View>
+            <View key={i} style={[styles.advantageRow, i < ADVANTAGES.length - 1 && styles.advantageRowBorder, compact && styles.advantageRowCompact]}>
+              <View style={[styles.advantageIconFrame, compact && styles.advantageIconFrameCompact]}>{a.icon === "people-outline" ? <Image source={require("../assets/ui-icons/people.png")} style={[styles.advantagePng, compact && styles.advantagePngCompact]} resizeMode="contain" /> : a.icon === "ban-outline" ? <Image source={require("../assets/ui-icons/stop-pub.png")} style={styles.advantagePng} resizeMode="contain" /> : a.icon === "bottle" ? <Image source={require("../assets/ui-icons/bottle.png")} style={styles.advantagePng} resizeMode="contain" /> : a.icon === "coins" ? <Image source={require("../assets/ui-icons/monthly.png")} style={styles.advantagePng} resizeMode="contain" /> : a.icon === "image-outline" ? <Image source={require("../assets/ui-icons/Image ChatGPT 15 oct. 2026, 11_34_26-1.png")} style={styles.advantagePng} resizeMode="contain" /> : a.icon === "gift-outline" ? <Image source={require("../assets/ui-icons/coin.png")} style={styles.advantagePng} resizeMode="contain" /> : <Ionicons name={a.icon as React.ComponentProps<typeof Ionicons>["name"]} size={24} color={APP_COLORS.burgundy} />}</View>
               <Text style={styles.advantageText}><Text style={styles.advantageLead}>{a.lead}</Text>{a.rest}</Text>
             </View>
           ))}
         </View>
 
         {!isActive && (
-          <View style={styles.planOffer}>
+          <View style={[styles.planOffer, compact && styles.planOfferCompact]}>
             <View style={styles.planOfferTop}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.offerLabel}>ABONNEMENT MENSUEL</Text>
@@ -172,8 +175,8 @@ export default function PremiumScreen() {
               </View>
               <View style={styles.coinsPill}><CoinIcon size={17}/><Text style={styles.offerHint}>500 pièces / mois</Text></View>
             </View>
-            <Text style={styles.offerNote}>Souscription bientôt disponible. Aucun paiement n'est effectué.</Text>
-            <TouchableOpacity style={styles.offerButton} onPress={() => router.push('/shop')}>
+            <Text style={[styles.offerNote, compact && styles.offerNoteCompact]}>Souscription bientôt disponible. Aucun paiement n'est effectué.</Text>
+            <TouchableOpacity style={[styles.offerButton, compact && styles.offerButtonCompact]} onPress={() => router.push('/shop')}>
               <Text style={styles.offerButtonText}>Retour à la boutique →</Text>
             </TouchableOpacity>
           </View>
@@ -199,6 +202,21 @@ export default function PremiumScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: APP_COLORS.background },
+  // Compact Android layouts: preserve readable text and every benefit.
+  // ScrollView remains available when device font scaling requires it.
+  containerCompact: { paddingTop: 7, paddingBottom: 16 },
+  backBtnCompact: { marginBottom: 4 },
+  subtitleCompact: { marginBottom: 9 },
+  statusCardCompact: { padding: 11, marginBottom: 9 },
+  statusSubCompact: { marginBottom: 5, lineHeight: 17 },
+  sectionTitleCompact: { marginBottom: 6 },
+  advantagesCardCompact: { marginBottom: 9 },
+  advantageRowCompact: { paddingVertical: 5, paddingHorizontal: 11, gap: 9 },
+  advantageIconFrameCompact: { width: 38, height: 38, borderRadius: 19 },
+  advantagePngCompact: { width: 27, height: 27 },
+  planOfferCompact: { padding: 10 },
+  offerNoteCompact: { marginTop: 5, lineHeight: 16 },
+  offerButtonCompact: { minHeight: 39, marginTop: 7 },
   loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
   container: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 50 },
   backBtn: { marginBottom: 22 },
