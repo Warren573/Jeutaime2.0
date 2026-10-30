@@ -29,5 +29,10 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Validate Expo configuration and required assets
+        run: |
+          test -f assets/icon.png
+          node -e "const c=require('./app.json').expo; if (!c.extra?.eas?.projectId || !c.updates?.url || c.orientation !== 'portrait') process.exit(1)"
+          npx expo config --type public --json > /tmp/jeutaime-expo-config.json
       - name: Request signed Android App Bundle from EAS
         run: eas build --platform android --profile production --non-interactive --wait
