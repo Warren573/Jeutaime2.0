@@ -29,7 +29,7 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { Avatar } from '../avatar/png/Avatar';
 import { AvatarConfig } from '../avatar/png/defaults';
@@ -170,6 +170,8 @@ const CATEGORIES: CategoryConfig[] = [
 // ─── Écran ────────────────────────────────────────────────────────────────────
 
 export function AvatarEditorScreen() {
+  const { onboarding } = useLocalSearchParams<{ onboarding?: string }>();
+  const isOnboarding = onboarding === '1';
   const { currentUser, avatarPngConfig, updateAvatarPngConfig, hydrateFromApi } = useStore();
 
   // Initialisation depuis le store (config sauvegardée ou DEFAULT_AVATAR)
@@ -195,14 +197,18 @@ export function AvatarEditorScreen() {
       await hydrateFromApi();
 
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      if (isOnboarding) {
+        router.replace('/setup-questions');
+      } else {
+        setTimeout(() => setSaved(false), 2000);
+      }
     } catch (error) {
       console.error('[AvatarEditorScreen] Error saving avatar:', error);
       setSaved(false);
     } finally {
       setIsSaving(false);
     }
-  }, [config, updateAvatarPngConfig, hydrateFromApi]);
+  }, [config, updateAvatarPngConfig, hydrateFromApi, isOnboarding]);
 
   const displayName = currentUser?.name ?? 'Mon avatar';
 
@@ -283,6 +289,16 @@ export function AvatarEditorScreen() {
             />
           ))}
 
+          {isOnboarding && (
+            <TouchableOpacity
+              style={styles.skipAvatarButton}
+              onPress={() => router.replace('/setup-questions')}
+              disabled={isSaving}
+            >
+              <Text style={styles.skipAvatarText}>Continuer avec l'avatar par défaut</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Espace bas (tab bar + keyboard) */}
           <View style={{ height: 72 }} />
         </ScrollView>
@@ -306,6 +322,8 @@ function SectionDivider({ label }: { label: string }) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  skipAvatarButton: { alignItems: 'center', paddingVertical: 20, paddingHorizontal: 16 },
+  skipAvatarText: { color: journal.accentPrimary, fontSize: 15, fontWeight: '600', textAlign: 'center' },
 
   safe: {
     flex: 1,
