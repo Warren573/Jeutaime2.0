@@ -58,7 +58,7 @@ export function computeProfileStatus(profile: MinimalProfile | null): ProfileSta
   const completionScore = Math.round((filledFields / totalFields) * 100);
 
   const canEnterSalon = hasBio && !coreMissing.includes("interestedIn");
-  const canDiscover = coreMissing.filter((f) => f !== "questions").length === 0;
+  const canDiscover = coreMissing.length === 0;
   const isComplete = canDiscover && bioWords >= 50 && hasQuestions;
   const canMatch = isComplete;
 
