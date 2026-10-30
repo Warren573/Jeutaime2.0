@@ -343,6 +343,24 @@ export default function BottleMainScreen() {
                   <Text style={styles.createBtnText}>Créer une nouvelle bouteille</Text>
                 </View>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.retrieveBottleBtn}
+                onPress={handleRefresh}
+                disabled={isRefreshing}
+                accessibilityRole="button"
+                accessibilityLabel="Récupérer une bouteille à la mer"
+              >
+                {isRefreshing ? (
+                  <ActivityIndicator size="small" color={COLORS.accent} />
+                ) : (
+                  <Text style={styles.retrieveBottleBtnText}>Récupérer une bouteille à la mer</Text>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.retrieveBottleHint}>
+                {getAvailableBottles().length === 0
+                  ? "Aucune bouteille compatible disponible pour le moment. Réessaie plus tard."
+                  : "Choisis une bouteille parmi celles disponibles."}
+              </Text>
             </View>
           </ScrollView>
         </View>
@@ -459,6 +477,9 @@ const styles = StyleSheet.create({
     shadowRadius: 9,
     elevation: 5,
   },
+  retrieveBottleBtn: { minHeight: 50, borderRadius: 16, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: '#FFF9F0', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12, marginTop: 12 },
+  retrieveBottleBtnText: { fontSize: 15, color: COLORS.accent, fontWeight: '700', textAlign: 'center' },
+  retrieveBottleHint: { fontSize: 12, color: COLORS.textSecondary, textAlign: 'center', marginTop: 10, lineHeight: 18 },
   createBtnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   createBtnIcon: { width: 24, height: 24, tintColor: '#FFF9EF' },
   createBtnText: { fontSize: 17, fontWeight: '700', color: '#FFF9EF', textAlign: 'center', fontFamily: 'Georgia' },
