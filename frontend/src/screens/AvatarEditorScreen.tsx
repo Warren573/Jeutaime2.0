@@ -174,7 +174,6 @@ export function AvatarEditorScreen() {
 
   // Initialisation depuis le store (config sauvegardée ou DEFAULT_AVATAR)
   const [config, setConfig] = useState<AvatarConfig>(() => avatarPngConfig);
-  const [bio, setBio]       = useState('');
   const [saved, setSaved]   = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -283,24 +282,6 @@ export function AvatarEditorScreen() {
               onSelect={(id) => handleSelect(cat.key, id)}
             />
           ))}
-
-          {/* ── Journal intime ────────────────────────────────────────────── */}
-          <SectionDivider label="Journal intime" />
-
-          <View style={styles.bioSection}>
-            <TextInput
-              style={styles.bioInput}
-              multiline
-              value={bio}
-              onChangeText={setBio}
-              placeholder="Écris quelque chose sur toi…"
-              placeholderTextColor={journal.textSecondary}
-              maxLength={300}
-              textAlignVertical="top"
-              scrollEnabled={false}
-            />
-            <Text style={styles.bioCounter}>{bio.length} / 300</Text>
-          </View>
 
           {/* Espace bas (tab bar + keyboard) */}
           <View style={{ height: 72 }} />
