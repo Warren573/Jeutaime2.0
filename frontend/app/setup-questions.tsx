@@ -2,6 +2,8 @@ import { useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
   View,
   Text,
   TextInput,
@@ -117,7 +119,13 @@ export default function SetupQuestionsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+      >
         <Text style={styles.title}>Tes 3 questions</Text>
         <Text style={styles.subtitle}>
           Écris tes 3 questions et 3 réponses par question. Coche la bonne réponse pour chacune.
@@ -144,13 +152,14 @@ export default function SetupQuestionsScreen() {
           {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Entrer dans l’univers</Text>}
         </Pressable>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#f6f1ea" },
-  container: { padding: 24, paddingBottom: 60 },
+  container: { padding: 24, paddingBottom: 180 },
   title: { fontSize: 32, fontWeight: "800", color: "#232126", marginBottom: 8, textAlign: "center" },
   subtitle: { fontSize: 15, color: "#7a746d", marginBottom: 20, textAlign: "center", lineHeight: 22 },
   card: { backgroundColor: "#fff", borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: "#d9cec3" },
