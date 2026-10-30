@@ -30,6 +30,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '../avatar/png/Avatar';
 import { AvatarConfig } from '../avatar/png/defaults';
@@ -172,6 +173,7 @@ const CATEGORIES: CategoryConfig[] = [
 export function AvatarEditorScreen() {
   const { onboarding } = useLocalSearchParams<{ onboarding?: string }>();
   const isOnboarding = onboarding === '1';
+  const insets = useSafeAreaInsets();
   const { currentUser, avatarPngConfig, updateAvatarPngConfig, hydrateFromApi } = useStore();
 
   // Initialisation depuis le store (config sauvegardée ou DEFAULT_AVATAR)
@@ -213,7 +215,7 @@ export function AvatarEditorScreen() {
   const displayName = currentUser?.name ?? 'Mon avatar';
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { paddingTop: insets.top }]}>
 
       {/* ══ Header ═══════════════════════════════════════════════════════════ */}
       <View style={styles.header}>
@@ -254,6 +256,7 @@ export function AvatarEditorScreen() {
       >
         <ScrollView
           style={styles.flex}
+          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 110 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -299,8 +302,7 @@ export function AvatarEditorScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Espace bas (tab bar + keyboard) */}
-          <View style={{ height: 72 }} />
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
