@@ -73,13 +73,14 @@ function QuestionBlock({
 
 export default function SetupQuestionsScreen() {
   const router = useRouter();
-  const { hydrateFromApi } = useStore();
+  const { hydrateFromApi, currentUser } = useStore();
 
-  const [questions, setQuestions] = useState<Question[]>([
-    EMPTY_QUESTION(),
-    EMPTY_QUESTION(),
-    EMPTY_QUESTION(),
-  ]);
+  const [questions, setQuestions] = useState<Question[]>(() => {
+    const existing = currentUser?.questions;
+    return Array.isArray(existing) && existing.length === 3
+      ? existing.map((q) => ({ ...q, options: [...q.options] as [string, string, string] }))
+      : [EMPTY_QUESTION(), EMPTY_QUESTION(), EMPTY_QUESTION()];
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const isReady = questions.every(
@@ -128,7 +129,7 @@ export default function SetupQuestionsScreen() {
       >
         <Text style={styles.title}>Tes 3 questions</Text>
         <Text style={styles.subtitle}>
-          Écris tes 3 questions et 3 réponses par question. Coche la bonne réponse pour chacune.
+          Écris tes 3 questions (5 caractères minimum) et 3 réponses par question. Coche la bonne réponse pour chacune.
         </Text>
 
         {questions.map((q, i) => (
@@ -149,7 +150,7 @@ export default function SetupQuestionsScreen() {
           onPress={handleSubmit}
           disabled={!isReady || isLoading}
         >
-          {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Entrer dans l’univers</Text>}
+          {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{isReady ? "Enregistrer les 3 questions" : "Complète les 3 questions"}</Text>}
         </Pressable>
       </ScrollView>
       </KeyboardAvoidingView>
