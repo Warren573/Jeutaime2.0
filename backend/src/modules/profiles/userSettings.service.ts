@@ -7,6 +7,11 @@ import { MatchStatus } from "@prisma/client";
 export interface UserSettingsPatch {
   notifEmail?: boolean;
   notifPush?: boolean;
+  notifMeetings?: boolean;
+  notifLetters?: boolean;
+  notifSalons?: boolean;
+  notifActivities?: boolean;
+  notifNews?: boolean;
   soundEnabled?: boolean;
   vibrationEnabled?: boolean;
   vacationMode?: boolean;
@@ -17,6 +22,11 @@ export interface UserSettingsPatch {
 const DEFAULTS = {
   notifEmail: true,
   notifPush: true,
+  notifMeetings: true,
+  notifLetters: true,
+  notifSalons: true,
+  notifActivities: true,
+  notifNews: true,
   soundEnabled: true,
   vibrationEnabled: true,
   vacationMode: false,
@@ -30,6 +40,11 @@ export async function getUserSettings(userId: string) {
     select: {
       notifEmail: true,
       notifPush: true,
+      notifMeetings: true,
+      notifLetters: true,
+      notifSalons: true,
+      notifActivities: true,
+      notifNews: true,
       soundEnabled: true,
       vibrationEnabled: true,
       vacationMode: true,
