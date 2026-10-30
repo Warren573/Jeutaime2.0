@@ -108,7 +108,7 @@ export default function CreateProfileScreen() {
       // If user already set up questions (editing flow), go back to app.
       // Otherwise continue to setup-questions (new onboarding).
       const hasQuestions = (currentUser?.apiQuestions?.length ?? 0) > 0;
-      router.replace(hasQuestions ? "/(tabs)" : "/setup-questions");
+      router.replace(hasQuestions ? "/(tabs)" : "/avatar-builder?onboarding=1");
     } catch (err: any) {
       Alert.alert("Erreur", err?.message || "Impossible de sauvegarder le profil");
     } finally {
