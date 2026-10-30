@@ -31,6 +31,8 @@ function getPlatform(): 'ios' | 'android' | 'web' {
  * Mirror of getNotificationTarget but for raw push data Record<string,string>.
  */
 function getRouteFromPushData(data: Record<string, string>): string | null {
+  // Server-authored navigation for the daily edition (never accept arbitrary routes).
+  if (data['route'] === '/journal') return '/journal';
   const type = data['type'];
   if (!type) return null;
 
@@ -41,6 +43,8 @@ function getRouteFromPushData(data: Record<string, string>): string | null {
     case 'OFFERING_RECEIVED':
     case 'MAGIE_RECEIVED':
       return data['salonId'] ? `/salon/${data['salonId']}` : null;
+    case 'DAILY_EDITION':
+      return '/journal';
     case 'PREMIUM_SUBSCRIBED':
     case 'PREMIUM_CANCELLED':
       return '/premium';
@@ -118,7 +122,7 @@ export function usePushNotifications() {
       }
     }
 
-    setup();
+    void setup();
 
     // Foreground: refresh unread count when a notification arrives
     receivedListenerRef.current = Notifications.addNotificationReceivedListener(() => {
@@ -146,5 +150,5 @@ export function usePushNotifications() {
       receivedListenerRef.current = null;
       responseListenerRef.current = null;
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadUnreadCount, router]);
 }
