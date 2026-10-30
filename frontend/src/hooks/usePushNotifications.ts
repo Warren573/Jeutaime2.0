@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { registerDevice } from '../api/notifications';
 import { useStore } from '../store/useStore';
@@ -68,6 +69,17 @@ export function usePushNotifications() {
           foregroundVibrationEnabled = preferences.vibrationEnabled;
           if (!preferences.notifPush) return;
         }
+        // Android notification channels must exist before obtaining permission/token.
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'JeuTaime',
+            importance: Notifications.AndroidImportance.MAX,
+            sound: foregroundSoundEnabled ? 'default' : null,
+            vibrationPattern: foregroundVibrationEnabled ? [0, 250, 250, 250] : null,
+            lightColor: '#FF231F7C',
+          });
+        }
+
         const { status: existing } = await Notifications.getPermissionsAsync();
         let finalStatus = existing;
 
@@ -81,18 +93,12 @@ export function usePushNotifications() {
           return;
         }
 
-        // On Android, a channel is required
-        if (Platform.OS === 'android') {
-          await Notifications.setNotificationChannelAsync('default', {
-            name: 'JeuTaime',
-            importance: Notifications.AndroidImportance.MAX,
-            sound: foregroundSoundEnabled ? 'default' : null,
-            vibrationPattern: foregroundVibrationEnabled ? [0, 250, 250, 250] : null,
-            lightColor: '#FF231F7C',
-          });
+        const projectId = Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId;
+        if (!projectId) {
+          console.warn('[push] EAS project ID missing; cannot register a push token');
+          return;
         }
-
-        const tokenData = await Notifications.getExpoPushTokenAsync();
+        const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
         if (cancelled) return;
 
         const token = tokenData.data;
