@@ -62,7 +62,10 @@ export default function RootLayout() {
       pathname,
     });
     if (PROFILE_GATE_EXCLUDED.some((p) => pathname.startsWith(p))) return;
-    router.replace('/create-profile');
+    const missing = currentUser?.profileMissingFields ?? [];
+    const coreProfileFields = ['bio', 'interestedIn', 'lookingFor', 'physicalDesc'];
+    const needsCoreProfile = coreProfileFields.some((field) => missing.includes(field));
+    router.replace(needsCoreProfile ? '/create-profile' : '/setup-questions');
   }, [isHydrated, isAuthenticated, canDiscover, pathname, currentUser, router]);
 
   useNotificationPolling();
