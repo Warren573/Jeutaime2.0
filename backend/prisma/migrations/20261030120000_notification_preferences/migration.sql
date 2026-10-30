@@ -1,0 +1,5 @@
+ALTER TABLE "UserSettings" ADD COLUMN "notifMeetings" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "UserSettings" ADD COLUMN "notifLetters" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "UserSettings" ADD COLUMN "notifSalons" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "UserSettings" ADD COLUMN "notifActivities" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "UserSettings" ADD COLUMN "notifNews" BOOLEAN NOT NULL DEFAULT true;
