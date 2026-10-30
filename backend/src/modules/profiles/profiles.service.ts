@@ -190,7 +190,17 @@ export async function discoverProfiles(viewerId: string, query: DiscoveryQuery) 
     birthDateFilter = { ...birthDateFilter, gte: minBirth };
   }
 
+  // Only show profiles with all three validation questions completed.
+  // Discovery filtering must enforce this on the server, not only in UI routing.
+  const eligibleQuestions = await prisma.profileQuestion.groupBy({
+    by: ['profileId'],
+    _count: { _all: true },
+    having: { id: { _count: { gte: 3 } } },
+  });
+  const eligibleProfileIds = eligibleQuestions.map((q) => q.profileId);
+
   const where = {
+    id: { in: eligibleProfileIds },
     userId: { notIn: excludeIds },
     user: {
       isBanned: false,
