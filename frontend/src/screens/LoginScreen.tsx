@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Pressable,
   SafeAreaView,
@@ -20,6 +21,17 @@ export default function LoginScreen() {
   const router = useRouter();
   const { login: storeLogin } = useStore();
 
+  const scrollRef = useRef<ScrollView>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => {
+      setKeyboardVisible(true);
+      if (passwordFocusedRef.current) scrollRef.current?.scrollToEnd({ animated: true });
+    });
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  const passwordFocusedRef = useRef(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailFocused, setEmailFocused] = useState(false);
@@ -88,7 +100,12 @@ export default function LoginScreen() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <ScrollView
+          ref={scrollRef}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={[styles.scrollContainer, keyboardVisible && styles.scrollContainerKeyboard]}
+        >
           <View style={styles.container}>
             <View style={styles.card}>
               <Text style={styles.brand}>JEUTAIME</Text>
@@ -122,8 +139,15 @@ export default function LoginScreen() {
                     placeholder="••••••••"
                     placeholderTextColor="#9a948d"
                     style={[styles.input, passwordFocused && styles.inputFocused]}
-                    onFocus={() => setPasswordFocused(true)}
-                    onBlur={() => setPasswordFocused(false)}
+                    onFocus={() => {
+                      passwordFocusedRef.current = true;
+                      setPasswordFocused(true);
+                      scrollRef.current?.scrollToEnd({ animated: true });
+                    }}
+                    onBlur={() => {
+                      passwordFocusedRef.current = false;
+                      setPasswordFocused(false);
+                    }}
                   />
                 </View>
 
@@ -164,6 +188,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
     paddingVertical: 24,
+  },
+  scrollContainerKeyboard: {
+    justifyContent: "flex-start",
+    paddingBottom: 140,
   },
   container: {
     alignItems: "center",
