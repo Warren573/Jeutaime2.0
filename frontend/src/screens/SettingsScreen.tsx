@@ -222,6 +222,7 @@ export default function SettingsScreen() {
       items: [
         { icon: 'mail-outline', label: 'E-mail', route: '/email' },
         { icon: 'key-outline', label: 'Mot de passe', route: '/password' },
+        { icon: 'log-out-outline', label: 'Se déconnecter', action: handleLogout, danger: true },
         { icon: 'diamond-outline', label: 'Abonnement', route: '/premium' },
         { icon: 'pause-circle-outline', label: 'Désactiver temporairement mon compte', route: '/deactivate' },
       ],
@@ -278,7 +279,7 @@ export default function SettingsScreen() {
             ? {
                 ...section,
                 items: section.items.filter((item) =>
-                  ['E-mail', 'Mot de passe'].includes(item.label)
+                  ['E-mail', 'Mot de passe', 'Se déconnecter'].includes(item.label)
                 ),
               }
             : section
@@ -354,17 +355,7 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <TouchableOpacity
-          style={styles.logoutRow}
-          onPress={handleLogout}
-          activeOpacity={0.7}
-        >
-          <View style={styles.bottomIconBox}>
-            <Ionicons name="log-out-outline" size={19} color="#D6453A" />
-          </View>
-          <Text style={styles.logoutText}>Se déconnecter</Text>
-          <Text style={styles.bottomArrow}>›</Text>
-        </TouchableOpacity>
+
 
 
       </ScrollView>
@@ -374,7 +365,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 44 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 120, flexGrow: 1 },
 
   shopCard: {
     flexDirection: 'row',
