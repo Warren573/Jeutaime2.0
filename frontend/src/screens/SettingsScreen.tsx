@@ -222,9 +222,10 @@ export default function SettingsScreen() {
       items: [
         { icon: 'mail-outline', label: 'E-mail', route: '/email' },
         { icon: 'key-outline', label: 'Mot de passe', route: '/password' },
-        { icon: 'log-out-outline', label: 'Se déconnecter', action: handleLogout, danger: true },
         { icon: 'diamond-outline', label: 'Abonnement', route: '/premium' },
         { icon: 'pause-circle-outline', label: 'Désactiver temporairement mon compte', route: '/deactivate' },
+        { icon: 'trash-outline', label: 'Supprimer mon compte', route: '/delete-account', danger: true },
+        { icon: 'log-out-outline', label: 'Se déconnecter', action: handleLogout, danger: true },
       ],
     },
     {
@@ -241,12 +242,6 @@ export default function SettingsScreen() {
         { icon: 'eye-outline', label: 'Visibilité du profil et partage de la ville', route: '/privacy' },
         { icon: 'ban-outline', label: 'Utilisateurs bloqués', route: '/blocked-users' },
         { icon: 'folder-open-outline', label: 'Données personnelles', route: '/personal-data' },
-        {
-          icon: 'trash-outline',
-          label: 'Supprimer mon compte',
-          route: '/delete-account',
-          danger: true,
-        },
       ],
     },
     {
@@ -279,7 +274,7 @@ export default function SettingsScreen() {
             ? {
                 ...section,
                 items: section.items.filter((item) =>
-                  ['E-mail', 'Mot de passe', 'Se déconnecter'].includes(item.label)
+                  ['E-mail', 'Mot de passe', 'Supprimer mon compte', 'Se déconnecter'].includes(item.label)
                 ),
               }
             : section
