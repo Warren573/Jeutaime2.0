@@ -76,7 +76,7 @@ export default function CreateProfileScreen() {
 
   const bioWords = countWords(bio);
   const isValid =
-    bio.trim().length > 0 &&
+    bioWords >= 50 &&
     interestedIn.length > 0 &&
     lookingFor.length > 0 &&
     physicalDesc !== null;
