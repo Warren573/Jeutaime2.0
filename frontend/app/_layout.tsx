@@ -15,7 +15,7 @@ if (__DEV__) {
 }
 
 const AUTH_EXCLUDED: string[] = ['/login','/register','/create-profile','/setup-questions','/test-mode','/terms','/privacy-policy','/game-rules','/legal-notice','/delete-account-request'];
-const PROFILE_GATE_EXCLUDED: string[] = ['/create-profile','/setup-questions','/login','/register','/test-mode','/delete-account-request'];
+const PROFILE_GATE_EXCLUDED: string[] = ['/create-profile','/setup-questions','/avatar-builder','/login','/register','/test-mode','/delete-account-request'];
 
 export default function RootLayout() {
   const { hydrateFromApi } = useStore();
@@ -31,7 +31,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     ScreenOrientation.lockAsync(
-      isSalon ? ScreenOrientation.OrientationLock.ALL : ScreenOrientation.OrientationLock.PORTRAIT_UP
+      ScreenOrientation.OrientationLock.PORTRAIT_UP
     ).catch((error) => console.warn('[orientation-lock]', error));
   }, [isSalon]);
 
@@ -95,7 +95,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ orientation: 'portrait_up' }} />
-        <Stack.Screen name="salon/[id]" options={{ orientation: 'all', contentStyle: undefined }} />
+        <Stack.Screen name="salon/[id]" options={{ orientation: 'portrait_up', contentStyle: undefined }} />
         <Stack.Screen name="salon/cafe-paris" options={{ orientation: 'all', contentStyle: undefined }} />
       </Stack>
       <TestModeLink />
