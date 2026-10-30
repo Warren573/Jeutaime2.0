@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image, Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getCurrentBottle, getInbox, acceptBottle } from '../api/bottles';
@@ -67,6 +67,8 @@ export default function BottleMainScreen() {
   }, []);
 
   const router = useRouter();
+  const { height: screenHeight } = useWindowDimensions();
+  const [showRetrieve, setShowRetrieve] = useState(false);
   const insets = useSafeAreaInsets();
   const currentUser = useStore((s) => s.currentUser);
   const [state, setState] = useState<GetCurrentBottleResponse | null>(null);
@@ -143,7 +145,7 @@ export default function BottleMainScreen() {
 
   if (isLoading) return <View style={[styles.bg, styles.center, { backgroundColor: CREAM_BG, paddingTop: insets.top }]}><ActivityIndicator size="large" color={COLORS.accent} /></View>;
 
-  if (displayState?.type === 'received') {
+  if (displayState?.type === 'received' || showRetrieve) {
     const availableBottles = [...getAvailableBottles()].sort(() => Math.random() - 0.5).slice(0, 10);
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
@@ -155,12 +157,14 @@ export default function BottleMainScreen() {
               <Text style={styles.selectionTitle}>Choisissez une bouteille</Text>
               <Text style={styles.selectionSubtitle}>Découvrez des messages anonymes</Text>
             </View>
-            <View style={styles.bottlesContainer}>
+            {availableBottles.length === 0 ? (
+              <View style={styles.emptyBottles}><Image source={OCEAN_BG} style={StyleSheet.absoluteFill} resizeMode="cover" /><View style={styles.emptyBottlesOverlay}><Text style={styles.emptyBottlesTitle}>Aucune bouteille à récupérer pour le moment</Text><Text style={styles.emptyBottlesText}>Les bouteilles proposées dépendent des critères de rencontre et des disponibilités.</Text><TouchableOpacity style={styles.emptyRefreshBtn} onPress={handleRefresh} disabled={isRefreshing}><Text style={styles.emptyRefreshText}>{isRefreshing ? 'Recherche en cours…' : 'Actualiser les bouteilles'}</Text></TouchableOpacity></View></View>
+            ) : <View style={styles.bottlesContainer}>
               <Image source={OCEAN_BG} style={StyleSheet.absoluteFill} resizeMode="cover" />
               {availableBottles.map((bottle, index) => (
                 <BottleItem key={bottle.id} id={bottle.id} index={index} position={bottlePositions[index % bottlePositions.length]} onPress={() => handleBottleClick(bottle.id)} isAccepting={isAccepting} />
               ))}
-            </View>
+            </View>}
             <View style={styles.paddedSection}>
               {state?.canCreateBottle && <TouchableOpacity style={styles.createAlternativeBtn} onPress={() => router.push('/bottles-create')}><Text style={styles.createAlternativeBtnText}>Ou créer une nouvelle bouteille</Text></TouchableOpacity>}
             </View>
@@ -316,10 +320,10 @@ export default function BottleMainScreen() {
           <BottleHeader title="Bouteille à la mer" onBack={() => router.back()} />
           <ScrollView
             style={styles.scroll}
-            contentContainerStyle={[styles.createContent, { paddingBottom: insets.bottom + 100 }]}
+            contentContainerStyle={[styles.createContent, { paddingBottom: insets.bottom + 14, flexGrow: 1 }]}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.createHero}>
+            <View style={[styles.createHero, { height: Math.max(180, Math.min(390, screenHeight * 0.40)) }]}>
               <Image
                 source={SEA_BG}
                 style={styles.createHeroImage}
@@ -345,16 +349,11 @@ export default function BottleMainScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.retrieveBottleBtn}
-                onPress={handleRefresh}
-                disabled={isRefreshing}
+                onPress={() => setShowRetrieve(true)}
                 accessibilityRole="button"
                 accessibilityLabel="Récupérer une bouteille à la mer"
               >
-                {isRefreshing ? (
-                  <ActivityIndicator size="small" color={COLORS.accent} />
-                ) : (
-                  <Text style={styles.retrieveBottleBtnText}>Récupérer une bouteille à la mer</Text>
-                )}
+                <Text style={styles.retrieveBottleBtnText}>Récupérer une bouteille à la mer</Text>
               </TouchableOpacity>
               <Text style={styles.retrieveBottleHint}>
                 {getAvailableBottles().length === 0
@@ -429,9 +428,9 @@ const styles = StyleSheet.create({
   },
   createPaperPanel: {
     marginTop: -22,
-    paddingTop: 34,
+    paddingTop: 17,
     paddingHorizontal: 24,
-    paddingBottom: 34,
+    paddingBottom: 14,
     backgroundColor: '#F8F0DF',
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
@@ -470,16 +469,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 16,
     backgroundColor: COLORS.accent,
-    marginTop: 26,
+    marginTop: 14,
     shadowColor: '#5A3A1A',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22,
     shadowRadius: 9,
     elevation: 5,
   },
-  retrieveBottleBtn: { minHeight: 50, borderRadius: 16, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: '#FFF9F0', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12, marginTop: 12 },
+  retrieveBottleBtn: { minHeight: 44, borderRadius: 16, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: '#FFF9F0', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12, marginTop: 8 },
   retrieveBottleBtnText: { fontSize: 15, color: COLORS.accent, fontWeight: '700', textAlign: 'center' },
-  retrieveBottleHint: { fontSize: 12, color: COLORS.textSecondary, textAlign: 'center', marginTop: 10, lineHeight: 18 },
+  retrieveBottleHint: { fontSize: 12, color: COLORS.textSecondary, textAlign: 'center', marginTop: 5, lineHeight: 16 },
+  emptyBottles: { marginHorizontal: 16, height: 340, borderRadius: 18, overflow: 'hidden', justifyContent: 'center' },
+  emptyBottlesOverlay: { margin: 18, padding: 18, borderRadius: 15, backgroundColor: 'rgba(254,250,240,0.94)', alignItems: 'center' },
+  emptyBottlesTitle: { color: COLORS.text, fontSize: 17, fontWeight: '800', textAlign: 'center' },
+  emptyBottlesText: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 8 },
+  emptyRefreshBtn: { borderColor: COLORS.accent, borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 16 },
+  emptyRefreshText: { color: COLORS.accent, fontWeight: '700' },
   createBtnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   createBtnIcon: { width: 24, height: 24, tintColor: '#FFF9EF' },
   createBtnText: { fontSize: 17, fontWeight: '700', color: '#FFF9EF', textAlign: 'center', fontFamily: 'Georgia' },
