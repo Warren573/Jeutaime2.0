@@ -81,7 +81,7 @@ export default function SetupQuestionsScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const isReady = questions.every(
-    (q) => q.text.trim().length > 0 && q.options.every((o) => o.trim().length > 0)
+    (q) => q.text.trim().length >= 5 && q.options.every((o) => o.trim().length > 0)
   );
 
   const handleSubmit = async () => {
