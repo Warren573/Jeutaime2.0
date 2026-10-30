@@ -54,6 +54,11 @@ export async function handleUpdateSettings(req: AuthedRequest, res: Response) {
   const allowedKeys: Array<keyof UserSettingsPatch> = [
     "notifEmail",
     "notifPush",
+    "notifMeetings",
+    "notifLetters",
+    "notifSalons",
+    "notifActivities",
+    "notifNews",
     "soundEnabled",
     "vibrationEnabled",
     "vacationMode",
