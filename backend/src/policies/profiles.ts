@@ -34,7 +34,7 @@ export function computeProfileStatus(profile: MinimalProfile | null): ProfileSta
   const bioWords = profile.bio
     ? profile.bio.trim().split(/\s+/).filter(Boolean).length
     : 0;
-  const hasBio = bioWords > 0;
+  const hasBio = bioWords >= 50;
 
   const questionsCount = Array.isArray(profile.questions) ? profile.questions.length : 0;
   const hasQuestions = questionsCount >= 3;
