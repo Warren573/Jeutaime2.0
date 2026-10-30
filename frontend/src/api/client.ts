@@ -11,6 +11,7 @@ const REFRESH_TOKEN_KEY = "auth_refresh_token";
 // Cold-start Render Free peut prendre jusqu'à 60s.
 // GET requests retried 3x; POST/PATCH/DELETE/PUT tried once only (not idempotent).
 const TIMEOUT_MS     = 15_000;
+const WRITE_TIMEOUT_MS = 60_000; // Cold start Render can exceed 15s during profile/question saves.
 const MAX_RETRIES    = 3;
 const RETRY_DELAY_MS = 2_000;
 
@@ -81,9 +82,10 @@ async function doFetch(
 ): Promise<Response> {
   const headers = await buildHeaders(token);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const fullUrl = `${API_URL}${path}`;
   const method = (options?.method ?? "GET").toUpperCase();
+  const requestTimeout = method === "GET" || method === "HEAD" ? TIMEOUT_MS : WRITE_TIMEOUT_MS;
+  const timer = setTimeout(() => controller.abort(), requestTimeout);
+  const fullUrl = `${API_URL}${path}`;
 
   if (DEV_HTTP_LOGS) console.log('[HTTP]', method, path);
 
@@ -98,7 +100,7 @@ async function doFetch(
       console.warn('[HTTP] network error', { method, path, error: err instanceof Error ? err.message : String(err) });
     }
     if (isAbortError(err)) {
-      throw new TypeError(`Délai dépassé (${TIMEOUT_MS / 1000}s) — le serveur ne répond pas.`);
+      throw new TypeError(`Délai dépassé (${requestTimeout / 1000}s) — le serveur ne répond pas.`);
     }
     if (err instanceof TypeError && err.message.includes('fetch')) {
       throw new TypeError('Erreur réseau : impossible de joindre le serveur. Vérifie ta connexion.');
