@@ -28,6 +28,7 @@ export default function RootLayout() {
   const responsive = getResponsiveScale(width, height);
   const [isHydrated, setIsHydrated] = useState(false);
   const isSalon = pathname.startsWith('/salon/');
+  const isSettings = pathname === '/settings' || pathname.endsWith('/settings');
 
   useEffect(() => {
     ScreenOrientation.lockAsync(
@@ -74,7 +75,7 @@ export default function RootLayout() {
   // Sur Safari mobile, les barres du navigateur réduisent la hauteur du viewport.
   // Ne pas réduire toute l'application web : elle doit remplir l'espace disponible.
   // Garder la mise à l'échelle d'origine sur iOS et Android natifs.
-  const proportionalContentStyle = isSalon
+  const proportionalContentStyle = isSalon || isSettings
     ? undefined
     : Platform.OS === 'web'
     ? { width: '100%' as const, height: '100%' as const }
