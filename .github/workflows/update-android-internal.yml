@@ -26,4 +26,4 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Publish JS and assets to internal-test only
-        run: eas update --branch internal-test --message "Manual internal QA update" --non-interactive
+        run: eas update --platform android --branch internal-test --message "Manual internal QA update" --non-interactive
