@@ -224,8 +224,8 @@ export default function SettingsScreen() {
         { icon: 'key-outline', label: 'Mot de passe', route: '/password' },
         { icon: 'diamond-outline', label: 'Abonnement', route: '/premium' },
         { icon: 'pause-circle-outline', label: 'Désactiver temporairement mon compte', route: '/deactivate' },
-        { icon: 'trash-outline', label: 'Supprimer mon compte', route: '/delete-account', danger: true },
         { icon: 'log-out-outline', label: 'Se déconnecter', action: handleLogout, danger: true },
+        { icon: 'trash-outline', label: 'Supprimer mon compte', route: '/delete-account', danger: true },
       ],
     },
     {
