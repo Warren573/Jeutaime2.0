@@ -18,7 +18,8 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFF8E7"
       },
-      "package": "com.jeutaime.app"
+      "package": "com.jeutaime.app",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "bundler": "metro",
@@ -52,6 +53,12 @@
       "eas": {
         "projectId": "25b25181-2540-415f-af9f-7d0d37550d4b"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/25b25181-2540-415f-af9f-7d0d37550d4b"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }
