@@ -31,6 +31,7 @@ export default function RootLayout() {
   const isSettings = pathname === '/settings' || pathname.endsWith('/settings');
   const isAvatarEditor = pathname === '/avatar-builder' || pathname.endsWith('/avatar-builder');
   const isPremium = pathname === '/premium' || pathname.endsWith('/premium');
+  const isShop = pathname === '/shop' || pathname.endsWith('/shop');
 
   useEffect(() => {
     ScreenOrientation.lockAsync(
@@ -77,7 +78,7 @@ export default function RootLayout() {
   // Sur Safari mobile, les barres du navigateur réduisent la hauteur du viewport.
   // Ne pas réduire toute l'application web : elle doit remplir l'espace disponible.
   // Garder la mise à l'échelle d'origine sur iOS et Android natifs.
-  const proportionalContentStyle = isSalon || isSettings || isAvatarEditor || isPremium
+  const proportionalContentStyle = isSalon || isSettings || isAvatarEditor || isPremium || isShop
     ? undefined
     : Platform.OS === 'web'
     ? { width: '100%' as const, height: '100%' as const }
