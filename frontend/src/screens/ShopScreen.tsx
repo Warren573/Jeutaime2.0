@@ -26,7 +26,7 @@ export default function ShopScreen() {
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <AppBackButton onPress={() => router.back()} />
-        <Text style={styles.headerTitle}>Boutique</Text>
+        <View pointerEvents="none" style={styles.centeredHeaderTitle}><Text style={styles.headerTitle}>Boutique</Text></View>
         <View style={{ width: 62 }} />
       </View>
       <ScrollView contentContainerStyle={[styles.scroll, compact && styles.scrollCompact, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]} showsVerticalScrollIndicator={false}>
@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
   giftRowCompact: { padding: 11 },
   footerCompact: { marginTop: 7, lineHeight: 15 },
   header: { backgroundColor: C.paper, borderBottomWidth: 1, borderBottomColor: C.border, paddingHorizontal: 18, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  centeredHeaderTitle: { position: 'absolute', left: 0, right: 0, bottom: 12, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: C.ink },
   scroll: { paddingHorizontal: 18, paddingTop: 18 },
   wallet: { backgroundColor: C.paper, borderRadius: 16, paddingHorizontal: 18, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: C.border },
