@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
@@ -15,6 +15,8 @@ const PACKS = [
 
 export default function ShopScreen() {
   const router = useRouter();
+  const { height } = useWindowDimensions();
+  const compact = height < 940;
   const insets = useSafeAreaInsets();
   const coins = useStore(s => s.coins);
   const loadWallet = useStore(s => s.loadWallet);
@@ -27,8 +29,8 @@ export default function ShopScreen() {
         <Text style={styles.headerTitle}>Boutique</Text>
         <View style={{ width: 62 }} />
       </View>
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 36 }]} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.wallet} onPress={() => router.push('/coins')} activeOpacity={0.8}>
+      <ScrollView contentContainerStyle={[styles.scroll, compact && styles.scrollCompact, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity style={[styles.wallet, compact && styles.walletCompact]} onPress={() => router.push('/coins')} activeOpacity={0.8}>
           <View>
             <Text style={styles.eyebrow}>MON PORTEFEUILLE</Text>
             <Text style={styles.walletLabel}>Solde disponible</Text>
@@ -36,8 +38,8 @@ export default function ShopScreen() {
           <View style={styles.walletRight}><CoinIcon size={25}/><Text style={styles.walletAmount}>{coins ?? 0}</Text><Text style={styles.arrow}>›</Text></View>
         </TouchableOpacity>
 
-        <Text style={styles.section}>ABONNEMENT</Text>
-        <TouchableOpacity style={styles.plus} activeOpacity={0.85} onPress={() => router.push('/premium')}>
+        <Text style={[styles.section, compact && styles.sectionCompact]}>ABONNEMENT</Text>
+        <TouchableOpacity style={[styles.plus, compact && styles.plusCompact]} activeOpacity={0.85} onPress={() => router.push('/premium')}>
           <View style={styles.plusTop}>
             <View style={{ flex: 1 }}>
               <Text style={styles.plusKicker}>JEUTAIME PLUS</Text>
@@ -46,13 +48,13 @@ export default function ShopScreen() {
             <Text style={styles.plusArrow}>›</Text>
           </View>
           <Text style={styles.plusDetails}>10 correspondances · 5 bouteilles · photos visibles</Text>
-          <View style={styles.plusBottom}><Text style={styles.plusLink}>Découvrir les avantages</Text><Text style={styles.plusLink}>→</Text></View>
+          <View style={[styles.plusBottom, compact && styles.plusBottomCompact]}><Text style={styles.plusLink}>Découvrir les avantages</Text><Text style={styles.plusLink}>→</Text></View>
         </TouchableOpacity>
 
-        <View style={styles.sectionHeading}><Text style={styles.section}>PACKS DE PIÈCES</Text><Text style={styles.muted}>Bientôt disponibles</Text></View>
+        <View style={styles.sectionHeading}><Text style={[styles.section, compact && styles.sectionCompact]}>PACKS DE PIÈCES</Text><Text style={styles.muted}>Bientôt disponibles</Text></View>
         <View style={styles.packs}>
           {PACKS.map(pack => (
-            <View key={pack.amount} style={styles.pack}>
+            <View key={pack.amount} style={[styles.pack, compact && styles.packCompact]}>
               <CoinIcon size={22}/>
               <Text style={styles.packAmount}>{pack.amount}</Text>
               <Text style={styles.packCoins}>pièces</Text>
@@ -60,17 +62,17 @@ export default function ShopScreen() {
             </View>
           ))}
         </View>
-        <Text style={styles.notice}>Les paiements ne sont pas encore activés. Aucun achat ne sera débité.</Text>
+        <Text style={[styles.notice, compact && styles.noticeCompact]}>Les paiements ne sont pas encore activés. Aucun achat ne sera débité.</Text>
 
-        <Text style={styles.section}>OFFRANDES</Text>
-        <TouchableOpacity style={styles.giftRow} onPress={() => router.push('/(tabs)/letters')} activeOpacity={0.8}>
+        <Text style={[styles.section, compact && styles.sectionCompact]}>OFFRANDES</Text>
+        <TouchableOpacity style={[styles.giftRow, compact && styles.giftRowCompact]} onPress={() => router.push('/(tabs)/letters')} activeOpacity={0.8}>
           <View style={{ flex: 1 }}>
             <Text style={styles.giftTitle}>Faire un cadeau</Text>
             <Text style={styles.giftText}>Retrouve tes correspondants pour leur envoyer une offrande personnelle.</Text>
           </View>
           <Text style={styles.arrow}>›</Text>
         </TouchableOpacity>
-        <Text style={styles.footer}>Les boissons et les magies sont disponibles directement dans les salons.</Text>
+        <Text style={[styles.footer, compact && styles.footerCompact]}>Les boissons et les magies sont disponibles directement dans les salons.</Text>
       </ScrollView>
     </View>
   );
@@ -78,6 +80,17 @@ export default function ShopScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.background },
+  // Aim for one full page on conventional phones; keep scrolling as an
+  // accessibility fallback for smaller screens or increased system font sizes.
+  scrollCompact: { paddingTop: 11, flexGrow: 1, justifyContent: 'center' },
+  walletCompact: { paddingVertical: 9 },
+  sectionCompact: { marginTop: 13, marginBottom: 7 },
+  plusCompact: { padding: 14 },
+  plusBottomCompact: { marginTop: 9, paddingTop: 8 },
+  packCompact: { paddingVertical: 9 },
+  noticeCompact: { marginTop: 6, lineHeight: 15 },
+  giftRowCompact: { padding: 11 },
+  footerCompact: { marginTop: 7, lineHeight: 15 },
   header: { backgroundColor: C.paper, borderBottomWidth: 1, borderBottomColor: C.border, paddingHorizontal: 18, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: C.ink },
   scroll: { paddingHorizontal: 18, paddingTop: 18 },
