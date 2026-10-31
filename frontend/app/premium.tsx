@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: APP_COLORS.background },
   // Compact Android layouts: preserve readable text and every benefit.
   // ScrollView remains available when device font scaling requires it.
-  containerCompact: { paddingTop: 7, paddingBottom: 16 },
+  containerCompact: { paddingTop: 8, paddingBottom: 20, flexGrow: 1, justifyContent: 'center' },
   backBtnCompact: { marginBottom: 4 },
   subtitleCompact: { marginBottom: 9 },
   statusCardCompact: { padding: 11, marginBottom: 9 },
