@@ -3,6 +3,11 @@ import { apiFetch } from './client';
 export interface UserSettingsDTO {
   notifEmail: boolean;
   notifPush: boolean;
+  notifMeetings: boolean;
+  notifLetters: boolean;
+  notifSalons: boolean;
+  notifActivities: boolean;
+  notifNews: boolean;
   soundEnabled: boolean;
   vibrationEnabled: boolean;
   vacationMode: boolean;
