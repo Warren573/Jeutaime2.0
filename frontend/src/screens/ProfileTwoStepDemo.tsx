@@ -188,14 +188,17 @@ export default function ProfileTwoStepDemo() {
           .map(({ match, otherUserId }) => {
             const partner = matchPartners[otherUserId];
             return {
+              id: otherUserId,
               userId: otherUserId,
+              interests: partner?.interests ?? [],
+              interestedIn: [],
               pseudo: partner?.pseudo ?? "Anonyme",
-              birthDate: partner?.birthDate ? String(partner.birthDate) : undefined,
+              birthDate: partner?.birthDate ? String(partner.birthDate) : null,
               gender: "AUTRE" as const,
               city: partner?.city ?? "",
               bio: partner?.bio ?? "",
-              physicalDesc: partner?.physicalDesc,
-              avatarConfig: partner?.avatarConfig,
+              physicalDesc: partner?.physicalDesc ?? null,
+              avatarConfig: partner?.avatarConfig ?? null,
               verified: false,
               photoUri: undefined,
               visibility: "avatar" as const,
