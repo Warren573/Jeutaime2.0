@@ -58,6 +58,14 @@ router.get(
 );
 
 router.post(
+  "/:id/claim-reply",
+  validate(PostBottleMessageBodySchema),
+  wrap(async (req, res) => {
+    await controller.claimReply(req as AuthedRequest, res);
+  }),
+);
+
+router.post(
   "/:id/accept",
   validate(AcceptBottleBodySchema),
   wrap(async (req, res) => {
