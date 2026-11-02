@@ -88,62 +88,12 @@ router.get(
   }),
 );
 
-// Continue the same bottle conversation after profile reveal.
-// ACCEPTED uses the original service. REVEALED keeps turn-by-turn and idempotency,
-// but no longer rejects the conversation simply because identities are known.
+// Both anonymous and revealed letters use the same transactional service.
 router.post(
   "/:id/messages",
   validate(PostBottleMessageBodySchema),
   wrap(async (req, res) => {
-    const bottleId = req.params["id"] as string;
-    const userId = req.user.userId;
-    const { content, idempotencyKey } = req.body as { content: string; idempotencyKey: string };
-
-    const bottle = await prisma.messageInABottle.findUnique({
-      where: { id: bottleId },
-      include: { messages: { orderBy: { createdAt: "asc" } } },
-    });
-
-    if (!bottle || bottle.status !== "REVEALED") {
-      await controller.postMessage(req as AuthedRequest, res);
-      return;
-    }
-
-    if (bottle.senderId !== userId && bottle.acceptedById !== userId) {
-      res.status(403).json({ error: "Not a participant" });
-      return;
-    }
-
-    const existing = await prisma.anonymousMessage.findFirst({
-      where: { senderId: userId, idempotencyKey },
-    });
-    if (existing) {
-      res.json({ data: { message: existing, idempotentReplay: true } });
-      return;
-    }
-
-    const lastSenderId = bottle.messages.length > 0
-      ? bottle.messages[bottle.messages.length - 1]!.senderId
-      : bottle.senderId;
-
-    if (lastSenderId === userId) {
-      res.status(409).json({
-        error: "It's not your turn to respond",
-        code: "LETTER_TURN_VIOLATION",
-      });
-      return;
-    }
-
-    const message = await prisma.anonymousMessage.create({
-      data: {
-        bottleId,
-        senderId: userId,
-        content,
-        idempotencyKey,
-      },
-    });
-
-    res.status(201).json({ data: { message, idempotentReplay: false } });
+    await controller.postMessage(req as AuthedRequest, res);
   }),
 );
 
