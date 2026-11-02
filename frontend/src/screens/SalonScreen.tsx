@@ -658,7 +658,7 @@ export default function SalonScreen() {
       const [msgs, session, offers, magies, myOffers, activeMag] = await Promise.all([
         apiListMessages(apiSalonId, 50, screenSessionId),
         getSessionDetail(screenSessionId),
-        getSalonOfferings(apiSalonId, screenSessionId),
+        getSalonOfferings(apiSalonId, screenSessionId ?? undefined),
         getSalonMagies(apiSalonId),
         getReceivedOfferings(1, 50, true),
         getActiveMagies(currentUser.id),
@@ -1659,7 +1659,7 @@ export default function SalonScreen() {
       <KeyboardAvoidingView
         style={[
           styles.container,
-          getSalonBackgroundImage(salonId) && styles.containerTransparent,
+          Boolean(getSalonBackgroundImage(salonId)) && styles.containerTransparent,
         ]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
@@ -1756,7 +1756,7 @@ export default function SalonScreen() {
 
           // Check if we need to show date separator
           const prevItem = index > 0 ? messages[index - 1] : null;
-          const prevDate = prevItem ? formatMessageTime(prevItem.createdAt).dateSeparator : undefined;
+          const prevDate = prevItem ? formatMessageTime('createdAt' in prevItem ? prevItem.createdAt as string : undefined).dateSeparator : undefined;
           const showDateSeparator = dateSeparator && (dateSeparator !== prevDate);
 
           return (
@@ -3373,37 +3373,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 10,
   },
-  targetSelectorLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#3A2818',
-    marginBottom: 6,
-  },
   targetSelectorButtons: {
     flexDirection: 'row',
     gap: 8,
-  },
-  targetSelectorButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    backgroundColor: '#F5F0E6',
-    borderWidth: 1,
-    borderColor: '#E8D5B7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  targetSelectorButtonActive: {
-    backgroundColor: '#E8B4B8',
-    borderColor: '#D48A8E',
-  },
-  targetSelectorButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#3A2818',
-  },
-  targetSelectorButtonTextActive: {
-    color: '#FFF',
   },
 });
