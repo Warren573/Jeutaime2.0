@@ -764,45 +764,27 @@ export async function reportAndSuspend(
 // Message Read Status
 // ============================================================
 
-export async function countUnreadMessages(
-  userId: string,
-): Promise<number> {
-  // Find all bottles where user is either sender or acceptor
-  // Exclude REVEALED, BROKEN, and EXPIRED bottles (only ACCEPTED status)
+/**
+ * Postcard bottle indicator: a reply is expected from this user.
+ * Unlike a generic unread counter, opening the message doesn't clear it.
+ * The indicator disappears only when the user responds, or the exchange ends.
+ */
+export async function countUnreadMessages(userId: string): Promise<number> {
   const bottles = await prisma.messageInABottle.findMany({
     where: {
-      status: "ACCEPTED", // Only count ACCEPTED anonymous conversations
-      OR: [
-        { senderId: userId },
-        { acceptedById: userId },
-      ],
+      status: "ACCEPTED",
+      OR: [{ senderId: userId }, { acceptedById: userId }],
     },
-    include: {
-      messages: {
-        orderBy: { createdAt: "desc" },
-      },
+    select: {
+      senderId: true,
+      acceptedById: true,
+      messages: { orderBy: { createdAt: "desc" }, take: 1, select: { senderId: true } },
     },
   });
-
-  let totalUnread = 0;
-
-  for (const bottle of bottles) {
-    const isCurrentUserSender = bottle.senderId === userId;
-    const lastReadAt = isCurrentUserSender
-      ? bottle.lastReadBySenderId
-      : bottle.lastReadByAcceptorId;
-
-    // Count messages from the OTHER participant that are after the last read time
-    const unreadMessages = bottle.messages.filter(msg => {
-      const isFromOtherParticipant = msg.senderId !== userId;
-      const isAfterLastRead = !lastReadAt || msg.createdAt > lastReadAt;
-      return isFromOtherParticipant && isAfterLastRead;
-    });
-
-    totalUnread += unreadMessages.length;
-  }
-
-  return totalUnread;
+  return bottles.filter(bottle => {
+    const lastSender = bottle.messages[0]?.senderId ?? bottle.senderId;
+    return lastSender !== userId;
+  }).length;
 }
 
 export async function markBottleAsRead(
