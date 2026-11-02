@@ -5,7 +5,7 @@ import { claimBottleWithReply, countUnreadMessages } from "../../src/modules/bot
 vi.mock("../../src/config/prisma", () => ({
   prisma: {
     anonymousMessage: { findFirst: vi.fn(), create: vi.fn() },
-    bottleReceipt: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+    bottleReceipt: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
     messageInABottle: { findUnique: vi.fn(), updateMany: vi.fn(), count: vi.fn(), findMany: vi.fn() },
     user: { findUnique: vi.fn() },
     $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) => fn(prisma)),
@@ -71,6 +71,7 @@ describe("Bottles: first reply claims, merely reading does not", () => {
 
 describe("Bottles: postcard indicator reflects whose turn it is", () => {
   it("clears immediately after sending a reply, not merely after opening it", async () => {
+    vi.mocked(prisma.bottleReceipt.count).mockResolvedValue(0);
     vi.mocked(prisma.messageInABottle.findMany).mockResolvedValue([
       { senderId, acceptedById: accepterId, messages: [{ senderId: accepterId }] },
     ] as any);
