@@ -11,7 +11,8 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jeutaime.app",
-      "requireFullScreen": true
+      "requireFullScreen": true,
+      "runtimeVersion": "2.0.0"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +20,8 @@
         "backgroundColor": "#FFF8E7"
       },
       "package": "com.jeutaime.app",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "runtimeVersion": "2.0.0"
     },
     "web": {
       "bundler": "metro",

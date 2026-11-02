@@ -656,7 +656,7 @@ export default function SalonScreen() {
       console.log('[LOAD-AUDIT] Loading salon data...');
       // Load all in parallel
       const [msgs, session, offers, magies, myOffers, activeMag] = await Promise.all([
-        apiListMessages(apiSalonId, 50, screenSessionId ?? undefined),
+        apiListMessages(apiSalonId, 50, screenSessionId),
         getSessionDetail(screenSessionId),
         getSalonOfferings(apiSalonId, screenSessionId ?? undefined),
         getSalonMagies(apiSalonId),
@@ -674,7 +674,7 @@ export default function SalonScreen() {
       console.log('[MAGIES-DEBUG] loadSalonContent loaded:', {
         salonMagiesCount: magies.length,
         activeMagiesOnMeCount: activeMag.length,
-        salonMagies: magies.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.fromUserId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
+        salonMagies: magies.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.actorId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
         activeMagiesOnMe: activeMag.map(m => ({ id: m.id, magieId: m.magieId, expiresAt: m.expiresAt })),
       });
       // DO NOT reset participantsReady.current here - it would destroy local UI state
@@ -1752,7 +1752,7 @@ export default function SalonScreen() {
         renderItem={({ item, index }) => {
           const isOwn = item.userId === 'me' || item.userId === currentUser?.id;
           const isSystem = item.kind === 'system';
-          const { time, dateSeparator } = formatMessageTime('createdAt' in item ? item.createdAt as string : undefined);
+          const { time, dateSeparator } = formatMessageTime(item.createdAt);
 
           // Check if we need to show date separator
           const prevItem = index > 0 ? messages[index - 1] : null;

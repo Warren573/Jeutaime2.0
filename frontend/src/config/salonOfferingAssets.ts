@@ -15,7 +15,7 @@ export const SALON_OFFERING_STAGE1_ASSETS: Record<string, any> = {
   off_coupechampagne: require('../../public/offerings/off_coupechampagne_stage1.png'),
   off_verrevin: require('../../public/offerings/off_verrevin_stage1.png'),
   off_sushismakis: require('../../public/offerings/off_sushismakis_stage1.png'),
-  off_the: require('../../public/offerings/off_thé_stage1.png'),
+  off_the: require('../../public/offerings/off_the_stage1.png'),
 };
 
 export const SALON_OFFERING_IDS_WITH_PNG = new Set(
