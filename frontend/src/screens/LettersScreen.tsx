@@ -999,6 +999,7 @@ export default function LettersScreen() {
                     <EnvelopeCard
                       key={match.id}
                       matchId={match.id}
+                      formatTime={formatTime}
                       otherUserId={otherUserId}
                       otherName={otherName}
                       lastLetterAt={match.lastLetterAt}
