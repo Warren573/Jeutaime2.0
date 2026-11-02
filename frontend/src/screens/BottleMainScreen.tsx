@@ -1,13 +1,14 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image, Platform, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { getCurrentBottle, getInbox, acceptBottle } from '../api/bottles';
+import { getCurrentBottle, getInbox, claimBottleWithReply } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import { BottleCorrespondenceMenu } from '../components/BottleCorrespondenceMenu';
 import { AppBackButton } from '../components/AppBackButton';
 import type { GetCurrentBottleResponse, InboxBottleDTO } from '../api/bottles';
 import { useStore } from '../store/useStore';
+import { generateUUID } from '../utils/uuid';
 
 const CREAM_BG = '#F6F0E4';
 const BOTTLE_IMG = require('../../assets/images/bottle/BOTTLE-22.png');
@@ -78,6 +79,9 @@ export default function BottleMainScreen() {
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [selectedBottle, setSelectedBottle] = useState<InboxBottleDTO | null>(null);
+  const [firstReply, setFirstReply] = useState('');
+  const [replyKey, setReplyKey] = useState(generateUUID());
 
   const loadState = useCallback(async () => {
     try {
@@ -112,23 +116,55 @@ export default function BottleMainScreen() {
 
   const handleRefresh = () => { setIsRefreshing(true); loadState(); };
 
-  const handleBottleClick = async (bottleId: string) => {
+  // Reading never reserves a bottle. Only the first submitted answer does.
+  const handleBottleClick = (bottleId: string) => {
+    const bottle = getAvailableBottles().find((item) => item.id === bottleId);
+    if (bottle) {
+      setFirstReply('');
+      setReplyKey(generateUUID());
+      setSelectedBottle(bottle);
+    }
+  };
+
+  const submitFirstReply = async () => {
+    if (!selectedBottle || !firstReply.trim() || isAccepting) return;
     setIsAccepting(true);
     try {
-      await acceptBottle(bottleId);
+      await claimBottleWithReply(selectedBottle.id, firstReply.trim(), replyKey);
+      setSelectedBottle(null);
+      setFirstReply('');
       await loadState();
     } catch (err: any) {
-      const code = err.code || err.message;
-      if (code === 409 || code === 'P2002') {
-        setError("Cette bouteille vient d'être récupérée. Choisissez-en une autre.");
+      const code = err?.code || err?.message;
+      if (code === 'BOTTLE_ALREADY_TAKEN' || code === 409) {
+        Alert.alert('Bouteille déjà récupérée', "Une autre personne a répondu en premier. Choisis une autre bouteille.");
+        setSelectedBottle(null);
         await loadState();
       } else {
-        Alert.alert('Erreur', err?.message || "Impossible d'accepter la bouteille");
+        Alert.alert('Erreur', err?.message || "Impossible d'envoyer ta réponse");
       }
     } finally {
       setIsAccepting(false);
     }
   };
+
+  const firstReplyDialog = (
+    <Modal transparent visible={selectedBottle !== null} animationType="fade" onRequestClose={() => setSelectedBottle(null)}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.firstReplyBackdrop}>
+        <View style={styles.firstReplyCard}>
+          <Text style={styles.firstReplyTitle}>Une bouteille à la mer</Text>
+          <ScrollView style={{ maxHeight: 150 }}><Text style={styles.firstReplyLetter}>{selectedBottle?.message ?? ''}</Text></ScrollView>
+          <Text style={styles.firstReplyHelp}>Lire n'engage à rien. La correspondance commence uniquement si tu réponds en premier.</Text>
+          <TextInput value={firstReply} onChangeText={setFirstReply} multiline maxLength={500} placeholder="Écris ta première réponse…" style={styles.firstReplyInput} />
+          <Text style={styles.firstReplyCount}>{firstReply.length}/500</Text>
+          <TouchableOpacity style={styles.firstReplySubmit} onPress={() => void submitFirstReply()} disabled={!firstReply.trim() || isAccepting}>
+            {isAccepting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.firstReplySubmitText}>Envoyer ma réponse</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setSelectedBottle(null)} disabled={isAccepting}><Text style={styles.firstReplyCancel}>Refermer sans répondre</Text></TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
 
   const getBottleToDisplay = () => {
     if (!currentUser?.id) return null;
@@ -150,6 +186,7 @@ export default function BottleMainScreen() {
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
+          {firstReplyDialog}
           <BottleHeader title="Bouteille à la mer" onBack={() => router.back()} />
           <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
             {error && <View style={styles.paddedSection}><View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View></View>}
@@ -389,6 +426,16 @@ export default function BottleMainScreen() {
 
 const styles = StyleSheet.create({
   bg: { flex: 1 },
+  firstReplyBackdrop: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(25,15,10,0.6)', padding: 20 },
+  firstReplyCard: { borderRadius: 20, backgroundColor: COLORS.paper, padding: 20, gap: 12 },
+  firstReplyTitle: { fontSize: 21, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
+  firstReplyLetter: { fontSize: 17, lineHeight: 25, fontStyle: 'italic', color: COLORS.text },
+  firstReplyHelp: { fontSize: 13, lineHeight: 19, color: COLORS.textSecondary },
+  firstReplyInput: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, minHeight: 100, maxHeight: 160, padding: 12, color: COLORS.text, textAlignVertical: 'top' },
+  firstReplyCount: { textAlign: 'right', color: COLORS.textSecondary, fontSize: 12 },
+  firstReplySubmit: { borderRadius: 12, minHeight: 46, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
+  firstReplySubmitText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  firstReplyCancel: { textAlign: 'center', color: COLORS.textSecondary, padding: 10 },
   container: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1 },
