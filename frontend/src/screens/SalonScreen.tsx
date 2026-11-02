@@ -658,7 +658,7 @@ export default function SalonScreen() {
       const [msgs, session, offers, magies, myOffers, activeMag] = await Promise.all([
         apiListMessages(apiSalonId, 50, screenSessionId),
         getSessionDetail(screenSessionId),
-        getSalonOfferings(apiSalonId, screenSessionId),
+        getSalonOfferings(apiSalonId, screenSessionId ?? undefined),
         getSalonMagies(apiSalonId),
         getReceivedOfferings(1, 50, true),
         getActiveMagies(currentUser.id),
@@ -674,7 +674,7 @@ export default function SalonScreen() {
       console.log('[MAGIES-DEBUG] loadSalonContent loaded:', {
         salonMagiesCount: magies.length,
         activeMagiesOnMeCount: activeMag.length,
-        salonMagies: magies.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.actorId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
+        salonMagies: magies.map(m => ({ castId: m.castId, magieId: m.magieId, actorId: m.fromUserId, toUserId: m.toUserId, expiresAt: m.expiresAt })),
         activeMagiesOnMe: activeMag.map(m => ({ id: m.id, magieId: m.magieId, expiresAt: m.expiresAt })),
       });
       // DO NOT reset participantsReady.current here - it would destroy local UI state
@@ -1146,7 +1146,7 @@ export default function SalonScreen() {
       const result = await performDrinkAction(screenSessionId);
 
       if (result.success && currentUser?.id) {
-        if (!result.offeringConsumed) {
+        if (result.level === undefined) {
           setActionNotice('Rien à boire, commandez d\'abord.');
           setTimeout(() => setActionNotice(''), 2000);
           return;
@@ -1659,7 +1659,7 @@ export default function SalonScreen() {
       <KeyboardAvoidingView
         style={[
           styles.container,
-          getSalonBackgroundImage(salonId) && styles.containerTransparent,
+          Boolean(getSalonBackgroundImage(salonId)) && styles.containerTransparent,
         ]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
