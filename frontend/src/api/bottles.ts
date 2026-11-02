@@ -113,6 +113,14 @@ export async function getInbox(): Promise<InboxBottleDTO[]> {
   return res.data.bottles;
 }
 
+export async function claimBottleWithReply(bottleId: string, content: string, idempotencyKey: string): Promise<BottleMessageDTO> {
+  const res = await apiFetch(`/bottles/${bottleId}/claim-reply`, {
+    method: "POST",
+    body: JSON.stringify({ content, idempotencyKey }),
+  }) as { data: { message: BottleMessageDTO; idempotentReplay: boolean } };
+  return res.data.message;
+}
+
 export async function acceptBottle(bottleId: string): Promise<BottleDTO> {
   const res = (await apiFetch(`/bottles/${bottleId}/accept`, {
     method: "POST",
