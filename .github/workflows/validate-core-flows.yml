@@ -62,6 +62,9 @@ jobs:
           if ! git diff --quiet -- package-lock.json; then
             echo "::warning::frontend/package-lock.json is out of sync with package.json; regenerate and commit the lockfile before release."
           fi
+      - name: Install test types for existing frontend test files
+        working-directory: frontend
+        run: npm install --no-save --no-audit --no-fund vitest
       - name: Typecheck frontend
         working-directory: frontend
         run: npx tsc --noEmit
