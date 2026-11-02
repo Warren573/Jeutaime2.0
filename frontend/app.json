@@ -11,7 +11,8 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jeutaime.app",
-      "requireFullScreen": true
+      "requireFullScreen": true,
+      "runtimeVersion": "2.0.0"
     },
     "android": {
       "adaptiveIcon": {
