@@ -1,0 +1,61 @@
+name: Validate JeuTaime Core Flows (no deployment)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/src/**'
+      - 'backend/tests/**'
+      - 'frontend/src/**'
+      - '.github/workflows/validate-core-flows.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend types and core tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install
+        working-directory: backend
+        run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/unused
+        run: npx prisma generate
+      - name: Typecheck backend
+        working-directory: backend
+        run: npm run typecheck
+      - name: Core regression tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/unused
+          JWT_ACCESS_SECRET: test_secret_min_32_chars_1234567
+          JWT_REFRESH_SECRET: test_secret_min_32_chars_1234567
+        run: npx vitest run tests/unit/bottles-first-reply-claim.test.ts tests/unit/bottles-turn-by-turn.test.ts tests/unit/bottles-get-current.test.ts tests/unit/questions-validation.test.ts tests/unit/refuge.service.test.ts
+
+  frontend:
+    name: Frontend TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+      - name: Typecheck frontend
+        working-directory: frontend
+        run: npx tsc --noEmit
