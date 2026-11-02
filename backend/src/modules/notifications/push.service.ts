@@ -75,7 +75,7 @@ export async function sendPushToUser(params: {
   // comportement historique (push autorisé) plutôt que de couper en silence.
   if (settings?.notifPush === false) return;
   const type = params.data?.type;
-  const category = type === 'LETTER_RECEIVED' ? 'notifLetters'
+  const category = type === 'BOTTLE_REPLY' || type === 'LETTER_RECEIVED' ? 'notifLetters'
     : type === 'MATCH_CREATED' ? 'notifMeetings'
     : type === 'PRIVATE_SALON_INVITE' || type === 'MAGIE_RECEIVED' || type === 'MAGIE_BROKEN' ? 'notifSalons'
     : type === 'OFFERING_RECEIVED' ? 'notifActivities'
