@@ -173,7 +173,7 @@ export async function performDrinkAction(sessionId: string): Promise<{ success: 
   return res.data;
 }
 
-export async function performEatAction(sessionId: string): Promise<{ success: boolean; level?: number }> {
+export async function performEatAction(sessionId: string): Promise<{ success: boolean; level?: number; offeringConsumed?: boolean }> {
   const res = (await apiFetch(`/salon-sessions/${sessionId}/eat`, {
     method: 'POST',
     body: JSON.stringify({}),
