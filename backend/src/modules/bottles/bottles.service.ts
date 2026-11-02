@@ -772,7 +772,7 @@ export async function reportAndSuspend(
 export async function countUnreadMessages(userId: string): Promise<number> {
   const bottles = await prisma.messageInABottle.findMany({
     where: {
-      status: "ACCEPTED",
+      status: { in: ["ACCEPTED", "REVEALED"] },
       OR: [{ senderId: userId }, { acceptedById: userId }],
     },
     select: {
