@@ -85,6 +85,7 @@ export interface ParticipantDTO {
 }
 
 export interface SalonSessionDetailDTO extends SalonSessionDTO {
+  salonId: string;
   salonKind: string;
   salonName: string;
   status: "ACTIVE" | "EXPIRED";
