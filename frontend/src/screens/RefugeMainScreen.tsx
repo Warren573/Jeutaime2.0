@@ -9,6 +9,7 @@ import { BackgroundPicker } from "../components/BackgroundPicker";
 import { RefugeRevealPhase } from "../components/RefugeRevealPhase";
 import { RefugeDayResultIcon } from "../components/RefugeDayResultIcon";
 import { AnimalIllustration } from "../components/AnimalIllustration";
+import { getRefugeVisualState } from "../data/refugeVisualState";
 import { ACTION_LABELS, BACKEND_ACTION_LABELS, BACKEND_ACTION_ICONS, type RefugeActionType } from "../data/refugeActions";
 import { getAnimalLabel, isRefugeAnimal } from "../data/refugeAnimals";
 import { getBackgroundGradientStyle, DEFAULT_REFUGE_BACKGROUND } from "../data/refugeBackgrounds";
@@ -191,7 +192,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
               <View style={styles.companionArea}>
                 <View style={styles.blanketBack} />
                 <View style={styles.companionWrapper}>
-                  {isRefugeAnimal(companionAnimal) && <AnimalIllustration animal={companionAnimal} size={animalSize} />}
+                  {isRefugeAnimal(companionAnimal) && <AnimalIllustration animal={companionAnimal} size={animalSize} state={getRefugeVisualState({ status: refugeSession.status, todayResult: refugeSession.todayResult, selectedActions: selectedMyActions, adopteSubmittedToday: refugeSession.adopteSubmittedToday, adoptantSubmittedToday: refugeSession.adoptantSubmittedToday })} />}
                   <View style={[styles.groundShadow, { width: animalSize * 0.58 }]} />
                 </View>
                 <View style={styles.foodBowl} pointerEvents="none">
