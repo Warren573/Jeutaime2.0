@@ -221,6 +221,9 @@ export interface PartnerProfile {
   city?: string;
   height?: number;
   physicalDesc?: string;
+  birthDate?: string;
+  interests?: string[];
+  questionTexts?: string[];
   lookingFor?: string[];
   quote?: string;
   qualities?: string[];
