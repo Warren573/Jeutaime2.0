@@ -132,6 +132,7 @@ export default function BottleMainScreen() {
     try {
       await claimBottleWithReply(selectedBottle.id, firstReply.trim(), replyKey);
       setSelectedBottle(null);
+      setShowRetrieve(false);
       setFirstReply('');
       await loadState();
     } catch (err: any) {
