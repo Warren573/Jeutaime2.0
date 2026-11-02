@@ -243,9 +243,9 @@ export default function BottleMainScreen() {
 
                 <View style={styles.sentParchmentCard}>
                   <BottleParchmentCard
-                    content={state.latestLetter.content}
+                    content={state.latestLetter?.content ?? ""}
                     compact
-                    variant={state.latestLetter.isMine ? 'sent' : 'received'}
+                    variant={state.latestLetter?.isMine ? 'sent' : 'received'}
                     label={state.latestLetter.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
                   />
                 </View>
