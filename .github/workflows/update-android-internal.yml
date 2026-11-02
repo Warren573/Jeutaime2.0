@@ -43,4 +43,6 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Publish JS and assets to internal-test only
-        run: eas update --branch internal-test --message "Manual internal QA update" --non-interactive
+        env:
+          EXPO_PUBLIC_OTA_RELEASE_VERSION: 2.0.0-ota.${{ github.run_number }}
+        run: eas update --branch internal-test --message "JeuTaime OTA ${EXPO_PUBLIC_OTA_RELEASE_VERSION} (internal QA)" --non-interactive
