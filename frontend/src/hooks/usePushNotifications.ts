@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { registerDevice } from '../api/notifications';
 import { useStore } from '../store/useStore';
@@ -30,16 +31,22 @@ function getPlatform(): 'ios' | 'android' | 'web' {
  * Mirror of getNotificationTarget but for raw push data Record<string,string>.
  */
 function getRouteFromPushData(data: Record<string, string>): string | null {
+  // Server-authored navigation for the daily edition (never accept arbitrary routes).
+  if (data['route'] === '/journal') return '/journal';
   const type = data['type'];
   if (!type) return null;
 
   switch (type) {
+    case 'BOTTLE_REPLY':
+      return '/bottles-main';
     case 'LETTER_RECEIVED':
     case 'MATCH_CREATED':
       return data['matchId'] ? `/match-profile?matchId=${data['matchId']}` : null;
     case 'OFFERING_RECEIVED':
     case 'MAGIE_RECEIVED':
       return data['salonId'] ? `/salon/${data['salonId']}` : null;
+    case 'DAILY_EDITION':
+      return '/journal';
     case 'PREMIUM_SUBSCRIBED':
     case 'PREMIUM_CANCELLED':
       return '/premium';
@@ -68,6 +75,17 @@ export function usePushNotifications() {
           foregroundVibrationEnabled = preferences.vibrationEnabled;
           if (!preferences.notifPush) return;
         }
+        // Android notification channels must exist before obtaining permission/token.
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'JeuTaime',
+            importance: Notifications.AndroidImportance.MAX,
+            sound: foregroundSoundEnabled ? 'default' : null,
+            vibrationPattern: foregroundVibrationEnabled ? [0, 250, 250, 250] : null,
+            lightColor: '#FF231F7C',
+          });
+        }
+
         const { status: existing } = await Notifications.getPermissionsAsync();
         let finalStatus = existing;
 
@@ -81,18 +99,12 @@ export function usePushNotifications() {
           return;
         }
 
-        // On Android, a channel is required
-        if (Platform.OS === 'android') {
-          await Notifications.setNotificationChannelAsync('default', {
-            name: 'JeuTaime',
-            importance: Notifications.AndroidImportance.MAX,
-            sound: foregroundSoundEnabled ? 'default' : null,
-            vibrationPattern: foregroundVibrationEnabled ? [0, 250, 250, 250] : null,
-            lightColor: '#FF231F7C',
-          });
+        const projectId = Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId;
+        if (!projectId) {
+          console.warn('[push] EAS project ID missing; cannot register a push token');
+          return;
         }
-
-        const tokenData = await Notifications.getExpoPushTokenAsync();
+        const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
         if (cancelled) return;
 
         const token = tokenData.data;
@@ -112,7 +124,7 @@ export function usePushNotifications() {
       }
     }
 
-    setup();
+    void setup();
 
     // Foreground: refresh unread count when a notification arrives
     receivedListenerRef.current = Notifications.addNotificationReceivedListener(() => {
@@ -140,5 +152,5 @@ export function usePushNotifications() {
       receivedListenerRef.current = null;
       responseListenerRef.current = null;
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadUnreadCount, router]);
 }
