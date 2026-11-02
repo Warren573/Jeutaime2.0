@@ -1012,12 +1012,11 @@ export default function LettersScreen() {
                       vacationMode={match.otherUserVacationMode}
                       isPremium={currentUser?.isPremium}
                       questionsValidated={match.questionsValidated}
-                      matchStatus={match.status}
+                      matchStatus={match.status.toUpperCase() as "ACTIVE" | "PENDING" | "BROKEN" | "BLOCKED"}
                       isInitiator={match.initiatorId === (currentUser?.id ?? '')}
                       onAccept={() => handleAccept(match)}
                       onPlayQuestions={() => handleQGameOpen(match)}
-                      formatTime={formatTime}
-                      onOpen={() => {
+                       onOpen={() => {
                         const shouldAnimate = match.hasUnreadIncomingLetter;
 
                         setSelectedMatch(match);
@@ -1103,7 +1102,7 @@ export default function LettersScreen() {
 
                 {/* ── Tour de parole ── */}
                 <View style={[styles.turnBanner, myTurn ? styles.turnBannerMine : styles.turnBannerWait]}>
-                  <View style={styles.turnBannerInner}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                     <Ionicons
                       name={conv.length === 0 ? 'pencil-outline' : myTurn ? 'mail-open-outline' : 'mail-outline'}
                       size={17}
@@ -1325,7 +1324,7 @@ export default function LettersScreen() {
           )}
 
           {envAnimVisible && (
-            <View style={styles.envAnimOverlay}>
+            <View style={{ ...StyleSheet.absoluteFillObject, zIndex: 50, justifyContent: "center", alignItems: "center" }}>
               <PremiumLetterAnimation senderName={envAnimSender} />
             </View>
           )}
@@ -1423,7 +1422,7 @@ export default function LettersScreen() {
             <View style={styles.reportModalHeader}>
               <Text style={styles.reportModalTitle}>Signaler cet utilisateur</Text>
               <TouchableOpacity onPress={() => setShowReportModal(false)}>
-                <Text style={styles.closeX}>✕</Text>
+                <Text style={{ fontSize: 22, color: "#3A2818" }}>✕</Text>
               </TouchableOpacity>
             </View>
 
