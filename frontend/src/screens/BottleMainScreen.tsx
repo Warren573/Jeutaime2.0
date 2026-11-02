@@ -169,8 +169,9 @@ export default function BottleMainScreen() {
   const getBottleToDisplay = () => {
     if (!currentUser?.id) return null;
     const availableBottles = getAvailableBottles();
-    if (availableBottles.length > 0) return { type: 'received', bottles: availableBottles } as const;
+    // An established exchange takes precedence over other floating bottles.
     if (state?.bottle && (state.bottle.status === 'ACCEPTED' || state.bottle.status === 'REVEALED')) return { type: 'correspondence', bottle: state.bottle, latestLetter: state.latestLetter } as const;
+    if (availableBottles.length > 0) return { type: 'received', bottles: availableBottles } as const;
     const sentFloating = inbox.find((b) => b.status === 'FLOATING' && b.senderId === currentUser.id);
     if (sentFloating) return { type: 'sent', bottle: sentFloating } as const;
     if (state?.canCreateBottle) return { type: 'create' } as const;
