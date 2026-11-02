@@ -24,7 +24,7 @@ import {
   APP_SPACING,
 } from '../theme/appTheme';
 
-type ToggleKey = 'notifPush' | 'notifEmail' | 'soundEnabled' | 'vibrationEnabled';
+type ToggleKey = 'notifPush' | 'notifEmail' | 'soundEnabled' | 'vibrationEnabled' | 'notifMeetings' | 'notifLetters' | 'notifSalons' | 'notifActivities' | 'notifNews';
 
 export default function NotificationSettingsScreen() {
   const router = useRouter();
@@ -85,6 +85,11 @@ export default function NotificationSettingsScreen() {
       title: 'Notifications push',
       description: 'Lettres, interactions et informations importantes sur ton compte.',
     },
+    { key: 'notifMeetings', title: 'Rencontres', description: 'Smiles et nouveaux matchs.' },
+    { key: 'notifLetters', title: 'Lettres et bouteilles', description: 'Lettres reçues et réponses à tes bouteilles.' },
+    { key: 'notifSalons', title: 'Salons', description: 'Mentions et invitations importantes.' },
+    { key: 'notifActivities', title: 'Activités', description: 'Duels, offrandes et Refuge.' },
+    { key: 'notifNews', title: 'Actualités', description: 'Journal et résultats des élections.' },
     {
       key: 'notifEmail',
       title: 'Notifications par e-mail',
@@ -139,7 +144,7 @@ export default function NotificationSettingsScreen() {
                   <Switch
                     value={settings[row.key]}
                     onValueChange={(value) => void toggle(row.key, value)}
-                    disabled={savingKey !== null}
+                    disabled={savingKey !== null || (row.key.startsWith('notif') && row.key !== 'notifPush' && row.key !== 'notifEmail' && !settings.notifPush)}
                   />
                 </View>
                 {index < rows.length - 1 ? <View style={styles.divider} /> : null}
