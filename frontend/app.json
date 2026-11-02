@@ -20,7 +20,8 @@
         "backgroundColor": "#FFF8E7"
       },
       "package": "com.jeutaime.app",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "runtimeVersion": "2.0.0"
     },
     "web": {
       "bundler": "metro",
