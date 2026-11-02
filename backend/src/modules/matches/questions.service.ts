@@ -111,7 +111,11 @@ export async function submitMatchAnswers(
   userId: string,
   dto: SubmitAnswersDto,
 ) {
-  const match = await prisma.match.findUnique({
+  // The match row serializes the two players' answer submissions.
+  // Without this lock, both requests can observe the other as pending.
+  return prisma.$transaction(async (tx) => {
+  await tx.$queryRaw`SELECT "id" FROM "Match" WHERE "id" = ${matchId} FOR UPDATE`;
+  const match = await tx.match.findUnique({
     where: { id: matchId },
     select: {
       id: true,
@@ -132,7 +136,7 @@ export async function submitMatchAnswers(
   }
 
   // Idempotence : un joueur ne peut soumettre qu'une fois
-  const existing = await prisma.matchQuestionAttempt.findMany({
+  const existing = await tx.matchQuestionAttempt.findMany({
     where: { matchId, responderId: userId },
   });
   if (existing.length >= PROFILE_QUESTIONS_REQUIRED) {
@@ -141,13 +145,13 @@ export async function submitMatchAnswers(
 
   const otherUserId = match.userAId === userId ? match.userBId : match.userAId;
 
-  const otherProfile = await prisma.profile.findUnique({
+  const otherProfile = await tx.profile.findUnique({
     where: { userId: otherUserId },
     select: { id: true },
   });
   if (!otherProfile) throw new NotFoundError("Profil de l'autre utilisateur");
 
-  const realAnswers = await prisma.profileQuestion.findMany({
+  const realAnswers = await tx.profileQuestion.findMany({
     where: { profileId: otherProfile.id },
     select: { id: true, answer: true },
   });
@@ -204,13 +208,13 @@ export async function submitMatchAnswers(
     isCorrect: a.answer.toLowerCase().trim() === realAnswerMap.get(a.normalizedQuestionId),
   }));
 
-  await prisma.matchQuestionAttempt.createMany({ data: attempts });
+  await tx.matchQuestionAttempt.createMany({ data: attempts });
 
   const myScore = attempts.filter((a) => a.isCorrect).length;
   const myPassed = myScore >= 1;
 
   // Vérifier si l'autre a déjà soumis ses réponses
-  const otherAttempts = await prisma.matchQuestionAttempt.findMany({
+  const otherAttempts = await tx.matchQuestionAttempt.findMany({
     where: { matchId, responderId: otherUserId },
     select: { isCorrect: true },
   });
@@ -230,7 +234,7 @@ export async function submitMatchAnswers(
   const otherPassed = otherScore >= 1;
 
   if (myPassed && otherPassed) {
-    await prisma.match.update({
+    await tx.match.update({
       where: { id: matchId },
       data: { questionsValidated: true },
     });
@@ -244,7 +248,7 @@ export async function submitMatchAnswers(
   }
 
   // Au moins un échec → match rompu
-  await prisma.match.update({
+  await tx.match.update({
     where: { id: matchId },
     data: { status: MatchStatus.BROKEN },
   });
@@ -256,4 +260,5 @@ export async function submitMatchAnswers(
     waitingForOther: false,
     matchBroken: true,
   };
+  }, { isolationLevel: "Serializable" });
 }
