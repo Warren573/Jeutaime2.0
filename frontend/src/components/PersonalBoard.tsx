@@ -76,7 +76,18 @@ export function PersonalBoard() {
 
   const checkRefugeSession = useCallback(async () => { try { const response = await apiFetch('/refuge/active'); if (response && response.data && response.data.animalType) setRefugeData({ animalType: response.data.animalType, todaySubmitted: response.data.todaySubmitted, isActive: response.data.isActive }); else setRefugeData(null); } catch {} }, []);
   useEffect(() => { (async () => { try { setOfferings(await getReceivedOfferings(1, 100, true)); } catch {} })(); }, []);
-  useEffect(() => { (async () => { try { setHasBottle((await getUnreadCount()) > 0); } catch {} })(); }, []);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    const refresh = async () => {
+      try {
+        const count = await getUnreadCount();
+        if (active) setHasBottle(count > 0);
+      } catch {}
+    };
+    void refresh();
+    const interval = setInterval(() => void refresh(), 60_000);
+    return () => { active = false; clearInterval(interval); };
+  }, []));
   useEffect(() => { if (!currentSalonId) { setSalonName(null); return; } (async () => { try { const data = await getSalon(currentSalonId); setSalonName(data.name); } catch {} })(); }, [currentSalonId]);
   useFocusEffect(useCallback(() => { checkRefugeSession(); }, [checkRefugeSession]));
 
