@@ -216,8 +216,9 @@ export async function acceptBottle(req: AuthedRequest, res: Response) {
 // POST /api/bottles/:id/claim-reply — first response claims atomically
 export async function claimReply(req: AuthedRequest, res: Response) {
   const body = PostBottleMessageBodySchema.parse(req.body);
+  const bottleId = req.params["id"] as string;
   try {
-    const result = await bottlesService.claimBottleWithReply(req.params["id"] as string, req.user.userId, body.content, body.idempotencyKey);
+    const result = await bottlesService.claimBottleWithReply(bottleId, req.user.userId, body.content, body.idempotencyKey);
     const validated = PostBottleMessageResponseSchema.parse(serializeDates(result));
     if (!result.idempotentReplay) {
       const bottle = await prisma.messageInABottle.findUnique({ where: { id: bottleId }, select: { senderId: true } });
