@@ -212,6 +212,22 @@ export async function acceptBottle(req: AuthedRequest, res: Response) {
   res.json({ data: validated });
 }
 
+// POST /api/bottles/:id/claim-reply — first response claims atomically
+export async function claimReply(req: AuthedRequest, res: Response) {
+  const body = PostBottleMessageBodySchema.parse(req.body);
+  try {
+    const result = await bottlesService.claimBottleWithReply(req.params["id"] as string, req.user.userId, body.content, body.idempotencyKey);
+    const validated = PostBottleMessageResponseSchema.parse(serializeDates(result));
+    res.status(result.idempotentReplay ? 200 : 201).json({ data: validated });
+  } catch (error: any) {
+    if (error instanceof Error && error.name === "ConflictError") {
+      res.status(409).json({ error: error.message, code: "BOTTLE_ALREADY_TAKEN" });
+      return;
+    }
+    throw error;
+  }
+}
+
 // ============================================================
 // POST /api/bottles/:id/refuse
 // ============================================================
