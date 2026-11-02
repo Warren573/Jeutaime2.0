@@ -1145,7 +1145,7 @@ export default function LettersScreen() {
                     letter={letter}
                     isOwn={isOwn}
                     otherName={otherName}
-                    formatTime={formatTime}
+                    
                     onPress={() => setReadingLetter({ letter, isOwn })}
                     isLatestReceived={!isOwn && letter.id === latestReceivedId}
                   />
