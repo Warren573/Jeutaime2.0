@@ -136,7 +136,8 @@ async function loadDuel(duelId: string): Promise<DuelWithPlayers> {
 async function directContactIds(userId: string): Promise<Set<string>> {
   const directMatches = await prisma.match.findMany({
     where: {
-      status: { in: [MatchStatus.ACTIVE, MatchStatus.PENDING] },
+      status: MatchStatus.ACTIVE,
+      questionsValidated: true,
       OR: [{ userAId: userId }, { userBId: userId }],
     },
     select: { userAId: true, userBId: true },
@@ -150,7 +151,8 @@ async function directContactIds(userId: string): Promise<Set<string>> {
 async function isDirectContact(a: string, b: string): Promise<boolean> {
   const match = await prisma.match.findFirst({
     where: {
-      status: { in: [MatchStatus.ACTIVE, MatchStatus.PENDING] },
+      status: MatchStatus.ACTIVE,
+      questionsValidated: true,
       OR: [
         { userAId: a, userBId: b },
         { userAId: b, userBId: a },
@@ -186,7 +188,8 @@ export async function listCandidates(userId: string) {
   const contactIds = [...directIds];
   const secondDegreeMatches = await prisma.match.findMany({
     where: {
-      status: { in: [MatchStatus.ACTIVE, MatchStatus.PENDING] },
+      status: MatchStatus.ACTIVE,
+      questionsValidated: true,
       OR: [{ userAId: { in: contactIds } }, { userBId: { in: contactIds } }],
     },
     select: { userAId: true, userBId: true },
