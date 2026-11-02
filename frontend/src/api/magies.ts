@@ -65,6 +65,7 @@ export async function getActiveMagies(userId: string): Promise<MagieCastDTO[]> {
 
 export interface SalonMagieDTO {
   castId: string;
+  actorId?: string;
   magieId: string;
   name: string;
   emoji: string;
