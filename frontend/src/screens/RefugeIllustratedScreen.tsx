@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { REFUGE_BACKGROUND_DATA_URI } from '../assets/refugeBackgroundData';
 import { useStore } from '../store/useStore';
 import { AnimalIllustration } from '../components/AnimalIllustration';
+import { getRefugeVisualState } from '../data/refugeVisualState';
 import { RefugeRevealPhase } from '../components/RefugeRevealPhase';
 import { isRefugeAnimal } from '../data/refugeAnimals';
 import { type RefugeActionType } from '../data/refugeActions';
@@ -210,7 +211,7 @@ export function RefugeIllustratedScreen({ sessionIdProp }: { sessionIdProp: stri
 
           <View style={styles.animalLayer} pointerEvents="none">
             {isRefugeAnimal(refuge.companion?.animalType) && (
-              <AnimalIllustration animal={refuge.companion.animalType} size={animalSize} />
+              <AnimalIllustration animal={refuge.companion.animalType} size={animalSize} state={getRefugeVisualState({ status: refuge.status, todayResult: refuge.todayResult, selectedActions: selectedMyActions, adopteSubmittedToday: refuge.adopteSubmittedToday, adoptantSubmittedToday: refuge.adoptantSubmittedToday })} />
             )}
           </View>
 
