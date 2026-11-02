@@ -1146,7 +1146,7 @@ export default function SalonScreen() {
       const result = await performDrinkAction(screenSessionId);
 
       if (result.success && currentUser?.id) {
-        if (result.level === undefined) {
+        if (!result.offeringConsumed) {
           setActionNotice('Rien à boire, commandez d\'abord.');
           setTimeout(() => setActionNotice(''), 2000);
           return;
