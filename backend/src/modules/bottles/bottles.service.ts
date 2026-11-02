@@ -769,22 +769,41 @@ export async function reportAndSuspend(
  * Unlike a generic unread counter, opening the message doesn't clear it.
  * The indicator disappears only when the user responds, or the exchange ends.
  */
+/**
+ * The postcard indicator stays visible while the user has:
+ * - an eligible unopened floating bottle, or
+ * - an active exchange awaiting their next response.
+ * Reading a bottle does not acknowledge it; replying/refusing does.
+ */
 export async function countUnreadMessages(userId: string): Promise<number> {
-  const bottles = await prisma.messageInABottle.findMany({
-    where: {
-      status: { in: ["ACCEPTED", "REVEALED"] },
-      OR: [{ senderId: userId }, { acceptedById: userId }],
-    },
-    select: {
-      senderId: true,
-      acceptedById: true,
-      messages: { orderBy: { createdAt: "desc" }, take: 1, select: { senderId: true } },
-    },
-  });
-  return bottles.filter(bottle => {
+  const [pendingReceipts, exchanges] = await Promise.all([
+    prisma.bottleReceipt.count({
+      where: {
+        recipientId: userId,
+        status: "PENDING",
+        bottle: {
+          status: "FLOATING",
+          expiresAt: { gt: new Date() },
+          acceptedById: null,
+        },
+      },
+    }),
+    prisma.messageInABottle.findMany({
+      where: {
+        status: { in: ["ACCEPTED", "REVEALED"] },
+        OR: [{ senderId: userId }, { acceptedById: userId }],
+      },
+      select: {
+        senderId: true,
+        messages: { orderBy: { createdAt: "desc" }, take: 1, select: { senderId: true } },
+      },
+    }),
+  ]);
+  const awaitingReplies = exchanges.filter(bottle => {
     const lastSender = bottle.messages[0]?.senderId ?? bottle.senderId;
     return lastSender !== userId;
   }).length;
+  return pendingReceipts + awaitingReplies;
 }
 
 export async function markBottleAsRead(
