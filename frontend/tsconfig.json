@@ -17,5 +17,6 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "../shared/**/*.ts"
-  ]
+  ],
+  "exclude": ["tests/**/*.ts", "tests/**/*.tsx", "node_modules"]
 }
