@@ -12,6 +12,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { useStore } from '../store/useStore';
 import { getUserSettings, updateUserSettings } from '../api/userSettings';
 import { CoinIcon } from '../components/CoinIcon';
@@ -161,6 +163,16 @@ export default function SettingsScreen() {
   const canDiscover = currentUser?.canDiscover;
   const hasQuestions = (currentUser?.apiQuestions?.length ?? 0) > 0;
 
+  // Version native du binaire (Google Play / App Store) et mise à jour JavaScript réellement lancée.
+  const installedBuildVersion = Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? 'inconnue';
+  const nativeBuildNumber = Constants.nativeBuildVersion ?? 'inconnu';
+  const otaUpdateId = Updates.updateId?.slice(0, 8) ?? null;
+  const otaRelease = process.env.EXPO_PUBLIC_OTA_RELEASE_VERSION ?? null;
+  const otaStatus = Updates.isEmbeddedLaunch
+    ? 'Code intégré au build'
+    : otaUpdateId ? `OTA ${otaRelease ? otaRelease + ' · ' : ''}${otaUpdateId}` : 'OTA non identifiée';
+  const otaChannel = Updates.channel ?? 'non renseigné';
+
   const SECTIONS: SettingsSection[] = [
     ...((currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR')
       ? [{
@@ -261,7 +273,10 @@ export default function SettingsScreen() {
         { icon: 'document-text-outline', label: "Conditions d'utilisation", route: '/terms' },
         { icon: 'shield-outline', label: 'Politique de confidentialité', route: '/privacy-policy' },
         { icon: 'scale-outline', label: 'Mentions légales', route: '/legal-notice' },
-        { icon: 'information-circle-outline', label: 'JeuTaime v2.0.0' },
+        { icon: 'information-circle-outline', label: `Application v${installedBuildVersion}` },
+        { icon: 'layers-outline', label: `Build natif : ${nativeBuildNumber}` },
+        { icon: 'cloud-download-outline', label: otaStatus },
+        { icon: 'git-branch-outline', label: `Canal OTA : ${otaChannel}` },
       ],
     },
   ];
