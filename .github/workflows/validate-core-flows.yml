@@ -2,6 +2,12 @@ name: Validate JeuTaime Core Flows (no deployment)
 
 on:
   workflow_dispatch:
+    inputs:
+      test_ref:
+        description: 'Branch to validate (main or Android OTA test branch)'
+        required: false
+        default: 'main'
+        type: string
   pull_request:
     branches: [main]
     paths:
@@ -19,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.test_ref || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -48,6 +56,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.test_ref || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
