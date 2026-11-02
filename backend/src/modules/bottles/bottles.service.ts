@@ -1204,8 +1204,8 @@ export async function getCurrentBottle(userId: string) {
   const bottle = await prisma.messageInABottle.findFirst({
     where: {
       OR: [
-        { senderId: userId, status: "ACCEPTED" },
-        { acceptedById: userId, status: "ACCEPTED" },
+        { senderId: userId, status: { in: ["ACCEPTED", "REVEALED"] } },
+        { acceptedById: userId, status: { in: ["ACCEPTED", "REVEALED"] } },
       ],
     },
     include: {
@@ -1267,8 +1267,8 @@ export async function getCurrentBottle(userId: string) {
 
   // Determine state
   // User can reply if: it's NOT their turn (last message is from someone else)
-  const canReply = !isMine && bottle.status === "ACCEPTED";
-  const waitingForReply = isMine && bottle.status === "ACCEPTED";
+  const canReply = !isMine && (bottle.status === "ACCEPTED" || bottle.status === "REVEALED");
+  const waitingForReply = isMine && (bottle.status === "ACCEPTED" || bottle.status === "REVEALED");
 
   // Can break correspondence: bottle is ACCEPTED AND acceptor has sent first reply
   const hasAcceptorReply = bottle.status === "ACCEPTED" && bottle.acceptedById
