@@ -79,7 +79,7 @@ export default function ProfileDetailScreen(){
         </TouchableOpacity>
       </View>
       <Text style={styles.avatarSubcaption}>{activeMedia==='photo'?'Touche la photo pour l’agrandir.':'Glisse ou touche Photo pour revenir.'}</Text>
-      {!isAdminPreview&&!isOwnProfile&&activeMedia==='photo'&&<TouchableOpacity onPress={reportPhoto} disabled={reporting}><Text style={styles.reportPhotoText}>Signaler cette photo</Text></TouchableOpacity>}
+      {!isAdminPreview&&!isOwnProfile&&activeMedia==='photo'&&<TouchableOpacity onPress={reportPhoto} disabled={reporting}><Text style={styles.reportText}>Signaler cette photo</Text></TouchableOpacity>}
     </>
   ) : (
     <>
