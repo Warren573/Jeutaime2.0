@@ -656,7 +656,7 @@ export default function SalonScreen() {
       console.log('[LOAD-AUDIT] Loading salon data...');
       // Load all in parallel
       const [msgs, session, offers, magies, myOffers, activeMag] = await Promise.all([
-        apiListMessages(apiSalonId, 50, screenSessionId),
+        apiListMessages(apiSalonId, 50, screenSessionId ?? undefined),
         getSessionDetail(screenSessionId),
         getSalonOfferings(apiSalonId, screenSessionId ?? undefined),
         getSalonMagies(apiSalonId),
@@ -1752,11 +1752,11 @@ export default function SalonScreen() {
         renderItem={({ item, index }) => {
           const isOwn = item.userId === 'me' || item.userId === currentUser?.id;
           const isSystem = item.kind === 'system';
-          const { time, dateSeparator } = formatMessageTime(item.createdAt);
+          const { time, dateSeparator } = formatMessageTime('createdAt' in item ? item.createdAt as string : undefined);
 
           // Check if we need to show date separator
           const prevItem = index > 0 ? messages[index - 1] : null;
-          const prevDate = prevItem ? formatMessageTime(prevItem.createdAt).dateSeparator : undefined;
+          const prevDate = prevItem ? formatMessageTime('createdAt' in prevItem ? prevItem.createdAt as string : undefined).dateSeparator : undefined;
           const showDateSeparator = dateSeparator && (dateSeparator !== prevDate);
 
           return (
