@@ -633,7 +633,7 @@ export default function AdminScreen() {
     if (user.role === 'ADMIN' && !isOwner) return;
     const ok = await confirm(
       user.isBanned ? 'Réactiver le compte' : 'Suspendre le compte',
-      user.isBanned ? `Réactiver ${('profile' in user ? ('profile' in user ? user.profile?.pseudo : undefined) : null) ?? user.email} ?` : `Suspendre ${('profile' in user ? ('profile' in user ? user.profile?.pseudo : undefined) : null) ?? user.email} ?`,
+      user.isBanned ? `Réactiver ${('profile' in user ? user.profile?.pseudo : undefined) ?? user.email} ?` : `Suspendre ${('profile' in user ? user.profile?.pseudo : undefined) ?? user.email} ?`,
     );
     if (!ok) return;
     try {
