@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
-import { consumeOffering, type SalonOfferingDTO } from '../api/offerings';
+import { consumeOffering, type SalonOfferingDTO, type OfferingSentDTO } from '../api/offerings';
 
 interface ConsumptionActionButtonProps {
   offering: SalonOfferingDTO;
   userId: string;
-  onSuccess?: (updated: SalonOfferingDTO) => void;
+  onSuccess?: (updated: OfferingSentDTO) => void;
 }
 
 /**
