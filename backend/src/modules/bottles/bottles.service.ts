@@ -240,6 +240,48 @@ async function findCompatibleRecipients(
   });
 }
 
+/**
+ * First written reply atomically claims a floating bottle.
+ * Reading the bottle never reserves it. One winner even with concurrent replies.
+ */
+export async function claimBottleWithReply(bottleId: string, userId: string, content: string, idempotencyKey: string) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const replay = await tx.anonymousMessage.findFirst({ where: { senderId: userId, idempotencyKey } });
+        if (replay) {
+          if (replay.bottleId !== bottleId) throw new ConflictError("Clé de réponse déjà utilisée.");
+          return { message: replay, idempotentReplay: true };
+        }
+        const [receipt, bottle, recipient] = await Promise.all([
+          tx.bottleReceipt.findUnique({ where: { bottleId_recipientId: { bottleId, recipientId: userId } } }),
+          tx.messageInABottle.findUnique({ where: { id: bottleId } }),
+          tx.user.findUnique({ where: { id: userId }, select: { premiumTier: true, premiumUntil: true } }),
+        ]);
+        if (!receipt || receipt.status !== "PENDING" || !bottle || bottle.status !== "FLOATING" || bottle.senderId === userId || bottle.acceptedById || bottle.expiresAt <= new Date()) {
+          throw new ConflictError("Cette bouteille n'est plus disponible.");
+        }
+        const limit = recipient && isPremiumActive(recipient) ? MAX_FLOATING_PREMIUM : MAX_FLOATING_FREE;
+        const active = await tx.messageInABottle.count({ where: { acceptedById: userId, status: { in: ["ACCEPTED", "REVEALED"] } } });
+        if (active >= limit) throw new ConflictError("Limite de correspondances par bouteille atteinte.");
+        const claimed = await tx.messageInABottle.updateMany({
+          where: { id: bottleId, status: "FLOATING", acceptedById: null, expiresAt: { gt: new Date() } },
+          data: { status: "ACCEPTED", acceptedById: userId, acceptedAt: new Date() },
+        });
+        if (claimed.count !== 1) throw new ConflictError("Une autre personne a répondu avant toi.");
+        const message = await tx.anonymousMessage.create({ data: { bottleId, senderId: userId, content, idempotencyKey } });
+        await tx.bottleReceipt.update({ where: { bottleId_recipientId: { bottleId, recipientId: userId } }, data: { status: "ACCEPTED", actionAt: new Date() } });
+        await tx.bottleReceipt.updateMany({ where: { bottleId, recipientId: { not: userId }, status: "PENDING" }, data: { status: "TAKEN", actionAt: new Date() } });
+        return { message, idempotentReplay: false };
+      }, { isolationLevel: "Serializable" });
+    } catch (error: any) {
+      if (error.code === "P2034" && attempt < 2) continue;
+      throw error;
+    }
+  }
+  throw new ConflictError("Réponse concurrente, réessaie.");
+}
+
 export async function acceptBottle(
   bottleId: string,
   userId: string,
