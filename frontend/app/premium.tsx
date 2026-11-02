@@ -131,7 +131,7 @@ export default function PremiumScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <AppBackButton onPress={() => router.back()} style={[styles.backBtn, compact && styles.backBtnCompact]} />
+        <AppBackButton onPress={() => router.back()} style={{...styles.backBtn,...(compact ? styles.backBtnCompact : {})}} />
 
         <Text style={styles.kicker}>ABONNEMENT</Text>
         <Text style={styles.title}>JeuTaime Plus</Text>
