@@ -274,7 +274,7 @@ export default function BottleMainScreen() {
             ) : (
               <>
                 <BottleParchmentCard
-                  content={state.latestLetter.content}
+                  content={state.latestLetter?.content ?? ''}
                   variant={state.latestLetter?.isMine ? 'sent' : 'received'}
                   label={state.latestLetter?.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
                 />
