@@ -163,7 +163,7 @@ export default function SalonsListScreen() {
           <View style={styles.activeSalonButtons}>
             <TouchableOpacity
               onPress={() => {
-                let slug = KIND_TO_SLUG[currentSalonKind];
+                let slug: string | undefined = KIND_TO_SLUG[currentSalonKind];
                 if (!slug) {
                   const salonByName = salonsData.find(s => s.name.toLowerCase() === currentSalonName.toLowerCase());
                   slug = salonByName?.id;
