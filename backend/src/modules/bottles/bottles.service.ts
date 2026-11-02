@@ -545,7 +545,7 @@ export async function postMessage(
           }
 
           // 3. Verify bottle is ACCEPTED (not REVEALED, not EXPIRED, etc.)
-          if (bottle.status !== "ACCEPTED") {
+          if (bottle.status !== "ACCEPTED" && bottle.status !== "REVEALED") {
             const err = new Error("Bottle is not active");
             (err as any).code = "BOTTLE_NOT_ACTIVE";
             throw err;
