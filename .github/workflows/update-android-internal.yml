@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: 'Validated Android QA branch to publish'
+        description: 'Validated source branch to publish (main or approved Android QA branch)'
         required: true
-        default: 'ota-settings-a16-20261030'
+        default: 'main'
         type: string
 
 permissions:
@@ -19,13 +19,13 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - name: Restrict publication to validated Android QA branch
+      - name: Restrict publication to main or validated Android QA branch
         working-directory: .
         env:
           SOURCE_REF: ${{ inputs.source_ref }}
         run: |
-          if [ "$SOURCE_REF" != 'ota-settings-a16-20261030' ]; then
-            echo 'Only the reviewed Android OTA test branch is allowed.' >&2
+          if [ "$SOURCE_REF" != 'main' ] && [ "$SOURCE_REF" != 'ota-settings-a16-20261030' ]; then
+            echo 'Only main or the reviewed Android OTA test branch is allowed.' >&2
             exit 1
           fi
       - uses: actions/checkout@v4
