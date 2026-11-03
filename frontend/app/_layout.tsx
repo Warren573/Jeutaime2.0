@@ -1,6 +1,7 @@
 import { Stack, usePathname, useRouter } from "expo-router";
 import { LogBox, Platform, View, useWindowDimensions } from "react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { SafeAreaInsetsContext, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useStore } from "../src/store/useStore";
 import { getToken } from "../src/utils/session";
@@ -10,6 +11,7 @@ import { API_URL } from "../src/api/client";
 import { TestModeLink } from "../src/dev/TestModeLink";
 import { getResponsiveScale } from "../src/utils/responsive";
 import { useAndroidKeyboardInset } from "../src/hooks/useAndroidKeyboardInset";
+import { APP_COLORS } from "../src/theme/appTheme";
 
 if (__DEV__) {
   LogBox.ignoreAllLogs(true);
@@ -31,6 +33,15 @@ export default function RootLayout() {
   // à l'ouverture du clavier. On rétablit ici, une seule fois pour toute
   // l'application, la réduction de la zone utile. Toujours 0 sur iOS et web.
   const keyboardInset = useAndroidKeyboardInset(height);
+  // Clavier ouvert, la zone utile s'arrête au bord du clavier, qui recouvre
+  // déjà la barre de navigation Android : la marge sûre du bas ne doit plus
+  // être ajoutée par les écrans ni par la barre d'onglets (sinon double
+  // compensation). Valeur inchangée clavier fermé, et toujours sur iOS/web.
+  const safeAreaInsets = useSafeAreaInsets();
+  const contentInsets = useMemo(
+    () => (keyboardInset > 0 ? { ...safeAreaInsets, bottom: 0 } : safeAreaInsets),
+    [keyboardInset, safeAreaInsets],
+  );
   const [isHydrated, setIsHydrated] = useState(false);
   const isSalon = pathname.startsWith('/salon/');
   const isSettings = pathname === '/settings' || pathname.endsWith('/settings');
@@ -97,19 +108,29 @@ export default function RootLayout() {
 
   return (
     <>
-      <View style={{ flex: 1, paddingBottom: keyboardInset }}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            orientation: 'portrait_up',
-            contentStyle: proportionalContentStyle,
+      <SafeAreaInsetsContext.Provider value={contentInsets}>
+        <View
+          style={{
+            flex: 1,
+            paddingBottom: keyboardInset,
+            // Android : pendant l'animation de fermeture du clavier, la bande
+            // libérée montre ce fond (couleur de l'app) au lieu du fond système.
+            backgroundColor: Platform.OS === 'android' ? APP_COLORS.background : undefined,
           }}
         >
-          <Stack.Screen name="(tabs)" options={{ orientation: 'portrait_up' }} />
-          <Stack.Screen name="salon/[id]" options={{ orientation: 'portrait_up', contentStyle: undefined }} />
-          <Stack.Screen name="salon/cafe-paris" options={{ orientation: 'all', contentStyle: undefined }} />
-        </Stack>
-      </View>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              orientation: 'portrait_up',
+              contentStyle: proportionalContentStyle,
+            }}
+          >
+            <Stack.Screen name="(tabs)" options={{ orientation: 'portrait_up' }} />
+            <Stack.Screen name="salon/[id]" options={{ orientation: 'portrait_up', contentStyle: undefined }} />
+            <Stack.Screen name="salon/cafe-paris" options={{ orientation: 'all', contentStyle: undefined }} />
+          </Stack>
+        </View>
+      </SafeAreaInsetsContext.Provider>
       <TestModeLink />
     </>
   );
