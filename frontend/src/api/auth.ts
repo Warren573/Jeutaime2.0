@@ -13,6 +13,7 @@ export interface RegisterPayload {
   birthDate: string;
   gender: "HOMME" | "FEMME" | "AUTRE";
   city: string;
+  postalCode?: string;
   acceptedTerms: true;
   acceptedCommunityRules: true;
 }
