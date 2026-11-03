@@ -6,7 +6,18 @@ on:
 jobs:
   test-photo-management:
     runs-on: ubuntu-latest
+    env:
+      TEST_ENDPOINTS_TOKEN: ${{ secrets.TEST_ENDPOINTS_TOKEN }}
     steps:
+      - name: Check TEST_ENDPOINTS_TOKEN secret is configured
+        run: |
+          if [ -z "${TEST_ENDPOINTS_TOKEN}" ]; then
+            echo "❌ Le secret GitHub TEST_ENDPOINTS_TOKEN n'est pas configuré."
+            echo "   Les routes /api/test/* répondent 404 sans ce jeton."
+            exit 1
+          fi
+          echo "✅ TEST_ENDPOINTS_TOKEN présent (valeur masquée)"
+
       - name: Test Photo Management E2E
         run: |
           set -e
@@ -25,7 +36,7 @@ jobs:
 
           # Version Check
           echo "=== Version Check: Verify deployed commit ==="
-          VERSION=$(curl -s "$API_URL/test/version")
+          VERSION=$(curl -H "x-test-endpoints-token: ${TEST_ENDPOINTS_TOKEN}" -s "$API_URL/test/version")
           echo "Deployed version:"
           echo "$VERSION" | jq .
           DEPLOYED_COMMIT=$(echo "$VERSION" | jq -r '.commit')
@@ -36,7 +47,7 @@ jobs:
 
           # Step 0: Cleanup staging data
           echo "=== Step 0: Cleanup staging debug data ==="
-          CLEANUP=$(curl -s -X POST "$API_URL/test/cleanup-staging-debug-data" \
+          CLEANUP=$(curl -H "x-test-endpoints-token: ${TEST_ENDPOINTS_TOKEN}" -s -X POST "$API_URL/test/cleanup-staging-debug-data" \
             -H "Content-Type: application/json")
           echo "Cleanup response:"
           echo "$CLEANUP" | jq .
@@ -44,7 +55,7 @@ jobs:
 
           # Step 1: Reset mutual smile (create A and B with initial coins)
           echo "=== Step 1: Reset mutual smile (create users A & B) ==="
-          RESET=$(curl -s -X POST "$API_URL/test/reset-mutual-smile" \
+          RESET=$(curl -H "x-test-endpoints-token: ${TEST_ENDPOINTS_TOKEN}" -s -X POST "$API_URL/test/reset-mutual-smile" \
             -H "Content-Type: application/json")
           echo "Reset response:"
           echo "$RESET" | jq .
@@ -431,14 +442,14 @@ jobs:
             -H "Authorization: Bearer $TOKEN_A" > /dev/null
 
           # A and B answer questions
-          QUESTIONS_A=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
+          QUESTIONS_A=$(curl -H "x-test-endpoints-token: ${TEST_ENDPOINTS_TOKEN}" -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
           ANSWERS_A=$(echo "$QUESTIONS_A" | jq -c '[.userB.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
           curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN_A" \
             -d "{\"answers\": $ANSWERS_A}" > /dev/null
 
-          QUESTIONS_B=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
+          QUESTIONS_B=$(curl -H "x-test-endpoints-token: ${TEST_ENDPOINTS_TOKEN}" -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
           ANSWERS_B=$(echo "$QUESTIONS_B" | jq -c '[.userA.questions[]? | {profileQuestionId: .profileQuestionId, answer: .answer}]')
           curl -s -X POST "$API_URL/matches/$MATCH_ID/questions/answers" \
             -H "Content-Type: application/json" \

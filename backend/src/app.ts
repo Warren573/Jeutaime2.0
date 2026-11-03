@@ -48,6 +48,7 @@ import refugeRoutes from "./modules/refuge/refuge.routes";
 import statsRoutes from "./modules/stats/stats.routes";
 import weeklyProfileRoutes from "./modules/weekly-profile/weekly-profile.routes";
 import testRoutes from "./modules/test/test.routes";
+import { requireTestEndpointsToken } from "./modules/test/testEndpointsGuard";
 import debugRoutes from "./modules/debug/debug.routes";
 
 const app = express();
@@ -126,8 +127,10 @@ const allowTestRoutes =
   process.env.RENDER_SERVICE_NAME === "jeutaime-staging" ||
   process.env.ALLOW_TEST_ENDPOINTS === "true";
 
+// Toutes les routes de test exigent en plus l'en-tête x-test-endpoints-token
+// égal à TEST_ENDPOINTS_TOKEN. Sans jeton configuré, elles répondent toutes 404.
 if (allowTestRoutes) {
-  app.use(`${api}/test`, testRoutes);
+  app.use(`${api}/test`, requireTestEndpointsToken, testRoutes);
 }
 
 // Les routes de debug générales restent totalement absentes de la production.
