@@ -290,7 +290,7 @@ export default function RegisterScreen() {
       acceptedTerms: true as const,
       acceptedCommunityRules: true as const,
     };
-    console.warn("[Register] payload:", JSON.stringify(payload));
+    // Ne jamais journaliser les données d’inscription (notamment le mot de passe).
 
     setStatus("submitting");
     setLastError(null);
