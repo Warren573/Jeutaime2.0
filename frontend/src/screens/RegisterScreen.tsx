@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,6 +16,7 @@ import {
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 import { API_URL } from "../api/client";
+import { CommunePicker, type Commune } from "../components/CommunePicker";
 
 // ─── Constantes date ──────────────────────────────────────────────────────────
 
@@ -161,9 +163,15 @@ export default function RegisterScreen() {
   const router = useRouter();
   const { register: storeRegister } = useStore();
 
+  const emailRef = useRef<TextInput>(null);
+  const cityRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+
   const [pseudo,   setPseudo]   = useState("");
   const [email,    setEmail]    = useState("");
   const [city,     setCity]     = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [locationQuery, setLocationQuery] = useState("");
   const [gender,   setGender]   = useState("HOMME");
   const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -276,12 +284,13 @@ export default function RegisterScreen() {
       email:     email.trim().toLowerCase(),
       birthDate: new Date(`${birthDate}T00:00:00.000Z`).toISOString(),
       city:      city.trim(),
+      postalCode,
       gender:    gender as "HOMME" | "FEMME" | "AUTRE",
       password,
       acceptedTerms: true as const,
       acceptedCommunityRules: true as const,
     };
-    console.warn("[Register] payload:", JSON.stringify(payload));
+    // Ne jamais journaliser les données d’inscription (notamment le mot de passe).
 
     setStatus("submitting");
     setLastError(null);
@@ -324,6 +333,7 @@ export default function RegisterScreen() {
         <ScrollView
           contentContainerStyle={s.scroll}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           <View style={s.card}>
             <Text style={s.brand}>JEUTAIME</Text>
@@ -339,6 +349,8 @@ export default function RegisterScreen() {
                   value={pseudo} onChangeText={setPseudo}
                   placeholder="Ton pseudo" placeholderTextColor="#9a948d"
                   autoCapitalize="none" style={s.input}
+                  returnKeyType="next" blurOnSubmit={false}
+                  onSubmitEditing={() => emailRef.current?.focus()}
                 />
                 {pseudoError ? <Text style={s.err}>{pseudoError}</Text> : null}
               </View>
@@ -347,10 +359,13 @@ export default function RegisterScreen() {
               <View style={s.field}>
                 <Text style={s.label}>Email</Text>
                 <TextInput
+                  ref={emailRef}
                   value={email} onChangeText={setEmail}
                   autoCapitalize="none" keyboardType="email-address"
                   placeholder="ton@email.com" placeholderTextColor="#9a948d"
                   style={s.input}
+                  returnKeyType="next" blurOnSubmit={false}
+                  onSubmitEditing={() => { Keyboard.dismiss(); setPickerOpen("day"); }}
                 />
               </View>
 
@@ -390,11 +405,12 @@ export default function RegisterScreen() {
 
               {/* Ville */}
               <View style={s.field}>
-                <Text style={s.label}>Ville</Text>
-                <TextInput
-                  value={city} onChangeText={setCity}
-                  placeholder="Ta ville" placeholderTextColor="#9a948d"
-                  style={s.input}
+                <Text style={s.label}>Ville ou code postal</Text>
+                <CommunePicker
+                  value={locationQuery}
+                  onChangeText={(text) => { setLocationQuery(text); setCity(""); setPostalCode(""); }}
+                  onSelect={(commune: Commune) => { setCity(commune.nom); setPostalCode(commune.codePostal); setLocationQuery(`${commune.nom} (${commune.codePostal})`); Keyboard.dismiss(); }}
+                  inputStyle={s.input}
                 />
               </View>
 
@@ -420,9 +436,11 @@ export default function RegisterScreen() {
               <View style={s.field}>
                 <Text style={s.label}>Mot de passe</Text>
                 <TextInput
+                  ref={passwordRef}
                   value={password} onChangeText={setPassword}
                   secureTextEntry placeholder="••••••••" placeholderTextColor="#9a948d"
                   style={s.input}
+                  returnKeyType="done" onSubmitEditing={Keyboard.dismiss}
                 />
                 {passwordError ? (
                   <Text style={s.err}>{passwordError}</Text>

@@ -31,6 +31,7 @@ export const RegisterSchema = z.object({
     }, "Tu dois avoir au moins 18 ans pour t'inscrire"),
   gender: z.enum(["HOMME", "FEMME", "AUTRE"]),
   city: z.string().min(1, "Ville requise").max(100),
+  postalCode: z.string().max(10).optional(),
   acceptedTerms: z.literal(true, {
     errorMap: () => ({ message: "Tu dois accepter les Conditions d’utilisation" }),
   }),

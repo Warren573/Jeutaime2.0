@@ -67,6 +67,7 @@ export async function register(dto: RegisterDto) {
         birthDate: new Date(dto.birthDate),
         gender: dto.gender as Gender,
         city: dto.city,
+        postalCode: dto.postalCode ?? null,
         interestedIn: [],
         lookingFor: [],
         interests: [],
