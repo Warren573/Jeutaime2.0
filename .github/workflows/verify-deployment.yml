@@ -105,6 +105,17 @@ jobs:
             exit 1
           fi
 
+      - name: Assert /api/test routes are closed without token
+        run: |
+          BACKEND_URL="${{ secrets.BACKEND_API_URL }}"
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BACKEND_URL/api/test/version")
+          echo "GET /api/test/version without token -> HTTP $CODE"
+          if [ "$CODE" != "404" ]; then
+            echo "❌ SECURITY: /api/test is reachable without TEST_ENDPOINTS_TOKEN"
+            exit 1
+          fi
+          echo "✅ /api/test routes refuse calls without token"
+
       - name: Success Summary
         run: |
           echo ""
