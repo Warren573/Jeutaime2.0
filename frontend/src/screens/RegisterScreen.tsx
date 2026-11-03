@@ -16,6 +16,7 @@ import {
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 import { API_URL } from "../api/client";
+import { CommunePicker, type Commune } from "../components/CommunePicker";
 
 // ─── Constantes date ──────────────────────────────────────────────────────────
 
@@ -169,6 +170,8 @@ export default function RegisterScreen() {
   const [pseudo,   setPseudo]   = useState("");
   const [email,    setEmail]    = useState("");
   const [city,     setCity]     = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [locationQuery, setLocationQuery] = useState("");
   const [gender,   setGender]   = useState("HOMME");
   const [password, setPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -281,6 +284,7 @@ export default function RegisterScreen() {
       email:     email.trim().toLowerCase(),
       birthDate: new Date(`${birthDate}T00:00:00.000Z`).toISOString(),
       city:      city.trim(),
+      postalCode,
       gender:    gender as "HOMME" | "FEMME" | "AUTRE",
       password,
       acceptedTerms: true as const,
@@ -401,14 +405,12 @@ export default function RegisterScreen() {
 
               {/* Ville */}
               <View style={s.field}>
-                <Text style={s.label}>Ville</Text>
-                <TextInput
-                  ref={cityRef}
-                  value={city} onChangeText={setCity}
-                  placeholder="Ta ville" placeholderTextColor="#9a948d"
-                  style={s.input}
-                  returnKeyType="next" blurOnSubmit={false}
-                  onSubmitEditing={() => passwordRef.current?.focus()}
+                <Text style={s.label}>Ville ou code postal</Text>
+                <CommunePicker
+                  value={locationQuery}
+                  onChangeText={(text) => { setLocationQuery(text); setCity(""); setPostalCode(""); }}
+                  onSelect={(commune: Commune) => { setCity(commune.nom); setPostalCode(commune.codePostal); setLocationQuery(`${commune.nom} (${commune.codePostal})`); Keyboard.dismiss(); }}
+                  inputStyle={s.input}
                 />
               </View>
 
