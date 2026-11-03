@@ -8,8 +8,10 @@
 --
 -- Ce que fait cette migration (et rien d'autre) :
 --   * rôle ADMIN -> USER (plus aucun droit d'administration) ;
---   * mot de passe remplacé par le hash bcrypt d'une valeur aléatoire jamais
---     conservée (connexion impossible avec les anciens identifiants) ;
+--   * mot de passe remplacé par une valeur générée par PostgreSQL au moment de
+--     la migration (unique pour chaque base, aucun hash figé dans ce fichier).
+--     Cette valeur n'est PAS un hash bcrypt : bcrypt.compare renvoie toujours
+--     false, aucun mot de passe ne peut donc correspondre ;
 --   * compte banni définitivement (connexion et requêtes refusées) ;
 --   * sessions (refresh tokens) révoquées.
 --
@@ -17,7 +19,8 @@
 --   * aucune ligne n'est supprimée (profil, portefeuille, audit conservés) ;
 --   * seul l'email exact admin@jeutaime.test est ciblé ;
 --   * le compte OWNER n'est jamais modifié (garde role <> 'OWNER') ;
---   * idempotente : sans effet si le compte n'existe pas ou est déjà neutralisé.
+--   * réexécution sans risque : sans effet si le compte n'existe pas ; si le
+--     compte est déjà neutralisé, il le reste.
 
 UPDATE "RefreshToken"
 SET "revokedAt" = CURRENT_TIMESTAMP
@@ -31,7 +34,7 @@ WHERE "revokedAt" IS NULL
 UPDATE "User"
 SET
   "role" = 'USER',
-  "passwordHash" = '$2a$12$VkEuP1nb81pkvdxTjLWXZ.7TnXg6DKIyFbPGq2k6Nle2uTdf6D0y2',
+  "passwordHash" = '!disabled:' || md5(random()::text || clock_timestamp()::text),
   "isBanned" = true,
   "banReason" = 'Compte d''administration temporaire neutralisé',
   "banUntil" = NULL,
