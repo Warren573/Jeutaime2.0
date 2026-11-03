@@ -164,7 +164,7 @@ export default function RegisterScreen() {
   const { register: storeRegister } = useStore();
 
   const emailRef = useRef<TextInput>(null);
-  const cityRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const passwordRef = useRef<TextInput>(null);
 
   const [pseudo,   setPseudo]   = useState("");
@@ -181,6 +181,13 @@ export default function RegisterScreen() {
   const [day,   setDay]   = useState(1);
   const [month, setMonth] = useState(1);
   const [year,  setYear]  = useState(2000);
+
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const [pickerOpen, setPickerOpen] = useState<PickerType>(null);
   const [status,     setStatus]     = useState<Status>("idle");
@@ -328,10 +335,12 @@ export default function RegisterScreen() {
     <SafeAreaView style={s.safe}>
       <KeyboardAvoidingView
         style={s.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView
-          contentContainerStyle={s.scroll}
+          ref={scrollRef}
+          style={s.flex}
+          contentContainerStyle={[s.scroll, keyboardVisible && s.scrollKeyboard]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
@@ -440,6 +449,7 @@ export default function RegisterScreen() {
                   value={password} onChangeText={setPassword}
                   secureTextEntry placeholder="••••••••" placeholderTextColor="#9a948d"
                   style={s.input}
+                  onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 220)}
                   returnKeyType="done" onSubmitEditing={Keyboard.dismiss}
                 />
                 {passwordError ? (
@@ -563,6 +573,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 32,
   },
+  scrollKeyboard: { justifyContent: "flex-start", paddingBottom: 140 },
   card: {
     width: "100%",
     maxWidth: 420,
