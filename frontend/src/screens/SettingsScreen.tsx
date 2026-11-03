@@ -193,7 +193,7 @@ export default function SettingsScreen() {
               : currentUser?.role === 'MODERATOR'
                 ? 'Modération'
                 : 'Administration',
-          items:
+          items: (
             currentUser?.role === 'OWNER'
               ? [
                   { icon: 'key-outline', label: 'Espace propriétaire', route: '/admin?tab=staff' },
@@ -204,7 +204,10 @@ export default function SettingsScreen() {
                   ]
                 : [
                     { icon: 'shield-half-outline', label: 'Panneau de modération', route: '/admin?tab=reports' },
-                  ],
+                  ]
+          ).concat([
+            { icon: 'resize-outline', label: "Diagnostic d'affichage", route: '/display-diagnostics' },
+          ]),
         } as SettingsSection]
       : []),
     {
