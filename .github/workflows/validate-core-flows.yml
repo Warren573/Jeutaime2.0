@@ -14,6 +14,7 @@ on:
       - 'backend/src/**'
       - 'backend/tests/**'
       - 'frontend/src/**'
+      - 'frontend/app/**'
       - '.github/workflows/validate-core-flows.yml'
 
 permissions:
