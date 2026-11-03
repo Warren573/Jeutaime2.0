@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -160,6 +161,10 @@ type PickerType = "day" | "month" | "year" | null;
 export default function RegisterScreen() {
   const router = useRouter();
   const { register: storeRegister } = useStore();
+
+  const emailRef = useRef<TextInput>(null);
+  const cityRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   const [pseudo,   setPseudo]   = useState("");
   const [email,    setEmail]    = useState("");
@@ -324,6 +329,7 @@ export default function RegisterScreen() {
         <ScrollView
           contentContainerStyle={s.scroll}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           <View style={s.card}>
             <Text style={s.brand}>JEUTAIME</Text>
@@ -339,6 +345,8 @@ export default function RegisterScreen() {
                   value={pseudo} onChangeText={setPseudo}
                   placeholder="Ton pseudo" placeholderTextColor="#9a948d"
                   autoCapitalize="none" style={s.input}
+                  returnKeyType="next" blurOnSubmit={false}
+                  onSubmitEditing={() => emailRef.current?.focus()}
                 />
                 {pseudoError ? <Text style={s.err}>{pseudoError}</Text> : null}
               </View>
@@ -347,10 +355,13 @@ export default function RegisterScreen() {
               <View style={s.field}>
                 <Text style={s.label}>Email</Text>
                 <TextInput
+                  ref={emailRef}
                   value={email} onChangeText={setEmail}
                   autoCapitalize="none" keyboardType="email-address"
                   placeholder="ton@email.com" placeholderTextColor="#9a948d"
                   style={s.input}
+                  returnKeyType="next" blurOnSubmit={false}
+                  onSubmitEditing={() => { Keyboard.dismiss(); setPickerOpen("day"); }}
                 />
               </View>
 
@@ -392,9 +403,12 @@ export default function RegisterScreen() {
               <View style={s.field}>
                 <Text style={s.label}>Ville</Text>
                 <TextInput
+                  ref={cityRef}
                   value={city} onChangeText={setCity}
                   placeholder="Ta ville" placeholderTextColor="#9a948d"
                   style={s.input}
+                  returnKeyType="next" blurOnSubmit={false}
+                  onSubmitEditing={() => passwordRef.current?.focus()}
                 />
               </View>
 
@@ -420,9 +434,11 @@ export default function RegisterScreen() {
               <View style={s.field}>
                 <Text style={s.label}>Mot de passe</Text>
                 <TextInput
+                  ref={passwordRef}
                   value={password} onChangeText={setPassword}
                   secureTextEntry placeholder="••••••••" placeholderTextColor="#9a948d"
                   style={s.input}
+                  returnKeyType="done" onSubmitEditing={Keyboard.dismiss}
                 />
                 {passwordError ? (
                   <Text style={s.err}>{passwordError}</Text>
