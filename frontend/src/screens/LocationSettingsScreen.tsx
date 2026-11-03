@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AppBackButton } from '../components/AppBackButton';
 import { apiFetch } from '../api/client';
+import { CommunePicker, type Commune } from '../components/CommunePicker';
+import { Keyboard, ScrollView } from 'react-native';
 import {
   APP_COLORS,
   APP_RADIUS,
@@ -24,6 +26,7 @@ export default function LocationSettingsScreen() {
   const insets = useSafeAreaInsets();
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const [locationQuery, setLocationQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -32,6 +35,7 @@ export default function LocationSettingsScreen() {
       .then((res) => {
         setCity(res?.data?.city ?? '');
         setPostalCode(res?.data?.postalCode ?? '');
+        setLocationQuery(res?.data?.city ? `${res.data.city}${res.data.postalCode ? ` (${res.data.postalCode})` : ''}` : '');
       })
       .catch(() => Alert.alert('Erreur', 'Impossible de charger ta localisation.'))
       .finally(() => setLoading(false));
@@ -52,7 +56,7 @@ export default function LocationSettingsScreen() {
         method: 'PATCH',
         body: JSON.stringify({
           city: cleanCity,
-          ...(cleanPostalCode ? { postalCode: cleanPostalCode } : {}),
+          postalCode: cleanPostalCode,
         }),
       });
       Alert.alert('Localisation enregistrée', 'Ta ville a bien été mise à jour.');
@@ -82,32 +86,19 @@ export default function LocationSettingsScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <Text style={styles.intro}>
           JeuTaime utilise ta ville pour contextualiser les profils. Aucune position GPS précise n’est enregistrée ici.
         </Text>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Ville</Text>
-          <TextInput
-            style={styles.input}
-            value={city}
-            onChangeText={setCity}
-            placeholder="Ex. Lille"
+          <Text style={styles.label}>Ville ou code postal</Text>
+          <CommunePicker
+            inputStyle={styles.input}
             placeholderTextColor={APP_COLORS.muted}
-            autoCapitalize="words"
-            maxLength={100}
-          />
-
-          <Text style={[styles.label, styles.secondLabel]}>Code postal</Text>
-          <TextInput
-            style={styles.input}
-            value={postalCode}
-            onChangeText={setPostalCode}
-            placeholder="Ex. 59000"
-            placeholderTextColor={APP_COLORS.muted}
-            keyboardType="number-pad"
-            maxLength={10}
+            value={locationQuery}
+            onChangeText={(text) => { setLocationQuery(text); setCity(""); setPostalCode(""); }}
+            onSelect={(commune: Commune) => { setCity(commune.nom); setPostalCode(commune.codePostal); setLocationQuery(`${commune.nom} (${commune.codePostal})`); Keyboard.dismiss(); }}
           />
         </View>
 
@@ -130,7 +121,7 @@ export default function LocationSettingsScreen() {
             <Text style={styles.saveButtonText}>Enregistrer</Text>
           )}
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 }
