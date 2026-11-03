@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 export type Commune = { nom: string; codePostal: string; code: string };
 type GeoCommune = { nom: string; code: string; codesPostaux?: string[] };
@@ -23,7 +23,7 @@ export function CommunePicker({ value, onChangeText, onSelect, inputStyle, place
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const numeric = /^\\d+$/.test(query);
+        const numeric = /^[0-9]+$/.test(query);
         const param = numeric ? "codePostal" : "nom";
         const response = await fetch(
           `https://geo.api.gouv.fr/communes?${param}=${encodeURIComponent(query)}&fields=nom,code,codesPostaux&format=json&limit=12`,
@@ -53,7 +53,7 @@ export function CommunePicker({ value, onChangeText, onSelect, inputStyle, place
         value={value}
         onChangeText={(text) => { setSelected(false); onChangeText(text); }}
         onFocus={() => setFocused(true)}
-        onBlur={() => { setFocused(false); }}
+        onBlur={() => { /* Conserver les suggestions pendant le tap de sélection. */ }}
         placeholder="Ex. Paris ou 75016"
         placeholderTextColor={placeholderTextColor}
         autoCapitalize="words"
@@ -67,7 +67,7 @@ export function CommunePicker({ value, onChangeText, onSelect, inputStyle, place
         <View style={styles.results}>
           {results.map((item) => (
             <Pressable key={item.code + "-" + item.codePostal}
-              onPress={() => { setSelected(true); setResults([]); onSelect(item); }}
+              onPress={() => { setSelected(true); setFocused(false); setResults([]); onSelect(item); Keyboard.dismiss(); }}
               style={styles.option}>
               <Text style={styles.optionText}>{item.nom} ({item.codePostal})</Text>
             </Pressable>
