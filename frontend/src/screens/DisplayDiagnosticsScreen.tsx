@@ -56,6 +56,9 @@ export default function DisplayDiagnosticsScreen() {
   const [rootInWindow, setRootInWindow] = useState<{ w: number; h: number } | null>(null);
   const [windowHeightNoKeyboard, setWindowHeightNoKeyboard] = useState<number>(window.height);
   const [keyboard, setKeyboard] = useState<KeyboardSample | null>(null);
+  // Hauteur du clavier actuellement ouvert (0 si fermé) : sert uniquement à
+  // prolonger la zone de défilement pour que toutes les mesures restent lisibles.
+  const [openKeyboardHeight, setOpenKeyboardHeight] = useState(0);
 
   const isStaff = role === 'OWNER' || role === 'ADMIN' || role === 'MODERATOR';
 
@@ -66,6 +69,7 @@ export default function DisplayDiagnosticsScreen() {
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', (e: KeyboardEvent) => {
       const windowHeightAtShow = Dimensions.get('window').height;
+      setOpenKeyboardHeight(e.endCoordinates.height);
       inputRef.current?.measureInWindow((_x, y, _w, h) => {
         setKeyboard({
           height: e.endCoordinates.height,
@@ -76,6 +80,7 @@ export default function DisplayDiagnosticsScreen() {
       });
     });
     const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setOpenKeyboardHeight(0);
       setWindowHeightNoKeyboard(Dimensions.get('window').height);
     });
     return () => {
@@ -107,8 +112,9 @@ export default function DisplayDiagnosticsScreen() {
     ['Zone logique mise à l\'échelle', `${fmt(responsive.logicalWidth)} × ${fmt(responsive.logicalHeight)}`],
     ['Cet écran : mise en page (onLayout)', rootLayout ? `${fmt(rootLayout.w)} × ${fmt(rootLayout.h)}` : '—'],
     ['Cet écran : à l\'affichage (measureInWindow)', rootInWindow ? `${fmt(rootInWindow.w)} × ${fmt(rootInWindow.h)}` : '—'],
+    ['Clavier ouvert maintenant', openKeyboardHeight > 0 ? 'oui' : 'non'],
     ['Hauteur fenêtre sans clavier', fmt(windowHeightNoKeyboard)],
-    ['Clavier : hauteur', keyboard ? fmt(keyboard.height) : 'ouvrir le clavier ↓'],
+    ['Clavier : hauteur', keyboard ? fmt(keyboard.height) : 'toucher le champ ci-dessus'],
     ['Clavier : bord haut (screenY)', keyboard ? fmt(keyboard.screenY) : '—'],
     ['Hauteur fenêtre clavier ouvert', keyboard ? fmt(keyboard.windowHeightAtShow) : '—'],
     ['Bas du champ (fenêtre)', keyboard ? fmt(keyboard.inputBottomInWindow) : '—'],
@@ -125,14 +131,30 @@ export default function DisplayDiagnosticsScreen() {
       }}
     >
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24, paddingHorizontal: 16 }}
+        contentContainerStyle={{
+          paddingTop: insets.top + 12,
+          // Clavier ouvert : la zone défilable est prolongée de la hauteur du clavier
+          // pour que la dernière mesure puisse remonter au-dessus de celui-ci.
+          paddingBottom: insets.bottom + 24 + openKeyboardHeight,
+          paddingHorizontal: 16,
+        }}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
       >
         <AppBackButton onPress={() => router.back()} />
         <Text style={styles.title}>{"Diagnostic d'affichage"}</Text>
         <Text style={styles.muted}>
-          {"Lecture seule. Faites une capture d'écran de cette page, puis une seconde clavier ouvert."}
+          {"Lecture seule. Faites une capture d'écran clavier fermé, puis touchez le champ et faites une seconde capture clavier ouvert (faites défiler pour voir toutes les mesures)."}
         </Text>
+
+        <View ref={inputRef} collapsable={false} style={styles.inputWrap}>
+          <TextInput
+            style={styles.input}
+            placeholder="Touchez ici pour ouvrir le clavier"
+            placeholderTextColor={APP_COLORS.muted}
+            onFocus={measureRoot}
+          />
+        </View>
 
         <View style={styles.card}>
           {rows.map(([label, value]) => (
@@ -143,14 +165,6 @@ export default function DisplayDiagnosticsScreen() {
           ))}
         </View>
 
-        <View ref={inputRef} collapsable={false} style={styles.inputWrap}>
-          <TextInput
-            style={styles.input}
-            placeholder="Touchez ici pour ouvrir le clavier"
-            placeholderTextColor={APP_COLORS.muted}
-            onFocus={measureRoot}
-          />
-        </View>
       </ScrollView>
     </View>
   );
@@ -178,7 +192,7 @@ const styles = StyleSheet.create({
   },
   label: { flex: 1, fontSize: 13, color: APP_COLORS.text },
   value: { fontSize: 13, fontWeight: '700', color: APP_COLORS.ink, textAlign: 'right' },
-  inputWrap: { marginTop: 220 },
+  inputWrap: { marginBottom: 12 },
   input: {
     borderColor: APP_COLORS.borderStrong,
     borderWidth: 1,
