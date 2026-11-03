@@ -14,9 +14,12 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
+import { requireOptionalNativeModule } from 'expo';
 import { useStore } from '../store/useStore';
 import { getUserSettings, updateUserSettings } from '../api/userSettings';
 import { CoinIcon } from '../components/CoinIcon';
+
+const ExpoApplicationNative = requireOptionalNativeModule<{ nativeBuildVersion?: string | null }>('ExpoApplication');
 
 type SettingsIconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -165,7 +168,14 @@ export default function SettingsScreen() {
 
   // Version native du binaire (Google Play / App Store) et mise à jour JavaScript réellement lancée.
   const installedBuildVersion = Constants.nativeAppVersion ?? Constants.expoConfig?.version ?? 'inconnue';
-  const nativeBuildNumber = Constants.nativeBuildVersion ?? 'inconnu';
+  // `Constants.nativeBuildVersion` n'existe pas dans expo-constants 18 (toujours undefined).
+  // On lit le module natif ExpoApplication s'il est présent dans le binaire installé
+  // (versionCode Android / CFBundleVersion iOS), sinon CFBundleVersion via expo-constants sur iOS.
+  // Chargement optionnel : aucun crash si le module natif est absent du build.
+  const nativeBuildNumber =
+    ExpoApplicationNative?.nativeBuildVersion ||
+    Constants.platform?.ios?.buildNumber ||
+    'inconnu';
   const otaUpdateId = Updates.updateId?.slice(0, 8) ?? null;
   const otaRelease = process.env.EXPO_PUBLIC_OTA_RELEASE_VERSION ?? null;
   const otaStatus = Updates.isEmbeddedLaunch
