@@ -9,6 +9,9 @@ import { OfferingCategory, SalonKind, Gender, Prisma } from "@prisma/client";
 
 const router = Router();
 
+// Préfixe des comptes jetables créés par /reset-mutual-smile pour la CI.
+const CI_TEST_USER_ID_PREFIX = "test-mutual-";
+
 // Capture build time at module load
 const BUILD_TIME = new Date().toISOString();
 
@@ -795,19 +798,13 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
     console.log(`[cleanup-staging] Found ${testProfiles.length} test_mutual_% profiles`);
 
     // 3. Find users with email containing ".test" (test email pattern)
-    const testEmailUsers = await prisma.user.findMany({
-      where: { email: { contains: ".test" } },
-      select: { id: true },
-    });
-    const testEmailUserIds = testEmailUsers.map((u) => u.id);
-    console.log(`[cleanup-staging] Found ${testEmailUserIds.length} users with .test email pattern`);
-
-    // All test users to DELETE (test-mutual + test profiles + test emails)
+    // SÉCURITÉ : seuls les comptes créés par la CI (id `test-mutual-*`) peuvent être supprimés.
+    // Les comptes `.test` (dont le compte propriétaire) et les pseudos choisis par des
+    // utilisateurs ne sont plus jamais ciblés par ce nettoyage.
     const allTestUserIds = [
       ...new Set([
         ...testMutualIds,
-        ...testProfileUserIds,
-        ...testEmailUserIds,
+        ...testProfileUserIds.filter((id) => id.startsWith(CI_TEST_USER_ID_PREFIX)),
       ]),
     ];
 
@@ -878,32 +875,19 @@ const cleanupStagingHandler = asyncHandler(async (_req: Request, res: Response) 
       console.log(`[cleanup-staging] Deleted ${allTestUserIds.length} test users and their data`);
     }
 
-    // 5. HIDE ALL OTHER PROFILES FROM DISCOVERY
-    // Set showInDiscovery=false for all profiles EXCEPT test-mutual-*
-    const stagingProfiles = await prisma.profile.findMany({
-      where: {
-        userId: {
-          not: { startsWith: "test-mutual-" },
-        },
-      },
-      select: { userId: true },
-    });
+    // 5. (supprimé) Cette étape masquait de la découverte TOUS les profils hors CI,
+    // y compris les vrais utilisateurs. Elle ne modifie plus aucun compte réel.
 
-    const stagingUserIds = stagingProfiles.map((p) => p.userId);
-    console.log(`[cleanup-staging] Found ${stagingUserIds.length} staging/real profiles to hide from discovery`);
-
-    if (stagingUserIds.length > 0) {
-      counts.profilesHiddenFromDiscovery = await prisma.userSettings.updateMany({
-        where: { userId: { in: stagingUserIds } },
-        data: { showInDiscovery: false },
-      }).then((r) => r.count);
-
-      console.log(`[cleanup-staging] Hidden ${counts.profilesHiddenFromDiscovery} profiles from discovery`);
-    }
-
-    // 6. Delete BROKEN/GHOSTED/BLOCKED matches (ALL users, for data integrity)
+    // 6. Delete BROKEN/GHOSTED/BLOCKED matches — uniquement ceux des comptes CI.
+    // (Auparavant : tous les utilisateurs, ce qui effaçait l'historique de blocages réel.)
     counts.brokenMatchesDeleted = await prisma.match.deleteMany({
-      where: { status: { in: ["BROKEN", "GHOSTED", "BLOCKED"] } },
+      where: {
+        status: { in: ["BROKEN", "GHOSTED", "BLOCKED"] },
+        OR: [
+          { userAId: { startsWith: CI_TEST_USER_ID_PREFIX } },
+          { userBId: { startsWith: CI_TEST_USER_ID_PREFIX } },
+        ],
+      },
     }).then((r) => r.count);
 
     console.log("[cleanup-staging] Cleanup complete:", counts);
@@ -2067,6 +2051,10 @@ router.post("/set-wallet-coins", asyncHandler(async (req: Request, res: Response
       return res.status(400).json({ error: "userId is required (string)" });
     }
 
+    if (!userId.startsWith(CI_TEST_USER_ID_PREFIX)) {
+      return res.status(403).json({ error: "Only CI test accounts (test-mutual-*) can be modified" });
+    }
+
     if (coins === undefined || typeof coins !== "number" || coins < 0) {
       return res.status(400).json({ error: "coins is required (non-negative number)" });
     }
@@ -2145,6 +2133,10 @@ router.post("/set-wallet-lastbonus", asyncHandler(async (req: Request, res: Resp
     // Validate inputs
     if (!userId || typeof userId !== "string") {
       return res.status(400).json({ error: "userId is required (string)" });
+    }
+
+    if (!userId.startsWith(CI_TEST_USER_ID_PREFIX)) {
+      return res.status(403).json({ error: "Only CI test accounts (test-mutual-*) can be modified" });
     }
 
     // lastBonusAt can be null or valid ISO string

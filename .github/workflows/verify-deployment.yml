@@ -8,6 +8,8 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      TEST_ENDPOINTS_TOKEN: ${{ secrets.TEST_ENDPOINTS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -84,7 +86,7 @@ jobs:
           echo "Testing endpoint: ${{ secrets.BACKEND_API_URL }}/api/test/reset-mutual-smile"
           BACKEND_URL="${{ secrets.BACKEND_API_URL }}"
 
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BACKEND_URL/api/test/reset-mutual-smile")
+          RESPONSE=$(curl -H "x-test-endpoints-token: ${TEST_ENDPOINTS_TOKEN}" -s -w "\n%{http_code}" -X POST "$BACKEND_URL/api/test/reset-mutual-smile")
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')
 

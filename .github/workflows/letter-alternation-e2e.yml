@@ -6,7 +6,18 @@ on:
 jobs:
   test-letter-alternation:
     runs-on: ubuntu-latest
+    env:
+      TEST_ENDPOINTS_TOKEN: ${{ secrets.TEST_ENDPOINTS_TOKEN }}
     steps:
+      - name: Check TEST_ENDPOINTS_TOKEN secret is configured
+        run: |
+          if [ -z "${TEST_ENDPOINTS_TOKEN}" ]; then
+            echo "❌ Le secret GitHub TEST_ENDPOINTS_TOKEN n'est pas configuré."
+            echo "   Les routes /api/test/* répondent 404 sans ce jeton."
+            exit 1
+          fi
+          echo "✅ TEST_ENDPOINTS_TOKEN présent (valeur masquée)"
+
       - name: Test letter alternation system
         run: |
           set -e
@@ -25,7 +36,7 @@ jobs:
 
           # Version Check
           echo "=== Version Check: Verify deployed commit ==="
-          VERSION=$(curl -s "$API_URL/test/version")
+          VERSION=$(curl -H "x-test-endpoints-token: ${TEST_ENDPOINTS_TOKEN}" -s "$API_URL/test/version")
           echo "Deployed version:"
           echo "$VERSION" | jq .
           DEPLOYED_COMMIT=$(echo "$VERSION" | jq -r '.commit')
@@ -36,7 +47,7 @@ jobs:
 
           # Step 1: Cleanup staging data
           echo "=== Step 1: Cleanup staging debug data ==="
-          CLEANUP=$(curl -s -X POST "$API_URL/test/cleanup-staging-debug-data" \
+          CLEANUP=$(curl -H "x-test-endpoints-token: ${TEST_ENDPOINTS_TOKEN}" -s -X POST "$API_URL/test/cleanup-staging-debug-data" \
             -H "Content-Type: application/json")
           echo "Cleanup response:"
           echo "$CLEANUP" | jq .
@@ -44,7 +55,7 @@ jobs:
 
           # Step 2: Reset mutual smile (create two test accounts + match)
           echo "=== Step 2: Reset mutual smile (create test accounts + match) ==="
-          RESET=$(curl -s -X POST "$API_URL/test/reset-mutual-smile" \
+          RESET=$(curl -H "x-test-endpoints-token: ${TEST_ENDPOINTS_TOKEN}" -s -X POST "$API_URL/test/reset-mutual-smile" \
             -H "Content-Type: application/json")
           echo "Response:"
           echo "$RESET" | jq .
@@ -215,7 +226,7 @@ jobs:
           echo "=== Step 9: Debug match details ==="
           echo "STEP_09_REACHED"
 
-          MATCH_DEBUG=$(curl -s "$API_URL/test/debug-match?matchId=$MATCH_ID")
+          MATCH_DEBUG=$(curl -H "x-test-endpoints-token: ${TEST_ENDPOINTS_TOKEN}" -s "$API_URL/test/debug-match?matchId=$MATCH_ID")
 
           echo "MATCH_DEBUG_RESPONSE_RAW:"
           echo "$MATCH_DEBUG"
@@ -271,7 +282,7 @@ jobs:
           echo ""
 
           # Fetch questions WITH answers from test endpoint (staging only)
-          QUESTIONS_A=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
+          QUESTIONS_A=$(curl -H "x-test-endpoints-token: ${TEST_ENDPOINTS_TOKEN}" -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
 
           echo "QUESTIONS_A_RESPONSE_RAW:"
           echo "$QUESTIONS_A"
@@ -338,7 +349,7 @@ jobs:
           echo "BBBBB_STEP_12_START_BBBBB"
 
           # Fetch questions WITH answers from test endpoint (staging only)
-          QUESTIONS_B=$(curl -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
+          QUESTIONS_B=$(curl -H "x-test-endpoints-token: ${TEST_ENDPOINTS_TOKEN}" -s "$API_URL/test/match-questions?matchId=$MATCH_ID")
 
           echo "QUESTIONS_B_RAW_START"
           echo "$QUESTIONS_B"
