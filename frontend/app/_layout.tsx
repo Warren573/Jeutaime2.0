@@ -42,11 +42,18 @@ export default function RootLayout() {
   useEffect(() => { fetch(`${API_URL}/health`, { method: "GET" }).catch(() => {}); }, []);
 
   useEffect(() => {
+    let active = true;
     (async () => {
-      const token = await getToken();
-      if (token) await hydrateFromApi();
-      setIsHydrated(true);
+      try {
+        const token = await getToken();
+        if (token) await hydrateFromApi();
+      } catch (error) {
+        console.warn("[startup] Session initialization failed", error instanceof Error ? error.name : "unknown");
+      } finally {
+        if (active) setIsHydrated(true);
+      }
     })();
+    return () => { active = false; };
   }, [hydrateFromApi]);
 
   useEffect(() => {
@@ -57,14 +64,6 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!isHydrated || !isAuthenticated || currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR' || canDiscover !== false) return;
-    console.log("[profile-gate] REDIRECT TRIGGERED", {
-      userId: currentUser?.id,
-      email: currentUser?.email,
-      pseudo: currentUser?.pseudo,
-      canDiscover,
-      profileMissingFields: currentUser?.profileMissingFields,
-      pathname,
-    });
     if (PROFILE_GATE_EXCLUDED.some((p) => pathname.startsWith(p))) return;
     const missing = currentUser?.profileMissingFields ?? [];
     const coreProfileFields = ['bio', 'interestedIn', 'lookingFor', 'physicalDesc'];
