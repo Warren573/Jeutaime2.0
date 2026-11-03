@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { AppBackButton } from '../components/AppBackButton';
 import { useStore } from '../store/useStore';
 import { getResponsiveScale } from '../utils/responsive';
+import { computeKeyboardOverlap } from '../utils/keyboardInset';
 import { APP_COLORS } from '../theme/appTheme';
 
 /**
@@ -118,6 +119,12 @@ export default function DisplayDiagnosticsScreen() {
     ['Clavier : bord haut (screenY)', keyboard ? fmt(keyboard.screenY) : '—'],
     ['Hauteur fenêtre clavier ouvert', keyboard ? fmt(keyboard.windowHeightAtShow) : '—'],
     ['Bas du champ (fenêtre)', keyboard ? fmt(keyboard.inputBottomInWindow) : '—'],
+    [
+      'Compensation clavier à la racine (Android)',
+      keyboard && Platform.OS === 'android'
+        ? fmt(computeKeyboardOverlap(keyboard.windowHeightAtShow, keyboard.screenY))
+        : Platform.OS === 'android' ? '—' : 'sans objet',
+    ],
   ];
 
   return (
