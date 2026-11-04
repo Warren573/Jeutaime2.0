@@ -25,3 +25,22 @@ describe("computeKeyboardOverlap", () => {
     expect(computeKeyboardOverlap(832, Number.NaN)).toBe(0);
   });
 });
+
+import { insetsWhileKeyboardOpen } from "../src/utils/keyboardInset";
+
+describe("insetsWhileKeyboardOpen", () => {
+  const a16 = { top: 32, right: 0, bottom: 48, left: 0 };
+
+  it("clavier ouvert (A16, 358,4 dp) → marge du bas à 0, autres marges conservées", () => {
+    expect(insetsWhileKeyboardOpen(a16, 358.4)).toEqual({ top: 32, right: 0, bottom: 0, left: 0 });
+  });
+
+  it("clavier fermé → même objet, aucune modification (iOS et web reçoivent toujours 0)", () => {
+    expect(insetsWhileKeyboardOpen(a16, 0)).toBe(a16);
+  });
+
+  it("ne modifie jamais l'objet d'origine", () => {
+    insetsWhileKeyboardOpen(a16, 100);
+    expect(a16.bottom).toBe(48);
+  });
+});

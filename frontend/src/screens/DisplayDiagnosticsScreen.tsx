@@ -3,6 +3,7 @@ import {
   Dimensions,
   Keyboard,
   KeyboardEvent,
+  Modal,
   PixelRatio,
   Platform,
   ScrollView,
@@ -10,6 +11,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -20,6 +22,7 @@ import { useStore } from '../store/useStore';
 import { getResponsiveScale } from '../utils/responsive';
 import { computeKeyboardOverlap } from '../utils/keyboardInset';
 import { APP_COLORS } from '../theme/appTheme';
+import { ModalKeyboardFrame } from '../components/ModalKeyboardFrame';
 
 /**
  * Diagnostic d'affichage (lecture seule, aucun appel réseau, aucune écriture).
@@ -57,6 +60,7 @@ export default function DisplayDiagnosticsScreen() {
   const [rootInWindow, setRootInWindow] = useState<{ w: number; h: number } | null>(null);
   const [windowHeightNoKeyboard, setWindowHeightNoKeyboard] = useState<number>(window.height);
   const [keyboard, setKeyboard] = useState<KeyboardSample | null>(null);
+  const [modalTestOpen, setModalTestOpen] = useState(false);
   // Hauteur du clavier actuellement ouvert (0 si fermé) : sert uniquement à
   // prolonger la zone de défilement pour que toutes les mesures restent lisibles.
   const [openKeyboardHeight, setOpenKeyboardHeight] = useState(0);
@@ -163,6 +167,10 @@ export default function DisplayDiagnosticsScreen() {
           />
         </View>
 
+        <TouchableOpacity style={styles.modalTestBtn} onPress={() => setModalTestOpen(true)}>
+          <Text style={styles.modalTestBtnText}>Tester le clavier dans une fenêtre Modal</Text>
+        </TouchableOpacity>
+
         <View style={styles.card}>
           {rows.map(([label, value]) => (
             <View key={label} style={styles.row}>
@@ -173,6 +181,80 @@ export default function DisplayDiagnosticsScreen() {
         </View>
 
       </ScrollView>
+
+      <Modal visible={modalTestOpen} animationType="slide" onRequestClose={() => setModalTestOpen(false)}>
+        <ModalKeyboardFrame>
+          {(modalInsets) => (
+            <ModalKeyboardTest insetsTop={modalInsets.top} insetsBottom={modalInsets.bottom} onClose={() => setModalTestOpen(false)} />
+          )}
+        </ModalKeyboardFrame>
+      </Modal>
+    </View>
+  );
+}
+
+/**
+ * Test dans une fenêtre Modal (même mécanisme que la rédaction des lettres et
+ * la réponse aux bouteilles). Le champ est volontairement EN BAS : s'il reste
+ * visible au-dessus du clavier, le cadre ModalKeyboardFrame fonctionne.
+ */
+function ModalKeyboardTest({
+  insetsTop,
+  insetsBottom,
+  onClose,
+}: {
+  insetsTop: number;
+  insetsBottom: number;
+  onClose: () => void;
+}) {
+  const [events, setEvents] = useState(0);
+  const [last, setLast] = useState<{ height: number; screenY: number } | null>(null);
+  const [usable, setUsable] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e: KeyboardEvent) => {
+      setEvents((n) => n + 1);
+      setLast({ height: e.endCoordinates.height, screenY: e.endCoordinates.screenY });
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setLast(null));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  const rows: [string, string][] = [
+    ['Événements « clavier ouvert » reçus', String(events)],
+    ['Clavier : hauteur', last ? fmt(last.height) : '—'],
+    ['Clavier : bord haut (screenY)', last ? fmt(last.screenY) : '—'],
+    ['Zone utile de la Modal (onLayout)', usable ? `${fmt(usable.w)} × ${fmt(usable.h)}` : '—'],
+    ['Marges sûres haut / bas (Modal)', `${fmt(insetsTop)} / ${fmt(insetsBottom)}`],
+  ];
+
+  return (
+    <View
+      style={[styles.root, { paddingTop: insetsTop + 12, paddingBottom: Math.max(insetsBottom, 8), paddingHorizontal: 16 }]}
+      onLayout={(e) => setUsable({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+    >
+      <AppBackButton onPress={onClose} label="Fermer" />
+      <Text style={styles.title}>{'Clavier dans une fenêtre Modal'}</Text>
+      <Text style={styles.muted}>
+        {"Touchez le champ en bas. Il doit rester visible au-dessus du clavier. Faites une capture clavier ouvert."}
+      </Text>
+      <View style={styles.card}>
+        {rows.map(([label, value]) => (
+          <View key={label} style={styles.row}>
+            <Text style={styles.label}>{label}</Text>
+            <Text style={styles.value}>{value}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={{ flex: 1 }} />
+      <TextInput
+        style={styles.input}
+        placeholder="Champ en bas de la Modal"
+        placeholderTextColor={APP_COLORS.muted}
+      />
     </View>
   );
 }
@@ -200,6 +282,14 @@ const styles = StyleSheet.create({
   label: { flex: 1, fontSize: 13, color: APP_COLORS.text },
   value: { fontSize: 13, fontWeight: '700', color: APP_COLORS.ink, textAlign: 'right' },
   inputWrap: { marginBottom: 12 },
+  modalTestBtn: {
+    marginBottom: 12,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: APP_COLORS.burgundy,
+  },
+  modalTestBtnText: { color: APP_COLORS.white, fontSize: 14, fontWeight: '700' },
   input: {
     borderColor: APP_COLORS.borderStrong,
     borderWidth: 1,

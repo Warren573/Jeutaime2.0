@@ -17,6 +17,7 @@ import {
   Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ModalKeyboardFrame } from '../components/ModalKeyboardFrame';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter, Link, useFocusEffect } from 'expo-router';
@@ -1060,276 +1061,280 @@ export default function LettersScreen() {
       {renderLettersContent()}
 
       <Modal visible={showCompose} animationType="slide">
-        <KeyboardAvoidingView
-          style={[styles.modalContainer, { paddingTop: insets.top }]}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => { setShowCompose(false); router.replace('/(tabs)/letters'); }}>
-              <Text style={styles.closeText}>← Retour</Text>
-            </TouchableOpacity>
-            {/* Nom cliquable → profil du match (replace = démonte LettersScreen, évite modal fantôme) */}
-            <TouchableOpacity
-              style={styles.modalTitleBtn}
-              onPress={() => { if (selectedMatch) { setShowCompose(false); router.replace({ pathname: '/profile/[id]', params: { id: getOtherUserId(selectedMatch) } }); } }}
-            >
-              <Text style={styles.modalTitle}>
-                {selectedMatch ? getOtherName(selectedMatch) : ''}
-              </Text>
-              <Text style={styles.modalTitleHint}>voir le profil ↗</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuBtn}
-              onPress={() => setShowActionsMenu(true)}
-            >
-              <Text style={styles.menuBtnText}>⋯</Text>
-            </TouchableOpacity>
-          </View>
+        <ModalKeyboardFrame>
+        {(modalInsets) => (
+          <KeyboardAvoidingView
+            style={[styles.modalContainer, { paddingTop: modalInsets.top }]}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => { setShowCompose(false); router.replace('/(tabs)/letters'); }}>
+                <Text style={styles.closeText}>← Retour</Text>
+              </TouchableOpacity>
+              {/* Nom cliquable → profil du match (replace = démonte LettersScreen, évite modal fantôme) */}
+              <TouchableOpacity
+                style={styles.modalTitleBtn}
+                onPress={() => { if (selectedMatch) { setShowCompose(false); router.replace({ pathname: '/profile/[id]', params: { id: getOtherUserId(selectedMatch) } }); } }}
+              >
+                <Text style={styles.modalTitle}>
+                  {selectedMatch ? getOtherName(selectedMatch) : ''}
+                </Text>
+                <Text style={styles.modalTitleHint}>voir le profil ↗</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuBtn}
+                onPress={() => setShowActionsMenu(true)}
+              >
+                <Text style={styles.menuBtnText}>⋯</Text>
+              </TouchableOpacity>
+            </View>
 
-          {selectedMatch && (() => {
-            const conv = getConversation(selectedMatch);
-            const myTurn = isMyTurn(selectedMatch);
-            return (
-              <>
-                {/* ── Sous-titre de correspondance ── */}
-                <View style={styles.correspondenceSubtitle}>
-                  <Text style={styles.correspondenceSubtitleText}>
-                    Votre correspondance
-                    {conv.length > 0
-                      ? ` · ${conv.length} lettre${conv.length > 1 ? 's' : ''} échangée${conv.length > 1 ? 's' : ''}`
-                      : ''}
-                  </Text>
-                </View>
-
-                {/* ── Tour de parole ── */}
-                <View style={[styles.turnBanner, myTurn ? styles.turnBannerMine : styles.turnBannerWait]}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Ionicons
-                      name={conv.length === 0 ? 'pencil-outline' : myTurn ? 'mail-open-outline' : 'mail-outline'}
-                      size={17}
-                      color={myTurn ? '#D6C29A' : '#C9AD82'}
-                    />
-                    <Text style={styles.turnBannerText}>
-                      {conv.length === 0
-                        ? 'Écrivez la première lettre'
-                        : myTurn
-                          ? "C'est votre tour — répondez à la lettre reçue"
-                          : 'Lettre envoyée — en attente de réponse'}
+            {selectedMatch && (() => {
+              const conv = getConversation(selectedMatch);
+              const myTurn = isMyTurn(selectedMatch);
+              return (
+                <>
+                  {/* ── Sous-titre de correspondance ── */}
+                  <View style={styles.correspondenceSubtitle}>
+                    <Text style={styles.correspondenceSubtitleText}>
+                      Votre correspondance
+                      {conv.length > 0
+                        ? ` · ${conv.length} lettre${conv.length > 1 ? 's' : ''} échangée${conv.length > 1 ? 's' : ''}`
+                        : ''}
                     </Text>
                   </View>
-                </View>
-              </>
-            );
-          })()}
 
-          <ScrollView style={styles.messagesContainer}>
-            {selectedMatch?.otherUserVacationMode && <VacationNotice gender={matchPartners[getOtherUserId(selectedMatch)]?.gender} />}
-            {selectedMatch && (() => {
-              const sortedConversation = [...getConversation(selectedMatch)]
-                .sort((a, b) => b.createdAt - a.createdAt);
-
-              const latestReceivedId = sortedConversation.find((letter) => {
-                const isOwn =
-                  letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
-                return !isOwn;
-              })?.id;
-
-              return sortedConversation.map((letter) => {
-                const isOwn =
-                  letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
-                const otherName = getOtherName(selectedMatch);
-
-                return (
-                  <LetterCard
-                    key={letter.id}
-                    letter={letter}
-                    isOwn={isOwn}
-                    otherName={otherName}
-                    
-                    onPress={() => setReadingLetter({ letter, isOwn })}
-                    isLatestReceived={!isOwn && letter.id === latestReceivedId}
-                  />
-                );
-              });
+                  {/* ── Tour de parole ── */}
+                  <View style={[styles.turnBanner, myTurn ? styles.turnBannerMine : styles.turnBannerWait]}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Ionicons
+                        name={conv.length === 0 ? 'pencil-outline' : myTurn ? 'mail-open-outline' : 'mail-outline'}
+                        size={17}
+                        color={myTurn ? '#D6C29A' : '#C9AD82'}
+                      />
+                      <Text style={styles.turnBannerText}>
+                        {conv.length === 0
+                          ? 'Écrivez la première lettre'
+                          : myTurn
+                            ? "C'est votre tour — répondez à la lettre reçue"
+                            : 'Lettre envoyée — en attente de réponse'}
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              );
             })()}
 
-            {selectedMatch && getConversation(selectedMatch).length === 0 && (
-              selectedMatch.canSend ? (
-                <View style={styles.startConv}>
-                  <Ionicons name="create-outline" size={23} color="#8B5A2B" />
-                  <Text style={styles.startText}>Tu peux écrire la première lettre</Text>
-                </View>
-              ) : (
-                <View style={styles.startConv}>
-                  <Ionicons name="time-outline" size={23} color="#8B5A2B" />
-                  <Text style={styles.startText}>
-                    {selectedMatch.canSendReason === 'AWAITING_REPLY'
-                      ? "L'autre doit envoyer la première lettre.\nTu pourras répondre ensuite."
-                      : "En attente de la réponse de l'autre."}
-                  </Text>
-                </View>
-              )
-            )}
-          </ScrollView>
+            <ScrollView style={styles.messagesContainer}>
+              {selectedMatch?.otherUserVacationMode && <VacationNotice gender={matchPartners[getOtherUserId(selectedMatch)]?.gender} />}
+              {selectedMatch && (() => {
+                const sortedConversation = [...getConversation(selectedMatch)]
+                  .sort((a, b) => b.createdAt - a.createdAt);
 
-          {selectedMatch?.canSend ? (
-            <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-              <TextInput
-                style={styles.input}
-                placeholder="Écrire votre lettre"
-                placeholderTextColor="#8B6F47"
-                value={newMessage}
-                onChangeText={setNewMessage}
-                multiline
-                editable
-              />
-              <View style={styles.composerFooter}>
-                <Text style={[styles.wordCounter, wordCount > MAX_LETTER_WORDS && styles.wordCounterOver]}>
-                  {wordCount} / {MAX_LETTER_WORDS} mots
-                </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.reviewBtn,
-                    (!newMessage.trim() || wordCount > MAX_LETTER_WORDS) && styles.reviewBtnDisabled,
-                  ]}
-                  onPress={() => {
-                    Keyboard.dismiss();
-                    setShowLetterPreview(true);
-                  }}
-                  disabled={!newMessage.trim() || wordCount > MAX_LETTER_WORDS}
-                >
-                  <Text style={styles.reviewBtnText}>Voir l’aperçu</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <View style={[styles.waitingComposer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-              <View style={styles.waitingComposerBar}>
-                <Text style={styles.waitingComposerText} numberOfLines={1}>
-                  En attente de la prochaine lettre de {selectedMatch ? getOtherName(selectedMatch) : ''}
-                </Text>
-                <Ionicons name="paper-plane-outline" size={22} color="#B4A28A" />
-              </View>
-              <Text style={styles.waitingWordCounter}>0 / {MAX_LETTER_WORDS} mots</Text>
-            </View>
-          )}
+                const latestReceivedId = sortedConversation.find((letter) => {
+                  const isOwn =
+                    letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
+                  return !isOwn;
+                })?.id;
 
+                return sortedConversation.map((letter) => {
+                  const isOwn =
+                    letter.fromUserId === currentUser?.id || letter.fromUserId === 'me';
+                  const otherName = getOtherName(selectedMatch);
 
+                  return (
+                    <LetterCard
+                      key={letter.id}
+                      letter={letter}
+                      isOwn={isOwn}
+                      otherName={otherName}
+                      
+                      onPress={() => setReadingLetter({ letter, isOwn })}
+                      isLatestReceived={!isOwn && letter.id === latestReceivedId}
+                    />
+                  );
+                });
+              })()}
 
-          {/* ── Aperçu/relecture dans LA MÊME modal native.
-              iOS ne présente pas fiablement une 2e Modal par-dessus showCompose. ── */}
-          {showLetterPreview && (
-            <View style={[styles.previewOverlay, { paddingTop: insets.top }]}>
-              <View style={styles.previewHeader}>
-                <TouchableOpacity
-                  onPress={() => setShowLetterPreview(false)}
-                  disabled={isSending}
-                >
-                  <Text style={styles.closeText}>← Modifier</Text>
-                </TouchableOpacity>
-                <Text style={styles.previewHeaderTitle}>Aperçu de votre lettre</Text>
-                <View style={{ width: 72 }} />
-              </View>
+              {selectedMatch && getConversation(selectedMatch).length === 0 && (
+                selectedMatch.canSend ? (
+                  <View style={styles.startConv}>
+                    <Ionicons name="create-outline" size={23} color="#8B5A2B" />
+                    <Text style={styles.startText}>Tu peux écrire la première lettre</Text>
+                  </View>
+                ) : (
+                  <View style={styles.startConv}>
+                    <Ionicons name="time-outline" size={23} color="#8B5A2B" />
+                    <Text style={styles.startText}>
+                      {selectedMatch.canSendReason === 'AWAITING_REPLY'
+                        ? "L'autre doit envoyer la première lettre.\nTu pourras répondre ensuite."
+                        : "En attente de la réponse de l'autre."}
+                    </Text>
+                  </View>
+                )
+              )}
+            </ScrollView>
 
-              <View style={styles.previewBody}>
-                <LetterPaginatedView
-                  content={newMessage}
-                  signatureName={currentUser?.pseudo || currentUser?.name || ''}
-                  dateLabel={
-                    new Date().toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'short',
-                    }).replace('.', '') +
-                    ' · ' +
-                    new Date().toLocaleTimeString('fr-FR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })
-                  }
+            {selectedMatch?.canSend ? (
+              <View style={[styles.inputContainer, { paddingBottom: Math.max(modalInsets.bottom, 8) }]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Écrire votre lettre"
+                  placeholderTextColor="#8B6F47"
+                  value={newMessage}
+                  onChangeText={setNewMessage}
+                  multiline
+                  editable
                 />
-              </View>
-
-              <Text style={styles.previewReminder}>
-                Après envoi, vous devrez attendre la prochaine lettre
-                {selectedMatch ? ` de ${getOtherName(selectedMatch)}` : ''}.
-              </Text>
-
-              <View style={[styles.previewActions, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-                <TouchableOpacity
-                  style={styles.previewEditBtn}
-                  onPress={() => setShowLetterPreview(false)}
-                  disabled={isSending}
-                >
-                  <Text style={styles.previewEditBtnText}>Modifier</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.previewSendBtn, isSending && styles.reviewBtnDisabled]}
-                  disabled={isSending}
-                  onPress={async () => {
-                    const sent = await handleSend();
-                    if (sent) setShowLetterPreview(false);
-                  }}
-                >
-                  <Text style={styles.previewSendBtnText}>
-                    {isSending ? 'Envoi…' : 'Envoyer la lettre'}
+                <View style={styles.composerFooter}>
+                  <Text style={[styles.wordCounter, wordCount > MAX_LETTER_WORDS && styles.wordCounterOver]}>
+                    {wordCount} / {MAX_LETTER_WORDS} mots
                   </Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.reviewBtn,
+                      (!newMessage.trim() || wordCount > MAX_LETTER_WORDS) && styles.reviewBtnDisabled,
+                    ]}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      setShowLetterPreview(true);
+                    }}
+                    disabled={!newMessage.trim() || wordCount > MAX_LETTER_WORDS}
+                  >
+                    <Text style={styles.reviewBtnText}>Voir l’aperçu</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          )}
-
-          {!!readingLetter && (
-            <View style={[styles.previewOverlay, { paddingTop: insets.top }]}>
-              <View style={styles.previewHeader}>
-                <TouchableOpacity onPress={() => setReadingLetter(null)}>
-                  <Text style={styles.closeText}>← Retour</Text>
-                </TouchableOpacity>
-                <Text style={styles.previewHeaderTitle}>
-                  {readingLetter?.isOwn
-                    ? 'Ta lettre'
-                    : selectedMatch
-                      ? `Lettre de ${getOtherName(selectedMatch)}`
-                      : ''}
-                </Text>
-                <View style={{ width: 60 }} />
+            ) : (
+              <View style={[styles.waitingComposer, { paddingBottom: Math.max(modalInsets.bottom, 10) }]}>
+                <View style={styles.waitingComposerBar}>
+                  <Text style={styles.waitingComposerText} numberOfLines={1}>
+                    En attente de la prochaine lettre de {selectedMatch ? getOtherName(selectedMatch) : ''}
+                  </Text>
+                  <Ionicons name="paper-plane-outline" size={22} color="#B4A28A" />
+                </View>
+                <Text style={styles.waitingWordCounter}>0 / {MAX_LETTER_WORDS} mots</Text>
               </View>
+            )}
 
-              <View style={styles.previewBody}>
-                {readingLetter && (
+
+
+            {/* ── Aperçu/relecture dans LA MÊME modal native.
+                iOS ne présente pas fiablement une 2e Modal par-dessus showCompose. ── */}
+            {showLetterPreview && (
+              <View style={[styles.previewOverlay, { paddingTop: modalInsets.top }]}>
+                <View style={styles.previewHeader}>
+                  <TouchableOpacity
+                    onPress={() => setShowLetterPreview(false)}
+                    disabled={isSending}
+                  >
+                    <Text style={styles.closeText}>← Modifier</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.previewHeaderTitle}>Aperçu de votre lettre</Text>
+                  <View style={{ width: 72 }} />
+                </View>
+
+                <View style={styles.previewBody}>
                   <LetterPaginatedView
-                    content={readingLetter.letter.content}
-                    signatureName={
-                      readingLetter.isOwn
-                        ? currentUser?.pseudo || currentUser?.name || ''
-                        : selectedMatch
-                          ? getOtherName(selectedMatch)
-                          : ''
-                    }
+                    content={newMessage}
+                    signatureName={currentUser?.pseudo || currentUser?.name || ''}
                     dateLabel={
-                      new Date(readingLetter.letter.createdAt)
-                        .toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'short',
-                        })
-                        .replace('.', '') +
+                      new Date().toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'short',
+                      }).replace('.', '') +
                       ' · ' +
-                      new Date(readingLetter.letter.createdAt).toLocaleTimeString('fr-FR', {
+                      new Date().toLocaleTimeString('fr-FR', {
                         hour: '2-digit',
                         minute: '2-digit',
                       })
                     }
                   />
-                )}
-              </View>
-            </View>
-          )}
+                </View>
 
-          {envAnimVisible && (
-            <View style={{ ...StyleSheet.absoluteFillObject, zIndex: 50, justifyContent: "center", alignItems: "center" }}>
-              <PremiumLetterAnimation senderName={envAnimSender} />
-            </View>
-          )}
-        </KeyboardAvoidingView>
+                <Text style={styles.previewReminder}>
+                  Après envoi, vous devrez attendre la prochaine lettre
+                  {selectedMatch ? ` de ${getOtherName(selectedMatch)}` : ''}.
+                </Text>
+
+                <View style={[styles.previewActions, { paddingBottom: Math.max(modalInsets.bottom, 12) }]}>
+                  <TouchableOpacity
+                    style={styles.previewEditBtn}
+                    onPress={() => setShowLetterPreview(false)}
+                    disabled={isSending}
+                  >
+                    <Text style={styles.previewEditBtnText}>Modifier</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.previewSendBtn, isSending && styles.reviewBtnDisabled]}
+                    disabled={isSending}
+                    onPress={async () => {
+                      const sent = await handleSend();
+                      if (sent) setShowLetterPreview(false);
+                    }}
+                  >
+                    <Text style={styles.previewSendBtnText}>
+                      {isSending ? 'Envoi…' : 'Envoyer la lettre'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {!!readingLetter && (
+              <View style={[styles.previewOverlay, { paddingTop: modalInsets.top }]}>
+                <View style={styles.previewHeader}>
+                  <TouchableOpacity onPress={() => setReadingLetter(null)}>
+                    <Text style={styles.closeText}>← Retour</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.previewHeaderTitle}>
+                    {readingLetter?.isOwn
+                      ? 'Ta lettre'
+                      : selectedMatch
+                        ? `Lettre de ${getOtherName(selectedMatch)}`
+                        : ''}
+                  </Text>
+                  <View style={{ width: 60 }} />
+                </View>
+
+                <View style={styles.previewBody}>
+                  {readingLetter && (
+                    <LetterPaginatedView
+                      content={readingLetter.letter.content}
+                      signatureName={
+                        readingLetter.isOwn
+                          ? currentUser?.pseudo || currentUser?.name || ''
+                          : selectedMatch
+                            ? getOtherName(selectedMatch)
+                            : ''
+                      }
+                      dateLabel={
+                        new Date(readingLetter.letter.createdAt)
+                          .toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'short',
+                          })
+                          .replace('.', '') +
+                        ' · ' +
+                        new Date(readingLetter.letter.createdAt).toLocaleTimeString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      }
+                    />
+                  )}
+                </View>
+              </View>
+            )}
+
+            {envAnimVisible && (
+              <View style={{ ...StyleSheet.absoluteFillObject, zIndex: 50, justifyContent: "center", alignItems: "center" }}>
+                <PremiumLetterAnimation senderName={envAnimSender} />
+              </View>
+            )}
+          </KeyboardAvoidingView>
+        )}
+        </ModalKeyboardFrame>
       </Modal>
 
       {/* ── Actions Menu (Bottom Sheet) ─────────────────────────────────────── */}

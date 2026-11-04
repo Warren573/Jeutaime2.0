@@ -29,3 +29,16 @@ export function computeKeyboardOverlap(
   const overlap = windowHeight - keyboardTopY;
   return overlap > 0 ? overlap : 0;
 }
+
+type Insets = { top: number; right: number; bottom: number; left: number };
+
+/**
+ * Marges sûres à transmettre aux écrans pendant que le clavier est ouvert.
+ *
+ * Quand la zone utile s'arrête au bord du clavier, la barre de navigation
+ * Android est déjà sous le clavier : la marge du bas ne doit plus être ajoutée
+ * (sinon double compensation). Clavier fermé : marges inchangées (même objet).
+ */
+export function insetsWhileKeyboardOpen<T extends Insets>(insets: T, keyboardInset: number): T {
+  return keyboardInset > 0 ? { ...insets, bottom: 0 } : insets;
+}
