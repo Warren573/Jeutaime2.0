@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image, Platform, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ModalKeyboardFrame } from '../components/ModalKeyboardFrame';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getCurrentBottle, getInbox, claimBottleWithReply } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
@@ -151,7 +152,12 @@ export default function BottleMainScreen() {
 
   const firstReplyDialog = (
     <Modal transparent visible={selectedBottle !== null} animationType="fade" onRequestClose={() => setSelectedBottle(null)}>
+      <ModalKeyboardFrame>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.firstReplyBackdrop}>
+        {/* La carte (~550-610 dp) dépasse la zone visible au-dessus du clavier :
+            elle défile. "handled" : un appui sur « Envoyer » agit dès le premier
+            toucher, même clavier ouvert. Clavier fermé, rendu identique (centré). */}
+        <ScrollView contentContainerStyle={styles.firstReplyScrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.firstReplyCard}>
           <Text style={styles.firstReplyTitle}>Une bouteille à la mer</Text>
           <ScrollView style={{ maxHeight: 150 }}><Text style={styles.firstReplyLetter}>{selectedBottle?.message ?? ''}</Text></ScrollView>
@@ -163,7 +169,9 @@ export default function BottleMainScreen() {
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setSelectedBottle(null)} disabled={isAccepting}><Text style={styles.firstReplyCancel}>Refermer sans répondre</Text></TouchableOpacity>
         </View>
+        </ScrollView>
       </KeyboardAvoidingView>
+      </ModalKeyboardFrame>
     </Modal>
   );
 
@@ -428,7 +436,8 @@ export default function BottleMainScreen() {
 
 const styles = StyleSheet.create({
   bg: { flex: 1 },
-  firstReplyBackdrop: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(25,15,10,0.6)', padding: 20 },
+  firstReplyBackdrop: { flex: 1, backgroundColor: 'rgba(25,15,10,0.6)' },
+  firstReplyScrollContent: { flexGrow: 1, justifyContent: 'center', padding: 20 },
   firstReplyCard: { borderRadius: 20, backgroundColor: COLORS.paper, padding: 20, gap: 12 },
   firstReplyTitle: { fontSize: 21, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
   firstReplyLetter: { fontSize: 17, lineHeight: 25, fontStyle: 'italic', color: COLORS.text },
