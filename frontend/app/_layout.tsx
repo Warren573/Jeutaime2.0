@@ -10,7 +10,7 @@ import { usePushNotifications } from "../src/hooks/usePushNotifications";
 import { API_URL } from "../src/api/client";
 import { TestModeLink } from "../src/dev/TestModeLink";
 import { getResponsiveScale } from "../src/utils/responsive";
-import { scaledScreenStyle } from "../src/utils/scaledScreenStyle";
+import { exemptScreenStyle, scaledScreenStyle } from "../src/utils/scaledScreenStyle";
 import { useAndroidKeyboardInset } from "../src/hooks/useAndroidKeyboardInset";
 import { APP_COLORS } from "../src/theme/appTheme";
 
@@ -95,7 +95,7 @@ export default function RootLayout() {
   // Ne pas réduire toute l'application web : elle doit remplir l'espace disponible.
   // Garder la mise à l'échelle d'origine sur iOS et Android natifs.
   const proportionalContentStyle = isSalon || isSettings || isAvatarEditor || isPremium || isShop
-    ? undefined
+    ? exemptScreenStyle({ platform: Platform.OS, windowHeight: height, keyboardInset })
     : Platform.OS === 'web'
     ? { width: '100%' as const, height: '100%' as const }
     : scaledScreenStyle({
