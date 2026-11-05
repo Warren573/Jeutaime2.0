@@ -78,3 +78,20 @@ export function footerBottomPadding(platform: string, bottomInset: number, legac
   }
   return inset + ANDROID_FOOTER_GAP;
 }
+
+/**
+ * Marge basse de la superposition de LECTURE d'une lettre (sans pied de boutons).
+ *
+ * Sans elle, la carte (marge propre de 10 dp) descend jusqu'au bord de la
+ * fenêtre : 832 − 10 = 822 sur le Galaxy A17, sous la barre de navigation
+ * (784-832). Android : marge = barre de navigation mesurée → bas de la carte
+ * à 832 − 48 − 10 = 774, soit 10 dp d'air (la marge d'origine de la carte).
+ * Clavier ouvert, la marge sûre vaut 0 (zone utile déjà arrêtée au clavier).
+ *
+ * iOS et web : aucun style ajouté (rendu inchangé).
+ */
+export function readingOverlayBottomStyle(platform: string, bottomInset: number): { paddingBottom: number } | null {
+  if (platform !== 'android') return null;
+  const inset = Number.isFinite(bottomInset) && bottomInset > 0 ? bottomInset : 0;
+  return { paddingBottom: inset };
+}

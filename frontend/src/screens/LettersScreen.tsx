@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ModalKeyboardFrame } from '../components/ModalKeyboardFrame';
-import { composerFooterAnchoring, footerBottomPadding } from '../utils/composerFooter';
+import { composerFooterAnchoring, footerBottomPadding, readingOverlayBottomStyle } from '../utils/composerFooter';
 import { formatFooterLine, setModalExtraLine } from '../dev/modalMeasurements';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
@@ -1306,7 +1306,7 @@ export default function LettersScreen() {
             )}
 
             {!!readingLetter && (
-              <View style={[styles.previewOverlay, { paddingTop: modalInsets.top }]}>
+              <View style={[styles.previewOverlay, { paddingTop: modalInsets.top }, readingOverlayBottomStyle(Platform.OS, modalInsets.bottom)]}>
                 <View style={styles.previewHeader}>
                   <TouchableOpacity onPress={() => setReadingLetter(null)}>
                     <Text style={styles.closeText}>← Retour</Text>

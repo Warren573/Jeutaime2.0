@@ -93,3 +93,37 @@ describe("footerBottomPadding", () => {
     expect(473.6 - footerBottomPadding("android", 0, 8)).toBeCloseTo(465.6, 5);
   });
 });
+
+import { readingOverlayBottomStyle } from "../src/utils/composerFooter";
+
+describe("readingOverlayBottomStyle (lecture d'une lettre)", () => {
+  const CARD_MARGIN_BOTTOM = 10; // styles.previewBody.marginBottom
+
+  it("iOS : aucun style ajouté (iPhone 16e inchangé)", () => {
+    expect(readingOverlayBottomStyle("ios", 34)).toBeNull();
+  });
+
+  it("web : aucun style ajouté", () => {
+    expect(readingOverlayBottomStyle("web", 0)).toBeNull();
+  });
+
+  it("Android A17 : la carte s'arrête à 774, 10 dp au-dessus de la barre de navigation (784)", () => {
+    const style = readingOverlayBottomStyle("android", 48);
+    expect(style).toEqual({ paddingBottom: 48 });
+    const cardBottom = 832 - style!.paddingBottom - CARD_MARGIN_BOTTOM;
+    expect(cardBottom).toBe(774);
+    expect(784 - cardBottom).toBe(10);
+  });
+
+  it("Android sans la correction, la carte finissait à 822 : sous la barre (784-832)", () => {
+    expect(832 - 0 - CARD_MARGIN_BOTTOM).toBe(822);
+  });
+
+  it("Android clavier ouvert (marge sûre 0) : aucune marge en plus, pas de double compensation", () => {
+    expect(readingOverlayBottomStyle("android", 0)).toEqual({ paddingBottom: 0 });
+  });
+
+  it("valeur invalide → 0", () => {
+    expect(readingOverlayBottomStyle("android", Number.NaN)).toEqual({ paddingBottom: 0 });
+  });
+});
