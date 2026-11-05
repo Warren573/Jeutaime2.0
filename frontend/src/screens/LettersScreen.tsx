@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Platform,
+  LayoutChangeEvent,
   Dimensions,
   Alert,
   ActivityIndicator,
@@ -18,6 +19,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ModalKeyboardFrame } from '../components/ModalKeyboardFrame';
+import { composerFooterAnchoring } from '../utils/composerFooter';
+import { formatFooterLine, setModalExtraLine } from '../dev/modalMeasurements';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter, Link, useFocusEffect } from 'expo-router';
@@ -710,6 +713,21 @@ export default function LettersScreen() {
   const [newMessage, setNewMessage] = useState('');
   const [showCompose, setShowCompose] = useState(false);
   const [showLetterPreview, setShowLetterPreview] = useState(false);
+  // Android : hauteur mesurée du pied de rédaction (ancré en bas, voir utils/composerFooter).
+  const [composerFooterHeight, setComposerFooterHeight] = useState(0);
+  const footerAnchoring = composerFooterAnchoring(Platform.OS, composerFooterHeight);
+  const onComposerFooterLayout =
+    Platform.OS === 'android'
+      ? (e: LayoutChangeEvent) => {
+          const { y, height } = e.nativeEvent.layout;
+          setComposerFooterHeight(height);
+          setModalExtraLine('pied-redaction', formatFooterLine('Pied de rédaction', y, height));
+        }
+      : undefined;
+  // Diagnostic : la ligne du pied ne doit pas rester affichée dans d'autres Modal.
+  useEffect(() => {
+    if (!showCompose) setModalExtraLine('pied-redaction', null);
+  }, [showCompose]);
   const [readingLetter, setReadingLetter] = useState<{ letter: Letter; isOwn: boolean } | null>(null);
   const [showQGame, setShowQGame] = useState(false);
   const [qGameMatch, setQGameMatch] = useState<Match | null>(null);
@@ -1125,7 +1143,7 @@ export default function LettersScreen() {
               );
             })()}
 
-            <ScrollView style={styles.messagesContainer}>
+            <ScrollView style={[styles.messagesContainer, footerAnchoring.listStyle]}>
               {selectedMatch?.otherUserVacationMode && <VacationNotice gender={matchPartners[getOtherUserId(selectedMatch)]?.gender} />}
               {selectedMatch && (() => {
                 const sortedConversation = [...getConversation(selectedMatch)]
@@ -1176,7 +1194,10 @@ export default function LettersScreen() {
             </ScrollView>
 
             {selectedMatch?.canSend ? (
-              <View style={[styles.inputContainer, { paddingBottom: Math.max(modalInsets.bottom, 8) }]}>
+              <View
+                style={[styles.inputContainer, { paddingBottom: Math.max(modalInsets.bottom, 8) }, footerAnchoring.footerStyle]}
+                onLayout={onComposerFooterLayout}
+              >
                 <TextInput
                   style={styles.input}
                   placeholder="Écrire votre lettre"
@@ -1206,7 +1227,10 @@ export default function LettersScreen() {
                 </View>
               </View>
             ) : (
-              <View style={[styles.waitingComposer, { paddingBottom: Math.max(modalInsets.bottom, 10) }]}>
+              <View
+                style={[styles.waitingComposer, { paddingBottom: Math.max(modalInsets.bottom, 10) }, footerAnchoring.footerStyle]}
+                onLayout={onComposerFooterLayout}
+              >
                 <View style={styles.waitingComposerBar}>
                   <Text style={styles.waitingComposerText} numberOfLines={1}>
                     En attente de la prochaine lettre de {selectedMatch ? getOtherName(selectedMatch) : ''}

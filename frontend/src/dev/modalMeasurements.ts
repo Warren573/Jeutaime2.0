@@ -54,3 +54,30 @@ export function formatModalMeasurements(m: ModalMeasurements): string[] {
     `Clavier bord haut=${n(m.keyboardTopY)} · compensation appliquée=${n(m.appliedKeyboardInset)}`,
   ];
 }
+
+/**
+ * Lignes supplémentaires fournies par l'écran affiché dans la Modal
+ * (ex. position réelle du pied de rédaction). Ignorées si l'interrupteur est
+ * désactivé. Tableau remplacé à chaque changement (instantané stable).
+ */
+let extraLines: readonly string[] = [];
+const extraValues = new Map<string, string>();
+
+export function getModalExtraLines(): readonly string[] {
+  return extraLines;
+}
+
+export function setModalExtraLine(key: string, line: string | null): void {
+  if (!enabled && line !== null) return;
+  const previous = extraValues.get(key) ?? null;
+  if (previous === line) return;
+  if (line === null) extraValues.delete(key);
+  else extraValues.set(key, line);
+  extraLines = Array.from(extraValues.values());
+  listeners.forEach((l) => l());
+}
+
+/** Ligne décrivant un pied de fenêtre : position, hauteur et bas réels. */
+export function formatFooterLine(label: string, y: number, height: number): string {
+  return `${label} y=${n(y)} h=${n(height)} bas=${n(y + height)}`;
+}
