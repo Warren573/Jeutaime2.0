@@ -53,3 +53,31 @@ describe("displayedScreenHeight (Galaxy A17)", () => {
     expect(h).toBe(844);
   });
 });
+
+import { exemptScreenStyle } from "../src/utils/scaledScreenStyle";
+
+describe("exemptScreenStyle (Paramètres et autres écrans exclus)", () => {
+  it("iOS : undefined, comme avant (iPhone 16e inchangé)", () => {
+    expect(exemptScreenStyle({ platform: "ios", windowHeight: 844, keyboardInset: 0 })).toBeUndefined();
+  });
+
+  it("web : undefined", () => {
+    expect(exemptScreenStyle({ platform: "web", windowHeight: 844, keyboardInset: 0 })).toBeUndefined();
+  });
+
+  it("Android A17 : hauteur 832 explicite, échelle 1, flex 0", () => {
+    expect(exemptScreenStyle({ platform: "android", windowHeight: 832, keyboardInset: 0 })).toEqual({
+      flex: 0, width: "100%", height: 832, transform: [{ scale: 1 }], transformOrigin: "left top",
+    });
+  });
+
+  it("Android : mêmes clés que le style mis à l'échelle → aucune ancienne valeur ne peut rester", () => {
+    const scaled = scaledScreenStyle({ platform: "android", logicalWidth: 390, windowHeight: 832, keyboardInset: 0, scale: 0.9846 });
+    const exempt = exemptScreenStyle({ platform: "android", windowHeight: 832, keyboardInset: 0 })!;
+    expect(Object.keys(exempt).sort()).toEqual(Object.keys(scaled).sort());
+  });
+
+  it("Android clavier ouvert : hauteur réduite du recouvrement (473,6)", () => {
+    expect(exemptScreenStyle({ platform: "android", windowHeight: 832, keyboardInset: 358.4 })!.height).toBeCloseTo(473.6, 5);
+  });
+});

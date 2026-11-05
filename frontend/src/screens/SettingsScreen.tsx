@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -183,6 +183,16 @@ export default function SettingsScreen() {
     : otaUpdateId ? `OTA ${otaRelease ? otaRelease + ' · ' : ''}${otaUpdateId}` : 'OTA non identifiée';
   const otaChannel = Updates.channel ?? 'non renseigné';
 
+  const isStaffViewer =
+    currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR';
+  const rootRef = useRef<View>(null);
+  const [screenOnDisplay, setScreenOnDisplay] = useState<string | null>(null);
+  const measureScreen = () => {
+    rootRef.current?.measureInWindow((_x, _y, w, h) => {
+      setScreenOnDisplay(`${Math.round(w * 10) / 10} × ${Math.round(h * 10) / 10}`);
+    });
+  };
+
   const SECTIONS: SettingsSection[] = [
     ...((currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR')
       ? [{
@@ -290,6 +300,11 @@ export default function SettingsScreen() {
         { icon: 'layers-outline', label: `Build natif : ${nativeBuildNumber}` },
         { icon: 'cloud-download-outline', label: otaStatus },
         { icon: 'git-branch-outline', label: `Canal OTA : ${otaChannel}` },
+        // Diagnostic (administration uniquement) : taille réellement affichée de
+        // cet écran. Attendu sur le Galaxy A17 : 384 × 832.
+        ...(isStaffViewer && screenOnDisplay
+          ? [{ icon: 'resize-outline' as SettingsIconName, label: `Écran affiché : ${screenOnDisplay}` }]
+          : []),
       ],
     },
   ];
@@ -316,6 +331,9 @@ export default function SettingsScreen() {
 
   return (
     <View
+      ref={rootRef}
+      collapsable={false}
+      onLayout={measureScreen}
       style={[
         styles.container,
         { paddingTop: insets.top, backgroundColor: screenBg },

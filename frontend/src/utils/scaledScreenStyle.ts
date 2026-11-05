@@ -55,3 +55,42 @@ export function displayedScreenHeight(params: {
   const logical = platform === 'android' ? requestedLogicalHeight : parentLogicalHeight;
   return logical * scale;
 }
+
+/**
+ * Style des écrans EXCLUS de la mise à l'échelle (Paramètres, salons, avatar,
+ * Plus, boutique).
+ *
+ * Constat OTA 2.0.0-ota.21 (Galaxy A17) : depuis que le style mis à l'échelle
+ * contient flex: 0, la barre d'onglets des Paramètres descend sous la barre de
+ * navigation. On arrive toujours sur ces écrans depuis un onglet mis à
+ * l'échelle : le style passe de { flex: 0, height: 845, transform… } à
+ * « aucun style ». Hypothèse : une ancienne valeur reste appliquée lors de ce
+ * passage (avant .21, flex: 1 masquait une hauteur restée en place).
+ *
+ * Android : style explicite avec LES MÊMES CLÉS que le style mis à l'échelle,
+ * valeurs neutres (échelle 1, hauteur = zone utile), pour qu'aucune ancienne
+ * valeur ne puisse subsister. iOS / web : undefined, comme avant.
+ */
+export type ExemptScreenStyle = {
+  flex: 0;
+  width: '100%';
+  height: number;
+  transform: { scale: number }[];
+  transformOrigin: 'left top';
+};
+
+export function exemptScreenStyle(params: {
+  platform: string;
+  windowHeight: number;
+  keyboardInset: number;
+}): ExemptScreenStyle | undefined {
+  const { platform, windowHeight, keyboardInset } = params;
+  if (platform !== 'android') return undefined;
+  return {
+    flex: 0,
+    width: '100%',
+    height: windowHeight - keyboardInset,
+    transform: [{ scale: 1 }],
+    transformOrigin: 'left top',
+  };
+}
