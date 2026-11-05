@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Dimensions,
   Keyboard,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -23,6 +24,11 @@ import { getResponsiveScale } from '../utils/responsive';
 import { computeKeyboardOverlap } from '../utils/keyboardInset';
 import { APP_COLORS } from '../theme/appTheme';
 import { ModalKeyboardFrame } from '../components/ModalKeyboardFrame';
+import {
+  isModalMeasurementsEnabled,
+  setModalMeasurementsEnabled,
+  subscribeModalMeasurements,
+} from '../dev/modalMeasurements';
 
 /**
  * Diagnostic d'affichage (lecture seule, aucun appel réseau, aucune écriture).
@@ -61,6 +67,11 @@ export default function DisplayDiagnosticsScreen() {
   const [windowHeightNoKeyboard, setWindowHeightNoKeyboard] = useState<number>(window.height);
   const [keyboard, setKeyboard] = useState<KeyboardSample | null>(null);
   const [modalTestOpen, setModalTestOpen] = useState(false);
+  const modalMeasurementsOn = useSyncExternalStore(
+    subscribeModalMeasurements,
+    isModalMeasurementsEnabled,
+    isModalMeasurementsEnabled,
+  );
   // Hauteur du clavier actuellement ouvert (0 si fermé) : sert uniquement à
   // prolonger la zone de défilement pour que toutes les mesures restent lisibles.
   const [openKeyboardHeight, setOpenKeyboardHeight] = useState(0);
@@ -170,6 +181,13 @@ export default function DisplayDiagnosticsScreen() {
         <TouchableOpacity style={styles.modalTestBtn} onPress={() => setModalTestOpen(true)}>
           <Text style={styles.modalTestBtnText}>Tester le clavier dans une fenêtre Modal</Text>
         </TouchableOpacity>
+
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel}>
+            {"Afficher les mesures dans les fenêtres Modal (lettres, bouteilles). Désactivé au prochain redémarrage."}
+          </Text>
+          <Switch value={modalMeasurementsOn} onValueChange={setModalMeasurementsEnabled} />
+        </View>
 
         <View style={styles.card}>
           {rows.map(([label, value]) => (
@@ -290,6 +308,18 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.burgundy,
   },
   modalTestBtnText: { color: APP_COLORS.white, fontSize: 14, fontWeight: '700' },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    backgroundColor: APP_COLORS.paper,
+  },
+  switchLabel: { flex: 1, fontSize: 13, color: APP_COLORS.text },
   input: {
     borderColor: APP_COLORS.borderStrong,
     borderWidth: 1,

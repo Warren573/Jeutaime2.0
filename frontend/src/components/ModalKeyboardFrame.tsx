@@ -1,5 +1,15 @@
-import React, { useMemo, useState } from 'react';
-import { Platform, View, useWindowDimensions } from 'react-native';
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import {
+  Dimensions,
+  Keyboard,
+  KeyboardEvent,
+  Platform,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import {
   EdgeInsets,
   SafeAreaInsetsContext,
@@ -8,6 +18,11 @@ import {
 } from 'react-native-safe-area-context';
 import { useAndroidKeyboardInset } from '../hooks/useAndroidKeyboardInset';
 import { insetsWhileKeyboardOpen } from '../utils/keyboardInset';
+import {
+  formatModalMeasurements,
+  isModalMeasurementsEnabled,
+  subscribeModalMeasurements,
+} from '../dev/modalMeasurements';
 
 /**
  * Cadre à placer comme premier enfant d'une <Modal> contenant un champ de saisie.
@@ -62,7 +77,9 @@ function AndroidModalKeyboardFrame({ children }: { children: FrameChildren }) {
       // native de la fenêtre de la Modal.
       initialMetrics={{ insets: inheritedInsets, frame: { x: 0, y: 0, width, height } }}
     >
-      <KeyboardInsetBoundary fallbackHeight={height}>{children}</KeyboardInsetBoundary>
+      <KeyboardInsetBoundary fallbackHeight={height} inheritedInsets={inheritedInsets}>
+        {children}
+      </KeyboardInsetBoundary>
     </SafeAreaProvider>
   );
 }
@@ -70,9 +87,11 @@ function AndroidModalKeyboardFrame({ children }: { children: FrameChildren }) {
 function KeyboardInsetBoundary({
   children,
   fallbackHeight,
+  inheritedInsets,
 }: {
   children: FrameChildren;
   fallbackHeight: number;
+  inheritedInsets: EdgeInsets;
 }) {
   // Hauteur réelle de la fenêtre de la Modal (en edge-to-edge : l'écran entier).
   const [modalHeight, setModalHeight] = useState<number | null>(null);
@@ -90,7 +109,87 @@ function KeyboardInsetBoundary({
         onLayout={(e) => setModalHeight(e.nativeEvent.layout.height)}
       >
         {renderChildren(children)}
+        <ModalMeasurementsPanel
+          modalLayoutHeight={modalHeight}
+          modalInsets={insets}
+          inheritedInsets={inheritedInsets}
+          appliedKeyboardInset={keyboardInset}
+        />
       </View>
     </SafeAreaInsetsContext.Provider>
   );
 }
+
+/**
+ * Diagnostic (OWNER/ADMIN/MODERATOR) : affiche, dans la vraie fenêtre Modal,
+ * les valeurs qui déterminent la position des boutons du bas. Invisible tant
+ * que l'interrupteur n'est pas activé depuis « Diagnostic d'affichage ».
+ * Ne bloque aucun toucher (pointerEvents="none").
+ */
+function ModalMeasurementsPanel({
+  modalLayoutHeight,
+  modalInsets,
+  inheritedInsets,
+  appliedKeyboardInset,
+}: {
+  modalLayoutHeight: number | null;
+  modalInsets: EdgeInsets;
+  inheritedInsets: EdgeInsets;
+  appliedKeyboardInset: number;
+}) {
+  const enabled = useSyncExternalStore(
+    subscribeModalMeasurements,
+    isModalMeasurementsEnabled,
+    isModalMeasurementsEnabled,
+  );
+  const [keyboardTopY, setKeyboardTopY] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const show = Keyboard.addListener('keyboardDidShow', (e: KeyboardEvent) =>
+      setKeyboardTopY(e.endCoordinates.screenY),
+    );
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardTopY(null));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [enabled]);
+
+  if (!enabled) return null;
+
+  const lines = formatModalMeasurements({
+    modalLayoutHeight,
+    modalInsets: { top: modalInsets.top, bottom: modalInsets.bottom },
+    inheritedInsets: { top: inheritedInsets.top, bottom: inheritedInsets.bottom },
+    statusBarHeight: StatusBar.currentHeight ?? null,
+    screenHeight: Dimensions.get('screen').height,
+    keyboardTopY,
+    appliedKeyboardInset,
+  });
+
+  return (
+    <View pointerEvents="none" style={panelStyles.panel}>
+      {lines.map((line) => (
+        <Text key={line} style={panelStyles.line}>
+          {line}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
+const panelStyles = StyleSheet.create({
+  panel: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    top: '45%',
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(20, 10, 5, 0.82)',
+    zIndex: 1000,
+    elevation: 1000,
+  },
+  line: { color: '#FFFFFF', fontSize: 11, lineHeight: 15 },
+});
