@@ -10,6 +10,7 @@ import { usePushNotifications } from "../src/hooks/usePushNotifications";
 import { API_URL } from "../src/api/client";
 import { TestModeLink } from "../src/dev/TestModeLink";
 import { getResponsiveScale } from "../src/utils/responsive";
+import { scaledScreenStyle } from "../src/utils/scaledScreenStyle";
 import { useAndroidKeyboardInset } from "../src/hooks/useAndroidKeyboardInset";
 import { APP_COLORS } from "../src/theme/appTheme";
 
@@ -97,14 +98,13 @@ export default function RootLayout() {
     ? undefined
     : Platform.OS === 'web'
     ? { width: '100%' as const, height: '100%' as const }
-    : {
-        width: responsive.logicalWidth,
-        // L'échelle reste celle de la fenêtre entière (pas de zoom à l'ouverture
-        // du clavier) ; seule la hauteur utile diminue du recouvrement du clavier.
-        height: (height - keyboardInset) / responsive.scale,
-        transform: [{ scale: responsive.scale }],
-        transformOrigin: 'left top' as const,
-      };
+    : scaledScreenStyle({
+        platform: Platform.OS,
+        logicalWidth: responsive.logicalWidth,
+        windowHeight: height,
+        keyboardInset,
+        scale: responsive.scale,
+      });
 
   return (
     <>
