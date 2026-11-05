@@ -56,3 +56,25 @@ export function footerButtonsBottom(params: {
   const bottomInset = keyboardInset > 0 ? 0 : bottomInsetWhenClosed;
   return usableBottom - Math.max(bottomInset, minPadding);
 }
+
+/** Espace visuel au-dessus de la barre de navigation ou du clavier (Android). */
+export const ANDROID_FOOTER_GAP = 8;
+
+/**
+ * Marge basse des pieds de la fenêtre des lettres (rédaction, attente, aperçu).
+ *
+ * Android : marge sûre mesurée + 8 dp. Clavier fermé (A17) : 48 + 8 = 56, soit
+ * 8 dp d'air au-dessus de la barre de navigation, comme l'espace jugé correct
+ * au-dessus du clavier. Clavier ouvert : la marge sûre vaut 0 (la zone utile
+ * s'arrête au clavier) → 8 dp, identique à aujourd'hui. Aucune double
+ * compensation : la marge sûre n'est comptée qu'une fois.
+ *
+ * iOS et web : formule d'origine inchangée, max(marge sûre, minimum).
+ */
+export function footerBottomPadding(platform: string, bottomInset: number, legacyMinimum: number): number {
+  const inset = Number.isFinite(bottomInset) && bottomInset > 0 ? bottomInset : 0;
+  if (platform !== 'android') {
+    return Math.max(inset, legacyMinimum);
+  }
+  return inset + ANDROID_FOOTER_GAP;
+}

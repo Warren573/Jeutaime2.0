@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ModalKeyboardFrame } from '../components/ModalKeyboardFrame';
-import { composerFooterAnchoring } from '../utils/composerFooter';
+import { composerFooterAnchoring, footerBottomPadding } from '../utils/composerFooter';
 import { formatFooterLine, setModalExtraLine } from '../dev/modalMeasurements';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
@@ -1195,7 +1195,7 @@ export default function LettersScreen() {
 
             {selectedMatch?.canSend ? (
               <View
-                style={[styles.inputContainer, { paddingBottom: Math.max(modalInsets.bottom, 8) }, footerAnchoring.footerStyle]}
+                style={[styles.inputContainer, { paddingBottom: footerBottomPadding(Platform.OS, modalInsets.bottom, 8) }, footerAnchoring.footerStyle]}
                 onLayout={onComposerFooterLayout}
               >
                 <TextInput
@@ -1228,7 +1228,7 @@ export default function LettersScreen() {
               </View>
             ) : (
               <View
-                style={[styles.waitingComposer, { paddingBottom: Math.max(modalInsets.bottom, 10) }, footerAnchoring.footerStyle]}
+                style={[styles.waitingComposer, { paddingBottom: footerBottomPadding(Platform.OS, modalInsets.bottom, 10) }, footerAnchoring.footerStyle]}
                 onLayout={onComposerFooterLayout}
               >
                 <View style={styles.waitingComposerBar}>
@@ -1281,7 +1281,7 @@ export default function LettersScreen() {
                   {selectedMatch ? ` de ${getOtherName(selectedMatch)}` : ''}.
                 </Text>
 
-                <View style={[styles.previewActions, { paddingBottom: Math.max(modalInsets.bottom, 12) }]}>
+                <View style={[styles.previewActions, { paddingBottom: footerBottomPadding(Platform.OS, modalInsets.bottom, 12) }]}>
                   <TouchableOpacity
                     style={styles.previewEditBtn}
                     onPress={() => setShowLetterPreview(false)}
