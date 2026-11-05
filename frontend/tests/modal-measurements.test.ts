@@ -61,3 +61,31 @@ describe("formatModalMeasurements", () => {
     expect(lines[3]).toBe("Clavier bord haut=— · compensation appliquée=0");
   });
 });
+
+import { formatFooterLine, getModalExtraLines, setModalExtraLine } from "../src/dev/modalMeasurements";
+
+describe("lignes supplémentaires du panneau", () => {
+  it("ignorées tant que l'interrupteur est désactivé", () => {
+    setModalMeasurementsEnabled(false);
+    setModalExtraLine("pied", "Pied y=1");
+    expect(getModalExtraLines()).toEqual([]);
+  });
+
+  it("ajoutées, remplacées puis retirées quand l'interrupteur est activé", () => {
+    setModalMeasurementsEnabled(true);
+    setModalExtraLine("pied", "Pied y=1");
+    const first = getModalExtraLines();
+    expect(first).toEqual(["Pied y=1"]);
+    setModalExtraLine("pied", "Pied y=1");
+    expect(getModalExtraLines()).toBe(first); // instantané stable si inchangé
+    setModalExtraLine("pied", "Pied y=2");
+    expect(getModalExtraLines()).toEqual(["Pied y=2"]);
+    setModalExtraLine("pied", null);
+    expect(getModalExtraLines()).toEqual([]);
+    setModalMeasurementsEnabled(false);
+  });
+
+  it("formatFooterLine : position, hauteur et bas arrondis au dixième", () => {
+    expect(formatFooterLine("Pied de rédaction", 613.6, 170.44)).toBe("Pied de rédaction y=613.6 h=170.4 bas=784");
+  });
+});

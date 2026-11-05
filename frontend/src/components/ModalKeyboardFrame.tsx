@@ -20,6 +20,7 @@ import { useAndroidKeyboardInset } from '../hooks/useAndroidKeyboardInset';
 import { insetsWhileKeyboardOpen } from '../utils/keyboardInset';
 import {
   formatModalMeasurements,
+  getModalExtraLines,
   isModalMeasurementsEnabled,
   subscribeModalMeasurements,
 } from '../dev/modalMeasurements';
@@ -142,6 +143,11 @@ function ModalMeasurementsPanel({
     isModalMeasurementsEnabled,
     isModalMeasurementsEnabled,
   );
+  const extraLines = useSyncExternalStore(
+    subscribeModalMeasurements,
+    getModalExtraLines,
+    getModalExtraLines,
+  );
   const [keyboardTopY, setKeyboardTopY] = useState<number | null>(null);
 
   useEffect(() => {
@@ -158,7 +164,7 @@ function ModalMeasurementsPanel({
 
   if (!enabled) return null;
 
-  const lines = formatModalMeasurements({
+  const baseLines = formatModalMeasurements({
     modalLayoutHeight,
     modalInsets: { top: modalInsets.top, bottom: modalInsets.bottom },
     inheritedInsets: { top: inheritedInsets.top, bottom: inheritedInsets.bottom },
@@ -167,6 +173,7 @@ function ModalMeasurementsPanel({
     keyboardTopY,
     appliedKeyboardInset,
   });
+  const lines = [...baseLines, ...extraLines];
 
   return (
     <View pointerEvents="none" style={panelStyles.panel}>
