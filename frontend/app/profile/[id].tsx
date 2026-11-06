@@ -43,6 +43,8 @@ export default function ProfileRoute() {
 
   const [matches, setMatches] = useState<MatchDTO[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
+  // Hauteur mesurée du bloc de boutons flottants (pour l'espace sous le contenu du profil).
+  const [actionsHeight, setActionsHeight] = useState(0);
   const [isSmiling, setIsSmiling] = useState(false);
   const [isLoadingReaction, setIsLoadingReaction] = useState(false);
   const [reactionStatus, setReactionStatus] = useState<ReactionStatusDTO | null>(null);
@@ -226,9 +228,16 @@ export default function ProfileRoute() {
   const mutualSmile = reactionStatus?.mutualSmile === true;
   const hasActiveRelation = relationMatch?.status === 'ACTIVE';
 
+  const showActions = !isAdminPreview && !isOwnProfile && !!profileId;
+  // Zone recouverte en bas de l'écran = bloc de boutons + distance au bas (Android).
+  const actionsBottomCovered =
+    showActions && actionsHeight > 0
+      ? actionsHeight + footerBottomPadding('android', insets.bottom, APP_SPACING.lg)
+      : 0;
+
   return (
     <View style={styles.container}>
-      <ProfileDetailScreen />
+      <ProfileDetailScreen bottomOverlayHeight={actionsBottomCovered} />
 
       {!isAdminPreview && !isOwnProfile && profileId && (
         <TouchableOpacity
@@ -249,6 +258,7 @@ export default function ProfileRoute() {
             Platform.OS === 'android' && { bottom: footerBottomPadding('android', insets.bottom, APP_SPACING.lg) },
           ]}
           pointerEvents="box-none"
+          onLayout={(e) => setActionsHeight(e.nativeEvent.layout.height)}
         >
           {isBottleContext && !mutualSmile && (
             <TouchableOpacity
