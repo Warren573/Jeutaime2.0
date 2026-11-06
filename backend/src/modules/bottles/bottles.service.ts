@@ -1171,7 +1171,16 @@ export async function getRevealStatus(
   });
 
   if (!bottle) {
-    throw new Error("Bottle not found");
+    const err = new Error("Bottle not found");
+    (err as any).code = "BOTTLE_NOT_FOUND";
+    throw err;
+  }
+
+  // Seuls les deux participants peuvent consulter l'état du dévoilement.
+  if (bottle.senderId !== userId && bottle.acceptedById !== userId) {
+    const err = new Error("Not a participant");
+    (err as any).code = "NOT_BOTTLE_PARTICIPANT";
+    throw err;
   }
 
   // Find any pending reveal request
@@ -1189,11 +1198,12 @@ export async function getRevealStatus(
     };
   }
 
-  return {
-    hasPendingRequest: true,
-    isRequester: request.requestedById === userId,
-    requestedById: request.requestedById,
-  };
+  const isRequester = request.requestedById === userId;
+  // Anonymat : l'identifiant du demandeur n'est renvoyé qu'à lui-même, jamais
+  // à l'autre participant (le dévoilement n'est pas encore accepté).
+  return isRequester
+    ? { hasPendingRequest: true, isRequester: true, requestedById: request.requestedById }
+    : { hasPendingRequest: true, isRequester: false };
 }
 
 // ============================================================

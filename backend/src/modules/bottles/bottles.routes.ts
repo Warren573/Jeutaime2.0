@@ -6,6 +6,7 @@ import type { AuthedRequest } from "../../core/types";
 import { prisma } from "../../config/prisma";
 import { isPremiumActive } from "../../policies/premium";
 import { MAX_FLOATING_FREE, MAX_FLOATING_PREMIUM } from "./bottles.service";
+import { maskBottleParticipantsForViewer } from "./bottles.privacy";
 import * as controller from "./bottles.controller";
 import {
   CreateBottleBodySchema,
@@ -286,8 +287,12 @@ router.get(
       return;
     }
 
+    // Anonymat : l'identifiant de l'autre participant n'est transmis qu'après
+    // dévoilement mutuel (le menu « profil dévoilé » en a alors besoin).
+    const visible = maskBottleParticipantsForViewer(bottle, userId);
+
     if (bottle.senderId === userId) {
-      res.json({ data: bottle });
+      res.json({ data: visible });
       return;
     }
 
@@ -298,8 +303,8 @@ router.get(
 
     res.json({
       data: settings?.locationShared === true
-        ? bottle
-        : { ...bottle, senderCity: null },
+        ? visible
+        : { ...visible, senderCity: null },
     });
   }),
 );
