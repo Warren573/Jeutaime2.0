@@ -14,6 +14,8 @@ import { generateUUID } from '../utils/uuid';
 const CREAM_BG = '#F6F0E4';
 const BOTTLE_IMG = require('../../assets/images/bottle/BOTTLE-22.png');
 const OCEAN_BG = require('../../assets/images/ocean.png');
+// Parchemin de la lettre dans la fenêtre « Une bouteille à la mer » (même papier que la lecture « Lettre en transit »).
+const FIRST_REPLY_PARCHMENT = require('../../assets/images/bottle/bottle-letter-received.png');
 const SEA_BG = require('../../assets/images/bottle/sea-bg.jpg');
 const UI_ICONS = {
   transit: require('../../assets/ui-icons/transit.png'),
@@ -160,7 +162,11 @@ export default function BottleMainScreen() {
         <ScrollView contentContainerStyle={styles.firstReplyScrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.firstReplyCard}>
           <Text style={styles.firstReplyTitle}>Une bouteille à la mer</Text>
-          <ScrollView style={{ maxHeight: 150 }}><Text style={styles.firstReplyLetter}>{selectedBottle?.message ?? ''}</Text></ScrollView>
+          <View style={styles.firstReplyParchment}>
+            <Image source={FIRST_REPLY_PARCHMENT} style={StyleSheet.absoluteFill} resizeMode="stretch" />
+            {/* Lettre longue : elle défile à l'intérieur du parchemin (rien n'est coupé). */}
+            <ScrollView style={styles.firstReplyParchmentScroll} nestedScrollEnabled><Text style={styles.firstReplyLetter}>{selectedBottle?.message ?? ''}</Text></ScrollView>
+          </View>
           <Text style={styles.firstReplyHelp}>Lire n'engage à rien. La correspondance commence uniquement si tu réponds en premier.</Text>
           <TextInput value={firstReply} onChangeText={setFirstReply} multiline maxLength={500} placeholder="Écris ta première réponse…" style={styles.firstReplyInput} />
           <Text style={styles.firstReplyCount}>{firstReply.length}/500</Text>
@@ -442,7 +448,10 @@ const styles = StyleSheet.create({
   firstReplyScrollContent: { flexGrow: 1, justifyContent: 'center', padding: 20 },
   firstReplyCard: { borderRadius: 20, backgroundColor: COLORS.paper, padding: 20, gap: 12 },
   firstReplyTitle: { fontSize: 21, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
-  firstReplyLetter: { fontSize: 17, lineHeight: 25, fontStyle: 'italic', color: COLORS.text },
+  firstReplyLetter: { fontSize: 17, lineHeight: 25, fontStyle: 'italic', color: '#3A281A', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' },
+  // Image du parchemin 1536×1024 → ratio 1.5 ; marges pour rester dans le papier, hors des bords déchirés.
+  firstReplyParchment: { width: '100%', aspectRatio: 1.5, paddingHorizontal: 30, paddingTop: 26, paddingBottom: 24 },
+  firstReplyParchmentScroll: { flex: 1 },
   firstReplyHelp: { fontSize: 13, lineHeight: 19, color: COLORS.textSecondary },
   firstReplyInput: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, minHeight: 100, maxHeight: 160, padding: 12, color: COLORS.text, textAlignVertical: 'top' },
   firstReplyCount: { textAlign: 'right', color: COLORS.textSecondary, fontSize: 12 },
