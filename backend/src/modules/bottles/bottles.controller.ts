@@ -2,6 +2,7 @@ import type { Response } from "express";
 import type { AuthedRequest } from "../../core/types";
 import { prisma } from "../../config/prisma";
 import { sendPushToUser } from "../notifications/push.service";
+import { maskBottleParticipantsForViewer } from "./bottles.privacy";
 import * as bottlesService from "./bottles.service";
 import {
   CreateBottleBodySchema,
@@ -182,9 +183,17 @@ export async function getInbox(req: AuthedRequest, res: Response) {
     orderBy: { createdAt: "desc" },
   });
 
-  const bottles = await applyBottleLocationPrivacy(
+  const located = await applyBottleLocationPrivacy(
     [...pending, ...accepted, ...sentFloating] as unknown as BottleWithSenderCity[],
     userId,
+  );
+  // Anonymat : l'identifiant de l'autre participant n'est jamais transmis avant
+  // dévoilement mutuel (bouteilles en mer et conversations anonymes).
+  const bottles = located.map((bottle) =>
+    maskBottleParticipantsForViewer(
+      bottle as unknown as { senderId: string | null; acceptedById: string | null; status: string; revealedAt?: Date | null },
+      userId,
+    ),
   );
 
   const validated = GetInboxResponseSchema.parse(serializeDates({ bottles }));
@@ -343,7 +352,10 @@ export async function requestReveal(req: AuthedRequest, res: Response) {
 
   try {
     const request = await bottlesService.requestReveal(bottleId, userId);
-    const validated = RequestRevealResponseSchema.parse(serializeDates(request));
+    // Anonymat : ne pas renvoyer l'identifiant de l'autre participant (respondentId).
+    const visibleRequest: Record<string, unknown> = { ...(request as Record<string, unknown>) };
+    delete visibleRequest["respondentId"];
+    const validated = RequestRevealResponseSchema.parse(serializeDates(visibleRequest));
     res.json({ data: validated });
   } catch (error: any) {
     const code = error.code || error.message;
@@ -417,12 +429,21 @@ export async function restartBottle(req: AuthedRequest, res: Response) {
 // GET /api/bottles/:id/reveal/status
 // ============================================================
 export async function getRevealStatus(req: AuthedRequest, res: Response) {
-  const status = await bottlesService.getRevealStatus(
-    req.params["id"] as string,
-    req.user.userId,
-  );
-  const validated = GetRevealStatusResponseSchema.parse(status);
-  res.json({ data: validated });
+  try {
+    const status = await bottlesService.getRevealStatus(
+      req.params["id"] as string,
+      req.user.userId,
+    );
+    const validated = GetRevealStatusResponseSchema.parse(status);
+    res.json({ data: validated });
+  } catch (error: any) {
+    // Bouteille inconnue OU lecteur non participant : même réponse 404, pour ne
+    // pas révéler l'existence d'une bouteille à un tiers.
+    if (error?.code === "BOTTLE_NOT_FOUND" || error?.code === "NOT_BOTTLE_PARTICIPANT") {
+      return res.status(404).json({ error: "Bottle not found" });
+    }
+    throw error;
+  }
 }
 
 // ============================================================

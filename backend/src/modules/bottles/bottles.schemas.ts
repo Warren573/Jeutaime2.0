@@ -40,7 +40,8 @@ export const InboxBottleSchema = z.object({
   senderCity: z.string().nullable(),
   targetGender: z.string(),
   status: z.enum(["FLOATING", "ACCEPTED", "EXPIRED", "REVEALED", "BROKEN"]),
-  senderId: z.string(),
+  // null = identifiant de l'autre participant masqué (anonymat avant dévoilement).
+  senderId: z.string().nullable(),
   acceptedById: z.string().nullable(),
   createdAt: z.string().datetime(),
   expiresAt: z.string().datetime(),
@@ -189,7 +190,8 @@ export const RequestRevealResponseSchema = z.object({
   id: z.string(),
   bottleId: z.string(),
   requestedById: z.string(),
-  respondentId: z.string(),
+  // Jamais renvoyé : identifiant de l'autre participant (anonymat).
+  respondentId: z.string().optional(),
   status: z.enum(["PENDING", "ACCEPTED", "REFUSED"]),
   createdAt: z.string().datetime(),
   respondedAt: z.string().datetime().nullable(),
