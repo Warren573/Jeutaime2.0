@@ -11,6 +11,8 @@ import { resolveAvatarConfig } from '../avatar/resolveAvatarConfig';
 import { useStore } from '../store/useStore';
 import { AppBackButton } from '../components/AppBackButton';
 import { API_URL } from '../api/client';
+import { profileScrollBottomPadding } from '../utils/profileScrollPadding';
+import { Platform } from 'react-native';
 
 const LOOKING_FOR_LABEL: Record<string, { label: string; sub: string }> = {
   relation: { label: "L'âme sœur, rien que ça", sub: 'On peut rêver grand.' }, RELATION: { label: "L'âme sœur, rien que ça", sub: 'On peut rêver grand.' },
@@ -35,7 +37,7 @@ function PaperSection({title,note,tone,variant='a',children}:PaperSectionProps){
   </View>;
 }
 
-export default function ProfileDetailScreen(){
+export default function ProfileDetailScreen({ bottomOverlayHeight = 0 }: { bottomOverlayHeight?: number } = {}){
  const router=useRouter(); const insets=useSafeAreaInsets(); const params=useLocalSearchParams<{id?:string;adminPreview?:string}>(); const profileId=Array.isArray(params.id)?params.id[0]:params.id; const isAdminPreview=(Array.isArray(params.adminPreview)?params.adminPreview[0]:params.adminPreview)==='1'; const currentUser=useStore(s=>s.currentUser);
  const [data,setData]=useState<PublicProfileResponse|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null); const [reporting,setReporting]=useState(false); const [photoOpen,setPhotoOpen]=useState(false); const [activeMedia,setActiveMedia]=useState<'photo'|'avatar'>('photo'); const mediaPagerRef=useRef<ScrollView>(null); const [authToken,setAuthToken]=useState<string|null>(null); const isOwnProfile=!!profileId&&currentUser?.id===profileId;
  useEffect(()=>{void AsyncStorage.getItem('auth_token').then(setAuthToken);},[]);
@@ -46,7 +48,7 @@ export default function ProfileDetailScreen(){
  if(error||!profile)return <View style={[styles.container,{paddingTop:insets.top}]}><View style={styles.header}><AppBackButton onPress={()=>router.back()}/><Text style={styles.headerTitle}>PROFIL</Text><View style={styles.headerSpacer}/></View><View style={styles.center}><Text style={styles.errorText}>{error??'Profil introuvable'}</Text></View></View>;
  const avatar=resolveAvatarConfig(profile.userId??profile.id,profile.avatarConfig,profile.gender,'ProfileDetailScreen').config; const primaryPhoto=data?.photos?.find(p=>p.isPrimary)??data?.photos?.[0]??null; const photoUrl=primaryPhoto?makePhotoUrl(primaryPhoto.url):null; const photoHeaders=authToken?{Authorization:`Bearer ${authToken}`}:undefined;
  const reportPhoto=async()=>{if(!profileId||!primaryPhoto||isOwnProfile||reporting)return;try{setReporting(true);await reportUser(profileId,'INAPPROPRIATE_CONTENT','Photo signalée depuis le profil',{contentType:'PHOTO',contentId:primaryPhoto.id});Alert.alert('Photo signalée','Merci. La photo sera vérifiée par la modération avant toute sanction.');}catch(err:any){Alert.alert('Erreur',err?.message||'Impossible de signaler cette photo');}finally{setReporting(false);}}; const lookingFor=cleanArray(profile.lookingFor).map(v=>LOOKING_FOR_LABEL[v]??{label:v,sub:''}); const interestedIn=cleanArray(profile.interestedIn).map(v=>INTERESTED_IN_LABEL[v]??v); const identityTags=cleanArray(profile.identityTags); const skills=Array.isArray(profile.skills)?profile.skills.filter(skill=>skill?.label||skill?.detail).slice(0,3):[]; const physical=PHYSICAL_DESC_LABEL[String(profile.physicalDesc??'')];
- return <View style={[styles.container,{paddingTop:insets.top}]}><View style={styles.header}><AppBackButton onPress={()=>router.back()}/><Text style={styles.headerTitle}>PROFIL</Text>{isOwnProfile?<TouchableOpacity style={styles.headerAction} onPress={()=>router.push('/edit-profile' as any)}><Text style={styles.headerActionText}>Modifier</Text></TouchableOpacity>:<TouchableOpacity style={styles.headerAction} onPress={report} disabled={reporting}><Text style={styles.headerActionText}>{reporting?'...':'Signaler'}</Text></TouchableOpacity>}</View><ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}><View style={styles.dossier}><View style={styles.headerSheet}><View style={styles.headerAvatarWrap}>
+ return <View style={[styles.container,{paddingTop:insets.top}]}><View style={styles.header}><AppBackButton onPress={()=>router.back()}/><Text style={styles.headerTitle}>PROFIL</Text>{isOwnProfile?<TouchableOpacity style={styles.headerAction} onPress={()=>router.push('/edit-profile' as any)}><Text style={styles.headerActionText}>Modifier</Text></TouchableOpacity>:<TouchableOpacity style={styles.headerAction} onPress={report} disabled={reporting}><Text style={styles.headerActionText}>{reporting?'...':'Signaler'}</Text></TouchableOpacity>}</View><ScrollView contentContainerStyle={[styles.scroll,{paddingBottom:profileScrollBottomPadding(Platform.OS,bottomOverlayHeight)}]} showsVerticalScrollIndicator={false}><View style={styles.dossier}><View style={styles.headerSheet}><View style={styles.headerAvatarWrap}>
   {photoUrl ? (
     <>
       <ScrollView
