@@ -24,7 +24,7 @@ const UI_ICONS = {
 } as const;
 const COLORS = { text: '#2C1A0E', textSecondary: '#7A5C3A', accent: '#8B2E3C', border: '#D4B896', paper: '#FEFAF0', success: '#466B4E', error: '#A43A3A' };
 
-const BottleItem: React.FC<{ id: string; index: number; onPress: () => void; position: { left: string; top: string }; isAccepting: boolean }> = ({ index, onPress, position, isAccepting }) => {
+const BottleItem: React.FC<{ id: string; index: number; onPress: () => void; position: { left: string; top: string | number }; isAccepting: boolean }> = ({ index, onPress, position, isAccepting }) => {
   const rotation = useMemo(() => [-12, 8, -6, 14, -9, 11][index % 6], [index]);
   const animDelay = useMemo(() => index * 200, [index]);
   return (
@@ -112,7 +112,12 @@ export default function BottleMainScreen() {
     { left: '70%', top: '380px' },
     { left: '15%', top: '460px' },
     { left: '55%', top: '520px' },
-  ], []);
+  ].map((p) => (
+    // Android : '80px' n'est pas une dimension valide en natif (seuls les nombres et les
+    // pourcentages le sont) → la hauteur était ignorée et toutes les bouteilles se
+    // retrouvaient en haut de la mer. Même valeur, en nombre (mer de hauteur fixe 600).
+    Platform.OS === 'android' ? { left: p.left, top: parseInt(p.top, 10) } : p
+  )), []);
 
   useFocusEffect(useCallback(() => { setIsLoading(true); loadState(); }, [loadState]));
   useFocusEffect(useCallback(() => { setShowMenu(false); }, []));
