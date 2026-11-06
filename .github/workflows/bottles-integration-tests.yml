@@ -101,6 +101,11 @@ jobs:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261027093000_match_activated_at/migration.sql
 
+      - name: Apply notification preferences migration to CI baseline
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261030120000_notification_preferences/migration.sql
+
       - name: Verify schema consistency (zero drift)
         working-directory: backend
         env:
