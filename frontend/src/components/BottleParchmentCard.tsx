@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Platform,
   Image,
+  ScrollView,
 } from 'react-native';
 
 const RECEIVED_CARD = require('../../assets/images/bottle/bottle-letter-received.png');
@@ -18,6 +19,12 @@ interface BottleParchmentCardProps {
   variant?: 'received' | 'sent' | 'neutral';
   label?: string;
   dateLabel?: string;
+  /**
+   * Version pleine uniquement : le texte défile à l'intérieur du parchemin
+   * au lieu d'être tranché par la hauteur fixe (aspectRatio 0.75).
+   * Désactivé par défaut : les autres écrans gardent leur rendu actuel.
+   */
+  scrollableContent?: boolean;
 }
 
 export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
@@ -26,6 +33,7 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
   variant = 'neutral',
   label,
   dateLabel,
+  scrollableContent = false,
 }) => {
   const isSent = variant === 'sent';
 
@@ -54,13 +62,23 @@ export const BottleParchmentCard: React.FC<BottleParchmentCardProps> = ({
             compact ? styles.contentCompact : styles.contentFull,
           ]}
         >
-          <Text
-            style={[styles.message, compact && styles.messageCompact]}
-            numberOfLines={compact ? 6 : undefined}
-            ellipsizeMode={compact ? 'tail' : undefined}
-          >
-            {content}
-          </Text>
+          {scrollableContent && !compact ? (
+            <ScrollView
+              style={styles.messageScroll}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+            >
+              <Text style={styles.message}>{content}</Text>
+            </ScrollView>
+          ) : (
+            <Text
+              style={[styles.message, compact && styles.messageCompact]}
+              numberOfLines={compact ? 6 : undefined}
+              ellipsizeMode={compact ? 'tail' : undefined}
+            >
+              {content}
+            </Text>
+          )}
         </View>
       </View>
     </View>
@@ -129,6 +147,9 @@ const styles = StyleSheet.create({
     paddingBottom: 56,
   },
 
+  messageScroll: {
+    flex: 1,
+  },
   message: {
     fontSize: 20,
     lineHeight: 31,
