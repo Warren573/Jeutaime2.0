@@ -70,11 +70,12 @@ describe("Bottles: first reply claims, merely reading does not", () => {
 });
 
 describe("Bottles: postcard indicator reflects whose turn it is", () => {
-  it("shows a new floating bottle and clears it after it is claimed", async () => {
-    vi.mocked(prisma.bottleReceipt.count).mockResolvedValueOnce(1).mockResolvedValueOnce(0);
+  it("does not show a floating bottle that has not been picked up (no correspondence yet)", async () => {
+    // Règle produit 2026-11-06 : une bouteille reçue sur la mer n'allume pas la carte postale.
+    vi.mocked(prisma.bottleReceipt.count).mockResolvedValue(1);
     vi.mocked(prisma.messageInABottle.findMany).mockResolvedValue([] as any);
-    expect(await countUnreadMessages(accepterId)).toBe(1);
     expect(await countUnreadMessages(accepterId)).toBe(0);
+    expect(prisma.bottleReceipt.count).not.toHaveBeenCalled();
   });
   it("clears immediately after sending a reply, not merely after opening it", async () => {
     vi.mocked(prisma.bottleReceipt.count).mockResolvedValue(0);

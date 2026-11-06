@@ -765,45 +765,30 @@ export async function reportAndSuspend(
 // ============================================================
 
 /**
- * Postcard bottle indicator: a reply is expected from this user.
- * Unlike a generic unread counter, opening the message doesn't clear it.
- * The indicator disappears only when the user responds, or the exchange ends.
- */
-/**
- * The postcard indicator stays visible while the user has:
- * - an eligible unopened floating bottle, or
- * - an active exchange awaiting their next response.
- * Reading a bottle does not acknowledge it; replying/refusing does.
+ * Indicateur « bouteille » de la carte postale (accueil).
+ *
+ * Règle produit (propriétaire, 2026-11-06) : la bouteille n'apparaît QUE
+ * pendant une correspondance, quand l'autre personne a écrit en dernier
+ * (c'est à cet utilisateur de répondre). Elle disparaît dès qu'il répond.
+ * Une bouteille qui flotte sur la mer et n'a pas encore été ramassée ne
+ * l'affiche pas.
  */
 export async function countUnreadMessages(userId: string): Promise<number> {
-  const [pendingReceipts, exchanges] = await Promise.all([
-    prisma.bottleReceipt.count({
-      where: {
-        recipientId: userId,
-        status: "PENDING",
-        bottle: {
-          status: "FLOATING",
-          expiresAt: { gt: new Date() },
-          acceptedById: null,
-        },
-      },
-    }),
-    prisma.messageInABottle.findMany({
-      where: {
-        status: { in: ["ACCEPTED", "REVEALED"] },
-        OR: [{ senderId: userId }, { acceptedById: userId }],
-      },
-      select: {
-        senderId: true,
-        messages: { orderBy: { createdAt: "desc" }, take: 1, select: { senderId: true } },
-      },
-    }),
-  ]);
+  const exchanges = await prisma.messageInABottle.findMany({
+    where: {
+      status: { in: ["ACCEPTED", "REVEALED"] },
+      OR: [{ senderId: userId }, { acceptedById: userId }],
+    },
+    select: {
+      senderId: true,
+      messages: { orderBy: { createdAt: "desc" }, take: 1, select: { senderId: true } },
+    },
+  });
   const awaitingReplies = exchanges.filter(bottle => {
     const lastSender = bottle.messages[0]?.senderId ?? bottle.senderId;
     return lastSender !== userId;
   }).length;
-  return pendingReceipts + awaitingReplies;
+  return awaitingReplies;
 }
 
 export async function markBottleAsRead(
