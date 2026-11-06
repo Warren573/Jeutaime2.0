@@ -285,6 +285,8 @@ export default function BottleMainScreen() {
                   content={state.latestLetter?.content ?? ''}
                   variant={state.latestLetter?.isMine ? 'sent' : 'received'}
                   label={state.latestLetter?.isMine ? 'TA LETTRE' : 'LETTRE REÇUE'}
+                  // Android : lettre longue lisible en entier (défilement dans le parchemin).
+                  scrollableContent={Platform.OS === 'android'}
                 />
                 <View style={styles.paddedSection}>
                   {state.canReply && (
