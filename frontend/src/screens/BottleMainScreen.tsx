@@ -163,7 +163,10 @@ export default function BottleMainScreen() {
         <View style={styles.firstReplyCard}>
           <Text style={styles.firstReplyTitle}>Une bouteille à la mer</Text>
           <View style={styles.firstReplyParchment}>
-            <Image source={FIRST_REPLY_PARCHMENT} style={StyleSheet.absoluteFill} resizeMode="stretch" />
+            {/* width/height 100 % obligatoires : sinon <Image> prend la taille du fichier
+                (1536×1024) que React Native lui donne par défaut, et déborde de la fenêtre.
+                Même règle que BottleParchmentCard (paperImage). */}
+            <Image source={FIRST_REPLY_PARCHMENT} style={[StyleSheet.absoluteFill, styles.firstReplyParchmentImage]} resizeMode="stretch" />
             {/* Lettre longue : elle défile à l'intérieur du parchemin (rien n'est coupé). */}
             <ScrollView style={styles.firstReplyParchmentScroll} nestedScrollEnabled><Text style={styles.firstReplyLetter}>{selectedBottle?.message ?? ''}</Text></ScrollView>
           </View>
@@ -450,8 +453,11 @@ const styles = StyleSheet.create({
   firstReplyTitle: { fontSize: 21, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
   firstReplyLetter: { fontSize: 17, lineHeight: 25, fontStyle: 'italic', color: '#3A281A', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' },
   // Image du parchemin 1536×1024 → ratio 1.5 ; marges pour rester dans le papier, hors des bords déchirés.
-  firstReplyParchment: { width: '100%', aspectRatio: 1.5, paddingHorizontal: 30, paddingTop: 26, paddingBottom: 24 },
-  firstReplyParchmentScroll: { flex: 1 },
+  // Pas de padding sur le cadre : avec le moteur de mise en page de React Native, le 100 % de
+  // l'image serait calculé SANS le padding (image trop petite). Les marges sont sur la zone de texte.
+  firstReplyParchment: { width: '100%', aspectRatio: 1.5 },
+  firstReplyParchmentScroll: { flex: 1, marginHorizontal: 30, marginTop: 26, marginBottom: 24 },
+  firstReplyParchmentImage: { width: '100%', height: '100%' },
   firstReplyHelp: { fontSize: 13, lineHeight: 19, color: COLORS.textSecondary },
   firstReplyInput: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, minHeight: 100, maxHeight: 160, padding: 12, color: COLORS.text, textAlignVertical: 'top' },
   firstReplyCount: { textAlign: 'right', color: COLORS.textSecondary, fontSize: 12 },
