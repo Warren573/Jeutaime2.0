@@ -20,6 +20,7 @@ import { blockMatch, breakMatch, listMatches, type MatchDTO } from '../../src/ap
 import { blockProfile, reportUser, type ReportReason } from '../../src/api/profiles';
 import { useStore } from '../../src/store/useStore';
 import { APP_COLORS, APP_RADIUS, APP_SHADOWS, APP_SIZES, APP_SPACING, APP_TYPE } from '../../src/theme/appTheme';
+import { footerBottomPadding } from '../../src/utils/composerFooter';
 
 const REPORT_REASONS: Array<{ value: ReportReason; label: string }> = [
   { value: 'HARASSMENT', label: 'Harcèlement' },
@@ -240,7 +241,15 @@ export default function ProfileRoute() {
       )}
 
       {!isAdminPreview && !isOwnProfile && profileId && (
-        <View style={styles.actions} pointerEvents="box-none">
+        <View
+          style={[
+            styles.actions,
+            // Android edge-to-edge : remonter au-dessus de la barre de navigation (marge sûre + 8 dp).
+            // iOS et web : style d'origine inchangé (bottom: APP_SPACING.lg).
+            Platform.OS === 'android' && { bottom: footerBottomPadding('android', insets.bottom, APP_SPACING.lg) },
+          ]}
+          pointerEvents="box-none"
+        >
           {isBottleContext && !mutualSmile && (
             <TouchableOpacity
               style={[styles.smileButton, (isSmiling || isLoadingReaction || smileAlreadySent) && styles.disabledButton]}
