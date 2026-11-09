@@ -4,16 +4,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ModalKeyboardFrame } from '../components/ModalKeyboardFrame';
 import { footerBottomPadding } from '../utils/composerFooter';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { getCurrentBottle, getInbox, claimBottleWithReply } from '../api/bottles';
+import { getCurrentBottle, getInbox, claimBottleWithReply, getSentBottles } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import { BottleCorrespondenceMenu } from '../components/BottleCorrespondenceMenu';
 import { AppBackButton } from '../components/AppBackButton';
-import type { GetCurrentBottleResponse, InboxBottleDTO } from '../api/bottles';
+import type { GetCurrentBottleResponse, InboxBottleDTO, SentBottleDTO } from '../api/bottles';
 import { useStore } from '../store/useStore';
 import { generateUUID } from '../utils/uuid';
 
 const CREAM_BG = '#F6F0E4';
 const BOTTLE_IMG = require('../../assets/images/bottle/BOTTLE-22.png');
+// Parchemin rose en hauteur pour « Bouteille envoyée » (page pleine, Android).
+const SENT_PARCHMENT_TALL = require('../../assets/images/bottle/bottle-letter-sent-full.png');
+const TARGET_LABELS: Record<string, string> = { HOMME: 'Homme', FEMME: 'Femme', LES_DEUX: 'Les deux', AUTRE: 'Autre' };
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 const OCEAN_BG = require('../../assets/images/ocean.png');
 // Parchemin de la lettre dans la fenêtre « Une bouteille à la mer » (même papier que la lecture « Lettre en transit »).
 const FIRST_REPLY_PARCHMENT = require('../../assets/images/bottle/bottle-letter-received.png');
@@ -88,6 +92,21 @@ export default function BottleMainScreen() {
   const [selectedBottle, setSelectedBottle] = useState<InboxBottleDTO | null>(null);
   const [firstReply, setFirstReply] = useState('');
   const [replyKey, setReplyKey] = useState(generateUUID());
+  // « Bouteille envoyée » : date d'envoi, critères et date de fin de dérive de MA
+  // bouteille en mer (GET /bottles/sent, déjà existant ; aucune donnée d'autrui).
+  const [sentInfo, setSentInfo] = useState<SentBottleDTO | null>(null);
+  const mySentFloatingId = useMemo(
+    () => inbox.find((b) => b.status === 'FLOATING' && !!currentUser?.id && b.senderId === currentUser.id)?.id ?? null,
+    [inbox, currentUser?.id],
+  );
+  useEffect(() => {
+    if (!mySentFloatingId) { setSentInfo(null); return; }
+    let active = true;
+    getSentBottles()
+      .then((list) => { if (active) setSentInfo(list.find((b) => b.id === mySentFloatingId) ?? null); })
+      .catch(() => { if (active) setSentInfo(null); });
+    return () => { active = false; };
+  }, [mySentFloatingId]);
 
   const loadState = useCallback(async () => {
     try {
@@ -350,7 +369,13 @@ export default function BottleMainScreen() {
           <BottleHeader title="Lettre en transit" onBack={() => router.back()} />
           <ScrollView
             style={styles.scroll}
-            contentContainerStyle={[styles.sentContent, { paddingBottom: insets.bottom + 80 }]}
+            contentContainerStyle={[
+              styles.sentContent,
+              // Android : page pleine, le parchemin prend la hauteur restante.
+              Platform.OS === 'android'
+                ? { flexGrow: 1, paddingBottom: footerBottomPadding('android', insets.bottom, 0) }
+                : { paddingBottom: insets.bottom + 80 },
+            ]}
             refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}
             showsVerticalScrollIndicator={false}
           >
@@ -362,14 +387,36 @@ export default function BottleMainScreen() {
               </Text>
             </View>
 
-            <View style={styles.sentParchmentCard}>
-              <BottleParchmentCard
-                content={displayState.bottle?.message || ''}
-                compact
-                variant="sent"
-                label="TA LETTRE"
-              />
-            </View>
+            {Platform.OS === 'android' ? (
+              <View style={styles.sentParchmentTall}>
+                {/* width/height 100 % : sinon <Image> prend la taille du fichier (cf. #167). */}
+                <Image source={SENT_PARCHMENT_TALL} style={[StyleSheet.absoluteFill, styles.sentParchmentTallImage]} resizeMode="stretch" />
+                <ScrollView style={styles.sentParchmentTallScroll} nestedScrollEnabled>
+                  <Text style={styles.sentParchmentTallText}>{displayState.bottle?.message || ''}</Text>
+                </ScrollView>
+              </View>
+            ) : (
+              <View style={styles.sentParchmentCard}>
+                <BottleParchmentCard
+                  content={displayState.bottle?.message || ''}
+                  compact
+                  variant="sent"
+                  label="TA LETTRE"
+                />
+              </View>
+            )}
+
+            {sentInfo && (
+              <View style={styles.sentDetails}>
+                <Text style={styles.sentDetailsText}>
+                  Envoyée le <Text style={styles.sentDetailsStrong}>{shortDate(sentInfo.createdAt)}</Text>
+                  {' · '}Pour : <Text style={styles.sentDetailsStrong}>{TARGET_LABELS[sentInfo.targetGender] ?? sentInfo.targetGender}, {sentInfo.ageMin}–{sentInfo.ageMax} ans</Text>
+                </Text>
+                <Text style={styles.sentDetailsText}>
+                  Elle dérive jusqu’au <Text style={styles.sentDetailsStrong}>{shortDate(sentInfo.expiresAt)}</Text>
+                </Text>
+              </View>
+            )}
 
             <View style={styles.sentStatusCard}>
               <View style={styles.sentStatusIcon}>
@@ -644,6 +691,14 @@ const styles = StyleSheet.create({
   sentParchmentCard: {
     marginBottom: 12,
   },
+  // Page pleine (Android) : parchemin en hauteur, sans padding sur le cadre (cf. #167).
+  sentParchmentTall: { flex: 1, minHeight: 200, marginBottom: 12 },
+  sentParchmentTallImage: { width: '100%', height: '100%' },
+  sentParchmentTallScroll: { flex: 1, marginHorizontal: 34, marginTop: 40, marginBottom: 36 },
+  sentParchmentTallText: { fontSize: 18, lineHeight: 27, fontStyle: 'italic', color: '#3A281A', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' },
+  sentDetails: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0D6C6', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 12, gap: 2 },
+  sentDetailsText: { fontSize: 13, lineHeight: 19, color: COLORS.text },
+  sentDetailsStrong: { fontWeight: '700', color: COLORS.accent },
   sentStatusCard: {
     flexDirection: 'row',
     alignItems: 'center',
