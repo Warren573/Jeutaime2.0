@@ -2,7 +2,7 @@
  * PersonalBoard — Tableau magnétique personnel de l'accueil.
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -49,9 +49,9 @@ const POSTCARD_FRAME_PATH = (() => {
   return parts.join(' ');
 })();
 
-interface PaperProps { children: React.ReactNode; onPress?: () => void; style?: any; }
-const Paper: React.FC<PaperProps> = ({ children, onPress, style }) => (
-  <View style={[styles.paperWrap, style]}>
+interface PaperProps { children: React.ReactNode; onPress?: () => void; style?: any; onLayout?: (e: LayoutChangeEvent) => void; }
+const Paper: React.FC<PaperProps> = ({ children, onPress, style, onLayout }) => (
+  <View style={[styles.paperWrap, style]} onLayout={onLayout}>
     <TouchableOpacity style={styles.paper} onPress={onPress} activeOpacity={0.78}>
       {onPress && <View style={styles.paperMagnetRow} pointerEvents="none"><View style={styles.paperMagnetDot} /></View>}{children}
     </TouchableOpacity>
@@ -70,6 +70,8 @@ export function PersonalBoard() {
   const px = (base: number, frac: number) => Math.round(base * frac);
   const y = (frac: number) => topPad + px(H, frac);
   const [offerings, setOfferings] = useState<OfferingSentDTO[]>([]);
+  // Bas réel de la carte « Ton Compagnon » (elle s'agrandit quand un animal est adopté).
+  const [companionBottom, setCompanionBottom] = useState(0);
   const [hasBottle, setHasBottle] = useState(false);
   const [salonName, setSalonName] = useState<string | null>(null);
   const [refugeData, setRefugeData] = useState<{ animalType: string; todaySubmitted: boolean; isActive: boolean } | null>(null);
@@ -106,6 +108,10 @@ export function PersonalBoard() {
   const avatarSize = Math.round(profileW * 0.62);
   const bouteilleW = 180, bouteilleH = 120;
   const bottleImgH = Math.round(bouteilleH * 0.85), bottleImgW = Math.round(bottleImgH * (96 / 116));
+  // « Lettres Reçues » et « Sourires » sont sous le compagnon : si la carte compagnon
+  // descend plus bas que leur position habituelle, on les décale d'autant (+18 dp pour
+  // l'aimant et l'inclinaison). Sinon, aucun décalage : positions inchangées.
+  const belowCompanionShift = Math.max(0, companionBottom + 18 - y(0.23));
 
   return (
     <View style={styles.board}>
@@ -113,10 +119,10 @@ export function PersonalBoard() {
         <Image source={WOOD_BG} resizeMode="stretch" style={styles.woodBackground} />
       </View>
       <Paper onPress={() => router.push(`/profile/${currentUser.id}`)} style={{ position: 'absolute', top: y(0.03), left: px(W, 0.03), width: profileW, transform: [{ rotate: '-3deg' }] }}>{currentUser.avatarConfig && <Avatar size={avatarSize} {...currentUser.avatarConfig} />}<Text style={styles.profileName}>{currentUser.name || 'Vous'}</Text></Paper>
-      <Paper onPress={() => router.push('/refuge')} style={{ position: 'absolute', top: y(0.03), right: px(W, 0.14), width: px(W, 0.38), transform: [{ rotate: '3deg' }] }}><Text style={styles.animalTitle}>Ton Compagnon</Text>{refugeData?.animalType ? <>{getAnimalImage(refugeData.animalType) ? <Image source={getAnimalImage(refugeData.animalType) ?? undefined} style={styles.animalImage} /> : <Text style={styles.animalIcon}>{getAnimalLabel(refugeData.animalType) || '🐾'}</Text>}<Text style={styles.animalStatus}>{refugeData.isActive && refugeData.todaySubmitted ? "Tu t'en es déjà occupé aujourd'hui" : refugeData.isActive ? "Il est temps de t'en occuper aujourd'hui" : "En attente d'un adoptant"}</Text></> : <><Text style={styles.animalIcon}>🐾</Text>{pet && <Text style={styles.animalName}>{pet.petName}</Text>}</>}</Paper>
+      <Paper onPress={() => router.push('/refuge')} onLayout={(e) => setCompanionBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)} style={{ position: 'absolute', top: y(0.03), right: px(W, 0.14), width: px(W, 0.38), transform: [{ rotate: '3deg' }] }}><Text style={styles.animalTitle}>Ton Compagnon</Text>{refugeData?.animalType ? <>{getAnimalImage(refugeData.animalType) ? <Image source={getAnimalImage(refugeData.animalType) ?? undefined} style={styles.animalImage} /> : <Text style={styles.animalIcon}>{getAnimalLabel(refugeData.animalType) || '🐾'}</Text>}<Text style={styles.animalStatus}>{refugeData.isActive && refugeData.todaySubmitted ? "Tu t'en es déjà occupé aujourd'hui" : refugeData.isActive ? "Il est temps de t'en occuper aujourd'hui" : "En attente d'un adoptant"}</Text></> : <><Text style={styles.animalIcon}>🐾</Text>{pet && <Text style={styles.animalName}>{pet.petName}</Text>}</>}</Paper>
       <TouchableOpacity onPress={() => router.push('/settings')} activeOpacity={0.65} style={[styles.settingsButton, { top: y(0.045), right: px(W, 0.018) }]} accessibilityRole="button" accessibilityLabel="Paramètres"><Ionicons name="settings-outline" size={27} color={J.textMain} /></TouchableOpacity>
-      <Paper onPress={() => router.push('/(tabs)/letters')} style={{ position: 'absolute', top: y(0.23), left: px(W, 0.03), width: px(W, 0.58), transform: [{ rotate: '-2deg' }] }}><View style={styles.sectionTitleRow}><Ionicons name="mail-outline" size={16} color={J.textMain} /><Text style={styles.sectionTitle}>Lettres Reçues</Text></View>{recentLetters.length > 0 ? <View style={styles.lettersContainer}>{recentLetters.map((letter, idx) => { const senderName = matchPartners[letter.fromUserId]?.pseudo || letter.fromUserId; return <View key={`${letter.id}-${idx}`} style={styles.letterItem}><Ionicons name="mail-outline" size={13} color={J.textSecondary} style={{ marginRight: 5 }} /><Text style={styles.letterSenderName} numberOfLines={1}>{senderName}</Text></View>; })}</View> : <Text style={styles.emptyLetters}>Aucune lettre</Text>}</Paper>
-      <Paper onPress={() => router.push('/(tabs)/profiles?filter=received-smiles')} style={{ position: 'absolute', top: y(0.28), right: px(W, 0.05), width: px(W, 0.22), transform: [{ rotate: '-2deg' }] }}><Text style={styles.smilesTitle}>Sourires</Text><Text style={styles.smilesCount}>{matches?.filter((m) => m.initiatorId !== currentUser.id).length ?? 0}</Text></Paper>
+      <Paper onPress={() => router.push('/(tabs)/letters')} style={{ position: 'absolute', top: y(0.23) + belowCompanionShift, left: px(W, 0.03), width: px(W, 0.58), transform: [{ rotate: '-2deg' }] }}><View style={styles.sectionTitleRow}><Ionicons name="mail-outline" size={16} color={J.textMain} /><Text style={styles.sectionTitle}>Lettres Reçues</Text></View>{recentLetters.length > 0 ? <View style={styles.lettersContainer}>{recentLetters.map((letter, idx) => { const senderName = matchPartners[letter.fromUserId]?.pseudo || letter.fromUserId; return <View key={`${letter.id}-${idx}`} style={styles.letterItem}><Ionicons name="mail-outline" size={13} color={J.textSecondary} style={{ marginRight: 5 }} /><Text style={styles.letterSenderName} numberOfLines={1}>{senderName}</Text></View>; })}</View> : <Text style={styles.emptyLetters}>Aucune lettre</Text>}</Paper>
+      <Paper onPress={() => router.push('/(tabs)/profiles?filter=received-smiles')} style={{ position: 'absolute', top: y(0.28) + belowCompanionShift, right: px(W, 0.05), width: px(W, 0.22), transform: [{ rotate: '-2deg' }] }}><Text style={styles.smilesTitle}>Sourires</Text><Text style={styles.smilesCount}>{matches?.filter((m) => m.initiatorId !== currentUser.id).length ?? 0}</Text></Paper>
       <View style={[styles.postcardWrap, { position: 'absolute', top: y(0.48), left: px(W, 0.05), width: bouteilleW, height: bouteilleH }]}>
         <View style={styles.magnet} pointerEvents="none" />
         <TouchableOpacity onPress={() => router.push('/bottles-main')} activeOpacity={0.78} style={styles.postcardTouchable}>
