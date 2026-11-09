@@ -224,16 +224,16 @@ export default function BottleMainScreen() {
 
   if (displayState?.type === 'received' || showRetrieve) {
     const availableBottles = [...getAvailableBottles()].sort(() => Math.random() - 0.5).slice(0, 10);
-    // Android, au moins une bouteille : page fixe. La mer remplit l'espace entre le titre
-    // et le bouton du bas (plus de vide, plus besoin de défiler). Bouteilles inchangées
-    // (taille, position, inclinaison). iOS et état « aucune bouteille » : inchangés.
-    const androidSeaFill = Platform.OS === 'android' && availableBottles.length > 0;
+    // Android et iOS, au moins une bouteille : page fixe. La mer remplit l'espace entre
+    // le titre et le bouton du bas (plus de vide, plus besoin de défiler). Bouteilles
+    // inchangées (taille, position, inclinaison). Web et état « aucune bouteille » : inchangés.
+    const androidSeaFill = Platform.OS !== 'web' && availableBottles.length > 0;
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           {firstReplyDialog}
           <BottleHeader title="Bouteille à la mer" onBack={() => router.back()} />
-          <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, androidSeaFill ? { flexGrow: 1, paddingBottom: footerBottomPadding('android', insets.bottom, 0) } : { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
+          <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, androidSeaFill ? { flexGrow: 1, paddingBottom: footerBottomPadding(Platform.OS, insets.bottom, 0) } : { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
             {error && <View style={styles.paddedSection}><View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View></View>}
             <View style={styles.selectionHeader}>
               <Text style={styles.selectionTitle}>Choisissez une bouteille</Text>
@@ -448,16 +448,17 @@ export default function BottleMainScreen() {
             style={styles.scroll}
             contentContainerStyle={[
               styles.createContent,
-              // Android : page pleine. Le panneau reste en bas, au-dessus de la barre Android
-              // (marge sûre + 8 dp) ; l'image prend toute la hauteur restante.
-              { paddingBottom: Platform.OS === 'android' ? footerBottomPadding('android', insets.bottom, 0) : insets.bottom + 14, flexGrow: 1 },
+              // Android et iOS : page pleine. Le panneau reste en bas, au-dessus de la barre
+              // Android (marge sûre + 8 dp) ou de la barre d'accueil iOS ; l'image prend la
+              // hauteur restante. Web : inchangé.
+              { paddingBottom: Platform.OS !== 'web' ? footerBottomPadding(Platform.OS, insets.bottom, 0) : insets.bottom + 14, flexGrow: 1 },
             ]}
             showsVerticalScrollIndicator={false}
           >
             <View
               style={[
                 styles.createHero,
-                Platform.OS === 'android'
+                Platform.OS !== 'web'
                   ? { flex: 1, height: undefined, minHeight: 180 }
                   : { height: Math.max(180, Math.min(390, screenHeight * 0.40)) },
               ]}
