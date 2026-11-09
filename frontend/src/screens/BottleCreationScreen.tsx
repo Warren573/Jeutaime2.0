@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   ActivityIndicator,
   Modal,
@@ -20,6 +21,9 @@ import { createBottle, cancelPendingBottles } from '../api/bottles';
 
 // Fond aquarelle plein écran de l'écran de création.
 const SEA_BG = require('../../assets/images/bottle/sea-bg.jpg');
+// Parchemin de l'aperçu avant envoi (même papier que « TA LETTRE »).
+const PREVIEW_PARCHMENT = require('../../assets/images/bottle/bottle-letter-sent.png');
+const TARGET_LABELS: Record<string, string> = { HOMME: 'Homme', FEMME: 'Femme', LES_DEUX: 'Les deux' };
 
 const COLORS = {
   bg: '#F5F1E8',
@@ -58,6 +62,16 @@ export default function BottleCreationScreen() {
   const [atLimit, setAtLimit] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [agePicker, setAgePicker] = useState<'min' | 'max' | null>(null);
+  // Android : pendant la saisie (clavier ouvert), on n'affiche que le champ message,
+  // le compteur et le bouton d'envoi. Le reste (critères, titre…) réapparaît à la
+  // fermeture du clavier. Les valeurs choisies sont conservées. iOS/web : inchangés.
+  const [isTyping, setIsTyping] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', () => setIsTyping(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setIsTyping(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   useEffect(() => {
     // TODO: charger le nombre réel de bouteilles en attente depuis l'API.
@@ -66,6 +80,23 @@ export default function BottleCreationScreen() {
 
   const isDisabled =
     !message.trim() || isLoading || pendingBottles >= MAX_PENDING_BOTTLES;
+
+  // Aperçu avant envoi : rien n'est envoyé tant que « Confirmer l'envoi » n'est pas touché.
+  const [showPreview, setShowPreview] = useState(false);
+  const openPreview = () => {
+    Keyboard.dismiss();
+    setFeedback(null);
+    if (!message.trim()) {
+      setFeedback({ type: 'error', text: 'Écris un message.' });
+      return;
+    }
+    setShowPreview(true);
+  };
+  const confirmFromPreview = async () => {
+    await handleSend();
+    // Fermer l'aperçu pour voir le retour (succès ou erreur) sur l'écran.
+    setShowPreview(false);
+  };
 
   const handleCancelPending = async () => {
     setIsCancelling(true);
@@ -188,6 +219,7 @@ export default function BottleCreationScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {!isTyping && (<>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
@@ -259,9 +291,11 @@ export default function BottleCreationScreen() {
           </View>
         </View>
 
+        </>)}
+
         {/* Message */}
         <View style={[styles.section, Platform.OS === 'android' && styles.messageSectionFill]}>
-          <Text style={styles.label}>Ton message (max 1000 car)</Text>
+          {!isTyping && <Text style={styles.label}>Ton message (max 1000 car)</Text>}
           <TextInput
             style={[styles.messageInput, Platform.OS === 'android' && styles.messageInputFill]}
             placeholder="Cherche quelqu'une pour..."
@@ -283,7 +317,7 @@ export default function BottleCreationScreen() {
         </View>
 
         {/* Pending Warning */}
-        {pendingBottles > 0 && (
+        {!isTyping && pendingBottles > 0 && (
           <View style={styles.warningBox}>
             <Text style={styles.warningText}>
               ⚠️ Tu as déjà {pendingBottles} bouteille
@@ -316,7 +350,7 @@ export default function BottleCreationScreen() {
         )}
 
         {/* Bouton d'annulation — apparaît quand le quota (max 3) est atteint */}
-        {atLimit && (
+        {!isTyping && atLimit && (
           <TouchableOpacity
             style={[styles.cancelBtn, isCancelling && styles.sendBtnDisabled]}
             onPress={handleCancelPending}
@@ -337,18 +371,84 @@ export default function BottleCreationScreen() {
         {/* Send Button */}
         <TouchableOpacity
           style={[styles.sendBtn, isDisabled && styles.sendBtnDisabled]}
-          onPress={handleSend}
+          onPress={openPreview}
           disabled={isDisabled}
           accessibilityRole="button"
-          accessibilityLabel="Envoyer la bouteille à la mer"
+          accessibilityLabel="Aperçu avant envoi"
         >
           {isLoading ? (
             <ActivityIndicator color={COLORS.card} />
           ) : (
-            <Text style={styles.sendBtnText}>Envoyer la bouteille à la mer</Text>
+            <Text style={styles.sendBtnText}>Aperçu avant envoi  ➤</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Aperçu avant envoi */}
+      <Modal
+        visible={showPreview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !isLoading && setShowPreview(false)}
+      >
+        <View style={styles.previewOverlay}>
+          <View
+            style={[
+              styles.previewCard,
+              {
+                paddingBottom: Platform.OS === 'android'
+                  ? footerBottomPadding('android', insets.bottom, 0)
+                  : Math.max(insets.bottom, 20),
+              },
+            ]}
+          >
+            <Text style={styles.previewKicker}>APERÇU AVANT ENVOI</Text>
+            <Text style={styles.previewTitle}>Ta bouteille est prête</Text>
+            <Text style={styles.previewSubtitle}>Relis-la une dernière fois avant de la jeter à la mer.</Text>
+
+            <View style={styles.previewParchment}>
+              {/* width/height 100 % : sinon <Image> prend la taille du fichier (cf. #167). */}
+              <Image source={PREVIEW_PARCHMENT} style={[StyleSheet.absoluteFill, styles.previewParchmentImage]} resizeMode="stretch" />
+              <ScrollView style={styles.previewParchmentScroll} nestedScrollEnabled>
+                <Text style={styles.previewLetter}>{message.trim()}</Text>
+              </ScrollView>
+            </View>
+
+            <View style={styles.previewRecap}>
+              <Text style={styles.previewRecapText}>
+                Pour : <Text style={styles.previewRecapStrong}>{TARGET_LABELS[targetGender] ?? targetGender}</Text>
+                {' · '}
+                <Text style={styles.previewRecapStrong}>{ageMin} – {ageMax} ans</Text>
+              </Text>
+            </View>
+            <Text style={styles.previewCount}>{message.trim().length} / {MAX_MESSAGE_LENGTH} caractères</Text>
+
+            <View style={styles.previewActions}>
+              <TouchableOpacity
+                style={styles.previewEditBtn}
+                onPress={() => setShowPreview(false)}
+                disabled={isLoading}
+                accessibilityRole="button"
+              >
+                <Text style={styles.previewEditText}>Modifier</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.previewSendBtn, isLoading && styles.sendBtnDisabled]}
+                onPress={() => void confirmFromPreview()}
+                disabled={isLoading}
+                accessibilityRole="button"
+                accessibilityLabel="Confirmer l'envoi de la bouteille"
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={COLORS.card} />
+                ) : (
+                  <Text style={styles.previewSendText}>Confirmer l’envoi  ➤</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Menu déroulant d'âge */}
       <Modal
@@ -692,6 +792,25 @@ const styles = StyleSheet.create({
   sendBtnDisabled: {
     opacity: 0.5,
   },
+  previewOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(25,15,10,0.55)' },
+  previewCard: { backgroundColor: '#FDF8EF', borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 18, paddingTop: 18 },
+  previewKicker: { fontSize: 11, letterSpacing: 2, fontWeight: '700', color: COLORS.accent, textAlign: 'center' },
+  previewTitle: { fontSize: 21, fontWeight: '800', color: COLORS.text, textAlign: 'center', marginTop: 4 },
+  previewSubtitle: { fontSize: 13, color: COLORS.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: 12 },
+  // Pas de padding sur le cadre (cf. #167) : marges sur la zone de texte.
+  previewParchment: { width: '100%', aspectRatio: 1.5 },
+  previewParchmentImage: { width: '100%', height: '100%' },
+  previewParchmentScroll: { flex: 1, marginHorizontal: 30, marginTop: 26, marginBottom: 24 },
+  previewLetter: { fontSize: 16, lineHeight: 24, fontStyle: 'italic', color: '#3A281A', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' },
+  previewRecap: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0D6C6', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginTop: 12 },
+  previewRecapText: { fontSize: 13, color: COLORS.text },
+  previewRecapStrong: { fontWeight: '700', color: COLORS.accent },
+  previewCount: { fontSize: 12, color: COLORS.textSecondary, textAlign: 'center', marginTop: 6, marginBottom: 12 },
+  previewActions: { flexDirection: 'row', gap: 10 },
+  previewEditBtn: { flex: 1, minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: COLORS.accent, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  previewEditText: { fontSize: 15, fontWeight: '700', color: COLORS.accent },
+  previewSendBtn: { flex: 1.4, minHeight: 48, borderRadius: 12, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
+  previewSendText: { fontSize: 15, fontWeight: '700', color: COLORS.card },
   cancelBtn: {
     paddingVertical: 14,
     paddingHorizontal: 16,
