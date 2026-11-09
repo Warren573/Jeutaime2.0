@@ -1,4 +1,4 @@
-import { Router, Response } from "express";
+import { Router, Request, Response } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
@@ -10,7 +10,6 @@ import { maskBottleParticipantsForViewer } from "./bottles.privacy";
 import * as controller from "./bottles.controller";
 import {
   CreateBottleBodySchema,
-  AcceptBottleBodySchema,
   RefuseBottleBodySchema,
   PostBottleMessageBodySchema,
   MarkBottleAsReadBodySchema,
@@ -18,7 +17,6 @@ import {
   AcceptRevealBodySchema,
   RefuseRevealBodySchema,
   BreakBottleBodySchema,
-  RestartBottleBodySchema,
 } from "./bottles.schemas";
 
 const router = Router();
@@ -66,12 +64,13 @@ router.post(
   }),
 );
 
+// Désactivée (PR 2 sécurité Bouteilles) : accepter sans répondre contournait la règle « la première réponse écrite attribue la bouteille ».
+// Aucun écran accessible de l'app ne l'appelle. 410 = route retirée, sans effet sur les données.
 router.post(
   "/:id/accept",
-  validate(AcceptBottleBodySchema),
-  wrap(async (req, res) => {
-    await controller.acceptBottle(req as AuthedRequest, res);
-  }),
+  (_req: Request, res: Response) => {
+    res.status(410).json({ error: { code: "BOTTLE_ACCEPT_DISABLED", message: "Une bouteille s'accepte en y répondant (POST /bottles/:id/claim-reply)." } });
+  },
 );
 
 router.post(
@@ -165,12 +164,13 @@ router.post(
   }),
 );
 
+// Désactivée (PR 2 sécurité Bouteilles) : elle remettait en mer une bouteille contenant encore les messages privés de l'ancienne conversation.
+// Aucun écran accessible de l'app ne l'appelle. 410 = route retirée, sans effet sur les données.
 router.post(
   "/:id/restart",
-  validate(RestartBottleBodySchema),
-  wrap(async (req, res) => {
-    await controller.restartBottle(req as AuthedRequest, res);
-  }),
+  (_req: Request, res: Response) => {
+    res.status(410).json({ error: { code: "BOTTLE_RESTART_DISABLED", message: "La remise à la mer d'une bouteille rompue est désactivée." } });
+  },
 );
 
 router.get(

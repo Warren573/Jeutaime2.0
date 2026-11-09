@@ -17,6 +17,9 @@ import { maskBottleParticipantsForViewer } from "../../src/modules/bottles/bottl
 vi.mock("../../src/config/prisma", () => ({
   prisma: {
     messageInABottle: { findUnique: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), count: vi.fn() },
+    // Blocages et suspensions (PR 2) : aucun par défaut.
+    block: { findFirst: vi.fn(async () => null), findMany: vi.fn(async () => []) },
+    bottleSuspension: { findUnique: vi.fn(async () => null) },
     bottleReceipt: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn() },
     bottleRevealRequest: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn() },
     userSettings: { findMany: vi.fn(), findUnique: vi.fn() },

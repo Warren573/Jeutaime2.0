@@ -170,6 +170,15 @@ export async function getInbox(req: AuthedRequest, res: Response) {
     )
     .map((r) => r.bottle);
 
+  // Blocages : une bouteille d'une personne bloquée (dans un sens ou dans l'autre)
+  // n'est jamais proposée, même si elle avait été distribuée avant le blocage.
+  const blocks = await prisma.block.findMany({
+    where: { OR: [{ fromId: userId }, { toId: userId }] },
+    select: { fromId: true, toId: true },
+  });
+  const blockedIds = new Set(blocks.map((b) => (b.fromId === userId ? b.toId : b.fromId)));
+  const pendingVisible = pending.filter((bottle) => !blockedIds.has(bottle.senderId));
+
   const accepted = await prisma.messageInABottle.findMany({
     where: {
       status: { in: ["ACCEPTED", "REVEALED"] },
@@ -184,7 +193,7 @@ export async function getInbox(req: AuthedRequest, res: Response) {
   });
 
   const located = await applyBottleLocationPrivacy(
-    [...pending, ...accepted, ...sentFloating] as unknown as BottleWithSenderCity[],
+    [...pendingVisible, ...accepted, ...sentFloating] as unknown as BottleWithSenderCity[],
     userId,
   );
   // Anonymat : l'identifiant de l'autre participant n'est jamais transmis avant

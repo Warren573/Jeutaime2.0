@@ -14,6 +14,26 @@ import { isPremiumActive } from "../../policies/premium";
 export const MAX_FLOATING_FREE = 1;
 export const MAX_FLOATING_PREMIUM = 5;
 
+type BlockReader = { block: { findFirst: typeof prisma.block.findFirst } };
+type SuspensionReader = { bottleSuspension: { findUnique: typeof prisma.bottleSuspension.findUnique } };
+
+/** Un blocage existe-t-il entre deux utilisateurs, dans un sens ou dans l'autre ? */
+export async function isBlockedBetween(a: string, b: string, client: BlockReader = prisma): Promise<boolean> {
+  const block = await client.block.findFirst({
+    where: { OR: [{ fromId: a, toId: b }, { fromId: b, toId: a }] },
+    select: { id: true },
+  });
+  return !!block;
+}
+
+/** Suspension Bouteilles à la mer en cours (date de fin future). */
+export async function hasActiveBottleSuspension(userId: string, client: SuspensionReader = prisma): Promise<boolean> {
+  const suspension = await client.bottleSuspension.findUnique({ where: { userId } });
+  return !!suspension && suspension.endsAt > new Date();
+}
+
+const SUSPENDED_MESSAGE = "Les Bouteilles à la mer sont temporairement indisponibles pour ton compte.";
+
 // ============================================================
 // Core Bottle Operations
 // ============================================================
@@ -27,21 +47,26 @@ export async function createBottle(
   correlationId: string = 'N/A',
 ): Promise<MessageInABottle> {
   try {
-    console.log(`[S1-SERVICE] ${correlationId} | createBottle START | senderId=${senderId}`);
+    console.log(`[S1-SERVICE] ${correlationId} | createBottle START`);
 
     // Get sender's city from profile (can be done outside transaction)
-    console.log(`[S5-SERVICE] ${correlationId} | FETCH SENDER PROFILE | userId=${senderId}`);
+    console.log(`[S5-SERVICE] ${correlationId} | FETCH SENDER PROFILE`);
     const senderProfile = await prisma.profile.findUnique({
       where: { userId: senderId },
       select: { city: true },
     });
     const senderCity = senderProfile?.city || "Unknown";
-    console.log(`[S6-SERVICE] ${correlationId} | PROFILE FETCHED | city=${senderCity}`);
+    console.log(`[S6-SERVICE] ${correlationId} | PROFILE FETCHED`);
 
     // Quota check and bottle creation MUST be atomic
     console.log(`[S2-SERVICE] ${correlationId} | STARTING ATOMIC QUOTA CHECK + CREATION`);
     const bottle = await prisma.$transaction(
       async (tx) => {
+        // Suspension Bouteilles à la mer : pas d'envoi pendant la suspension.
+        if (await hasActiveBottleSuspension(senderId, tx)) {
+          throw new ConflictError(SUSPENDED_MESSAGE);
+        }
+
         // Count existing FLOATING bottles
         const pendingCount = await tx.messageInABottle.count({
           where: { senderId, status: "FLOATING" },
@@ -225,9 +250,14 @@ async function findCompatibleRecipients(
       profile: {
         AND: profileAnd,
       },
-      NOT: {
-        id: bottle.senderId,
-      },
+      NOT: [
+        { id: bottle.senderId },
+        // Mode vacances : le destinataire ne reçoit pas de nouvelles bouteilles.
+        { settings: { is: { vacationMode: true } } },
+      ],
+      // Blocages dans les deux sens : jamais de bouteille entre deux personnes bloquées.
+      blocksMade: { none: { toId: bottle.senderId } },
+      blocksAgainst: { none: { fromId: bottle.senderId } },
     },
     include: {
       bottleSuspension: true,
@@ -260,6 +290,14 @@ export async function claimBottleWithReply(bottleId: string, userId: string, con
         ]);
         if (!receipt || receipt.status !== "PENDING" || !bottle || bottle.status !== "FLOATING" || bottle.senderId === userId || bottle.acceptedById || bottle.expiresAt <= new Date()) {
           throw new ConflictError("Cette bouteille n'est plus disponible.");
+        }
+        // Blocage (dans un sens ou dans l'autre) : même réponse qu'une bouteille indisponible,
+        // pour ne rien révéler de l'expéditeur.
+        if (await isBlockedBetween(userId, bottle.senderId, tx)) {
+          throw new ConflictError("Cette bouteille n'est plus disponible.");
+        }
+        if (await hasActiveBottleSuspension(userId, tx)) {
+          throw new ConflictError(SUSPENDED_MESSAGE);
         }
         const limit = recipient && isPremiumActive(recipient) ? MAX_FLOATING_PREMIUM : MAX_FLOATING_FREE;
         const active = await tx.messageInABottle.count({ where: { acceptedById: userId, status: { in: ["ACCEPTED", "REVEALED"] } } });
@@ -676,10 +714,21 @@ async function isUserCompatibleWithBottle(
     include: {
       profile: true,
       bottleSuspension: true,
+      settings: { select: { vacationMode: true } },
     },
   });
 
   if (!user || !user.profile || user.isBanned) {
+    return false;
+  }
+
+  // Mode vacances : pas de nouvelle bouteille.
+  if (user.settings?.vacationMode === true) {
+    return false;
+  }
+
+  // Blocage entre le destinataire et l'expéditeur, dans un sens ou dans l'autre.
+  if (await isBlockedBetween(userId, bottle.senderId)) {
     return false;
   }
 
@@ -1210,7 +1259,6 @@ export async function getRevealStatus(
 // GET /api/bottles/current — Get the most recent active correspondence
 // ============================================================
 export async function getCurrentBottle(userId: string) {
-  console.log("[DEBUG] getCurrentBottle START", { userId });
 
   // Find active bottles where user is sender or acceptor
   // ACCEPTED = anonymous letter correspondence
@@ -1291,19 +1339,7 @@ export async function getCurrentBottle(userId: string) {
   const canBreak = hasAcceptorReply;
 
   // DIAGNOSTIC LOG: exact runtime values for canBreak verification
-  console.log("[CANBREAK_DIAGNOSTIC]", JSON.stringify({
-    bottleId: bottle.id,
-    status: bottle.status,
-    senderId: bottle.senderId,
-    acceptedById: bottle.acceptedById,
-    messages: bottle.messages.map(m => ({
-      id: m.id,
-      senderId: m.senderId,
-      createdAt: m.createdAt.toISOString(),
-    })),
-    hasAcceptorReply,
-    canBreak,
-  }, null, 2));
+  // (journal de diagnostic retiré : il écrivait les identifiants des deux participants)
 
   // Check if user can create a new bottle
   const pendingCount = await prisma.messageInABottle.count({
