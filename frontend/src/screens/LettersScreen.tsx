@@ -1364,7 +1364,9 @@ export default function LettersScreen() {
       {/* ── Actions Menu (Bottom Sheet) ─────────────────────────────────────── */}
       <Modal visible={showActionsMenu} transparent animationType="slide" onRequestClose={() => setShowActionsMenu(false)}>
         <View style={styles.actionsMenuOverlay}>
-          <View style={styles.actionsMenuBox}>
+          {/* Android (bord à bord) : la feuille est dessinée sous la barre de navigation ;
+              on ajoute la marge sûre du bas pour que « Fermer » reste visible. iOS inchangé. */}
+          <View style={[styles.actionsMenuBox, Platform.OS === 'android' && { paddingBottom: 28 + insets.bottom }]}>
             <View style={styles.actionsMenuHandle} />
 
             <TouchableOpacity
