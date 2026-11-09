@@ -228,19 +228,22 @@ export default function BottleMainScreen() {
     // le titre et le bouton du bas (plus de vide, plus besoin de défiler). Bouteilles
     // inchangées (taille, position, inclinaison). Web et état « aucune bouteille » : inchangés.
     const androidSeaFill = Platform.OS !== 'web' && availableBottles.length > 0;
+    // Aucune bouteille (Android et iOS) : même page pleine, la mer et son message
+    // « Aucune bouteille… » occupent l'espace jusqu'au bouton du bas. Web : inchangé.
+    const emptySeaFill = Platform.OS !== 'web' && availableBottles.length === 0;
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           {firstReplyDialog}
           <BottleHeader title="Bouteille à la mer" onBack={() => router.back()} />
-          <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, androidSeaFill ? { flexGrow: 1, paddingBottom: footerBottomPadding(Platform.OS, insets.bottom, 0) } : { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
+          <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, (androidSeaFill || emptySeaFill) ? { flexGrow: 1, paddingBottom: footerBottomPadding(Platform.OS, insets.bottom, 0) } : { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
             {error && <View style={styles.paddedSection}><View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View></View>}
             <View style={styles.selectionHeader}>
               <Text style={styles.selectionTitle}>Choisissez une bouteille</Text>
               <Text style={styles.selectionSubtitle}>Découvrez des messages anonymes</Text>
             </View>
             {availableBottles.length === 0 ? (
-              <View style={styles.emptyBottles}><Image source={OCEAN_BG} style={StyleSheet.absoluteFill} resizeMode="cover" /><View style={styles.emptyBottlesOverlay}><Text style={styles.emptyBottlesTitle}>Aucune bouteille à récupérer pour le moment</Text><Text style={styles.emptyBottlesText}>Les bouteilles proposées dépendent des critères de rencontre et des disponibilités.</Text><TouchableOpacity style={styles.emptyRefreshBtn} onPress={handleRefresh} disabled={isRefreshing}><Text style={styles.emptyRefreshText}>{isRefreshing ? 'Recherche en cours…' : 'Actualiser les bouteilles'}</Text></TouchableOpacity></View></View>
+              <View style={[styles.emptyBottles, emptySeaFill && styles.emptyBottlesFill]}><Image source={OCEAN_BG} style={StyleSheet.absoluteFill} resizeMode="cover" /><View style={styles.emptyBottlesOverlay}><Text style={styles.emptyBottlesTitle}>Aucune bouteille à récupérer pour le moment</Text><Text style={styles.emptyBottlesText}>Les bouteilles proposées dépendent des critères de rencontre et des disponibilités.</Text><TouchableOpacity style={styles.emptyRefreshBtn} onPress={handleRefresh} disabled={isRefreshing}><Text style={styles.emptyRefreshText}>{isRefreshing ? 'Recherche en cours…' : 'Actualiser les bouteilles'}</Text></TouchableOpacity></View></View>
             ) : <View style={[styles.bottlesContainer, androidSeaFill && styles.bottlesContainerFill]}>
               <Image source={OCEAN_BG} style={StyleSheet.absoluteFill} resizeMode="cover" />
               {androidSeaFill && (
@@ -636,6 +639,8 @@ const styles = StyleSheet.create({
   retrieveBottleBtnText: { fontSize: 15, color: COLORS.accent, fontWeight: '700', textAlign: 'center' },
   retrieveBottleHint: { fontSize: 12, color: COLORS.textSecondary, textAlign: 'center', marginTop: 5, lineHeight: 16 },
   emptyBottles: { marginHorizontal: 16, height: 340, borderRadius: 18, overflow: 'hidden', justifyContent: 'center' },
+  // Page pleine (Android et iOS) : la mer prend la hauteur restante au lieu de 340 fixes.
+  emptyBottlesFill: { flex: 1, height: undefined, minHeight: 300, marginBottom: 12 },
   emptyBottlesOverlay: { margin: 18, padding: 18, borderRadius: 15, backgroundColor: 'rgba(254,250,240,0.94)', alignItems: 'center' },
   emptyBottlesTitle: { color: COLORS.text, fontSize: 17, fontWeight: '800', textAlign: 'center' },
   emptyBottlesText: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 8 },
