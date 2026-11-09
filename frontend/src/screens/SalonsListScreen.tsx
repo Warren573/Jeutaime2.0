@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
+  Platform,
   View,
   Text,
   StyleSheet,
@@ -189,7 +190,17 @@ export default function SalonsListScreen() {
         </View>
       )}
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          // Android edge-to-edge : la barre d'onglets flottante (64 dp) est posée à
+          // insets.bottom + 6 du bas. Il faut donc laisser 64 + insets.bottom + 6 + 16 dp
+          // sous la dernière carte (134 dp sur Galaxy A17, au lieu de 108 fixes).
+          Platform.OS === 'android' && { paddingBottom: 64 + insets.bottom + 6 + 16 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {salonsData.map((salon) => {
           const bgImage = getSalonCardImage(salon.id);
           const cardContent = (
