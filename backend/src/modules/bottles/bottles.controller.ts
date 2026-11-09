@@ -177,7 +177,12 @@ export async function getInbox(req: AuthedRequest, res: Response) {
     select: { fromId: true, toId: true },
   });
   const blockedIds = new Set(blocks.map((b) => (b.fromId === userId ? b.toId : b.fromId)));
-  const pendingVisible = pending.filter((bottle) => !blockedIds.has(bottle.senderId));
+  // Mode vacances : les bouteilles reçues avant restent en base (reçus intacts) mais ne
+  // sont plus proposées tant que le mode vacances est actif.
+  const viewerOnVacation = await bottlesService.isOnVacation(userId);
+  const pendingVisible = viewerOnVacation
+    ? []
+    : pending.filter((bottle) => !blockedIds.has(bottle.senderId));
 
   const accepted = await prisma.messageInABottle.findMany({
     where: {
@@ -324,6 +329,11 @@ export async function postMessage(req: AuthedRequest, res: Response) {
     }
     if (code === "LETTER_TURN_VIOLATION") {
       return res.status(409).json({ error: "It's not your turn to respond", code: "LETTER_TURN_VIOLATION" });
+    }
+    if (code === "BOTTLE_CONVERSATION_UNAVAILABLE") {
+      return res.status(409).json({
+        error: { message: "Cette correspondance n'est plus disponible.", code: "BOTTLE_CONVERSATION_UNAVAILABLE" },
+      });
     }
     throw error;
   }

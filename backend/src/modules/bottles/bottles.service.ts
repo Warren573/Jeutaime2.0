@@ -33,6 +33,15 @@ export async function hasActiveBottleSuspension(userId: string, client: Suspensi
 }
 
 const SUSPENDED_MESSAGE = "Les Bouteilles à la mer sont temporairement indisponibles pour ton compte.";
+const VACATION_MESSAGE = "Tu es en mode vacances : désactive-le pour commencer une nouvelle correspondance.";
+
+type SettingsReader = { userSettings: { findUnique: typeof prisma.userSettings.findUnique } };
+
+/** Mode vacances activé ? (pas de ligne de réglages = pas en vacances) */
+export async function isOnVacation(userId: string, client: SettingsReader = prisma): Promise<boolean> {
+  const settings = await client.userSettings.findUnique({ where: { userId }, select: { vacationMode: true } });
+  return settings?.vacationMode === true;
+}
 
 // ============================================================
 // Core Bottle Operations
@@ -298,6 +307,10 @@ export async function claimBottleWithReply(bottleId: string, userId: string, con
         }
         if (await hasActiveBottleSuspension(userId, tx)) {
           throw new ConflictError(SUSPENDED_MESSAGE);
+        }
+        // Mode vacances : pas de nouvelle correspondance, même depuis une bouteille reçue avant.
+        if (await isOnVacation(userId, tx)) {
+          throw new ConflictError(VACATION_MESSAGE);
         }
         const limit = recipient && isPremiumActive(recipient) ? MAX_FLOATING_PREMIUM : MAX_FLOATING_FREE;
         const active = await tx.messageInABottle.count({ where: { acceptedById: userId, status: { in: ["ACCEPTED", "REVEALED"] } } });
@@ -593,6 +606,16 @@ export async function postMessage(
           if (bottle.senderId !== senderId && bottle.acceptedById !== senderId) {
             const err = new Error("User is not a participant");
             (err as any).code = "NOT_BOTTLE_PARTICIPANT";
+            throw err;
+          }
+
+          // 4b. Blocage entre les deux participants (dans un sens ou dans l'autre) :
+          // plus aucun nouveau message. Les messages existants sont conservés.
+          // Même erreur quel que soit le sens, pour ne rien révéler de l'autre personne.
+          const otherParticipantId = bottle.senderId === senderId ? bottle.acceptedById : bottle.senderId;
+          if (otherParticipantId && await isBlockedBetween(senderId, otherParticipantId, tx)) {
+            const err = new Error("Conversation unavailable");
+            (err as any).code = "BOTTLE_CONVERSATION_UNAVAILABLE";
             throw err;
           }
 
