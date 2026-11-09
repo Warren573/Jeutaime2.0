@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   ActivityIndicator,
   Modal,
@@ -58,6 +59,16 @@ export default function BottleCreationScreen() {
   const [atLimit, setAtLimit] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [agePicker, setAgePicker] = useState<'min' | 'max' | null>(null);
+  // Android : pendant la saisie (clavier ouvert), on n'affiche que le champ message,
+  // le compteur et le bouton d'envoi. Le reste (critères, titre…) réapparaît à la
+  // fermeture du clavier. Les valeurs choisies sont conservées. iOS/web : inchangés.
+  const [isTyping, setIsTyping] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const show = Keyboard.addListener('keyboardDidShow', () => setIsTyping(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setIsTyping(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   useEffect(() => {
     // TODO: charger le nombre réel de bouteilles en attente depuis l'API.
@@ -188,6 +199,7 @@ export default function BottleCreationScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {!isTyping && (<>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
@@ -259,9 +271,11 @@ export default function BottleCreationScreen() {
           </View>
         </View>
 
+        </>)}
+
         {/* Message */}
         <View style={[styles.section, Platform.OS === 'android' && styles.messageSectionFill]}>
-          <Text style={styles.label}>Ton message (max 1000 car)</Text>
+          {!isTyping && <Text style={styles.label}>Ton message (max 1000 car)</Text>}
           <TextInput
             style={[styles.messageInput, Platform.OS === 'android' && styles.messageInputFill]}
             placeholder="Cherche quelqu'une pour..."
@@ -283,7 +297,7 @@ export default function BottleCreationScreen() {
         </View>
 
         {/* Pending Warning */}
-        {pendingBottles > 0 && (
+        {!isTyping && pendingBottles > 0 && (
           <View style={styles.warningBox}>
             <Text style={styles.warningText}>
               ⚠️ Tu as déjà {pendingBottles} bouteille
@@ -316,7 +330,7 @@ export default function BottleCreationScreen() {
         )}
 
         {/* Bouton d'annulation — apparaît quand le quota (max 3) est atteint */}
-        {atLimit && (
+        {!isTyping && atLimit && (
           <TouchableOpacity
             style={[styles.cancelBtn, isCancelling && styles.sendBtnDisabled]}
             onPress={handleCancelPending}
