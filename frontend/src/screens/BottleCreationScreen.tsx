@@ -617,10 +617,17 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 6,
   },
+  // Lisibilité sur le fond aquarelle : texte foncé sur une petite pastille crème.
   ageStepperLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
+    fontWeight: '700',
+    color: COLORS.text,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(253,248,239,0.9)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    overflow: 'hidden',
   },
   ageSelect: {
     flexDirection: 'row',
@@ -735,10 +742,18 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
+  // Lisibilité sur le fond aquarelle : texte foncé sur une petite pastille crème.
   charCount: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    fontWeight: '600',
+    color: COLORS.text,
     marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(253,248,239,0.9)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    overflow: 'hidden',
   },
   charCountWarning: {
     color: COLORS.accent,
