@@ -1522,39 +1522,47 @@ export default function LettersScreen() {
             <View style={{ width: 60 }} />
           </View>
 
-          <ScrollView contentContainerStyle={qStyles.scroll}>
+          {/* Page pleine (Android et iOS) : le contenu occupe toute la hauteur, bouton en bas
+              au-dessus de la barre Android / barre d'accueil iOS. */}
+          <ScrollView contentContainerStyle={[qStyles.scroll, { paddingBottom: footerBottomPadding(Platform.OS, insets.bottom, 20) }]}>
             {qResult ? (
               /* ── Résultat ── */
               <View style={qStyles.resultBox}>
                 {qResult.matchBroken ? (
                   <>
-                    <Text style={qStyles.resultEmoji}>💔</Text>
-                    <Text style={qStyles.resultTitle}>Match rompu</Text>
-                    <Text style={qStyles.resultSub}>
-                      L'un de vous n'a pas obtenu au moins 1 bonne réponse.{'\n'}Ce match est terminé.
-                    </Text>
+                    <View style={qStyles.resultCard}>
+                      <View style={qStyles.resultMedallion}><Text style={qStyles.resultEmoji}>💔</Text></View>
+                      <Text style={qStyles.resultTitle}>Match rompu</Text>
+                      <Text style={qStyles.resultSub}>
+                        L'un de vous n'a pas obtenu au moins 1 bonne réponse.{'\n'}Ce match est terminé.
+                      </Text>
+                    </View>
                     <TouchableOpacity style={qStyles.closeBtn} onPress={() => { setShowQGame(false); setQResult(null); }}>
                       <Text style={qStyles.closeBtnText}>Fermer</Text>
                     </TouchableOpacity>
                   </>
                 ) : qResult.waitingForOther ? (
                   <>
-                    <Ionicons name="time-outline" size={34} color="#8B5A2B" />
-                    <Text style={qStyles.resultTitle}>Réponses envoyées !</Text>
-                    <Text style={qStyles.resultSub}>
-                      Tu as obtenu {qResult.myScore}/3.{'\n'}En attente de l'autre joueur…
-                    </Text>
+                    <View style={qStyles.resultCard}>
+                      <View style={qStyles.resultMedallion}><Ionicons name="time-outline" size={56} color="#8B5A2B" /></View>
+                      <Text style={qStyles.resultTitle}>Réponses envoyées !</Text>
+                      <Text style={qStyles.resultSub}>Tu as obtenu</Text>
+                      <Text style={qStyles.resultScore}>{qResult.myScore}/3</Text>
+                      <Text style={qStyles.resultSub}>En attente de l'autre joueur…</Text>
+                    </View>
                     <TouchableOpacity style={qStyles.closeBtn} onPress={() => { setShowQGame(false); setQResult(null); }}>
                       <Text style={qStyles.closeBtnText}>Fermer</Text>
                     </TouchableOpacity>
                   </>
                 ) : qResult.questionsValidated ? (
                   <>
-                    <Text style={qStyles.resultEmoji}>🎉</Text>
-                    <Text style={qStyles.resultTitle}>Validé !</Text>
-                    <Text style={qStyles.resultSub}>
-                      Les deux joueurs ont réussi.{'\n'}Vous pouvez maintenant vous écrire!
-                    </Text>
+                    <View style={qStyles.resultCard}>
+                      <View style={qStyles.resultMedallion}><Text style={qStyles.resultEmoji}>🎉</Text></View>
+                      <Text style={qStyles.resultTitle}>Validé !</Text>
+                      <Text style={qStyles.resultSub}>
+                        Les deux joueurs ont réussi.{'\n'}Vous pouvez maintenant vous écrire!
+                      </Text>
+                    </View>
                     <TouchableOpacity
                       style={[qStyles.closeBtn, qStyles.closeBtnSuccess]}
                       onPress={() => {
@@ -1586,11 +1594,13 @@ export default function LettersScreen() {
               if (matchQ.myStatus === 'submitted') {
                 return (
                   <View style={qStyles.resultBox}>
-                    <Text style={qStyles.resultEmoji}>✅</Text>
-                    <Text style={qStyles.resultTitle}>Déjà répondu</Text>
-                    <Text style={qStyles.resultSub}>
-                      Score : {matchQ.myScore}/3{'\n'}En attente de l'autre joueur…
-                    </Text>
+                    <View style={qStyles.resultCard}>
+                      <View style={qStyles.resultMedallion}><Text style={qStyles.resultEmoji}>✅</Text></View>
+                      <Text style={qStyles.resultTitle}>Déjà répondu</Text>
+                      <Text style={qStyles.resultSub}>
+                        Score : {matchQ.myScore}/3{'\n'}En attente de l'autre joueur…
+                      </Text>
+                    </View>
                     <TouchableOpacity style={qStyles.closeBtn} onPress={() => setShowQGame(false)}>
                       <Text style={qStyles.closeBtnText}>Fermer</Text>
                     </TouchableOpacity>
@@ -1602,7 +1612,7 @@ export default function LettersScreen() {
               const isLast = qCurrentStep === matchQ.questions.length - 1;
 
               return (
-                <>
+                <View style={qStyles.questionPage}>
                   <Text style={qStyles.intro}>
                     Réponds aux 3 questions de{' '}
                     <Text style={qStyles.introName}>{qGameMatch ? getOtherName(qGameMatch) : ''}</Text>.
@@ -1622,6 +1632,7 @@ export default function LettersScreen() {
                     <View style={qStyles.questionBlock}>
                       <Text style={qStyles.questionNum}>Question {qCurrentStep + 1}</Text>
                       <Text style={qStyles.questionText}>{currentQ.questionText}</Text>
+                      <View style={qStyles.optionsArea}>
                       {currentQ.options ? (
                         currentQ.options.map((opt) => (
                           <TouchableOpacity
@@ -1653,6 +1664,7 @@ export default function LettersScreen() {
                           }
                         />
                       )}
+                      </View>
                     </View>
                   )}
 
@@ -1676,7 +1688,7 @@ export default function LettersScreen() {
                       <Text style={qStyles.submitBtnText}>Suivant →</Text>
                     </TouchableOpacity>
                   )}
-                </>
+                </View>
               );
             })()}
           </ScrollView>
@@ -2197,34 +2209,39 @@ const qStyles = StyleSheet.create({
   header:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E8D9C6' },
   back:           { fontSize: 15, color: '#9C2F45', fontWeight: '600' },
   title:          { fontSize: 17, fontWeight: '700', color: '#2C1A0E' },
-  scroll:         { padding: 20, paddingBottom: 60 },
+  scroll:         { flexGrow: 1, padding: 20, paddingTop: 16 },
+  questionPage:   { flex: 1 },
+  optionsArea:    { flex: 1, justifyContent: 'center', paddingTop: 12 },
   loading:        { alignItems: 'center', marginTop: 60, gap: 12 },
   loadingText:    { color: '#7A5C3A', fontSize: 15 },
-  intro:          { fontSize: 14, color: '#5A3A1A', lineHeight: 22, marginBottom: 24, textAlign: 'center' },
+  intro:          { fontSize: 15, color: '#5A3A1A', lineHeight: 22, marginBottom: 14, textAlign: 'center' },
   introName:      { fontWeight: '700', color: '#9C2F45' },
-  stepRow:        { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
+  stepRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 14 },
   stepDot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D4B896' },
   stepDotActive:  { backgroundColor: '#9C2F45', width: 10, height: 10, borderRadius: 5 },
   stepDotDone:    { backgroundColor: '#B87333' },
   stepLabel:      { fontSize: 11, color: '#9A7040', letterSpacing: 1, fontWeight: '600', marginLeft: 4 },
-  questionBlock:  { backgroundColor: '#FEFAF0', borderRadius: 14, borderWidth: 1, borderColor: '#D4B896', padding: 16, marginBottom: 20 },
+  questionBlock:  { flex: 1, minHeight: 320, backgroundColor: '#FEFAF0', borderRadius: 18, borderWidth: 1, borderColor: '#D4B896', paddingHorizontal: 18, paddingVertical: 20, marginBottom: 16 },
   questionNum:    { fontSize: 11, color: '#B87333', fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 },
-  questionText:   { fontSize: 16, fontWeight: '600', color: '#2C1A0E', marginBottom: 14, lineHeight: 22 },
-  optionBtn:      { borderWidth: 1, borderColor: '#D4B896', borderRadius: 10, padding: 12, marginBottom: 8 },
+  questionText:   { fontSize: 20, fontWeight: '700', color: '#2C1A0E', lineHeight: 27 },
+  optionBtn:      { borderWidth: 1.5, borderColor: '#D4B896', borderRadius: 14, paddingVertical: 18, paddingHorizontal: 16, marginBottom: 12, backgroundColor: '#FFFDF7' },
   optionBtnSelected: { borderColor: '#9C2F45', backgroundColor: '#FFF0F2' },
-  optionText:     { fontSize: 14, color: '#5A3A1A' },
+  optionText:     { fontSize: 16, color: '#5A3A1A' },
   optionTextSelected: { color: '#9C2F45', fontWeight: '600' },
-  freeInput:      { borderWidth: 1, borderColor: '#D4B896', borderRadius: 10, padding: 12, fontSize: 14, color: '#2C1A0E' },
-  submitBtn:      { backgroundColor: '#9C2F45', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 8 },
+  freeInput:      { borderWidth: 1.5, borderColor: '#D4B896', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 14, fontSize: 16, color: '#2C1A0E', backgroundColor: '#FFFDF7' },
+  submitBtn:      { backgroundColor: '#9C2F45', borderRadius: 14, paddingVertical: 18, alignItems: 'center' },
   submitBtnDisabled: { opacity: 0.5 },
-  submitBtnText:  { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  resultBox:      { alignItems: 'center', paddingVertical: 40, gap: 16 },
+  submitBtnText:  { color: '#FFF', fontSize: 17, fontWeight: '700' },
+  resultBox:      { flex: 1 },
+  resultCard:     { flex: 1, minHeight: 320, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: '#FEFAF0', borderRadius: 18, borderWidth: 1, borderColor: '#D4B896', paddingHorizontal: 24, paddingVertical: 28, marginBottom: 16 },
+  resultMedallion:{ width: 110, height: 110, borderRadius: 55, backgroundColor: '#F7ECD7', borderWidth: 1, borderColor: '#E2C99F', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  resultScore:    { fontSize: 44, fontWeight: '900', color: '#9C2F45', lineHeight: 52 },
   resultEmoji:    { fontSize: 56 },
-  resultTitle:    { fontSize: 22, fontWeight: '700', color: '#2C1A0E' },
-  resultSub:      { fontSize: 14, color: '#7A5C3A', textAlign: 'center', lineHeight: 22 },
-  closeBtn:       { backgroundColor: '#5A3A1A', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28, marginTop: 8 },
+  resultTitle:    { fontSize: 26, fontWeight: '800', color: '#2C1A0E', textAlign: 'center' },
+  resultSub:      { fontSize: 16, color: '#7A5C3A', textAlign: 'center', lineHeight: 23 },
+  closeBtn:       { alignSelf: 'stretch', alignItems: 'center', backgroundColor: '#5A3A1A', borderRadius: 14, paddingVertical: 18, paddingHorizontal: 28 },
   closeBtnSuccess:{ backgroundColor: '#9C2F45' },
   closeBtnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  closeBtnText:   { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  closeBtnText:   { color: '#FFF', fontWeight: '700', fontSize: 17 },
 });
 // Build cache bust: 1779184220
