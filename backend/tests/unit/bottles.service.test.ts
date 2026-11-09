@@ -5,6 +5,7 @@ vi.mock("../../src/config/prisma", () => {
   const mocks = {
     // Blocages et suspensions (PR 2) : aucun par défaut.
     block: { findFirst: vi.fn(async () => null), findMany: vi.fn(async () => []) },
+    userSettings: { findUnique: vi.fn(async () => null) },
     messageInABottle: {
       create: vi.fn(),
       update: vi.fn(),

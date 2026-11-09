@@ -34,6 +34,7 @@ export async function hasActiveBottleSuspension(userId: string, client: Suspensi
 
 const SUSPENDED_MESSAGE = "Les Bouteilles à la mer sont temporairement indisponibles pour ton compte.";
 const VACATION_MESSAGE = "Tu es en mode vacances : désactive-le pour commencer une nouvelle correspondance.";
+const VACATION_SEND_MESSAGE = "Tu es en mode vacances : désactive-le pour envoyer une bouteille.";
 
 type SettingsReader = { userSettings: { findUnique: typeof prisma.userSettings.findUnique } };
 
@@ -74,6 +75,10 @@ export async function createBottle(
         // Suspension Bouteilles à la mer : pas d'envoi pendant la suspension.
         if (await hasActiveBottleSuspension(senderId, tx)) {
           throw new ConflictError(SUSPENDED_MESSAGE);
+        }
+        // Mode vacances : pas d'envoi de nouvelle bouteille.
+        if (await isOnVacation(senderId, tx)) {
+          throw new ConflictError(VACATION_SEND_MESSAGE);
         }
 
         // Count existing FLOATING bottles

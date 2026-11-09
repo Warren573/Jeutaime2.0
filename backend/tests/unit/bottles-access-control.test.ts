@@ -252,3 +252,23 @@ describe("Mode vacances et bouteilles reçues avant les vacances", () => {
       .resolves.toMatchObject({ idempotentReplay: false });
   });
 });
+
+describe("Mode vacances : envoi d'une nouvelle bouteille", () => {
+  it("en vacances, impossible d'envoyer une bouteille : rien n'est créé ni distribué", async () => {
+    vi.mocked(prisma.profile.findUnique).mockResolvedValue({ city: "Paris", gender: "HOMME" } as any);
+    vi.mocked(prisma.userSettings.findUnique).mockResolvedValue({ vacationMode: true } as any);
+    await expect(createBottle(SENDER, "Bonjour", "FEMME", 25, 35)).rejects.toThrow("mode vacances");
+    expect(prisma.messageInABottle.create).not.toHaveBeenCalled();
+    expect(prisma.bottleReceipt.createMany).not.toHaveBeenCalled();
+  });
+
+  it("hors vacances, l'envoi fonctionne (non-régression)", async () => {
+    vi.mocked(prisma.profile.findUnique).mockResolvedValue({ city: "Paris", gender: "HOMME" } as any);
+    vi.mocked(prisma.userSettings.findUnique).mockResolvedValue({ vacationMode: false } as any);
+    vi.mocked(prisma.messageInABottle.count).mockResolvedValue(0);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ premiumTier: "FREE", premiumUntil: null } as any);
+    vi.mocked(prisma.messageInABottle.create).mockResolvedValue(floating as any);
+    vi.mocked(prisma.user.findMany).mockResolvedValue([] as any);
+    await expect(createBottle(SENDER, "Bonjour", "FEMME", 25, 35)).resolves.toMatchObject({ id: "bottle-1" });
+  });
+});
