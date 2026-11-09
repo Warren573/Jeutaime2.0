@@ -399,10 +399,22 @@ export default function BottleMainScreen() {
           <BottleHeader title="Bouteille à la mer" onBack={() => router.back()} />
           <ScrollView
             style={styles.scroll}
-            contentContainerStyle={[styles.createContent, { paddingBottom: insets.bottom + 14, flexGrow: 1 }]}
+            contentContainerStyle={[
+              styles.createContent,
+              // Android : page pleine. Le panneau reste en bas, au-dessus de la barre Android
+              // (marge sûre + 8 dp) ; l'image prend toute la hauteur restante.
+              { paddingBottom: Platform.OS === 'android' ? footerBottomPadding('android', insets.bottom, 0) : insets.bottom + 14, flexGrow: 1 },
+            ]}
             showsVerticalScrollIndicator={false}
           >
-            <View style={[styles.createHero, { height: Math.max(180, Math.min(390, screenHeight * 0.40)) }]}>
+            <View
+              style={[
+                styles.createHero,
+                Platform.OS === 'android'
+                  ? { flex: 1, height: undefined, minHeight: 180 }
+                  : { height: Math.max(180, Math.min(390, screenHeight * 0.40)) },
+              ]}
+            >
               <Image
                 source={SEA_BG}
                 style={styles.createHeroImage}
