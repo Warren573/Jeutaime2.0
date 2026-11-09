@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image, Platform, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ModalKeyboardFrame } from '../components/ModalKeyboardFrame';
+import { footerBottomPadding } from '../utils/composerFooter';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getCurrentBottle, getInbox, claimBottleWithReply } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
@@ -204,12 +205,16 @@ export default function BottleMainScreen() {
 
   if (displayState?.type === 'received' || showRetrieve) {
     const availableBottles = [...getAvailableBottles()].sort(() => Math.random() - 0.5).slice(0, 10);
+    // Android, au moins une bouteille : page fixe. La mer remplit l'espace entre le titre
+    // et le bouton du bas (plus de vide, plus besoin de défiler). Bouteilles inchangées
+    // (taille, position, inclinaison). iOS et état « aucune bouteille » : inchangés.
+    const androidSeaFill = Platform.OS === 'android' && availableBottles.length > 0;
     return (
       <View style={[styles.bg, { backgroundColor: CREAM_BG }]}>
         <View style={[styles.container, { paddingTop: insets.top }]}>
           {firstReplyDialog}
           <BottleHeader title="Bouteille à la mer" onBack={() => router.back()} />
-          <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
+          <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, androidSeaFill ? { flexGrow: 1, paddingBottom: footerBottomPadding('android', insets.bottom, 0) } : { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
             {error && <View style={styles.paddedSection}><View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View></View>}
             <View style={styles.selectionHeader}>
               <Text style={styles.selectionTitle}>Choisissez une bouteille</Text>
@@ -217,12 +222,26 @@ export default function BottleMainScreen() {
             </View>
             {availableBottles.length === 0 ? (
               <View style={styles.emptyBottles}><Image source={OCEAN_BG} style={StyleSheet.absoluteFill} resizeMode="cover" /><View style={styles.emptyBottlesOverlay}><Text style={styles.emptyBottlesTitle}>Aucune bouteille à récupérer pour le moment</Text><Text style={styles.emptyBottlesText}>Les bouteilles proposées dépendent des critères de rencontre et des disponibilités.</Text><TouchableOpacity style={styles.emptyRefreshBtn} onPress={handleRefresh} disabled={isRefreshing}><Text style={styles.emptyRefreshText}>{isRefreshing ? 'Recherche en cours…' : 'Actualiser les bouteilles'}</Text></TouchableOpacity></View></View>
-            ) : <View style={styles.bottlesContainer}>
+            ) : <View style={[styles.bottlesContainer, androidSeaFill && styles.bottlesContainerFill]}>
               <Image source={OCEAN_BG} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              {androidSeaFill && (
+                <View style={styles.seaCountChip} pointerEvents="none">
+                  <Text style={styles.seaCountChipText}>
+                    {availableBottles.length === 1 ? '1 bouteille dérive près de toi' : `${availableBottles.length} bouteilles dérivent près de toi`}
+                  </Text>
+                </View>
+              )}
               {availableBottles.map((bottle, index) => (
                 <BottleItem key={bottle.id} id={bottle.id} index={index} position={bottlePositions[index % bottlePositions.length]} onPress={() => handleBottleClick(bottle.id)} isAccepting={isAccepting} />
               ))}
             </View>}
+            {androidSeaFill && (
+              <View style={styles.paddedSection}>
+                <View style={styles.seaTip}>
+                  <Text style={styles.seaTipText}><Text style={styles.seaTipStrong}>Touche une bouteille</Text> pour la repêcher et lire son message.</Text>
+                </View>
+              </View>
+            )}
             <View style={styles.paddedSection}>
               {state?.canCreateBottle && <TouchableOpacity style={styles.createAlternativeBtn} onPress={() => router.push('/bottles-create')}><Text style={styles.createAlternativeBtnText}>Ou créer une nouvelle bouteille</Text></TouchableOpacity>}
             </View>
@@ -665,6 +684,13 @@ const styles = StyleSheet.create({
   selectionTitle: { fontSize: 25, fontWeight: '800', color: COLORS.text, marginBottom: 6, textAlign: 'center' },
   selectionSubtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', fontStyle: 'italic' },
   bottlesContainer: { position: 'relative', height: 600, marginHorizontal: 16, marginBottom: 28, borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(184,149,106,0.55)', shadowColor: '#5A3A1A', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.16, shadowRadius: 12, elevation: 5 },
+  // Page fixe (Android) : la mer prend la hauteur restante au lieu de 600 fixes.
+  bottlesContainerFill: { flex: 1, height: undefined, minHeight: 320, marginBottom: 12 },
+  seaCountChip: { position: 'absolute', top: 12, alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 5, zIndex: 2 },
+  seaCountChipText: { fontSize: 12, fontWeight: '700', color: COLORS.accent },
+  seaTip: { backgroundColor: COLORS.paper, borderWidth: 1, borderStyle: 'dashed', borderColor: '#C8A873', borderRadius: 12, paddingVertical: 9, paddingHorizontal: 12, marginBottom: 8 },
+  seaTipText: { fontSize: 12.5, color: COLORS.text, textAlign: 'center' },
+  seaTipStrong: { fontWeight: '700', color: COLORS.accent },
   bottleItem: { position: 'absolute', width: 110, height: 160 },
   bottleTouchable: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   bottleImage: { width: '100%', height: '100%' },
