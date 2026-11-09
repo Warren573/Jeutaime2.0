@@ -3,6 +3,9 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 // Mock Prisma BEFORE importing service
 vi.mock("../../src/config/prisma", () => {
   const mocks = {
+    // Blocages et suspensions (PR 2) : aucun par défaut.
+    block: { findFirst: vi.fn(async () => null), findMany: vi.fn(async () => []) },
+    userSettings: { findUnique: vi.fn(async () => null) },
     messageInABottle: {
       create: vi.fn(),
       update: vi.fn(),
@@ -24,6 +27,7 @@ vi.mock("../../src/config/prisma", () => {
     },
     bottleSuspension: {
       upsert: vi.fn(),
+      findUnique: vi.fn(async () => null),
     },
     bottleRevealRequest: {
       create: vi.fn(),

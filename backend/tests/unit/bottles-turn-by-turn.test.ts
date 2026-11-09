@@ -12,6 +12,8 @@ import * as bottlesService from '../../src/modules/bottles/bottles.service';
 // Mock Prisma
 vi.mock('../../src/config/prisma', () => ({
   prisma: {
+    // Blocages (PR 2) : aucun par défaut.
+    block: { findFirst: vi.fn(async () => null) },
     messageInABottle: {
       findUnique: vi.fn(),
       create: vi.fn(),

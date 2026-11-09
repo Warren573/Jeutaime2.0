@@ -5,6 +5,10 @@ import { claimBottleWithReply, countUnreadMessages } from "../../src/modules/bot
 vi.mock("../../src/config/prisma", () => ({
   prisma: {
     anonymousMessage: { findFirst: vi.fn(), create: vi.fn() },
+    // Blocages et suspensions (PR 2) : aucun par défaut.
+    block: { findFirst: vi.fn(async () => null), findMany: vi.fn(async () => []) },
+    bottleSuspension: { findUnique: vi.fn(async () => null) },
+    userSettings: { findUnique: vi.fn(async () => null) },
     bottleReceipt: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
     messageInABottle: { findUnique: vi.fn(), updateMany: vi.fn(), count: vi.fn(), findMany: vi.fn() },
     user: { findUnique: vi.fn() },
