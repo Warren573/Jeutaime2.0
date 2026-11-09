@@ -165,7 +165,7 @@ conditionnent la gravité de plusieurs constats.
 | P1-8 | L'historique des migrations Prisma ne peut pas être rejoué sur une base vide | 13 migrations nommées par horodatage Unix se trient avant `20260100000000_init` → `relation "User" does not exist`. `DIRECT_URL` exigé par le schéma mais absent de `.env.example` | **bloqué** — la correction touche la table `_prisma_migrations` de la base réelle | aucun |
 | P1-9 | Notifications push : dépendance incompatible, droits iOS absents, couverture partielle | CFG-3 ; types existants : lettre, match, offrande, magie, Plus, message admin, invitation salon privé. Absents : duel, refuge, élections | partiel | **build natif** |
 | P1-10 | `verify-deployment.yml` appelle `/api/test/reset-mutual-smile` sur le service utilisé par les testeurs à chaque push sur `main` | `.github/workflows/verify-deployment.yml` | à décider avec INF-1 | aucun |
-| P1-11 | Dépendances backend vulnérables : 7 (1 critique `proxy-addr`, 3 élevées `body-parser`, `sharp`, `zod`) | `npm audit --omit=dev` | non commencé — montées de version à tester une par une | aucun |
+| P1-11 | Dépendances backend vulnérables : 7 au départ (1 critique `proxy-addr`, 3 élevées `body-parser`, `sharp`, `zod`) | `npm audit --omit=dev` | **partiel** — 7 → 5 : `proxy-addr` 2.0.8, `body-parser` 1.20.9, `qs` 6.14.3 (correctifs sans rupture, suite inchangée 741/8). Restent `sharp`, `zod`, `uuid` via `node-cron` : montées de version majeures, à traiter une par une | aucun |
 
 ### P2 — amélioration
 
@@ -212,3 +212,4 @@ conditionnent la gravité de plusieurs constats.
 |---|---|---|---|
 | `c3ed5cc` | verrou du portefeuille + test de concurrence | non | non |
 | `cd7dbb1` | tests obsolètes alignés sur les règles validées | non | non |
+| (commit suivant) | correctifs de sécurité des dépendances backend (`package-lock.json` seul) | non | non |
