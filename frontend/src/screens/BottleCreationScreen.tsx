@@ -13,6 +13,7 @@ import {
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { footerBottomPadding } from '../utils/composerFooter';
 import { useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { createBottle, cancelPendingBottles } from '../api/bottles';
@@ -177,7 +178,12 @@ export default function BottleCreationScreen() {
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
+          // Android : page fixe. Le contenu occupe exactement l'écran (le champ message
+          // prend la place restante) et le bouton d'envoi reste au-dessus de la barre
+          // Android (marge sûre + 8 dp). iOS et web : inchangés.
+          Platform.OS === 'android'
+            ? { paddingTop: insets.top + 16, paddingBottom: footerBottomPadding('android', insets.bottom, 0), flexGrow: 1 }
+            : { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -254,10 +260,10 @@ export default function BottleCreationScreen() {
         </View>
 
         {/* Message */}
-        <View style={styles.section}>
+        <View style={[styles.section, Platform.OS === 'android' && styles.messageSectionFill]}>
           <Text style={styles.label}>Ton message (max 1000 car)</Text>
           <TextInput
-            style={styles.messageInput}
+            style={[styles.messageInput, Platform.OS === 'android' && styles.messageInputFill]}
             placeholder="Cherche quelqu'une pour..."
             placeholderTextColor="#9C8560"
             value={message}
@@ -606,6 +612,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.text,
   },
+  // Page fixe (Android) : le champ message prend la hauteur restante, 140 dp minimum
+  // (en dessous, la page redevient défilable).
+  messageSectionFill: { flex: 1 },
+  messageInputFill: { flex: 1, minHeight: 140 },
   messageInput: {
     minHeight: 210,
     paddingVertical: 20,
