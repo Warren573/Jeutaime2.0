@@ -62,16 +62,22 @@ export default function BottleCreationScreen() {
   const [atLimit, setAtLimit] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [agePicker, setAgePicker] = useState<'min' | 'max' | null>(null);
-  // Android : pendant la saisie (clavier ouvert), on n'affiche que le champ message,
-  // le compteur et le bouton d'envoi. Le reste (critères, titre…) réapparaît à la
-  // fermeture du clavier. Les valeurs choisies sont conservées. iOS/web : inchangés.
+  // Android et iOS : pendant la saisie (clavier ouvert), on n'affiche que le champ
+  // message, le compteur et le bouton. Le reste (critères, titre…) réapparaît à la
+  // fermeture du clavier. Les valeurs choisies sont conservées. Web : inchangé.
+  // iOS : événements « Will » (avant l'animation du clavier) ; Android : « Did ».
   const [isTyping, setIsTyping] = useState(false);
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const show = Keyboard.addListener('keyboardDidShow', () => setIsTyping(true));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setIsTyping(false));
+    if (Platform.OS !== 'android' && Platform.OS !== 'ios') return;
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvt, () => setIsTyping(true));
+    const hide = Keyboard.addListener(hideEvt, () => setIsTyping(false));
     return () => { show.remove(); hide.remove(); };
   }, []);
+  // iOS, clavier ouvert : le champ message remplit l'espace au-dessus du clavier
+  // (KeyboardAvoidingView « padding » réduit déjà la zone).
+  const iosTyping = Platform.OS === 'ios' && isTyping;
 
   useEffect(() => {
     // TODO: charger le nombre réel de bouteilles en attente depuis l'API.
@@ -214,7 +220,9 @@ export default function BottleCreationScreen() {
           // Android (marge sûre + 8 dp). iOS et web : inchangés.
           Platform.OS === 'android'
             ? { paddingTop: insets.top + 16, paddingBottom: footerBottomPadding('android', insets.bottom, 0), flexGrow: 1 }
-            : { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
+            : iosTyping
+              ? { paddingTop: insets.top + 16, paddingBottom: 12, flexGrow: 1 }
+              : { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -294,10 +302,10 @@ export default function BottleCreationScreen() {
         </>)}
 
         {/* Message */}
-        <View style={[styles.section, Platform.OS === 'android' && styles.messageSectionFill]}>
+        <View style={[styles.section, (Platform.OS === 'android' || iosTyping) && styles.messageSectionFill]}>
           {!isTyping && <Text style={styles.label}>Ton message (max 1000 car)</Text>}
           <TextInput
-            style={[styles.messageInput, Platform.OS === 'android' && styles.messageInputFill]}
+            style={[styles.messageInput, (Platform.OS === 'android' || iosTyping) && styles.messageInputFill]}
             placeholder="Cherche quelqu'une pour..."
             placeholderTextColor="#9C8560"
             value={message}
