@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -403,7 +404,9 @@ export default function ProfileTwoStepDemo() {
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.stageOneContent, { paddingTop: insets.top + 8 }]}>
+      {/* Android bord à bord : la barre d'onglets (64 dp) est posée à insets.bottom + 6 du bas.
+          On laisse 14 dp entre la fiche et la barre, comme sur iPhone (118 − 34 − 6 − 64 = 14). iOS inchangé. */}
+      <View style={[styles.stageOneContent, { paddingTop: insets.top + 8 }, Platform.OS === 'android' && { paddingBottom: 64 + insets.bottom + 6 + 14 }]}>
         <View style={styles.stageOneCard}>
           <View style={styles.topBar}>
             <Text style={styles.topBarTitle}>
