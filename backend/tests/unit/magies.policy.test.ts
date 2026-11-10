@@ -2,7 +2,7 @@
  * Tests unitaires des policies pures de Magies.
  * Aucune dépendance Prisma — on passe juste les types structuraux.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   isMagieActive,
   computeMagieExpiry,
@@ -203,7 +203,12 @@ describe("assertNotSelfCast", () => {
     expect(() => assertNotSelfCast("u1", "u2")).not.toThrow();
   });
 
-  it("ids identiques → rejeté", () => {
-    expect(() => assertNotSelfCast("u1", "u1")).toThrow(BadRequestError);
+  it("ids identiques → rejeté en production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      expect(() => assertNotSelfCast("u1", "u1")).toThrow(BadRequestError);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
