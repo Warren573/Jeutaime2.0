@@ -14,6 +14,7 @@ import * as sec from "../../src/modules/auth/security/accountSecurity.core";
 import { totpCodeAt } from "../../src/modules/auth/security/totp";
 import { MemoryTransport, setMailTransport, type MailTransport } from "../../src/modules/mail/mailer";
 import { deleteAccountPermanently } from "../../src/modules/auth/accountDeletion.service";
+import { deactivateAccount } from "../../src/modules/auth/accountLifecycle.service";
 import { exportPersonalData } from "../../src/modules/auth/dataExport.service";
 
 /**
@@ -371,8 +372,16 @@ describe("10. Suppression, export", () => {
     expect(exported).not.toContain(row.passwordHash);
     expect(exported).not.toContain(row.twoFactorSecret!);
 
+    // Historique de connexion rattaché au compte (par identifiant ET par adresse e-mail).
+    await auth.login({ email: admin.email, password: PASSWORD, totpCode: totpCodeAt(secret, Date.now()) });
+    await expect(auth.login({ email: admin.email, password: "faux" })).rejects.toThrow();
+    expect(await prisma.loginEvent.count({ where: { email: admin.email } })).toBeGreaterThan(0);
+
     await expect(deleteAccountPermanently(admin.id, "mauvais")).rejects.toThrow(/incorrect/);
     await deleteAccountPermanently(admin.id, PASSWORD);
+
+    // Aucune trace de l'adresse ne doit subsister dans l'historique de connexion.
+    expect(await prisma.loginEvent.count({ where: { OR: [{ userId: admin.id }, { email: admin.email }] } })).toBe(0);
 
     expect(await prisma.user.count({ where: { id: admin.id } })).toBe(0);
     expect(await prisma.authToken.count({ where: { userId: admin.id } })).toBe(0);
@@ -380,5 +389,18 @@ describe("10. Suppression, export", () => {
     expect(await prisma.refreshToken.count({ where: { userId: admin.id } })).toBe(0);
     expect(await prisma.pushToken.count({ where: { userId: admin.id } })).toBe(0);
     expect(await prisma.profile.count({ where: { userId: admin.id } })).toBe(0);
+  });
+});
+
+describe("10 bis. Désactivation du compte", () => {
+  test("une désactivation ferme les sessions et retire les jetons push (plus aucune notification)", async () => {
+    const u = await account();
+    await auth.login({ email: u.email, password: PASSWORD });
+    await prisma.pushToken.create({ data: { userId: u.id, token: `ExponentPushToken[deact-${run}]`, platform: "android" } });
+
+    await deactivateAccount(u.id, PASSWORD);
+
+    expect(await activeSessions(u.id)).toBe(0);
+    expect(await prisma.pushToken.count({ where: { userId: u.id } })).toBe(0);
   });
 });

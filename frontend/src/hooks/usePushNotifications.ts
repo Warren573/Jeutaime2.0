@@ -4,7 +4,9 @@ import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerDevice } from '../api/notifications';
+import { PUSH_TOKEN_KEY } from '../api/auth';
 import { useStore } from '../store/useStore';
 import { getUserSettings } from '../api/userSettings';
 
@@ -111,6 +113,8 @@ export function usePushNotifications() {
         const platform = getPlatform();
 
         await registerDevice(token, platform);
+        // Mémorisé pour être retiré du serveur à la déconnexion de cet appareil.
+        await AsyncStorage.setItem(PUSH_TOKEN_KEY, token).catch(() => {});
         console.debug(`[push] token registered (${platform})`);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

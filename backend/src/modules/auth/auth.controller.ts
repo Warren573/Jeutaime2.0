@@ -7,6 +7,7 @@ import { deleteAccountPermanently } from "./accountDeletion.service";
 import { AuthedRequest } from "../../core/types";
 import { BadRequestError } from "../../core/errors";
 import * as security from "./security/accountSecurity.core";
+import { emailDeliveryEnabled } from "../mail/mailer";
 
 function sessionContext(req: Request) {
   return { ip: req.ip ?? null, userAgent: req.get("user-agent") ?? null };
@@ -158,4 +159,9 @@ export async function handleTwoFactorEnable(req: AuthedRequest, res: Response) {
 export async function handleTwoFactorDisable(req: AuthedRequest, res: Response) {
   await security.disableTwoFactor(req.user.userId, req.body.currentPassword, req.body.code);
   res.json({ data: { message: "Double authentification désactivée." } });
+}
+
+/** Public : l'application s'en sert pour n'afficher « Mot de passe oublié ? » que si un e-mail peut réellement partir. */
+export async function handleCapabilities(_req: Request, res: Response) {
+  res.json({ data: { emailDelivery: emailDeliveryEnabled() } });
 }

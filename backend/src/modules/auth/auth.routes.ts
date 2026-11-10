@@ -105,6 +105,8 @@ router.get(
 const authed = (fn: (req: AuthedRequest, res: import("express").Response) => Promise<void>) =>
   asyncHandler((req, res, next) => fn(req as AuthedRequest, res).catch(next));
 
+router.get("/capabilities", asyncHandler(ctrl.handleCapabilities));
+
 // Parcours publics par lien reçu par e-mail : limite stricte par adresse IP.
 router.post("/password/forgot", authRateLimit, validate(ForgotPasswordSchema), asyncHandler(ctrl.handleForgotPassword));
 router.post("/password/reset", authRateLimit, validate(ResetPasswordSchema), asyncHandler(ctrl.handleResetPassword));

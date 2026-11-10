@@ -18,8 +18,8 @@ if (__DEV__) {
   LogBox.ignoreAllLogs(true);
 }
 
-const AUTH_EXCLUDED: string[] = ['/login','/register','/create-profile','/setup-questions','/test-mode','/terms','/privacy-policy','/game-rules','/legal-notice','/delete-account-request'];
-const PROFILE_GATE_EXCLUDED: string[] = ['/create-profile','/setup-questions','/avatar-builder','/login','/register','/test-mode','/delete-account-request'];
+const AUTH_EXCLUDED: string[] = ['/login','/register','/forgot-password','/reset-password','/verify-email','/confirm-email-change','/create-profile','/setup-questions','/test-mode','/terms','/privacy-policy','/game-rules','/legal-notice','/delete-account-request'];
+const PROFILE_GATE_EXCLUDED: string[] = ['/create-profile','/setup-questions','/avatar-builder','/login','/register','/forgot-password','/reset-password','/verify-email','/confirm-email-change','/test-mode','/delete-account-request'];
 
 export default function RootLayout() {
   const { hydrateFromApi } = useStore();

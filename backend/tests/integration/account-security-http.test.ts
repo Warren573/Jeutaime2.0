@@ -3,7 +3,7 @@ import request from "supertest";
 import app from "../../src/app";
 import { prisma } from "../../src/config/prisma";
 import { hashPassword } from "../../src/core/utils/hash";
-import { MemoryTransport, setMailTransport } from "../../src/modules/mail/mailer";
+import { MemoryTransport, setMailTransport, type MailTransport } from "../../src/modules/mail/mailer";
 
 /**
  * Parcours HTTP de la sécurité des comptes, boîte e-mail simulée.
@@ -31,6 +31,14 @@ afterAll(async () => {
 });
 
 describe("API de sécurité des comptes", () => {
+  test("capacités publiques : l'envoi d'e-mails n'est annoncé que s'il est réellement actif", async () => {
+    expect((await request(app).get("/api/auth/capabilities")).body.data).toEqual({ emailDelivery: true });
+    const off: MailTransport = { name: "disabled", delivers: false, send: async () => undefined };
+    setMailTransport(off);
+    expect((await request(app).get("/api/auth/capabilities")).body.data).toEqual({ emailDelivery: false });
+    setMailTransport(mailbox);
+  });
+
   test("mot de passe oublié : réponse strictement identique que le compte existe ou non", async () => {
     const known = await request(app).post("/api/auth/password/forgot").send({ email });
     const unknown = await request(app).post("/api/auth/password/forgot").send({ email: `absent-${run}@test.local` });

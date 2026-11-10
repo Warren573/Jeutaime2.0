@@ -60,7 +60,7 @@ console.log("✅ [useStore.ts] Line 33: PetEngine imported");
 
 import { apiFetch } from '../api/client';
 console.log("✅ [useStore.ts] Line 34: apiFetch imported");
-import { login as apiLogin, register as apiRegister, logout as apiLogout, saveSession, clearSession as clearApiSession, type RegisterPayload } from '../api/auth';
+import { login as apiLogin, register as apiRegister, logout as apiLogout, saveSession, clearSession as clearApiSession, PUSH_TOKEN_KEY, type RegisterPayload } from '../api/auth';
 console.log("✅ [useStore.ts] Line 35: auth functions imported");
 
 import {
@@ -274,7 +274,7 @@ interface StoreState {
   setCurrentUser: (user: CurrentUser | null) => void;
   loadUserData: () => void;
   hydrateFromApi: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, totpCode?: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   loadMatches: () => Promise<void>;
@@ -509,8 +509,8 @@ export const useStore = create<StoreState>()(
         }
       },
 
-      login: async (email, password) => {
-        const result = await apiLogin({ email, password });
+      login: async (email, password, totpCode) => {
+        const result = await apiLogin(totpCode ? { email, password, totpCode } : { email, password });
 
         // Toujours repartir d'un état de compte vierge avant de charger
         // le nouveau compte. Sinon, si /auth/me échoue, l'ancien currentUser
@@ -560,8 +560,11 @@ export const useStore = create<StoreState>()(
 
       logout: async () => {
         // Revoke refresh token on backend — fire-and-forget, never block local cleanup
-        AsyncStorage.getItem('auth_refresh_token')
-          .then((rt) => { if (rt) apiLogout(rt).catch(() => {}); })
+        AsyncStorage.multiGet(['auth_refresh_token', PUSH_TOKEN_KEY])
+          .then(([[, rt], [, pushToken]]) => {
+            if (rt) apiLogout(rt, pushToken).catch(() => {});
+          })
+          .then(() => AsyncStorage.removeItem(PUSH_TOKEN_KEY))
           .catch(() => {});
 
         // Clear auth tokens + Zustand persist key immediately

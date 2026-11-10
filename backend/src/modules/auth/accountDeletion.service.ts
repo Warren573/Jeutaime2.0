@@ -7,6 +7,7 @@ export async function deleteAccountPermanently(userId: string, currentPassword: 
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
+      email: true,
       passwordHash: true,
       photos: {
         select: {
@@ -67,6 +68,12 @@ export async function deleteAccountPermanently(userId: string, currentPassword: 
     // AuditLog restent intacts et leur FK actor est de toute façon SetNull.
     await tx.auditLog.deleteMany({
       where: { OR: [{ actorId: userId }, { target: userId }] },
+    });
+
+    // L'historique de connexion contient l'adresse e-mail et n'a pas de clé étrangère :
+    // il doit être effacé explicitement avec le compte (droit à l'effacement).
+    await tx.loginEvent.deleteMany({
+      where: { OR: [{ userId }, { email: user.email.toLowerCase() }] },
     });
 
     // Relations vers User qui ne sont PAS configurées en onDelete: Cascade.
