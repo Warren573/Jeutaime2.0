@@ -70,6 +70,7 @@ enum CoinTxnType {
   REFUGE_PARTICIPATION_REWARD
   REFUGE_INACTIVITY_PENALTY
   WEEKLY_PROFILE_VOTE
+  AD_REWARD
 }
 
 enum CardGameStatus {
@@ -207,6 +208,7 @@ model User {
   profile       Profile?
   wallet        Wallet?
   paymentReceipts PaymentReceipt[]
+  adRewardClaims  AdRewardClaim[]
   settings      UserSettings?
   refreshTokens RefreshToken[]
 
@@ -472,6 +474,23 @@ model PaymentReceipt {
 
   @@unique([provider, providerTransactionId])
   @@index([userId, createdAt])
+}
+
+// Récompense de publicité validée par le serveur du réseau publicitaire.
+// (provider, transactionId) est unique : une même publicité ne crédite qu'une fois.
+model AdRewardClaim {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider      String
+  transactionId String
+  adUnit        String?
+  dayKey        String // AAAA-MM-JJ (UTC), même fenêtre que le bonus quotidien
+  amount        Int
+  createdAt     DateTime @default(now())
+
+  @@unique([provider, transactionId])
+  @@index([userId, dayKey])
 }
 
 model CoinTransaction {

@@ -42,6 +42,18 @@ const envSchema = z.object({
   REFRESH_TOKEN_PURGE_GRACE_MS: z.coerce.number().int().min(0).default(3_600_000),
   DAILY_EDITION_PUSH_HOUR: z.coerce.number().int().min(0).max(23).default(19),
   DAILY_EDITION_TIMEZONE: z.string().default("Europe/Paris"),
+
+  // Publicités récompensées : désactivées tant que la variable n'est pas "true".
+  ADS_REWARDED_ENABLED: z
+    .string()
+    .default("false")
+    .transform((v) => v.toLowerCase() === "true"),
+  ADMOB_SSV_KEYS_URL: z
+    .string()
+    .url()
+    .default("https://www.gstatic.com/admob/reward/verifier-keys.json"),
+  // Identifiants d'emplacements acceptés, séparés par des virgules. Vide = tous refusés en production.
+  ADMOB_REWARDED_AD_UNITS: z.string().default(""),
 });
 
 const parsed = envSchema.safeParse(process.env);
