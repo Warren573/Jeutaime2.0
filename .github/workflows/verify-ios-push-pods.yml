@@ -30,13 +30,17 @@ jobs:
       - name: Resolve native iOS dependencies
         working-directory: frontend/ios
         run: pod install --repo-update
+      - name: Show resolved ExpoNotifications pod version
+        working-directory: frontend
+        run: grep 'ExpoNotifications (' ios/Podfile.lock
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-sdk54-podfile-lock
+          path: frontend/ios/Podfile.lock
+          retention-days: 7
       - name: Verify ExpoNotifications matches SDK 54
         working-directory: frontend
         run: |
           grep -E '^  - ExpoNotifications \(0\.32\.17\):' ios/Podfile.lock
           grep -A2 '<key>aps-environment</key>' ios/JeuTaime/JeuTaime.entitlements | grep production
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ios-sdk54-podfile-lock
-          path: frontend/ios/Podfile.lock
-          retention-days: 7
