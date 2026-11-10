@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { AuthedRequest } from "../../core/types";
 import * as svc from "./notifications.service";
-import { registerDeviceToken } from "./push.service";
+import { registerDeviceToken, unregisterDeviceToken } from "./push.service";
 import type {
   ListNotificationsQueryDto,
   NotificationIdParamsDto,
@@ -47,4 +47,11 @@ export async function handleRegisterDevice(req: AuthedRequest, res: Response) {
   const { token, platform } = req.body as RegisterDeviceDto;
   await registerDeviceToken({ userId: req.user.userId, token, platform });
   res.status(201).json({ data: { registered: true } });
+}
+
+ // POST /api/notifications/unregister-device
+export async function handleUnregisterDevice(req: AuthedRequest, res: Response) {
+  const { token } = req.body as { token: string };
+  await unregisterDeviceToken({ userId: req.user.userId, token });
+  res.json({ data: { unregistered: true } });
 }
