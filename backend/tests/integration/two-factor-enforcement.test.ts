@@ -20,6 +20,9 @@ import { exportPersonalData } from "../../src/modules/auth/dataExport.service";
  * Nécessite TEST_DATABASE_URL. Aucun e-mail réel : boîte simulée.
  */
 const test = process.env.TEST_DATABASE_URL ? it : it.skip;
+
+// Chaque compte de test exige des hachages de mots de passe : les parcours longs dépassent 5 s sous charge.
+vi.setConfig({ testTimeout: 60_000 });
 const DAY = 24 * 60 * 60 * 1000;
 const run = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
 const PASSWORD = "Depart-" + run + "-Aa1";

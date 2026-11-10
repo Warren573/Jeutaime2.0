@@ -60,7 +60,7 @@ console.log("✅ [useStore.ts] Line 33: PetEngine imported");
 
 import { apiFetch } from '../api/client';
 console.log("✅ [useStore.ts] Line 34: apiFetch imported");
-import { login as apiLogin, register as apiRegister, logout as apiLogout, saveSession, clearSession as clearApiSession, PUSH_TOKEN_KEY, type RegisterPayload } from '../api/auth';
+import { login as apiLogin, register as apiRegister, logout as apiLogout, saveSession, clearSession as clearApiSession, type RegisterPayload } from '../api/auth';
 console.log("✅ [useStore.ts] Line 35: auth functions imported");
 
 import {
@@ -82,6 +82,7 @@ import {
   getUnreadCount as apiGetUnreadCount,
   markNotificationRead as apiMarkNotificationRead,
   markAllNotificationsRead as apiMarkAllNotificationsRead,
+  unregisterDevice as apiUnregisterDevice,
   type NotificationDto,
 } from '../api/notifications';
 console.log("✅ [useStore.ts] Line 46: notifications functions imported");
@@ -560,12 +561,16 @@ export const useStore = create<StoreState>()(
 
       logout: async () => {
         // Revoke refresh token on backend — fire-and-forget, never block local cleanup
-        AsyncStorage.multiGet(['auth_refresh_token', PUSH_TOKEN_KEY])
-          .then(([[, rt], [, pushToken]]) => {
-            if (rt) apiLogout(rt, pushToken).catch(() => {});
-          })
-          .then(() => AsyncStorage.removeItem(PUSH_TOKEN_KEY))
+        AsyncStorage.getItem('auth_refresh_token')
+          .then((rt) => { if (rt) apiLogout(rt).catch(() => {}); })
           .catch(() => {});
+
+        // Deregister this device before clearing credentials, without blocking logout on network failure.
+        const pushToken = await AsyncStorage.getItem('jeutaime_push_token').catch(() => null);
+        if (pushToken) {
+          await apiUnregisterDevice(pushToken).catch(() => {});
+          await AsyncStorage.removeItem('jeutaime_push_token').catch(() => {});
+        }
 
         // Clear auth tokens + Zustand persist key immediately
         await Promise.all([

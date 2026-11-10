@@ -43,10 +43,6 @@ export async function handleLogout(req: AuthedRequest, res: Response) {
   const refreshToken = typeof body["refreshToken"] === "string" ? body["refreshToken"] : "";
   if (!refreshToken) throw new BadRequestError("refreshToken requis dans le body");
   await authService.logout(req.user.userId, refreshToken);
-  // Retire le jeton de notification de CET appareil, s'il est fourni.
-  if (typeof body["pushToken"] === "string" && body["pushToken"]) {
-    await security.removePushToken(req.user.userId, body["pushToken"]);
-  }
   res.json({ data: { message: "Déconnecté avec succès" } });
 }
 

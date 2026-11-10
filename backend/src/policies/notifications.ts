@@ -44,7 +44,7 @@ export function buildLetterReceivedMessage(): string {
 }
 
 export function buildMatchCreatedMessage(): string {
-  return "Tu as un nouveau match";
+  return "Vos sourires sont réciproques ! Place au jeu des 3 questions";
 }
 
 export function buildOfferingReceivedMessage(): string {
@@ -77,6 +77,10 @@ export function buildNotificationMessage(type: NotificationType): string {
       return buildLetterReceivedMessage();
     case NotificationType.MATCH_CREATED:
       return buildMatchCreatedMessage();
+    case NotificationType.QUESTIONS_PASSED:
+      return "Le jeu des 3 questions est réussi ! Vous pouvez échanger des lettres";
+    case NotificationType.QUESTIONS_FAILED:
+      return "Le jeu des 3 questions est terminé : la correspondance n'a pas été retenue";
     case NotificationType.OFFERING_RECEIVED:
       return buildOfferingReceivedMessage();
     case NotificationType.MAGIE_RECEIVED:
@@ -160,6 +164,7 @@ export function buildPushPayload(
   if (meta?.matchId)  data["matchId"]  = meta.matchId;
   if (meta?.salonId)  data["salonId"]  = meta.salonId;
   if (meta?.fromUserId) data["fromUserId"] = meta.fromUserId;
+  if (meta?.otherUserId) data["otherUserId"] = meta.otherUserId;
   if (meta?.adminMessageId) data["adminMessageId"] = meta.adminMessageId;
   if (meta?.privateSalonSessionId) data["privateSalonSessionId"] = meta.privateSalonSessionId;
 
@@ -167,7 +172,11 @@ export function buildPushPayload(
     case NotificationType.LETTER_RECEIVED:
       return { title: "💌 JeuTaime", body: "Tu as reçu une nouvelle lettre", data };
     case NotificationType.MATCH_CREATED:
-      return { title: "💘 JeuTaime", body: "Tu as un nouveau match !", data };
+      return { title: "💘 JeuTaime", body: "Vos sourires sont réciproques ! Place au jeu des 3 questions", data };
+    case NotificationType.QUESTIONS_PASSED:
+      return { title: "JeuTaime", body: "Les 3 questions sont réussies ! Les lettres sont débloquées", data };
+    case NotificationType.QUESTIONS_FAILED:
+      return { title: "JeuTaime", body: "Le jeu des 3 questions est terminé", data };
     case NotificationType.OFFERING_RECEIVED:
       return { title: "🎁 JeuTaime", body: "Quelqu'un vient de t'offrir quelque chose", data };
     case NotificationType.MAGIE_RECEIVED:

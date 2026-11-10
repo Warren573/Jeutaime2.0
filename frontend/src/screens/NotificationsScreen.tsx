@@ -19,6 +19,8 @@ import { getNotificationTarget } from '../utils/notifications';
 
 const TYPE_EMOJI: Record<NotificationType, string> = {
   LETTER_RECEIVED:    '💌',
+  QUESTIONS_PASSED: '✉️',
+  QUESTIONS_FAILED: '📋',
   MATCH_CREATED:      '💘',
   OFFERING_RECEIVED:  '🎁',
   MAGIE_RECEIVED:     '✨',

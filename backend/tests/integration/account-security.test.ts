@@ -15,6 +15,7 @@ import { totpCodeAt } from "../../src/modules/auth/security/totp";
 import { MemoryTransport, setMailTransport, type MailTransport } from "../../src/modules/mail/mailer";
 import { deleteAccountPermanently } from "../../src/modules/auth/accountDeletion.service";
 import { deactivateAccount } from "../../src/modules/auth/accountLifecycle.service";
+import { unregisterDeviceToken } from "../../src/modules/notifications/push.service";
 import { exportPersonalData } from "../../src/modules/auth/dataExport.service";
 
 /**
@@ -255,7 +256,9 @@ describe("6 et 7. Sessions, appareils, historique", () => {
     await expect(auth.refresh(android.refreshToken)).rejects.toThrow();
     expect(await activeSessions(u.id)).toBe(1);
 
-    expect(await sec.removePushToken(u.id, `ExponentPushToken[b-${run}]`)).toBe(1);
+    // Déconnexion simple d'un appareil : route existante de « notifications » (PR #196).
+    await unregisterDeviceToken({ userId: u.id, token: `ExponentPushToken[b-${run}]` });
+    expect(await prisma.pushToken.count({ where: { userId: u.id } })).toBe(1);
     const result = await sec.logoutEverywhere(u.id);
     expect(result).toEqual({ sessions: 1, pushTokens: 1 });
     expect(await activeSessions(u.id)).toBe(0);

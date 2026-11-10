@@ -344,11 +344,6 @@ export async function logoutEverywhere(userId: string): Promise<{ sessions: numb
   return { sessions, pushTokens: push.count };
 }
 
-/** Retire le jeton de notification d'UN appareil (déconnexion simple). */
-export async function removePushToken(userId: string, token: string): Promise<number> {
-  return (await prisma.pushToken.deleteMany({ where: { userId, token } })).count;
-}
-
 export async function loginHistory(userId: string, limit = 20) {
   return prisma.loginEvent.findMany({
     where: { userId },

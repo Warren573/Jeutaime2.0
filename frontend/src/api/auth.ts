@@ -33,7 +33,6 @@ export class AuthRequestError extends Error {
   }
 }
 
-export const PUSH_TOKEN_KEY = "push_token";
 
 // Direct fetch for auth endpoints (no Authorization header)
 async function authFetch(path: string, payload: unknown): Promise<unknown> {
@@ -92,11 +91,10 @@ export async function register(payload: RegisterPayload): Promise<AuthTokens> {
   return extractTokens(res);
 }
 
-export async function logout(refreshToken: string, pushToken?: string | null): Promise<void> {
+export async function logout(refreshToken: string): Promise<void> {
   await apiFetch("/auth/logout", {
     method: "POST",
-    // Le jeton de notification de cet appareil est retiré en même temps que la session.
-    body: JSON.stringify(pushToken ? { refreshToken, pushToken } : { refreshToken }),
+    body: JSON.stringify({ refreshToken }),
   }).catch(() => {
     // Ignore logout errors — session already cleaned locally
   });
