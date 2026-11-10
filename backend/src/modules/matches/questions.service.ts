@@ -1,4 +1,8 @@
-import { MatchStatus } from "@prisma/client";
+import { MatchStatus, NotificationType } from "@prisma/client";
+import { createNotification } from "../notifications/notifications.service";
+import { sendPushToUser } from "../notifications/push.service";
+import { buildPushPayload } from "../../policies/notifications";
+import { logger } from "../../config/logger";
 import { prisma } from "../../config/prisma";
 import {
   BadRequestError,
@@ -113,7 +117,7 @@ export async function submitMatchAnswers(
 ) {
   // The match row serializes the two players' answer submissions.
   // Without this lock, both requests can observe the other as pending.
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
   await tx.$queryRaw`SELECT "id" FROM "Match" WHERE "id" = ${matchId} FOR UPDATE`;
   const match = await tx.match.findUnique({
     where: { id: matchId },
@@ -261,4 +265,30 @@ export async function submitMatchAnswers(
     matchBroken: true,
   };
   }, { isolationLevel: "Serializable" });
+
+  // N'émettre qu'après le COMMIT, jamais pendant la transaction.
+  // La seconde réponse est la seule qui finalise le jeu.
+  if (!result.waitingForOther) {
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: { userAId: true, userBId: true },
+    });
+    if (match) {
+      const type = result.questionsValidated
+        ? NotificationType.QUESTIONS_PASSED
+        : NotificationType.QUESTIONS_FAILED;
+      for (const recipientId of [match.userAId, match.userBId]) {
+        void (async () => {
+          try {
+            const meta = { matchId };
+            await createNotification({ userId: recipientId, type, meta });
+            await sendPushToUser({ userId: recipientId, ...buildPushPayload(type, meta) });
+          } catch (err) {
+            logger.error({ err, matchId, recipientId }, "[questions] Notification de résultat échouée");
+          }
+        })();
+      }
+    }
+  }
+  return result;
 }
