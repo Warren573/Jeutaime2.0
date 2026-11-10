@@ -158,6 +158,7 @@ export function buildPushPayload(
   if (meta?.matchId)  data["matchId"]  = meta.matchId;
   if (meta?.salonId)  data["salonId"]  = meta.salonId;
   if (meta?.fromUserId) data["fromUserId"] = meta.fromUserId;
+  if (meta?.otherUserId) data["otherUserId"] = meta.otherUserId;
   if (meta?.adminMessageId) data["adminMessageId"] = meta.adminMessageId;
   if (meta?.privateSalonSessionId) data["privateSalonSessionId"] = meta.privateSalonSessionId;
 
