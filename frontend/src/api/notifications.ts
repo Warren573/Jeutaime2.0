@@ -3,6 +3,8 @@ import { apiFetch } from './client';
 export type NotificationType =
   | 'LETTER_RECEIVED'
   | 'MATCH_CREATED'
+  | 'QUESTIONS_PASSED'
+  | 'QUESTIONS_FAILED'
   | 'OFFERING_RECEIVED'
   | 'MAGIE_RECEIVED'
   | 'MAGIE_BROKEN'
