@@ -47,6 +47,7 @@ import bottlesRoutes from "./modules/bottles/bottles.routes";
 import refugeRoutes from "./modules/refuge/refuge.routes";
 import statsRoutes from "./modules/stats/stats.routes";
 import weeklyProfileRoutes from "./modules/weekly-profile/weekly-profile.routes";
+import adsRoutes from "./modules/ads/ads.routes";
 import testRoutes from "./modules/test/test.routes";
 import { requireTestEndpointsToken } from "./modules/test/testEndpointsGuard";
 import debugRoutes from "./modules/debug/debug.routes";
@@ -118,6 +119,7 @@ app.use(`${api}/bottles`, bottlesRoutes);
 app.use(`${api}/refuge`, refugeRoutes);
 app.use(`${api}/stats`, statsRoutes);
 app.use(`${api}/weekly-profile`, weeklyProfileRoutes);
+app.use(`${api}/ads`, adsRoutes);
 
 // Routes de test : disponibles en développement, sur le staging Render,
 // ou en production uniquement si ALLOW_TEST_ENDPOINTS=true est explicitement défini.
