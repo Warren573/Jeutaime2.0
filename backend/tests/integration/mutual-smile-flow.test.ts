@@ -35,6 +35,8 @@ vi.mock('../../src/config/prisma', () => ({
       findFirst: vi.fn(),
     },
     $transaction: vi.fn(),
+    // isAccountDeactivated() interroge AccountDeactivation en SQL brut : aucun compte désactivé ici.
+    $queryRaw: vi.fn(async () => []),
   },
 }));
 

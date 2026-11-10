@@ -2,7 +2,7 @@
  * Tests unitaires des policies pures d'Offerings.
  * Aucune dépendance Prisma.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { SalonKind } from "@prisma/client";
 import {
   assertNotSelfOffering,
@@ -130,9 +130,14 @@ describe("assertNotSelfOffering", () => {
     expect(() => assertNotSelfOffering("u1", "u2")).not.toThrow();
   });
 
-  it("ids identiques → rejeté", () => {
-    expect(() => assertNotSelfOffering("u1", "u1")).toThrow(
-      BadRequestError,
-    );
+  it("ids identiques → rejeté en production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      expect(() => assertNotSelfOffering("u1", "u1")).toThrow(
+        BadRequestError,
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

@@ -88,6 +88,9 @@ async function readWalletTx(
   lastDailyBonus: Date | null;
   updatedAt: Date;
 }> {
+  // Verrou de ligne : sérialise bonus quotidien, crédits et débits concurrents
+  // sur un même portefeuille (même mécanisme que offrandes et jeu de cartes).
+  await tx.$queryRaw`SELECT "userId" FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
   const w = await tx.wallet.findUnique({ where: { userId } });
   if (!w) throw new NotFoundError("Wallet");
   return w;

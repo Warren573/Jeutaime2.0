@@ -11,11 +11,12 @@ const prisma = new PrismaClient();
 
 // ============================================================
 // COMPTE DE TEST (développement uniquement)
-// Email : test@jeutaime.com  |  Mot de passe : Test1234!
+// Email : test@jeutaime.com  |  Mot de passe : variable SEED_TEST_USER_PASSWORD
 // ============================================================
 const TEST_USER = {
   email:    "test@jeutaime.com",
-  password: "Test1234!",
+  // Jamais de mot de passe dans le dépôt : fourni par SEED_TEST_USER_PASSWORD.
+  password: process.env.SEED_TEST_USER_PASSWORD || "",
   pseudo:   "TestUser",
   birthDate: new Date("1995-06-15T00:00:00.000Z"),
   gender:   Gender.HOMME,
@@ -236,7 +237,9 @@ async function main() {
       select: { id: true },
     });
 
-    if (existingTest) {
+    if (!existingTest && TEST_USER.password.length < 12) {
+      console.log("ℹ️  [SEED-TEST] SEED_TEST_USER_PASSWORD absent ou trop court : compte test non créé");
+    } else if (existingTest) {
       console.log(`ℹ️  [SEED-TEST] Compte test déjà existant (${TEST_USER.email})`);
     } else {
       const passwordHash = await bcrypt.hash(TEST_USER.password, 10);
@@ -269,7 +272,7 @@ async function main() {
         });
       });
 
-      console.log(`✅ [SEED-TEST] Compte test créé → ${TEST_USER.email} / ${TEST_USER.password}`);
+      console.log(`✅ [SEED-TEST] Compte test créé → ${TEST_USER.email}`);
     }
 
     console.log("[SEED] completed");
