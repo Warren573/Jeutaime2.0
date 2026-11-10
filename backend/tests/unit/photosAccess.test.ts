@@ -31,12 +31,12 @@ describe("getPhotoLevel", () => {
     expect(getPhotoLevel({ totalLetters: 50, viewerIsPremium: false })).toBe(3);
   });
 
-  // --- PREMIUM users (threshold: 3 letters) ---
+  // --- PREMIUM users (PHOTO_THRESHOLD_PREMIUM = 0 : accès immédiat) ---
 
-  it("PREMIUM Level 0: < 3 lettres", () => {
-    expect(getPhotoLevel({ totalLetters: 0, viewerIsPremium: true })).toBe(0);
-    expect(getPhotoLevel({ totalLetters: 1, viewerIsPremium: true })).toBe(0);
-    expect(getPhotoLevel({ totalLetters: 2, viewerIsPremium: true })).toBe(0);
+  it("PREMIUM Level 3 immédiat, même sans lettre", () => {
+    expect(getPhotoLevel({ totalLetters: 0, viewerIsPremium: true })).toBe(3);
+    expect(getPhotoLevel({ totalLetters: 1, viewerIsPremium: true })).toBe(3);
+    expect(getPhotoLevel({ totalLetters: 2, viewerIsPremium: true })).toBe(3);
   });
 
   it("PREMIUM Level 3: >= 3 lettres", () => {
@@ -140,15 +140,15 @@ describe("resolvePhotoAccess", () => {
 
   // --- PREMIUM user progression (threshold: 3) --------------------------------------------------
 
-  it("PREMIUM < 3 lettres = level 0 (not allowed)", () => {
+  it("PREMIUM < 3 lettres = level 3 (accès immédiat)", () => {
     const res = resolvePhotoAccess({
       ...baseCtx,
       viewerIsPremium: true,
       match: { userAId: viewerId, letterCountA: 1, letterCountB: 1 },
     });
-    expect(res.allowed).toBe(false);
-    expect(res.reason).toBe("LEVEL_0");
-    expect(res.level).toBe(0);
+    expect(res.allowed).toBe(true);
+    expect(res.reason).toBe("LEVEL_3");
+    expect(res.level).toBe(3);
   });
 
   it("PREMIUM >= 3 lettres = level 3 (allowed)", () => {

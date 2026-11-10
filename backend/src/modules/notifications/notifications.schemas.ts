@@ -46,3 +46,7 @@ export const RegisterDeviceSchema = z
   .strict();
 
 export type RegisterDeviceDto = z.infer<typeof RegisterDeviceSchema>;
+
+export const UnregisterDeviceSchema = z.object({
+  token: z.string().min(1).max(512),
+}).strict();

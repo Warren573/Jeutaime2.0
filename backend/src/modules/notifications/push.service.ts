@@ -76,7 +76,7 @@ export async function sendPushToUser(params: {
   if (settings?.notifPush === false) return;
   const type = params.data?.type;
   const category = type === 'BOTTLE_REPLY' || type === 'LETTER_RECEIVED' ? 'notifLetters'
-    : type === 'MATCH_CREATED' ? 'notifMeetings'
+    : (type === 'MATCH_CREATED' || type === 'QUESTIONS_PASSED' || type === 'QUESTIONS_FAILED') ? 'notifMeetings'
     : type === 'PRIVATE_SALON_INVITE' || type === 'MAGIE_RECEIVED' || type === 'MAGIE_BROKEN' ? 'notifSalons'
     : type === 'OFFERING_RECEIVED' ? 'notifActivities'
     : type === 'DAILY_EDITION' ? 'notifNews'
@@ -100,66 +100,62 @@ export async function sendPushToUser(params: {
     channelId: "default",
   }));
 
-  try {
-    const res = await fetch(EXPO_PUSH_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "Accept-Encoding": "gzip, deflate",
-      },
-      body: JSON.stringify(messages.length === 1 ? messages[0] : messages),
-    });
-
-    if (!res.ok) {
-      logger.warn(
-        { status: res.status, userId: params.userId },
-        "[push] Expo push API non-ok",
-      );
-      void recordSystemIncident({
-        level: "WARNING",
-        source: "push",
-        code: "EXPO_NON_OK",
-        message: `Expo Push API a répondu ${res.status}`,
-        userId: params.userId,
-        statusCode: res.status,
+  // Expo accepte au maximum 100 messages par requête.
+  // Un échec d'un lot ne doit pas empêcher l'envoi aux autres appareils.
+  for (let offset = 0; offset < messages.length; offset += 100) {
+    const batchMessages = messages.slice(offset, offset + 100);
+    const batchRows = rows.slice(offset, offset + 100);
+    try {
+      const res = await fetch(EXPO_PUSH_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Accept-Encoding": "gzip, deflate",
+        },
+        body: JSON.stringify(batchMessages),
       });
-      return;
-    }
 
-    const json = (await res.json()) as { data: ExpoPushTicket | ExpoPushTicket[] };
-    const tickets = Array.isArray(json.data) ? json.data : [json.data];
-
-    // Purger les tokens invalides (DeviceNotRegistered)
-    const invalidTokenIds: string[] = [];
-    tickets.forEach((ticket, i) => {
-      if (
-        ticket.status === "error" &&
-        ticket.details?.error === "DeviceNotRegistered"
-      ) {
-        const row = rows[i];
-        if (row) invalidTokenIds.push(row.id);
+      if (!res.ok) {
+        logger.warn({ status: res.status, userId: params.userId }, "[push] Expo push API non-ok");
+        void recordSystemIncident({
+          level: "WARNING",
+          source: "push",
+          code: "EXPO_NON_OK",
+          message: `Expo Push API a répondu ${res.status}`,
+          userId: params.userId,
+          statusCode: res.status,
+        });
+        continue;
       }
-    });
 
-    if (invalidTokenIds.length > 0) {
-      await prisma.pushToken.deleteMany({
-        where: { id: { in: invalidTokenIds } },
+      const json = (await res.json()) as { data: ExpoPushTicket | ExpoPushTicket[] };
+      const tickets = Array.isArray(json.data) ? json.data : [json.data];
+      const invalidTokens: string[] = [];
+      tickets.forEach((ticket, i) => {
+        if (ticket.status === "error" && ticket.details?.error === "DeviceNotRegistered") {
+          const row = batchRows[i];
+          if (row) invalidTokens.push(row.token);
+        }
       });
-      logger.info(
-        { count: invalidTokenIds.length },
-        "[push] Tokens invalides purgés",
-      );
+
+      if (invalidTokens.length > 0) {
+        // Ne supprime jamais un jeton réattribué entre l'envoi et la réponse d'Expo.
+        await prisma.pushToken.deleteMany({
+          where: { userId: params.userId, token: { in: invalidTokens } },
+        });
+        logger.info({ count: invalidTokens.length }, "[push] Tokens invalides purgés");
+      }
+    } catch (err) {
+      logger.error({ err, userId: params.userId }, "[push] Erreur envoi Expo push");
+      void recordSystemIncident({
+        level: "ERROR",
+        source: "push",
+        code: "PUSH_SEND_FAILED",
+        message: err instanceof Error ? err.message : "Erreur envoi Expo push",
+        userId: params.userId,
+      });
     }
-  } catch (err) {
-    logger.error({ err, userId: params.userId }, "[push] Erreur envoi Expo push");
-    void recordSystemIncident({
-      level: "ERROR",
-      source: "push",
-      code: "PUSH_SEND_FAILED",
-      message: err instanceof Error ? err.message : "Erreur envoi Expo push",
-      userId: params.userId,
-    });
   }
 }
 
@@ -266,4 +262,15 @@ export async function sendDailyEditionPush(params: {
   }
 
   return { scanned: rows.length, sent };
+}
+
+// Retire uniquement le token de l'utilisateur authentifié.
+// Une déconnexion d'un appareil ne doit pas couper les autres appareils.
+export async function unregisterDeviceToken(params: {
+  userId: string;
+  token: string;
+}): Promise<void> {
+  await prisma.pushToken.deleteMany({
+    where: { userId: params.userId, token: params.token },
+  });
 }

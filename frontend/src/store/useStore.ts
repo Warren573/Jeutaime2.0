@@ -82,6 +82,7 @@ import {
   getUnreadCount as apiGetUnreadCount,
   markNotificationRead as apiMarkNotificationRead,
   markAllNotificationsRead as apiMarkAllNotificationsRead,
+  unregisterDevice as apiUnregisterDevice,
   type NotificationDto,
 } from '../api/notifications';
 console.log("✅ [useStore.ts] Line 46: notifications functions imported");
@@ -563,6 +564,13 @@ export const useStore = create<StoreState>()(
         AsyncStorage.getItem('auth_refresh_token')
           .then((rt) => { if (rt) apiLogout(rt).catch(() => {}); })
           .catch(() => {});
+
+        // Deregister this device before clearing credentials, without blocking logout on network failure.
+        const pushToken = await AsyncStorage.getItem('jeutaime_push_token').catch(() => null);
+        if (pushToken) {
+          await apiUnregisterDevice(pushToken).catch(() => {});
+          await AsyncStorage.removeItem('jeutaime_push_token').catch(() => {});
+        }
 
         // Clear auth tokens + Zustand persist key immediately
         await Promise.all([
