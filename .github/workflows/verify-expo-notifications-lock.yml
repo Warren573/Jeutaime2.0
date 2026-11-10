@@ -1,0 +1,40 @@
+name: Verify Expo notifications dependency lock
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - '.github/workflows/verify-expo-notifications-lock.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Regenerate lockfile using npm registry
+        working-directory: frontend
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Check Expo SDK 54 compatibility and lock
+        working-directory: frontend
+        run: |
+          node - <<'NODE'
+          const p = require('./package.json');
+          const lock = require('./package-lock.json');
+          if (p.dependencies['expo-notifications'] !== '~0.32.17') throw Error('Incorrect expo-notifications range');
+          if (lock.packages[''].dependencies['expo-notifications'] !== '~0.32.17') throw Error('Incorrect lock root range');
+          if (lock.packages['node_modules/expo-notifications']?.version !== '0.32.17') throw Error('Incorrect installed version');
+          NODE
+          npm ci --ignore-scripts --no-audit --no-fund
+      - uses: actions/upload-artifact@v4
+        with:
+          name: expo-sdk54-package-lock
+          path: frontend/package-lock.json
+          retention-days: 7
