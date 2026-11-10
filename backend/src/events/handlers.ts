@@ -102,9 +102,10 @@ emitter.on("matchCreated", async (payload) => {
       createNotification({ userId: payload.userAId, type: NotificationType.MATCH_CREATED, meta: metaA }),
       createNotification({ userId: payload.userBId, type: NotificationType.MATCH_CREATED, meta: metaB }),
     ]);
-    const push = buildPushPayload(NotificationType.MATCH_CREATED, metaA);
-    void sendPushToUser({ userId: payload.userAId, ...push });
-    void sendPushToUser({ userId: payload.userBId, ...push });
+    const pushA = buildPushPayload(NotificationType.MATCH_CREATED, metaA);
+    const pushB = buildPushPayload(NotificationType.MATCH_CREATED, metaB);
+    void sendPushToUser({ userId: payload.userAId, ...pushA });
+    void sendPushToUser({ userId: payload.userBId, ...pushB });
   } catch (err) {
     logger.error(
       { err, payload },
