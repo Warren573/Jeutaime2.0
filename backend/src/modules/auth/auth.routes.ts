@@ -11,6 +11,12 @@ import {
   ChangeEmailSchema,
   DeactivateAccountSchema,
   DeleteAccountSchema,
+  ForgotPasswordSchema,
+  ResetPasswordSchema,
+  TokenSchema,
+  TwoFactorSetupSchema,
+  TwoFactorCodeSchema,
+  TwoFactorDisableSchema,
 } from "./auth.schemas";
 import * as ctrl from "./auth.controller";
 import { AuthedRequest } from "../../core/types";
@@ -92,5 +98,27 @@ router.get(
   requireAuth as never,
   asyncHandler((req, res, next) => ctrl.handleMe(req as AuthedRequest, res).catch(next)),
 );
+
+// ------------------------------------------------------------------
+// Sécurité des comptes
+// ------------------------------------------------------------------
+const authed = (fn: (req: AuthedRequest, res: import("express").Response) => Promise<void>) =>
+  asyncHandler((req, res, next) => fn(req as AuthedRequest, res).catch(next));
+
+// Parcours publics par lien reçu par e-mail : limite stricte par adresse IP.
+router.post("/password/forgot", authRateLimit, validate(ForgotPasswordSchema), asyncHandler(ctrl.handleForgotPassword));
+router.post("/password/reset", authRateLimit, validate(ResetPasswordSchema), asyncHandler(ctrl.handleResetPassword));
+router.post("/email/verify", authRateLimit, validate(TokenSchema), asyncHandler(ctrl.handleVerifyEmail));
+router.post("/email/change/confirm", authRateLimit, validate(TokenSchema), asyncHandler(ctrl.handleConfirmEmailChange));
+
+router.post("/email/verify/resend", requireAuth as never, authed(ctrl.handleResendVerification));
+router.post("/logout-all", requireAuth as never, authed(ctrl.handleLogoutAll));
+router.get("/sessions", requireAuth as never, authed(ctrl.handleListSessions));
+router.delete("/sessions/:id", requireAuth as never, authed(ctrl.handleRevokeSession));
+router.get("/login-history", requireAuth as never, authed(ctrl.handleLoginHistory));
+router.get("/security", requireAuth as never, authed(ctrl.handleSecurityStatus));
+router.post("/2fa/setup", requireAuth as never, validate(TwoFactorSetupSchema), authed(ctrl.handleTwoFactorSetup));
+router.post("/2fa/enable", requireAuth as never, validate(TwoFactorCodeSchema), authed(ctrl.handleTwoFactorEnable));
+router.post("/2fa/disable", requireAuth as never, validate(TwoFactorDisableSchema), authed(ctrl.handleTwoFactorDisable));
 
 export default router;

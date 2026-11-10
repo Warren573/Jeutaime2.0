@@ -43,6 +43,29 @@ export const RegisterSchema = z.object({
 export const LoginSchema = z.object({
   email: z.string().email().toLowerCase(),
   password: z.string().min(1),
+  // Code à 6 chiffres ou code de secours, requis seulement si la double authentification est active.
+  totpCode: z.string().trim().min(6).max(20).optional(),
+});
+
+export const ForgotPasswordSchema = z.object({
+  email: z.string().email("Email invalide").max(255).toLowerCase(),
+});
+export const TokenSchema = z.object({
+  token: z.string().min(20, "Lien invalide").max(200),
+});
+export const ResetPasswordSchema = z.object({
+  token: z.string().min(20, "Lien invalide").max(200),
+  newPassword: StrongPasswordSchema,
+});
+export const TwoFactorSetupSchema = z.object({
+  currentPassword: z.string().min(1, "Mot de passe requis"),
+});
+export const TwoFactorCodeSchema = z.object({
+  code: z.string().trim().min(6, "Code requis").max(20),
+});
+export const TwoFactorDisableSchema = z.object({
+  currentPassword: z.string().min(1, "Mot de passe requis"),
+  code: z.string().trim().min(6, "Code requis").max(20),
 });
 
 export const RefreshSchema = z.object({

@@ -91,6 +91,8 @@ export function buildNotificationMessage(type: NotificationType): string {
       return "Tu as reçu un message de l’administration JeuTaime";
     case NotificationType.PRIVATE_SALON_INVITE:
       return "Tu as été invité dans un salon privé";
+    case NotificationType.SECURITY_ALERT:
+      return "Une action de sécurité a eu lieu sur ton compte";
   }
 }
 

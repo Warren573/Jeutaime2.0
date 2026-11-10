@@ -6,14 +6,19 @@ import { deactivateAccount, reactivateAccountByEmail } from "./accountLifecycle.
 import { deleteAccountPermanently } from "./accountDeletion.service";
 import { AuthedRequest } from "../../core/types";
 import { BadRequestError } from "../../core/errors";
+import * as security from "./security/accountSecurity.core";
+
+function sessionContext(req: Request) {
+  return { ip: req.ip ?? null, userAgent: req.get("user-agent") ?? null };
+}
 
 export async function handleRegister(req: Request, res: Response) {
-  const tokens = await authService.register(req.body);
+  const tokens = await authService.register(req.body, sessionContext(req));
   res.status(201).json({ data: tokens });
 }
 
 export async function handleLogin(req: Request, res: Response) {
-  const tokens = await authService.login(req.body);
+  const tokens = await authService.login(req.body, sessionContext(req));
 
   // La réactivation est un effet secondaire : elle ne doit jamais empêcher
   // une connexion valide si la table/migration de cycle de vie est indisponible.
@@ -37,6 +42,10 @@ export async function handleLogout(req: AuthedRequest, res: Response) {
   const refreshToken = typeof body["refreshToken"] === "string" ? body["refreshToken"] : "";
   if (!refreshToken) throw new BadRequestError("refreshToken requis dans le body");
   await authService.logout(req.user.userId, refreshToken);
+  // Retire le jeton de notification de CET appareil, s'il est fourni.
+  if (typeof body["pushToken"] === "string" && body["pushToken"]) {
+    await security.removePushToken(req.user.userId, body["pushToken"]);
+  }
   res.json({ data: { message: "Déconnecté avec succès" } });
 }
 
@@ -47,7 +56,16 @@ export async function handleChangePassword(req: AuthedRequest, res: Response) {
 
 export async function handleChangeEmail(req: AuthedRequest, res: Response) {
   const email = await changeEmail(req.user.userId, req.body.currentPassword, req.body.newEmail);
-  res.json({ data: { message: "Adresse e-mail modifiée", email } });
+  if (email === null) {
+    res.json({
+      data: {
+        status: "pending_confirmation",
+        message: "Un lien de confirmation a été envoyé à ta nouvelle adresse. Ton adresse actuelle reste valable tant que tu ne l'as pas ouvert.",
+      },
+    });
+    return;
+  }
+  res.json({ data: { status: "changed", message: "Adresse e-mail modifiée", email } });
 }
 
 export async function handleDeactivate(req: AuthedRequest, res: Response) {
@@ -68,4 +86,76 @@ export async function handleExportData(req: AuthedRequest, res: Response) {
 export async function handleMe(req: AuthedRequest, res: Response) {
   const user = await authService.getMe(req.user.userId);
   res.json({ data: user });
+}
+
+// ------------------------------------------------------------------
+// Sécurité des comptes
+// ------------------------------------------------------------------
+const GENERIC_RESET = "Si un compte existe pour cette adresse, un e-mail vient de lui être envoyé.";
+
+export async function handleForgotPassword(req: Request, res: Response) {
+  await security.requestPasswordReset(req.body.email);
+  // Réponse identique que le compte existe ou non.
+  res.json({ data: { message: GENERIC_RESET } });
+}
+
+export async function handleResetPassword(req: Request, res: Response) {
+  await security.resetPassword(req.body.token, req.body.newPassword);
+  res.json({ data: { message: "Mot de passe modifié. Tu peux te connecter." } });
+}
+
+export async function handleVerifyEmail(req: Request, res: Response) {
+  await security.verifyEmail(req.body.token);
+  res.json({ data: { message: "Adresse e-mail confirmée." } });
+}
+
+export async function handleResendVerification(req: AuthedRequest, res: Response) {
+  const status = await security.sendEmailVerification(req.user.userId, { explicit: true });
+  res.json({ data: { status } });
+}
+
+export async function handleConfirmEmailChange(req: Request, res: Response) {
+  await security.confirmEmailChange(req.body.token);
+  res.json({ data: { message: "Nouvelle adresse confirmée. Reconnecte-toi avec elle." } });
+}
+
+export async function handleLogoutAll(req: AuthedRequest, res: Response) {
+  const result = await security.logoutEverywhere(req.user.userId);
+  res.json({ data: { message: "Tous les appareils ont été déconnectés.", ...result } });
+}
+
+export async function handleListSessions(req: AuthedRequest, res: Response) {
+  res.json({ data: await security.listSessions(req.user.userId) });
+}
+
+export async function handleRevokeSession(req: AuthedRequest, res: Response) {
+  await security.revokeSession(req.user.userId, String(req.params["id"]));
+  res.json({ data: { message: "Appareil déconnecté." } });
+}
+
+export async function handleLoginHistory(req: AuthedRequest, res: Response) {
+  res.json({ data: await security.loginHistory(req.user.userId) });
+}
+
+export async function handleSecurityStatus(req: AuthedRequest, res: Response) {
+  res.json({ data: await security.twoFactorStatus(req.user.userId) });
+}
+
+export async function handleTwoFactorSetup(req: AuthedRequest, res: Response) {
+  res.json({ data: await security.setupTwoFactor(req.user.userId, req.body.currentPassword) });
+}
+
+export async function handleTwoFactorEnable(req: AuthedRequest, res: Response) {
+  const result = await security.enableTwoFactor(req.user.userId, req.body.code);
+  res.json({
+    data: {
+      message: "Double authentification activée. Conserve ces codes de secours : ils ne seront plus affichés.",
+      ...result,
+    },
+  });
+}
+
+export async function handleTwoFactorDisable(req: AuthedRequest, res: Response) {
+  await security.disableTwoFactor(req.user.userId, req.body.currentPassword, req.body.code);
+  res.json({ data: { message: "Double authentification désactivée." } });
 }

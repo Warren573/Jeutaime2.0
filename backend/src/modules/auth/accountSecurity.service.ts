@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { comparePassword, hashPassword } from "../../core/utils/hash";
-import { ConflictError, NotFoundError, UnauthorizedError } from "../../core/errors";
+import { NotFoundError, UnauthorizedError } from "../../core/errors";
+import { notifySecurity, requestEmailChange } from "./security/accountSecurity.core";
 
 export async function changePassword(
   userId: string,
@@ -31,43 +32,19 @@ export async function changePassword(
       data: { revokedAt: new Date() },
     }),
   ]);
+  await notifySecurity(userId, "password_changed");
 }
 
 
+/**
+ * Changement d'adresse. Retourne la nouvelle adresse si elle a été appliquée
+ * immédiatement, ou null si une confirmation par e-mail est attendue.
+ */
 export async function changeEmail(
   userId: string,
   currentPassword: string,
   newEmail: string,
 ) {
-  const email = newEmail.trim().toLowerCase();
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { email: true, passwordHash: true },
-  });
-  if (!user) throw new NotFoundError("Utilisateur");
-
-  const valid = await comparePassword(currentPassword, user.passwordHash);
-  if (!valid) throw new UnauthorizedError("Mot de passe actuel incorrect");
-  if (user.email.toLowerCase() === email) {
-    throw new ConflictError("Cette adresse e-mail est déjà celle de ton compte");
-  }
-
-  const existing = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-  if (existing) throw new ConflictError("Cette adresse e-mail est déjà utilisée");
-
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: userId },
-      data: { email },
-    }),
-    prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    }),
-  ]);
-
-  return email;
+  const outcome = await requestEmailChange(userId, currentPassword, newEmail);
+  return outcome.status === "changed" ? outcome.email : null;
 }

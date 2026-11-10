@@ -13,6 +13,26 @@ import { Gender } from "@prisma/client";
 import { isPremiumActive } from "../../policies/premium";
 import { computeProfileStatus } from "../../policies/profiles";
 import { recordLoginEvent } from "../operations/operations.service";
+import {
+  TwoFactorRequiredError,
+  assertLoginNotLocked,
+  isNewDevice,
+  notifySecurity,
+  sendEmailVerification,
+  verifySecondFactor,
+} from "./security/accountSecurity.core";
+
+/** Contexte de la requête, enregistré avec la session pour la gestion des appareils. */
+export interface SessionContext {
+  ip?: string | null;
+  userAgent?: string | null;
+}
+function cleanContext(ctx?: SessionContext) {
+  return {
+    ip: ctx?.ip ? String(ctx.ip).slice(0, 64) : null,
+    userAgent: ctx?.userAgent ? String(ctx.userAgent).slice(0, 255) : null,
+  };
+}
 
 // -----------------------------------------------------------------------
 // Helpers
@@ -24,7 +44,7 @@ function buildTokenPair(userId: string, role: string, isPremium: boolean) {
   return { access, refresh, tokenId };
 }
 
-async function persistRefreshToken(userId: string, tokenId: string, rawToken: string) {
+async function persistRefreshToken(userId: string, tokenId: string, rawToken: string, ctx?: SessionContext) {
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_S * 1000);
   await prisma.refreshToken.create({
     data: {
@@ -32,6 +52,8 @@ async function persistRefreshToken(userId: string, tokenId: string, rawToken: st
       userId,
       tokenHash: hashToken(rawToken),
       expiresAt,
+      ...cleanContext(ctx),
+      lastUsedAt: new Date(),
     },
   });
 }
@@ -39,7 +61,7 @@ async function persistRefreshToken(userId: string, tokenId: string, rawToken: st
 // -----------------------------------------------------------------------
 // Register
 // -----------------------------------------------------------------------
-export async function register(dto: RegisterDto) {
+export async function register(dto: RegisterDto, ctx?: SessionContext) {
   const existingEmail = await prisma.user.findUnique({ where: { email: dto.email }, select: { id: true } });
   if (existingEmail) throw new ConflictError("Cet email est déjà utilisé");
 
@@ -86,7 +108,9 @@ export async function register(dto: RegisterDto) {
   });
 
   const { access, refresh, tokenId } = buildTokenPair(user.id, user.role, false);
-  await persistRefreshToken(user.id, tokenId, refresh);
+  await persistRefreshToken(user.id, tokenId, refresh, ctx);
+  // Lien de vérification de l'adresse : jamais bloquant pour l'inscription.
+  await sendEmailVerification(user.id).catch(() => undefined);
 
   return { accessToken: access, refreshToken: refresh, userId: user.id };
 }
@@ -177,10 +201,15 @@ async function normalizeExpiredSuspension<T extends { id: string; isBanned: bool
 // -----------------------------------------------------------------------
 // Login
 // -----------------------------------------------------------------------
-export async function login(dto: LoginDto) {
+export async function login(dto: LoginDto, ctx?: SessionContext) {
+  // Verrouillage temporaire après trop d'échecs sur cette adresse, quelle que soit l'adresse IP.
+  await assertLoginNotLocked(dto.email);
+
   let user = await prisma.user.findUnique({
     where: { email: dto.email },
     select: {
+      twoFactorSecret: true,
+      twoFactorEnabledAt: true,
       id: true,
       passwordHash: true,
       role: true,
@@ -223,7 +252,17 @@ export async function login(dto: LoginDto) {
     throw new UnauthorizedError("Email ou mot de passe incorrect");
   }
 
+  // Second facteur, uniquement si le compte l'a activé.
+  if (user.twoFactorEnabledAt && user.twoFactorSecret) {
+    if (!dto.totpCode) throw new TwoFactorRequiredError();
+    if (!(await verifySecondFactor(user.id, user.twoFactorSecret, dto.totpCode))) {
+      await recordLoginEvent({ email: dto.email, userId: user.id, success: false, reason: "TWO_FACTOR_INVALID" });
+      throw new UnauthorizedError("Code de double authentification incorrect");
+    }
+  }
+
   const isPremium = isPremiumActive(user);
+  const newDevice = await isNewDevice(user.id, ctx?.userAgent);
 
   await prisma.user.update({
     where: { id: user.id },
@@ -231,7 +270,8 @@ export async function login(dto: LoginDto) {
   });
 
   const { access, refresh, tokenId } = buildTokenPair(user.id, user.role, isPremium);
-  await persistRefreshToken(user.id, tokenId, refresh);
+  await persistRefreshToken(user.id, tokenId, refresh, ctx);
+  if (newDevice) void notifySecurity(user.id, "new_device_login");
   await recordLoginEvent({
     email: dto.email,
     userId: user.id,
@@ -296,6 +336,10 @@ export async function refresh(rawToken: string) {
         userId: refreshUser.id,
         tokenHash: hashToken(newRefresh),
         expiresAt: newExpiresAt,
+        // La session reste rattachée au même appareil d'une rotation à l'autre.
+        ip: stored.ip,
+        userAgent: stored.userAgent,
+        lastUsedAt: now,
       },
     });
 
