@@ -7,6 +7,7 @@ import {
   ListNotificationsQuerySchema,
   NotificationIdParamsSchema,
   RegisterDeviceSchema,
+  UnregisterDeviceSchema,
 } from "./notifications.schemas";
 import * as ctrl from "./notifications.controller";
 
@@ -43,6 +44,14 @@ router.patch(
   "/:id/read",
   validate(NotificationIdParamsSchema, "params"),
   wrap(ctrl.handleMarkAsRead),
+);
+
+
+ // POST /api/notifications/unregister-device
+router.post(
+  "/unregister-device",
+  validate(UnregisterDeviceSchema, "body"),
+  wrap(ctrl.handleUnregisterDevice),
 );
 
 export default router;

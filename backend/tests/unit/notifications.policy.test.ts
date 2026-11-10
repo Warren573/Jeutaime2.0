@@ -66,10 +66,11 @@ describe("buildNotificationMessage", () => {
     ).toMatch(/lettre/i);
   });
 
-  it("MATCH_CREATED → mention de match", () => {
-    expect(
-      buildNotificationMessage(NotificationType.MATCH_CREATED),
-    ).toMatch(/match/i);
+  it("MATCH_CREATED → sourires réciproques et jeu des 3 questions", () => {
+    // Message reformulé par la PR #196 : le match ouvre désormais le jeu des 3 questions.
+    const message = buildNotificationMessage(NotificationType.MATCH_CREATED);
+    expect(message).toMatch(/sourires sont réciproques/i);
+    expect(message).toMatch(/3 questions/);
   });
 
   it("MAGIE_BROKEN → mention de sort brisé", () => {

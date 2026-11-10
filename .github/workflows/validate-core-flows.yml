@@ -50,7 +50,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/unused
           JWT_ACCESS_SECRET: test_secret_min_32_chars_1234567
           JWT_REFRESH_SECRET: test_secret_min_32_chars_1234567
-        run: npx vitest run tests/unit/bottles-first-reply-claim.test.ts tests/unit/bottles-turn-by-turn.test.ts tests/unit/bottles-get-current.test.ts tests/unit/questions-validation.test.ts tests/unit/refuge.service.test.ts
+        run: npx vitest run tests/unit/bottles-first-reply-claim.test.ts tests/unit/bottles-turn-by-turn.test.ts tests/unit/bottles-get-current.test.ts tests/unit/questions-validation.test.ts tests/unit/question-result-notifications.test.ts tests/unit/refuge.service.test.ts
 
   frontend:
     name: Frontend TypeScript
