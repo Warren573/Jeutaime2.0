@@ -41,6 +41,7 @@ function getRouteFromPushData(data: Record<string, string>): string | null {
     case 'BOTTLE_REPLY':
       return '/bottles-main';
     case 'LETTER_RECEIVED':
+    case 'QUESTIONS_PASSED':
     case 'MATCH_CREATED':
       return data['matchId'] ? `/match-profile?matchId=${data['matchId']}` : null;
     case 'OFFERING_RECEIVED':
