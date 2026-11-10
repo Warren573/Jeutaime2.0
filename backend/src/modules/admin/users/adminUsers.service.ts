@@ -417,7 +417,11 @@ export async function updateRole(
 
   const updated = await prisma.user.update({
     where: { id: targetId },
-    data: { role: nextRole as Role },
+    // Un compte promu ADMIN est « nouveau » au sens de l'obligation de double authentification :
+    // aucun délai de transition, configuration exigée avant l'accès à l'administration.
+    data: nextRole === "ADMIN" && target.role !== Role.ADMIN
+      ? { role: nextRole as Role, privilegedRoleSince: new Date() }
+      : { role: nextRole as Role },
     select: adminUserSelect,
   });
 

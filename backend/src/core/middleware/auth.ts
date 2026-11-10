@@ -7,6 +7,7 @@ import { Role } from "@prisma/client";
 import { asyncHandler } from "../utils/asyncHandler";
 import { isPremiumActive } from "../../policies/premium";
 import { isAccountDeactivated } from "../../modules/auth/accountLifecycle.service";
+import { assertPrivilegedTwoFactor } from "../../modules/auth/security/accountSecurity.core";
 
 /**
  * Middleware principal d'authentification.
@@ -52,18 +53,26 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
  * Doit être utilisé APRÈS requireAuth.
  */
 export function requireRole(...roles: Role[]) {
-  return (req: AuthedRequest, _res: Response, next: NextFunction) => {
-    if (!req.user) throw new UnauthorizedError();
+  return async (req: AuthedRequest, _res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) throw new UnauthorizedError();
 
-    const role = req.user.role;
-    const ownerInheritsStaffAccess =
-      role === Role.OWNER &&
-      (roles.includes(Role.OWNER) || roles.includes(Role.ADMIN) || roles.includes(Role.MODERATOR));
+      const role = req.user.role;
+      const ownerInheritsStaffAccess =
+        role === Role.OWNER &&
+        (roles.includes(Role.OWNER) || roles.includes(Role.ADMIN) || roles.includes(Role.MODERATOR));
 
-    if (!roles.includes(role) && !ownerInheritsStaffAccess) {
-      throw new ForbiddenError("Permissions insuffisantes");
+      if (!roles.includes(role) && !ownerInheritsStaffAccess) {
+        throw new ForbiddenError("Permissions insuffisantes");
+      }
+
+      // Double authentification obligatoire pour OWNER et ADMIN : une fois l'échéance
+      // passée, seules les routes réservées au personnel sont fermées (jamais MODERATOR ni USER).
+      await assertPrivilegedTwoFactor(req.user.userId, role);
+      next();
+    } catch (err) {
+      next(err);
     }
-    next();
   };
 }
 

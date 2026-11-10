@@ -59,6 +59,12 @@ export const ResetPasswordSchema = z.object({
 });
 export const TwoFactorSetupSchema = z.object({
   currentPassword: z.string().min(1, "Mot de passe requis"),
+  // Requis seulement pour changer d'appareil quand la double authentification est déjà active.
+  currentCode: z.string().trim().min(6).max(20).optional(),
+});
+export const BackupCodesSchema = z.object({
+  currentPassword: z.string().min(1, "Mot de passe requis"),
+  code: z.string().trim().min(6, "Code requis").max(20),
 });
 export const TwoFactorCodeSchema = z.object({
   code: z.string().trim().min(6, "Code requis").max(20),

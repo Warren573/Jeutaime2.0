@@ -55,15 +55,26 @@ export function totpCodeAt(secret: string, timeMs: number): string {
   return binary.toString().padStart(TOTP_DIGITS, "0");
 }
 
-/** Accepte le pas courant et un pas de chaque côté (dérive d'horloge du téléphone). */
-export function verifyTotp(secret: string, code: string, nowMs: number = Date.now()): boolean {
+/**
+ * Retourne le numéro de pas TOTP correspondant au code (pas courant ou un pas de
+ * dérive de chaque côté), ou null. Le numéro sert à refuser le rejeu d'un code déjà utilisé.
+ */
+export function matchTotpStep(secret: string, code: string, nowMs: number = Date.now()): number | null {
   const normalized = code.replace(/\s/g, "");
-  if (!/^\d{6}$/.test(normalized)) return false;
+  if (!/^\d{6}$/.test(normalized)) return null;
   for (const drift of [-1, 0, 1]) {
-    const expected = totpCodeAt(secret, nowMs + drift * TOTP_STEP_SECONDS * 1000);
-    if (timingSafeEqual(Buffer.from(expected), Buffer.from(normalized))) return true;
+    const at = nowMs + drift * TOTP_STEP_SECONDS * 1000;
+    const expected = totpCodeAt(secret, at);
+    if (timingSafeEqual(Buffer.from(expected), Buffer.from(normalized))) {
+      return Math.floor(at / 1000 / TOTP_STEP_SECONDS);
+    }
   }
-  return false;
+  return null;
+}
+
+/** Accepte le pas courant et un pas de dérive de chaque côté (dérive d'horloge du téléphone). */
+export function verifyTotp(secret: string, code: string, nowMs: number = Date.now()): boolean {
+  return matchTotpStep(secret, code, nowMs) !== null;
 }
 
 export function otpauthUri(secret: string, account: string, issuer = "JeuTaime"): string {

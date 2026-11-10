@@ -122,6 +122,9 @@ export type SecurityAlertReason =
   | "new_device_login"
   | "two_factor_enabled"
   | "two_factor_disabled"
+  | "two_factor_replaced"
+  | "two_factor_reset"
+  | "backup_codes_regenerated"
   | "all_sessions_revoked";
 
 const ALERT_TEXT: Record<SecurityAlertReason, string> = {
@@ -132,6 +135,9 @@ const ALERT_TEXT: Record<SecurityAlertReason, string> = {
   new_device_login: "Une connexion à ton compte JeuTaime vient d'avoir lieu depuis un nouvel appareil.",
   two_factor_enabled: "La double authentification vient d'être activée sur ton compte JeuTaime.",
   two_factor_disabled: "La double authentification vient d'être désactivée sur ton compte JeuTaime.",
+  two_factor_replaced: "La double authentification de ton compte JeuTaime a été configurée sur un nouvel appareil.",
+  two_factor_reset: "La double authentification de ton compte JeuTaime a été réinitialisée par le propriétaire. Reconfigure-la dès ta prochaine connexion.",
+  backup_codes_regenerated: "De nouveaux codes de secours ont été générés pour ton compte JeuTaime. Les anciens ne fonctionnent plus.",
   all_sessions_revoked: "Tous les appareils ont été déconnectés de ton compte JeuTaime.",
 };
 

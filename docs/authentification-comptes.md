@@ -15,21 +15,24 @@ Tous les essais ont utilisé une base PostgreSQL locale et une boîte d'envoi si
 | 5 | Protection contre les tentatives répétées | **développé et testé** | idem |
 | 6 | Déconnexion de tous les appareils, retrait des jetons push | **développé et testé** | idem |
 | 7 | Historique des connexions, sessions actives | **développé et testé** | idem + parcours HTTP |
-| 8 | TOTP pour OWNER et ADMIN, codes de secours | **développé et testé** | `totp.test.ts` (vecteurs RFC 6238) |
+| 8 | TOTP pour OWNER et ADMIN, codes de secours — **obligatoire après 14 jours** (§ 5 bis) | **développé et testé** | `totp.test.ts` (vecteurs RFC 6238), `two-factor-enforcement.test.ts` |
 | 9 | Alertes de sécurité | **développé et testé** | idem |
-| 10 | Désactivation, suppression, export | **vérifié, 2 défauts corrigés** (§ 7) | idem |
+| 10 | Désactivation, suppression, export | **vérifié, 2 défauts corrigés** (§ 7) ; l'historique des connexions est ajouté à l'export | idem |
 
 ### Tests exécutés (PostgreSQL 16 local, boîte e-mail simulée)
 
 | Fichier | Résultat |
 |---|---|
 | `tests/unit/totp.test.ts` | 10/10 |
+| `tests/unit/twoFactorEnforcement.test.ts` (règle pure : rôles, dates, 14 jours) | 12/12 |
 | `tests/integration/account-security.test.ts` | 21/21 |
 | `tests/integration/account-security-http.test.ts` | 5/5 |
-| Suite backend complète | 762 réussis, 19 échoués, 25 ignorés. Les 19 échecs sont **les mêmes que sur `main`** (mocks obsolètes, traités dans la PR #192) ; aucun nouveau |
-| Typecheck backend et frontend | 0 erreur |
-| Export web complet de l'application | réussi |
-| Pilotage de l'interface web (format iPhone 13 et Pixel 7) contre l'API locale | voir § 6 |
+| `tests/integration/two-factor-enforcement.test.ts` (chaque rôle, délais, sessions existantes, contournements, récupération, export) | 22/22 |
+| Suite backend complète | **796 réussis**, 19 échoués, 25 ignorés. Les 19 échecs sont **les mêmes que sur `main`** (mocks obsolètes, traités dans la PR #192) ; aucun nouveau |
+| Contrôle des tests par mutation | contrôle d'accès neutralisé : 8 tests échouent ; interdiction de désactiver retirée : 1 test échoue ; code restauré : tout passe |
+| Typecheck backend et frontend, export web complet | OK |
+| Interface web pilotée (iPhone 13, Pixel 7) contre l'API locale | voir § 5 bis et § 6 |
+| Procédure de dernier recours en ligne de commande, sur un OWNER de test local | voir § 5 bis |
 
 **Non testé** : tout sur iPhone et Galaxy physiques, et tout envoi réel d'e-mail.
 
@@ -85,7 +88,8 @@ Les liens ont la forme `https://jeutaime.app/reset-password?token=…`, `/verify
 | `EMAIL_TRANSPORT` | transport d'envoi | `disabled` |
 | `EMAIL_FROM` | expéditeur | `JeuTaime <ne-pas-repondre@jeutaime.app>` |
 | `APP_PUBLIC_URL` | base des liens envoyés | `https://jeutaime.app` |
-| `TWO_FACTOR_ENCRYPTION_KEY` | chiffrement des secrets de double authentification, 32 caractères minimum | absente : la double authentification est alors **indisponible** |
+| `TWO_FACTOR_ENCRYPTION_KEY` | chiffrement des secrets de double authentification, 32 caractères minimum | absente : la double authentification est **indisponible et l'obligation n'est pas appliquée** |
+| `TWO_FACTOR_ENFORCEMENT_START` | **date d'activation de l'obligation**, au format `2026-12-01T00:00:00Z` | absente : **rien n'est bloqué** |
 | `LOGIN_LOCK_MAX_FAILURES` | échecs avant verrouillage | 10 |
 | `LOGIN_LOCK_WINDOW_MINUTES` | durée du verrouillage et fenêtre de comptage | 15 |
 
@@ -113,6 +117,59 @@ concernés ne peuvent plus se connecter (reprise manuelle en base).
   de la boîte). **Décision produit** : faut-il restreindre certaines fonctions tant que l'adresse n'est pas confirmée ?
 - Changement d'adresse : l'adresse ne change qu'à l'ouverture du lien envoyé à la **nouvelle** adresse (valable 1 heure).
   À ce moment l'**ancienne** adresse reçoit une alerte qui ne mentionne pas la nouvelle, et tous les appareils sont déconnectés.
+
+## 5 bis. Double authentification obligatoire pour OWNER et ADMIN
+
+Décision validée : obligatoire pour OWNER et ADMIN ; jamais pour les utilisateurs classiques ni les MODERATOR.
+
+### Règles appliquées
+
+| Compte | Comportement | Vérifié par |
+|---|---|---|
+| USER, MODERATOR | jamais obligatoire ; aucune restriction ; ne peuvent pas activer la 2FA (réservée aux comptes d'administration) | tests : rôles, 60 jours après l'activation |
+| OWNER et ADMIN **existants** | **14 jours à compter de la date d'activation**, puis administration bloquée tant que la 2FA n'est pas configurée | tests : 13,99 jours → accès, 14,01 jours → bloqué |
+| **Nouvel ADMIN** (promu par l'OWNER) | **aucun délai** : l'administration lui est fermée jusqu'à la configuration. Un ADMIN rétrogradé puis re-promu redevient « nouveau » | tests : promotion par l'API, re-promotion |
+| Après le délai | **seules les routes réservées au personnel sont fermées** (403 « double authentification requise »). Profil, lettres, portefeuille, réglages et configuration de la 2FA restent accessibles | test : routes testées une à une |
+| Une 2FA active | n'est **jamais désactivée automatiquement** : ni par l'échéance, ni par une réinitialisation de mot de passe, ni par un changement de rôle. Une désactivation voulue est **refusée** dès l'entrée en vigueur de l'obligation (changement d'appareil permis) | tests dédiés + mutation |
+
+« Existant » signifie : compte ADMIN ou OWNER dont la colonne `privilegedRoleSince` est vide, c'est-à-dire créé avant cette version. Cette colonne est renseignée à chaque promotion en ADMIN faite après le déploiement.
+
+### Sessions existantes et contournements testés
+- **Une session ouverte avant l'échéance est bloquée dès l'échéance**, sans se reconnecter, et le renouvellement du jeton ne contourne rien : le contrôle lit la base à chaque requête.
+- Un code TOTP ne sert **qu'une fois**, y compris présenté 5 fois en parallèle (un seul accepté) ; un code de secours aussi (6 présentations simultanées, une seule connexion).
+- La demande de réinitialisation par l'OWNER avec le code TOTP qui vient de servir à se connecter est refusée.
+- Un ADMIN ne peut pas appeler la route de réinitialisation, ni un OWNER sans 2FA, ni sur un OWNER, ni sur soi-même, ni avec un mauvais mot de passe, un champ inconnu ou un motif trop court.
+- Sans `TWO_FACTOR_ENCRYPTION_KEY`, l'obligation **n'est pas appliquée** : exiger une 2FA impossible à configurer verrouillerait l'administration (défaut trouvé et corrigé pendant ce travail).
+- Les routes sensibles de la 2FA sont limitées à 5 tentatives par minute et par adresse IP.
+
+### Codes de secours et récupération (aucune désactivation automatique)
+
+| Situation | Solution | Nature |
+|---|---|---|
+| Téléphone disponible | code à 6 chiffres | — |
+| Changement de téléphone | Réglages → Sécurité et appareils → « Changer d'appareil » : mot de passe + code actuel ; l'ancien appareil reste valable jusqu'à la confirmation du nouveau, puis 10 nouveaux codes de secours remplacent les anciens | dans l'application |
+| Téléphone perdu, **codes de secours disponibles** | se connecter avec un code de secours (usage unique), puis « Changer d'appareil » | dans l'application |
+| Codes de secours presque épuisés | « Nouveaux codes de secours » : les anciens cessent immédiatement | dans l'application |
+| **Un ADMIN a tout perdu** | l'OWNER réinitialise sa 2FA : `POST /api/admin/users/:id/two-factor/reset` avec **son mot de passe et un code de sa propre 2FA**, un motif ; trace dans le journal d'audit, sessions du compte fermées, alerte envoyée à l'ADMIN. Le rôle ne change pas, l'ADMIN doit reconfigurer | action humaine, **API uniquement : aucun écran dans l'application pour l'instant** |
+| **L'OWNER a tout perdu** | aucun recours dans l'application. Le détenteur de l'accès à la base exécute `scripts/reset-two-factor.ts` en deux temps : aperçu (aucune modification, affiche un code de confirmation propre au compte), puis exécution avec ce code. Efface la 2FA, ferme les sessions, laisse une ligne d'audit sans auteur applicatif, alerte le compte | action humaine hors application |
+| Levier d'urgence | retirer `TWO_FACTOR_ENFORCEMENT_START` (ou `TWO_FACTOR_ENCRYPTION_KEY`) lève tout blocage ; ne touche à aucune 2FA existante | configuration |
+
+**Conseil** : conserver les codes de secours hors du téléphone (gestionnaire de mots de passe ou papier).
+
+### Mise en service (chaque étape exige votre accord)
+1. Déployer le serveur avec la migration. **Tant que `TWO_FACTOR_ENFORCEMENT_START` est absente, rien n'est bloqué.**
+2. Définir `TWO_FACTOR_ENCRYPTION_KEY` (gestionnaire de secrets, sauvegarde indispensable).
+3. Publier l'OTA contenant les écrans. Le serveur doit être déployé avant.
+4. **Avant de fixer la date**, configurer la 2FA sur votre compte OWNER et sur chaque ADMIN, et noter les codes de secours.
+5. Définir `TWO_FACTOR_ENFORCEMENT_START` : le délai de 14 jours part de cette date. L'application affiche alors « Il te reste N jours » dans Réglages → Sécurité et appareils.
+6. Repousser la date retarde l'échéance ; la retirer lève le blocage.
+
+### Vérifié dans l'interface web (Playwright, API locale, compte ADMIN de test sans 2FA)
+- Obligation active depuis 20 jours : l'ouverture de l'administration affiche « Double authentification requise » puis redirige vers l'écran Sécurité, qui montre le bandeau « Action requise ».
+- Après configuration : bandeau disparu, **bouton « Désactiver » absent**, « Changer d'appareil » et « Nouveaux codes de secours » présents, administration de nouveau accessible.
+- Changement d'appareil : nouvelle clé différente, 10 nouveaux codes de secours, aucun ancien code repris.
+- Obligation active depuis 5 jours : « Il te reste 9 jours pour la configurer (jusqu'au 19/11/2026) » et administration accessible.
+- Non vérifié : iPhone 16e et Galaxy A16 réels.
 
 ## 6. Écrans iOS et Android
 
@@ -148,7 +205,7 @@ l'heure de ton téléphone et réessaie. », « Trop de demandes. Réessaie dans
 | Désactivation | ferme les sessions et bloque l'accès immédiatement ; **les jetons push restaient enregistrés** : un compte désactivé recevait toujours des notifications (mesuré : 1 jeton avant, 0 après correctif) | **corrigé et testé** |
 | Suppression | efface profil, photos, lettres, matchs, portefeuille, sessions, jetons push, liens et codes de secours (testé). **L'historique des connexions, qui contient l'adresse e-mail, n'était pas effacé** (2 lignes avant correctif, 0 après ; 7 lignes orphelines relevées dans la base de test) | **corrigé et testé** |
 | Export des données | ne contient ni empreinte de mot de passe ni secret de double authentification (testé) | conforme |
-| Export des données | **ne contient pas l'historique des connexions ni la liste des appareils**, qui sont des données personnelles couvertes par le droit d'accès | **à décider** (ajout simple) |
+| Export des données | contient désormais l'**historique des connexions et les appareils** (date, adresse IP, type d'appareil), dans une rubrique `security`, sans empreinte de jeton, de mot de passe ni de secret (testé) | **corrigé et testé** |
 
 ## 8. Protections et limites connues
 
@@ -158,8 +215,8 @@ l'heure de ton téléphone et réessaie. », « Trop de demandes. Réessaie dans
 | Lien volé ou rejoué | usage unique atomique (deux requêtes simultanées : une seule réussit), expiration, nouvelle demande = ancien lien invalide, seule l'empreinte est stockée | — |
 | Inondation de demandes | 3 liens par heure et par compte et par type, plus la limite par IP | — |
 | Savoir si une adresse a un compte | « mot de passe oublié » répond de façon identique dans tous les cas | le **temps de réponse** peut légèrement différer ; et l'**inscription** indique encore « Cet email est déjà utilisé » (comportement antérieur, non modifié) |
-| Vol du mot de passe d'un ADMIN | double authentification TOTP, codes de secours à usage unique, secret chiffré (AES-256-GCM) | **facultative** : un ADMIN ou OWNER peut s'en passer. La rendre obligatoire est une décision (avec délai de grâce) |
-| Perte du téléphone et des codes de secours | aucune | **aucune récupération automatique** : une réinitialisation manuelle en base est nécessaire. Conserver les codes de secours hors du téléphone |
+| Vol du mot de passe d'un ADMIN | double authentification TOTP **obligatoire** (§ 5 bis), codes de secours à usage unique, secret chiffré (AES-256-GCM), anti-rejeu des codes | pendant les 14 jours de transition, un ADMIN existant peut encore s'en passer |
+| Perte du téléphone et des codes de secours | réinitialisation par l'OWNER (ADMIN) ou par l'opérateur de la base (OWNER), § 5 bis | **jamais automatique**. Pas d'écran pour la réinitialisation par l'OWNER |
 | Jeton d'accès après déconnexion | les jetons de rafraîchissement sont révoqués immédiatement | un jeton d'accès déjà émis reste valable au plus **15 minutes** |
 
 ## 9. Vérification manuelle sur appareils (après déploiement du serveur et publication de l'OTA)
@@ -182,9 +239,22 @@ l'heure de ton téléphone et réessaie. », « Trop de demandes. Réessaie dans
 |---|---|
 | Choix et activation du fournisseur d'e-mails, DNS du domaine | **votre décision**, nécessaire pour que la récupération de compte existe |
 | Confirmer que `jeutaime.app` sert l'application web | à vérifier |
-| Liens ouvrant l'application mobile (liens universels) | **build natif** |
-| Double authentification obligatoire pour OWNER et ADMIN | décision |
+| Date d'activation `TWO_FACTOR_ENFORCEMENT_START` et clé `TWO_FACTOR_ENCRYPTION_KEY` | **votre décision**, après avoir configuré votre propre 2FA (§ 5 bis) |
+| Écran de réinitialisation de la 2FA d'un ADMIN par l'OWNER | non développé (l'écran d'administration compte 3 000 lignes) ; la route existe et est testée |
+| Rappel automatique (notification) avant l'échéance des 14 jours | non développé : l'application n'affiche le décompte que dans l'écran Sécurité. Nouveau déclencheur de notification : à valider |
 | Vérification de l'adresse obligatoire pour certaines fonctions | décision |
-| Historique des connexions dans l'export des données | décision |
-| Notification de sécurité pour une connexion depuis un pays inhabituel | non développé (nécessite une géolocalisation d'adresse IP : service tiers et traitement de données à déclarer) |
+| Liens ouvrant l'application mobile (liens universels) | **build natif** |
+| Notification de sécurité pour une connexion depuis un pays inhabituel | non développé (service tiers de géolocalisation et traitement à déclarer) |
 | Opération sur votre compte OWNER | **aucune effectuée** ; procédure dans `docs/securite-compte-owner.md` (PR #193) |
+
+## 11. Risques restants
+
+| Risque | Gravité | Atténuation |
+|---|---|---|
+| Perte de la clé `TWO_FACTOR_ENCRYPTION_KEY` : tous les secrets deviennent illisibles, les comptes protégés ne peuvent plus se connecter | élevée | sauvegarde en gestionnaire de secrets ; le script de dernier recours efface les secrets ; levier d'urgence § 5 bis |
+| Un OWNER perd téléphone et codes : seul l'opérateur de la base peut le débloquer | moyenne | codes hors du téléphone ; l'opérateur est le propriétaire lui-même |
+| Aucun fournisseur d'e-mails : pas de récupération de mot de passe | élevée tant qu'il n'est pas choisi | décision en attente |
+| Verrouillage de compte déclenchable par un tiers (15 min) | faible | expire seul ; déjà documenté |
+| Jeton d'accès valable jusqu'à 15 minutes après une révocation | faible | les contrôles d'administration, eux, lisent la base à chaque requête |
+| Migration `privilegedRoleSince` : un OWNER créé directement en base après l'activation bénéficie du délai de 14 jours | faible | l'OWNER n'est attribuable que par accès à la base |
+| Réinitialisation par l'OWNER uniquement par l'API | faible | écran à développer |

@@ -15,6 +15,7 @@ import {
   ResetPasswordSchema,
   TokenSchema,
   TwoFactorSetupSchema,
+  BackupCodesSchema,
   TwoFactorCodeSchema,
   TwoFactorDisableSchema,
 } from "./auth.schemas";
@@ -119,8 +120,10 @@ router.get("/sessions", requireAuth as never, authed(ctrl.handleListSessions));
 router.delete("/sessions/:id", requireAuth as never, authed(ctrl.handleRevokeSession));
 router.get("/login-history", requireAuth as never, authed(ctrl.handleLoginHistory));
 router.get("/security", requireAuth as never, authed(ctrl.handleSecurityStatus));
-router.post("/2fa/setup", requireAuth as never, validate(TwoFactorSetupSchema), authed(ctrl.handleTwoFactorSetup));
-router.post("/2fa/enable", requireAuth as never, validate(TwoFactorCodeSchema), authed(ctrl.handleTwoFactorEnable));
-router.post("/2fa/disable", requireAuth as never, validate(TwoFactorDisableSchema), authed(ctrl.handleTwoFactorDisable));
+router.post("/2fa/setup", requireAuth as never, authRateLimit, validate(TwoFactorSetupSchema), authed(ctrl.handleTwoFactorSetup));
+router.post("/2fa/enable", requireAuth as never, authRateLimit, validate(TwoFactorCodeSchema), authed(ctrl.handleTwoFactorEnable));
+router.post("/2fa/disable", requireAuth as never, authRateLimit, validate(TwoFactorDisableSchema), authed(ctrl.handleTwoFactorDisable));
+
+router.post("/2fa/backup-codes", requireAuth as never, authRateLimit, validate(BackupCodesSchema), authed(ctrl.handleBackupCodes));
 
 export default router;

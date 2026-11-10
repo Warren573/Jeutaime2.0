@@ -48,9 +48,20 @@ export interface LoginEventDTO {
   createdAt: string;
 }
 
+export type TwoFactorState = 'not_required' | 'protected' | 'not_active' | 'grace' | 'blocked';
+
+export interface TwoFactorEnforcementDTO {
+  state: TwoFactorState;
+  /** Vrai dès que l'obligation est en vigueur pour ce rôle : la désactivation est alors interdite. */
+  mandatory: boolean;
+  deadline: string | null;
+  daysLeft: number | null;
+}
+
 export interface SecurityStatusDTO {
   available: boolean;
   enabled: boolean;
+  enforcement: TwoFactorEnforcementDTO;
   backupCodesRemaining: number;
   emailVerified: boolean;
   emailDelivery: boolean;
@@ -80,9 +91,20 @@ export async function resendEmailVerification(): Promise<string> {
   return ((await apiFetch('/auth/email/verify/resend', { method: 'POST' })).data?.status ?? '') as string;
 }
 
-export async function startTwoFactorSetup(currentPassword: string): Promise<{ secret: string; otpauthUri: string }> {
-  const res = await apiFetch('/auth/2fa/setup', { method: 'POST', body: JSON.stringify({ currentPassword }) });
-  return res.data as { secret: string; otpauthUri: string };
+export async function startTwoFactorSetup(
+  currentPassword: string,
+  currentCode?: string,
+): Promise<{ secret: string; otpauthUri: string; replacing: boolean }> {
+  const res = await apiFetch('/auth/2fa/setup', {
+    method: 'POST',
+    body: JSON.stringify(currentCode ? { currentPassword, currentCode } : { currentPassword }),
+  });
+  return res.data as { secret: string; otpauthUri: string; replacing: boolean };
+}
+
+export async function regenerateBackupCodes(currentPassword: string, code: string): Promise<{ backupCodes: string[] }> {
+  const res = await apiFetch('/auth/2fa/backup-codes', { method: 'POST', body: JSON.stringify({ currentPassword, code }) });
+  return res.data as { backupCodes: string[] };
 }
 
 export async function enableTwoFactor(code: string): Promise<{ backupCodes: string[] }> {

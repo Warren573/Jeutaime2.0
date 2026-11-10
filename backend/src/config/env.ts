@@ -51,6 +51,13 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().default("JeuTaime <ne-pas-repondre@jeutaime.app>"),
   // Clé de chiffrement des secrets de double authentification (32 caractères minimum).
   TWO_FACTOR_ENCRYPTION_KEY: z.string().min(32).optional(),
+  // Date d'entrée en vigueur de la double authentification obligatoire (OWNER, ADMIN), ex. 2026-12-01T00:00:00Z.
+  // Absente : l'obligation n'est pas encore active et rien n'est bloqué.
+  TWO_FACTOR_ENFORCEMENT_START: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? new Date(v.trim()) : undefined))
+    .refine((d) => d === undefined || !Number.isNaN(d.getTime()), "TWO_FACTOR_ENFORCEMENT_START : date invalide"),
   LOGIN_LOCK_MAX_FAILURES: z.coerce.number().int().min(3).default(10),
   LOGIN_LOCK_WINDOW_MINUTES: z.coerce.number().int().min(1).default(15),
 });

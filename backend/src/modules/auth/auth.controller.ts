@@ -143,7 +143,7 @@ export async function handleSecurityStatus(req: AuthedRequest, res: Response) {
 }
 
 export async function handleTwoFactorSetup(req: AuthedRequest, res: Response) {
-  res.json({ data: await security.setupTwoFactor(req.user.userId, req.body.currentPassword) });
+  res.json({ data: await security.setupTwoFactor(req.user.userId, req.body.currentPassword, req.body.currentCode) });
 }
 
 export async function handleTwoFactorEnable(req: AuthedRequest, res: Response) {
@@ -164,4 +164,11 @@ export async function handleTwoFactorDisable(req: AuthedRequest, res: Response) 
 /** Public : l'application s'en sert pour n'afficher « Mot de passe oublié ? » que si un e-mail peut réellement partir. */
 export async function handleCapabilities(_req: Request, res: Response) {
   res.json({ data: { emailDelivery: emailDeliveryEnabled() } });
+}
+
+export async function handleBackupCodes(req: AuthedRequest, res: Response) {
+  const result = await security.regenerateBackupCodes(req.user.userId, req.body.currentPassword, req.body.code);
+  res.json({
+    data: { message: "Nouveaux codes de secours générés. Les anciens ne fonctionnent plus.", ...result },
+  });
 }

@@ -18,6 +18,8 @@ export async function exportPersonalData(userId: string) {
       premiumTier: true,
       premiumUntil: true,
       lastLoginAt: true,
+      emailVerifiedAt: true,
+      twoFactorEnabledAt: true,
       createdAt: true,
       updatedAt: true,
       profile: {
@@ -187,6 +189,21 @@ export async function exportPersonalData(userId: string) {
     }),
   ]);
 
+  // Données de sécurité du compte : historique des connexions et appareils.
+  // Jamais d'empreinte de jeton, de mot de passe ni de secret de double authentification.
+  const [loginHistory, sessions] = await Promise.all([
+    prisma.loginEvent.findMany({
+      where: { OR: [{ userId }, { email: user.email.toLowerCase() }] },
+      orderBy: { createdAt: "desc" },
+      select: { success: true, reason: true, createdAt: true },
+    }),
+    prisma.refreshToken.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true, lastUsedAt: true, expiresAt: true, revokedAt: true, ip: true, userAgent: true },
+    }),
+  ]);
+
   return {
     exportedAt: new Date().toISOString(),
     account: {
@@ -219,5 +236,11 @@ export async function exportPersonalData(userId: string) {
     blocksMade,
     notifications,
     reactionsGiven,
+    security: {
+      emailVerifiedAt: user.emailVerifiedAt,
+      twoFactorEnabled: user.twoFactorEnabledAt !== null,
+      loginHistory,
+      sessions,
+    },
   };
 }

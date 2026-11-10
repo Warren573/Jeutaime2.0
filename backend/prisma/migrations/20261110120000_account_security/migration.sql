@@ -7,7 +7,10 @@ CREATE TYPE "AuthTokenPurpose" AS ENUM ('PASSWORD_RESET', 'EMAIL_VERIFY', 'EMAIL
 
 ALTER TABLE "User" ADD COLUMN "emailVerifiedAt" TIMESTAMP(3),
 ADD COLUMN "twoFactorSecret" TEXT,
-ADD COLUMN "twoFactorEnabledAt" TIMESTAMP(3);
+ADD COLUMN "twoFactorEnabledAt" TIMESTAMP(3),
+ADD COLUMN "twoFactorPendingSecret" TEXT,
+ADD COLUMN "twoFactorLastStep" INTEGER,
+ADD COLUMN "privilegedRoleSince" TIMESTAMP(3);
 
 ALTER TABLE "RefreshToken" ADD COLUMN "ip" TEXT,
 ADD COLUMN "userAgent" TEXT,

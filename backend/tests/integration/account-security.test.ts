@@ -290,7 +290,8 @@ describe("8. Double authentification (OWNER et ADMIN)", () => {
     // Tant que le code n'est pas confirmé, la connexion reste inchangée.
     await auth.login({ email: owner.email, password: PASSWORD });
     const stored = await prisma.user.findUniqueOrThrow({ where: { id: owner.id } });
-    expect(stored.twoFactorSecret).not.toContain(secret);
+    expect(stored.twoFactorSecret).toBeNull(); // rien n'est actif avant confirmation
+    expect(stored.twoFactorPendingSecret).not.toContain(secret); // chiffré
 
     await expect(sec.enableTwoFactor(owner.id, "000000")).rejects.toThrow(/Code incorrect/);
     const { backupCodes } = await sec.enableTwoFactor(owner.id, totpCodeAt(secret, Date.now()));
@@ -303,7 +304,13 @@ describe("8. Double authentification (OWNER et ADMIN)", () => {
     await expect(auth.login({ email: owner.email, password: PASSWORD, totpCode: "123456" })).rejects.toThrow(
       /double authentification incorrect/,
     );
-    await auth.login({ email: owner.email, password: PASSWORD, totpCode: totpCodeAt(secret, Date.now()) });
+    // Le code utilisé pour l'activation ne sert plus ; le suivant (pas +30 s) est accepté, une seule fois.
+    const next = totpCodeAt(secret, Date.now() + 30_000);
+    await expect(auth.login({ email: owner.email, password: PASSWORD, totpCode: totpCodeAt(secret, Date.now()) })).rejects.toThrow(
+      /incorrect/,
+    );
+    await auth.login({ email: owner.email, password: PASSWORD, totpCode: next });
+    await expect(auth.login({ email: owner.email, password: PASSWORD, totpCode: next })).rejects.toThrow(/incorrect/);
 
     // Code de secours : accepté une fois, refusé ensuite.
     await auth.login({ email: owner.email, password: PASSWORD, totpCode: backupCodes[0]! });
@@ -314,7 +321,8 @@ describe("8. Double authentification (OWNER et ADMIN)", () => {
     expect((await prisma.user.findUniqueOrThrow({ where: { id: owner.id } })).role).toBe("OWNER");
 
     await expect(sec.disableTwoFactor(owner.id, PASSWORD, "000000")).rejects.toThrow(/Code incorrect/);
-    await sec.disableTwoFactor(owner.id, PASSWORD, totpCodeAt(secret, Date.now()));
+    // Tous les codes TOTP de la fenêtre sont consommés : un code de secours est le recours.
+    await sec.disableTwoFactor(owner.id, PASSWORD, backupCodes[1]!);
     await auth.login({ email: owner.email, password: PASSWORD });
     expect(await prisma.twoFactorBackupCode.count({ where: { userId: owner.id } })).toBe(0);
   });
@@ -373,7 +381,7 @@ describe("10. Suppression, export", () => {
     expect(exported).not.toContain(row.twoFactorSecret!);
 
     // Historique de connexion rattaché au compte (par identifiant ET par adresse e-mail).
-    await auth.login({ email: admin.email, password: PASSWORD, totpCode: totpCodeAt(secret, Date.now()) });
+    await auth.login({ email: admin.email, password: PASSWORD, totpCode: totpCodeAt(secret, Date.now() + 30_000) });
     await expect(auth.login({ email: admin.email, password: "faux" })).rejects.toThrow();
     expect(await prisma.loginEvent.count({ where: { email: admin.email } })).toBeGreaterThan(0);
 

@@ -31,9 +31,11 @@ import {
   generateBackupCodes,
   generateTotpSecret,
   hashBackupCode,
+  matchTotpStep,
   otpauthUri,
-  verifyTotp,
 } from "./totp";
+import { evaluateTwoFactor, isPrivilegedRole } from "../../../policies/twoFactorEnforcement";
+import { writeAudit } from "../../admin/admin.audit";
 
 // ============================================================
 // Durées et limites
@@ -98,7 +100,7 @@ async function consumeToken(raw: string, purpose: AuthTokenPurpose) {
   return prisma.authToken.findUniqueOrThrow({ where: { tokenHash } });
 }
 
-async function revokeAllSessions(userId: string): Promise<number> {
+export async function revokeAllSessions(userId: string): Promise<number> {
   const res = await prisma.refreshToken.updateMany({
     where: { userId, revokedAt: null },
     data: { revokedAt: new Date() },
@@ -376,6 +378,18 @@ export class TwoFactorRequiredError extends HttpError {
   }
 }
 
+/** Délai de transition dépassé : les fonctions d'administration sont fermées jusqu'à la configuration. */
+export class TwoFactorSetupRequiredError extends HttpError {
+  constructor() {
+    super(
+      403,
+      "TWO_FACTOR_SETUP_REQUIRED",
+      "La double authentification est obligatoire pour accéder à l'administration. Configure-la dans Réglages → Sécurité et appareils.",
+    );
+    this.name = "TwoFactorSetupRequiredError";
+  }
+}
+
 function requireEncryptionKey(): string {
   if (!env.TWO_FACTOR_ENCRYPTION_KEY) {
     throw new UnprocessableError("La double authentification n'est pas encore configurée sur ce serveur.");
@@ -383,54 +397,51 @@ function requireEncryptionKey(): string {
   return env.TWO_FACTOR_ENCRYPTION_KEY;
 }
 
-const STAFF_2FA_ROLES: Role[] = [Role.OWNER, Role.ADMIN];
+const TWO_FACTOR_FIELDS = {
+  role: true,
+  twoFactorEnabledAt: true,
+  privilegedRoleSince: true,
+} as const;
 
-export async function setupTwoFactor(userId: string, currentPassword: string) {
-  const key = requireEncryptionKey();
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { email: true, role: true, passwordHash: true, twoFactorEnabledAt: true },
+export function enforcementFor(user: { role: string; twoFactorEnabledAt: Date | null; privilegedRoleSince: Date | null }) {
+  return evaluateTwoFactor({
+    role: user.role,
+    twoFactorEnabledAt: user.twoFactorEnabledAt,
+    privilegedRoleSince: user.privilegedRoleSince,
+    // Sans clé de chiffrement, la double authentification ne peut pas être configurée :
+    // l'obligation n'est alors pas appliquée (jamais d'exigence impossible à satisfaire).
+    enforcementStart: env.TWO_FACTOR_ENCRYPTION_KEY ? env.TWO_FACTOR_ENFORCEMENT_START : undefined,
   });
-  if (!user) throw new NotFoundError("Utilisateur");
-  if (!STAFF_2FA_ROLES.includes(user.role)) {
-    throw new ForbiddenError("La double authentification est réservée aux comptes d'administration.");
-  }
-  if (!(await comparePassword(currentPassword, user.passwordHash))) {
-    throw new UnauthorizedError("Mot de passe actuel incorrect");
-  }
-  if (user.twoFactorEnabledAt) throw new ConflictError("La double authentification est déjà active.");
-
-  const secret = generateTotpSecret();
-  await prisma.user.update({ where: { id: userId }, data: { twoFactorSecret: encryptSecret(secret, key) } });
-  // Le secret n'est renvoyé qu'ici, une seule fois, pour être saisi dans l'application d'authentification.
-  return { secret, otpauthUri: otpauthUri(secret, user.email) };
 }
 
-export async function enableTwoFactor(userId: string, code: string): Promise<{ backupCodes: string[] }> {
-  const key = requireEncryptionKey();
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { twoFactorSecret: true, twoFactorEnabledAt: true },
-  });
-  if (!user?.twoFactorSecret) throw new BadRequestError("Commence par lancer la configuration.");
-  if (user.twoFactorEnabledAt) throw new ConflictError("La double authentification est déjà active.");
-  if (!verifyTotp(decryptSecret(user.twoFactorSecret, key), code)) {
-    throw new BadRequestError("Code incorrect. Vérifie l'heure de ton téléphone et réessaie.");
-  }
-  const backupCodes = generateBackupCodes();
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: userId }, data: { twoFactorEnabledAt: new Date() } }),
-    prisma.twoFactorBackupCode.deleteMany({ where: { userId } }),
-    prisma.twoFactorBackupCode.createMany({ data: backupCodes.map((c) => ({ userId, codeHash: hashBackupCode(c) })) }),
-  ]);
-  await notifySecurity(userId, "two_factor_enabled");
-  return { backupCodes };
+/**
+ * Appelé pour toute route réservée au personnel. Lu en base à chaque requête :
+ * une session ouverte avant l'échéance est donc bloquée dès l'échéance, et
+ * un rôle ne peut pas être « emprunté » via un ancien jeton.
+ * Ne concerne jamais MODERATOR ni USER, et ne ferme jamais les routes de configuration.
+ */
+export async function assertPrivilegedTwoFactor(userId: string, role: string): Promise<void> {
+  if (!isPrivilegedRole(role)) return;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: TWO_FACTOR_FIELDS });
+  if (!user) throw new UnauthorizedError("Utilisateur introuvable");
+  if (enforcementFor(user).state === "blocked") throw new TwoFactorSetupRequiredError();
 }
 
-/** Vérifie un code TOTP ou un code de secours (consommé de façon atomique). */
+/** Code TOTP à usage unique : un pas déjà utilisé est refusé, y compris en cas de requêtes simultanées. */
+async function acceptTotp(userId: string, secret: string, code: string): Promise<boolean> {
+  const step = matchTotpStep(secret, code);
+  if (step === null) return false;
+  const claimed = await prisma.user.updateMany({
+    where: { id: userId, OR: [{ twoFactorLastStep: null }, { twoFactorLastStep: { lt: step } }] },
+    data: { twoFactorLastStep: step },
+  });
+  return claimed.count === 1;
+}
+
+/** Vérifie un code TOTP ou un code de secours (chacun à usage unique). */
 export async function verifySecondFactor(userId: string, encryptedSecret: string, code: string): Promise<boolean> {
   const key = requireEncryptionKey();
-  if (verifyTotp(decryptSecret(encryptedSecret, key), code)) return true;
+  if (await acceptTotp(userId, decryptSecret(encryptedSecret, key), code)) return true;
   const used = await prisma.twoFactorBackupCode.updateMany({
     where: { userId, codeHash: hashBackupCode(code), usedAt: null },
     data: { usedAt: new Date() },
@@ -438,14 +449,107 @@ export async function verifySecondFactor(userId: string, encryptedSecret: string
   return used.count === 1;
 }
 
-export async function disableTwoFactor(userId: string, currentPassword: string, code: string): Promise<void> {
+async function loadSecurityUser(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { passwordHash: true, twoFactorSecret: true, twoFactorEnabledAt: true },
+    select: {
+      email: true,
+      passwordHash: true,
+      twoFactorSecret: true,
+      twoFactorPendingSecret: true,
+      ...TWO_FACTOR_FIELDS,
+    },
   });
   if (!user) throw new NotFoundError("Utilisateur");
+  return user;
+}
+
+/**
+ * Prépare un secret. Il reste « en attente » et n'a aucun effet sur la connexion
+ * tant qu'un code valide ne l'a pas confirmé. Si la double authentification est
+ * déjà active (changement d'appareil), un code actuel est exigé en plus du mot de passe.
+ */
+export async function setupTwoFactor(userId: string, currentPassword: string, currentCode?: string) {
+  const key = requireEncryptionKey();
+  const user = await loadSecurityUser(userId);
+  if (!isPrivilegedRole(user.role)) {
+    throw new ForbiddenError("La double authentification est réservée aux comptes d'administration.");
+  }
+  if (!(await comparePassword(currentPassword, user.passwordHash))) {
+    throw new UnauthorizedError("Mot de passe actuel incorrect");
+  }
+  if (user.twoFactorEnabledAt && user.twoFactorSecret) {
+    if (!currentCode) throw new BadRequestError("Saisis un code actuel pour changer d'appareil.");
+    if (!(await verifySecondFactor(userId, user.twoFactorSecret, currentCode))) {
+      throw new BadRequestError("Code incorrect.");
+    }
+  }
+  const secret = generateTotpSecret();
+  await prisma.user.update({ where: { id: userId }, data: { twoFactorPendingSecret: encryptSecret(secret, key) } });
+  // Le secret n'est renvoyé qu'ici, une seule fois, pour être saisi dans l'application d'authentification.
+  return { secret, otpauthUri: otpauthUri(secret, user.email), replacing: Boolean(user.twoFactorEnabledAt) };
+}
+
+/** Confirme le secret en attente : l'active (ou remplace l'ancien) et émet 10 nouveaux codes de secours. */
+export async function enableTwoFactor(userId: string, code: string): Promise<{ backupCodes: string[] }> {
+  const key = requireEncryptionKey();
+  const user = await loadSecurityUser(userId);
+  if (!user.twoFactorPendingSecret) throw new BadRequestError("Commence par lancer la configuration.");
+  const secret = decryptSecret(user.twoFactorPendingSecret, key);
+  const step = matchTotpStep(secret, code);
+  if (step === null) throw new BadRequestError("Code incorrect. Vérifie l'heure de ton téléphone et réessaie.");
+
+  const wasEnabled = Boolean(user.twoFactorEnabledAt);
+  const backupCodes = generateBackupCodes();
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: {
+        twoFactorSecret: user.twoFactorPendingSecret,
+        twoFactorPendingSecret: null,
+        twoFactorEnabledAt: user.twoFactorEnabledAt ?? new Date(),
+        twoFactorLastStep: step,
+      },
+    }),
+    prisma.twoFactorBackupCode.deleteMany({ where: { userId } }),
+    prisma.twoFactorBackupCode.createMany({ data: backupCodes.map((c) => ({ userId, codeHash: hashBackupCode(c) })) }),
+  ]);
+  await notifySecurity(userId, wasEnabled ? "two_factor_replaced" : "two_factor_enabled");
+  return { backupCodes };
+}
+
+/** Nouveaux codes de secours : les précédents cessent immédiatement de fonctionner. */
+export async function regenerateBackupCodes(userId: string, currentPassword: string, code: string) {
+  const user = await loadSecurityUser(userId);
   if (!user.twoFactorEnabledAt || !user.twoFactorSecret) {
     throw new BadRequestError("La double authentification n'est pas active.");
+  }
+  if (!(await comparePassword(currentPassword, user.passwordHash))) {
+    throw new UnauthorizedError("Mot de passe actuel incorrect");
+  }
+  if (!(await verifySecondFactor(userId, user.twoFactorSecret, code))) throw new BadRequestError("Code incorrect.");
+  const backupCodes = generateBackupCodes();
+  await prisma.$transaction([
+    prisma.twoFactorBackupCode.deleteMany({ where: { userId } }),
+    prisma.twoFactorBackupCode.createMany({ data: backupCodes.map((c) => ({ userId, codeHash: hashBackupCode(c) })) }),
+  ]);
+  await notifySecurity(userId, "backup_codes_regenerated");
+  return { backupCodes };
+}
+
+/**
+ * Désactivation voulue par l'utilisateur. Refusée tant que l'obligation est en vigueur
+ * pour un compte OWNER ou ADMIN : seul un changement d'appareil est possible.
+ */
+export async function disableTwoFactor(userId: string, currentPassword: string, code: string): Promise<void> {
+  const user = await loadSecurityUser(userId);
+  if (!user.twoFactorEnabledAt || !user.twoFactorSecret) {
+    throw new BadRequestError("La double authentification n'est pas active.");
+  }
+  if (enforcementFor(user).mandatory) {
+    throw new ForbiddenError(
+      "La double authentification est obligatoire pour ton rôle. Tu peux changer d'appareil, mais pas la désactiver.",
+    );
   }
   if (!(await comparePassword(currentPassword, user.passwordHash))) {
     throw new UnauthorizedError("Mot de passe actuel incorrect");
@@ -453,27 +557,105 @@ export async function disableTwoFactor(userId: string, currentPassword: string, 
   if (!(await verifySecondFactor(userId, user.twoFactorSecret, code))) {
     throw new BadRequestError("Code incorrect.");
   }
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: userId }, data: { twoFactorSecret: null, twoFactorEnabledAt: null } }),
-    prisma.twoFactorBackupCode.deleteMany({ where: { userId } }),
-  ]);
+  await clearTwoFactor(userId);
   await notifySecurity(userId, "two_factor_disabled");
 }
 
-export async function twoFactorStatus(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true, twoFactorEnabledAt: true, emailVerifiedAt: true },
+/** Efface secret, secret en attente, anti-rejeu et codes de secours. Jamais appelée automatiquement. */
+export async function clearTwoFactor(userId: string): Promise<void> {
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorSecret: null, twoFactorPendingSecret: null, twoFactorEnabledAt: null, twoFactorLastStep: null },
+    }),
+    prisma.twoFactorBackupCode.deleteMany({ where: { userId } }),
+  ]);
+}
+
+/**
+ * Récupération d'un compte dont le téléphone et les codes de secours sont perdus.
+ * Action humaine de l'OWNER, jamais automatique : elle exige son mot de passe ET un
+ * code de sa propre double authentification, est tracée au journal d'audit, ferme
+ * toutes les sessions du compte concerné et l'en avertit.
+ * Un OWNER qui se verrouille lui-même n'a pas de recours dans l'application
+ * (voir scripts/reset-two-factor.ts).
+ */
+export async function resetTwoFactorByOwner(params: {
+  actor: { id: string; role: string };
+  targetId: string;
+  actorPassword: string;
+  actorCode: string;
+  reason: string;
+}): Promise<void> {
+  const { actor, targetId, actorPassword, actorCode, reason } = params;
+  if (actor.role !== Role.OWNER) throw new ForbiddenError("Réservé au propriétaire.");
+  if (actor.id === targetId) {
+    throw new BadRequestError("Tu ne peux pas réinitialiser ta propre double authentification depuis l'application.");
+  }
+  const owner = await loadSecurityUser(actor.id);
+  if (!owner.twoFactorEnabledAt || !owner.twoFactorSecret) {
+    throw new ForbiddenError("Active d'abord ta propre double authentification pour effectuer cette action.");
+  }
+  if (!(await comparePassword(actorPassword, owner.passwordHash))) {
+    throw new UnauthorizedError("Mot de passe incorrect");
+  }
+  if (!(await verifySecondFactor(actor.id, owner.twoFactorSecret, actorCode))) {
+    throw new BadRequestError("Code incorrect.");
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: { id: true, role: true, twoFactorEnabledAt: true },
   });
-  if (!user) throw new NotFoundError("Utilisateur");
+  if (!target) throw new NotFoundError("Utilisateur");
+  if (target.role === Role.OWNER) throw new ForbiddenError("Le compte propriétaire ne peut pas être réinitialisé ainsi.");
+  if (!target.twoFactorEnabledAt) throw new BadRequestError("La double authentification n'est pas active sur ce compte.");
+
+  await clearTwoFactor(targetId);
+  const sessions = await revokeAllSessions(targetId);
+  await writeAudit({
+    actorId: actor.id,
+    action: "admin.user.two_factor.reset",
+    target: targetId,
+    meta: { reason, sessionsRevoked: sessions, targetRole: target.role },
+  });
+  await notifySecurity(targetId, "two_factor_reset");
+}
+
+/**
+ * Dernier recours, exécuté par la personne qui détient l'accès à la base
+ * (scripts/reset-two-factor.ts). Jamais déclenché automatiquement.
+ * Efface la double authentification, ferme les sessions, laisse une trace d'audit
+ * sans auteur applicatif, et avertit le compte.
+ */
+export async function resetTwoFactorByOperator(userId: string, note: string): Promise<{ sessionsRevoked: number }> {
+  await clearTwoFactor(userId);
+  const sessionsRevoked = await revokeAllSessions(userId);
+  await prisma.auditLog.create({
+    data: { actorId: null, action: "operator.user.two_factor.reset", target: userId, meta: { note, sessionsRevoked } },
+  });
+  await notifySecurity(userId, "two_factor_reset");
+  return { sessionsRevoked };
+}
+
+export async function twoFactorStatus(userId: string) {
+  const user = await loadSecurityUser(userId);
+  const verified = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { emailVerifiedAt: true } });
+  const enforcement = enforcementFor(user);
   const remaining = user.twoFactorEnabledAt
     ? await prisma.twoFactorBackupCode.count({ where: { userId, usedAt: null } })
     : 0;
   return {
-    available: STAFF_2FA_ROLES.includes(user.role) && Boolean(env.TWO_FACTOR_ENCRYPTION_KEY),
+    available: isPrivilegedRole(user.role) && Boolean(env.TWO_FACTOR_ENCRYPTION_KEY),
     enabled: Boolean(user.twoFactorEnabledAt),
     backupCodesRemaining: remaining,
-    emailVerified: Boolean(user.emailVerifiedAt),
+    emailVerified: Boolean(verified.emailVerifiedAt),
     emailDelivery: emailDeliveryEnabled(),
+    enforcement: {
+      state: enforcement.state,
+      mandatory: enforcement.mandatory,
+      deadline: enforcement.deadline,
+      daysLeft: enforcement.daysLeft,
+    },
   };
 }
