@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
@@ -111,6 +112,8 @@ export function usePushNotifications() {
         const platform = getPlatform();
 
         await registerDevice(token, platform);
+        if (cancelled) return;
+        await AsyncStorage.setItem('jeutaime_push_token', token);
         console.debug(`[push] token registered (${platform})`);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
