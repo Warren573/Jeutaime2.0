@@ -277,17 +277,25 @@ export async function submitMatchAnswers(
       const type = result.questionsValidated
         ? NotificationType.QUESTIONS_PASSED
         : NotificationType.QUESTIONS_FAILED;
-      for (const recipientId of [match.userAId, match.userBId]) {
-        void (async () => {
+      // Persist both in-app notifications before returning the result.
+      // A push failure must never prevent the other recipient's notification.
+      await Promise.allSettled(
+        [match.userAId, match.userBId].map(async (recipientId) => {
           try {
             const meta = { matchId };
             await createNotification({ userId: recipientId, type, meta });
-            await sendPushToUser({ userId: recipientId, ...buildPushPayload(type, meta) });
+            // Push delivery is best-effort; in-app history is already persisted.
+            void sendPushToUser({
+              userId: recipientId,
+              ...buildPushPayload(type, meta),
+            }).catch((err) => {
+              logger.error({ err, matchId, recipientId }, "[questions] Push de résultat échoué");
+            });
           } catch (err) {
             logger.error({ err, matchId, recipientId }, "[questions] Notification de résultat échouée");
           }
-        })();
-      }
+        }),
+      );
     }
   }
   return result;
