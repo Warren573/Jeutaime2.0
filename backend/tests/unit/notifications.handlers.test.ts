@@ -58,6 +58,12 @@ vi.mock("../../src/config/prisma", () => ({
   },
 }));
 
+// Les notifications push sont testées séparément. Empêcher le vrai service
+// d'utiliser Prisma ou le réseau dans ces tests des notifications in-app.
+vi.mock("../../src/modules/notifications/push.service", () => ({
+  sendPushToUser: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Logger : silencieux
 vi.mock("../../src/config/logger", () => ({
   logger: {

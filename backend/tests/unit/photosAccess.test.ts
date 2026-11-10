@@ -31,12 +31,12 @@ describe("getPhotoLevel", () => {
     expect(getPhotoLevel({ totalLetters: 50, viewerIsPremium: false })).toBe(3);
   });
 
-  // --- PREMIUM users (threshold: 3 letters) ---
+  // --- PREMIUM users (immediate reveal) ---
 
-  it("PREMIUM Level 0: < 3 lettres", () => {
-    expect(getPhotoLevel({ totalLetters: 0, viewerIsPremium: true })).toBe(0);
-    expect(getPhotoLevel({ totalLetters: 1, viewerIsPremium: true })).toBe(0);
-    expect(getPhotoLevel({ totalLetters: 2, viewerIsPremium: true })).toBe(0);
+  it("PREMIUM Level 3: dès 0 lettre", () => {
+    expect(getPhotoLevel({ totalLetters: 0, viewerIsPremium: true })).toBe(3);
+    expect(getPhotoLevel({ totalLetters: 1, viewerIsPremium: true })).toBe(3);
+    expect(getPhotoLevel({ totalLetters: 2, viewerIsPremium: true })).toBe(3);
   });
 
   it("PREMIUM Level 3: >= 3 lettres", () => {
@@ -138,17 +138,17 @@ describe("resolvePhotoAccess", () => {
     expect(res.variant).toBe("original");
   });
 
-  // --- PREMIUM user progression (threshold: 3) --------------------------------------------------
+  // --- PREMIUM immediate reveal --------------------------------------------------
 
-  it("PREMIUM < 3 lettres = level 0 (not allowed)", () => {
+  it("PREMIUM sans lettres = level 3 (allowed)", () => {
     const res = resolvePhotoAccess({
       ...baseCtx,
       viewerIsPremium: true,
-      match: { userAId: viewerId, letterCountA: 1, letterCountB: 1 },
+      match: { userAId: viewerId, letterCountA: 0, letterCountB: 0 },
     });
-    expect(res.allowed).toBe(false);
-    expect(res.reason).toBe("LEVEL_0");
-    expect(res.level).toBe(0);
+    expect(res.allowed).toBe(true);
+    expect(res.reason).toBe("LEVEL_3");
+    expect(res.level).toBe(3);
   });
 
   it("PREMIUM >= 3 lettres = level 3 (allowed)", () => {

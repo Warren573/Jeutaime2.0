@@ -15,6 +15,8 @@ import {
 import { BREAK_CONDITION_TO_ANTISPELL } from "../../src/modules/magies/magies.constants";
 import { BadRequestError } from "../../src/core/errors";
 
+vi.mock("../../src/core/testMode", () => ({ isTestMode: () => false }));
+
 const now = new Date("2026-04-11T12:00:00.000Z");
 const inPast = new Date("2026-04-11T11:59:00.000Z");
 const inFuture = new Date("2026-04-11T12:01:00.000Z");
