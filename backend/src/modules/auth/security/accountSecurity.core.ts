@@ -398,8 +398,12 @@ const TWO_FACTOR_FIELDS = {
   privilegedRoleSince: true,
 } as const;
 
-export function enforcementFor(user: { role: string; twoFactorEnabledAt: Date | null; privilegedRoleSince: Date | null }) {
+export function enforcementFor(
+  user: { role: string; twoFactorEnabledAt: Date | null; privilegedRoleSince: Date | null },
+  now?: Date,
+) {
   return evaluateTwoFactor({
+    now,
     role: user.role,
     twoFactorEnabledAt: user.twoFactorEnabledAt,
     privilegedRoleSince: user.privilegedRoleSince,
@@ -581,8 +585,10 @@ export async function resetTwoFactorByOwner(params: {
   actorPassword: string;
   actorCode: string;
   reason: string;
+  /** Adresse du compte visé, retapée par l'OWNER : évite toute erreur de cible. */
+  confirmEmail: string;
 }): Promise<void> {
-  const { actor, targetId, actorPassword, actorCode, reason } = params;
+  const { actor, targetId, actorPassword, actorCode, reason, confirmEmail } = params;
   if (actor.role !== Role.OWNER) throw new ForbiddenError("Réservé au propriétaire.");
   if (actor.id === targetId) {
     throw new BadRequestError("Tu ne peux pas réinitialiser ta propre double authentification depuis l'application.");
@@ -594,17 +600,23 @@ export async function resetTwoFactorByOwner(params: {
   if (!(await comparePassword(actorPassword, owner.passwordHash))) {
     throw new UnauthorizedError("Mot de passe incorrect");
   }
-  if (!(await verifySecondFactor(actor.id, owner.twoFactorSecret, actorCode))) {
-    throw new BadRequestError("Code incorrect.");
-  }
 
+  // Le compte visé est vérifié AVANT de consommer le code à usage unique de l'OWNER :
+  // une faute de frappe ne doit pas lui coûter un code.
   const target = await prisma.user.findUnique({
     where: { id: targetId },
-    select: { id: true, role: true, twoFactorEnabledAt: true },
+    select: { id: true, email: true, role: true, twoFactorEnabledAt: true },
   });
   if (!target) throw new NotFoundError("Utilisateur");
   if (target.role === Role.OWNER) throw new ForbiddenError("Le compte propriétaire ne peut pas être réinitialisé ainsi.");
   if (!target.twoFactorEnabledAt) throw new BadRequestError("La double authentification n'est pas active sur ce compte.");
+  if (confirmEmail.trim().toLowerCase() !== target.email.toLowerCase()) {
+    throw new BadRequestError("L'adresse saisie ne correspond pas à celle du compte à réinitialiser.");
+  }
+
+  if (!(await verifySecondFactor(actor.id, owner.twoFactorSecret, actorCode))) {
+    throw new BadRequestError("Code incorrect.");
+  }
 
   await clearTwoFactor(targetId);
   const sessions = await revokeAllSessions(targetId);

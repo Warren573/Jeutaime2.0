@@ -136,13 +136,14 @@ export async function handleRepairLetters(req: AuthedRequest, res: Response) {
 
 // POST /api/admin/users/:id/two-factor/reset — OWNER only
 export async function handleResetTwoFactor(req: AuthedRequest, res: Response) {
-  const { password, code, reason } = req.body as ResetTwoFactorDto;
+  const { password, code, reason, confirmEmail } = req.body as ResetTwoFactorDto;
   await resetTwoFactorByOwner({
     actor: { id: req.user.userId, role: req.user.role },
     targetId: req.params["id"] as string,
     actorPassword: password,
     actorCode: code,
     reason,
+    confirmEmail,
   });
   res.json({ data: { message: "Double authentification réinitialisée. Les sessions du compte ont été fermées." } });
 }

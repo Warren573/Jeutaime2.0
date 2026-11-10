@@ -25,14 +25,16 @@ Tous les essais ont utilisé une base PostgreSQL locale et une boîte d'envoi si
 |---|---|
 | `tests/unit/totp.test.ts` | 10/10 |
 | `tests/unit/twoFactorEnforcement.test.ts` (règle pure : rôles, dates, 14 jours) | 12/12 |
+| `tests/unit/twoFactorReminder.test.ts` (seuils de rappel) | 6/6 |
 | `tests/integration/account-security.test.ts` | 21/21 |
 | `tests/integration/account-security-http.test.ts` | 5/5 |
-| `tests/integration/two-factor-enforcement.test.ts` (chaque rôle, délais, sessions existantes, contournements, récupération, export) | 22/22 |
-| Suite backend complète | **796 réussis**, 19 échoués, 25 ignorés. Les 19 échecs sont **les mêmes que sur `main`** (mocks obsolètes, traités dans la PR #192) ; aucun nouveau |
-| Contrôle des tests par mutation | contrôle d'accès neutralisé : 8 tests échouent ; interdiction de désactiver retirée : 1 test échoue ; code restauré : tout passe |
-| Typecheck backend et frontend, export web complet | OK |
+| `tests/integration/two-factor-enforcement.test.ts` (chaque rôle, délais, sessions existantes, contournements, récupération, vérification renforcée, export) | 26/26 |
+| `tests/integration/two-factor-reminder.test.ts` (rappels avant échéance) | 9/9 |
+| `tests/integration/two-factor-roles-regression.test.ts` (non-régression USER et MODERATOR) | 12/12 |
+| Suite backend complète | **830 réussis**, 20 échoués, 25 ignorés. Les 20 échecs sont les 19 d'origine (mocks obsolètes, PR #192) plus `notifications.policy.test.ts` (déjà échouant sur `main`, corrigé dans la PR #198). Aucun échec nouveau |
+| Contrôle des tests par mutation | contrôle d'accès neutralisé : 8 échecs ; interdiction de désactiver retirée : 1 échec ; verrou anti-doublon des rappels retiré : 1 échec ; rôles USER/MODERATOR traités comme ADMIN : 3 échecs. Code restauré : tout passe |
+| Typecheck backend et frontend ; lint de `src` | OK ; 243 problèmes, identique à avant ce travail |
 | Interface web pilotée (iPhone 13, Pixel 7) contre l'API locale | voir § 5 bis et § 6 |
-| Procédure de dernier recours en ligne de commande, sur un OWNER de test local | voir § 5 bis |
 
 **Non testé** : tout sur iPhone et Galaxy physiques, et tout envoi réel d'e-mail.
 
@@ -90,6 +92,7 @@ Les liens ont la forme `https://jeutaime.app/reset-password?token=…`, `/verify
 | `APP_PUBLIC_URL` | base des liens envoyés | `https://jeutaime.app` |
 | `TWO_FACTOR_ENCRYPTION_KEY` | chiffrement des secrets de double authentification, 32 caractères minimum | absente : la double authentification est **indisponible et l'obligation n'est pas appliquée** |
 | `TWO_FACTOR_ENFORCEMENT_START` | **date d'activation de l'obligation**, au format `2026-12-01T00:00:00Z` | absente : **rien n'est bloqué** |
+| `ENABLE_SCHEDULER` | active les tâches planifiées, **dont le rappel avant échéance** | `false` |
 | `LOGIN_LOCK_MAX_FAILURES` | échecs avant verrouillage | 10 |
 | `LOGIN_LOCK_WINDOW_MINUTES` | durée du verrouillage et fenêtre de comptage | 15 |
 
@@ -150,11 +153,52 @@ Décision validée : obligatoire pour OWNER et ADMIN ; jamais pour les utilisate
 | Changement de téléphone | Réglages → Sécurité et appareils → « Changer d'appareil » : mot de passe + code actuel ; l'ancien appareil reste valable jusqu'à la confirmation du nouveau, puis 10 nouveaux codes de secours remplacent les anciens | dans l'application |
 | Téléphone perdu, **codes de secours disponibles** | se connecter avec un code de secours (usage unique), puis « Changer d'appareil » | dans l'application |
 | Codes de secours presque épuisés | « Nouveaux codes de secours » : les anciens cessent immédiatement | dans l'application |
-| **Un ADMIN a tout perdu** | l'OWNER réinitialise sa 2FA : `POST /api/admin/users/:id/two-factor/reset` avec **son mot de passe et un code de sa propre 2FA**, un motif ; trace dans le journal d'audit, sessions du compte fermées, alerte envoyée à l'ADMIN. Le rôle ne change pas, l'ADMIN doit reconfigurer | action humaine, **API uniquement : aucun écran dans l'application pour l'instant** |
+| **Un ADMIN a tout perdu** | l'OWNER réinitialise sa 2FA depuis l'application (Administration → Propriétaire), ou par `POST /api/admin/users/:id/two-factor/reset` : mot de passe, code de sa propre 2FA, adresse du compte retapée, motif ; trace d'audit, sessions fermées, alerte à l'ADMIN. Voir « Réinitialiser la 2FA d'un ADMIN » | action humaine, dans l'application |
 | **L'OWNER a tout perdu** | aucun recours dans l'application. Le détenteur de l'accès à la base exécute `scripts/reset-two-factor.ts` en deux temps : aperçu (aucune modification, affiche un code de confirmation propre au compte), puis exécution avec ce code. Efface la 2FA, ferme les sessions, laisse une ligne d'audit sans auteur applicatif, alerte le compte | action humaine hors application |
 | Levier d'urgence | retirer `TWO_FACTOR_ENFORCEMENT_START` (ou `TWO_FACTOR_ENCRYPTION_KEY`) lève tout blocage ; ne touche à aucune 2FA existante | configuration |
 
 **Conseil** : conserver les codes de secours hors du téléphone (gestionnaire de mots de passe ou papier).
+
+### Rappel de sécurité avant l'échéance
+
+Un rappel est envoyé aux OWNER et ADMIN **qui n'ont pas encore configuré la 2FA**, à **7 jours, 3 jours puis 1 jour** de l'échéance.
+
+| Point | Règle (testée) |
+|---|---|
+| Destinataires | OWNER et ADMIN dans leur délai de transition, sans 2FA, non suspendus. **Jamais** USER ni MODERATOR, ni un compte déjà protégé, ni un nouvel ADMIN (déjà bloqué) |
+| Fréquence | un rappel par seuil et par compte, au plus ; jamais deux à la fois : si le serveur est en retard, seul le plus urgent est envoyé, jamais un moins urgent après un plus urgent |
+| Exécutions simultanées | un verrou par compte : 8 exécutions en parallèle produisent un seul rappel |
+| Arrêt | dès que la 2FA est configurée, ou après l'échéance |
+| Date repoussée | un nouveau cycle de rappels commence |
+| Canaux | notification dans l'application (cloche, icône de sécurité, ouvre l'écran Sécurité) ; notification push au texte **générique** (« Une action de sécurité t'attend sur ton compte », sans détail sur l'écran verrouillé) ; e-mail (simulé tant qu'aucun fournisseur n'est branché) |
+| Préférences | le push respecte l'interrupteur général de notifications de l'utilisateur ; la notification interne est toujours créée |
+
+**Prérequis** : le rappel est une tâche planifiée (`sendTwoFactorReminders`). **Elle ne tourne que si `ENABLE_SCHEDULER=true`** sur le serveur, ce qui n'est pas le cas par défaut. Sans cela, aucun rappel n'est envoyé (le décompte reste visible dans Réglages → Sécurité et appareils). À confirmer sur votre service (question INF-5).
+
+### Réinitialiser la 2FA d'un ADMIN (interface OWNER)
+
+Application : **Administration → onglet « Propriétaire » → Administrateurs actuels**. Chaque ADMIN indique « Double authentification : active / non configurée ». Si elle est active, le bouton « Réinitialiser la double authentification » ouvre un panneau.
+
+Vérification renforcée, toutes exigées **par le serveur** (l'interface n'est qu'un confort) :
+
+| Exigence | Détail |
+|---|---|
+| Rôle | OWNER uniquement (USER, MODERATOR et ADMIN reçoivent 403) |
+| L'OWNER est lui-même protégé | il doit avoir activé sa propre 2FA |
+| Mot de passe de l'OWNER | vérifié sans consommer de code |
+| Adresse du compte visé retapée | comparée côté serveur (la casse est ignorée) ; une faute de frappe est refusée **avant** de consommer le code de l'OWNER |
+| Code de l'OWNER | code TOTP ou code de secours, à usage unique |
+| Motif | 3 caractères minimum, inscrit au journal |
+| Dernière confirmation | boîte de dialogue avant l'envoi |
+| Limite | 5 tentatives par minute et par adresse IP |
+
+Conséquences : 2FA et codes de secours du compte effacés, toutes ses sessions fermées, alerte envoyée à l'ADMIN, **ligne dans le journal d'audit** (auteur, cible, motif, nombre de sessions fermées ; jamais de mot de passe, de code ni de secret). Le rôle ne change pas. Si le délai est dépassé, l'ADMIN reste bloqué pour l'administration jusqu'à ce qu'il reconfigure sa 2FA ; il peut se connecter et le faire immédiatement. La liste des comptes n'expose qu'un booléen « 2FA active », jamais le secret.
+
+Ne s'applique pas à un OWNER (aucun recours dans l'application : script de dernier recours, ci-dessus) ni à soi-même.
+
+### Aucune régression pour USER et MODERATOR
+- **Tests** : 12 tests dédiés, obligation active depuis 60 jours. USER et MODERATOR se connectent (un code superflu est ignoré), gardent session, portefeuille, profil, changement de mot de passe, déconnexion générale, export, désactivation et suppression ; ne reçoivent ni rappel ni e-mail ; ne peuvent ni configurer la 2FA ni utiliser la réinitialisation ; un MODERATOR garde ses routes de modération et reste exclu de l'administration avec le refus habituel de rôle. Un ADMIN bloqué puis rétrogradé en MODERATOR retrouve ses fonctions de modération, sans que sa 2FA soit touchée.
+- **Interface** : un USER et un MODERATOR de test se connectent normalement ; leur écran Sécurité ne montre ni carte « Double authentification » ni bandeau ; aucune boîte de dialogue inattendue ; le MODERATOR ouvre l'écran « Modération » sans redirection ; aucun rappel dans leurs notifications.
 
 ### Mise en service (chaque étape exige votre accord)
 1. Déployer le serveur avec la migration. **Tant que `TWO_FACTOR_ENFORCEMENT_START` est absente, rien n'est bloqué.**
@@ -169,6 +213,8 @@ Décision validée : obligatoire pour OWNER et ADMIN ; jamais pour les utilisate
 - Après configuration : bandeau disparu, **bouton « Désactiver » absent**, « Changer d'appareil » et « Nouveaux codes de secours » présents, administration de nouveau accessible.
 - Changement d'appareil : nouvelle clé différente, 10 nouveaux codes de secours, aucun ancien code repris.
 - Obligation active depuis 5 jours : « Il te reste 9 jours pour la configurer (jusqu'au 19/11/2026) » et administration accessible.
+- **Rappel** : un ADMIN sans 2FA voit « La double authentification devient obligatoire pour ton rôle dans 6 jours » dans sa cloche ; le toucher ouvre l'écran Sécurité (« Il te reste 6 jours ») ; l'administration reste accessible.
+- **Réinitialisation par l'OWNER** : la liste montre « active » / « non configurée » ; le bouton n'apparaît que pour l'ADMIN protégé ; une adresse erronée est signalée et le bouton reste inactif ; la dernière confirmation s'affiche ; après succès, la liste passe à « non configurée ». Contrôle en base : 2FA effacée, 0 session active, 0 code de secours, ligne d'audit avec l'OWNER comme auteur, alerte envoyée à l'ADMIN, rôle et 2FA de l'OWNER intacts.
 - Non vérifié : iPhone 16e et Galaxy A16 réels.
 
 ## 6. Écrans iOS et Android
@@ -182,6 +228,10 @@ Code JavaScript uniquement : **livrable par OTA**, sans nouveau build, à condit
 | Confirmer mon adresse, Nouvelle adresse e-mail | lien reçu par e-mail |
 | **Sécurité et appareils** | Réglages → Compte → Sécurité et appareils : adresse confirmée ou non, appareils connectés (déconnexion individuelle ou générale), double authentification, 20 dernières connexions |
 | Étape « Code de vérification » | apparaît à la connexion si le compte a la double authentification |
+| Rappel avant échéance | notification dans la cloche (icône de sécurité) et push générique ; le toucher ouvre l'écran Sécurité |
+| Bandeau d'obligation et décompte | écran Sécurité : « Action requise » (bloqué) ou « Il te reste N jours » |
+| Changer d'appareil, nouveaux codes de secours | écran Sécurité, quand la 2FA est active |
+| **Réinitialiser la 2FA d'un ADMIN** | OWNER : Administration → Propriétaire → Administrateurs actuels |
 | Changement d'e-mail | l'écran existant gère désormais le cas « confirmation en attente » |
 
 La déconnexion retire aussi le jeton de notification de l'appareil (jusqu'ici il restait enregistré).
@@ -216,7 +266,7 @@ l'heure de ton téléphone et réessaie. », « Trop de demandes. Réessaie dans
 | Inondation de demandes | 3 liens par heure et par compte et par type, plus la limite par IP | — |
 | Savoir si une adresse a un compte | « mot de passe oublié » répond de façon identique dans tous les cas | le **temps de réponse** peut légèrement différer ; et l'**inscription** indique encore « Cet email est déjà utilisé » (comportement antérieur, non modifié) |
 | Vol du mot de passe d'un ADMIN | double authentification TOTP **obligatoire** (§ 5 bis), codes de secours à usage unique, secret chiffré (AES-256-GCM), anti-rejeu des codes | pendant les 14 jours de transition, un ADMIN existant peut encore s'en passer |
-| Perte du téléphone et des codes de secours | réinitialisation par l'OWNER (ADMIN) ou par l'opérateur de la base (OWNER), § 5 bis | **jamais automatique**. Pas d'écran pour la réinitialisation par l'OWNER |
+| Perte du téléphone et des codes de secours | réinitialisation par l'OWNER (ADMIN, avec interface) ou par l'opérateur de la base (OWNER), § 5 bis | **jamais automatique** |
 | Jeton d'accès après déconnexion | les jetons de rafraîchissement sont révoqués immédiatement | un jeton d'accès déjà émis reste valable au plus **15 minutes** |
 
 ## 9. Vérification manuelle sur appareils (après déploiement du serveur et publication de l'OTA)
@@ -231,6 +281,9 @@ l'heure de ton téléphone et réessaie. », « Trop de demandes. Réessaie dans
 6. Compte ADMIN de test : activer la double authentification avec une application d'authentification, noter les codes de secours, se reconnecter avec le code puis avec un code de secours (usage unique).
 7. Clavier : les champs de code restent visibles au-dessus du clavier ; le code à 6 chiffres peut être proposé automatiquement par le téléphone.
 8. Désactiver un compte de test : plus aucune notification reçue ; se reconnecter le réactive.
+8 bis. **Rappel** : sur un ADMIN de test sans 2FA, avec `ENABLE_SCHEDULER=true` et une date d'obligation proche de l'échéance, la notification de rappel arrive (texte générique sur l'écran verrouillé) et ouvre l'écran Sécurité.
+8 ter. **Réinitialisation** : en OWNER de test avec 2FA, ouvrir Administration → Propriétaire, réinitialiser la 2FA d'un ADMIN de test (mauvaise adresse refusée, dernière confirmation, succès) ; vérifier côté ADMIN : déconnecté, alerte reçue, administration bloquée si le délai est dépassé, reconfiguration possible.
+8 quater. **USER et MODERATOR** de test : aucun bandeau ni rappel ; le MODERATOR garde ses fonctions de modération.
 9. Supprimer un compte de test : plus de trace dans l'export d'un autre compte, et la reconnexion est impossible.
 
 ## 10. Reste à faire ou à décider
@@ -240,8 +293,7 @@ l'heure de ton téléphone et réessaie. », « Trop de demandes. Réessaie dans
 | Choix et activation du fournisseur d'e-mails, DNS du domaine | **votre décision**, nécessaire pour que la récupération de compte existe |
 | Confirmer que `jeutaime.app` sert l'application web | à vérifier |
 | Date d'activation `TWO_FACTOR_ENFORCEMENT_START` et clé `TWO_FACTOR_ENCRYPTION_KEY` | **votre décision**, après avoir configuré votre propre 2FA (§ 5 bis) |
-| Écran de réinitialisation de la 2FA d'un ADMIN par l'OWNER | non développé (l'écran d'administration compte 3 000 lignes) ; la route existe et est testée |
-| Rappel automatique (notification) avant l'échéance des 14 jours | non développé : l'application n'affiche le décompte que dans l'écran Sécurité. Nouveau déclencheur de notification : à valider |
+| `ENABLE_SCHEDULER=true` sur le serveur | nécessaire pour que le rappel avant échéance soit envoyé (INF-5) |
 | Vérification de l'adresse obligatoire pour certaines fonctions | décision |
 | Liens ouvrant l'application mobile (liens universels) | **build natif** |
 | Notification de sécurité pour une connexion depuis un pays inhabituel | non développé (service tiers de géolocalisation et traitement à déclarer) |
@@ -257,4 +309,6 @@ l'heure de ton téléphone et réessaie. », « Trop de demandes. Réessaie dans
 | Verrouillage de compte déclenchable par un tiers (15 min) | faible | expire seul ; déjà documenté |
 | Jeton d'accès valable jusqu'à 15 minutes après une révocation | faible | les contrôles d'administration, eux, lisent la base à chaque requête |
 | Migration `privilegedRoleSince` : un OWNER créé directement en base après l'activation bénéficie du délai de 14 jours | faible | l'OWNER n'est attribuable que par accès à la base |
-| Réinitialisation par l'OWNER uniquement par l'API | faible | écran à développer |
+| Le rappel dépend de `ENABLE_SCHEDULER=true` | moyenne | sans lui, seul le décompte de l'écran Sécurité informe les administrateurs ; à confirmer sur le service |
+| Un OWNER dont la 2FA est réinitialisée par le script n'a pas de délai de grâce supplémentaire | faible | il peut se reconnecter et la reconfigurer aussitôt |
+| Limite de 5 tentatives par minute et par IP sur les routes 2FA et la réinitialisation | faible | une équipe derrière une même adresse partage ce quota |

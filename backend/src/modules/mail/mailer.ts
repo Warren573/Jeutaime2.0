@@ -153,3 +153,13 @@ export function securityAlertMail(to: string, reason: SecurityAlertReason): Mail
     text: `${ALERT_TEXT[reason]}\n\nSi c'est bien toi, tu n'as rien à faire.\nSinon, change ton mot de passe immédiatement et contacte le support depuis l'application.\n\nL'équipe JeuTaime`,
   };
 }
+
+export function twoFactorReminderMail(to: string, daysLeft: number, deadline: Date): MailMessage {
+  const unit = daysLeft > 1 ? "jours" : "jour";
+  return {
+    to,
+    kind: "security_alert",
+    subject: "JeuTaime — double authentification à configurer",
+    text: `La double authentification devient obligatoire pour ton rôle d'administration dans ${daysLeft} ${unit} (avant le ${deadline.toLocaleDateString("fr-FR")}).\n\nConfigure-la dans l'application : Réglages → Sécurité et appareils. Passé ce délai, l'administration sera bloquée jusqu'à la configuration ; le reste de JeuTaime continue de fonctionner.\n\nL'équipe JeuTaime`,
+  };
+}

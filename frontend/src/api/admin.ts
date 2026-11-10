@@ -94,6 +94,8 @@ export type AdminUser = {
   isBanned: boolean;
   banReason: string | null;
   banUntil: string | null;
+  /** Vrai si la double authentification est active (jamais le secret). */
+  twoFactorEnabled?: boolean;
 };
 
 export type AdminUserDetail = {
@@ -257,6 +259,17 @@ export async function adjustAdminUserCoins(id: string, amount: number, reason: s
     body: JSON.stringify({ amount, reason }),
   });
   return res.data;
+}
+
+/** OWNER uniquement : réinitialise la double authentification d'un compte (vérification renforcée côté serveur). */
+export async function resetAdminTwoFactor(
+  id: string,
+  payload: { password: string; code: string; reason: string; confirmEmail: string },
+): Promise<void> {
+  await apiFetch(`/admin/users/${encodeURIComponent(id)}/two-factor/reset`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function updateAdminUserRole(id: string, role: 'USER' | 'MODERATOR' | 'ADMIN'): Promise<AdminUser> {

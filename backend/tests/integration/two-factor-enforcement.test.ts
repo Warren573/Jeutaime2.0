@@ -353,8 +353,12 @@ describe("récupération par le propriétaire", () => {
     const { secret } = await enroll(owner);
     return { owner, secret, nextCode: () => totpCodeAt(secret, Date.now() + 30_000) };
   }
-  const reset = (tOwner: string, targetId: string, body: Record<string, unknown>) =>
-    request(app).post(`/api/admin/users/${targetId}/two-factor/reset`).set(bearer(tOwner)).send(body);
+  // Par défaut, l'OWNER retape correctement l'adresse du compte visé (confirmation explicite).
+  const reset = (tOwner: string, target: { id: string; email: string }, body: Record<string, unknown>) =>
+    request(app)
+      .post(`/api/admin/users/${target.id}/two-factor/reset`)
+      .set(bearer(tOwner))
+      .send({ confirmEmail: target.email, ...body });
 
   test("anti-rejeu : le code TOTP que l'OWNER vient d'utiliser pour se connecter ne peut pas autoriser la réinitialisation", async () => {
     enforcementStartedDaysAgo(30);
@@ -364,7 +368,7 @@ describe("récupération par le propriétaire", () => {
     const code = totpCodeAt(secret, Date.now() + 30_000);
     const tOwner = await tokenFor(owner, code);
 
-    const res = await reset(tOwner, admin.id, { password: PASSWORD, code, reason: "Téléphone perdu" });
+    const res = await reset(tOwner, admin, { password: PASSWORD, code, reason: "Téléphone perdu" });
     expect(res.status).toBe(400);
     expect((await prisma.user.findUniqueOrThrow({ where: { id: admin.id } })).twoFactorEnabledAt).not.toBeNull();
   });
@@ -378,11 +382,11 @@ describe("récupération par le propriétaire", () => {
     const adminSession = (await auth.login({ email: admin.email, password: PASSWORD, totpCode: adminCodes[0]! })).refreshToken;
     const tOwner = await tokenFor(owner, backupCodes[0]!);
 
-    const wrong = await reset(tOwner, admin.id, { password: PASSWORD, code: "000000", reason: "Téléphone perdu" });
+    const wrong = await reset(tOwner, admin, { password: PASSWORD, code: "000000", reason: "Téléphone perdu" });
     expect(wrong.status).toBe(400);
     expect((await prisma.user.findUniqueOrThrow({ where: { id: admin.id } })).twoFactorEnabledAt).not.toBeNull();
 
-    const ok = await reset(tOwner, admin.id, { password: PASSWORD, code: backupCodes[1]!, reason: "Téléphone perdu" });
+    const ok = await reset(tOwner, admin, { password: PASSWORD, code: backupCodes[1]!, reason: "Téléphone perdu" });
     expect(ok.status).toBe(200);
 
     const after = await prisma.user.findUniqueOrThrow({ where: { id: admin.id } });
@@ -417,21 +421,104 @@ describe("récupération par le propriétaire", () => {
     const adminCodes = (await prisma.twoFactorBackupCode.count({ where: { userId: admin.id } }));
     expect(adminCodes).toBe(10);
     const tPlainAdmin = await tokenFor(plainAdmin);
-    expect((await reset(tPlainAdmin, admin.id, { password: PASSWORD, code: "123456", reason: "abc" })).status).toBe(403);
+    expect((await reset(tPlainAdmin, admin, { password: PASSWORD, code: "123456", reason: "abc" })).status).toBe(403);
 
     // Un OWNER sans 2FA ne peut pas réinitialiser celle des autres.
     const tNoTf = await tokenFor(noTwoFactorOwner);
-    expect((await reset(tNoTf, admin.id, { password: PASSWORD, code: "123456", reason: "abc" })).status).toBe(403);
+    expect((await reset(tNoTf, admin, { password: PASSWORD, code: "123456", reason: "abc" })).status).toBe(403);
 
     const tOwner = await tokenFor(owner, ownerCodes[0]!);
-    expect((await reset(tOwner, otherOwner.id, { password: PASSWORD, code: ownerCodes[1]!, reason: "abc" })).status).toBe(403); // cible OWNER
-    expect((await reset(tOwner, owner.id, { password: PASSWORD, code: ownerCodes[2]!, reason: "abc" })).status).toBe(400); // soi-même
-    expect((await reset(tOwner, user.id, { password: PASSWORD, code: ownerCodes[3]!, reason: "abc" })).status).toBe(400); // sans 2FA
-    expect((await reset(tOwner, admin.id, { password: PASSWORD, code: ownerCodes[4]!, reason: "x" })).status).toBe(400); // motif trop court
-    expect((await reset(tOwner, admin.id, { password: "mauvais", code: ownerCodes[5]!, reason: "abc" })).status).toBe(401); // mauvais mot de passe
-    expect((await reset(tOwner, admin.id, { password: PASSWORD, code: ownerCodes[6]!, reason: "abc", extra: 1 })).status).toBe(400); // champ inconnu
+    expect((await reset(tOwner, otherOwner, { password: PASSWORD, code: ownerCodes[1]!, reason: "abc" })).status).toBe(403); // cible OWNER
+    expect((await reset(tOwner, owner, { password: PASSWORD, code: ownerCodes[2]!, reason: "abc" })).status).toBe(400); // soi-même
+    expect((await reset(tOwner, user, { password: PASSWORD, code: ownerCodes[3]!, reason: "abc" })).status).toBe(400); // sans 2FA
+    expect((await reset(tOwner, admin, { password: PASSWORD, code: ownerCodes[4]!, reason: "x" })).status).toBe(400); // motif trop court
+    expect((await reset(tOwner, admin, { password: "mauvais", code: ownerCodes[5]!, reason: "abc" })).status).toBe(401); // mauvais mot de passe
+    expect((await reset(tOwner, admin, { password: PASSWORD, code: ownerCodes[6]!, reason: "abc", extra: 1 })).status).toBe(400); // champ inconnu
     expect((await prisma.user.findUniqueOrThrow({ where: { id: admin.id } })).twoFactorEnabledAt).not.toBeNull();
     expect((await prisma.user.findUniqueOrThrow({ where: { id: otherOwner.id } })).twoFactorEnabledAt).not.toBeNull();
+  });
+
+  test("vérification renforcée : mauvaise adresse retapée → refus, rien ne change et le code de l'OWNER n'est pas consommé", async () => {
+    enforcementStartedDaysAgo(undefined);
+    const owner = await account("OWNER");
+    const { backupCodes } = await enroll(owner);
+    const admin = await account("ADMIN");
+    await enroll(admin);
+    const tOwner = await tokenFor(owner, backupCodes[0]!);
+
+    for (const wrong of ["autre@test.local", admin.email + ".fr", "", "pas-une-adresse"]) {
+      const res = await request(app)
+        .post(`/api/admin/users/${admin.id}/two-factor/reset`)
+        .set(bearer(tOwner))
+        .send({ password: PASSWORD, code: backupCodes[1]!, reason: "Téléphone perdu", confirmEmail: wrong });
+      expect(res.status).toBe(400);
+    }
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: admin.id } })).twoFactorEnabledAt).not.toBeNull();
+    // Le code de secours n'a pas été brûlé par les essais ratés : il fonctionne encore.
+    expect(await prisma.twoFactorBackupCode.count({ where: { userId: owner.id, usedAt: null } })).toBe(9); // 1 utilisé pour se connecter
+    const ok = await request(app)
+      .post(`/api/admin/users/${admin.id}/two-factor/reset`)
+      .set(bearer(tOwner))
+      .send({ password: PASSWORD, code: backupCodes[1]!, reason: "Téléphone perdu", confirmEmail: admin.email.toUpperCase() });
+    expect(ok.status).toBe(200); // la casse n'a pas d'importance
+  });
+
+  test("seul l'OWNER peut appeler la route : USER, MODERATOR et ADMIN reçoivent 403 sans rien lire de la cible", async () => {
+    enforcementStartedDaysAgo(undefined);
+    const owner = await account("OWNER");
+    await enroll(owner);
+    const admin = await account("ADMIN");
+    await enroll(admin);
+    for (const role of ["USER", "MODERATOR", "ADMIN"] as const) {
+      const caller = await account(role);
+      const res = await reset(await tokenFor(caller), admin, { password: PASSWORD, code: "123456", reason: "abc" });
+      expect(res.status).toBe(403);
+    }
+    expect((await reset("jeton-invalide", admin, { password: PASSWORD, code: "123456", reason: "abc" })).status).toBe(401);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: admin.id } })).twoFactorEnabledAt).not.toBeNull();
+  });
+
+  test("journal d'audit : auteur, cible, motif, sessions fermées — et aucun secret", async () => {
+    enforcementStartedDaysAgo(undefined);
+    const owner = await account("OWNER");
+    const { backupCodes } = await enroll(owner);
+    const admin = await account("ADMIN");
+    const adminSecret = (await enroll(admin)).secret;
+    await auth.login({ email: admin.email, password: PASSWORD, totpCode: totpCodeAt(adminSecret, Date.now() + 30_000) });
+    const tOwner = await tokenFor(owner, backupCodes[0]!);
+
+    expect((await reset(tOwner, admin, { password: PASSWORD, code: backupCodes[1]!, reason: "Téléphone perdu, codes introuvables" })).status).toBe(200);
+
+    const entry = await prisma.auditLog.findFirstOrThrow({ where: { action: "admin.user.two_factor.reset", target: admin.id } });
+    expect(entry.actorId).toBe(owner.id);
+    expect(entry.meta).toMatchObject({ reason: "Téléphone perdu, codes introuvables", sessionsRevoked: 1, targetRole: "ADMIN" });
+    const text = JSON.stringify(entry);
+    expect(text).not.toContain(PASSWORD);
+    expect(text).not.toContain(backupCodes[1]!);
+    expect(text).not.toContain(adminSecret);
+  });
+
+  test("liste des comptes : indique si la 2FA est active, sans jamais exposer de secret", async () => {
+    enforcementStartedDaysAgo(undefined);
+    const owner = await account("OWNER");
+    const { backupCodes } = await enroll(owner);
+    const withTf = await account("ADMIN");
+    const enrolled = await enroll(withTf);
+    const withoutTf = await account("ADMIN");
+
+    const res = await request(app)
+      .get("/api/admin/users")
+      .query({ q: `enf-${run}` })
+      .set(bearer(await tokenFor(owner, backupCodes[0]!)));
+    expect(res.status).toBe(200);
+    const byId = Object.fromEntries((res.body.data as Array<{ id: string; twoFactorEnabled: boolean }>).map((u) => [u.id, u]));
+    expect(byId[withTf.id]!.twoFactorEnabled).toBe(true);
+    expect(byId[withoutTf.id]!.twoFactorEnabled).toBe(false);
+
+    const text = JSON.stringify(res.body);
+    for (const forbidden of [enrolled.secret, enrolled.backupCodes[0]!, "twoFactorSecret", "twoFactorPendingSecret", "passwordHash", "codeHash"]) {
+      expect(text).not.toContain(forbidden);
+    }
   });
 
   test("dernier recours par l'opérateur de la base : sessions fermées, trace sans auteur applicatif", async () => {
