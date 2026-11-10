@@ -267,3 +267,14 @@ export async function sendDailyEditionPush(params: {
 
   return { scanned: rows.length, sent };
 }
+
+// Retire uniquement le token de l'utilisateur authentifié.
+// Une déconnexion d'un appareil ne doit pas couper les autres appareils.
+export async function unregisterDeviceToken(params: {
+  userId: string;
+  token: string;
+}): Promise<void> {
+  await prisma.pushToken.deleteMany({
+    where: { userId: params.userId, token: params.token },
+  });
+}
