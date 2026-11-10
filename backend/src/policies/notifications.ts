@@ -44,7 +44,7 @@ export function buildLetterReceivedMessage(): string {
 }
 
 export function buildMatchCreatedMessage(): string {
-  return "Tu as un nouveau match";
+  return "Vos sourires sont réciproques ! Place au jeu des 3 questions";
 }
 
 export function buildOfferingReceivedMessage(): string {
@@ -165,7 +165,7 @@ export function buildPushPayload(
     case NotificationType.LETTER_RECEIVED:
       return { title: "💌 JeuTaime", body: "Tu as reçu une nouvelle lettre", data };
     case NotificationType.MATCH_CREATED:
-      return { title: "💘 JeuTaime", body: "Tu as un nouveau match !", data };
+      return { title: "💘 JeuTaime", body: "Vos sourires sont réciproques ! Place au jeu des 3 questions", data };
     case NotificationType.OFFERING_RECEIVED:
       return { title: "🎁 JeuTaime", body: "Quelqu'un vient de t'offrir quelque chose", data };
     case NotificationType.MAGIE_RECEIVED:
