@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   lockfile:
@@ -33,6 +33,19 @@ jobs:
           if (lock.packages['node_modules/expo-notifications']?.version !== '0.32.17') throw Error('Incorrect installed version');
           NODE
           npm ci --ignore-scripts --no-audit --no-fund
+      - name: Commit regenerated lockfile on the PR branch
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        working-directory: frontend
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "fix(expo): lock SDK 54 notification dependencies"
+            git push origin "HEAD:$HEAD_REF"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: expo-sdk54-package-lock
