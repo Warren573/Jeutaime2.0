@@ -16,6 +16,8 @@ export function getNotificationTarget(notification: NotificationDto): string | n
       return matchId ? `/match-profile?matchId=${matchId}` : null;
     }
 
+    case 'QUESTIONS_PASSED':
+    case 'QUESTIONS_FAILED':
     case 'MATCH_CREATED': {
       const matchId = meta['matchId'];
       return matchId ? `/match-profile?matchId=${matchId}` : null;
