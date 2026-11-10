@@ -66,3 +66,10 @@ export async function registerDevice(token: string, platform: 'ios' | 'android' 
     body: JSON.stringify({ token, platform }),
   });
 }
+
+export async function unregisterDevice(token: string): Promise<void> {
+  await apiFetch('/notifications/unregister-device', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
