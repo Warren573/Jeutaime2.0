@@ -77,6 +77,10 @@ export function buildNotificationMessage(type: NotificationType): string {
       return buildLetterReceivedMessage();
     case NotificationType.MATCH_CREATED:
       return buildMatchCreatedMessage();
+    case NotificationType.QUESTIONS_PASSED:
+      return "Le jeu des 3 questions est réussi ! Vous pouvez échanger des lettres";
+    case NotificationType.QUESTIONS_FAILED:
+      return "Le jeu des 3 questions est terminé : la correspondance n'a pas été retenue";
     case NotificationType.OFFERING_RECEIVED:
       return buildOfferingReceivedMessage();
     case NotificationType.MAGIE_RECEIVED:
@@ -167,6 +171,10 @@ export function buildPushPayload(
       return { title: "💌 JeuTaime", body: "Tu as reçu une nouvelle lettre", data };
     case NotificationType.MATCH_CREATED:
       return { title: "💘 JeuTaime", body: "Vos sourires sont réciproques ! Place au jeu des 3 questions", data };
+    case NotificationType.QUESTIONS_PASSED:
+      return { title: "JeuTaime", body: "Les 3 questions sont réussies ! Les lettres sont débloquées", data };
+    case NotificationType.QUESTIONS_FAILED:
+      return { title: "JeuTaime", body: "Le jeu des 3 questions est terminé", data };
     case NotificationType.OFFERING_RECEIVED:
       return { title: "🎁 JeuTaime", body: "Quelqu'un vient de t'offrir quelque chose", data };
     case NotificationType.MAGIE_RECEIVED:
