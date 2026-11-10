@@ -45,6 +45,14 @@ function getDefaultAvatarConfig(gender: Gender): any {
   }
 }
 
+// Le mot de passe des comptes de test n'est jamais écrit dans le dépôt :
+// il est fourni au lancement par la variable TEST_USERS_PASSWORD.
+const TEST_USERS_PASSWORD = process.env.TEST_USERS_PASSWORD ?? "";
+if (TEST_USERS_PASSWORD.length < 12) {
+  console.error("❌ TEST_USERS_PASSWORD est requis (12 caractères minimum). Rien n'a été modifié.");
+  process.exit(1);
+}
+
 const PRESERVE_USERS = [
   "test@jeutaime.com",
   "doudou453@hotmail.fr",
@@ -53,7 +61,7 @@ const PRESERVE_USERS = [
 const NEW_TEST_USERS = [
   {
     email: "testuser2@jeutaime.test",
-    password: "Test2024!",
+    password: TEST_USERS_PASSWORD,
     pseudo: "testuser2",
     gender: Gender.HOMME,
     city: "Lyon",
@@ -61,7 +69,7 @@ const NEW_TEST_USERS = [
   },
   {
     email: "testuser3@jeutaime.test",
-    password: "Test2024!",
+    password: TEST_USERS_PASSWORD,
     pseudo: "testuser3",
     gender: Gender.FEMME,
     city: "Marseille",
@@ -69,7 +77,7 @@ const NEW_TEST_USERS = [
   },
   {
     email: "testuser4@jeutaime.test",
-    password: "Test2024!",
+    password: TEST_USERS_PASSWORD,
     pseudo: "testuser4",
     gender: Gender.HOMME,
     city: "Toulouse",
@@ -77,7 +85,7 @@ const NEW_TEST_USERS = [
   },
   {
     email: "testuser5@jeutaime.test",
-    password: "Test2024!",
+    password: TEST_USERS_PASSWORD,
     pseudo: "testuser5",
     gender: Gender.FEMME,
     city: "Bordeaux",
@@ -85,7 +93,7 @@ const NEW_TEST_USERS = [
   },
   {
     email: "testuser6@jeutaime.test",
-    password: "Test2024!",
+    password: TEST_USERS_PASSWORD,
     pseudo: "testuser6",
     gender: Gender.HOMME,
     city: "Nice",
@@ -93,7 +101,7 @@ const NEW_TEST_USERS = [
   },
   {
     email: "testuser7@jeutaime.test",
-    password: "Test2024!",
+    password: TEST_USERS_PASSWORD,
     pseudo: "testuser7",
     gender: Gender.FEMME,
     city: "Nantes",
@@ -101,7 +109,7 @@ const NEW_TEST_USERS = [
   },
   {
     email: "testuser8@jeutaime.test",
-    password: "Test2024!",
+    password: TEST_USERS_PASSWORD,
     pseudo: "testuser8",
     gender: Gender.HOMME,
     city: "Strasbourg",
@@ -109,7 +117,7 @@ const NEW_TEST_USERS = [
   },
   {
     email: "testuser9@jeutaime.test",
-    password: "Test2024!",
+    password: TEST_USERS_PASSWORD,
     pseudo: "testuser9",
     gender: Gender.FEMME,
     city: "Lille",
@@ -117,7 +125,7 @@ const NEW_TEST_USERS = [
   },
   {
     email: "testuser10@jeutaime.test",
-    password: "Test2024!",
+    password: TEST_USERS_PASSWORD,
     pseudo: "testuser10",
     gender: Gender.HOMME,
     city: "Rennes",
@@ -125,7 +133,7 @@ const NEW_TEST_USERS = [
   },
   {
     email: "testuser11@jeutaime.test",
-    password: "Test2024!",
+    password: TEST_USERS_PASSWORD,
     pseudo: "testuser11",
     gender: Gender.FEMME,
     city: "Montpellier",
@@ -155,10 +163,22 @@ async function main() {
       AND: [
         { email: { contains: ".test" } },
         { id: { notIn: Array.from(preservedUserIds) } },
+        // Un compte OWNER, ADMIN ou MODERATOR n'est jamais supprimé par ce script,
+        // même si son adresse ressemble à une adresse de test.
+        { role: "USER" },
       ],
     },
     select: { id: true, email: true },
   });
+
+  const protectedStaff = await prisma.user.findMany({
+    where: { email: { contains: ".test" }, role: { not: "USER" } },
+    select: { id: true, role: true },
+  });
+  if (protectedStaff.length > 0) {
+    console.log(`   🔒 ${protectedStaff.length} compte(s) à rôle privilégié protégé(s), non supprimé(s) :`);
+    protectedStaff.forEach((u) => console.log(`   - ${u.id} (${u.role})`));
+  }
 
   console.log(`   Trouvés: ${testUsersToDelete.length} comptes test à supprimer`);
   testUsersToDelete.forEach((u) => {
@@ -274,6 +294,16 @@ async function main() {
   const created = [];
 
   for (const testUser of NEW_TEST_USERS) {
+    // Ne jamais recréer ni écraser un compte existant (ex. compte protégé ci-dessus).
+    const alreadyThere = await prisma.user.findUnique({
+      where: { email: testUser.email },
+      select: { id: true },
+    });
+    if (alreadyThere) {
+      console.log(`   ⏭️  ${testUser.email} existe déjà — conservé tel quel`);
+      continue;
+    }
+
     const passwordHash = await hashPassword(testUser.password);
 
     const newUser = await prisma.user.create({

@@ -25,6 +25,10 @@ export async function ensureBootstrapAdmin(): Promise<void> {
     return;
   }
 
+  // Le compte propriétaire n'est jamais rétrogradé ni réinitialisé par une
+  // variable d'environnement : son rôle et son mot de passe ne changent que
+  // par les parcours authentifiés de l'application.
+  if (existing.role === "OWNER") return;
   const passwordHash = await hashPassword(ADMIN_PASSWORD);
   await prisma.user.update({
     where: { id: existing.id },
