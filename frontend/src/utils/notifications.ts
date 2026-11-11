@@ -50,6 +50,9 @@ export function getNotificationTarget(notification: NotificationDto): string | n
     case 'PRIVATE_SALON_INVITE':
       return '/private-salons';
 
+    case 'SECURITY_ALERT':
+      return '/security';
+
     default:
       return null;
   }

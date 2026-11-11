@@ -97,3 +97,15 @@ export const ResetRefugeSchema = z
   .strict();
 
 export type ResetRefugeDto = z.infer<typeof ResetRefugeSchema>;
+
+export const ResetTwoFactorSchema = z
+  .object({
+    password: z.string().min(1),
+    code: z.string().trim().min(6).max(20),
+    reason: z.string().min(3).max(500),
+    // Confirmation explicite : l'adresse du compte visé, retapée par l'OWNER.
+    confirmEmail: z.string().trim().email().max(255),
+  })
+  .strict();
+
+export type ResetTwoFactorDto = z.infer<typeof ResetTwoFactorSchema>;

@@ -16,6 +16,7 @@ import {
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 import { API_URL } from "../api/client";
+import { getEmailDeliveryAvailable } from "../api/auth";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -37,6 +38,16 @@ export default function LoginScreen() {
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  // Étape « code de double authentification », affichée seulement si le serveur la demande.
+  const [needsCode, setNeedsCode] = useState(false);
+  // « Mot de passe oublié ? » n'est proposé que si le serveur peut réellement envoyer l'e-mail.
+  const [canResetByEmail, setCanResetByEmail] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void getEmailDeliveryAvailable().then((ok) => { if (!cancelled) setCanResetByEmail(ok); });
+    return () => { cancelled = true; };
+  }, []);
+  const [totpCode, setTotpCode] = useState("");
 
   // DEBUG: Full login flow tracking
   const [debugLoginFlow, setDebugLoginFlow] = useState({
@@ -68,7 +79,7 @@ export default function LoginScreen() {
         exactError: null,
       });
 
-      await storeLogin(email.trim().toLowerCase(), password);
+      await storeLogin(email.trim().toLowerCase(), password, needsCode ? totpCode.trim() : undefined);
 
       setDebugLoginFlow(prev => ({
         ...prev,
@@ -79,6 +90,10 @@ export default function LoginScreen() {
 
       router.replace("/(tabs)");
     } catch (err: any) {
+      if (err?.code === "TWO_FACTOR_REQUIRED") {
+        setNeedsCode(true);
+        return;
+      }
       const errorMsg = err?.message || "Une erreur est survenue.";
       setDebugLoginFlow(prev => ({
         ...prev,
@@ -151,10 +166,32 @@ export default function LoginScreen() {
                   />
                 </View>
 
+                {needsCode ? (
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Code de vérification</Text>
+                    <Text style={styles.subtitle}>
+                      Saisis le code à 6 chiffres de ton application d’authentification, ou un code de secours.
+                    </Text>
+                    <TextInput
+                      value={totpCode}
+                      onChangeText={setTotpCode}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      keyboardType="default"
+                      textContentType="oneTimeCode"
+                      autoComplete="one-time-code"
+                      placeholder="123456"
+                      placeholderTextColor="#9a948d"
+                      style={styles.input}
+                      autoFocus
+                    />
+                  </View>
+                ) : null}
+
                 <Pressable
-                  style={[styles.button, isLoading && styles.buttonDisabled]}
+                  style={[styles.button, (isLoading || (needsCode && totpCode.trim().length < 6)) && styles.buttonDisabled]}
                   onPress={handleLogin}
-                  disabled={isLoading}
+                  disabled={isLoading || (needsCode && totpCode.trim().length < 6)}
                 >
                   {isLoading ? (
                     <ActivityIndicator color="#fff" />
@@ -162,6 +199,12 @@ export default function LoginScreen() {
                     <Text style={styles.buttonText}>Se connecter</Text>
                   )}
                 </Pressable>
+
+                {canResetByEmail ? (
+                  <Pressable disabled={isLoading} onPress={() => router.push("/forgot-password")}>
+                    <Text style={styles.link}>Mot de passe oublié ?</Text>
+                  </Pressable>
+                ) : null}
 
                 <Pressable disabled={isLoading} onPress={handleRegister}>
                   <Text style={styles.link}>Créer un compte</Text>

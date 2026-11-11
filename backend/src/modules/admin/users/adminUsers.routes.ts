@@ -3,12 +3,14 @@ import { Role } from "@prisma/client";
 import { asyncHandler } from "../../../core/utils/asyncHandler";
 import { validate } from "../../../core/middleware/validate";
 import { requireAuth, requireRole } from "../../../core/middleware/auth";
+import { authRateLimit } from "../../../core/middleware/rateLimit";
 import { AuthedRequest } from "../../../core/types";
 import {
   AdjustCoinsSchema,
   BanUserSchema,
   GrantPremiumSchema,
   ResetRefugeSchema,
+  ResetTwoFactorSchema,
   ResetSalonsSchema,
   UnbanUserSchema,
   UpdateRoleSchema,
@@ -56,6 +58,16 @@ router.post(
   validate(UserIdParamsSchema, "params"),
   validate(GrantPremiumSchema),
   wrap(ctrl.handleGrantPremium),
+);
+
+// POST /api/admin/users/:id/two-factor/reset — OWNER only (mot de passe + code de l'OWNER exigés)
+router.post(
+  "/:id/two-factor/reset",
+  requireRole(Role.OWNER) as never,
+  authRateLimit,
+  validate(UserIdParamsSchema, "params"),
+  validate(ResetTwoFactorSchema),
+  wrap(ctrl.handleResetTwoFactor),
 );
 
 // POST /api/admin/users/:id/reset-salons — OWNER only

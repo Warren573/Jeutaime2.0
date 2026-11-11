@@ -19,7 +19,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../store/useStore';
-import { API_URL } from '../api/client';
+import { API_URL, ApiError } from '../api/client';
+import { showInfo } from '../components/security/SecurityScaffold';
+import ResetTwoFactorPanel from './security/ResetTwoFactorPanel';
 import {
   AdminOverview,
   AdminReport,
@@ -395,6 +397,8 @@ export default function AdminScreen() {
 
   const [query, setQuery] = useState('');
   const [staffQuery, setStaffQuery] = useState('');
+  // Réinitialisation de la double authentification d'un ADMIN (OWNER uniquement)
+  const [resetTwoFactorTarget, setResetTwoFactorTarget] = useState<AdminUser | null>(null);
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
   const [selectedUserLoading, setSelectedUserLoading] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
@@ -500,7 +504,14 @@ export default function AdminScreen() {
       setTab('dashboard');
     }
     loadAll()
-      .catch((err) => Alert.alert(isOwner ? 'Propriétaire' : isAdmin ? 'Administration' : 'Modération', err instanceof Error ? err.message : 'Chargement impossible.'))
+      .catch((err) => {
+        // Double authentification obligatoire : l'administration est fermée jusqu'à sa configuration.
+        if (err instanceof ApiError && err.code === 'TWO_FACTOR_SETUP_REQUIRED') {
+          showInfo('Double authentification requise', err.message, () => router.replace('/security'));
+          return;
+        }
+        Alert.alert(isOwner ? 'Propriétaire' : isAdmin ? 'Administration' : 'Modération', err instanceof Error ? err.message : 'Chargement impossible.');
+      })
       .finally(() => setLoading(false));
   }, [isStaff, isOwner, isAdmin, isModerator, params.tab, loadAll, router]);
 
@@ -2473,11 +2484,19 @@ export default function AdminScreen() {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.rowTitle}>{user.pseudo || user.email}</Text>
                         <Text style={styles.rowSub}>{user.email}</Text>
+                        <Text style={styles.rowSub}>
+                          Double authentification : {user.twoFactorEnabled ? 'active' : 'non configurée'}
+                        </Text>
                       </View>
                       <View style={[styles.rolePill, styles.rolePillAdmin]}>
                         <Text style={styles.roleText}>Administrateur</Text>
                       </View>
                       <View style={styles.staffActions}>
+                        {user.twoFactorEnabled ? (
+                          <TouchableOpacity style={styles.secondaryButton} onPress={() => setResetTwoFactorTarget(user)}>
+                            <Text style={styles.secondaryText}>Réinitialiser la double authentification</Text>
+                          </TouchableOpacity>
+                        ) : null}
                         <TouchableOpacity style={styles.dangerButton} onPress={() => void changeStaffRole(user, 'USER')}>
                           <Text style={styles.actionButtonText}>Retirer le rôle administrateur</Text>
                         </TouchableOpacity>
@@ -2514,6 +2533,18 @@ export default function AdminScreen() {
                     </View>
                   ))
               )}
+
+              {resetTwoFactorTarget ? (
+                <ResetTwoFactorPanel
+                  target={resetTwoFactorTarget}
+                  onClose={() => setResetTwoFactorTarget(null)}
+                  onDone={() => {
+                    setResetTwoFactorTarget(null);
+                    void listAdminUsers().then(setUsers).catch(() => undefined);
+                    void listAuditLog().then(setAudit).catch(() => undefined);
+                  }}
+                />
+              ) : null}
             </>
           )}
 

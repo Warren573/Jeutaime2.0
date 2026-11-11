@@ -275,7 +275,7 @@ interface StoreState {
   setCurrentUser: (user: CurrentUser | null) => void;
   loadUserData: () => void;
   hydrateFromApi: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, totpCode?: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   loadMatches: () => Promise<void>;
@@ -510,8 +510,8 @@ export const useStore = create<StoreState>()(
         }
       },
 
-      login: async (email, password) => {
-        const result = await apiLogin({ email, password });
+      login: async (email, password, totpCode) => {
+        const result = await apiLogin(totpCode ? { email, password, totpCode } : { email, password });
 
         // Toujours repartir d'un état de compte vierge avant de charger
         // le nouveau compte. Sinon, si /auth/me échoue, l'ancien currentUser

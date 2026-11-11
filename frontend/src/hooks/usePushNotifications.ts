@@ -52,6 +52,9 @@ function getRouteFromPushData(data: Record<string, string>): string | null {
     case 'PREMIUM_SUBSCRIBED':
     case 'PREMIUM_CANCELLED':
       return '/premium';
+    case 'SECURITY_ALERT':
+      // Route fixe côté application : jamais de route fournie par le message.
+      return '/security';
     default:
       return null;
   }
