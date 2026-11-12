@@ -87,7 +87,7 @@ jobs:
           CI: '1'
           EXPO_NO_TELEMETRY: '1'
         run: |
-          eas build:view "$EAS_BUILD_ID" --json --non-interactive > "$RUNNER_TEMP/build.json"
+          eas build:view "$EAS_BUILD_ID" --json > "$RUNNER_TEMP/build.json"
           node <<'NODE'
           const fs = require('fs');
           const fail = (m) => { console.error(m); process.exit(1); };
