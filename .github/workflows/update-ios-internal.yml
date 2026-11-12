@@ -1,0 +1,149 @@
+name: Publish JeuTaime iOS OTA (internal-test, iOS only)
+
+# Publication manuelle d'une mise à jour OTA destinée UNIQUEMENT à iOS.
+# - Déclenchement manuel uniquement (workflow_dispatch), jamais automatique.
+# - Source obligatoire : la branche main, au commit exact saisi en entrée.
+# - Commande EAS : --platform ios, branche EAS Update internal-test.
+# - Runtime attendu : 2.0.0 (vérifié avant et après publication).
+# - Ne touche pas au workflow Android (update-android-internal.yml).
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'SHA complet (40 caractères) du commit de main à publier. Doit être exactement la tête actuelle de main.'
+        required: true
+        type: string
+      confirm:
+        description: 'Saisir PUBLIER_IOS pour confirmer la publication'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ota-internal-test
+  cancel-in-progress: false
+
+env:
+  EXPECTED_RUNTIME: '2.0.0'
+  EAS_UPDATE_BRANCH: internal-test
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Guard — main only, explicit confirmation
+        working-directory: .
+        env:
+          WORKFLOW_REF: ${{ github.ref }}
+          CONFIRM: ${{ inputs.confirm }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          if [ "$WORKFLOW_REF" != 'refs/heads/main' ]; then
+            echo "Refus : ce workflow ne peut être lancé que depuis main (ref reçue : $WORKFLOW_REF)." >&2
+            exit 1
+          fi
+          if [ "$CONFIRM" != 'PUBLIER_IOS' ]; then
+            echo "Refus : confirmation absente ou incorrecte." >&2
+            exit 1
+          fi
+          if ! printf '%s' "$EXPECTED_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "Refus : expected_sha doit être un SHA complet de 40 caractères hexadécimaux." >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Guard — the checked-out commit is exactly the expected one
+        working-directory: .
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          echo "Commit source publié : $ACTUAL_SHA"
+          echo "Commit attendu       : $EXPECTED_SHA"
+          if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
+            echo "Refus : main a changé ou le SHA saisi est incorrect. Aucune publication." >&2
+            exit 1
+          fi
+          {
+            echo "### Source de la publication iOS"
+            echo "- Branche : main"
+            echo "- Commit : \`$ACTUAL_SHA\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guard — iOS runtime version is the expected one
+        run: |
+          RUNTIME_IOS="$(grep -A1 '<key>EXUpdatesRuntimeVersion</key>' ios/JeuTaime/Supporting/Expo.plist | sed -n 's/.*<string>\(.*\)<\/string>.*/\1/p')"
+          RUNTIME_CFG="$(node -p "require('./app.json').expo.ios.runtimeVersion")"
+          echo "Runtime iOS natif (Expo.plist) : $RUNTIME_IOS"
+          echo "Runtime iOS (app.json)         : $RUNTIME_CFG"
+          if [ "$RUNTIME_IOS" != "$EXPECTED_RUNTIME" ] || [ "$RUNTIME_CFG" != "$EXPECTED_RUNTIME" ]; then
+            echo "Refus : runtime différent de $EXPECTED_RUNTIME. Une OTA ne serait pas reçue par le build installé." >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Publish JS and assets to internal-test (iOS only)
+        env:
+          EXPO_PUBLIC_OTA_RELEASE_VERSION: 2.0.0-ios-ota.${{ github.run_number }}
+          SOURCE_SHA: ${{ inputs.expected_sha }}
+        run: |
+          eas update \
+            --branch "$EAS_UPDATE_BRANCH" \
+            --platform ios \
+            --message "JeuTaime iOS OTA ${EXPO_PUBLIC_OTA_RELEASE_VERSION} (internal QA) main@${SOURCE_SHA:0:8}" \
+            --non-interactive \
+            --json > "$RUNNER_TEMP/eas-update.json"
+          cat "$RUNNER_TEMP/eas-update.json"
+
+      - name: Verify the published update (iOS only, runtime, branch)
+        env:
+          SOURCE_SHA: ${{ inputs.expected_sha }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const raw = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/eas-update.json", "utf8"));
+            const updates = Array.isArray(raw) ? raw : (raw.updates || raw.currentUpdates || []);
+            if (!updates.length) { console.error("Aucune mise à jour dans la réponse EAS."); process.exit(1); }
+            const platforms = updates.map(u => u.platform).sort().join(",");
+            const runtimes = [...new Set(updates.map(u => u.runtimeVersion))];
+            const branches = [...new Set(updates.map(u => u.branch))];
+            const groups = [...new Set(updates.map(u => u.group))];
+            console.log(JSON.stringify({ platforms, runtimes, branches, groups }, null, 2));
+            if (platforms !== "ios") { console.error("Plateformes publiées inattendues : " + platforms); process.exit(1); }
+            if (runtimes.length !== 1 || runtimes[0] !== process.env.EXPECTED_RUNTIME) { console.error("Runtime inattendu : " + runtimes); process.exit(1); }
+            if (branches.length !== 1 || branches[0] !== process.env.EAS_UPDATE_BRANCH) { console.error("Branche inattendue : " + branches); process.exit(1); }
+            const lines = [
+              "### OTA iOS publiée",
+              "- Groupe de mise à jour : `" + groups.join(", ") + "`",
+              "- IDs iOS : " + updates.map(u => "`" + u.id + "`").join(", "),
+              "- Branche EAS : `" + branches[0] + "`",
+              "- Runtime : `" + runtimes[0] + "`",
+              "- Commit GitHub : `" + process.env.SOURCE_SHA + "`",
+              "- Date : " + new Date().toISOString()
+            ];
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+          '
