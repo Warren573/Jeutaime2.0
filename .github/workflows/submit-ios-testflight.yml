@@ -77,22 +77,40 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      # La configuration Expo (app.json, plugins comme expo-router) est résolue par EAS
+      # depuis frontend/ : les dépendances doivent être installées avant toute commande eas.
+      - name: Install frontend dependencies (npm ci, working-directory frontend)
+        run: npm ci --no-audit --no-fund
+
       - name: Verify the existing EAS build (no new build is created)
         env:
           CI: '1'
           EXPO_NO_TELEMETRY: '1'
         run: |
-          eas build:view "$EAS_BUILD_ID" --json > "$RUNNER_TEMP/build.json"
+          eas build:view "$EAS_BUILD_ID" --json --non-interactive > "$RUNNER_TEMP/build.json"
           node <<'NODE'
           const fs = require('fs');
-          const b = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/build.json', 'utf8'));
+          const fail = (m) => { console.error(m); process.exit(1); };
+          // Analyse défensive : la sortie peut contenir du texte avant/après le JSON
+          // (avis de mise à jour d'EAS CLI, par exemple). On isole le premier objet JSON.
+          const raw = fs.readFileSync(process.env.RUNNER_TEMP + '/build.json', 'utf8');
+          const start = raw.indexOf('{');
+          const end = raw.lastIndexOf('}');
+          if (start === -1 || end <= start) fail('Sortie de eas build:view sans objet JSON exploitable.');
+          let parsed;
+          try { parsed = JSON.parse(raw.slice(start, end + 1)); }
+          catch (e) { fail('JSON de eas build:view illisible : ' + e.message); }
+          const b = Array.isArray(parsed) ? parsed[0] : parsed;
+          if (!b || typeof b !== 'object') fail('Réponse de eas build:view inattendue.');
+          for (const k of ['id', 'status', 'platform', 'appVersion', 'appBuildVersion']) {
+            if (b[k] === undefined || b[k] === null) fail('Champ absent de la réponse EAS : ' + k + ' (champs reçus : ' + Object.keys(b).join(', ') + ')');
+          }
           const info = {
             id: b.id, status: b.status, platform: b.platform,
             appVersion: b.appVersion, appBuildVersion: b.appBuildVersion,
             profile: b.buildProfile, commit: b.gitCommitHash,
           };
           console.log(JSON.stringify(info, null, 2));
-          const fail = (m) => { console.error(m); process.exit(1); };
           if (b.id !== process.env.EAS_BUILD_ID) fail('Identifiant de build inattendu.');
           if (b.status !== 'FINISHED') fail('Le build EAS n’est pas terminé avec succès : ' + b.status);
           if (String(b.platform).toUpperCase() !== 'IOS') fail('Ce build n’est pas un build iOS.');
