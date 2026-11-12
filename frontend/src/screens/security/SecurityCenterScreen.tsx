@@ -239,22 +239,33 @@ export default function SecurityCenterScreen() {
         <SecurityCard title="Appareils connectés">
           {sessions.length === 0 ? <SecurityText>Aucun appareil.</SecurityText> : null}
           {sessions.map((session) => (
-            <View key={session.id} style={s.row}>
+            <View key={session.id} style={[s.row, session.current && s.rowCurrent]}>
               <View style={{ flex: 1 }}>
-                <Text style={s.rowTitle}>{session.device}</Text>
+                <Text style={s.rowTitle}>
+                  {session.device}
+                  {session.current ? '  ·  Cet appareil' : ''}
+                </Text>
                 <Text style={s.rowMeta}>
                   Connecté le {formatDate(session.createdAt)} · actif le {formatDate(session.lastUsedAt)}
                 </Text>
+                {session.identified === false && !session.current ? (
+                  <Text style={s.rowMeta}>Aucune information d’appareil n’avait été enregistrée pour cette session.</Text>
+                ) : null}
               </View>
-              <TouchableOpacity
-                accessibilityRole="button"
-                onPress={() => confirmRevoke(session)}
-                disabled={busy !== null}
-              >
-                <Text style={s.link}>Déconnecter</Text>
-              </TouchableOpacity>
+              {session.current ? null : (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  onPress={() => confirmRevoke(session)}
+                  disabled={busy !== null}
+                >
+                  <Text style={s.link}>Déconnecter</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))}
+          {sessions.some((x) => x.current) ? (
+            <SecurityText>Pour te déconnecter de cet appareil, utilise « Se déconnecter » dans les réglages.</SecurityText>
+          ) : null}
           <SecurityButton tone="danger" label="Déconnecter tous les appareils" onPress={confirmLogoutAll} loading={busy === 'all'} />
         </SecurityCard>
       ) : null}

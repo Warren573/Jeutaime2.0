@@ -414,4 +414,58 @@ describe("10 bis. Désactivation du compte", () => {
     expect(await activeSessions(u.id)).toBe(0);
     expect(await prisma.pushToken.count({ where: { userId: u.id } })).toBe(0);
   });
+
+  test("appareils : « cet appareil » repéré et placé en tête, session ancienne signalée sans rien inventer", async () => {
+    const u = await account();
+    const legacy = await auth.login({ email: u.email, password: PASSWORD }); // sans contexte : userAgent nul
+    const phone = await auth.login({ email: u.email, password: PASSWORD }, { userAgent: "JeuTaime/2.0 (iPhone; iOS 18)", ip: "203.0.113.5" });
+    const phoneId = (await prisma.refreshToken.findFirst({ where: { userId: u.id, userAgent: { not: null } } }))!.id;
+
+    const list = await sec.listSessions(u.id, phoneId);
+    expect(list).toHaveLength(2);
+    expect(list[0]).toMatchObject({ id: phoneId, current: true, identified: true, device: "iPhone ou iPad" });
+    expect(list[1]).toMatchObject({ current: false, identified: false, device: "Appareil non identifié" });
+    expect(sec.describeDevice("curl/8.5.0")).toBe("Appareil non reconnu"); // renseigné mais inconnu : pas confondu avec « non identifié »
+    expect(sec.describeDevice(null)).toBe("Appareil non identifié");
+    // Sans identifiant fourni, aucune session n'est présentée comme actuelle.
+    expect((await sec.listSessions(u.id)).some((x) => x.current)).toBe(false);
+    // Un identifiant étranger ne désigne aucune session.
+    expect((await sec.listSessions(u.id, "inconnu")).some((x) => x.current)).toBe(false);
+    void legacy; void phone;
+  });
+
+  test("appareils : la rotation complète une session ancienne avec la requête réelle, sans écraser une valeur connue", async () => {
+    const u = await account();
+    const legacy = await auth.login({ email: u.email, password: PASSWORD });
+    const known = await auth.login({ email: u.email, password: PASSWORD }, { userAgent: "okhttp/4.12 Android", ip: "203.0.113.9" });
+
+    await auth.refresh(legacy.refreshToken, { userAgent: "JeuTaime/2.0 CFNetwork/1568 Darwin/24.0", ip: "198.51.100.7" });
+    await auth.refresh(known.refreshToken, { userAgent: "Mozilla/5.0 Chrome", ip: "198.51.100.8" });
+    // Un renouvellement sans contexte ne fabrique rien.
+    const noCtx = await auth.login({ email: u.email, password: PASSWORD });
+    await auth.refresh(noCtx.refreshToken);
+
+    const rows = await prisma.refreshToken.findMany({ where: { userId: u.id, revokedAt: null } });
+    const byAgent = rows.map((r) => `${r.userAgent ?? "NUL"}|${r.ip ?? "NUL"}`).sort();
+    expect(byAgent).toEqual([
+      "JeuTaime/2.0 CFNetwork/1568 Darwin/24.0|198.51.100.7", // ancienne session complétée
+      "NUL|NUL", // renouvellement sans contexte : toujours inconnu
+      "okhttp/4.12 Android|203.0.113.9", // valeur connue conservée
+    ].sort());
+  });
+
+  test("appareils : l'appareil actuel ne peut pas être déconnecté depuis la liste ; un autre appareil, oui", async () => {
+    const u = await account();
+    await auth.login({ email: u.email, password: PASSWORD }, { userAgent: "JeuTaime/2.0 (iPhone; iOS 18)" });
+    await auth.login({ email: u.email, password: PASSWORD }, { userAgent: "okhttp/4.12 Android" });
+    const rows = await prisma.refreshToken.findMany({ where: { userId: u.id }, orderBy: { createdAt: "asc" } });
+    const [current, other] = [rows[0]!, rows[1]!];
+
+    await expect(sec.revokeSession(u.id, current.id, current.id)).rejects.toThrow(/appareil que tu utilises/);
+    expect(await activeSessions(u.id)).toBe(2); // rien n'a été révoqué
+
+    await sec.revokeSession(u.id, other.id, current.id);
+    expect(await activeSessions(u.id)).toBe(1);
+    expect((await prisma.refreshToken.findUnique({ where: { id: current.id } }))!.revokedAt).toBeNull();
+  });
 });

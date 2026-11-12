@@ -311,24 +311,39 @@ export async function assertLoginNotLocked(emailRaw: string): Promise<void> {
 // ============================================================
 // 6 et 7. Sessions, appareils, historique
 // ============================================================
-export async function listSessions(userId: string) {
+export async function listSessions(userId: string, currentSessionId?: string) {
   const rows = await prisma.refreshToken.findMany({
     where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
     orderBy: { createdAt: "desc" },
     select: { id: true, createdAt: true, lastUsedAt: true, userAgent: true, ip: true, expiresAt: true },
   });
-  return rows.map((r) => ({ ...r, device: describeDevice(r.userAgent) }));
+  const sessions = rows.map((r) => ({
+    ...r,
+    device: describeDevice(r.userAgent),
+    // Faux uniquement si aucune information d'appareil n'a jamais été enregistrée pour cette session.
+    identified: r.userAgent !== null,
+    current: currentSessionId !== undefined && r.id === currentSessionId,
+  }));
+  // La session de l'appelant en premier, les autres par date décroissante.
+  return [...sessions.filter((x) => x.current), ...sessions.filter((x) => !x.current)];
 }
 
+export const UNIDENTIFIED_DEVICE = "Appareil non identifié";
+export const UNRECOGNIZED_DEVICE = "Appareil non reconnu";
+
 export function describeDevice(userAgent: string | null): string {
-  if (!userAgent) return "Appareil inconnu";
+  if (!userAgent) return UNIDENTIFIED_DEVICE;
   if (/iphone|ipad|ios|darwin/i.test(userAgent)) return "iPhone ou iPad";
   if (/android|okhttp/i.test(userAgent)) return "Android";
   if (/mozilla|chrome|safari|firefox/i.test(userAgent)) return "Navigateur web";
-  return "Appareil inconnu";
+  return UNRECOGNIZED_DEVICE;
 }
 
-export async function revokeSession(userId: string, sessionId: string): Promise<void> {
+export async function revokeSession(userId: string, sessionId: string, currentSessionId?: string): Promise<void> {
+  // Garde-fou : l'appareil actuel ne se déconnecte pas par cette liste (utiliser « Se déconnecter »).
+  if (currentSessionId !== undefined && currentSessionId === sessionId) {
+    throw new BadRequestError("C'est l'appareil que tu utilises. Pour t'en déconnecter, utilise « Se déconnecter » dans les réglages.");
+  }
   const res = await prisma.refreshToken.updateMany({
     where: { id: sessionId, userId, revokedAt: null },
     data: { revokedAt: new Date() },

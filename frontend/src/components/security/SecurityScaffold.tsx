@@ -133,6 +133,7 @@ export const securityStyles = StyleSheet.create({
     borderBottomColor: APP_COLORS.border,
     gap: 10,
   },
+  rowCurrent: { backgroundColor: 'rgba(161,46,70,0.07)', borderRadius: 10, paddingHorizontal: 8 },
   rowTitle: { fontSize: 14, fontWeight: '800', color: APP_COLORS.ink },
   rowMeta: { fontSize: 12, color: APP_COLORS.muted, marginTop: 2 },
   link: { color: APP_COLORS.burgundy, fontWeight: '800', fontSize: 13 },

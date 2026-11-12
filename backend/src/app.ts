@@ -62,7 +62,7 @@ const corsOptions = {
   origin: corsOriginCallback,
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Session-Id"],
 };
 
 // Respond to every OPTIONS preflight before any other middleware touches it

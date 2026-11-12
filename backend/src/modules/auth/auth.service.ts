@@ -285,7 +285,7 @@ export async function login(dto: LoginDto, ctx?: SessionContext) {
 // -----------------------------------------------------------------------
 // Refresh — rotation atomique, un refresh token ne peut être consommé qu'une fois.
 // -----------------------------------------------------------------------
-export async function refresh(rawToken: string) {
+export async function refresh(rawToken: string, ctx?: SessionContext) {
   const payload = verifyRefreshToken(rawToken);
 
   const stored = await prisma.refreshToken.findUnique({
@@ -337,8 +337,11 @@ export async function refresh(rawToken: string) {
         tokenHash: hashToken(newRefresh),
         expiresAt: newExpiresAt,
         // La session reste rattachée au même appareil d'une rotation à l'autre.
-        ip: stored.ip,
-        userAgent: stored.userAgent,
+        // Une session créée avant l'enregistrement des appareils (valeurs nulles)
+        // est complétée UNIQUEMENT avec ce que la requête du vrai appareil fournit ;
+        // une valeur déjà connue n'est jamais remplacée.
+        ip: stored.ip ?? cleanContext(ctx).ip,
+        userAgent: stored.userAgent ?? cleanContext(ctx).userAgent,
         lastUsedAt: now,
       },
     });
