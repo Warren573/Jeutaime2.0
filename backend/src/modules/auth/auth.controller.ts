@@ -34,7 +34,7 @@ export async function handleLogin(req: Request, res: Response) {
 }
 
 export async function handleRefresh(req: Request, res: Response) {
-  const tokens = await authService.refresh(req.body.refreshToken);
+  const tokens = await authService.refresh(req.body.refreshToken, sessionContext(req));
   res.json({ data: tokens });
 }
 
@@ -122,11 +122,11 @@ export async function handleLogoutAll(req: AuthedRequest, res: Response) {
 }
 
 export async function handleListSessions(req: AuthedRequest, res: Response) {
-  res.json({ data: await security.listSessions(req.user.userId) });
+  res.json({ data: await security.listSessions(req.user.userId, req.user.sessionId) });
 }
 
 export async function handleRevokeSession(req: AuthedRequest, res: Response) {
-  await security.revokeSession(req.user.userId, String(req.params["id"]));
+  await security.revokeSession(req.user.userId, String(req.params["id"]), req.user.sessionId);
   res.json({ data: { message: "Appareil déconnecté." } });
 }
 

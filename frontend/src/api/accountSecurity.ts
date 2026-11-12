@@ -39,6 +39,10 @@ export interface SessionDTO {
   device: string;
   createdAt: string;
   lastUsedAt: string | null;
+  /** Faux pour une session créée avant l'enregistrement des appareils : rien n'est deviné. */
+  identified?: boolean;
+  /** Vrai pour l'appareil qui consulte la liste. */
+  current?: boolean;
 }
 
 export interface LoginEventDTO {

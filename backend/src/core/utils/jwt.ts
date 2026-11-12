@@ -7,6 +7,12 @@ export interface AccessTokenPayload {
   userId: string;
   role: Role;
   isPremium: boolean;
+  /**
+   * Identifiant de la session (RefreshToken.id) pour laquelle ce jeton d'accès a été émis.
+   * Posé par le serveur au moment de l'émission et couvert par la signature : le client
+   * ne peut ni le choisir ni le modifier. Absent des jetons émis avant cette évolution.
+   */
+  sid?: string;
 }
 
 export interface RefreshTokenPayload {
