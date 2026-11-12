@@ -6,6 +6,15 @@ import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import { FEATURES } from "../config/features";
 
 const BAR_HEIGHT = 64;
+
+/**
+ * Hauteur réellement occupée en bas de l'écran par la barre de navigation
+ * (conteneur absolu de CustomTabBar). Les écrans à défilement l'utilisent
+ * pour réserver l'espace sous leur contenu.
+ */
+export function getTabBarFootprint(bottomInset: number): number {
+  return BAR_HEIGHT + bottomInset + 14;
+}
 const INACTIVE = "#3C2A1E";
 const ACTIVE = "#A12E46";
 
@@ -67,7 +76,7 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const activeVisibleRouteName = ROUTE_ACTIVE_TAB_ALIAS[currentRoute?.name] || currentRoute?.name;
 
   return (
-    <View style={[styles.safeArea, { height: BAR_HEIGHT + insets.bottom + 14 }]}> 
+    <View style={[styles.safeArea, { height: getTabBarFootprint(insets.bottom) }]}> 
       <View style={[styles.bar, { bottom: insets.bottom + 6 }]}> 
         {visibleRoutes.map((route) => {
           const focused = route.name === activeVisibleRouteName;
