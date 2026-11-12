@@ -139,6 +139,7 @@ enum NotificationType {
   PREMIUM_CANCELLED
   ADMIN_MESSAGE
   PRIVATE_SALON_INVITE
+  SECURITY_ALERT
 }
 
 enum ReactionType {
@@ -209,6 +210,14 @@ model User {
   profile       Profile?
   wallet        Wallet?
   paymentReceipts PaymentReceipt[]
+  emailVerifiedAt     DateTime?
+  twoFactorSecret     String? // chiffré (AES-256-GCM), jamais en clair
+  twoFactorEnabledAt  DateTime?
+  twoFactorPendingSecret String? // secret en cours de configuration (chiffré), jamais actif avant confirmation
+  twoFactorLastStep   Int? // dernier pas TOTP accepté : un même code ne sert qu'une fois
+  privilegedRoleSince DateTime? // date de promotion au rôle ADMIN ; NULL pour les comptes antérieurs à l'obligation
+  authTokens          AuthToken[]
+  twoFactorBackupCodes TwoFactorBackupCode[]
   settings      UserSettings?
   refreshTokens RefreshToken[]
 
@@ -259,9 +268,45 @@ model User {
   @@index([isBanned])
 }
 
+enum AuthTokenPurpose {
+  PASSWORD_RESET
+  EMAIL_VERIFY
+  EMAIL_CHANGE
+}
+
+// Lien à usage unique envoyé par e-mail. Seule l'empreinte du jeton est stockée.
+model AuthToken {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   AuthTokenPurpose
+  tokenHash String           @unique
+  newEmail  String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, purpose, createdAt])
+}
+
+// Codes de secours de la double authentification : empreintes uniquement.
+model TwoFactorBackupCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
 model RefreshToken {
   id        String    @id @default(cuid())
   userId    String
+  ip         String?
+  userAgent  String?
+  lastUsedAt DateTime?
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash String    @unique
   expiresAt DateTime

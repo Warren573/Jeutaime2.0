@@ -20,6 +20,7 @@ import { closeRefugeDaysJob } from "./closeRefugeDays";
 import { expireSalonSessionsJob } from "./expireSalonSessions";
 import { expirePrivateDuelsJob } from "./expirePrivateDuels";
 import { publishDailyJournalEditionJob } from "./publishDailyJournalEdition";
+import { sendTwoFactorRemindersJob } from "./sendTwoFactorReminders";
 import type { Job } from "./types";
 
 // Re-exports publics
@@ -34,6 +35,7 @@ export {
   closeRefugeDaysJob,
   expirePrivateDuelsJob,
   publishDailyJournalEditionJob,
+  sendTwoFactorRemindersJob,
 };
 export {
   createPurgeExpiredRefreshTokensJob,
@@ -51,6 +53,7 @@ export const ALL_JOBS: readonly Job[] = [
   closeRefugeDaysJob,
   expirePrivateDuelsJob,
   publishDailyJournalEditionJob,
+  sendTwoFactorRemindersJob,
 ];
 
 /**
@@ -68,5 +71,6 @@ export function buildScheduledJobs(options: { refreshTokenPurgeGraceMs: number }
     closeRefugeDaysJob,
     expirePrivateDuelsJob,
     publishDailyJournalEditionJob,
+    sendTwoFactorRemindersJob,
   ];
 }

@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AppBackButton } from '../components/AppBackButton';
 import { changeEmail } from '../api/accountSecurity';
+import { showInfo } from '../components/security/SecurityScaffold';
 import { useStore } from '../store/useStore';
 import { APP_COLORS, APP_RADIUS, APP_SHADOWS, APP_SPACING } from '../theme/appTheme';
 
@@ -39,7 +40,15 @@ export default function EmailSettingsScreen() {
     if (!canSubmit) return;
     try {
       setSaving(true);
-      await changeEmail({ currentPassword, newEmail: cleanEmail });
+      const result = await changeEmail({ currentPassword, newEmail: cleanEmail });
+      if (result.status === 'pending_confirmation') {
+        showInfo(
+          'Confirme ta nouvelle adresse',
+          `Un lien vient d'être envoyé à ${cleanEmail}. Ton adresse actuelle reste valable tant que tu ne l'as pas ouvert (lien valable 1 heure).`,
+          () => router.back(),
+        );
+        return;
+      }
       Alert.alert(
         'Adresse e-mail modifiée',
         'Ton adresse de connexion a été mise à jour. Reconnecte-toi avec la nouvelle adresse.',

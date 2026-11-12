@@ -16,9 +16,13 @@ export interface AdminUserDto {
   isBanned: boolean;
   banReason: string | null;
   banUntil: Date | null;
+  /** Vrai si la double authentification est active. Jamais le secret ni les codes. */
+  twoFactorEnabled: boolean;
 }
 
-function toDto(u: Pick<User, "id" | "email" | "role" | "isBanned" | "banReason" | "banUntil">): AdminUserDto {
+function toDto(
+  u: Pick<User, "id" | "email" | "role" | "isBanned" | "banReason" | "banUntil" | "twoFactorEnabledAt">,
+): AdminUserDto {
   return {
     id: u.id,
     email: u.email,
@@ -26,6 +30,7 @@ function toDto(u: Pick<User, "id" | "email" | "role" | "isBanned" | "banReason" 
     isBanned: u.isBanned,
     banReason: u.banReason,
     banUntil: u.banUntil,
+    twoFactorEnabled: u.twoFactorEnabledAt !== null,
   };
 }
 
@@ -36,6 +41,7 @@ const adminUserSelect = {
   isBanned: true,
   banReason: true,
   banUntil: true,
+  twoFactorEnabledAt: true,
 } as const;
 
 // ============================================================
@@ -417,7 +423,11 @@ export async function updateRole(
 
   const updated = await prisma.user.update({
     where: { id: targetId },
-    data: { role: nextRole as Role },
+    // Un compte promu ADMIN est « nouveau » au sens de l'obligation de double authentification :
+    // aucun délai de transition, configuration exigée avant l'accès à l'administration.
+    data: nextRole === "ADMIN" && target.role !== Role.ADMIN
+      ? { role: nextRole as Role, privilegedRoleSince: new Date() }
+      : { role: nextRole as Role },
     select: adminUserSelect,
   });
 

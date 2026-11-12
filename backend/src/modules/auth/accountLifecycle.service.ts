@@ -50,6 +50,9 @@ export async function deactivateAccount(userId: string, currentPassword: string)
       where: { userId, revokedAt: null },
       data: { revokedAt: now },
     });
+    // Un compte désactivé ne doit plus recevoir de notifications sur ses appareils.
+    // Les jetons sont réenregistrés par l'application à la prochaine connexion.
+    await tx.pushToken.deleteMany({ where: { userId } });
   });
 }
 

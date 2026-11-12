@@ -11,7 +11,8 @@ export type NotificationType =
   | 'PREMIUM_SUBSCRIBED'
   | 'PREMIUM_CANCELLED'
   | 'ADMIN_MESSAGE'
-  | 'PRIVATE_SALON_INVITE';
+  | 'PRIVATE_SALON_INVITE'
+  | 'SECURITY_ALERT';
 
 export interface NotificationDto {
   id: string;

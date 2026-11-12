@@ -105,6 +105,10 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261030120000_notification_preferences/migration.sql
+      - name: Apply account security migration to CI baseline
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261110120000_account_security/migration.sql
 
       - name: Apply question-result notification migration to CI baseline
         env:
