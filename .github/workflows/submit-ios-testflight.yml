@@ -1,0 +1,115 @@
+name: Submit existing JeuTaime iOS build 7 to TestFlight
+
+# Soumission MANUELLE d'un build iOS DÉJÀ COMPILÉ (aucun nouveau build, aucune OTA).
+# - Une seule commande EAS : eas submit --platform ios --id <build> --non-interactive
+# - Contrôles avant soumission : eas.json contient un ascAppId numérique ;
+#   le build EAS est terminé, iOS, version 2.0.0, numéro de build 7.
+# - Ne touche ni Android, ni Render, ni Neon, ni Vercel.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Saisir SOUMETTRE_BUILD_7 pour confirmer la soumission à TestFlight'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jeutaime-ios-testflight-submit
+  cancel-in-progress: false
+
+env:
+  EAS_BUILD_ID: 72e202cc-da1c-456c-a40f-d34fc63c4409
+  EXPECTED_APP_VERSION: '2.0.0'
+  EXPECTED_BUILD_NUMBER: '7'
+
+jobs:
+  submit-ios:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Validate explicit authorization
+        working-directory: .
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "SOUMETTRE_BUILD_7" ]; then
+            echo "Confirmation absente ou incorrecte. Aucune soumission." >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Record source commit
+        working-directory: .
+        run: |
+          echo "Commit de main utilisé pour cette soumission : $(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Check ascAppId in the iOS submit profile
+        run: |
+          node <<'NODE'
+          const eas = JSON.parse(require('fs').readFileSync('eas.json', 'utf8'));
+          const id = eas.submit?.production?.ios?.ascAppId;
+          if (!/^[0-9]{6,12}$/.test(String(id ?? ''))) {
+            console.error("ascAppId manquant ou invalide dans eas.json (submit.production.ios.ascAppId).");
+            console.error("Il s'agit de l'identifiant Apple NUMÉRIQUE de l'app dans App Store Connect (Informations sur l'app > Identifiant Apple).");
+            process.exit(1);
+          }
+          console.log('ascAppId présent (valeur numérique valide).');
+          NODE
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Verify the existing EAS build (no new build is created)
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+        run: |
+          eas build:view "$EAS_BUILD_ID" --json > "$RUNNER_TEMP/build.json"
+          node <<'NODE'
+          const fs = require('fs');
+          const b = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/build.json', 'utf8'));
+          const info = {
+            id: b.id, status: b.status, platform: b.platform,
+            appVersion: b.appVersion, appBuildVersion: b.appBuildVersion,
+            profile: b.buildProfile, commit: b.gitCommitHash,
+          };
+          console.log(JSON.stringify(info, null, 2));
+          const fail = (m) => { console.error(m); process.exit(1); };
+          if (b.id !== process.env.EAS_BUILD_ID) fail('Identifiant de build inattendu.');
+          if (b.status !== 'FINISHED') fail('Le build EAS n’est pas terminé avec succès : ' + b.status);
+          if (String(b.platform).toUpperCase() !== 'IOS') fail('Ce build n’est pas un build iOS.');
+          if (b.appVersion !== process.env.EXPECTED_APP_VERSION) fail('Version applicative inattendue : ' + b.appVersion);
+          if (String(b.appBuildVersion) !== process.env.EXPECTED_BUILD_NUMBER) fail('Numéro de build inattendu : ' + b.appBuildVersion);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '- Build EAS : `' + b.id + '`\n- Version : ' + b.appVersion + ' (' + b.appBuildVersion + ')\n- Commit du build : `' + b.gitCommitHash + '`\n');
+          NODE
+
+      - name: Submit the existing build to App Store Connect / TestFlight
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+        run: |
+          eas submit --platform ios --id 72e202cc-da1c-456c-a40f-d34fc63c4409 --non-interactive
+
+      - name: Record result
+        if: success()
+        run: |
+          echo "Soumission transmise à App Store Connect. Le traitement Apple doit être confirmé dans App Store Connect > TestFlight avant de considérer le build disponible." >> "$GITHUB_STEP_SUMMARY"
