@@ -121,18 +121,12 @@ export async function handleLogoutAll(req: AuthedRequest, res: Response) {
   res.json({ data: { message: "Tous les appareils ont été déconnectés.", ...result } });
 }
 
-/** Identifiant de la session de l'appareil appelant (extrait de son jeton de renouvellement, non secret). */
-function currentSessionId(req: Request): string | undefined {
-  const raw = req.get("x-session-id");
-  return raw && raw.length <= 64 ? raw : undefined;
-}
-
 export async function handleListSessions(req: AuthedRequest, res: Response) {
-  res.json({ data: await security.listSessions(req.user.userId, currentSessionId(req)) });
+  res.json({ data: await security.listSessions(req.user.userId, req.user.sessionId) });
 }
 
 export async function handleRevokeSession(req: AuthedRequest, res: Response) {
-  await security.revokeSession(req.user.userId, String(req.params["id"]), currentSessionId(req));
+  await security.revokeSession(req.user.userId, String(req.params["id"]), req.user.sessionId);
   res.json({ data: { message: "Appareil déconnecté." } });
 }
 

@@ -39,7 +39,7 @@ function cleanContext(ctx?: SessionContext) {
 // -----------------------------------------------------------------------
 function buildTokenPair(userId: string, role: string, isPremium: boolean) {
   const tokenId = crypto.randomUUID();
-  const access = signAccessToken({ userId, role: role as never, isPremium });
+  const access = signAccessToken({ userId, role: role as never, isPremium, sid: tokenId });
   const refresh = signRefreshToken({ userId, tokenId });
   return { access, refresh, tokenId };
 }

@@ -1,10 +1,9 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo } from "react";
 import { View, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import { FEATURES } from "../config/features";
-import { setTabBarTop } from "./tabBarMetrics";
 
 const BAR_HEIGHT = 64;
 
@@ -69,12 +68,6 @@ function TabIcon({ name, active }: { name: string; active: boolean }) {
 
 export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const barRef = useRef<View>(null);
-  const reportBarTop = () => {
-    barRef.current?.measureInWindow((_x, y) => {
-      if (Number.isFinite(y)) setTabBarTop(y);
-    });
-  };
   const visibleRoutes = useMemo(() => state.routes.filter((route) => {
     const featureKey = ROUTE_TO_FEATURE[route.name];
     return !!featureKey && FEATURES[featureKey] !== "hidden" && route.name in ROUTE_META;
@@ -84,7 +77,7 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 
   return (
     <View style={[styles.safeArea, { height: getTabBarFootprint(insets.bottom) }]}> 
-      <View ref={barRef} collapsable={false} onLayout={reportBarTop} style={[styles.bar, { bottom: insets.bottom + 6 }]}> 
+      <View style={[styles.bar, { bottom: insets.bottom + 6 }]}> 
         {visibleRoutes.map((route) => {
           const focused = route.name === activeVisibleRouteName;
           return (

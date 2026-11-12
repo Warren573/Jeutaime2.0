@@ -1,6 +1,4 @@
 import { apiFetch } from './client';
-import { getRefreshToken } from '../utils/session';
-import { sessionIdFromRefreshToken } from '../utils/sessionId';
 
 export async function changePassword(payload: {
   currentPassword: string;
@@ -47,11 +45,6 @@ export interface SessionDTO {
   current?: boolean;
 }
 
-async function currentSessionHeaders(): Promise<Record<string, string>> {
-  const id = sessionIdFromRefreshToken(await getRefreshToken());
-  return id ? { 'X-Session-Id': id } : {};
-}
-
 export interface LoginEventDTO {
   id: string;
   success: boolean;
@@ -83,14 +76,11 @@ export async function getSecurityStatus(): Promise<SecurityStatusDTO> {
 }
 
 export async function listSessions(): Promise<SessionDTO[]> {
-  return ((await apiFetch('/auth/sessions', { headers: await currentSessionHeaders() })).data ?? []) as SessionDTO[];
+  return ((await apiFetch('/auth/sessions')).data ?? []) as SessionDTO[];
 }
 
 export async function revokeSession(id: string): Promise<void> {
-  await apiFetch(`/auth/sessions/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-    headers: await currentSessionHeaders(),
-  });
+  await apiFetch(`/auth/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 export async function logoutAllDevices(): Promise<void> {

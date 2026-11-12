@@ -8,6 +8,8 @@ export interface AuthPayload {
   userId: string;
   role: Role;
   isPremium: boolean;
+  /** Session de l'appareil appelant, lue dans le jeton d'accès signé (jamais fournie par le client). */
+  sessionId?: string;
 }
 
 export interface AuthedRequest extends Request {

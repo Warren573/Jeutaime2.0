@@ -19,7 +19,6 @@ import { useStore } from '../store/useStore';
 import { getUserSettings, updateUserSettings } from '../api/userSettings';
 import { CoinIcon } from '../components/CoinIcon';
 import { getTabBarFootprint } from '../components/CustomTabBar';
-import { useTabBarClearance } from '../components/tabBarMetrics';
 
 const ExpoApplicationNative = requireOptionalNativeModule<{ nativeBuildVersion?: string | null }>('ExpoApplication');
 
@@ -189,18 +188,11 @@ export default function SettingsScreen() {
     currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR';
   const rootRef = useRef<View>(null);
   const [screenOnDisplay, setScreenOnDisplay] = useState<string | null>(null);
-  // Espace réservé sous la liste : mesuré (bas de la zone défilante − haut réel de la
-  // barre d'onglets). La valeur calculée n'est qu'un repli avant la première mesure.
-  const fallbackBottom = Math.max(120, getTabBarFootprint(insets.bottom) + 24);
-  const { clearance, measure: measureClearance, barTop, containerBottom } = useTabBarClearance(rootRef, 32, fallbackBottom);
-  const scrollPaddingBottom = Platform.OS === 'android' ? fallbackBottom : clearance;
   const measureScreen = () => {
-    measureClearance();
     rootRef.current?.measureInWindow((_x, _y, w, h) => {
       setScreenOnDisplay(`${Math.round(w * 10) / 10} × ${Math.round(h * 10) / 10}`);
     });
   };
-  useEffect(() => { measureClearance(); }, [barTop, measureClearance]);
 
   const SECTIONS: SettingsSection[] = [
     ...((currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR')
@@ -315,10 +307,6 @@ export default function SettingsScreen() {
         ...(isStaffViewer && screenOnDisplay
           ? [{ icon: 'resize-outline' as SettingsIconName, label: `Écran affiché : ${screenOnDisplay}` }]
           : []),
-        // Diagnostic (administration uniquement) : mesures réelles de la barre d'onglets.
-        ...(isStaffViewer
-          ? [{ icon: 'albums-outline' as SettingsIconName, label: `Barre : haut ${barTop === null ? '?' : Math.round(barTop)} · bas de zone ${containerBottom === null ? '?' : Math.round(containerBottom)} · réserve ${Math.round(scrollPaddingBottom)} · zone sûre ${Math.round(insets.bottom)}` }]
-          : []),
       ],
     },
   ];
@@ -356,7 +344,7 @@ export default function SettingsScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: scrollPaddingBottom },
+          { paddingBottom: Math.max(120, getTabBarFootprint(insets.bottom) + 24) },
         ]}
         showsVerticalScrollIndicator={false}
       >

@@ -43,6 +43,7 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
     userId: user.id,
     role: user.role,
     isPremium: isPremiumActive(user),
+    ...(typeof payload.sid === "string" ? { sessionId: payload.sid } : {}),
   };
 
   next();
