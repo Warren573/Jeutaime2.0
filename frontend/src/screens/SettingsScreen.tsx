@@ -18,6 +18,7 @@ import { requireOptionalNativeModule } from 'expo';
 import { useStore } from '../store/useStore';
 import { getUserSettings, updateUserSettings } from '../api/userSettings';
 import { CoinIcon } from '../components/CoinIcon';
+import { getTabBarFootprint } from '../components/CustomTabBar';
 
 const ExpoApplicationNative = requireOptionalNativeModule<{ nativeBuildVersion?: string | null }>('ExpoApplication');
 
@@ -318,7 +319,7 @@ export default function SettingsScreen() {
             ? {
                 ...section,
                 items: section.items.filter((item) =>
-                  ['E-mail', 'Mot de passe', 'Supprimer mon compte', 'Se déconnecter'].includes(item.label)
+                  ['E-mail', 'Mot de passe', 'Sécurité et appareils', 'Supprimer mon compte', 'Se déconnecter'].includes(item.label)
                 ),
               }
             : section
@@ -341,7 +342,10 @@ export default function SettingsScreen() {
       ]}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(120, getTabBarFootprint(insets.bottom) + 24) },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {(currentUser?.role !== 'OWNER' && currentUser?.role !== 'ADMIN' && currentUser?.role !== 'MODERATOR') && <TouchableOpacity
