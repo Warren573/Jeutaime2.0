@@ -1,4 +1,5 @@
-import { Prisma, Report, ReportStatus, User } from "@prisma/client";
+import { notifyEvent } from "../../notifications/notify.service";
+import { NotificationType, Prisma, Report, ReportStatus, User } from "@prisma/client";
 import { prisma } from "../../../config/prisma";
 import { NotFoundError } from "../../../core/errors";
 import { assertReportTransition } from "../../../policies/moderation";
@@ -149,6 +150,18 @@ export async function updateReport(
       target: { select: userMiniSelect },
     },
   });
+
+  // Décision rendue sur un signalement : la personne qui l'a fait est informée (sans aucun détail sur la
+  // décision ni sur la personne signalée). Statuts intermédiaires : aucune notification.
+  if (isTerminal) {
+    void notifyEvent({
+      recipientId: updated.reporterId,
+      actorId,
+      type: NotificationType.REPORT_PROCESSED,
+      meta: { reportId: id },
+      dedupeKey: `report-processed:${id}`,
+    });
+  }
 
   await writeAudit({
     actorId,

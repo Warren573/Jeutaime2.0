@@ -11,6 +11,8 @@ import {
   ForbiddenError,
   NotFoundError,
 } from "../../core/errors";
+import { notifyEvent } from "../notifications/notify.service";
+import { NotificationType } from "@prisma/client";
 
 const DUEL_TTL_MS = 48 * 60 * 60 * 1000;
 export const DUEL_PARTICIPATION_POINTS = 1;
@@ -267,6 +269,16 @@ export async function create(userId: string, targetUserId: string, commonUserId:
     return created;
   });
 
+  // Défi reçu : la personne défiée doit jouer (action requise). Un défi déjà en attente est renvoyé
+  // plus haut sans nouvelle notification ; la clé est l'identité du duel.
+  void notifyEvent({
+    recipientId: targetUserId,
+    actorId: userId,
+    type: NotificationType.DUEL_RECEIVED,
+    meta: { duelId: duel.id },
+    dedupeKey: `duel-received:${duel.id}`,
+  });
+
   return toDto(duel, userId);
 }
 
@@ -314,8 +326,11 @@ export async function submitChoice(
   duelId: string,
   choice: PrivateDuelChoice,
 ) {
-  return prisma.$transaction(
+  // Renseigné seulement si CE choix résout le duel ; la notification part après le COMMIT.
+  let resolvedFor: { duelId: string; otherId: string } | null = null;
+  const dto = await prisma.$transaction(
     async (tx) => {
+      resolvedFor = null;
       const duel = await tx.privateDuel.findUnique({
         where: { id: duelId },
         include: duelInclude,
@@ -377,6 +392,10 @@ export async function submitChoice(
             : []),
         ]);
 
+        resolvedFor = {
+          duelId: resolved.id,
+          otherId: resolved.challengerId === userId ? resolved.opponentId : resolved.challengerId,
+        };
         return toDto(resolved, userId);
       }
 
@@ -384,10 +403,24 @@ export async function submitChoice(
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
+
+  // Résultat : seule l'autre personne (qui attendait) est prévenue, jamais l'auteur du dernier choix.
+  const notify = resolvedFor as { duelId: string; otherId: string } | null;
+  if (notify) {
+    void notifyEvent({
+      recipientId: notify.otherId,
+      actorId: userId,
+      type: NotificationType.DUEL_RESULT,
+      meta: { duelId: notify.duelId },
+      dedupeKey: `duel-result:${notify.duelId}`,
+    });
+  }
+  return dto;
 }
 
 export async function decline(userId: string, duelId: string) {
-  return prisma.$transaction(async (tx) => {
+  let challengerId: string | null = null;
+  const dto = await prisma.$transaction(async (tx) => {
     const duel = await tx.privateDuel.findUnique({
       where: { id: duelId },
       include: duelInclude,
@@ -422,8 +455,22 @@ export async function decline(userId: string, duelId: string) {
         : []),
     ]);
 
+    challengerId = declined.challengerId;
     return toDto(declined, userId);
   });
+
+  // Défi décliné : seul le challenger est prévenu (l'auteur du refus ne l'est jamais).
+  const notifyId = challengerId as string | null;
+  if (notifyId) {
+    void notifyEvent({
+      recipientId: notifyId,
+      actorId: userId,
+      type: NotificationType.DUEL_DECLINED,
+      meta: { duelId },
+      dedupeKey: `duel-declined:${duelId}`,
+    });
+  }
+  return dto;
 }
 
 export async function expirePending(now = new Date()) {
@@ -441,13 +488,16 @@ export async function expirePending(now = new Date()) {
   });
   if (expired.length === 0) return 0;
 
+  const newlyExpired: typeof expired = [];
   await prisma.$transaction(async (tx) => {
+    newlyExpired.length = 0;
     for (const duel of expired) {
       const updated = await tx.privateDuel.updateMany({
         where: { id: duel.id, status: PrivateDuelStatus.PENDING },
         data: { status: PrivateDuelStatus.EXPIRED },
       });
       if (updated.count !== 1) continue;
+      newlyExpired.push(duel);
 
       const meta = duelMeta(duel);
       await Promise.all([
@@ -459,6 +509,23 @@ export async function expirePending(now = new Date()) {
       ]);
     }
   });
+
+  // Expiration : événement système, une notification par participant et par duel réellement expiré
+  // (une relance du job ne retouche pas un duel déjà expiré). Le blocage éventuel entre les deux est respecté.
+  for (const duel of newlyExpired) {
+    for (const [recipientId, counterpartId] of [
+      [duel.challengerId, duel.opponentId],
+      [duel.opponentId, duel.challengerId],
+    ] as const) {
+      void notifyEvent({
+        recipientId,
+        counterpartId,
+        type: NotificationType.DUEL_EXPIRED,
+        meta: { duelId: duel.id },
+        dedupeKey: `duel-expired:${duel.id}`,
+      });
+    }
+  }
 
   return expired.length;
 }

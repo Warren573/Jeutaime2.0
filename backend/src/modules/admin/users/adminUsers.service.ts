@@ -1,4 +1,5 @@
-import { CoinTxnType, PremiumTier, Prisma, Role, User } from "@prisma/client";
+import { CoinTxnType, NotificationType, PremiumTier, Prisma, Role, User } from "@prisma/client";
+import { notifyEvent } from "../../notifications/notify.service";
 import { prisma } from "../../../config/prisma";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../../core/errors";
 import { assertCanBanUser } from "../../../policies/moderation";
@@ -132,6 +133,15 @@ export async function unbanUser(
     where: { id: targetId },
     data: { isBanned: false, banReason: null, banUntil: null },
     select: adminUserSelect,
+  });
+
+  // Décision de modération : le compte est rétabli. Pas de notification au bannissement (le compte est
+  // alors fermé et ses jetons retirés) ; celle-ci sera visible dans « Mes notifications » à la reconnexion.
+  void notifyEvent({
+    recipientId: targetId,
+    actorId: actor.id,
+    type: NotificationType.ACCOUNT_RESTORED,
+    dedupeKey: `account-restored:${targetId}:${Date.now()}`,
   });
 
   await writeAudit({

@@ -1,4 +1,5 @@
 import type { NotificationDto, NotificationType } from '../api/notifications';
+import { isSafeId } from './pushNavigation';
 
 /**
  * Retourne la route expo-router cible pour une notification donnée,
@@ -52,6 +53,43 @@ export function getNotificationTarget(notification: NotificationDto): string | n
 
     case 'SECURITY_ALERT':
       return '/security';
+
+    // ── Phase 2 : destinations reconstruites depuis des identifiants validés ──────────
+    case 'DUEL_RECEIVED':
+    case 'DUEL_RESULT':
+    case 'DUEL_DECLINED':
+    case 'DUEL_EXPIRED': {
+      const duelId = meta['duelId'];
+      return isSafeId(duelId) ? `/duel/play?duelId=${duelId}` : null;
+    }
+
+    case 'BOTTLE_REPLY':
+    case 'BOTTLE_REVEAL_REQUEST':
+    case 'BOTTLE_REVEAL_REFUSED':
+      return '/bottles-main';
+
+    case 'BOTTLE_REVEAL_ACCEPTED': {
+      const matchId = meta['matchId'];
+      return isSafeId(matchId) ? `/match-profile?matchId=${matchId}` : '/bottles-main';
+    }
+
+    case 'QUESTIONS_TURN': {
+      const matchId = meta['matchId'];
+      return isSafeId(matchId) ? `/match-profile?matchId=${matchId}` : null;
+    }
+
+    case 'REFUGE_ADOPTED':
+    case 'REFUGE_REVEAL_PHASE':
+    case 'REFUGE_REVEALED': {
+      const refugeSessionId = meta['refugeSessionId'];
+      return isSafeId(refugeSessionId) ? `/refuge/${refugeSessionId}` : '/refuge';
+    }
+
+    case 'REPORT_PROCESSED':
+      return '/user-reports';
+
+    case 'ACCOUNT_RESTORED':
+      return null;
 
     default:
       return null;

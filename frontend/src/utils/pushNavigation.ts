@@ -37,6 +37,11 @@ export interface PushDestination {
 
 const staticDest = (pathname: string): PushDestination => ({ route: pathname, pathname, kind: 'static' });
 const fallbackDest = (): PushDestination => ({ route: PUSH_FALLBACK_ROUTE, pathname: PUSH_FALLBACK_ROUTE, kind: 'fallback' });
+const paramDest = (pathname: string, query: string): PushDestination => ({
+  route: `${pathname}?${query}`,
+  pathname,
+  kind: 'static',
+});
 const matchDest = (matchId: string): PushDestination => ({
   route: `/match-profile?matchId=${matchId}`,
   pathname: '/match-profile',
@@ -80,7 +85,28 @@ export function resolvePushDestination(data: unknown): PushDestination {
     case 'MAGIE_RECEIVED':
       return isSafeId(d['salonId']) ? salonDest(d['salonId']) : fallbackDest();
     case 'BOTTLE_REPLY':
+    case 'BOTTLE_REVEAL_REQUEST':
+    case 'BOTTLE_REVEAL_REFUSED':
       return staticDest('/bottles-main');
+    case 'BOTTLE_REVEAL_ACCEPTED':
+      return isSafeId(d['matchId']) ? matchDest(d['matchId']) : staticDest('/bottles-main');
+    case 'QUESTIONS_TURN':
+      return isSafeId(d['matchId']) ? matchDest(d['matchId']) : fallbackDest();
+    case 'DUEL_RECEIVED':
+    case 'DUEL_RESULT':
+    case 'DUEL_DECLINED':
+    case 'DUEL_EXPIRED':
+      return isSafeId(d['duelId']) ? paramDest('/duel/play', `duelId=${d['duelId']}`) : fallbackDest();
+    case 'REFUGE_ADOPTED':
+    case 'REFUGE_REVEAL_PHASE':
+    case 'REFUGE_REVEALED':
+      return isSafeId(d['refugeSessionId'])
+        ? { route: `/refuge/${d['refugeSessionId']}`, pathname: `/refuge/${d['refugeSessionId']}`, kind: 'static' }
+        : staticDest('/refuge');
+    case 'REPORT_PROCESSED':
+      return staticDest('/user-reports');
+    case 'ACCOUNT_RESTORED':
+      return fallbackDest();
     case 'PRIVATE_SALON_INVITE':
       return staticDest('/private-salons');
     case 'ADMIN_MESSAGE':
@@ -192,6 +218,9 @@ export function isAlreadyAtRoute(current: CurrentLocation | null | undefined, ro
   if (path !== target.pathname) return false;
   if (target.pathname === '/match-profile') {
     return firstParam(current.params?.['matchId']) === target.params?.['matchId'];
+  }
+  if (target.pathname === '/duel/play') {
+    return firstParam(current.params?.['duelId']) === target.params?.['duelId'];
   }
   return true;
 }

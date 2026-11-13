@@ -115,6 +115,11 @@ jobs:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261110100000_question_result_notifications/migration.sql
 
+      - name: Apply notifications phase 2 migration to CI baseline
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261113150000_notifications_phase2/migration.sql
+
       - name: Verify schema consistency (zero drift)
         working-directory: backend
         env:

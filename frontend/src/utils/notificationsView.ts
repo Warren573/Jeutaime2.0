@@ -37,6 +37,7 @@ export type NotificationIconName =
   | 'crown'
   | 'bottle'
   | 'duel'
+  | 'refuge'
   | 'bell';
 
 export interface NotificationCategory {
@@ -58,6 +59,20 @@ export const NOTIFICATION_CATEGORIES: Record<NotificationType, NotificationCateg
   PREMIUM_CANCELLED: { label: 'Abonnement', icon: 'crown' },
   ADMIN_MESSAGE: { label: 'Administration', icon: 'megaphone' },
   SECURITY_ALERT: { label: 'Sécurité', icon: 'shield' },
+  DUEL_RECEIVED: { label: 'Duels', icon: 'duel' },
+  DUEL_RESULT: { label: 'Duels', icon: 'duel' },
+  DUEL_DECLINED: { label: 'Duels', icon: 'duel' },
+  DUEL_EXPIRED: { label: 'Duels', icon: 'duel' },
+  BOTTLE_REPLY: { label: 'Bouteilles', icon: 'bottle' },
+  BOTTLE_REVEAL_REQUEST: { label: 'Bouteilles', icon: 'bottle' },
+  BOTTLE_REVEAL_ACCEPTED: { label: 'Bouteilles', icon: 'bottle' },
+  BOTTLE_REVEAL_REFUSED: { label: 'Bouteilles', icon: 'bottle' },
+  QUESTIONS_TURN: { label: 'Rencontres', icon: 'heart' },
+  REFUGE_ADOPTED: { label: 'Refuge', icon: 'refuge' },
+  REFUGE_REVEAL_PHASE: { label: 'Refuge', icon: 'refuge' },
+  REFUGE_REVEALED: { label: 'Refuge', icon: 'refuge' },
+  REPORT_PROCESSED: { label: 'Modération', icon: 'shield' },
+  ACCOUNT_RESTORED: { label: 'Sécurité', icon: 'shield' },
 };
 
 const UNKNOWN_CATEGORY: NotificationCategory = { label: 'Notification', icon: 'bell' };

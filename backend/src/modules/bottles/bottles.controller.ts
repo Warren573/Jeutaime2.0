@@ -1,7 +1,8 @@
 import type { Response } from "express";
 import type { AuthedRequest } from "../../core/types";
 import { prisma } from "../../config/prisma";
-import { sendPushToUser } from "../notifications/push.service";
+import { notifyEvent } from "../notifications/notify.service";
+import { NotificationType } from "@prisma/client";
 import { maskBottleParticipantsForViewer } from "./bottles.privacy";
 import * as bottlesService from "./bottles.service";
 import {
@@ -245,7 +246,17 @@ export async function claimReply(req: AuthedRequest, res: Response) {
     const validated = PostBottleMessageResponseSchema.parse(serializeDates(result));
     if (!result.idempotentReplay) {
       const bottle = await prisma.messageInABottle.findUnique({ where: { id: bottleId }, select: { senderId: true } });
-      if (bottle) void sendPushToUser({ userId: bottle.senderId, title: "Bouteille à la mer", body: "Une première réponse est arrivée à ta bouteille.", data: { type: "BOTTLE_REPLY" }, idempotencyKey: `bottle-message:${result.message.id}` });
+      // Réponse reçue : notification interne + push génériques, une seule non lue par bouteille.
+      if (bottle) {
+        void notifyEvent({
+          recipientId: bottle.senderId,
+          actorId: req.user.userId,
+          type: NotificationType.BOTTLE_REPLY,
+          meta: { bottleId },
+          dedupeKey: `bottle-message:${result.message.id}`,
+          coalesceUnread: { metaKey: "bottleId", value: bottleId },
+        });
+      }
     }
     res.status(result.idempotentReplay ? 200 : 201).json({ data: validated });
   } catch (error: any) {
@@ -317,7 +328,16 @@ export async function postMessage(req: AuthedRequest, res: Response) {
     if (!result.idempotentReplay) {
       const bottle = await prisma.messageInABottle.findUnique({ where: { id: bottleId }, select: { senderId: true, acceptedById: true } });
       const recipientId = bottle?.senderId === userId ? bottle?.acceptedById : bottle?.senderId;
-      if (recipientId) void sendPushToUser({ userId: recipientId, title: "Bouteille à la mer", body: "Une nouvelle lettre t’attend dans ta correspondance.", data: { type: "BOTTLE_REPLY" }, idempotencyKey: `bottle-message:${result.message.id}` });
+      if (recipientId) {
+        void notifyEvent({
+          recipientId,
+          actorId: userId,
+          type: NotificationType.BOTTLE_REPLY,
+          meta: { bottleId },
+          dedupeKey: `bottle-message:${result.message.id}`,
+          coalesceUnread: { metaKey: "bottleId", value: bottleId },
+        });
+      }
     }
     res.status(result.idempotentReplay ? 200 : 201).json({ data: validated });
   } catch (error: any) {
@@ -371,6 +391,14 @@ export async function requestReveal(req: AuthedRequest, res: Response) {
 
   try {
     const request = await bottlesService.requestReveal(bottleId, userId);
+    // Demande de dévoilement : l'autre participant doit répondre. Rejouée = même demande = une seule notification.
+    void notifyEvent({
+      recipientId: (request as { respondentId: string }).respondentId,
+      actorId: userId,
+      type: NotificationType.BOTTLE_REVEAL_REQUEST,
+      meta: { bottleId },
+      dedupeKey: `bottle-reveal-request:${(request as { id: string }).id}`,
+    });
     // Anonymat : ne pas renvoyer l'identifiant de l'autre participant (respondentId).
     const visibleRequest: Record<string, unknown> = { ...(request as Record<string, unknown>) };
     delete visibleRequest["respondentId"];
@@ -401,6 +429,17 @@ export async function acceptReveal(req: AuthedRequest, res: Response) {
     req.params["id"] as string,
     req.user.userId,
   );
+  // Dévoilement accepté : celui qui l'avait demandé est prévenu et reçoit le lien vers la correspondance créée.
+  const requesterId = bottle.senderId === req.user.userId ? bottle.acceptedById : bottle.senderId;
+  if (requesterId) {
+    void notifyEvent({
+      recipientId: requesterId,
+      actorId: req.user.userId,
+      type: NotificationType.BOTTLE_REVEAL_ACCEPTED,
+      meta: { bottleId: bottle.id, ...(bottle.matchId ? { matchId: bottle.matchId } : {}) },
+      dedupeKey: `bottle-reveal-accepted:${bottle.id}`,
+    });
+  }
   const validated = AcceptRevealResponseSchema.parse(serializeDates(bottle));
   res.json({ data: validated });
 }
@@ -414,6 +453,14 @@ export async function refuseReveal(req: AuthedRequest, res: Response) {
     req.params["id"] as string,
     req.user.userId,
   );
+  // Demande refusée : le demandeur est prévenu, sans détail.
+  void notifyEvent({
+    recipientId: request.requestedById,
+    actorId: req.user.userId,
+    type: NotificationType.BOTTLE_REVEAL_REFUSED,
+    meta: { bottleId: request.bottleId },
+    dedupeKey: `bottle-reveal-refused:${request.id}`,
+  });
   const validated = RefuseRevealResponseSchema.parse(serializeDates(request));
   res.json({ data: validated });
 }
