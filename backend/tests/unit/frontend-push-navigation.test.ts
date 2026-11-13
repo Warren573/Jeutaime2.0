@@ -4,12 +4,17 @@ import {
   badgeCountFor,
   createPushNavigator,
   isSafeId,
+  foregroundPresentation,
+  isAlreadyAtRoute,
   isViewingDestination,
+  onForegroundNotification,
   prepareDestinationWith,
+  routeToLocation,
   resolvePushDestination,
   shouldShowForegroundBanner,
   type PushAuthState,
   type PushDestination,
+  type PushDiscardReason,
   type PushResponseLike,
 } from "../../../frontend/src/utils/pushNavigation";
 import { getNotificationTarget } from "../../../frontend/src/utils/notifications";
@@ -149,6 +154,88 @@ describe("bannière inutile quand l'écran est déjà ouvert", () => {
   });
 });
 
+describe("notification reçue application ouverte : bannière, son ET vibration, compteur", () => {
+  const loc = (pathname: string, params: Record<string, string | string[]> = {}) => ({ pathname, params });
+  const prefs = { sound: true, vibration: true };
+  const letter = (matchId: string) => ({ type: "LETTER_RECEIVED", matchId });
+
+  function receive(current: ReturnType<typeof loc> | null, data: unknown, p = prefs) {
+    const vibrate = vi.fn();
+    const refreshUnread = vi.fn();
+    const presentation = onForegroundNotification({ current, data, prefs: p, vibrate, refreshUnread });
+    return { presentation, vibrate, refreshUnread };
+  }
+
+  it("écran ET ressource déjà affichés : bannière, liste, son et vibration supprimés, compteur actualisé", () => {
+    const r = receive(loc("/match-profile", { matchId: "m1" }), letter("m1"));
+    expect(r.presentation).toEqual({ showBanner: false, showList: false, playSound: false, vibrate: false });
+    expect(r.vibrate).not.toHaveBeenCalled();
+    expect(r.refreshUnread).toHaveBeenCalledTimes(1);
+  });
+
+  it("autre correspondance : tout est conservé (bannière, son, vibration) et le compteur est actualisé", () => {
+    for (const current of [loc("/match-profile", { matchId: "m2" }), loc("/match-profile"), loc("/match-profile", { matchId: ["m2", "m1"] })]) {
+      const r = receive(current, letter("m1"));
+      expect(r.presentation).toEqual({ showBanner: true, showList: true, playSound: true, vibrate: true });
+      expect(r.vibrate).toHaveBeenCalledTimes(1);
+      expect(r.refreshUnread).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("écran fixe déjà ouvert : tout supprimé ; autre écran : tout conservé", () => {
+    for (const [path, data] of [["/admin-messages", { type: "ADMIN_MESSAGE" }], ["/security", { type: "SECURITY_ALERT" }], ["/journal", { route: "/journal" }], ["/salon/s1", { type: "MAGIE_RECEIVED", salonId: "s1" }]] as const) {
+      const same = receive(loc(path), data);
+      expect(same.vibrate, path).not.toHaveBeenCalled();
+      expect(same.presentation.playSound, path).toBe(false);
+      expect(same.refreshUnread, path).toHaveBeenCalledTimes(1);
+    }
+    const other = receive(loc("/letters"), { type: "ADMIN_MESSAGE" });
+    expect(other.presentation.showBanner).toBe(true);
+    expect(other.vibrate).toHaveBeenCalledTimes(1);
+  });
+
+  it("réglages respectés quand la notification est visible : son coupé / vibration coupée", () => {
+    const quiet = receive(loc("/letters"), letter("m1"), { sound: false, vibration: false });
+    expect(quiet.presentation).toEqual({ showBanner: true, showList: true, playSound: false, vibrate: false });
+    expect(quiet.vibrate).not.toHaveBeenCalled();
+    expect(quiet.refreshUnread).toHaveBeenCalledTimes(1);
+    const soundOnly = foregroundPresentation(loc("/letters"), letter("m1"), { sound: true, vibration: false });
+    expect(soundOnly).toMatchObject({ playSound: true, vibrate: false });
+  });
+
+  it("écran inconnu, repli ou charge inconnue : jamais masqué", () => {
+    for (const data of [null, undefined, "x", { type: "INCONNU" }, { type: "LETTER_RECEIVED" }]) {
+      const r = receive(loc("/notifications"), data);
+      expect(r.presentation.showBanner, JSON.stringify(data)).toBe(true);
+      expect(r.vibrate).toHaveBeenCalledTimes(1);
+    }
+    expect(receive(null, letter("m1")).presentation.vibrate).toBe(true);
+  });
+
+  it("le compteur est actualisé même si la vibration lève une erreur", () => {
+    const refreshUnread = vi.fn();
+    expect(() => onForegroundNotification({ current: loc("/letters"), data: letter("m1"), prefs, vibrate: () => { throw new Error("haptique"); }, refreshUnread })).toThrow("haptique");
+    expect(refreshUnread).toHaveBeenCalledTimes(1);
+  });
+
+  it("rafale de notifications de deux correspondances pendant la consultation de m1 : seules celles de m1 sont masquées", () => {
+    const current = loc("/match-profile", { matchId: "m1" });
+    const shown = ["m1", "m2", "m1", "m3", "m1"].map((id) => receive(current, letter(id)).presentation.showBanner);
+    expect(shown).toEqual([false, true, false, true, false]);
+  });
+
+  it("routeToLocation / isAlreadyAtRoute", () => {
+    expect(routeToLocation("/match-profile?matchId=m1")).toEqual({ pathname: "/match-profile", params: { matchId: "m1" } });
+    expect(routeToLocation("/security")).toEqual({ pathname: "/security", params: {} });
+    expect(isAlreadyAtRoute(loc("/match-profile", { matchId: "m1" }), "/match-profile?matchId=m1")).toBe(true);
+    expect(isAlreadyAtRoute(loc("/match-profile", { matchId: "m2" }), "/match-profile?matchId=m1")).toBe(false);
+    expect(isAlreadyAtRoute(loc("/notifications"), "/notifications")).toBe(true);
+    expect(isAlreadyAtRoute(loc("/notifications/"), "/notifications")).toBe(true);
+    expect(isAlreadyAtRoute(null, "/security")).toBe(false);
+    expect(isAlreadyAtRoute(loc("/letters"), "/security")).toBe(false);
+  });
+});
+
 describe("badge de l'icône", () => {
   it("valeurs sûres", () => {
     expect(badgeCountFor(0)).toBe(0);
@@ -242,7 +329,7 @@ describe("ouverture par appui : authentification, routeur, doublons", () => {
     n.update(ready("unauthenticated", true));
     await tick();
     expect(nav).not.toHaveBeenCalled();
-    expect(discard).toHaveBeenCalledWith("unauthenticated");
+    expect(discard).toHaveBeenCalledWith("unauthenticated", expect.anything());
     expect(consume).toHaveBeenCalled();
     n.update(ready("authenticated", true)); // l'utilisateur se connecte ensuite
     await tick();
@@ -260,7 +347,7 @@ describe("ouverture par appui : authentification, routeur, doublons", () => {
     n.onResponse(resp("n1", { type: "LETTER_RECEIVED", matchId: "m1" })); // rejeu après navigation
     await tick();
     expect(nav).toHaveBeenCalledTimes(1);
-    expect(discard).toHaveBeenCalledWith("duplicate");
+    expect(discard).toHaveBeenCalledWith("duplicate", expect.anything());
   });
 
   it("un rechargement de l'application rejouant la dernière réponse n'ouvre qu'une fois (déduplication)", async () => {
@@ -306,7 +393,7 @@ describe("ouverture par appui : authentification, routeur, doublons", () => {
     n.update(ready());
     await tick();
     expect(nav).not.toHaveBeenCalled();
-    expect(discard).toHaveBeenCalledWith("expired");
+    expect(discard).toHaveBeenCalledWith("expired", expect.anything());
   });
 
   it("charge piégée : jamais de route arbitraire, repli sûr", async () => {
@@ -364,5 +451,274 @@ describe("ouverture par appui : authentification, routeur, doublons", () => {
     for (let i = 0; i < 5; i++) n.update(ready());
     await tick();
     expect(nav).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("appuis concurrents : file ordonnée, rien n'est écrasé", () => {
+  let nav: ReturnType<typeof vi.fn>;
+  let consume: ReturnType<typeof vi.fn>;
+  let discard: ReturnType<typeof vi.fn>;
+  let clock = 5_000_000;
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  const flush = async () => { for (let i = 0; i < 6; i++) await tick(); };
+  const m = (id: string, notif: string) => resp(notif, { type: "LETTER_RECEIVED", matchId: id });
+  const route = (id: string) => `/match-profile?matchId=${id}`;
+  /** `prepare` pilotable : chaque destination attend qu'on la libère. */
+  function gatedPrepare() {
+    const gates = new Map<string, () => void>();
+    const prepare = (d: PushDestination) => new Promise<string>((resolve) => { gates.set(d.route, () => resolve(d.route)); });
+    return { prepare, release: (r: string) => gates.get(r)?.(), has: (r: string) => gates.has(r) };
+  }
+  const make = (over: Record<string, unknown> = {}) =>
+    createPushNavigator({ navigate: nav as never, consume: consume as never, onDiscard: discard as never, defaultActionId: DEFAULT, now: () => clock, ...over });
+  const active = { auth: "authenticated" as PushAuthState, navReady: true, sessionKey: "u1" };
+  const reasons = () => discard.mock.calls.map((c) => c[0] as PushDiscardReason);
+
+  beforeEach(() => { nav = vi.fn(); consume = vi.fn(); discard = vi.fn(); clock = 5_000_000; });
+
+  it("trois appuis distincts pendant le rechargement de la première : les trois sont ouverts, dans l'ordre", async () => {
+    const g = gatedPrepare();
+    const n = make({ prepare: g.prepare });
+    n.update(active);
+    n.onResponse(m("m1", "A"));
+    await tick();
+    n.onResponse(m("m2", "B"));
+    n.onResponse(m("m3", "C"));
+    expect(n.pendingCount()).toBe(3);
+    g.release(route("m1")); await flush();
+    g.release(route("m2")); await flush();
+    g.release(route("m3")); await flush();
+    expect(nav.mock.calls.map((c) => c[0])).toEqual([route("m1"), route("m2"), route("m3")]);
+    expect(n.pendingCount()).toBe(0);
+  });
+
+  it("l'ordre des appuis est conservé même si la seconde préparation est prête avant la première", async () => {
+    const g = gatedPrepare();
+    const n = make({ prepare: g.prepare });
+    n.update(active);
+    n.onResponse(m("m1", "A"));
+    n.onResponse(m("m2", "B"));
+    await tick();
+    expect(g.has(route("m2"))).toBe(false); // la seconde n'est préparée qu'après la première
+    g.release(route("m1")); await flush();
+    g.release(route("m2")); await flush();
+    expect(nav.mock.calls.map((c) => c[0])).toEqual([route("m1"), route("m2")]);
+  });
+
+  it("DÉMARRAGE À FROID : dernière réponse + appui reçu avant la session → les deux ouverts, dans l'ordre", async () => {
+    const n = make();
+    n.onResponse(m("m1", "X"));
+    n.onResponse(m("m2", "Y"));
+    n.update({ auth: "unknown", navReady: false });
+    expect(nav).not.toHaveBeenCalled();
+    n.update({ auth: "authenticated", navReady: false, sessionKey: "u1" });
+    await flush();
+    expect(nav).not.toHaveBeenCalled();
+    n.update(active);
+    await flush();
+    expect(nav.mock.calls.map((c) => c[0])).toEqual([route("m1"), route("m2")]);
+  });
+
+  it("deux lettres de la MÊME correspondance : une seule ouverture (pas de double navigation)", async () => {
+    const n = make();
+    n.update(active);
+    n.onResponse(m("m1", "A"));
+    n.onResponse(m("m1", "B"));
+    n.onResponse(m("m1", "C"));
+    await flush();
+    expect(nav.mock.calls.map((c) => c[0])).toEqual([route("m1")]);
+    expect(reasons().filter((r) => r === "same-destination")).toHaveLength(2);
+  });
+
+  it("l'utilisateur est déjà sur la destination : aucune réouverture", async () => {
+    const n = make({ isAtRoute: (r: string) => r === route("m1") });
+    n.update(active);
+    n.onResponse(m("m1", "A"));
+    n.onResponse(m("m2", "B"));
+    await flush();
+    expect(nav.mock.calls.map((c) => c[0])).toEqual([route("m2")]);
+    expect(reasons()).toContain("already-there");
+  });
+
+  it("même destination rouverte plus tard (après la fenêtre) : de nouveau acceptée", async () => {
+    const n = make();
+    n.update(active);
+    n.onResponse(m("m1", "A"));
+    await flush();
+    clock += 6_000;
+    n.onResponse(m("m1", "B"));
+    await flush();
+    expect(nav).toHaveBeenCalledTimes(2);
+  });
+
+  it("même appui reçu pendant sa préparation (écouteur + dernière réponse) : un seul traitement", async () => {
+    const g = gatedPrepare();
+    const n = make({ prepare: g.prepare });
+    n.update(active);
+    n.onResponse(m("m1", "A"));
+    await tick();
+    n.onResponse(m("m1", "A"));
+    n.onResponse(m("m1", "A"));
+    expect(n.pendingCount()).toBe(1);
+    g.release(route("m1")); await flush();
+    expect(nav).toHaveBeenCalledTimes(1);
+    expect(reasons().filter((r) => r === "duplicate")).toHaveLength(2);
+  });
+
+  it("file saturée : les plus anciens sont abandonnés explicitement, jamais en silence", async () => {
+    const g = gatedPrepare();
+    const n = make({ prepare: g.prepare, maxQueue: 3 });
+    n.update(active);
+    ["m1", "m2", "m3", "m4", "m5"].forEach((id, i) => n.onResponse(m(id, `N${i}`)));
+    await tick();
+    expect(reasons().filter((r) => r === "overflow")).toHaveLength(2);
+    // L'ouverture en cours de préparation (m1) est conservée ; les plus anciennes EN ATTENTE sont abandonnées.
+    expect(discard.mock.calls.filter((c) => c[0] === "overflow").map((c) => c[1])).toEqual(["N1", "N2"]);
+    for (const id of ["m1", "m4", "m5"]) { g.release(route(id)); await flush(); }
+    expect(nav.mock.calls.map((c) => c[0])).toEqual([route("m1"), route("m4"), route("m5")]);
+  });
+
+  it("DÉCONNEXION pendant la préparation de la première : ni elle ni les suivantes ne s'ouvrent", async () => {
+    const g = gatedPrepare();
+    const n = make({ prepare: g.prepare });
+    n.update(active);
+    n.onResponse(m("m1", "A"));
+    n.onResponse(m("m2", "B"));
+    n.onResponse(m("m3", "C"));
+    await tick();
+    n.update({ auth: "unauthenticated", navReady: true, sessionKey: null });
+    g.release(route("m1")); await flush();
+    expect(nav).not.toHaveBeenCalled();
+    expect(n.pendingCount()).toBe(0);
+    // Reconnexion ensuite : rien n'est rejoué.
+    n.update(active);
+    await flush();
+    expect(nav).not.toHaveBeenCalled();
+    expect(consume).toHaveBeenCalled();
+  });
+
+  it("déconnexion puis reconnexion RAPIDE (même compte ou autre) pendant la préparation : l'ancienne ouverture est abandonnée", async () => {
+    const g = gatedPrepare();
+    const n = make({ prepare: g.prepare });
+    n.update(active);
+    n.onResponse(m("m1", "A"));
+    await tick();
+    n.update({ auth: "unauthenticated", navReady: true, sessionKey: null });
+    n.update({ auth: "authenticated", navReady: true, sessionKey: "u2" });
+    g.release(route("m1")); await flush();
+    expect(nav).not.toHaveBeenCalled();
+  });
+
+  it("déconnexion puis reconnexion RAPIDE avec plusieurs appuis en file : aucune ouverture de l'ancienne session, même pour les suivants", async () => {
+    const g = gatedPrepare();
+    const n = make({ prepare: g.prepare });
+    n.update(active);
+    n.onResponse(m("m1", "A"));
+    n.onResponse(m("m2", "B"));
+    n.onResponse(m("m3", "C"));
+    await tick();
+    n.update({ auth: "unauthenticated", navReady: true, sessionKey: null });
+    n.update({ auth: "authenticated", navReady: true, sessionKey: "u2" });
+    expect(n.pendingCount()).toBe(0); // la file de l'ancienne session est vidée immédiatement
+    g.release(route("m1")); await flush();
+    g.release(route("m2")); g.release(route("m3")); await flush();
+    expect(nav).not.toHaveBeenCalled();
+    expect(discard.mock.calls.map((c) => c[1]).sort()).toEqual(["A", "B", "C"]);
+  });
+
+  it("changement direct de compte (identité connue → autre) : file abandonnée ; une clé qui apparaît après la connexion n'abandonne rien", async () => {
+    const g = gatedPrepare();
+    const n = make({ prepare: g.prepare });
+    n.update({ auth: "authenticated", navReady: true, sessionKey: null });
+    n.onResponse(m("m1", "A"));
+    await tick();
+    n.update({ auth: "authenticated", navReady: true, sessionKey: "u1" }); // clé qui apparaît : pas un changement
+    g.release(route("m1")); await flush();
+    expect(nav).toHaveBeenCalledTimes(1);
+
+    nav.mockClear();
+    n.onResponse(m("m2", "B"));
+    await tick();
+    n.update({ auth: "authenticated", navReady: true, sessionKey: "u2" }); // autre compte
+    g.release(route("m2")); await flush();
+    expect(nav).not.toHaveBeenCalled();
+    expect(reasons()).toContain("session-changed");
+  });
+
+  it("un appui reçu APRÈS la reconnexion est traité normalement", async () => {
+    const g = gatedPrepare();
+    const n = make({ prepare: g.prepare });
+    n.update(active);
+    n.onResponse(m("m1", "A"));
+    await tick();
+    n.update({ auth: "unauthenticated", navReady: true, sessionKey: null });
+    n.update({ auth: "authenticated", navReady: true, sessionKey: "u2" });
+    g.release(route("m1")); await flush();
+    n.onResponse(m("m2", "B"));
+    await tick();
+    g.release(route("m2")); await flush();
+    expect(nav.mock.calls.map((c) => c[0])).toEqual([route("m2")]);
+  });
+
+  it("démarrage à froid sans session avec plusieurs appuis : tous abandonnés, aucun rejeu après connexion", async () => {
+    const n = make();
+    n.onResponse(m("m1", "X"));
+    n.onResponse(m("m2", "Y"));
+    n.update({ auth: "unauthenticated", navReady: true, sessionKey: null });
+    await flush();
+    expect(nav).not.toHaveBeenCalled();
+    expect(reasons().filter((r) => r === "unauthenticated")).toHaveLength(2);
+    n.update(active);
+    await flush();
+    expect(nav).not.toHaveBeenCalled();
+  });
+
+  it("attente périmée : seule l'ouverture trop ancienne est abandonnée, la plus récente est ouverte", async () => {
+    const n = make();
+    n.onResponse(m("m1", "A"));
+    clock += 61_000;
+    n.onResponse(m("m2", "B"));
+    n.update(active);
+    await flush();
+    expect(nav.mock.calls.map((c) => c[0])).toEqual([route("m2")]);
+    expect(reasons()).toContain("expired");
+  });
+
+  it("préparation qui échoue pour la première : repli pour elle, la seconde est tout de même ouverte", async () => {
+    let first = true;
+    const n = make({ prepare: async (d: PushDestination) => { if (first) { first = false; throw new Error("x"); } return d.route; } });
+    n.update(active);
+    n.onResponse(m("m1", "A"));
+    n.onResponse(m("m2", "B"));
+    await flush();
+    expect(nav.mock.calls.map((c) => c[0])).toEqual([PUSH_FALLBACK_ROUTE, route("m2")]);
+  });
+
+  it("routeur indisponible en cours de route : rien n'est perdu, reprise quand il est prêt", async () => {
+    const g = gatedPrepare();
+    const n = make({ prepare: g.prepare });
+    n.update(active);
+    n.onResponse(m("m1", "A"));
+    n.onResponse(m("m2", "B"));
+    await tick();
+    n.update({ ...active, navReady: false });
+    g.release(route("m1")); await flush();
+    expect(nav).not.toHaveBeenCalled();
+    expect(n.pendingCount()).toBe(2);
+    n.update(active);
+    await tick();
+    g.release(route("m1")); await flush();
+    g.release(route("m2")); await flush();
+    expect(nav.mock.calls.map((c) => c[0])).toEqual([route("m1"), route("m2")]);
+  });
+
+  it("appuis distincts mélangés avec des écrans fixes : tous ouverts dans l'ordre d'arrivée", async () => {
+    const n = make();
+    n.update(active);
+    n.onResponse(resp("A", { type: "SECURITY_ALERT" }));
+    n.onResponse(m("m1", "B"));
+    n.onResponse(resp("C", { type: "ADMIN_MESSAGE" }));
+    await flush();
+    expect(nav.mock.calls.map((c) => c[0])).toEqual(["/security", route("m1"), "/admin-messages"]);
   });
 });

@@ -125,6 +125,78 @@ export function shouldShowForegroundBanner(current: CurrentLocation | null | und
 }
 
 // ============================================================
+// Présentation d'une notification reçue application ouverte
+// ============================================================
+export interface ForegroundPrefs {
+  sound: boolean;
+  vibration: boolean;
+}
+
+export interface ForegroundPresentation {
+  showBanner: boolean;
+  showList: boolean;
+  playSound: boolean;
+  vibrate: boolean;
+}
+
+/**
+ * Bannière, son ET vibration obéissent à la MÊME décision : si l'écran (et la ressource) concernés
+ * sont déjà affichés, les trois sont supprimés ; sinon ils suivent les réglages de l'utilisateur.
+ * Une notification d'une autre correspondance, d'un autre écran ou inconnue n'est jamais masquée.
+ */
+export function foregroundPresentation(
+  current: CurrentLocation | null | undefined,
+  data: unknown,
+  prefs: ForegroundPrefs,
+): ForegroundPresentation {
+  const show = shouldShowForegroundBanner(current, data);
+  return { showBanner: show, showList: show, playSound: show && prefs.sound, vibrate: show && prefs.vibration };
+}
+
+export interface ForegroundDeps {
+  current: CurrentLocation | null | undefined;
+  data: unknown;
+  prefs: ForegroundPrefs;
+  vibrate: () => void;
+  /** Recharge le compteur de notifications non lues : TOUJOURS appelé, même quand tout est supprimé. */
+  refreshUnread: () => void;
+}
+
+/** Traitement d'une notification reçue au premier plan : vibration selon la décision, compteur toujours. */
+export function onForegroundNotification(deps: ForegroundDeps): ForegroundPresentation {
+  const presentation = foregroundPresentation(deps.current, deps.data, deps.prefs);
+  try {
+    if (presentation.vibrate) deps.vibrate();
+  } finally {
+    deps.refreshUnread();
+  }
+  return presentation;
+}
+
+/** Écran correspondant à une route : sert à ne pas rouvrir l'écran déjà affiché. */
+export function routeToLocation(route: string): CurrentLocation {
+  const [pathname = '', query = ''] = route.split('?');
+  const params: Record<string, string> = {};
+  for (const pair of query.split('&')) {
+    const [k, v] = pair.split('=');
+    if (k && v !== undefined) params[k] = v;
+  }
+  return { pathname, params };
+}
+
+/** Vrai si l'utilisateur est déjà sur cette route (même correspondance pour une correspondance). */
+export function isAlreadyAtRoute(current: CurrentLocation | null | undefined, route: string): boolean {
+  if (!current) return false;
+  const target = routeToLocation(route);
+  const path = current.pathname.replace(/\/+$/, '') || '/';
+  if (path !== target.pathname) return false;
+  if (target.pathname === '/match-profile') {
+    return firstParam(current.params?.['matchId']) === target.params?.['matchId'];
+  }
+  return true;
+}
+
+// ============================================================
 // Badge de l'icône (iOS)
 // ============================================================
 /** Valeur sûre pour `setBadgeCountAsync` : entier entre 0 et 9999. */
@@ -171,7 +243,7 @@ export async function prepareDestinationWith(dest: PushDestination, deps: Prepar
 }
 
 // ============================================================
-// Contrôleur d'ouverture : authentification, routeur prêt, doublons
+// Contrôleur d'ouverture : file d'attente, authentification, routeur prêt, doublons
 // ============================================================
 export type PushAuthState = 'unknown' | 'authenticated' | 'unauthenticated';
 
@@ -181,6 +253,16 @@ export interface PushResponseLike {
   notification?: { request?: { identifier?: string; content?: { data?: unknown } } };
 }
 
+export type PushDiscardReason =
+  | 'unauthenticated'
+  | 'session-changed'
+  | 'expired'
+  | 'duplicate'
+  | 'ignored'
+  | 'overflow'
+  | 'same-destination'
+  | 'already-there';
+
 export interface PushNavigatorDeps {
   /** Ouvre la route (router.push). */
   navigate: (route: string) => void;
@@ -189,6 +271,8 @@ export interface PushNavigatorDeps {
    * ou le repli si la ressource n'existe plus. Ne doit jamais lever (une erreur = repli).
    */
   prepare?: (dest: PushDestination) => Promise<string>;
+  /** L'utilisateur est-il déjà sur cette route ? (évite de rouvrir l'écran affiché) */
+  isAtRoute?: (route: string) => boolean;
   /** Marque la réponse comme consommée côté Expo (évite un rejeu après rechargement). */
   consume?: () => void;
   /** Identifiant de l'action « appui simple » d'Expo. */
@@ -196,30 +280,66 @@ export interface PushNavigatorDeps {
   now?: () => number;
   /** Durée pendant laquelle un même appui n'est pas rejoué. */
   dedupeMs?: number;
-  /** Durée maximale d'attente avant d'abandonner une ouverture en attente. */
+  /** Durée maximale d'attente d'une ouverture en file. */
   pendingTtlMs?: number;
-  onDiscard?: (reason: 'unauthenticated' | 'expired' | 'duplicate' | 'ignored') => void;
+  /** Nombre maximal d'ouvertures en file ; au-delà, les plus anciennes sont abandonnées (jamais en silence). */
+  maxQueue?: number;
+  /** Fenêtre pendant laquelle une même destination n'est pas rouverte. */
+  sameDestinationMs?: number;
+  onDiscard?: (reason: PushDiscardReason, id?: string) => void;
+}
+
+export interface PushNavigatorState {
+  auth: PushAuthState;
+  navReady: boolean;
+  /** Identité de la session (ex. identifiant utilisateur) : un changement abandonne les ouvertures en cours. */
+  sessionKey?: string | null;
 }
 
 export interface PushNavigator {
   /** À appeler pour chaque réponse reçue : écouteur Expo ET dernière réponse (démarrage à froid). */
   onResponse: (response: PushResponseLike | null | undefined) => void;
-  /** À appeler à chaque changement d'état d'authentification ou de disponibilité du routeur. */
-  update: (state: { auth: PushAuthState; navReady: boolean }) => void;
-  /** Réservé aux tests et au diagnostic. */
+  /** À appeler à chaque changement d'authentification, de session ou de disponibilité du routeur. */
+  update: (state: PushNavigatorState) => void;
+  /** Nombre d'ouvertures en attente ou en cours de préparation. */
+  pendingCount: () => number;
   hasPending: () => boolean;
 }
 
+interface QueueItem {
+  id: string;
+  dest: PushDestination;
+  at: number;
+}
+
+/**
+ * Chaque appui sur une notification DISTINCTE est conservé dans une file ordonnée et traité à tour de
+ * rôle : une seconde notification n'écrase jamais la première, y compris pendant le rechargement d'une
+ * correspondance ou avant la restauration de la session. À l'arrivée, l'utilisateur voit la dernière
+ * destination demandée.
+ *
+ * Garde-fous : un même appui n'est traité qu'une fois (identifiant) ; une destination identique à celle
+ * qui vient d'être ouverte, ou déjà affichée, n'est pas rouverte ; session absente ou différente → les
+ * ouvertures en file et en cours sont abandonnées (jamais d'ouverture après une déconnexion ni pour un
+ * autre compte).
+ */
 export function createPushNavigator(deps: PushNavigatorDeps): PushNavigator {
   const now = deps.now ?? (() => Date.now());
   const dedupeMs = deps.dedupeMs ?? 30_000;
   const pendingTtlMs = deps.pendingTtlMs ?? 60_000;
+  const maxQueue = deps.maxQueue ?? 5;
+  const sameDestinationMs = deps.sameDestinationMs ?? 5_000;
 
-  let state: { auth: PushAuthState; navReady: boolean } = { auth: 'unknown', navReady: false };
-  // Relecture explicite : l'état peut changer pendant `await deps.prepare(...)`.
-  const readState = (): { auth: PushAuthState; navReady: boolean } => state;
-  let pending: { id: string; dest: PushDestination; at: number } | null = null;
-  let busy = false;
+  let state: PushNavigatorState = { auth: 'unknown', navReady: false, sessionKey: null };
+  // Relecture explicite : l'état change pendant `await deps.prepare(...)`.
+  const readState = (): PushNavigatorState => state;
+  // Incrémentée à chaque perte ou changement de session : invalide toute préparation en cours.
+  let epoch = 0;
+  const queue: QueueItem[] = [];
+  // Ouverture en cours de préparation (en tête de file) : jamais abandonnée par saturation.
+  let inFlight: QueueItem | null = null;
+  let running = false;
+  let lastRoute: { route: string; at: number } | null = null;
   const handled = new Map<string, number>();
 
   const wasHandled = (id: string): boolean => {
@@ -236,52 +356,80 @@ export function createPushNavigator(deps: PushNavigatorDeps): PushNavigator {
     }
   };
 
-  async function flush(): Promise<void> {
-    if (busy || !pending) return;
-    if (now() - pending.at > pendingTtlMs) {
-      deps.onDiscard?.('expired');
-      pending = null;
-      return;
+  /** Abandonne toute la file : chaque appui est mémorisé (pas de rejeu) et signalé. */
+  function discardAll(reason: PushDiscardReason): void {
+    for (const item of queue.splice(0)) {
+      remember(item.id);
+      deps.onDiscard?.(reason, item.id);
     }
-    // Pas encore décidable : on attend l'hydratation de la session et le routeur.
-    if (state.auth === 'unknown' || !state.navReady) return;
-    const current = pending;
-    if (state.auth === 'unauthenticated') {
-      // Jamais de navigation différée vers une session future : l'utilisateur se connecte normalement.
-      remember(current.id);
-      deps.consume?.();
-      deps.onDiscard?.('unauthenticated');
-      pending = null;
-      return;
-    }
-    busy = true;
+    deps.consume?.();
+  }
+
+  async function run(): Promise<void> {
+    if (running) return;
+    running = true;
     try {
-      let route = current.dest.route;
-      if (deps.prepare) {
-        try {
-          route = await deps.prepare(current.dest);
-        } catch {
-          route = PUSH_FALLBACK_ROUTE;
+      while (queue.length > 0) {
+        const head = queue[0]!;
+        if (now() - head.at > pendingTtlMs) {
+          queue.shift();
+          remember(head.id);
+          deps.onDiscard?.('expired', head.id);
+          continue;
         }
-      }
-      // L'état a pu changer pendant la préparation (déconnexion) : on ne navigue plus.
-      const after = readState();
-      if (after.auth !== 'authenticated' || !after.navReady) {
-        if (after.auth === 'unauthenticated') {
-          remember(current.id);
-          deps.consume?.();
-          if (pending === current) pending = null;
+        const s = readState();
+        // Pas encore décidable : on attend l'hydratation de la session et le routeur.
+        if (s.auth === 'unknown' || !s.navReady) return;
+        if (s.auth === 'unauthenticated') {
+          // Jamais de navigation différée vers une future session : l'utilisateur se connecte normalement.
+          discardAll('unauthenticated');
+          return;
         }
-        return;
+
+        const startedEpoch = epoch;
+        inFlight = head;
+        let route = head.dest.route;
+        if (deps.prepare) {
+          try {
+            route = await deps.prepare(head.dest);
+          } catch {
+            route = PUSH_FALLBACK_ROUTE;
+          }
+        }
+        inFlight = null;
+        // Session perdue ou changée pendant la préparation : l'ouverture et la file sont abandonnées.
+        if (epoch !== startedEpoch) {
+          // `update` a déjà vidé et signalé la file ; ce qui y est entré depuis appartient à la
+          // nouvelle session et sera traité normalement au tour suivant.
+          if (queue[0] === head) {
+            queue.shift();
+            remember(head.id);
+            deps.onDiscard?.('session-changed', head.id);
+          }
+          continue;
+        }
+        const after = readState();
+        if (after.auth !== 'authenticated' || !after.navReady) {
+          // Routeur indisponible ou session perdue : on réessaie au prochain changement d'état.
+          if (after.auth === 'unauthenticated') continue;
+          return;
+        }
+
+        queue.shift();
+        remember(head.id);
+        const t = now();
+        if (lastRoute && lastRoute.route === route && t - lastRoute.at < sameDestinationMs) {
+          deps.onDiscard?.('same-destination', head.id);
+        } else if (deps.isAtRoute?.(route)) {
+          deps.onDiscard?.('already-there', head.id);
+        } else {
+          lastRoute = { route, at: t };
+          deps.navigate(route);
+        }
+        deps.consume?.();
       }
-      remember(current.id);
-      if (pending === current) pending = null;
-      deps.consume?.();
-      deps.navigate(route);
     } finally {
-      busy = false;
-      // Une autre notification a pu arriver pendant la préparation.
-      if (pending) void flush();
+      running = false;
     }
   }
 
@@ -298,17 +446,42 @@ export function createPushNavigator(deps: PushNavigatorDeps): PushNavigator {
         deps.onDiscard?.('ignored');
         return;
       }
-      if (wasHandled(id) || pending?.id === id) {
-        deps.onDiscard?.('duplicate');
+      if (wasHandled(id) || queue.some((q) => q.id === id)) {
+        deps.onDiscard?.('duplicate', id);
         return;
       }
-      pending = { id, dest: resolvePushDestination(request?.content?.data), at: now() };
-      void flush();
+      if (queue.length >= maxQueue) {
+        // La plus ancienne ouverture EN ATTENTE est abandonnée (explicitement) ; celle en cours de
+        // préparation est conservée.
+        const index = queue.findIndex((q) => q !== inFlight);
+        if (index !== -1) {
+          const [dropped] = queue.splice(index, 1);
+          remember(dropped!.id);
+          deps.onDiscard?.('overflow', dropped!.id);
+        }
+      }
+      queue.push({ id, dest: resolvePushDestination(request?.content?.data), at: now() });
+      void run();
     },
     update(next) {
+      const previous = state;
       state = next;
-      void flush();
+      const lostSession = previous.auth === 'authenticated' && next.auth !== 'authenticated';
+      // Changement d'identité connue → connue (une clé qui apparaît après la connexion n'est pas un changement).
+      const switchedSession =
+        next.auth === 'authenticated' &&
+        previous.auth === 'authenticated' &&
+        previous.sessionKey != null &&
+        next.sessionKey != null &&
+        previous.sessionKey !== next.sessionKey;
+      if (lostSession || switchedSession) {
+        epoch += 1;
+        // Les ouvertures en file appartenaient à l'ancienne session : abandonnées, jamais rejouées.
+        discardAll(lostSession ? 'unauthenticated' : 'session-changed');
+      }
+      void run();
     },
-    hasPending: () => pending !== null,
+    pendingCount: () => queue.length,
+    hasPending: () => queue.length > 0,
   };
 }

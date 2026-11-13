@@ -11,8 +11,10 @@ import { getUserSettings } from '../api/userSettings';
 import {
   badgeCountFor,
   createPushNavigator,
+  foregroundPresentation,
+  isAlreadyAtRoute,
+  onForegroundNotification,
   prepareDestinationWith,
-  shouldShowForegroundBanner,
   type CurrentLocation,
   type PushDestination,
   type PushNavigator,
@@ -28,11 +30,14 @@ let currentLocation: CurrentLocation | null = null;
 // Show push in foreground as banner + badge + sound — sauf si l'écran concerné est déjà ouvert.
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    const show = shouldShowForegroundBanner(currentLocation, notification.request.content.data);
+    const p = foregroundPresentation(currentLocation, notification.request.content.data, {
+      sound: foregroundSoundEnabled,
+      vibration: foregroundVibrationEnabled,
+    });
     return {
-      shouldShowBanner: show,
-      shouldShowList: show,
-      shouldPlaySound: show && foregroundSoundEnabled,
+      shouldShowBanner: p.showBanner,
+      shouldShowList: p.showList,
+      shouldPlaySound: p.playSound,
       shouldSetBadge: true,
     };
   },
@@ -84,6 +89,7 @@ export function usePushNotifications(sessionReady: boolean = true) {
   const isAuthenticated = useStore((s) => s.isAuthenticated);
   const loadUnreadCount = useStore((s) => s.loadUnreadCount);
   const unreadCount = useStore((s) => s.unreadNotificationsCount);
+  const userId = useStore((s) => s.currentUser?.id ?? null);
   const receivedListenerRef = useRef<Notifications.Subscription | null>(null);
   const routerRef = useRef(router);
   routerRef.current = router;
@@ -102,6 +108,7 @@ export function usePushNotifications(sessionReady: boolean = true) {
     const navigator = createPushNavigator({
       navigate: (route) => routerRef.current.push(route as never),
       prepare: prepareDestination,
+      isAtRoute: (route) => isAlreadyAtRoute(currentLocation, route),
       consume: consumeLastResponse,
       defaultActionId: Notifications.DEFAULT_ACTION_IDENTIFIER,
     });
@@ -123,8 +130,9 @@ export function usePushNotifications(sessionReady: boolean = true) {
     navigatorRef.current?.update({
       auth: !sessionReady ? 'unknown' : isAuthenticated ? 'authenticated' : 'unauthenticated',
       navReady,
+      sessionKey: userId,
     });
-  }, [sessionReady, isAuthenticated, navReady]);
+  }, [sessionReady, isAuthenticated, navReady, userId]);
 
   // Badge de l'icône (iOS) : nombre de notifications non lues de la cloche, comme dernier état connu.
   // Les push reçus application fermée ne le modifient pas (le serveur n'envoie pas de compteur).
@@ -201,11 +209,20 @@ export function usePushNotifications(sessionReady: boolean = true) {
     void setup();
 
     // Foreground: refresh unread count when a notification arrives
-    receivedListenerRef.current = Notifications.addNotificationReceivedListener(() => {
-      if (foregroundVibrationEnabled) {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      }
-      void loadUnreadCount();
+    // Bannière, son ET vibration sont supprimés ensemble quand l'écran concerné est déjà affiché ;
+    // le compteur de notifications non lues est toujours actualisé.
+    receivedListenerRef.current = Notifications.addNotificationReceivedListener((notification) => {
+      onForegroundNotification({
+        current: currentLocation,
+        data: notification.request.content.data,
+        prefs: { sound: foregroundSoundEnabled, vibration: foregroundVibrationEnabled },
+        vibrate: () => {
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        },
+        refreshUnread: () => {
+          void loadUnreadCount();
+        },
+      });
     });
 
     return () => {
