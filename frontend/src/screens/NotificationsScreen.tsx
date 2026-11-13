@@ -1,75 +1,65 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
   Switch,
   Alert,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
-import type { NotificationDto, NotificationType } from '../api/notifications';
+import type { NotificationDto } from '../api/notifications';
 import { getUserSettings, updateUserSettings } from '../api/userSettings';
 import { getNotificationTarget } from '../utils/notifications';
+import { categoryFor, formatNotificationTime, groupByDay, unreadSummary } from '../utils/notificationsView';
+import { NotificationIcon } from '../components/NotificationIcon';
 
-const TYPE_EMOJI: Record<NotificationType, string> = {
-  LETTER_RECEIVED:    '💌',
-  QUESTIONS_PASSED: '✉️',
-  QUESTIONS_FAILED: '📋',
-  MATCH_CREATED:      '💘',
-  OFFERING_RECEIVED:  '🎁',
-  MAGIE_RECEIVED:     '✨',
-  MAGIE_BROKEN:       '💥',
-  PREMIUM_SUBSCRIBED: '👑',
-  PREMIUM_CANCELLED:  '😔',
-  ADMIN_MESSAGE:      '📣',
-  PRIVATE_SALON_INVITE: '🔐',
-  SECURITY_ALERT:     '🛡️',
-};
-
-function formatRelative(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const min  = Math.floor(diff / 60_000);
-  if (min < 1)   return "À l'instant";
-  if (min < 60)  return `Il y a ${min} min`;
-  const h = Math.floor(min / 60);
-  if (h < 24)    return `Il y a ${h} h`;
-  const d = Math.floor(h / 24);
-  if (d < 7)     return `Il y a ${d} j`;
-  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-}
+const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
+const INK = '#2A2118';
+const INK_SOFT = '#5C4B3A';
+const RULE = '#B8A377';
+const BURGUNDY = '#8B2E3C';
+const GOLD = '#B87333';
+const MUTED = '#8B6F47';
+const PAPER = '#FEFAF0';
 
 function NotifItem({
   item,
+  now,
   onPress,
 }: {
   item: NotificationDto;
+  now: Date;
   onPress: (notification: NotificationDto) => void;
 }) {
+  const category = categoryFor(item.type);
+  const unread = !item.isRead;
   const hasTarget = !!getNotificationTarget(item);
   return (
     <TouchableOpacity
-      style={[styles.item, !item.isRead && styles.itemUnread]}
+      style={[styles.item, unread && styles.itemUnread]}
       onPress={() => onPress(item)}
       activeOpacity={hasTarget ? 0.75 : 1}
+      accessibilityRole="button"
+      accessibilityLabel={`${category.label}. ${item.message}. ${unread ? 'Non lue.' : 'Lue.'}`}
     >
-      <View style={styles.itemLeft}>
-        <Text style={styles.itemEmoji}>{TYPE_EMOJI[item.type] ?? '🔔'}</Text>
-        {!item.isRead && <View style={styles.unreadDot} />}
+      {unread ? <View style={styles.unreadBar} /> : null}
+      <View style={[styles.iconWrap, !unread && styles.iconWrapRead]}>
+        <NotificationIcon name={category.icon} color={unread ? BURGUNDY : MUTED} />
       </View>
       <View style={styles.itemBody}>
-        <Text style={[styles.itemMsg, !item.isRead && styles.itemMsgBold]}>
-          {item.message}
-        </Text>
-        <View style={styles.itemFooter}>
-          <Text style={styles.itemDate}>{formatRelative(item.createdAt)}</Text>
-          {hasTarget && <Text style={styles.itemChevron}>›</Text>}
-        </View>
+        <Text style={styles.category}>{category.label.toUpperCase()}</Text>
+        <Text style={[styles.itemMsg, unread && styles.itemMsgUnread]}>{item.message}</Text>
+      </View>
+      <View style={styles.itemWhen}>
+        <Text style={styles.itemDate}>{formatNotificationTime(item.createdAt, now)}</Text>
+        {unread ? <View style={styles.unreadDot} /> : null}
       </View>
     </TouchableOpacity>
   );
@@ -157,68 +147,83 @@ export default function NotificationsScreen() {
     }
   }, [notifPush, savingPreference]);
 
-  const preferencesHeader = (
+  // Les plus récentes d'abord, regroupées par jour ; l'historique (lues) reste affiché.
+  const now = new Date();
+  const sections = useMemo(() => groupByDay(notifications as NotificationDto[], new Date()), [notifications]);
+
+  const preferencesFooter = (
     <>
       <View style={styles.preferencesCard}>
-        <Text style={styles.preferencesTitle}>Préférences</Text>
-        <View style={[styles.preferenceRow, styles.preferenceRowLast]}>
-          <View style={styles.preferenceTextWrap}>
-            <Text style={styles.preferenceLabel}>Notifications push</Text>
-            <Text style={styles.preferenceHint}>Alertes envoyées sur ton appareil.</Text>
-          </View>
-          <Switch
-            value={notifPush}
-            onValueChange={(value) => void handlePushPreference(value)}
-            disabled={savingPreference}
-          />
+        <View style={styles.preferenceTextWrap}>
+          <Text style={styles.preferenceLabel}>Notifications push</Text>
+          <Text style={styles.preferenceHint}>Alertes envoyées sur ton appareil.</Text>
         </View>
+        <Switch
+          value={notifPush}
+          onValueChange={(value) => void handlePushPreference(value)}
+          disabled={savingPreference}
+        />
       </View>
-      <Text style={styles.historyTitle}>Historique</Text>
+      {notifications.length > 0 ? <Text style={styles.colophon}>{"— Fin de l'historique —"}</Text> : null}
     </>
   );
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backIcon}>←</Text>
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <View style={styles.headerWrap}>
+        <TouchableOpacity
+          onPress={() => router.replace('/journal' as never)}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Retour au Journal"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 12 }}
+        >
+          <Text style={styles.backChevron}>‹</Text>
+          <Text style={styles.backText}>Journal</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Notifications</Text>
-        {unreadNotificationsCount > 0 ? (
-          <TouchableOpacity onPress={handleMarkAll} style={styles.markAllBtn}>
-            <Text style={styles.markAllText}>Tout lire</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.markAllBtn} />
-        )}
+        <Text style={styles.title}>Mes notifications</Text>
+        <View style={styles.rule} />
+        <View style={styles.subRow}>
+          <Text style={styles.count}>{unreadSummary(unreadNotificationsCount)}</Text>
+          {unreadNotificationsCount > 0 ? (
+            <TouchableOpacity
+              onPress={handleMarkAll}
+              style={styles.markAllBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Tout marquer comme lu"
+            >
+              <Text style={styles.markAllText}>✓  Tout marquer comme lu</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+        <View style={[styles.rule, { marginTop: 0 }]} />
       </View>
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#8B2E3C" />
+          <ActivityIndicator color={BURGUNDY} />
         </View>
       ) : (
-        <FlatList<NotificationDto>
-          data={notifications}
+        <SectionList<NotificationDto, { key: string; title: string; data: NotificationDto[] }>
+          sections={sections}
           keyExtractor={(n) => n.id}
-          renderItem={({ item }) => (
-            <NotifItem item={item as NotificationDto} onPress={handlePress} />
-          )}
-          ListHeaderComponent={preferencesHeader}
+          stickySectionHeadersEnabled={false}
+          renderSectionHeader={({ section }) => <Text style={styles.dayLabel}>{section.title}</Text>}
+          renderItem={({ item }) => <NotifItem item={item} now={now} onPress={handlePress} />}
+          ListFooterComponent={preferencesFooter}
           ListEmptyComponent={(
             <View style={styles.emptyBox}>
-              <Text style={styles.emptyEmoji}>🔕</Text>
-              <Text style={styles.emptyText}>Aucune notification pour l'instant.</Text>
+              <Text style={styles.emptyTitle}>{"Aucune notification pour l'instant."}</Text>
+              <Text style={styles.emptyText}>Tes lettres, rencontres et invitations apparaîtront ici.</Text>
             </View>
           )}
-          contentContainerStyle={styles.list}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 28 }]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor="#8B2E3C"
-              colors={['#8B2E3C']}
+              tintColor={BURGUNDY}
+              colors={[BURGUNDY]}
             />
           }
         />
@@ -230,177 +235,216 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F5F1E8',
+    backgroundColor: '#F4EFE1',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D8D2C4',
+  headerWrap: {
+    paddingHorizontal: 18,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backIcon: {
-    fontSize: 22,
-    color: '#2B2B2B',
-  },
-  title: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#2B2B2B',
-  },
-  markAllBtn: {
-    width: 60,
-    alignItems: 'flex-end',
-  },
-  markAllText: {
-    fontSize: 13,
-    color: '#8B2E3C',
-    fontWeight: '700',
-  },
-  list: {
-    paddingVertical: 8,
-    paddingBottom: 28,
-  },
-  preferencesCard: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 18,
-    backgroundColor: '#FFF8F0',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#DED4C5',
-    paddingHorizontal: 14,
-  },
-  preferencesTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#8B2E3C',
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
-    paddingTop: 14,
-    paddingBottom: 4,
-  },
-  preferenceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E2D8',
+    alignSelf: 'flex-start',
+    marginTop: 12,
   },
-  preferenceRowLast: {
-    borderBottomWidth: 0,
+  backChevron: {
+    fontSize: 26,
+    lineHeight: 26,
+    color: BURGUNDY,
+    marginRight: 3,
+    marginTop: -2,
+  },
+  backText: {
+    fontSize: 15.5,
+    fontFamily: SERIF,
+    fontWeight: '700',
+    color: BURGUNDY,
+  },
+  title: {
+    textAlign: 'center',
+    fontSize: 31,
+    lineHeight: 36,
+    fontFamily: SERIF,
+    fontWeight: '700',
+    color: '#1E1813',
+    letterSpacing: 0.5,
+    marginTop: 4,
+  },
+  rule: {
+    height: 1,
+    backgroundColor: INK,
+    marginTop: 10,
+  },
+  subRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 9,
+    marginBottom: -1,
+    minHeight: 48,
+  },
+  count: {
+    fontSize: 15,
+    fontFamily: SERIF,
+    fontStyle: 'italic',
+    color: INK_SOFT,
+  },
+  markAllBtn: {
+    paddingVertical: 7,
+    paddingHorizontal: 11,
+    borderWidth: 1,
+    borderColor: 'rgba(139,46,60,0.45)',
+    borderRadius: 999,
+    backgroundColor: 'rgba(254,250,240,0.8)',
+  },
+  markAllText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: BURGUNDY,
+  },
+  list: {
+    paddingTop: 0,
+  },
+  dayLabel: {
+    paddingHorizontal: 18,
+    paddingTop: 11,
+    paddingBottom: 5,
+    fontSize: 10,
+    letterSpacing: 2.2,
+    fontFamily: SERIF,
+    color: INK_SOFT,
+  },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: RULE,
+    backgroundColor: 'transparent',
+  },
+  itemUnread: {
+    backgroundColor: 'rgba(240,217,140,0.20)',
+  },
+  unreadBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: GOLD,
+  },
+  iconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: PAPER,
+    borderWidth: 1,
+    borderColor: RULE,
+    marginRight: 12,
+  },
+  iconWrapRead: {
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(184,163,119,0.7)',
+  },
+  itemBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  category: {
+    fontSize: 9.5,
+    letterSpacing: 1.7,
+    fontFamily: SERIF,
+    color: INK_SOFT,
+    marginBottom: 2,
+  },
+  itemMsg: {
+    fontSize: 14.5,
+    lineHeight: 19,
+    fontFamily: SERIF,
+    color: INK_SOFT,
+  },
+  itemMsgUnread: {
+    fontWeight: '700',
+    color: INK,
+  },
+  itemWhen: {
+    alignItems: 'flex-end',
+    marginLeft: 10,
+    paddingTop: 1,
+  },
+  itemDate: {
+    fontSize: 11.5,
+    fontFamily: SERIF,
+    fontStyle: 'italic',
+    color: INK_SOFT,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: BURGUNDY,
+    marginTop: 7,
+  },
+  preferencesCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 18,
+    marginTop: 16,
+    backgroundColor: PAPER,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: RULE,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
   },
   preferenceTextWrap: {
     flex: 1,
     paddingRight: 12,
   },
   preferenceLabel: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '700',
-    color: '#2B2B2B',
+    color: INK,
   },
   preferenceHint: {
-    fontSize: 11,
-    color: '#8A8174',
+    fontSize: 11.5,
+    color: MUTED,
     marginTop: 2,
-    lineHeight: 16,
   },
-  historyTitle: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#8A8174',
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#E8E2D8',
-    marginHorizontal: 16,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#F5F1E8',
-  },
-  itemUnread: {
-    backgroundColor: '#FFF8F0',
-  },
-  itemLeft: {
-    width: 44,
-    alignItems: 'center',
-    position: 'relative',
-    paddingTop: 2,
-  },
-  itemEmoji: {
-    fontSize: 26,
-  },
-  unreadDot: {
-    position: 'absolute',
-    top: 0,
-    right: 4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#8B2E3C',
-  },
-  itemBody: {
-    flex: 1,
-    paddingLeft: 4,
-  },
-  itemMsg: {
-    fontSize: 14,
-    color: '#2B2B2B',
-    lineHeight: 20,
-  },
-  itemMsgBold: {
-    fontWeight: '700',
-  },
-  itemFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 3,
-  },
-  itemDate: {
-    fontSize: 11,
-    color: '#9B9080',
-  },
-  itemChevron: {
-    fontSize: 18,
-    color: '#C9A96E',
-    lineHeight: 20,
-    fontWeight: '700',
+  colophon: {
+    textAlign: 'center',
+    fontSize: 13,
+    fontFamily: SERIF,
+    fontStyle: 'italic',
+    color: INK_SOFT,
+    paddingTop: 14,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
   },
   emptyBox: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 48,
-    gap: 12,
+    paddingHorizontal: 32,
+    gap: 6,
   },
-  emptyEmoji: {
-    fontSize: 48,
+  emptyTitle: {
+    fontSize: 16,
+    fontFamily: SERIF,
+    fontWeight: '700',
+    color: INK,
+    textAlign: 'center',
   },
   emptyText: {
-    fontSize: 15,
-    color: '#6B6B6B',
+    fontSize: 13.5,
+    fontFamily: SERIF,
+    fontStyle: 'italic',
+    color: INK_SOFT,
+    textAlign: 'center',
   },
 });
