@@ -12,7 +12,22 @@ export type NotificationType =
   | 'PREMIUM_CANCELLED'
   | 'ADMIN_MESSAGE'
   | 'PRIVATE_SALON_INVITE'
-  | 'SECURITY_ALERT';
+  | 'SECURITY_ALERT'
+  // Phase 2 : événements des fonctionnalités existantes
+  | 'DUEL_RECEIVED'
+  | 'DUEL_RESULT'
+  | 'DUEL_DECLINED'
+  | 'DUEL_EXPIRED'
+  | 'BOTTLE_REPLY'
+  | 'BOTTLE_REVEAL_REQUEST'
+  | 'BOTTLE_REVEAL_ACCEPTED'
+  | 'BOTTLE_REVEAL_REFUSED'
+  | 'QUESTIONS_TURN'
+  | 'REFUGE_ADOPTED'
+  | 'REFUGE_REVEAL_PHASE'
+  | 'REFUGE_REVEALED'
+  | 'REPORT_PROCESSED'
+  | 'ACCOUNT_RESTORED';
 
 export interface NotificationDto {
   id: string;

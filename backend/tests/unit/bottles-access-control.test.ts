@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import { prisma } from "../../src/config/prisma";
+import { notifyEvent } from "../../src/modules/notifications/notify.service";
 import { claimBottleWithReply, createBottle, ensureReceiptsForFloatingBottles, postMessage } from "../../src/modules/bottles/bottles.service";
 
 vi.mock("../../src/config/prisma", () => {
@@ -27,7 +28,7 @@ vi.mock("../../src/config/prisma", () => {
   return { prisma: p };
 });
 vi.mock("../../src/policies/premium", () => ({ isPremiumActive: vi.fn(() => false) }));
-vi.mock("../../src/modules/notifications/push.service", () => ({ sendPushToUser: vi.fn() }));
+vi.mock("../../src/modules/notifications/notify.service", () => ({ notifyEvent: vi.fn() }));
 vi.mock("../../src/core/middleware/auth", () => ({
   requireAuth: (req: any, _res: any, next: any) => { req.user = { userId: req.headers["x-user"] }; next(); },
 }));
@@ -210,6 +211,36 @@ describe("Blocage pendant une conversation déjà commencée", () => {
     await expect(postMessage("bottle-1", SENDER, "Je réponds", "00000000-0000-4000-8000-000000000006"))
       .resolves.toMatchObject({ idempotentReplay: false });
     expect(prisma.anonymousMessage.create).toHaveBeenCalled();
+  });
+
+  it("Phase 2 : le message notifie UNIQUEMENT l'autre participant, sans contenu, une non lue par bouteille", async () => {
+    setupConversation(READER);
+    vi.mocked(prisma.anonymousMessage.create).mockResolvedValue({ id: "msg-new", senderId: SENDER, content: "x", createdAt: new Date(now) } as any);
+    const res = await request(await app()).post("/api/bottles/bottle-1/messages").set("x-user", SENDER)
+      .send({ content: "Texte secret à ne jamais notifier", idempotencyKey: "00000000-0000-4000-8000-000000000007" });
+    expect(res.status).toBe(201);
+    expect(notifyEvent).toHaveBeenCalledTimes(1);
+    const arg = vi.mocked(notifyEvent).mock.calls[0]![0];
+    expect(arg).toMatchObject({
+      recipientId: READER,
+      actorId: SENDER,
+      type: "BOTTLE_REPLY",
+      meta: { bottleId: "bottle-1" },
+      dedupeKey: "bottle-message:msg-new",
+      coalesceUnread: { metaKey: "bottleId", value: "bottle-1" },
+    });
+    expect(JSON.stringify(arg)).not.toContain("secret");
+    vi.mocked(prisma.anonymousMessage.findFirst).mockReset(); // pas de fuite vers les tests suivants
+  });
+
+  it("Phase 2 : un message refusé (blocage) ne notifie personne", async () => {
+    setupConversation(READER);
+    vi.mocked(prisma.block.findFirst).mockResolvedValue({ id: "block-1" } as any);
+    const res = await request(await app()).post("/api/bottles/bottle-1/messages").set("x-user", SENDER)
+      .send({ content: "Encore", idempotencyKey: "00000000-0000-4000-8000-000000000008" });
+    expect(res.status).toBe(409);
+    expect(notifyEvent).not.toHaveBeenCalled();
+    vi.mocked(prisma.anonymousMessage.findFirst).mockReset(); // pas de fuite vers les tests suivants
   });
 });
 

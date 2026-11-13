@@ -98,6 +98,35 @@ export function buildNotificationMessage(type: NotificationType): string {
       return "Tu as été invité dans un salon privé";
     case NotificationType.SECURITY_ALERT:
       return "Une action de sécurité a eu lieu sur ton compte";
+    // ── Phase 2 : textes génériques, jamais de pseudo, de contenu ni de montant ──────────
+    case NotificationType.DUEL_RECEIVED:
+      return "Tu as été défié(e) en duel";
+    case NotificationType.DUEL_RESULT:
+      return "Le résultat de ton duel est disponible";
+    case NotificationType.DUEL_DECLINED:
+      return "Ton duel a été décliné";
+    case NotificationType.DUEL_EXPIRED:
+      return "Ton duel a expiré";
+    case NotificationType.BOTTLE_REPLY:
+      return "Tu as un nouveau message dans ta bouteille à la mer";
+    case NotificationType.BOTTLE_REVEAL_REQUEST:
+      return "Ton correspondant mystère souhaite se dévoiler";
+    case NotificationType.BOTTLE_REVEAL_ACCEPTED:
+      return "Dévoilement accepté : une correspondance est ouverte";
+    case NotificationType.BOTTLE_REVEAL_REFUSED:
+      return "Ta demande de dévoilement n'a pas été acceptée";
+    case NotificationType.QUESTIONS_TURN:
+      return "C'est à toi de répondre aux 3 questions";
+    case NotificationType.REFUGE_ADOPTED:
+      return "Ton refuge a été adopté : l'aventure commence";
+    case NotificationType.REFUGE_REVEAL_PHASE:
+      return "Ton refuge arrive à son terme : choisis de te dévoiler ou non";
+    case NotificationType.REFUGE_REVEALED:
+      return "Vos profils sont dévoilés";
+    case NotificationType.REPORT_PROCESSED:
+      return "Ton signalement a été examiné";
+    case NotificationType.ACCOUNT_RESTORED:
+      return "Ton compte est de nouveau actif";
   }
 }
 
@@ -120,6 +149,11 @@ export const ALLOWED_META_KEYS = [
   "salonId",
   "adminMessageId",
   "privateSalonSessionId",
+  // Phase 2 : identifiants de routage uniquement (jamais affichés, jamais de contenu).
+  "duelId",
+  "bottleId",
+  "refugeSessionId",
+  "reportId",
 ] as const;
 
 export type AllowedMetaKey = (typeof ALLOWED_META_KEYS)[number];
@@ -182,6 +216,11 @@ export function buildPushPayload(
       return { title: "JeuTaime · Administration", body: "Tu as reçu un message de l’administration", data };
     case NotificationType.PRIVATE_SALON_INVITE:
       return { title: "JeuTaime · Invitation", body: "Tu as été invité dans un salon privé", data };
+    case NotificationType.BOTTLE_REPLY:
+    case NotificationType.BOTTLE_REVEAL_REQUEST:
+    case NotificationType.BOTTLE_REVEAL_ACCEPTED:
+    case NotificationType.BOTTLE_REVEAL_REFUSED:
+      return { title: "Bouteille à la mer", body: buildNotificationMessage(type), data };
     default:
       return { title: "JeuTaime", body: buildNotificationMessage(type), data };
   }
