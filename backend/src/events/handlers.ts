@@ -58,7 +58,10 @@ emitter.on("letterSent", async (payload) => {
       meta,
     });
     const push = buildPushPayload(NotificationType.LETTER_RECEIVED, meta);
-    void sendPushToUser({ userId: payload.toUserId, ...push });
+    // Identité de la lettre : chaque lettre envoie ou relance fait évoluer les compteurs de la
+    // correspondance (une relance est marquée à part) ; deux lettres distinctes n'ont jamais la même clé.
+    const letterKey = `letter:${payload.matchId}:${payload.fromUserId}:${payload.matchLetterCountA}:${payload.matchLetterCountB}:${payload.isGhostRelance ? "relance" : "lettre"}`;
+    void sendPushToUser({ userId: payload.toUserId, ...push, idempotencyKey: letterKey });
   } catch (err) {
     logger.error(
       { err, payload },
@@ -104,8 +107,8 @@ emitter.on("matchCreated", async (payload) => {
     ]);
     const pushA = buildPushPayload(NotificationType.MATCH_CREATED, metaA);
     const pushB = buildPushPayload(NotificationType.MATCH_CREATED, metaB);
-    void sendPushToUser({ userId: payload.userAId, ...pushA });
-    void sendPushToUser({ userId: payload.userBId, ...pushB });
+    void sendPushToUser({ userId: payload.userAId, ...pushA, idempotencyKey: `match:${payload.matchId}` });
+    void sendPushToUser({ userId: payload.userBId, ...pushB, idempotencyKey: `match:${payload.matchId}` });
   } catch (err) {
     logger.error(
       { err, payload },
@@ -142,7 +145,7 @@ emitter.on("offeringSent", async (payload) => {
     };
     await createNotification({ userId: payload.toUserId, type: NotificationType.OFFERING_RECEIVED, meta });
     const push = buildPushPayload(NotificationType.OFFERING_RECEIVED, meta);
-    void sendPushToUser({ userId: payload.toUserId, ...push });
+    void sendPushToUser({ userId: payload.toUserId, ...push, idempotencyKey: `offering:${payload.offeringSentId}` });
   } catch (err) {
     logger.error(
       { err, payload },
@@ -179,7 +182,7 @@ emitter.on("magieCast", async (payload) => {
     };
     await createNotification({ userId: payload.toUserId, type: NotificationType.MAGIE_RECEIVED, meta });
     const push = buildPushPayload(NotificationType.MAGIE_RECEIVED, meta);
-    void sendPushToUser({ userId: payload.toUserId, ...push });
+    void sendPushToUser({ userId: payload.toUserId, ...push, idempotencyKey: `magie:${payload.magieCastId}` });
   } catch (err) {
     logger.error(
       { err, payload },

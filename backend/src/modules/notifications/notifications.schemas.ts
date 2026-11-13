@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isExpoPushToken } from "./expoPush";
 import { NotificationType } from "@prisma/client";
 
 // ============================================================
@@ -40,7 +41,10 @@ export type NotificationIdParamsDto = z.infer<
 // ============================================================
 export const RegisterDeviceSchema = z
   .object({
-    token:    z.string().min(1).max(512),
+    token:    z
+      .string()
+      .max(512)
+      .refine(isExpoPushToken, "Jeton de notification invalide."),
     platform: z.enum(["ios", "android", "web"]),
   })
   .strict();

@@ -3,6 +3,7 @@ import { prisma } from "../../../config/prisma";
 import { ConflictError, NotFoundError } from "../../../core/errors";
 import { createNotification } from "../../notifications/notifications.service";
 import { sendPushToUser } from "../../notifications/push.service";
+import { buildPushPayload } from "../../../policies/notifications";
 import { writeAudit } from "../admin.audit";
 
 export async function sendAdminMessage(
@@ -29,11 +30,11 @@ export async function sendAdminMessage(
     meta: { adminMessageId: created.id },
   });
 
+  // Texte générique : ni le sujet ni le contenu du message n'apparaissent sur l'écran verrouillé.
   void sendPushToUser({
     userId,
-    title: "JeuTaime · Administration",
-    body: subject ? `${subject} — nouveau message` : "Tu as reçu un message de l’administration",
-    data: { route: "/admin-messages", adminMessageId: created.id },
+    ...buildPushPayload(NotificationType.ADMIN_MESSAGE, { adminMessageId: created.id }),
+    idempotencyKey: `admin-message:${created.id}`,
   });
 
   await writeAudit({
@@ -182,11 +183,11 @@ export async function inviteToPrivateSalon(adminId: string, sessionId: string, u
     meta: { privateSalonSessionId: sessionId },
   });
 
+  // Texte générique : le nom du salon n'apparaît pas sur l'écran verrouillé.
   void sendPushToUser({
     userId,
-    title: "JeuTaime · Invitation",
-    body: `Tu es invité(e) dans ${session.privateName ?? "un salon privé"}`,
-    data: { route: "/private-salons", privateSalonSessionId: sessionId },
+    ...buildPushPayload(NotificationType.PRIVATE_SALON_INVITE, { privateSalonSessionId: sessionId }),
+    idempotencyKey: `private-salon-invite:${invite.id}`,
   });
 
   await writeAudit({
