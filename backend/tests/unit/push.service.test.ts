@@ -14,9 +14,9 @@ vi.mock("../../src/modules/operations/operations.service", () => ({ recordSystem
 vi.mock("../../src/modules/auth/accountLifecycle.service", () => ({ isAccountDeactivated: deactivated }));
 
 import {
-  PUSH_DEDUPE_WINDOW_MS,
+  PUSH_IDEMPOTENCY_TTL_MS,
   registerDeviceToken,
-  resetPushDedupe,
+  resetPushIdempotency,
   sendDailyEditionPush,
   sendPushToUser,
   unregisterDeviceToken,
@@ -33,7 +33,7 @@ const sentMessages = (call = 0) => JSON.parse(fetchMock.mock.calls[call]![1].bod
 
 beforeEach(() => {
   vi.clearAllMocks();
-  resetPushDedupe();
+  resetPushIdempotency();
   resetPendingReceipts();
   prismaMock.user.findUnique.mockResolvedValue({ isBanned: false, settings: { ...allOn } });
   prismaMock.pushToken.findMany.mockResolvedValue([{ id: "r1", token: tok(1) }]);
@@ -61,7 +61,7 @@ describe("préférences", () => {
     prismaMock.user.findUnique.mockResolvedValue({ isBanned: false, settings: { ...allOn, [key]: false } });
     await send({ data: { type } });
     expect(fetchMock).not.toHaveBeenCalled();
-    resetPushDedupe();
+    resetPushIdempotency();
     await send({ data: { type: "SECURITY_ALERT" } });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -69,7 +69,7 @@ describe("préférences", () => {
   it("administration, sécurité, abonnement : non concernés par les catégories", async () => {
     prismaMock.user.findUnique.mockResolvedValue({ isBanned: false, settings: { ...allOn, notifMeetings: false, notifLetters: false, notifSalons: false, notifActivities: false, notifNews: false } });
     for (const type of ["ADMIN_MESSAGE", "SECURITY_ALERT", "PREMIUM_SUBSCRIBED"]) {
-      resetPushDedupe();
+      resetPushIdempotency();
       await send({ data: { type } });
     }
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -85,7 +85,7 @@ describe("préférences", () => {
     prismaMock.user.findUnique.mockResolvedValue({ isBanned: false, settings: { ...allOn, soundEnabled: false } });
     await send();
     expect(sentMessages()[0]).toMatchObject({ sound: null, priority: "high", channelId: "default", to: tok(1) });
-    resetPushDedupe(); fetchMock.mockClear();
+    resetPushIdempotency(); fetchMock.mockClear();
     prismaMock.user.findUnique.mockResolvedValue({ isBanned: false, settings: { ...allOn } });
     await send();
     expect(sentMessages()[0]).toMatchObject({ sound: "default" });
@@ -231,24 +231,90 @@ describe("tickets, erreurs et doublons", () => {
     expect(pendingReceiptCount()).toBe(1);
   });
 
-  it("deux envois identiques rapprochés : un seul appel ; autre contenu ou autre utilisateur : envoyés ; après la fenêtre : renvoyé", async () => {
-    const now = vi.spyOn(Date, "now");
-    now.mockReturnValue(1_000_000);
-    await send();
-    await send();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    await send({ data: { type: "LETTER_RECEIVED", matchId: "m2" } });
-    await send({ userId: "u2" });
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    now.mockReturnValue(1_000_000 + PUSH_DEDUPE_WINDOW_MS + 1);
-    await send();
-    expect(fetchMock).toHaveBeenCalledTimes(4);
-  });
-
   it("une erreur inattendue (base indisponible) ne se propage jamais à l'appelant", async () => {
     prismaMock.user.findUnique.mockRejectedValue(new Error("db down"));
     await expect(send()).resolves.toBeUndefined();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("événements distincts et idempotence", () => {
+  it("deux lettres distinctes, texte identique, même seconde : DEUX envois (aucun filtrage par contenu)", async () => {
+    await send({ idempotencyKey: "letter:m1:uA:1:0:lettre" });
+    await send({ idempotencyKey: "letter:m1:uA:2:0:lettre" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("sans clé : jamais de filtrage, même charge identique répétée", async () => {
+    await send();
+    await send();
+    await send();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("même événement rejoué (même clé, même utilisateur) : un seul envoi", async () => {
+    await send({ idempotencyKey: "letter:m1:uA:1:0:lettre" });
+    await send({ idempotencyKey: "letter:m1:uA:1:0:lettre" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("même événement rejoué en parallèle (double exécution) : un seul envoi", async () => {
+    await Promise.all([send({ idempotencyKey: "offering:o1" }), send({ idempotencyKey: "offering:o1" }), send({ idempotencyKey: "offering:o1" })]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("même clé pour deux destinataires (ex. match créé) : un envoi chacun", async () => {
+    await send({ userId: "uA", idempotencyKey: "match:m1" });
+    await send({ userId: "uB", idempotencyKey: "match:m1" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("la réservation expire : au-delà du délai, le même identifiant peut être traité à nouveau", async () => {
+    const now = vi.spyOn(Date, "now");
+    now.mockReturnValue(5_000_000);
+    await send({ idempotencyKey: "k" });
+    await send({ idempotencyKey: "k" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    now.mockReturnValue(5_000_000 + PUSH_IDEMPOTENCY_TTL_MS + 1);
+    await send({ idempotencyKey: "k" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("échec CERTAIN (HTTP 400, rien traité) : la réservation est rendue, une relance légitime aboutit", async () => {
+    fetchMock.mockResolvedValueOnce(json({}, 400));
+    await send({ idempotencyKey: "k" });
+    await send({ idempotencyKey: "k" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("échec INCERTAIN (coupure en cours de requête) : réservation conservée, pas de second envoi", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+    await send({ idempotencyKey: "k" });
+    await send({ idempotencyKey: "k" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("erreur interne (base indisponible) ou statut illisible : réservation rendue", async () => {
+    prismaMock.user.findUnique.mockRejectedValueOnce(new Error("db down"));
+    await send({ idempotencyKey: "k1" });
+    await send({ idempotencyKey: "k1" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    deactivated.mockRejectedValueOnce(new Error("table absente"));
+    await send({ idempotencyKey: "k2" });
+    await send({ idempotencyKey: "k2" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("événement écarté volontairement (préférence coupée) : réservation conservée", async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({ isBanned: false, settings: { ...allOn, notifLetters: false } });
+    await send({ idempotencyKey: "k" });
+    await send({ idempotencyKey: "k" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("la clé n'est jamais transmise à Expo", async () => {
+    await send({ idempotencyKey: "letter:secret-ident" });
+    expect(JSON.stringify(sentMessages())).not.toMatch(/secret-ident|idempotency/i);
   });
 });
 
@@ -258,6 +324,76 @@ describe("confidentialité de la requête envoyée à Expo", () => {
     const m = sentMessages()[0]!;
     expect(m).toMatchObject({ title: "JeuTaime · Administration", body: "Tu as reçu un message de l’administration", data: { type: "ADMIN_MESSAGE" } });
     expect(JSON.stringify(m)).not.toMatch(/u1|userId/);
+  });
+});
+
+describe("Édition du jour : une seule fois par appareil et par jour", () => {
+  type Row = { id: string; token: string; userId: string; lastDailyEditionKey: string | null; user: { settings: { notifPush: boolean; soundEnabled: boolean; notifNews: boolean } } };
+  let table: Row[];
+  const makeTable = (n: number): Row[] =>
+    Array.from({ length: n }, (_, i) => ({ id: `d${i}`, token: tok(i), userId: `u${i}`, lastDailyEditionKey: null, user: { settings: { notifPush: true, soundEnabled: true, notifNews: true } } }));
+  const run = (key = "2026-11-13") => sendDailyEditionPush({ editionKey: key, title: "Le JeuTaime — Édition du jour", body: "Votre édition du jour est disponible." });
+
+  beforeEach(() => {
+    table = makeTable(3);
+    // Mini-base : findMany applique le filtre « pas encore servi aujourd'hui », updateMany écrit la clé.
+    prismaMock.pushToken.findMany.mockImplementation(async (args: { where: { AND: Array<{ OR?: Array<{ lastDailyEditionKey: null | { not: string } }> }> } }) => {
+      const key = (args.where.AND[0]!.OR![1]!.lastDailyEditionKey as { not: string }).not;
+      return table.filter((r) => r.lastDailyEditionKey === null || r.lastDailyEditionKey !== key).map((r) => ({ ...r }));
+    });
+    prismaMock.pushToken.updateMany.mockImplementation(async (args: { where: { id: { in: string[] } }; data: { lastDailyEditionKey: string } }) => {
+      for (const r of table) if (args.where.id.in.includes(r.id)) r.lastDailyEditionKey = args.data.lastDailyEditionKey;
+      return { count: args.where.id.in.length };
+    });
+    fetchMock.mockImplementation(async (_u: string, init: { body: string }) =>
+      json({ data: (JSON.parse(init.body) as unknown[]).map((_m, i) => ({ status: "ok", id: `e${Math.random()}-${i}` })) }));
+  });
+
+  it("exécutions répétées dans la journée (le job tourne toutes les 5 min) : chaque appareil reçoit UN seul push", async () => {
+    expect((await run()).sent).toBe(3);
+    expect((await run()).sent).toBe(0);
+    expect((await run()).sent).toBe(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(table.every((r) => r.lastDailyEditionKey === "2026-11-13")).toBe(true);
+  });
+
+  it("le lendemain, une nouvelle édition est envoyée une fois à chaque appareil", async () => {
+    await run("2026-11-13");
+    expect((await run("2026-11-14")).sent).toBe(3);
+    expect((await run("2026-11-14")).sent).toBe(0);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("un appareil ajouté en cours de journée reçoit l'édition, les autres non", async () => {
+    await run();
+    table.push({ id: "d9", token: tok(9), userId: "u9", lastDailyEditionKey: null, user: { settings: { notifPush: true, soundEnabled: true, notifNews: true } } });
+    expect((await run()).sent).toBe(1);
+    const lastCall = JSON.parse(fetchMock.mock.calls[1]![1].body as string) as Array<{ to: string }>;
+    expect(lastCall.map((m) => m.to)).toEqual([tok(9)]);
+  });
+
+  it("exécutions CHEVAUCHANTES (envoi lent, planificateur relancé) : la seconde ne fait rien, aucun doublon", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    fetchMock.mockImplementation(async (_u: string, init: { body: string }) => {
+      await gate;
+      return json({ data: (JSON.parse(init.body) as unknown[]).map((_m, i) => ({ status: "ok", id: `e${i}` })) });
+    });
+    const first = run();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const second = await run(); // pendant que la première est encore en cours d'envoi
+    expect(second).toEqual({ scanned: 0, sent: 0 });
+    release();
+    expect((await first).sent).toBe(3);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((await run()).sent).toBe(0); // et après coup, plus rien non plus
+  });
+
+  it("une exécution qui échoue libère le verrou : la suivante réessaie", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+    expect((await run()).sent).toBe(0);
+    expect(table.every((r) => r.lastDailyEditionKey === null)).toBe(true);
+    expect((await run()).sent).toBe(3);
   });
 });
 

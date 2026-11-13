@@ -3,7 +3,8 @@ import request from "supertest";
 import app from "../../src/app";
 import { prisma } from "../../src/config/prisma";
 import { hashPassword } from "../../src/core/utils/hash";
-import { sendPushToUser, resetPushDedupe } from "../../src/modules/notifications/push.service";
+import { sendPushToUser, resetPushIdempotency } from "../../src/modules/notifications/push.service";
+import { processPendingReceipts, rememberTickets, resetPendingReceipts, RECEIPT_MIN_AGE_MS } from "../../src/modules/notifications/pushReceipts";
 
 /**
  * Notifications push, phase 0, sur PostgreSQL : comptes bannis, formats de jetons,
@@ -35,7 +36,7 @@ afterAll(async () => {
   await prisma.loginEvent.deleteMany({ where: { email: { in: [active.email, banned.email, legacy.email] } } });
   await prisma.user.deleteMany({ where: { id: { in: [active.id, banned.id, legacy.id] } } });
 });
-afterEach(() => { vi.unstubAllGlobals(); resetPushDedupe(); });
+afterEach(() => { vi.unstubAllGlobals(); resetPushIdempotency(); });
 
 function stubExpo() {
   expo = vi.fn(async (_url: unknown, init: { body: string }) =>
@@ -109,5 +110,45 @@ describe("envoi selon l'état du compte (base réelle)", () => {
     const after = await prisma.pushToken.findMany({ where: { userId: active.id }, select: { token: true } });
     expect(after.map((t) => t.token)).not.toContain(invalidated);
     expect(after.length).toBe(before.length - 1);
+  });
+});
+
+describe("reçus Expo : suppression d'un jeton seulement si elle est justifiée (base réelle)", () => {
+  const T = (tag: string) => `ExponentPushToken[rc${tag}${run.replace(/[^A-Za-z0-9]/g, "")}]`;
+  const receiptsFor = (ids: string[], error: string) => {
+    vi.stubGlobal("fetch", vi.fn(async () => json({ data: Object.fromEntries(ids.map((id) => [id, { status: "error", details: { error } }])) })));
+  };
+  afterEach(() => resetPendingReceipts());
+
+  test("DeviceNotRegistered : supprimé si non ré-enregistré depuis l'envoi ; conservé s'il l'a été ; autre erreur : conservé", async () => {
+    const sentAt = Date.now() - RECEIPT_MIN_AGE_MS - 1000;
+    const stale = T("stale"), fresh = T("fresh"), other = T("other");
+    for (const t of [stale, fresh, other]) await prisma.pushToken.create({ data: { userId: active.id, token: t, platform: "ios" } });
+    // Jeton « ancien » : dernière mise à jour AVANT l'envoi ; jeton « frais » : ré-enregistré APRÈS l'envoi.
+    await prisma.$executeRaw`UPDATE "PushToken" SET "updatedAt" = ${new Date(sentAt - 60_000)} WHERE token = ${stale}`;
+    await prisma.$executeRaw`UPDATE "PushToken" SET "updatedAt" = ${new Date(sentAt + 60_000)} WHERE token = ${fresh}`;
+
+    rememberTickets([
+      { ticketId: `r-stale-${run}`, token: stale, userId: active.id, sentAt },
+      { ticketId: `r-fresh-${run}`, token: fresh, userId: active.id, sentAt },
+    ]);
+    receiptsFor([`r-stale-${run}`, `r-fresh-${run}`], "DeviceNotRegistered");
+    const r = await processPendingReceipts(sentAt + RECEIPT_MIN_AGE_MS + 1);
+    expect(r.tokensRemoved).toBe(1);
+    expect(await prisma.pushToken.count({ where: { token: stale } })).toBe(0);
+    expect(await prisma.pushToken.count({ where: { token: fresh } })).toBe(1);
+
+    // Erreurs non définitives : aucun jeton supprimé.
+    for (const error of ["MessageRateExceeded", "InvalidCredentials", "MessageTooBig", "Inconnue"]) {
+      rememberTickets([{ ticketId: `r-${error}-${run}`, token: other, userId: active.id, sentAt }]);
+      receiptsFor([`r-${error}-${run}`], error);
+      await processPendingReceipts(sentAt + RECEIPT_MIN_AGE_MS + 1);
+      expect(await prisma.pushToken.count({ where: { token: other } }), error).toBe(1);
+    }
+    // Le jeton d'un autre compte n'est jamais touché, même avec un identifiant de ticket piégé.
+    rememberTickets([{ ticketId: `r-x-${run}`, token: other, userId: legacy.id, sentAt }]);
+    receiptsFor([`r-x-${run}`], "DeviceNotRegistered");
+    await processPendingReceipts(sentAt + RECEIPT_MIN_AGE_MS + 1);
+    expect(await prisma.pushToken.count({ where: { token: other } })).toBe(1);
   });
 });

@@ -288,6 +288,7 @@ export async function submitMatchAnswers(
             void sendPushToUser({
               userId: recipientId,
               ...buildPushPayload(type, meta),
+              idempotencyKey: `questions:${matchId}:${type}`,
             }).catch((err) => {
               logger.error({ err, matchId, recipientId }, "[questions] Push de résultat échoué");
             });

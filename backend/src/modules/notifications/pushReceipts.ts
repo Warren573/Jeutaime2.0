@@ -44,6 +44,7 @@ export function pendingReceiptCount(): number {
 /** Réservé aux tests. */
 export function resetPendingReceipts(): void {
   pending.clear();
+  running = false;
   if (timer) clearTimeout(timer);
   timer = null;
 }
@@ -81,8 +82,25 @@ export interface ReceiptRunResult {
   dropped: number;
 }
 
+let running = false;
+
+/**
+ * Une seule passe à la fois : un appel pendant qu'une passe est en cours ne fait rien (les tickets
+ * restent en attente pour la passe suivante). Chaque requête a un délai maximal (expoPush.ts) et
+ * les attentes sont asynchrones : la boucle d'événements du serveur n'est jamais bloquée.
+ */
 export async function processPendingReceipts(now: number = Date.now()): Promise<ReceiptRunResult> {
   const result: ReceiptRunResult = { checked: 0, tokensRemoved: 0, dropped: 0 };
+  if (running) return result;
+  running = true;
+  try {
+    return await runReceiptPass(now, result);
+  } finally {
+    running = false;
+  }
+}
+
+async function runReceiptPass(now: number, result: ReceiptRunResult): Promise<ReceiptRunResult> {
 
   // Abandon des tickets trop anciens (le reçu n'est conservé que 24 h par Expo).
   for (const [id, t] of pending) {

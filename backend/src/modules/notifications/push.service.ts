@@ -11,7 +11,10 @@
  *   - préférences respectées avant tout appel réseau (général, catégorie, son) ;
  *   - seuls les jetons au format Expo sont utilisés ;
  *   - un jeton n'est supprimé que sur une erreur DÉFINITIVE (DeviceNotRegistered) ;
- *   - un envoi identique au même utilisateur dans une courte fenêtre n'est fait qu'une fois.
+ *   - AUCUNE suppression fondée sur le texte ou le contenu : deux événements distincts
+ *     produisent toujours deux notifications, même au texte identique. Seule une clé
+ *     d'idempotence liée à l'identité réelle de l'événement (`idempotencyKey`) empêche
+ *     qu'un MÊME événement rejoué soit envoyé deux fois. Sans clé : aucun filtrage.
  */
 import { prisma } from "../../config/prisma";
 import { logger } from "../../config/logger";
@@ -29,31 +32,45 @@ import {
 } from "./expoPush";
 import { rememberTickets } from "./pushReceipts";
 
-/** Fenêtre pendant laquelle un envoi strictement identique au même utilisateur n'est pas répété. */
-export const PUSH_DEDUPE_WINDOW_MS = 10_000;
-const DEDUPE_MAX_ENTRIES = 5000;
-const recentSends = new Map<string, number>();
+/**
+ * Idempotence par identité d'événement.
+ *
+ * Une clé (ex. `letter:<id>`) est réservée au premier traitement d'un événement pour un
+ * utilisateur ; un rejeu du MÊME événement (relance technique, double émission) est ignoré,
+ * y compris s'il arrive pendant que le premier envoi est encore en cours. La réservation est
+ * rendue si l'événement n'a PAS pu être traité (erreur interne, échec certain d'envoi), afin
+ * qu'une relance légitime puisse aboutir. Une clé n'est jamais dérivée du texte.
+ *
+ * Mémoire du processus, bornée, expirante : aucune migration. Elle ne protège pas entre
+ * plusieurs instances (voir la description de la PR).
+ */
+export const PUSH_IDEMPOTENCY_TTL_MS = 30 * 60 * 1000;
+const IDEMPOTENCY_MAX_ENTRIES = 10_000;
+const claimedEvents = new Map<string, number>();
 
 /** Réservé aux tests. */
-export function resetPushDedupe(): void {
-  recentSends.clear();
+export function resetPushIdempotency(): void {
+  claimedEvents.clear();
 }
 
-function stableData(data: Record<string, string> | undefined): string {
-  if (!data) return "";
-  return JSON.stringify(Object.keys(data).sort().map((k) => [k, data[k]]));
-}
-
-/** Vrai si cet envoi est un doublon récent ; sinon l'enregistre. */
-function isRecentDuplicate(key: string, now: number): boolean {
-  const seen = recentSends.get(key);
-  if (seen !== undefined && now - seen < PUSH_DEDUPE_WINDOW_MS) return true;
-  if (recentSends.size >= DEDUPE_MAX_ENTRIES) {
-    for (const [k, t] of recentSends) if (now - t >= PUSH_DEDUPE_WINDOW_MS) recentSends.delete(k);
-    if (recentSends.size >= DEDUPE_MAX_ENTRIES) recentSends.clear();
+function claimEvent(userId: string, key: string, now: number): boolean {
+  const id = `${userId}|${key}`;
+  const claimedAt = claimedEvents.get(id);
+  if (claimedAt !== undefined && now - claimedAt < PUSH_IDEMPOTENCY_TTL_MS) return false;
+  if (claimedEvents.size >= IDEMPOTENCY_MAX_ENTRIES) {
+    for (const [k, t] of claimedEvents) if (now - t >= PUSH_IDEMPOTENCY_TTL_MS) claimedEvents.delete(k);
+    if (claimedEvents.size >= IDEMPOTENCY_MAX_ENTRIES) {
+      // Table saturée de réservations récentes : on retire les plus anciennes.
+      const oldest = claimedEvents.keys().next().value;
+      if (oldest !== undefined) claimedEvents.delete(oldest);
+    }
   }
-  recentSends.set(key, now);
-  return false;
+  claimedEvents.set(id, now);
+  return true;
+}
+
+function releaseEvent(userId: string, key: string): void {
+  claimedEvents.delete(`${userId}|${key}`);
 }
 
 // ============================================================
@@ -102,32 +119,45 @@ async function purgeTokens(userId: string, reason: string): Promise<void> {
 // Contrôle le compte destinataire, puis respecte UserSettings avant tout appel
 // réseau vers Expo. Récupère ensuite les jetons valides et envoie.
 // ============================================================
-export async function sendPushToUser(params: {
+export interface SendPushParams {
   userId: string;
   title: string;
   body: string;
   data?: Record<string, string>;
-}): Promise<void> {
+  /**
+   * Identité réelle de l'événement (ex. `letter:<id>`, `offering:<id>`), si elle existe.
+   * Le même événement rejoué n'est envoyé qu'une fois ; sans clé, aucun filtrage.
+   */
+  idempotencyKey?: string;
+}
+
+/** Issue d'un traitement : ce qui a réellement eu lieu, pour décider de rendre ou non la réservation. */
+interface SendOutcomeSummary {
+  /** Vrai si l'événement a été traité (envoyé, ou écarté volontairement : préférences, compte, pas de jeton). */
+  handled: boolean;
+}
+
+export async function sendPushToUser(params: SendPushParams): Promise<void> {
+  const key = params.idempotencyKey;
+  if (key && !claimEvent(params.userId, key, Date.now())) {
+    logger.debug({ userId: params.userId }, "[push] même événement déjà traité, envoi ignoré");
+    return;
+  }
+  let handled = false;
   try {
-    await sendPushToUserUnsafe(params);
+    handled = (await sendPushToUserUnsafe(params)).handled;
   } catch (err) {
     // Une notification ne doit jamais faire échouer l'action qui l'a déclenchée.
     logger.error({ err, userId: params.userId }, "[push] erreur inattendue à l'envoi");
+  } finally {
+    // Événement non traité (erreur interne, échec certain d'envoi) : la réservation est rendue,
+    // une relance légitime pourra aboutir.
+    if (key && !handled) releaseEvent(params.userId, key);
   }
 }
 
-async function sendPushToUserUnsafe(params: {
-  userId: string;
-  title: string;
-  body: string;
-  data?: Record<string, string>;
-}): Promise<void> {
+async function sendPushToUserUnsafe(params: SendPushParams): Promise<SendOutcomeSummary> {
   const now = Date.now();
-  const dedupeKey = `${params.userId}|${params.title}|${params.body}|${stableData(params.data)}`;
-  if (isRecentDuplicate(dedupeKey, now)) {
-    logger.debug({ userId: params.userId }, "[push] doublon récent ignoré");
-    return;
-  }
 
   const user = await prisma.user.findUnique({
     where: { id: params.userId },
@@ -163,16 +193,17 @@ async function sendPushToUserUnsafe(params: {
     // Banni : la révocation est justifiée, les jetons sont retirés (le compte les ré-enregistrera
     // s'il est un jour rétabli). Désactivé : ses jetons sont déjà retirés à la désactivation.
     if (state === "banned") await purgeTokens(params.userId, "compte banni");
-    return;
+    // Statut indéterminable : rien n'a été décidé, la réservation est rendue pour une relance.
+    return { handled: state !== "unknown" };
   }
   const settings = user!.settings;
 
   // Le réglage est créé à l'inscription et vaut true par défaut. Si une
   // ancienne donnée n'a pas encore de ligne UserSettings, on conserve le
   // comportement historique (push autorisé) plutôt que de couper en silence.
-  if (settings?.notifPush === false) return;
+  if (settings?.notifPush === false) return { handled: true };
   const category = pushCategoryFor(params.data?.type);
-  if (category && settings?.[category] === false) return;
+  if (category && settings?.[category] === false) return { handled: true };
 
   const rows = await prisma.pushToken.findMany({
     where: { userId: params.userId },
@@ -183,7 +214,7 @@ async function sendPushToUserUnsafe(params: {
   if (usable.length < rows.length) {
     logger.warn({ ignored: rows.length - usable.length, userId: params.userId }, "[push] jetons au format inattendu ignorés");
   }
-  if (usable.length === 0) return;
+  if (usable.length === 0) return { handled: true };
 
   const messages: ExpoPushMessage[] = usable.map(({ token }) => ({
     to: token,
@@ -197,12 +228,17 @@ async function sendPushToUserUnsafe(params: {
 
   // Expo accepte au maximum 100 messages par requête.
   // Un échec d'un lot ne doit pas empêcher l'envoi aux autres appareils.
+  let accepted = 0;
+  let ambiguous = false;
   for (let offset = 0; offset < messages.length; offset += EXPO_BATCH_SIZE) {
     const batchMessages = messages.slice(offset, offset + EXPO_BATCH_SIZE);
     const batchRows = usable.slice(offset, offset + EXPO_BATCH_SIZE);
     const outcome = await postPushBatch(batchMessages);
 
     if (outcome.kind === "failed") {
+      // Échec CERTAIN (HTTP refusé, connexion jamais établie) ou INCERTAIN (coupure, délai dépassé,
+      // réponse illisible : Expo a peut-être traité le lot).
+      if (!outcome.retryable && (outcome.status === undefined || outcome.status < 300)) ambiguous = true;
       logger.warn({ status: outcome.status, reason: outcome.reason, userId: params.userId }, "[push] envoi Expo en échec");
       void recordSystemIncident({
         level: outcome.retryable ? "WARNING" : "ERROR",
@@ -216,12 +252,13 @@ async function sendPushToUserUnsafe(params: {
     }
 
     const invalidTokens: string[] = [];
-    const accepted: Array<{ ticketId: string; token: string; userId: string; sentAt: number }> = [];
+    const tracked: Array<{ ticketId: string; token: string; userId: string; sentAt: number }> = [];
     outcome.tickets.forEach((ticket, i) => {
       const row = batchRows[i];
       if (!row) return;
-      handleTicket(ticket, row.token, params.userId, now, invalidTokens, accepted);
+      handleTicket(ticket, row.token, params.userId, now, invalidTokens, tracked);
     });
+    accepted += outcome.tickets.length;
 
     if (invalidTokens.length > 0) {
       // Ne supprime jamais un jeton réattribué entre l'envoi et la réponse d'Expo.
@@ -230,8 +267,10 @@ async function sendPushToUserUnsafe(params: {
       });
       logger.info({ count: invalidTokens.length }, "[push] Tokens invalides purgés");
     }
-    if (accepted.length > 0) rememberTickets(accepted);
+    if (tracked.length > 0) rememberTickets(tracked);
   }
+  // Traité si Expo a répondu pour au moins un lot, ou si un échec incertain interdit de rejouer.
+  return { handled: accepted > 0 || ambiguous };
 }
 
 /** Classe un ticket : accepté (suivi du reçu), jeton définitivement invalide, ou erreur journalisée. */
@@ -272,7 +311,31 @@ function chunk<T>(items: T[], size: number): T[][] {
   return result;
 }
 
+/**
+ * Une seule exécution à la fois par édition dans ce processus : si une exécution est encore en cours
+ * (envoi lent) quand le planificateur relance le job, la seconde ne fait rien. Sans cela, deux
+ * exécutions lisent les mêmes jetons « pas encore servis » et envoient deux fois.
+ */
+const dailyEditionInFlight = new Set<string>();
+
 export async function sendDailyEditionPush(params: {
+  editionKey: string;
+  title: string;
+  body: string;
+}): Promise<{ scanned: number; sent: number }> {
+  if (dailyEditionInFlight.has(params.editionKey)) {
+    logger.info({ editionKey: params.editionKey }, "[push] édition du jour déjà en cours d'envoi, exécution ignorée");
+    return { scanned: 0, sent: 0 };
+  }
+  dailyEditionInFlight.add(params.editionKey);
+  try {
+    return await sendDailyEditionPushUnsafe(params);
+  } finally {
+    dailyEditionInFlight.delete(params.editionKey);
+  }
+}
+
+async function sendDailyEditionPushUnsafe(params: {
   editionKey: string;
   title: string;
   body: string;

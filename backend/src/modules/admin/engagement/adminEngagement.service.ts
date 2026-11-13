@@ -34,6 +34,7 @@ export async function sendAdminMessage(
   void sendPushToUser({
     userId,
     ...buildPushPayload(NotificationType.ADMIN_MESSAGE, { adminMessageId: created.id }),
+    idempotencyKey: `admin-message:${created.id}`,
   });
 
   await writeAudit({
@@ -186,6 +187,7 @@ export async function inviteToPrivateSalon(adminId: string, sessionId: string, u
   void sendPushToUser({
     userId,
     ...buildPushPayload(NotificationType.PRIVATE_SALON_INVITE, { privateSalonSessionId: sessionId }),
+    idempotencyKey: `private-salon-invite:${invite.id}`,
   });
 
   await writeAudit({
