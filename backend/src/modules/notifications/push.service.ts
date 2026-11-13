@@ -1,32 +1,59 @@
 /**
- * Service push in-app via l'API Expo Push Notifications.
- * Le backend envoie une requête HTTP à Expo qui route vers FCM/APNS.
+ * Service push via l'API Expo Push Notifications.
+ * Le backend envoie une requête HTTP à Expo qui route vers APNs/FCM.
  * Aucun SDK Firebase Admin requis.
  *
  * Toutes les erreurs push sont fire-and-forget : elles ne bloquent pas
  * le flux principal et ne propagent pas d'exception à l'appelant.
+ *
+ * Garanties (voir aussi expoPush.ts et pushReceipts.ts) :
+ *   - aucun envoi vers un compte banni, désactivé ou supprimé ;
+ *   - préférences respectées avant tout appel réseau (général, catégorie, son) ;
+ *   - seuls les jetons au format Expo sont utilisés ;
+ *   - un jeton n'est supprimé que sur une erreur DÉFINITIVE (DeviceNotRegistered) ;
+ *   - un envoi identique au même utilisateur dans une courte fenêtre n'est fait qu'une fois.
  */
 import { prisma } from "../../config/prisma";
 import { logger } from "../../config/logger";
+import { BadRequestError } from "../../core/errors";
 import { recordSystemIncident } from "../operations/operations.service";
+import { isAccountDeactivated } from "../auth/accountLifecycle.service";
+import { pushCategoryFor } from "../../policies/pushRouting";
+import {
+  EXPO_BATCH_SIZE,
+  classifyExpoError,
+  isExpoPushToken,
+  postPushBatch,
+  type ExpoPushMessage,
+  type ExpoTicket,
+} from "./expoPush";
+import { rememberTickets } from "./pushReceipts";
 
-const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+/** Fenêtre pendant laquelle un envoi strictement identique au même utilisateur n'est pas répété. */
+export const PUSH_DEDUPE_WINDOW_MS = 10_000;
+const DEDUPE_MAX_ENTRIES = 5000;
+const recentSends = new Map<string, number>();
 
-interface ExpoPushMessage {
-  to: string;
-  title: string;
-  body: string;
-  data?: Record<string, string>;
-  sound?: "default" | null;
-  priority?: "default" | "normal" | "high";
-  channelId?: string;
+/** Réservé aux tests. */
+export function resetPushDedupe(): void {
+  recentSends.clear();
 }
 
-interface ExpoPushTicket {
-  status: "ok" | "error";
-  id?: string;
-  message?: string;
-  details?: { error?: string };
+function stableData(data: Record<string, string> | undefined): string {
+  if (!data) return "";
+  return JSON.stringify(Object.keys(data).sort().map((k) => [k, data[k]]));
+}
+
+/** Vrai si cet envoi est un doublon récent ; sinon l'enregistre. */
+function isRecentDuplicate(key: string, now: number): boolean {
+  const seen = recentSends.get(key);
+  if (seen !== undefined && now - seen < PUSH_DEDUPE_WINDOW_MS) return true;
+  if (recentSends.size >= DEDUPE_MAX_ENTRIES) {
+    for (const [k, t] of recentSends) if (now - t >= PUSH_DEDUPE_WINDOW_MS) recentSends.delete(k);
+    if (recentSends.size >= DEDUPE_MAX_ENTRIES) recentSends.clear();
+  }
+  recentSends.set(key, now);
+  return false;
 }
 
 // ============================================================
@@ -39,6 +66,9 @@ export async function registerDeviceToken(params: {
   token: string;
   platform: string;
 }): Promise<void> {
+  if (!isExpoPushToken(params.token)) {
+    throw new BadRequestError("Jeton de notification invalide.");
+  }
   await prisma.pushToken.upsert({
     where: { token: params.token },
     create: {
@@ -54,10 +84,23 @@ export async function registerDeviceToken(params: {
 }
 
 // ============================================================
+// État du destinataire
+// ============================================================
+type RecipientState = "ok" | "missing" | "banned" | "deactivated" | "unknown";
+
+async function purgeTokens(userId: string, reason: string): Promise<void> {
+  try {
+    const res = await prisma.pushToken.deleteMany({ where: { userId } });
+    if (res.count > 0) logger.info({ count: res.count, reason }, "[push] jetons retirés");
+  } catch (err) {
+    logger.warn({ err, reason }, "[push] retrait des jetons impossible");
+  }
+}
+
+// ============================================================
 // sendPushToUser
-// Respecte UserSettings.notifPush avant tout appel réseau vers Expo.
-// Récupère ensuite tous les tokens du user et envoie la notification.
-// Les tickets d'erreur Expo (ex : DeviceNotRegistered) purgent le token.
+// Contrôle le compte destinataire, puis respecte UserSettings avant tout appel
+// réseau vers Expo. Récupère ensuite les jetons valides et envoie.
 // ============================================================
 export async function sendPushToUser(params: {
   userId: string;
@@ -65,32 +108,84 @@ export async function sendPushToUser(params: {
   body: string;
   data?: Record<string, string>;
 }): Promise<void> {
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId: params.userId },
-    select: { notifPush: true, soundEnabled: true, notifMeetings: true, notifLetters: true, notifSalons: true, notifActivities: true, notifNews: true },
+  try {
+    await sendPushToUserUnsafe(params);
+  } catch (err) {
+    // Une notification ne doit jamais faire échouer l'action qui l'a déclenchée.
+    logger.error({ err, userId: params.userId }, "[push] erreur inattendue à l'envoi");
+  }
+}
+
+async function sendPushToUserUnsafe(params: {
+  userId: string;
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+}): Promise<void> {
+  const now = Date.now();
+  const dedupeKey = `${params.userId}|${params.title}|${params.body}|${stableData(params.data)}`;
+  if (isRecentDuplicate(dedupeKey, now)) {
+    logger.debug({ userId: params.userId }, "[push] doublon récent ignoré");
+    return;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: params.userId },
+    select: {
+      isBanned: true,
+      settings: {
+        select: {
+          notifPush: true,
+          soundEnabled: true,
+          notifMeetings: true,
+          notifLetters: true,
+          notifSalons: true,
+          notifActivities: true,
+          notifNews: true,
+        },
+      },
+    },
   });
+
+  let state: RecipientState = "ok";
+  if (!user) state = "missing";
+  else if (user.isBanned) state = "banned";
+  else {
+    try {
+      if (await isAccountDeactivated(params.userId)) state = "deactivated";
+    } catch (err) {
+      // Statut indéterminable : par prudence, aucun envoi.
+      logger.warn({ err, userId: params.userId }, "[push] statut de désactivation illisible");
+      state = "unknown";
+    }
+  }
+  if (state !== "ok") {
+    // Banni : la révocation est justifiée, les jetons sont retirés (le compte les ré-enregistrera
+    // s'il est un jour rétabli). Désactivé : ses jetons sont déjà retirés à la désactivation.
+    if (state === "banned") await purgeTokens(params.userId, "compte banni");
+    return;
+  }
+  const settings = user!.settings;
 
   // Le réglage est créé à l'inscription et vaut true par défaut. Si une
   // ancienne donnée n'a pas encore de ligne UserSettings, on conserve le
   // comportement historique (push autorisé) plutôt que de couper en silence.
   if (settings?.notifPush === false) return;
-  const type = params.data?.type;
-  const category = type === 'BOTTLE_REPLY' || type === 'LETTER_RECEIVED' ? 'notifLetters'
-    : (type === 'MATCH_CREATED' || type === 'QUESTIONS_PASSED' || type === 'QUESTIONS_FAILED') ? 'notifMeetings'
-    : type === 'PRIVATE_SALON_INVITE' || type === 'MAGIE_RECEIVED' || type === 'MAGIE_BROKEN' ? 'notifSalons'
-    : type === 'OFFERING_RECEIVED' ? 'notifActivities'
-    : type === 'DAILY_EDITION' ? 'notifNews'
-    : null;
+  const category = pushCategoryFor(params.data?.type);
   if (category && settings?.[category] === false) return;
 
   const rows = await prisma.pushToken.findMany({
     where: { userId: params.userId },
     select: { id: true, token: true },
   });
+  // Les jetons au format inattendu ne sont jamais envoyés à Expo (un lot entier peut être refusé).
+  const usable = rows.filter((r) => isExpoPushToken(r.token));
+  if (usable.length < rows.length) {
+    logger.warn({ ignored: rows.length - usable.length, userId: params.userId }, "[push] jetons au format inattendu ignorés");
+  }
+  if (usable.length === 0) return;
 
-  if (rows.length === 0) return;
-
-  const messages: ExpoPushMessage[] = rows.map(({ token }) => ({
+  const messages: ExpoPushMessage[] = usable.map(({ token }) => ({
     to: token,
     title: params.title,
     body: params.body,
@@ -102,63 +197,74 @@ export async function sendPushToUser(params: {
 
   // Expo accepte au maximum 100 messages par requête.
   // Un échec d'un lot ne doit pas empêcher l'envoi aux autres appareils.
-  for (let offset = 0; offset < messages.length; offset += 100) {
-    const batchMessages = messages.slice(offset, offset + 100);
-    const batchRows = rows.slice(offset, offset + 100);
-    try {
-      const res = await fetch(EXPO_PUSH_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "Accept-Encoding": "gzip, deflate",
-        },
-        body: JSON.stringify(batchMessages),
-      });
+  for (let offset = 0; offset < messages.length; offset += EXPO_BATCH_SIZE) {
+    const batchMessages = messages.slice(offset, offset + EXPO_BATCH_SIZE);
+    const batchRows = usable.slice(offset, offset + EXPO_BATCH_SIZE);
+    const outcome = await postPushBatch(batchMessages);
 
-      if (!res.ok) {
-        logger.warn({ status: res.status, userId: params.userId }, "[push] Expo push API non-ok");
-        void recordSystemIncident({
-          level: "WARNING",
-          source: "push",
-          code: "EXPO_NON_OK",
-          message: `Expo Push API a répondu ${res.status}`,
-          userId: params.userId,
-          statusCode: res.status,
-        });
-        continue;
-      }
-
-      const json = (await res.json()) as { data: ExpoPushTicket | ExpoPushTicket[] };
-      const tickets = Array.isArray(json.data) ? json.data : [json.data];
-      const invalidTokens: string[] = [];
-      tickets.forEach((ticket, i) => {
-        if (ticket.status === "error" && ticket.details?.error === "DeviceNotRegistered") {
-          const row = batchRows[i];
-          if (row) invalidTokens.push(row.token);
-        }
-      });
-
-      if (invalidTokens.length > 0) {
-        // Ne supprime jamais un jeton réattribué entre l'envoi et la réponse d'Expo.
-        await prisma.pushToken.deleteMany({
-          where: { userId: params.userId, token: { in: invalidTokens } },
-        });
-        logger.info({ count: invalidTokens.length }, "[push] Tokens invalides purgés");
-      }
-    } catch (err) {
-      logger.error({ err, userId: params.userId }, "[push] Erreur envoi Expo push");
+    if (outcome.kind === "failed") {
+      logger.warn({ status: outcome.status, reason: outcome.reason, userId: params.userId }, "[push] envoi Expo en échec");
       void recordSystemIncident({
-        level: "ERROR",
+        level: outcome.retryable ? "WARNING" : "ERROR",
         source: "push",
-        code: "PUSH_SEND_FAILED",
-        message: err instanceof Error ? err.message : "Erreur envoi Expo push",
+        code: outcome.status !== undefined ? "EXPO_NON_OK" : "PUSH_SEND_FAILED",
+        message: outcome.reason,
         userId: params.userId,
+        ...(outcome.status !== undefined ? { statusCode: outcome.status } : {}),
       });
+      continue; // jamais de suppression de jeton sur un échec technique
     }
+
+    const invalidTokens: string[] = [];
+    const accepted: Array<{ ticketId: string; token: string; userId: string; sentAt: number }> = [];
+    outcome.tickets.forEach((ticket, i) => {
+      const row = batchRows[i];
+      if (!row) return;
+      handleTicket(ticket, row.token, params.userId, now, invalidTokens, accepted);
+    });
+
+    if (invalidTokens.length > 0) {
+      // Ne supprime jamais un jeton réattribué entre l'envoi et la réponse d'Expo.
+      await prisma.pushToken.deleteMany({
+        where: { userId: params.userId, token: { in: invalidTokens } },
+      });
+      logger.info({ count: invalidTokens.length }, "[push] Tokens invalides purgés");
+    }
+    if (accepted.length > 0) rememberTickets(accepted);
   }
 }
 
+/** Classe un ticket : accepté (suivi du reçu), jeton définitivement invalide, ou erreur journalisée. */
+function handleTicket(
+  ticket: ExpoTicket,
+  token: string,
+  userId: string,
+  sentAt: number,
+  invalidTokens: string[],
+  accepted: Array<{ ticketId: string; token: string; userId: string; sentAt: number }>,
+): void {
+  if (ticket.status === "ok") {
+    if (ticket.id) accepted.push({ ticketId: ticket.id, token, userId, sentAt });
+    return;
+  }
+  const code = ticket.details?.error;
+  const kind = classifyExpoError(code);
+  if (kind === "invalid_token") {
+    invalidTokens.push(token);
+    return;
+  }
+  // Temporaire, configuration ou inconnu : le jeton est conservé.
+  logger.warn({ code, kind, userId }, "[push] ticket Expo en erreur (jeton conservé)");
+  if (kind === "configuration") {
+    void recordSystemIncident({
+      level: "ERROR",
+      source: "push",
+      code: `EXPO_TICKET_${String(code).toUpperCase()}`,
+      message: `Ticket Expo en erreur : ${code}`,
+      userId,
+    });
+  }
+}
 
 function chunk<T>(items: T[], size: number): T[][] {
   const result: T[][] = [];
@@ -173,9 +279,15 @@ export async function sendDailyEditionPush(params: {
 }): Promise<{ scanned: number; sent: number }> {
   const rows = await prisma.pushToken.findMany({
     where: {
-      OR: [
-        { lastDailyEditionKey: null },
-        { lastDailyEditionKey: { not: params.editionKey } },
+      AND: [
+        {
+          OR: [
+            { lastDailyEditionKey: null },
+            { lastDailyEditionKey: { not: params.editionKey } },
+          ],
+        },
+        // Jamais d'envoi à un compte banni (les comptes désactivés n'ont plus de jeton).
+        { user: { isBanned: false } },
       ],
     },
     select: {
@@ -190,10 +302,15 @@ export async function sendDailyEditionPush(params: {
     },
   });
 
-  const eligible = rows.filter((row) => row.user.settings?.notifPush !== false && row.user.settings?.notifNews !== false);
+  const eligible = rows.filter(
+    (row) =>
+      row.user.settings?.notifPush !== false &&
+      row.user.settings?.notifNews !== false &&
+      isExpoPushToken(row.token),
+  );
   let sent = 0;
 
-  for (const batch of chunk(eligible, 100)) {
+  for (const batch of chunk(eligible, EXPO_BATCH_SIZE)) {
     const messages: ExpoPushMessage[] = batch.map((row) => ({
       to: row.token,
       title: params.title,
@@ -204,61 +321,48 @@ export async function sendDailyEditionPush(params: {
       channelId: "default",
     }));
 
-    try {
-      const res = await fetch(EXPO_PUSH_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "Accept-Encoding": "gzip, deflate",
-        },
-        body: JSON.stringify(messages),
-      });
-      if (!res.ok) {
-        void recordSystemIncident({
-          level: "WARNING",
-          source: "push",
-          code: "DAILY_PUSH_NON_OK",
-          message: `Expo Push API a répondu ${res.status} pour l'édition quotidienne`,
-          statusCode: res.status,
-        });
-        continue;
-      }
-
-      const json = (await res.json()) as { data: ExpoPushTicket[] | ExpoPushTicket };
-      const tickets = Array.isArray(json.data) ? json.data : [json.data];
-      const deliveredIds: string[] = [];
-      const invalidIds: string[] = [];
-
-      tickets.forEach((ticket, index) => {
-        const row = batch[index];
-        if (!row) return;
-        if (ticket.status === "ok") {
-          deliveredIds.push(row.id);
-          sent += 1;
-        } else if (ticket.details?.error === "DeviceNotRegistered") {
-          invalidIds.push(row.id);
-        }
-      });
-
-      if (deliveredIds.length > 0) {
-        await prisma.pushToken.updateMany({
-          where: { id: { in: deliveredIds } },
-          data: { lastDailyEditionKey: params.editionKey },
-        });
-      }
-      if (invalidIds.length > 0) {
-        await prisma.pushToken.deleteMany({ where: { id: { in: invalidIds } } });
-      }
-    } catch (err) {
-      logger.error({ err }, "[push] Erreur envoi édition quotidienne");
+    const outcome = await postPushBatch(messages);
+    if (outcome.kind === "failed") {
+      // Les jetons du lot gardent leur clé : la prochaine exécution du job réessaie.
       void recordSystemIncident({
-        level: "ERROR",
+        level: outcome.retryable ? "WARNING" : "ERROR",
         source: "push",
-        code: "DAILY_PUSH_FAILED",
-        message: err instanceof Error ? err.message : "Erreur envoi édition quotidienne",
+        code: outcome.status !== undefined ? "DAILY_PUSH_NON_OK" : "DAILY_PUSH_FAILED",
+        message: `Édition quotidienne : ${outcome.reason}`,
+        ...(outcome.status !== undefined ? { statusCode: outcome.status } : {}),
+      });
+      continue;
+    }
+
+    const deliveredIds: string[] = [];
+    const invalidIds: string[] = [];
+    const accepted: Array<{ ticketId: string; token: string; userId: string; sentAt: number }> = [];
+    const sentAt = Date.now();
+
+    outcome.tickets.forEach((ticket, index) => {
+      const row = batch[index];
+      if (!row) return;
+      if (ticket.status === "ok") {
+        deliveredIds.push(row.id);
+        sent += 1;
+        if (ticket.id) accepted.push({ ticketId: ticket.id, token: row.token, userId: row.userId, sentAt });
+      } else if (classifyExpoError(ticket.details?.error) === "invalid_token") {
+        invalidIds.push(row.id);
+      } else {
+        logger.warn({ code: ticket.details?.error }, "[push] ticket édition quotidienne en erreur (jeton conservé)");
+      }
+    });
+
+    if (deliveredIds.length > 0) {
+      await prisma.pushToken.updateMany({
+        where: { id: { in: deliveredIds } },
+        data: { lastDailyEditionKey: params.editionKey },
       });
     }
+    if (invalidIds.length > 0) {
+      await prisma.pushToken.deleteMany({ where: { id: { in: invalidIds } } });
+    }
+    if (accepted.length > 0) rememberTickets(accepted);
   }
 
   return { scanned: rows.length, sent };

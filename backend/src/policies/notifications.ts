@@ -12,6 +12,7 @@
  */
 import { NotificationType } from "@prisma/client";
 import { ForbiddenError } from "../core/errors";
+import { pickPushData } from "./pushRouting";
 
 // ============================================================
 // Ownership
@@ -160,13 +161,9 @@ export function buildPushPayload(
   type: NotificationType,
   meta?: NotificationMeta | null,
 ): PushPayload {
-  const data: Record<string, string> = { type };
-  if (meta?.matchId)  data["matchId"]  = meta.matchId;
-  if (meta?.salonId)  data["salonId"]  = meta.salonId;
-  if (meta?.fromUserId) data["fromUserId"] = meta.fromUserId;
-  if (meta?.otherUserId) data["otherUserId"] = meta.otherUserId;
-  if (meta?.adminMessageId) data["adminMessageId"] = meta.adminMessageId;
-  if (meta?.privateSalonSessionId) data["privateSalonSessionId"] = meta.privateSalonSessionId;
+  // Charge minimale : `type` + identifiants de navigation autorisés (policies/pushRouting.ts).
+  // Jamais d'identifiant d'utilisateur, de nom de salon ni de sujet de message.
+  const data = pickPushData(type, meta);
 
   switch (type) {
     case NotificationType.LETTER_RECEIVED:

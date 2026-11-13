@@ -245,7 +245,7 @@ export async function claimReply(req: AuthedRequest, res: Response) {
     const validated = PostBottleMessageResponseSchema.parse(serializeDates(result));
     if (!result.idempotentReplay) {
       const bottle = await prisma.messageInABottle.findUnique({ where: { id: bottleId }, select: { senderId: true } });
-      if (bottle) void sendPushToUser({ userId: bottle.senderId, title: "Bouteille à la mer", body: "Une première réponse est arrivée à ta bouteille.", data: { type: "BOTTLE_REPLY", bottleId } });
+      if (bottle) void sendPushToUser({ userId: bottle.senderId, title: "Bouteille à la mer", body: "Une première réponse est arrivée à ta bouteille.", data: { type: "BOTTLE_REPLY" } });
     }
     res.status(result.idempotentReplay ? 200 : 201).json({ data: validated });
   } catch (error: any) {
@@ -317,7 +317,7 @@ export async function postMessage(req: AuthedRequest, res: Response) {
     if (!result.idempotentReplay) {
       const bottle = await prisma.messageInABottle.findUnique({ where: { id: bottleId }, select: { senderId: true, acceptedById: true } });
       const recipientId = bottle?.senderId === userId ? bottle?.acceptedById : bottle?.senderId;
-      if (recipientId) void sendPushToUser({ userId: recipientId, title: "Bouteille à la mer", body: "Une nouvelle lettre t’attend dans ta correspondance.", data: { type: "BOTTLE_REPLY", bottleId } });
+      if (recipientId) void sendPushToUser({ userId: recipientId, title: "Bouteille à la mer", body: "Une nouvelle lettre t’attend dans ta correspondance.", data: { type: "BOTTLE_REPLY" } });
     }
     res.status(result.idempotentReplay ? 200 : 201).json({ data: validated });
   } catch (error: any) {
