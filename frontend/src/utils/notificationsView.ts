@@ -35,6 +35,8 @@ export type NotificationIconName =
   | 'megaphone'
   | 'shield'
   | 'crown'
+  | 'bottle'
+  | 'duel'
   | 'bell';
 
 export interface NotificationCategory {

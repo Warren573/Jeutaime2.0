@@ -48,6 +48,19 @@ export function NotificationIcon({ name, size = 20, color }: { name: Notificatio
           <Path d="M9 12.2l2.2 2.2L15.3 10" {...common} />
         </>
       )}
+      {name === 'bottle' && (
+        <>
+          <Path d="M10 3.2h4v2.7l1.3 2.4c.5.9.7 1.8.7 2.8V19a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-7.9c0-1 .2-1.9.7-2.8L10 5.9V3.2z" {...common} />
+          <Path d="M8.4 13.4h7.2" {...common} />
+        </>
+      )}
+      {name === 'duel' && (
+        <>
+          <Path d="M4 4l11 11M20 4 9 15" {...common} />
+          <Path d="M12.2 17.8 17.8 12.2M6.2 12.2l5.6 5.6" {...common} />
+          <Path d="M15 15l4.6 4.6M9 15l-4.6 4.6" {...common} />
+        </>
+      )}
       {name === 'crown' && <Path d="M4 17.5 3.2 8l4.6 4.2L12 6l4.2 6.2L20.8 8 20 17.5H4zM4.5 20h15" {...common} />}
       {name === 'bell' && (
         <>

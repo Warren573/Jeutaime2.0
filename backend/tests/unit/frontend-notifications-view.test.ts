@@ -161,6 +161,15 @@ describe("même compteur et confidentialité (garde-fous sur les sources)", () =
     expect(source("screens/NotificationsScreen.tsx")).toMatch(/markAllNotificationsRead/);
     expect(source("screens/NotificationsScreen.tsx")).toMatch(/getNotificationTarget/);
   });
+  it("placement choisi : cloche dans le coin supérieur droit du Journal (titre abaissé de 26 pt), plus dans le bandeau", () => {
+    const journal = source("screens/JournalScreen.tsx");
+    expect(journal.match(/<NotificationBell \/>/g)).toHaveLength(1);
+    expect(journal).toMatch(/bellCorner: \{ position: 'absolute', top: 3, right: 4/);
+    expect(journal).toMatch(/mastheadWithBell: \{ paddingTop: 30 \}/); // 4 → 30 : décalage de 26 pt
+    expect(journal).not.toMatch(/taglineBand/);
+    // La baseline « Actualités de la communauté » reste un simple texte, comme avant.
+    expect(journal).toMatch(/<Text style=\{styles\.mastheadTagline\}>Actualités de la communauté<\/Text>/);
+  });
   it("les écrans exclus de ce chantier ne sont pas touchés (Paramètres, barre d'onglets)", () => {
     expect(source("components/NotificationBell.tsx")).not.toMatch(/SettingsScreen|CustomTabBar/);
   });

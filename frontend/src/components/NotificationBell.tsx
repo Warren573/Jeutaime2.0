@@ -44,10 +44,6 @@ export function NotificationBell() {
 
 const styles = StyleSheet.create({
   bell: {
-    position: 'absolute',
-    right: 0,
-    top: '50%',
-    marginTop: -16,
     width: 32,
     height: 32,
     borderRadius: 16,

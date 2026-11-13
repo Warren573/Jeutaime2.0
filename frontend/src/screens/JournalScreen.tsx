@@ -96,13 +96,14 @@ export default function JournalScreen() {
         }
       >
         {/* ── Masthead ─────────────────────────────────────────────── */}
-        <View style={styles.masthead}>
-          <Text style={styles.mastheadTitle}>JOURNAL</Text>
-          <View style={styles.mastheadRuleThin} />
-          <View style={styles.taglineBand}>
-            <Text style={styles.mastheadTagline}>Actualités de la communauté</Text>
+        <View style={[styles.masthead, styles.mastheadWithBell]}>
+          {/* Cloche des notifications : coin supérieur droit du Journal, elle défile avec la page. */}
+          <View style={styles.bellCorner}>
             <NotificationBell />
           </View>
+          <Text style={styles.mastheadTitle}>JOURNAL</Text>
+          <View style={styles.mastheadRuleThin} />
+          <Text style={styles.mastheadTagline}>Actualités de la communauté</Text>
           <View style={styles.mastheadRuleThin} />
           <View style={styles.datelineRow}>
             <Text style={styles.dateline}>{todayHeadline()}</Text>
@@ -286,8 +287,9 @@ const styles = StyleSheet.create({
     color: '#2F261D',
     marginVertical: 8,
   },
-  // Bandeau de la baseline : la cloche s'y pose à droite sans modifier la mise en page du Journal.
-  taglineBand: { width: '100%', alignItems: 'center', justifyContent: 'center' },
+  // Place de la cloche en haut à droite : le titre descend de 26 pt (4 → 30).
+  mastheadWithBell: { paddingTop: 30 },
+  bellCorner: { position: 'absolute', top: 3, right: 4, zIndex: 5 },
   mastheadRuleThick: { height: 3, backgroundColor: INK, width: '100%', marginTop: 10 },
   mastheadRuleThin: { height: 1, backgroundColor: INK, width: '100%', marginTop: 4 },
   datelineRow: {
