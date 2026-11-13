@@ -89,7 +89,7 @@ export default function RootLayout() {
   }, [isHydrated, isAuthenticated, canDiscover, pathname, currentUser, router]);
 
   useNotificationPolling();
-  usePushNotifications();
+  usePushNotifications(isHydrated);
 
   // Sur Safari mobile, les barres du navigateur réduisent la hauteur du viewport.
   // Ne pas réduire toute l'application web : elle doit remplir l'espace disponible.
