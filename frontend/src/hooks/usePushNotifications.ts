@@ -4,21 +4,43 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import Constants from 'expo-constants';
-import { useRouter } from 'expo-router';
+import { useGlobalSearchParams, usePathname, useRootNavigationState, useRouter } from 'expo-router';
 import { registerDevice } from '../api/notifications';
 import { useStore } from '../store/useStore';
 import { getUserSettings } from '../api/userSettings';
+import {
+  badgeCountFor,
+  createPushNavigator,
+  foregroundPresentation,
+  isAlreadyAtRoute,
+  onForegroundNotification,
+  prepareDestinationWith,
+  type CurrentLocation,
+  type PushDestination,
+  type PushNavigator,
+  type PushResponseLike,
+} from '../utils/pushNavigation';
 
 let foregroundSoundEnabled = true;
 let foregroundVibrationEnabled = true;
-// Show push in foreground as banner + badge + sound
+// Écran actuellement affiché, tenu à jour par le hook : sert à ne pas afficher de bannière
+// (ni de son) pour une notification qui ouvrirait l'écran que l'utilisateur consulte déjà.
+let currentLocation: CurrentLocation | null = null;
+
+// Show push in foreground as banner + badge + sound — sauf si l'écran concerné est déjà ouvert.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: foregroundSoundEnabled,
-    shouldSetBadge: true,
-  }),
+  handleNotification: async (notification) => {
+    const p = foregroundPresentation(currentLocation, notification.request.content.data, {
+      sound: foregroundSoundEnabled,
+      vibration: foregroundVibrationEnabled,
+    });
+    return {
+      shouldShowBanner: p.showBanner,
+      shouldShowList: p.showList,
+      shouldPlaySound: p.playSound,
+      shouldSetBadge: true,
+    };
+  },
 });
 
 function getPlatform(): 'ios' | 'android' | 'web' {
@@ -27,45 +49,98 @@ function getPlatform(): 'ios' | 'android' | 'web' {
   return 'web';
 }
 
-/**
- * Derives a navigation target from push notification data.
- * Mirror of getNotificationTarget but for raw push data Record<string,string>.
- */
-function getRouteFromPushData(data: Record<string, string>): string | null {
-  // Server-authored navigation for the daily edition (never accept arbitrary routes).
-  if (data['route'] === '/journal') return '/journal';
-  const type = data['type'];
-  if (!type) return null;
+/** Durée maximale d'attente du rechargement des correspondances avant d'utiliser le repli. */
+const MATCH_REFRESH_TIMEOUT_MS = 4000;
 
-  switch (type) {
-    case 'BOTTLE_REPLY':
-      return '/bottles-main';
-    case 'LETTER_RECEIVED':
-    case 'QUESTIONS_PASSED':
-    case 'MATCH_CREATED':
-      return data['matchId'] ? `/match-profile?matchId=${data['matchId']}` : null;
-    case 'OFFERING_RECEIVED':
-    case 'MAGIE_RECEIVED':
-      return data['salonId'] ? `/salon/${data['salonId']}` : null;
-    case 'DAILY_EDITION':
-      return '/journal';
-    case 'PREMIUM_SUBSCRIBED':
-    case 'PREMIUM_CANCELLED':
-      return '/premium';
-    case 'SECURITY_ALERT':
-      // Route fixe côté application : jamais de route fournie par le message.
-      return '/security';
-    default:
-      return null;
+const prepareDestination = (dest: PushDestination): Promise<string> =>
+  prepareDestinationWith(dest, {
+    hasMatch: (id) => useStore.getState().matches.some((m) => m.id === id),
+    refreshMatches: () => useStore.getState().loadMatches(),
+    timeoutMs: MATCH_REFRESH_TIMEOUT_MS,
+  });
+
+/** Réponse de notification la plus récente (démarrage à froid) ; null si indisponible sur ce build. */
+function readLastResponse(): PushResponseLike | null {
+  try {
+    return (Notifications.getLastNotificationResponse() as PushResponseLike | null) ?? null;
+  } catch {
+    return null;
   }
 }
 
-export function usePushNotifications() {
+function consumeLastResponse(): void {
+  try {
+    Notifications.clearLastNotificationResponse();
+  } catch {
+    // Module natif sans cette fonction : sans effet, la déduplication du contrôleur suffit.
+  }
+}
+
+/**
+ * @param sessionReady vrai une fois la session restaurée (réhydratation terminée). Tant qu'il est
+ * faux, une ouverture par notification est mise en attente : on ne sait pas encore si l'utilisateur
+ * est connecté.
+ */
+export function usePushNotifications(sessionReady: boolean = true) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useGlobalSearchParams();
+  const navigationState = useRootNavigationState();
   const isAuthenticated = useStore((s) => s.isAuthenticated);
   const loadUnreadCount = useStore((s) => s.loadUnreadCount);
-  const responseListenerRef = useRef<Notifications.Subscription | null>(null);
+  const unreadCount = useStore((s) => s.unreadNotificationsCount);
+  const userId = useStore((s) => s.currentUser?.id ?? null);
   const receivedListenerRef = useRef<Notifications.Subscription | null>(null);
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  const navigatorRef = useRef<PushNavigator | null>(null);
+  const navReady = Boolean(navigationState?.key);
+
+  // Écran affiché : lu par le gestionnaire de premier plan (bannière inutile).
+  useEffect(() => {
+    currentLocation = { pathname, params: searchParams as CurrentLocation['params'] };
+  }, [pathname, searchParams]);
+
+  // Ouverture par appui sur une notification : application ouverte, en arrière-plan OU fermée.
+  // Enregistré dès le montage, sans attendre la connexion : un appui qui démarre l'application à
+  // froid est rejoué via la dernière réponse d'Expo, puis mis en attente jusqu'à la session.
+  useEffect(() => {
+    const navigator = createPushNavigator({
+      navigate: (route) => routerRef.current.push(route as never),
+      prepare: prepareDestination,
+      isAtRoute: (route) => isAlreadyAtRoute(currentLocation, route),
+      consume: consumeLastResponse,
+      defaultActionId: Notifications.DEFAULT_ACTION_IDENTIFIER,
+    });
+    navigatorRef.current = navigator;
+
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      navigator.onResponse(response as PushResponseLike);
+    });
+    navigator.onResponse(readLastResponse());
+
+    return () => {
+      subscription.remove();
+      navigatorRef.current = null;
+    };
+  }, []);
+
+  // Authentification et routeur : tri-état pour ne jamais naviguer avant de savoir.
+  useEffect(() => {
+    navigatorRef.current?.update({
+      auth: !sessionReady ? 'unknown' : isAuthenticated ? 'authenticated' : 'unauthenticated',
+      navReady,
+      sessionKey: userId,
+    });
+  }, [sessionReady, isAuthenticated, navReady, userId]);
+
+  // Badge de l'icône (iOS) : nombre de notifications non lues de la cloche, comme dernier état connu.
+  // Les push reçus application fermée ne le modifient pas (le serveur n'envoie pas de compteur).
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !sessionReady) return;
+    const target = isAuthenticated ? badgeCountFor(unreadCount) : 0;
+    void Notifications.setBadgeCountAsync(target).catch(() => {});
+  }, [sessionReady, isAuthenticated, unreadCount]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -134,30 +209,26 @@ export function usePushNotifications() {
     void setup();
 
     // Foreground: refresh unread count when a notification arrives
-    receivedListenerRef.current = Notifications.addNotificationReceivedListener(() => {
-      if (foregroundVibrationEnabled) {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      }
-      void loadUnreadCount();
-    });
-
-    // Tap: navigate using push data
-    responseListenerRef.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = (response.notification.request.content.data ?? {}) as Record<string, string>;
-      const route = getRouteFromPushData(data);
-      if (route) {
-        router.push(route as never);
-      }
-      // Refresh count after tap too
-      void loadUnreadCount();
+    // Bannière, son ET vibration sont supprimés ensemble quand l'écran concerné est déjà affiché ;
+    // le compteur de notifications non lues est toujours actualisé.
+    receivedListenerRef.current = Notifications.addNotificationReceivedListener((notification) => {
+      onForegroundNotification({
+        current: currentLocation,
+        data: notification.request.content.data,
+        prefs: { sound: foregroundSoundEnabled, vibration: foregroundVibrationEnabled },
+        vibrate: () => {
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        },
+        refreshUnread: () => {
+          void loadUnreadCount();
+        },
+      });
     });
 
     return () => {
       cancelled = true;
       receivedListenerRef.current?.remove();
-      responseListenerRef.current?.remove();
       receivedListenerRef.current = null;
-      responseListenerRef.current = null;
     };
-  }, [isAuthenticated, loadUnreadCount, router]);
+  }, [isAuthenticated, loadUnreadCount]);
 }
