@@ -16,6 +16,7 @@ import { useStore } from '../store/useStore';
 import { getCommunityStats, getDailyStats, getRefugeStats, type CommunityStatsDTO, type DailyStatsDTO, type RefugeStatsDTO } from '../api/stats';
 import { getWeeklyProfileWinners, type WeeklyProfileWinnersDTO } from '../api/weeklyProfile';
 import { getJournalEdition, type JournalEditionDTO } from '../api/journal';
+import { NotificationBell } from '../components/NotificationBell';
 
 const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 
@@ -98,7 +99,10 @@ export default function JournalScreen() {
         <View style={styles.masthead}>
           <Text style={styles.mastheadTitle}>JOURNAL</Text>
           <View style={styles.mastheadRuleThin} />
-          <Text style={styles.mastheadTagline}>Actualités de la communauté</Text>
+          <View style={styles.taglineBand}>
+            <Text style={styles.mastheadTagline}>Actualités de la communauté</Text>
+            <NotificationBell />
+          </View>
           <View style={styles.mastheadRuleThin} />
           <View style={styles.datelineRow}>
             <Text style={styles.dateline}>{todayHeadline()}</Text>
@@ -282,6 +286,8 @@ const styles = StyleSheet.create({
     color: '#2F261D',
     marginVertical: 8,
   },
+  // Bandeau de la baseline : la cloche s'y pose à droite sans modifier la mise en page du Journal.
+  taglineBand: { width: '100%', alignItems: 'center', justifyContent: 'center' },
   mastheadRuleThick: { height: 3, backgroundColor: INK, width: '100%', marginTop: 10 },
   mastheadRuleThin: { height: 1, backgroundColor: INK, width: '100%', marginTop: 4 },
   datelineRow: {
