@@ -101,7 +101,6 @@ jobs:
       JWT_ACCESS_SECRET: ci_access_secret_0123456789abcdef0123456789
       JWT_REFRESH_SECRET: ci_refresh_secret_0123456789abcdef012345678
       RATE_LIMIT_AUTH_MAX: '1000'
-      NODE_ENV: production
       ENABLE_SCHEDULER: 'false'
     services:
       postgres:
@@ -157,7 +156,7 @@ jobs:
         run: |
           ./scripts/ci/simulate-production-migration.sh
           export DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/jt_prod_sim?schema=public"
-          export DIRECT_URL="$DATABASE_URL" PORT=4300
+          export DIRECT_URL="$DATABASE_URL" PORT=4300 NODE_ENV=production
           npm run start:render > "$RUNNER_TEMP/new.log" 2>&1 &
           for i in $(seq 1 60); do curl -fs http://127.0.0.1:4300/api/health >/dev/null && break; sleep 1; done
           grep -E "Applying migration|successfully" "$RUNNER_TEMP/new.log"
@@ -171,7 +170,7 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
           export DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/jt_prod_sim?schema=public"
-          export DIRECT_URL="$DATABASE_URL" PORT=4301
+          export DIRECT_URL="$DATABASE_URL" PORT=4301 NODE_ENV=production
           npm run start:render > "$RUNNER_TEMP/old.log" 2>&1 &
           for i in $(seq 1 60); do curl -fs http://127.0.0.1:4301/api/health >/dev/null && break; sleep 1; done
           node "$GITHUB_WORKSPACE/backend/scripts/ci/smoke-backend.mjs" http://127.0.0.1:4301 || { tail -40 "$RUNNER_TEMP/old.log"; exit 1; }
