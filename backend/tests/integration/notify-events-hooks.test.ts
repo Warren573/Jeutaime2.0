@@ -21,9 +21,15 @@ const A = mkId("a"), B = mkId("b"), C = mkId("c"), D = mkId("d"), E = mkId("e"),
 const ALL = [A, B, C, D, E, F, ADMIN, REPORTER, TARGET];
 const tokenOf = (id: string) => `ExponentPushToken[nh2${id.replace(/[^A-Za-z0-9]/g, "").slice(0, 18)}${clean}]`;
 let expo: ReturnType<typeof vi.fn>;
-const flush = () => new Promise((r) => setTimeout(r, 250));
+const flush = () => new Promise((r) => setTimeout(r, 400));
 const mine = (userId: string, type?: string) => prisma.notification.findMany({ where: { userId, ...(type ? { type: type as never } : {}) }, orderBy: { createdAt: "asc" } });
 const pushedTo = () => expo.mock.calls.flatMap((c) => JSON.parse((c[1] as { body: string }).body) as Array<{ to: string; data: Record<string, unknown> }>).map((m) => m.to);
+/** Attend au moins `n` push (sondage, 5 s max) puis laisse passer un éventuel push en trop. */
+const waitPush = async (n = 1) => {
+  const t0 = Date.now();
+  while (pushedTo().length < n && Date.now() - t0 < 5000) await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 300));
+};
 const order = (x: string, y: string) => (x < y ? [x, y] : [y, x]) as [string, string];
 
 async function makeMatch(x: string, y: string, validated = true) {
@@ -62,7 +68,13 @@ afterAll(async () => {
   await prisma.block.deleteMany({ where: { OR: [{ fromId: { in: ALL } }, { toId: { in: ALL } }] } });
   await prisma.user.deleteMany({ where: { id: { in: ALL } } });
 });
-afterEach(() => { vi.unstubAllGlobals(); resetPushIdempotency(); });
+// Laisse arriver les push « fire-and-forget » encore en vol AVANT de retirer le mock Expo de ce test,
+// sinon ils tomberaient dans le mock du test suivant.
+afterEach(async () => {
+  await new Promise((r) => setTimeout(r, 600));
+  vi.unstubAllGlobals();
+  resetPushIdempotency();
+});
 function stubExpo() {
   expo = vi.fn(async (_u: unknown, init: { body: string }) =>
     new Response(JSON.stringify({ data: (JSON.parse(init.body) as unknown[]).map((_, i) => ({ status: "ok", id: `t-${run}-${i}` })) }), { status: 200 }));
@@ -73,7 +85,7 @@ describe("duels", () => {
   test("défi reçu → l'adversaire seulement ; un défi déjà en attente ne renotifie pas ; push générique", async () => {
     stubExpo();
     const duel = await duels.create(A, B, C);
-    await flush();
+    await waitPush(1);
     const got = await mine(B, "DUEL_RECEIVED");
     expect(got).toHaveLength(1);
     expect(got[0]!.meta).toEqual({ duelId: duel.id });
@@ -154,7 +166,7 @@ describe("jeu des 3 questions", () => {
     const answersFor = (ids: string[]) => ({ answers: ids.map((id, i) => ({ profileQuestionId: id, answer: `rep${i + 1}` })) });
     stubExpo();
     await questions.submitMatchAnswers(m.id, A, answersFor(qs[E]!));
-    await flush();
+    await waitPush(1);
     const turn = await mine(E, "QUESTIONS_TURN");
     expect(turn).toHaveLength(1);
     expect(turn[0]!.meta).toEqual({ matchId: m.id });

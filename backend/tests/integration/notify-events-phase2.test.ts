@@ -23,7 +23,13 @@ let expo: ReturnType<typeof vi.fn>;
 
 const pushed = () =>
   expo.mock.calls.flatMap((c) => JSON.parse((c[1] as { body: string }).body) as Array<{ to: string; title: string; body: string; data: Record<string, unknown> }>);
-const flush = () => new Promise((r) => setTimeout(r, 150));
+const flush = () => new Promise((r) => setTimeout(r, 400));
+/** Attend au moins `n` push (sondage, 5 s max) puis laisse passer un éventuel push en trop : indépendant de la vitesse du runner. */
+const waitPush = async (n = 1) => {
+  const t0 = Date.now();
+  while (pushed().length < n && Date.now() - t0 < 5000) await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 300));
+};
 const stubExpo = () => {
   expo = vi.fn(async (_u: unknown, init: { body: string }) =>
     new Response(JSON.stringify({ data: (JSON.parse(init.body) as unknown[]).map((_, i) => ({ status: "ok", id: `tk-${run}-${i}` })) }), { status: 200 }));
@@ -57,7 +63,13 @@ afterAll(async () => {
   await prisma.loginEvent.deleteMany({ where: { email: { contains: `ne2-` } } }).catch(() => undefined);
   await prisma.user.deleteMany({ where: { id: { in: ids } } });
 });
-afterEach(() => { vi.unstubAllGlobals(); resetPushIdempotency(); });
+// Laisse arriver les push « fire-and-forget » encore en vol AVANT de retirer le mock Expo de ce test,
+// sinon ils tomberaient dans le mock du test suivant.
+afterEach(async () => {
+  await new Promise((r) => setTimeout(r, 600));
+  vi.unstubAllGlobals();
+  resetPushIdempotency();
+});
 
 describe("création et destinataire", () => {
   test("crée une notification interne + un push générique, pour le destinataire seulement", async () => {
@@ -67,7 +79,7 @@ describe("création et destinataire", () => {
       meta: { duelId: "duel-A", texte: "contenu privé interdit" }, dedupeKey: `duel-received:A:${run}`,
     });
     expect(out.created).toBe(true);
-    await flush();
+    await waitPush(1);
     const row = await prisma.notification.findFirstOrThrow({ where: { userId: dest.id, type: "DUEL_RECEIVED" } });
     expect(row.meta).toEqual({ duelId: "duel-A" }); // clé hors liste blanche supprimée
     expect(await countOf(actor.id)).toBe(0); // l'auteur n'a rien reçu
@@ -129,7 +141,7 @@ describe("anti-doublon et compteur de non-lues", () => {
     );
     expect(results.filter((r) => r.created)).toHaveLength(1);
     expect(results.filter((r) => !r.created).every((r) => !r.created && r.reason === "duplicate")).toBe(true);
-    await flush();
+    await waitPush(1);
     expect(await countOf(dest.id, "DUEL_RESULT")).toBe(1);
     expect(pushed().filter((p) => p.data.type === "DUEL_RESULT")).toHaveLength(1);
     expect(await countUnread(dest.id)).toBe(before + 1);
@@ -211,7 +223,7 @@ describe("interrupteur de sécurité NOTIFY_PHASE2_EVENTS", () => {
       legacyPush: { title: "Bouteille à la mer", body: "Une nouvelle lettre t’attend dans ta correspondance.", data: { type: "BOTTLE_REPLY" } },
     });
     expect(out).toEqual({ created: false, reason: "disabled" });
-    await flush();
+    await waitPush(1);
     expect(await countOf(dest.id, "BOTTLE_REPLY")).toBe(before);
     const p = pushed();
     expect(p).toHaveLength(1);
