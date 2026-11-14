@@ -51,7 +51,7 @@ function NotifItem({
     >
       {unread ? <View style={styles.unreadBar} /> : null}
       <View style={[styles.iconWrap, !unread && styles.iconWrapRead]}>
-        <NotificationIcon name={category.icon} color={unread ? BURGUNDY : MUTED} />
+        <NotificationIcon name={category.icon} color={unread ? BURGUNDY : MUTED} dimmed={!unread} />
       </View>
       <View style={styles.itemBody}>
         <Text style={styles.category}>{category.label.toUpperCase()}</Text>

@@ -9,7 +9,10 @@ import {
 import { buildPushPayload } from "../../src/policies/notifications";
 
 const ALL_TYPES = Object.values(NotificationType);
-const FORBIDDEN_DATA_KEYS = ["fromUserId", "otherUserId", "userId", "adminMessageId", "privateSalonSessionId", "bottleId", "subject", "name", "message", "coins", "amount"];
+// `bottleId` est volontairement absent de cette liste GLOBALE : il est autorisé pour les seuls types de bouteille
+// (voir « bouteilles : conversation exacte, anonymat » plus bas) ; tout autre type ne doit jamais le transporter.
+const FORBIDDEN_DATA_KEYS = ["fromUserId", "otherUserId", "userId", "adminMessageId", "privateSalonSessionId", "subject", "name", "message", "coins", "amount"];
+const BOTTLE_PUSH_TYPES = ["BOTTLE_REPLY", "BOTTLE_REVEAL_REQUEST", "BOTTLE_REVEAL_REFUSED"] as const;
 
 describe("correspondance centrale des types push", () => {
   it("chaque type de notification a une configuration (exhaustivité)", () => {
@@ -48,7 +51,7 @@ describe("correspondance centrale des types push", () => {
     expect(pushDestinationFor("ADMIN_MESSAGE")).toBe("/admin-messages");
     expect(pushDestinationFor("PRIVATE_SALON_INVITE")).toBe("/private-salons");
     expect(pushDestinationFor("SECURITY_ALERT")).toBe("/security");
-    expect(pushDestinationFor("BOTTLE_REPLY")).toBe("/bottles-main");
+    expect(pushDestinationFor("BOTTLE_REPLY")).toBe("/bottles-discussion");
     expect(pushDestinationFor("DAILY_EDITION")).toBe("/journal");
     expect(pushDestinationFor("QUESTIONS_FAILED")).toBeNull();
   });
@@ -120,9 +123,9 @@ describe("phase 2 : nouveaux événements", () => {
     ["DUEL_RESULT", "notifActivities", "/duel/play", ["duelId"]],
     ["DUEL_DECLINED", "notifActivities", "/duel/play", ["duelId"]],
     ["DUEL_EXPIRED", "notifActivities", "/duel/play", ["duelId"]],
-    ["BOTTLE_REVEAL_REQUEST", "notifLetters", "/bottles-main", []],
+    ["BOTTLE_REVEAL_REQUEST", "notifLetters", "/bottles-discussion", ["bottleId"]],
     ["BOTTLE_REVEAL_ACCEPTED", "notifLetters", "/match-profile", ["matchId"]],
-    ["BOTTLE_REVEAL_REFUSED", "notifLetters", "/bottles-main", []],
+    ["BOTTLE_REVEAL_REFUSED", "notifLetters", "/bottles-discussion", ["bottleId"]],
     ["QUESTIONS_TURN", "notifMeetings", "/match-profile", ["matchId"]],
     ["REFUGE_ADOPTED", "notifActivities", "/refuge", ["refugeSessionId"]],
     ["REFUGE_REVEAL_PHASE", "notifActivities", "/refuge", ["refugeSessionId"]],
@@ -144,14 +147,6 @@ describe("phase 2 : nouveaux événements", () => {
     }
   });
 
-  it("les push des bouteilles ne contiennent JAMAIS d'identifiant de bouteille ni de personne (anonymat)", () => {
-    for (const type of ["BOTTLE_REPLY", "BOTTLE_REVEAL_REQUEST", "BOTTLE_REVEAL_REFUSED", "BOTTLE_REVEAL_ACCEPTED"] as const) {
-      const p = buildPushPayload(type, { bottleId: "bt-secret", matchId: "m1", userId: "u-secret", fromUserId: "u2", message: "texte privé" });
-      const text = JSON.stringify(p);
-      for (const leak of ["bt-secret", "u-secret", "u2", "texte privé"]) expect(text, `${type} ${leak}`).not.toContain(leak);
-    }
-  });
-
   it("duelId / refugeSessionId : transmis seulement pour leurs types, jamais d'autre clé", () => {
     const meta = { duelId: "d1", refugeSessionId: "r1", matchId: "m1", pseudo: "Alice" };
     expect(buildPushPayload("DUEL_RECEIVED", meta).data).toEqual({ type: "DUEL_RECEIVED", duelId: "d1" });
@@ -160,3 +155,36 @@ describe("phase 2 : nouveaux événements", () => {
     expect(JSON.stringify(buildPushPayload("DUEL_RECEIVED", meta))).not.toContain("Alice");
   });
 });
+
+describe("bouteilles : conversation exacte, anonymat", () => {
+  const LEAKS = { userId: "u-secret", fromUserId: "u-from", senderId: "u-sender", acceptedById: "u-acc", requestedById: "u-req", pseudo: "Alice-secret", message: "texte privé", content: "contenu privé" };
+
+  it.each(BOTTLE_PUSH_TYPES)("%s : data = type + bottleId SEULEMENT (opaque, sa propre conversation)", (type) => {
+    const p = buildPushPayload(type, { bottleId: "bt-1", matchId: "m-1", ...LEAKS });
+    expect(p.data).toEqual({ type, bottleId: "bt-1" });
+    const text = JSON.stringify(p);
+    for (const leak of Object.values(LEAKS)) expect(text, `${type} ${leak}`).not.toContain(leak);
+    expect(text).not.toContain("m-1"); // pas de correspondance avant le dévoilement mutuel
+  });
+
+  it("dévoilement accepté (mutuel) : seulement la correspondance créée, plus la bouteille", () => {
+    const p = buildPushPayload("BOTTLE_REVEAL_ACCEPTED", { bottleId: "bt-1", matchId: "m-1", ...LEAKS });
+    expect(p.data).toEqual({ type: "BOTTLE_REVEAL_ACCEPTED", matchId: "m-1" });
+    for (const leak of Object.values(LEAKS)) expect(JSON.stringify(p)).not.toContain(leak);
+  });
+
+  it("le texte des bouteilles reste générique : jamais de pseudo, même si un contexte en est fourni", () => {
+    for (const type of [...BOTTLE_PUSH_TYPES, "BOTTLE_REVEAL_ACCEPTED"] as const) {
+      const p = buildPushPayload(type, { bottleId: "bt-1" }, { opponentPseudo: "Alice-secret", duelOutcome: "WIN" } as never);
+      expect(p.body, type).not.toContain("Alice-secret");
+    }
+  });
+
+  it("bottleId n'est transmis par AUCUN autre type de notification", () => {
+    for (const type of ALL_TYPES.filter((t) => !BOTTLE_PUSH_TYPES.includes(t as never))) {
+      expect(PUSH_TYPE_CONFIG[type].dataKeys as readonly string[], type).not.toContain("bottleId");
+      expect(buildPushPayload(type, { bottleId: "bt-1" }).data, type).not.toHaveProperty("bottleId");
+    }
+  });
+});
+

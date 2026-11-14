@@ -87,7 +87,8 @@ export function resolvePushDestination(data: unknown): PushDestination {
     case 'BOTTLE_REPLY':
     case 'BOTTLE_REVEAL_REQUEST':
     case 'BOTTLE_REVEAL_REFUSED':
-      return staticDest('/bottles-main');
+      // La conversation exacte (identifiant opaque de SA bouteille) ; sans identifiant valide : la liste.
+      return isSafeId(d['bottleId']) ? paramDest('/bottles-discussion', `bottleId=${d['bottleId']}`) : staticDest('/bottles-main');
     case 'BOTTLE_REVEAL_ACCEPTED':
       return isSafeId(d['matchId']) ? matchDest(d['matchId']) : staticDest('/bottles-main');
     case 'QUESTIONS_TURN':
@@ -221,6 +222,9 @@ export function isAlreadyAtRoute(current: CurrentLocation | null | undefined, ro
   }
   if (target.pathname === '/duel/play') {
     return firstParam(current.params?.['duelId']) === target.params?.['duelId'];
+  }
+  if (target.pathname === '/bottles-discussion') {
+    return firstParam(current.params?.['bottleId']) === target.params?.['bottleId'];
   }
   return true;
 }

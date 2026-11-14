@@ -23,7 +23,7 @@ export type PushCategory =
   | "notifNews";
 
 /** Seuls identifiants de navigation autorisés dans une charge push. */
-export type PushDataKey = "matchId" | "salonId" | "duelId" | "refugeSessionId";
+export type PushDataKey = "matchId" | "salonId" | "duelId" | "refugeSessionId" | "bottleId";
 
 /** Types de push qui n'ont pas d'équivalent dans l'énumération `NotificationType`. */
 export type ExtraPushKind = "DAILY_EDITION";
@@ -59,10 +59,12 @@ export const PUSH_TYPE_CONFIG: Record<PushKind, PushTypeConfig> = {
   DUEL_RESULT: { category: "notifActivities", destination: "/duel/play", dataKeys: ["duelId"] },
   DUEL_DECLINED: { category: "notifActivities", destination: "/duel/play", dataKeys: ["duelId"] },
   DUEL_EXPIRED: { category: "notifActivities", destination: "/duel/play", dataKeys: ["duelId"] },
-  BOTTLE_REPLY: { category: "notifLetters", destination: "/bottles-main", dataKeys: [] },
-  BOTTLE_REVEAL_REQUEST: { category: "notifLetters", destination: "/bottles-main", dataKeys: [] },
+  // Bouteilles : `bottleId` (identifiant opaque de SA conversation) permet d'ouvrir la conversation exacte.
+  // Il n'identifie aucune personne (anonymat préservé) ; jamais d'identifiant d'utilisateur, de pseudo ni de contenu.
+  BOTTLE_REPLY: { category: "notifLetters", destination: "/bottles-discussion", dataKeys: ["bottleId"] },
+  BOTTLE_REVEAL_REQUEST: { category: "notifLetters", destination: "/bottles-discussion", dataKeys: ["bottleId"] },
   BOTTLE_REVEAL_ACCEPTED: { category: "notifLetters", destination: "/match-profile", dataKeys: ["matchId"] },
-  BOTTLE_REVEAL_REFUSED: { category: "notifLetters", destination: "/bottles-main", dataKeys: [] },
+  BOTTLE_REVEAL_REFUSED: { category: "notifLetters", destination: "/bottles-discussion", dataKeys: ["bottleId"] },
   QUESTIONS_TURN: { category: "notifMeetings", destination: "/match-profile", dataKeys: ["matchId"] },
   REFUGE_ADOPTED: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
   REFUGE_REVEAL_PHASE: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
