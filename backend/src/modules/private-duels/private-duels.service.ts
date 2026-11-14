@@ -51,6 +51,11 @@ function assertParticipant(duel: { challengerId: string; opponentId: string }, u
   }
 }
 
+/** Pseudo brut d'un participant, ou `null` (profil absent) : la policy retombe alors sur le texte générique. */
+function rawPseudo(user: { profile: { pseudo: string } | null } | null | undefined): string | null {
+  return user?.profile?.pseudo ?? null;
+}
+
 function pseudoOf(user: { id: string; profile: { pseudo: string } | null } | null): string {
   return user?.profile?.pseudo ?? "Utilisateur";
 }
@@ -277,6 +282,8 @@ export async function create(userId: string, targetUserId: string, commonUserId:
     type: NotificationType.DUEL_RECEIVED,
     meta: { duelId: duel.id },
     dedupeKey: `duel-received:${duel.id}`,
+    // « {challenger} t'a défié(e) en duel ! » — le pseudo est celui du challenger (l'auteur), jamais du destinataire.
+    textContext: { opponentPseudo: rawPseudo(duel.challenger) },
   });
 
   return toDto(duel, userId);
@@ -327,7 +334,7 @@ export async function submitChoice(
   choice: PrivateDuelChoice,
 ) {
   // Renseigné seulement si CE choix résout le duel ; la notification part après le COMMIT.
-  let resolvedFor: { duelId: string; otherId: string } | null = null;
+  let resolvedFor: { duelId: string; otherId: string; actorPseudo: string | null; outcome: "WIN" | "LOSE" | "DRAW" } | null = null;
   const dto = await prisma.$transaction(
     async (tx) => {
       resolvedFor = null;
@@ -392,9 +399,13 @@ export async function submitChoice(
             : []),
         ]);
 
+        const otherId = resolved.challengerId === userId ? resolved.opponentId : resolved.challengerId;
         resolvedFor = {
           duelId: resolved.id,
-          otherId: resolved.challengerId === userId ? resolved.opponentId : resolved.challengerId,
+          otherId,
+          // Pseudo de l'auteur du dernier choix = l'adversaire du destinataire ; issue du point de vue du destinataire.
+          actorPseudo: rawPseudo(resolved.challengerId === userId ? resolved.challenger : resolved.opponent),
+          outcome: resolved.winnerId === null ? "DRAW" : resolved.winnerId === otherId ? "WIN" : "LOSE",
         };
         return toDto(resolved, userId);
       }
@@ -405,7 +416,7 @@ export async function submitChoice(
   );
 
   // Résultat : seule l'autre personne (qui attendait) est prévenue, jamais l'auteur du dernier choix.
-  const notify = resolvedFor as { duelId: string; otherId: string } | null;
+  const notify = resolvedFor as { duelId: string; otherId: string; actorPseudo: string | null; outcome: "WIN" | "LOSE" | "DRAW" } | null;
   if (notify) {
     void notifyEvent({
       recipientId: notify.otherId,
@@ -413,6 +424,7 @@ export async function submitChoice(
       type: NotificationType.DUEL_RESULT,
       meta: { duelId: notify.duelId },
       dedupeKey: `duel-result:${notify.duelId}`,
+      textContext: { opponentPseudo: notify.actorPseudo, duelOutcome: notify.outcome },
     });
   }
   return dto;
@@ -420,6 +432,7 @@ export async function submitChoice(
 
 export async function decline(userId: string, duelId: string) {
   let challengerId: string | null = null;
+  let declinerPseudo: string | null = null;
   const dto = await prisma.$transaction(async (tx) => {
     const duel = await tx.privateDuel.findUnique({
       where: { id: duelId },
@@ -456,6 +469,7 @@ export async function decline(userId: string, duelId: string) {
     ]);
 
     challengerId = declined.challengerId;
+    declinerPseudo = rawPseudo(declined.challengerId === userId ? declined.challenger : declined.opponent);
     return toDto(declined, userId);
   });
 
@@ -468,6 +482,7 @@ export async function decline(userId: string, duelId: string) {
       type: NotificationType.DUEL_DECLINED,
       meta: { duelId },
       dedupeKey: `duel-declined:${duelId}`,
+      textContext: { opponentPseudo: declinerPseudo as string | null },
     });
   }
   return dto;
@@ -484,6 +499,8 @@ export async function expirePending(now = new Date()) {
       challengerId: true,
       opponentId: true,
       commonUserId: true,
+      challenger: { select: { profile: { select: { pseudo: true } } } },
+      opponent: { select: { profile: { select: { pseudo: true } } } },
     },
   });
   if (expired.length === 0) return 0;
@@ -513,9 +530,10 @@ export async function expirePending(now = new Date()) {
   // Expiration : événement système, une notification par participant et par duel réellement expiré
   // (une relance du job ne retouche pas un duel déjà expiré). Le blocage éventuel entre les deux est respecté.
   for (const duel of newlyExpired) {
-    for (const [recipientId, counterpartId] of [
-      [duel.challengerId, duel.opponentId],
-      [duel.opponentId, duel.challengerId],
+    // Chacun reçoit le pseudo de l'AUTRE participant (jamais le sien).
+    for (const [recipientId, counterpartId, counterpart] of [
+      [duel.challengerId, duel.opponentId, duel.opponent],
+      [duel.opponentId, duel.challengerId, duel.challenger],
     ] as const) {
       void notifyEvent({
         recipientId,
@@ -523,6 +541,7 @@ export async function expirePending(now = new Date()) {
         type: NotificationType.DUEL_EXPIRED,
         meta: { duelId: duel.id },
         dedupeKey: `duel-expired:${duel.id}`,
+        textContext: { opponentPseudo: rawPseudo(counterpart) },
       });
     }
   }
