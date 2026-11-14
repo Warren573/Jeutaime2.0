@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
   getCurrentBottle,
+  resolveBottleToRead,
   postBottleMessage,
   markBottleAsRead,
   getRevealStatus,
@@ -77,7 +78,8 @@ export default function BottleDiscussionScreen() {
   const loadData = useCallback(async () => {
     try {
       setError(null);
-      const current = await getCurrentBottle();
+      // La bouteille demandée (et non toujours la plus récente) : cohérent avec l'écran de lecture.
+      const current = await resolveBottleToRead(await getCurrentBottle(), bottleId);
       setBottleState(current);
 
       if (current.bottle?.id === bottleId) {

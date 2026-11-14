@@ -98,7 +98,7 @@ afterEach(async () => {
 describe("conversation de bouteille : les deux participants, lu / non lu", () => {
   let bottleId = "";
 
-  test("première réponse (claim-reply) : l'expéditeur seulement ; push = type + bottleId ; ouvre SA conversation", async () => {
+  test("première réponse (claim-reply) : l'expéditeur seulement ; push = type + bottleId ; ouvre SA bouteille en lecture", async () => {
     stubExpo();
     const b = await newBottle(false);
     bottleId = b.id;
@@ -116,7 +116,7 @@ describe("conversation de bouteille : les deux participants, lu / non lu", () =>
     expect(p).toHaveLength(1);
     expect(p[0]!.data).toEqual({ type: "BOTTLE_REPLY", bottleId });
     // la cloche et le push mènent à la MÊME conversation, qui existe et appartient à S (R aussi, un tiers non)
-    const route = `/bottles-discussion?bottleId=${bottleId}`;
+    const route = `/bottles-main?bottleId=${bottleId}`;
     expect(getNotificationTarget(n as never)).toBe(route);
     expect(resolvePushDestination(p[0]!.data).route).toBe(route);
     expect((await api(S).get(`/bottles/${bottleId}`)).status).toBe(200);
@@ -201,7 +201,7 @@ describe("dévoilement : demande, refus, acceptation mutuelle", () => {
     expect(req!.meta).toEqual({ bottleId });
     expect(await ofType(R, "BOTTLE_REVEAL_REQUEST", bottleId)).toHaveLength(0); // jamais le demandeur
     expect(to(S)[0]!.data).toEqual({ type: "BOTTLE_REVEAL_REQUEST", bottleId });
-    const route = `/bottles-discussion?bottleId=${bottleId}`;
+    const route = `/bottles-main?bottleId=${bottleId}`;
     expect(getNotificationTarget(req as never)).toBe(route);
     expect(resolvePushDestination(to(S)[0]!.data).route).toBe(route);
 

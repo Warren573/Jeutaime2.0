@@ -76,6 +76,7 @@ jobs:
           tests/integration/notify-events-phase2.test.ts
           tests/integration/notify-events-hooks.test.ts
           tests/integration/notify-bottles-e2e.test.ts
+          tests/integration/bottle-reading-state.test.ts
           tests/integration/notify-duel-pseudos.test.ts
           tests/unit/pushRouting.test.ts
           tests/unit/notifications.policy.test.ts
@@ -87,6 +88,7 @@ jobs:
           tests/unit/frontend-notifications-phase2.test.ts
           tests/unit/frontend-notifications-view.test.ts
           tests/unit/frontend-notifications-icons-bottles.test.ts
+          tests/unit/frontend-notification-reading-flow.test.ts
           tests/unit/frontend-push-navigation.test.ts
           tests/unit/bottles-access-control.test.ts
           tests/unit/bottles-anonymity.test.ts

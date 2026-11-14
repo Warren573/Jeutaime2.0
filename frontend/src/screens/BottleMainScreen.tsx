@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ModalKeyboardFrame } from '../components/ModalKeyboardFrame';
 import { footerBottomPadding } from '../utils/composerFooter';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { getCurrentBottle, getInbox, claimBottleWithReply, getSentBottles } from '../api/bottles';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { getCurrentBottle, getInbox, claimBottleWithReply, getSentBottles, resolveBottleToRead } from '../api/bottles';
 import { BottleParchmentCard } from '../components/BottleParchmentCard';
 import { BottleCorrespondenceMenu } from '../components/BottleCorrespondenceMenu';
 import { AppBackButton } from '../components/AppBackButton';
@@ -78,6 +78,9 @@ export default function BottleMainScreen() {
   }, []);
 
   const router = useRouter();
+  // Ouverture depuis une notification : bouteille précise à lire (sinon la bouteille courante, comme avant).
+  const routeParams = useLocalSearchParams<{ bottleId?: string | string[] }>();
+  const requestedBottleId = Array.isArray(routeParams.bottleId) ? routeParams.bottleId[0] : routeParams.bottleId;
   const { height: screenHeight } = useWindowDimensions();
   const [showRetrieve, setShowRetrieve] = useState(false);
   const insets = useSafeAreaInsets();
@@ -112,7 +115,7 @@ export default function BottleMainScreen() {
     try {
       setError(null);
       const [current, inboxData] = await Promise.all([getCurrentBottle(), getInbox()]);
-      setState(current);
+      setState(await resolveBottleToRead(current, requestedBottleId));
       setInbox(inboxData);
     } catch (err: any) {
       setError(err?.message || 'Erreur de chargement');
@@ -120,7 +123,7 @@ export default function BottleMainScreen() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [requestedBottleId]);
 
   const getAvailableBottles = () => {
     if (!currentUser?.id) return [];

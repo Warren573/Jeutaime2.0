@@ -89,10 +89,10 @@ describe("icônes PNG : fichiers d'illustration", () => {
   });
 });
 
-describe("bouteilles : l'appui ouvre la conversation exacte (push ET cloche)", () => {
+describe("bouteilles : l'appui ouvre la bonne bouteille en LECTURE (push ET cloche)", () => {
   const ID = "cm1abcDEF_ghi-123";
-  it.each(["BOTTLE_REPLY", "BOTTLE_REVEAL_REQUEST", "BOTTLE_REVEAL_REFUSED"])("%s → /bottles-discussion?bottleId=…, même route partout", (type) => {
-    const route = `/bottles-discussion?bottleId=${ID}`;
+  it.each(["BOTTLE_REPLY", "BOTTLE_REVEAL_REQUEST", "BOTTLE_REVEAL_REFUSED"])("%s → /bottles-main?bottleId=… (lecture), même route partout", (type) => {
+    const route = `/bottles-main?bottleId=${ID}`;
     expect(resolvePushDestination({ type, bottleId: ID }).route).toBe(route);
     expect(getNotificationTarget(note(type, { bottleId: ID }))).toBe(route);
   });
@@ -107,7 +107,7 @@ describe("bouteilles : l'appui ouvre la conversation exacte (push ET cloche)", (
   });
 
   it("une route fournie par la notification n'est jamais suivie", () => {
-    expect(resolvePushDestination({ type: "BOTTLE_REPLY", bottleId: ID, route: "/admin", url: "https://x" }).route).toBe(`/bottles-discussion?bottleId=${ID}`);
+    expect(resolvePushDestination({ type: "BOTTLE_REPLY", bottleId: ID, route: "/admin", url: "https://x" }).route).toBe(`/bottles-main?bottleId=${ID}`);
   });
 
   it("dévoilement mutuel accepté : la correspondance créée (jamais avant) ; repli sur les bouteilles", () => {
@@ -117,13 +117,13 @@ describe("bouteilles : l'appui ouvre la conversation exacte (push ET cloche)", (
     expect(getNotificationTarget(note("BOTTLE_REVEAL_ACCEPTED", { bottleId: ID }))).toBe("/bottles-main");
   });
 
-  it("déjà dans CETTE conversation : pas de navigation ; une autre conversation : on navigue", () => {
-    const at = (bottleId?: string) => ({ pathname: "/bottles-discussion", params: bottleId ? { bottleId } : {} });
-    const route = `/bottles-discussion?bottleId=${ID}`;
+  it("déjà sur CETTE bouteille : pas de navigation ; une autre bouteille : on navigue", () => {
+    const at = (bottleId?: string) => ({ pathname: "/bottles-main", params: bottleId ? { bottleId } : {} });
+    const route = `/bottles-main?bottleId=${ID}`;
     expect(isAlreadyAtRoute(at(ID), route)).toBe(true);
     expect(isAlreadyAtRoute(at("autre-bouteille"), route)).toBe(false);
     expect(isAlreadyAtRoute(at(), route)).toBe(false);
-    expect(isAlreadyAtRoute({ pathname: "/bottles-main", params: {} }, route)).toBe(false);
+    expect(isAlreadyAtRoute({ pathname: "/bottles-discussion", params: { bottleId: ID } }, route)).toBe(false);
   });
 
   it("anonymat : aucune destination ne contient d'identifiant de personne", () => {
