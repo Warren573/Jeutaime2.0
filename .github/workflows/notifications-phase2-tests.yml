@@ -76,6 +76,7 @@ jobs:
           tests/integration/notify-events-phase2.test.ts
           tests/integration/notify-events-hooks.test.ts
           tests/integration/notify-bottles-e2e.test.ts
+          tests/integration/notify-duel-pseudos.test.ts
           tests/unit/pushRouting.test.ts
           tests/unit/notifications.policy.test.ts
           tests/unit/notifications.service.test.ts

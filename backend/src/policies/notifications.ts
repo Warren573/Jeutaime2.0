@@ -68,11 +68,68 @@ export function buildPremiumCancelledMessage(): string {
   return "Ton abonnement Premium a été annulé";
 }
 
+// ============================================================
+// Duels : texte personnalisé avec le pseudo de l'ADVERSAIRE
+// ============================================================
+export type DuelOutcome = "WIN" | "LOSE" | "DRAW";
+
+/**
+ * Contexte de mise en forme d'un texte de notification. Seules ces valeurs structurées sont acceptées
+ * (jamais un texte libre fourni par l'appelant) ; elles sont assainies ici, puis insérées dans un gabarit fixe.
+ */
+export interface NotificationTextContext {
+  /** Pseudo de l'AUTRE participant du duel (jamais celui du destinataire). */
+  opponentPseudo?: string | null;
+  /** Issue d'un duel du point de vue du DESTINATAIRE (types DUEL_RESULT uniquement). */
+  duelOutcome?: DuelOutcome | null;
+}
+
+const PSEUDO_MAX_LENGTH = 30;
+
+/**
+ * Pseudo prêt à être inséré dans un texte : sans caractère de contrôle, de formatage ni de sens d'écriture
+ * (U+202E…), espaces normalisés, 30 caractères au plus. `null` si rien d'utilisable (repli sur le texte générique).
+ */
+export function sanitizePseudoForText(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const cleaned = raw
+    .normalize("NFC")
+    .replace(/[\p{C}\p{Zl}\p{Zp}\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const cut = Array.from(cleaned).slice(0, PSEUDO_MAX_LENGTH).join("").trim();
+  return cut.length > 0 ? cut : null;
+}
+
+/** Texte d'un duel avec pseudo, ou `null` pour retomber sur le texte générique. */
+function buildDuelMessage(type: NotificationType, ctx?: NotificationTextContext): string | null {
+  const pseudo = sanitizePseudoForText(ctx?.opponentPseudo);
+  if (!pseudo) return null;
+  switch (type) {
+    case NotificationType.DUEL_RECEIVED:
+      return `${pseudo} t'a défié(e) en duel !`;
+    case NotificationType.DUEL_RESULT:
+      if (ctx?.duelOutcome === "WIN") return `Tu as remporté ton duel contre ${pseudo} !`;
+      if (ctx?.duelOutcome === "LOSE") return `${pseudo} a remporté votre duel !`;
+      if (ctx?.duelOutcome === "DRAW") return `Match nul contre ${pseudo} !`;
+      return null;
+    case NotificationType.DUEL_DECLINED:
+      return `${pseudo} a décliné ton défi.`;
+    case NotificationType.DUEL_EXPIRED:
+      return `Ton défi contre ${pseudo} a expiré.`;
+    default:
+      return null;
+  }
+}
+
 /**
  * Dispatcher centralisé : prend un type et retourne le message FR.
  * Utilisé par le service (create) et par les handlers d'events.
+ * `ctx` n'a d'effet que pour les 4 types de duel ; tous les autres types l'ignorent.
  */
-export function buildNotificationMessage(type: NotificationType): string {
+export function buildNotificationMessage(type: NotificationType, ctx?: NotificationTextContext): string {
+  const personalized = buildDuelMessage(type, ctx);
+  if (personalized) return personalized;
   switch (type) {
     case NotificationType.LETTER_RECEIVED:
       return buildLetterReceivedMessage();
@@ -98,7 +155,7 @@ export function buildNotificationMessage(type: NotificationType): string {
       return "Tu as été invité dans un salon privé";
     case NotificationType.SECURITY_ALERT:
       return "Une action de sécurité a eu lieu sur ton compte";
-    // ── Phase 2 : textes génériques, jamais de pseudo, de contenu ni de montant ──────────
+    // ── Phase 2 : textes génériques (repli des duels sans pseudo), jamais de contenu ni de montant ─────
     case NotificationType.DUEL_RECEIVED:
       return "Tu as été défié(e) en duel";
     case NotificationType.DUEL_RESULT:
@@ -194,6 +251,7 @@ export interface PushPayload {
 export function buildPushPayload(
   type: NotificationType,
   meta?: NotificationMeta | null,
+  ctx?: NotificationTextContext,
 ): PushPayload {
   // Charge minimale : `type` + identifiants de navigation autorisés (policies/pushRouting.ts).
   // Jamais d'identifiant d'utilisateur, de nom de salon ni de sujet de message.
@@ -222,6 +280,8 @@ export function buildPushPayload(
     case NotificationType.BOTTLE_REVEAL_REFUSED:
       return { title: "Bouteille à la mer", body: buildNotificationMessage(type), data };
     default:
-      return { title: "JeuTaime", body: buildNotificationMessage(type), data };
+      // Duels : le corps est le MÊME texte que l'historique (pseudo de l'adversaire) ; `data` ne contient
+      // jamais de pseudo. Les autres types ignorent `ctx`.
+      return { title: "JeuTaime", body: buildNotificationMessage(type, ctx), data };
   }
 }

@@ -8,6 +8,8 @@ import {
   assertNotificationOwnership,
   buildNotificationMessage,
   sanitizeNotificationMeta,
+  sanitizePseudoForText,
+  buildPushPayload,
   ALLOWED_META_KEYS,
 } from "../../src/policies/notifications";
 import { ForbiddenError } from "../../src/core/errors";
@@ -188,3 +190,66 @@ describe("phase 2 : messages et métadonnées", () => {
   });
 });
 
+
+describe("duels : texte avec le pseudo de l'adversaire", () => {
+  const T = NotificationType;
+  const text = (type: NotificationType, ctx?: Parameters<typeof buildNotificationMessage>[1]) => buildNotificationMessage(type, ctx);
+
+  it("les 6 messages demandés, mot pour mot", () => {
+    expect(text(T.DUEL_RECEIVED, { opponentPseudo: "testuser9" })).toBe("testuser9 t'a défié(e) en duel !");
+    expect(text(T.DUEL_RESULT, { opponentPseudo: "testuser8", duelOutcome: "WIN" })).toBe("Tu as remporté ton duel contre testuser8 !");
+    expect(text(T.DUEL_RESULT, { opponentPseudo: "testuser9", duelOutcome: "LOSE" })).toBe("testuser9 a remporté votre duel !");
+    expect(text(T.DUEL_RESULT, { opponentPseudo: "testuser9", duelOutcome: "DRAW" })).toBe("Match nul contre testuser9 !");
+    expect(text(T.DUEL_DECLINED, { opponentPseudo: "testuser8" })).toBe("testuser8 a décliné ton défi.");
+    expect(text(T.DUEL_EXPIRED, { opponentPseudo: "testuser8" })).toBe("Ton défi contre testuser8 a expiré.");
+  });
+
+  it("le pseudo vient du contexte : aucun pseudo codé en dur", () => {
+    for (const pseudo of ["Zoé_42", "a.b-c", "Éloïse"]) {
+      expect(text(T.DUEL_RECEIVED, { opponentPseudo: pseudo })).toContain(pseudo);
+      expect(text(T.DUEL_EXPIRED, { opponentPseudo: pseudo })).toContain(pseudo);
+    }
+    expect(text(T.DUEL_RECEIVED, { opponentPseudo: "A" })).not.toContain("testuser");
+  });
+
+  it("sans pseudo exploitable : texte générique d'avant (jamais « undefined » ni « null »)", () => {
+    for (const bad of [undefined, null, "", "   ", "\u0000‮", 42, {}]) {
+      const ctx = { opponentPseudo: bad as never, duelOutcome: "WIN" as const };
+      expect(text(T.DUEL_RECEIVED, ctx)).toBe("Tu as été défié(e) en duel");
+      expect(text(T.DUEL_RESULT, ctx)).toBe("Le résultat de ton duel est disponible");
+      expect(text(T.DUEL_DECLINED, ctx)).toBe("Ton duel a été décliné");
+      expect(text(T.DUEL_EXPIRED, ctx)).toBe("Ton duel a expiré");
+    }
+    expect(text(T.DUEL_RESULT, { opponentPseudo: "x1" })).toBe("Le résultat de ton duel est disponible"); // issue inconnue
+    expect(text(T.DUEL_RECEIVED)).toBe("Tu as été défié(e) en duel");
+  });
+
+  it("assainit le pseudo : contrôles, sens d'écriture, retours à la ligne, longueur", () => {
+    expect(sanitizePseudoForText("  bob‮\n\tle   gros\u0000 ")).toBe("bob le gros");
+    expect(sanitizePseudoForText("a".repeat(80))).toHaveLength(30);
+    expect(sanitizePseudoForText("é".repeat(31))).toBe("é".repeat(30));
+    expect(sanitizePseudoForText("😀".repeat(40))).toBe("😀".repeat(30));
+    expect(sanitizePseudoForText("​x‏")).toBe("x");
+    expect(sanitizePseudoForText(undefined)).toBeNull();
+    expect(text(T.DUEL_RECEIVED, { opponentPseudo: "evil\n\nINJECTION" })).toBe("evil INJECTION t'a défié(e) en duel !");
+  });
+
+  it("le push porte le MÊME texte que l'historique, et `data` ne contient jamais le pseudo", () => {
+    const ctx = { opponentPseudo: "testuser9", duelOutcome: "LOSE" as const };
+    for (const type of [T.DUEL_RECEIVED, T.DUEL_RESULT, T.DUEL_DECLINED, T.DUEL_EXPIRED]) {
+      const push = buildPushPayload(type, { duelId: "d1" }, ctx);
+      expect(push.body).toBe(buildNotificationMessage(type, ctx));
+      expect(push.body).toContain("testuser9");
+      expect(push.data).toEqual({ type, duelId: "d1" });
+      expect(JSON.stringify(push.data)).not.toContain("testuser9");
+    }
+  });
+
+  it("les AUTRES types ignorent le contexte : textes et push strictement inchangés", () => {
+    const ctx = { opponentPseudo: "testuser9", duelOutcome: "WIN" as const };
+    for (const type of Object.values(T).filter((t) => !String(t).startsWith("DUEL_"))) {
+      expect(buildNotificationMessage(type, ctx), type).toBe(buildNotificationMessage(type));
+      expect(buildPushPayload(type, { matchId: "m1" }, ctx), type).toEqual(buildPushPayload(type, { matchId: "m1" }));
+    }
+  });
+});
