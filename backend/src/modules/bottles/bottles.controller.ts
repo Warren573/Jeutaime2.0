@@ -255,6 +255,7 @@ export async function claimReply(req: AuthedRequest, res: Response) {
           meta: { bottleId },
           dedupeKey: `bottle-message:${result.message.id}`,
           coalesceUnread: { metaKey: "bottleId", value: bottleId },
+          legacyPush: { title: "Bouteille à la mer", body: "Une première réponse est arrivée à ta bouteille.", data: { type: "BOTTLE_REPLY" } },
         });
       }
     }
@@ -336,6 +337,7 @@ export async function postMessage(req: AuthedRequest, res: Response) {
           meta: { bottleId },
           dedupeKey: `bottle-message:${result.message.id}`,
           coalesceUnread: { metaKey: "bottleId", value: bottleId },
+          legacyPush: { title: "Bouteille à la mer", body: "Une nouvelle lettre t’attend dans ta correspondance.", data: { type: "BOTTLE_REPLY" } },
         });
       }
     }

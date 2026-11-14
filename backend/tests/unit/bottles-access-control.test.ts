@@ -228,6 +228,8 @@ describe("Blocage pendant une conversation déjà commencée", () => {
       meta: { bottleId: "bottle-1" },
       dedupeKey: "bottle-message:msg-new",
       coalesceUnread: { metaKey: "bottleId", value: "bottle-1" },
+      // Push historique conservé tel quel si l'interrupteur NOTIFY_PHASE2_EVENTS est coupé.
+      legacyPush: { title: "Bouteille à la mer", body: "Une nouvelle lettre t’attend dans ta correspondance.", data: { type: "BOTTLE_REPLY" } },
     });
     expect(JSON.stringify(arg)).not.toContain("secret");
     vi.mocked(prisma.anonymousMessage.findFirst).mockReset(); // pas de fuite vers les tests suivants

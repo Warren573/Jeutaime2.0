@@ -10,6 +10,10 @@
  *   5. idempotence en base : une seule notification par (destinataire, `dedupeKey`) ;
  *   6. push générique via le service existant (préférences, catégories, état du compte, jetons).
  *
+ * Interrupteur de sécurité : `NOTIFY_PHASE2_EVENTS=false` (variable d'environnement, lue à chaque appel) coupe
+ * toute nouvelle notification d'événement — aucune ligne créée, aucun push — sans toucher aux données existantes.
+ * Seul le push historique d'une réponse de bouteille (`legacyPush`) est conservé, à l'identique d'avant la phase 2.
+ *
  * Ne lève JAMAIS : une notification ne doit pas faire échouer l'action métier qui l'a déclenchée.
  * Aucun texte, pseudo, montant ni contenu privé n'est transmis : seuls les identifiants de routage
  * autorisés par `sanitizeNotificationMeta` sont conservés.
@@ -24,7 +28,7 @@ import { sendPushToUser } from "./push.service";
 
 export type NotifyOutcome =
   | { created: true; notificationId: string }
-  | { created: false; reason: "self" | "recipient_unavailable" | "blocked" | "coalesced" | "duplicate" | "error" };
+  | { created: false; reason: "disabled" | "self" | "recipient_unavailable" | "blocked" | "coalesced" | "duplicate" | "error" };
 
 export interface NotifyEventParams {
   recipientId: string;
@@ -42,6 +46,13 @@ export interface NotifyEventParams {
   dedupeKey: string;
   /** Une seule notification non lue de ce type pour cette ressource (clé de `meta`, valeur). */
   coalesceUnread?: { metaKey: AllowedMetaKey; value: string };
+  /** Push qui existait AVANT la phase 2 pour cet événement : seul comportement conservé si l'interrupteur est coupé. */
+  legacyPush?: { title: string; body: string; data: Record<string, string> };
+}
+
+/** Vrai tant que `NOTIFY_PHASE2_EVENTS` n'est pas explicitement « false » (actif par défaut). */
+export function isPhase2EventsEnabled(): boolean {
+  return (process.env["NOTIFY_PHASE2_EVENTS"] ?? "true").trim().toLowerCase() !== "false";
 }
 
 async function isBlockedEitherWay(a: string, b: string): Promise<boolean> {
@@ -55,6 +66,12 @@ async function isBlockedEitherWay(a: string, b: string): Promise<boolean> {
 export async function notifyEvent(params: NotifyEventParams): Promise<NotifyOutcome> {
   try {
     const { recipientId, actorId, type, dedupeKey } = params;
+
+    // 0. Interrupteur de sécurité : rien de nouveau, sauf le push historique éventuel.
+    if (!isPhase2EventsEnabled()) {
+      if (params.legacyPush) void sendPushToUser({ userId: recipientId, ...params.legacyPush, idempotencyKey: dedupeKey });
+      return { created: false, reason: "disabled" };
+    }
 
     // 1. Jamais de notification pour sa propre action.
     if (actorId && actorId === recipientId) return { created: false, reason: "self" };

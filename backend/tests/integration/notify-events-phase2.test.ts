@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { NotificationType } from "@prisma/client";
 import { prisma } from "../../src/config/prisma";
 import { hashPassword } from "../../src/core/utils/hash";
-import { notifyEvent } from "../../src/modules/notifications/notify.service";
+import { notifyEvent, isPhase2EventsEnabled } from "../../src/modules/notifications/notify.service";
 import { resetPushIdempotency } from "../../src/modules/notifications/push.service";
 import { listMine, unreadCount as countUnread } from "../../src/modules/notifications/notifications.service";
 import { deactivateAccount } from "../../src/modules/auth/accountLifecycle.service";
@@ -173,3 +173,58 @@ describe("compatibilité avec l'écran « Mes notifications »", () => {
     expect(duel!.message.length).toBeGreaterThan(0);
   });
 });
+
+describe("interrupteur de sécurité NOTIFY_PHASE2_EVENTS", () => {
+  const restore = () => { delete process.env["NOTIFY_PHASE2_EVENTS"]; };
+  afterEach(restore);
+
+  test("par défaut (variable absente) et à « true » : actif", async () => {
+    restore();
+    expect(isPhase2EventsEnabled()).toBe(true);
+    process.env["NOTIFY_PHASE2_EVENTS"] = "true";
+    expect(isPhase2EventsEnabled()).toBe(true);
+    process.env["NOTIFY_PHASE2_EVENTS"] = "";
+    expect(isPhase2EventsEnabled()).toBe(true);
+  });
+
+  test("« false » (toute casse, espaces) : aucune ligne, aucun push, aucune donnée existante touchée", async () => {
+    stubExpo();
+    const before = await countOf(dest.id);
+    for (const v of ["false", "FALSE", " False "]) {
+      process.env["NOTIFY_PHASE2_EVENTS"] = v;
+      expect(isPhase2EventsEnabled(), v).toBe(false);
+      const out = await notifyEvent({ recipientId: dest.id, actorId: actor.id, type: NotificationType.DUEL_RECEIVED, meta: { duelId: "d-off" }, dedupeKey: `off:${v.trim()}:${run}` });
+      expect(out).toEqual({ created: false, reason: "disabled" });
+    }
+    await flush();
+    expect(await countOf(dest.id)).toBe(before);
+    expect(expo).not.toHaveBeenCalled();
+  });
+
+  test("coupé : le push historique d'une réponse de bouteille est conservé à l'identique, sans ligne en base", async () => {
+    stubExpo();
+    process.env["NOTIFY_PHASE2_EVENTS"] = "false";
+    const before = await countOf(dest.id, "BOTTLE_REPLY");
+    const out = await notifyEvent({
+      recipientId: dest.id, actorId: actor.id, type: NotificationType.BOTTLE_REPLY, meta: { bottleId: "bt-off" },
+      dedupeKey: `bottle-message:off:${run}`,
+      legacyPush: { title: "Bouteille à la mer", body: "Une nouvelle lettre t’attend dans ta correspondance.", data: { type: "BOTTLE_REPLY" } },
+    });
+    expect(out).toEqual({ created: false, reason: "disabled" });
+    await flush();
+    expect(await countOf(dest.id, "BOTTLE_REPLY")).toBe(before);
+    const p = pushed();
+    expect(p).toHaveLength(1);
+    expect(p[0]).toMatchObject({ to: dest.token, title: "Bouteille à la mer", body: "Une nouvelle lettre t’attend dans ta correspondance.", data: { type: "BOTTLE_REPLY" } });
+    expect(p[0]!.data).toEqual({ type: "BOTTLE_REPLY" }); // aucun identifiant de bouteille
+  });
+
+  test("réactivé : le fonctionnement normal reprend", async () => {
+    stubExpo();
+    process.env["NOTIFY_PHASE2_EVENTS"] = "false";
+    process.env["NOTIFY_PHASE2_EVENTS"] = "true";
+    const out = await notifyEvent({ recipientId: dest.id, actorId: actor.id, type: NotificationType.DUEL_DECLINED, meta: { duelId: "d-on" }, dedupeKey: `on:${run}` });
+    expect(out.created).toBe(true);
+  });
+});
+

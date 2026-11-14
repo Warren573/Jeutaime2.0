@@ -1,0 +1,175 @@
+name: Notifications phase 2 (tests + migration production)
+
+# Ne déploie rien et ne touche aucune base distante : PostgreSQL éphémère du runner uniquement.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/prisma/**'
+      - 'backend/src/modules/notifications/**'
+      - 'backend/src/modules/bottles/**'
+      - 'backend/src/modules/private-duels/**'
+      - 'backend/src/modules/matches/**'
+      - 'backend/src/modules/refuge/**'
+      - 'backend/src/modules/admin/**'
+      - 'backend/src/policies/**'
+      - 'backend/scripts/ci/**'
+      - 'backend/tests/**'
+      - 'frontend/src/utils/**'
+      - 'frontend/src/api/notifications.ts'
+      - '.github/workflows/notifications-phase2-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  phase2-tests:
+    name: Tests notifications phase 2 (PostgreSQL)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      JWT_ACCESS_SECRET: ci_access_secret_0123456789abcdef0123456789
+      JWT_REFRESH_SECRET: ci_refresh_secret_0123456789abcdef012345678
+      RATE_LIMIT_AUTH_MAX: '1000'
+      PGPASSWORD: postgres
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jeutaime_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Generate Prisma client and create schema
+        working-directory: backend
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate --accept-data-loss
+          # Table créée uniquement par du SQL de migration (lue en SQL brut par le code).
+          psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f prisma/migrations/20260807143000_add_account_deactivation/migration.sql
+      - name: Notifications phase 2 — tests (unitaires, frontend purs, PostgreSQL)
+        working-directory: backend
+        run: >-
+          npx vitest run
+          tests/integration/notify-events-phase2.test.ts
+          tests/integration/notify-events-hooks.test.ts
+          tests/unit/pushRouting.test.ts
+          tests/unit/notifications.policy.test.ts
+          tests/unit/notifications.service.test.ts
+          tests/unit/notifications.handlers.test.ts
+          tests/unit/push.service.test.ts
+          tests/unit/push.events-idempotence.test.ts
+          tests/unit/question-result-notifications.test.ts
+          tests/unit/frontend-notifications-phase2.test.ts
+          tests/unit/frontend-notifications-view.test.ts
+          tests/unit/frontend-push-navigation.test.ts
+          tests/unit/bottles-access-control.test.ts
+          tests/unit/bottles-anonymity.test.ts
+          tests/unit/refuge.service.test.ts
+      - name: Typecheck backend
+        working-directory: backend
+        run: npm run typecheck
+
+  migration-production-simulation:
+    name: Migration — simulation de l'état de production
+    runs-on: ubuntu-latest
+    env:
+      PG_URL_ADMIN: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+      PGPASSWORD: postgres
+      JWT_ACCESS_SECRET: ci_access_secret_0123456789abcdef0123456789
+      JWT_REFRESH_SECRET: ci_refresh_secret_0123456789abcdef012345678
+      RATE_LIMIT_AUTH_MAX: '1000'
+      NODE_ENV: production
+      ENABLE_SCHEDULER: 'false'
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Schéma « avant » = schéma de la base de la PR (main)
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          [ -n "$BASE" ] || BASE="$(git rev-parse origin/main)"
+          echo "BASE_SHA=$BASE" >> "$GITHUB_ENV"
+          git show "$BASE:backend/prisma/schema.prisma" > "$RUNNER_TEMP/schema-before.prisma"
+          echo "Base : $BASE"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Simulation — migrate deploy sur l'état de production (63 terminées + 2 annulées)
+        working-directory: backend
+        env:
+          BASE_SCHEMA: ${{ runner.temp }}/schema-before.prisma
+        run: ./scripts/ci/simulate-production-migration.sh
+
+      - name: Build du nouveau backend
+        working-directory: backend
+        run: npm run build
+
+      - name: Nouveau backend — démarrage Render (migrate deploy puis serveur) + test de fumée
+        working-directory: backend
+        env:
+          BASE_SCHEMA: ${{ runner.temp }}/schema-before.prisma
+          SKIP_DEPLOY: '1'
+        run: |
+          ./scripts/ci/simulate-production-migration.sh
+          export DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/jt_prod_sim?schema=public"
+          export DIRECT_URL="$DATABASE_URL" PORT=4300
+          npm run start:render > "$RUNNER_TEMP/new.log" 2>&1 &
+          for i in $(seq 1 60); do curl -fs http://127.0.0.1:4300/api/health >/dev/null && break; sleep 1; done
+          grep -E "Applying migration|successfully" "$RUNNER_TEMP/new.log"
+          node scripts/ci/smoke-backend.mjs http://127.0.0.1:4300 || { tail -40 "$RUNNER_TEMP/new.log"; exit 1; }
+          pkill -f "node dist/server.js" || true
+
+      - name: Ancien backend (main) sur la base MIGRÉE — compatibilité avant activation des événements
+        run: |
+          git worktree add -q --detach "$RUNNER_TEMP/old" "$BASE_SHA"
+          cd "$RUNNER_TEMP/old/backend"
+          npm ci --no-audit --no-fund
+          npm run build
+          export DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/jt_prod_sim?schema=public"
+          export DIRECT_URL="$DATABASE_URL" PORT=4301
+          npm run start:render > "$RUNNER_TEMP/old.log" 2>&1 &
+          for i in $(seq 1 60); do curl -fs http://127.0.0.1:4301/api/health >/dev/null && break; sleep 1; done
+          node "$GITHUB_WORKSPACE/backend/scripts/ci/smoke-backend.mjs" http://127.0.0.1:4301 || { tail -40 "$RUNNER_TEMP/old.log"; exit 1; }
+          pkill -f "node dist/server.js" || true
