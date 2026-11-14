@@ -1,32 +1,62 @@
 import React from 'react';
+import { Image } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import type { NotificationIconName } from '../utils/notificationsView';
+import { hasPngIcon, type NotificationIconName, type PngIconName } from '../utils/notificationsView';
 
-/** Icônes au trait fin (même famille que la barre d'onglets) : un dessin par catégorie. */
-export function NotificationIcon({ name, size = 20, color }: { name: NotificationIconName; size?: number; color: string }) {
+/**
+ * Illustrations PNG de l'identité JeuTaime (déjà présentes dans `assets/ui-icons/`), réutilisées telles quelles.
+ * `offering.png` est la version 256 px de l'illustration existante « BOUQUET DE FLEURS » (assets/images/offerings/desk).
+ * `duel.png` : deux épées croisées, dessinées pour cette catégorie (aucune illustration d'épées n'existait) ;
+ * le trophée (`trophy.png`) est réservé à l'élection du profil de la semaine.
+ */
+const PNG_ICONS: Record<PngIconName, number> = {
+  letter: require('../../assets/ui-icons/book.png'),
+  bottle: require('../../assets/ui-icons/bottle.png'),
+  heart: require('../../assets/ui-icons/heart.png'),
+  duel: require('../../assets/ui-icons/duel.png'),
+  gift: require('../../assets/ui-icons/offering.png'),
+  refuge: require('../../assets/ui-icons/pet.png'),
+};
+
+/** Les illustrations sont plus détaillées que des traits : un peu plus grandes dans le même cercle. */
+const PNG_SCALE = 1.4;
+/** Notification lue : illustration atténuée (équivalent de la teinte « muted » des icônes au trait). */
+const PNG_READ_OPACITY = 0.55;
+
+/**
+ * Icône d'une catégorie : illustration PNG quand elle existe, sinon icône au trait fin (même famille que la barre
+ * d'onglets). `dimmed` (notification lue) n'agit que sur les illustrations ; les icônes au trait suivent `color`.
+ */
+export function NotificationIcon({
+  name,
+  size = 20,
+  color,
+  dimmed = false,
+}: {
+  name: NotificationIconName;
+  size?: number;
+  color: string;
+  dimmed?: boolean;
+}) {
+  if (hasPngIcon(name)) {
+    const px = Math.round(size * PNG_SCALE);
+    return (
+      <Image
+        source={PNG_ICONS[name]}
+        style={{ width: px, height: px, opacity: dimmed ? PNG_READ_OPACITY : 1 }}
+        resizeMode="contain"
+        accessibilityIgnoresInvertColors
+      />
+    );
+  }
   const common = { fill: 'none' as const, stroke: color, strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
-      {name === 'letter' && (
-        <>
-          <Rect x="3" y="6" width="18" height="12.5" rx="1.6" {...common} />
-          <Path d="M3.6 7.4 12 13.6l8.4-6.2" {...common} />
-        </>
-      )}
-      {name === 'heart' && <Path d="M12 20.2s-7.4-4.6-7.4-10.4A4.1 4.1 0 0 1 12 7.4a4.1 4.1 0 0 1 7.4 2.4c0 5.8-7.4 10.4-7.4 10.4z" {...common} />}
       {name === 'lock' && (
         <>
           <Rect x="5" y="10.5" width="14" height="9.5" rx="2" {...common} />
           <Path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" {...common} />
           <Circle cx="12" cy="15.2" r="1.1" fill={color} />
-        </>
-      )}
-      {name === 'gift' && (
-        <>
-          <Rect x="4" y="10.5" width="16" height="9.5" rx="1.2" {...common} />
-          <Rect x="3" y="7.2" width="18" height="3.3" rx="1" {...common} />
-          <Path d="M12 7.2V20" {...common} />
-          <Path d="M12 7.2S9.8 3.6 8 5s1.3 2.2 4 2.2zM12 7.2s2.2-3.6 4-2.2-1.3 2.2-4 2.2z" {...common} />
         </>
       )}
       {name === 'sparkle' && (
@@ -46,26 +76,6 @@ export function NotificationIcon({ name, size = 20, color }: { name: Notificatio
         <>
           <Path d="M12 3l7 3v5.6c0 4.2-3 7.6-7 9.2-4-1.6-7-5-7-9.2V6l7-3z" {...common} />
           <Path d="M9 12.2l2.2 2.2L15.3 10" {...common} />
-        </>
-      )}
-      {name === 'bottle' && (
-        <>
-          <Path d="M10 3.2h4v2.7l1.3 2.4c.5.9.7 1.8.7 2.8V19a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-7.9c0-1 .2-1.9.7-2.8L10 5.9V3.2z" {...common} />
-          <Path d="M8.4 13.4h7.2" {...common} />
-        </>
-      )}
-      {name === 'duel' && (
-        <>
-          <Path d="M4 4l11 11M20 4 9 15" {...common} />
-          <Path d="M12.2 17.8 17.8 12.2M6.2 12.2l5.6 5.6" {...common} />
-          <Path d="M15 15l4.6 4.6M9 15l-4.6 4.6" {...common} />
-        </>
-      )}
-      {name === 'refuge' && (
-        <>
-          <Path d="M3.6 11.2 12 4l8.4 7.2" {...common} />
-          <Path d="M5.8 9.8V19a1 1 0 0 0 1 1h10.4a1 1 0 0 0 1-1V9.8" {...common} />
-          <Path d="M12 16.4c-2-1.3-3-2.3-3-3.5a1.7 1.7 0 0 1 3-1 1.7 1.7 0 0 1 3 1c0 1.2-1 2.2-3 3.5z" {...common} />
         </>
       )}
       {name === 'crown' && <Path d="M4 17.5 3.2 8l4.6 4.2L12 6l4.2 6.2L20.8 8 20 17.5H4zM4.5 20h15" {...common} />}

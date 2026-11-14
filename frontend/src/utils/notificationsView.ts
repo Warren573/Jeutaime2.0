@@ -40,6 +40,19 @@ export type NotificationIconName =
   | 'refuge'
   | 'bell';
 
+/**
+ * Icônes illustrées (PNG de l'identité JeuTaime, `assets/ui-icons/`) : lettres, bouteilles, rencontres, duels
+ * (deux épées croisées ; le trophée est réservé à l'élection du profil de la semaine), offrandes et Refuge.
+ * Les autres catégories gardent leur icône au trait tant qu'aucune illustration cohérente n'existe : sécurité,
+ * modération, salons, abonnement, administration.
+ */
+export const PNG_ICON_NAMES = ['letter', 'bottle', 'heart', 'duel', 'gift', 'refuge'] as const;
+export type PngIconName = (typeof PNG_ICON_NAMES)[number];
+
+export function hasPngIcon(name: unknown): name is PngIconName {
+  return typeof name === 'string' && (PNG_ICON_NAMES as readonly string[]).includes(name);
+}
+
 export interface NotificationCategory {
   /** Libellé discret affiché au-dessus du message. */
   label: string;

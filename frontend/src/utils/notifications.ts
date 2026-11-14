@@ -65,8 +65,11 @@ export function getNotificationTarget(notification: NotificationDto): string | n
 
     case 'BOTTLE_REPLY':
     case 'BOTTLE_REVEAL_REQUEST':
-    case 'BOTTLE_REVEAL_REFUSED':
-      return '/bottles-main';
+    case 'BOTTLE_REVEAL_REFUSED': {
+      // La conversation exacte ; sans identifiant valide : la liste des bouteilles.
+      const bottleId = meta['bottleId'];
+      return isSafeId(bottleId) ? `/bottles-discussion?bottleId=${bottleId}` : '/bottles-main';
+    }
 
     case 'BOTTLE_REVEAL_ACCEPTED': {
       const matchId = meta['matchId'];
