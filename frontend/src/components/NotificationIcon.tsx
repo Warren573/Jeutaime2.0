@@ -11,7 +11,6 @@ const PNG_ICONS: Record<PngIconName, number> = {
   letter: require('../../assets/ui-icons/book.png'),
   bottle: require('../../assets/ui-icons/bottle.png'),
   heart: require('../../assets/ui-icons/heart.png'),
-  duel: require('../../assets/ui-icons/trophy.png'),
   gift: require('../../assets/ui-icons/offering.png'),
   refuge: require('../../assets/ui-icons/pet.png'),
 };
@@ -74,6 +73,13 @@ export function NotificationIcon({
         <>
           <Path d="M12 3l7 3v5.6c0 4.2-3 7.6-7 9.2-4-1.6-7-5-7-9.2V6l7-3z" {...common} />
           <Path d="M9 12.2l2.2 2.2L15.3 10" {...common} />
+        </>
+      )}
+      {name === 'duel' && (
+        <>
+          <Path d="M4 4l11 11M20 4 9 15" {...common} />
+          <Path d="M12.2 17.8 17.8 12.2M6.2 12.2l5.6 5.6" {...common} />
+          <Path d="M15 15l4.6 4.6M9 15l-4.6 4.6" {...common} />
         </>
       )}
       {name === 'crown' && <Path d="M4 17.5 3.2 8l4.6 4.2L12 6l4.2 6.2L20.8 8 20 17.5H4zM4.5 20h15" {...common} />}

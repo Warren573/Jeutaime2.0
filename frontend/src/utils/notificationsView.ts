@@ -41,11 +41,12 @@ export type NotificationIconName =
   | 'bell';
 
 /**
- * Icônes illustrées (PNG de l'identité JeuTaime, `assets/ui-icons/`) : lettres, bouteilles, rencontres, duels,
- * offrandes et Refuge. Les autres catégories gardent leur icône au trait tant qu'aucune illustration cohérente
- * n'existe (sécurité, modération, salons, abonnement, administration).
+ * Icônes illustrées (PNG de l'identité JeuTaime, `assets/ui-icons/`) : lettres, bouteilles, rencontres, offrandes
+ * et Refuge. Les autres catégories gardent leur icône au trait tant qu'aucune illustration cohérente n'existe :
+ * duels (épées ; le trophée est réservé à l'élection du profil de la semaine), sécurité, modération, salons,
+ * abonnement, administration.
  */
-export const PNG_ICON_NAMES = ['letter', 'bottle', 'heart', 'duel', 'gift', 'refuge'] as const;
+export const PNG_ICON_NAMES = ['letter', 'bottle', 'heart', 'gift', 'refuge'] as const;
 export type PngIconName = (typeof PNG_ICON_NAMES)[number];
 
 export function hasPngIcon(name: unknown): name is PngIconName {

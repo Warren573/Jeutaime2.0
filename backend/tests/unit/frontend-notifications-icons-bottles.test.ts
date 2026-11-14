@@ -21,7 +21,6 @@ const note = (type: string, meta: Record<string, unknown> | null) =>
 
 describe("icônes PNG : catégories couvertes", () => {
   const PNG_TYPES: Array<[string, string, string]> = [
-    ["DUEL_RECEIVED", "Duels", "duel"], ["DUEL_RESULT", "Duels", "duel"], ["DUEL_DECLINED", "Duels", "duel"], ["DUEL_EXPIRED", "Duels", "duel"],
     ["BOTTLE_REPLY", "Bouteilles", "bottle"], ["BOTTLE_REVEAL_REQUEST", "Bouteilles", "bottle"],
     ["BOTTLE_REVEAL_ACCEPTED", "Bouteilles", "bottle"], ["BOTTLE_REVEAL_REFUSED", "Bouteilles", "bottle"],
     ["LETTER_RECEIVED", "Lettres", "letter"],
@@ -32,6 +31,16 @@ describe("icônes PNG : catégories couvertes", () => {
   it.each(PNG_TYPES)("%s → %s : illustration PNG « %s »", (type, label, icon) => {
     expect(categoryFor(type)).toEqual({ label, icon });
     expect(hasPngIcon(categoryFor(type).icon)).toBe(true);
+  });
+
+  it("duels : les ÉPÉES (icône au trait conservée) ; le trophée est réservé à l'élection du profil de la semaine", () => {
+    for (const type of ["DUEL_RECEIVED", "DUEL_RESULT", "DUEL_DECLINED", "DUEL_EXPIRED"]) {
+      expect(categoryFor(type)).toEqual({ label: "Duels", icon: "duel" });
+      expect(hasPngIcon(categoryFor(type).icon), type).toBe(false);
+    }
+    const src = readFileSync(ICON_FILE, "utf8");
+    expect(src).not.toMatch(/trophy/i); // aucune référence au trophée dans les notifications
+    expect(src).toMatch(/name === 'duel'/); // l'icône d'épées est bien dessinée
   });
 
   it("catégories SANS illustration cohérente disponible : icône au trait conservée (signalées dans la PR)", () => {
