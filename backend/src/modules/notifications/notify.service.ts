@@ -22,7 +22,12 @@ import { NotificationType, Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { logger } from "../../config/logger";
 import { isAccountDeactivated } from "../auth/accountLifecycle.service";
-import { buildPushPayload, sanitizeNotificationMeta, type AllowedMetaKey } from "../../policies/notifications";
+import {
+  buildPushPayload,
+  sanitizeNotificationMeta,
+  type AllowedMetaKey,
+  type NotificationTextContext,
+} from "../../policies/notifications";
 import { createNotification } from "./notifications.service";
 import { sendPushToUser } from "./push.service";
 
@@ -46,6 +51,8 @@ export interface NotifyEventParams {
   dedupeKey: string;
   /** Une seule notification non lue de ce type pour cette ressource (clé de `meta`, valeur). */
   coalesceUnread?: { metaKey: AllowedMetaKey; value: string };
+  /** Contexte du texte (pseudo de l'adversaire d'un duel) : même texte pour l'historique et pour le push. */
+  textContext?: NotificationTextContext;
   /** Push qui existait AVANT la phase 2 pour cet événement : seul comportement conservé si l'interrupteur est coupé. */
   legacyPush?: { title: string; body: string; data: Record<string, string> };
 }
@@ -106,7 +113,7 @@ export async function notifyEvent(params: NotifyEventParams): Promise<NotifyOutc
     // 5. Idempotence en base (unique (userId, dedupeKey)).
     let created;
     try {
-      created = await createNotification({ userId: recipientId, type, meta, dedupeKey });
+      created = await createNotification({ userId: recipientId, type, meta, dedupeKey, textContext: params.textContext });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         return { created: false, reason: "duplicate" };
@@ -115,7 +122,7 @@ export async function notifyEvent(params: NotifyEventParams): Promise<NotifyOutc
     }
 
     // 6. Push générique (le service applique préférences, catégories, état du compte et jetons).
-    void sendPushToUser({ userId: recipientId, ...buildPushPayload(type, meta), idempotencyKey: dedupeKey });
+    void sendPushToUser({ userId: recipientId, ...buildPushPayload(type, meta, params.textContext), idempotencyKey: dedupeKey });
     return { created: true, notificationId: created.id };
   } catch (err) {
     logger.error({ err, type: params.type }, "[notify] notification d'événement impossible");

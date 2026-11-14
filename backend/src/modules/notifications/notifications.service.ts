@@ -10,6 +10,7 @@ import {
   buildNotificationMessage,
   sanitizeNotificationMeta,
   type NotificationMeta,
+  type NotificationTextContext,
 } from "../../policies/notifications";
 import type { ListNotificationsQueryDto } from "./notifications.schemas";
 
@@ -50,13 +51,15 @@ export async function createNotification(params: {
   meta?: Record<string, unknown> | null;
   /** Identité de l'événement : une seule notification par (destinataire, clé) — voir notify.service.ts. */
   dedupeKey?: string;
+  /** Contexte structuré du texte (pseudo de l'adversaire d'un duel) : assaini et mis en forme par la policy. */
+  textContext?: NotificationTextContext;
 }): Promise<NotificationDto> {
   const cleanMeta = sanitizeNotificationMeta(params.meta);
   const created = await prisma.notification.create({
     data: {
       userId: params.userId,
       type: params.type,
-      message: buildNotificationMessage(params.type),
+      message: buildNotificationMessage(params.type, params.textContext),
       meta: cleanMeta as Prisma.InputJsonValue | undefined,
       ...(params.dedupeKey ? { dedupeKey: params.dedupeKey } : {}),
     },
