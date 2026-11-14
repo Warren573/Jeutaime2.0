@@ -51,7 +51,7 @@ describe("correspondance centrale des types push", () => {
     expect(pushDestinationFor("ADMIN_MESSAGE")).toBe("/admin-messages");
     expect(pushDestinationFor("PRIVATE_SALON_INVITE")).toBe("/private-salons");
     expect(pushDestinationFor("SECURITY_ALERT")).toBe("/security");
-    expect(pushDestinationFor("BOTTLE_REPLY")).toBe("/bottles-discussion");
+    expect(pushDestinationFor("BOTTLE_REPLY")).toBe("/bottles-main");
     expect(pushDestinationFor("DAILY_EDITION")).toBe("/journal");
     expect(pushDestinationFor("QUESTIONS_FAILED")).toBeNull();
   });
@@ -123,9 +123,9 @@ describe("phase 2 : nouveaux événements", () => {
     ["DUEL_RESULT", "notifActivities", "/duel/play", ["duelId"]],
     ["DUEL_DECLINED", "notifActivities", "/duel/play", ["duelId"]],
     ["DUEL_EXPIRED", "notifActivities", "/duel/play", ["duelId"]],
-    ["BOTTLE_REVEAL_REQUEST", "notifLetters", "/bottles-discussion", ["bottleId"]],
+    ["BOTTLE_REVEAL_REQUEST", "notifLetters", "/bottles-main", ["bottleId"]],
     ["BOTTLE_REVEAL_ACCEPTED", "notifLetters", "/match-profile", ["matchId"]],
-    ["BOTTLE_REVEAL_REFUSED", "notifLetters", "/bottles-discussion", ["bottleId"]],
+    ["BOTTLE_REVEAL_REFUSED", "notifLetters", "/bottles-main", ["bottleId"]],
     ["QUESTIONS_TURN", "notifMeetings", "/match-profile", ["matchId"]],
     ["REFUGE_ADOPTED", "notifActivities", "/refuge", ["refugeSessionId"]],
     ["REFUGE_REVEAL_PHASE", "notifActivities", "/refuge", ["refugeSessionId"]],

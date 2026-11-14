@@ -1,4 +1,6 @@
 import { apiFetch } from "./client";
+import { isSafeId } from "../utils/pushNavigation";
+import { deriveReadingState, shouldLoadSpecificBottle } from "../utils/bottleReading";
 
 export interface CreateBottlePayload {
   message: string;
@@ -140,6 +142,22 @@ export async function refuseBottle(bottleId: string): Promise<{ success: boolean
 export async function getCurrentBottle(): Promise<GetCurrentBottleResponse> {
   const res = (await apiFetch("/bottles/current")) as { data: GetCurrentBottleResponse };
   return res.data;
+}
+
+/**
+ * Bouteille à lire : celle demandée (ex. ouverte depuis une notification) si elle diffère de la bouteille courante,
+ * sinon la bouteille courante. Toute difficulté (identifiant invalide, bouteille inaccessible, rompue, aucune lettre)
+ * retombe sur la bouteille courante : comportement d'avant, jamais d'écran cassé. Ne lit que ce qui est déjà
+ * visible pour le participant (voir utils/bottleReading.ts).
+ */
+export async function resolveBottleToRead(current: GetCurrentBottleResponse, requestedId: unknown): Promise<GetCurrentBottleResponse> {
+  if (!shouldLoadSpecificBottle(requestedId, current) || !isSafeId(requestedId)) return current;
+  try {
+    const [bottle, messages] = await Promise.all([getBottleById(requestedId), getBottleMessages(requestedId)]);
+    return deriveReadingState({ bottleId: requestedId, status: bottle.status, messages, canCreateBottle: current.canCreateBottle }) ?? current;
+  } catch {
+    return current;
+  }
 }
 
 export async function getBottleMessages(bottleId: string): Promise<BottleMessageWithMetadata[]> {
