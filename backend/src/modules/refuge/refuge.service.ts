@@ -1,5 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { emitRefugeRevealed } from "../../events";
+import { notifyEvent } from "../notifications/notify.service";
+import { NotificationType } from "@prisma/client";
 import { buildPhotoUrl } from "../photos/photos.urls";
 import {
   BadRequestError,
@@ -274,6 +276,15 @@ export class RefugeService {
 
     const updatedRefuge = await prisma.refugeSession.findUnique({
       where: { id: refugeSessionId },
+    });
+
+    // Refuge adopté : celui qui l'avait proposé est prévenu que l'aventure commence (jamais l'adoptant).
+    void notifyEvent({
+      recipientId: refugeSession.adopteId,
+      actorId: adoptantId,
+      type: NotificationType.REFUGE_ADOPTED,
+      meta: { refugeSessionId },
+      dedupeKey: `refuge-adopted:${refugeSessionId}`,
     });
 
     return this.mapToDTO(updatedRefuge);
@@ -870,6 +881,17 @@ export class RefugeService {
       throw err;
     }
 
+    // Dernier jour joué par l'Adoptant : la phase finale (dévoilement) s'ouvre, l'Adopté doit choisir.
+    if (dayNumber === REFUGE_DURATION_DAYS) {
+      void notifyEvent({
+        recipientId: refugeSession.adopteId,
+        actorId: adoptantId,
+        type: NotificationType.REFUGE_REVEAL_PHASE,
+        meta: { refugeSessionId },
+        dedupeKey: `refuge-reveal-phase:${refugeSessionId}`,
+      });
+    }
+
     // Solder les jours passés arrivés à échéance (écriture POST — jamais en GET)
     await this.closePastDays(refugeSessionId);
 
@@ -1147,6 +1169,14 @@ export class RefugeService {
           adopteId: refugeSession.adopteId,
           adoptantId: refugeSession.adoptantId,
           revealedAt: revealed?.revealedAt ?? new Date(),
+        });
+        // Dévoilement mutuel : seule l'autre personne (qui avait accepté en premier) est prévenue.
+        void notifyEvent({
+          recipientId: userId === refugeSession.adopteId ? refugeSession.adoptantId : refugeSession.adopteId,
+          actorId: userId,
+          type: NotificationType.REFUGE_REVEALED,
+          meta: { refugeSessionId },
+          dedupeKey: `refuge-revealed:${refugeSessionId}`,
         });
       }
     }

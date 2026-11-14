@@ -8,6 +8,12 @@ import {
   RefugeGuessAlreadySubmittedError,
 } from "../../src/core/errors";
 
+// Les notifications d'événements (Phase 2) sont testées dans notify-events.test.ts :
+// ici on isole le service pour ne pas consommer les mocks Prisma de ces scénarios.
+vi.mock("../../src/modules/notifications/notify.service", () => ({
+  notifyEvent: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock the Prisma module with factory function to avoid hoisting issues
 vi.mock("../../src/config/prisma", () => {
   const prismaMock: any = {
@@ -62,6 +68,7 @@ vi.mock("../../src/config/prisma", () => {
 
 import { RefugeService } from "../../src/modules/refuge/refuge.service";
 import { prisma } from "../../src/config/prisma";
+import { notifyEvent } from "../../src/modules/notifications/notify.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -261,6 +268,22 @@ describe("RefugeService.adoptRefuge", () => {
     // Le jeu dure 7 jours à partir de l'adoption
     const { startedAt, endsAt } = updateArgs.data;
     expect(endsAt.getTime() - startedAt.getTime()).toBe(7 * DAY_MS);
+    // Phase 2 : celui qui avait proposé le refuge est prévenu (jamais l'adoptant), une clé par session.
+    expect(notifyEvent).toHaveBeenCalledTimes(1);
+    expect(notifyEvent).toHaveBeenCalledWith({
+      recipientId: adopteId,
+      actorId: adoptantId,
+      type: "REFUGE_ADOPTED",
+      meta: { refugeSessionId: sessionId },
+      dedupeKey: `refuge-adopted:${sessionId}`,
+    });
+  });
+
+  it("Phase 2 : une adoption refusée ne notifie personne", async () => {
+    mockAdoptant();
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(waitingSession({ adopteId: adoptantId }));
+    await expect(RefugeService.adoptRefuge(adoptantId, sessionId)).rejects.toBeTruthy();
+    expect(notifyEvent).not.toHaveBeenCalled();
   });
 
   it("rejects when another Adoptant won the race (conditional claim touched 0 rows)", async () => {
@@ -669,6 +692,41 @@ describe("RefugeService.submitGuess", () => {
 // (le frontend détecte ce cas par le code, jamais par le texte)
 // ============================================================
 
+describe("RefugeService.submitGuess — phase finale (notifications)", () => {
+  const guessInput = { guessedAction1: "NOURRIR", guessedAction2: "JOUER" } as any;
+  const choice = (dayNumber: number) => ({ id: "dc", refugeSessionId: sessionId, dayNumber, action1: "NOURRIR", action2: "JOUER" });
+  const guess = (dayNumber: number) => ({ id: "g", refugeSessionId: sessionId, dayNumber, guessedAction1: "NOURRIR", guessedAction2: "JOUER", submittedAt: new Date() });
+
+  it("jour 7 joué : l'Adopté (jamais l'Adoptant) est prévenu que le dévoilement s'ouvre", async () => {
+    const startedAt = new Date(Date.now() - 6 * DAY_MS - 2 * 60 * 60 * 1000);
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession({ startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY_MS) }));
+    (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(null);
+    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(choice(7));
+    (prisma.refugeGuess.create as any).mockResolvedValueOnce(guess(7));
+    (prisma.refugeSession.update as any).mockResolvedValueOnce({});
+    await RefugeService.submitGuess(sessionId, adoptantId, 7, guessInput).catch(() => undefined);
+    const calls = (notifyEvent as any).mock.calls.map((c: any[]) => c[0]).filter((c: any) => c.type === "REFUGE_REVEAL_PHASE");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual({
+      recipientId: adopteId,
+      actorId: adoptantId,
+      type: "REFUGE_REVEAL_PHASE",
+      meta: { refugeSessionId: sessionId },
+      dedupeKey: `refuge-reveal-phase:${sessionId}`,
+    });
+  });
+
+  it("jour 1 : aucune notification de phase finale", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
+    (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(null);
+    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(choice(1));
+    (prisma.refugeGuess.create as any).mockResolvedValueOnce(guess(1));
+    (prisma.refugeSession.update as any).mockResolvedValueOnce({});
+    await RefugeService.submitGuess(sessionId, adoptantId, 1, guessInput).catch(() => undefined);
+    expect(notifyEvent).not.toHaveBeenCalled();
+  });
+});
+
 describe("RefugeService.submitDailyChoice — double soumission", () => {
   const choiceInput = { action1: "NOURRIR", action2: "JOUER" } as any;
   const existingChoice = { id: "choice-1", refugeSessionId: sessionId, dayNumber: 1, action1: "NOURRIR", action2: "JOUER" };
@@ -835,6 +893,13 @@ describe("RefugeService.submitRevealConsent", () => {
     expect(promoArgs.where.revealedAt).toBeNull();
     expect(promoArgs.data.status).toBe("REVEALED");
     expect(promoArgs.data.revealedAt).toBeInstanceOf(Date);
+    // Phase 2 : l'autre personne (Adopté, qui avait accepté en premier) est prévenue, jamais l'auteur.
+    const calls = (notifyEvent as any).mock.calls.map((c: any[]) => c[0]);
+    const revealed = calls.filter((c: any) => c.type === "REFUGE_REVEALED");
+    expect(revealed).toHaveLength(1);
+    expect(revealed[0].recipientId).toBe(adopteId);
+    expect(revealed[0].actorId).toBe(adoptantId);
+    expect(revealed[0].dedupeKey).toBe(`refuge-revealed:${sessionId}`);
   });
 
   it("REFUSE ends the session cleanly as COMPLETED without revealing anything", async () => {

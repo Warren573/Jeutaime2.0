@@ -113,3 +113,50 @@ describe("charge push : confidentialité et données minimales", () => {
     expect(pickPushData("LETTER_RECEIVED", null)).toEqual({ type: "LETTER_RECEIVED" });
   });
 });
+
+describe("phase 2 : nouveaux événements", () => {
+  const PHASE2: Array<[string, string | null, string | null, string[]]> = [
+    ["DUEL_RECEIVED", "notifActivities", "/duel/play", ["duelId"]],
+    ["DUEL_RESULT", "notifActivities", "/duel/play", ["duelId"]],
+    ["DUEL_DECLINED", "notifActivities", "/duel/play", ["duelId"]],
+    ["DUEL_EXPIRED", "notifActivities", "/duel/play", ["duelId"]],
+    ["BOTTLE_REVEAL_REQUEST", "notifLetters", "/bottles-main", []],
+    ["BOTTLE_REVEAL_ACCEPTED", "notifLetters", "/match-profile", ["matchId"]],
+    ["BOTTLE_REVEAL_REFUSED", "notifLetters", "/bottles-main", []],
+    ["QUESTIONS_TURN", "notifMeetings", "/match-profile", ["matchId"]],
+    ["REFUGE_ADOPTED", "notifActivities", "/refuge", ["refugeSessionId"]],
+    ["REFUGE_REVEAL_PHASE", "notifActivities", "/refuge", ["refugeSessionId"]],
+    ["REFUGE_REVEALED", "notifActivities", "/refuge", ["refugeSessionId"]],
+    ["REPORT_PROCESSED", null, "/user-reports", []],
+    ["ACCOUNT_RESTORED", null, null, []],
+  ];
+
+  it.each(PHASE2)("%s : catégorie, destination et données autorisées", (type, category, destination, keys) => {
+    expect(pushCategoryFor(type)).toBe(category);
+    expect(pushDestinationFor(type)).toBe(destination);
+    expect([...PUSH_TYPE_CONFIG[type as NotificationType]!.dataKeys]).toEqual(keys);
+  });
+
+  it("un type retiré faute d'événement réel n'existe plus (aucune notification pour un événement inexistant)", () => {
+    for (const gone of ["BOTTLE_ACCEPTED", "SUPPORT_REPLY"]) {
+      expect(ALL_TYPES as string[], gone).not.toContain(gone);
+      expect(pushCategoryFor(gone)).toBeNull();
+    }
+  });
+
+  it("les push des bouteilles ne contiennent JAMAIS d'identifiant de bouteille ni de personne (anonymat)", () => {
+    for (const type of ["BOTTLE_REPLY", "BOTTLE_REVEAL_REQUEST", "BOTTLE_REVEAL_REFUSED", "BOTTLE_REVEAL_ACCEPTED"] as const) {
+      const p = buildPushPayload(type, { bottleId: "bt-secret", matchId: "m1", userId: "u-secret", fromUserId: "u2", message: "texte privé" });
+      const text = JSON.stringify(p);
+      for (const leak of ["bt-secret", "u-secret", "u2", "texte privé"]) expect(text, `${type} ${leak}`).not.toContain(leak);
+    }
+  });
+
+  it("duelId / refugeSessionId : transmis seulement pour leurs types, jamais d'autre clé", () => {
+    const meta = { duelId: "d1", refugeSessionId: "r1", matchId: "m1", pseudo: "Alice" };
+    expect(buildPushPayload("DUEL_RECEIVED", meta).data).toEqual({ type: "DUEL_RECEIVED", duelId: "d1" });
+    expect(buildPushPayload("REFUGE_REVEALED", meta).data).toEqual({ type: "REFUGE_REVEALED", refugeSessionId: "r1" });
+    expect(buildPushPayload("QUESTIONS_TURN", meta).data).toEqual({ type: "QUESTIONS_TURN", matchId: "m1" });
+    expect(JSON.stringify(buildPushPayload("DUEL_RECEIVED", meta))).not.toContain("Alice");
+  });
+});

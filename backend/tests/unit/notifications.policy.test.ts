@@ -164,3 +164,27 @@ describe("sanitizeNotificationMeta", () => {
     }
   });
 });
+
+describe("phase 2 : messages et métadonnées", () => {
+  const NEW_TYPES = [
+    "DUEL_RECEIVED", "DUEL_RESULT", "DUEL_DECLINED", "DUEL_EXPIRED", "BOTTLE_REPLY", "BOTTLE_REVEAL_REQUEST",
+    "BOTTLE_REVEAL_ACCEPTED", "BOTTLE_REVEAL_REFUSED", "QUESTIONS_TURN", "REFUGE_ADOPTED", "REFUGE_REVEAL_PHASE",
+    "REFUGE_REVEALED", "REPORT_PROCESSED", "ACCOUNT_RESTORED",
+  ] as const;
+
+  it.each(NEW_TYPES)("%s : message interne non vide, sans identifiant ni donnée privée", (type) => {
+    const msg = buildNotificationMessage(type as never);
+    expect(msg.length).toBeGreaterThan(5);
+    expect(msg).not.toMatch(/[A-Za-z0-9_-]{20,}/); // aucun identifiant
+    expect(msg).not.toMatch(/\d{3,}/); // aucun montant
+  });
+
+  it("conserve duelId, bottleId, refugeSessionId, reportId ; supprime tout contenu", () => {
+    const out = sanitizeNotificationMeta({
+      duelId: "d1", bottleId: "b1", refugeSessionId: "r1", reportId: "rp1",
+      content: "texte privé", reason: "motif du signalement", pseudo: "Alice",
+    });
+    expect(out).toEqual({ duelId: "d1", bottleId: "b1", refugeSessionId: "r1", reportId: "rp1" });
+  });
+});
+

@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import { prisma } from "../../src/config/prisma";
+import { notifyEvent } from "../../src/modules/notifications/notify.service";
 import { maskBottleParticipantsForViewer } from "../../src/modules/bottles/bottles.privacy";
 
 vi.mock("../../src/config/prisma", () => ({
@@ -29,7 +30,7 @@ vi.mock("../../src/config/prisma", () => ({
   },
 }));
 vi.mock("../../src/policies/premium", () => ({ isPremiumActive: vi.fn(() => false) }));
-vi.mock("../../src/modules/notifications/push.service", () => ({ sendPushToUser: vi.fn() }));
+vi.mock("../../src/modules/notifications/notify.service", () => ({ notifyEvent: vi.fn() }));
 // Authentification simulée : l'utilisateur est donné par l'en-tête x-user.
 vi.mock("../../src/core/middleware/auth", () => ({
   requireAuth: (req: any, _res: any, next: any) => { req.user = { userId: req.headers["x-user"] }; next(); },
@@ -206,6 +207,15 @@ describe("POST /api/bottles/:id/reveal/request", () => {
     // Côté serveur, la demande vise toujours le bon participant (fonctionnement interne préservé).
     expect(prisma.bottleRevealRequest.create).toHaveBeenCalledWith({
       data: { bottleId: "bottle-1", requestedById: ACCEPTOR, respondentId: SENDER },
+    });
+    // Phase 2 : l'AUTRE participant est prévenu (jamais le demandeur), avec l'identifiant de bouteille seul.
+    expect(notifyEvent).toHaveBeenCalledTimes(1);
+    expect(notifyEvent).toHaveBeenCalledWith({
+      recipientId: SENDER,
+      actorId: ACCEPTOR,
+      type: "BOTTLE_REVEAL_REQUEST",
+      meta: { bottleId: "bottle-1" },
+      dedupeKey: "bottle-reveal-request:rr-1",
     });
   });
 });

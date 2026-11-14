@@ -1,6 +1,7 @@
 import { MatchStatus, NotificationType } from "@prisma/client";
 import { createNotification } from "../notifications/notifications.service";
 import { sendPushToUser } from "../notifications/push.service";
+import { notifyEvent } from "../notifications/notify.service";
 import { buildPushPayload } from "../../policies/notifications";
 import { logger } from "../../config/logger";
 import { prisma } from "../../config/prisma";
@@ -265,6 +266,21 @@ export async function submitMatchAnswers(
     matchBroken: true,
   };
   }, { isolationLevel: "Serializable" });
+
+  // Premier joueur à répondre : l'autre doit maintenant répondre (action requise). Jamais l'auteur lui-même.
+  if (result.waitingForOther) {
+    const pair = await prisma.match.findUnique({ where: { id: matchId }, select: { userAId: true, userBId: true } });
+    if (pair) {
+      const otherId = pair.userAId === userId ? pair.userBId : pair.userAId;
+      void notifyEvent({
+        recipientId: otherId,
+        actorId: userId,
+        type: NotificationType.QUESTIONS_TURN,
+        meta: { matchId },
+        dedupeKey: `questions-turn:${matchId}:${otherId}`,
+      });
+    }
+  }
 
   // N'émettre qu'après le COMMIT, jamais pendant la transaction.
   // La seconde réponse est la seule qui finalise le jeu.

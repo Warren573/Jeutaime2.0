@@ -23,10 +23,10 @@ export type PushCategory =
   | "notifNews";
 
 /** Seuls identifiants de navigation autorisés dans une charge push. */
-export type PushDataKey = "matchId" | "salonId";
+export type PushDataKey = "matchId" | "salonId" | "duelId" | "refugeSessionId";
 
 /** Types de push qui n'ont pas d'équivalent dans l'énumération `NotificationType`. */
-export type ExtraPushKind = "BOTTLE_REPLY" | "DAILY_EDITION";
+export type ExtraPushKind = "DAILY_EDITION";
 export type PushKind = NotificationType | ExtraPushKind;
 
 export interface PushTypeConfig {
@@ -52,7 +52,23 @@ export const PUSH_TYPE_CONFIG: Record<PushKind, PushTypeConfig> = {
   PREMIUM_SUBSCRIBED: { category: null, destination: "/premium", dataKeys: [] },
   PREMIUM_CANCELLED: { category: null, destination: "/premium", dataKeys: [] },
   SECURITY_ALERT: { category: null, destination: "/security", dataKeys: [] },
+  // ── Phase 2 : événements des fonctionnalités existantes ─────────────────────────────
+  // Duels, Refuge : « Activités » ; bouteilles : « Lettres et bouteilles » ; 3 questions : « Rencontres » ;
+  // signalements, compte : seulement le réglage général (informations sur le compte).
+  DUEL_RECEIVED: { category: "notifActivities", destination: "/duel/play", dataKeys: ["duelId"] },
+  DUEL_RESULT: { category: "notifActivities", destination: "/duel/play", dataKeys: ["duelId"] },
+  DUEL_DECLINED: { category: "notifActivities", destination: "/duel/play", dataKeys: ["duelId"] },
+  DUEL_EXPIRED: { category: "notifActivities", destination: "/duel/play", dataKeys: ["duelId"] },
   BOTTLE_REPLY: { category: "notifLetters", destination: "/bottles-main", dataKeys: [] },
+  BOTTLE_REVEAL_REQUEST: { category: "notifLetters", destination: "/bottles-main", dataKeys: [] },
+  BOTTLE_REVEAL_ACCEPTED: { category: "notifLetters", destination: "/match-profile", dataKeys: ["matchId"] },
+  BOTTLE_REVEAL_REFUSED: { category: "notifLetters", destination: "/bottles-main", dataKeys: [] },
+  QUESTIONS_TURN: { category: "notifMeetings", destination: "/match-profile", dataKeys: ["matchId"] },
+  REFUGE_ADOPTED: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
+  REFUGE_REVEAL_PHASE: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
+  REFUGE_REVEALED: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
+  REPORT_PROCESSED: { category: null, destination: "/user-reports", dataKeys: [] },
+  ACCOUNT_RESTORED: { category: null, destination: null, dataKeys: [] },
   DAILY_EDITION: { category: "notifNews", destination: "/journal", dataKeys: [] },
 };
 

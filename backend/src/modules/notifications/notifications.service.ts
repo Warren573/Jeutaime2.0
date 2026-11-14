@@ -48,6 +48,8 @@ export async function createNotification(params: {
   userId: string;
   type: NotificationType;
   meta?: Record<string, unknown> | null;
+  /** Identité de l'événement : une seule notification par (destinataire, clé) — voir notify.service.ts. */
+  dedupeKey?: string;
 }): Promise<NotificationDto> {
   const cleanMeta = sanitizeNotificationMeta(params.meta);
   const created = await prisma.notification.create({
@@ -56,6 +58,7 @@ export async function createNotification(params: {
       type: params.type,
       message: buildNotificationMessage(params.type),
       meta: cleanMeta as Prisma.InputJsonValue | undefined,
+      ...(params.dedupeKey ? { dedupeKey: params.dedupeKey } : {}),
     },
   });
   return toDto(created);
