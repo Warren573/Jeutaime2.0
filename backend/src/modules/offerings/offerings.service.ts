@@ -249,6 +249,24 @@ export async function sendOffering(
   // 3. Transaction : débit wallet + CoinTransaction + OfferingSent
   console.log('[VALIDATION-7] entering transaction for wallet debit');
   const result = await prisma.$transaction(async (tx) => {
+    if (catalog.id.startsWith('desk_')) {
+      // Verrouiller le destinataire avant le portefeuille de l'expéditeur :
+      // les envois concurrents vers le même bureau sont sérialisés, et le
+      // contrôle est effectué dans la même transaction que le débit.
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${dto.toUserId} FOR UPDATE`;
+      const alreadyOwned = await tx.offeringSent.findFirst({
+        where: {
+          toUserId: dto.toUserId,
+          offeringId: catalog.id,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+        select: { id: true },
+      });
+      if (alreadyOwned) {
+        throw new BadRequestError('Cette offrande est déjà présente sur son bureau');
+      }
+    }
+
     await tx.$queryRaw`SELECT "userId" FROM "Wallet" WHERE "userId" = ${fromUserId} FOR UPDATE`;
     console.log('[VALIDATION-8] fetching wallet');
     const wallet = await tx.wallet.findUnique({
@@ -257,23 +275,6 @@ export async function sendOffering(
     if (!wallet) {
       console.error('[ERROR-400] Wallet not found');
       throw new NotFoundError("Wallet");
-    }
-
-    if (catalog.id.startsWith('desk_')) {
-      // Sérialiser les envois vers le même bureau pour empêcher deux cadeaux
-      // identiques actifs, même si deux expéditeurs envoient simultanément.
-      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${dto.toUserId} FOR UPDATE`;
-      const alreadyOwned = await tx.offeringSent.findFirst({
-        where: {
-          toUserId: dto.toUserId,
-          offeringId: catalog.id,
-          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-        },
-        select: { id: true },
-      });
-      if (alreadyOwned) {
-        throw new BadRequestError('Cette offrande est déjà présente sur son bureau');
-      }
     }
 
     // Pure : throws NotEnoughCoinsError si fonds insuffisants
