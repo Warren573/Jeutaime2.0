@@ -19,7 +19,7 @@ afterEach(async () => {
   await prisma.coinTransaction.deleteMany({where:{walletId:{in:ids}}});
   await prisma.wallet.deleteMany({where:{userId:{in:ids}}});
   await prisma.user.deleteMany({where:{id:{in:ids}}});
-  await prisma.offeringCatalog.deleteMany({where:{id:"off_biere"}});
+  await prisma.offeringCatalog.deleteMany({where:{id:{in:["off_biere","desk_rose"]}}});
   await prisma.magieCatalog.deleteMany({where:{id:"mag_grenouille"}});
   ids.length = 0;
 });
@@ -40,6 +40,37 @@ describe("Canonical economy wallet debits (PostgreSQL)", () => {
     expect(attempts.filter(r=>r.status==="fulfilled")).toHaveLength(1);
     expect((await prisma.wallet.findUniqueOrThrow({where:{userId:sender}})).coins).toBe(0);
     expect(await prisma.coinTransaction.count({where:{walletId:sender,amount:-5,type:"OFFERING_SENT"}})).toBe(1);
+  });
+
+  test("concurrent personal gifts: only one succeeds, expired gift can be sent again", async () => {
+    const senderA = await makeUser("desk-a", 300);
+    const senderB = await makeUser("desk-b", 300);
+    const recipient = await makeUser("desk-recipient", 0);
+    await prisma.offeringCatalog.create({ data: {
+      id: "desk_rose", name: "Rose éternelle", emoji: "🌹", cost: 120,
+      category: "SYMBOLIQUE", durationMs: 6 * 24 * 60 * 60 * 1000,
+      stackPriority: 1, enabled: true, consumptionMode: "PRIVATE",
+    } });
+    const attempts = await Promise.allSettled([
+      sendOffering(senderA, { offeringId: "desk_rose", toUserId: recipient }),
+      sendOffering(senderB, { offeringId: "desk_rose", toUserId: recipient }),
+    ]);
+    expect(attempts.filter(r => r.status === "fulfilled")).toHaveLength(1);
+    expect(await prisma.offeringSent.count({ where: { toUserId: recipient, offeringId: "desk_rose" } })).toBe(1);
+    const balances = await Promise.all([senderA, senderB].map(userId =>
+      prisma.wallet.findUniqueOrThrow({ where: { userId } })));
+    expect(balances.map(w => w.coins).sort((a,b) => a-b)).toEqual([180, 300]);
+    expect(await prisma.coinTransaction.count({ where: {
+      walletId: { in: [senderA, senderB] }, type: "OFFERING_SENT",
+    } })).toBe(1);
+
+    await prisma.offeringSent.updateMany({
+      where: { toUserId: recipient, offeringId: "desk_rose" },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    const previouslyRejected = attempts[0].status === "rejected" ? senderA : senderB;
+    await sendOffering(previouslyRejected, { offeringId: "desk_rose", toUserId: recipient });
+    expect(await prisma.offeringSent.count({ where: { toUserId: recipient, offeringId: "desk_rose" } })).toBe(2);
   });
 
   test("casts approved magic for 20 coins despite an obsolete stored cost", async () => {
