@@ -39,6 +39,7 @@ export async function getPersonalOfferingSpotlight(
     where: {
       toUserId,
       offeringId: { startsWith: PERSONAL_OFFERING_PREFIX },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
     },
     select: { offeringId: true },
     distinct: ['offeringId'],

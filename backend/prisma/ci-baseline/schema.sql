@@ -41,7 +41,7 @@ CREATE TYPE "ReportReason" AS ENUM ('HARASSMENT', 'SPAM', 'FAKE', 'INAPPROPRIATE
 CREATE TYPE "PremiumTier" AS ENUM ('FREE', 'PREMIUM');
 
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('LETTER_RECEIVED', 'MATCH_CREATED', 'OFFERING_RECEIVED', 'MAGIE_RECEIVED', 'MAGIE_BROKEN', 'PREMIUM_SUBSCRIBED', 'PREMIUM_CANCELLED', 'ADMIN_MESSAGE', 'PRIVATE_SALON_INVITE');
+CREATE TYPE "NotificationType" AS ENUM ('LETTER_RECEIVED', 'MATCH_CREATED', 'QUESTIONS_PASSED', 'QUESTIONS_FAILED', 'OFFERING_RECEIVED', 'MAGIE_RECEIVED', 'MAGIE_BROKEN', 'PREMIUM_SUBSCRIBED', 'PREMIUM_CANCELLED', 'ADMIN_MESSAGE', 'PRIVATE_SALON_INVITE', 'SECURITY_ALERT', 'DUEL_RECEIVED', 'DUEL_RESULT', 'DUEL_DECLINED', 'DUEL_EXPIRED', 'BOTTLE_REPLY', 'BOTTLE_REVEAL_REQUEST', 'BOTTLE_REVEAL_ACCEPTED', 'BOTTLE_REVEAL_REFUSED', 'QUESTIONS_TURN', 'REFUGE_ADOPTED', 'REFUGE_REVEAL_PHASE', 'REFUGE_REVEALED', 'REPORT_PROCESSED', 'ACCOUNT_RESTORED');
 
 -- CreateEnum
 CREATE TYPE "ReactionType" AS ENUM ('SMILE', 'GRIMACE');
@@ -60,6 +60,9 @@ CREATE TYPE "BottleReceiptStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REFUSED', 'TA
 
 -- CreateEnum
 CREATE TYPE "BottleRevealStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REFUSED');
+
+-- CreateEnum
+CREATE TYPE "AuthTokenPurpose" AS ENUM ('PASSWORD_RESET', 'EMAIL_VERIFY', 'EMAIL_CHANGE');
 
 -- CreateEnum
 CREATE TYPE "SalonSessionStatus" AS ENUM ('ACTIVE', 'EXPIRED');
@@ -115,14 +118,48 @@ CREATE TABLE "User" (
     "lastLoginAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "emailVerifiedAt" TIMESTAMP(3),
+    "twoFactorSecret" TEXT,
+    "twoFactorEnabledAt" TIMESTAMP(3),
+    "twoFactorPendingSecret" TEXT,
+    "twoFactorLastStep" INTEGER,
+    "privilegedRoleSince" TIMESTAMP(3),
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AuthToken" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "purpose" "AuthTokenPurpose" NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "newEmail" TEXT,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AuthToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TwoFactorBackupCode" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "codeHash" TEXT NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TwoFactorBackupCode_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "RefreshToken" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
+    "ip" TEXT,
+    "userAgent" TEXT,
+    "lastUsedAt" TIMESTAMP(3),
     "tokenHash" TEXT NOT NULL,
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "revokedAt" TIMESTAMP(3),
@@ -158,6 +195,8 @@ CREATE TABLE "Profile" (
     "idealDay" TEXT[],
     "skills" JSONB,
     "points" INTEGER NOT NULL DEFAULT 0,
+    "discoveryActivityScore" INTEGER NOT NULL DEFAULT 0,
+    "discoveryBreakPenalty" INTEGER NOT NULL DEFAULT 0,
     "badges" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -182,6 +221,11 @@ CREATE TABLE "UserSettings" (
     "userId" TEXT NOT NULL,
     "notifEmail" BOOLEAN NOT NULL DEFAULT true,
     "notifPush" BOOLEAN NOT NULL DEFAULT true,
+    "notifMeetings" BOOLEAN NOT NULL DEFAULT true,
+    "notifLetters" BOOLEAN NOT NULL DEFAULT true,
+    "notifSalons" BOOLEAN NOT NULL DEFAULT true,
+    "notifActivities" BOOLEAN NOT NULL DEFAULT true,
+    "notifNews" BOOLEAN NOT NULL DEFAULT true,
     "soundEnabled" BOOLEAN NOT NULL DEFAULT true,
     "vibrationEnabled" BOOLEAN NOT NULL DEFAULT true,
     "vacationMode" BOOLEAN NOT NULL DEFAULT false,
@@ -224,6 +268,7 @@ CREATE TABLE "Match" (
     "lastLetterBy" TEXT,
     "lastLetterAt" TIMESTAMP(3),
     "questionsValidated" BOOLEAN NOT NULL DEFAULT false,
+    "activatedAt" TIMESTAMP(3),
     "ghostRelanceUsedBy" TEXT,
     "ghostDetectedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -255,6 +300,21 @@ CREATE TABLE "Wallet" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Wallet_pkey" PRIMARY KEY ("userId")
+);
+
+-- CreateTable
+CREATE TABLE "PaymentReceipt" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "providerTransactionId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "verifiedAt" TIMESTAMP(3),
+    "fulfilledAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PaymentReceipt_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -581,6 +641,7 @@ CREATE TABLE "Notification" (
     "type" "NotificationType" NOT NULL,
     "message" TEXT NOT NULL,
     "meta" JSONB,
+    "dedupeKey" TEXT,
     "isRead" BOOLEAN NOT NULL DEFAULT false,
     "readAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -811,6 +872,15 @@ CREATE INDEX "User_email_idx" ON "User"("email");
 CREATE INDEX "User_isBanned_idx" ON "User"("isBanned");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "AuthToken_tokenHash_key" ON "AuthToken"("tokenHash");
+
+-- CreateIndex
+CREATE INDEX "AuthToken_userId_purpose_createdAt_idx" ON "AuthToken"("userId", "purpose", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "TwoFactorBackupCode_userId_idx" ON "TwoFactorBackupCode"("userId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "RefreshToken_tokenHash_key" ON "RefreshToken"("tokenHash");
 
 -- CreateIndex
@@ -830,6 +900,9 @@ CREATE INDEX "Profile_gender_idx" ON "Profile"("gender");
 
 -- CreateIndex
 CREATE INDEX "Profile_points_idx" ON "Profile"("points");
+
+-- CreateIndex
+CREATE INDEX "Profile_discoveryActivityScore_idx" ON "Profile"("discoveryActivityScore");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ProfileQuestion_profileId_questionId_key" ON "ProfileQuestion"("profileId", "questionId");
@@ -854,6 +927,12 @@ CREATE INDEX "Letter_matchId_sentAt_idx" ON "Letter"("matchId", "sentAt");
 
 -- CreateIndex
 CREATE INDEX "Letter_toUserId_status_idx" ON "Letter"("toUserId", "status");
+
+-- CreateIndex
+CREATE INDEX "PaymentReceipt_userId_createdAt_idx" ON "PaymentReceipt"("userId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PaymentReceipt_provider_providerTransactionId_key" ON "PaymentReceipt"("provider", "providerTransactionId");
 
 -- CreateIndex
 CREATE INDEX "CoinTransaction_walletId_createdAt_idx" ON "CoinTransaction"("walletId", "createdAt");
@@ -962,6 +1041,9 @@ CREATE INDEX "Notification_userId_isRead_createdAt_idx" ON "Notification"("userI
 
 -- CreateIndex
 CREATE INDEX "Notification_userId_createdAt_idx" ON "Notification"("userId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Notification_userId_dedupeKey_key" ON "Notification"("userId", "dedupeKey");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PushToken_token_key" ON "PushToken"("token");
@@ -1081,6 +1163,12 @@ CREATE INDEX "CommunityJournalPost_publishedAt_idx" ON "CommunityJournalPost"("p
 CREATE INDEX "CommunityJournalPost_createdBy_publishedAt_idx" ON "CommunityJournalPost"("createdBy", "publishedAt");
 
 -- AddForeignKey
+ALTER TABLE "AuthToken" ADD CONSTRAINT "AuthToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TwoFactorBackupCode" ADD CONSTRAINT "TwoFactorBackupCode_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1112,6 +1200,9 @@ ALTER TABLE "Letter" ADD CONSTRAINT "Letter_toUserId_fkey" FOREIGN KEY ("toUserI
 
 -- AddForeignKey
 ALTER TABLE "Wallet" ADD CONSTRAINT "Wallet_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PaymentReceipt" ADD CONSTRAINT "PaymentReceipt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CoinTransaction" ADD CONSTRAINT "CoinTransaction_walletId_fkey" FOREIGN KEY ("walletId") REFERENCES "Wallet"("userId") ON DELETE CASCADE ON UPDATE CASCADE;

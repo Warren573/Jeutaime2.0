@@ -36,6 +36,8 @@ export async function assertPersonalOfferingAllowed(
     where: {
       toUserId,
       offeringId,
+      // Une offrande expirée n'occupe plus le bureau et peut être offerte à nouveau.
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     },
     select: { id: true },
   });
