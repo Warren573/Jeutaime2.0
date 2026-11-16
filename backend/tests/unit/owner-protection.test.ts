@@ -5,7 +5,7 @@ import { resolve } from "path";
 /**
  * Protection du compte propriétaire (OWNER) et des comptes privilégiés.
  *
- * 1. ensureBootstrapAdmin ne rétrograde ni ne réinitialise jamais un OWNER.
+ * 1. ensureBootstrapAdmin ne modifie jamais un compte existant, quel que soit son rôle.
  * 2. Aucun mot de passe en clair dans le seed ni dans le script de comptes de test.
  * 3. L'API d'administration ne permet pas d'attribuer le rôle OWNER.
  */
@@ -44,14 +44,14 @@ describe("ensureBootstrapAdmin", () => {
     expect(prismaMock.user.create).not.toHaveBeenCalled();
   });
 
-  it("promeut en ADMIN un compte non propriétaire existant — jamais en OWNER", async () => {
-    prismaMock.user.findUnique.mockResolvedValue({ id: "u-1", role: "USER", passwordHash: "h" });
+  it.each(["USER", "MODERATOR", "ADMIN"])("ne modifie jamais un compte %s existant", async (role) => {
+    prismaMock.user.findUnique.mockResolvedValue({ id: "u-1", role, passwordHash: "hash-existant" });
     const { ensureBootstrapAdmin } = await loadBootstrap();
 
     await ensureBootstrapAdmin();
 
-    expect(prismaMock.user.update).toHaveBeenCalledTimes(1);
-    expect(prismaMock.user.update.mock.calls[0]![0].data.role).toBe("ADMIN");
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
   });
 
   it("crée un ADMIN — jamais un OWNER — si le compte n'existe pas", async () => {
