@@ -14,7 +14,7 @@ export function getNotificationTarget(notification: NotificationDto): string | n
   switch (notification.type as NotificationType) {
     case 'LETTER_RECEIVED': {
       const matchId = meta['matchId'];
-      return matchId ? `/match-profile?matchId=${matchId}` : null;
+      return isSafeId(matchId) ? `/match-profile?matchId=${matchId}` : null;
     }
 
     case 'QUESTIONS_FAILED':
@@ -24,7 +24,7 @@ export function getNotificationTarget(notification: NotificationDto): string | n
     case 'QUESTIONS_PASSED':
     case 'MATCH_CREATED': {
       const matchId = meta['matchId'];
-      return matchId ? `/match-profile?matchId=${matchId}` : null;
+      return isSafeId(matchId) ? `/match-profile?matchId=${matchId}` : null;
     }
 
     case 'OFFERING_RECEIVED': {
@@ -34,7 +34,7 @@ export function getNotificationTarget(notification: NotificationDto): string | n
 
     case 'MAGIE_RECEIVED': {
       const salonId = meta['salonId'];
-      return salonId ? `/salon/${salonId}` : null;
+      return isSafeId(salonId) ? `/salon/${salonId}` : null;
     }
 
     case 'MAGIE_BROKEN':
