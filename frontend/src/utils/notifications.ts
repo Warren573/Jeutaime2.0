@@ -29,7 +29,7 @@ export function getNotificationTarget(notification: NotificationDto): string | n
 
     case 'OFFERING_RECEIVED': {
       const salonId = meta['salonId'];
-      return salonId ? `/salon/${salonId}` : null;
+      return isSafeId(salonId) ? `/salon/${salonId}` : '/offerings';
     }
 
     case 'MAGIE_RECEIVED': {
