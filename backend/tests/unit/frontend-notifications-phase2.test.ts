@@ -41,6 +41,15 @@ describe("destinations : push et cloche mènent au même écran", () => {
     expect(getNotificationTarget(note("OFFERING_RECEIVED", { salonId: "../admin" }))).toBe("/offerings");
   });
 
+  it("refuse les identifiants de correspondance ou de salon non sûrs", () => {
+    for (const type of ["LETTER_RECEIVED", "QUESTIONS_PASSED", "MATCH_CREATED"]) {
+      expect(getNotificationTarget(note(type, { matchId: "../admin" }))).toBeNull();
+      expect(getNotificationTarget(note(type, { matchId: "match_1" }))).toBe("/match-profile?matchId=match_1");
+    }
+    expect(getNotificationTarget(note("MAGIE_RECEIVED", { salonId: "../admin" }))).toBeNull();
+    expect(getNotificationTarget(note("MAGIE_RECEIVED", { salonId: "salon_1" }))).toBe("/salon/salon_1");
+  });
+
   it("ACCOUNT_RESTORED : pas d'écran dédié (liste des notifications pour le push, aucune navigation pour la cloche)", () => {
     expect(resolvePushDestination({ type: "ACCOUNT_RESTORED" }).route).toBe("/notifications");
     expect(getNotificationTarget(note("ACCOUNT_RESTORED", {}))).toBeNull();
