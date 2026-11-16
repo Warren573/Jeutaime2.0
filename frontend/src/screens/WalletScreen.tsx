@@ -135,7 +135,7 @@ export default function WalletScreen() {
   }
 
   const canClaimBonus = wallet.lastDailyBonus
-    ? new Date(wallet.lastDailyBonus).toDateString() !== new Date().toDateString()
+    ? new Date(wallet.lastDailyBonus).toISOString().slice(0, 10) !== new Date().toISOString().slice(0, 10)
     : true;
 
   return (
