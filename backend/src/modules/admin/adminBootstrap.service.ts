@@ -9,7 +9,7 @@ export async function ensureBootstrapAdmin(): Promise<void> {
 
   const existing = await prisma.user.findUnique({
     where: { email: ADMIN_EMAIL },
-    select: { id: true, role: true, passwordHash: true },
+    select: { id: true },
   });
 
   if (!existing) {
@@ -25,18 +25,7 @@ export async function ensureBootstrapAdmin(): Promise<void> {
     return;
   }
 
-  // Le compte propriétaire n'est jamais rétrogradé ni réinitialisé par une
-  // variable d'environnement : son rôle et son mot de passe ne changent que
-  // par les parcours authentifiés de l'application.
-  if (existing.role === "OWNER") return;
-  const passwordHash = await hashPassword(ADMIN_PASSWORD);
-  await prisma.user.update({
-    where: { id: existing.id },
-    data: {
-      role: "ADMIN",
-      passwordHash,
-      isVerified: true,
-      isBanned: false,
-    },
-  });
+  // Bootstrap uniquement à la création. Ne jamais modifier un compte existant :
+  // ni rôle, ni mot de passe, ni statut de bannissement ou de vérification.
+  // Toute modification ultérieure passe par les parcours authentifiés.
 }
