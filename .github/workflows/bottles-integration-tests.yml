@@ -84,41 +84,11 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
-          psql -h localhost -U postgres -d jeutaime_test -f backend/prisma/ci-baseline/schema.sql
+          psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/ci-baseline/schema.sql
 
-      - name: Apply payment receipt migration to CI baseline
-        env:
-          PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261016160500_payment_receipt_ledger/migration.sql
-
-      - name: Apply discovery engagement migration to CI baseline
-        env:
-          PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261026193000_discovery_engagement_ranking/migration.sql
-
-      - name: Apply match activation timestamp migration to CI baseline
-        env:
-          PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261027093000_match_activated_at/migration.sql
-
-      - name: Apply notification preferences migration to CI baseline
-        env:
-          PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261030120000_notification_preferences/migration.sql
-      - name: Apply account security migration to CI baseline
-        env:
-          PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261110120000_account_security/migration.sql
-
-      - name: Apply question-result notification migration to CI baseline
-        env:
-          PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261110100000_question_result_notifications/migration.sql
-
-      - name: Apply notifications phase 2 migration to CI baseline
-        env:
-          PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/migrations/20261113150000_notifications_phase2/migration.sql
+      # The CI baseline is generated from the complete current Prisma schema.
+      # Do not replay historical migrations on top: their tables/columns already exist.
+      # Production migrations remain handled separately by prisma migrate deploy.
 
       - name: Verify schema consistency (zero drift)
         working-directory: backend
