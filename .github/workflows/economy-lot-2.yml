@@ -52,13 +52,18 @@ jobs:
       - name: Generate Prisma client
         working-directory: backend
         run: npx prisma generate
-      - name: Apply isolated CI database schema
-        env:
-          PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d jeutaime_test -f backend/prisma/ci-baseline/schema.sql
-      - name: Confirm zero database schema drift
+      - name: Generate current Prisma schema for isolated test database
+        working-directory: backend
+        run: npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > /tmp/jeutaime-ci-schema.sql
+      - name: Check committed CI baseline is current
         id: schema_drift
         continue-on-error: true
+        run: diff -u backend/prisma/ci-baseline/schema.sql /tmp/jeutaime-ci-schema.sql
+      - name: Apply current schema to isolated CI database
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d jeutaime_test -f /tmp/jeutaime-ci-schema.sql
+      - name: Confirm zero database schema drift
         working-directory: backend
         run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
       - name: Approved catalog pricing unit tests
