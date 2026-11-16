@@ -57,6 +57,8 @@ jobs:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d jeutaime_test -f backend/prisma/ci-baseline/schema.sql
       - name: Confirm zero database schema drift
+        id: schema_drift
+        continue-on-error: true
         working-directory: backend
         run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
       - name: Approved catalog pricing unit tests
@@ -71,3 +73,8 @@ jobs:
       - name: Backend TypeScript compilation
         working-directory: backend
         run: npm run typecheck
+      - name: Enforce zero schema drift after test diagnostics
+        if: always() && steps.schema_drift.outcome == 'failure'
+        run: |
+          echo "::error::CI baseline schema differs from Prisma schema. Regenerate and review the baseline before merging."
+          exit 1
