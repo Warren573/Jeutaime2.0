@@ -33,6 +33,14 @@ describe("destinations : push et cloche mènent au même écran", () => {
     expect(getNotificationTarget(note(type, data))).toBe(route);
   });
 
+  it("OFFERING_RECEIVED : cadeau personnel vers /offerings, cadeau de salon vers son salon", () => {
+    expect(resolvePushDestination({ type: "OFFERING_RECEIVED" }).route).toBe("/offerings");
+    expect(getNotificationTarget(note("OFFERING_RECEIVED", {}))).toBe("/offerings");
+    expect(resolvePushDestination({ type: "OFFERING_RECEIVED", salonId: "salon_1" }).route).toBe("/salon/salon_1");
+    expect(getNotificationTarget(note("OFFERING_RECEIVED", { salonId: "salon_1" }))).toBe("/salon/salon_1");
+    expect(getNotificationTarget(note("OFFERING_RECEIVED", { salonId: "../admin" }))).toBe("/offerings");
+  });
+
   it("ACCOUNT_RESTORED : pas d'écran dédié (liste des notifications pour le push, aucune navigation pour la cloche)", () => {
     expect(resolvePushDestination({ type: "ACCOUNT_RESTORED" }).route).toBe("/notifications");
     expect(getNotificationTarget(note("ACCOUNT_RESTORED", {}))).toBeNull();
