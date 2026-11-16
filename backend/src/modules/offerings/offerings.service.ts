@@ -259,6 +259,23 @@ export async function sendOffering(
       throw new NotFoundError("Wallet");
     }
 
+    if (catalog.id.startsWith('desk_')) {
+      // Sérialiser les envois vers le même bureau pour empêcher deux cadeaux
+      // identiques actifs, même si deux expéditeurs envoient simultanément.
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${dto.toUserId} FOR UPDATE`;
+      const alreadyOwned = await tx.offeringSent.findFirst({
+        where: {
+          toUserId: dto.toUserId,
+          offeringId: catalog.id,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        select: { id: true },
+      });
+      if (alreadyOwned) {
+        throw new BadRequestError('Cette offrande est déjà présente sur son bureau');
+      }
+    }
+
     // Pure : throws NotEnoughCoinsError si fonds insuffisants
     console.log('[VALIDATION-9] computing debit balance', { coins: wallet.coins, cost: effectiveCost });
     const newBalance = computeDebitBalance(wallet.coins, effectiveCost);
