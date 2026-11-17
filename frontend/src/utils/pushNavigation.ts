@@ -76,8 +76,10 @@ export function resolvePushDestination(data: unknown): PushDestination {
   switch (type) {
     case 'LETTER_RECEIVED':
     case 'MATCH_CREATED':
+    case 'QUESTIONS_TURN':
+      return isSafeId(d['matchId']) ? paramDest('/(tabs)/letters', `questionsMatchId=${d['matchId']}`) : fallbackDest();
     case 'QUESTIONS_PASSED':
-      return isSafeId(d['matchId']) ? matchDest(d['matchId']) : fallbackDest();
+      return isSafeId(d['matchId']) ? staticDest('/(tabs)/letters') : fallbackDest();
     case 'QUESTIONS_FAILED':
       return fallbackDest();
     case 'OFFERING_RECEIVED':
@@ -93,8 +95,6 @@ export function resolvePushDestination(data: unknown): PushDestination {
       return isSafeId(d['bottleId']) ? paramDest('/bottles-main', `bottleId=${d['bottleId']}`) : staticDest('/bottles-main');
     case 'BOTTLE_REVEAL_ACCEPTED':
       return isSafeId(d['matchId']) ? matchDest(d['matchId']) : staticDest('/bottles-main');
-    case 'QUESTIONS_TURN':
-      return isSafeId(d['matchId']) ? matchDest(d['matchId']) : fallbackDest();
     case 'DUEL_RECEIVED':
     case 'DUEL_RESULT':
     case 'DUEL_DECLINED':
