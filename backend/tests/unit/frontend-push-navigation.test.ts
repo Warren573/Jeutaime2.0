@@ -32,8 +32,8 @@ const resp = (id: string, data: unknown, action: string | undefined = DEFAULT): 
 describe("destinations : chaque type de notification", () => {
   it.each([
     [{ type: "LETTER_RECEIVED", matchId: "m1" }, "/match-profile?matchId=m1"],
-    [{ type: "MATCH_CREATED", matchId: "m_2-X" }, "/match-profile?matchId=m_2-X"],
-    [{ type: "QUESTIONS_PASSED", matchId: "m1" }, "/match-profile?matchId=m1"],
+    [{ type: "MATCH_CREATED", matchId: "m_2-X" }, "/(tabs)/letters?questionsMatchId=m_2-X"],
+    [{ type: "QUESTIONS_PASSED", matchId: "m1" }, "/(tabs)/letters"],
     [{ type: "QUESTIONS_FAILED", matchId: "m1" }, PUSH_FALLBACK_ROUTE],
     [{ type: "OFFERING_RECEIVED", salonId: "s1" }, "/salon/s1"],
     [{ type: "OFFERING_RECEIVED" }, "/offerings"],
@@ -73,7 +73,7 @@ describe("sécurité : jamais de route arbitraire", () => {
     "../admin", "/admin", "//evil.com", "https://evil.com", "javascript:alert(1)", "jeutaime://admin", "m1?x=1", "m1&matchId=2", "m1#frag",
     "a b", "a/b", "a\\b", "<script>", "%2e%2e", "m1\n", "é", "", " ", "x".repeat(65),
   ];
-  const ALLOWED = [/^\/match-profile\?matchId=[A-Za-z0-9_-]{1,64}$/, /^\/salon\/[A-Za-z0-9_-]{1,64}$/, /^\/(offerings|bottles-main|private-salons|admin-messages|premium|security|journal|notifications)$/];
+  const ALLOWED = [/^\/\(tabs\)\/letters(?:\?questionsMatchId=[A-Za-z0-9_-]{1,64})?$/, /^\/match-profile\?matchId=[A-Za-z0-9_-]{1,64}$/, /^\/salon\/[A-Za-z0-9_-]{1,64}$/, /^\/(offerings|bottles-main|private-salons|admin-messages|premium|security|journal|notifications)$/];
   const isAllowed = (route: string) => ALLOWED.some((re) => re.test(route));
 
   it("identifiants piégés : repli ou écran fixe, jamais utilisés tels quels", () => {
@@ -407,7 +407,7 @@ describe("ouverture par appui : authentification, routeur, doublons", () => {
   it("ressource indisponible : le repli est ouvert à la place de l'écran introuvable", async () => {
     const n = make({ prepare: async () => PUSH_FALLBACK_ROUTE });
     n.update(ready());
-    n.onResponse(resp("n1", { type: "MATCH_CREATED", matchId: "m1" }));
+    n.onResponse(resp("n1", { type: "LETTER_RECEIVED", matchId: "m1" }));
     await tick();
     expect(nav).toHaveBeenCalledWith(PUSH_FALLBACK_ROUTE);
   });
@@ -415,7 +415,7 @@ describe("ouverture par appui : authentification, routeur, doublons", () => {
   it("préparation qui échoue : repli, jamais d'exception", async () => {
     const n = make({ prepare: async () => { throw new Error("x"); } });
     n.update(ready());
-    n.onResponse(resp("n1", { type: "MATCH_CREATED", matchId: "m1" }));
+    n.onResponse(resp("n1", { type: "LETTER_RECEIVED", matchId: "m1" }));
     await tick();
     expect(nav).toHaveBeenCalledWith(PUSH_FALLBACK_ROUTE);
   });
@@ -424,7 +424,7 @@ describe("ouverture par appui : authentification, routeur, doublons", () => {
     let release!: (r: string) => void;
     const n = make({ prepare: () => new Promise<string>((r) => { release = r; }) });
     n.update(ready());
-    n.onResponse(resp("n1", { type: "MATCH_CREATED", matchId: "m1" }));
+    n.onResponse(resp("n1", { type: "LETTER_RECEIVED", matchId: "m1" }));
     await tick();
     n.update(ready("unauthenticated"));
     release("/match-profile?matchId=m1");
@@ -437,7 +437,7 @@ describe("ouverture par appui : authentification, routeur, doublons", () => {
     let first = true;
     const n = make({ prepare: (d: PushDestination) => (first && d.kind === "match" ? ((first = false), new Promise<string>((r) => { release = r; })) : Promise.resolve(d.route)) });
     n.update(ready());
-    n.onResponse(resp("n1", { type: "MATCH_CREATED", matchId: "m1" }));
+    n.onResponse(resp("n1", { type: "LETTER_RECEIVED", matchId: "m1" }));
     await tick();
     n.onResponse(resp("n2", { type: "SECURITY_ALERT" }));
     release("/match-profile?matchId=m1");
