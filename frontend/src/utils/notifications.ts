@@ -21,10 +21,14 @@ export function getNotificationTarget(notification: NotificationDto): string | n
       // Le match est rompu : éviter de naviguer vers une correspondance inaccessible.
       return null;
 
-    case 'QUESTIONS_PASSED':
+    case 'QUESTIONS_PASSED': {
+      const matchId = meta['matchId'];
+      return isSafeId(matchId) ? '/(tabs)/letters' : null;
+    }
+
     case 'MATCH_CREATED': {
       const matchId = meta['matchId'];
-      return isSafeId(matchId) ? `/match-profile?matchId=${matchId}` : null;
+      return isSafeId(matchId) ? `/(tabs)/letters?questionsMatchId=${matchId}` : null;
     }
 
     case 'OFFERING_RECEIVED': {
@@ -78,7 +82,7 @@ export function getNotificationTarget(notification: NotificationDto): string | n
 
     case 'QUESTIONS_TURN': {
       const matchId = meta['matchId'];
-      return isSafeId(matchId) ? `/match-profile?matchId=${matchId}` : null;
+      return isSafeId(matchId) ? `/(tabs)/letters?questionsMatchId=${matchId}` : null;
     }
 
     case 'REFUGE_ADOPTED':
