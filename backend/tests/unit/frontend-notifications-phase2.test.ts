@@ -20,7 +20,7 @@ const CASES: Array<[string, Record<string, unknown>, string]> = [
   ["BOTTLE_REVEAL_REQUEST", {}, "/bottles-main"],
   ["BOTTLE_REVEAL_REFUSED", {}, "/bottles-main"],
   ["BOTTLE_REVEAL_ACCEPTED", { matchId: "m1" }, "/match-profile?matchId=m1"],
-  ["QUESTIONS_TURN", { matchId: "m1" }, "/match-profile?matchId=m1"],
+  ["QUESTIONS_TURN", { matchId: "m1" }, "/(tabs)/letters?questionsMatchId=m1"],
   ["REFUGE_ADOPTED", { refugeSessionId: "r1" }, "/refuge/r1"],
   ["REFUGE_REVEAL_PHASE", { refugeSessionId: "r1" }, "/refuge/r1"],
   ["REFUGE_REVEALED", { refugeSessionId: "r1" }, "/refuge/r1"],
@@ -42,9 +42,11 @@ describe("destinations : push et cloche mènent au même écran", () => {
   });
 
   it("refuse les identifiants de correspondance ou de salon non sûrs", () => {
-    for (const type of ["LETTER_RECEIVED", "QUESTIONS_PASSED", "MATCH_CREATED"]) {
+    for (const type of ["LETTER_RECEIVED", "QUESTIONS_PASSED", "MATCH_CREATED", "QUESTIONS_TURN"]) {
       expect(getNotificationTarget(note(type, { matchId: "../admin" }))).toBeNull();
-      expect(getNotificationTarget(note(type, { matchId: "match_1" }))).toBe("/match-profile?matchId=match_1");
+      const target = type === "LETTER_RECEIVED" ? "/match-profile?matchId=match_1" : type === "QUESTIONS_PASSED" ? "/(tabs)/letters" : "/(tabs)/letters?questionsMatchId=match_1";
+      expect(getNotificationTarget(note(type, { matchId: "match_1" }))).toBe(target);
+      expect(resolvePushDestination({ type, matchId: "match_1" }).route).toBe(target);
     }
     expect(getNotificationTarget(note("MAGIE_RECEIVED", { salonId: "../admin" }))).toBeNull();
     expect(getNotificationTarget(note("MAGIE_RECEIVED", { salonId: "salon_1" }))).toBe("/salon/salon_1");
