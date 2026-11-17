@@ -23,7 +23,7 @@ import { composerFooterAnchoring, footerBottomPadding, readingOverlayBottomStyle
 import { formatFooterLine, setModalExtraLine } from '../dev/modalMeasurements';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
-import { useRouter, Link, useFocusEffect } from 'expo-router';
+import { useRouter, useLocalSearchParams, Link, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matches';
 import { reportUser, type ReportReason } from '../api/profiles';
@@ -695,6 +695,8 @@ const lcStyles = StyleSheet.create({
 export default function LettersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { questionsMatchId } = useLocalSearchParams<{ questionsMatchId?: string }>();
+  const handledQuestionsMatchId = useRef<string | null>(null);
   const {
     matches, letters, lettersByMatch, questionsByMatch,
     addLetter, markLetterRead, markLetterReadApi,
@@ -850,6 +852,18 @@ export default function LettersScreen() {
     setShowQGame(true);
     await loadQuestions(match.id);
   };
+
+  // Une notification de rencontre ouvre le jeu existant pour la bonne correspondance.
+  // Un match en attente d'acceptation reste dans la boîte aux lettres.
+  useEffect(() => {
+    if (!questionsMatchId || handledQuestionsMatchId.current === questionsMatchId) return;
+    const match = matches.find(m => m.id === questionsMatchId);
+    if (!match || match.status !== 'active') return;
+    handledQuestionsMatchId.current = questionsMatchId;
+    if (!match.questionsValidated) {
+      void handleQGameOpen(match);
+    }
+  }, [questionsMatchId, matches]);
 
   const handleQGameSubmit = async () => {
     if (!qGameMatch) return;

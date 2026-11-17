@@ -75,9 +75,12 @@ export function resolvePushDestination(data: unknown): PushDestination {
 
   switch (type) {
     case 'LETTER_RECEIVED':
-    case 'MATCH_CREATED':
-    case 'QUESTIONS_PASSED':
       return isSafeId(d['matchId']) ? matchDest(d['matchId']) : fallbackDest();
+    case 'MATCH_CREATED':
+    case 'QUESTIONS_TURN':
+      return isSafeId(d['matchId']) ? paramDest('/(tabs)/letters', `questionsMatchId=${d['matchId']}`) : fallbackDest();
+    case 'QUESTIONS_PASSED':
+      return isSafeId(d['matchId']) ? staticDest('/(tabs)/letters') : fallbackDest();
     case 'QUESTIONS_FAILED':
       return fallbackDest();
     case 'OFFERING_RECEIVED':
@@ -93,8 +96,6 @@ export function resolvePushDestination(data: unknown): PushDestination {
       return isSafeId(d['bottleId']) ? paramDest('/bottles-main', `bottleId=${d['bottleId']}`) : staticDest('/bottles-main');
     case 'BOTTLE_REVEAL_ACCEPTED':
       return isSafeId(d['matchId']) ? matchDest(d['matchId']) : staticDest('/bottles-main');
-    case 'QUESTIONS_TURN':
-      return isSafeId(d['matchId']) ? matchDest(d['matchId']) : fallbackDest();
     case 'DUEL_RECEIVED':
     case 'DUEL_RESULT':
     case 'DUEL_DECLINED':
@@ -144,6 +145,9 @@ export function isViewingDestination(current: CurrentLocation | null | undefined
   const path = current.pathname.replace(/\/+$/, '') || '/';
   if (dest.kind === 'match') {
     return path === '/match-profile' && firstParam(current.params?.['matchId']) === dest.matchId;
+  }
+  if (dest.pathname === '/(tabs)/letters' && dest.route.includes('questionsMatchId=')) {
+    return path === dest.pathname && firstParam(current.params?.['questionsMatchId']) === dest.route.split('questionsMatchId=')[1];
   }
   return path === dest.pathname;
 }
@@ -221,6 +225,9 @@ export function isAlreadyAtRoute(current: CurrentLocation | null | undefined, ro
   if (path !== target.pathname) return false;
   if (target.pathname === '/match-profile') {
     return firstParam(current.params?.['matchId']) === target.params?.['matchId'];
+  }
+  if (target.pathname === '/(tabs)/letters' && target.params?.['questionsMatchId']) {
+    return firstParam(current.params?.['questionsMatchId']) === target.params['questionsMatchId'];
   }
   if (target.pathname === '/duel/play') {
     return firstParam(current.params?.['duelId']) === target.params?.['duelId'];

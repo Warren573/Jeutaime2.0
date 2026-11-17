@@ -126,7 +126,7 @@ describe("phase 2 : nouveaux événements", () => {
     ["BOTTLE_REVEAL_REQUEST", "notifLetters", "/bottles-main", ["bottleId"]],
     ["BOTTLE_REVEAL_ACCEPTED", "notifLetters", "/match-profile", ["matchId"]],
     ["BOTTLE_REVEAL_REFUSED", "notifLetters", "/bottles-main", ["bottleId"]],
-    ["QUESTIONS_TURN", "notifMeetings", "/match-profile", ["matchId"]],
+    ["QUESTIONS_TURN", "notifMeetings", "/(tabs)/letters", ["matchId"]],
     ["REFUGE_ADOPTED", "notifActivities", "/refuge", ["refugeSessionId"]],
     ["REFUGE_REVEAL_PHASE", "notifActivities", "/refuge", ["refugeSessionId"]],
     ["REFUGE_REVEALED", "notifActivities", "/refuge", ["refugeSessionId"]],
