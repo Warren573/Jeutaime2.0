@@ -46,7 +46,7 @@ describe("correspondance centrale des types push", () => {
   });
 
   it("destinations", () => {
-    expect(pushDestinationFor("LETTER_RECEIVED")).toBe("/match-profile");
+    expect(pushDestinationFor("LETTER_RECEIVED")).toBe("/(tabs)/letters");
     expect(pushDestinationFor("OFFERING_RECEIVED")).toBe("/salon");
     expect(pushDestinationFor("ADMIN_MESSAGE")).toBe("/admin-messages");
     expect(pushDestinationFor("PRIVATE_SALON_INVITE")).toBe("/private-salons");
@@ -124,7 +124,7 @@ describe("phase 2 : nouveaux événements", () => {
     ["DUEL_DECLINED", "notifActivities", "/duel/play", ["duelId"]],
     ["DUEL_EXPIRED", "notifActivities", "/duel/play", ["duelId"]],
     ["BOTTLE_REVEAL_REQUEST", "notifLetters", "/bottles-main", ["bottleId"]],
-    ["BOTTLE_REVEAL_ACCEPTED", "notifLetters", "/match-profile", ["matchId"]],
+    ["BOTTLE_REVEAL_ACCEPTED", "notifLetters", "/(tabs)/letters", ["matchId"]],
     ["BOTTLE_REVEAL_REFUSED", "notifLetters", "/bottles-main", ["bottleId"]],
     ["QUESTIONS_TURN", "notifMeetings", "/(tabs)/letters", ["matchId"]],
     ["REFUGE_ADOPTED", "notifActivities", "/refuge", ["refugeSessionId"]],

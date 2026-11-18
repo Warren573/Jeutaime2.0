@@ -76,8 +76,8 @@ describe("les deux parcours (push et Journal) : même écran de lecture, bouteil
   });
 
   it("lettre entre correspondants → fiche du match, jamais une bouteille ; et réciproquement", () => {
-    expect(resolvePushDestination({ type: "LETTER_RECEIVED", matchId: "m-1", bottleId: ID }).route).toBe("/match-profile?matchId=m-1");
-    expect(getNotificationTarget(note("LETTER_RECEIVED", { matchId: "m-1", bottleId: ID }))).toBe("/match-profile?matchId=m-1");
+    expect(resolvePushDestination({ type: "LETTER_RECEIVED", matchId: "m-1", bottleId: ID }).route).toBe("/(tabs)/letters?matchId=m-1");
+    expect(getNotificationTarget(note("LETTER_RECEIVED", { matchId: "m-1", bottleId: ID }))).toBe("/(tabs)/letters?matchId=m-1");
     // une lettre n'a pas de bouteille : sans matchId, jamais de repli vers l'écran des bouteilles
     expect(resolvePushDestination({ type: "LETTER_RECEIVED", bottleId: ID }).route).toBe("/notifications");
     expect(getNotificationTarget(note("LETTER_RECEIVED", { bottleId: ID }))).toBeNull();
@@ -88,8 +88,8 @@ describe("les deux parcours (push et Journal) : même écran de lecture, bouteil
   });
 
   it("dévoilement mutuel : la correspondance créée (match), conformément à la conception ; sinon l'écran des bouteilles", () => {
-    expect(resolvePushDestination({ type: "BOTTLE_REVEAL_ACCEPTED", matchId: "m-1", bottleId: ID }).route).toBe("/match-profile?matchId=m-1");
-    expect(getNotificationTarget(note("BOTTLE_REVEAL_ACCEPTED", { matchId: "m-1", bottleId: ID }))).toBe("/match-profile?matchId=m-1");
+    expect(resolvePushDestination({ type: "BOTTLE_REVEAL_ACCEPTED", matchId: "m-1", bottleId: ID }).route).toBe("/(tabs)/letters?matchId=m-1");
+    expect(getNotificationTarget(note("BOTTLE_REVEAL_ACCEPTED", { matchId: "m-1", bottleId: ID }))).toBe("/(tabs)/letters?matchId=m-1");
     expect(resolvePushDestination({ type: "BOTTLE_REVEAL_ACCEPTED", bottleId: ID }).route).toBe("/bottles-main");
   });
 
@@ -164,7 +164,7 @@ describe("application fermée, en arrière-plan ou ouverte : même destination d
     n.update(ready());
     n.onResponse(resp("l1", { type: "LETTER_RECEIVED", matchId: "m-1" }));
     await tick();
-    expect(nav).toHaveBeenCalledWith("/match-profile?matchId=m-1");
+    expect(nav).toHaveBeenCalledWith("/(tabs)/letters?matchId=m-1");
   });
 });
 

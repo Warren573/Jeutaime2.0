@@ -695,7 +695,7 @@ const lcStyles = StyleSheet.create({
 export default function LettersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { questionsMatchId } = useLocalSearchParams<{ questionsMatchId?: string }>();
+  const { questionsMatchId, matchId: notifiedLetterMatchId } = useLocalSearchParams<{ questionsMatchId?: string; matchId?: string }>();
   const handledQuestionsMatchId = useRef<string | null>(null);
   const {
     matches, letters, lettersByMatch, questionsByMatch,
@@ -864,6 +864,18 @@ export default function LettersScreen() {
       void handleQGameOpen(match);
     }
   }, [questionsMatchId, matches]);
+
+  // Ouvrir directement la correspondance depuis une notification de lettre ou un ancien lien.
+  const handledLetterMatchId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!notifiedLetterMatchId || handledLetterMatchId.current === notifiedLetterMatchId) return;
+    const match = matches.find(m => m.id === notifiedLetterMatchId);
+    if (!match || match.status !== 'active' || !match.questionsValidated) return;
+    handledLetterMatchId.current = notifiedLetterMatchId;
+    setSelectedMatch(match);
+    setShowCompose(true);
+    void openAndMarkRead(match.id);
+  }, [notifiedLetterMatchId, matches, openAndMarkRead]);
 
   const handleQGameSubmit = async () => {
     if (!qGameMatch) return;

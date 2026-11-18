@@ -111,8 +111,8 @@ describe("bouteilles : l'appui ouvre la bonne bouteille en LECTURE (push ET cloc
   });
 
   it("dévoilement mutuel accepté : la correspondance créée (jamais avant) ; repli sur les bouteilles", () => {
-    expect(resolvePushDestination({ type: "BOTTLE_REVEAL_ACCEPTED", matchId: "m-1" }).route).toBe("/match-profile?matchId=m-1");
-    expect(getNotificationTarget(note("BOTTLE_REVEAL_ACCEPTED", { bottleId: ID, matchId: "m-1" }))).toBe("/match-profile?matchId=m-1");
+    expect(resolvePushDestination({ type: "BOTTLE_REVEAL_ACCEPTED", matchId: "m-1" }).route).toBe("/(tabs)/letters?matchId=m-1");
+    expect(getNotificationTarget(note("BOTTLE_REVEAL_ACCEPTED", { bottleId: ID, matchId: "m-1" }))).toBe("/(tabs)/letters?matchId=m-1");
     expect(resolvePushDestination({ type: "BOTTLE_REVEAL_ACCEPTED" }).route).toBe("/bottles-main");
     expect(getNotificationTarget(note("BOTTLE_REVEAL_ACCEPTED", { bottleId: ID }))).toBe("/bottles-main");
   });

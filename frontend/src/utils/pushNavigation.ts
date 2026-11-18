@@ -43,8 +43,8 @@ const paramDest = (pathname: string, query: string): PushDestination => ({
   kind: 'static',
 });
 const matchDest = (matchId: string): PushDestination => ({
-  route: `/match-profile?matchId=${matchId}`,
-  pathname: '/match-profile',
+  route: `/(tabs)/letters?matchId=${matchId}`,
+  pathname: '/(tabs)/letters',
   kind: 'match',
   matchId,
 });
@@ -144,7 +144,7 @@ export function isViewingDestination(current: CurrentLocation | null | undefined
   if (dest.kind === 'fallback') return false;
   const path = current.pathname.replace(/\/+$/, '') || '/';
   if (dest.kind === 'match') {
-    return path === '/match-profile' && firstParam(current.params?.['matchId']) === dest.matchId;
+    return path === '/(tabs)/letters' && firstParam(current.params?.['matchId']) === dest.matchId;
   }
   if (dest.pathname === '/(tabs)/letters' && dest.route.includes('questionsMatchId=')) {
     return path === dest.pathname && firstParam(current.params?.['questionsMatchId']) === dest.route.split('questionsMatchId=')[1];
@@ -217,7 +217,7 @@ export function routeToLocation(route: string): CurrentLocation {
   return { pathname, params };
 }
 
-/** Vrai si l'utilisateur est déjà sur cette route (même correspondance pour une correspondance). */
+/** Vrai si l'utilisateur est déjà sur cette route et sur la ressource ciblée. */
 export function isAlreadyAtRoute(current: CurrentLocation | null | undefined, route: string): boolean {
   if (!current) return false;
   const target = routeToLocation(route);
@@ -228,6 +228,10 @@ export function isAlreadyAtRoute(current: CurrentLocation | null | undefined, ro
   }
   if (target.pathname === '/(tabs)/letters' && target.params?.['questionsMatchId']) {
     return firstParam(current.params?.['questionsMatchId']) === target.params['questionsMatchId'];
+  }
+  if (target.pathname === '/(tabs)/letters' && target.params?.['matchId']) {
+    return firstParam(current.params?.['matchId']) === target.params['matchId']
+      && !firstParam(current.params?.['questionsMatchId']);
   }
   if (target.pathname === '/duel/play') {
     return firstParam(current.params?.['duelId']) === target.params?.['duelId'];

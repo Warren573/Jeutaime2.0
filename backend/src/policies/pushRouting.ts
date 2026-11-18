@@ -39,7 +39,7 @@ export interface PushTypeConfig {
 }
 
 export const PUSH_TYPE_CONFIG: Record<PushKind, PushTypeConfig> = {
-  LETTER_RECEIVED: { category: "notifLetters", destination: "/match-profile", dataKeys: ["matchId"] },
+  LETTER_RECEIVED: { category: "notifLetters", destination: "/(tabs)/letters", dataKeys: ["matchId"] },
   MATCH_CREATED: { category: "notifMeetings", destination: "/(tabs)/letters", dataKeys: ["matchId"] },
   QUESTIONS_PASSED: { category: "notifMeetings", destination: "/(tabs)/letters", dataKeys: ["matchId"] },
   // Le match est rompu : aucune destination, l'identifiant reste dans la charge (compatibilité).
@@ -64,7 +64,7 @@ export const PUSH_TYPE_CONFIG: Record<PushKind, PushTypeConfig> = {
   // Il n'identifie aucune personne (anonymat préservé) ; jamais d'identifiant d'utilisateur, de pseudo ni de contenu.
   BOTTLE_REPLY: { category: "notifLetters", destination: "/bottles-main", dataKeys: ["bottleId"] },
   BOTTLE_REVEAL_REQUEST: { category: "notifLetters", destination: "/bottles-main", dataKeys: ["bottleId"] },
-  BOTTLE_REVEAL_ACCEPTED: { category: "notifLetters", destination: "/match-profile", dataKeys: ["matchId"] },
+  BOTTLE_REVEAL_ACCEPTED: { category: "notifLetters", destination: "/(tabs)/letters", dataKeys: ["matchId"] },
   BOTTLE_REVEAL_REFUSED: { category: "notifLetters", destination: "/bottles-main", dataKeys: ["bottleId"] },
   QUESTIONS_TURN: { category: "notifMeetings", destination: "/(tabs)/letters", dataKeys: ["matchId"] },
   REFUGE_ADOPTED: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
