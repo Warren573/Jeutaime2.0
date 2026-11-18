@@ -333,9 +333,9 @@ export default function ProfileTwoStepDemo() {
 
     try {
       const result = await sendReaction(targetProfile.userId, type);
-      if (type === "SMILE" && result.debugBranch === "NEW-MATCH") {
+      if (type === "SMILE" && result.debugBranch === "NEW-MATCH" && result.matchId) {
         await loadMatches();
-        router.push("/(tabs)/letters");
+        router.push({ pathname: "/(tabs)/letters", params: { questionsMatchId: result.matchId } });
       }
     } catch (err) {
       setCurrentProfile(previousCurrent);
