@@ -217,7 +217,7 @@ export function routeToLocation(route: string): CurrentLocation {
   return { pathname, params };
 }
 
-/** Vrai si l'utilisateur est déjà sur cette route (même correspondance pour une correspondance). */
+/** Vrai si l'utilisateur est déjà sur cette route et sur la ressource ciblée. */
 export function isAlreadyAtRoute(current: CurrentLocation | null | undefined, route: string): boolean {
   if (!current) return false;
   const target = routeToLocation(route);
@@ -228,6 +228,10 @@ export function isAlreadyAtRoute(current: CurrentLocation | null | undefined, ro
   }
   if (target.pathname === '/(tabs)/letters' && target.params?.['questionsMatchId']) {
     return firstParam(current.params?.['questionsMatchId']) === target.params['questionsMatchId'];
+  }
+  if (target.pathname === '/(tabs)/letters' && target.params?.['matchId']) {
+    return firstParam(current.params?.['matchId']) === target.params['matchId']
+      && !firstParam(current.params?.['questionsMatchId']);
   }
   if (target.pathname === '/duel/play') {
     return firstParam(current.params?.['duelId']) === target.params?.['duelId'];
