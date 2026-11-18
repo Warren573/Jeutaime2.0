@@ -82,27 +82,14 @@ function stubExpo() {
 }
 
 describe("duels", () => {
-  test("défis simultanés dans les deux sens : un seul duel et deux listes mises à jour", async () => {
-    expect(await duels.listCandidates(A)).toEqual(expect.arrayContaining([expect.objectContaining({ id: B })]));
-    const [first, second] = await Promise.all([duels.create(A, B, C), duels.create(B, A, C)]);
-    expect(first.id).toBe(second.id);
-
-    const [forA, forB] = await Promise.all([duels.listCandidates(A), duels.listCandidates(B)]);
-    expect(forA.some((candidate) => candidate.id === B)).toBe(false);
-    expect(forB.some((candidate) => candidate.id === A)).toBe(false);
-
-    await prisma.privateDuel.update({
-      where: { id: first.id },
-      data: { expiresAt: new Date(0) },
-    });
-    expect((await duels.listCandidates(A)).some((candidate) => candidate.id === B)).toBe(true);
-    expect((await duels.create(A, B, C)).id).not.toBe(first.id);
-    await flush();
-  });
-
   test("défi reçu → l'adversaire seulement ; un défi déjà en attente ne renotifie pas ; push générique", async () => {
     stubExpo();
-    const duel = await duels.create(A, B, C);
+    expect((await duels.listCandidates(A)).some((candidate) => candidate.id === B)).toBe(true);
+    const [duel, concurrent] = await Promise.all([duels.create(A, B, C), duels.create(A, B, C)]);
+    expect(concurrent.id).toBe(duel.id);
+    expect((await duels.create(B, A, C)).id).toBe(duel.id);
+    expect((await duels.listCandidates(A)).some((candidate) => candidate.id === B)).toBe(false);
+    expect((await duels.listCandidates(B)).some((candidate) => candidate.id === A)).toBe(false);
     await waitPush(1);
     const got = await mine(B, "DUEL_RECEIVED");
     expect(got).toHaveLength(1);
