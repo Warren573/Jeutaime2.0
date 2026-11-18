@@ -20,6 +20,7 @@ import { blockMatch, breakMatch, listMatches, type MatchDTO } from '../../src/ap
 import { blockProfile, reportUser, type ReportReason } from '../../src/api/profiles';
 import { useStore } from '../../src/store/useStore';
 import { APP_COLORS, APP_RADIUS, APP_SHADOWS, APP_SIZES, APP_SPACING, APP_TYPE } from '../../src/theme/appTheme';
+import { announceMutualMatch } from '../../src/utils/announceMutualMatch';
 import { footerBottomPadding } from '../../src/utils/composerFooter';
 
 const REPORT_REASONS: Array<{ value: ReportReason; label: string }> = [
@@ -140,10 +141,13 @@ export default function ProfileRoute() {
       setReactionStatus(refreshedStatus);
       if (refreshedStatus.mutualSmile) {
         if (result.matchId) {
-          router.push({
-            pathname: '/(tabs)/letters',
-            params: { questionsMatchId: result.matchId },
-          } as never);
+          const matchId = result.matchId;
+          announceMutualMatch(() => {
+            router.push({
+              pathname: '/(tabs)/letters',
+              params: { questionsMatchId: matchId },
+            } as never);
+          });
         } else {
           showMessage('Sourire mutuel', 'Le sourire est partagé. Vous pouvez retrouver la rencontre dans vos Lettres.');
         }
