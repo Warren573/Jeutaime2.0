@@ -241,7 +241,7 @@ export default function NotificationsScreen() {
             const showsCorrespondent = item.type === 'QUESTIONS_TURN' || item.type === 'LETTER_RECEIVED'
               || item.type === 'MATCH_CREATED' || item.type === 'QUESTIONS_PASSED';
             const matchId = item.meta?.matchId;
-            const pseudo = showsCorrespondent && matchId ? correspondentPseudos.get(matchId) : undefined;
+            const pseudo = showsCorrespondent && typeof matchId === 'string' ? correspondentPseudos.get(matchId) : undefined;
             return <NotifItem item={item} now={now} pseudo={pseudo} onPress={handlePress} />;
           }}
           ListFooterComponent={preferencesFooter}
