@@ -31,7 +31,7 @@ const resp = (id: string, data: unknown, action: string | undefined = DEFAULT): 
 
 describe("destinations : chaque type de notification", () => {
   it.each([
-    [{ type: "LETTER_RECEIVED", matchId: "m1" }, "/match-profile?matchId=m1"],
+    [{ type: "LETTER_RECEIVED", matchId: "m1" }, "/(tabs)/letters?matchId=m1"],
     [{ type: "MATCH_CREATED", matchId: "m_2-X" }, "/(tabs)/letters?questionsMatchId=m_2-X"],
     [{ type: "QUESTIONS_PASSED", matchId: "m1" }, "/(tabs)/letters"],
     [{ type: "QUESTIONS_FAILED", matchId: "m1" }, PUSH_FALLBACK_ROUTE],
@@ -73,7 +73,7 @@ describe("sécurité : jamais de route arbitraire", () => {
     "../admin", "/admin", "//evil.com", "https://evil.com", "javascript:alert(1)", "jeutaime://admin", "m1?x=1", "m1&matchId=2", "m1#frag",
     "a b", "a/b", "a\\b", "<script>", "%2e%2e", "m1\n", "é", "", " ", "x".repeat(65),
   ];
-  const ALLOWED = [/^\/\(tabs\)\/letters(?:\?questionsMatchId=[A-Za-z0-9_-]{1,64})?$/, /^\/match-profile\?matchId=[A-Za-z0-9_-]{1,64}$/, /^\/salon\/[A-Za-z0-9_-]{1,64}$/, /^\/(offerings|bottles-main|private-salons|admin-messages|premium|security|journal|notifications)$/];
+  const ALLOWED = [/^\/\(tabs\)\/letters(?:\?questionsMatchId=[A-Za-z0-9_-]{1,64})?$/, /^\/\(tabs\)\/letters\?matchId=[A-Za-z0-9_-]{1,64}$/, /^\/salon\/[A-Za-z0-9_-]{1,64}$/, /^\/(offerings|bottles-main|private-salons|admin-messages|premium|security|journal|notifications)$/];
   const isAllowed = (route: string) => ALLOWED.some((re) => re.test(route));
 
   it("identifiants piégés : repli ou écran fixe, jamais utilisés tels quels", () => {
@@ -94,7 +94,7 @@ describe("sécurité : jamais de route arbitraire", () => {
       expect(resolvePushDestination({ route }).route, route).toBe(PUSH_FALLBACK_ROUTE);
     }
     // Avec un type, la route fournie est ignorée.
-    expect(resolvePushDestination({ type: "LETTER_RECEIVED", matchId: "m1", route: "/admin" }).route).toBe("/match-profile?matchId=m1");
+    expect(resolvePushDestination({ type: "LETTER_RECEIVED", matchId: "m1", route: "/admin" }).route).toBe("/(tabs)/letters?matchId=m1");
     expect(resolvePushDestination({ type: "ADMIN_MESSAGE", route: "/security", url: "https://evil" }).route).toBe("/admin-messages");
     expect(resolvePushDestination({ type: "UNKNOWN", route: "/journal" }).route).toBe(PUSH_FALLBACK_ROUTE);
   });
@@ -131,10 +131,10 @@ describe("bannière inutile quand l'écran est déjà ouvert", () => {
   const loc = (pathname: string, params: Record<string, string | string[]> = {}) => ({ pathname, params });
   it("même correspondance ouverte : pas de bannière ; autre correspondance : bannière", () => {
     const data = { type: "LETTER_RECEIVED", matchId: "m1" };
-    expect(shouldShowForegroundBanner(loc("/match-profile", { matchId: "m1" }), data)).toBe(false);
-    expect(shouldShowForegroundBanner(loc("/match-profile", { matchId: ["m1"] }), data)).toBe(false);
-    expect(shouldShowForegroundBanner(loc("/match-profile", { matchId: "m2" }), data)).toBe(true);
-    expect(shouldShowForegroundBanner(loc("/match-profile"), data)).toBe(true);
+    expect(shouldShowForegroundBanner(loc("/(tabs)/letters", { matchId: "m1" }), data)).toBe(false);
+    expect(shouldShowForegroundBanner(loc("/(tabs)/letters", { matchId: ["m1"] }), data)).toBe(false);
+    expect(shouldShowForegroundBanner(loc("/(tabs)/letters", { matchId: "m2" }), data)).toBe(true);
+    expect(shouldShowForegroundBanner(loc("/(tabs)/letters"), data)).toBe(true);
     expect(shouldShowForegroundBanner(loc("/letters"), data)).toBe(true);
   });
   it("écrans fixes et salons", () => {
@@ -167,14 +167,14 @@ describe("notification reçue application ouverte : bannière, son ET vibration,
   }
 
   it("écran ET ressource déjà affichés : bannière, liste, son et vibration supprimés, compteur actualisé", () => {
-    const r = receive(loc("/match-profile", { matchId: "m1" }), letter("m1"));
+    const r = receive(loc("/(tabs)/letters", { matchId: "m1" }), letter("m1"));
     expect(r.presentation).toEqual({ showBanner: false, showList: false, playSound: false, vibrate: false });
     expect(r.vibrate).not.toHaveBeenCalled();
     expect(r.refreshUnread).toHaveBeenCalledTimes(1);
   });
 
   it("autre correspondance : tout est conservé (bannière, son, vibration) et le compteur est actualisé", () => {
-    for (const current of [loc("/match-profile", { matchId: "m2" }), loc("/match-profile"), loc("/match-profile", { matchId: ["m2", "m1"] })]) {
+    for (const current of [loc("/(tabs)/letters", { matchId: "m2" }), loc("/(tabs)/letters"), loc("/(tabs)/letters", { matchId: ["m2", "m1"] })]) {
       const r = receive(current, letter("m1"));
       expect(r.presentation).toEqual({ showBanner: true, showList: true, playSound: true, vibrate: true });
       expect(r.vibrate).toHaveBeenCalledTimes(1);
@@ -219,16 +219,16 @@ describe("notification reçue application ouverte : bannière, son ET vibration,
   });
 
   it("rafale de notifications de deux correspondances pendant la consultation de m1 : seules celles de m1 sont masquées", () => {
-    const current = loc("/match-profile", { matchId: "m1" });
+    const current = loc("/(tabs)/letters", { matchId: "m1" });
     const shown = ["m1", "m2", "m1", "m3", "m1"].map((id) => receive(current, letter(id)).presentation.showBanner);
     expect(shown).toEqual([false, true, false, true, false]);
   });
 
   it("routeToLocation / isAlreadyAtRoute", () => {
-    expect(routeToLocation("/match-profile?matchId=m1")).toEqual({ pathname: "/match-profile", params: { matchId: "m1" } });
+    expect(routeToLocation("/(tabs)/letters?matchId=m1")).toEqual({ pathname: "/(tabs)/letters", params: { matchId: "m1" } });
     expect(routeToLocation("/security")).toEqual({ pathname: "/security", params: {} });
-    expect(isAlreadyAtRoute(loc("/match-profile", { matchId: "m1" }), "/match-profile?matchId=m1")).toBe(true);
-    expect(isAlreadyAtRoute(loc("/match-profile", { matchId: "m2" }), "/match-profile?matchId=m1")).toBe(false);
+    expect(isAlreadyAtRoute(loc("/(tabs)/letters", { matchId: "m1" }), "/(tabs)/letters?matchId=m1")).toBe(true);
+    expect(isAlreadyAtRoute(loc("/(tabs)/letters", { matchId: "m2" }), "/(tabs)/letters?matchId=m1")).toBe(false);
     expect(isAlreadyAtRoute(loc("/notifications"), "/notifications")).toBe(true);
     expect(isAlreadyAtRoute(loc("/notifications/"), "/notifications")).toBe(true);
     expect(isAlreadyAtRoute(null, "/security")).toBe(false);
@@ -253,13 +253,13 @@ describe("préparation de la destination (ressource disponible ?)", () => {
 
   it("correspondance déjà connue : aucune requête, route directe", async () => {
     const refresh = vi.fn(async () => undefined);
-    expect(await prepareDestinationWith(match("m1"), { hasMatch: () => true, refreshMatches: refresh, timeoutMs: 50 })).toBe("/match-profile?matchId=m1");
+    expect(await prepareDestinationWith(match("m1"), { hasMatch: () => true, refreshMatches: refresh, timeoutMs: 50 })).toBe("/(tabs)/letters?matchId=m1");
     expect(refresh).not.toHaveBeenCalled();
   });
   it("nouveau match absent du magasin : rechargé, puis ouvert", async () => {
     const known = new Set<string>();
     const refresh = vi.fn(async () => { known.add("m1"); });
-    expect(await prepareDestinationWith(match("m1"), { hasMatch: (id) => known.has(id), refreshMatches: refresh, timeoutMs: 50 })).toBe("/match-profile?matchId=m1");
+    expect(await prepareDestinationWith(match("m1"), { hasMatch: (id) => known.has(id), refreshMatches: refresh, timeoutMs: 50 })).toBe("/(tabs)/letters?matchId=m1");
     expect(refresh).toHaveBeenCalledTimes(1);
   });
   it("ressource disparue (rompue, bloquée, supprimée) : repli", async () => {
@@ -300,7 +300,7 @@ describe("ouverture par appui : authentification, routeur, doublons", () => {
     n.onResponse(resp("n1", { type: "LETTER_RECEIVED", matchId: "m1" }));
     await tick();
     expect(nav).toHaveBeenCalledTimes(1);
-    expect(nav).toHaveBeenCalledWith("/match-profile?matchId=m1");
+    expect(nav).toHaveBeenCalledWith("/(tabs)/letters?matchId=m1");
     expect(consume).toHaveBeenCalled();
   });
 
@@ -427,7 +427,7 @@ describe("ouverture par appui : authentification, routeur, doublons", () => {
     n.onResponse(resp("n1", { type: "LETTER_RECEIVED", matchId: "m1" }));
     await tick();
     n.update(ready("unauthenticated"));
-    release("/match-profile?matchId=m1");
+    release("/(tabs)/letters?matchId=m1");
     await tick();
     expect(nav).not.toHaveBeenCalled();
   });
@@ -440,9 +440,9 @@ describe("ouverture par appui : authentification, routeur, doublons", () => {
     n.onResponse(resp("n1", { type: "LETTER_RECEIVED", matchId: "m1" }));
     await tick();
     n.onResponse(resp("n2", { type: "SECURITY_ALERT" }));
-    release("/match-profile?matchId=m1");
+    release("/(tabs)/letters?matchId=m1");
     await tick(); await tick();
-    expect(nav.mock.calls.map((c) => c[0])).toEqual(["/match-profile?matchId=m1", "/security"]);
+    expect(nav.mock.calls.map((c) => c[0])).toEqual(["/(tabs)/letters?matchId=m1", "/security"]);
   });
 
   it("mises à jour d'état répétées : une seule navigation", async () => {
@@ -462,7 +462,7 @@ describe("appuis concurrents : file ordonnée, rien n'est écrasé", () => {
   const tick = () => new Promise((r) => setTimeout(r, 0));
   const flush = async () => { for (let i = 0; i < 6; i++) await tick(); };
   const m = (id: string, notif: string) => resp(notif, { type: "LETTER_RECEIVED", matchId: id });
-  const route = (id: string) => `/match-profile?matchId=${id}`;
+  const route = (id: string) => `/(tabs)/letters?matchId=${id}`;
   /** `prepare` pilotable : chaque destination attend qu'on la libère. */
   function gatedPrepare() {
     const gates = new Map<string, () => void>();
