@@ -43,8 +43,8 @@ const paramDest = (pathname: string, query: string): PushDestination => ({
   kind: 'static',
 });
 const matchDest = (matchId: string): PushDestination => ({
-  route: `/match-profile?matchId=${matchId}`,
-  pathname: '/match-profile',
+  route: `/(tabs)/letters?matchId=${matchId}`,
+  pathname: '/(tabs)/letters',
   kind: 'match',
   matchId,
 });
@@ -144,7 +144,7 @@ export function isViewingDestination(current: CurrentLocation | null | undefined
   if (dest.kind === 'fallback') return false;
   const path = current.pathname.replace(/\/+$/, '') || '/';
   if (dest.kind === 'match') {
-    return path === '/match-profile' && firstParam(current.params?.['matchId']) === dest.matchId;
+    return path === '/(tabs)/letters' && firstParam(current.params?.['matchId']) === dest.matchId;
   }
   if (dest.pathname === '/(tabs)/letters' && dest.route.includes('questionsMatchId=')) {
     return path === dest.pathname && firstParam(current.params?.['questionsMatchId']) === dest.route.split('questionsMatchId=')[1];
