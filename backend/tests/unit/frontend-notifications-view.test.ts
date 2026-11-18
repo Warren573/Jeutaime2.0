@@ -147,13 +147,14 @@ describe("même compteur et confidentialité (garde-fous sur les sources)", () =
     expect(source("screens/NotificationsScreen.tsx")).toMatch(/^\s*unreadNotificationsCount,$/m);
     expect(source("hooks/usePushNotifications.ts")).toMatch(/setBadgeCountAsync/);
   });
-  it("l'écran n'affiche que le message générique : jamais la meta (identifiants, pseudos) ni de contenu", () => {
-    for (const file of ["screens/NotificationsScreen.tsx", "components/NotificationBell.tsx"]) {
-      const src = source(file);
-      expect(src, file).not.toMatch(/\.meta\b/);
-      expect(src, file).not.toMatch(/fromUserId|otherUserId|pseudo|\bcontent\b/);
-    }
-    expect(source("screens/NotificationsScreen.tsx")).toMatch(/item\.message/);
+  it("le Journal affiche le pseudo du correspondant connu pour les lettres et les rencontres", () => {
+    const screen = source("screens/NotificationsScreen.tsx");
+    expect(screen).toMatch(/matchPartners\[partnerId\]\?\.pseudo/);
+    expect(screen).toMatch(/correspondentPseudos\.get\(matchId\)/);
+    expect(screen).toMatch(/showsCorrespondent = item\.type === 'QUESTIONS_TURN' \|\| item\.type === 'LETTER_RECEIVED'\s*\|\| item\.type === 'MATCH_CREATED' \|\| item\.type === 'QUESTIONS_PASSED';/);
+    expect(screen).toMatch(/item\.message/);
+    expect(screen).not.toMatch(/meta\?\.(fromUserId|otherUserId|pseudo|content)/);
+    expect(source("components/NotificationBell.tsx")).not.toMatch(/\.meta\b|\bpseudo\b/);
   });
   it("la cloche ouvre l'écran existant /notifications (pas de système parallèle)", () => {
     expect(source("components/NotificationBell.tsx")).toMatch(/router\.push\('\/notifications'/);
