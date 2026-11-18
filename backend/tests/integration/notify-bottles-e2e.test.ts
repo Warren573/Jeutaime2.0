@@ -234,8 +234,8 @@ describe("dévoilement : demande, refus, acceptation mutuelle", () => {
     expect(matchId).toBeTruthy();
     const p = to(R).find((m) => m.data["type"] === "BOTTLE_REVEAL_ACCEPTED")!;
     expect(p.data).toEqual({ type: "BOTTLE_REVEAL_ACCEPTED", matchId }); // pas de bottleId, pas de personne
-    expect(getNotificationTarget(n as never)).toBe(`/match-profile?matchId=${matchId}`);
-    expect(resolvePushDestination(p.data).route).toBe(`/match-profile?matchId=${matchId}`);
+    expect(getNotificationTarget(n as never)).toBe(`/(tabs)/letters?matchId=${matchId}`);
+    expect(resolvePushDestination(p.data).route).toBe(`/(tabs)/letters?matchId=${matchId}`);
     expect(await ofType(S, "BOTTLE_REVEAL_ACCEPTED", b.id)).toHaveLength(0); // jamais l'auteur
     for (const m of [p.title, p.body]) for (const leak of [pseudoOf[S]!, pseudoOf[R]!, S, R]) expect(m).not.toContain(leak);
   });
