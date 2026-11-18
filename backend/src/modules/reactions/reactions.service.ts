@@ -119,7 +119,8 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
         userAId,
         userBId,
         initiatorId: fromId,
-        status: MatchStatus.PENDING,
+        status: MatchStatus.ACTIVE,
+        activatedAt: new Date(),
       },
       select: { id: true },
     });

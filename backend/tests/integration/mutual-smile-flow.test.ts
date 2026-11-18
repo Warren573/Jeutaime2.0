@@ -102,17 +102,23 @@ describe('CORE FLOW: Mutual Smile Between Bernard and Doudou', () => {
     (prisma.match.count as any).mockResolvedValue(0);
 
     // Mock transaction creates match
-    (prisma.$transaction as any).mockResolvedValue({
-      id: matchId,
-      userAId: bernardId,
-      userBId: doudouId,
-      status: MatchStatus.PENDING,
-    });
+    (prisma.$transaction as any).mockImplementation(async (run: (tx: typeof prisma) => unknown) => run(prisma));
+    (prisma.match.create as any).mockResolvedValue({ id: matchId });
 
     const result = await sendReaction(doudouId, { toId: bernardId, type: 'SMILE' });
 
     expect(result.matchCreated).toBe(true);
     expect(result.matchId).toBe(matchId);
+    expect(prisma.match.create).toHaveBeenCalledWith({
+      data: {
+        userAId: bernardId,
+        userBId: doudouId,
+        initiatorId: doudouId,
+        status: MatchStatus.ACTIVE,
+        activatedAt: expect.any(Date),
+      },
+      select: { id: true },
+    });
     console.log('✅ Step 2: Doudou smiled Bernard, matchCreated=true, matchId:', matchId);
   });
 
@@ -142,12 +148,12 @@ describe('CORE FLOW: Mutual Smile Between Bernard and Doudou', () => {
     console.log('✅ Step 2b: Existing match still returns matchCreated=true + matchId for frontend navigation');
   });
 
-  it('Step 3: Match has correct status PENDING', async () => {
+  it('Step 3: Match has correct status ACTIVE', async () => {
     const mockMatch = {
       id: matchId,
       userAId: bernardId,
       userBId: doudouId,
-      status: MatchStatus.PENDING,
+      status: MatchStatus.ACTIVE,
       initiatorId: doudouId,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -160,10 +166,10 @@ describe('CORE FLOW: Mutual Smile Between Bernard and Doudou', () => {
       ghostRelanceUsedBy: null,
     };
 
-    expect(mockMatch.status).toBe(MatchStatus.PENDING);
+    expect(mockMatch.status).toBe(MatchStatus.ACTIVE);
     expect([bernardId, doudouId]).toContain(mockMatch.userAId);
     expect([bernardId, doudouId]).toContain(mockMatch.userBId);
-    console.log('✅ Step 3: Match status is PENDING');
+    console.log('✅ Step 3: Match status is ACTIVE');
   });
 
   it('Step 4: listMatches for Bernard includes the match', async () => {
@@ -173,7 +179,7 @@ describe('CORE FLOW: Mutual Smile Between Bernard and Doudou', () => {
         id: matchId,
         userAId: bernardId,
         userBId: doudouId,
-        status: MatchStatus.PENDING,
+        status: MatchStatus.ACTIVE,
         initiatorId: doudouId,
         letterCountA: 0,
         letterCountB: 0,
@@ -184,7 +190,7 @@ describe('CORE FLOW: Mutual Smile Between Bernard and Doudou', () => {
 
     const found = mockMatchesForBernard.find(m => m.id === matchId);
     expect(found).toBeDefined();
-    expect(found?.status).toBe(MatchStatus.PENDING);
+    expect(found?.status).toBe(MatchStatus.ACTIVE);
     console.log('✅ Step 4: Bernard can retrieve match via GET /api/matches');
   });
 
@@ -195,7 +201,7 @@ describe('CORE FLOW: Mutual Smile Between Bernard and Doudou', () => {
         id: matchId,
         userAId: bernardId,
         userBId: doudouId,
-        status: MatchStatus.PENDING,
+        status: MatchStatus.ACTIVE,
         initiatorId: doudouId,
         letterCountA: 0,
         letterCountB: 0,
@@ -206,7 +212,7 @@ describe('CORE FLOW: Mutual Smile Between Bernard and Doudou', () => {
 
     const found = mockMatchesForDoudou.find(m => m.id === matchId);
     expect(found).toBeDefined();
-    expect(found?.status).toBe(MatchStatus.PENDING);
+    expect(found?.status).toBe(MatchStatus.ACTIVE);
     console.log('✅ Step 5: Doudou can retrieve match via GET /api/matches');
   });
 
@@ -249,7 +255,7 @@ describe('CORE FLOW: Mutual Smile Between Bernard and Doudou', () => {
 
     ✅ Step 1: First smile → matchCreated=false
     ✅ Step 2: Mutual smile → matchCreated=true + matchId
-    ✅ Step 3: Match status=PENDING
+    ✅ Step 3: Match status=ACTIVE
     ✅ Step 4: Bernard sees match
     ✅ Step 5: Doudou sees match
 
