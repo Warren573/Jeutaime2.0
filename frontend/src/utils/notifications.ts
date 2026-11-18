@@ -14,7 +14,7 @@ export function getNotificationTarget(notification: NotificationDto): string | n
   switch (notification.type as NotificationType) {
     case 'LETTER_RECEIVED': {
       const matchId = meta['matchId'];
-      return isSafeId(matchId) ? `/match-profile?matchId=${matchId}` : null;
+      return isSafeId(matchId) ? `/(tabs)/letters?matchId=${matchId}` : null;
     }
 
     case 'QUESTIONS_FAILED':
@@ -77,7 +77,7 @@ export function getNotificationTarget(notification: NotificationDto): string | n
 
     case 'BOTTLE_REVEAL_ACCEPTED': {
       const matchId = meta['matchId'];
-      return isSafeId(matchId) ? `/match-profile?matchId=${matchId}` : '/bottles-main';
+      return isSafeId(matchId) ? `/(tabs)/letters?matchId=${matchId}` : '/bottles-main';
     }
 
     case 'QUESTIONS_TURN': {
