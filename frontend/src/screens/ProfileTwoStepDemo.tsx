@@ -25,6 +25,7 @@ import {
   type ReportReason,
 } from "../api/profiles";
 import { sendReaction } from "../api/reactions";
+import { announceMutualMatch } from "../utils/announceMutualMatch";
 import { apiFetch } from "../api/client";
 import {
   APP_COLORS,
@@ -334,8 +335,11 @@ export default function ProfileTwoStepDemo() {
     try {
       const result = await sendReaction(targetProfile.userId, type);
       if (type === "SMILE" && result.debugBranch === "NEW-MATCH" && result.matchId) {
+        const matchId = result.matchId;
         await loadMatches();
-        router.push({ pathname: "/(tabs)/letters", params: { questionsMatchId: result.matchId } });
+        announceMutualMatch(() => {
+          router.push({ pathname: "/(tabs)/letters", params: { questionsMatchId: matchId } });
+        });
       }
     } catch (err) {
       setCurrentProfile(previousCurrent);
