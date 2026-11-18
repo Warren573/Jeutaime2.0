@@ -193,14 +193,27 @@ export async function listCandidates(userId: string) {
   if (directIds.size === 0) return [];
 
   const contactIds = [...directIds];
-  const secondDegreeMatches = await prisma.match.findMany({
-    where: {
-      status: MatchStatus.ACTIVE,
-      questionsValidated: true,
-      OR: [{ userAId: { in: contactIds } }, { userBId: { in: contactIds } }],
-    },
-    select: { userAId: true, userBId: true },
-  });
+  const [secondDegreeMatches, activeDuels] = await Promise.all([
+    prisma.match.findMany({
+      where: {
+        status: MatchStatus.ACTIVE,
+        questionsValidated: true,
+        OR: [{ userAId: { in: contactIds } }, { userBId: { in: contactIds } }],
+      },
+      select: { userAId: true, userBId: true },
+    }),
+    prisma.privateDuel.findMany({
+      where: {
+        status: PrivateDuelStatus.PENDING,
+        expiresAt: { gt: new Date() },
+        OR: [{ challengerId: userId }, { opponentId: userId }],
+      },
+      select: { challengerId: true, opponentId: true },
+    }),
+  ]);
+  const busyOpponentIds = new Set(
+    activeDuels.map((duel) => duel.challengerId === userId ? duel.opponentId : duel.challengerId),
+  );
 
   const paths = new Map<string, { targetUserId: string; commonUserId: string }>();
   for (const match of secondDegreeMatches) {
@@ -212,7 +225,8 @@ export async function listCandidates(userId: string) {
       if (
         targetUserId &&
         targetUserId !== userId &&
-        !directIds.has(targetUserId)
+        !directIds.has(targetUserId) &&
+        !busyOpponentIds.has(targetUserId)
       ) {
         paths.set(`${targetUserId}:${commonUserId}`, { targetUserId, commonUserId });
       }
@@ -239,22 +253,26 @@ export async function listCandidates(userId: string) {
 export async function create(userId: string, targetUserId: string, commonUserId: string) {
   await assertValidPath(userId, targetUserId, commonUserId);
 
-  const existing = await prisma.privateDuel.findFirst({
-    where: {
-      status: PrivateDuelStatus.PENDING,
-      OR: [
-        { challengerId: userId, opponentId: targetUserId },
-        { challengerId: targetUserId, opponentId: userId },
-      ],
-    },
-    orderBy: { createdAt: "desc" },
-    include: duelInclude,
-  });
-  if (existing) return toDto(existing, userId);
+  const lockKey = JSON.stringify(["private-duel", ...[userId, targetUserId].sort()]);
+  const { duel, isNew } = await prisma.$transaction(async (tx) => {
+    // Les défis simultanés dans les deux sens utilisent le même verrou.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+    const now = new Date();
+    const existing = await tx.privateDuel.findFirst({
+      where: {
+        status: PrivateDuelStatus.PENDING,
+        expiresAt: { gt: now },
+        OR: [
+          { challengerId: userId, opponentId: targetUserId },
+          { challengerId: targetUserId, opponentId: userId },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      include: duelInclude,
+    });
+    if (existing) return { duel: existing, isNew: false };
 
-  const expiresAt = new Date(Date.now() + DUEL_TTL_MS);
-
-  const duel = await prisma.$transaction(async (tx) => {
+    const expiresAt = new Date(now.getTime() + DUEL_TTL_MS);
     const created = await tx.privateDuel.create({
       data: {
         challengerId: userId,
@@ -271,8 +289,10 @@ export async function create(userId: string, targetUserId: string, commonUserId:
       addJournalEvent(tx, commonUserId, "DUEL_AROUND_YOU_CREATED", duelMeta(created)),
     ]);
 
-    return created;
+    return { duel: created, isNew: true };
   });
+
+  if (!isNew) return toDto(duel, userId);
 
   // Défi reçu : la personne défiée doit jouer (action requise). Un défi déjà en attente est renvoyé
   // plus haut sans nouvelle notification ; la clé est l'identité du duel.
