@@ -139,7 +139,14 @@ export default function ProfileRoute() {
       }));
       setReactionStatus(refreshedStatus);
       if (refreshedStatus.mutualSmile) {
-        showMessage('Sourire mutuel', 'Le sourire est partagé. Vous pouvez continuer depuis vos Lettres.');
+        if (result.matchId) {
+          router.push({
+            pathname: '/(tabs)/letters',
+            params: { questionsMatchId: result.matchId },
+          } as never);
+        } else {
+          showMessage('Sourire mutuel', 'Le sourire est partagé. Vous pouvez retrouver la rencontre dans vos Lettres.');
+        }
         await refreshMatches();
       } else {
         showMessage('Sourire envoyé', 'Votre sourire a bien été envoyé.');
