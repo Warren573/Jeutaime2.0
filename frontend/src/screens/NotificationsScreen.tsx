@@ -32,14 +32,17 @@ const PAPER = '#FEFAF0';
 function NotifItem({
   item,
   now,
+  pseudo,
   onPress,
 }: {
   item: NotificationDto;
   now: Date;
+  pseudo?: string;
   onPress: (notification: NotificationDto) => void;
 }) {
   const category = categoryFor(item.type);
   const unread = !item.isRead;
+  const message = pseudo ? `${item.message} · ${pseudo}` : item.message;
   const hasTarget = !!getNotificationTarget(item);
   return (
     <TouchableOpacity
@@ -47,7 +50,7 @@ function NotifItem({
       onPress={() => onPress(item)}
       activeOpacity={hasTarget ? 0.75 : 1}
       accessibilityRole="button"
-      accessibilityLabel={`${category.label}. ${item.message}. ${unread ? 'Non lue.' : 'Lue.'}`}
+      accessibilityLabel={`${category.label}. ${message}. ${unread ? 'Non lue.' : 'Lue.'}`}
     >
       {unread ? <View style={styles.unreadBar} /> : null}
       <View style={[styles.iconWrap, !unread && styles.iconWrapRead]}>
@@ -55,7 +58,7 @@ function NotifItem({
       </View>
       <View style={styles.itemBody}>
         <Text style={styles.category}>{category.label.toUpperCase()}</Text>
-        <Text style={[styles.itemMsg, unread && styles.itemMsgUnread]}>{item.message}</Text>
+        <Text style={[styles.itemMsg, unread && styles.itemMsgUnread]}>{message}</Text>
       </View>
       <View style={styles.itemWhen}>
         <Text style={styles.itemDate}>{formatNotificationTime(item.createdAt, now)}</Text>
@@ -71,6 +74,10 @@ export default function NotificationsScreen() {
 
   const {
     notifications,
+    matches,
+    matchPartners,
+    currentUser,
+    loadMatches,
     unreadNotificationsCount,
     loadNotifications,
     loadUnreadCount,
@@ -89,8 +96,8 @@ export default function NotificationsScreen() {
   }, []);
 
   const refresh = useCallback(async () => {
-    await Promise.all([loadNotifications(), loadUnreadCount(), loadPreferences()]);
-  }, [loadNotifications, loadUnreadCount, loadPreferences]);
+    await Promise.all([loadNotifications(), loadUnreadCount(), loadPreferences(), loadMatches()]);
+  }, [loadNotifications, loadUnreadCount, loadPreferences, loadMatches]);
 
   useEffect(() => {
     refresh()
@@ -114,6 +121,15 @@ export default function NotificationsScreen() {
   }, [refresh]);
 
   const handlePress = useCallback(async (notification: NotificationDto) => {
+    if (notification.type === 'QUESTIONS_TURN') {
+      await loadMatches();
+      const matchId = notification.meta?.matchId;
+      const match = useStore.getState().matches.find((entry) => entry.id === matchId);
+      if (!match || match.status !== 'active' || match.questionsValidated) {
+        Alert.alert('Les 3 questions', 'Ce jeu est terminé ou la correspondance n’est plus accessible.');
+        return;
+      }
+    }
     if (!notification.isRead) {
       void markNotificationRead(notification.id);
     }
@@ -121,7 +137,7 @@ export default function NotificationsScreen() {
     if (target) {
       router.push(target as any);
     }
-  }, [markNotificationRead, router]);
+  }, [loadMatches, markNotificationRead, router]);
 
   const handleMarkAll = useCallback(async () => {
     await markAllNotificationsRead();
@@ -150,6 +166,18 @@ export default function NotificationsScreen() {
   // Les plus récentes d'abord, regroupées par jour ; l'historique (lues) reste affiché.
   const now = new Date();
   const sections = useMemo(() => groupByDay(notifications as NotificationDto[], new Date()), [notifications]);
+
+  const correspondentPseudos = useMemo(() => {
+    const pseudos = new Map<string, string>();
+    for (const match of matches) {
+      if (match.status !== 'active' && match.status !== 'pending') continue;
+      const partnerId = match.userAId === currentUser?.id ? match.userBId
+        : match.userBId === currentUser?.id ? match.userAId : undefined;
+      const pseudo = partnerId ? matchPartners[partnerId]?.pseudo : undefined;
+      if (pseudo) pseudos.set(match.id, pseudo);
+    }
+    return pseudos;
+  }, [matches, matchPartners, currentUser?.id]);
 
   const preferencesFooter = (
     <>
@@ -209,7 +237,13 @@ export default function NotificationsScreen() {
           keyExtractor={(n) => n.id}
           stickySectionHeadersEnabled={false}
           renderSectionHeader={({ section }) => <Text style={styles.dayLabel}>{section.title}</Text>}
-          renderItem={({ item }) => <NotifItem item={item} now={now} onPress={handlePress} />}
+          renderItem={({ item }) => {
+            const showsCorrespondent = item.type === 'QUESTIONS_TURN' || item.type === 'LETTER_RECEIVED'
+              || item.type === 'MATCH_CREATED' || item.type === 'QUESTIONS_PASSED';
+            const matchId = item.meta?.matchId;
+            const pseudo = showsCorrespondent && matchId ? correspondentPseudos.get(matchId) : undefined;
+            return <NotifItem item={item} now={now} pseudo={pseudo} onPress={handlePress} />;
+          }}
           ListFooterComponent={preferencesFooter}
           ListEmptyComponent={(
             <View style={styles.emptyBox}>
