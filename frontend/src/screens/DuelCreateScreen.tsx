@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Avatar } from '../avatar/png/Avatar';
 import { DEFAULT_AVATAR } from '../avatar/png/defaults';
@@ -54,9 +54,11 @@ export default function DuelCreateScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const openDuel = (duelId: string) => {
     router.push({ pathname: '/duel/play', params: { duelId } });
@@ -68,6 +70,7 @@ export default function DuelCreateScreen() {
       setError(null);
       setCreatingUserId(candidate.id);
       const duel = await createPrivateDuel(candidate.id, candidate.commonUserId);
+      setDuels((current) => [duel, ...current.filter((entry) => entry.id !== duel.id)]);
       openDuel(duel.id);
     } catch (err: any) {
       setError(err?.message || 'Impossible de créer ce duel.');
@@ -76,7 +79,10 @@ export default function DuelCreateScreen() {
     }
   };
 
-  const pendingDuels = duels.filter((d) => d.status === 'PENDING');
+  const now = Date.now();
+  const pendingDuels = duels.filter((duel) => duel.status === 'PENDING' && Date.parse(duel.expiresAt) > now);
+  const busyOpponentIds = new Set(pendingDuels.map((duel) => duel.opponentId));
+  const availableCandidates = candidates.filter((candidate) => !busyOpponentIds.has(candidate.id));
   const recentResolved = duels.filter((d) => d.status === 'RESOLVED').slice(0, 5);
 
   return (
@@ -95,7 +101,7 @@ export default function DuelCreateScreen() {
         </View>
       ) : (
         <FlatList
-          data={candidates}
+          data={availableCandidates}
           keyExtractor={(item) => `${item.id}:${item.commonUserId}`}
           refreshControl={
             <RefreshControl
@@ -147,7 +153,7 @@ export default function DuelCreateScreen() {
                           <Text style={styles.pendingName}>{duel.opponentPseudo}</Text>
                           <Text style={styles.pendingStatus}>
                             {waitingForMe
-                              ? 'À toi de jouer'
+                              ? (duel.opponentHasPlayed ? 'À toi de jouer' : 'Choix à faire')
                               : duel.opponentHasPlayed
                               ? 'Résultat prêt'
                               : 'En attente de son choix'}
@@ -173,7 +179,7 @@ export default function DuelCreateScreen() {
               <MaterialCommunityIcons name="sword-cross" size={34} color="#A88E70" />
               <Text style={styles.emptyText}>Aucun adversaire disponible</Text>
               <Text style={styles.emptySubtext}>
-                Aucun de tes correspondants n’a actuellement un autre correspondant que tu puisses défier.
+                Tu pourras défier un adversaire éligible dès qu’il sera disponible.
               </Text>
             </View>
           }
