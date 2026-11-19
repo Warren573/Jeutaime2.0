@@ -21,6 +21,7 @@ export interface JobResult {
 export interface Job {
   readonly name: string;
   readonly description: string;
+  readonly cadence?: "hourly" | "daily";
   /**
    * Exécute le job. `now` est injectable pour la testabilité.
    * Le runner remplit `durationMs` — le job peut retourner 0.

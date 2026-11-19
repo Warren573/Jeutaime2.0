@@ -26,6 +26,7 @@ export function createPurgeExpiredRefreshTokensJob(
 
   return {
     name: JOB_NAME,
+    cadence: "daily",
     description:
       "Supprime les refresh tokens dont l'expiration est passée (hygiène DB).",
 

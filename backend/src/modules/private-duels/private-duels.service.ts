@@ -95,21 +95,25 @@ function toDto(duel: DuelWithPlayers, requesterId: string) {
   const other = isChallenger ? duel.opponent : duel.challenger;
   const ownChoice = isChallenger ? duel.challengerChoice : duel.opponentChoice;
   const otherChoice = isChallenger ? duel.opponentChoice : duel.challengerChoice;
-  const resolved = duel.status === PrivateDuelStatus.RESOLVED;
+  const status =
+    duel.status === PrivateDuelStatus.PENDING && duel.expiresAt <= new Date()
+      ? PrivateDuelStatus.EXPIRED
+      : duel.status;
+  const resolved = status === PrivateDuelStatus.RESOLVED;
 
   let result: "WIN" | "LOSE" | "DRAW" | "PENDING" | "DECLINED" | "EXPIRED" = "PENDING";
   if (resolved) {
     if (duel.winnerId === null) result = "DRAW";
     else result = duel.winnerId === requesterId ? "WIN" : "LOSE";
-  } else if (duel.status === PrivateDuelStatus.CANCELLED) {
+  } else if (status === PrivateDuelStatus.CANCELLED) {
     result = "DECLINED";
-  } else if (duel.status === PrivateDuelStatus.EXPIRED) {
+  } else if (status === PrivateDuelStatus.EXPIRED) {
     result = "EXPIRED";
   }
 
   return {
     id: duel.id,
-    status: duel.status,
+    status,
     createdAt: duel.createdAt,
     expiresAt: duel.expiresAt,
     updatedAt: duel.updatedAt,

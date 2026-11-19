@@ -3,6 +3,7 @@ import { runTwoFactorGraceReminders } from "../modules/auth/security/twoFactorRe
 
 export const sendTwoFactorRemindersJob: Job = {
   name: "sendTwoFactorReminders",
+  cadence: "daily",
   description:
     "Rappelle aux OWNER et ADMIN (à 7, 3 et 1 jour de l'échéance) de configurer la double authentification obligatoire",
   async run(now = new Date()) {
