@@ -18,7 +18,6 @@ export interface MatchCreatedPayload {
   userAId: string;
   userBId: string;
   initiatorId: string;
-  initiatorSeesAnnouncement?: boolean;
 }
 
 export interface OfferingSentPayload {

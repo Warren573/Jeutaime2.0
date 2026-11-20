@@ -153,8 +153,14 @@ export function isViewingDestination(current: CurrentLocation | null | undefined
 }
 
 /** Faux quand la bannière (et le son) seraient redondants avec l'écran déjà ouvert. */
+export function foregroundMatchId(data: unknown): string | undefined {
+  if (!data || typeof data !== 'object') return;
+  const { type, matchId } = data as Record<string, unknown>;
+  return type === 'MATCH_CREATED' && isSafeId(matchId) ? matchId : undefined;
+}
+
 export function shouldShowForegroundBanner(current: CurrentLocation | null | undefined, data: unknown): boolean {
-  return !isViewingDestination(current, resolvePushDestination(data));
+  return !foregroundMatchId(data) && !isViewingDestination(current, resolvePushDestination(data));
 }
 
 // ============================================================

@@ -132,7 +132,7 @@ export default function ProfileRoute() {
     if (!profileId || isOwnProfile || isSmiling || reactionStatus?.outgoingType === 'SMILE') return;
     setIsSmiling(true);
     try {
-      const result = await sendReaction(profileId, 'SMILE', { showsMatchAnnouncement: true });
+      const result = await sendReaction(profileId, 'SMILE');
       const refreshedStatus = await getReactionStatus(profileId).catch(() => ({
         outgoingType: 'SMILE' as const,
         incomingType: null,
@@ -142,7 +142,7 @@ export default function ProfileRoute() {
       if (refreshedStatus.mutualSmile) {
         if (result.matchId) {
           const matchId = result.matchId;
-          announceMutualMatch(() => {
+          announceMutualMatch(matchId, () => {
             router.push({
               pathname: '/(tabs)/letters',
               params: { questionsMatchId: matchId },

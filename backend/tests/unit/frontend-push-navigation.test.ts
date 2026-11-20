@@ -722,3 +722,12 @@ describe("appuis concurrents : file ordonnée, rien n'est écrasé", () => {
     expect(nav.mock.calls.map((c) => c[0])).toEqual(["/security", route("m1"), "/admin-messages"]);
   });
 });
+
+it("réserve la bannière système aux matchs hors premier plan ou sans identifiant exploitable", () => {
+  const current = { pathname: "/discover" };
+  const prefs = { sound: true, vibration: true };
+  expect(foregroundPresentation(current, { type: "MATCH_CREATED", matchId: "m1" }, prefs)).toEqual({
+    showBanner: false, showList: false, playSound: false, vibrate: false,
+  });
+  expect(foregroundPresentation(current, { type: "MATCH_CREATED" }, prefs).showBanner).toBe(true);
+});

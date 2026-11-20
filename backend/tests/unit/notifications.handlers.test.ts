@@ -70,16 +70,11 @@ vi.mock("../../src/config/logger", () => ({
 
 // createNotification : c'est ce qu'on veut observer
 // Utiliser vi.hoisted pour que le mock existe AVANT les vi.mock hoistés
-const { createNotificationMock, sendPushToUserMock } = vi.hoisted(() => ({
+const { createNotificationMock } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
-  sendPushToUserMock: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../../src/modules/notifications/notifications.service", () => ({
   createNotification: createNotificationMock,
-}));
-
-vi.mock("../../src/modules/notifications/push.service", () => ({
-  sendPushToUser: sendPushToUserMock,
 }));
 
 // Maintenant on peut importer handlers (side-effect : enregistre les listeners)
@@ -92,7 +87,6 @@ import { NotificationType } from "@prisma/client";
 const flushAsync = () => new Promise((r) => setImmediate(r));
 
 beforeEach(() => {
-  sendPushToUserMock.mockClear();
   createNotificationMock.mockReset();
   createNotificationMock.mockResolvedValue({});
 });
@@ -130,13 +124,12 @@ describe("handlers: letterSent → Notification", () => {
 // matchCreated → MATCH_CREATED × 2
 // ============================================================
 describe("handlers: matchCreated → 2 Notifications", () => {
-  it.each([false, true])("garde les deux notifications du Journal (annonce locale : %s)", async (initiatorSeesAnnouncement) => {
+  it("crée une notification pour chaque user", async () => {
     emitter.emit("matchCreated", {
       matchId: "m1",
       userAId: "u1",
       userBId: "u2",
       initiatorId: "u1",
-      ...(initiatorSeesAnnouncement ? { initiatorSeesAnnouncement } : {}),
     });
     await flushAsync();
     await flushAsync();
@@ -152,9 +145,6 @@ describe("handlers: matchCreated → 2 Notifications", () => {
     expect(bCall).toBeDefined();
     expect(aCall![0].meta).toEqual({ matchId: "m1", otherUserId: "u2" });
     expect(bCall![0].meta).toEqual({ matchId: "m1", otherUserId: "u1" });
-    expect(sendPushToUserMock.mock.calls.map(([push]) => push.userId)).toEqual(
-      initiatorSeesAnnouncement ? ["u2"] : ["u1", "u2"],
-    );
   });
 });
 

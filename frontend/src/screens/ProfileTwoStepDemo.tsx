@@ -333,11 +333,11 @@ export default function ProfileTwoStepDemo() {
     setRemovedIds(newRemovedIds);
 
     try {
-      const result = await sendReaction(targetProfile.userId, type, { showsMatchAnnouncement: type === 'SMILE' });
+      const result = await sendReaction(targetProfile.userId, type);
       if (type === "SMILE" && result.debugBranch === "NEW-MATCH" && result.matchId) {
         const matchId = result.matchId;
         await loadMatches();
-        announceMutualMatch(() => {
+        announceMutualMatch(matchId, () => {
           router.push({ pathname: "/(tabs)/letters", params: { questionsMatchId: matchId } });
         });
       }
