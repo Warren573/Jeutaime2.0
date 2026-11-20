@@ -16,6 +16,7 @@ import { DEFAULT_AVATAR } from '../avatar/png/defaults';
 import {
   createPrivateDuel,
   getPrivateDuelStats,
+  getPendingPrivateDuels,
   listPrivateDuelCandidates,
   listPrivateDuels,
   type PrivateDuelCandidate,
@@ -79,8 +80,7 @@ export default function DuelCreateScreen() {
     }
   };
 
-  const now = Date.now();
-  const pendingDuels = duels.filter((duel) => duel.status === 'PENDING' && Date.parse(duel.expiresAt) > now);
+  const pendingDuels = getPendingPrivateDuels(duels);
   const busyOpponentIds = new Set(pendingDuels.map((duel) => duel.opponentId));
   const availableCandidates = candidates.filter((candidate) => !busyOpponentIds.has(candidate.id));
   const recentResolved = duels.filter((d) => d.status === 'RESOLVED').slice(0, 5);

@@ -26,6 +26,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useRouter, useLocalSearchParams, Link, useFocusEffect } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matches';
+import { getPendingPrivateDuels, listPrivateDuels, type PrivateDuelDTO } from '../api/privateDuels';
 import { reportUser, type ReportReason } from '../api/profiles';
 import type { Letter, Match } from '../shared/types';
 import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
@@ -709,6 +710,39 @@ export default function LettersScreen() {
       loadMatches();
     }, [loadMatches]),
   );
+  const userId = currentUser?.id;
+  const [duelInbox, setDuelInbox] = useState<{ userId: string; duels: PrivateDuelDTO[] } | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) {
+        setDuelInbox(null);
+        return;
+      }
+
+      let active = true;
+      void listPrivateDuels().then(
+        (duels) => { if (active) setDuelInbox({ userId, duels }); },
+        () => { if (active) setDuelInbox(null); },
+      );
+
+      return () => { active = false; };
+    }, [userId]),
+  );
+
+  const pendingDuels = duelInbox && duelInbox.userId === userId
+    ? getPendingPrivateDuels(duelInbox.duels)
+    : [];
+  const duelCount = pendingDuels.length;
+  const myDuelTurnCount = pendingDuels.filter((duel) => !duel.hasPlayed).length;
+  const duelTitle = duelCount === 0
+    ? 'Lancer un duel'
+    : duelCount === 1 ? '1 duel en attente' : `${duelCount} duels en attente`;
+  const duelSubtitle = duelCount === 0
+    ? 'Pierre, papier, ciseaux'
+    : myDuelTurnCount === 0 ? (duelCount === 1 ? 'En attente de ton adversaire' : 'En attente de tes adversaires')
+    : myDuelTurnCount === 1 ? 'À toi de jouer dans 1 duel'
+    : `À toi de jouer dans ${myDuelTurnCount} duels`;
+
   const screenBg = useStore(s => s.screenBackgrounds?.['letters'] ?? '#FFF8E7');
 
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -1010,13 +1044,15 @@ export default function LettersScreen() {
   const renderLettersContent = () => (
           <>
             <TouchableOpacity
-              style={styles.duelBtn}
+              style={[styles.duelBtn, myDuelTurnCount > 0 && styles.duelBtnActionRequired]}
+              accessibilityRole="button"
+              accessibilityLabel={`${duelTitle}. ${duelSubtitle}`}
               onPress={() => router.push('/duel/create')}
             >
               <View style={styles.duelBtnIconBox}><MaterialCommunityIcons name="sword-cross" size={24} color="#5A3825" /></View>
               <View style={styles.duelBtnTextWrap}>
-                <Text style={styles.duelBtnTitle}>Lancer un duel</Text>
-                <Text style={styles.duelBtnSubtitle}>Défiez un contact en Pierre • Papier • Ciseaux</Text>
+                <Text style={styles.duelBtnTitle}>{duelTitle}</Text>
+                <Text style={[styles.duelBtnSubtitle, myDuelTurnCount > 0 && styles.duelBtnActionText]}>{duelSubtitle}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9C3045" />
             </TouchableOpacity>
@@ -1808,6 +1844,8 @@ const styles = StyleSheet.create({
   },
 
   duelBtnIconBox: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3E8D5', marginRight: 12 },
+  duelBtnActionRequired: { borderColor: '#9C3045' },
+  duelBtnActionText: { color: '#8B2E3C', fontWeight: '700' },
   duelBtnEmoji: { fontSize: 19, marginRight: 10 },
   duelBtnTextWrap: { flex: 1, minWidth: 0 },
   duelBtnTitle: { color: '#3A2818', fontSize: 13.5, fontWeight: '700' },
