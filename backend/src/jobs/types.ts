@@ -16,12 +16,15 @@ export interface JobResult {
   durationMs: number;
   /** Message d'erreur si le job a échoué */
   error?: string;
+  retryPending?: boolean;
 }
 
 export interface Job {
   readonly name: string;
   readonly description: string;
   readonly cadence?: "hourly" | "daily";
+  /** Returns null until the current scheduled window is ready. */
+  scheduleKey?(now: Date): string | null;
   /**
    * Exécute le job. `now` est injectable pour la testabilité.
    * Le runner remplit `durationMs` — le job peut retourner 0.

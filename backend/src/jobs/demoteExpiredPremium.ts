@@ -17,6 +17,7 @@ const JOB_NAME = "demoteExpiredPremium";
 
 export const demoteExpiredPremiumJob: Job = {
   name: JOB_NAME,
+  cadence: "daily",
   description:
     "Passe en FREE les utilisateurs dont le Premium est expiré (premiumUntil <= now).",
 

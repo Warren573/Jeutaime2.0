@@ -14,6 +14,7 @@ const JOB_NAME = "expireCardGames";
 
 export const expireCardGamesJob: Job = {
   name: JOB_NAME,
+  cadence: "hourly",
   description:
     "Passe en EXPIRED les sessions CardGame ACTIVE dont expiresAt <= now.",
 

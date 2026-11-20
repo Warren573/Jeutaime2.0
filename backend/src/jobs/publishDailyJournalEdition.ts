@@ -1,6 +1,6 @@
 import type { Job } from "./types";
 import { env } from "../config/env";
-import { sendDailyEditionPush } from "../modules/notifications/push.service";
+import { sendDailyEditionPushWithRetryStatus } from "../modules/notifications/push.service";
 
 function parisParts(now: Date) {
   const parts = new Intl.DateTimeFormat("fr-FR", {
@@ -22,6 +22,10 @@ function parisParts(now: Date) {
 export const publishDailyJournalEditionJob: Job = {
   name: "publishDailyJournalEdition",
   description: "Envoie une fois par jour la notification de l'Édition du jour",
+  scheduleKey(now) {
+    const { key, hour } = parisParts(now);
+    return hour >= env.DAILY_EDITION_PUSH_HOUR ? key : null;
+  },
   async run(now = new Date()) {
     const { key, hour } = parisParts(now);
     if (hour < env.DAILY_EDITION_PUSH_HOUR) {
@@ -33,7 +37,7 @@ export const publishDailyJournalEditionJob: Job = {
       };
     }
 
-    const result = await sendDailyEditionPush({
+    const result = await sendDailyEditionPushWithRetryStatus({
       editionKey: key,
       title: "Le JeuTaime — Édition du jour",
       body: "Votre édition du jour est disponible.",
@@ -43,6 +47,7 @@ export const publishDailyJournalEditionJob: Job = {
       jobName: "publishDailyJournalEdition",
       scanned: result.scanned,
       affected: result.sent,
+      retryPending: result.retryPending,
       durationMs: 0,
     };
   },

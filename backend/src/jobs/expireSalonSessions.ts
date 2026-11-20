@@ -5,6 +5,7 @@ const JOB_NAME = "expireSalonSessions";
 
 export const expireSalonSessionsJob: Job = {
   name: JOB_NAME,
+  cadence: "hourly",
   description: "Expire salon sessions where expiresAt <= now.",
 
   async run(): Promise<JobResult> {
