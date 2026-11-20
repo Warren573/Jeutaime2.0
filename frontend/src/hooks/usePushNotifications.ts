@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import Constants from 'expo-constants';
@@ -11,6 +11,7 @@ import { getUserSettings } from '../api/userSettings';
 import {
   badgeCountFor,
   createPushNavigator,
+  foregroundMatchId,
   foregroundPresentation,
   isAlreadyAtRoute,
   onForegroundNotification,
@@ -21,6 +22,8 @@ import {
   type PushResponseLike,
 } from '../utils/pushNavigation';
 
+import { announceMutualMatch } from '../utils/announceMutualMatch';
+
 let foregroundSoundEnabled = true;
 let foregroundVibrationEnabled = true;
 // Écran actuellement affiché, tenu à jour par le hook : sert à ne pas afficher de bannière
@@ -30,6 +33,14 @@ let currentLocation: CurrentLocation | null = null;
 // Show push in foreground as banner + badge + sound — sauf si l'écran concerné est déjà ouvert.
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
+    if (AppState.currentState !== 'active' && foregroundMatchId(notification.request.content.data)) {
+      return {
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: foregroundSoundEnabled,
+        shouldSetBadge: true,
+      };
+    }
     const p = foregroundPresentation(currentLocation, notification.request.content.data, {
       sound: foregroundSoundEnabled,
       vibration: foregroundVibrationEnabled,
@@ -212,9 +223,17 @@ export function usePushNotifications(sessionReady: boolean = true) {
     // Bannière, son ET vibration sont supprimés ensemble quand l'écran concerné est déjà affiché ;
     // le compteur de notifications non lues est toujours actualisé.
     receivedListenerRef.current = Notifications.addNotificationReceivedListener((notification) => {
+      const data = notification.request.content.data;
+      const matchId = foregroundMatchId(data);
+      if (matchId && AppState.currentState === 'active') {
+        const destination = { pathname: '/(tabs)/letters', params: { questionsMatchId: matchId } } as const;
+        if (!isAlreadyAtRoute(currentLocation, `/(tabs)/letters?questionsMatchId=${matchId}`)) {
+          announceMutualMatch(matchId, () => routerRef.current.push(destination));
+        }
+      }
       onForegroundNotification({
         current: currentLocation,
-        data: notification.request.content.data,
+        data,
         prefs: { sound: foregroundSoundEnabled, vibration: foregroundVibrationEnabled },
         vibrate: () => {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});

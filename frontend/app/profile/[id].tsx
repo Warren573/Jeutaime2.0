@@ -142,7 +142,7 @@ export default function ProfileRoute() {
       if (refreshedStatus.mutualSmile) {
         if (result.matchId) {
           const matchId = result.matchId;
-          announceMutualMatch(() => {
+          announceMutualMatch(matchId, () => {
             router.push({
               pathname: '/(tabs)/letters',
               params: { questionsMatchId: matchId },

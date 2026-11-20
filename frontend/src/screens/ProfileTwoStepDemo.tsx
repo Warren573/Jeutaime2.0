@@ -337,7 +337,7 @@ export default function ProfileTwoStepDemo() {
       if (type === "SMILE" && result.debugBranch === "NEW-MATCH" && result.matchId) {
         const matchId = result.matchId;
         await loadMatches();
-        announceMutualMatch(() => {
+        announceMutualMatch(matchId, () => {
           router.push({ pathname: "/(tabs)/letters", params: { questionsMatchId: matchId } });
         });
       }
