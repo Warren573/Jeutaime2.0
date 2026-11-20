@@ -41,6 +41,10 @@ export interface PrivateDuelDTO {
   result: PrivateDuelResult;
 }
 
+export function getPendingPrivateDuels(duels: readonly PrivateDuelDTO[], now = Date.now()): PrivateDuelDTO[] {
+  return duels.filter((duel) => duel.status === "PENDING" && Date.parse(duel.expiresAt) > now);
+}
+
 export async function listPrivateDuelCandidates(): Promise<PrivateDuelCandidate[]> {
   const res = await apiFetch("/private-duels/candidates") as { data: PrivateDuelCandidate[] };
   return res?.data ?? [];
