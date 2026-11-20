@@ -1,6 +1,6 @@
 import type { Job } from "./types";
 import { env } from "../config/env";
-import { sendDailyEditionPush } from "../modules/notifications/push.service";
+import { sendDailyEditionPushWithRetryStatus } from "../modules/notifications/push.service";
 
 function parisParts(now: Date) {
   const parts = new Intl.DateTimeFormat("fr-FR", {
@@ -37,7 +37,7 @@ export const publishDailyJournalEditionJob: Job = {
       };
     }
 
-    const result = await sendDailyEditionPush({
+    const result = await sendDailyEditionPushWithRetryStatus({
       editionKey: key,
       title: "Le JeuTaime — Édition du jour",
       body: "Votre édition du jour est disponible.",

@@ -318,11 +318,18 @@ function chunk<T>(items: T[], size: number): T[][] {
  */
 const dailyEditionInFlight = new Set<string>();
 
-export async function sendDailyEditionPush(params: {
+interface DailyEditionPushParams {
   editionKey: string;
   title: string;
   body: string;
-}): Promise<{ scanned: number; sent: number; retryPending: boolean }> {
+}
+
+export async function sendDailyEditionPush(params: DailyEditionPushParams): Promise<{ scanned: number; sent: number }> {
+  const { scanned, sent } = await sendDailyEditionPushWithRetryStatus(params);
+  return { scanned, sent };
+}
+
+export async function sendDailyEditionPushWithRetryStatus(params: DailyEditionPushParams): Promise<{ scanned: number; sent: number; retryPending: boolean }> {
   if (dailyEditionInFlight.has(params.editionKey)) {
     logger.info({ editionKey: params.editionKey }, "[push] édition du jour déjà en cours d'envoi, exécution ignorée");
     return { scanned: 0, sent: 0, retryPending: true };
