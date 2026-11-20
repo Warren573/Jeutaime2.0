@@ -322,10 +322,10 @@ export async function sendDailyEditionPush(params: {
   editionKey: string;
   title: string;
   body: string;
-}): Promise<{ scanned: number; sent: number }> {
+}): Promise<{ scanned: number; sent: number; retryPending: boolean }> {
   if (dailyEditionInFlight.has(params.editionKey)) {
     logger.info({ editionKey: params.editionKey }, "[push] édition du jour déjà en cours d'envoi, exécution ignorée");
-    return { scanned: 0, sent: 0 };
+    return { scanned: 0, sent: 0, retryPending: true };
   }
   dailyEditionInFlight.add(params.editionKey);
   try {
@@ -339,7 +339,7 @@ async function sendDailyEditionPushUnsafe(params: {
   editionKey: string;
   title: string;
   body: string;
-}): Promise<{ scanned: number; sent: number }> {
+}): Promise<{ scanned: number; sent: number; retryPending: boolean }> {
   const rows = await prisma.pushToken.findMany({
     where: {
       AND: [
@@ -372,6 +372,7 @@ async function sendDailyEditionPushUnsafe(params: {
       isExpoPushToken(row.token),
   );
   let sent = 0;
+  let retryPending = false;
 
   for (const batch of chunk(eligible, EXPO_BATCH_SIZE)) {
     const messages: ExpoPushMessage[] = batch.map((row) => ({
@@ -386,6 +387,7 @@ async function sendDailyEditionPushUnsafe(params: {
 
     const outcome = await postPushBatch(messages);
     if (outcome.kind === "failed") {
+      retryPending = true;
       // Les jetons du lot gardent leur clé : la prochaine exécution du job réessaie.
       void recordSystemIncident({
         level: outcome.retryable ? "WARNING" : "ERROR",
@@ -402,6 +404,7 @@ async function sendDailyEditionPushUnsafe(params: {
     const accepted: Array<{ ticketId: string; token: string; userId: string; sentAt: number }> = [];
     const sentAt = Date.now();
 
+    if (outcome.tickets.length < batch.length) retryPending = true;
     outcome.tickets.forEach((ticket, index) => {
       const row = batch[index];
       if (!row) return;
@@ -412,6 +415,7 @@ async function sendDailyEditionPushUnsafe(params: {
       } else if (classifyExpoError(ticket.details?.error) === "invalid_token") {
         invalidIds.push(row.id);
       } else {
+        retryPending = true;
         logger.warn({ code: ticket.details?.error }, "[push] ticket édition quotidienne en erreur (jeton conservé)");
       }
     });
@@ -428,7 +432,7 @@ async function sendDailyEditionPushUnsafe(params: {
     if (accepted.length > 0) rememberTickets(accepted);
   }
 
-  return { scanned: rows.length, sent };
+  return { scanned: rows.length, sent, retryPending };
 }
 
 // Retire uniquement le token de l'utilisateur authentifié.

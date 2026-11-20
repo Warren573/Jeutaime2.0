@@ -18,6 +18,7 @@ const JOB_NAME = "closeRefugeDays";
 
 export const closeRefugeDaysJob: Job = {
   name: JOB_NAME,
+  cadence: "hourly",
   description:
     "Clôture les journées de Refuge échues : résultat final persisté + pièces (idempotent).",
 

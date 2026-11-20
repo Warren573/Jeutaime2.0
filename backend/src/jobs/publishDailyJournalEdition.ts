@@ -22,6 +22,10 @@ function parisParts(now: Date) {
 export const publishDailyJournalEditionJob: Job = {
   name: "publishDailyJournalEdition",
   description: "Envoie une fois par jour la notification de l'Édition du jour",
+  scheduleKey(now) {
+    const { key, hour } = parisParts(now);
+    return hour >= env.DAILY_EDITION_PUSH_HOUR ? key : null;
+  },
   async run(now = new Date()) {
     const { key, hour } = parisParts(now);
     if (hour < env.DAILY_EDITION_PUSH_HOUR) {
@@ -43,6 +47,7 @@ export const publishDailyJournalEditionJob: Job = {
       jobName: "publishDailyJournalEdition",
       scanned: result.scanned,
       affected: result.sent,
+      retryPending: result.retryPending,
       durationMs: 0,
     };
   },

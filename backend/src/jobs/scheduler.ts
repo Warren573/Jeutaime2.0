@@ -6,7 +6,7 @@
  *
  * Implémentation volontairement simple (setInterval + unref) pour
  * éviter toute dépendance externe (node-cron, bullmq, etc.). Les jobs
- * sont exécutés en parallèle (`Promise.all`) car ils sont indépendants
+ * sont exécutés en parallèle (without waiting for each other) car ils sont indépendants
  * et idempotents.
  */
 import { logger } from "../config/logger";
@@ -35,7 +35,7 @@ export function startScheduler(config: SchedulerConfig): SchedulerHandle {
   );
 
   // Hourly and daily jobs share UTC time windows. Failed jobs can retry on the next tick.
-  const completedWindows = new Map<Job, number>();
+  const completedWindows = new Map<Job, string | number>();
   const running = new Set<Job>();
 
   const tick = () => {
@@ -43,15 +43,17 @@ export function startScheduler(config: SchedulerConfig): SchedulerHandle {
 
     for (const job of jobs) {
       const windowMs = job.cadence === "daily" ? 86_400_000 : 3_600_000;
-      const window = Math.floor(now.getTime() / windowMs);
+      const window = job.scheduleKey
+        ? job.scheduleKey(now)
+        : job.cadence && Math.floor(now.getTime() / windowMs);
 
-      if (running.has(job)) continue;
-      if (job.cadence && completedWindows.get(job) === window) continue;
+      if (window === null || running.has(job)) continue;
+      if (window !== undefined && completedWindows.get(job) === window) continue;
 
       running.add(job);
       void runJob(job, now)
         .then((result) => {
-          if (job.cadence && result.error === undefined) {
+          if (window !== undefined && result.error === undefined && !result.retryPending) {
             completedWindows.set(job, window);
           }
         })
