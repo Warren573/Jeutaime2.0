@@ -27,10 +27,11 @@ export interface ReactionStatusDTO {
 export async function sendReaction(
   toId: string,
   type: ReactionType,
+  options?: { showsMatchAnnouncement: boolean },
 ): Promise<ReactionDTO> {
   const res = await apiFetch("/discover/react", {
     method: "POST",
-    body: JSON.stringify({ toId, type }),
+    body: JSON.stringify({ toId, type, showsMatchAnnouncement: options?.showsMatchAnnouncement }),
   });
   return res.data;
 }

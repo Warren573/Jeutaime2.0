@@ -132,7 +132,7 @@ export default function ProfileRoute() {
     if (!profileId || isOwnProfile || isSmiling || reactionStatus?.outgoingType === 'SMILE') return;
     setIsSmiling(true);
     try {
-      const result = await sendReaction(profileId, 'SMILE');
+      const result = await sendReaction(profileId, 'SMILE', { showsMatchAnnouncement: true });
       const refreshedStatus = await getReactionStatus(profileId).catch(() => ({
         outgoingType: 'SMILE' as const,
         incomingType: null,

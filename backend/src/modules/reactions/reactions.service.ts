@@ -126,7 +126,13 @@ export async function sendReaction(fromId: string, dto: SendReactionDto) {
     });
   });
 
-  emitMatchCreated({ matchId: match.id, userAId, userBId, initiatorId: fromId });
+  emitMatchCreated({
+    matchId: match.id,
+    userAId,
+    userBId,
+    initiatorId: fromId,
+    initiatorSeesAnnouncement: dto.showsMatchAnnouncement,
+  });
 
   return {
     id: reaction.id,

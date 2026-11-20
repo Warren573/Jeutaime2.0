@@ -333,7 +333,7 @@ export default function ProfileTwoStepDemo() {
     setRemovedIds(newRemovedIds);
 
     try {
-      const result = await sendReaction(targetProfile.userId, type);
+      const result = await sendReaction(targetProfile.userId, type, { showsMatchAnnouncement: type === 'SMILE' });
       if (type === "SMILE" && result.debugBranch === "NEW-MATCH" && result.matchId) {
         const matchId = result.matchId;
         await loadMatches();

@@ -96,7 +96,7 @@ emitter.on("matchCreated", async (payload) => {
   }
 });
 
-// matchCreated → notifications + push pour les 2 users
+// matchCreated → notifications pour les deux participants
 emitter.on("matchCreated", async (payload) => {
   try {
     const metaA = { matchId: payload.matchId, otherUserId: payload.userBId };
@@ -105,10 +105,16 @@ emitter.on("matchCreated", async (payload) => {
       createNotification({ userId: payload.userAId, type: NotificationType.MATCH_CREATED, meta: metaA }),
       createNotification({ userId: payload.userBId, type: NotificationType.MATCH_CREATED, meta: metaB }),
     ]);
-    const pushA = buildPushPayload(NotificationType.MATCH_CREATED, metaA);
-    const pushB = buildPushPayload(NotificationType.MATCH_CREATED, metaB);
-    void sendPushToUser({ userId: payload.userAId, ...pushA, idempotencyKey: `match:${payload.matchId}` });
-    void sendPushToUser({ userId: payload.userBId, ...pushB, idempotencyKey: `match:${payload.matchId}` });
+    const recipients = [
+      { userId: payload.userAId, meta: metaA },
+      { userId: payload.userBId, meta: metaB },
+    ];
+    for (const { userId, meta } of recipients) {
+      if (payload.initiatorSeesAnnouncement && userId === payload.initiatorId) continue;
+
+      const push = buildPushPayload(NotificationType.MATCH_CREATED, meta);
+      void sendPushToUser({ userId, ...push, idempotencyKey: `match:${payload.matchId}` });
+    }
   } catch (err) {
     logger.error(
       { err, payload },
