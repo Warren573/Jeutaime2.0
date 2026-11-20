@@ -34,8 +34,29 @@ export function startScheduler(config: SchedulerConfig): SchedulerHandle {
     "[jobs] scheduler démarré",
   );
 
+  // Hourly and daily jobs share UTC time windows. Failed jobs can retry on the next tick.
+  const completedWindows = new Map<Job, number>();
+  const running = new Set<Job>();
+
   const tick = () => {
-    void Promise.all(jobs.map((j) => runJob(j)));
+    const now = new Date();
+
+    for (const job of jobs) {
+      const windowMs = job.cadence === "daily" ? 86_400_000 : 3_600_000;
+      const window = Math.floor(now.getTime() / windowMs);
+
+      if (running.has(job)) continue;
+      if (job.cadence && completedWindows.get(job) === window) continue;
+
+      running.add(job);
+      void runJob(job, now)
+        .then((result) => {
+          if (job.cadence && result.error === undefined) {
+            completedWindows.set(job, window);
+          }
+        })
+        .finally(() => running.delete(job));
+    }
   };
 
   const handle = setInterval(tick, intervalMs);
