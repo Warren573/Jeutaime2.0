@@ -121,6 +121,7 @@ export async function debitWallet(input: DebitInput): Promise<{
   const { userId, amount, type, meta } = input;
 
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "userId" FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
     const current = await readWalletTx(tx, userId);
 
     // Pure : throws NotEnoughCoinsError / BadRequestError si invalide
@@ -166,6 +167,7 @@ export async function creditWallet(input: CreditInput): Promise<{
   const { userId, amount, type, meta } = input;
 
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "userId" FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
     const current = await readWalletTx(tx, userId);
     const newBalance = computeCreditBalance(current.coins, amount);
 
@@ -236,6 +238,7 @@ export async function claimDailyBonus(
   userId: string,
 ): Promise<DailyBonusResult> {
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "userId" FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
     const wallet = await readWalletTx(tx, userId);
 
     // Statut premium : on le re-lit en transaction pour être cohérent
