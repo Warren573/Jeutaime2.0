@@ -70,6 +70,7 @@ export default function AdoptPage() {
       const result = await refugeApi.adopt(refugeSessionId);
       if (result && result.id) {
         router.replace('/refuge');
+        Alert.alert('Tu viens d’adopter un animal !', 'Votre aventure de sept jours commence.');
       }
     } catch (error: any) {
       Alert.alert('Erreur', error.message || 'Erreur lors de l&apos;adoption');
