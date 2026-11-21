@@ -121,9 +121,9 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const statusTitle = hideActionsForToday
     ? 'Journée terminée'
     : isWaiting
-      ? "En attente d’un adoptant…"
+      ? "Tu viens d’incarner un animal."
       : refuge.role === 'adoptant'
-        ? (refuge.adopteSubmittedToday ? 'À toi de le deviner…' : 'Ton compagnon réfléchit encore…')
+        ? (refuge.adopteSubmittedToday ? 'Ton compagnon s’est réveillé et t’attend.' : 'Ton compagnon réfléchit encore…')
         : refuge.adopteSubmittedToday
           ? 'Tes choix sont notés pour aujourd’hui'
           : 'Choisis deux gestes aujourd’hui';
@@ -131,11 +131,11 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const statusBody = hideActionsForToday
     ? (refuge.todayResult?.message || 'Rendez-vous demain pour la suite du Refuge.')
     : isWaiting
-      ? 'Ton compagnon apparaîtra dans la liste des refuges disponibles. Le jeu commence dès qu’il est adopté.'
+      ? 'Ton aventure commence dès que quelqu’un t’adopte.'
       : refuge.role === 'adoptant'
         ? (refuge.adopteSubmittedToday ? 'Choisis les deux gestes qui lui ressemblent le plus.' : 'Dès que ses choix sont faits, tu pourras essayer de les deviner.')
         : refuge.adopteSubmittedToday
-          ? 'Il ne reste plus qu’à attendre la réponse de ton compagnon.'
+          ? 'Il ne reste plus qu’à attendre la réponse de ton parrain.'
           : '';
 
   return (
@@ -155,7 +155,9 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
             <View style={styles.dayDone}>
               <Text style={styles.dayDoneTitle}>C’est tout pour aujourd’hui</Text>
               <Text style={styles.dayDoneText}>
-                Vous avez tous les deux terminé. Votre compagnon se repose jusqu’à demain.
+                {refuge.role === 'adopte' && bothParticipantsDone
+                  ? 'Ton parrain est passé au Refuge. Viens voir ce qui t’attend.'
+                  : 'Vous avez tous les deux terminé pour aujourd’hui.'}
               </Text>
             </View>
           ) : (
