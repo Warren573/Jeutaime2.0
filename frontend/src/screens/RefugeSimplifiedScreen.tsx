@@ -118,6 +118,11 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
 
   if (refuge.isLoading) return <SafeAreaView style={styles.loading}><ActivityIndicator /><Text>Chargement du refuge…</Text></SafeAreaView>;
 
+  const sponsor = refuge.sponsorRole === 'parrain' ? 'ton parrain' : refuge.sponsorRole === 'marraine' ? 'ta marraine' : null;
+  const visitMessage = sponsor
+    ? `${sponsor === 'ton parrain' ? 'Ton parrain est passé' : 'Ta marraine est passée'} au Refuge. Viens voir ce qui t’attend !`
+    : 'Tu as de la visite au Refuge ! Viens voir ce qui t’attend.';
+
   const statusTitle = hideActionsForToday
     ? 'Journée terminée'
     : isWaiting
@@ -135,7 +140,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
       : refuge.role === 'adoptant'
         ? (refuge.adopteSubmittedToday ? 'Choisis les deux gestes qui lui ressemblent le plus.' : 'Dès que ses choix sont faits, tu pourras essayer de les deviner.')
         : refuge.adopteSubmittedToday
-          ? 'Il ne reste plus qu’à attendre la réponse de ton parrain.'
+          ? (sponsor ? `Il ne reste plus qu’à attendre la réponse de ${sponsor}.` : 'Tu attends encore une réponse.')
           : '';
 
   return (
@@ -156,7 +161,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
               <Text style={styles.dayDoneTitle}>C’est tout pour aujourd’hui</Text>
               <Text style={styles.dayDoneText}>
                 {refuge.role === 'adopte' && bothParticipantsDone
-                  ? 'Ton parrain est passé au Refuge. Viens voir ce qui t’attend.'
+                  ? visitMessage
                   : 'Vous avez tous les deux terminé pour aujourd’hui.'}
               </Text>
             </View>
