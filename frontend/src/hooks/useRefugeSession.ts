@@ -9,6 +9,7 @@ interface RefugeSessionState {
   status: string;
   canAttemptToday: boolean;
   todaySubmitted: boolean;
+  sponsorRole: "parrain" | "marraine" | null;
   adopteSubmittedToday: boolean;
   adoptantSubmittedToday: boolean;
   dayCompleted: boolean;
@@ -70,6 +71,7 @@ export function useRefugeSession(sessionId: string | null) {
     status: "ACTIVE",
     canAttemptToday: true,
     todaySubmitted: false,
+    sponsorRole: null,
     adopteSubmittedToday: false,
     adoptantSubmittedToday: false,
     dayCompleted: false,
@@ -131,6 +133,7 @@ export function useRefugeSession(sessionId: string | null) {
         status: data.status,
         canAttemptToday: data.canAttemptToday ?? false,
         todaySubmitted: data.todaySubmitted ?? false,
+        sponsorRole: data.sponsorRole ?? null,
         adopteSubmittedToday: data.adopteSubmittedToday ?? false,
         adoptantSubmittedToday: data.adoptantSubmittedToday ?? false,
         dayCompleted: data.dayCompleted ?? false,

@@ -118,12 +118,17 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
 
   if (refuge.isLoading) return <SafeAreaView style={styles.loading}><ActivityIndicator /><Text>Chargement du refuge…</Text></SafeAreaView>;
 
+  const sponsor = refuge.sponsorRole === 'parrain' ? 'ton parrain' : refuge.sponsorRole === 'marraine' ? 'ta marraine' : null;
+  const visitMessage = sponsor
+    ? `${sponsor === 'ton parrain' ? 'Ton parrain est passé' : 'Ta marraine est passée'} au Refuge. Viens voir ce qui t’attend !`
+    : 'Tu as de la visite au Refuge ! Viens voir ce qui t’attend.';
+
   const statusTitle = hideActionsForToday
     ? 'Journée terminée'
     : isWaiting
-      ? "En attente d’un adoptant…"
+      ? "Tu viens d’incarner un animal."
       : refuge.role === 'adoptant'
-        ? (refuge.adopteSubmittedToday ? 'À toi de le deviner…' : 'Ton compagnon réfléchit encore…')
+        ? (refuge.adopteSubmittedToday ? 'Ton compagnon s’est réveillé et t’attend.' : 'Ton compagnon réfléchit encore…')
         : refuge.adopteSubmittedToday
           ? 'Tes choix sont notés pour aujourd’hui'
           : 'Choisis deux gestes aujourd’hui';
@@ -131,11 +136,11 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const statusBody = hideActionsForToday
     ? (refuge.todayResult?.message || 'Rendez-vous demain pour la suite du Refuge.')
     : isWaiting
-      ? 'Ton compagnon apparaîtra dans la liste des refuges disponibles. Le jeu commence dès qu’il est adopté.'
+      ? 'Ton aventure commence dès que quelqu’un t’adopte.'
       : refuge.role === 'adoptant'
         ? (refuge.adopteSubmittedToday ? 'Choisis les deux gestes qui lui ressemblent le plus.' : 'Dès que ses choix sont faits, tu pourras essayer de les deviner.')
         : refuge.adopteSubmittedToday
-          ? 'Il ne reste plus qu’à attendre la réponse de ton compagnon.'
+          ? (sponsor ? `Il ne reste plus qu’à attendre la réponse de ${sponsor}.` : 'Tu attends encore une réponse.')
           : '';
 
   return (
@@ -155,7 +160,9 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
             <View style={styles.dayDone}>
               <Text style={styles.dayDoneTitle}>C’est tout pour aujourd’hui</Text>
               <Text style={styles.dayDoneText}>
-                Vous avez tous les deux terminé. Votre compagnon se repose jusqu’à demain.
+                {refuge.role === 'adopte' && bothParticipantsDone
+                  ? visitMessage
+                  : 'Vous avez tous les deux terminé pour aujourd’hui.'}
               </Text>
             </View>
           ) : (

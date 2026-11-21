@@ -332,6 +332,7 @@ export class RefugeService {
     const refugeSession = await prisma.refugeSession.findUnique({
       where: { id: refugeSessionId },
       include: {
+        adoptant: { select: { profile: { select: { gender: true } } } },
         dailyChoices: {
           orderBy: { dayNumber: "asc" },
         },
@@ -533,8 +534,12 @@ export class RefugeService {
       }
     }
 
+    const sponsorGender = userId === refugeSession.adopteId ? refugeSession.adoptant?.profile?.gender : undefined;
+    const sponsorRole = sponsorGender === Gender.HOMME ? "parrain" : sponsorGender === Gender.FEMME ? "marraine" : undefined;
+
     return {
       ...this.mapToDTO(refugeSession),
+      ...(sponsorRole && { sponsorRole }),
       currentDay,
       timeRemaining,
       isActive,

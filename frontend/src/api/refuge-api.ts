@@ -47,6 +47,7 @@ export interface RefugeSession {
   hearts?: string[];
   canAttemptToday?: boolean;
   todaySubmitted?: boolean;
+  sponsorRole?: "parrain" | "marraine";
   adopteSubmittedToday?: boolean;
   adoptantSubmittedToday?: boolean;
   dayCompleted?: boolean;
