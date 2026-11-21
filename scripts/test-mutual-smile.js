@@ -3,7 +3,7 @@
 const https = require('https');
 const http = require('http');
 
-const API_URL = process.env.API_URL || 'https://jeutaime-staging.onrender.com/api';
+const API_URL = process.env.API_URL || 'http://localhost:3000/api';
 
 function makeRequest(method, path, body = null, headers = {}) {
   return new Promise((resolve, reject) => {
