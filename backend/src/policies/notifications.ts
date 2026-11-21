@@ -175,7 +175,7 @@ export function buildNotificationMessage(type: NotificationType, ctx?: Notificat
     case NotificationType.QUESTIONS_TURN:
       return "C'est à toi de répondre aux 3 questions";
     case NotificationType.REFUGE_ADOPTED:
-      return "Quelqu’un a rejoint ton Refuge. L’aventure commence !";
+      return "Tu as été adopté ! Votre aventure de sept jours commence.";
     case NotificationType.REFUGE_REVEAL_PHASE:
       return "Ton refuge arrive à son terme : choisis de te dévoiler ou non";
     case NotificationType.REFUGE_REVEALED:
