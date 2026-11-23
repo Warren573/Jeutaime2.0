@@ -16,7 +16,7 @@ import { getSalon } from '../api/salons';
 import { salonsData } from '../data/salonsData';
 import { getAnimalImage } from '../data/refugeAnimalImages';
 import { getAnimalLabel } from '../data/refugeAnimals';
-import { apiFetch } from '../api/client';
+import { refugeApi, type RefugeSession } from '../api/refuge-api';
 import { APP_COLORS, APP_RADIUS, APP_SPACING } from '../theme/appTheme';
 import { CoinIcon } from './CoinIcon';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -74,9 +74,24 @@ export function PersonalBoard() {
   const [companionBottom, setCompanionBottom] = useState(0);
   const [hasBottle, setHasBottle] = useState(false);
   const [salonName, setSalonName] = useState<string | null>(null);
-  const [refugeData, setRefugeData] = useState<{ animalType: string; todaySubmitted: boolean; isActive: boolean } | null>(null);
+  const [refugeSnapshot, setRefugeSnapshot] = useState<{ userId: string; session: RefugeSession | null } | null>(null);
+  const userId = currentUser?.id;
+  const refugeData = refugeSnapshot?.userId === userId ? refugeSnapshot?.session : null;
+  const isAnimal = !!refugeData && refugeData.adopteId === userId;
+  const isWaiting = refugeData?.status === 'CREATION' || refugeData?.status === 'WAITING_FOR_ADOPTANT';
+  let refugeStatus = 'Ouvre le Refuge pour voir la suite.';
+  if (isWaiting) {
+    refugeStatus = 'Tu attends d’être adopté.';
+  } else if (refugeData?.isActive && isAnimal) {
+    refugeStatus = refugeData.adopteSubmittedToday ? 'Tes choix du jour sont enregistrés.' : 'Choisis tes deux gestes du jour.';
+  } else if (refugeData?.isActive) {
+    refugeStatus = refugeData.todaySubmitted
+      ? 'Tes choix du jour sont enregistrés.'
+      : refugeData.adopteSubmittedToday
+        ? 'Ton compagnon s’est réveillé et t’attend.'
+        : 'Ton compagnon réfléchit encore…';
+  }
 
-  const checkRefugeSession = useCallback(async () => { try { const response = await apiFetch('/refuge/active'); if (response && response.data && response.data.animalType) setRefugeData({ animalType: response.data.animalType, todaySubmitted: response.data.todaySubmitted, isActive: response.data.isActive }); else setRefugeData(null); } catch {} }, []);
   useEffect(() => { (async () => { try { setOfferings(await getReceivedOfferings(1, 100, true)); } catch {} })(); }, []);
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -91,7 +106,14 @@ export function PersonalBoard() {
     return () => { active = false; clearInterval(interval); };
   }, []));
   useEffect(() => { if (!currentSalonId) { setSalonName(null); return; } (async () => { try { const data = await getSalon(currentSalonId); setSalonName(data.name); } catch {} })(); }, [currentSalonId]);
-  useFocusEffect(useCallback(() => { checkRefugeSession(); }, [checkRefugeSession]));
+  useFocusEffect(useCallback(() => {
+    if (!userId) return;
+    let active = true;
+    void refugeApi.getActive().then((session) => {
+      if (active) setRefugeSnapshot({ userId, session });
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [userId]));
 
   // Mêmes offrandes que le Bureau d'offrandes (ReceivedOfferingsScreen) : offrandes de bureau
   // (« desk_… ») actives et non consommées. Les offrandes de salon ne sont pas affichées ici.
@@ -123,7 +145,7 @@ export function PersonalBoard() {
         <Image source={WOOD_BG} resizeMode="stretch" style={styles.woodBackground} />
       </View>
       <Paper onPress={() => router.push(`/profile/${currentUser.id}`)} style={{ position: 'absolute', top: y(0.03), left: px(W, 0.03), width: profileW, transform: [{ rotate: '-3deg' }] }}>{currentUser.avatarConfig && <Avatar size={avatarSize} {...currentUser.avatarConfig} />}<Text style={styles.profileName}>{currentUser.name || 'Vous'}</Text></Paper>
-      <Paper onPress={() => router.push('/refuge')} onLayout={(e) => setCompanionBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)} style={{ position: 'absolute', top: y(0.03), right: px(W, 0.14), width: px(W, 0.38), transform: [{ rotate: '3deg' }] }}><Text style={styles.animalTitle}>Ton Compagnon</Text>{refugeData?.animalType ? <>{getAnimalImage(refugeData.animalType) ? <Image source={getAnimalImage(refugeData.animalType) ?? undefined} style={styles.animalImage} /> : <Text style={styles.animalIcon}>{getAnimalLabel(refugeData.animalType) || '🐾'}</Text>}<Text style={styles.animalStatus}>{refugeData.isActive && refugeData.todaySubmitted ? "Tu t'en es déjà occupé aujourd'hui" : refugeData.isActive ? "Il est temps de t'en occuper aujourd'hui" : "En attente d'un adoptant"}</Text></> : <><Text style={styles.animalIcon}>🐾</Text>{pet && <Text style={styles.animalName}>{pet.petName}</Text>}</>}</Paper>
+      <Paper onPress={() => router.push('/refuge')} onLayout={(e) => setCompanionBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)} style={{ position: 'absolute', top: y(0.03), right: px(W, 0.14), width: px(W, 0.38), transform: [{ rotate: '3deg' }] }}><Text style={styles.animalTitle}>{isAnimal ? 'Ton Refuge' : 'Ton Compagnon'}</Text>{refugeData?.animalType ? <>{getAnimalImage(refugeData.animalType) ? <Image source={getAnimalImage(refugeData.animalType) ?? undefined} style={styles.animalImage} /> : <Text style={styles.animalIcon}>{getAnimalLabel(refugeData.animalType) || '🐾'}</Text>}<Text style={styles.animalStatus}>{refugeStatus}</Text></> : <><Text style={styles.animalIcon}>🐾</Text>{pet && <Text style={styles.animalName}>{pet.petName}</Text>}</>}</Paper>
       <TouchableOpacity onPress={() => router.push('/settings')} activeOpacity={0.65} style={[styles.settingsButton, { top: y(0.045), right: px(W, 0.018) }]} accessibilityRole="button" accessibilityLabel="Paramètres"><Ionicons name="settings-outline" size={27} color={J.textMain} /></TouchableOpacity>
       <Paper onPress={() => router.push('/(tabs)/letters')} style={{ position: 'absolute', top: y(0.23) + belowCompanionShift, left: px(W, 0.03), width: px(W, 0.58), transform: [{ rotate: '-2deg' }] }}><View style={styles.sectionTitleRow}><Ionicons name="mail-outline" size={16} color={J.textMain} /><Text style={styles.sectionTitle}>Lettres Reçues</Text></View>{recentLetters.length > 0 ? <View style={styles.lettersContainer}>{recentLetters.map((letter, idx) => { const senderName = matchPartners[letter.fromUserId]?.pseudo || letter.fromUserId; return <View key={`${letter.id}-${idx}`} style={styles.letterItem}><Ionicons name="mail-outline" size={13} color={J.textSecondary} style={{ marginRight: 5 }} /><Text style={styles.letterSenderName} numberOfLines={1}>{senderName}</Text></View>; })}</View> : <Text style={styles.emptyLetters}>Aucune lettre</Text>}</Paper>
       <Paper onPress={() => router.push('/(tabs)/profiles?filter=received-smiles')} style={{ position: 'absolute', top: y(0.28) + belowCompanionShift, right: px(W, 0.05), width: px(W, 0.22), transform: [{ rotate: '-2deg' }] }}><Text style={styles.smilesTitle}>Sourires</Text><Text style={styles.smilesCount}>{matches?.filter((m) => m.initiatorId !== currentUser.id).length ?? 0}</Text></Paper>
