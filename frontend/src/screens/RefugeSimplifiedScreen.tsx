@@ -144,9 +144,10 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
           : '';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} bounces={false}>
-        <ImageBackground source={REFUGE_BACKGROUND} resizeMode="cover" style={[styles.scene, { width: artWidth, height: artHeight }]} imageStyle={styles.backgroundImage}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView contentInsetAdjustmentBehavior="never" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} bounces={false}>
+        <ImageBackground source={REFUGE_BACKGROUND} resizeMode="cover" style={[styles.scene, { width: artWidth, height: artHeight + insets.bottom }]} imageStyle={styles.backgroundImage}>
+          <View style={{ height: artHeight }}>
           <AppBackButton style={styles.back} onPress={() => router.back()} />
           <View style={styles.titleBlock} pointerEvents="none"><Text style={styles.title}>{refuge.role === 'adoptant' ? 'Ton compagnon' : 'Ton refuge'}</Text><Text style={styles.subtitle}>Prenez soin l’un de l’autre pendant 7 jours</Text></View>
           <View style={styles.calendar}>
@@ -169,6 +170,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
             <View style={styles.actions}>{ACTIONS.map(action => { const active=selected.includes(action.key); return <TouchableOpacity key={action.key} disabled={disabled} onPress={() => handleAction(action.key)} style={[styles.tag,active&&styles.tagActive,disabled&&!isWaiting&&styles.tagDisabled]}><View style={styles.string}/><View style={styles.hole}/><Text style={[styles.mark,active&&styles.markActive]}>{action.mark}</Text><Text style={styles.tagTitle}>{action.title}</Text></TouchableOpacity>; })}</View>
           )}
           <View style={styles.status}><View style={styles.tape}/><Text style={styles.statusTitle}>{statusTitle}</Text>{!!statusBody&&<Text style={styles.statusBody}>{statusBody}</Text>}{!isWaiting&&selected.length===2&&!disabled&&<TouchableOpacity style={styles.validate} onPress={submit}><Text style={styles.validateText}>{isSubmitting?'Envoi…':'Valider mes 2 choix'}</Text></TouchableOpacity>}</View>
+          </View>
         </ImageBackground>
       </ScrollView>
     </SafeAreaView>
