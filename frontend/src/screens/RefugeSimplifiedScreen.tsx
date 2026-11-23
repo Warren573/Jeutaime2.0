@@ -7,6 +7,7 @@ import { AppBackButton } from '../components/AppBackButton';
 import { isRefugeAnimal } from '../data/refugeAnimals';
 import { type RefugeActionType } from '../data/refugeActions';
 import { type RefugeAnimalVisualState } from '../data/refugeAnimalImages';
+import { showRefugePose, useRefugePose } from '../store/useRefugePose';
 import { useRefugeDailyChoices } from '../hooks/useRefugeDailyChoices';
 import { useRefugeSession } from '../hooks/useRefugeSession';
 
@@ -26,7 +27,9 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const refuge = useRefugeSession(sessionIdProp);
   const { selectedMyActions, selectedGuessActions, toggleMyAction, toggleGuessAction, resetDay } = useRefugeDailyChoices();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [animalState, setAnimalState] = useState<RefugeAnimalVisualState>('assis');
+  const poseKey = JSON.stringify([sessionIdProp, refuge.currentDay, refuge.role]);
+  const pose = useRefugePose(store => store.pose);
+  const animalState = pose?.key === poseKey ? pose.state : 'assis';
   const previousDayCompleted = useRef<boolean | null>(null);
 
   const artWidth = Math.min(width, 520);
@@ -46,22 +49,23 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   // une réaction à SES propres choix. L'Adoptant ne reçoit jamais d'indice
   // visuel avant d'avoir validé sa tentative.
   useEffect(() => {
-    if (isWaiting || refuge.dayCompleted) return;
+    if (refuge.isLoading || !refuge.role || refuge.dayCompleted) return;
 
     if (refuge.role === 'adopte' && !refuge.adopteSubmittedToday) {
       if (selectedMyActions.includes('play')) {
-        setAnimalState('joue');
+        showRefugePose(poseKey, 'joue');
       } else if (selectedMyActions.length > 0) {
-        setAnimalState('content');
+        showRefugePose(poseKey, 'content');
       } else {
-        setAnimalState('assis');
+        showRefugePose(poseKey, 'assis');
       }
       return;
     }
 
-    setAnimalState('assis');
+    showRefugePose(poseKey, 'assis');
   }, [
-    isWaiting,
+    poseKey,
+    refuge.isLoading,
     refuge.dayCompleted,
     refuge.role,
     refuge.adopteSubmittedToday,
@@ -71,6 +75,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   // Quand la journée vient juste de se terminer, on montre brièvement la
   // réaction au résultat, puis l'animal dort jusqu'au jour suivant.
   useEffect(() => {
+    if (refuge.isLoading || !refuge.role) return;
     if (!refuge.dayCompleted) {
       previousDayCompleted.current = false;
       return;
@@ -79,7 +84,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
     // Si l'écran est ouvert/rechargé alors que la journée était déjà finie,
     // on arrive directement sur l'état de repos.
     if (previousDayCompleted.current === null) {
-      setAnimalState('dort');
+      if (useRefugePose.getState().pose?.key !== poseKey || !useRefugePose.getState().pose?.resolved) showRefugePose(poseKey, 'dort', true);
       previousDayCompleted.current = true;
       return;
     }
@@ -89,15 +94,11 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
       const reaction: RefugeAnimalVisualState =
         matches === 2 ? 'content' : matches === 0 ? 'boude' : 'assis';
 
-      setAnimalState(reaction);
+      showRefugePose(poseKey, reaction, true);
       previousDayCompleted.current = true;
 
-      const timer = setTimeout(() => setAnimalState('dort'), 3500);
-      return () => clearTimeout(timer);
     }
-
-    setAnimalState('dort');
-  }, [refuge.dayCompleted, refuge.todayResult?.matches]);
+  }, [poseKey, refuge.isLoading, refuge.role, refuge.dayCompleted, refuge.todayResult?.matches]);
 
   const handleAction = (action: RefugeActionType) => {
     if (disabled) return;
