@@ -148,7 +148,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} bounces={false}>
         <ImageBackground source={REFUGE_BACKGROUND} resizeMode="cover" style={[styles.scene, { width: artWidth, height: artHeight }]} imageStyle={styles.backgroundImage}>
           <AppBackButton style={styles.back} onPress={() => router.back()} />
-          <View style={styles.titleBlock} pointerEvents="none"><Text style={styles.title}>Mon refuge</Text><Text style={styles.subtitle}>Prenez soin l’un de l’autre pendant 7 jours</Text></View>
+          <View style={styles.titleBlock} pointerEvents="none"><Text style={styles.title}>{refuge.role === 'adoptant' ? 'Ton Compagnon' : 'Ton Refuge'}</Text><Text style={styles.subtitle}>Prenez soin l’un de l’autre pendant 7 jours</Text></View>
           <View style={styles.calendar}>
             <View style={styles.rings}>{Array.from({ length: 9 }, (_, i) => <View key={i} style={styles.ring} />)}</View>
             <Text style={styles.calendarTitle}>7 jours ensemble</Text>
