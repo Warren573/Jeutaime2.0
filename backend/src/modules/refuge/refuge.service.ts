@@ -564,7 +564,7 @@ export class RefugeService {
   // Récupération — Session active de l'utilisateur courant
   // ============================================================
 
-  static async getActiveRefugeSession(userId: string): Promise<(RefugeSessionDTO & { currentDay: number; todaySubmitted: boolean; isActive: boolean }) | null> {
+  static async getActiveRefugeSession(userId: string): Promise<(RefugeSessionDTO & { currentDay: number; todaySubmitted: boolean; adopteSubmittedToday?: boolean; isActive: boolean }) | null> {
     // Priorité 1 : une session en cours (jeu actif ou phase finale de
     // consentement) prime toujours sur une proposition en attente — les deux
     // participants doivent résoudre vers la même session, même si d'anciennes
@@ -579,6 +579,7 @@ export class RefugeService {
         guesses: {
           orderBy: { dayNumber: "asc" },
         },
+        dailyChoices: { select: { dayNumber: true } },
       },
       orderBy: { startedAt: "desc" },
     });
@@ -593,6 +594,7 @@ export class RefugeService {
         ...this.mapToDTO(activeSession),
         currentDay,
         todaySubmitted,
+        adopteSubmittedToday: isActive && activeSession.dailyChoices.some((choice) => choice.dayNumber === currentDay),
         isActive,
       };
     }
