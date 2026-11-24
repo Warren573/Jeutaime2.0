@@ -16,7 +16,6 @@ import { useStore } from '../store/useStore';
 import { getCommunityStats, getDailyStats, getRefugeStats, type CommunityStatsDTO, type DailyStatsDTO, type RefugeStatsDTO } from '../api/stats';
 import { getWeeklyProfileWinners, type WeeklyProfileWinnersDTO } from '../api/weeklyProfile';
 import { getJournalEdition, type JournalEditionDTO } from '../api/journal';
-import { NotificationBell } from '../components/NotificationBell';
 
 const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
 
@@ -96,11 +95,7 @@ export default function JournalScreen() {
         }
       >
         {/* ── Masthead ─────────────────────────────────────────────── */}
-        <View style={[styles.masthead, styles.mastheadWithBell]}>
-          {/* Cloche des notifications : coin supérieur droit du Journal, elle défile avec la page. */}
-          <View style={styles.bellCorner}>
-            <NotificationBell />
-          </View>
+        <View style={styles.masthead}>
           <Text style={styles.mastheadTitle}>JOURNAL</Text>
           <View style={styles.mastheadRuleThin} />
           <Text style={styles.mastheadTagline}>Actualités de la communauté</Text>
@@ -288,8 +283,6 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   // Place de la cloche en haut à droite : le titre descend de 26 pt (4 → 30).
-  mastheadWithBell: { paddingTop: 30 },
-  bellCorner: { position: 'absolute', top: 3, right: 4, zIndex: 5 },
   mastheadRuleThick: { height: 3, backgroundColor: INK, width: '100%', marginTop: 10 },
   mastheadRuleThin: { height: 1, backgroundColor: INK, width: '100%', marginTop: 4 },
   datelineRow: {
