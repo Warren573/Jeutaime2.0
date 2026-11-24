@@ -380,7 +380,7 @@ export default function BottleMainScreen() {
               // Android : page pleine, le parchemin prend la hauteur restante.
               Platform.OS === 'android'
                 ? { flexGrow: 1, paddingBottom: footerBottomPadding('android', insets.bottom, 0) }
-                : { paddingBottom: insets.bottom + 80 },
+                : { paddingBottom: insets.bottom + 16 },
             ]}
             refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}
             showsVerticalScrollIndicator={false}
