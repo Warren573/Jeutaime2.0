@@ -29,7 +29,6 @@ import { acceptMatch, breakMatch, blockMatch, relanceMatch } from '../api/matche
 import { getPendingPrivateDuels, listPrivateDuels, type PrivateDuelDTO } from '../api/privateDuels';
 import { reportUser, type ReportReason } from '../api/profiles';
 import type { Letter, Match } from '../shared/types';
-import { PremiumLetterAnimation } from '../components/PremiumLetterAnimation';
 import { LetterPaginatedView } from '../components/letters/LetterPaginatedView';
 import { VacationNotice } from '../components/VacationNotice';
 import { Avatar } from '../avatar/png/Avatar';
@@ -772,21 +771,12 @@ export default function LettersScreen() {
   const [qSubmitting, setQSubmitting] = useState(false);
   const [qResult, setQResult] = useState<{ myScore: number; passed: boolean; questionsValidated: boolean; waitingForOther: boolean; matchBroken: boolean } | null>(null);
 
-  const [envAnimVisible, setEnvAnimVisible] = useState(false);
-  const [envAnimSender, setEnvAnimSender] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isActioning, setIsActioning] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason>('OTHER');
   const [reportDetails, setReportDetails] = useState('');
-  const envAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (envAnimTimerRef.current) clearTimeout(envAnimTimerRef.current);
-    };
-  }, []);
 
   const visibleMatches = useMemo(
     () => matches.filter(m => m.status === 'pending' || m.status === 'active'),
@@ -1098,24 +1088,12 @@ export default function LettersScreen() {
                       isInitiator={match.initiatorId === (currentUser?.id ?? '')}
                       onAccept={() => handleAccept(match)}
                       onPlayQuestions={() => handleQGameOpen(match)}
-                       onOpen={() => {
-                        const shouldAnimate = match.hasUnreadIncomingLetter;
-
+                      onOpen={() => {
                         setSelectedMatch(match);
                         setShowCompose(true);
 
                         // Charger les lettres ET marquer les non-lues comme lues atomiquement
                         void openAndMarkRead(match.id);
-
-                        if (shouldAnimate) {
-                          if (envAnimTimerRef.current) clearTimeout(envAnimTimerRef.current);
-                          setEnvAnimSender(otherName);
-                          setEnvAnimVisible(true);
-                          envAnimTimerRef.current = setTimeout(() => {
-                            setEnvAnimVisible(false);
-                            envAnimTimerRef.current = null;
-                          }, 5100);
-                        }
                       }}
                       />
                   );
@@ -1413,11 +1391,6 @@ export default function LettersScreen() {
               </View>
             )}
 
-            {envAnimVisible && (
-              <View style={{ ...StyleSheet.absoluteFillObject, zIndex: 50, justifyContent: "center", alignItems: "center" }}>
-                <PremiumLetterAnimation senderName={envAnimSender} />
-              </View>
-            )}
           </KeyboardAvoidingView>
         )}
         </ModalKeyboardFrame>
