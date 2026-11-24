@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { badgeLabel, unreadSummary } from '../utils/notificationsView';
@@ -7,16 +8,16 @@ import { BellGlyph } from './NotificationIcon';
 
 
 /**
- * Cloche du Journal : ouvre « Mes notifications ». Le badge lit le MÊME compteur que l'icône de
+ * Cloche de l’accueil : ouvre « Mes notifications ». Le badge lit le MÊME compteur que l'icône de
  * l'application (store.unreadNotificationsCount, alimenté par le polling existant).
  */
-export function NotificationBell() {
+export function NotificationBell({ style }: { style: StyleProp<ViewStyle> }) {
   const router = useRouter();
   const unread = useStore((s) => s.unreadNotificationsCount);
   const loadUnreadCount = useStore((s) => s.loadUnreadCount);
   const label = badgeLabel(unread);
 
-  // Compteur à jour à chaque retour sur le Journal (le polling reste actif en parallèle).
+  // Compteur à jour à chaque retour sur l’accueil (le polling reste actif en parallèle).
   useFocusEffect(
     useCallback(() => {
       void loadUnreadCount();
@@ -28,11 +29,10 @@ export function NotificationBell() {
       accessibilityRole="button"
       accessibilityLabel={`Mes notifications, ${unreadSummary(unread).toLowerCase()}`}
       activeOpacity={0.7}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 14 }}
       onPress={() => router.push('/notifications' as never)}
-      style={styles.bell}
+      style={style}
     >
-      <BellGlyph color="#2A2118" />
+      <BellGlyph color="#FFF8E7" />
       {label ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText} allowFontScaling={false}>{label}</Text>
@@ -43,25 +43,10 @@ export function NotificationBell() {
 }
 
 const styles = StyleSheet.create({
-  bell: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FEFAF0',
-    borderWidth: 1,
-    borderColor: '#B8A377',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#5B3E26',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.18,
-    shadowRadius: 2,
-    elevation: 2,
-  },
   badge: {
     position: 'absolute',
     top: -8,
-    right: -12,
+    right: -4,
     minWidth: 20,
     height: 20,
     paddingHorizontal: 5,
