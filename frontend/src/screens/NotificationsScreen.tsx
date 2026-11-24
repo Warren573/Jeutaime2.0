@@ -200,7 +200,10 @@ export default function NotificationsScreen() {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.headerWrap}>
         <TouchableOpacity
-          onPress={() => router.replace('/journal' as never)}
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace('/(tabs)');
+          }}
           style={styles.backBtn}
           accessibilityRole="button"
           accessibilityLabel="Retour au Journal"
