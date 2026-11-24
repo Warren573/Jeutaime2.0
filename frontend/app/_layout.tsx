@@ -127,7 +127,7 @@ export default function RootLayout() {
           >
             <Stack.Screen name="(tabs)" options={{ orientation: 'portrait_up' }} />
             <Stack.Screen name="salon/[id]" options={{ orientation: 'portrait_up', contentStyle: undefined }} />
-            <Stack.Screen name="salon/cafe-paris" options={{ orientation: 'all', contentStyle: undefined }} />
+            <Stack.Screen name="salon/cafe-paris" options={{ orientation: 'portrait_up', contentStyle: undefined }} />
           </Stack>
         </View>
       </SafeAreaInsetsContext.Provider>
