@@ -51,8 +51,11 @@ export default function RootLayout() {
   const isShop = pathname === '/shop' || pathname.endsWith('/shop');
 
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     ScreenOrientation.lockAsync(
-      ScreenOrientation.OrientationLock.PORTRAIT_UP
+      isSalon
+        ? ScreenOrientation.OrientationLock.DEFAULT
+        : ScreenOrientation.OrientationLock.PORTRAIT_UP
     ).catch((error) => console.warn('[orientation-lock]', error));
   }, [isSalon]);
 
@@ -126,8 +129,7 @@ export default function RootLayout() {
             }}
           >
             <Stack.Screen name="(tabs)" options={{ orientation: 'portrait_up' }} />
-            <Stack.Screen name="salon/[id]" options={{ orientation: 'portrait_up', contentStyle: undefined }} />
-            <Stack.Screen name="salon/cafe-paris" options={{ orientation: 'portrait_up', contentStyle: undefined }} />
+            <Stack.Screen name="salon" options={{ orientation: 'all', contentStyle: undefined }} />
           </Stack>
         </View>
       </SafeAreaInsetsContext.Provider>
