@@ -5,7 +5,7 @@ export default function SalonLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        orientation: 'portrait_up',
+        orientation: 'all',
       }}
     />
   );

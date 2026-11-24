@@ -99,8 +99,6 @@ function getTransfoImage(
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
-import * as ScreenOrientation from 'expo-screen-orientation';
 import { SalonParticipant } from '../data/salonsData';
 import { getSalonBackgroundImage } from '../data/salonBackgroundImages';
 import { useStore, Message } from '../store/useStore';
@@ -428,19 +426,6 @@ const AnimatedAvatar: React.FC<SalonAvatarProps> = ({
 export default function SalonScreen() {
   const router = useRouter();
 
-  // Lock orientation only on native. Browser orientation APIs are not
-  // consistently available (particularly in iOS Safari / standalone PWAs).
-  useFocusEffect(
-    useCallback(() => {
-      if (Platform.OS === 'web') return;
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
-        .catch((error) => console.warn('[salon-orientation]', error));
-      return () => {
-        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
-          .catch((error) => console.warn('[salon-orientation-reset]', error));
-      };
-    }, [])
-  );
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
