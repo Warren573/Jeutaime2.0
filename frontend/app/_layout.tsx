@@ -1,6 +1,6 @@
 import { Stack, usePathname, useRouter } from "expo-router";
-import { LogBox, Platform, View, useWindowDimensions } from "react-native";
-import { useEffect, useMemo, useState } from "react";
+import { AppState, LogBox, Platform, View, useWindowDimensions } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { SafeAreaInsetsContext, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useStore } from "../src/store/useStore";
@@ -50,14 +50,36 @@ export default function RootLayout() {
   const isPremium = pathname === '/premium' || pathname.endsWith('/premium');
   const isShop = pathname === '/shop' || pathname.endsWith('/shop');
 
+  const applyOrientation = useCallback(() => {
+    if (Platform.OS === 'web') return;
+    const lock = isSalon
+      ? ScreenOrientation.OrientationLock.ALL
+      : ScreenOrientation.OrientationLock.PORTRAIT_UP;
+    ScreenOrientation.lockAsync(lock).catch((error) => {
+      console.warn('[orientation-lock]', error);
+    });
+  }, [isSalon]);
+
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    ScreenOrientation.lockAsync(
-      isSalon
-        ? ScreenOrientation.OrientationLock.DEFAULT
-        : ScreenOrientation.OrientationLock.PORTRAIT_UP
-    ).catch((error) => console.warn('[orientation-lock]', error));
-  }, [isSalon]);
+    applyOrientation();
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') applyOrientation();
+    });
+    const orientationSubscription = ScreenOrientation.addOrientationChangeListener(({ orientationInfo }) => {
+      const { orientation } = orientationInfo;
+      if (!isSalon && (
+        orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT
+        || orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT
+      )) {
+        applyOrientation();
+      }
+    });
+    return () => {
+      appStateSubscription.remove();
+      orientationSubscription.remove();
+    };
+  }, [applyOrientation, isSalon]);
 
   useEffect(() => { fetch(`${API_URL}/health`, { method: "GET" }).catch(() => {}); }, []);
 
@@ -122,6 +144,7 @@ export default function RootLayout() {
           }}
         >
           <Stack
+            screenListeners={{ transitionEnd: applyOrientation }}
             screenOptions={{
               headerShown: false,
               orientation: 'portrait_up',
