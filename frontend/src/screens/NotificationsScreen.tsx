@@ -206,11 +206,11 @@ export default function NotificationsScreen() {
           }}
           style={styles.backBtn}
           accessibilityRole="button"
-          accessibilityLabel="Retour au Journal"
+          accessibilityLabel="Retour"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 12 }}
         >
           <Text style={styles.backChevron}>‹</Text>
-          <Text style={styles.backText}>Journal</Text>
+          <Text style={styles.backText}>Retour</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Mes notifications</Text>
         <View style={styles.rule} />
