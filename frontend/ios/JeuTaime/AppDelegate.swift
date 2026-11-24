@@ -1,4 +1,5 @@
 import Expo
+import ExpoScreenOrientation
 import React
 import ReactAppDependencyProvider
 
@@ -31,6 +32,19 @@ public class AppDelegate: ExpoAppDelegate {
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
+
+#if os(iOS)
+  public override func application(
+    _ application: UIApplication,
+    supportedInterfaceOrientationsFor window: UIWindow?
+  ) -> UIInterfaceOrientationMask {
+    // The Expo Router layout requests landscape only on a salon route.
+    // Use that request directly so UIKit can reject a rotation before it starts.
+    let requested = ScreenOrientationRegistry.shared.requiredOrientationMask()
+    let allowed = requested.intersection(.allButUpsideDown)
+    return allowed.isEmpty ? .portrait : allowed
+  }
+#endif
 
   // Linking API
   public override func application(
