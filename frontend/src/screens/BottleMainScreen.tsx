@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image, Platform, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { Animated, Easing, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl, Alert, Image, Platform, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ModalKeyboardFrame } from '../components/ModalKeyboardFrame';
 import { footerBottomPadding } from '../utils/composerFooter';
@@ -29,20 +29,36 @@ const UI_ICONS = {
 } as const;
 const COLORS = { text: '#2C1A0E', textSecondary: '#7A5C3A', accent: '#8B2E3C', border: '#D4B896', paper: '#FEFAF0', success: '#466B4E', error: '#A43A3A' };
 
-const BottleItem: React.FC<{ id: string; index: number; onPress: () => void; position: { left: string; top: string }; isAccepting: boolean }> = ({ index, onPress, position, isAccepting }) => {
-  // Même inclinaison pour toutes les bouteilles (choix du propriétaire : celle de la 1re, −12°).
-  // Auparavant [-12, 8, -6, 14, -9, 11] : les angles positifs remettaient le dessin presque à plat.
-  const rotation = -12;
-  const animDelay = useMemo(() => index * 200, [index]);
+type BottlePosition = { left: `${number}%`; top: number };
+
+const BottleItem: React.FC<{ index: number; onPress: () => void; position: BottlePosition; isAccepting: boolean }> = ({ index, onPress, position, isAccepting }) => {
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useFocusEffect(useCallback(() => {
+    translateY.setValue(0);
+    const timing = (toValue: number) => Animated.timing(translateY, {
+      toValue,
+      duration: 1750,
+      easing: Easing.inOut(Easing.sin),
+      useNativeDriver: Platform.OS !== 'web',
+      isInteraction: false,
+    });
+    const float = Animated.loop(Animated.sequence([timing(-16), timing(0)]));
+    const timer = setTimeout(() => float.start(), index * 200);
+    return () => {
+      clearTimeout(timer);
+      float.stop();
+    };
+  }, [index, translateY]));
+
   return (
-    <View style={[styles.bottleItem, position, { transform: [{ rotate: `${rotation}deg` }], animation: `float 3.5s ease-in-out infinite ${animDelay}ms` } as any]}>
+    <Animated.View style={[styles.bottleItem, position, { transform: [{ translateY }, { rotate: '-12deg' }] }]}>
       <TouchableOpacity onPress={onPress} style={styles.bottleTouchable} activeOpacity={0.7} disabled={isAccepting}>
         {isAccepting ? <ActivityIndicator size="small" color={COLORS.accent} /> : <Image source={BOTTLE_IMG} style={styles.bottleImage} resizeMode="contain" />}
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 };
-
 
 const BottleHeader: React.FC<{
   title: string;
@@ -69,14 +85,6 @@ const BottleHeader: React.FC<{
 );
 
 export default function BottleMainScreen() {
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const style = document.createElement('style');
-    style.textContent = '@keyframes float { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-16px); } }';
-    document.head.appendChild(style);
-    return () => style.remove();
-  }, []);
-
   const router = useRouter();
   // Ouverture depuis une notification : bouteille précise à lire (sinon la bouteille courante, comme avant).
   const routeParams = useLocalSearchParams<{ bottleId?: string | string[] }>();
@@ -130,13 +138,13 @@ export default function BottleMainScreen() {
     return inbox.filter((b) => b.status === 'FLOATING' && b.acceptedById === null && b.senderId !== currentUser.id);
   };
 
-  const bottlePositions = useMemo(() => [
-    { left: '10%', top: '80px' },
-    { left: '65%', top: '160px' },
-    { left: '30%', top: '280px' },
-    { left: '70%', top: '380px' },
-    { left: '15%', top: '460px' },
-    { left: '55%', top: '520px' },
+  const bottlePositions = useMemo<BottlePosition[]>(() => [
+    { left: '10%', top: 80 },
+    { left: '65%', top: 160 },
+    { left: '30%', top: 280 },
+    { left: '70%', top: 380 },
+    { left: '15%', top: 460 },
+    { left: '55%', top: 520 },
   ], []);
 
   useFocusEffect(useCallback(() => { setIsLoading(true); loadState(); }, [loadState]));
@@ -257,7 +265,7 @@ export default function BottleMainScreen() {
                 </View>
               )}
               {availableBottles.map((bottle, index) => (
-                <BottleItem key={bottle.id} id={bottle.id} index={index} position={bottlePositions[index % bottlePositions.length]} onPress={() => handleBottleClick(bottle.id)} isAccepting={isAccepting} />
+                <BottleItem key={bottle.id} index={index} position={bottlePositions[index % bottlePositions.length]} onPress={() => handleBottleClick(bottle.id)} isAccepting={isAccepting} />
               ))}
             </View>}
             {androidSeaFill && (
