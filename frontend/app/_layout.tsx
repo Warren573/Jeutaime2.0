@@ -55,7 +55,16 @@ export default function RootLayout() {
     const lock = isSalon
       ? ScreenOrientation.OrientationLock.ALL
       : ScreenOrientation.OrientationLock.PORTRAIT_UP;
-    ScreenOrientation.lockAsync(lock).catch((error) => {
+    const request = isSalon && Platform.OS === 'ios'
+      ? ScreenOrientation.lockPlatformAsync({
+          screenOrientationArrayIOS: [
+            ScreenOrientation.Orientation.PORTRAIT_UP,
+            ScreenOrientation.Orientation.LANDSCAPE_LEFT,
+            ScreenOrientation.Orientation.LANDSCAPE_RIGHT,
+          ],
+        })
+      : ScreenOrientation.lockAsync(lock);
+    request.catch((error) => {
       console.warn('[orientation-lock]', error);
     });
   }, [isSalon]);
