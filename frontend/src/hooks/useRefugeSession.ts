@@ -181,7 +181,7 @@ export function useRefugeSession(sessionId: string | null) {
   // Soumettre la tentative quotidienne de l'Adoptant :
   // retrouver les 2 actions du jour de l'Adopté (POST /refuge/guess).
   const submitGuess = useCallback(
-    async (guessActions: RefugeActionType[]) => {
+    async (guessActions: RefugeActionType[], foodChoice?: string) => {
       if (!sessionId || guessActions.length !== 2) return false;
       if (isSubmittingRef.current) return false;
       isSubmittingRef.current = true;
@@ -194,7 +194,8 @@ export function useRefugeSession(sessionId: string | null) {
           sessionId,
           currentDayRef.current,
           guessedAction1,
-          guessedAction2
+          guessedAction2,
+          foodChoice
         );
 
         // Rafraîchir le statut (cœurs, todaySubmitted)
