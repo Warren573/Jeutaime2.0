@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { RefugeAnimalType, RefugeAcceptedSexe, RefugeAction, RefugeBackground } from "@prisma/client";
+import { REFUGE_FOODS } from "./refuge.foods";
 
 // ============================================================
 // Enums Zod (synchronisés avec Prisma)
@@ -31,7 +32,7 @@ export const GuessSchema = z.object({
   dayNumber: z.number().int().min(1).max(7, "dayNumber doit être entre 1 et 7"),
   guessedAction1: RefugeActionEnum,
   guessedAction2: RefugeActionEnum,
-  foodChoice: z.enum(['food','meat','fish','salad','carrot','bamboo','seeds','sardines']).optional(),
+  foodChoice: z.enum(REFUGE_FOODS).nullish(),
 });
 
 export const DailyChoiceSchema = z.object({

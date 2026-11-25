@@ -45,6 +45,8 @@ import {
   generateAnimalCategory,
   generateRandomAge,
 } from "./refuge.utils";
+import { buildAnimationSnapshot, type RefugeAnimationSnapshot } from "./refuge.animation";
+import { resolveGuessFood } from "./refuge.foods";
 
 // Statuts pour lesquels un Adopté est considéré comme ayant déjà un refuge en cours
 const ADOPTE_OPEN_STATUSES = [
@@ -465,8 +467,6 @@ export class RefugeService {
       if (todayGuess) {
         const result = calculateDayResult(todayDailyChoice, todayGuess);
         todayResult = {
-          foodChoice: todayGuess.foodChoice,
-          reactions: [todayGuess.guessedAction1, todayGuess.guessedAction2].map(action => ({ action, correct: action === todayDailyChoice.action1 || action === todayDailyChoice.action2 })),
           matches: result.matches,
           message: result.message,
           reward: result.reward,
@@ -549,8 +549,13 @@ export class RefugeService {
       hearts,
       canAttemptToday,
       todaySubmitted,
-      choiceAt: todayDailyChoice?.submittedAt?.toISOString() ?? null,
-      resolvedAt: refugeSession.guesses.find(g => g.dayNumber === currentDay)?.submittedAt?.toISOString() ?? null,
+      animation: buildAnimationSnapshot({
+        choices: refugeSession.dailyChoices,
+        guesses: refugeSession.guesses,
+        currentDay,
+        animalType: refugeSession.animalType,
+      }),
+      serverTime: new Date().toISOString(),
       adopteSubmittedToday,
       adoptantSubmittedToday,
       dayCompleted,
@@ -568,7 +573,7 @@ export class RefugeService {
   // Récupération — Session active de l'utilisateur courant
   // ============================================================
 
-  static async getActiveRefugeSession(userId: string): Promise<(RefugeSessionDTO & { currentDay: number; todaySubmitted: boolean; adopteSubmittedToday?: boolean; choiceAt?: string | null; resolvedAt?: string | null; animationMatches?: number | null; animationReactions?: { action: RefugeAction; correct: boolean }[]; isActive: boolean }) | null> {
+  static async getActiveRefugeSession(userId: string): Promise<(RefugeSessionDTO & { currentDay: number; todaySubmitted: boolean; adopteSubmittedToday?: boolean; animation?: RefugeAnimationSnapshot; serverTime?: string; isActive: boolean }) | null> {
     // Priorité 1 : une session en cours (jeu actif ou phase finale de
     // consentement) prime toujours sur une proposition en attente — les deux
     // participants doivent résoudre vers la même session, même si d'anciennes
@@ -594,14 +599,15 @@ export class RefugeService {
       const todaySubmitted = todaySubmittedForDay(currentDay, activeSession.guesses);
       const isActive = activeSession.status === RefugeSessionStatus.ACTIVE && !isRefugeExpired(activeSession.endsAt);
 
-      const choice = activeSession.dailyChoices.find(c => c.dayNumber === currentDay);
-      const guess = activeSession.guesses.find(g => g.dayNumber === currentDay);
       return {
         ...this.mapToDTO(activeSession),
-        choiceAt: choice?.submittedAt?.toISOString() ?? null,
-        resolvedAt: guess?.submittedAt?.toISOString() ?? null,
-        animationMatches: choice && guess ? calculateDayResult(choice, guess).matches : null,
-        animationReactions: choice && guess ? [guess.guessedAction1, guess.guessedAction2].map(action => ({action, correct: action === choice.action1 || action === choice.action2})) : undefined,
+        animation: buildAnimationSnapshot({
+          choices: activeSession.dailyChoices,
+          guesses: activeSession.guesses,
+          currentDay,
+          animalType: activeSession.animalType,
+        }),
+        serverTime: now.toISOString(),
         currentDay,
         todaySubmitted,
         adopteSubmittedToday: isActive && activeSession.dailyChoices.some((choice) => choice.dayNumber === currentDay),
@@ -759,7 +765,7 @@ export class RefugeService {
     refugeSessionId: string,
     adoptantId: string,
     dayNumber: number,
-    input: { guessedAction1: RefugeAction; guessedAction2: RefugeAction; foodChoice?: string }
+    input: { guessedAction1: RefugeAction; guessedAction2: RefugeAction; foodChoice?: string | null }
   ): Promise<any> {
     // Récupérer la session
     const refugeSession = await prisma.refugeSession.findUnique({
@@ -834,11 +840,13 @@ export class RefugeService {
       );
     }
 
-    const allowedFoods: Record<string, string[]> = { CHIEN:['food','meat'], CHAT:['food','fish','sardines'], LAPIN:['salad','carrot'], HAMSTER:['seeds','carrot'], TOUCAN:['seeds'], RENARD:['meat','fish'], MANCHOT:['fish','sardines'], IGUANE:['salad','carrot'], LICORNE:['salad','carrot'], PERROQUET:['seeds'], PANDA:['bamboo'], DRAGON:['meat','fish'] };
-    const feeds = [input.guessedAction1,input.guessedAction2].includes(RefugeAction.NOURRIR);
-    const foods = allowedFoods[refugeSession.animalType] ?? [];
-    if (input.foodChoice && (!feeds || !foods.includes(input.foodChoice))) throw new BadRequestError("Aliment incompatible avec cette action ou cet animal");
-    const foodChoice = feeds ? input.foodChoice ?? (foods.length === 1 ? foods[0] : null) : null;
+    // Aliment : compatible avec l'animal, uniquement si Nourrir fait partie des réponses
+    // (aliment unique sélectionné automatiquement). Validation côté serveur obligatoire.
+    const foodChoice = resolveGuessFood(
+      refugeSession.animalType,
+      [input.guessedAction1, input.guessedAction2],
+      input.foodChoice
+    );
 
     // Calculer le résultat du jour avant la transaction
     const dayResult = calculateDayResult(dailyChoice, {
