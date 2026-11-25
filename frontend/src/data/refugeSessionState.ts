@@ -6,8 +6,23 @@
  * pourtant « Jour 7 sur 7 » avec des cartes jouables, puis le refus du serveur
  * (409 « Ce refuge a expiré ») n'était montré nulle part : « rien ne se passe ».
  */
+export function sessionEndNotice(
+  status: string | null | undefined,
+  isActive: boolean | null | undefined
+): { title: string; body: string } | null {
+  // Fin dépassée mais pas encore clôturée par le serveur (ancien état, ou lecture antérieure à la clôture).
+  if (status === 'ACTIVE' && isActive === false) {
+    return { title: 'Ce refuge est arrivé à son terme', body: 'Il n’est plus possible de valider de nouveaux choix.' };
+  }
+  // Clôturée par le serveur sans que le jour 7 ait été joué : le Refuge redevient disponible pour en commencer un autre.
+  if (status === 'ABANDONED') {
+    return { title: 'Ce refuge est terminé', body: 'Il n’a pas pu être mené jusqu’au bout. Retourne au Refuge pour en commencer un nouveau.' };
+  }
+  return null;
+}
+
 export function isSessionEnded(status: string | null | undefined, isActive: boolean | null | undefined): boolean {
-  return status === 'ACTIVE' && isActive === false;
+  return sessionEndNotice(status, isActive) !== null;
 }
 
 /** Texte lisible d'un échec, ou null s'il n'y a rien à afficher. Les messages métier du serveur sont déjà en français. */

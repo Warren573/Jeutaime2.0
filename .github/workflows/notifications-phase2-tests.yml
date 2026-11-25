@@ -95,6 +95,7 @@ jobs:
           tests/unit/refuge.service.test.ts
           tests/integration/refuge-food-choice.test.ts
           tests/integration/refuge-day7.test.ts
+          tests/integration/refuge-expiry.test.ts
       - name: Typecheck backend
         working-directory: backend
         run: npm run typecheck

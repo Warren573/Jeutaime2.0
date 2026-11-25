@@ -11,7 +11,7 @@ import { useStore } from '../store/useStore';
 import { useRefugeAnimation } from '../hooks/useRefugeAnimation';
 import { useRefugeDailyChoices } from '../hooks/useRefugeDailyChoices';
 import { useRefugeSession } from '../hooks/useRefugeSession';
-import { isSessionEnded, refugeErrorText } from '../data/refugeSessionState';
+import { sessionEndNotice, refugeErrorText } from '../data/refugeSessionState';
 
 import { ANIMAL_FOODS, BOWL_IMAGES, FOOD_LABELS, type RefugeFood } from '../data/refugeBowls';
 
@@ -44,7 +44,8 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const isWaiting = refuge.status === 'WAITING_FOR_ADOPTANT' || refuge.status === 'CREATION';
   const selected = refuge.role === 'adoptant' ? selectedGuessActions : selectedMyActions;
   // Fin dépassée (le serveur renvoie isActive=false) : aucune action possible, on le dit au lieu de refuser en silence.
-  const ended = isSessionEnded(refuge.status, refuge.isActive);
+  const endNotice = sessionEndNotice(refuge.status, refuge.isActive);
+  const ended = endNotice !== null;
   const disabled = isWaiting || ended || isSubmitting || (refuge.role === 'adopte' && refuge.adopteSubmittedToday) || (refuge.role === 'adoptant' && refuge.adoptantSubmittedToday);
   const bothParticipantsDone = refuge.adopteSubmittedToday && refuge.adoptantSubmittedToday;
   const hideActionsForToday = refuge.dayCompleted || bothParticipantsDone;
@@ -86,8 +87,8 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
 
   const statusTitle = hideActionsForToday
     ? 'Journée terminée'
-    : ended
-      ? 'Ce refuge est arrivé à son terme'
+    : endNotice
+      ? endNotice.title
     : isWaiting
       ? "Tu viens d’incarner un animal."
       : refuge.role === 'adoptant'
@@ -98,8 +99,8 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
 
   const statusBody = hideActionsForToday
     ? (refuge.todayResult?.message || 'Rendez-vous demain pour la suite du Refuge.')
-    : ended
-      ? 'Il n’est plus possible de valider de nouveaux choix.'
+    : endNotice
+      ? endNotice.body
     : isWaiting
       ? 'Ton aventure commence dès que quelqu’un t’adopte.'
       : refuge.role === 'adoptant'

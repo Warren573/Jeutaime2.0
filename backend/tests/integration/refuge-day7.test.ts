@@ -46,16 +46,16 @@ describe("Refuge — jour 7 (PostgreSQL)", () => {
     expect(after.animation.reactions.length).toBe(2);
   });
 
-  test("fin dépassée mais statut encore ACTIVE : le serveur le dit (isActive=false) et refuse les deux rôles avec un message explicite", async () => {
+  test("fin dépassée, jour 7 non joué : la lecture clôture la session (plus jamais « Jour 7 sur 7 » jouable) et les deux rôles sont refusés avec un message explicite", async () => {
     const x = await mk("expired", 8 * DAY, { choices: [1, 2, 3, 4, 5, 6, 7], legacyGuesses: [1, 2, 3, 4, 5, 6] });
     const v: any = await RefugeService.getRefugeSession(x.sid, x.s);
-    // L'écran affichait « Jour 7 sur 7 » : currentDay est plafonné à 7, seule isActive permet de savoir que c'est fini.
+    // currentDay reste plafonné à 7, mais la session n'est plus ACTIVE : le serveur l'a clôturée (voir refuge-expiry.test.ts).
     expect(v.currentDay).toBe(7);
-    expect(v.status).toBe("ACTIVE");
+    expect(v.status).toBe("ABANDONED");
     expect(v.isActive).toBe(false);
     expect(v.canAttemptToday).toBe(false);
-    expect(await attempt(() => RefugeService.submitGuess(x.sid, x.s, 7, NOURRIR_CARESSER))).toMatch(/ConflictError 409 « Ce refuge a expiré »/);
-    expect(await attempt(() => RefugeService.submitDailyChoice(x.sid, x.c, 7, { action1: "NOURRIR", action2: "CARESSER" }))).toMatch(/ConflictError 409 « Ce refuge a expiré »/);
+    expect(await attempt(() => RefugeService.submitGuess(x.sid, x.s, 7, NOURRIR_CARESSER))).toMatch(/ConflictError 409 « Ce refuge n'est pas actif »/);
+    expect(await attempt(() => RefugeService.submitDailyChoice(x.sid, x.c, 7, { action1: "NOURRIR", action2: "CARESSER" }))).toMatch(/ConflictError 409 « Ce refuge n'est pas actif »/);
     expect(await prisma.refugeGuess.count({ where: { refugeSessionId: x.sid, dayNumber: 7 } })).toBe(0); // rien n'est écrit
   });
 

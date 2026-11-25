@@ -12,3 +12,6 @@ storage/salons/**/*.png
 storage/salons/**/*.webp
 *.log
 prisma/migrations/**/*.sql.bak
+
+# Rapport JUnit généré par Vitest (vitest.config.ts) à chaque exécution : jamais versionné
+test-results.json

@@ -1,5 +1,5 @@
 import { describe, test, expect } from '../test-support/assert';
-import { isSessionEnded, refugeErrorText } from './refugeSessionState';
+import { isSessionEnded, refugeErrorText, sessionEndNotice } from './refugeSessionState';
 
 describe('session terminée (fin dépassée)', () => {
   test('ACTIVE avec isActive=false : terminée (cas « jour 7 sur 7 » qui refuse tout)', () => {
@@ -12,10 +12,22 @@ describe('session terminée (fin dépassée)', () => {
     expect(isSessionEnded('ACTIVE', null)).toBe(false);
     expect(isSessionEnded('ACTIVE', undefined)).toBe(false);
   });
-  test('autres statuts : non concernés (attente, dévoilement, terminé…)', () => {
-    for (const status of ['CREATION', 'WAITING_FOR_ADOPTANT', 'AWAITING_REVEAL_CONSENT', 'REVEALED', 'COMPLETED', 'ABANDONED']) {
+  test('statuts non concernés : attente, dévoilement, dévoilé, terminé par refus (flux existants inchangés)', () => {
+    for (const status of ['CREATION', 'WAITING_FOR_ADOPTANT', 'AWAITING_REVEAL_CONSENT', 'REVEALED', 'COMPLETED']) {
       expect(isSessionEnded(status, false)).toBe(false);
     }
+  });
+  test('ABANDONED (clôturée par le serveur, jour 7 non joué) : annoncée comme terminée, avec le chemin pour recommencer', () => {
+    expect(isSessionEnded('ABANDONED', false)).toBe(true);
+    expect(isSessionEnded('ABANDONED', null)).toBe(true);
+    expect(sessionEndNotice('ABANDONED', false)).toEqual({
+      title: 'Ce refuge est terminé',
+      body: 'Il n’a pas pu être mené jusqu’au bout. Retourne au Refuge pour en commencer un nouveau.',
+    });
+  });
+  test('ACTIVE + isActive=false : message de fin de terme (inchangé)', () => {
+    expect(sessionEndNotice('ACTIVE', false)?.title).toBe('Ce refuge est arrivé à son terme');
+    expect(sessionEndNotice('ACTIVE', true)).toBeNull();
   });
 });
 
@@ -52,7 +64,7 @@ describe('l’écran du Refuge affiche réellement ces états (garde-fous sur la
     expect(screen.includes('styles.statusError')).toBe(true);
   });
   test('une session terminée désactive les actions et retire la validation', () => {
-    expect(screen.includes('isSessionEnded(refuge.status, refuge.isActive)')).toBe(true);
+    expect(screen.includes('sessionEndNotice(refuge.status, refuge.isActive)')).toBe(true);
     expect(/const disabled = isWaiting \|\| ended \|\|/.test(screen)).toBe(true);
   });
   test('le refus d’une validation n’est pas effacé par le rafraîchissement automatique', () => {
