@@ -65,7 +65,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
     if (isSubmitting || selected.length !== 2 || (feeding && !chosenFood)) return;
     setIsSubmitting(true);
     try {
-      if (refuge.role === 'adoptant') await refuge.submitGuess(selectedGuessActions);
+      if (refuge.role === 'adoptant') await refuge.submitGuess(selectedGuessActions, feeding ? chosenFood ?? undefined : undefined);
       else await refuge.submitDailyChoice(selectedMyActions);
     } finally { setIsSubmitting(false); }
   };
