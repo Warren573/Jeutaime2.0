@@ -93,6 +93,7 @@ jobs:
           tests/unit/bottles-access-control.test.ts
           tests/unit/bottles-anonymity.test.ts
           tests/unit/refuge.service.test.ts
+          tests/integration/refuge-food-choice.test.ts
       - name: Typecheck backend
         working-directory: backend
         run: npm run typecheck
