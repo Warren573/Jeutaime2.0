@@ -15,7 +15,7 @@ import { getReceivedOfferings, type OfferingSentDTO } from '../api/offerings';
 import { getUnreadCount } from '../api/bottles';
 import { getSalon } from '../api/salons';
 import { salonsData } from '../data/salonsData';
-import { useRefugePose } from '../store/useRefugePose';
+import { refugeAnimation } from '../data/refugeAnimation';
 import { getAnimalImage } from '../data/refugeAnimalImages';
 import { getAnimalLabel } from '../data/refugeAnimals';
 import { refugeApi, type RefugeSession } from '../api/refuge-api';
@@ -80,17 +80,15 @@ export function PersonalBoard() {
   const userId = currentUser?.id;
   const refugeData = refugeSnapshot?.userId === userId ? refugeSnapshot?.session : null;
   const isAnimal = !!refugeData && refugeData.adopteId === userId;
-  const pose = useRefugePose(store => store.pose);
-  const poseKey = JSON.stringify([refugeData?.id, refugeData?.currentDay, isAnimal ? 'adopte' : 'adoptant']);
-  const completed = !!refugeData?.todaySubmitted;
-  const sharedPose = pose?.key === poseKey && (pose.resolved || (!completed && !refugeData?.adopteSubmittedToday));
-  const animalImage = getAnimalImage(refugeData?.animalType, sharedPose && pose ? pose.state : completed ? 'dort' : 'assis');
+  const [refugeNow, setRefugeNow] = useState(Date.now);
+  useEffect(() => { const timer = setInterval(() => setRefugeNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+  const animalImage = getAnimalImage(refugeData?.animalType, refugeAnimation({now: refugeNow, choiceAt: refugeData?.choiceAt, resolvedAt: refugeData?.resolvedAt, matches: refugeData?.animationMatches}));
   const isWaiting = refugeData?.status === 'CREATION' || refugeData?.status === 'WAITING_FOR_ADOPTANT';
   let refugeStatus = 'Ouvre le Refuge pour voir la suite.';
   if (isWaiting) {
     refugeStatus = 'Tu attends d’être adopté.';
   } else if (refugeData?.isActive && isAnimal) {
-    refugeStatus = refugeData.adopteSubmittedToday ? 'Tes choix du jour sont enregistrés.' : 'Choisis tes deux gestes du jour.';
+    refugeStatus = refugeData.adopteSubmittedToday ? 'Tes choix du jour sont enregistrés.' : 'Choisis tes deux actions du jour.';
   } else if (refugeData?.isActive) {
     refugeStatus = refugeData.todaySubmitted
       ? 'Tes choix du jour sont enregistrés.'
