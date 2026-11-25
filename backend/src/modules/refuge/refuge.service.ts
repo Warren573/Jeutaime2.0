@@ -465,6 +465,7 @@ export class RefugeService {
       if (todayGuess) {
         const result = calculateDayResult(todayDailyChoice, todayGuess);
         todayResult = {
+          reactions: [todayGuess.guessedAction1, todayGuess.guessedAction2].map(action => ({ action, correct: action === todayDailyChoice.action1 || action === todayDailyChoice.action2 })),
           matches: result.matches,
           message: result.message,
           reward: result.reward,
