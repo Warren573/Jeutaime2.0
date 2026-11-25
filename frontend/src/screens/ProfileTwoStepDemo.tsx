@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStore } from "../store/useStore";
@@ -155,8 +155,15 @@ export default function ProfileTwoStepDemo() {
 
   const isReceivedSmilesFilter = searchParams.filter === 'received-smiles';
 
-  const [currentProfile, setCurrentProfile] = useState<DiscoveryProfileDto | null>(null);
-  const [remainingProfiles, setRemainingProfiles] = useState<DiscoveryProfileDto[]>([]);
+  const [firstCandidate, setCurrentProfile] = useState<DiscoveryProfileDto | null>(null);
+  const [queuedCandidates, setRemainingProfiles] = useState<DiscoveryProfileDto[]>([]);
+  const unavailableIds = new Set(allMatches
+    .filter((match) => match.userAId === currentUser?.id || match.userBId === currentUser?.id)
+    .filter((match) => !isReceivedSmilesFilter || match.status !== 'pending')
+    .map((match) => match.userAId === currentUser?.id ? match.userBId : match.userAId));
+  const [currentProfile, ...remainingProfiles] = [firstCandidate, ...queuedCandidates]
+    .filter((candidate): candidate is DiscoveryProfileDto => !!candidate && !unavailableIds.has(candidate.userId));
+  const requestId = useRef(0);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -176,12 +183,13 @@ export default function ProfileTwoStepDemo() {
 
   const load = useCallback(async () => {
     if (!currentUser?.id) return;
+    const request = ++requestId.current;
     setLoading(true);
     setError(null);
     try {
-      if (isReceivedSmilesFilter && allMatches.length > 0) {
+      if (isReceivedSmilesFilter) {
         const receivedSmileProfiles = allMatches
-          .filter((m) => m.initiatorId !== currentUser.id)
+          .filter((m) => m.status === 'pending' && m.initiatorId !== currentUser.id)
           .map((m) => {
             const otherUserId = m.userAId === currentUser.id ? m.userBId : m.userAId;
             return { match: m, otherUserId };
@@ -215,6 +223,7 @@ export default function ProfileTwoStepDemo() {
         setRemainingProfiles(receivedSmileProfiles.slice(1));
       } else {
         const result = await discoverProfiles({ pageSize: 50 });
+        if (request !== requestId.current) return;
         const filtered = result.data.filter(
           (p) => p.userId !== currentUser.id && !removedIds.has(p.userId),
         );
@@ -222,15 +231,19 @@ export default function ProfileTwoStepDemo() {
         setRemainingProfiles(filtered.slice(1));
       }
     } catch (err) {
+      if (request !== requestId.current) return;
       setError(err instanceof Error ? err.message : "Erreur de chargement");
     } finally {
-      setLoading(false);
+      if (request === requestId.current) setLoading(false);
     }
   }, [currentUser?.id, removedIds, isReceivedSmilesFilter, allMatches, matchPartners]);
 
-  useEffect(() => {
-    if (currentUser?.id) load();
-  }, [currentUser?.id]);
+  const latestLoad = useRef(load);
+  latestLoad.current = load;
+  useFocusEffect(useCallback(() => {
+    void latestLoad.current();
+    return () => { requestId.current += 1; };
+  }, [currentUser?.id, isReceivedSmilesFilter]));
 
   const profile = currentProfile;
   const displayedProfile = profile;
