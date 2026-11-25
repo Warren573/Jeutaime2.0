@@ -31,8 +31,11 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const [foodChoice, setFoodChoice] = useState<RefugeFood | null>(null);
   const [now, setNow] = useState(Date.now);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
-  const animalState = refugeAnimation({now, choiceAt: refuge.choiceAt, resolvedAt: refuge.resolvedAt, matches: refuge.todayResult?.matches});
+  const timedState = refugeAnimation({now, choiceAt: refuge.choiceAt, resolvedAt: refuge.resolvedAt, matches: refuge.todayResult?.matches});
 
+  const elapsed = refuge.resolvedAt ? now - Date.parse(refuge.resolvedAt) : Infinity;
+  const reaction = elapsed >= 0 && elapsed < 10000 ? refuge.todayResult?.reactions?.[Math.floor(elapsed / 5000)] : undefined;
+  const animalState = reaction ? (elapsed % 5000 >= 4000 ? 'assis' : !reaction.correct ? 'boude' : reaction.action === 'JOUER' && elapsed % 5000 < 2500 ? 'joue' : 'content') : timedState;
   const artWidth = Math.min(width, 520);
   const availableHeight = Math.max(height - insets.top - insets.bottom, artWidth * 1.72);
   const artHeight = availableHeight;
@@ -48,7 +51,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const feeding = refuge.role === 'adoptant' && selected.includes('feed') && !hideActionsForToday && !refuge.adoptantSubmittedToday;
   const chosenFood = foods.length === 1 ? foods[0] : foodChoice && foods.includes(foodChoice) ? foodChoice : null;
   useEffect(() => { resetDay(); setFoodChoice(null); }, [sessionIdProp, refuge.currentDay, resetDay]);
-  useEffect(() => { if (!feeding) setFoodChoice(null); }, [feeding]);
+  useEffect(() => { if (!feeding && !refuge.dayCompleted) setFoodChoice(null); }, [feeding, refuge.dayCompleted]);
 
   const handleAction = (action: RefugeActionType) => {
     if (disabled) return;
@@ -108,6 +111,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
             <Text style={styles.dayCaption}>Jour {currentDay} sur 7</Text>
           </View>
           <View style={styles.animal} pointerEvents="none">{isRefugeAnimal(refuge.companion?.animalType) && <AnimalIllustration animal={refuge.companion.animalType} state={animalState} size={animalSize} />}</View>
+          {reaction?.action === 'NOURRIR' && (reaction.correct || chosenFood) && <Image source={BOWL_IMAGES[reaction.correct ? 'empty' : chosenFood!]} resizeMode="contain" style={{position:'absolute',top:'61%',left:'61%',width:artWidth*.20,height:artWidth*.20,zIndex:13}} />}
           {feeding && chosenFood && <Image pointerEvents="none" source={BOWL_IMAGES[chosenFood]} resizeMode="contain" style={{position:'absolute',top:'61%',left:'61%',width:artWidth*.20,height:artWidth*.20,zIndex:13}} />}
           {feeding && foods.length > 1 && <View style={{position:'absolute',top:'65%',left:'6.5%',width:'87%',flexDirection:'row',justifyContent:'center',gap:6,zIndex:15}}>{foods.map(food => <TouchableOpacity accessibilityRole="button" accessibilityState={{selected:chosenFood===food}} key={food} onPress={()=>setFoodChoice(food)} style={{backgroundColor:parchment,borderRadius:8,borderWidth:chosenFood===food?2:1,borderColor:burgundy,padding:4,alignItems:'center'}}><Image source={BOWL_IMAGES[food]} style={{width:34,height:34}} resizeMode="contain"/><Text style={{color:ink,fontSize:10}}>{FOOD_LABELS[food]}</Text></TouchableOpacity>)}</View>}
           {hideActionsForToday ? (
