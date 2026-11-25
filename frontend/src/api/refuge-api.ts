@@ -51,6 +51,7 @@ export interface RefugeSession {
   choiceAt?: string | null;
   resolvedAt?: string | null;
   animationMatches?: number | null;
+  animationReactions?: { action: string; correct: boolean }[];
   adopteSubmittedToday?: boolean;
   adoptantSubmittedToday?: boolean;
   dayCompleted?: boolean;
