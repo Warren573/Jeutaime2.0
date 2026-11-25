@@ -1,4 +1,9 @@
-import { describe, test, expect } from 'vitest';
+// Dependency-free assertions; executable after TypeScript transpilation.
+const describe = (_name: string, run: () => void) => run();
+const test = (_name: string, run: () => void) => run();
+const expect = (actual: unknown) => ({ toBe(expected: unknown) {
+  if (actual !== expected) throw new Error(`Expected ${expected}, received ${actual}`);
+} });
 import { refugeAnimation } from './refugeAnimation';
 const start = Date.parse('2026-01-01T12:00:00Z');
 const resolvedAt = new Date(start).toISOString();
