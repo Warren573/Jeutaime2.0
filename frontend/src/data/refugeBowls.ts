@@ -23,3 +23,9 @@ export const ANIMAL_FOODS: Record<RefugeAnimal, readonly RefugeFood[]> = {
   IGUANE: ['salad','carrot'], LICORNE: ['salad','carrot'],
   PERROQUET: ['seeds'], PANDA: ['bamboo'], DRAGON: ['meat','fish'],
 };
+
+/**
+ * Position validée de la gamelle de nourriture : à droite de l'animal, immédiatement
+ * à gauche de la gamelle d'eau du décor (proportions de la zone illustrée).
+ */
+export const BOWL_LAYOUT = { top: '61%', left: '61%', widthRatio: 0.2 } as const;

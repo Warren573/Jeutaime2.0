@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { AppState } from "react-native";
 import { useStore } from "../store/useStore";
 import { refugeApi, isAlreadySubmittedError } from "../api/refuge-api";
 import { ACTION_TO_BACKEND, type RefugeActionType } from "../data/refugeActions";
+import type { RefugeAnimationData } from "../data/refugeAnimation";
+import { computeClockOffsetMs } from "../data/refugeClock";
 
 interface RefugeSessionState {
   sessionId: string | null;
@@ -10,8 +13,10 @@ interface RefugeSessionState {
   canAttemptToday: boolean;
   todaySubmitted: boolean;
   sponsorRole: "parrain" | "marraine" | null;
-  choiceAt?: string | null;
-  resolvedAt?: string | null;
+  /** Horodatages serveur de l'animation du compagnon (aucune action secrète). */
+  animation: RefugeAnimationData | null;
+  /** Décalage horloge serveur − appareil (ms), pour calculer l'animation localement. */
+  serverOffsetMs: number;
   adopteSubmittedToday: boolean;
   adoptantSubmittedToday: boolean;
   dayCompleted: boolean;
@@ -28,8 +33,6 @@ interface RefugeSessionState {
     action2: string;
   } | null;
   todayResult: {
-    foodChoice?: string | null;
-    reactions?: { action: string; correct: boolean }[];
     matches: number;
     message: string;
     reward: number;
@@ -76,6 +79,8 @@ export function useRefugeSession(sessionId: string | null) {
     canAttemptToday: true,
     todaySubmitted: false,
     sponsorRole: null,
+    animation: null,
+    serverOffsetMs: 0,
     adopteSubmittedToday: false,
     adoptantSubmittedToday: false,
     dayCompleted: false,
@@ -138,8 +143,8 @@ export function useRefugeSession(sessionId: string | null) {
         canAttemptToday: data.canAttemptToday ?? false,
         todaySubmitted: data.todaySubmitted ?? false,
         sponsorRole: data.sponsorRole ?? null,
-        choiceAt: data.choiceAt,
-        resolvedAt: data.resolvedAt,
+        animation: data.animation ?? null,
+        serverOffsetMs: computeClockOffsetMs(data.serverTime, Date.now()),
         adopteSubmittedToday: data.adopteSubmittedToday ?? false,
         adoptantSubmittedToday: data.adoptantSubmittedToday ?? false,
         dayCompleted: data.dayCompleted ?? false,
@@ -174,9 +179,22 @@ export function useRefugeSession(sessionId: string | null) {
   useEffect(() => {
     fetchSessionStatus();
 
-    // Rafraîchir toutes les 30 secondes
-    const interval = setInterval(fetchSessionStatus, 30000);
-    return () => clearInterval(interval);
+    // Rafraîchir toutes les 30 secondes, uniquement application au premier plan
+    // (aucune requête en arrière-plan : ménage le quota de la base).
+    let interval: ReturnType<typeof setInterval> | null = setInterval(fetchSessionStatus, 30000);
+    const stop = () => { if (interval) { clearInterval(interval); interval = null; } };
+    const subscription = AppState.addEventListener("change", (appState) => {
+      if (appState === "active") {
+        // Retour au premier plan : une seule requête pour retrouver le bon état
+        // (résultat reçu pendant l'absence), puis reprise du rythme normal.
+        stop();
+        void fetchSessionStatus();
+        interval = setInterval(fetchSessionStatus, 30000);
+      } else {
+        stop();
+      }
+    });
+    return () => { stop(); subscription.remove(); };
   }, [fetchSessionStatus]);
 
   // Soumettre la tentative quotidienne de l'Adoptant :
