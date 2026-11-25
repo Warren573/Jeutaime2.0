@@ -109,6 +109,7 @@ export default function ProfileDetailScreen({ bottomOverlayHeight = 0 }: { botto
 }
 const C={bg:'#EDE1CF',paper:'#FDF9F1',warm:'#F7ECDD',grid:'#F6F4E9',pink:'#F1D7D7',lavender:'#E5DCEB',yellow:'#F2D989',ink:'#30241E',muted:'#907B65',line:'#D4BE9E',burgundy:'#A7324B',shadow:'#88745E',white:'#FFFDF8'};
 const styles=StyleSheet.create({
+ reportText:{fontSize:12,fontWeight:'700',color:C.burgundy,textAlign:'center',marginTop:8},
  container:{flex:1,backgroundColor:C.bg},center:{flex:1,alignItems:'center',justifyContent:'center',padding:24},errorText:{color:C.muted,fontSize:14,textAlign:'center'},
  header:{flexDirection:'row',alignItems:'center',paddingHorizontal:12,paddingVertical:10,borderBottomWidth:1,borderBottomColor:'#DCCEBB',backgroundColor:C.white},headerTitle:{flex:1,textAlign:'center',fontSize:18,fontWeight:'900',color:C.ink,letterSpacing:1.7},headerSpacer:{width:64},headerAction:{minWidth:64,alignItems:'flex-end'},headerActionText:{fontSize:13,fontWeight:'800',color:C.burgundy},
  scroll:{padding:14,paddingTop:18,paddingBottom:80},dossier:{position:'relative',backgroundColor:'#F9F2E7',borderWidth:1,borderColor:'#D1B996',padding:12,shadowColor:C.shadow,shadowOpacity:0.2,shadowRadius:9,shadowOffset:{width:2,height:5},elevation:3},
