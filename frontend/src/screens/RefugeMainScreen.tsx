@@ -300,7 +300,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
               ) : (
                 <>
                   <Text style={styles.questionText}>Que veut-il faire aujourd’hui ?</Text>
-                  <Text style={styles.questionHint}>Choisis les deux gestes qui lui ressemblent le plus.</Text>
+                  <Text style={styles.questionHint}>Choisis les deux actions qui lui ressemblent le plus.</Text>
                   <View style={styles.actionGrid}>
                     {actions.map(action => (
                       <BouncyButton key={action} style={[styles.actionTag, selectedGuessActions.includes(action) && styles.actionTagSelected, adoptantSubmitted && styles.actionTagDisabled]} onPress={() => !adoptantSubmitted && toggleGuessAction(action)} disabled={adoptantSubmitted || (selectedGuessActions.length === 2 && !selectedGuessActions.includes(action))}>

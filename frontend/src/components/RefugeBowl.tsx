@@ -5,20 +5,19 @@ import { BOWL_IMAGES, BOWL_LAYOUT, type RefugeFood } from '../data/refugeBowls';
 /**
  * Gamelle de nourriture (PNG d'origine du projet). La gamelle d'eau fait partie du fond : jamais dupliquée ici.
  * Les deux PNG (pleine / vide) sont superposés : le passage de l'un à l'autre est un fondu perceptible.
- * `visible` pilote aussi l'apparition / la disparition (fondu), jamais une coupure brutale.
+ * L'apparition se fait en fondu ; le composant est retiré par l'écran à la fin de la réaction.
  */
-export function RefugeBowl({ food, level, artWidth, visible = true }: {
+export function RefugeBowl({ food, level, artWidth }: {
   food: RefugeFood;
   level: 'full' | 'empty';
   artWidth: number;
-  visible?: boolean;
 }) {
-  const shown = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const shown = useRef(new Animated.Value(0)).current;
   const emptiness = useRef(new Animated.Value(level === 'empty' ? 1 : 0)).current;
 
   useEffect(() => {
-    Animated.timing(shown, { toValue: visible ? 1 : 0, duration: 250, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
-  }, [visible, shown]);
+    Animated.timing(shown, { toValue: 1, duration: 250, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  }, [shown]);
   useEffect(() => {
     Animated.timing(emptiness, { toValue: level === 'empty' ? 1 : 0, duration: 600, easing: Easing.inOut(Easing.quad), useNativeDriver: true }).start();
   }, [level, emptiness]);
