@@ -94,6 +94,7 @@ jobs:
           tests/unit/bottles-anonymity.test.ts
           tests/unit/refuge.service.test.ts
           tests/integration/refuge-food-choice.test.ts
+          tests/integration/refuge-day7.test.ts
       - name: Typecheck backend
         working-directory: backend
         run: npm run typecheck
@@ -165,7 +166,8 @@ jobs:
           export DIRECT_URL="$DATABASE_URL" PORT=4300 NODE_ENV=production
           npm run start:render > "$RUNNER_TEMP/new.log" 2>&1 &
           for i in $(seq 1 60); do curl -fs http://127.0.0.1:4300/api/health >/dev/null && break; sleep 1; done
-          grep -E "Applying migration|successfully" "$RUNNER_TEMP/new.log"
+          # Avec une migration : « Applying migration… / successfully applied » ; sans migration : « No pending migrations ».
+          grep -E "Applying migration|successfully|No pending migrations" "$RUNNER_TEMP/new.log"
           node scripts/ci/smoke-backend.mjs http://127.0.0.1:4300 || { tail -40 "$RUNNER_TEMP/new.log"; exit 1; }
           pkill -f "node dist/server.js" || true
 
