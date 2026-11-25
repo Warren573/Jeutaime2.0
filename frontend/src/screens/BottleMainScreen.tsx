@@ -247,7 +247,7 @@ export default function BottleMainScreen() {
         <View style={[styles.container, { paddingTop: insets.top }]}>
           {firstReplyDialog}
           <BottleHeader title="Bouteille à la mer" onBack={() => router.back()} />
-          <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, (androidSeaFill || emptySeaFill) ? { flexGrow: 1, paddingBottom: footerBottomPadding(Platform.OS, insets.bottom, 0) } : { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
+          <ScrollView style={styles.scroll} bounces={false} alwaysBounceVertical={false} overScrollMode="never" contentContainerStyle={[styles.content, (androidSeaFill || emptySeaFill) ? { flexGrow: 1, paddingBottom: footerBottomPadding(Platform.OS, insets.bottom, 0) } : { paddingBottom: insets.bottom + 100 }]} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={COLORS.accent} />}>
             {error && <View style={styles.paddedSection}><View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View></View>}
             <View style={styles.selectionHeader}>
               <Text style={styles.selectionTitle}>Choisissez une bouteille</Text>
