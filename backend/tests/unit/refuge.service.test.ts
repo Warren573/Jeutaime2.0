@@ -1382,3 +1382,86 @@ describe("RefugeService — animation partagée (getRefugeSession / getActiveRef
     expect(typeof home?.serverTime).toBe("string");
   });
 });
+
+// ============================================================
+// Clôture d'une session expirée restée ACTIVE (unique, sans pièces)
+// ============================================================
+
+describe("RefugeService.closeExpiredSession", () => {
+  const expired = (over: Record<string, unknown> = {}) =>
+    activeSession({ endsAt: new Date(Date.now() - 1000), startedAt: new Date(Date.now() - 8 * DAY_MS), ...over });
+  const noCoinMovement = () => {
+    expect(prisma.wallet.upsert).not.toHaveBeenCalled();
+    expect(prisma.wallet.update).not.toHaveBeenCalled();
+    expect(prisma.coinTransaction.create).not.toHaveBeenCalled();
+    expect(prisma.refugeDayResult.create).not.toHaveBeenCalled();
+  };
+
+  it("session en cours : rien (aucune écriture)", async () => {
+    expect(await RefugeService.closeExpiredSession(activeSession() as any)).toBeNull();
+    expect(prisma.refugeSession.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("session déjà fermée ou non ACTIVE : rien", async () => {
+    for (const status of ["ABANDONED", "COMPLETED", "REVEALED", "AWAITING_REVEAL_CONSENT", "WAITING_FOR_ADOPTANT"]) {
+      expect(await RefugeService.closeExpiredSession(expired({ status }) as any)).toBeNull();
+    }
+    expect(prisma.refugeSession.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("jour 7 joué (choix + réponse) → phase de dévoilement", async () => {
+    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 });
+    const s = expired({ dailyChoices: [{ dayNumber: 7 }], guesses: [{ dayNumber: 7 }] });
+    const result = await RefugeService.closeExpiredSession(s as any);
+    expect(result).toEqual({ status: "AWAITING_REVEAL_CONSENT", closedByThisCall: true });
+    const call = (prisma.refugeSession.updateMany as any).mock.calls[0][0];
+    expect(call.data).toEqual({ status: "AWAITING_REVEAL_CONSENT" });
+    expect(call.where.status).toBe("ACTIVE"); // garde conditionnelle : une seule transition
+    expect(call.where.endsAt).toBeDefined();
+    noCoinMovement();
+  });
+
+  it("jour 7 non joué, ou seulement à moitié (choix sans réponse) → clôture propre", async () => {
+    (prisma.refugeSession.updateMany as any).mockResolvedValue({ count: 1 });
+    for (const s of [
+      expired({ dailyChoices: [{ dayNumber: 1 }], guesses: [{ dayNumber: 1 }] }),
+      expired({ dailyChoices: [{ dayNumber: 7 }], guesses: [] }),
+      expired({ dailyChoices: [], guesses: [] }),
+    ]) {
+      expect((await RefugeService.closeExpiredSession(s as any))?.status).toBe("ABANDONED");
+    }
+    noCoinMovement();
+  });
+
+  it("requête simultanée perdante : même résultat, sans se déclarer auteur de la clôture", async () => {
+    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 0 });
+    expect(await RefugeService.closeExpiredSession(expired() as any)).toEqual({ status: "ABANDONED", closedByThisCall: false });
+  });
+
+  it("lecture d'une session expirée : statut clôturé renvoyé, aucune trace de présence écrite, aucune pièce", async () => {
+    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 });
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(expired());
+    const view: any = await RefugeService.getRefugeSession(sessionId, adoptantId);
+    expect(view.status).toBe("ABANDONED");
+    expect(view.isActive).toBe(false);
+    expect(prisma.refugeSession.update).not.toHaveBeenCalled(); // pas de trace de présence sur une session fermée
+    noCoinMovement();
+  });
+
+  it("refus d'une écriture sur une session expirée : message inchangé, session clôturée en plus", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(expired()).mockResolvedValueOnce({ ...expired(), dailyChoices: [], guesses: [] });
+    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 });
+    await expect(
+      RefugeService.submitGuess(sessionId, adoptantId, 1, { guessedAction1: "NOURRIR", guessedAction2: "JOUER" } as any)
+    ).rejects.toMatchObject({ statusCode: 409, message: "Ce refuge a expiré" });
+    expect(prisma.refugeSession.updateMany).toHaveBeenCalledTimes(1);
+    noCoinMovement();
+  });
+
+  it("décision de dévoilement : session expirée au jour 7 non joué = terminée, sans solder aucune pièce", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce({ ...expired(), guesses: [], dailyChoices: [] });
+    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 });
+    await expect(RefugeService.submitRevealConsent(sessionId, adopteId, "ACCEPT")).rejects.toMatchObject({ statusCode: 409, message: "Cette session est terminée" });
+    noCoinMovement();
+  });
+});

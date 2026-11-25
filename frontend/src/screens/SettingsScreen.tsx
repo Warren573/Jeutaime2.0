@@ -17,6 +17,8 @@ import * as Updates from 'expo-updates';
 import { requireOptionalNativeModule } from 'expo';
 import { useStore } from '../store/useStore';
 import { getUserSettings, updateUserSettings } from '../api/userSettings';
+import { fetchServerInfo } from '../api/serverVersion';
+import { serverLabel, type ServerInfo } from '../data/serverInfo';
 import { CoinIcon } from '../components/CoinIcon';
 import { getTabBarFootprint } from '../components/CustomTabBar';
 
@@ -183,6 +185,9 @@ export default function SettingsScreen() {
     ? 'Code intégré au build'
     : otaUpdateId ? `OTA ${otaRelease ? otaRelease + ' · ' : ''}${otaUpdateId}` : 'OTA non identifiée';
   const otaChannel = Updates.channel ?? 'non renseigné';
+  // Serveur réellement joint par l'application et son build : une seule requête publique, sans base de données.
+  const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
+  useEffect(() => { let alive = true; void fetchServerInfo().then((info) => { if (alive) setServerInfo(info); }); return () => { alive = false; }; }, []);
 
   const isStaffViewer =
     currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MODERATOR';
@@ -302,6 +307,7 @@ export default function SettingsScreen() {
         { icon: 'layers-outline', label: `Build natif : ${nativeBuildNumber}` },
         { icon: 'cloud-download-outline', label: otaStatus },
         { icon: 'git-branch-outline', label: `Canal OTA : ${otaChannel}` },
+        { icon: 'server-outline', label: serverLabel(serverInfo) },
         // Diagnostic (administration uniquement) : taille réellement affichée de
         // cet écran. Attendu sur le Galaxy A17 : 384 × 832.
         ...(isStaffViewer && screenOnDisplay

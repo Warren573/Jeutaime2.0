@@ -356,6 +356,11 @@ export class RefugeService {
       throw new ForbiddenError("Tu n'as accès à ce refuge");
     }
 
+    // Session expirée restée ACTIVE : clôture unique à la lecture, à partir des données déjà chargées
+    // (aucune requête supplémentaire si la session est en cours). Aucune pièce, aucune suppression.
+    const closure = await this.closeExpiredSession(refugeSession);
+    if (closure) refugeSession.status = closure.status;
+
     // Trace de présence de l'Adoptant (throttlée) : sert à distinguer, à la
     // clôture d'un jour sans choix, "Adoptant présent mais bloqué" (⚠️ pour
     // l'Adopté) de "personne n'est venu" (jour NOT_PLAYED). Simple timestamp
@@ -594,6 +599,13 @@ export class RefugeService {
     });
 
     if (activeSession) {
+      // Session expirée restée ACTIVE : clôturée ici, une seule fois. Fermée (non jouée jusqu'au jour 7), elle ne
+      // compte plus comme « en cours » : on relit pour retrouver une proposition, un dévoilement ou rien (adoption normale).
+      const closure = await this.closeExpiredSession(activeSession);
+      if (closure) {
+        activeSession.status = closure.status;
+        if (closure.status === RefugeSessionStatus.ABANDONED) return this.getActiveRefugeSession(userId);
+      }
       const now = new Date();
       const currentDay = getCurrentDay(activeSession.createdAt, activeSession.startedAt, now);
       const todaySubmitted = todaySubmittedForDay(currentDay, activeSession.guesses);
@@ -692,6 +704,8 @@ export class RefugeService {
 
     // Vérifier que le refuge n'est pas expiré
     if (isRefugeExpired(refugeSession.endsAt)) {
+      // Même refus qu'avant ; la session est en plus clôturée (une seule fois) pour ne plus jamais rester ACTIVE.
+      await this.closeExpiredSessionById(refugeSessionId);
       throw new ConflictError("Ce refuge a expiré");
     }
 
@@ -793,6 +807,8 @@ export class RefugeService {
 
     // Vérifier que le refuge n'est pas expiré
     if (isRefugeExpired(refugeSession.endsAt)) {
+      // Même refus qu'avant ; la session est en plus clôturée (une seule fois) pour ne plus jamais rester ACTIVE.
+      await this.closeExpiredSessionById(refugeSessionId);
       throw new ConflictError("Ce refuge a expiré");
     }
 
@@ -1043,6 +1059,62 @@ export class RefugeService {
     }
   }
 
+  // ============================================================
+  // Clôture d'une session expirée — unique, sans pièces, sans suppression
+  // ============================================================
+
+  /**
+   * Une session dont la fin est dépassée reste ACTIVE en base (aucun job ne tourne : ENABLE_SCHEDULER=false) :
+   * elle bloquait l'Adopté (« Tu as déjà un refuge en cours ») et refusait toute action.
+   *
+   *   - jour 7 joué (choix + réponse)  → AWAITING_REVEAL_CONSENT (phase de dévoilement) ;
+   *   - sinon                          → ABANDONED (clôture propre).
+   *
+   * Garde conditionnelle (status=ACTIVE ET endsAt échue) : de N requêtes simultanées, une seule applique la
+   * transition ; les autres constatent le même résultat (déterministe). Les choix, tentatives et résultats sont
+   * conservés. AUCUN mouvement de pièces : les ±5 sont en attente de validation, et closePastDays ne s'exécutant
+   * que sur une session ACTIVE, les jours incomplets d'une session ainsi clôturée ne sont pas soldés.
+   *
+   * Travaille sur les données déjà chargées par l'appelant : zéro requête si la session est en cours.
+   */
+  static async closeExpiredSession(
+    session: {
+      id: string;
+      status: RefugeSessionStatus;
+      endsAt: Date | null;
+      adoptantId: string | null;
+      dailyChoices?: { dayNumber: number }[];
+      guesses?: { dayNumber: number }[];
+    },
+    now: Date = new Date()
+  ): Promise<{ status: RefugeSessionStatus; closedByThisCall: boolean } | null> {
+    if (session.status !== RefugeSessionStatus.ACTIVE || !isRefugeExpired(session.endsAt, now)) return null;
+    const lastDayPlayed =
+      !!session.adoptantId && isDayCompleted(session.dailyChoices ?? [], session.guesses ?? [], REFUGE_DURATION_DAYS);
+    const status = lastDayPlayed ? RefugeSessionStatus.AWAITING_REVEAL_CONSENT : RefugeSessionStatus.ABANDONED;
+    const claimed = await prisma.refugeSession.updateMany({
+      where: { id: session.id, status: RefugeSessionStatus.ACTIVE, endsAt: { lte: now } },
+      data: { status },
+    });
+    return { status, closedByThisCall: (claimed?.count ?? 0) === 1 };
+  }
+
+  /** Variante pour les écritures, qui n'ont pas chargé les jours : ne lit que le jour 7 (chemin de refus uniquement). */
+  static async closeExpiredSessionById(refugeSessionId: string) {
+    const session = await prisma.refugeSession.findUnique({
+      where: { id: refugeSessionId },
+      select: {
+        id: true,
+        status: true,
+        endsAt: true,
+        adoptantId: true,
+        dailyChoices: { where: { dayNumber: REFUGE_DURATION_DAYS }, select: { dayNumber: true } },
+        guesses: { where: { dayNumber: REFUGE_DURATION_DAYS }, select: { dayNumber: true } },
+      },
+    });
+    return session ? this.closeExpiredSession(session) : null;
+  }
+
   // Clôture tous les jours arrivés à échéance (jour strictement passé, ou tous
   // les jours si la session est expirée) qui n'ont pas encore de résultat final.
   // Appelée par les écritures Refuge (POST) et par le job planifié — jamais
@@ -1123,6 +1195,14 @@ export class RefugeService {
     const isAdoptant = userId === refugeSession.adoptantId;
     if (!isAdopte && !isAdoptant) {
       throw new ForbiddenError("Tu n'as accès à ce refuge");
+    }
+
+    // Une session expirée est d'abord clôturée (sans mouvement de pièces) : closePastDays ne solde que les
+    // sessions ACTIVE. Jour 7 non joué : la session est terminée, aucun dévoilement possible.
+    const closure = await this.closeExpiredSession(refugeSession);
+    if (closure) {
+      if (closure.status === RefugeSessionStatus.ABANDONED) throw new ConflictError("Cette session est terminée");
+      refugeSession.status = closure.status;
     }
 
     // Solder les jours passés avant de figer la fin de session (écriture POST)
