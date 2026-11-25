@@ -756,6 +756,7 @@ CREATE TABLE "RefugeGuess" (
     "dayNumber" INTEGER NOT NULL,
     "guessedAction1" "RefugeAction" NOT NULL,
     "guessedAction2" "RefugeAction" NOT NULL,
+    "foodChoice" TEXT,
     "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "RefugeGuess_pkey" PRIMARY KEY ("id")

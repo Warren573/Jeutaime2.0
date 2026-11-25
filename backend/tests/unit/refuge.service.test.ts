@@ -1268,3 +1268,117 @@ describe("RefugeService.closePastDays", () => {
     expect(prisma.coinTransaction.create).not.toHaveBeenCalled();
   });
 });
+
+
+// ============================================================
+// Aliment de la tentative et animation partagée
+// ============================================================
+
+describe("RefugeService.submitGuess — aliment", () => {
+  const choice = { id: "dc-1", refugeSessionId: sessionId, dayNumber: 1, action1: "NOURRIR", action2: "JOUER" };
+  const created = (extra: Record<string, unknown> = {}) => ({
+    id: "guess-1", refugeSessionId: sessionId, dayNumber: 1,
+    guessedAction1: "NOURRIR", guessedAction2: "JOUER", submittedAt: new Date(), ...extra,
+  });
+  function prepare(animalType: string) {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession({ animalType }));
+    (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(null);
+    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(choice);
+    (prisma.refugeGuess.create as any).mockResolvedValueOnce(created());
+    (prisma.refugeSession.update as any).mockResolvedValueOnce({});
+  }
+  const createdData = () => (prisma.refugeGuess.create as any).mock.calls[0][0].data;
+
+  it("persiste l'aliment choisi pour un animal à plusieurs aliments", async () => {
+    prepare("CHAT");
+    await RefugeService.submitGuess(sessionId, adoptantId, 1, { guessedAction1: "NOURRIR", guessedAction2: "JOUER", foodChoice: "sardines" } as any);
+    expect(createdData().foodChoice).toBe("sardines");
+  });
+
+  it("sélectionne automatiquement l'aliment unique (panda → bambou)", async () => {
+    prepare("PANDA");
+    await RefugeService.submitGuess(sessionId, adoptantId, 1, { guessedAction1: "JOUER", guessedAction2: "NOURRIR" } as any);
+    expect(createdData().foodChoice).toBe("bamboo");
+  });
+
+  it("ancien client sans aliment sur un animal à plusieurs aliments : accepté, null en base", async () => {
+    prepare("CHAT");
+    await RefugeService.submitGuess(sessionId, adoptantId, 1, { guessedAction1: "NOURRIR", guessedAction2: "JOUER" } as any);
+    expect(createdData().foodChoice).toBeNull();
+  });
+
+  it("refuse un aliment incompatible et n'écrit rien", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession({ animalType: "CHIEN" }));
+    (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(null);
+    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(choice);
+    await expect(
+      RefugeService.submitGuess(sessionId, adoptantId, 1, { guessedAction1: "NOURRIR", guessedAction2: "JOUER", foodChoice: "fish" } as any)
+    ).rejects.toBeInstanceOf(BadRequestError);
+    expect(prisma.refugeGuess.create).not.toHaveBeenCalled();
+    expect(prisma.wallet.upsert).not.toHaveBeenCalled();
+  });
+
+  it("refuse un aliment lorsque Nourrir n'est pas sélectionné", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession({ animalType: "CHAT" }));
+    (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(null);
+    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(choice);
+    await expect(
+      RefugeService.submitGuess(sessionId, adoptantId, 1, { guessedAction1: "JOUER", guessedAction2: "LAVER", foodChoice: "fish" } as any)
+    ).rejects.toBeInstanceOf(BadRequestError);
+    expect(prisma.refugeGuess.create).not.toHaveBeenCalled();
+  });
+
+  it("sans Nourrir et sans aliment : aucune valeur persistée", async () => {
+    prepare("CHAT");
+    await RefugeService.submitGuess(sessionId, adoptantId, 1, { guessedAction1: "JOUER", guessedAction2: "LAVER" } as any);
+    expect(createdData().foodChoice).toBeNull();
+  });
+});
+
+describe("RefugeService — animation partagée (getRefugeSession / getActiveRefugeSession)", () => {
+  const choiceAt = new Date(Date.now() - 20 * 60 * 1000);
+  const resolvedAt = new Date(Date.now() - 5 * 60 * 1000);
+  const choice = { id: "dc-1", refugeSessionId: sessionId, dayNumber: 1, action1: "NOURRIR", action2: "JOUER", submittedAt: choiceAt };
+
+  it("avant la validation du parrain : seule l'heure du choix est exposée, jamais les actions", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession({ dailyChoices: [choice] }));
+    const forSponsor = await RefugeService.getRefugeSession(sessionId, adoptantId);
+    expect(forSponsor.animation).toEqual({
+      choiceAt: choiceAt.toISOString(), resolvedAt: null, matches: null, reactions: [], foodChoice: null,
+    });
+    expect(forSponsor.todayActions).toBeUndefined();
+    expect(JSON.stringify(forSponsor)).not.toMatch(/"action1"|"action2"|NOURRIR|JOUER/);
+    expect(typeof forSponsor.serverTime).toBe("string");
+  });
+
+  it("après validation : mêmes données d'animation pour le compagnon et pour le parrain", async () => {
+    const session = activeSession({
+      dailyChoices: [choice],
+      guesses: [{ dayNumber: 1, guessedAction1: "NOURRIR", guessedAction2: "LAVER", foodChoice: "sardines", submittedAt: resolvedAt }],
+    });
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(session).mockResolvedValueOnce(session);
+    const companion = await RefugeService.getRefugeSession(sessionId, adopteId);
+    const sponsor = await RefugeService.getRefugeSession(sessionId, adoptantId);
+    expect(companion.animation).toEqual(sponsor.animation);
+    expect(companion.animation).toEqual({
+      choiceAt: choiceAt.toISOString(),
+      resolvedAt: resolvedAt.toISOString(),
+      matches: 1,
+      reactions: [{ action: "NOURRIR", correct: true }, { action: "LAVER", correct: false }],
+      foodChoice: "sardines",
+    });
+  });
+
+  it("la case de l'accueil reçoit exactement le même snapshot que le Refuge", async () => {
+    const session = activeSession({
+      dailyChoices: [choice],
+      guesses: [{ dayNumber: 1, guessedAction1: "NOURRIR", guessedAction2: "JOUER", foodChoice: null, submittedAt: resolvedAt }],
+    });
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(session);
+    (prisma.refugeSession.findFirst as any).mockResolvedValueOnce(session);
+    const full = await RefugeService.getRefugeSession(sessionId, adopteId);
+    const home = await RefugeService.getActiveRefugeSession(adopteId);
+    expect(home?.animation).toEqual(full.animation);
+    expect(typeof home?.serverTime).toBe("string");
+  });
+});

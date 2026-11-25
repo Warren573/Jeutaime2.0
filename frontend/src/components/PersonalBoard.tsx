@@ -3,7 +3,7 @@
  */
 import { NotificationBell } from './NotificationBell';
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, AppState, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,7 +15,8 @@ import { getReceivedOfferings, type OfferingSentDTO } from '../api/offerings';
 import { getUnreadCount } from '../api/bottles';
 import { getSalon } from '../api/salons';
 import { salonsData } from '../data/salonsData';
-import { useRefugePose } from '../store/useRefugePose';
+import { useRefugeAnimation } from '../hooks/useRefugeAnimation';
+import { computeClockOffsetMs } from '../data/refugeClock';
 import { getAnimalImage } from '../data/refugeAnimalImages';
 import { getAnimalLabel } from '../data/refugeAnimals';
 import { refugeApi, type RefugeSession } from '../api/refuge-api';
@@ -76,21 +77,21 @@ export function PersonalBoard() {
   const [companionBottom, setCompanionBottom] = useState(0);
   const [hasBottle, setHasBottle] = useState(false);
   const [salonName, setSalonName] = useState<string | null>(null);
-  const [refugeSnapshot, setRefugeSnapshot] = useState<{ userId: string; session: RefugeSession | null } | null>(null);
+  const [refugeSnapshot, setRefugeSnapshot] = useState<{ userId: string; session: RefugeSession | null; serverOffsetMs: number } | null>(null);
   const userId = currentUser?.id;
   const refugeData = refugeSnapshot?.userId === userId ? refugeSnapshot?.session : null;
   const isAnimal = !!refugeData && refugeData.adopteId === userId;
-  const pose = useRefugePose(store => store.pose);
-  const poseKey = JSON.stringify([refugeData?.id, refugeData?.currentDay, isAnimal ? 'adopte' : 'adoptant']);
-  const completed = !!refugeData?.todaySubmitted;
-  const sharedPose = pose?.key === poseKey && (pose.resolved || (!completed && !refugeData?.adopteSubmittedToday));
-  const animalImage = getAnimalImage(refugeData?.animalType, sharedPose && pose ? pose.state : completed ? 'dort' : 'assis');
+  // Même moteur et mêmes données serveur que l'écran du Refuge : animations synchronisées, sans requête à chaque image.
+  const frame = useRefugeAnimation({ animation: refugeData?.animation, serverOffsetMs: refugeSnapshot?.serverOffsetMs ?? 0, userId, sessionId: refugeData?.id });
+  const animalImage = getAnimalImage(refugeData?.animalType, frame.pose);
+  // L'autre participant doit agir : seul cas où l'état peut changer sans action de ma part.
+  const waitingForOther = !!refugeData?.isActive && (isAnimal ? !!refugeData.adopteSubmittedToday && !refugeData.todaySubmitted : !refugeData.adopteSubmittedToday);
   const isWaiting = refugeData?.status === 'CREATION' || refugeData?.status === 'WAITING_FOR_ADOPTANT';
   let refugeStatus = 'Ouvre le Refuge pour voir la suite.';
   if (isWaiting) {
     refugeStatus = 'Tu attends d’être adopté.';
   } else if (refugeData?.isActive && isAnimal) {
-    refugeStatus = refugeData.adopteSubmittedToday ? 'Tes choix du jour sont enregistrés.' : 'Choisis tes deux gestes du jour.';
+    refugeStatus = refugeData.adopteSubmittedToday ? 'Tes choix du jour sont enregistrés.' : 'Choisis tes deux actions du jour.';
   } else if (refugeData?.isActive) {
     refugeStatus = refugeData.todaySubmitted
       ? 'Tes choix du jour sont enregistrés.'
@@ -113,14 +114,25 @@ export function PersonalBoard() {
     return () => { active = false; clearInterval(interval); };
   }, []));
   useEffect(() => { if (!currentSalonId) { setSalonName(null); return; } (async () => { try { const data = await getSalon(currentSalonId); setSalonName(data.name); } catch {} })(); }, [currentSalonId]);
+  // Instantané du Refuge : à chaque prise de focus, au retour au premier plan, puis toutes les 60 s
+  // UNIQUEMENT tant qu'on attend l'autre participant (jamais en continu, jamais en arrière-plan).
   useFocusEffect(useCallback(() => {
     if (!userId) return;
     let active = true;
-    void refugeApi.getActive().then((session) => {
-      if (active) setRefugeSnapshot({ userId, session });
-    }).catch(() => {});
-    return () => { active = false; };
-  }, [userId]));
+    const load = () => {
+      void refugeApi.getActive().then((session) => {
+        if (active) setRefugeSnapshot({ userId, session, serverOffsetMs: computeClockOffsetMs(session?.serverTime, Date.now()) });
+      }).catch(() => {});
+    };
+    load();
+    let interval: ReturnType<typeof setInterval> | null = waitingForOther ? setInterval(load, 60_000) : null;
+    const stop = () => { if (interval) { clearInterval(interval); interval = null; } };
+    const subscription = AppState.addEventListener('change', (state) => {
+      stop();
+      if (state === 'active') { load(); if (waitingForOther) interval = setInterval(load, 60_000); }
+    });
+    return () => { active = false; stop(); subscription.remove(); };
+  }, [userId, waitingForOther]));
 
   // Mêmes offrandes que le Bureau d'offrandes (ReceivedOfferingsScreen) : offrandes de bureau
   // (« desk_… ») actives et non consommées. Les offrandes de salon ne sont pas affichées ici.

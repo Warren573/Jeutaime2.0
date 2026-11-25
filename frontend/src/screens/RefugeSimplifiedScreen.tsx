@@ -1,23 +1,26 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AnimalIllustration } from '../components/AnimalIllustration';
 import { AppBackButton } from '../components/AppBackButton';
 import { isRefugeAnimal } from '../data/refugeAnimals';
 import { type RefugeActionType } from '../data/refugeActions';
-import { type RefugeAnimalVisualState } from '../data/refugeAnimalImages';
-import { showRefugePose, useRefugePose } from '../store/useRefugePose';
+import { RefugeBowl } from '../components/RefugeBowl';
+import { useStore } from '../store/useStore';
+import { useRefugeAnimation } from '../hooks/useRefugeAnimation';
 import { useRefugeDailyChoices } from '../hooks/useRefugeDailyChoices';
 import { useRefugeSession } from '../hooks/useRefugeSession';
+
+import { ANIMAL_FOODS, BOWL_IMAGES, FOOD_LABELS, type RefugeFood } from '../data/refugeBowls';
 
 const REFUGE_BACKGROUND = require('../../assets/images/refuge/refuge-watercolor-bg.png');
 
 const ACTIONS: Array<{ key: RefugeActionType; title: string; mark: string }> = [
-  { key: 'feed', title: 'Nourrir', mark: '◉' },
+  { key: 'feed', title: 'Nourrir', mark: 'feed' },
   { key: 'pet', title: 'Câliner', mark: '♡' },
-  { key: 'wash', title: 'Laver', mark: '✧' },
-  { key: 'play', title: 'Jouer', mark: 'paw' },
+  { key: 'wash', title: 'Laver', mark: 'wash' },
+  { key: 'play', title: 'Jouer', mark: 'play' },
 ];
 
 export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: string }) {
@@ -27,11 +30,11 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const refuge = useRefugeSession(sessionIdProp);
   const { selectedMyActions, selectedGuessActions, toggleMyAction, toggleGuessAction, resetDay } = useRefugeDailyChoices();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const poseKey = JSON.stringify([sessionIdProp, refuge.currentDay, refuge.role]);
-  const pose = useRefugePose(store => store.pose);
-  const animalState = pose?.key === poseKey ? pose.state : 'assis';
-  const previousDayCompleted = useRef<boolean | null>(null);
-
+  const [foodChoice, setFoodChoice] = useState<RefugeFood | null>(null);
+  const userId = useStore(s => s.currentUser?.id);
+  // Image du compagnon : calculée localement depuis les horodatages serveur, identique à la case de l'accueil.
+  const frame = useRefugeAnimation({ animation: refuge.animation, serverOffsetMs: refuge.serverOffsetMs, userId, sessionId: refuge.sessionId });
+  const animalState = frame.pose;
   const artWidth = Math.min(width, 520);
   const availableHeight = Math.max(height - insets.top - insets.bottom, artWidth * 1.72);
   const artHeight = availableHeight;
@@ -43,62 +46,13 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const bothParticipantsDone = refuge.adopteSubmittedToday && refuge.adoptantSubmittedToday;
   const hideActionsForToday = refuge.dayCompleted || bothParticipantsDone;
 
-  useEffect(() => { resetDay(); }, [refuge.currentDay, resetDay]);
-
-  // Avant la résolution du jour, seule la personne incarnant l'animal voit
-  // une réaction à SES propres choix. L'Adoptant ne reçoit jamais d'indice
-  // visuel avant d'avoir validé sa tentative.
-  useEffect(() => {
-    if (refuge.isLoading || !refuge.role || refuge.dayCompleted) return;
-
-    if (refuge.role === 'adopte' && !refuge.adopteSubmittedToday) {
-      if (selectedMyActions.includes('play')) {
-        showRefugePose(poseKey, 'joue');
-      } else if (selectedMyActions.length > 0) {
-        showRefugePose(poseKey, 'content');
-      } else {
-        showRefugePose(poseKey, 'assis');
-      }
-      return;
-    }
-
-    showRefugePose(poseKey, 'assis');
-  }, [
-    poseKey,
-    refuge.isLoading,
-    refuge.dayCompleted,
-    refuge.role,
-    refuge.adopteSubmittedToday,
-    selectedMyActions,
-  ]);
-
-  // Quand la journée vient juste de se terminer, on montre brièvement la
-  // réaction au résultat, puis l'animal dort jusqu'au jour suivant.
-  useEffect(() => {
-    if (refuge.isLoading || !refuge.role) return;
-    if (!refuge.dayCompleted) {
-      previousDayCompleted.current = false;
-      return;
-    }
-
-    // Si l'écran est ouvert/rechargé alors que la journée était déjà finie,
-    // on arrive directement sur l'état de repos.
-    if (previousDayCompleted.current === null) {
-      if (useRefugePose.getState().pose?.key !== poseKey || !useRefugePose.getState().pose?.resolved) showRefugePose(poseKey, 'dort', true);
-      previousDayCompleted.current = true;
-      return;
-    }
-
-    if (previousDayCompleted.current === false) {
-      const matches = refuge.todayResult?.matches;
-      const reaction: RefugeAnimalVisualState =
-        matches === 2 ? 'content' : matches === 0 ? 'boude' : 'assis';
-
-      showRefugePose(poseKey, reaction, true);
-      previousDayCompleted.current = true;
-
-    }
-  }, [poseKey, refuge.isLoading, refuge.role, refuge.dayCompleted, refuge.todayResult?.matches]);
+  const foods = isRefugeAnimal(refuge.companion?.animalType) ? ANIMAL_FOODS[refuge.companion.animalType] : [];
+  const feeding = refuge.role === 'adoptant' && selected.includes('feed') && !hideActionsForToday && !refuge.adoptantSubmittedToday;
+  // Gamelle des réactions : aliment enregistré, sinon le premier compatible (anciennes données).
+  const reactionFood = frame.bowl ? (foods.find(food => food === frame.bowl?.food) ?? foods[0] ?? null) : null;
+  const chosenFood = foods.length === 1 ? foods[0] : foodChoice && foods.includes(foodChoice) ? foodChoice : null;
+  useEffect(() => { resetDay(); setFoodChoice(null); }, [sessionIdProp, refuge.currentDay, resetDay]);
+  useEffect(() => { if (!feeding && !refuge.dayCompleted) setFoodChoice(null); }, [feeding, refuge.dayCompleted]);
 
   const handleAction = (action: RefugeActionType) => {
     if (disabled) return;
@@ -109,10 +63,10 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   };
 
   const submit = async () => {
-    if (isSubmitting || selected.length !== 2) return;
+    if (isSubmitting || selected.length !== 2 || (feeding && !chosenFood)) return;
     setIsSubmitting(true);
     try {
-      if (refuge.role === 'adoptant') await refuge.submitGuess(selectedGuessActions);
+      if (refuge.role === 'adoptant') await refuge.submitGuess(selectedGuessActions, feeding ? chosenFood ?? undefined : undefined);
       else await refuge.submitDailyChoice(selectedMyActions);
     } finally { setIsSubmitting(false); }
   };
@@ -158,6 +112,9 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
             <Text style={styles.dayCaption}>Jour {currentDay} sur 7</Text>
           </View>
           <View style={styles.animal} pointerEvents="none">{isRefugeAnimal(refuge.companion?.animalType) && <AnimalIllustration animal={refuge.companion.animalType} state={animalState} size={animalSize} />}</View>
+          {frame.bowl && reactionFood && <RefugeBowl food={reactionFood} level={frame.bowl.level} artWidth={artWidth} />}
+          {!frame.bowl && feeding && chosenFood && <RefugeBowl food={chosenFood} level="full" artWidth={artWidth} />}
+          {feeding && foods.length > 1 && <View style={{position:'absolute',top:'65%',left:'6.5%',width:'52%',flexDirection:'row',gap:4,zIndex:15}}>{foods.map(food => <TouchableOpacity accessibilityRole="button" accessibilityLabel={FOOD_LABELS[food]} accessibilityState={{selected:chosenFood===food}} key={food} onPress={()=>setFoodChoice(food)} style={{flex:1,minWidth:0,backgroundColor:parchment,borderRadius:8,borderWidth:chosenFood===food?2:1,borderColor:burgundy,paddingVertical:4,paddingHorizontal:2,alignItems:'center'}}><Image source={BOWL_IMAGES[food]} style={{width:34,height:34}} resizeMode="contain"/><Text numberOfLines={1} style={{color:ink,fontSize:9.5}}>{FOOD_LABELS[food]}</Text></TouchableOpacity>)}</View>}
           {hideActionsForToday ? (
             <View style={styles.dayDone}>
               <Text style={styles.dayDoneTitle}>C’est tout pour aujourd’hui</Text>
@@ -168,9 +125,9 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
               </Text>
             </View>
           ) : (
-            <View style={styles.actions}>{ACTIONS.map(action => { const active=selected.includes(action.key); return <TouchableOpacity key={action.key} disabled={disabled} onPress={() => handleAction(action.key)} style={[styles.tag,active&&styles.tagActive,disabled&&!isWaiting&&styles.tagDisabled]}>{action.mark==='paw' ? <View style={styles.paw}><View style={styles.pawToes}>{[0,1,2,3].map(i=><View key={i} style={[styles.pawToe,{marginTop:i===0||i===3?5:0}]}/>)}</View><View style={styles.pawPad}/></View> : <Text style={[styles.mark,active&&styles.markActive]}>{action.mark}</Text>}<Text style={styles.tagTitle}>{action.title}</Text></TouchableOpacity>; })}</View>
+            <View style={styles.actions}>{ACTIONS.map(action => { const active=selected.includes(action.key); return <TouchableOpacity key={action.key} disabled={disabled} onPress={() => handleAction(action.key)} style={[styles.tag,active&&styles.tagActive,disabled&&!isWaiting&&styles.tagDisabled]}>{action.mark==='feed' ? <View style={{width:30,height:30,flexDirection:'row',justifyContent:'center',gap:7,marginBottom:3}}><View style={{alignItems:'center'}}><View style={{flexDirection:'row',gap:2}}>{[0,1,2].map(i=><View key={i} style={{width:2,height:10,backgroundColor:burgundy}}/>)}</View><View style={{width:10,height:2,backgroundColor:burgundy}}/><View style={{width:2,height:15,backgroundColor:burgundy}}/></View><View style={{width:6,height:27,borderLeftWidth:2,borderTopWidth:2,borderColor:burgundy,borderTopLeftRadius:5}}/></View> : action.mark==='wash' ? <View style={{width:30,height:30,marginBottom:3}}>{[[1,12,15],[16,1,11],[21,20,7],[2,1,6]].map(([left,top,size],i)=><View key={i} style={{position:'absolute',left,top,width:size,height:size,borderRadius:size/2,borderWidth:1.5,borderColor:burgundy}}/>)}</View> : action.mark==='play' ? <View style={{width:27,height:27,borderRadius:14,borderWidth:1.5,borderColor:burgundy,overflow:'hidden',marginBottom:3}}><View style={{position:'absolute',left:6,top:-3,width:12,height:32,borderRadius:10,borderWidth:1.5,borderColor:burgundy,transform:[{rotate:'35deg'}]}}/><View style={{position:'absolute',left:-3,top:8,width:32,height:10,borderRadius:10,borderWidth:1.5,borderColor:burgundy,transform:[{rotate:'35deg'}]}}/></View> : <Text style={[styles.mark,active&&styles.markActive]}>{action.mark}</Text>}<Text style={styles.tagTitle}>{action.title}</Text></TouchableOpacity>; })}</View>
           )}
-          <View style={styles.status}><View style={styles.tape}/><Text style={styles.statusTitle}>{statusTitle}</Text>{!!statusBody&&<Text style={styles.statusBody}>{statusBody}</Text>}{!isWaiting&&selected.length===2&&!disabled&&<TouchableOpacity style={styles.validate} onPress={submit}><Text style={styles.validateText}>{isSubmitting?'Envoi…':'Valider mes 2 choix'}</Text></TouchableOpacity>}</View>
+          <View style={styles.status}><View style={styles.tape}/><Text style={styles.statusTitle}>{statusTitle}</Text>{!!statusBody&&<Text style={styles.statusBody}>{statusBody}</Text>}{!isWaiting&&selected.length===2&&!disabled&&(!feeding||!!chosenFood)&&<TouchableOpacity style={styles.validate} onPress={submit}><Text style={styles.validateText}>{isSubmitting?'Envoi…':'Valider mes 2 choix'}</Text></TouchableOpacity>}</View>
           </View>
         </ImageBackground>
       </ScrollView>

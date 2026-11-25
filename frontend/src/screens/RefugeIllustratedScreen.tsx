@@ -153,7 +153,7 @@ export function RefugeIllustratedScreen({ sessionIdProp }: { sessionIdProp: stri
     ? 'Ton compagnon apparaîtra dans la liste des refuges disponibles. Le jeu commence dès qu’il est adopté.'
     : refuge.role === 'adoptant'
       ? refuge.adopteSubmittedToday
-        ? 'Choisis les deux gestes qui lui ressemblent le plus.'
+        ? 'Choisis les deux actions qui lui ressemblent le plus.'
         : 'Dès que ses choix sont faits, tu pourras essayer de les deviner.'
       : refuge.adopteSubmittedToday
         ? 'Il ne reste plus qu’à attendre la réponse de ton compagnon.'

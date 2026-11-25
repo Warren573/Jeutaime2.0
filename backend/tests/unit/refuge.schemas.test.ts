@@ -3,6 +3,7 @@ import {
   UpdateBackgroundSchema,
   ProposeRefugeSchema,
   DailyChoiceSchema,
+  GuessSchema,
 } from "../../src/modules/refuge/refuge.schemas";
 
 // ============================================================
@@ -57,5 +58,26 @@ describe("Refuge schemas use exact Prisma enum values", () => {
     const base = { sessionId: "s1", dayNumber: 1, action2: "JOUER" };
     expect(DailyChoiceSchema.safeParse({ ...base, action1: "NOURRIR" }).success).toBe(true);
     expect(DailyChoiceSchema.safeParse({ ...base, action1: "Nourrir" }).success).toBe(false);
+  });
+});
+
+// ============================================================
+// GuessSchema — aliment choisi avec la tentative du jour
+// ============================================================
+
+describe("GuessSchema (foodChoice)", () => {
+  const base = { sessionId: "s1", dayNumber: 1, guessedAction1: "NOURRIR", guessedAction2: "JOUER" };
+
+  it("reste valide sans aliment (anciens clients)", () => {
+    expect(GuessSchema.safeParse(base).success).toBe(true);
+    expect(GuessSchema.safeParse({ ...base, foodChoice: null }).success).toBe(true);
+  });
+
+  it.each(["food", "meat", "fish", "salad", "carrot", "bamboo", "seeds", "sardines"])("accepte %s", (foodChoice) => {
+    expect(GuessSchema.safeParse({ ...base, foodChoice }).success).toBe(true);
+  });
+
+  it.each(["pizza", "FISH", "", "empty"])("rejette %s", (foodChoice) => {
+    expect(GuessSchema.safeParse({ ...base, foodChoice }).success).toBe(false);
   });
 });

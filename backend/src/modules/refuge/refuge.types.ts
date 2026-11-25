@@ -1,4 +1,5 @@
 import { RefugeAnimalType, RefugeAnimalCategory, RefugeAnimalSexe, RefugeAcceptedSexe, RefugeAction, RefugeSessionStatus, RefugePreexistingLinkType, RefugeBackground } from "@prisma/client";
+import type { RefugeAnimationSnapshot } from "./refuge.animation";
 
 // ============================================================
 // Résultats métier pour Refuge
@@ -80,6 +81,10 @@ export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
   canAttemptToday: boolean;
   todaySubmitted: boolean;
   sponsorRole?: "parrain" | "marraine";
+  /** Horodatages de l'animation du compagnon (identiques pour les deux participants). */
+  animation: RefugeAnimationSnapshot;
+  /** Heure serveur : le client en déduit son décalage d'horloge. */
+  serverTime: string;
   adopteSubmittedToday: boolean; // True si l'Adopté a vraiment soumis un choix aujourd'hui
   adoptantSubmittedToday: boolean; // True si l'Adoptant a soumis sa réponse du jour
   dayCompleted: boolean; // adopteSubmittedToday && adoptantSubmittedToday (jour courant)

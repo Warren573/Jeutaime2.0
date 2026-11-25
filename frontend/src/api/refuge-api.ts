@@ -1,4 +1,5 @@
 import { apiFetch, ApiError } from "./client";
+import type { RefugeAnimationData } from "../data/refugeAnimation";
 
 // Codes d'erreur métier Refuge (source : backend/src/core/errors — HttpError.code).
 // La détection des doubles soumissions passe par ces codes, jamais par le texte.
@@ -48,6 +49,11 @@ export interface RefugeSession {
   canAttemptToday?: boolean;
   todaySubmitted?: boolean;
   sponsorRole?: "parrain" | "marraine";
+  // Horodatages de l'animation du compagnon (identiques pour les deux participants).
+  // Jamais les actions secrètes : seulement l'heure du choix, puis le résultat une fois validé.
+  animation?: RefugeAnimationData;
+  // Heure serveur : sert à corriger le décalage d'horloge de l'appareil.
+  serverTime?: string;
   adopteSubmittedToday?: boolean;
   adoptantSubmittedToday?: boolean;
   dayCompleted?: boolean;
@@ -200,11 +206,12 @@ export const refugeApi = {
     sessionId: string,
     dayNumber: number,
     guessedAction1: string,
-    guessedAction2: string
+    guessedAction2: string,
+    foodChoice?: string
   ): Promise<any> {
     const response = await apiFetch("/refuge/guess", {
       method: "POST",
-      body: JSON.stringify({ sessionId, dayNumber, guessedAction1, guessedAction2 }),
+      body: JSON.stringify({ sessionId, dayNumber, guessedAction1, guessedAction2, foodChoice }),
     });
     return response?.data;
   },
