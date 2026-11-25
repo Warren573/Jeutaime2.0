@@ -82,7 +82,7 @@ export function PersonalBoard() {
   const isAnimal = !!refugeData && refugeData.adopteId === userId;
   const [refugeNow, setRefugeNow] = useState(Date.now);
   useEffect(() => { const timer = setInterval(() => setRefugeNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
-  const animalImage = getAnimalImage(refugeData?.animalType, refugeAnimation({now: refugeNow, choiceAt: refugeData?.choiceAt, resolvedAt: refugeData?.resolvedAt, matches: refugeData?.animationMatches}));
+  const animalImage = getAnimalImage(refugeData?.animalType, refugeAnimation({now: refugeNow, choiceAt: refugeData?.choiceAt, resolvedAt: refugeData?.resolvedAt, matches: refugeData?.animationMatches, reactions: refugeData?.animationReactions}));
   const isWaiting = refugeData?.status === 'CREATION' || refugeData?.status === 'WAITING_FOR_ADOPTANT';
   let refugeStatus = 'Ouvre le Refuge pour voir la suite.';
   if (isWaiting) {
