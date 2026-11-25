@@ -10,6 +10,8 @@ interface RefugeSessionState {
   canAttemptToday: boolean;
   todaySubmitted: boolean;
   sponsorRole: "parrain" | "marraine" | null;
+  choiceAt?: string | null;
+  resolvedAt?: string | null;
   adopteSubmittedToday: boolean;
   adoptantSubmittedToday: boolean;
   dayCompleted: boolean;
@@ -134,6 +136,8 @@ export function useRefugeSession(sessionId: string | null) {
         canAttemptToday: data.canAttemptToday ?? false,
         todaySubmitted: data.todaySubmitted ?? false,
         sponsorRole: data.sponsorRole ?? null,
+        choiceAt: data.choiceAt,
+        resolvedAt: data.resolvedAt,
         adopteSubmittedToday: data.adopteSubmittedToday ?? false,
         adoptantSubmittedToday: data.adoptantSubmittedToday ?? false,
         dayCompleted: data.dayCompleted ?? false,
