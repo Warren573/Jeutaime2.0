@@ -216,6 +216,7 @@ export class RefugeController {
         {
           guessedAction1: input.guessedAction1,
           guessedAction2: input.guessedAction2,
+          foodChoice: input.foodChoice,
         },
       );
       res.status(201).json({
