@@ -28,6 +28,7 @@ interface RefugeSessionState {
     action2: string;
   } | null;
   todayResult: {
+    reactions?: { action: string; correct: boolean }[];
     matches: number;
     message: string;
     reward: number;
