@@ -49,6 +49,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
 
   const foods = isRefugeAnimal(refuge.companion?.animalType) ? ANIMAL_FOODS[refuge.companion.animalType] : [];
   const feeding = refuge.role === 'adoptant' && selected.includes('feed') && !hideActionsForToday && !refuge.adoptantSubmittedToday;
+  const savedFood = foods.find(food => food === refuge.todayResult?.foodChoice);
   const chosenFood = foods.length === 1 ? foods[0] : foodChoice && foods.includes(foodChoice) ? foodChoice : null;
   useEffect(() => { resetDay(); setFoodChoice(null); }, [sessionIdProp, refuge.currentDay, resetDay]);
   useEffect(() => { if (!feeding && !refuge.dayCompleted) setFoodChoice(null); }, [feeding, refuge.dayCompleted]);
@@ -111,7 +112,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
             <Text style={styles.dayCaption}>Jour {currentDay} sur 7</Text>
           </View>
           <View style={styles.animal} pointerEvents="none">{isRefugeAnimal(refuge.companion?.animalType) && <AnimalIllustration animal={refuge.companion.animalType} state={animalState} size={animalSize} />}</View>
-          {reaction?.action === 'NOURRIR' && (reaction.correct || chosenFood) && <Image source={BOWL_IMAGES[reaction.correct ? 'empty' : chosenFood!]} resizeMode="contain" style={{position:'absolute',top:'61%',left:'61%',width:artWidth*.20,height:artWidth*.20,zIndex:13}} />}
+          {reaction?.action === 'NOURRIR' && (reaction.correct || savedFood || chosenFood) && <Image source={BOWL_IMAGES[reaction.correct ? 'empty' : (savedFood ?? chosenFood)!]} resizeMode="contain" style={{position:'absolute',top:'61%',left:'61%',width:artWidth*.20,height:artWidth*.20,zIndex:13}} />}
           {feeding && chosenFood && <Image source={BOWL_IMAGES[chosenFood]} resizeMode="contain" style={{position:'absolute',top:'61%',left:'61%',width:artWidth*.20,height:artWidth*.20,zIndex:13}} />}
           {feeding && foods.length > 1 && <View style={{position:'absolute',top:'65%',left:'6.5%',width:'87%',flexDirection:'row',justifyContent:'center',gap:6,zIndex:15}}>{foods.map(food => <TouchableOpacity accessibilityRole="button" accessibilityState={{selected:chosenFood===food}} key={food} onPress={()=>setFoodChoice(food)} style={{backgroundColor:parchment,borderRadius:8,borderWidth:chosenFood===food?2:1,borderColor:burgundy,padding:4,alignItems:'center'}}><Image source={BOWL_IMAGES[food]} style={{width:34,height:34}} resizeMode="contain"/><Text style={{color:ink,fontSize:10}}>{FOOD_LABELS[food]}</Text></TouchableOpacity>)}</View>}
           {hideActionsForToday ? (
