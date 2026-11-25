@@ -22,6 +22,7 @@ export interface RefugeSessionDTO {
 }
 
 export interface DayResultData {
+  foodChoice?: string | null;
   reactions?: { action: RefugeAction; correct: boolean }[];
   matches: number; // 0, 1, or 2
   message: string;
