@@ -60,6 +60,7 @@ export interface RefugeSession {
   todayActions?: { action1: string; action2: string } | null;
   // Résultat du jour courant si une tentative a été soumise
   todayResult?: {
+    reactions?: { action: string; correct: boolean }[];
     matches: number;
     message: string;
     reward: number;
