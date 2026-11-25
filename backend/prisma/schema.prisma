@@ -1220,6 +1220,7 @@ model RefugeGuess {
   dayNumber       Int // 1-7
   guessedAction1  RefugeAction
   guessedAction2  RefugeAction
+  foodChoice      String?
   submittedAt     DateTime      @default(now())
 
   // Index
