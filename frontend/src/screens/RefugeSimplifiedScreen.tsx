@@ -11,6 +11,7 @@ import { useStore } from '../store/useStore';
 import { useRefugeAnimation } from '../hooks/useRefugeAnimation';
 import { useRefugeDailyChoices } from '../hooks/useRefugeDailyChoices';
 import { useRefugeSession } from '../hooks/useRefugeSession';
+import { isSessionEnded, refugeErrorText } from '../data/refugeSessionState';
 
 import { ANIMAL_FOODS, BOWL_IMAGES, FOOD_LABELS, type RefugeFood } from '../data/refugeBowls';
 
@@ -42,7 +43,9 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const currentDay = Math.min(Math.max(refuge.currentDay || 1, 1), 7);
   const isWaiting = refuge.status === 'WAITING_FOR_ADOPTANT' || refuge.status === 'CREATION';
   const selected = refuge.role === 'adoptant' ? selectedGuessActions : selectedMyActions;
-  const disabled = isWaiting || isSubmitting || (refuge.role === 'adopte' && refuge.adopteSubmittedToday) || (refuge.role === 'adoptant' && refuge.adoptantSubmittedToday);
+  // Fin dépassée (le serveur renvoie isActive=false) : aucune action possible, on le dit au lieu de refuser en silence.
+  const ended = isSessionEnded(refuge.status, refuge.isActive);
+  const disabled = isWaiting || ended || isSubmitting || (refuge.role === 'adopte' && refuge.adopteSubmittedToday) || (refuge.role === 'adoptant' && refuge.adoptantSubmittedToday);
   const bothParticipantsDone = refuge.adopteSubmittedToday && refuge.adoptantSubmittedToday;
   const hideActionsForToday = refuge.dayCompleted || bothParticipantsDone;
 
@@ -56,6 +59,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
 
   const handleAction = (action: RefugeActionType) => {
     if (disabled) return;
+    refuge.clearSubmitError();
     if (refuge.role === 'adoptant') {
       if (!refuge.adopteSubmittedToday) return;
       toggleGuessAction(action);
@@ -78,8 +82,12 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
     ? `${sponsor === 'ton parrain' ? 'Ton parrain est passé' : 'Ta marraine est passée'} au Refuge. Viens voir ce qui t’attend !`
     : 'Tu as de la visite au Refuge ! Viens voir ce qui t’attend.';
 
+  const errorText = refugeErrorText(refuge.submitError ?? refuge.error);
+
   const statusTitle = hideActionsForToday
     ? 'Journée terminée'
+    : ended
+      ? 'Ce refuge est arrivé à son terme'
     : isWaiting
       ? "Tu viens d’incarner un animal."
       : refuge.role === 'adoptant'
@@ -90,6 +98,8 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
 
   const statusBody = hideActionsForToday
     ? (refuge.todayResult?.message || 'Rendez-vous demain pour la suite du Refuge.')
+    : ended
+      ? 'Il n’est plus possible de valider de nouveaux choix.'
     : isWaiting
       ? 'Ton aventure commence dès que quelqu’un t’adopte.'
       : refuge.role === 'adoptant'
@@ -127,7 +137,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
           ) : (
             <View style={styles.actions}>{ACTIONS.map(action => { const active=selected.includes(action.key); return <TouchableOpacity key={action.key} disabled={disabled} onPress={() => handleAction(action.key)} style={[styles.tag,active&&styles.tagActive,disabled&&!isWaiting&&styles.tagDisabled]}>{action.mark==='feed' ? <View style={{width:30,height:30,flexDirection:'row',justifyContent:'center',gap:7,marginBottom:3}}><View style={{alignItems:'center'}}><View style={{flexDirection:'row',gap:2}}>{[0,1,2].map(i=><View key={i} style={{width:2,height:10,backgroundColor:burgundy}}/>)}</View><View style={{width:10,height:2,backgroundColor:burgundy}}/><View style={{width:2,height:15,backgroundColor:burgundy}}/></View><View style={{width:6,height:27,borderLeftWidth:2,borderTopWidth:2,borderColor:burgundy,borderTopLeftRadius:5}}/></View> : action.mark==='wash' ? <View style={{width:30,height:30,marginBottom:3}}>{[[1,12,15],[16,1,11],[21,20,7],[2,1,6]].map(([left,top,size],i)=><View key={i} style={{position:'absolute',left,top,width:size,height:size,borderRadius:size/2,borderWidth:1.5,borderColor:burgundy}}/>)}</View> : action.mark==='play' ? <View style={{width:27,height:27,borderRadius:14,borderWidth:1.5,borderColor:burgundy,overflow:'hidden',marginBottom:3}}><View style={{position:'absolute',left:6,top:-3,width:12,height:32,borderRadius:10,borderWidth:1.5,borderColor:burgundy,transform:[{rotate:'35deg'}]}}/><View style={{position:'absolute',left:-3,top:8,width:32,height:10,borderRadius:10,borderWidth:1.5,borderColor:burgundy,transform:[{rotate:'35deg'}]}}/></View> : <Text style={[styles.mark,active&&styles.markActive]}>{action.mark}</Text>}<Text style={styles.tagTitle}>{action.title}</Text></TouchableOpacity>; })}</View>
           )}
-          <View style={styles.status}><View style={styles.tape}/><Text style={styles.statusTitle}>{statusTitle}</Text>{!!statusBody&&<Text style={styles.statusBody}>{statusBody}</Text>}{!isWaiting&&selected.length===2&&!disabled&&(!feeding||!!chosenFood)&&<TouchableOpacity style={styles.validate} onPress={submit}><Text style={styles.validateText}>{isSubmitting?'Envoi…':'Valider mes 2 choix'}</Text></TouchableOpacity>}</View>
+          <View style={styles.status}><View style={styles.tape}/><Text style={styles.statusTitle}>{statusTitle}</Text>{!!statusBody&&<Text style={styles.statusBody}>{statusBody}</Text>}{!!errorText&&<Text accessibilityRole="alert" style={styles.statusError}>{errorText}</Text>}{!isWaiting&&selected.length===2&&!disabled&&(!feeding||!!chosenFood)&&<TouchableOpacity style={styles.validate} onPress={submit}><Text style={styles.validateText}>{isSubmitting?'Envoi…':'Valider mes 2 choix'}</Text></TouchableOpacity>}</View>
           </View>
         </ImageBackground>
       </ScrollView>
@@ -141,5 +151,5 @@ const styles=StyleSheet.create({
   back:{position:'absolute',top:'4%',left:'4%',zIndex:22},titleBlock:{position:'absolute',top:'3.3%',left:'25%',width:'60%',alignItems:'center',zIndex:22},title:{color:burgundy,fontFamily:'Georgia',fontSize:30},subtitle:{color:ink,fontFamily:'Georgia',fontSize:10.5,marginTop:5,textAlign:'center'},
   calendar:{position:'absolute',top:'17%',left:'29%',width:'42%',height:'12%',backgroundColor:parchment,borderWidth:1,borderColor:'#AE8458',borderRadius:12,paddingHorizontal:11,paddingTop:15,zIndex:10,shadowColor:'#231308',shadowOpacity:.3,shadowRadius:4,shadowOffset:{width:0,height:3}},rings:{position:'absolute',top:-7,left:10,right:10,flexDirection:'row',justifyContent:'space-between'},ring:{width:4,height:15,borderRadius:4,borderWidth:2,borderColor:'#4A3525',backgroundColor:'#B78A57'},calendarTitle:{textAlign:'center',color:ink,fontFamily:'Georgia',fontSize:15,marginBottom:4},days:{flexDirection:'row',justifyContent:'space-between'},day:{flex:1,alignItems:'center'},dayNumber:{color:ink,fontFamily:'Georgia',fontSize:12,fontWeight:'600'},today:{color:burgundy,fontWeight:'900'},heart:{color:'#9E876C',fontSize:15},heartFull:{color:burgundy},dayCaption:{color:'#6E4B32',fontFamily:'Georgia',fontStyle:'italic',fontSize:9,textAlign:'right',marginTop:0},
   animal:{position:'absolute',top:'40%',left:0,right:0,alignItems:'center',zIndex:12},actions:{position:'absolute',top:'73%',left:'6.5%',width:'87%',height:'9.5%',flexDirection:'row',justifyContent:'space-between',zIndex:16},dayDone:{position:'absolute',top:'73%',left:'10%',width:'80%',minHeight:'10.5%',backgroundColor:'rgba(239,211,167,.95)',borderWidth:1,borderColor:'#A77746',borderRadius:12,alignItems:'center',justifyContent:'center',paddingHorizontal:18,paddingVertical:12,zIndex:16,shadowColor:'#261407',shadowOpacity:.22,shadowRadius:3,shadowOffset:{width:0,height:2}},dayDoneTitle:{color:burgundy,fontFamily:'Georgia',fontSize:17,fontWeight:'700',textAlign:'center',marginBottom:5},dayDoneText:{color:ink,fontFamily:'Georgia',fontSize:10.5,lineHeight:14,textAlign:'center'},tag:{width:'23%',height:'100%',backgroundColor:'rgba(239,211,167,.94)',borderWidth:1,borderColor:'#A77746',borderRadius:12,alignItems:'center',justifyContent:'center',paddingTop:0,shadowColor:'#261407',shadowOpacity:.25,shadowRadius:3,shadowOffset:{width:0,height:2}},tagActive:{borderWidth:3,borderColor:burgundy,backgroundColor:'#EACBA0'},tagDisabled:{opacity:.72},string:{position:'absolute',top:-10,width:2,height:15,backgroundColor:'#6B4B30'},hole:{position:'absolute',top:3,width:7,height:7,borderRadius:7,borderWidth:2,borderColor:'#7A5332',backgroundColor:'#BA966A'},paw:{width:30,height:30,alignItems:'center',justifyContent:'center',marginBottom:3},pawToes:{flexDirection:'row',gap:2},pawToe:{width:6,height:9,borderRadius:5,borderWidth:1.5,borderColor:burgundy},pawPad:{width:17,height:13,borderRadius:8,borderWidth:1.5,borderColor:burgundy,marginTop:1},mark:{color:burgundy,fontFamily:'Georgia',fontSize:28,marginBottom:3},markActive:{color:burgundy},tagTitle:{color:ink,fontFamily:'Georgia',fontSize:13,fontWeight:'700',textAlign:'center'},
-  status:{position:'absolute',top:'85.5%',left:'6.5%',width:'87%',minHeight:'8.5%',backgroundColor:'rgba(238,211,170,.95)',borderWidth:1,borderColor:'#A77548',borderRadius:12,paddingHorizontal:18,paddingVertical:15,alignItems:'center',zIndex:17,shadowColor:'#241208',shadowOpacity:.25,shadowRadius:3,shadowOffset:{width:0,height:2}},tape:{position:'absolute',top:-7,width:70,height:14,backgroundColor:'rgba(205,170,112,.76)'},statusTitle:{color:burgundy,fontFamily:'Georgia',fontWeight:'700',fontSize:18,textAlign:'center',marginBottom:6},statusBody:{color:ink,fontFamily:'Georgia',fontSize:10.5,lineHeight:14,textAlign:'center'},validate:{marginTop:8,backgroundColor:burgundy,paddingHorizontal:18,paddingVertical:8,borderRadius:3},validateText:{color:'#FFF2DE',fontFamily:'Georgia',fontWeight:'700',fontSize:11},loading:{flex:1,alignItems:'center',justifyContent:'center',gap:10}
+  status:{position:'absolute',top:'85.5%',left:'6.5%',width:'87%',minHeight:'8.5%',backgroundColor:'rgba(238,211,170,.95)',borderWidth:1,borderColor:'#A77548',borderRadius:12,paddingHorizontal:18,paddingVertical:15,alignItems:'center',zIndex:17,shadowColor:'#241208',shadowOpacity:.25,shadowRadius:3,shadowOffset:{width:0,height:2}},tape:{position:'absolute',top:-7,width:70,height:14,backgroundColor:'rgba(205,170,112,.76)'},statusTitle:{color:burgundy,fontFamily:'Georgia',fontWeight:'700',fontSize:18,textAlign:'center',marginBottom:6},statusBody:{color:ink,fontFamily:'Georgia',fontSize:10.5,lineHeight:14,textAlign:'center'},statusError:{color:burgundy,fontFamily:'Georgia',fontWeight:'700',fontSize:11,lineHeight:15,textAlign:'center',marginTop:6},validate:{marginTop:8,backgroundColor:burgundy,paddingHorizontal:18,paddingVertical:8,borderRadius:3},validateText:{color:'#FFF2DE',fontFamily:'Georgia',fontWeight:'700',fontSize:11},loading:{flex:1,alignItems:'center',justifyContent:'center',gap:10}
 });

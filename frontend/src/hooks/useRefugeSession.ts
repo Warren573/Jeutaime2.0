@@ -65,6 +65,10 @@ interface RefugeSessionState {
   role: "adopte" | "adoptant" | null;
   isLoading: boolean;
   error: string | null;
+  /** Refus du serveur lors d'une validation : affiché à l'écran, jamais effacé par le rafraîchissement automatique. */
+  submitError: string | null;
+  /** `isActive` renvoyé par le serveur (faux = fin dépassée) ; null tant qu'inconnu. */
+  isActive: boolean | null;
 }
 
 /**
@@ -96,6 +100,8 @@ export function useRefugeSession(sessionId: string | null) {
     role: null,
     isLoading: true,
     error: null,
+    submitError: null,
+    isActive: null,
   });
 
   const { currentUser } = useStore();
@@ -162,6 +168,7 @@ export function useRefugeSession(sessionId: string | null) {
         reveal: data.reveal ?? null,
         otherProfile: data.otherProfile ?? null,
         role,
+        isActive: typeof data.isActive === "boolean" ? data.isActive : null,
         isLoading: false,
         error: null,
       }));
@@ -204,6 +211,7 @@ export function useRefugeSession(sessionId: string | null) {
       if (!sessionId || guessActions.length !== 2) return false;
       if (isSubmittingRef.current) return false;
       isSubmittingRef.current = true;
+      setState((prev) => ({ ...prev, submitError: null }));
 
       try {
         const guessedAction1 = ACTION_TO_BACKEND[guessActions[0]];
@@ -230,7 +238,7 @@ export function useRefugeSession(sessionId: string | null) {
         }
         setState((prev) => ({
           ...prev,
-          error: err?.message || "Erreur lors de la soumission",
+          submitError: err?.message || "",
         }));
         return false;
       } finally {
@@ -246,6 +254,7 @@ export function useRefugeSession(sessionId: string | null) {
       if (!sessionId || actions.length !== 2) return false;
       if (isSubmittingRef.current) return false;
       isSubmittingRef.current = true;
+      setState((prev) => ({ ...prev, submitError: null }));
 
       try {
         const action1 = ACTION_TO_BACKEND[actions[0]];
@@ -264,7 +273,7 @@ export function useRefugeSession(sessionId: string | null) {
         }
         setState((prev) => ({
           ...prev,
-          error: err?.message || "Erreur lors de la soumission",
+          submitError: err?.message || "",
         }));
         return false;
       } finally {
@@ -329,8 +338,13 @@ export function useRefugeSession(sessionId: string | null) {
     [sessionId]
   );
 
+  const clearSubmitError = useCallback(() => {
+    setState((prev) => (prev.submitError ? { ...prev, submitError: null } : prev));
+  }, []);
+
   return {
     ...state,
+    clearSubmitError,
     fetchSessionStatus,
     submitDailyChoice,
     submitGuess,
