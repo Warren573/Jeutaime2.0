@@ -465,6 +465,7 @@ export class RefugeService {
       if (todayGuess) {
         const result = calculateDayResult(todayDailyChoice, todayGuess);
         todayResult = {
+          foodChoice: todayGuess.foodChoice,
           reactions: [todayGuess.guessedAction1, todayGuess.guessedAction2].map(action => ({ action, correct: action === todayDailyChoice.action1 || action === todayDailyChoice.action2 })),
           matches: result.matches,
           message: result.message,
@@ -757,7 +758,7 @@ export class RefugeService {
     refugeSessionId: string,
     adoptantId: string,
     dayNumber: number,
-    input: { guessedAction1: RefugeAction; guessedAction2: RefugeAction }
+    input: { guessedAction1: RefugeAction; guessedAction2: RefugeAction; foodChoice?: string }
   ): Promise<any> {
     // Récupérer la session
     const refugeSession = await prisma.refugeSession.findUnique({
@@ -832,6 +833,12 @@ export class RefugeService {
       );
     }
 
+    const allowedFoods: Record<string, string[]> = { CHIEN:['food','meat'], CHAT:['food','fish','sardines'], LAPIN:['salad','carrot'], HAMSTER:['seeds','carrot'], TOUCAN:['seeds'], RENARD:['meat','fish'], MANCHOT:['fish','sardines'], IGUANE:['salad','carrot'], LICORNE:['salad','carrot'], PERROQUET:['seeds'], PANDA:['bamboo'], DRAGON:['meat','fish'] };
+    const feeds = [input.guessedAction1,input.guessedAction2].includes(RefugeAction.NOURRIR);
+    const foods = allowedFoods[refugeSession.animalType] ?? [];
+    if (input.foodChoice && (!feeds || !foods.includes(input.foodChoice))) throw new BadRequestError("Aliment incompatible avec cette action ou cet animal");
+    const foodChoice = feeds ? input.foodChoice ?? (foods.length === 1 ? foods[0] : null) : null;
+
     // Calculer le résultat du jour avant la transaction
     const dayResult = calculateDayResult(dailyChoice, {
       guessedAction1: input.guessedAction1,
@@ -851,6 +858,7 @@ export class RefugeService {
             dayNumber,
             guessedAction1: input.guessedAction1,
             guessedAction2: input.guessedAction2,
+            foodChoice,
           },
         });
 
