@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AnimalIllustration } from '../components/AnimalIllustration';
@@ -10,6 +10,8 @@ import { type RefugeAnimalVisualState } from '../data/refugeAnimalImages';
 import { showRefugePose, useRefugePose } from '../store/useRefugePose';
 import { useRefugeDailyChoices } from '../hooks/useRefugeDailyChoices';
 import { useRefugeSession } from '../hooks/useRefugeSession';
+
+import { ANIMAL_FOODS, BOWL_IMAGES, FOOD_LABELS, type RefugeFood } from '../data/refugeBowls';
 
 const REFUGE_BACKGROUND = require('../../assets/images/refuge/refuge-watercolor-bg.png');
 
@@ -27,6 +29,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const refuge = useRefugeSession(sessionIdProp);
   const { selectedMyActions, selectedGuessActions, toggleMyAction, toggleGuessAction, resetDay } = useRefugeDailyChoices();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [foodChoice, setFoodChoice] = useState<RefugeFood | null>(null);
   const poseKey = JSON.stringify([sessionIdProp, refuge.currentDay, refuge.role]);
   const pose = useRefugePose(store => store.pose);
   const animalState = pose?.key === poseKey ? pose.state : 'assis';
@@ -43,7 +46,11 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const bothParticipantsDone = refuge.adopteSubmittedToday && refuge.adoptantSubmittedToday;
   const hideActionsForToday = refuge.dayCompleted || bothParticipantsDone;
 
-  useEffect(() => { resetDay(); }, [refuge.currentDay, resetDay]);
+  const foods = isRefugeAnimal(refuge.companion?.animalType) ? ANIMAL_FOODS[refuge.companion.animalType] : [];
+  const feeding = refuge.role === 'adoptant' && selected.includes('feed') && !hideActionsForToday && !refuge.adoptantSubmittedToday;
+  const chosenFood = foods.length === 1 ? foods[0] : foodChoice && foods.includes(foodChoice) ? foodChoice : null;
+  useEffect(() => { resetDay(); setFoodChoice(null); }, [sessionIdProp, refuge.currentDay, resetDay]);
+  useEffect(() => { if (!feeding) setFoodChoice(null); }, [feeding]);
 
   // Avant la résolution du jour, seule la personne incarnant l'animal voit
   // une réaction à SES propres choix. L'Adoptant ne reçoit jamais d'indice
@@ -109,7 +116,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   };
 
   const submit = async () => {
-    if (isSubmitting || selected.length !== 2) return;
+    if (isSubmitting || selected.length !== 2 || (feeding && !chosenFood)) return;
     setIsSubmitting(true);
     try {
       if (refuge.role === 'adoptant') await refuge.submitGuess(selectedGuessActions);
@@ -158,6 +165,8 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
             <Text style={styles.dayCaption}>Jour {currentDay} sur 7</Text>
           </View>
           <View style={styles.animal} pointerEvents="none">{isRefugeAnimal(refuge.companion?.animalType) && <AnimalIllustration animal={refuge.companion.animalType} state={animalState} size={animalSize} />}</View>
+          {feeding && chosenFood && <Image pointerEvents="none" source={BOWL_IMAGES[chosenFood]} resizeMode="contain" style={{position:'absolute',top:'61%',left:'61%',width:artWidth*.20,height:artWidth*.20,zIndex:13}} />}
+          {feeding && foods.length > 1 && <View style={{position:'absolute',top:'65%',left:'6.5%',width:'87%',flexDirection:'row',justifyContent:'center',gap:6,zIndex:15}}>{foods.map(food => <TouchableOpacity accessibilityRole="button" accessibilityState={{selected:chosenFood===food}} key={food} onPress={()=>setFoodChoice(food)} style={{backgroundColor:parchment,borderRadius:8,borderWidth:chosenFood===food?2:1,borderColor:burgundy,padding:4,alignItems:'center'}}><Image source={BOWL_IMAGES[food]} style={{width:34,height:34}} resizeMode="contain"/><Text style={{color:ink,fontSize:10}}>{FOOD_LABELS[food]}</Text></TouchableOpacity>)}</View>}
           {hideActionsForToday ? (
             <View style={styles.dayDone}>
               <Text style={styles.dayDoneTitle}>C’est tout pour aujourd’hui</Text>
@@ -170,7 +179,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
           ) : (
             <View style={styles.actions}>{ACTIONS.map(action => { const active=selected.includes(action.key); return <TouchableOpacity key={action.key} disabled={disabled} onPress={() => handleAction(action.key)} style={[styles.tag,active&&styles.tagActive,disabled&&!isWaiting&&styles.tagDisabled]}>{action.mark==='feed' ? <View style={{width:30,height:30,flexDirection:'row',justifyContent:'center',gap:7,marginBottom:3}}><View style={{alignItems:'center'}}><View style={{flexDirection:'row',gap:2}}>{[0,1,2].map(i=><View key={i} style={{width:2,height:10,backgroundColor:burgundy}}/>)}</View><View style={{width:10,height:2,backgroundColor:burgundy}}/><View style={{width:2,height:15,backgroundColor:burgundy}}/></View><View style={{width:6,height:27,borderLeftWidth:2,borderTopWidth:2,borderColor:burgundy,borderTopLeftRadius:5}}/></View> : action.mark==='wash' ? <View style={{width:30,height:30,marginBottom:3}}>{[[1,12,15],[16,1,11],[21,20,7],[2,1,6]].map(([left,top,size],i)=><View key={i} style={{position:'absolute',left,top,width:size,height:size,borderRadius:size/2,borderWidth:1.5,borderColor:burgundy}}/>)}</View> : action.mark==='play' ? <View style={{width:27,height:27,borderRadius:14,borderWidth:1.5,borderColor:burgundy,overflow:'hidden',marginBottom:3}}><View style={{position:'absolute',left:6,top:-3,width:12,height:32,borderRadius:10,borderWidth:1.5,borderColor:burgundy,transform:[{rotate:'35deg'}]}}/><View style={{position:'absolute',left:-3,top:8,width:32,height:10,borderRadius:10,borderWidth:1.5,borderColor:burgundy,transform:[{rotate:'35deg'}]}}/></View> : <Text style={[styles.mark,active&&styles.markActive]}>{action.mark}</Text>}<Text style={styles.tagTitle}>{action.title}</Text></TouchableOpacity>; })}</View>
           )}
-          <View style={styles.status}><View style={styles.tape}/><Text style={styles.statusTitle}>{statusTitle}</Text>{!!statusBody&&<Text style={styles.statusBody}>{statusBody}</Text>}{!isWaiting&&selected.length===2&&!disabled&&<TouchableOpacity style={styles.validate} onPress={submit}><Text style={styles.validateText}>{isSubmitting?'Envoi…':'Valider mes 2 choix'}</Text></TouchableOpacity>}</View>
+          <View style={styles.status}><View style={styles.tape}/><Text style={styles.statusTitle}>{statusTitle}</Text>{!!statusBody&&<Text style={styles.statusBody}>{statusBody}</Text>}{!isWaiting&&selected.length===2&&!disabled&&(!feeding||!!chosenFood)&&<TouchableOpacity style={styles.validate} onPress={submit}><Text style={styles.validateText}>{isSubmitting?'Envoi…':'Valider mes 2 choix'}</Text></TouchableOpacity>}</View>
           </View>
         </ImageBackground>
       </ScrollView>
