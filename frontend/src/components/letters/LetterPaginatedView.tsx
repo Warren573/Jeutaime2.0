@@ -13,6 +13,8 @@ import { paginateLines, type MeasuredLine } from '../../utils/paginateLetterText
 
 const SIGNATURE_BLOCK_HEIGHT = 64;
 const PAGE_PADDING = 24;
+const PAGE_TOP_PADDING = 20;
+const PAGE_BOTTOM_PADDING = 22;
 const PAGE_INDICATOR_HEIGHT = 28;
 
 interface LetterPaginatedViewProps {
@@ -26,6 +28,8 @@ export function LetterPaginatedView({ content, signatureName, dateLabel }: Lette
   const [viewportSize, setViewportSize] = useState<{ w: number; h: number } | null>(null);
   const [measuredLines, setMeasuredLines] = useState<MeasuredLine[] | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
+  const [metaHeight, setMetaHeight] = useState(0);
+  const [signatureHeight, setSignatureHeight] = useState(SIGNATURE_BLOCK_HEIGHT);
   const scrollRef = useRef<ScrollView>(null);
 
   const onViewportLayout = useCallback((e: LayoutChangeEvent) => {
@@ -51,11 +55,11 @@ export function LetterPaginatedView({ content, signatureName, dateLabel }: Lette
 
   const pages = useMemo(() => {
     if (!measuredLines || !viewportSize) return null;
-    const usableHeight = viewportSize.h - PAGE_PADDING * 2;
-    return paginateLines(measuredLines, usableHeight, SIGNATURE_BLOCK_HEIGHT);
-  }, [measuredLines, viewportSize]);
+    const usableHeight = viewportSize.h - PAGE_TOP_PADDING - PAGE_BOTTOM_PADDING - (dateLabel ? metaHeight + 18 : 0);
+    return paginateLines(measuredLines, usableHeight, signatureHeight);
+  }, [measuredLines, viewportSize, dateLabel, metaHeight, signatureHeight]);
 
-  const measureWidth = viewportSize ? Math.max(0, viewportSize.w - PAGE_PADDING * 2) : 0;
+  const measureWidth = viewportSize ? Math.max(0, viewportSize.w - PAGE_PADDING * 2 - 4) : 0;
 
   useEffect(() => {
     setMeasuredLines(null);
@@ -82,6 +86,10 @@ export function LetterPaginatedView({ content, signatureName, dateLabel }: Lette
             style={styles.pager}
             horizontal
             pagingEnabled
+            scrollEnabled={pages.length > 1}
+            bounces={false}
+            alwaysBounceHorizontal={false}
+            overScrollMode="never"
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={e => {
               const idx = Math.round(e.nativeEvent.contentOffset.x / viewportSize.w);
@@ -93,7 +101,7 @@ export function LetterPaginatedView({ content, signatureName, dateLabel }: Lette
                 <View style={styles.pageInner}>
                   <View>
                     {i === 0 && dateLabel ? (
-                      <View style={styles.letterMetaRow}>
+                      <View style={styles.letterMetaRow} onLayout={e => setMetaHeight(e.nativeEvent.layout.height)}>
                         <Text style={styles.letterMetaLabel}>LETTRE</Text>
                         <Text style={styles.letterMetaDate}>{dateLabel}</Text>
                       </View>
@@ -109,7 +117,7 @@ export function LetterPaginatedView({ content, signatureName, dateLabel }: Lette
                   </View>
 
                   {i === pages.length - 1 && (
-                    <View style={styles.signatureBlock}>
+                    <View style={styles.signatureBlock} onLayout={e => setSignatureHeight(e.nativeEvent.layout.height)}>
                       <Text style={[styles.signature, !fontsLoaded && styles.signatureFallback]}>
                         {signatureName}
                       </Text>
@@ -125,7 +133,7 @@ export function LetterPaginatedView({ content, signatureName, dateLabel }: Lette
           <View style={[styles.pageInner, styles.fallbackPage]}>
             <View>
               {dateLabel ? (
-                <View style={styles.letterMetaRow}>
+                <View style={styles.letterMetaRow} onLayout={e => setMetaHeight(e.nativeEvent.layout.height)}>
                   <Text style={styles.letterMetaLabel}>LETTRE</Text>
                   <Text style={styles.letterMetaDate}>{dateLabel}</Text>
                 </View>
@@ -138,7 +146,7 @@ export function LetterPaginatedView({ content, signatureName, dateLabel }: Lette
               </View>
             </View>
 
-            <View style={styles.signatureBlock}>
+            <View style={styles.signatureBlock} onLayout={e => setSignatureHeight(e.nativeEvent.layout.height)}>
               <Text style={[styles.signature, !fontsLoaded && styles.signatureFallback]}>
                 {signatureName}
               </Text>
@@ -187,8 +195,8 @@ const styles = StyleSheet.create({
   pageInner: {
     flex: 1,
     paddingHorizontal: PAGE_PADDING,
-    paddingTop: 20,
-    paddingBottom: 22,
+    paddingTop: PAGE_TOP_PADDING,
+    paddingBottom: PAGE_BOTTOM_PADDING,
     justifyContent: 'space-between',
   },
   letterMetaRow: {
@@ -219,8 +227,10 @@ const styles = StyleSheet.create({
     color: '#2C1A0E',
   },
   signatureBlock: {
-    alignSelf: 'flex-end',
+    alignSelf: 'stretch',
     alignItems: 'flex-end',
+    flexShrink: 0,
+    paddingBottom: 6,
     minHeight: SIGNATURE_BLOCK_HEIGHT,
     justifyContent: 'flex-end',
   },
@@ -228,7 +238,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Caveat_600SemiBold',
     fontSize: 36,
     color: '#5A3A1A',
-    alignSelf: 'flex-end',
+    maxWidth: '100%',
+    textAlign: 'right',
   },
   signatureFallback: {
     fontFamily: undefined,

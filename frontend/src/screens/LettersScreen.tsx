@@ -14,8 +14,6 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
-  Animated,
-  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ModalKeyboardFrame } from '../components/ModalKeyboardFrame';
@@ -117,28 +115,6 @@ const EnvelopeCard = ({
 }: EnvelopeCardProps) => {
   const rel = getRelationInfo(letterCount, isPremium);
 
-  // Petite animation tremblement quand lettre non lue
-  const shakeX = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (unread <= 0) {
-      shakeX.setValue(0);
-      return;
-    }
-    // Tremblement discret répété toutes les 4 secondes
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(3500),
-        Animated.timing(shakeX, { toValue: -3, duration: 60, useNativeDriver: true, easing: Easing.linear }),
-        Animated.timing(shakeX, { toValue: 3, duration: 60, useNativeDriver: true, easing: Easing.linear }),
-        Animated.timing(shakeX, { toValue: -2, duration: 50, useNativeDriver: true, easing: Easing.linear }),
-        Animated.timing(shakeX, { toValue: 2, duration: 50, useNativeDriver: true, easing: Easing.linear }),
-        Animated.timing(shakeX, { toValue: 0, duration: 40, useNativeDriver: true, easing: Easing.linear }),
-      ])
-    );
-    loop.start();
-    return () => { loop.stop(); shakeX.setValue(0); };
-  }, [unread]);
-
   const previewText = () => {
     if (matchStatus?.toUpperCase() === 'PENDING') return 'En attente d\'acceptation';
     if (matchStatus?.toUpperCase() === 'BROKEN' || matchStatus?.toUpperCase() === 'BLOCKED') return 'Match terminé';
@@ -159,11 +135,10 @@ const EnvelopeCard = ({
   const canReadLetters = isActive; // Can always read if match is active
 
   return (
-    <Animated.View
+    <View
       style={[
         envStyles.card,
         unread > 0 && envStyles.cardUnread,
-        { transform: [{ translateX: shakeX }] },
       ]}
     >
       <MailboxPostalMark received={unread > 0 || myTurn} />
@@ -236,7 +211,7 @@ const EnvelopeCard = ({
           <><Ionicons name="person-outline" size={16} color="#8B5A2B" />{' Profil →'}</>
         </Link>
       </View>
-    </Animated.View>
+    </View>
   );
 };
 
@@ -302,7 +277,7 @@ const envStyles = StyleSheet.create({
   },
   texts: { flex: 1, minWidth: 0, paddingRight: 42 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { fontSize: 17, fontWeight: '700', color: '#2A1A10', letterSpacing: -0.1 },
+  name: { flexShrink: 1, fontSize: 17, fontWeight: '700', color: '#2A1A10', letterSpacing: -0.1 },
   badge: {
     width: 20, height: 20, borderRadius: 10,
     backgroundColor: '#8B2E3C',
@@ -1848,7 +1823,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#C4A882',
     backgroundColor: '#2C1A0E',
   },
-  previewHeaderTitle: { fontSize: 15, fontWeight: '700', color: '#F0D98C', letterSpacing: 0.3 },
+  previewHeaderTitle: { flexShrink: 1, textAlign: 'center', fontSize: 15, fontWeight: '700', color: '#F0D98C', letterSpacing: 0.3 },
   previewBody: {
     flex: 1,
     marginHorizontal: 16,
