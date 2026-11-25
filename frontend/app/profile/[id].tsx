@@ -240,11 +240,10 @@ export default function ProfileRoute() {
   const hasActiveRelation = relationMatch?.status === 'ACTIVE';
 
   const showActions = !isAdminPreview && !isOwnProfile && !!profileId;
-  // Zone recouverte en bas de l'écran = bloc de boutons + distance au bas (Android).
-  const actionsBottomCovered =
-    showActions && actionsHeight > 0
-      ? actionsHeight + footerBottomPadding('android', insets.bottom, APP_SPACING.lg)
-      : 0;
+  const actionsBottom = Platform.OS === 'android'
+    ? footerBottomPadding('android', insets.bottom, APP_SPACING.lg)
+    : APP_SPACING.lg;
+  const actionsBottomCovered = showActions ? actionsHeight + actionsBottom : 0;
 
   return (
     <View style={styles.container}>
@@ -262,12 +261,7 @@ export default function ProfileRoute() {
 
       {!isAdminPreview && !isOwnProfile && profileId && (
         <View
-          style={[
-            styles.actions,
-            // Android edge-to-edge : remonter au-dessus de la barre de navigation (marge sûre + 8 dp).
-            // iOS et web : style d'origine inchangé (bottom: APP_SPACING.lg).
-            Platform.OS === 'android' && { bottom: footerBottomPadding('android', insets.bottom, APP_SPACING.lg) },
-          ]}
+          style={[styles.actions, { bottom: actionsBottom }]}
           pointerEvents="box-none"
           onLayout={(e) => setActionsHeight(e.nativeEvent.layout.height)}
         >
