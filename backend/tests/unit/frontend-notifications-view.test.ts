@@ -162,12 +162,14 @@ describe("même compteur et confidentialité (garde-fous sur les sources)", () =
     expect(source("screens/NotificationsScreen.tsx")).toMatch(/markAllNotificationsRead/);
     expect(source("screens/NotificationsScreen.tsx")).toMatch(/getNotificationTarget/);
   });
-  it("placement choisi : cloche dans le coin supérieur droit du Journal (titre abaissé de 26 pt), plus dans le bandeau", () => {
+  it("placement actuel (PR #243) : la cloche est sur l'accueil, à côté des paramètres, et plus dans le Journal", () => {
     const journal = source("screens/JournalScreen.tsx");
-    expect(journal.match(/<NotificationBell \/>/g)).toHaveLength(1);
-    expect(journal).toMatch(/bellCorner: \{ position: 'absolute', top: 3, right: 4/);
-    expect(journal).toMatch(/mastheadWithBell: \{ paddingTop: 30 \}/); // 4 → 30 : décalage de 26 pt
-    expect(journal).not.toMatch(/taglineBand/);
+    expect(journal).not.toMatch(/NotificationBell/);
+    expect(journal).not.toMatch(/bellCorner|mastheadWithBell/);
+    const board = source("components/PersonalBoard.tsx");
+    expect(board).toMatch(/import \{ NotificationBell \} from '\.\/NotificationBell';/);
+    expect(board.match(/<NotificationBell style=\{styles\.boardAction\} \/>/g)).toHaveLength(1);
+    expect(board).toMatch(/router\.push\('\/settings'\)/); // à côté du bouton Paramètres
     // La baseline « Actualités de la communauté » reste un simple texte, comme avant.
     expect(journal).toMatch(/<Text style=\{styles\.mastheadTagline\}>Actualités de la communauté<\/Text>/);
   });

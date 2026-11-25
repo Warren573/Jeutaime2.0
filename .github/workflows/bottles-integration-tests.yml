@@ -84,10 +84,9 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
-          cd backend
-          npx prisma db push --skip-generate --accept-data-loss
+          psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f backend/prisma/ci-baseline/schema.sql
 
-      # The CI schema is generated directly from the current Prisma schema.
+      # The CI baseline is generated from the complete current Prisma schema.
       # Do not replay historical migrations on top: their tables/columns already exist.
       # Production migrations remain handled separately by prisma migrate deploy.
 
