@@ -14,10 +14,10 @@ import { useRefugeSession } from '../hooks/useRefugeSession';
 const REFUGE_BACKGROUND = require('../../assets/images/refuge/refuge-watercolor-bg.png');
 
 const ACTIONS: Array<{ key: RefugeActionType; title: string; mark: string }> = [
-  { key: 'feed', title: 'Nourrir', mark: '◉' },
+  { key: 'feed', title: 'Nourrir', mark: 'feed' },
   { key: 'pet', title: 'Câliner', mark: '♡' },
-  { key: 'wash', title: 'Laver', mark: '✧' },
-  { key: 'play', title: 'Jouer', mark: 'paw' },
+  { key: 'wash', title: 'Laver', mark: 'wash' },
+  { key: 'play', title: 'Jouer', mark: 'play' },
 ];
 
 export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: string }) {
@@ -168,7 +168,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
               </Text>
             </View>
           ) : (
-            <View style={styles.actions}>{ACTIONS.map(action => { const active=selected.includes(action.key); return <TouchableOpacity key={action.key} disabled={disabled} onPress={() => handleAction(action.key)} style={[styles.tag,active&&styles.tagActive,disabled&&!isWaiting&&styles.tagDisabled]}>{action.mark==='paw' ? <View style={styles.paw}><View style={styles.pawToes}>{[0,1,2,3].map(i=><View key={i} style={[styles.pawToe,{marginTop:i===0||i===3?5:0}]}/>)}</View><View style={styles.pawPad}/></View> : <Text style={[styles.mark,active&&styles.markActive]}>{action.mark}</Text>}<Text style={styles.tagTitle}>{action.title}</Text></TouchableOpacity>; })}</View>
+            <View style={styles.actions}>{ACTIONS.map(action => { const active=selected.includes(action.key); return <TouchableOpacity key={action.key} disabled={disabled} onPress={() => handleAction(action.key)} style={[styles.tag,active&&styles.tagActive,disabled&&!isWaiting&&styles.tagDisabled]}>{action.mark==='feed' ? <View style={{width:30,height:30,flexDirection:'row',justifyContent:'center',gap:7,marginBottom:3}}><View style={{alignItems:'center'}}><View style={{flexDirection:'row',gap:2}}>{[0,1,2].map(i=><View key={i} style={{width:2,height:10,backgroundColor:burgundy}}/>)}</View><View style={{width:10,height:2,backgroundColor:burgundy}}/><View style={{width:2,height:15,backgroundColor:burgundy}}/></View><View style={{width:6,height:27,borderLeftWidth:2,borderTopWidth:2,borderColor:burgundy,borderTopLeftRadius:5}}/></View> : action.mark==='wash' ? <View style={{width:30,height:30,marginBottom:3}}>{[[1,12,15],[16,1,11],[21,20,7],[2,1,6]].map(([left,top,size],i)=><View key={i} style={{position:'absolute',left,top,width:size,height:size,borderRadius:size/2,borderWidth:1.5,borderColor:burgundy}}/>)}</View> : action.mark==='play' ? <View style={{width:27,height:27,borderRadius:14,borderWidth:1.5,borderColor:burgundy,overflow:'hidden',marginBottom:3}}><View style={{position:'absolute',left:6,top:-3,width:12,height:32,borderRadius:10,borderWidth:1.5,borderColor:burgundy,transform:[{rotate:'35deg'}]}}/><View style={{position:'absolute',left:-3,top:8,width:32,height:10,borderRadius:10,borderWidth:1.5,borderColor:burgundy,transform:[{rotate:'35deg'}]}}/></View> : <Text style={[styles.mark,active&&styles.markActive]}>{action.mark}</Text>}<Text style={styles.tagTitle}>{action.title}</Text></TouchableOpacity>; })}</View>
           )}
           <View style={styles.status}><View style={styles.tape}/><Text style={styles.statusTitle}>{statusTitle}</Text>{!!statusBody&&<Text style={styles.statusBody}>{statusBody}</Text>}{!isWaiting&&selected.length===2&&!disabled&&<TouchableOpacity style={styles.validate} onPress={submit}><Text style={styles.validateText}>{isSubmitting?'Envoi…':'Valider mes 2 choix'}</Text></TouchableOpacity>}</View>
           </View>
