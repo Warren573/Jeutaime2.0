@@ -1369,7 +1369,7 @@ export default function LettersScreen() {
             )}
 
             {/* ── Actions Menu (Bottom Sheet) ─────────────────────────────────────── */}
-            {showActionsMenu && ( setShowActionsMenu(false)}>
+            {showActionsMenu && (
               <View style={[StyleSheet.absoluteFill, styles.actionsMenuOverlay]}>
                 {/* Android (bord à bord) : la feuille est dessinée sous la barre de navigation ;
                     on ajoute la marge sûre du bas pour que « Fermer » reste visible. iOS inchangé. */}
