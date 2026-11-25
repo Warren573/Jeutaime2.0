@@ -667,6 +667,8 @@ const lcStyles = StyleSheet.create({
   },
 });
 
+const letterScreenGap = Platform.OS === 'ios' ? 12 : 0;
+
 export default function LettersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -1210,7 +1212,7 @@ export default function LettersScreen() {
 
             {selectedMatch?.canSend ? (
               <View
-                style={[styles.inputContainer, { paddingBottom: footerBottomPadding(Platform.OS, modalInsets.bottom, 8) }, footerAnchoring.footerStyle]}
+                style={[styles.inputContainer, { paddingBottom: footerBottomPadding(Platform.OS, modalInsets.bottom, 8) + letterScreenGap }, footerAnchoring.footerStyle]}
                 onLayout={onComposerFooterLayout}
               >
                 <TextInput
@@ -1243,7 +1245,7 @@ export default function LettersScreen() {
               </View>
             ) : (
               <View
-                style={[styles.waitingComposer, { paddingBottom: footerBottomPadding(Platform.OS, modalInsets.bottom, 10) }, footerAnchoring.footerStyle]}
+                style={[styles.waitingComposer, { paddingBottom: footerBottomPadding(Platform.OS, modalInsets.bottom, 10) + letterScreenGap }, footerAnchoring.footerStyle]}
                 onLayout={onComposerFooterLayout}
               >
                 <View style={styles.waitingComposerBar}>
@@ -1261,7 +1263,7 @@ export default function LettersScreen() {
             {/* ── Aperçu/relecture dans LA MÊME modal native.
                 iOS ne présente pas fiablement une 2e Modal par-dessus showCompose. ── */}
             {showLetterPreview && (
-              <View style={[styles.previewOverlay, { paddingTop: modalInsets.top }]}>
+              <View style={[styles.previewOverlay, { paddingTop: modalInsets.top + letterScreenGap }]}>
                 <View style={styles.previewHeader}>
                   <TouchableOpacity
                     onPress={() => setShowLetterPreview(false)}
@@ -1321,7 +1323,7 @@ export default function LettersScreen() {
             )}
 
             {!!readingLetter && (
-              <View style={[styles.previewOverlay, { paddingTop: modalInsets.top }, readingOverlayBottomStyle(Platform.OS, modalInsets.bottom)]}>
+              <View style={[styles.previewOverlay, { paddingTop: modalInsets.top + letterScreenGap }, Platform.OS === 'ios' ? { paddingBottom: modalInsets.bottom + letterScreenGap } : readingOverlayBottomStyle(Platform.OS, modalInsets.bottom)]}>
                 <View style={styles.previewHeader}>
                   <TouchableOpacity onPress={() => setReadingLetter(null)}>
                     <Text style={styles.closeText}>← Retour</Text>
