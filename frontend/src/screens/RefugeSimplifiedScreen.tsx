@@ -112,7 +112,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
           </View>
           <View style={styles.animal} pointerEvents="none">{isRefugeAnimal(refuge.companion?.animalType) && <AnimalIllustration animal={refuge.companion.animalType} state={animalState} size={animalSize} />}</View>
           {reaction?.action === 'NOURRIR' && (reaction.correct || chosenFood) && <Image source={BOWL_IMAGES[reaction.correct ? 'empty' : chosenFood!]} resizeMode="contain" style={{position:'absolute',top:'61%',left:'61%',width:artWidth*.20,height:artWidth*.20,zIndex:13}} />}
-          {feeding && chosenFood && <Image pointerEvents="none" source={BOWL_IMAGES[chosenFood]} resizeMode="contain" style={{position:'absolute',top:'61%',left:'61%',width:artWidth*.20,height:artWidth*.20,zIndex:13}} />}
+          {feeding && chosenFood && <Image source={BOWL_IMAGES[chosenFood]} resizeMode="contain" style={{position:'absolute',top:'61%',left:'61%',width:artWidth*.20,height:artWidth*.20,zIndex:13}} />}
           {feeding && foods.length > 1 && <View style={{position:'absolute',top:'65%',left:'6.5%',width:'87%',flexDirection:'row',justifyContent:'center',gap:6,zIndex:15}}>{foods.map(food => <TouchableOpacity accessibilityRole="button" accessibilityState={{selected:chosenFood===food}} key={food} onPress={()=>setFoodChoice(food)} style={{backgroundColor:parchment,borderRadius:8,borderWidth:chosenFood===food?2:1,borderColor:burgundy,padding:4,alignItems:'center'}}><Image source={BOWL_IMAGES[food]} style={{width:34,height:34}} resizeMode="contain"/><Text style={{color:ink,fontSize:10}}>{FOOD_LABELS[food]}</Text></TouchableOpacity>)}</View>}
           {hideActionsForToday ? (
             <View style={styles.dayDone}>
