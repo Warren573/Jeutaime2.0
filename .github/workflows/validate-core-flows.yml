@@ -79,3 +79,7 @@ jobs:
       - name: Typecheck frontend
         working-directory: frontend
         run: npx tsc --noEmit
+      - name: Run Refuge animation assertions
+        working-directory: frontend
+        run: |
+          node -e "const ts=require('typescript'),fs=require('fs'); require.extensions['.ts']=(m,f)=>m._compile(ts.transpileModule(fs.readFileSync(f,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,f); require('./src/data/refugeAnimation.test.ts'); console.log('Refuge animation assertions passed')"
