@@ -80,6 +80,8 @@ export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
   canAttemptToday: boolean;
   todaySubmitted: boolean;
   sponsorRole?: "parrain" | "marraine";
+  choiceAt?: string | null;
+  resolvedAt?: string | null;
   adopteSubmittedToday: boolean; // True si l'Adopté a vraiment soumis un choix aujourd'hui
   adoptantSubmittedToday: boolean; // True si l'Adoptant a soumis sa réponse du jour
   dayCompleted: boolean; // adopteSubmittedToday && adoptantSubmittedToday (jour courant)
