@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,8 +6,7 @@ import { AnimalIllustration } from '../components/AnimalIllustration';
 import { AppBackButton } from '../components/AppBackButton';
 import { isRefugeAnimal } from '../data/refugeAnimals';
 import { type RefugeActionType } from '../data/refugeActions';
-import { type RefugeAnimalVisualState } from '../data/refugeAnimalImages';
-import { showRefugePose, useRefugePose } from '../store/useRefugePose';
+import { refugeAnimation } from '../data/refugeAnimation';
 import { useRefugeDailyChoices } from '../hooks/useRefugeDailyChoices';
 import { useRefugeSession } from '../hooks/useRefugeSession';
 
@@ -30,10 +29,9 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const { selectedMyActions, selectedGuessActions, toggleMyAction, toggleGuessAction, resetDay } = useRefugeDailyChoices();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [foodChoice, setFoodChoice] = useState<RefugeFood | null>(null);
-  const poseKey = JSON.stringify([sessionIdProp, refuge.currentDay, refuge.role]);
-  const pose = useRefugePose(store => store.pose);
-  const animalState = pose?.key === poseKey ? pose.state : 'assis';
-  const previousDayCompleted = useRef<boolean | null>(null);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+  const animalState = refugeAnimation({now, choiceAt: refuge.choiceAt, resolvedAt: refuge.resolvedAt, matches: refuge.todayResult?.matches});
 
   const artWidth = Math.min(width, 520);
   const availableHeight = Math.max(height - insets.top - insets.bottom, artWidth * 1.72);
@@ -51,61 +49,6 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   const chosenFood = foods.length === 1 ? foods[0] : foodChoice && foods.includes(foodChoice) ? foodChoice : null;
   useEffect(() => { resetDay(); setFoodChoice(null); }, [sessionIdProp, refuge.currentDay, resetDay]);
   useEffect(() => { if (!feeding) setFoodChoice(null); }, [feeding]);
-
-  // Avant la résolution du jour, seule la personne incarnant l'animal voit
-  // une réaction à SES propres choix. L'Adoptant ne reçoit jamais d'indice
-  // visuel avant d'avoir validé sa tentative.
-  useEffect(() => {
-    if (refuge.isLoading || !refuge.role || refuge.dayCompleted) return;
-
-    if (refuge.role === 'adopte' && !refuge.adopteSubmittedToday) {
-      if (selectedMyActions.includes('play')) {
-        showRefugePose(poseKey, 'joue');
-      } else if (selectedMyActions.length > 0) {
-        showRefugePose(poseKey, 'content');
-      } else {
-        showRefugePose(poseKey, 'assis');
-      }
-      return;
-    }
-
-    showRefugePose(poseKey, 'assis');
-  }, [
-    poseKey,
-    refuge.isLoading,
-    refuge.dayCompleted,
-    refuge.role,
-    refuge.adopteSubmittedToday,
-    selectedMyActions,
-  ]);
-
-  // Quand la journée vient juste de se terminer, on montre brièvement la
-  // réaction au résultat, puis l'animal dort jusqu'au jour suivant.
-  useEffect(() => {
-    if (refuge.isLoading || !refuge.role) return;
-    if (!refuge.dayCompleted) {
-      previousDayCompleted.current = false;
-      return;
-    }
-
-    // Si l'écran est ouvert/rechargé alors que la journée était déjà finie,
-    // on arrive directement sur l'état de repos.
-    if (previousDayCompleted.current === null) {
-      if (useRefugePose.getState().pose?.key !== poseKey || !useRefugePose.getState().pose?.resolved) showRefugePose(poseKey, 'dort', true);
-      previousDayCompleted.current = true;
-      return;
-    }
-
-    if (previousDayCompleted.current === false) {
-      const matches = refuge.todayResult?.matches;
-      const reaction: RefugeAnimalVisualState =
-        matches === 2 ? 'content' : matches === 0 ? 'boude' : 'assis';
-
-      showRefugePose(poseKey, reaction, true);
-      previousDayCompleted.current = true;
-
-    }
-  }, [poseKey, refuge.isLoading, refuge.role, refuge.dayCompleted, refuge.todayResult?.matches]);
 
   const handleAction = (action: RefugeActionType) => {
     if (disabled) return;
