@@ -1368,159 +1368,160 @@ export default function LettersScreen() {
               </View>
             )}
 
+            {/* ── Actions Menu (Bottom Sheet) ─────────────────────────────────────── */}
+            {showActionsMenu && ( setShowActionsMenu(false)}>
+              <View style={[StyleSheet.absoluteFill, styles.actionsMenuOverlay]}>
+                {/* Android (bord à bord) : la feuille est dessinée sous la barre de navigation ;
+                    on ajoute la marge sûre du bas pour que « Fermer » reste visible. iOS inchangé. */}
+                <View style={[styles.actionsMenuBox, Platform.OS === 'android' && { paddingBottom: 28 + insets.bottom }]}>
+                  <View style={styles.actionsMenuHandle} />
+
+                  <TouchableOpacity
+                    style={styles.actionsMenuItem}
+                    onPress={() => {
+                      setShowActionsMenu(false);
+                      if (selectedMatch) {
+                        const otherId = getOtherUserId(selectedMatch);
+                        setShowCompose(false);
+                        router.replace({ pathname: '/profile/[id]', params: { id: otherId } });
+                      }
+                    }}
+                  >
+                    <Text style={styles.actionsMenuIcon}>👁️</Text>
+                    <Text style={styles.actionsMenuLabel}>Voir le profil</Text>
+                  </TouchableOpacity>
+
+                  {selectedMatch?.status?.toUpperCase() === 'ACTIVE' && (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
+                        onPress={() => {
+                          setShowActionsMenu(false);
+                          handleBreakMatch();
+                        }}
+                        disabled={isActioning}
+                      >
+                        <Text style={styles.actionsMenuIcon}>🚪</Text>
+                        <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Rompre l'échange</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
+                        onPress={() => {
+                          setShowActionsMenu(false);
+                          handleBlockUser();
+                        }}
+                        disabled={isActioning}
+                      >
+                        <Text style={styles.actionsMenuIcon}>🚫</Text>
+                        <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Bloquer</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
+                        onPress={() => {
+                          setShowActionsMenu(false);
+                          setShowReportModal(true);
+                        }}
+                        disabled={isActioning}
+                      >
+                        <Text style={styles.actionsMenuIcon}>⚠️</Text>
+                        <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Signaler</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                  {selectedMatch?.status?.toUpperCase() === 'BROKEN' && (
+                    <TouchableOpacity
+                      style={styles.actionsMenuItem}
+                      onPress={() => {
+                        setShowActionsMenu(false);
+                        handleRelance();
+                      }}
+                      disabled={isActioning}
+                    >
+                      <Text style={styles.actionsMenuIcon}>🔄</Text>
+                      <Text style={styles.actionsMenuLabel}>Redémarrer l'échange</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    style={styles.actionsMenuCancel}
+                    onPress={() => setShowActionsMenu(false)}
+                  >
+                    <Text style={styles.actionsMenuCancelText}>Fermer</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* ── Report Modal ─────────────────────────────────────── */}
+            {showReportModal && (
+              <View style={[StyleSheet.absoluteFill, styles.reportModalOverlay]}>
+                <View style={styles.reportModalBox}>
+                  <View style={styles.reportModalHeader}>
+                    <Text style={styles.reportModalTitle}>Signaler cet utilisateur</Text>
+                    <TouchableOpacity onPress={() => setShowReportModal(false)}>
+                      <Text style={{ fontSize: 22, color: "#3A2818" }}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.reportModalLabel}>Raison</Text>
+                  <View style={styles.reasonsContainer}>
+                    {(['HARASSMENT', 'SPAM', 'FAKE', 'INAPPROPRIATE_CONTENT', 'MINOR', 'OTHER'] as ReportReason[]).map(reason => (
+                      <TouchableOpacity
+                        key={reason}
+                        style={[styles.reasonBtn, reportReason === reason && styles.reasonBtnActive]}
+                        onPress={() => setReportReason(reason)}
+                      >
+                        <Text style={[styles.reasonBtnText, reportReason === reason && styles.reasonBtnTextActive]}>
+                          {reason === 'HARASSMENT' && 'Harcèlement'}
+                          {reason === 'SPAM' && 'Spam'}
+                          {reason === 'FAKE' && 'Faux profil'}
+                          {reason === 'INAPPROPRIATE_CONTENT' && 'Contenu inapproprié'}
+                          {reason === 'MINOR' && 'Mineur'}
+                          {reason === 'OTHER' && 'Autre'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <Text style={styles.reportModalLabel}>Détails (optionnel)</Text>
+                  <TextInput
+                    style={styles.reportDetailsInput}
+                    placeholder="Décrivez le problème..."
+                    placeholderTextColor="#8B6F47"
+                    value={reportDetails}
+                    onChangeText={setReportDetails}
+                    multiline
+                    numberOfLines={3}
+                  />
+
+                  <View style={styles.reportModalButtons}>
+                    <TouchableOpacity
+                      style={[styles.reportCancelBtn, isActioning && styles.btnDisabled]}
+                      onPress={() => setShowReportModal(false)}
+                      disabled={isActioning}
+                    >
+                      <Text style={styles.reportCancelBtnText}>Annuler</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.reportSubmitBtn, isActioning && styles.btnDisabled]}
+                      onPress={handleReportSubmit}
+                      disabled={isActioning}
+                    >
+                      <Text style={styles.reportSubmitBtnText}>
+                        {isActioning ? 'Envoi...' : 'Envoyer'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
+
           </KeyboardAvoidingView>
         )}
         </ModalKeyboardFrame>
-      </Modal>
-
-      {/* ── Actions Menu (Bottom Sheet) ─────────────────────────────────────── */}
-      <Modal visible={showActionsMenu} transparent animationType="slide" onRequestClose={() => setShowActionsMenu(false)}>
-        <View style={styles.actionsMenuOverlay}>
-          {/* Android (bord à bord) : la feuille est dessinée sous la barre de navigation ;
-              on ajoute la marge sûre du bas pour que « Fermer » reste visible. iOS inchangé. */}
-          <View style={[styles.actionsMenuBox, Platform.OS === 'android' && { paddingBottom: 28 + insets.bottom }]}>
-            <View style={styles.actionsMenuHandle} />
-
-            <TouchableOpacity
-              style={styles.actionsMenuItem}
-              onPress={() => {
-                setShowActionsMenu(false);
-                if (selectedMatch) {
-                  const otherId = getOtherUserId(selectedMatch);
-                  router.push({ pathname: '/profile/[id]', params: { id: otherId } });
-                }
-              }}
-            >
-              <Text style={styles.actionsMenuIcon}>👁️</Text>
-              <Text style={styles.actionsMenuLabel}>Voir le profil</Text>
-            </TouchableOpacity>
-
-            {selectedMatch?.status?.toUpperCase() === 'ACTIVE' && (
-              <>
-                <TouchableOpacity
-                  style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
-                  onPress={() => {
-                    setShowActionsMenu(false);
-                    handleBreakMatch();
-                  }}
-                  disabled={isActioning}
-                >
-                  <Text style={styles.actionsMenuIcon}>🚪</Text>
-                  <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Rompre l'échange</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
-                  onPress={() => {
-                    setShowActionsMenu(false);
-                    handleBlockUser();
-                  }}
-                  disabled={isActioning}
-                >
-                  <Text style={styles.actionsMenuIcon}>🚫</Text>
-                  <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Bloquer</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionsMenuItem, styles.actionsMenuItemDanger]}
-                  onPress={() => {
-                    setShowActionsMenu(false);
-                    setShowReportModal(true);
-                  }}
-                  disabled={isActioning}
-                >
-                  <Text style={styles.actionsMenuIcon}>⚠️</Text>
-                  <Text style={[styles.actionsMenuLabel, styles.actionsMenuLabelDanger]}>Signaler</Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {selectedMatch?.status?.toUpperCase() === 'BROKEN' && (
-              <TouchableOpacity
-                style={styles.actionsMenuItem}
-                onPress={() => {
-                  setShowActionsMenu(false);
-                  handleRelance();
-                }}
-                disabled={isActioning}
-              >
-                <Text style={styles.actionsMenuIcon}>🔄</Text>
-                <Text style={styles.actionsMenuLabel}>Redémarrer l'échange</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={styles.actionsMenuCancel}
-              onPress={() => setShowActionsMenu(false)}
-            >
-              <Text style={styles.actionsMenuCancelText}>Fermer</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── Report Modal ─────────────────────────────────────── */}
-      <Modal visible={showReportModal} transparent animationType="fade">
-        <View style={styles.reportModalOverlay}>
-          <View style={styles.reportModalBox}>
-            <View style={styles.reportModalHeader}>
-              <Text style={styles.reportModalTitle}>Signaler cet utilisateur</Text>
-              <TouchableOpacity onPress={() => setShowReportModal(false)}>
-                <Text style={{ fontSize: 22, color: "#3A2818" }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.reportModalLabel}>Raison</Text>
-            <View style={styles.reasonsContainer}>
-              {(['HARASSMENT', 'SPAM', 'FAKE', 'INAPPROPRIATE_CONTENT', 'MINOR', 'OTHER'] as ReportReason[]).map(reason => (
-                <TouchableOpacity
-                  key={reason}
-                  style={[styles.reasonBtn, reportReason === reason && styles.reasonBtnActive]}
-                  onPress={() => setReportReason(reason)}
-                >
-                  <Text style={[styles.reasonBtnText, reportReason === reason && styles.reasonBtnTextActive]}>
-                    {reason === 'HARASSMENT' && 'Harcèlement'}
-                    {reason === 'SPAM' && 'Spam'}
-                    {reason === 'FAKE' && 'Faux profil'}
-                    {reason === 'INAPPROPRIATE_CONTENT' && 'Contenu inapproprié'}
-                    {reason === 'MINOR' && 'Mineur'}
-                    {reason === 'OTHER' && 'Autre'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.reportModalLabel}>Détails (optionnel)</Text>
-            <TextInput
-              style={styles.reportDetailsInput}
-              placeholder="Décrivez le problème..."
-              placeholderTextColor="#8B6F47"
-              value={reportDetails}
-              onChangeText={setReportDetails}
-              multiline
-              numberOfLines={3}
-            />
-
-            <View style={styles.reportModalButtons}>
-              <TouchableOpacity
-                style={[styles.reportCancelBtn, isActioning && styles.btnDisabled]}
-                onPress={() => setShowReportModal(false)}
-                disabled={isActioning}
-              >
-                <Text style={styles.reportCancelBtnText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.reportSubmitBtn, isActioning && styles.btnDisabled]}
-                onPress={handleReportSubmit}
-                disabled={isActioning}
-              >
-                <Text style={styles.reportSubmitBtnText}>
-                  {isActioning ? 'Envoi...' : 'Envoyer'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
       </Modal>
 
       {/* ── Jeu des 3 questions ─────────────────────────────────── */}
