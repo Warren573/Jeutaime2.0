@@ -204,11 +204,12 @@ export const refugeApi = {
     sessionId: string,
     dayNumber: number,
     guessedAction1: string,
-    guessedAction2: string
+    guessedAction2: string,
+    foodChoice?: string
   ): Promise<any> {
     const response = await apiFetch("/refuge/guess", {
       method: "POST",
-      body: JSON.stringify({ sessionId, dayNumber, guessedAction1, guessedAction2 }),
+      body: JSON.stringify({ sessionId, dayNumber, guessedAction1, guessedAction2, foodChoice }),
     });
     return response?.data;
   },
