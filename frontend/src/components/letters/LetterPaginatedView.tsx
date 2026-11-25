@@ -238,7 +238,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Caveat_600SemiBold',
     fontSize: 36,
     color: '#5A3A1A',
-    maxWidth: '100%',
+    alignSelf: 'stretch',
+    paddingHorizontal: 10,
     textAlign: 'right',
   },
   signatureFallback: {
