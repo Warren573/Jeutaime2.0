@@ -31,6 +31,7 @@ export const GuessSchema = z.object({
   dayNumber: z.number().int().min(1).max(7, "dayNumber doit être entre 1 et 7"),
   guessedAction1: RefugeActionEnum,
   guessedAction2: RefugeActionEnum,
+  foodChoice: z.enum(['food','meat','fish','salad','carrot','bamboo','seeds','sardines']).optional(),
 });
 
 export const DailyChoiceSchema = z.object({
