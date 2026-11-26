@@ -96,7 +96,8 @@ jobs:
           tests/integration/refuge-food-choice.test.ts
           tests/integration/refuge-day7.test.ts
           tests/integration/refuge-expiry.test.ts \
-          tests/integration/notification-relations.test.ts
+          tests/integration/notification-relations.test.ts \
+          tests/integration/request-logger-auth.test.ts
       - name: Typecheck backend
         working-directory: backend
         run: npm run typecheck
