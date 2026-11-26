@@ -54,3 +54,11 @@ export type RegisterDeviceDto = z.infer<typeof RegisterDeviceSchema>;
 export const UnregisterDeviceSchema = z.object({
   token: z.string().min(1).max(512),
 }).strict();
+
+// ============================================================
+// POST /api/notifications/push-test — délai avant l'envoi (laisse le temps de fermer l'application)
+// ============================================================
+export const PushTestSchema = z
+  .object({ delaySeconds: z.number().int().min(0).max(30).default(10) })
+  .strict();
+export type PushTestDto = z.infer<typeof PushTestSchema>;

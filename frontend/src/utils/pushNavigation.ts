@@ -114,6 +114,8 @@ export function resolvePushDestination(data: unknown): PushDestination {
       return isSafeId(d['refugeSessionId'])
         ? { route: `/refuge/${d['refugeSessionId']}`, pathname: `/refuge/${d['refugeSessionId']}`, kind: 'static' }
         : staticDest('/refuge');
+    case 'PUSH_TEST':
+      return staticDest('/notification-diagnostics');
     case 'REPORT_PROCESSED':
       return staticDest('/user-reports');
     case 'ACCOUNT_RESTORED':
@@ -160,6 +162,11 @@ export function isViewingDestination(current: CurrentLocation | null | undefined
 }
 
 /** Faux quand la bannière (et le son) seraient redondants avec l'écran déjà ouvert. */
+/** Notification de test du diagnostic (locale ou envoyée par le serveur). */
+export function isDiagnosticTest(data: unknown): boolean {
+  return !!data && typeof data === 'object' && (data as Record<string, unknown>)['type'] === 'PUSH_TEST';
+}
+
 export function foregroundMatchId(data: unknown): string | undefined {
   if (!data || typeof data !== 'object') return;
   const { type, matchId } = data as Record<string, unknown>;
@@ -202,6 +209,8 @@ export function foregroundPresentation(
   appState: string = 'active',
 ): ForegroundPresentation {
   const viewing = isViewingDestination(current, resolvePushDestination(data));
+  // Exception volontaire : la notification de TEST du diagnostic s'affiche même application ouverte (c'est son but).
+  if (isDiagnosticTest(data)) return { showBanner: true, showList: true, playSound: prefs.sound, vibrate: false };
   if (appState === 'active') {
     // Une annonce de match a sa propre mise en scène dans l'application : pas de vibration en plus (comme avant).
     return { showBanner: false, showList: false, playSound: false, vibrate: !viewing && !foregroundMatchId(data) && prefs.vibration };
