@@ -7,6 +7,8 @@ import { refugeApi, RefugeSession } from '../../src/api/refuge-api';
 import { BouncyButton } from '../../src/components/BouncyButton';
 import { formatAnimalAge } from '../../src/modules/refuge/refugeAgeDisplay';
 import { getAnimalLabel, getAnimalSexeSymbol, isRefugeAnimal } from '../../src/data/refugeAnimals';
+import { buildSponsorAdoptionConfirmation } from '../../src/data/appEvents';
+import { enqueueLocalEvent } from '../../src/hooks/useAppEvents';
 import { AnimalIllustration } from '../../src/components/AnimalIllustration';
 
 export default function AdoptPage() {
@@ -70,7 +72,8 @@ export default function AdoptPage() {
       const result = await refugeApi.adopt(refugeSessionId);
       if (result && result.id) {
         router.replace('/refuge');
-        Alert.alert('Tu viens d’adopter un animal !', 'Votre aventure de sept jours commence.');
+        const confirmation = buildSponsorAdoptionConfirmation(result.id);
+        if (confirmation) enqueueLocalEvent(confirmation);
       }
     } catch (error: any) {
       Alert.alert('Erreur', error.message || 'Erreur lors de l&apos;adoption');

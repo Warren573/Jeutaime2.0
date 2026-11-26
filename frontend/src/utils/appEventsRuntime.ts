@@ -1,5 +1,5 @@
 import type { NotificationDto } from '../api/notifications';
-import { selectEventsToPresent, type EventQueue } from '../data/appEvents';
+import { presentability, selectEventsToPresent, type EventQueue, type SponsorRole } from '../data/appEvents';
 
 /**
  * Moteur du système événementiel : transforme un SIGNAL (push reçu application ouverte, compteur de notifications en hausse)
@@ -14,6 +14,8 @@ export interface EventsRuntimeDeps {
   fetchLatest: () => Promise<NotificationDto[]>;
   pseudoOf: (n: NotificationDto) => string | null;
   routeOf: (n: NotificationDto) => string | null;
+  /** Rôle (parrain / marraine) de la session du Refuge : lu UNIQUEMENT pour une adoption à présenter (une lecture, aucune écriture). */
+  sponsorRoleOf?: (refugeSessionId: string) => Promise<SponsorRole | null>;
   currentPath: () => string | null;
   now?: () => number;
   schedule?: (fn: () => void, ms: number) => unknown;
@@ -48,11 +50,20 @@ export function createEventsRuntime(deps: EventsRuntimeDeps): EventsRuntime {
     running = true;
     try {
       const items = await deps.fetchLatest();
-      const { models, markSeen } = selectEventsToPresent(
-        items,
-        { windowStartMs, currentPath: deps.currentPath(), seen: deps.queue.seenKeys() },
-        { pseudoOf: deps.pseudoOf, routeOf: deps.routeOf },
-      );
+      const ctx = { windowStartMs, currentPath: deps.currentPath(), seen: deps.queue.seenKeys() };
+      const roles = new Map<string, SponsorRole | null>();
+      if (deps.sponsorRoleOf) {
+        for (const n of items) {
+          const sessionId = n.meta?.['refugeSessionId'];
+          if (n.type !== 'REFUGE_ADOPTED' || typeof sessionId !== 'string' || !presentability(n, ctx).ok) continue;
+          try { roles.set(n.id, await deps.sponsorRoleOf(sessionId)); } catch { roles.set(n.id, null); }
+        }
+      }
+      const { models, markSeen } = selectEventsToPresent(items, ctx, {
+        pseudoOf: deps.pseudoOf,
+        routeOf: deps.routeOf,
+        sponsorRoleOf: (n) => roles.get(n.id) ?? null,
+      });
       if (markSeen.length) deps.queue.markSeen(markSeen);
       if (models.length) deps.queue.enqueue(models);
     } catch {

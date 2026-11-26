@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { NotificationType } from "@prisma/client";
 import {
-  EVENT_POLICIES, MAX_QUEUED_EVENTS, MAX_SEEN_EVENTS, buildEventDialog, createEventQueue, policyFor, presentability, selectEventsToPresent,
+  EVENT_POLICIES, MAX_QUEUED_EVENTS, MAX_SEEN_EVENTS, adoptionMessageForCompanion, buildEventDialog, buildMatchAnnouncement, buildSponsorAdoptionConfirmation, createEventQueue, policyFor, presentability, selectEventsToPresent,
   type EventDialogModel,
 } from "../../../frontend/src/data/appEvents";
 import { createEventsRuntime } from "../../../frontend/src/utils/appEventsRuntime";
@@ -63,7 +63,7 @@ describe("fenêtre : contenu, bouton d'accès, anonymat", () => {
   it.each(dialogTypes)("%s : titre, message du serveur, illustration de la fonctionnalité", (type) => {
     const m = buildEventDialog({ id: "n", type, message: buildNotificationMessage(type), createdAt: new Date(T0).toISOString() }, { route: "/x" })!;
     expect(m.title.length).toBeGreaterThan(3);
-    expect(m.message).toBe(buildNotificationMessage(type));
+    if (type !== "REFUGE_ADOPTED") expect(m.message).toBe(buildNotificationMessage(type)); // l'adoption a son texte de fenêtre (genre), testé plus bas
     expect(m.icon).toBe(categoryFor(type).icon); // même illustration que l'historique
     expect(m.label).toBe(categoryFor(type).label);
   });
@@ -327,5 +327,75 @@ describe("historique et cloche : catégories, icônes, intitulés", () => {
   });
   it("type inconnu (ancien client / futur serveur) : repli sûr, sans erreur", () => {
     expect(categoryFor("INCONNU")).toEqual({ label: "Notification", icon: "bell" });
+  });
+});
+
+describe("harmonisation : adoption (compagnon et parrain / marraine) et annonce de match", () => {
+  const adopted = { id: "a1", type: "REFUGE_ADOPTED", message: buildNotificationMessage("REFUGE_ADOPTED"), createdAt: new Date(T0).toISOString(), meta: { refugeSessionId: "s1" } } as never;
+
+  it("compagnon : titre, bouton et message adaptés au genre du parrain / de la marraine", () => {
+    const m = (sponsorRole: "parrain" | "marraine" | null) => buildEventDialog(adopted, { route: "/refuge/s1", sponsorRole })!;
+    expect(m("parrain").title).toBe("Tu as été adopté !");
+    expect(m("parrain").message).toBe("Ton parrain t'a choisi. Une aventure de sept jours vous attend.");
+    expect(m("marraine").message).toBe("Ta marraine t'a choisi. Une aventure de sept jours vous attend.");
+    expect(m(null).message).toBe(adoptionMessageForCompanion(null)); // genre inconnu / autre : formulation neutre
+    expect(m("parrain").cta).toEqual({ label: "Aller au refuge", route: "/refuge/s1" });
+    expect(m("parrain").pseudo).toBeNull(); // anonymat avant dévoilement
+  });
+
+  it("historique et push inchangés : le texte serveur de l'adoption n'est pas modifié", () => {
+    expect(buildNotificationMessage("REFUGE_ADOPTED")).toBe("Tu as été adopté ! Ton aventure de sept jours commence.");
+  });
+
+  it("parrain / marraine : confirmation locale, sans pseudo, bouton « Aller au refuge », clé stable (pas de doublon)", () => {
+    const m = buildSponsorAdoptionConfirmation("s1")!;
+    expect(m.title).toBe("L’aventure commence !");
+    expect(m.message).toBe("Tu as adopté un compagnon. À toi de découvrir ses envies jour après jour.");
+    expect(m.cta).toEqual({ label: "Aller au refuge", route: "/refuge" });
+    expect(m.pseudo).toBeNull();
+    expect(m.icon).toBe(categoryFor("REFUGE_ADOPTED").icon);
+    const q = createEventQueue(memoryStore());
+    expect(q.enqueue([m, buildSponsorAdoptionConfirmation("s1")!])).toBe(1);
+    expect(buildSponsorAdoptionConfirmation("../x")).toBeNull();
+  });
+
+  it("annonce de match : mêmes textes qu'avant, bouton = action locale, une seule fois par clé", () => {
+    const open = vi.fn();
+    const m = buildMatchAnnouncement("m1", open);
+    expect(m.title).toBe("C’est un match !");
+    expect(m.message).toBe("Vous vous êtes envoyé un Smile. Répondez aux 3 questions pour débloquer les lettres.");
+    expect(m.cta?.label).toBe("Jouer aux 3 questions");
+    expect(m.cta?.route).toBeUndefined();
+    m.cta!.action!();
+    expect(open).toHaveBeenCalledTimes(1);
+    const q = createEventQueue(memoryStore());
+    q.enqueue([m]);
+    expect(q.current()?.key).toBe("local:match:m1");
+    q.dismiss();
+    expect(q.enqueue([buildMatchAnnouncement("m1", open)])).toBe(0); // vu : ne revient pas
+  });
+
+  it("MATCH_CREATED d'historique reste « existing » : aucune seconde fenêtre pour le même match", () => {
+    expect(EVENT_POLICIES.MATCH_CREATED.mode).toBe("existing");
+  });
+
+  it("moteur : le rôle n'est lu (une seule fois) que pour une adoption à présenter, jamais pour les autres types", async () => {
+    const queue = createEventQueue(memoryStore());
+    const sponsorRoleOf = vi.fn(async () => "marraine" as const);
+    const items = [adopted, note({ id: "l1" })];
+    (items[0] as any).createdAt = new Date(T0 + 1000).toISOString();
+    const rt = createEventsRuntime({ queue, fetchLatest: async () => items as never, pseudoOf: () => null, routeOf: () => "/refuge/s1", sponsorRoleOf, currentPath: () => "/", now: () => T0 });
+    await rt.run();
+    expect(sponsorRoleOf).toHaveBeenCalledTimes(1);
+    expect(sponsorRoleOf).toHaveBeenCalledWith("s1");
+    expect(queue.current()?.message).toContain("Ta marraine");
+  });
+
+  it("moteur : échec de lecture du rôle → formulation neutre, la fenêtre apparaît quand même", async () => {
+    const queue = createEventQueue(memoryStore());
+    const it1 = { ...(adopted as any), createdAt: new Date(T0 + 1000).toISOString() };
+    const rt = createEventsRuntime({ queue, fetchLatest: async () => [it1] as never, pseudoOf: () => null, routeOf: () => "/refuge/s1", sponsorRoleOf: async () => { throw new Error("réseau"); }, currentPath: () => "/", now: () => T0 });
+    await rt.run();
+    expect(queue.current()?.message).toBe(adoptionMessageForCompanion(null));
   });
 });

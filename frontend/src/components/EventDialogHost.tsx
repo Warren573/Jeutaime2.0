@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { NotificationIcon } from './NotificationIcon';
@@ -19,7 +19,7 @@ const EXIT_MS = 180;
  */
 export function EventDialogHost() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const [model, setModel] = useState<EventDialogModel | null>(() => eventQueue.current());
   const progress = useRef(new Animated.Value(0)).current;
   const closing = useRef(false);
@@ -51,6 +51,7 @@ export function EventDialogHost() {
 
   if (!model) return null;
   const cardWidth = Math.min(340, Math.max(260, width - 56));
+  const compact = height < 640;
   const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] });
 
   return (
@@ -58,19 +59,21 @@ export function EventDialogHost() {
       <Animated.View style={[styles.backdrop, { opacity: progress }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={() => close()} accessibilityLabel="Fermer" />
       </Animated.View>
-      <Animated.View style={[styles.card, { width: cardWidth, opacity: progress, transform: [{ scale }] }]} accessibilityRole="alert">
+      <Animated.View style={[styles.card, { width: cardWidth, maxHeight: Math.round(height * 0.88), opacity: progress, transform: [{ scale }] }]} accessibilityRole="alert">
         <TouchableOpacity style={styles.closeButton} onPress={() => close()} accessibilityLabel="Fermer la fenêtre" hitSlop={12}>
           <Text style={styles.closeText}>✕</Text>
         </TouchableOpacity>
-        <View style={styles.illustration}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} bounces={false} showsVerticalScrollIndicator={false}>
+        <View style={[styles.illustration, compact && styles.illustrationCompact]}>
           <NotificationIcon name={model.icon} size={44} color={APP_COLORS.burgundy} />
         </View>
         <Text style={styles.label}>{model.label.toUpperCase()}</Text>
         <Text style={styles.title}>{model.title}</Text>
         {model.pseudo ? <Text style={styles.pseudo}>avec {model.pseudo}</Text> : null}
         <Text style={styles.message}>{model.message}</Text>
+        </ScrollView>
         {model.cta ? (
-          <TouchableOpacity style={styles.primary} onPress={() => { const route = model.cta!.route; close(() => router.push(route as never)); }} accessibilityRole="button">
+          <TouchableOpacity style={styles.primary} onPress={() => { const { route, action } = model.cta!; close(() => { if (action) action(); else if (route) router.push(route as never); }); }} accessibilityRole="button">
             <Text style={styles.primaryText}>{model.cta.label}</Text>
           </TouchableOpacity>
         ) : null}
@@ -100,6 +103,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 12,
   },
+  scroll: { flexGrow: 0, alignSelf: 'stretch' },
+  scrollContent: { alignItems: 'center' },
+  illustrationCompact: { width: 64, height: 64, borderRadius: 32, marginBottom: 8 },
   closeButton: { position: 'absolute', top: 10, right: 12, width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   closeText: { fontSize: 16, color: APP_COLORS.muted, fontWeight: '700' },
   illustration: { width: 92, height: 92, borderRadius: 46, backgroundColor: APP_COLORS.backgroundWarm, borderWidth: 1.5, borderColor: APP_COLORS.border, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
