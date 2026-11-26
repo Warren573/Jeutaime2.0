@@ -154,7 +154,7 @@ describe("bannière inutile quand l'écran est déjà ouvert", () => {
   });
 });
 
-describe("notification reçue application ouverte : bannière, son ET vibration, compteur", () => {
+describe("notification reçue application PAS « active » (transition) : présentation système, bannière, son ET vibration, compteur", () => {
   const loc = (pathname: string, params: Record<string, string | string[]> = {}) => ({ pathname, params });
   const prefs = { sound: true, vibration: true };
   const letter = (matchId: string) => ({ type: "LETTER_RECEIVED", matchId });
@@ -162,7 +162,7 @@ describe("notification reçue application ouverte : bannière, son ET vibration,
   function receive(current: ReturnType<typeof loc> | null, data: unknown, p = prefs) {
     const vibrate = vi.fn();
     const refreshUnread = vi.fn();
-    const presentation = onForegroundNotification({ current, data, prefs: p, vibrate, refreshUnread });
+    const presentation = onForegroundNotification({ current, data, prefs: p, appState: "inactive", vibrate, refreshUnread });
     return { presentation, vibrate, refreshUnread };
   }
 
@@ -199,7 +199,7 @@ describe("notification reçue application ouverte : bannière, son ET vibration,
     expect(quiet.presentation).toEqual({ showBanner: true, showList: true, playSound: false, vibrate: false });
     expect(quiet.vibrate).not.toHaveBeenCalled();
     expect(quiet.refreshUnread).toHaveBeenCalledTimes(1);
-    const soundOnly = foregroundPresentation(loc("/letters"), letter("m1"), { sound: true, vibration: false });
+    const soundOnly = foregroundPresentation(loc("/letters"), letter("m1"), { sound: true, vibration: false }, "inactive");
     expect(soundOnly).toMatchObject({ playSound: true, vibrate: false });
   });
 
@@ -214,7 +214,7 @@ describe("notification reçue application ouverte : bannière, son ET vibration,
 
   it("le compteur est actualisé même si la vibration lève une erreur", () => {
     const refreshUnread = vi.fn();
-    expect(() => onForegroundNotification({ current: loc("/letters"), data: letter("m1"), prefs, vibrate: () => { throw new Error("haptique"); }, refreshUnread })).toThrow("haptique");
+    expect(() => onForegroundNotification({ current: loc("/letters"), data: letter("m1"), prefs, appState: "inactive", vibrate: () => { throw new Error("haptique"); }, refreshUnread })).toThrow("haptique");
     expect(refreshUnread).toHaveBeenCalledTimes(1);
   });
 
@@ -723,19 +723,20 @@ describe("appuis concurrents : file ordonnée, rien n'est écrasé", () => {
   });
 });
 
-it("réserve la bannière système aux matchs hors premier plan ou sans identifiant exploitable", () => {
+it("annonce de match : application ouverte → aucune bannière ni vibration en plus (annonce dans l'application) ; sans identifiant exploitable → notification interne comme les autres", () => {
   const current = { pathname: "/discover" };
   const prefs = { sound: true, vibration: true };
   expect(foregroundPresentation(current, { type: "MATCH_CREATED", matchId: "m1" }, prefs)).toEqual({
     showBanner: false, showList: false, playSound: false, vibrate: false,
   });
-  expect(foregroundPresentation(current, { type: "MATCH_CREATED" }, prefs).showBanner).toBe(true);
+  expect(foregroundPresentation(current, { type: "MATCH_CREATED" }, prefs)).toEqual({ showBanner: false, showList: false, playSound: false, vibrate: true });
+  expect(foregroundPresentation(current, { type: "MATCH_CREATED" }, prefs, "inactive").showBanner).toBe(true);
 });
 
 // ============================================================
 // Refuge : application ouverte (notification interne) ou en arrière-plan (push) — tous les types, même règle
 // ============================================================
-describe("Refuge : notifications reçues application ouverte / en arrière-plan", () => {
+describe("Refuge : redirection et présentation des notifications", () => {
   const REFUGE_TYPES = [
     "REFUGE_ADOPTED", "REFUGE_CHOICE_READY", "REFUGE_RESULT_READY", "REFUGE_DAY_RESULT", "REFUGE_NEW_DAY",
     "REFUGE_COINS", "REFUGE_REVEAL_PHASE", "REFUGE_REVEALED", "REFUGE_REVEAL_REFUSED", "REFUGE_EXPIRED",
@@ -749,16 +750,68 @@ describe("Refuge : notifications reçues application ouverte / en arrière-plan"
     expect(resolvePushDestination({ type, refugeSessionId: "../x" }).route).toBe("/refuge");
   });
 
-  it.each(REFUGE_TYPES)("%s : application ouverte ailleurs → bannière + compteur ; déjà sur ce Refuge → rien d'inutile, compteur toujours rafraîchi", (type) => {
+  it.each(REFUGE_TYPES)("%s : application ouverte → notification INTERNE uniquement (ni bannière, ni son) ; compteur toujours rafraîchi", (type) => {
     const data = { type, refugeSessionId: "r1" };
-    const elsewhere = foregroundPresentation(loc("/(tabs)/letters"), data, prefs);
-    expect(elsewhere).toMatchObject({ showBanner: true, showList: true, playSound: true, vibrate: true });
-    const same = foregroundPresentation(loc("/refuge/r1"), data, prefs);
-    expect(same).toMatchObject({ showBanner: false, showList: false, playSound: false, vibrate: false });
-    // Un AUTRE refuge n'est jamais masqué.
-    expect(foregroundPresentation(loc("/refuge/autre"), data, prefs).showBanner).toBe(true);
+    for (const where of ["/(tabs)/letters", "/refuge/r1", "/refuge/autre", "/"]) {
+      expect(foregroundPresentation(loc(where), data, prefs, "active"), where).toMatchObject({ showBanner: false, showList: false, playSound: false });
+    }
     const refreshUnread = vi.fn();
-    onForegroundNotification({ current: loc("/refuge/r1"), data, prefs, vibrate: vi.fn(), refreshUnread });
+    onForegroundNotification({ current: loc("/refuge/r1"), data, prefs, appState: "active", vibrate: vi.fn(), refreshUnread });
     expect(refreshUnread).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ============================================================
+// RÈGLE POUR TOUT JEUTAIME : application ouverte → notification interne uniquement
+// ============================================================
+import { NotificationType } from "@prisma/client";
+
+describe("application ouverte : notification interne uniquement, pour TOUS les types de JeuTaime", () => {
+  const ALL = Object.values(NotificationType);
+  const prefs = { sound: true, vibration: true };
+  const loc = (pathname: string, params: Record<string, string> = {}) => ({ pathname, params });
+  const dataFor = (type: string) => ({ type, matchId: "m1", refugeSessionId: "r1", duelId: "d1", bottleId: "b1" });
+
+  it("couvre tous les types connus du serveur (au moins 30)", () => {
+    expect(ALL.length).toBeGreaterThanOrEqual(30);
+  });
+
+  it.each(ALL)("%s : « active » → ni bannière, ni liste système, ni son, quel que soit l'écran affiché", (type) => {
+    for (const current of [null, loc("/"), loc("/(tabs)/letters", { matchId: "m1" }), loc("/refuge/r1"), loc("/notifications")]) {
+      const p = foregroundPresentation(current, dataFor(type), prefs, "active");
+      expect(p.showBanner, `${type} ${current?.pathname}`).toBe(false);
+      expect(p.showList, `${type} ${current?.pathname}`).toBe(false);
+      expect(p.playSound, `${type} ${current?.pathname}`).toBe(false);
+    }
+  });
+
+  it.each(ALL)("%s : « active » → le compteur de la cloche est toujours actualisé", (type) => {
+    const refreshUnread = vi.fn();
+    onForegroundNotification({ current: loc("/"), data: dataFor(type), prefs, appState: "active", vibrate: vi.fn(), refreshUnread });
+    expect(refreshUnread).toHaveBeenCalledTimes(1);
+  });
+
+  it("état par défaut = « active » (jamais de bannière par oubli de paramètre)", () => {
+    expect(foregroundPresentation(loc("/"), { type: "LETTER_RECEIVED", matchId: "m1" }, prefs)).toMatchObject({ showBanner: false, showList: false, playSound: false });
+  });
+
+  it("vibration légère de l'application : selon le réglage, et jamais si l'écran concerné est déjà ouvert", () => {
+    expect(foregroundPresentation(loc("/"), { type: "LETTER_RECEIVED", matchId: "m1" }, prefs, "active").vibrate).toBe(true);
+    expect(foregroundPresentation(loc("/"), { type: "LETTER_RECEIVED", matchId: "m1" }, { sound: true, vibration: false }, "active").vibrate).toBe(false);
+    expect(foregroundPresentation(loc("/(tabs)/letters", { matchId: "m1" }), { type: "LETTER_RECEIVED", matchId: "m1" }, prefs, "active").vibrate).toBe(false);
+  });
+
+  it.each(["inactive", "background", "unknown", "extension"])("état « %s » (pas ouverte) : présentation système conservée (bannière + son selon les réglages)", (state) => {
+    for (const type of ["LETTER_RECEIVED", "REFUGE_ADOPTED", "DUEL_RECEIVED", "SECURITY_ALERT"]) {
+      expect(foregroundPresentation(loc("/"), dataFor(type), prefs, state), `${type} ${state}`).toEqual({ showBanner: true, showList: true, playSound: true, vibrate: true });
+    }
+    expect(foregroundPresentation(loc("/"), { type: "LETTER_RECEIVED" }, { sound: false, vibration: false }, state)).toMatchObject({ playSound: false, vibrate: false });
+  });
+
+  it("annonce de match : jamais de bannière application ouverte (annonce dans l'application) ; montrée si l'application n'est pas active", () => {
+    const match = { type: "MATCH_CREATED", matchId: "m1" };
+    expect(foregroundPresentation(loc("/"), match, prefs, "active").showBanner).toBe(false);
+    expect(foregroundPresentation(loc("/"), match, prefs, "inactive").showBanner).toBe(true);
+    expect(foregroundPresentation(loc("/(tabs)/letters", { matchId: "m1" }), match, prefs, "inactive").showBanner).toBe(true);
   });
 });

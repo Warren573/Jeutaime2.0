@@ -16,6 +16,7 @@ import { getUnreadCount } from '../api/bottles';
 import { getSalon } from '../api/salons';
 import { salonsData } from '../data/salonsData';
 import { useRefugeAnimation } from '../hooks/useRefugeAnimation';
+import { refugeEvents } from '../data/refugeEvents';
 import { computeClockOffsetMs } from '../data/refugeClock';
 import { getAnimalImage } from '../data/refugeAnimalImages';
 import { getAnimalLabel } from '../data/refugeAnimals';
@@ -131,7 +132,9 @@ export function PersonalBoard() {
       stop();
       if (state === 'active') { load(); if (waitingForOther) interval = setInterval(load, 60_000); }
     });
-    return () => { active = false; stop(); subscription.remove(); };
+    // Notification du Refuge reçue application ouverte : la case se met à jour tout de suite (aucun sondage de plus).
+    const unsubscribe = refugeEvents.subscribe(() => load());
+    return () => { active = false; stop(); subscription.remove(); unsubscribe(); };
   }, [userId, waitingForOther]));
 
   // Mêmes offrandes que le Bureau d'offrandes (ReceivedOfferingsScreen) : offrandes de bureau

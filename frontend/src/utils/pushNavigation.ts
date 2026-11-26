@@ -171,7 +171,7 @@ export function shouldShowForegroundBanner(current: CurrentLocation | null | und
 }
 
 // ============================================================
-// Présentation d'une notification reçue application ouverte
+// Présentation d'une notification reçue pendant que l'application est au premier plan
 // ============================================================
 export interface ForegroundPrefs {
   sound: boolean;
@@ -186,16 +186,27 @@ export interface ForegroundPresentation {
 }
 
 /**
- * Bannière, son ET vibration obéissent à la MÊME décision : si l'écran (et la ressource) concernés
- * sont déjà affichés, les trois sont supprimés ; sinon ils suivent les réglages de l'utilisateur.
- * Une notification d'une autre correspondance, d'un autre écran ou inconnue n'est jamais masquée.
+ * RÈGLE POUR TOUT JEUTAIME : application OUVERTE (état « active ») → notification INTERNE uniquement.
+ * Aucune bannière, aucune entrée dans la liste du système, aucun son système : la notification apparaît dans le centre de
+ * notifications de l'application (cloche, compteur, écrans concernés, actualisés à la réception). Seule la vibration
+ * légère de l'application subsiste (réglage « vibrations »), sauf si l'utilisateur consulte déjà l'écran concerné.
+ *
+ * Application PAS « active » (transition : centre de contrôle, appel, verrouillage…) : présentation système habituelle, comme
+ * en arrière-plan — bannière et son selon les réglages, sauf écran concerné déjà affiché ; une annonce de match est toujours
+ * montrée (elle n'est annoncée dans l'application que lorsqu'elle est active).
  */
 export function foregroundPresentation(
   current: CurrentLocation | null | undefined,
   data: unknown,
   prefs: ForegroundPrefs,
+  appState: string = 'active',
 ): ForegroundPresentation {
-  const show = shouldShowForegroundBanner(current, data);
+  const viewing = isViewingDestination(current, resolvePushDestination(data));
+  if (appState === 'active') {
+    // Une annonce de match a sa propre mise en scène dans l'application : pas de vibration en plus (comme avant).
+    return { showBanner: false, showList: false, playSound: false, vibrate: !viewing && !foregroundMatchId(data) && prefs.vibration };
+  }
+  const show = foregroundMatchId(data) ? true : !viewing;
   return { showBanner: show, showList: show, playSound: show && prefs.sound, vibrate: show && prefs.vibration };
 }
 
@@ -203,6 +214,8 @@ export interface ForegroundDeps {
   current: CurrentLocation | null | undefined;
   data: unknown;
   prefs: ForegroundPrefs;
+  /** État de l'application (react-native AppState) ; « active » par défaut. */
+  appState?: string;
   vibrate: () => void;
   /** Recharge le compteur de notifications non lues : TOUJOURS appelé, même quand tout est supprimé. */
   refreshUnread: () => void;
@@ -210,7 +223,7 @@ export interface ForegroundDeps {
 
 /** Traitement d'une notification reçue au premier plan : vibration selon la décision, compteur toujours. */
 export function onForegroundNotification(deps: ForegroundDeps): ForegroundPresentation {
-  const presentation = foregroundPresentation(deps.current, deps.data, deps.prefs);
+  const presentation = foregroundPresentation(deps.current, deps.data, deps.prefs, deps.appState);
   try {
     if (presentation.vibrate) deps.vibrate();
   } finally {

@@ -5,6 +5,7 @@ import { refugeApi, isAlreadySubmittedError } from "../api/refuge-api";
 import { ACTION_TO_BACKEND, type RefugeActionType } from "../data/refugeActions";
 import type { RefugeAnimationData } from "../data/refugeAnimation";
 import { computeClockOffsetMs } from "../data/refugeClock";
+import { refugeEvents } from "../data/refugeEvents";
 
 interface RefugeSessionState {
   sessionId: string | null;
@@ -201,8 +202,12 @@ export function useRefugeSession(sessionId: string | null) {
         stop();
       }
     });
-    return () => { stop(); subscription.remove(); };
-  }, [fetchSessionStatus]);
+    // Notification du Refuge reçue application ouverte : rafraîchissement immédiat (une seule requête), sans sondage de plus.
+    const unsubscribe = refugeEvents.subscribe((eventSessionId) => {
+      if (eventSessionId === null || eventSessionId === sessionId) void fetchSessionStatus();
+    });
+    return () => { stop(); subscription.remove(); unsubscribe(); };
+  }, [fetchSessionStatus, sessionId]);
 
   // Soumettre la tentative quotidienne de l'Adoptant :
   // retrouver les 2 actions du jour de l'Adopté (POST /refuge/guess).
