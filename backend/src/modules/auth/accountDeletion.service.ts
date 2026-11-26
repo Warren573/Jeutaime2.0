@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma";
+import { purgeRelationNotifications } from "../notifications/notifications.purge";
 import { comparePassword } from "../../core/utils/hash";
 import { NotFoundError, UnauthorizedError } from "../../core/errors";
 import { deletePhotoFiles } from "../photos/photos.storage";
@@ -80,6 +81,16 @@ export async function deleteAccountPermanently(userId: string, currentPassword: 
     await tx.letter.deleteMany({
       where: { OR: [{ fromUserId: userId }, { toUserId: userId }] },
     });
+
+    // Les notifications de ces matchs chez l'AUTRE participant (ex. « 3 questions réussies », qui ne porte que
+    // matchId) n'ont plus d'objet une fois le match supprimé : purge dans la même transaction.
+    const deletedMatchIds = (
+      await tx.match.findMany({
+        where: { OR: [{ userAId: userId }, { userBId: userId }] },
+        select: { id: true },
+      })
+    ).map((m) => m.id);
+    await purgeRelationNotifications(tx, { matchIds: deletedMatchIds });
 
     await tx.match.deleteMany({
       where: { OR: [{ userAId: userId }, { userBId: userId }] },

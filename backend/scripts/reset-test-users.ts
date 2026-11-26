@@ -9,6 +9,7 @@
  * 3. Créer 10 nouveaux comptes de test avec profils complets
  */
 
+import { purgeRelationNotifications } from "../src/modules/notifications/notifications.purge";
 import { PrismaClient, Gender } from "@prisma/client";
 import { hashPassword } from "../src/core/utils/hash";
 
@@ -219,6 +220,16 @@ async function main() {
       where: { OR: [{ fromId: { in: userIdsToDelete } }, { toId: { in: userIdsToDelete } }] },
     });
     console.log("   ✓ Reactions supprimées");
+
+    // Notifications de ces matchs chez les comptes CONSERVÉS (aucune clé étrangère : seul meta les relie au match).
+    const matchIdsToDelete = (
+      await prisma.match.findMany({
+        where: { OR: [{ userAId: { in: userIdsToDelete } }, { userBId: { in: userIdsToDelete } }] },
+        select: { id: true },
+      })
+    ).map((m) => m.id);
+    const purged = await purgeRelationNotifications(prisma, { matchIds: matchIdsToDelete });
+    console.log(`   ✓ Notifications de matchs supprimées (${purged})`);
 
     await prisma.match.deleteMany({
       where: {
