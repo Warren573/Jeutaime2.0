@@ -24,6 +24,7 @@ import {
 
 import { announceMutualMatch } from '../utils/announceMutualMatch';
 import { refugeEvents } from '../data/refugeEvents';
+import { eventSignals } from './useAppEvents';
 import { PUSH_REGISTRATION_KEY, registerDeviceIfNeeded } from '../data/pushRegistration';
 
 let foregroundSoundEnabled = true;
@@ -240,6 +241,8 @@ export function usePushNotifications(sessionReady: boolean = true) {
       }
       // Notification du Refuge : l'écran Refuge et la case « Adoption » se rafraîchissent tout de suite (une fois).
       refugeEvents.notify(data);
+      // Application ouverte : la fenêtre événementielle remplace la bannière système (une lecture de l'historique, regroupée).
+      if (AppState.currentState === 'active') eventSignals.pushReceived();
       onForegroundNotification({
         current: currentLocation,
         data,

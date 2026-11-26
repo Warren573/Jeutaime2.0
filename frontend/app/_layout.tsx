@@ -7,6 +7,8 @@ import { useStore } from "../src/store/useStore";
 import { getToken } from "../src/utils/session";
 import { useNotificationPolling } from "../src/hooks/useNotificationPolling";
 import { usePushNotifications } from "../src/hooks/usePushNotifications";
+import { useAppEvents } from '../src/hooks/useAppEvents';
+import { EventDialogHost } from '../src/components/EventDialogHost';
 import { API_URL } from "../src/api/client";
 import { TestModeLink } from "../src/dev/TestModeLink";
 import { getResponsiveScale } from "../src/utils/responsive";
@@ -124,6 +126,7 @@ export default function RootLayout() {
 
   useNotificationPolling();
   usePushNotifications(isHydrated);
+  useAppEvents();
 
   // Sur Safari mobile, les barres du navigateur réduisent la hauteur du viewport.
   // Ne pas réduire toute l'application web : elle doit remplir l'espace disponible.
@@ -166,6 +169,7 @@ export default function RootLayout() {
         </View>
       </SafeAreaInsetsContext.Provider>
       <TestModeLink />
+      <EventDialogHost />
     </>
   );
 }
