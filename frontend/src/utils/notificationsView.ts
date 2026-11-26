@@ -84,6 +84,13 @@ export const NOTIFICATION_CATEGORIES: Record<NotificationType, NotificationCateg
   REFUGE_ADOPTED: { label: 'Refuge', icon: 'refuge' },
   REFUGE_REVEAL_PHASE: { label: 'Refuge', icon: 'refuge' },
   REFUGE_REVEALED: { label: 'Refuge', icon: 'refuge' },
+  REFUGE_CHOICE_READY: { label: 'Refuge', icon: 'refuge' },
+  REFUGE_RESULT_READY: { label: 'Refuge', icon: 'refuge' },
+  REFUGE_DAY_RESULT: { label: 'Refuge', icon: 'refuge' },
+  REFUGE_NEW_DAY: { label: 'Refuge', icon: 'refuge' },
+  REFUGE_COINS: { label: 'Refuge', icon: 'refuge' },
+  REFUGE_REVEAL_REFUSED: { label: 'Refuge', icon: 'refuge' },
+  REFUGE_EXPIRED: { label: 'Refuge', icon: 'refuge' },
   REPORT_PROCESSED: { label: 'Modération', icon: 'shield' },
   ACCOUNT_RESTORED: { label: 'Sécurité', icon: 'shield' },
 };

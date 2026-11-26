@@ -731,3 +731,34 @@ it("réserve la bannière système aux matchs hors premier plan ou sans identifi
   });
   expect(foregroundPresentation(current, { type: "MATCH_CREATED" }, prefs).showBanner).toBe(true);
 });
+
+// ============================================================
+// Refuge : application ouverte (notification interne) ou en arrière-plan (push) — tous les types, même règle
+// ============================================================
+describe("Refuge : notifications reçues application ouverte / en arrière-plan", () => {
+  const REFUGE_TYPES = [
+    "REFUGE_ADOPTED", "REFUGE_CHOICE_READY", "REFUGE_RESULT_READY", "REFUGE_DAY_RESULT", "REFUGE_NEW_DAY",
+    "REFUGE_COINS", "REFUGE_REVEAL_PHASE", "REFUGE_REVEALED", "REFUGE_REVEAL_REFUSED", "REFUGE_EXPIRED",
+  ];
+  const prefs = { sound: true, vibration: true };
+  const loc = (pathname: string) => ({ pathname });
+
+  it.each(REFUGE_TYPES)("%s : l'appui (push ou cloche) ouvre LE Refuge concerné ; sans identifiant valide → /refuge", (type) => {
+    expect(resolvePushDestination({ type, refugeSessionId: "r1" }).route).toBe("/refuge/r1");
+    expect(getNotificationTarget({ id: "n", type, message: "m", meta: { refugeSessionId: "r1" }, isRead: false, readAt: null, createdAt: "2026-11-26T00:00:00Z" } as never)).toBe("/refuge/r1");
+    expect(resolvePushDestination({ type, refugeSessionId: "../x" }).route).toBe("/refuge");
+  });
+
+  it.each(REFUGE_TYPES)("%s : application ouverte ailleurs → bannière + compteur ; déjà sur ce Refuge → rien d'inutile, compteur toujours rafraîchi", (type) => {
+    const data = { type, refugeSessionId: "r1" };
+    const elsewhere = foregroundPresentation(loc("/(tabs)/letters"), data, prefs);
+    expect(elsewhere).toMatchObject({ showBanner: true, showList: true, playSound: true, vibrate: true });
+    const same = foregroundPresentation(loc("/refuge/r1"), data, prefs);
+    expect(same).toMatchObject({ showBanner: false, showList: false, playSound: false, vibrate: false });
+    // Un AUTRE refuge n'est jamais masqué.
+    expect(foregroundPresentation(loc("/refuge/autre"), data, prefs).showBanner).toBe(true);
+    const refreshUnread = vi.fn();
+    onForegroundNotification({ current: loc("/refuge/r1"), data, prefs, vibrate: vi.fn(), refreshUnread });
+    expect(refreshUnread).toHaveBeenCalledTimes(1);
+  });
+});

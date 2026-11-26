@@ -693,12 +693,16 @@ describe("RefugeService.submitGuess", () => {
 // (le frontend détecte ce cas par le code, jamais par le texte)
 // ============================================================
 
-describe("RefugeService.submitGuess — phase finale (notifications)", () => {
+/** Laisse passer les notifications lancées sans attente (`void`), après la réponse. */
+const flushNotifications = () => new Promise<void>((resolve) => setTimeout(resolve, 5));
+const sentNotifications = () => (notifyEvent as any).mock.calls.map((c: any[]) => c[0]);
+
+describe("RefugeService.submitGuess — notifications du jour et fin des sept jours", () => {
   const guessInput = { guessedAction1: "NOURRIR", guessedAction2: "JOUER" } as any;
   const choice = (dayNumber: number) => ({ id: "dc", refugeSessionId: sessionId, dayNumber, action1: "NOURRIR", action2: "JOUER" });
   const guess = (dayNumber: number) => ({ id: "g", refugeSessionId: sessionId, dayNumber, guessedAction1: "NOURRIR", guessedAction2: "JOUER", submittedAt: new Date() });
 
-  it("jour 7 joué : l'Adopté (jamais l'Adoptant) est prévenu que le dévoilement s'ouvre", async () => {
+  it("jour 7 joué : les DEUX participants sont prévenus de la fin des sept jours ; le parrain/la marraine reçoit aussi son score", async () => {
     const startedAt = new Date(Date.now() - 6 * DAY_MS - 2 * 60 * 60 * 1000);
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession({ startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY_MS) }));
     (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(null);
@@ -706,24 +710,41 @@ describe("RefugeService.submitGuess — phase finale (notifications)", () => {
     (prisma.refugeGuess.create as any).mockResolvedValueOnce(guess(7));
     (prisma.refugeSession.update as any).mockResolvedValueOnce({});
     await RefugeService.submitGuess(sessionId, adoptantId, 7, guessInput).catch(() => undefined);
-    const calls = (notifyEvent as any).mock.calls.map((c: any[]) => c[0]).filter((c: any) => c.type === "REFUGE_REVEAL_PHASE");
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toEqual({
-      recipientId: adopteId,
-      actorId: adoptantId,
-      type: "REFUGE_REVEAL_PHASE",
-      meta: { refugeSessionId: sessionId },
-      dedupeKey: `refuge-reveal-phase:${sessionId}`,
-    });
+    await flushNotifications();
+    const end = sentNotifications().filter((c: any) => c.type === "REFUGE_REVEAL_PHASE");
+    expect(end).toHaveLength(2);
+    const toCompanion = end.find((c: any) => c.recipientId === adopteId);
+    const toSponsor = end.find((c: any) => c.recipientId === adoptantId);
+    expect(toCompanion).toEqual({ recipientId: adopteId, actorId: adoptantId, type: "REFUGE_REVEAL_PHASE", meta: { refugeSessionId: sessionId }, dedupeKey: `refuge-reveal-phase:${sessionId}` });
+    expect(toSponsor).toEqual({ recipientId: adoptantId, counterpartId: adopteId, type: "REFUGE_REVEAL_PHASE", meta: { refugeSessionId: sessionId }, dedupeKey: `refuge-reveal-phase:${sessionId}` });
+    // Le score va au parrain/à la marraine ; le compagnon n'a PAS de « résultat prêt » en plus (la fin le remplace : pas de doublon).
+    expect(sentNotifications().filter((c: any) => c.type === "REFUGE_DAY_RESULT").map((c: any) => c.recipientId)).toEqual([adoptantId]);
+    expect(sentNotifications().some((c: any) => c.type === "REFUGE_RESULT_READY")).toBe(false);
   });
 
-  it("jour 1 : aucune notification de phase finale", async () => {
+  it("jour 1 : score au parrain/à la marraine, « résultat prêt » (sans score) au compagnon, rien sur la fin des sept jours", async () => {
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
     (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(null);
     (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(choice(1));
     (prisma.refugeGuess.create as any).mockResolvedValueOnce(guess(1));
     (prisma.refugeSession.update as any).mockResolvedValueOnce({});
     await RefugeService.submitGuess(sessionId, adoptantId, 1, guessInput).catch(() => undefined);
+    await flushNotifications();
+    const calls = sentNotifications();
+    expect(calls.some((c: any) => c.type === "REFUGE_REVEAL_PHASE")).toBe(false);
+    const result = calls.find((c: any) => c.type === "REFUGE_DAY_RESULT");
+    expect(result).toMatchObject({ recipientId: adoptantId, counterpartId: adopteId, dedupeKey: `refuge-day-result:${sessionId}:1`, textContext: { refugeScore: 2, coinsDelta: 10 } });
+    expect("actorId" in result).toBe(false); // l'auteur reçoit SON résultat
+    const ready = calls.find((c: any) => c.type === "REFUGE_RESULT_READY");
+    expect(ready).toMatchObject({ recipientId: adopteId, actorId: adoptantId, dedupeKey: `refuge-result-ready:${sessionId}:1` });
+    expect(JSON.stringify(ready)).not.toMatch(/refugeScore|coinsDelta|NOURRIR|JOUER/); // ni score, ni pièces, ni action
+  });
+
+  it("une réponse refusée (déjà envoyée, pas de choix du compagnon) ne notifie personne", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
+    (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(guess(1)); // déjà répondu
+    await expect(RefugeService.submitGuess(sessionId, adoptantId, 1, guessInput)).rejects.toBeTruthy();
+    await flushNotifications();
     expect(notifyEvent).not.toHaveBeenCalled();
   });
 });
@@ -894,13 +915,12 @@ describe("RefugeService.submitRevealConsent", () => {
     expect(promoArgs.where.revealedAt).toBeNull();
     expect(promoArgs.data.status).toBe("REVEALED");
     expect(promoArgs.data.revealedAt).toBeInstanceOf(Date);
-    // Phase 2 : l'autre personne (Adopté, qui avait accepté en premier) est prévenue, jamais l'auteur.
-    const calls = (notifyEvent as any).mock.calls.map((c: any[]) => c[0]);
-    const revealed = calls.filter((c: any) => c.type === "REFUGE_REVEALED");
-    expect(revealed).toHaveLength(1);
-    expect(revealed[0].recipientId).toBe(adopteId);
-    expect(revealed[0].actorId).toBe(adoptantId);
-    expect(revealed[0].dedupeKey).toBe(`refuge-revealed:${sessionId}`);
+    // Dévoilement mutuel : les DEUX participants sont prévenus, une clé par session.
+    await flushNotifications();
+    const revealed = sentNotifications().filter((c: any) => c.type === "REFUGE_REVEALED");
+    expect(revealed).toHaveLength(2);
+    expect(revealed.find((c: any) => c.recipientId === adopteId)).toMatchObject({ actorId: adoptantId, dedupeKey: `refuge-revealed:${sessionId}` });
+    expect(revealed.find((c: any) => c.recipientId === adoptantId)).toMatchObject({ counterpartId: adopteId, dedupeKey: `refuge-revealed:${sessionId}` });
   });
 
   it("REFUSE ends the session cleanly as COMPLETED without revealing anything", async () => {
@@ -1464,5 +1484,164 @@ describe("RefugeService.closeExpiredSession", () => {
     (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 });
     await expect(RefugeService.submitRevealConsent(sessionId, adopteId, "ACCEPT")).rejects.toMatchObject({ statusCode: 409, message: "Cette session est terminée" });
     noCoinMovement();
+  });
+});
+
+// ============================================================
+// Notifications du Refuge — un événement du service, un destinataire, une clé anti-doublon
+// ============================================================
+
+describe("RefugeService — notifications du Refuge", () => {
+  const choiceInput = { action1: "NOURRIR", action2: "JOUER" } as any;
+
+  it("INCARNATION : aucune notification", async () => {
+    (prisma.user.findUnique as any).mockResolvedValueOnce({ id: adopteId });
+    (prisma.refugeSession.findFirst as any).mockResolvedValueOnce(null);
+    (prisma.refugeSession.create as any).mockResolvedValueOnce(waitingSession());
+    (prisma.refugeSession.count as any).mockResolvedValueOnce(0);
+    await RefugeService.proposeAsAdopte(adopteId, { animalType: "CHAT", acceptedSexe: "HOMME_FEMME" } as any);
+    await flushNotifications();
+    expect(notifyEvent).not.toHaveBeenCalled();
+  });
+
+  it("le compagnon valide ses deux actions : SEUL le parrain/la marraine est prévenu, sans nommer d'action", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
+    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(null);
+    (prisma.refugeDailyChoice.create as any).mockResolvedValueOnce({ id: "dc", refugeSessionId: sessionId, dayNumber: 1, ...choiceInput });
+    (prisma.refugeSession.update as any).mockResolvedValueOnce({});
+    await RefugeService.submitDailyChoice(sessionId, adopteId, 1, choiceInput);
+    await flushNotifications();
+    expect(notifyEvent).toHaveBeenCalledTimes(1);
+    expect(sentNotifications()[0]).toEqual({
+      recipientId: adoptantId,
+      actorId: adopteId,
+      type: "REFUGE_CHOICE_READY",
+      meta: { refugeSessionId: sessionId },
+      dedupeKey: `refuge-choice-ready:${sessionId}:1`,
+    });
+    expect(JSON.stringify(sentNotifications())).not.toMatch(/NOURRIR|JOUER|CARESSER|LAVER/);
+  });
+
+  it("choix refusé (déjà envoyé / conflit de concurrence) : aucune notification, donc aucun doublon", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
+    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce({ id: "c", dayNumber: 1 });
+    await expect(RefugeService.submitDailyChoice(sessionId, adopteId, 1, choiceInput)).rejects.toBeTruthy();
+
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession());
+    (prisma.refugeDailyChoice.findUnique as any).mockResolvedValueOnce(null);
+    (prisma.refugeDailyChoice.create as any).mockRejectedValueOnce(Object.assign(new Error("unique"), { code: "P2002" }));
+    await expect(RefugeService.submitDailyChoice(sessionId, adopteId, 1, choiceInput)).rejects.toBeTruthy();
+    await flushNotifications();
+    expect(notifyEvent).not.toHaveBeenCalled();
+  });
+
+  it("règlement d'une journée incomplète : UNE notification de pièces par participant, montants EFFECTIVEMENT appliqués", async () => {
+    const startedAt = new Date(Date.now() - 1 * DAY_MS - 2 * 60 * 60 * 1000);
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({ startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY_MS), dailyChoices: [{ dayNumber: 1, action1: "NOURRIR", action2: "JOUER" }] })
+    );
+    (prisma.wallet.upsert as any).mockResolvedValueOnce({ userId: adopteId, coins: 100 }).mockResolvedValueOnce({ userId: adoptantId, coins: 3 });
+    await RefugeService.closePastDays(sessionId);
+    await flushNotifications();
+    const coins = sentNotifications().filter((c: any) => c.type === "REFUGE_COINS");
+    expect(coins).toHaveLength(2);
+    expect(coins.find((c: any) => c.recipientId === adopteId).textContext).toEqual({ coinsDelta: 5 });
+    // Pénalité théorique −5 mais solde de 3 : la notification annonce −3 (effectif), jamais −5.
+    expect(coins.find((c: any) => c.recipientId === adoptantId).textContext).toEqual({ coinsDelta: -3 });
+    expect(new Set(coins.map((c: any) => c.dedupeKey))).toEqual(new Set([`refuge-coins:${sessionId}:1`]));
+  });
+
+  it("plusieurs journées réglées ensemble : un seul message par participant (total net), clé liée aux jours", async () => {
+    const startedAt = new Date(Date.now() - 3 * DAY_MS - 2 * 60 * 60 * 1000); // jour 4 → jours 1 à 3 échus
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({ startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY_MS), dailyChoices: [1, 2, 3].map((d) => ({ dayNumber: d, action1: "NOURRIR", action2: "JOUER" })) })
+    );
+    await RefugeService.closePastDays(sessionId);
+    await flushNotifications();
+    const coins = sentNotifications().filter((c: any) => c.type === "REFUGE_COINS");
+    expect(coins).toHaveLength(2);
+    expect(coins.find((c: any) => c.recipientId === adopteId).textContext).toEqual({ coinsDelta: 15 });
+    expect(coins.find((c: any) => c.recipientId === adoptantId).textContext).toEqual({ coinsDelta: -15 });
+    expect(coins[0].dedupeKey).toBe(`refuge-coins:${sessionId}:1-2-3`);
+  });
+
+  it("jour déjà réglé (idempotence) ou aucun mouvement de pièces : aucune notification de pièces", async () => {
+    const startedAt = new Date(Date.now() - 1 * DAY_MS - 2 * 60 * 60 * 1000);
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({ startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY_MS), dailyChoices: [{ dayNumber: 1, action1: "NOURRIR", action2: "JOUER" }] })
+    );
+    (prisma.refugeDayResult.create as any).mockRejectedValueOnce(Object.assign(new Error("unique"), { code: "P2002" }));
+    await RefugeService.closePastDays(sessionId);
+
+    // Jour sans aucune participation (NOT_PLAYED : 0 / 0)
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({ startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY_MS), dailyChoices: [], guesses: [] })
+    );
+    await RefugeService.closePastDays(sessionId);
+    await flushNotifications();
+    expect(sentNotifications().filter((c: any) => c.type === "REFUGE_COINS")).toHaveLength(0);
+  });
+
+  it("jour complet déjà payé à la validation (ancienne donnée) : aucune notification de pièces au règlement", async () => {
+    const startedAt = new Date(Date.now() - 1 * DAY_MS - 2 * 60 * 60 * 1000);
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
+      activeSession({
+        startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY_MS),
+        dailyChoices: [{ dayNumber: 1, action1: "NOURRIR", action2: "JOUER" }],
+        guesses: [{ dayNumber: 1, guessedAction1: "NOURRIR", guessedAction2: "JOUER" }],
+      })
+    );
+    await RefugeService.closePastDays(sessionId);
+    await flushNotifications();
+    expect(notifyEvent).not.toHaveBeenCalled();
+  });
+
+  it("refus du dévoilement : l'AUTRE participant est prévenu une seule fois, seulement si le refus vient d'être enregistré", async () => {
+    (prisma.refugeSession.findUnique as any)
+      .mockResolvedValueOnce(day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }))
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(day7DoneSession({ adoptantRevealDecision: "REFUSE", status: "COMPLETED" }));
+    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 });
+    await RefugeService.submitRevealConsent(sessionId, adoptantId, "REFUSE");
+    await flushNotifications();
+    expect(notifyEvent).toHaveBeenCalledTimes(1);
+    expect(sentNotifications()[0]).toEqual({
+      recipientId: adopteId,
+      actorId: adoptantId,
+      type: "REFUGE_REVEAL_REFUSED",
+      meta: { refugeSessionId: sessionId },
+      dedupeKey: `refuge-reveal-refused:${sessionId}`,
+    });
+  });
+
+  it("refus qui n'écrit rien (course perdue, décision déjà enregistrée) : aucune notification", async () => {
+    (prisma.refugeSession.findUnique as any)
+      .mockResolvedValueOnce(day7DoneSession({ status: "AWAITING_REVEAL_CONSENT" }))
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(day7DoneSession({ status: "COMPLETED" }));
+    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 0 });
+    await RefugeService.submitRevealConsent(sessionId, adoptantId, "REFUSE");
+    await flushNotifications();
+    expect(notifyEvent).not.toHaveBeenCalled();
+  });
+
+  it("expiration sans jour 7 joué : les DEUX participants sont prévenus, par la seule requête qui ferme la session", async () => {
+    const expired = { id: sessionId, status: "ACTIVE", endsAt: new Date(Date.now() - 1000), adopteId, adoptantId, dailyChoices: [], guesses: [] } as any;
+    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+    await RefugeService.closeExpiredSession(expired); // gagne la transition
+    await RefugeService.closeExpiredSession(expired); // requête simultanée perdante
+    await flushNotifications();
+    const sent = sentNotifications().filter((c: any) => c.type === "REFUGE_EXPIRED");
+    expect(sent.map((c: any) => c.recipientId).sort()).toEqual([adopteId, adoptantId].sort());
+    expect(new Set(sent.map((c: any) => c.dedupeKey))).toEqual(new Set([`refuge-expired:${sessionId}`]));
+    expect(sent.every((c: any) => !("actorId" in c))).toBe(true); // événement système
+  });
+
+  it("expiration avec jour 7 joué (dévoilement) : aucune notification d'expiration (la fin a déjà été notifiée)", async () => {
+    const expired = { id: sessionId, status: "ACTIVE", endsAt: new Date(Date.now() - 1000), adopteId, adoptantId, dailyChoices: [{ dayNumber: 7 }], guesses: [{ dayNumber: 7 }] } as any;
+    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 });
+    expect((await RefugeService.closeExpiredSession(expired))?.status).toBe("AWAITING_REVEAL_CONSENT");
+    await flushNotifications();
+    expect(notifyEvent).not.toHaveBeenCalled();
   });
 });

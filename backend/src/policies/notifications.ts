@@ -82,6 +82,12 @@ export interface NotificationTextContext {
   opponentPseudo?: string | null;
   /** Issue d'un duel du point de vue du DESTINATAIRE (types DUEL_RESULT uniquement). */
   duelOutcome?: DuelOutcome | null;
+  /** Genre du parrain / de la marraine (HOMME, FEMME, autre) : choisit « parrain » ou « marraine » (Refuge, vers le compagnon). */
+  sponsorGender?: string | null;
+  /** Score du jour du Refuge : 0, 1 ou 2 (REFUGE_DAY_RESULT). Ne dit jamais QUELLES actions étaient les bonnes. */
+  refugeScore?: number | null;
+  /** Variation de pièces EFFECTIVEMENT appliquée, signée (REFUGE_DAY_RESULT, REFUGE_COINS). */
+  coinsDelta?: number | null;
 }
 
 const PSEUDO_MAX_LENGTH = 30;
@@ -122,13 +128,59 @@ function buildDuelMessage(type: NotificationType, ctx?: NotificationTextContext)
   }
 }
 
+// ============================================================
+// Refuge : textes quotidiens et de fin de partie
+// Jamais le nom d'une action, jamais ce que le compagnon a choisi ni ce que le parrain / la marraine a deviné.
+// ============================================================
+
+/** « parrain » / « marraine » selon le genre ; formulation double si le genre n'est pas binaire ou inconnu. */
+export function sponsorTitle(gender: unknown): { possessive: string; noun: string } {
+  if (gender === "HOMME") return { possessive: "Ton", noun: "parrain" };
+  if (gender === "FEMME") return { possessive: "Ta", noun: "marraine" };
+  return { possessive: "Ton", noun: "parrain ou ta marraine" };
+}
+
+function pieces(n: number): string {
+  return n === 1 ? "1 pièce" : `${n} pièces`;
+}
+
+function validCoins(raw: unknown): number | null {
+  return typeof raw === "number" && Number.isInteger(raw) && raw !== 0 && Math.abs(raw) <= 100000 ? raw : null;
+}
+
+/** Texte contextuel du Refuge, ou `null` pour retomber sur le texte générique du type. */
+function buildRefugeMessage(type: NotificationType, ctx?: NotificationTextContext): string | null {
+  switch (type) {
+    case NotificationType.REFUGE_RESULT_READY: {
+      const t = sponsorTitle(ctx?.sponsorGender);
+      return `${t.possessive} ${t.noun} a validé ses actions : découvre le résultat du jour.`;
+    }
+    case NotificationType.REFUGE_DAY_RESULT: {
+      const score = ctx?.refugeScore;
+      if (score !== 0 && score !== 1 && score !== 2) return null;
+      const base = score === 2 ? "Résultat du jour : 2/2, bravo !" : `Résultat du jour : ${score}/2.`;
+      const coins = validCoins(ctx?.coinsDelta);
+      return coins && coins > 0 ? `${base} +${pieces(coins)}.` : base;
+    }
+    case NotificationType.REFUGE_COINS: {
+      const coins = validCoins(ctx?.coinsDelta);
+      if (!coins) return null;
+      return coins > 0
+        ? `Refuge : +${pieces(coins)} ajoutée${coins > 1 ? "s" : ""} à ton solde.`
+        : `Refuge : ${pieces(-coins)} retirée${coins < -1 ? "s" : ""} de ton solde.`;
+    }
+    default:
+      return null;
+  }
+}
+
 /**
  * Dispatcher centralisé : prend un type et retourne le message FR.
  * Utilisé par le service (create) et par les handlers d'events.
  * `ctx` n'a d'effet que pour les 4 types de duel ; tous les autres types l'ignorent.
  */
 export function buildNotificationMessage(type: NotificationType, ctx?: NotificationTextContext): string {
-  const personalized = buildDuelMessage(type, ctx);
+  const personalized = buildDuelMessage(type, ctx) ?? buildRefugeMessage(type, ctx);
   if (personalized) return personalized;
   switch (type) {
     case NotificationType.LETTER_RECEIVED:
@@ -175,7 +227,21 @@ export function buildNotificationMessage(type: NotificationType, ctx?: Notificat
     case NotificationType.QUESTIONS_TURN:
       return "C'est à toi de répondre aux 3 questions";
     case NotificationType.REFUGE_ADOPTED:
-      return "Tu as été adopté ! Votre aventure de sept jours commence.";
+      return "Tu as été adopté ! Ton aventure de sept jours commence.";
+    case NotificationType.REFUGE_CHOICE_READY:
+      return "Ton compagnon attend tes deux actions du jour.";
+    case NotificationType.REFUGE_RESULT_READY:
+      return "Ton parrain ou ta marraine a validé ses actions : découvre le résultat du jour.";
+    case NotificationType.REFUGE_DAY_RESULT:
+      return "Le résultat du jour est disponible.";
+    case NotificationType.REFUGE_NEW_DAY:
+      return "Une nouvelle journée commence : tu peux choisir tes deux actions.";
+    case NotificationType.REFUGE_COINS:
+      return "Ton solde de pièces a changé après ton refuge.";
+    case NotificationType.REFUGE_REVEAL_REFUSED:
+      return "Votre refuge se termine sans dévoilement. D'autres rencontres vous attendent.";
+    case NotificationType.REFUGE_EXPIRED:
+      return "Votre refuge est terminé : le temps imparti est écoulé.";
     case NotificationType.REFUGE_REVEAL_PHASE:
       return "Ton refuge arrive à son terme : choisis de te dévoiler ou non";
     case NotificationType.REFUGE_REVEALED:

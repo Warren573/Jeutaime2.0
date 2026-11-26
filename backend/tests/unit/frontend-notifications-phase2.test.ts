@@ -24,6 +24,13 @@ const CASES: Array<[string, Record<string, unknown>, string]> = [
   ["REFUGE_ADOPTED", { refugeSessionId: "r1" }, "/refuge/r1"],
   ["REFUGE_REVEAL_PHASE", { refugeSessionId: "r1" }, "/refuge/r1"],
   ["REFUGE_REVEALED", { refugeSessionId: "r1" }, "/refuge/r1"],
+  ["REFUGE_CHOICE_READY", { refugeSessionId: "r1" }, "/refuge/r1"],
+  ["REFUGE_RESULT_READY", { refugeSessionId: "r1" }, "/refuge/r1"],
+  ["REFUGE_DAY_RESULT", { refugeSessionId: "r1" }, "/refuge/r1"],
+  ["REFUGE_NEW_DAY", { refugeSessionId: "r1" }, "/refuge/r1"],
+  ["REFUGE_COINS", { refugeSessionId: "r1" }, "/refuge/r1"],
+  ["REFUGE_REVEAL_REFUSED", { refugeSessionId: "r1" }, "/refuge/r1"],
+  ["REFUGE_EXPIRED", { refugeSessionId: "r1" }, "/refuge/r1"],
   ["REPORT_PROCESSED", {}, "/user-reports"],
 ];
 
@@ -67,7 +74,7 @@ describe("identifiants absents ou piégés : repli sûr, aucune route libre", ()
       expect(getNotificationTarget(note(type, { duelId: bad })), String(bad)).toBeNull();
     }
   });
-  it.each(["REFUGE_ADOPTED", "REFUGE_REVEAL_PHASE", "REFUGE_REVEALED"])("%s sans identifiant valide → /refuge (jamais une route forgée)", (type) => {
+  it.each(["REFUGE_ADOPTED", "REFUGE_REVEAL_PHASE", "REFUGE_REVEALED", "REFUGE_CHOICE_READY", "REFUGE_RESULT_READY", "REFUGE_DAY_RESULT", "REFUGE_NEW_DAY", "REFUGE_COINS", "REFUGE_REVEAL_REFUSED", "REFUGE_EXPIRED"])("%s sans identifiant valide → /refuge (jamais une route forgée)", (type) => {
     expect(resolvePushDestination({ type }).route).toBe("/refuge");
     for (const bad of EVIL) {
       expect(resolvePushDestination({ type, refugeSessionId: bad }).route, String(bad)).toBe("/refuge");

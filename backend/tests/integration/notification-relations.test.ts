@@ -50,15 +50,16 @@ describe("Notifications du Refuge : événements réellement déclenchés", () =
     await RefugeService.adoptRefuge(sponsor, proposal.id);
     await settle(companion, 1);
     expect(await types(companion)).toEqual(["REFUGE_ADOPTED"]);
-    expect(await types(sponsor)).toEqual([]); // l'auteur de l'adoption n'est jamais notifié
+    expect(await types(sponsor)).toEqual([]); // l'auteur de l'adoption n'est jamais notifié (ni à l'incarnation)
     expect((await notifs(companion))[0]!.meta).toEqual({ refugeSessionId: proposal.id });
 
-    // Actions du jour 1 des deux côtés : aucune notification (événement manquant, à définir).
+    // Actions du jour 1 des deux côtés : uniquement des notifications du Refuge (« compagnon prêt », « résultat »), chacune au bon compte.
     await RefugeService.submitDailyChoice(proposal.id, companion, 1, { action1: "NOURRIR", action2: "CARESSER" });
     await RefugeService.submitGuess(proposal.id, sponsor, 1, { guessedAction1: "NOURRIR", guessedAction2: "JOUER", foodChoice: "fish" } as never);
     await settle(companion, 2);
-    expect(await types(companion)).toEqual(["REFUGE_ADOPTED"]);
-    expect(await types(sponsor)).toEqual([]);
+    await new Promise((r) => setTimeout(r, 400));
+    expect((await types(companion)).sort()).toEqual(["REFUGE_ADOPTED", "REFUGE_RESULT_READY"]);
+    expect((await types(sponsor)).sort()).toEqual(["REFUGE_CHOICE_READY", "REFUGE_DAY_RESULT"]);
 
     // Aucun match, sourire, ni jeu des questions n'existe entre eux, et aucune notification de ce type nulle part.
     expect(await prisma.match.count({ where: { OR: [{ userAId: { in: [companion, sponsor] } }, { userBId: { in: [companion, sponsor] } }] } })).toBe(0);
