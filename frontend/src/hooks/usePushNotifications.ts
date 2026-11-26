@@ -23,6 +23,7 @@ import {
 } from '../utils/pushNavigation';
 
 import { announceMutualMatch } from '../utils/announceMutualMatch';
+import { refugeEvents } from '../data/refugeEvents';
 
 let foregroundSoundEnabled = true;
 let foregroundVibrationEnabled = true;
@@ -30,21 +31,17 @@ let foregroundVibrationEnabled = true;
 // (ni de son) pour une notification qui ouvrirait l'écran que l'utilisateur consulte déjà.
 let currentLocation: CurrentLocation | null = null;
 
-// Show push in foreground as banner + badge + sound — sauf si l'écran concerné est déjà ouvert.
+// Application OUVERTE : notification INTERNE uniquement (cloche, compteur, écrans actualisés) — ni bannière, ni liste
+// système, ni son système. Hors premier plan actif (arrière-plan, fermée, transition) : présentation système habituelle.
+// La décision vit dans `foregroundPresentation` (logique pure testée).
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    if (AppState.currentState !== 'active' && foregroundMatchId(notification.request.content.data)) {
-      return {
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: foregroundSoundEnabled,
-        shouldSetBadge: true,
-      };
-    }
-    const p = foregroundPresentation(currentLocation, notification.request.content.data, {
-      sound: foregroundSoundEnabled,
-      vibration: foregroundVibrationEnabled,
-    });
+    const p = foregroundPresentation(
+      currentLocation,
+      notification.request.content.data,
+      { sound: foregroundSoundEnabled, vibration: foregroundVibrationEnabled },
+      AppState.currentState,
+    );
     return {
       shouldShowBanner: p.showBanner,
       shouldShowList: p.showList,
@@ -231,10 +228,13 @@ export function usePushNotifications(sessionReady: boolean = true) {
           announceMutualMatch(matchId, () => routerRef.current.push(destination));
         }
       }
+      // Notification du Refuge : l'écran Refuge et la case « Adoption » se rafraîchissent tout de suite (une fois).
+      refugeEvents.notify(data);
       onForegroundNotification({
         current: currentLocation,
         data,
         prefs: { sound: foregroundSoundEnabled, vibration: foregroundVibrationEnabled },
+        appState: AppState.currentState,
         vibrate: () => {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         },
