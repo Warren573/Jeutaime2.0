@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { emitRefugeRevealed } from "../../events";
 import { notifyEvent } from "../notifications/notify.service";
+import { purgeRelationNotifications } from "../notifications/notifications.purge";
 import { NotificationType } from "@prisma/client";
 import { buildPhotoUrl } from "../photos/photos.urls";
 import {
@@ -1613,19 +1614,28 @@ export class RefugeService {
     // Mode "consent" : efface uniquement les décisions de dévoilement pour
     // rejouer les scénarios de la phase finale (les jours joués sont conservés).
     if (mode === "consent") {
-      const updated = await prisma.refugeSession.update({
-        where: { id: refugeSessionId },
-        data: {
-          adopteRevealDecision: null,
-          adoptantRevealDecision: null,
-          revealedAt: null,
-          status: RefugeSessionStatus.ACTIVE,
-        },
+      const updated = await prisma.$transaction(async (tx) => {
+        // Les décisions sont effacées : les notifications de la phase finale (et leur clé d'idempotence) aussi.
+        await purgeRelationNotifications(tx, { refugeSessionIds: [refugeSessionId] }, {
+          types: ["REFUGE_REVEAL_PHASE", "REFUGE_REVEALED"],
+        });
+        return tx.refugeSession.update({
+          where: { id: refugeSessionId },
+          data: {
+            adopteRevealDecision: null,
+            adoptantRevealDecision: null,
+            revealedAt: null,
+            status: RefugeSessionStatus.ACTIVE,
+          },
+        });
       });
       return this.mapToDTO(updated);
     }
 
     const updated = await prisma.$transaction(async (tx) => {
+      // Session remise à zéro ou close : plus d'adoption ni de phase finale à signaler. Purger libère aussi la clé
+      // d'idempotence `refuge-adopted:<id>`, sans quoi une nouvelle adoption ne préviendrait personne.
+      await purgeRelationNotifications(tx, { refugeSessionIds: [refugeSessionId] });
       // Purger tous les choix et tentatives de la session
       await tx.refugeDailyChoice.deleteMany({ where: { refugeSessionId } });
       await tx.refugeGuess.deleteMany({ where: { refugeSessionId } });

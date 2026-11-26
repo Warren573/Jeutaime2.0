@@ -22,6 +22,8 @@
  *   - Session du refuge : l'adopté et l'adoptant (les choix, devinettes et
  *     résultats rattachés ne contiennent aucun autre utilisateur).
  *
+ * Les NOTIFICATIONS de ces relations (match, 3 questions, lettres, bouteilles, adoption) sont supprimées avec elles.
+ *
  * Les tables rattachées sont supprimées EXPLICITEMENT (sans compter sur les
  * suppressions en cascade de la base).
  *
@@ -250,6 +252,15 @@ async function executeReset(prisma, expectedCode) {
     done.refugeGuesses = await deleteExactly(tx.refugeGuess, d.refugeGuesses, "Devinettes du refuge");
     done.refugeDayResults = await deleteExactly(tx.refugeDayResult, d.refugeDayResults, "Résultats du refuge");
     done.refugeSessions = await deleteExactly(tx.refugeSession, d.refugeSessions, "Sessions du refuge");
+
+    // Les notifications de ces relations (match, 3 questions, lettres, bouteilles, adoption…) disparaissent avec elles :
+    // les comptes doivent être considérés comme ne s'étant jamais rencontrés. Seules les relations supprimées
+    // ci-dessus (donc uniquement entre comptes de test) sont visées, par identifiant exact.
+    done.notifications = 0;
+    for (const [metaKey, ids] of [["matchId", d.matches], ["bottleId", d.bottles], ["refugeSessionId", d.refugeSessions]]) {
+      if (!ids.length) continue;
+      done.notifications += await tx.$executeRaw`DELETE FROM "Notification" WHERE "meta"->>${metaKey} = ANY(${ids}::text[])`;
+    }
 
     const after = await realUsersFingerprint(tx, testIds);
     if (JSON.stringify(before) !== JSON.stringify(after)) {

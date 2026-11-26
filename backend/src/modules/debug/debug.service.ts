@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { execSync } from "child_process";
 import { Prisma } from "@prisma/client";
+import { LETTER_TYPES, purgeRelationNotifications } from "../notifications/notifications.purge";
 import { SalonKind, OfferingCategory, MagieType } from "@prisma/client";
 
 function getCommitSha(): string {
@@ -256,14 +257,14 @@ export async function resetTestMatches() {
     };
   }
 
-  // Delete matches involving test users
-  const matchesDeleted = await prisma.match.deleteMany({
-    where: {
-      OR: [
-        { userAId: { in: testUserIds } },
-        { userBId: { in: testUserIds } },
-      ],
-    },
+  // Delete matches involving test users — et les notifications de ces matchs (match, 3 questions, lettres…),
+  // dans la même transaction : « jamais rencontrés » signifie aussi aucune trace dans la cloche.
+  const matchWhere = { OR: [{ userAId: { in: testUserIds } }, { userBId: { in: testUserIds } }] };
+  const { matchesDeleted, notificationsDeleted } = await prisma.$transaction(async (tx) => {
+    const ids = (await tx.match.findMany({ where: matchWhere, select: { id: true } })).map((m) => m.id);
+    const notificationsDeleted = await purgeRelationNotifications(tx, { matchIds: ids });
+    const matchesDeleted = await tx.match.deleteMany({ where: matchWhere });
+    return { matchesDeleted, notificationsDeleted };
   });
 
   // Delete reactions involving test users
@@ -280,6 +281,7 @@ export async function resetTestMatches() {
     success: true,
     message: "Test matches reset",
     matchesDeleted: matchesDeleted.count,
+    notificationsDeleted,
     reactionsDeleted: reactionsDeleted.count,
     timestamp: new Date().toISOString(),
   };
@@ -321,6 +323,15 @@ export async function resetTestLettersAndBottles() {
       },
     });
 
+    // Les lettres sont remises à zéro : les notifications « lettre reçue » de ces matchs n'ont plus d'objet.
+    const resetMatchIds = (
+      await tx.match.findMany({
+        where: { OR: [{ userAId: { in: testUserIds } }, { userBId: { in: testUserIds } }] },
+        select: { id: true },
+      })
+    ).map((m) => m.id);
+    let notificationsDeleted = await purgeRelationNotifications(tx, { matchIds: resetMatchIds }, { types: LETTER_TYPES });
+
     const matchesReset = await tx.match.updateMany({
       where: {
         OR: [
@@ -357,6 +368,12 @@ export async function resetTestLettersAndBottles() {
       ),
     );
 
+    // Notifications des bouteilles supprimées, et de leurs matchs de dévoilement.
+    notificationsDeleted += await purgeRelationNotifications(tx, {
+      bottleIds: bottleRows.map((b) => b.id),
+      matchIds: bottleMatchIds,
+    });
+
     const bottlesDeleted = await tx.messageInABottle.deleteMany({
       where: {
         id: { in: bottleRows.map((b) => b.id) },
@@ -378,6 +395,7 @@ export async function resetTestLettersAndBottles() {
       matchesReset: matchesReset.count,
       bottlesDeleted: bottlesDeleted.count,
       bottleMatchesDeleted: bottleMatchesDeleted.count,
+      notificationsDeleted,
       timestamp: new Date().toISOString(),
     };
   });
