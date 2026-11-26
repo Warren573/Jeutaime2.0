@@ -982,6 +982,11 @@ export class RefugeService {
       update: {},
       create: { userId, coins: 0 },
     });
+    // Verrou de ligne : deux transactions simultanées sur le même portefeuille (deux refuges, un achat…)
+    // sont sérialisées, le solde lu ci-dessous est donc celui sur lequel on écrit — jamais de perte de mise à jour
+    // ni de solde négatif.
+    const locked = await tx.$queryRaw<{ coins: number }[]>`SELECT "coins" FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
+    wallet.coins = locked?.[0]?.coins ?? wallet.coins;
 
     const applied = delta > 0 ? delta : -Math.min(-delta, wallet.coins);
     if (applied === 0) return; // pénalité sur solde nul : aucun mouvement, pas de négatif
@@ -1072,8 +1077,9 @@ export class RefugeService {
    *
    * Garde conditionnelle (status=ACTIVE ET endsAt échue) : de N requêtes simultanées, une seule applique la
    * transition ; les autres constatent le même résultat (déterministe). Les choix, tentatives et résultats sont
-   * conservés. AUCUN mouvement de pièces : les ±5 sont en attente de validation, et closePastDays ne s'exécutant
-   * que sur une session ACTIVE, les jours incomplets d'une session ainsi clôturée ne sont pas soldés.
+   * conservés. Les jours incomplets sont d'abord soldés (closePastDays, règles de refuge.utils.ts), puis la session
+   * est clôturée : closePastDays ne solde que les sessions ACTIVE, le règlement doit donc précéder la transition.
+   * Les sessions DÉJÀ clôturées avant ce correctif ne sont pas réglées rétroactivement.
    *
    * Travaille sur les données déjà chargées par l'appelant : zéro requête si la session est en cours.
    */
@@ -1089,6 +1095,18 @@ export class RefugeService {
     now: Date = new Date()
   ): Promise<{ status: RefugeSessionStatus; closedByThisCall: boolean } | null> {
     if (session.status !== RefugeSessionStatus.ACTIVE || !isRefugeExpired(session.endsAt, now)) return null;
+
+    // Règlement AVANT la clôture définitive : les jours sans résultat sont soldés selon les règles existantes
+    // (computeDayClosure). Idempotent (un résultat par session et par jour : P2002 → ignoré), donc sans double
+    // paiement même si plusieurs requêtes arrivent ensemble. En cas d'échec, la session reste ACTIVE et le
+    // règlement sera retenté à la prochaine lecture : on ne clôture jamais une session non soldée.
+    try {
+      await this.closePastDays(session.id);
+    } catch (err) {
+      console.error("Refuge: règlement des jours avant clôture impossible", session.id, err);
+      return null;
+    }
+
     const lastDayPlayed =
       !!session.adoptantId && isDayCompleted(session.dailyChoices ?? [], session.guesses ?? [], REFUGE_DURATION_DAYS);
     const status = lastDayPlayed ? RefugeSessionStatus.AWAITING_REVEAL_CONSENT : RefugeSessionStatus.ABANDONED;
