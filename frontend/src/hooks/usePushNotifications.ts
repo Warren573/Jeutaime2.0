@@ -24,6 +24,7 @@ import {
 
 import { announceMutualMatch } from '../utils/announceMutualMatch';
 import { refugeEvents } from '../data/refugeEvents';
+import { PUSH_REGISTRATION_KEY, registerDeviceIfNeeded } from '../data/pushRegistration';
 
 let foregroundSoundEnabled = true;
 let foregroundVibrationEnabled = true;
@@ -198,10 +199,19 @@ export function usePushNotifications(sessionReady: boolean = true) {
         const token = tokenData.data;
         const platform = getPlatform();
 
-        await registerDevice(token, platform);
-        if (cancelled) return;
+        // Le jeton reste mémorisé (désenregistrement à la déconnexion) ; le serveur n'est appelé que si le compte, le jeton ou
+        // la plateforme ont changé, ou après 24 h : plus d'écriture en base à chaque démarrage de l'interface.
         await AsyncStorage.setItem('jeutaime_push_token', token);
-        console.debug(`[push] token registered (${platform})`);
+        const outcome = await registerDeviceIfNeeded(
+          { userId: useStore.getState().currentUser?.id ?? '', token, platform },
+          {
+            readRecord: () => AsyncStorage.getItem(PUSH_REGISTRATION_KEY),
+            writeRecord: (value) => AsyncStorage.setItem(PUSH_REGISTRATION_KEY, value),
+            register: (t, p) => registerDevice(t, p as 'ios' | 'android' | 'web'),
+          },
+        );
+        if (cancelled) return;
+        console.debug(`[push] appareil ${outcome} (${platform})`);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
 

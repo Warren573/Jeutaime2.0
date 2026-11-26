@@ -4,6 +4,7 @@
 
 console.log("🔧 [useStore.ts] Module loading started");
 
+import { PUSH_REGISTRATION_KEY } from '../data/pushRegistration';
 import { create } from 'zustand';
 console.log("✅ [useStore.ts] Line 5: create imported from zustand");
 
@@ -512,6 +513,8 @@ export const useStore = create<StoreState>()(
 
       login: async (email, password, totpCode) => {
         const result = await apiLogin(totpCode ? { email, password, totpCode } : { email, password });
+        // Nouvelle connexion (autre compte, compte rétabli après désactivation) : l'enregistrement de l'appareil est refait.
+        await AsyncStorage.removeItem(PUSH_REGISTRATION_KEY).catch(() => {});
 
         // Toujours repartir d'un état de compte vierge avant de charger
         // le nouveau compte. Sinon, si /auth/me échoue, l'ancien currentUser
@@ -571,6 +574,8 @@ export const useStore = create<StoreState>()(
           await apiUnregisterDevice(pushToken).catch(() => {});
           await AsyncStorage.removeItem('jeutaime_push_token').catch(() => {});
         }
+        // Le serveur ne connaît plus cet appareil : la prochaine connexion doit l'enregistrer à nouveau.
+        await AsyncStorage.removeItem(PUSH_REGISTRATION_KEY).catch(() => {});
 
         // Clear auth tokens + Zustand persist key immediately
         await Promise.all([

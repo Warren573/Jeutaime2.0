@@ -90,6 +90,7 @@ jobs:
           tests/unit/frontend-notifications-icons-bottles.test.ts
           tests/unit/frontend-notification-reading-flow.test.ts
           tests/unit/frontend-push-navigation.test.ts
+          tests/unit/frontend-push-registration.test.ts
           tests/unit/bottles-access-control.test.ts
           tests/unit/bottles-anonymity.test.ts
           tests/unit/refuge.service.test.ts
