@@ -98,3 +98,30 @@ export async function unregisterDevice(token: string): Promise<void> {
     body: JSON.stringify({ token }),
   });
 }
+
+// ── Diagnostic des notifications push ───────────────────────────────────────
+export interface PushStatusDto {
+  settings: { notifPush: boolean; notifActivities: boolean; notifMeetings: boolean; notifLetters: boolean };
+  devices: Array<{ platform: string; kind: string; suffix: string; valid: boolean; updatedAt: string }>;
+}
+export interface PushTestDto {
+  state: 'none' | 'pending' | 'sent';
+  result: { sentAt: string; devices: number; skipped: string | null; tickets: Array<{ status: string; ticketId: string | null }> } | null;
+  receipts: string[];
+}
+
+export async function getPushStatus(): Promise<PushStatusDto> {
+  const res = await apiFetch('/notifications/push-status');
+  return res.data as PushStatusDto;
+}
+
+/** Demande UNE notification de test visible, envoyée par le serveur après `delaySeconds` (laisse le temps de fermer l'application). */
+export async function requestPushTest(delaySeconds = 10): Promise<{ scheduledFor: string }> {
+  const res = await apiFetch('/notifications/push-test', { method: 'POST', body: JSON.stringify({ delaySeconds }) });
+  return res.data as { scheduledFor: string };
+}
+
+export async function getPushTestResult(): Promise<PushTestDto> {
+  const res = await apiFetch('/notifications/push-test');
+  return res.data as PushTestDto;
+}

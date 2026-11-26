@@ -6,6 +6,7 @@ import { AuthedRequest } from "../../core/types";
 import {
   ListNotificationsQuerySchema,
   NotificationIdParamsSchema,
+  PushTestSchema,
   RegisterDeviceSchema,
   UnregisterDeviceSchema,
 } from "./notifications.schemas";
@@ -53,5 +54,14 @@ router.post(
   validate(UnregisterDeviceSchema, "body"),
   wrap(ctrl.handleUnregisterDevice),
 );
+
+// GET /api/notifications/push-status — diagnostic : appareils (jetons masqués) et réglages
+router.get("/push-status", wrap(ctrl.handlePushStatus));
+
+// POST /api/notifications/push-test — diagnostic : une notification de test visible, après un délai
+router.post("/push-test", validate(PushTestSchema, "body"), wrap(ctrl.handlePushTest));
+
+// GET /api/notifications/push-test — diagnostic : tickets Expo et reçus du dernier test
+router.get("/push-test", wrap(ctrl.handlePushTestResult));
 
 export default router;

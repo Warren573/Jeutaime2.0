@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -152,6 +153,11 @@ export default function NotificationSettingsScreen() {
             ))}
           </View>
 
+          <TouchableOpacity style={styles.diagCard} onPress={() => router.push('/notification-diagnostics')} accessibilityRole="button">
+            <Text style={styles.diagTitle}>Diagnostic des notifications</Text>
+            <Text style={styles.diagText}>Vérifier les autorisations d’iOS, l’appareil enregistré et recevoir une notification de test.</Text>
+          </TouchableOpacity>
+
           <View style={styles.infoCard}>
             <Text style={styles.infoText}>
               Ces réglages sont enregistrés sur ton compte et sont donc conservés
@@ -240,6 +246,16 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: APP_COLORS.border,
   },
+  diagCard: {
+    marginTop: APP_SPACING.md,
+    padding: APP_SPACING.md,
+    borderRadius: APP_RADIUS.md,
+    backgroundColor: APP_COLORS.paper,
+    borderWidth: 1,
+    borderColor: APP_COLORS.burgundy,
+  },
+  diagTitle: { fontSize: 14, fontWeight: '800', color: APP_COLORS.burgundy },
+  diagText: { fontSize: 12, lineHeight: 18, color: APP_COLORS.muted, marginTop: 4 },
   infoCard: {
     marginTop: APP_SPACING.md,
     padding: APP_SPACING.md,

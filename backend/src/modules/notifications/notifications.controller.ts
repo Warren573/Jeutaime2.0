@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthedRequest } from "../../core/types";
 import * as svc from "./notifications.service";
 import { registerDeviceToken, unregisterDeviceToken } from "./push.service";
+import { getPushStatus, getPushTest, scheduleTestPush } from "./pushDiagnostics.service";
 import type {
   ListNotificationsQueryDto,
   NotificationIdParamsDto,
@@ -54,4 +55,20 @@ export async function handleUnregisterDevice(req: AuthedRequest, res: Response) 
   const { token } = req.body as { token: string };
   await unregisterDeviceToken({ userId: req.user.userId, token });
   res.json({ data: { unregistered: true } });
+}
+
+// GET /api/notifications/push-status — appareils enregistrés (jetons masqués) et réglages push du compte
+export async function handlePushStatus(req: AuthedRequest, res: Response) {
+  res.json({ data: await getPushStatus(req.user.userId) });
+}
+
+// POST /api/notifications/push-test — envoie UNE notification de test visible, après un délai (sur demande)
+export async function handlePushTest(req: AuthedRequest, res: Response) {
+  const { delaySeconds } = req.body as { delaySeconds: number };
+  res.status(202).json({ data: scheduleTestPush(req.user.userId, delaySeconds) });
+}
+
+// GET /api/notifications/push-test — résultat du dernier test (tickets Expo, reçus de remise)
+export async function handlePushTestResult(req: AuthedRequest, res: Response) {
+  res.json({ data: await getPushTest(req.user.userId) });
 }

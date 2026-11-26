@@ -815,3 +815,18 @@ describe("application ouverte : notification interne uniquement, pour TOUS les t
     expect(foregroundPresentation(loc("/(tabs)/letters", { matchId: "m1" }), match, prefs, "inactive").showBanner).toBe(true);
   });
 });
+
+describe("diagnostic des notifications : notification de test", () => {
+  const prefs = { sound: true, vibration: true };
+  it("l'appui sur la notification de test ouvre l'écran de diagnostic", () => {
+    expect(resolvePushDestination({ type: "PUSH_TEST" }).route).toBe("/notification-diagnostics");
+    expect(resolvePushDestination({ type: "PUSH_TEST", refugeSessionId: "r1" }).route).toBe("/notification-diagnostics");
+  });
+  it("exception voulue : le test s'affiche même application ouverte ; aucune autre notification n'est concernée", () => {
+    expect(foregroundPresentation({ pathname: "/" }, { type: "PUSH_TEST" }, prefs, "active")).toEqual({ showBanner: true, showList: true, playSound: true, vibrate: false });
+    expect(foregroundPresentation({ pathname: "/" }, { type: "PUSH_TEST" }, { sound: false, vibration: true }, "active").playSound).toBe(false);
+    for (const type of ["LETTER_RECEIVED", "REFUGE_ADOPTED", "DUEL_RECEIVED", "PUSH_TESTS", "push_test"]) {
+      expect(foregroundPresentation({ pathname: "/" }, { type }, prefs, "active").showBanner, type).toBe(false);
+    }
+  });
+});
