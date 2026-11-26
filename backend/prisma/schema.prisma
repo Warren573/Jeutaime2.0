@@ -156,6 +156,15 @@ enum NotificationType {
   REFUGE_REVEALED
   REPORT_PROCESSED
   ACCOUNT_RESTORED
+
+  // Refuge : notifications quotidiennes et de fin de partie
+  REFUGE_CHOICE_READY
+  REFUGE_RESULT_READY
+  REFUGE_DAY_RESULT
+  REFUGE_NEW_DAY
+  REFUGE_COINS
+  REFUGE_REVEAL_REFUSED
+  REFUGE_EXPIRED
 }
 
 enum ReactionType {
