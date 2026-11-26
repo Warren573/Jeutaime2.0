@@ -48,6 +48,7 @@ vi.mock("../../src/config/prisma", () => {
       upsert: vi.fn(),
       update: vi.fn(),
     },
+    $queryRaw: vi.fn(async () => []), // verrou FOR UPDATE du portefeuille (aucune ligne → solde de l'upsert)
     coinTransaction: {
       create: vi.fn(),
     },
