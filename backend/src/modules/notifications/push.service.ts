@@ -190,6 +190,7 @@ async function sendPushToUserUnsafe(params: SendPushParams): Promise<SendOutcome
     }
   }
   if (state !== "ok") {
+    logger.info({ userId: params.userId, type: params.data?.type, reason: `compte ${state}` }, "[push] non envoyé");
     // Banni : la révocation est justifiée, les jetons sont retirés (le compte les ré-enregistrera
     // s'il est un jour rétabli). Désactivé : ses jetons sont déjà retirés à la désactivation.
     if (state === "banned") await purgeTokens(params.userId, "compte banni");
@@ -201,9 +202,16 @@ async function sendPushToUserUnsafe(params: SendPushParams): Promise<SendOutcome
   // Le réglage est créé à l'inscription et vaut true par défaut. Si une
   // ancienne donnée n'a pas encore de ligne UserSettings, on conserve le
   // comportement historique (push autorisé) plutôt que de couper en silence.
-  if (settings?.notifPush === false) return { handled: true };
-  const category = pushCategoryFor(params.data?.type);
-  if (category && settings?.[category] === false) return { handled: true };
+  const type = params.data?.type;
+  if (settings?.notifPush === false) {
+    logger.info({ userId: params.userId, type, reason: "notifications push désactivées dans les réglages" }, "[push] non envoyé");
+    return { handled: true };
+  }
+  const category = pushCategoryFor(type);
+  if (category && settings?.[category] === false) {
+    logger.info({ userId: params.userId, type, category, reason: "catégorie désactivée dans les réglages" }, "[push] non envoyé");
+    return { handled: true };
+  }
 
   const rows = await prisma.pushToken.findMany({
     where: { userId: params.userId },
@@ -214,7 +222,11 @@ async function sendPushToUserUnsafe(params: SendPushParams): Promise<SendOutcome
   if (usable.length < rows.length) {
     logger.warn({ ignored: rows.length - usable.length, userId: params.userId }, "[push] jetons au format inattendu ignorés");
   }
-  if (usable.length === 0) return { handled: true };
+  if (usable.length === 0) {
+    // Cas SILENCIEUX jusqu'ici : un compte sans appareil enregistré (web, permission refusée, jamais ouvert en natif).
+    logger.info({ userId: params.userId, type, registered: rows.length, reason: "aucun jeton d'appareil valide" }, "[push] non envoyé");
+    return { handled: true };
+  }
 
   const messages: ExpoPushMessage[] = usable.map(({ token }) => ({
     to: token,
@@ -252,13 +264,24 @@ async function sendPushToUserUnsafe(params: SendPushParams): Promise<SendOutcome
     }
 
     const invalidTokens: string[] = [];
-    const tracked: Array<{ ticketId: string; token: string; userId: string; sentAt: number }> = [];
+    const tracked: Array<{ ticketId: string; token: string; userId: string; sentAt: number; type?: string }> = [];
     outcome.tickets.forEach((ticket, i) => {
       const row = batchRows[i];
       if (!row) return;
-      handleTicket(ticket, row.token, params.userId, now, invalidTokens, tracked);
+      handleTicket(ticket, row.token, params.userId, now, invalidTokens, tracked, type);
     });
     accepted += outcome.tickets.length;
+    // Résultat réel de l'envoi (jamais le jeton ni le texte) : combien d'appareils, combien de tickets acceptés / refusés.
+    logger.info(
+      {
+        userId: params.userId,
+        type,
+        devices: batchRows.length,
+        tickets: outcome.tickets.map((t) => (t.status === "ok" ? "ok" : `error:${t.details?.error ?? "?"}`)),
+        ticketIds: outcome.tickets.map((t) => t.id ?? null),
+      },
+      "[push] envoi Expo"
+    );
 
     if (invalidTokens.length > 0) {
       // Ne supprime jamais un jeton réattribué entre l'envoi et la réponse d'Expo.
@@ -280,10 +303,11 @@ function handleTicket(
   userId: string,
   sentAt: number,
   invalidTokens: string[],
-  accepted: Array<{ ticketId: string; token: string; userId: string; sentAt: number }>,
+  accepted: Array<{ ticketId: string; token: string; userId: string; sentAt: number; type?: string }>,
+  type?: string,
 ): void {
   if (ticket.status === "ok") {
-    if (ticket.id) accepted.push({ ticketId: ticket.id, token, userId, sentAt });
+    if (ticket.id) accepted.push({ ticketId: ticket.id, token, userId, sentAt, ...(type ? { type } : {}) });
     return;
   }
   const code = ticket.details?.error;

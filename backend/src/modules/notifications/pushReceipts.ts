@@ -31,6 +31,8 @@ export interface PendingTicket {
   token: string;
   userId: string;
   sentAt: number;
+  /** Type de notification (diagnostic uniquement). */
+  type?: string;
   failures: number;
 }
 
@@ -139,6 +141,11 @@ async function runReceiptPass(now: number, result: ReceiptRunResult): Promise<Re
       if (!receipt) continue; // pas encore disponible : on réessaiera
       result.checked += 1;
       pending.delete(t.ticketId);
+      // Remise réelle à Apple/Google : seul le REÇU la dit (le ticket « ok » signifie seulement qu'Expo a accepté le message).
+      logger.info(
+        { userId: t.userId, type: t.type, ticketId: t.ticketId, receipt: receipt.status === "ok" ? "ok" : `error:${receipt.details?.error ?? "?"}` },
+        "[push] reçu Expo"
+      );
       if (receipt.status === "ok") continue;
 
       const code = receipt.details?.error;
@@ -149,6 +156,8 @@ async function runReceiptPass(now: number, result: ReceiptRunResult): Promise<Re
           where: { userId: t.userId, token: t.token, updatedAt: { lte: new Date(t.sentAt) } },
         });
         result.tokensRemoved += removed.count;
+        // Suppression jusqu'ici SILENCIEUSE : un appareil retiré après un reçu DeviceNotRegistered n'apparaissait nulle part.
+        logger.info({ userId: t.userId, type: t.type, removed: removed.count, code }, "[push] jeton retiré (appareil non enregistré)");
       } else {
         // Temporaire, configuration ou inconnu : trace seulement, jamais de suppression.
         logger.warn({ code, kind, userId: t.userId }, "[push] reçu Expo en erreur (jeton conservé)");
