@@ -3,15 +3,15 @@
 -- Répond à : « cette notification correspond-elle à une relation qui existe réellement ? »
 
 \echo '== 1. Notifications de rencontre : relation existante ou orpheline ? (une ligne par notification)'
-SELECT n."createdAt" AT TIME ZONE 'Europe/Paris' AS cree_le_paris,
+SELECT (n."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris' AS cree_le_paris,
        n.type::text AS type,
        pu.pseudo   AS destinataire,
        CASE WHEN m.id IS NULL THEN 'ORPHELINE (match introuvable)'
             WHEN n."userId" NOT IN (m."userAId", m."userBId") THEN 'MAUVAIS DESTINATAIRE'
             ELSE 'match existant : ' || m.status::text END AS etat,
        po.pseudo AS autre_participant,
-       m."createdAt" AT TIME ZONE 'Europe/Paris' AS match_cree_le_paris,
-       m."activatedAt" AT TIME ZONE 'Europe/Paris' AS match_active_le_paris,
+       (m."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris' AS match_cree_le_paris,
+       (m."activatedAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris' AS match_active_le_paris,
        n."isRead" AS lue, n.id AS notification_id, n.meta->>'matchId' AS match_id
 FROM "Notification" n
 LEFT JOIN "Match" m ON m.id = n.meta->>'matchId'
@@ -21,14 +21,14 @@ WHERE n.type IN ('MATCH_CREATED','QUESTIONS_PASSED','QUESTIONS_FAILED','QUESTION
 ORDER BY n."createdAt" DESC LIMIT 100;
 
 \echo '== 2. Réponses au jeu des questions et sourires du match (preuve de ce qui s''est réellement passé)'
-SELECT m.id AS match_id, m.status::text, m."questionsValidated", m."createdAt" AT TIME ZONE 'Europe/Paris' AS cree_le_paris,
+SELECT m.id AS match_id, m.status::text, m."questionsValidated", (m."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris' AS cree_le_paris,
        (SELECT count(*) FROM "MatchQuestionAttempt" a WHERE a."matchId" = m.id) AS reponses_questions,
        (SELECT count(*) FROM "Reaction" r WHERE (r."fromId" = m."userAId" AND r."toId" = m."userBId") OR (r."fromId" = m."userBId" AND r."toId" = m."userAId")) AS reactions
 FROM "Match" m
 WHERE m.id IN (SELECT n.meta->>'matchId' FROM "Notification" n WHERE n.type IN ('MATCH_CREATED','QUESTIONS_PASSED') AND n."createdAt" > now() - interval '3 days');
 
 \echo '== 3. Notifications du Refuge : session existante, bon destinataire ? '
-SELECT n."createdAt" AT TIME ZONE 'Europe/Paris' AS cree_le_paris, n.type::text, pu.pseudo AS destinataire,
+SELECT (n."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris' AS cree_le_paris, n.type::text, pu.pseudo AS destinataire,
        CASE WHEN s.id IS NULL THEN 'ORPHELINE (session introuvable)'
             WHEN n.type = 'REFUGE_ADOPTED' AND n."userId" <> s."adopteId" THEN 'MAUVAIS DESTINATAIRE'
             ELSE 'session ' || s.status::text END AS etat,
