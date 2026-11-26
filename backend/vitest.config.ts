@@ -6,6 +6,8 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    // Refuse de démarrer si la base visée n'est pas une base locale de test (voir tests/setup/dbGuard.ts).
+    setupFiles: ["tests/setup/db-guard.ts"],
     reporters: ["default", "junit"],
     outputFile: {
       junit: "test-results.json",
