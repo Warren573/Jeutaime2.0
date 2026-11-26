@@ -36,6 +36,19 @@ export interface EventPolicy {
   anonymous?: boolean;
   /** Écrans sur lesquels la fenêtre est inutile (l'utilisateur voit déjà l'événement) : le chemin commence par l'un d'eux. */
   suppressOnPathPrefixes?: readonly string[];
+  /**
+   * Message PROPRE à la fenêtre, quand il diffère du texte du serveur (historique et push inchangés). Reçoit le rôle du
+   * parrain / de la marraine, lu dans la session du Refuge (parrain / marraine selon le genre), ou null s'il est inconnu.
+   */
+  dialogMessage?: (ctx: { sponsorRole: SponsorRole | null }) => string;
+}
+
+export type SponsorRole = 'parrain' | 'marraine';
+
+/** « Ton parrain t'a choisi. » / « Ta marraine t'a choisi. » / formulation double si le genre est inconnu ou non binaire. */
+export function adoptionMessageForCompanion(role: SponsorRole | null): string {
+  const who = role === 'parrain' ? 'Ton parrain' : role === 'marraine' ? 'Ta marraine' : 'Ton parrain ou ta marraine';
+  return `${who} t'a choisi. Une aventure de sept jours vous attend.`;
 }
 
 const history = (): EventPolicy => ({ mode: 'history', priority: 0 });
@@ -66,7 +79,7 @@ export const EVENT_POLICIES: Record<NotificationType, EventPolicy> = {
   MAGIE_BROKEN: history(),
   PRIVATE_SALON_INVITE: { mode: 'dialog', priority: 45, title: 'Invitation à un salon privé', cta: 'Voir l’invitation', suppressOnPathPrefixes: ['/private-salons'] },
   // ── Refuge (aucun pseudo, aucune action nommée : voir refuge.notifications.ts côté serveur) ──────────────
-  REFUGE_ADOPTED: { mode: 'dialog', priority: 65, title: 'Ton refuge commence', cta: 'Aller au Refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
+  REFUGE_ADOPTED: { mode: 'dialog', priority: 65, title: 'Tu as été adopté !', cta: 'Aller au refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge/'], dialogMessage: ({ sponsorRole }) => adoptionMessageForCompanion(sponsorRole) },
   REFUGE_CHOICE_READY: { mode: 'dialog', priority: 50, title: 'Ton compagnon est prêt', cta: 'Aller au Refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
   REFUGE_RESULT_READY: { mode: 'dialog', priority: 50, title: 'Le résultat du jour', cta: 'Découvrir le résultat', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
   REFUGE_DAY_RESULT: history(), // le parrain / la marraine voit déjà le score en validant
@@ -103,7 +116,8 @@ export interface EventDialogModel {
   pseudo: string | null;
   icon: NotificationIconName;
   label: string;
-  cta: { label: string; route: string } | null;
+  /** Bouton principal : destination (événement d'historique) OU action locale (annonce déclenchée par l'utilisateur). */
+  cta: { label: string; route?: string; action?: () => void } | null;
   priority: number;
   createdAtMs: number;
 }
@@ -111,7 +125,7 @@ export interface EventDialogModel {
 /** Fenêtre d'un événement, ou null s'il ne doit pas en avoir (historique seulement, annonce existante, type inconnu). */
 export function buildEventDialog(
   notification: Pick<NotificationDto, 'id' | 'type' | 'message' | 'createdAt'>,
-  options: { pseudo?: string | null; route?: string | null } = {},
+  options: { pseudo?: string | null; route?: string | null; sponsorRole?: SponsorRole | null } = {},
 ): EventDialogModel | null {
   const policy = policyFor(notification.type);
   if (!policy || policy.mode !== 'dialog' || !policy.title) return null;
@@ -124,13 +138,52 @@ export function buildEventDialog(
     key: notification.id,
     type: notification.type,
     title: policy.title,
-    message: typeof notification.message === 'string' ? notification.message : '',
+    message: policy.dialogMessage ? policy.dialogMessage({ sponsorRole: options.sponsorRole ?? null }) : typeof notification.message === 'string' ? notification.message : '',
     pseudo,
     icon: category.icon,
     label: category.label,
     cta: policy.cta && route ? { label: policy.cta, route } : null,
     priority: policy.priority,
     createdAtMs: Number.isFinite(createdAtMs) ? createdAtMs : 0,
+  };
+}
+
+// ============================================================
+// Annonces LOCALES : déclenchées par l'utilisateur lui-même (aucune notification serveur, donc aucun doublon possible)
+// ============================================================
+const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
+export const LOCAL_MATCH_PRIORITY = 80;
+
+/** « C'est un match ! » : même contenu qu'avant (ancienne alerte native), dans la fenêtre commune. */
+export function buildMatchAnnouncement(matchId: string, openQuestions: () => void, nowMs: number = Date.now()): EventDialogModel {
+  return {
+    key: `local:match:${matchId}`,
+    type: 'MATCH_CREATED',
+    title: 'C’est un match !',
+    message: 'Vous vous êtes envoyé un Smile. Répondez aux 3 questions pour débloquer les lettres.',
+    pseudo: null,
+    icon: categoryFor('MATCH_CREATED').icon,
+    label: categoryFor('MATCH_CREATED').label,
+    cta: { label: 'Jouer aux 3 questions', action: openQuestions },
+    priority: LOCAL_MATCH_PRIORITY,
+    createdAtMs: nowMs,
+  };
+}
+
+/** Confirmation côté parrain / marraine, juste après l'adoption (remplace l'alerte native « Tu viens d'adopter un animal ! »). */
+export function buildSponsorAdoptionConfirmation(refugeSessionId: string, nowMs: number = Date.now()): EventDialogModel | null {
+  if (!SAFE_ID.test(refugeSessionId)) return null;
+  return {
+    key: `local:refuge-adopted:${refugeSessionId}`,
+    type: 'REFUGE_ADOPTED',
+    title: 'L’aventure commence !',
+    message: 'Tu as adopté un compagnon. À toi de découvrir ses envies jour après jour.',
+    pseudo: null, // anonymat : aucun pseudo avant le dévoilement
+    icon: categoryFor('REFUGE_ADOPTED').icon,
+    label: categoryFor('REFUGE_ADOPTED').label,
+    cta: { label: 'Aller au refuge', route: '/refuge' },
+    priority: EVENT_POLICIES.REFUGE_ADOPTED.priority,
+    createdAtMs: nowMs,
   };
 }
 
@@ -288,14 +341,14 @@ export function createEventQueue(store: SeenStore): EventQueue {
 export function selectEventsToPresent(
   items: readonly NotificationDto[],
   ctx: PresentContext,
-  helpers: { pseudoOf: (n: NotificationDto) => string | null; routeOf: (n: NotificationDto) => string | null },
+  helpers: { pseudoOf: (n: NotificationDto) => string | null; routeOf: (n: NotificationDto) => string | null; sponsorRoleOf?: (n: NotificationDto) => SponsorRole | null },
 ): { models: EventDialogModel[]; markSeen: string[] } {
   const models: EventDialogModel[] = [];
   const markSeen: string[] = [];
   for (const n of items) {
     const verdict = presentability(n, ctx);
     if (verdict.ok) {
-      const model = buildEventDialog(n, { pseudo: helpers.pseudoOf(n), route: helpers.routeOf(n) });
+      const model = buildEventDialog(n, { pseudo: helpers.pseudoOf(n), route: helpers.routeOf(n), sponsorRole: helpers.sponsorRoleOf?.(n) ?? null });
       if (model) models.push(model);
     } else if (verdict.reason === 'viewing') {
       markSeen.push(n.id);

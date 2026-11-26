@@ -4,7 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePathname } from 'expo-router';
 import { useStore } from '../store/useStore';
 import { getNotifications } from '../api/notifications';
-import { createEventQueue, type EventQueue, type SeenStore } from '../data/appEvents';
+import { refugeApi } from '../api/refuge-api';
+import { createEventQueue, type EventDialogModel, type EventQueue, type SeenStore } from '../data/appEvents';
 import { createEventsRuntime, type EventsRuntime } from '../utils/appEventsRuntime';
 import { getNotificationTarget } from '../utils/notifications';
 
@@ -30,6 +31,9 @@ export const eventQueue = {
 };
 
 /** Signal : un événement vient peut-être d'arriver (push reçu application ouverte). */
+/** Fenêtre créée par le client lui-même (annonce de match, confirmation d'adoption) : même file, même fenêtre, aucun appel réseau. */
+export const enqueueLocalEvent = (model: EventDialogModel): number => queue.enqueue([model]);
+
 export const eventSignals = { pushReceived: () => runtime?.signal() };
 
 const seenStoreFor = (userId: string): SeenStore => ({
@@ -80,6 +84,7 @@ export function useAppEvents(): void {
           fetchLatest: async () => (await getNotifications({ pageSize: 10, unreadOnly: true })).items,
           pseudoOf,
           routeOf: (n) => getNotificationTarget(n),
+          sponsorRoleOf: async (id) => (await refugeApi.getSession(id)).sponsorRole ?? null,
           currentPath: () => currentPathRef.current,
         })
       : null;
