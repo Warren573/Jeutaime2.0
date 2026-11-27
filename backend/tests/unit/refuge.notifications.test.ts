@@ -261,7 +261,7 @@ describe("fin d'aventure et confirmation d'adoption (règles v2)", () => {
   });
   it("texte de fin : bilan puis dévoilement, aucune identité", () => {
     const text = buildNotificationMessage((NotificationType as any).REFUGE_FINAL_REPORT);
-    expect(text).toBe("Le bilan de votre aventure est prêt. Vous pourrez ensuite choisir de vous dévoiler.");
+    expect(text).toBe("Le bilan de votre aventure est prêt.");
   });
   it("confirmation d'adoption : texte du parrain / de la marraine, historique seulement", () => {
     expect(buildNotificationMessage((NotificationType as any).REFUGE_ADOPTION_CONFIRMED)).toBe("Tu as adopté un compagnon. Votre aventure de sept jours commence.");

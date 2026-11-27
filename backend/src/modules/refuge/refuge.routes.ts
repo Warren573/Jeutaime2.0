@@ -33,6 +33,8 @@ router.post(
   validate(RevealConsentSchema),
   wrap(RefugeController.submitRevealConsent)
 );
+// Sortie de l'écran de fin : archive l'aventure pour CE participant (libère son Refuge).
+router.post("/:sessionId/archive", wrap(RefugeController.archiveSession));
 
 // DEV ONLY — jamais monté lorsque NODE_ENV=production, même si une variable
 // REFUGE_DEV_TIME_TRAVEL oubliée reste définie sur l'hébergement.

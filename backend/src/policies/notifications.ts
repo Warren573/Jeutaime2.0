@@ -264,7 +264,7 @@ export function buildNotificationMessage(type: NotificationType, ctx?: Notificat
     case NotificationType.REFUGE_ADOPTION_CONFIRMED:
       return "Tu as adopté un compagnon. Votre aventure de sept jours commence.";
     case NotificationType.REFUGE_FINAL_REPORT:
-      return "Le bilan de votre aventure est prêt. Vous pourrez ensuite choisir de vous dévoiler.";
+      return "Le bilan de votre aventure est prêt.";
     case NotificationType.REFUGE_REVEAL_PHASE:
       return "Ton refuge arrive à son terme : choisis de te dévoiler ou non";
     case NotificationType.REFUGE_REVEALED:

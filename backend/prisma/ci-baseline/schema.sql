@@ -741,6 +741,8 @@ CREATE TABLE "RefugeSession" (
     "finalizedAt" TIMESTAMP(3),
     "adopteFinalBonus" INTEGER NOT NULL DEFAULT 0,
     "adoptantFinalBonus" INTEGER NOT NULL DEFAULT 0,
+    "adopteArchivedAt" TIMESTAMP(3),
+    "adoptantArchivedAt" TIMESTAMP(3),
     "attentionDay" INTEGER,
     "attentionKind" "RefugeAttentionKind",
     "attentionAt" TIMESTAMP(3),

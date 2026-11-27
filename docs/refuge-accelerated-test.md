@@ -25,7 +25,7 @@ Chaque exécution (inventaire, simulation ou réelle) se connecte à Neon avec l
 - Comptes : adresses `testuser2` à `testuser11@jeutaime.test` uniquement, rôle `USER`, non suspendus (le compte d'administration `testuser4` est refusé).
 - Adoption en cours préservée : tout compte participant d'un Refuge ouvert est refusé pour `adopt` ; les sessions listées dans `protect_session_codes` sont intouchables ; chaque étape après `adopt` exige le code de la session (6 caractères) et vérifie le couple.
 - Une étape ne s'exécute qu'une fois et dans l'ordre. Aucune suppression, aucune réinitialisation, aucun autre compte.
-- Le dévoilement n'est proposé qu'après 168 h : l'étape `day-7` vérifie qu'il ne l'est pas, `fast-forward` est la seule étape qui franchit les 168 h.
+- Le dévoilement est AUTOMATIQUE à l'issue des 168 h (plus de consentement) ; il n'a jamais lieu avant : l'étape `day-7` vérifie qu'il ne l'est pas, `fast-forward` est la seule étape qui franchit les 168 h.
 
 ## Déroulé (une exécution = une pause pour vérifier sur l'iPhone)
 
@@ -36,16 +36,16 @@ Chaque exécution (inventaire, simulation ou réelle) se connecte à Neon avec l
 | `days-4-6` | Jours 4 à 6 joués, session placée au début du jour 7 | Absences, points |
 | `day-7` | Jour 7 joué (session au jour 7) | **Aucun dévoilement proposé** |
 | `fast-forward` | 168 h écoulées : règlement final | **Fenêtre de fin**, bilan, bonus |
-| `decision` | `none` : tu décides sur l'iPhone ; `scenario` : le script applique | Dévoilement mutuel ou refus ; le Refuge actif disparaît après un refus |
+| `decision` | `none` : tu quittes l'écran de fin sur l'iPhone ; `scenario` : le script archive pour les deux | Sortie de l'écran de fin : le Refuge de chaque participant est libéré, le bilan, les pièces et le match restent |
 | `status` | Lecture seule | — |
 
 ## Valeurs attendues
 
 | Scénario | Compagnon | Parrain / marraine | Fin |
 |---|---|---|---|
-| S1 parcours parfait | 70 + 100 = 170 pièces, 0 point | 170 pièces, 0 point | dévoilement mutuel accepté |
-| S2 incomplet | 50 pièces, −10 points | 40 pièces, −10 points | refus (compagnon) |
-| S3 7/7 sans 14/14 | 70 + 50 = 120 pièces, 0 point | 120 pièces, 0 point | compagnon accepte, parrain refuse |
+| S1 parcours parfait | 70 + 100 = 170 pièces, 0 point | 170 pièces, 0 point | dévoilement automatique + match |
+| S2 incomplet | 50 pièces, −10 points | 40 pièces, −10 points | dévoilement automatique + match |
+| S3 7/7 sans 14/14 | 70 + 50 = 120 pièces, 0 point | 120 pièces, 0 point | dévoilement automatique + match |
 
 ## Précautions
 

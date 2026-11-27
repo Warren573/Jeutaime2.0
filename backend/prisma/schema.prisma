@@ -1218,6 +1218,11 @@ model RefugeSession {
   adopteFinalBonus    Int       @default(0)
   adoptantFinalBonus  Int       @default(0)
 
+  // Archivage PAR PARTICIPANT : posé quand la personne quitte l'écran de fin (bilan puis « Une nouvelle histoire commence »).
+  // La session reste intacte (bilan, récompenses, match) ; seul le Refuge de cette personne est libéré, indépendamment de l'autre.
+  adopteArchivedAt   DateTime?
+  adoptantArchivedAt DateTime?
+
   // Petite attention du jour (une seule par jour, avant la validation du compagnon) : dernier envoi uniquement.
   attentionDay  Int?
   attentionKind RefugeAttentionKind?

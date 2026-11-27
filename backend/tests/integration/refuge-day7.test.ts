@@ -23,7 +23,7 @@ async function mk(tag: string, startedAgoMs: number, opts: { choices?: number[];
 const brief = (v: any) => ({ currentDay: v.currentDay, status: v.status, isActive: v.isActive, canAttemptToday: v.canAttemptToday, todaySubmitted: v.todaySubmitted, adopteSubmittedToday: v.adopteSubmittedToday, timeRemaining: v.timeRemaining, animation: v.animation });
 const attempt = async (f: () => Promise<unknown>) => { try { await f(); return "OK"; } catch (e: any) { return `${e.constructor.name} ${e.statusCode ?? ""} « ${e.message} »`; } };
 
-afterAll(async () => { await prisma.user.deleteMany({ where: { id: { in: users } } }); await prisma.$disconnect(); });
+afterAll(async () => { await prisma.match.deleteMany({ where: { OR: [{ userAId: { in: users } }, { userBId: { in: users } }] } }); await prisma.reaction.deleteMany({ where: { OR: [{ fromId: { in: users } }, { toId: { in: users } }] } }); await prisma.user.deleteMany({ where: { id: { in: users } } }); await prisma.$disconnect(); });
 
 const test = process.env.TEST_DATABASE_URL ? it : it.skip;
 const NOURRIR_CARESSER = { guessedAction1: "NOURRIR", guessedAction2: "CARESSER", foodChoice: "fish" } as never;

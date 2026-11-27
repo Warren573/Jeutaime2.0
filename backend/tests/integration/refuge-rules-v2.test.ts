@@ -50,7 +50,7 @@ async function playDay(x: { c: string; s: string; sid: string }, day: number, ok
   await RefugeService.submitGuess(x.sid, x.s, day, guess(ok));
 }
 
-afterAll(async () => { await prisma.user.deleteMany({ where: { id: { in: created } } }); await prisma.$disconnect(); });
+afterAll(async () => { await prisma.match.deleteMany({ where: { OR: [{ userAId: { in: created } }, { userBId: { in: created } }] } }); await prisma.reaction.deleteMany({ where: { OR: [{ fromId: { in: created } }, { toId: { in: created } }] } }); await prisma.user.deleteMany({ where: { id: { in: created } } }); await prisma.$disconnect(); });
 
 describe("Refuge v2 — cycle complet de sept jours (PostgreSQL)", () => {
   test("parcours parfait 14/14 : 10 pièces par jour + 100 chacun = 170, bonus unique même sous lectures simultanées", async () => {
@@ -69,7 +69,8 @@ describe("Refuge v2 — cycle complet de sept jours (PostgreSQL)", () => {
       expect(await score(u)).toBe(0);
     }
     const sess = await prisma.refugeSession.findUniqueOrThrow({ where: { id: x.sid } });
-    expect(sess.status).toBe("AWAITING_REVEAL_CONSENT");
+    expect(sess.status).toBe("REVEALED"); // dévoilement automatique à l'issue des 168 h
+    expect(sess.revealedAt).not.toBeNull();
     expect(sess.finalizedAt).not.toBeNull();
     expect([sess.adopteFinalBonus, sess.adoptantFinalBonus]).toEqual([100, 100]);
     expect(await prisma.refugeDayResult.count({ where: { refugeSessionId: x.sid } })).toBe(7);
@@ -167,7 +168,7 @@ describe("Refuge v2 — cycle complet de sept jours (PostgreSQL)", () => {
     expect((await prisma.refugeSession.findUniqueOrThrow({ where: { id: x.sid } })).adoptantConsultMask).toBe(0b10010);
   }, 60000);
 
-  test("dévoilement : JAMAIS avant 168 h (jour 7 terminé inclus) ; ensuite proposé même si personne n'a participé", async () => {
+  test("dévoilement : JAMAIS avant 168 h (jour 7 terminé inclus) ; ensuite automatique même si personne n'a participé", async () => {
     const x = await pair("reveal");
     for (let d = 1; d <= 7; d++) await playDay(x, d, true);
     const early: any = await RefugeService.getRefugeSession(x.sid, x.c);
@@ -179,7 +180,7 @@ describe("Refuge v2 — cycle complet de sept jours (PostgreSQL)", () => {
     const y = await pair("nobody"); // aucune participation
     await expire(y.sid);
     const late: any = await RefugeService.getRefugeSession(y.sid, y.c);
-    expect(late.status).toBe("AWAITING_REVEAL_CONSENT");
+    expect(late.status).toBe("REVEALED"); // automatique, même si personne n'a participé
     expect(late.reveal.available).toBe(true);
     expect(await score(y.c)).toBe(-35); // sept jours d'absence des deux : −35 chacun, aucun plafond
     expect(await score(y.s)).toBe(-35);

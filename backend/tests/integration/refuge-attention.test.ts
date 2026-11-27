@@ -25,7 +25,7 @@ const settle = () => new Promise((r) => setTimeout(r, 500));
 const rows = (u: string) => prisma.notification.findMany({ where: { userId: u, type: "REFUGE_ATTENTION" as never } });
 const attempt = async (f: () => Promise<unknown>) => { try { await f(); return "OK"; } catch (e: any) { return `${e.statusCode} ${e.message}`; } };
 
-afterAll(async () => { await prisma.user.deleteMany({ where: { id: { in: created } } }); await prisma.$disconnect(); });
+afterAll(async () => { await prisma.match.deleteMany({ where: { OR: [{ userAId: { in: created } }, { userBId: { in: created } }] } }); await prisma.reaction.deleteMany({ where: { OR: [{ fromId: { in: created } }, { toId: { in: created } }] } }); await prisma.user.deleteMany({ where: { id: { in: created } } }); await prisma.$disconnect(); });
 
 describe("Refuge — petites attentions (PostgreSQL)", () => {
   test("une seule attention par jour, même sous 10 requêtes simultanées ; une seule notification, texte selon geste et genre", async () => {
