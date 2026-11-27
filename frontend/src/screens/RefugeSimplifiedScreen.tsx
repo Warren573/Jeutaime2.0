@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Image, ImageBackground, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { AnimalIllustration } from '../components/AnimalIllustration';
@@ -143,7 +143,7 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentInsetAdjustmentBehavior="never" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} bounces={false}>
+      <View style={styles.scroll}>
         <ImageBackground source={REFUGE_BACKGROUND} resizeMode="cover" style={[styles.scene, { width: artWidth, height: artHeight + insets.bottom }]} imageStyle={styles.backgroundImage}>
           <View style={{ height: artHeight }}>
           <AppBackButton style={styles.back} onPress={() => router.back()} />
@@ -175,14 +175,14 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
           <View style={styles.status}><View style={styles.tape}/><Text style={styles.statusTitle}>{statusTitle}</Text>{!!statusBody&&<Text style={styles.statusBody}>{statusBody}</Text>}{!!errorText&&<Text accessibilityRole="alert" style={styles.statusError}>{errorText}</Text>}{!isWaiting&&selected.length===2&&!disabled&&(!feeding||!!chosenFood)&&<TouchableOpacity style={styles.validate} onPress={submit}><Text style={styles.validateText}>{isSubmitting?'Envoi…':'Valider mes 2 choix'}</Text></TouchableOpacity>}</View>
           </View>
         </ImageBackground>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const parchment='#E8CFA6', ink='#4A2B1C', burgundy='#8A2F3C';
 const styles=StyleSheet.create({
-  container:{flex:1,backgroundColor:'#F3E8D6'},scroll:{flexGrow:1,alignItems:'center',justifyContent:'flex-start'},scene:{position:'relative',overflow:'visible',marginBottom:60},backgroundImage:{width:'100%',height:'100%'},
+  container:{flex:1,backgroundColor:'#F3E8D6'},scroll:{flex:1,alignItems:'center',justifyContent:'flex-start',overflow:'hidden'},scene:{position:'relative',overflow:'hidden'},backgroundImage:{width:'100%',height:'100%'},
   back:{position:'absolute',top:'4%',left:'4%',zIndex:22},titleBlock:{position:'absolute',top:'3.3%',left:'25%',width:'60%',alignItems:'center',zIndex:22},title:{color:burgundy,fontFamily:'Georgia',fontSize:30},subtitle:{color:ink,fontFamily:'Georgia',fontSize:10.5,marginTop:5,textAlign:'center'},
   calendar:{position:'absolute',top:'17%',left:'29%',width:'42%',height:'12%',backgroundColor:parchment,borderWidth:1,borderColor:'#AE8458',borderRadius:12,paddingHorizontal:11,paddingTop:15,zIndex:10,shadowColor:'#231308',shadowOpacity:.3,shadowRadius:4,shadowOffset:{width:0,height:3}},rings:{position:'absolute',top:-7,left:10,right:10,flexDirection:'row',justifyContent:'space-between'},ring:{width:4,height:15,borderRadius:4,borderWidth:2,borderColor:'#4A3525',backgroundColor:'#B78A57'},calendarTitle:{textAlign:'center',color:ink,fontFamily:'Georgia',fontSize:15,marginBottom:4},days:{flexDirection:'row',justifyContent:'space-between'},day:{flex:1,alignItems:'center'},dayNumber:{color:ink,fontFamily:'Georgia',fontSize:12,fontWeight:'600'},today:{color:burgundy,fontWeight:'900'},heart:{color:'#9E876C',fontSize:15},heartFull:{color:burgundy},dayCaption:{color:'#6E4B32',fontFamily:'Georgia',fontStyle:'italic',fontSize:9,textAlign:'right',marginTop:0},
   animal:{position:'absolute',top:'40%',left:0,right:0,alignItems:'center',zIndex:12},actions:{position:'absolute',top:'73%',left:'6.5%',width:'87%',height:'9.5%',flexDirection:'row',justifyContent:'space-between',zIndex:16},dayDone:{position:'absolute',top:'73%',left:'10%',width:'80%',minHeight:'10.5%',backgroundColor:'rgba(239,211,167,.95)',borderWidth:1,borderColor:'#A77746',borderRadius:12,alignItems:'center',justifyContent:'center',paddingHorizontal:18,paddingVertical:12,zIndex:16,shadowColor:'#261407',shadowOpacity:.22,shadowRadius:3,shadowOffset:{width:0,height:2}},dayDoneTitle:{color:burgundy,fontFamily:'Georgia',fontSize:17,fontWeight:'700',textAlign:'center',marginBottom:5},dayDoneText:{color:ink,fontFamily:'Georgia',fontSize:10.5,lineHeight:14,textAlign:'center'},tag:{width:'23%',height:'100%',backgroundColor:'rgba(239,211,167,.94)',borderWidth:1,borderColor:'#A77746',borderRadius:12,alignItems:'center',justifyContent:'center',paddingTop:0,shadowColor:'#261407',shadowOpacity:.25,shadowRadius:3,shadowOffset:{width:0,height:2}},tagActive:{borderWidth:3,borderColor:burgundy,backgroundColor:'#EACBA0'},tagDisabled:{opacity:.72},attention:{width:'31.5%'},attentionText:{color:burgundy,fontFamily:'Georgia',fontWeight:'700',fontSize:12,lineHeight:16,textAlign:'center',paddingHorizontal:4},string:{position:'absolute',top:-10,width:2,height:15,backgroundColor:'#6B4B30'},hole:{position:'absolute',top:3,width:7,height:7,borderRadius:7,borderWidth:2,borderColor:'#7A5332',backgroundColor:'#BA966A'},paw:{width:30,height:30,alignItems:'center',justifyContent:'center',marginBottom:3},pawToes:{flexDirection:'row',gap:2},pawToe:{width:6,height:9,borderRadius:5,borderWidth:1.5,borderColor:burgundy},pawPad:{width:17,height:13,borderRadius:8,borderWidth:1.5,borderColor:burgundy,marginTop:1},mark:{color:burgundy,fontFamily:'Georgia',fontSize:28,marginBottom:3},markActive:{color:burgundy},tagTitle:{color:ink,fontFamily:'Georgia',fontSize:13,fontWeight:'700',textAlign:'center'},
