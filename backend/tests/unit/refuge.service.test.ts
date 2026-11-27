@@ -271,6 +271,25 @@ describe("RefugeService.adoptRefuge", () => {
     expect(prisma.refugeSession.updateMany).not.toHaveBeenCalled();
   });
 
+  it("rejects a second adventure between the same two people, in either direction, before claiming", async () => {
+    mockAdoptant();
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(waitingSession());
+    (prisma.refugeSession.findFirst as any)
+      .mockResolvedValueOnce(null) // pas de refuge actif en tant qu'Adoptant
+      .mockResolvedValueOnce(null) // pas de refuge ouvert en tant qu'Adopté
+      .mockResolvedValueOnce({ id: "old-session" }); // une aventure déjà vécue entre ces deux personnes
+    await expect(RefugeService.adoptRefuge(adoptantId, sessionId)).rejects.toBeInstanceOf(ConflictError);
+    expect(prisma.refugeSession.updateMany).not.toHaveBeenCalled();
+    expect(notifyEvent).not.toHaveBeenCalled();
+
+    // La recherche couvre les deux sens du duo
+    const pairWhere = (prisma.refugeSession.findFirst as any).mock.calls[2][0].where;
+    expect(pairWhere.OR).toEqual([
+      { adopteId, adoptantId },
+      { adopteId: adoptantId, adoptantId: adopteId },
+    ]);
+  });
+
   it("claims the refuge atomically and realigns endsAt on startedAt + 7 days", async () => {
     mockAdoptant();
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(waitingSession());
@@ -346,6 +365,41 @@ describe("RefugeService.adoptRefuge", () => {
       status: "WAITING_FOR_ADOPTANT",
       startedAt: null,
     });
+  });
+});
+
+// ============================================================
+// getAvailableRefuges
+// ============================================================
+
+describe("RefugeService.getAvailableRefuges", () => {
+  it("excludes the user and every person they already shared an adventure with, in either role", async () => {
+    // Ancienne aventure : "past-companion" était le compagnon de l'utilisateur ; "past-sponsor" son parrain
+    (prisma.refugeSession.findMany as any)
+      .mockResolvedValueOnce([
+        { adopteId: "past-companion", adoptantId: adoptantId },
+        { adopteId: adoptantId, adoptantId: "past-sponsor" },
+      ])
+      .mockResolvedValueOnce([]);
+
+    await RefugeService.getAvailableRefuges(adoptantId, "FEMME");
+
+    const sharedArgs = (prisma.refugeSession.findMany as any).mock.calls[0][0];
+    expect(sharedArgs.where.OR).toEqual([
+      { adopteId: adoptantId, adoptantId: { not: null } },
+      { adoptantId: adoptantId },
+    ]);
+
+    const listArgs = (prisma.refugeSession.findMany as any).mock.calls[1][0];
+    expect(listArgs.where.status).toBe("WAITING_FOR_ADOPTANT");
+    expect([...listArgs.where.adopteId.notIn].sort()).toEqual([adoptantId, "past-companion", "past-sponsor"].sort());
+  });
+
+  it("still excludes only the user when there is no shared history", async () => {
+    (prisma.refugeSession.findMany as any).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    await RefugeService.getAvailableRefuges(adoptantId);
+    const listArgs = (prisma.refugeSession.findMany as any).mock.calls[1][0];
+    expect(listArgs.where.adopteId.notIn).toEqual([adoptantId]);
   });
 });
 
