@@ -15,6 +15,7 @@ import { useRefugeAttentionReaction } from '../hooks/useRefugeAttentionReaction'
 import { ATTENTIONS, actionZone } from '../data/refugeAttention';
 import { isEndScreenStatus } from '../data/refugeFinalReport';
 import { RefugeEndScreen } from '../components/RefugeEndScreen';
+import { refugeApi } from '../api/refuge-api';
 import { sessionEndNotice, refugeErrorText } from '../data/refugeSessionState';
 
 import { ANIMAL_FOODS, BOWL_IMAGES, FOOD_LABELS, type RefugeFood } from '../data/refugeBowls';
@@ -86,26 +87,28 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
 
   if (refuge.isLoading) return <SafeAreaView style={styles.loading}><ActivityIndicator /><Text>Chargement du refuge…</Text></SafeAreaView>;
 
-  // Fin de l'aventure (168 h écoulées) : bilan des sept jours, puis dévoilement. Jamais avant l'expiration (serveur et écran).
+  // Sortie de l'écran de fin : l'aventure est archivée POUR CETTE PERSONNE (son Refuge est libéré), puis on navigue.
+  // Un échec d'archivage (réseau, ancien serveur) ne bloque jamais la sortie : l'archivage est idempotent et sera retenté.
+  const leaveEnd = (archive: boolean, go: () => void) => {
+    if (!archive) { go(); return; }
+    void refugeApi.archiveSession(sessionIdProp).catch(() => undefined).finally(go);
+  };
+
+  // Fin de l'aventure (168 h écoulées) : bilan des sept jours, puis « Une nouvelle histoire commence » (dévoilement automatique). Jamais avant l'expiration (serveur).
   if (isEndScreenStatus(refuge.status)) {
     return (
       <RefugeEndScreen
         report={refuge.finalReport}
         status={refuge.status}
-        endsAt={refuge.endsAt}
-        serverOffsetMs={refuge.serverOffsetMs}
         sessionId={sessionIdProp}
         currentUserId={userId ?? null}
-        onBack={() => router.replace('/(tabs)')}
-        reveal={refuge.reveal ?? { available: false, myDecision: null, otherDecided: false, revealedAt: null }}
+        onBack={(archive) => leaveEnd(archive, () => router.replace('/(tabs)'))}
         revealProps={{
           otherProfile: refuge.otherProfile ?? null,
           revealMatch: refuge.revealMatch ?? null,
-          isSubmitting,
-          onDecision: async (decision) => { setIsSubmitting(true); try { await refuge.submitRevealConsent(decision); } finally { setIsSubmitting(false); } },
           onViewProfile: (id) => router.push(`/profile/${id}` as never),
-          onNavigate: (route) => router.push(route as never),
-          onExit: () => router.replace('/(tabs)'),
+          onNavigate: (route) => leaveEnd(true, () => router.push(route as never)),
+          onExit: () => leaveEnd(true, () => router.replace('/(tabs)')),
           animalType: refuge.companion?.animalType,
         }}
       />
