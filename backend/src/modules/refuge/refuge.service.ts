@@ -545,7 +545,7 @@ export class RefugeService {
         where: { id: otherUserId },
         select: {
           id: true,
-          profile: { select: { pseudo: true, bio: true, city: true, birthDate: true, interests: true, avatarConfig: true } },
+          profile: { select: { pseudo: true, bio: true, city: true, birthDate: true, interests: true, avatarConfig: true, gender: true } },
           photos: {
             orderBy: [{ isPrimary: "desc" }, { position: "asc" }],
             take: 1,
@@ -567,6 +567,7 @@ export class RefugeService {
           interests: otherUser.profile?.interests ?? [],
           photoUrl: otherUser.photos[0] ? buildPhotoUrl(otherUser.photos[0].id, "blur") : null,
           avatarConfig: otherUser.profile?.avatarConfig ?? null,
+          gender: otherUser.profile?.gender ?? null,
         };
         // Match créé par le dévoilement mutuel (ou antérieur) : une seule lecture, uniquement dans cet état.
         const [x, y] = [refugeSession.adopteId, refugeSession.adoptantId].sort();

@@ -51,6 +51,7 @@ export interface RevealedProfile {
   photoUrl: string | null; // photo principale (variante publique du système Photos)
   /** Avatar du profil (même donnée publique que la découverte) : affiché à la place d'une silhouette générique. */
   avatarConfig: unknown | null;
+  gender: string | null;
 }
 
 /**
