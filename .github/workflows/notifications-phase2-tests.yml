@@ -100,6 +100,7 @@ jobs:
           tests/integration/refuge-rules-v2.test.ts
           tests/integration/refuge-attention.test.ts
           tests/integration/refuge-final-report.test.ts
+          tests/integration/refuge-reveal-match.test.ts
           tests/unit/refuge.testkit.test.ts
           tests/unit/refuge-testkit-safety.test.ts
           tests/integration/refuge-accelerated-test-tool.test.ts

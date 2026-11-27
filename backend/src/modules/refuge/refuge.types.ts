@@ -49,6 +49,21 @@ export interface RevealedProfile {
   age: number | null;
   interests: string[];
   photoUrl: string | null; // photo principale (variante publique du système Photos)
+  /** Avatar du profil (même donnée publique que la découverte) : affiché à la place d'une silhouette générique. */
+  avatarConfig: unknown | null;
+}
+
+/**
+ * Match créé automatiquement par le dévoilement mutuel (système de match existant), vu par un participant.
+ * `null` si aucun match n'existe (blocage, limite de matchs, compte indisponible : le dévoilement reste valide).
+ */
+export interface RevealMatchState {
+  matchId: string;
+  status: string;
+  /** Le jeu des 3 questions est déjà réussi. */
+  questionsValidated: boolean;
+  /** Des lettres ont déjà été échangées : la discussion est ouverte (match antérieur). */
+  discussionOpen: boolean;
 }
 
 // Résultat structuré d'une journée — renvoyé pour les 7 jours.
@@ -105,6 +120,7 @@ export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
   finalReport?: FinalReport | null;
   reveal?: RevealState; // Phase finale (présent dès que la session a un adoptant)
   otherProfile?: RevealedProfile | null; // Uniquement si status === REVEALED
+  revealMatch?: RevealMatchState | null; // Uniquement si status === REVEALED
 }
 
 // Entrée de l'historique des adoptions
