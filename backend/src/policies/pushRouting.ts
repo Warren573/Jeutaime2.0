@@ -78,6 +78,9 @@ export const PUSH_TYPE_CONFIG: Record<PushKind, PushTypeConfig> = {
   REFUGE_REVEAL_REFUSED: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
   REFUGE_EXPIRED: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
   REFUGE_ATTENTION: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
+  // Historique seulement (JAMAIS de push) : la confirmation d'adoption du parrain / de la marraine. Entrée documentaire.
+  REFUGE_ADOPTION_CONFIRMED: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
+  REFUGE_FINAL_REPORT: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
   REPORT_PROCESSED: { category: null, destination: "/user-reports", dataKeys: [] },
   ACCOUNT_RESTORED: { category: null, destination: null, dataKeys: [] },
   DAILY_EDITION: { category: "notifNews", destination: "/journal", dataKeys: [] },

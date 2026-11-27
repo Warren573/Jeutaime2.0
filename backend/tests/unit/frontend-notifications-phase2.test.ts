@@ -32,6 +32,8 @@ const CASES: Array<[string, Record<string, unknown>, string]> = [
   ["REFUGE_REVEAL_REFUSED", { refugeSessionId: "r1" }, "/refuge/r1"],
   ["REFUGE_EXPIRED", { refugeSessionId: "r1" }, "/refuge/r1"],
   ["REFUGE_ATTENTION", { refugeSessionId: "r1" }, "/refuge/r1"],
+  ["REFUGE_ADOPTION_CONFIRMED", { refugeSessionId: "r1" }, "/refuge/r1"],
+  ["REFUGE_FINAL_REPORT", { refugeSessionId: "r1" }, "/refuge/r1"],
   ["REPORT_PROCESSED", {}, "/user-reports"],
 ];
 
@@ -75,7 +77,7 @@ describe("identifiants absents ou piégés : repli sûr, aucune route libre", ()
       expect(getNotificationTarget(note(type, { duelId: bad })), String(bad)).toBeNull();
     }
   });
-  it.each(["REFUGE_ADOPTED", "REFUGE_REVEAL_PHASE", "REFUGE_REVEALED", "REFUGE_CHOICE_READY", "REFUGE_RESULT_READY", "REFUGE_DAY_RESULT", "REFUGE_NEW_DAY", "REFUGE_COINS", "REFUGE_REVEAL_REFUSED", "REFUGE_EXPIRED", "REFUGE_ATTENTION"])("%s sans identifiant valide → /refuge (jamais une route forgée)", (type) => {
+  it.each(["REFUGE_ADOPTED", "REFUGE_REVEAL_PHASE", "REFUGE_REVEALED", "REFUGE_CHOICE_READY", "REFUGE_RESULT_READY", "REFUGE_DAY_RESULT", "REFUGE_NEW_DAY", "REFUGE_COINS", "REFUGE_REVEAL_REFUSED", "REFUGE_EXPIRED", "REFUGE_ATTENTION", "REFUGE_ADOPTION_CONFIRMED", "REFUGE_FINAL_REPORT"])("%s sans identifiant valide → /refuge (jamais une route forgée)", (type) => {
     expect(resolvePushDestination({ type }).route).toBe("/refuge");
     for (const bad of EVIL) {
       expect(resolvePushDestination({ type, refugeSessionId: bad }).route, String(bad)).toBe("/refuge");

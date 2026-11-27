@@ -250,3 +250,20 @@ describe("« Ne m'oublie pas ! » — petite attention du parrain / de la marrai
     expect(sent()).toEqual([{ recipientId: C, actorId: P, type: "REFUGE_ATTENTION", meta: { refugeSessionId: S }, dedupeKey: `refuge-attention:${S}:2`, textContext: { sponsorGender: "HOMME", attentionKind: "CARESSE" } }]);
   });
 });
+
+describe("fin d'aventure et confirmation d'adoption (règles v2)", () => {
+  it("fin : UNE notification par participant, même clé, jamais l'auteur d'une action (événement système)", async () => {
+    await N.notifyFinalReport({ refugeSessionId: S, companionId: C, sponsorId: P });
+    const calls = sent();
+    expect(calls.map((c: any) => c.type)).toEqual(["REFUGE_FINAL_REPORT", "REFUGE_FINAL_REPORT"]);
+    expect(calls.map((c: any) => c.recipientId).sort()).toEqual([C, P].sort());
+    expect(calls.every((c: any) => c.dedupeKey === `refuge-final-report:${S}` && !("actorId" in c))).toBe(true);
+  });
+  it("texte de fin : bilan puis dévoilement, aucune identité", () => {
+    const text = buildNotificationMessage((NotificationType as any).REFUGE_FINAL_REPORT);
+    expect(text).toBe("Le bilan de votre aventure est prêt. Vous pourrez ensuite choisir de vous dévoiler.");
+  });
+  it("confirmation d'adoption : texte du parrain / de la marraine, historique seulement", () => {
+    expect(buildNotificationMessage((NotificationType as any).REFUGE_ADOPTION_CONFIRMED)).toBe("Tu as adopté un compagnon. Votre aventure de sept jours commence.");
+  });
+});

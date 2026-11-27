@@ -60,6 +60,8 @@ export interface RefugeSession {
   canAdvanceDay?: boolean;
   finalConsentAvailable?: boolean;
   // Petite attention du jour (jour courant) : visible des deux participants, sans identité
+  // Bilan final (règles v2) : sept journées vues par moi, sans aucune identité
+  finalReport?: import("../data/refugeFinalReport").FinalReportData | null;
   attention?: { kind: "GRATTER_TETE" | "CARESSE" | "BONJOUR"; sentAt: string } | null;
   // Le parrain / la marraine peut encore envoyer une attention aujourd'hui
   canSendAttention?: boolean;

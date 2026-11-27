@@ -109,3 +109,31 @@ describe("Refuge v2 — règlement final (pur)", () => {
     expect(capBonus(170, 50)).toBe(0);
   });
 });
+
+import { buildFinalReport } from "../../src/modules/refuge/refuge.rules";
+const SYMBOLS = { PERFECT: "❤️", PARTIAL: "♡", FAILED: "❌", OPEN: "🤍", NOT_PLAYED: "—", INCOMPLETE_ADOPTE_MISSING: "⚠️", INCOMPLETE_ADOPTANT_MISSING: "⚠️" };
+describe("Refuge v2 — bilan final vu par un participant", () => {
+  it("parcours parfait : sept cœurs, 14/14, 170 pièces, aucune pénalité, mêmes chiffres pour les deux", () => {
+    const rows = week();
+    for (const role of ["adopte", "adoptant"] as const) {
+      const r = buildFinalReport(rows, role, 100, SYMBOLS);
+      expect(r.days.map((d) => d.symbol)).toEqual(Array(7).fill("❤️"));
+      expect(r).toMatchObject({ participationDays: 7, perfectDays: 7, correctActions: 14, perfectCourse: true, dailyCoins: 70, finalBonus: 100, bonusTier: "perfect", totalCoins: 170, penaltyPoints: 0 });
+    }
+  });
+  it("chaque participant voit SES pièces, SON assiduité et SES points", () => {
+    const rows = week((d) => (d === 3 ? { status: "INCOMPLETE_ADOPTE_MISSING", matchCount: null, adopteAssiduous: false, adopteScoreDelta: -5 } : {}));
+    const comp = buildFinalReport(rows, "adopte", 0, SYMBOLS);
+    const spon = buildFinalReport(rows, "adoptant", 50, SYMBOLS);
+    expect(comp.days[2]).toMatchObject({ assiduous: false, coins: 0, points: -5, symbol: "⚠️", matches: null });
+    expect(spon.days[2]).toMatchObject({ assiduous: true, coins: 10, points: 0 });
+    expect([comp.participationDays, comp.totalCoins, comp.penaltyPoints, comp.bonusTier]).toEqual([6, 60, -5, null]);
+    expect([spon.participationDays, spon.totalCoins, spon.penaltyPoints, spon.bonusTier]).toEqual([7, 120, 0, "assiduity"]);
+  });
+  it("jours absents des données : traités comme ouverts, jamais d'erreur ; aucune identité dans le bilan", () => {
+    const r = buildFinalReport([row(1)], "adopte", 0, SYMBOLS);
+    expect(r.days).toHaveLength(7);
+    expect(r.days[6]).toMatchObject({ status: "OPEN", symbol: "🤍", assiduous: false, coins: 0 });
+    expect(JSON.stringify(r)).not.toMatch(/pseudo|userId|email/i);
+  });
+});

@@ -1121,9 +1121,11 @@ describe("RefugeService progression partagée", () => {
 
   it("expired session without day 7 played never reaches the final phase", async () => {
     const startedAt = new Date(Date.now() - 9 * DAY_MS);
-    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
-      activeSession({ startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY_MS) })
-    );
+    const expiredActive = activeSession({ startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY_MS) });
+    (prisma.refugeSession.findUnique as any)
+      .mockResolvedValueOnce(expiredActive)
+      .mockResolvedValueOnce(null) // closePastDays (no-op)
+      .mockResolvedValueOnce({ ...expiredActive, status: "ABANDONED" }); // relecture après la clôture
 
     const result = await RefugeService.getRefugeSession(sessionId, adopteId);
 
@@ -1478,7 +1480,10 @@ describe("RefugeService.closeExpiredSession", () => {
 
   it("lecture d'une session expirée : statut clôturé renvoyé, aucune trace de présence écrite, aucune pièce", async () => {
     (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 });
-    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(expired());
+    (prisma.refugeSession.findUnique as any)
+      .mockResolvedValueOnce(expired())
+      .mockResolvedValueOnce(null) // closePastDays (no-op)
+      .mockResolvedValueOnce({ ...expired(), status: "ABANDONED" }); // relecture après la clôture
     const view: any = await RefugeService.getRefugeSession(sessionId, adoptantId);
     expect(view.status).toBe("ABANDONED");
     expect(view.isActive).toBe(false);

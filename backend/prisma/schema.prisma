@@ -170,6 +170,10 @@ enum NotificationType {
 
   // Refuge : petite attention du parrain / de la marraine (« Ne m'oublie pas ! »)
   REFUGE_ATTENTION
+
+  // Refuge : confirmation d'adoption (historique du parrain / de la marraine, sans push) et bilan final des sept jours
+  REFUGE_ADOPTION_CONFIRMED
+  REFUGE_FINAL_REPORT
 }
 
 enum ReactionType {

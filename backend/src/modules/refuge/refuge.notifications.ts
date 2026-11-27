@@ -1,5 +1,6 @@
 import { NotificationType } from "@prisma/client";
 import { notifyEvent } from "../notifications/notify.service";
+import { createNotification } from "../notifications/notifications.service";
 
 /**
  * Notifications du Refuge — UN seul endroit décrit qui est prévenu, quand, avec quelle clé anti-doublon.
@@ -96,6 +97,36 @@ export function notifyAttention(a: {
     dedupeKey: `refuge-attention:${a.refugeSessionId}:${a.dayNumber}`,
     textContext: { sponsorGender: a.sponsorGender, attentionKind: a.kind },
   });
+}
+
+/**
+ * Confirmation d'adoption → ligne d'HISTORIQUE du parrain / de la marraine, SANS push (la fenêtre locale juste après
+ * l'adoption suffit). Passe par createNotification (jamais notifyEvent, qui envoie toujours un push). Une seule ligne par
+ * session (clé unique) ; ne lève jamais.
+ */
+export async function recordAdoptionConfirmed(a: { refugeSessionId: string; sponsorId: string }): Promise<void> {
+  try {
+    await createNotification({
+      userId: a.sponsorId,
+      type: NotificationType.REFUGE_ADOPTION_CONFIRMED,
+      meta: meta(a.refugeSessionId),
+      dedupeKey: `refuge-adoption-confirmed:${a.refugeSessionId}`,
+    });
+  } catch {
+    // Doublon (clé unique) ou base indisponible : l'adoption elle-même n'est jamais affectée.
+  }
+}
+
+/**
+ * Fin de l'aventure (168 h écoulées, règles v2) → UNE notification pour chaque participant, qui donne accès au bilan puis au
+ * dévoilement. Remplace « dévoilement » et « expiration » : jamais deux fenêtres pour la même fin. Une clé par session.
+ */
+export function notifyFinalReport(a: { refugeSessionId: string; companionId: string; sponsorId: string }) {
+  const base = { type: NotificationType.REFUGE_FINAL_REPORT, meta: meta(a.refugeSessionId), dedupeKey: `refuge-final-report:${a.refugeSessionId}` };
+  return Promise.all([
+    notifyEvent({ ...base, recipientId: a.companionId, counterpartId: a.sponsorId }),
+    notifyEvent({ ...base, recipientId: a.sponsorId, counterpartId: a.companionId }),
+  ]);
 }
 
 /** Les sept jours (168 h) sont écoulés : le dévoilement est proposé aux DEUX participants, une seule fois par session. */
