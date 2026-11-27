@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isAtLeastYearsOld } from "../../core/utils/dateUtils";
 
 const StrongPasswordSchema = z
   .string()
@@ -25,10 +26,9 @@ export const RegisterSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}/, "Date invalide (format: YYYY-MM-DD)")
     .transform((d) => new Date(d))
-    .refine((d) => {
-      const age = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-      return age >= 18;
-    }, "Tu dois avoir au moins 18 ans pour t'inscrire"),
+    // 18 ans révolus au calendrier exact (UTC) : l'ancien calcul /365.25 acceptait un mineur à un jour de ses 18 ans
+    // (années bissextiles) et refusait un majeur le jour même de son anniversaire.
+    .refine((d) => isAtLeastYearsOld(d, 18), "Tu dois avoir au moins 18 ans pour t'inscrire"),
   gender: z.enum(["HOMME", "FEMME", "AUTRE"]),
   city: z.string().min(1, "Ville requise").max(100),
   postalCode: z.string().max(10).optional(),
