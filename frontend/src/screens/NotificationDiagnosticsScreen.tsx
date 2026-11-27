@@ -14,6 +14,7 @@ import {
   type Finding,
   type PermissionLike,
 } from '../data/pushDiagnostics';
+import { getForegroundDecisions } from '../data/foregroundDecisionLog';
 import { APP_COLORS, APP_RADIUS, APP_SPACING } from '../theme/appTheme';
 
 const ICON: Record<Finding['severity'], string> = { ok: '✓', warn: '⚠', error: '✕' };
@@ -195,6 +196,18 @@ export default function NotificationDiagnosticsScreen() {
                 ))}
               </View>
             ) : null}
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>5 · Dernières décisions d’affichage</Text>
+            <Text style={styles.small}>
+              Une ligne par notification reçue sur cet iPhone depuis l’ouverture de l’application (20 maximum). « bannière : oui » avec l’application « active » serait anormal.
+            </Text>
+            {getForegroundDecisions().length === 0 ? <Text style={styles.small}>Aucune notification reçue pour l’instant.</Text> : null}
+            {getForegroundDecisions().map((d, i) => (
+              <Text key={i} style={styles.small}>
+                {new Date(d.at).toLocaleTimeString('fr-FR')} · {d.source === 'annonce' ? 'annonce interne' : 'iOS'} · {d.type} · app {d.appState} · {d.path} · bannière : {d.banner ? 'OUI' : 'non'}{d.announced === null ? '' : ` · fenêtre interne : ${d.announced ? 'oui' : 'non'}`} — {d.reason}
+              </Text>
+            ))}
           </View>
         </ScrollView>
       )}

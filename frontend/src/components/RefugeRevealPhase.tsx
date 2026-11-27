@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, Animated, Modal, Image } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BouncyButton } from "./BouncyButton";
-import { sendReaction } from "../api/reactions";
-import { API_URL, ApiError } from "../api/client";
+import { Avatar } from "../avatar/png/Avatar";
+import { resolveAvatarConfig } from "../avatar/resolveAvatarConfig";
 import { getAnimalEmoji } from "../data/refugeAnimals";
 import { getAnimalImage } from "../data/refugeAnimalImages";
+import { questionsRoute, type EndView, type RevealMatchInfo } from "../data/refugeEndFlow";
 
 interface RevealStateProps {
   available: boolean;
@@ -14,7 +15,7 @@ interface RevealStateProps {
   revealedAt: string | null;
 }
 
-interface OtherProfileProps {
+export interface OtherProfileProps {
   userId: string;
   pseudo: string;
   bio: string | null;
@@ -22,45 +23,69 @@ interface OtherProfileProps {
   age: number | null;
   interests: string[];
   photoUrl: string | null;
+  avatarConfig?: unknown | null;
+  gender?: string | null;
 }
 
 interface RefugeRevealPhaseProps {
   sessionId: string;
   currentUserId: string | null;
   status: string;
+  /** Vue à afficher, dérivée de l'état serveur (voir data/refugeEndFlow). */
+  view?: Extract<EndView, "proposal" | "waiting" | "revealed" | "ended" | "pending">;
   reveal: RevealStateProps;
   otherProfile: OtherProfileProps | null;
+  revealMatch?: RevealMatchInfo | null;
   isSubmitting: boolean;
   onDecision: (decision: "ACCEPT" | "REFUSE") => void;
   onViewProfile: (userId: string) => void;
+  /** Ouvre une route interne (jeu des 3 questions, lettres). */
+  onNavigate?: (route: string) => void;
+  /** Retour à l'accueil. */
   onExit: () => void;
+  /** « Revoir le bilan » : consultation volontaire. */
+  onReviewReport?: () => void;
   animalType?: string;
 }
 
+const cream = "#F6EEDC", beige = "#C9A97A", burgundy = "#8A2F3C", ink = "#4A2B1C";
+
+/** Avatar RÉEL du profil dévoilé (même résolution que partout ailleurs) — jamais la silhouette générique. */
+export function RevealedAvatar({ profile, size }: { profile: OtherProfileProps | null; size: number }) {
+  if (!profile) return null;
+  const { config } = resolveAvatarConfig(profile.userId, profile.avatarConfig, profile.gender, "RefugeReveal");
+  return (
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+      <Avatar size={size} {...(config as any)} />
+    </View>
+  );
+}
+
 /**
- * Phase finale du Refuge (jour 7 terminé).
- * États pilotés par le serveur — le frontend n'invente rien :
- * 1. Aucune décision de ma part → question + boutons Oui / Non
- * 2. J'ai accepté, l'autre n'a pas fini → attente
- * 3. COMPLETED (un refus) → fin propre, retour Social
- * 4. REVEALED (double accord) → animation UNE SEULE FOIS (flag persistant
- *    refugeRevealSeen:{sessionId}:{userId}) puis carte profil + suite JeuTaime
+ * Phase finale du Refuge (jour 7 terminé). Aucune logique de navigation ici : la vue est fournie par l'écran
+ * (état serveur). Règle : si les DEUX acceptent, les sourires réciproques et le match sont créés automatiquement par
+ * le serveur ; un refus n'envoie rien. L'utilisateur en est informé AVANT de répondre.
  */
 export function RefugeRevealPhase({
   sessionId,
   currentUserId,
   status,
+  view: viewProp,
   reveal,
   otherProfile,
+  revealMatch,
   isSubmitting,
   onDecision,
   onViewProfile,
+  onNavigate,
   onExit,
+  onReviewReport,
   animalType,
 }: RefugeRevealPhaseProps) {
+  // Écrans historiques sans vue fournie : même dérivation que l'écran de fin.
+  const view = viewProp ?? (status === "REVEALED" ? "revealed" : status === "COMPLETED" ? "ended" : reveal.myDecision === "ACCEPT" ? "waiting" : "proposal");
   // null = flag pas encore lu (ne rien décider avant), true/false ensuite
   const [revealSeen, setRevealSeen] = useState<boolean | null>(null);
-  const [smileStatus, setSmileStatus] = useState<"idle" | "sending" | "sent" | "mutual" | "already">("idle");
 
   const seenKey = `refugeRevealSeen:${sessionId}:${currentUserId ?? "anon"}`;
 
@@ -80,114 +105,114 @@ export function RefugeRevealPhase({
     AsyncStorage.setItem(seenKey, "1").catch(() => {});
   };
 
-  const handleSmile = async () => {
-    if (!otherProfile || smileStatus === "sending") return;
-    setSmileStatus("sending");
-    try {
-      const result = await sendReaction(otherProfile.userId, "SMILE");
-      setSmileStatus(result?.matchCreated ? "mutual" : "sent");
-    } catch (err: unknown) {
-      // 409 : réaction déjà enregistrée (contrainte unique du flux Sourire
-      // existant) — détection par statut HTTP, jamais par le texte du message.
-      setSmileStatus(err instanceof ApiError && err.status === 409 ? "already" : "idle");
-    }
-  };
+  const reviewButton = onReviewReport ? (
+    <BouncyButton style={styles.linkButton} onPress={onReviewReport}>
+      <Text style={styles.linkButtonText}>Revoir le bilan</Text>
+    </BouncyButton>
+  ) : null;
 
-  if (status === "REVEALED") {
+  if (view === "revealed") {
     if (revealSeen === null) {
       return <View style={styles.card} />; // flag en cours de lecture
     }
+    const playRoute = questionsRoute(revealMatch);
+    const hasActiveMatch = !!revealMatch && revealMatch.status === "ACTIVE";
     return (
       <View style={styles.card}>
         {!revealSeen && <RevealAnimation animalType={animalType} otherProfile={otherProfile} onFinished={markSeen} />}
 
-        <Text style={styles.title}>Vous avez choisi de vous découvrir.</Text>
+        <Text style={styles.headline}>Une nouvelle histoire commence</Text>
+        <Text style={styles.subtitle}>Vous avez choisi de vous découvrir.</Text>
 
         {otherProfile && (
-          <View style={styles.profileCard}>
-            {otherProfile.photoUrl ? (
-              <Image source={{ uri: `${API_URL.replace(/\/api$/, "")}${otherProfile.photoUrl}` }} style={styles.profilePhoto} />
-            ) : (
-              <View style={[styles.profilePhoto, styles.profilePhotoPlaceholder]}>
-                <Text style={styles.profilePhotoEmoji}>👤</Text>
-              </View>
-            )}
+          <View style={styles.profileBlock}>
+            <RevealedAvatar profile={otherProfile} size={104} />
             <Text style={styles.profilePseudo}>
               {otherProfile.pseudo}
               {otherProfile.age != null ? `, ${otherProfile.age} ans` : ""}
             </Text>
-            {otherProfile.city && <Text style={styles.profileCity}>{otherProfile.city}</Text>}
-            {otherProfile.bio && (
+            {otherProfile.bio ? (
               <Text style={styles.profileBio} numberOfLines={3}>
                 {otherProfile.bio}
               </Text>
-            )}
-            {otherProfile.interests.length > 0 && (
-              <View style={styles.interestsRow}>
-                {otherProfile.interests.slice(0, 4).map((interest) => (
-                  <View key={interest} style={styles.interestChip}>
-                    <Text style={styles.interestText}>{interest}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
+            ) : null}
           </View>
         )}
 
+        {hasActiveMatch && (
+          <View style={styles.matchBox}>
+            <Text style={styles.matchBoxTitle}>Vos sourires sont réciproques !</Text>
+            {playRoute && <Text style={styles.matchBoxText}>Place au jeu des 3 questions.</Text>}
+          </View>
+        )}
+
+        {playRoute && onNavigate && (
+          <BouncyButton style={styles.primaryButton} onPress={() => onNavigate(playRoute)}>
+            <Text style={styles.primaryButtonText}>Jouer aux 3 questions</Text>
+          </BouncyButton>
+        )}
+        {hasActiveMatch && !playRoute && onNavigate && (
+          <BouncyButton style={styles.primaryButton} onPress={() => onNavigate("/(tabs)/letters")}>
+            <Text style={styles.primaryButtonText}>Ouvrir vos lettres</Text>
+          </BouncyButton>
+        )}
         {otherProfile && (
-          <BouncyButton style={styles.primaryButton} onPress={() => onViewProfile(otherProfile.userId)}>
-            <Text style={styles.primaryButtonText}>Voir son profil</Text>
+          <BouncyButton style={styles.secondaryButton} onPress={() => onViewProfile(otherProfile.userId)}>
+            <Text style={styles.secondaryButtonText}>Voir son profil</Text>
           </BouncyButton>
         )}
-
-        {otherProfile && smileStatus !== "mutual" && smileStatus !== "sent" && smileStatus !== "already" && (
-          <BouncyButton
-            style={[styles.smileButton, smileStatus === "sending" && styles.buttonDisabled]}
-            onPress={handleSmile}
-            disabled={smileStatus === "sending"}
-          >
-            <Text style={styles.smileButtonText}>😊 Envoyer un Sourire</Text>
-          </BouncyButton>
-        )}
-        {smileStatus === "sent" && <Text style={styles.smileInfo}>😊 Sourire envoyé.</Text>}
-        {smileStatus === "already" && <Text style={styles.smileInfo}>😊 Sourire déjà envoyé.</Text>}
-        {smileStatus === "mutual" && (
-          <Text style={styles.smileInfo}>
-            💚 Sourire mutuel ! Le jeu des 3 questions vous attend dans vos Lettres.
-          </Text>
-        )}
-
-        <BouncyButton style={styles.exitButton} onPress={onExit}>
-          <Text style={styles.exitButtonText}>Retour vers Social</Text>
+        <BouncyButton style={styles.linkButton} onPress={onExit}>
+          <Text style={styles.linkButtonText}>Retour à l’accueil</Text>
         </BouncyButton>
+        {reviewButton}
       </View>
     );
   }
 
-  if (status === "COMPLETED") {
+  if (view === "ended") {
     return (
       <View style={styles.card}>
-        <Text style={styles.title}>Le Refuge se termine ici.</Text>
-        <BouncyButton style={styles.exitButton} onPress={onExit}>
-          <Text style={styles.exitButtonText}>Retour vers Social</Text>
+        <Text style={styles.headline}>Le Refuge se termine ici.</Text>
+        <Text style={styles.subtitle}>Aucun sourire n’a été envoyé.</Text>
+        <BouncyButton style={styles.primaryButton} onPress={onExit}>
+          <Text style={styles.primaryButtonText}>Retour à l’accueil</Text>
         </BouncyButton>
+        {reviewButton}
       </View>
     );
   }
 
-  if (reveal.myDecision === "ACCEPT") {
+  if (view === "waiting") {
     return (
       <View style={styles.card}>
-        <Text style={styles.title}>Ta décision est enregistrée.</Text>
+        <Text style={styles.headline}>Ta décision est enregistrée.</Text>
         <Text style={styles.subtitle}>En attente de la décision de l&apos;autre personne.</Text>
+        <Text style={styles.info}>Si vous acceptez tous les deux, vos sourires seront envoyés automatiquement.</Text>
+        <BouncyButton style={styles.secondaryButton} onPress={onExit}>
+          <Text style={styles.secondaryButtonText}>Retour à l’accueil</Text>
+        </BouncyButton>
+        {reviewButton}
       </View>
     );
   }
 
+  if (view === "pending") {
+    return (
+      <View style={styles.card}>
+        <Text style={styles.subtitle}>Le dévoilement sera proposé à la fin des sept jours.</Text>
+      </View>
+    );
+  }
+
+  // proposal
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Les 7 jours sont terminés.</Text>
+      <Text style={styles.headline}>Les 7 jours sont terminés.</Text>
       <Text style={styles.subtitle}>Souhaitez-vous dévoiler vos profils ?</Text>
+      <Text style={styles.info}>
+        Si vous acceptez tous les deux, vos sourires seront envoyés automatiquement et vous deviendrez un match.
+        Si l’un de vous refuse, aucun sourire n’est envoyé.
+      </Text>
       <View style={styles.buttonsRow}>
         <BouncyButton
           style={[styles.decisionButton, styles.acceptButton, isSubmitting && styles.buttonDisabled]}
@@ -204,6 +229,7 @@ export function RefugeRevealPhase({
           <Text style={styles.refuseButtonText}>Non, terminer ici</Text>
         </BouncyButton>
       </View>
+      {reviewButton}
     </View>
   );
 }
@@ -339,15 +365,9 @@ function RevealAnimation({ animalType, otherProfile, onFinished }: { animalType?
               },
             ]}
           >
-            {/* Avatar */}
+            {/* Avatar réel du profil */}
             <View style={styles.revealAvatarContainer}>
-              {otherProfile.photoUrl ? (
-                <Image source={{ uri: `${API_URL.replace(/\/api$/, "")}${otherProfile.photoUrl}` }} style={styles.revealAvatar} resizeMode="cover" />
-              ) : (
-                <View style={styles.revealAvatarPlaceholder}>
-                  <Text style={styles.revealAvatarEmoji}>👤</Text>
-                </View>
-              )}
+              <RevealedAvatar profile={otherProfile} size={120} />
             </View>
             {/* Pseudo */}
             <Text style={styles.revealPseudo}>{otherProfile.pseudo}</Text>
@@ -359,174 +379,29 @@ function RevealAnimation({ animalType, otherProfile, onFinished }: { animalType?
 }
 
 const styles = StyleSheet.create({
-  card: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F0E5D8",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#2D1F0E",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#8B6F47",
-    textAlign: "center",
-    marginBottom: 4,
-  },
-  buttonsRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 16,
-  },
-  decisionButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    alignItems: "center",
-    borderWidth: 2,
-  },
-  acceptButton: {
-    backgroundColor: "#FFD700",
-    borderColor: "#E6B800",
-  },
-  acceptButtonText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#2D1F0E",
-  },
-  refuseButton: {
-    backgroundColor: "transparent",
-    borderColor: "#C4A886",
-  },
-  refuseButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#8B6F47",
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  primaryButton: {
-    marginTop: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    backgroundColor: "#FFD700",
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: "#E6B800",
-  },
-  primaryButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#2D1F0E",
-  },
-  smileButton: {
-    marginTop: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    backgroundColor: "rgba(76, 175, 80, 0.12)",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#7CB47C",
-  },
-  smileButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#3F7B3F",
-  },
-  smileInfo: {
-    marginTop: 10,
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#3F7B3F",
-    textAlign: "center",
-  },
-  exitButton: {
-    marginTop: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: "#FFE5B4",
-    borderRadius: 10,
-  },
-  exitButtonText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#2D1F0E",
-  },
-
-  /* Profil révélé */
-  profileCard: {
-    width: "100%",
-    marginTop: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#F0E5D8",
-    alignItems: "center",
-  },
-  profilePhoto: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    marginBottom: 10,
-    backgroundColor: "#F0E5D8",
-  },
-  profilePhotoPlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  profilePhotoEmoji: {
-    fontSize: 36,
-  },
-  profilePseudo: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#2D1F0E",
-  },
-  profileCity: {
-    fontSize: 13,
-    color: "#8B6F47",
-    marginTop: 2,
-  },
-  profileBio: {
-    fontSize: 13,
-    color: "#4A3B28",
-    textAlign: "center",
-    marginTop: 8,
-  },
-  interestsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 6,
-    marginTop: 10,
-  },
-  interestChip: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    backgroundColor: "rgba(255, 215, 0, 0.18)",
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#E6C34A",
-  },
-  interestText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#6B5417",
-  },
-
-  /* Nouvelle animation de dévoilement */
+  card: { alignSelf: "stretch", alignItems: "center" },
+  headline: { fontFamily: "Georgia", fontSize: 22, fontWeight: "700", color: burgundy, textAlign: "center", marginBottom: 6 },
+  subtitle: { fontFamily: "Georgia", fontSize: 14, color: ink, textAlign: "center", marginBottom: 6 },
+  info: { fontFamily: "Georgia", fontSize: 12, lineHeight: 17, color: "#6E4B32", textAlign: "center", marginTop: 6, marginBottom: 4 },
+  profileBlock: { alignItems: "center", marginTop: 10, marginBottom: 10 },
+  profilePseudo: { fontFamily: "Georgia", fontSize: 18, fontWeight: "700", color: ink, marginTop: 8, textAlign: "center" },
+  profileBio: { fontFamily: "Georgia", fontSize: 12.5, lineHeight: 17, color: "#6E4B32", textAlign: "center", marginTop: 4, paddingHorizontal: 8 },
+  matchBox: { alignSelf: "stretch", backgroundColor: cream, borderWidth: 1, borderColor: beige, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, alignItems: "center", marginBottom: 12 },
+  matchBoxTitle: { fontFamily: "Georgia", fontSize: 14, fontWeight: "700", color: burgundy, textAlign: "center" },
+  matchBoxText: { fontFamily: "Georgia", fontSize: 13, color: ink, textAlign: "center", marginTop: 2 },
+  primaryButton: { alignSelf: "stretch", backgroundColor: burgundy, borderRadius: 8, paddingVertical: 13, alignItems: "center", marginTop: 4 },
+  primaryButtonText: { color: "#FFFFFF", fontFamily: "Georgia", fontWeight: "700", fontSize: 14 },
+  secondaryButton: { alignSelf: "stretch", backgroundColor: "transparent", borderWidth: 1.5, borderColor: beige, borderRadius: 8, paddingVertical: 12, alignItems: "center", marginTop: 8 },
+  secondaryButtonText: { color: burgundy, fontFamily: "Georgia", fontWeight: "700", fontSize: 14 },
+  linkButton: { paddingVertical: 9, paddingHorizontal: 16, alignItems: "center", marginTop: 4 },
+  linkButtonText: { color: burgundy, fontFamily: "Georgia", fontWeight: "600", fontSize: 13 },
+  buttonsRow: { flexDirection: "row", gap: 10, alignSelf: "stretch", marginTop: 12 },
+  decisionButton: { flex: 1, paddingVertical: 12, paddingHorizontal: 8, borderRadius: 8, alignItems: "center", borderWidth: 1.5 },
+  acceptButton: { backgroundColor: burgundy, borderColor: burgundy },
+  acceptButtonText: { fontFamily: "Georgia", fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
+  refuseButton: { backgroundColor: "transparent", borderColor: beige },
+  refuseButtonText: { fontFamily: "Georgia", fontSize: 13, fontWeight: "600", color: burgundy },
+  buttonDisabled: { opacity: 0.5 },
   revealOverlay: {
     flex: 1,
     backgroundColor: "rgba(20, 12, 4, 0.85)",
@@ -561,20 +436,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 12,
     backgroundColor: "#E8D5C4",
-  },
-  revealAvatar: {
-    width: "100%",
-    height: "100%",
-  },
-  revealAvatarPlaceholder: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F0E5D8",
-  },
-  revealAvatarEmoji: {
-    fontSize: 48,
   },
   revealPseudo: {
     fontSize: 18,

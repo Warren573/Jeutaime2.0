@@ -61,7 +61,10 @@ interface RefugeSessionState {
     age: number | null;
     interests: string[];
     photoUrl: string | null;
+    avatarConfig?: unknown | null;
+    gender?: string | null;
   } | null;
+  revealMatch: { matchId: string; status: string; questionsValidated: boolean; discussionOpen: boolean } | null;
   dailyResults: {
     dayNumber: number;
     status: string;
@@ -109,6 +112,7 @@ export function useRefugeSession(sessionId: string | null) {
     todayResult: null,
     reveal: null,
     otherProfile: null,
+    revealMatch: null,
     dailyResults: [],
     role: null,
     isLoading: true,
@@ -184,6 +188,7 @@ export function useRefugeSession(sessionId: string | null) {
         dailyResults: data.dailyResults ?? prev.dailyResults,
         reveal: data.reveal ?? null,
         otherProfile: data.otherProfile ?? null,
+        revealMatch: data.revealMatch ?? null,
         role,
         isActive: typeof data.isActive === "boolean" ? data.isActive : null,
         isLoading: false,
