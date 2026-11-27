@@ -90,7 +90,11 @@ export interface RefugeSession {
     age: number | null;
     interests: string[];
     photoUrl: string | null;
+    avatarConfig?: unknown | null;
+    gender?: string | null;
   } | null;
+  // Match créé par le dévoilement mutuel (uniquement si REVEALED)
+  revealMatch?: { matchId: string; status: string; questionsValidated: boolean; discussionOpen: boolean } | null;
   // État structuré des 7 jours — le frontend ne devine jamais ces états
   dailyResults?: DailyResultEntry[];
 }

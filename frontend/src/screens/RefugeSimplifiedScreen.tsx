@@ -94,16 +94,18 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
         status={refuge.status}
         endsAt={refuge.endsAt}
         serverOffsetMs={refuge.serverOffsetMs}
-        onBack={() => router.replace('/(tabs)/social')}
+        sessionId={sessionIdProp}
+        currentUserId={userId ?? null}
+        onBack={() => router.replace('/(tabs)')}
         reveal={refuge.reveal ?? { available: false, myDecision: null, otherDecided: false, revealedAt: null }}
         revealProps={{
-          sessionId: sessionIdProp,
-          currentUserId: userId ?? null,
           otherProfile: refuge.otherProfile ?? null,
+          revealMatch: refuge.revealMatch ?? null,
           isSubmitting,
           onDecision: async (decision) => { setIsSubmitting(true); try { await refuge.submitRevealConsent(decision); } finally { setIsSubmitting(false); } },
           onViewProfile: (id) => router.push(`/profile/${id}` as never),
-          onExit: () => router.replace('/(tabs)/social'),
+          onNavigate: (route) => router.push(route as never),
+          onExit: () => router.replace('/(tabs)'),
           animalType: refuge.companion?.animalType,
         }}
       />

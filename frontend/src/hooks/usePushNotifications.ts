@@ -23,6 +23,8 @@ import {
 } from '../utils/pushNavigation';
 
 import { announceMutualMatch } from '../utils/announceMutualMatch';
+import { describePresentation, notificationTypeOf, recordForegroundDecision } from '../data/foregroundDecisionLog';
+import { pathMatchesPrefix } from '../data/appEvents';
 import { refugeEvents } from '../data/refugeEvents';
 import { eventSignals } from './useAppEvents';
 import { PUSH_REGISTRATION_KEY, registerDeviceIfNeeded } from '../data/pushRegistration';
@@ -44,6 +46,17 @@ Notifications.setNotificationHandler({
       { sound: foregroundSoundEnabled, vibration: foregroundVibrationEnabled },
       AppState.currentState,
     );
+    recordForegroundDecision({
+      at: new Date().toISOString(),
+      source: 'handler',
+      appState: AppState.currentState,
+      type: notificationTypeOf(notification.request.content.data),
+      path: (currentLocation?.pathname ?? 'inconnu').split('?')[0] ?? 'inconnu',
+      banner: p.showBanner,
+      list: p.showList,
+      announced: null,
+      reason: describePresentation(AppState.currentState, p.showBanner),
+    });
     return {
       shouldShowBanner: p.showBanner,
       shouldShowList: p.showList,
@@ -235,9 +248,23 @@ export function usePushNotifications(sessionReady: boolean = true) {
       const matchId = foregroundMatchId(data);
       if (matchId && AppState.currentState === 'active') {
         const destination = { pathname: '/(tabs)/letters', params: { questionsMatchId: matchId } } as const;
-        if (!isAlreadyAtRoute(currentLocation, `/(tabs)/letters?questionsMatchId=${matchId}`)) {
-          announceMutualMatch(matchId, () => routerRef.current.push(destination));
-        }
+        // Déjà sur le jeu des 3 questions, ou dans le Refuge (l'écran de dévoilement annonce lui-même les sourires
+        // réciproques et propose le jeu) : pas de seconde fenêtre.
+        const atQuestions = isAlreadyAtRoute(currentLocation, `/(tabs)/letters?questionsMatchId=${matchId}`);
+        const inRefuge = pathMatchesPrefix(currentLocation?.pathname ?? '', '/refuge');
+        const announce = !atQuestions && !inRefuge;
+        recordForegroundDecision({
+          at: new Date().toISOString(),
+          source: 'annonce',
+          appState: AppState.currentState,
+          type: notificationTypeOf(data),
+          path: (currentLocation?.pathname ?? 'inconnu').split('?')[0] ?? 'inconnu',
+          banner: false,
+          list: false,
+          announced: announce,
+          reason: atQuestions ? 'déjà sur le jeu des 3 questions' : inRefuge ? 'déjà dans le Refuge : annonce portée par l’écran de dévoilement' : 'fenêtre interne affichée',
+        });
+        if (announce) announceMutualMatch(matchId, () => routerRef.current.push(destination));
       }
       // Notification du Refuge : l'écran Refuge et la case « Adoption » se rafraîchissent tout de suite (une fois).
       refugeEvents.notify(data);
