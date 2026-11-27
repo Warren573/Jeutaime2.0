@@ -60,6 +60,8 @@ afterEach(() => { expo.mockClear(); resetPushIdempotency(); });
 afterAll(async () => {
   vi.unstubAllGlobals();
   await prisma.pushToken.deleteMany({ where: { userId: { in: created } } });
+  await prisma.match.deleteMany({ where: { OR: [{ userAId: { in: created } }, { userBId: { in: created } }] } });
+  await prisma.reaction.deleteMany({ where: { OR: [{ fromId: { in: created } }, { toId: { in: created } }] } });
   await prisma.user.deleteMany({ where: { id: { in: created } } });
   await prisma.$disconnect();
 });
