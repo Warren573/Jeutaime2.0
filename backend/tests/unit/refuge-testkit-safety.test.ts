@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { redactSecrets } from "../../scripts/refuge-testkit";
+import { maskPublic, redactSecrets } from "../../scripts/refuge-testkit";
 
 /** Garde-fous statiques de l'outil de test accéléré : secret, déclenchement, journaux, API publique. */
 const ROOT = resolve(__dirname, "../../..");
@@ -40,6 +40,43 @@ describe("workflow : déclenchement, branche, environnement, concurrence", () =>
   });
 });
 
+describe("workflow : actions verrouillées et permissions minimales", () => {
+  it("checkout et setup-node sont verrouillés sur un SHA complet (40 caractères), jamais sur une étiquette mobile", () => {
+    const uses = [...WF.matchAll(/^\s+- uses: (\S+)/gm)].map((m) => m[1]!);
+    expect(uses.length).toBe(2);
+    for (const u of uses) expect(/^actions\/(checkout|setup-node)@[0-9a-f]{40}$/.test(u), u).toBe(true);
+    expect(uses).toEqual([
+      "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", // v4.2.2, SHA vérifié sur github.com/actions/checkout
+      "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020", // v4.4.0, SHA vérifié sur github.com/actions/setup-node
+    ]);
+    expect(/uses: [^\n]*@v\d/.test(WF)).toBe(false);
+  });
+  it("jeton du dépôt en lecture seule, non conservé, aucun autre droit", () => {
+    expect(WF).toMatch(/permissions:\s+contents: read\n/);
+    expect(WF).toMatch(/persist-credentials: false/);
+    expect((WF.match(/^permissions:/gm) ?? []).length).toBe(1);
+  });
+  it("entrées publiques : numéros de comptes et codes seulement, jamais d'adresse ni d'identifiant complet", () => {
+    const inputs = WF.slice(WF.indexOf("inputs:"), WF.indexOf("\npermissions:"));
+    for (const name of ["companion:", "sponsor:", "session_code:", "exclude_numbers:", "protect_session_codes:"]) expect(inputs.includes(name), name).toBe(true);
+    for (const bad of ["email", "e-mail", "session_id", "exclude_emails"]) expect(new RegExp(`^\\s+${bad}\\w*:`, "m").test(inputs), bad).toBe(false);
+  });
+});
+
+describe("journaux publics : aucune donnée de compte", () => {
+  it("le script n'écrit ni solde, ni point, ni montant : verdicts seulement", () => {
+    expect(SCRIPT).not.toMatch(/log\([^\n]*(\.detail|ledgerCoins|\.coins|\.score|totalCoins|penaltyPoints|dailyCoins)/);
+    expect(SCRIPT).toMatch(/écart détecté \(valeurs non publiées/);
+    for (const line of SCRIPT.split("\n").filter((l) => /log\(/.test(l) && /\.email/.test(l))) {
+      expect((line.match(/accountLabel\(/g) ?? []).length, line).toBe((line.match(/\.email/g) ?? []).length); // toute adresse affichée passe par accountLabel
+    }
+  });
+  it("le filtre de sortie masque aussi adresses et identifiants longs", () => {
+    const out = maskPublic("échec testuser9@jeutaime.test session cmwyvwoli00011236376jgn0y");
+    expect(out).toBe("échec compte n°9 session …6jgn0y");
+  });
+});
+
 describe("secret REFUGE_TEST_DATABASE_URL", () => {
   it("référencé par ce seul workflow", () => {
     const users = readdirSync(WORKFLOWS).filter((f) => readFileSync(join(WORKFLOWS, f), "utf8").includes("REFUGE_TEST_DATABASE_URL"));
@@ -62,7 +99,7 @@ describe("secret REFUGE_TEST_DATABASE_URL", () => {
   it("le script n'écrit jamais l'URL de connexion : seul le filtre de journaux la lit", () => {
     const reads = SCRIPT.match(/process\.env\["(DATABASE_URL|DIRECT_URL)"\]/g) ?? [];
     expect(reads.length).toBe(4); // 2 dans le filtre de journaux, 2 dans le gestionnaire d'erreurs imprévues
-    expect(SCRIPT).toMatch(/const safe = redactSecrets\(l, urls\)/);
+    expect(SCRIPT).toMatch(/const safe = maskPublic\(l, urls\)/);
     expect(SCRIPT.match(/console\.log\(/g)?.length).toBe(2); // journal filtré et gestionnaire d’erreurs filtré
   });
 });
