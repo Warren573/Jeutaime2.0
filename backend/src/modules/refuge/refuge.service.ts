@@ -143,6 +143,23 @@ export class RefugeService {
   // ============================================================
 
   static async getAvailableRefuges(currentUserId: string, adoptantGender?: string): Promise<RefugeSessionDTO[]> {
+    // Un duo ne vit qu'une aventure ensemble (quels que soient les rôles) : ces compagnons ne sont pas adoptables,
+    // donc inutiles à proposer.
+    const alreadyShared = await prisma.refugeSession.findMany({
+      where: {
+        OR: [
+          { adopteId: currentUserId, adoptantId: { not: null } },
+          { adoptantId: currentUserId },
+        ],
+      },
+      select: { adopteId: true, adoptantId: true },
+    });
+    const excludedCompanionIds = new Set<string>([currentUserId]);
+    for (const shared of alreadyShared ?? []) {
+      excludedCompanionIds.add(shared.adopteId);
+      if (shared.adoptantId) excludedCompanionIds.add(shared.adoptantId);
+    }
+
     const query: any = {
       where: {
         status: RefugeSessionStatus.WAITING_FOR_ADOPTANT,
@@ -150,7 +167,7 @@ export class RefugeService {
           gt: new Date(),
         },
         adopteId: {
-          not: currentUserId,
+          notIn: [...excludedCompanionIds],
         },
       },
     };
@@ -236,6 +253,22 @@ export class RefugeService {
       throw new ConflictError(
         "Tu as déjà un refuge en cours ou en attente en tant qu'Adopté — abandonne-le avant d'adopter"
       );
+    }
+
+    // Un duo ne vit qu'une aventure ensemble, quels que soient les rôles. L'index unique (adopteId, adoptantId)
+    // ne couvre que le même sens : le sens inverse est refusé ici, avant toute attribution.
+    const sharedBefore = await prisma.refugeSession.findFirst({
+      where: {
+        OR: [
+          { adopteId: refugeSession.adopteId, adoptantId },
+          { adopteId: adoptantId, adoptantId: refugeSession.adopteId },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (sharedBefore) {
+      throw new ConflictError("Vous avez déjà partagé un refuge ensemble");
     }
 
     // Adoption atomique : le refuge n'est attribué que s'il est toujours
