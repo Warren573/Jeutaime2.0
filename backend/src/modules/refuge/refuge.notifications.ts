@@ -41,23 +41,21 @@ export function notifyChoiceReady(a: { refugeSessionId: string; dayNumber: numbe
 }
 
 /**
- * Le parrain / la marraine a validé sa réponse.
- *   - jours 1 à 6 : le COMPAGNON est invité à découvrir le résultat (sans le score : pas de révélation prématurée) ;
- *     le PARRAIN / la MARRAINE reçoit le score du jour (0/2, 1/2, 2/2) et ses pièces dans UNE seule notification ;
- *   - jour 7 : fin des sept jours → les DEUX participants reçoivent « Ton refuge arrive à son terme… » (la notification
- *     de fin remplace « résultat prêt » pour le compagnon : pas de doublon) ; le parrain / la marraine reçoit en plus son score.
+ * Le parrain / la marraine a validé sa réponse (jours 1 à 7).
+ *   - le COMPAGNON est invité à découvrir le résultat (sans le score : pas de révélation prématurée) ;
+ *   - le PARRAIN / la MARRAINE reçoit le score du jour (0/2, 1/2, 2/2) et ses pièces dans UNE seule notification.
+ * La fin de l'aventure (dévoilement) n'est JAMAIS annoncée ici : elle l'est à l'expiration des 168 h (notifyRevealPhase).
  */
 export function notifyGuessSubmitted(a: {
   refugeSessionId: string;
   dayNumber: number;
-  lastDay: boolean;
   companionId: string;
   sponsorId: string;
   sponsorGender: string | null;
   score: number;
   sponsorCoins: number;
 }) {
-  const sends: Promise<unknown>[] = [
+  return Promise.all([
     // L'auteur reçoit SON résultat : pas d'actorId (la garde « jamais l'auteur » ne s'applique pas) ; blocage vérifié via counterpartId.
     notifyEvent({
       recipientId: a.sponsorId,
@@ -67,37 +65,35 @@ export function notifyGuessSubmitted(a: {
       dedupeKey: `refuge-day-result:${a.refugeSessionId}:${a.dayNumber}`,
       textContext: { refugeScore: a.score, coinsDelta: a.sponsorCoins > 0 ? a.sponsorCoins : null },
     }),
-  ];
-  if (a.lastDay) {
-    sends.push(
-      notifyEvent({
-        recipientId: a.companionId,
-        actorId: a.sponsorId,
-        type: NotificationType.REFUGE_REVEAL_PHASE,
-        meta: meta(a.refugeSessionId),
-        dedupeKey: `refuge-reveal-phase:${a.refugeSessionId}`,
-      }),
-      notifyEvent({
-        recipientId: a.sponsorId,
-        counterpartId: a.companionId,
-        type: NotificationType.REFUGE_REVEAL_PHASE,
-        meta: meta(a.refugeSessionId),
-        dedupeKey: `refuge-reveal-phase:${a.refugeSessionId}`,
-      })
-    );
-  } else {
-    sends.push(
-      notifyEvent({
-        recipientId: a.companionId,
-        actorId: a.sponsorId,
-        type: NotificationType.REFUGE_RESULT_READY,
-        meta: meta(a.refugeSessionId),
-        dedupeKey: `refuge-result-ready:${a.refugeSessionId}:${a.dayNumber}`,
-        textContext: { sponsorGender: a.sponsorGender },
-      })
-    );
-  }
-  return Promise.all(sends);
+    notifyEvent({
+      recipientId: a.companionId,
+      actorId: a.sponsorId,
+      type: NotificationType.REFUGE_RESULT_READY,
+      meta: meta(a.refugeSessionId),
+      dedupeKey: `refuge-result-ready:${a.refugeSessionId}:${a.dayNumber}`,
+      textContext: { sponsorGender: a.sponsorGender },
+    }),
+  ]);
+}
+
+/** Les sept jours (168 h) sont écoulés : le dévoilement est proposé aux DEUX participants, une seule fois par session. */
+export function notifyRevealPhase(a: { refugeSessionId: string; companionId: string; sponsorId: string }) {
+  return Promise.all([
+    notifyEvent({
+      recipientId: a.companionId,
+      counterpartId: a.sponsorId,
+      type: NotificationType.REFUGE_REVEAL_PHASE,
+      meta: meta(a.refugeSessionId),
+      dedupeKey: `refuge-reveal-phase:${a.refugeSessionId}`,
+    }),
+    notifyEvent({
+      recipientId: a.sponsorId,
+      counterpartId: a.companionId,
+      type: NotificationType.REFUGE_REVEAL_PHASE,
+      meta: meta(a.refugeSessionId),
+      dedupeKey: `refuge-reveal-phase:${a.refugeSessionId}`,
+    }),
+  ]);
 }
 
 /** Nouvelle journée → le COMPAGNON peut choisir ses deux actions (émise par la tâche planifiée). */

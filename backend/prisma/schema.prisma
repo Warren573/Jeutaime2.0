@@ -69,6 +69,8 @@ enum CoinTxnType {
   REFUGE_PERFECT_REWARD
   REFUGE_PARTICIPATION_REWARD
   REFUGE_INACTIVITY_PENALTY
+  REFUGE_DAILY_ASSIDUITY
+  REFUGE_FINAL_BONUS
   WEEKLY_PROFILE_VOTE
 }
 
@@ -1195,6 +1197,14 @@ model RefugeSession {
   adoptantRevealDecision RefugeRevealDecision?
   revealedAt             DateTime?
 
+  // Règles v2 : version fixée à l'adoption (1 = anciennes règles, jamais rétroactif), consultation du parrain /
+  // de la marraine (un bit par jour, écrit une fois par jour) et règlement final unique à l'issue des 168 h.
+  rulesVersion        Int       @default(1)
+  adoptantConsultMask Int       @default(0)
+  finalizedAt         DateTime?
+  adopteFinalBonus    Int       @default(0)
+  adoptantFinalBonus  Int       @default(0)
+
   // Relations
   dailyChoices RefugeDailyChoice[]
   guesses      RefugeGuess[]
@@ -1250,6 +1260,11 @@ model RefugeDayResult {
   adopteCoinsDelta   Int // delta théorique appliqué à l'Adopté
   adoptantCoinsDelta Int // delta théorique appliqué à l'Adoptant
   closedAt           DateTime        @default(now())
+  // Règles v2 : assiduité reconnue et points de classement du jour (jamais de pénalité en pièces)
+  adopteAssiduous    Boolean         @default(false)
+  adoptantAssiduous  Boolean         @default(false)
+  adopteScoreDelta   Int             @default(0)
+  adoptantScoreDelta Int             @default(0)
 
   @@unique([refugeSessionId, dayNumber])
   @@index([refugeSessionId])

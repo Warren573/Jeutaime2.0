@@ -47,6 +47,15 @@ import {
 } from "./refuge.utils";
 import { buildAnimationSnapshot, type RefugeAnimationSnapshot } from "./refuge.animation";
 import { resolveGuessFood } from "./refuge.foods";
+import {
+  RULES_VERSION_V2,
+  DAILY_ASSIDUITY_COINS,
+  ABSENCE_SCORE_PENALTY,
+  dayBit,
+  hasConsulted,
+  evaluateDayV2,
+  computeFinalSettlement,
+} from "./refuge.rules";
 
 // Statuts pour lesquels un Adopté est considéré comme ayant déjà un refuge en cours
 const ADOPTE_OPEN_STATUSES = [
@@ -243,6 +252,8 @@ export class RefugeService {
           startedAt: now,
           endsAt: calculateRefugeEndsAt(now),
           lastAdoptantActivityAt: now,
+          // Règles v2 fixées à l'adoption : jamais appliquées à une session déjà commencée.
+          rulesVersion: RULES_VERSION_V2,
         },
       });
     } catch (err: any) {
@@ -359,20 +370,30 @@ export class RefugeService {
     const closure = await this.closeExpiredSession(refugeSession);
     if (closure) refugeSession.status = closure.status;
 
-    // Trace de présence de l'Adoptant (throttlée) : sert à distinguer, à la
-    // clôture d'un jour sans choix, "Adoptant présent mais bloqué" (⚠️ pour
-    // l'Adopté) de "personne n'est venu" (jour NOT_PLAYED). Simple timestamp
-    // d'activité — aucune récompense n'est appliquée dans un GET.
-    if (
-      userId === refugeSession.adoptantId &&
-      refugeSession.status === RefugeSessionStatus.ACTIVE &&
-      (!refugeSession.lastAdoptantActivityAt ||
-        Date.now() - refugeSession.lastAdoptantActivityAt.getTime() > 10 * 60 * 1000)
-    ) {
-      await prisma.refugeSession.update({
-        where: { id: refugeSessionId },
-        data: { lastAdoptantActivityAt: new Date() },
-      });
+    // Présence du parrain / de la marraine.
+    //   - v2 : consultation du Refuge enregistrée PAR JOUR (un bit), en une seule écriture atomique par jour ; la
+    //     condition SQL rend l'écriture idempotente, et rien n'est écrit si le bit est déjà posé dans les données chargées.
+    //     Les lectures du parrain / de la marraine pendant que l'application est en arrière-plan ne sont pas émises (voir
+    //     useRefugeSession : le polling s'arrête).
+    //   - v1 : trace d'activité throttlée (comportement historique, inchangé).
+    // Aucune récompense n'est appliquée dans un GET.
+    if (userId === refugeSession.adoptantId && refugeSession.status === RefugeSessionStatus.ACTIVE) {
+      if (refugeSession.rulesVersion >= RULES_VERSION_V2) {
+        const today = getCurrentDay(refugeSession.createdAt, refugeSession.startedAt, new Date());
+        const bit = dayBit(today);
+        if (bit !== 0 && !hasConsulted(refugeSession.adoptantConsultMask, today)) {
+          await prisma.$executeRaw`UPDATE "RefugeSession" SET "adoptantConsultMask" = "adoptantConsultMask" | ${bit} WHERE "id" = ${refugeSessionId} AND ("adoptantConsultMask" & ${bit}) = 0`;
+          refugeSession.adoptantConsultMask |= bit;
+        }
+      } else if (
+        !refugeSession.lastAdoptantActivityAt ||
+        Date.now() - refugeSession.lastAdoptantActivityAt.getTime() > 10 * 60 * 1000
+      ) {
+        await prisma.refugeSession.update({
+          where: { id: refugeSessionId },
+          data: { lastAdoptantActivityAt: new Date() },
+        });
+      }
     }
 
     const now = new Date();
@@ -461,7 +482,8 @@ export class RefugeService {
     const adoptantSubmittedToday = todaySubmitted;
     const dayCompleted = currentDay >= 1 && isDayCompleted(refugeSession.dailyChoices, refugeSession.guesses, currentDay);
     const canAdvanceDay = dayCompleted && currentDay < REFUGE_DURATION_DAYS && refugeSession.status === RefugeSessionStatus.ACTIVE;
-    const finalConsentAvailable = dayCompleted && currentDay === REFUGE_DURATION_DAYS;
+    // Dévoilement : JAMAIS avant l'expiration des sept jours complets (168 h), même si le jour 7 est terminé.
+    const finalConsentAvailable = this.isRevealPhaseReached(refugeSession, refugeSession.dailyChoices, refugeSession.guesses, now) && refugeSession.status === RefugeSessionStatus.AWAITING_REVEAL_CONSENT;
 
     // Calculer le résultat du jour si une tentative a été soumise
     let todayResult = null;
@@ -472,7 +494,8 @@ export class RefugeService {
         todayResult = {
           matches: result.matches,
           message: result.message,
-          reward: result.reward,
+          // v2 : 10 pièces d'assiduité, quel que soit le score.
+          reward: refugeSession.rulesVersion >= RULES_VERSION_V2 ? DAILY_ASSIDUITY_COINS : result.reward,
           emoji: result.emoji,
         };
       }
@@ -490,11 +513,10 @@ export class RefugeService {
       : refugeSession.adopteRevealDecision;
 
     const revealAvailable =
-      (refugeSession.status === RefugeSessionStatus.ACTIVE ||
-        refugeSession.status === RefugeSessionStatus.AWAITING_REVEAL_CONSENT ||
+      (refugeSession.status === RefugeSessionStatus.AWAITING_REVEAL_CONSENT ||
         refugeSession.status === RefugeSessionStatus.REVEALED ||
         refugeSession.status === RefugeSessionStatus.COMPLETED) &&
-      this.isRevealPhaseReached(refugeSession, refugeSession.dailyChoices, refugeSession.guesses);
+      this.isRevealPhaseReached(refugeSession, refugeSession.dailyChoices, refugeSession.guesses, now);
 
     const reveal = {
       available: revealAvailable,
@@ -753,6 +775,16 @@ export class RefugeService {
           data: { lastAdopteActivityAt: new Date() },
         });
 
+        // Règles v2 : 10 pièces versées immédiatement à la validation, indépendamment du score. Dans la même
+        // transaction que le choix (unique par session et jour) : un rejeu ne peut jamais payer deux fois.
+        if (refugeSession.rulesVersion >= RULES_VERSION_V2) {
+          await this.applyRefugeCoinsTx(tx, adopteId, DAILY_ASSIDUITY_COINS, CoinTxnType.REFUGE_DAILY_ASSIDUITY, {
+            refugeSessionId,
+            dayNumber,
+            role: "adopte",
+          });
+        }
+
         return dailyChoice;
       });
     } catch (err: any) {
@@ -881,7 +913,15 @@ export class RefugeService {
     // Écriture atomique : tentative, activité de l'Adoptant, résultat FINAL
     // persisté du jour et pièces (via le ledger Wallet) vont ensemble.
     // Un double-clic ou deux requêtes simultanées déclenchent P2002 → 409.
-    const closure = computeDayClosure(true, true, dayResult.matches, true);
+    const v2 = refugeSession.rulesVersion >= RULES_VERSION_V2;
+    // v2 : 10 pièces d'assiduité pour chacun, quel que soit le score ; le compagnon a déjà été payé à sa validation.
+    const closure = v2
+      ? (() => {
+          const e = evaluateDayV2({ choiceAt: dailyChoice.submittedAt, guessAt: new Date(), matches: dayResult.matches, consulted: true, windowEnd: new Date() });
+          return { status: e.status, matchCount: e.matchCount, adopteCoinsDelta: e.companion.coins, adoptantCoinsDelta: e.sponsor.coins };
+        })()
+      : computeDayClosure(true, true, dayResult.matches, true);
+    const reward = v2 ? DAILY_ASSIDUITY_COINS : dayResult.reward;
     let guess;
     try {
       guess = await prisma.$transaction(async (tx) => {
@@ -909,11 +949,19 @@ export class RefugeService {
             matchCount: closure.matchCount,
             adopteCoinsDelta: closure.adopteCoinsDelta,
             adoptantCoinsDelta: closure.adoptantCoinsDelta,
+            ...(v2 ? { adopteAssiduous: true, adoptantAssiduous: true } : {}),
           },
         });
 
         // Récompenses via le Wallet officiel — écritures CoinTransaction traçables
-        if (dayResult.reward > 0) {
+        if (v2) {
+          // Seule la réponse du parrain / de la marraine est payée ici (unique par session et jour).
+          await this.applyRefugeCoinsTx(tx, adoptantId, DAILY_ASSIDUITY_COINS, CoinTxnType.REFUGE_DAILY_ASSIDUITY, {
+            refugeSessionId,
+            dayNumber,
+            role: "adoptant",
+          });
+        } else if (dayResult.reward > 0) {
           const meta = { refugeSessionId, dayNumber, status: closure.status };
           const txnType = this.closureTxnType(closure.status as RefugeDayStatus, true);
           await this.applyRefugeCoinsTx(tx, refugeSession.adopteId, dayResult.reward, txnType, {
@@ -946,7 +994,7 @@ export class RefugeService {
       companionId: refugeSession.adopteId,
       sponsorId: adoptantId,
       score: dayResult.matches,
-      sponsorCoins: dayResult.reward,
+      sponsorCoins: reward,
     });
 
     // Solder les jours passés arrivés à échéance (écriture POST — jamais en GET)
@@ -962,7 +1010,7 @@ export class RefugeService {
       dayResult: {
         matches: dayResult.matches,
         message: dayResult.message,
-        reward: dayResult.reward,
+        reward,
         emoji: dayResult.emoji,
       },
     };
@@ -981,17 +1029,14 @@ export class RefugeService {
     sponsorCoins: number;
   }): Promise<void> {
     try {
-      const lastDay = a.dayNumber === REFUGE_DURATION_DAYS;
       let sponsorGender: string | null = null;
-      if (!lastDay) {
-        try {
-          const profile = await prisma.profile.findUnique({ where: { userId: a.sponsorId }, select: { gender: true } });
-          sponsorGender = profile?.gender ?? null;
-        } catch {
-          // Genre indisponible : formulation neutre (« ton parrain ou ta marraine »), la notification part quand même.
-        }
+      try {
+        const profile = await prisma.profile.findUnique({ where: { userId: a.sponsorId }, select: { gender: true } });
+        sponsorGender = profile?.gender ?? null;
+      } catch {
+        // Genre indisponible : formulation neutre (« ton parrain ou ta marraine »), la notification part quand même.
       }
-      await refugeNotifications.notifyGuessSubmitted({ ...a, lastDay, sponsorGender });
+      await refugeNotifications.notifyGuessSubmitted({ ...a, sponsorGender });
     } catch {
       // Une notification ne fait jamais échouer l'action métier.
     }
@@ -1105,6 +1150,53 @@ export class RefugeService {
     }
   }
 
+  // Clôture d'un jour (règles v2) : résultat persisté, pièces éventuelles (consultation du parrain / de la marraine) et
+  // points de classement DANS LA MÊME transaction. L'unicité (session, jour) garantit une seule clôture : jamais de
+  // double récompense ni de double pénalité, même si le job et une requête arrivent ensemble.
+  private static async closeDayV2(
+    session: { id: string; adopteId: string; adoptantId: string },
+    dayNumber: number,
+    e: ReturnType<typeof evaluateDayV2>
+  ): Promise<{ created: boolean; sponsorApplied: number }> {
+    let sponsorApplied = 0;
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.refugeDayResult.create({
+          data: {
+            refugeSessionId: session.id,
+            dayNumber,
+            status: e.status as RefugeDayStatus,
+            matchCount: e.matchCount,
+            adopteCoinsDelta: e.companion.coins,
+            adoptantCoinsDelta: e.sponsor.coins,
+            adopteAssiduous: e.companion.assiduous,
+            adoptantAssiduous: e.sponsor.assiduous,
+            adopteScoreDelta: e.companion.points,
+            adoptantScoreDelta: e.sponsor.points,
+          },
+        });
+        if (e.payAtClosure.sponsor > 0) {
+          sponsorApplied = await this.applyRefugeCoinsTx(tx, session.adoptantId, e.payAtClosure.sponsor, CoinTxnType.REFUGE_DAILY_ASSIDUITY, {
+            refugeSessionId: session.id,
+            dayNumber,
+            role: "adoptant",
+            reason: "consultation",
+          });
+        }
+        // Points du classement de sélection des profils : −5 par jour d'absence, jamais de pénalité en pièces.
+        for (const [userId, points] of [[session.adopteId, e.companion.points], [session.adoptantId, e.sponsor.points]] as const) {
+          if (points < 0) {
+            await tx.profile.updateMany({ where: { userId }, data: { discoveryActivityScore: { decrement: ABSENCE_SCORE_PENALTY } } });
+          }
+        }
+      });
+      return { created: true, sponsorApplied };
+    } catch (err: any) {
+      if (err.code === "P2002") return { created: false, sponsorApplied: 0 };
+      throw err;
+    }
+  }
+
   // ============================================================
   // Clôture d'une session expirée — unique, sans pièces, sans suppression
   // ============================================================
@@ -1131,6 +1223,7 @@ export class RefugeService {
       endsAt: Date | null;
       adopteId?: string;
       adoptantId: string | null;
+      rulesVersion?: number;
       dailyChoices?: { dayNumber: number }[];
       guesses?: { dayNumber: number }[];
     },
@@ -1149,25 +1242,62 @@ export class RefugeService {
       return null;
     }
 
+    const v2 = (session.rulesVersion ?? 1) >= RULES_VERSION_V2;
     const lastDayPlayed =
       !!session.adoptantId && isDayCompleted(session.dailyChoices ?? [], session.guesses ?? [], REFUGE_DURATION_DAYS);
-    const status = lastDayPlayed ? RefugeSessionStatus.AWAITING_REVEAL_CONSENT : RefugeSessionStatus.ABANDONED;
-    const claimed = await prisma.refugeSession.updateMany({
-      where: { id: session.id, status: RefugeSessionStatus.ACTIVE, endsAt: { lte: now } },
-      data: { status },
-    });
-    const closedByThisCall = (claimed?.count ?? 0) === 1;
-    // Session close sans avoir été menée jusqu'au bout : les DEUX participants sont prévenus, par la seule requête qui a
-    // effectué la transition (les autres, simultanées, ne notifient pas). Si le jour 7 a été joué, la fin des sept jours a
-    // déjà été notifiée à la validation du jour 7 : rien de plus. Les sessions fermées AVANT ce correctif ne sont pas notifiées.
-    if (closedByThisCall && status === RefugeSessionStatus.ABANDONED && session.adopteId && session.adoptantId) {
-      void refugeNotifications.notifyExpired({
-        refugeSessionId: session.id,
-        companionId: session.adopteId,
-        sponsorId: session.adoptantId,
+    // v1 : dévoilement seulement si le jour 7 a été joué. v2 : toujours proposé à l'expiration des 168 h, indépendamment
+    // des scores et de l'assiduité (aucun seuil de participation).
+    const status = v2 || lastDayPlayed ? RefugeSessionStatus.AWAITING_REVEAL_CONSENT : RefugeSessionStatus.ABANDONED;
+
+    let closedByThisCall = false;
+    if (v2 && session.adopteId && session.adoptantId) {
+      closedByThisCall = await this.finalizeV2(session.id, session.adopteId, session.adoptantId, now);
+    } else {
+      const claimed = await prisma.refugeSession.updateMany({
+        where: { id: session.id, status: RefugeSessionStatus.ACTIVE, endsAt: { lte: now } },
+        data: { status },
       });
+      closedByThisCall = (claimed?.count ?? 0) === 1;
+    }
+    // Session close : les DEUX participants sont prévenus, par la seule requête qui a effectué la transition (les autres,
+    // simultanées, ne notifient pas). Les sessions fermées AVANT ce correctif ne sont pas notifiées.
+    if (closedByThisCall && session.adopteId && session.adoptantId) {
+      const ids = { refugeSessionId: session.id, companionId: session.adopteId, sponsorId: session.adoptantId };
+      if (status === RefugeSessionStatus.ABANDONED) void refugeNotifications.notifyExpired(ids);
+      else void refugeNotifications.notifyRevealPhase(ids); // fin des sept jours : le dévoilement est proposé
     }
     return { status, closedByThisCall };
+  }
+
+  /**
+   * Règlement final d'une session v2 (168 h écoulées, tous les jours déjà clôturés) : transition vers le dévoilement,
+   * bonus finaux et totaux, en UNE transaction. La transition conditionnelle (status=ACTIVE, endsAt échue) est
+   * revendiquée en premier : si une autre requête l'a déjà faite, rien n'est versé (count = 0). Retourne vrai si CET
+   * appel a réalisé la transition.
+   */
+  private static async finalizeV2(sessionId: string, adopteId: string, adoptantId: string, now: Date): Promise<boolean> {
+    const rows = await prisma.refugeDayResult.findMany({ where: { refugeSessionId: sessionId } });
+    const f = computeFinalSettlement(rows);
+    return prisma.$transaction(async (tx) => {
+      const claimed = await tx.refugeSession.updateMany({
+        where: { id: sessionId, status: RefugeSessionStatus.ACTIVE, endsAt: { lte: now }, finalizedAt: null },
+        data: {
+          status: RefugeSessionStatus.AWAITING_REVEAL_CONSENT,
+          finalizedAt: now,
+          adopteFinalBonus: f.companionBonus,
+          adoptantFinalBonus: f.sponsorBonus,
+        },
+      });
+      if (claimed.count !== 1) return false;
+      const tier = f.perfectCourse ? "perfect-14" : "assiduity-7";
+      if (f.companionBonus > 0) {
+        await this.applyRefugeCoinsTx(tx, adopteId, f.companionBonus, CoinTxnType.REFUGE_FINAL_BONUS, { refugeSessionId: sessionId, role: "adopte", tier });
+      }
+      if (f.sponsorBonus > 0) {
+        await this.applyRefugeCoinsTx(tx, adoptantId, f.sponsorBonus, CoinTxnType.REFUGE_FINAL_BONUS, { refugeSessionId: sessionId, role: "adoptant", tier });
+      }
+      return true;
+    });
   }
 
   /** Variante pour les écritures, qui n'ont pas chargé les jours : ne lit que le jour 7 (chemin de refus uniquement). */
@@ -1180,6 +1310,7 @@ export class RefugeService {
         endsAt: true,
         adopteId: true,
         adoptantId: true,
+        rulesVersion: true,
         dailyChoices: { where: { dayNumber: REFUGE_DURATION_DAYS }, select: { dayNumber: true } },
         guesses: { where: { dayNumber: REFUGE_DURATION_DAYS }, select: { dayNumber: true } },
       },
@@ -1215,6 +1346,22 @@ export class RefugeService {
 
       const choice = session.dailyChoices.find((dc) => dc.dayNumber === day);
       const guess = session.guesses.find((g) => g.dayNumber === day);
+
+      if (session.rulesVersion >= RULES_VERSION_V2) {
+        const e = evaluateDayV2({
+          choiceAt: choice?.submittedAt ?? null,
+          guessAt: guess?.submittedAt ?? null,
+          matches: choice && guess ? calculateDayResult(choice, guess).matches : null,
+          consulted: hasConsulted(session.adoptantConsultMask, day),
+          windowEnd: dayWindow(session.startedAt, day).end,
+        });
+        const r = await this.closeDayV2({ id: session.id, adopteId: session.adopteId, adoptantId: session.adoptantId }, day, e);
+        if (r.created && r.sponsorApplied !== 0) {
+          settledDays.push(day);
+          adoptantApplied += r.sponsorApplied;
+        }
+        continue;
+      }
 
       // L'Adoptant est réputé présent pour ce jour si sa dernière activité
       // tombe dans la fenêtre du jour (règle métier retenue : on ne le
@@ -1257,17 +1404,17 @@ export class RefugeService {
   // Phase finale — consentement mutuel au dévoilement des profils
   // ============================================================
 
-  // Règle stricte : la phase finale n'existe que si currentDay = 7 ET que le
-  // jour 7 est COMPLET (choix de l'Adopté + réponse de l'Adoptant, donc résultat
-  // calculé). Être au jour 7 ne suffit jamais ; l'expiration ne suffit pas non plus.
+  // Règle impérative : le dévoilement n'est JAMAIS proposé avant l'expiration des sept jours complets (168 h depuis
+  // l'adoption), même si les actions du jour 7 sont terminées. Version 1 : le jour 7 doit en plus avoir été joué ;
+  // version 2 : proposé dans tous les cas, indépendamment des scores et de l'assiduité.
   private static isRevealPhaseReached(
-    refugeSession: { startedAt: Date | null; createdAt: Date; adoptantId: string | null },
+    refugeSession: { endsAt: Date | null; adoptantId: string | null; rulesVersion?: number },
     dailyChoices: { dayNumber: number }[],
-    guesses: { dayNumber: number }[]
+    guesses: { dayNumber: number }[],
+    now: Date = new Date()
   ): boolean {
-    if (!refugeSession.adoptantId) return false;
-    const currentDay = getCurrentDay(refugeSession.createdAt, refugeSession.startedAt, new Date());
-    if (currentDay !== REFUGE_DURATION_DAYS) return false;
+    if (!refugeSession.adoptantId || !isRefugeExpired(refugeSession.endsAt, now)) return false;
+    if ((refugeSession.rulesVersion ?? 1) >= RULES_VERSION_V2) return true;
     return isDayCompleted(dailyChoices, guesses, REFUGE_DURATION_DAYS);
   }
 
@@ -1323,7 +1470,7 @@ export class RefugeService {
     }
 
     if (!this.isRevealPhaseReached(refugeSession, refugeSession.dailyChoices, refugeSession.guesses)) {
-      throw new ConflictError("Le jour 7 n'est pas encore terminé");
+      throw new ConflictError("Le dévoilement n'est possible qu'à la fin des sept jours");
     }
 
     const myField = isAdopte ? "adopteRevealDecision" : "adoptantRevealDecision";
@@ -1561,10 +1708,9 @@ export class RefugeService {
           (r) => r.status === "INCOMPLETE_ADOPTE_MISSING" || r.status === "INCOMPLETE_ADOPTANT_MISSING"
         ).length;
         const notPlayedCount = dailyResults.filter((r) => r.status === "NOT_PLAYED").length;
-        const totalCoinsDelta = dailyResults.reduce(
-          (sum, r) => sum + (role === "adopte" ? r.adopteCoinsDelta : r.adoptantCoinsDelta),
-          0
-        );
+        const finalBonus = role === "adopte" ? s.adopteFinalBonus : s.adoptantFinalBonus;
+        const totalCoinsDelta =
+          dailyResults.reduce((sum, r) => sum + (role === "adopte" ? r.adopteCoinsDelta : r.adoptantCoinsDelta), 0) + finalBonus;
 
         // État relationnel — flux Sourire / match existants, lecture seule
         let smileState: "NONE" | "SENT" | "RECEIVED" | "MUTUAL" = "NONE";
