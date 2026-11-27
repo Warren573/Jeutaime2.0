@@ -1,0 +1,120 @@
+name: Refuge — test accéléré de fin d'aventure (comptes de test)
+
+# MANUEL UNIQUEMENT. Jamais déclenché par un push, une PR ou un planning.
+# Agit sur Neon avec le secret REFUGE_TEST_DATABASE_URL, uniquement sur les comptes testuser2 à testuser11@jeutaime.test,
+# et seulement en mode « apply » avec la phrase de confirmation exacte affichée par la simulation.
+# PROTECTIONS (à configurer dans GitHub, voir docs/refuge-accelerated-test.md) :
+#   - le secret est un secret d'ENVIRONNEMENT « refuge-test » (pas un secret de dépôt) ;
+#   - l'environnement exige l'approbation manuelle d'un relecteur et n'autorise que la branche main ;
+#   - le dépôt est PUBLIC : les journaux sont publics, le script n'y écrit ni l'URL de connexion, ni pseudo, ni identifiant de compte.
+# Voir backend/scripts/refuge-accelerated-test.ts et docs/refuge-accelerated-test.md.
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "inventory = lecture seule des comptes de test ; run = une étape d'un scénario"
+        type: choice
+        options: [inventory, run]
+        default: inventory
+      scenario:
+        description: "Scénario (run)"
+        type: choice
+        options: [S1, S2, S3]
+        default: S1
+      stage:
+        description: "Étape (run). Une exécution = une pause pour vérifier sur l'iPhone."
+        type: choice
+        options: [adopt, days-1-3, days-4-6, day-7, fast-forward, decision, status]
+        default: adopt
+      companion:
+        description: "E-mail du compagnon (testuserN@jeutaime.test)"
+        type: string
+        default: ""
+      sponsor:
+        description: "E-mail du parrain / de la marraine (testuserN@jeutaime.test)"
+        type: string
+        default: ""
+      session_id:
+        description: "Identifiant de la session (toutes les étapes sauf adopt ; copié du résumé de l'étape adopt)"
+        type: string
+        default: ""
+      decision:
+        description: "Étape decision : none = tu décides sur l'iPhone ; scenario = le script applique le scénario"
+        type: choice
+        options: [none, scenario]
+        default: none
+      exclude_emails:
+        description: "E-mails à exclure, séparés par des virgules (participants de l'adoption en cours)"
+        type: string
+        default: ""
+      protect_session_ids:
+        description: "Identifiants de sessions à protéger (adoption en cours), séparés par des virgules"
+        type: string
+        default: ""
+      mode:
+        description: "simulate = AUCUNE écriture (défaut) ; apply = exécution réelle"
+        type: choice
+        options: [simulate, apply]
+        default: simulate
+      confirm:
+        description: "Mode apply : recopier la phrase exacte « JE CONFIRME <scénario> <étape> <compagnon> <parrain> » affichée par la simulation"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refuge-accelerated-test
+  cancel-in-progress: false
+
+jobs:
+  refuge-test:
+    name: Refuge test accéléré
+    runs-on: ubuntu-latest
+    # Le secret de production n'est jamais exposé à du code non fusionné : uniquement la branche main.
+    if: github.ref == 'refs/heads/main'
+    environment: refuge-test
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Garde — main uniquement, déclenchement manuel uniquement
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]; then echo "Refusé : exécution réservée au déclenchement manuel sur main."; exit 1; fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Vérifier la présence du secret (sans l'afficher)
+        env:
+          REFUGE_TEST_DATABASE_URL: ${{ secrets.REFUGE_TEST_DATABASE_URL }}
+        run: |
+          if [ -z "$REFUGE_TEST_DATABASE_URL" ]; then echo "Secret REFUGE_TEST_DATABASE_URL absent : voir docs/refuge-accelerated-test.md"; exit 1; fi
+      - name: Exécuter (le mode simulate n'écrit rien)
+        env:
+          # Variables exigées par la configuration de l'application ; aucune n'est utilisée par le script.
+          DATABASE_URL: ${{ secrets.REFUGE_TEST_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.REFUGE_TEST_DATABASE_URL }}
+          JWT_ACCESS_SECRET: refuge-test-not-used-0123456789abcdef0123
+          JWT_REFRESH_SECRET: refuge-test-not-used-fedcba98765432100123
+          NODE_ENV: production
+          LOG_LEVEL: warn
+          # Paramètres : toujours par variables d'environnement (jamais interpolés dans le shell).
+          RT_COMMAND: ${{ inputs.command }}
+          RT_SCENARIO: ${{ inputs.scenario }}
+          RT_STAGE: ${{ inputs.stage }}
+          RT_COMPANION: ${{ inputs.companion }}
+          RT_SPONSOR: ${{ inputs.sponsor }}
+          RT_SESSION_ID: ${{ inputs.session_id }}
+          RT_DECISION: ${{ inputs.decision }}
+          RT_EXCLUDE: ${{ inputs.exclude_emails }}
+          RT_PROTECT: ${{ inputs.protect_session_ids }}
+          RT_MODE: ${{ inputs.mode }}
+          RT_CONFIRM: ${{ inputs.confirm }}
+        run: npx ts-node --transpile-only scripts/refuge-accelerated-test.ts
