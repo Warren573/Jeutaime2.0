@@ -46,9 +46,8 @@ describe("outillage de test : valeurs attendues (calculées avec les règles de 
     expect([e.perfectDays, e.correctActions, e.perfectCourse]).toEqual([3, 8, false]);
   });
   it("les trois scénarios couvrent les cas demandés", () => {
-    expect(SCENARIOS.S1.reveal).toEqual({ companion: "ACCEPT", sponsor: "ACCEPT" }); // dévoilement mutuel
-    expect(SCENARIOS.S2.reveal).toEqual({ companion: "REFUSE", sponsor: null }); // refus
-    expect(SCENARIOS.S3.reveal).toEqual({ companion: "ACCEPT", sponsor: "REFUSE" });
+    // Plus aucune décision de dévoilement : la fin est automatique pour les trois scénarios.
+    for (const id of ["S1", "S2", "S3"] as const) expect("reveal" in SCENARIOS[id]).toBe(false);
     for (const s of Object.values(SCENARIOS)) expect(s.days.map((d) => d.day)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(STAGES).toEqual(["adopt", "days-1-3", "days-4-6", "day-7", "fast-forward", "decision", "status"]);
   });

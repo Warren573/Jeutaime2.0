@@ -16,13 +16,17 @@ vi.mock("../../src/modules/notifications/notify.service", () => ({
 
 // Sourires automatiques du dévoilement mutuel : testés avec le vrai système de match dans refuge-reveal-match.test.ts.
 vi.mock("../../src/modules/reactions/reactions.service", () => ({ sendReaction: vi.fn().mockResolvedValue({ matchCreated: true }) }));
+// Dévoilement automatique : comptes disponibles par défaut (les cas de blocage sont testés explicitement).
+vi.mock("../../src/modules/auth/accountLifecycle.service", () => ({ isAccountDeactivated: vi.fn().mockResolvedValue(false) }));
 
 // Mock the Prisma module with factory function to avoid hoisting issues
 vi.mock("../../src/config/prisma", () => {
   const prismaMock: any = {
     user: {
       findUnique: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([{ id: "a", isBanned: false }, { id: "b", isBanned: false }]),
     },
+    block: { findFirst: vi.fn().mockResolvedValue(null) },
     refugeSession: {
       findFirst: vi.fn(),
       findUnique: vi.fn(),
@@ -447,7 +451,9 @@ describe("RefugeService.getActiveRefugeSession", () => {
     // Une seule requête suffit : la session ACTIVE court-circuite la recherche de proposition
     expect(prisma.refugeSession.findFirst).toHaveBeenCalledTimes(1);
     const args = (prisma.refugeSession.findFirst as any).mock.calls[0][0];
-    expect(args.where.status).toEqual({ in: ["ACTIVE", "AWAITING_REVEAL_CONSENT"] });
+    // ACTIVE, ou ancien flux (AWAITING) tant que CE participant n'a pas quitté l'écran de fin
+    expect(args.where.OR[0].status).toBe("ACTIVE");
+    expect(args.where.OR[1].status).toBe("AWAITING_REVEAL_CONSENT");
   });
 
   it("falls back to the most recent open proposal as Adopté when no session is ACTIVE", async () => {
@@ -486,7 +492,12 @@ describe("RefugeService.getActiveRefugeSession", () => {
 
     expect(dto?.id).toBe("revealed-1");
     const args = (prisma.refugeSession.findFirst as any).mock.calls[2][0];
-    expect(args.where.status).toBe("REVEALED");
+    expect(args.where.status).toEqual({ in: ["REVEALED", "COMPLETED"] });
+    // Libération indépendante : seules les sessions NON archivées PAR CETTE PERSONNE sont rendues
+    expect(args.where.OR).toEqual([
+      { adopteId, adopteArchivedAt: null },
+      { adoptantId: adopteId, adoptantArchivedAt: null },
+    ]);
   });
 });
 
@@ -1457,16 +1468,40 @@ describe("RefugeService.closeExpiredSession", () => {
     expect(prisma.refugeSession.updateMany).not.toHaveBeenCalled();
   });
 
-  it("jour 7 joué (choix + réponse) → phase de dévoilement", async () => {
+  it("jour 7 joué (choix + réponse) → dévoilement AUTOMATIQUE : profils dévoilés, sourires réciproques, sans pièces", async () => {
     (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 });
     const s = expired({ dailyChoices: [{ dayNumber: 7 }], guesses: [{ dayNumber: 7 }] });
     const result = await RefugeService.closeExpiredSession(s as any);
-    expect(result).toEqual({ status: "AWAITING_REVEAL_CONSENT", closedByThisCall: true });
+    expect(result).toEqual({ status: "REVEALED", closedByThisCall: true });
     const call = (prisma.refugeSession.updateMany as any).mock.calls[0][0];
-    expect(call.data).toEqual({ status: "AWAITING_REVEAL_CONSENT" });
+    expect(call.data).toEqual({ status: "REVEALED", revealedAt: expect.any(Date) });
     expect(call.where.status).toBe("ACTIVE"); // garde conditionnelle : une seule transition
     expect(call.where.endsAt).toBeDefined();
     noCoinMovement();
+    // Match automatique : les deux sourires, une seule fois
+    const { sendReaction } = await import("../../src/modules/reactions/reactions.service");
+    expect((sendReaction as any).mock.calls.map((c: any) => [c[0], c[1].toId, c[1].type])).toEqual([
+      [adopteId, adoptantId, "SMILE"],
+      [adoptantId, adopteId, "SMILE"],
+    ]);
+  });
+
+  it("blocage entre les deux (ou compte indisponible) : aventure terminée SANS dévoilement ni sourire", async () => {
+    (prisma.block.findFirst as any).mockResolvedValueOnce({ id: "blk" });
+    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 });
+    const s = expired({ dailyChoices: [{ dayNumber: 7 }], guesses: [{ dayNumber: 7 }] });
+    expect(await RefugeService.closeExpiredSession(s as any)).toEqual({ status: "COMPLETED", closedByThisCall: true });
+    expect((prisma.refugeSession.updateMany as any).mock.calls[0][0].data).toEqual({ status: "COMPLETED" });
+    const { sendReaction } = await import("../../src/modules/reactions/reactions.service");
+    expect(sendReaction).not.toHaveBeenCalled();
+  });
+
+  it("requête simultanée perdante : aucun sourire de plus", async () => {
+    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 0 });
+    const s = expired({ dailyChoices: [{ dayNumber: 7 }], guesses: [{ dayNumber: 7 }] });
+    expect(await RefugeService.closeExpiredSession(s as any)).toEqual({ status: "REVEALED", closedByThisCall: false });
+    const { sendReaction } = await import("../../src/modules/reactions/reactions.service");
+    expect(sendReaction).not.toHaveBeenCalled();
   });
 
   it("jour 7 non joué, ou seulement à moitié (choix sans réponse) → clôture propre", async () => {
@@ -1667,15 +1702,16 @@ describe("RefugeService — notifications du Refuge", () => {
     expect(sent.every((c: any) => !("actorId" in c))).toBe(true); // événement système
   });
 
-  it("expiration avec jour 7 joué (dévoilement) : les DEUX participants reçoivent UNE notification de dévoilement, pas d'expiration", async () => {
+  it("expiration avec jour 7 joué (dévoilement automatique) : les DEUX participants reçoivent UNE seule notification de fin, ni expiration ni « choix »", async () => {
     const expired = { id: sessionId, status: "ACTIVE", endsAt: new Date(Date.now() - 1000), adopteId, adoptantId, dailyChoices: [{ dayNumber: 7 }], guesses: [{ dayNumber: 7 }] } as any;
     (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
-    expect((await RefugeService.closeExpiredSession(expired))?.status).toBe("AWAITING_REVEAL_CONSENT");
+    expect((await RefugeService.closeExpiredSession(expired))?.status).toBe("REVEALED");
     await RefugeService.closeExpiredSession(expired); // requête simultanée perdante : aucune notification de plus
     await flushNotifications();
-    expect(sentNotifications().some((c: any) => c.type === "REFUGE_EXPIRED")).toBe(false);
-    const phase = sentNotifications().filter((c: any) => c.type === "REFUGE_REVEAL_PHASE");
-    expect(phase.map((c: any) => c.recipientId).sort()).toEqual([adopteId, adoptantId].sort());
-    expect(new Set(phase.map((c: any) => c.dedupeKey))).toEqual(new Set([`refuge-reveal-phase:${sessionId}`]));
+    expect(sentNotifications().some((c: any) => c.type === "REFUGE_EXPIRED" || c.type === "REFUGE_REVEAL_PHASE")).toBe(false);
+    const finalReport = sentNotifications().filter((c: any) => c.type === "REFUGE_FINAL_REPORT");
+    expect(finalReport.map((c: any) => c.recipientId).sort()).toEqual([adopteId, adoptantId].sort());
+    expect(new Set(finalReport.map((c: any) => c.dedupeKey))).toEqual(new Set([`refuge-final-report:${sessionId}`]));
   });
+
 });

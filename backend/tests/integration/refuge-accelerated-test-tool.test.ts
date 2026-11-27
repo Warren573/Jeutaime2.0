@@ -139,16 +139,16 @@ async function playScenario(id: "S1" | "S2" | "S3", c: number, s: number) {
   return sessionId;
 }
 
-describe("outil de test accéléré — scénarios complets (sept jours, 168 h, décision)", () => {
-  test("S1 : parcours parfait, dévoilement mutuel (REVEALED), 170 pièces chacun", async () => {
+describe("outil de test accéléré — scénarios complets (sept jours, 168 h, fin automatique)", () => {
+  test("S1 : parcours parfait, dévoilement automatique (REVEALED) et match, 170 pièces chacun", async () => {
     const sid = await playScenario("S1", 5, 6);
     expect((await prisma.refugeSession.findUniqueOrThrow({ where: { id: sid } })).status).toBe("REVEALED");
     for (const n of [5, 6]) expect((await prisma.wallet.findUniqueOrThrow({ where: { userId: ids.get(n)! } })).coins).toBe(100 + 170);
   }, 180000);
 
-  test("S2 : parcours incomplet, refus (COMPLETED), pièces conservées, points −10, Refuge actif disparu", async () => {
+  test("S2 : parcours incomplet, dévoilement automatique (REVEALED), pièces conservées, points −10, Refuge libéré", async () => {
     const sid = await playScenario("S2", 7, 8);
-    expect((await prisma.refugeSession.findUniqueOrThrow({ where: { id: sid } })).status).toBe("COMPLETED");
+    expect((await prisma.refugeSession.findUniqueOrThrow({ where: { id: sid } })).status).toBe("REVEALED");
     expect((await prisma.wallet.findUniqueOrThrow({ where: { userId: ids.get(7)! } })).coins).toBe(100 + 50);
     expect((await prisma.wallet.findUniqueOrThrow({ where: { userId: ids.get(8)! } })).coins).toBe(100 + 40);
     for (const n of [7, 8]) expect((await prisma.profile.findUniqueOrThrow({ where: { userId: ids.get(n)! } })).discoveryActivityScore).toBe(-10);
@@ -157,9 +157,9 @@ describe("outil de test accéléré — scénarios complets (sept jours, 168 h, 
     expect(await RefugeService.getActiveRefugeSession(ids.get(8)!)).toBeNull();
   }, 180000);
 
-  test("S3 : 7/7 d'assiduité, un accepte et l'autre refuse (COMPLETED), 120 pièces chacun, aucun point retiré", async () => {
+  test("S3 : 7/7 d'assiduité, dévoilement automatique (REVEALED), 120 pièces chacun, aucun point retiré", async () => {
     const sid = await playScenario("S3", 9, 10);
-    expect((await prisma.refugeSession.findUniqueOrThrow({ where: { id: sid } })).status).toBe("COMPLETED");
+    expect((await prisma.refugeSession.findUniqueOrThrow({ where: { id: sid } })).status).toBe("REVEALED");
     for (const n of [9, 10]) {
       expect((await prisma.wallet.findUniqueOrThrow({ where: { userId: ids.get(n)! } })).coins).toBe(100 + 120);
       expect((await prisma.profile.findUniqueOrThrow({ where: { userId: ids.get(n)! } })).discoveryActivityScore).toBe(0);

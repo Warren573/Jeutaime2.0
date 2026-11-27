@@ -231,11 +231,11 @@ export async function runStage(o: RunOptions, log: Log = console.log): Promise<R
     case "fast-forward":
       if (state?.status !== "ACTIVE") order.push(`la session doit être ACTIVE (état : ${state?.status})`);
       if (doneDays.size < 7) order.push(`les 7 jours doivent être réglés avant l'expiration (réglés : ${doneDays.size}/7) : lance les étapes précédentes`);
-      planned.push("168 h + 1 h écoulées pour CETTE session : règlement final, bonus, notification de fin, dévoilement proposé");
+      planned.push("168 h + 1 h écoulées pour CETTE session : règlement final, bonus, notification de fin, dévoilement automatique, sourires et match");
       break;
     case "decision":
-      if (state?.status !== "AWAITING_REVEAL_CONSENT") order.push(`la session doit attendre le dévoilement (état : ${state?.status}) : lance « fast-forward » d'abord`);
-      planned.push(o.decision === "scenario" ? `décisions appliquées par le script : compagnon ${scenario.reveal.companion ?? "—"}, parrain/marraine ${scenario.reveal.sponsor ?? "—"}` : "aucune décision par le script : à faire sur l'iPhone (comptes de test)");
+      if (state?.status !== "REVEALED" && state?.status !== "COMPLETED") order.push(`l'aventure doit être terminée (état : ${state?.status}) : lance « fast-forward » d'abord`);
+      planned.push(o.decision === "scenario" ? "sortie de l'écran de fin appliquée par le script : le compagnon puis le parrain/la marraine quittent l'écran (archivage de chacun)" : "aucune sortie par le script : à faire sur l'iPhone (comptes de test)");
       break;
     case "status":
       planned.push("lecture seule : état de la session et vérifications");
@@ -279,8 +279,8 @@ export async function runStage(o: RunOptions, log: Log = console.log): Promise<R
     await RefugeService.getRefugeSession(sessionId!, companion.id); // la lecture déclenche la clôture finale (la tâche horaire ferait de même)
     await new Promise((r) => setTimeout(r, 1500)); // laisse partir les notifications
   } else if (o.stage === "decision" && o.decision === "scenario") {
-    if (scenario.reveal.companion) await RefugeService.submitRevealConsent(sessionId!, companion.id, scenario.reveal.companion);
-    if (scenario.reveal.sponsor) await RefugeService.submitRevealConsent(sessionId!, sponsor.id, scenario.reveal.sponsor);
+    await RefugeService.archiveSession(sessionId!, companion.id);
+    await RefugeService.archiveSession(sessionId!, sponsor.id);
     await new Promise((r) => setTimeout(r, 1000));
   }
 
@@ -290,14 +290,17 @@ export async function runStage(o: RunOptions, log: Log = console.log): Promise<R
     r.lines.forEach((l) => log(l));
     r.checks.forEach((c) => checks.push(c));
     if (o.stage === "decision") {
-      const active: any = await RefugeService.getActiveRefugeSession(companion.id).catch(() => null);
-      const refused = scenario.reveal.companion === "REFUSE" || scenario.reveal.sponsor === "REFUSE";
       if (o.decision === "scenario") {
         const fin = await prisma.refugeSession.findUniqueOrThrow({ where: { id: sessionId }, select: { status: true } });
-        ok(fin.status === (refused ? "COMPLETED" : "REVEALED"), `état final ${refused ? "COMPLETED (refus)" : "REVEALED (accord mutuel)"}`, String(fin.status));
-        if (refused) ok(!active || active.id !== sessionId, "le Refuge actif a disparu après la clôture (refus)");
+        ok(fin.status === "REVEALED", "état final REVEALED (dévoilement automatique)", String(fin.status));
+        const matchCount = await prisma.match.count({ where: { OR: [{ userAId: companion.id, userBId: sponsor.id }, { userAId: sponsor.id, userBId: companion.id }] } });
+        ok(matchCount === 1, "un seul match entre les deux comptes", String(matchCount));
+        for (const [name, u] of [["compagnon", companion.id], ["parrain/marraine", sponsor.id]] as const) {
+          const active: any = await RefugeService.getActiveRefugeSession(u).catch(() => null);
+          ok(!active || active.id !== sessionId, `Refuge libéré pour le ${name} après la sortie de l'écran de fin`);
+        }
         const post = await snapshot(companion.id, sessionId);
-        ok(post.ledgerCoins === expectedOutcome(scenario).companion.totalCoins, "récompenses conservées après la décision", `pièces de la session : ${post.ledgerCoins}`);
+        ok(post.ledgerCoins === expectedOutcome(scenario).companion.totalCoins, "récompenses conservées après la sortie", `pièces de la session : ${post.ledgerCoins}`);
       }
     }
   }

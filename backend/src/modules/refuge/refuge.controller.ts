@@ -291,6 +291,25 @@ export class RefugeController {
     }
   }
 
+  static async archiveSession(req: AuthedRequest, res: Response): Promise<void> {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Non authentifié" });
+      return;
+    }
+    const sessionId = req.params.sessionId as string;
+    if (!sessionId) {
+      res.status(400).json({ error: "sessionId requis" });
+      return;
+    }
+    try {
+      const data = await RefugeService.archiveSession(sessionId, userId);
+      res.status(200).json({ success: true, data });
+    } catch (error: any) {
+      sendError(res, error);
+    }
+  }
+
   static async devSetDay(req: AuthedRequest, res: Response): Promise<void> {
     if (!isRefugeDevEnabled()) {
       res.status(403).json({ error: "Dev mode not enabled" });

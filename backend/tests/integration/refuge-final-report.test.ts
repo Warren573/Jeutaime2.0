@@ -118,29 +118,29 @@ describe("Refuge — bilan final, notification unique, historique du parrain (Po
     expect(spon.days[2]).toMatchObject({ assiduous: true, coins: 10, points: 0 });
   }, 120000);
 
-  test("dévoilement : refusé avant 168 h, proposé ensuite ; le bilan reste accessible après le dévoilement mutuel ; identités seulement alors", async () => {
+  test("dévoilement : refusé avant 168 h, AUTOMATIQUE ensuite ; le bilan reste accessible ; identités seulement alors", async () => {
     const x = await adopted("reveal");
     for (let d = 1; d <= 7; d++) await play(x, d);
     expect(await attempt(() => RefugeService.submitRevealConsent(x.sid, x.c, "ACCEPT"))).toMatch(/^409/);
+    const early: any = await RefugeService.getRefugeSession(x.sid, x.c);
+    expect(early.otherProfile).toBeUndefined(); // jamais avant 168 h
     await expire(x.sid);
-    const before: any = await RefugeService.getRefugeSession(x.sid, x.c);
-    expect(before.reveal.available).toBe(true);
-    expect(before.otherProfile).toBeUndefined();
-    await RefugeService.submitRevealConsent(x.sid, x.c, "ACCEPT");
-    const mid: any = await RefugeService.getRefugeSession(x.sid, x.s);
-    expect(mid.otherProfile).toBeUndefined(); // un seul accord : rien n'est révélé
-    const done: any = await RefugeService.submitRevealConsent(x.sid, x.s, "ACCEPT");
+    const done: any = await RefugeService.getRefugeSession(x.sid, x.c);
     expect(done.status).toBe("REVEALED");
     expect(done.otherProfile?.pseudo).toBeTruthy();
     expect(done.finalReport.totalCoins).toBe(170); // indépendant du dévoilement
+    const other: any = await RefugeService.getRefugeSession(x.sid, x.s);
+    expect(other.status).toBe("REVEALED");
+    expect(other.otherProfile?.pseudo).toBeTruthy();
   }, 120000);
 
-  test("refus du dévoilement : les récompenses finales restent acquises", async () => {
+  test("ancienne application : un refus tardif ne change ni le statut ni les récompenses finales", async () => {
     const x = await adopted("refuse");
     for (let d = 1; d <= 7; d++) await play(x, d);
     await expire(x.sid);
     await RefugeService.getRefugeSession(x.sid, x.c);
     await RefugeService.submitRevealConsent(x.sid, x.c, "REFUSE");
+    expect((await prisma.refugeSession.findUniqueOrThrow({ where: { id: x.sid } })).status).toBe("REVEALED");
     expect((await prisma.wallet.findUniqueOrThrow({ where: { userId: x.c } })).coins).toBe(170);
     expect((await prisma.wallet.findUniqueOrThrow({ where: { userId: x.s } })).coins).toBe(170);
   }, 120000);

@@ -56,6 +56,7 @@ const rows = (userId: string) => prisma.notification.findMany({ where: { userId,
 const refugeTypes = ["REFUGE_ADOPTED", "REFUGE_CHOICE_READY", "REFUGE_RESULT_READY", "REFUGE_DAY_RESULT", "REFUGE_NEW_DAY", "REFUGE_COINS", "REFUGE_REVEAL_PHASE", "REFUGE_REVEALED", "REFUGE_ADOPTION_CONFIRMED", "REFUGE_FINAL_REPORT", "REFUGE_REVEAL_REFUSED", "REFUGE_EXPIRED"] as never[];
 /** Types reçus, triés : les notifications d'un même événement sont créées en parallèle (ordre non significatif). */
 const summary = async (userId: string) => (await rows(userId)).map((n) => `${n.type}`).sort();
+const dbStatusOf = async (id: string) => (await prisma.refugeSession.findUniqueOrThrow({ where: { id }, select: { status: true } })).status;
 async function settle(ms = 400) { await new Promise((r) => setTimeout(r, ms)); }
 const attempt = async (f: () => Promise<unknown>) => { try { await f(); return "OK"; } catch (e: any) { return `${e.statusCode ?? ""} ${e.message}`; } };
 const bodiesSentToExpo = () => expo.mock.calls.flatMap((c: any[]) => (JSON.parse(c[1].body as string) as Array<{ to: string; body: string; data: Record<string, string> }>));
@@ -69,7 +70,7 @@ afterEach(() => { expo.mockClear(); resetPushIdempotency(); resetHandledNewDays(
 afterAll(async () => {
   vi.unstubAllGlobals();
   await prisma.pushToken.deleteMany({ where: { userId: { in: created } } });
-  await prisma.user.deleteMany({ where: { id: { in: created } } });
+  await prisma.match.deleteMany({ where: { OR: [{ userAId: { in: created } }, { userBId: { in: created } }] } }); await prisma.reaction.deleteMany({ where: { OR: [{ fromId: { in: created } }, { toId: { in: created } }] } }); await prisma.user.deleteMany({ where: { id: { in: created } } });
   await prisma.$disconnect();
 });
 
@@ -179,29 +180,34 @@ describe("Refuge : pièces appliquées (règlement), jour 7, dévoilement, expir
     await prisma.refugeSession.update({ where: { id }, data: { startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY) } });
     await Promise.all(Array.from({ length: 5 }, () => RefugeService.getRefugeSession(id, p.companion)));
     await settle();
-    expect(await summary(p.companion)).toEqual(["REFUGE_REVEAL_PHASE", "REFUGE_RESULT_READY"].sort());
-    expect((await rows(p.companion)).find((n) => n.type === ("REFUGE_REVEAL_PHASE" as never))!.message).toBe("Ton refuge arrive à son terme : choisis de te dévoiler ou non");
-    expect(await summary(p.sponsor)).toEqual(["REFUGE_CHOICE_READY", "REFUGE_DAY_RESULT", "REFUGE_REVEAL_PHASE"].sort());
+    // Fin AUTOMATIQUE : UNE seule notification de fin par personne (bilan), jamais de « choix » à faire, ni de dévoilement à accepter.
+    expect(await summary(p.companion)).toEqual(["REFUGE_FINAL_REPORT", "REFUGE_RESULT_READY"].sort());
+    expect((await rows(p.companion)).find((n) => n.type === ("REFUGE_FINAL_REPORT" as never))!.message).toBe("Le bilan de votre aventure est prêt.");
+    expect(await summary(p.sponsor)).toEqual(["REFUGE_CHOICE_READY", "REFUGE_DAY_RESULT", "REFUGE_FINAL_REPORT"].sort());
+    expect(await dbStatusOf(id)).toBe("REVEALED");
 
-    // Le compagnon accepte, le parrain/la marraine refuse → le compagnon est prévenu, pas l'auteur du refus.
+    // Une ancienne application qui répond encore au consentement ne change rien et ne notifie personne.
     await RefugeService.submitRevealConsent(id, p.companion, "ACCEPT");
     await RefugeService.submitRevealConsent(id, p.sponsor, "REFUSE");
-    await RefugeService.submitRevealConsent(id, p.sponsor, "REFUSE").catch(() => undefined); // rejeu
     await settle();
-    expect(await summary(p.companion)).toEqual(["REFUGE_RESULT_READY", "REFUGE_REVEAL_PHASE", "REFUGE_REVEAL_REFUSED"].sort());
-    expect((await rows(p.companion)).find((n) => n.type === ("REFUGE_REVEAL_REFUSED" as never))!.message).toBe("Votre refuge se termine sans dévoilement. D'autres rencontres vous attendent.");
-    expect(await summary(p.sponsor)).toEqual(["REFUGE_CHOICE_READY", "REFUGE_DAY_RESULT", "REFUGE_REVEAL_PHASE"].sort());
+    expect(await summary(p.companion)).toEqual(["REFUGE_FINAL_REPORT", "REFUGE_RESULT_READY"].sort());
+    expect(await summary(p.sponsor)).toEqual(["REFUGE_CHOICE_READY", "REFUGE_DAY_RESULT", "REFUGE_FINAL_REPORT"].sort());
   }, 60000);
 
-  test("dévoilement mutuel : les DEUX participants sont prévenus, une seule fois chacun", async () => {
+  test("dévoilement automatique : chaque participant reçoit UNE seule notification de fin, même sous lectures simultanées", async () => {
     const p = await pair("reveal");
     const id = await activeSession("reveal", p, 7 * DAY + 2 * HOUR, [7], [7]); // 168 h écoulées
-    await RefugeService.submitRevealConsent(id, p.companion, "ACCEPT");
-    await Promise.all([RefugeService.submitRevealConsent(id, p.sponsor, "ACCEPT"), RefugeService.submitRevealConsent(id, p.sponsor, "ACCEPT").catch(() => undefined)]);
+    await Promise.all([
+      ...Array.from({ length: 6 }, () => RefugeService.getRefugeSession(id, p.companion)),
+      ...Array.from({ length: 6 }, () => RefugeService.getRefugeSession(id, p.sponsor)),
+    ]);
     await settle();
-    expect((await summary(p.companion)).filter((t) => t === "REFUGE_REVEALED")).toHaveLength(1);
-    expect((await summary(p.sponsor)).filter((t) => t === "REFUGE_REVEALED")).toHaveLength(1);
-    expect((await rows(p.sponsor)).find((n) => n.type === ("REFUGE_REVEALED" as never))!.message).toBe("Vos profils sont dévoilés");
+    expect((await summary(p.companion)).filter((t) => t === "REFUGE_FINAL_REPORT")).toHaveLength(1);
+    expect((await summary(p.sponsor)).filter((t) => t === "REFUGE_FINAL_REPORT")).toHaveLength(1);
+    for (const u of [p.companion, p.sponsor]) {
+      const types = await summary(u);
+      expect(types.some((t) => t === "REFUGE_REVEALED" || t === "REFUGE_REVEAL_PHASE" || t === "REFUGE_REVEAL_REFUSED")).toBe(false);
+    }
   }, 60000);
 
   test("expiration sans jour 7 : les deux participants, une seule fois, même sous 20 lectures simultanées ; rien pour une session déjà fermée", async () => {

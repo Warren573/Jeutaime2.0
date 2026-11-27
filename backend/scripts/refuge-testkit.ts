@@ -62,14 +62,10 @@ export interface DayScript {
   guess?: GuessKind;
 }
 
-/** `null` : cette personne n'a rien à faire (la session est déjà terminée par le refus de l'autre). */
-export type RevealPlan = { companion: "ACCEPT" | "REFUSE" | null; sponsor: "ACCEPT" | "REFUSE" | null };
-
 export interface Scenario {
   id: "S1" | "S2" | "S3";
   title: string;
   days: DayScript[];
-  reveal: RevealPlan;
 }
 
 const day = (d: number, over: Partial<DayScript> = {}): DayScript => ({ day: d, companion: true, companionAtHour: 2, sponsor: "answer", guess: "perfect", ...over });
@@ -77,13 +73,12 @@ const day = (d: number, over: Partial<DayScript> = {}): DayScript => ({ day: d, 
 export const SCENARIOS: Record<Scenario["id"], Scenario> = {
   S1: {
     id: "S1",
-    title: "Parcours parfait (14/14), dévoilement mutuel accepté",
+    title: "Parcours parfait (14/14), dévoilement automatique et match",
     days: [1, 2, 3, 4, 5, 6, 7].map((d) => day(d)),
-    reveal: { companion: "ACCEPT", sponsor: "ACCEPT" },
   },
   S2: {
     id: "S2",
-    title: "Parcours incomplet, dévoilement refusé",
+    title: "Parcours incomplet (absences, validation tardive), dévoilement automatique",
     days: [
       day(1),
       day(2, { guess: "half" }),
@@ -93,13 +88,11 @@ export const SCENARIOS: Record<Scenario["id"], Scenario> = {
       day(6, { companion: false, companionAtHour: undefined, sponsor: "absent", guess: undefined }), // personne → −5 chacun
       day(7, { guess: "none" }), // 0/2
     ],
-    reveal: { companion: "REFUSE", sponsor: null }, // le refus du compagnon termine la session ; le parrain/la marraine le constate
   },
   S3: {
     id: "S3",
-    title: "7/7 d'assiduité, scores mixtes (bonus de 50), un accepte et l'autre refuse",
+    title: "7/7 d'assiduité, scores mixtes (bonus de 50), dévoilement automatique",
     days: [day(1), day(2, { guess: "half" }), day(3, { guess: "none" }), day(4), day(5, { guess: "half" }), day(6), day(7, { guess: "none" })],
-    reveal: { companion: "ACCEPT", sponsor: "REFUSE" },
   },
 };
 

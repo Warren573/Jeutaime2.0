@@ -5,6 +5,7 @@ import * as refugeNotifications from "./refuge.notifications";
 import { buildPhotoUrl } from "../photos/photos.urls";
 import { sendReaction } from "../reactions/reactions.service";
 import { logger } from "../../config/logger";
+import { isAccountDeactivated } from "../auth/accountLifecycle.service";
 import {
   BadRequestError,
   ConflictError,
@@ -645,8 +646,11 @@ export class RefugeService {
     // décision de dévoilement peut prendre plusieurs jours.
     const activeSession = await prisma.refugeSession.findFirst({
       where: {
-        status: { in: [RefugeSessionStatus.ACTIVE, RefugeSessionStatus.AWAITING_REVEAL_CONSENT] },
-        OR: [{ adopteId: userId }, { adoptantId: userId }],
+        OR: [
+          { status: RefugeSessionStatus.ACTIVE, OR: [{ adopteId: userId }, { adoptantId: userId }] },
+          // Ancien flux (consentement) : reste « en cours » jusqu'à ce que CE participant quitte l'écran de fin.
+          { status: RefugeSessionStatus.AWAITING_REVEAL_CONSENT, ...this.unarchivedFor(userId) },
+        ],
       },
       include: {
         guesses: {
@@ -707,12 +711,14 @@ export class RefugeService {
     // Priorité 3 : une session RÉVÉLÉE reste consultable (les profils dévoilés)
     // tant que l'utilisateur n'a pas relancé de refuge — sinon un rechargement
     // juste après la révélation la ferait disparaître définitivement.
+    // Fin automatique : REVEALED (profils dévoilés) ou COMPLETED (fin sans dévoilement : blocage, compte indisponible),
+    // tant que CE participant n'a pas quitté l'écran de fin. Les anciennes COMPLETED/ABANDONED sont archivées par migration.
     const revealedSession = await prisma.refugeSession.findFirst({
       where: {
-        status: RefugeSessionStatus.REVEALED,
-        OR: [{ adopteId: userId }, { adoptantId: userId }],
+        status: { in: [RefugeSessionStatus.REVEALED, RefugeSessionStatus.COMPLETED] },
+        ...this.unarchivedFor(userId),
       },
-      orderBy: { revealedAt: "desc" },
+      orderBy: [{ revealedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
     });
 
     if (revealedSession) {
@@ -725,6 +731,42 @@ export class RefugeService {
     }
 
     return null;
+  }
+
+  /** Filtre « cette personne n'a pas encore quitté l'écran de fin » (archivage indépendant pour chaque participant). */
+  private static unarchivedFor(userId: string) {
+    return {
+      OR: [
+        { adopteId: userId, adopteArchivedAt: null },
+        { adoptantId: userId, adoptantArchivedAt: null },
+      ],
+    };
+  }
+
+  /**
+   * Archive l'aventure POUR CE PARTICIPANT (il quitte l'écran de fin) : son Refuge est libéré, l'autre participant n'est pas
+   * touché. La session reste intacte (bilan, récompenses, match). Idempotent ; refusé tant que l'aventure n'est pas terminée.
+   */
+  static async archiveSession(refugeSessionId: string, userId: string): Promise<{ archived: boolean }> {
+    const session = await prisma.refugeSession.findUnique({
+      where: { id: refugeSessionId },
+      select: { id: true, status: true, adopteId: true, adoptantId: true },
+    });
+    if (!session) throw new NotFoundError("Refuge non trouvé");
+    const isAdopte = userId === session.adopteId;
+    const isAdoptant = userId === session.adoptantId;
+    if (!isAdopte && !isAdoptant) throw new ForbiddenError("Tu n'as accès à ce refuge");
+    const ended: RefugeSessionStatus[] = [
+      RefugeSessionStatus.REVEALED,
+      RefugeSessionStatus.COMPLETED,
+      RefugeSessionStatus.ABANDONED,
+      RefugeSessionStatus.AWAITING_REVEAL_CONSENT,
+    ];
+    if (!ended.includes(session.status)) throw new ConflictError("Ce refuge n'est pas terminé");
+    const field = isAdopte ? "adopteArchivedAt" : "adoptantArchivedAt";
+    // Garde conditionnelle : la date n'est posée qu'une fois (rejeux et doubles appuis sans effet).
+    await prisma.refugeSession.updateMany({ where: { id: refugeSessionId, [field]: null }, data: { [field]: new Date() } });
+    return { archived: true };
   }
 
   // ============================================================
@@ -1346,17 +1388,25 @@ export class RefugeService {
     const v2 = (session.rulesVersion ?? 1) >= RULES_VERSION_V2;
     const lastDayPlayed =
       !!session.adoptantId && isDayCompleted(session.dailyChoices ?? [], session.guesses ?? [], REFUGE_DURATION_DAYS);
-    // v1 : dévoilement seulement si le jour 7 a été joué. v2 : toujours proposé à l'expiration des 168 h, indépendamment
-    // des scores et de l'assiduité (aucun seuil de participation).
-    const status = v2 || lastDayPlayed ? RefugeSessionStatus.AWAITING_REVEAL_CONSENT : RefugeSessionStatus.ABANDONED;
+    // v1 : fin menée seulement si le jour 7 a été joué. v2 : toujours à l'expiration des 168 h, indépendamment des scores et
+    // de l'assiduité (aucun seuil de participation). Une aventure non menée à terme (v1) est abandonnée, sans dévoilement.
+    const completed = v2 || lastDayPlayed;
+    // DÉVOILEMENT AUTOMATIQUE : à l'issue des 168 h les profils sont dévoilés, sans consentement. Sécurité : aucun dévoilement
+    // si un blocage existe entre les deux ou si l'un des comptes est indisponible (aventure alors simplement terminée).
+    const mayReveal = completed && !!session.adopteId && !!session.adoptantId && (await this.pairMayReveal(session.adopteId, session.adoptantId));
+    const status = !completed
+      ? RefugeSessionStatus.ABANDONED
+      : mayReveal
+        ? RefugeSessionStatus.REVEALED
+        : RefugeSessionStatus.COMPLETED;
 
     let closedByThisCall = false;
     if (v2 && session.adopteId && session.adoptantId) {
-      closedByThisCall = await this.finalizeV2(session.id, session.adopteId, session.adoptantId, now);
+      closedByThisCall = await this.finalizeV2(session.id, session.adopteId, session.adoptantId, now, status);
     } else {
       const claimed = await prisma.refugeSession.updateMany({
         where: { id: session.id, status: RefugeSessionStatus.ACTIVE, endsAt: { lte: now } },
-        data: { status },
+        data: { status, ...(status === RefugeSessionStatus.REVEALED && { revealedAt: now }) },
       });
       closedByThisCall = (claimed?.count ?? 0) === 1;
     }
@@ -1364,12 +1414,30 @@ export class RefugeService {
     // simultanées, ne notifient pas). Les sessions fermées AVANT ce correctif ne sont pas notifiées.
     if (closedByThisCall && session.adopteId && session.adoptantId) {
       const ids = { refugeSessionId: session.id, companionId: session.adopteId, sponsorId: session.adoptantId };
-      if (status === RefugeSessionStatus.ABANDONED) void refugeNotifications.notifyExpired(ids);
-      // Règles v2 : UNE seule notification de fin (bilan puis dévoilement) ; version 1 : notification de dévoilement existante.
-      else if (v2) void refugeNotifications.notifyFinalReport(ids);
-      else void refugeNotifications.notifyRevealPhase(ids);
+      if (status === RefugeSessionStatus.ABANDONED) {
+        void refugeNotifications.notifyExpired(ids);
+      } else {
+        // UNE seule notification de fin (bilan puis nouvelle histoire), v1 comme v2 : plus de notification de « choix ».
+        void refugeNotifications.notifyFinalReport(ids);
+        if (status === RefugeSessionStatus.REVEALED) {
+          emitRefugeRevealed({ refugeSessionId: session.id, adopteId: session.adopteId, adoptantId: session.adoptantId, revealedAt: now });
+          // Sourires réciproques + match, UNE SEULE FOIS : seule la requête qui a gagné la transition conditionnelle arrive ici.
+          await this.createMutualRevealMatch(session.adopteId, session.adoptantId);
+        }
+      }
     }
     return { status, closedByThisCall };
+  }
+
+  /** Dévoilement automatique autorisé ? Non si un blocage existe (dans un sens ou dans l'autre) ou si un compte est banni / désactivé. */
+  private static async pairMayReveal(userA: string, userB: string): Promise<boolean> {
+    const [block, users, deactivatedA, deactivatedB] = await Promise.all([
+      prisma.block.findFirst({ where: { OR: [{ fromId: userA, toId: userB }, { fromId: userB, toId: userA }] }, select: { id: true } }),
+      prisma.user.findMany({ where: { id: { in: [userA, userB] } }, select: { id: true, isBanned: true } }),
+      isAccountDeactivated(userA),
+      isAccountDeactivated(userB),
+    ]);
+    return !block && users.length === 2 && users.every((u) => !u.isBanned) && !deactivatedA && !deactivatedB;
   }
 
   /**
@@ -1378,14 +1446,21 @@ export class RefugeService {
    * revendiquée en premier : si une autre requête l'a déjà faite, rien n'est versé (count = 0). Retourne vrai si CET
    * appel a réalisé la transition.
    */
-  private static async finalizeV2(sessionId: string, adopteId: string, adoptantId: string, now: Date): Promise<boolean> {
+  private static async finalizeV2(
+    sessionId: string,
+    adopteId: string,
+    adoptantId: string,
+    now: Date,
+    status: RefugeSessionStatus
+  ): Promise<boolean> {
     const rows = await prisma.refugeDayResult.findMany({ where: { refugeSessionId: sessionId } });
     const f = computeFinalSettlement(rows);
     return prisma.$transaction(async (tx) => {
       const claimed = await tx.refugeSession.updateMany({
         where: { id: sessionId, status: RefugeSessionStatus.ACTIVE, endsAt: { lte: now }, finalizedAt: null },
         data: {
-          status: RefugeSessionStatus.AWAITING_REVEAL_CONSENT,
+          status,
+          ...(status === RefugeSessionStatus.REVEALED && { revealedAt: now }),
           finalizedAt: now,
           adopteFinalBonus: f.companionBonus,
           adoptantFinalBonus: f.sponsorBonus,
@@ -1564,6 +1639,9 @@ export class RefugeService {
       }
       throw new ConflictError("Ta décision est déjà enregistrée");
     }
+
+    // Dévoilement désormais automatique : une ancienne application qui répond encore reçoit simplement l'état courant.
+    if (refugeSession.status === RefugeSessionStatus.REVEALED) return this.getRefugeSession(refugeSessionId, userId);
 
     if (
       refugeSession.status !== RefugeSessionStatus.ACTIVE &&

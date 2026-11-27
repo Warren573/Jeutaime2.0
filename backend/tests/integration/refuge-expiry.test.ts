@@ -94,16 +94,19 @@ describe("Refuge — clôture d'une session expirée (PostgreSQL)", () => {
     expect(newSponsor).toBeTruthy();
   });
 
-  test("jour 7 joué : la session passe à la phase de dévoilement, qui reste utilisable, sans pièces", async () => {
+  test("jour 7 joué : dévoilement AUTOMATIQUE à la clôture, sans pièces, un seul match, sans consentement", async () => {
     const x = await session("b", { startedAgoMs: 8 * DAY, choices: [7], guesses: [7] });
     const before = { coins: await coins([x.c, x.s]), tx: await movements([x.c, x.s]) };
     const v: any = await RefugeService.getRefugeSession(x.sid, x.c);
-    expect(v.status).toBe("AWAITING_REVEAL_CONSENT");
-    expect(v.reveal.available).toBe(true);
-    expect(((await RefugeService.getActiveRefugeSession(x.c)) as any)?.status).toBe("AWAITING_REVEAL_CONSENT"); // toujours « en cours »
+    expect(v.status).toBe("REVEALED");
+    expect(v.otherProfile?.userId).toBe(x.s);
+    expect(v.revealMatch?.status).toBe("ACTIVE");
+    expect(((await RefugeService.getActiveRefugeSession(x.c)) as any)?.status).toBe("REVEALED"); // consultable jusqu'à la sortie de l'écran de fin
+    // Une ancienne application qui répond encore au consentement reçoit simplement l'état : aucune erreur, aucun changement.
     expect(await attempt(() => RefugeService.submitRevealConsent(x.sid, x.c, "ACCEPT"))).toBe("OK");
-    expect(await attempt(() => RefugeService.submitRevealConsent(x.sid, x.s, "ACCEPT"))).toBe("OK");
+    expect(await attempt(() => RefugeService.submitRevealConsent(x.sid, x.s, "REFUSE"))).toBe("OK");
     expect(await dbStatus(x.sid)).toBe("REVEALED");
+    expect(await prisma.match.count({ where: { OR: [{ userAId: x.c, userBId: x.s }, { userAId: x.s, userBId: x.c }] } })).toBe(1);
     expect(await coins([x.c, x.s])).toEqual(before.coins);
     expect(await movements([x.c, x.s])).toBe(before.tx);
   });
@@ -216,13 +219,13 @@ describe("Refuge — clôture d'une session expirée (PostgreSQL)", () => {
     expect(await prisma.refugeDayResult.count({ where: { refugeSessionId: x.sid } })).toBe(0);
   });
 
-  test("jour 7 joué : les autres jours incomplets sont soldés, puis dévoilement utilisable", async () => {
+  test("jour 7 joué : les autres jours incomplets sont soldés, puis dévoilement automatique", async () => {
     const x = await session("l", { startedAgoMs: 8 * DAY, choices: [5, 7], guesses: [7] });
     const v: any = await RefugeService.getRefugeSession(x.sid, x.s);
-    expect(v.status).toBe("AWAITING_REVEAL_CONSENT");
+    expect(v.status).toBe("REVEALED");
     // Jour 5 : choix sans réponse → +5 / −5 ; jour 7 complet : récompense déjà versée à la validation (non rejouée ici).
     expect(await coins([x.c, x.s])).toEqual([105, 95]);
-    expect(await attempt(() => RefugeService.submitRevealConsent(x.sid, x.c, "ACCEPT"))).toBe("OK");
+    await RefugeService.getRefugeSession(x.sid, x.c);
     expect(await coins([x.c, x.s])).toEqual([105, 95]);
   });
 
