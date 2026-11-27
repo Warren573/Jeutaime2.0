@@ -638,7 +638,7 @@ export class RefugeService {
   // Récupération — Session active de l'utilisateur courant
   // ============================================================
 
-  static async getActiveRefugeSession(userId: string): Promise<(RefugeSessionDTO & { currentDay: number; todaySubmitted: boolean; adopteSubmittedToday?: boolean; animation?: RefugeAnimationSnapshot; serverTime?: string; isActive: boolean }) | null> {
+  static async getActiveRefugeSession(userId: string): Promise<(RefugeSessionDTO & { sponsorRole?: "parrain" | "marraine"; currentDay: number; todaySubmitted: boolean; adopteSubmittedToday?: boolean; animation?: RefugeAnimationSnapshot; serverTime?: string; isActive: boolean }) | null> {
     // Priorité 1 : une session en cours (jeu actif ou phase finale de
     // consentement) prime toujours sur une proposition en attente — les deux
     // participants doivent résoudre vers la même session, même si d'anciennes
@@ -657,6 +657,8 @@ export class RefugeService {
           orderBy: { dayNumber: "asc" },
         },
         dailyChoices: true,
+        // Genre du parrain / de la marraine (titre de la case de l'accueil) : même donnée que getRefugeSession, sans requête de plus.
+        adoptant: { select: { profile: { select: { gender: true } } } },
       },
       orderBy: { startedAt: "desc" },
     });
@@ -676,6 +678,7 @@ export class RefugeService {
 
       return {
         ...this.mapToDTO(activeSession),
+        ...this.sponsorRoleFor(userId, activeSession),
         animation: buildAnimationSnapshot({
           choices: activeSession.dailyChoices,
           guesses: activeSession.guesses,
@@ -718,12 +721,14 @@ export class RefugeService {
         status: { in: [RefugeSessionStatus.REVEALED, RefugeSessionStatus.COMPLETED] },
         ...this.unarchivedFor(userId),
       },
+      include: { adoptant: { select: { profile: { select: { gender: true } } } } },
       orderBy: [{ revealedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
     });
 
     if (revealedSession) {
       return {
         ...this.mapToDTO(revealedSession),
+        ...this.sponsorRoleFor(userId, revealedSession),
         currentDay: 7,
         todaySubmitted: false,
         isActive: false,
@@ -731,6 +736,13 @@ export class RefugeService {
     }
 
     return null;
+  }
+
+  /** Rôle du parrain / de la marraine vu par le COMPAGNON (parrain si homme, marraine si femme) ; rien pour l'autre rôle ou si inconnu. */
+  private static sponsorRoleFor(userId: string, session: { adopteId?: string | null; adoptant?: { profile?: { gender?: Gender | null } | null } | null }): { sponsorRole?: "parrain" | "marraine" } {
+    if (userId !== session.adopteId) return {};
+    const gender = session.adoptant?.profile?.gender;
+    return gender === Gender.HOMME ? { sponsorRole: "parrain" } : gender === Gender.FEMME ? { sponsorRole: "marraine" } : {};
   }
 
   /** Filtre « cette personne n'a pas encore quitté l'écran de fin » (archivage indépendant pour chaque participant). */
