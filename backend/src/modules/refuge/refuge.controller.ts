@@ -5,6 +5,7 @@ import type {
   ProposeRefugeDto,
   AdoptRefugeDto,
   GuessDto,
+  AttentionDto,
   DailyChoiceDto,
   RevealConsentDto,
   UpdateBackgroundDto,
@@ -224,6 +225,21 @@ export class RefugeController {
         data: guess,
         message: `Devinettes pour le jour ${input.dayNumber} enregistrées`,
       });
+    } catch (error: any) {
+      sendError(res, error);
+    }
+  }
+
+  static async sendAttention(req: AuthedRequest, res: Response): Promise<void> {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Non authentifié" });
+      return;
+    }
+    const input = req.body as AttentionDto;
+    try {
+      const data = await RefugeService.sendAttention(input.sessionId, userId, input.kind);
+      res.status(201).json({ success: true, data });
     } catch (error: any) {
       sendError(res, error);
     }

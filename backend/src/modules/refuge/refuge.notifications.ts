@@ -76,6 +76,28 @@ export function notifyGuessSubmitted(a: {
   ]);
 }
 
+/**
+ * Petite attention du parrain / de la marraine → le COMPAGNON uniquement (« Ne m'oublie pas ! »). Une clé par session et par
+ * jour : jamais de doublon, quel que soit le nombre de requêtes. Aucun pseudo ; le texte est celui du gabarit serveur.
+ */
+export function notifyAttention(a: {
+  refugeSessionId: string;
+  dayNumber: number;
+  companionId: string;
+  sponsorId: string;
+  sponsorGender: string | null;
+  kind: string;
+}) {
+  return notifyEvent({
+    recipientId: a.companionId,
+    actorId: a.sponsorId,
+    type: NotificationType.REFUGE_ATTENTION,
+    meta: meta(a.refugeSessionId),
+    dedupeKey: `refuge-attention:${a.refugeSessionId}:${a.dayNumber}`,
+    textContext: { sponsorGender: a.sponsorGender, attentionKind: a.kind },
+  });
+}
+
 /** Les sept jours (168 h) sont écoulés : le dévoilement est proposé aux DEUX participants, une seule fois par session. */
 export function notifyRevealPhase(a: { refugeSessionId: string; companionId: string; sponsorId: string }) {
   return Promise.all([

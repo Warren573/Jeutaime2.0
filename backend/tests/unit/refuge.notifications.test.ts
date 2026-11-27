@@ -220,3 +220,33 @@ describe("job « nouvelle journée » : cibles, coût Neon, doublons", () => {
     expect(notifyRefugeNewDayJob.cadence).toBe("hourly");
   });
 });
+
+describe("« Ne m'oublie pas ! » — petite attention du parrain / de la marraine", () => {
+  const T = NotificationType as any;
+  it("texte selon le geste ET le genre (accord de « passé(e) »), jamais de pseudo", () => {
+    const m = (gender: string | null, kind: string) => buildNotificationMessage(T.REFUGE_ATTENTION, { sponsorGender: gender, attentionKind: kind });
+    expect(m("HOMME", "GRATTER_TETE")).toBe("Ton parrain est passé te gratter la tête.");
+    expect(m("HOMME", "CARESSE")).toBe("Ton parrain est passé te faire une caresse.");
+    expect(m("HOMME", "BONJOUR")).toBe("Ton parrain est passé te dire bonjour.");
+    expect(m("FEMME", "GRATTER_TETE")).toBe("Ta marraine est passée te gratter la tête.");
+    expect(m("FEMME", "CARESSE")).toBe("Ta marraine est passée te faire une caresse.");
+    expect(m("FEMME", "BONJOUR")).toBe("Ta marraine est passée te dire bonjour.");
+    expect(m("AUTRE", "BONJOUR")).toBe("Ton parrain ou ta marraine est passé(e) te dire bonjour.");
+    expect(m(null, "CARESSE")).toBe("Ton parrain ou ta marraine est passé(e) te faire une caresse.");
+  });
+  it("geste inconnu / absent : texte générique sûr", () => {
+    expect(buildNotificationMessage(T.REFUGE_ATTENTION)).toBe("Ton parrain ou ta marraine est passé(e) te rendre visite.");
+    expect(buildNotificationMessage(T.REFUGE_ATTENTION, { attentionKind: "N_IMPORTE_QUOI" })).toBe("Ton parrain ou ta marraine est passé(e) te rendre visite.");
+  });
+  it("push : titre « Ne m’oublie pas ! », même texte que l'historique, destination Refuge, aucune donnée sensible", () => {
+    const ctx = { sponsorGender: "FEMME", attentionKind: "BONJOUR" };
+    const p = buildPushPayload(T.REFUGE_ATTENTION, { refugeSessionId: S }, ctx);
+    expect(p.title).toBe("Ne m’oublie pas !");
+    expect(p.body).toBe("Ta marraine est passée te dire bonjour.");
+    expect(p.data).toEqual({ type: "REFUGE_ATTENTION", refugeSessionId: S });
+  });
+  it("notification → compagnon uniquement, une clé par session et par jour", async () => {
+    await N.notifyAttention({ refugeSessionId: S, dayNumber: 2, companionId: C, sponsorId: P, sponsorGender: "HOMME", kind: "CARESSE" });
+    expect(sent()).toEqual([{ recipientId: C, actorId: P, type: "REFUGE_ATTENTION", meta: { refugeSessionId: S }, dedupeKey: `refuge-attention:${S}:2`, textContext: { sponsorGender: "HOMME", attentionKind: "CARESSE" } }]);
+  });
+});

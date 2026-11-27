@@ -16,6 +16,7 @@ import {
   RefugeAction,
   RefugeDayStatus,
   CoinTxnType,
+  RefugeAttentionKind,
   Gender,
   RefugeBackground,
   Prisma,
@@ -586,6 +587,17 @@ export class RefugeService {
       dayCompleted,
       canAdvanceDay,
       finalConsentAvailable,
+      // Petite attention du jour : lue sur la session déjà chargée (aucune requête de plus).
+      attention:
+        isActive && refugeSession.attentionDay === currentDay && refugeSession.attentionKind && refugeSession.attentionAt
+          ? { kind: refugeSession.attentionKind, sentAt: refugeSession.attentionAt }
+          : null,
+      canSendAttention:
+        isActive &&
+        userId === refugeSession.adoptantId &&
+        currentDay >= 1 &&
+        !adopteSubmittedToday &&
+        refugeSession.attentionDay !== currentDay,
       dailyResults,
       reveal,
       ...(todayActions && { todayActions }),
@@ -809,6 +821,68 @@ export class RefugeService {
     await this.closePastDays(refugeSessionId);
 
     return created;
+  }
+
+  // ============================================================
+  // Petites attentions — le parrain / la marraine passe dire un mot, avant la validation du compagnon
+  // ============================================================
+
+  /**
+   * Une seule attention par jour de jeu (fenêtre de 24 h depuis l'adoption), facultative, uniquement tant que le compagnon
+   * n'a pas validé ses deux actions. Aucun gain de pièces ni de points. L'unicité du jour est revendiquée par une écriture
+   * conditionnelle (un seul gagnant, même sous requêtes simultanées) ; la notification porte une clé unique par session et
+   * par jour : jamais de doublon.
+   */
+  static async sendAttention(
+    refugeSessionId: string,
+    userId: string,
+    kind: RefugeAttentionKind
+  ): Promise<{ kind: RefugeAttentionKind; dayNumber: number; sentAt: Date }> {
+    const session = await prisma.refugeSession.findUnique({
+      where: { id: refugeSessionId },
+      select: { id: true, adopteId: true, adoptantId: true, status: true, createdAt: true, startedAt: true, endsAt: true, attentionDay: true },
+    });
+    if (!session) throw new NotFoundError("Refuge non trouvé");
+    if (userId !== session.adoptantId) throw new ForbiddenError("Seul le parrain ou la marraine peut envoyer une attention");
+    if (session.status !== RefugeSessionStatus.ACTIVE || isRefugeExpired(session.endsAt)) throw new ConflictError("Ce refuge n'est pas actif");
+
+    const dayNumber = getCurrentDay(session.createdAt, session.startedAt, new Date());
+    if (session.attentionDay === dayNumber) throw new ConflictError("Tu as déjà passé une attention aujourd'hui");
+
+    const choice = await prisma.refugeDailyChoice.findUnique({
+      where: { refugeSessionId_dayNumber: { refugeSessionId, dayNumber } },
+      select: { id: true },
+    });
+    if (choice) throw new ConflictError("Ton compagnon a déjà validé ses actions du jour");
+
+    const sentAt = new Date();
+    const claimed = await prisma.refugeSession.updateMany({
+      where: {
+        id: refugeSessionId,
+        status: RefugeSessionStatus.ACTIVE,
+        OR: [{ attentionDay: null }, { attentionDay: { not: dayNumber } }],
+      },
+      data: { attentionDay: dayNumber, attentionKind: kind, attentionAt: sentAt },
+    });
+    if (claimed.count !== 1) throw new ConflictError("Tu as déjà passé une attention aujourd'hui");
+
+    // Notification au compagnon (jamais d'identité : seulement « parrain » / « marraine » selon le genre). Sans attendre.
+    void (async () => {
+      try {
+        let sponsorGender: string | null = null;
+        try {
+          const profile = await prisma.profile.findUnique({ where: { userId }, select: { gender: true } });
+          sponsorGender = profile?.gender ?? null;
+        } catch {
+          // Genre indisponible : formulation double, la notification part quand même.
+        }
+        await refugeNotifications.notifyAttention({ refugeSessionId, dayNumber, companionId: session.adopteId, sponsorId: userId, sponsorGender, kind });
+      } catch {
+        // Une notification ne fait jamais échouer l'action métier.
+      }
+    })();
+
+    return { kind, dayNumber, sentAt };
   }
 
   // ============================================================

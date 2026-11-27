@@ -28,7 +28,7 @@ describe("icônes PNG : catégories couvertes", () => {
     ["MATCH_CREATED", "Rencontres", "heart"], ["QUESTIONS_PASSED", "Rencontres", "heart"], ["QUESTIONS_FAILED", "Rencontres", "heart"], ["QUESTIONS_TURN", "Rencontres", "heart"],
     ["OFFERING_RECEIVED", "Offrandes", "gift"],
     ["REFUGE_ADOPTED", "Refuge", "refuge"], ["REFUGE_REVEAL_PHASE", "Refuge", "refuge"], ["REFUGE_REVEALED", "Refuge", "refuge"],
-    ["REFUGE_CHOICE_READY", "Refuge", "refuge"], ["REFUGE_RESULT_READY", "Refuge", "refuge"], ["REFUGE_DAY_RESULT", "Refuge", "refuge"], ["REFUGE_NEW_DAY", "Refuge", "refuge"], ["REFUGE_COINS", "Refuge", "refuge"], ["REFUGE_REVEAL_REFUSED", "Refuge", "refuge"], ["REFUGE_EXPIRED", "Refuge", "refuge"],
+    ["REFUGE_CHOICE_READY", "Refuge", "refuge"], ["REFUGE_RESULT_READY", "Refuge", "refuge"], ["REFUGE_DAY_RESULT", "Refuge", "refuge"], ["REFUGE_NEW_DAY", "Refuge", "refuge"], ["REFUGE_COINS", "Refuge", "refuge"], ["REFUGE_REVEAL_REFUSED", "Refuge", "refuge"], ["REFUGE_EXPIRED", "Refuge", "refuge"], ["REFUGE_ATTENTION", "Refuge", "refuge"],
   ];
   it.each(PNG_TYPES)("%s → %s : illustration PNG « %s »", (type, label, icon) => {
     expect(categoryFor(type)).toEqual({ label, icon });

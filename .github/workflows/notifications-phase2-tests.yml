@@ -98,6 +98,7 @@ jobs:
           tests/unit/refuge.notifications.test.ts
           tests/unit/refuge.rules.test.ts
           tests/integration/refuge-rules-v2.test.ts
+          tests/integration/refuge-attention.test.ts
           tests/integration/refuge-food-choice.test.ts
           tests/integration/refuge-day7.test.ts
           tests/integration/refuge-expiry.test.ts \

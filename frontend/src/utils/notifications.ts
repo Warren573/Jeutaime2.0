@@ -94,7 +94,8 @@ export function getNotificationTarget(notification: NotificationDto): string | n
     case 'REFUGE_NEW_DAY':
     case 'REFUGE_COINS':
     case 'REFUGE_REVEAL_REFUSED':
-    case 'REFUGE_EXPIRED': {
+    case 'REFUGE_EXPIRED':
+    case 'REFUGE_ATTENTION': {
       const refugeSessionId = meta['refugeSessionId'];
       return isSafeId(refugeSessionId) ? `/refuge/${refugeSessionId}` : '/refuge';
     }

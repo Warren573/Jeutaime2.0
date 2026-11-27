@@ -6,6 +6,7 @@ import { ACTION_TO_BACKEND, type RefugeActionType } from "../data/refugeActions"
 import type { RefugeAnimationData } from "../data/refugeAnimation";
 import { computeClockOffsetMs } from "../data/refugeClock";
 import { refugeEvents } from "../data/refugeEvents";
+import type { AttentionData, AttentionKind } from "../data/refugeAttention";
 
 interface RefugeSessionState {
   sessionId: string | null;
@@ -23,6 +24,9 @@ interface RefugeSessionState {
   dayCompleted: boolean;
   canAdvanceDay: boolean;
   finalConsentAvailable: boolean;
+  /** Petite attention du jour (identique pour les deux participants) et possibilité d'en envoyer une. */
+  attention: AttentionData | null;
+  canSendAttention: boolean;
   hearts: string[];
   companion: {
     animalType: string;
@@ -91,6 +95,8 @@ export function useRefugeSession(sessionId: string | null) {
     dayCompleted: false,
     canAdvanceDay: false,
     finalConsentAvailable: false,
+    attention: null,
+    canSendAttention: false,
     hearts: ["🤍", "🤍", "🤍", "🤍", "🤍", "🤍", "🤍"],
     companion: null,
     todayActions: null,
@@ -157,6 +163,8 @@ export function useRefugeSession(sessionId: string | null) {
         dayCompleted: data.dayCompleted ?? false,
         canAdvanceDay: data.canAdvanceDay ?? false,
         finalConsentAvailable: data.finalConsentAvailable ?? false,
+        attention: data.attention ?? null,
+        canSendAttention: data.canSendAttention ?? false,
         hearts: data.hearts || prev.hearts,
         companion: {
           animalType: data.animalType,
@@ -245,6 +253,28 @@ export function useRefugeSession(sessionId: string | null) {
           ...prev,
           submitError: err?.message || "",
         }));
+        return false;
+      } finally {
+        isSubmittingRef.current = false;
+      }
+    },
+    [sessionId, fetchSessionStatus]
+  );
+
+  // Petite attention du parrain / de la marraine : une seule par jour. Un 409 (déjà envoyée, compagnon déjà validé) est
+  // un état, pas une erreur : on relit la session et les boutons disparaissent.
+  const sendAttention = useCallback(
+    async (kind: AttentionKind) => {
+      if (!sessionId || isSubmittingRef.current) return false;
+      isSubmittingRef.current = true;
+      setState((prev) => ({ ...prev, submitError: null, canSendAttention: false }));
+      try {
+        await refugeApi.sendAttention(sessionId, kind);
+        await fetchSessionStatus();
+        return true;
+      } catch (err: any) {
+        await fetchSessionStatus();
+        if (err?.status !== 409) setState((prev) => ({ ...prev, submitError: err?.message || "" }));
         return false;
       } finally {
         isSubmittingRef.current = false;
@@ -353,6 +383,7 @@ export function useRefugeSession(sessionId: string | null) {
     fetchSessionStatus,
     submitDailyChoice,
     submitGuess,
+    sendAttention,
     submitRevealConsent,
     changeBackground,
   };

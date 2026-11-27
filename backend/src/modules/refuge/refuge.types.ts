@@ -90,6 +90,10 @@ export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
   dayCompleted: boolean; // adopteSubmittedToday && adoptantSubmittedToday (jour courant)
   canAdvanceDay: boolean; // dayCompleted && currentDay < 7 (outil DEV "jour suivant")
   finalConsentAvailable: boolean; // dayCompleted && currentDay === 7
+  /** Petite attention du jour (jour courant seulement) : visible des deux participants, sans aucune identité. */
+  attention: { kind: "GRATTER_TETE" | "CARESSE" | "BONJOUR"; sentAt: Date } | null;
+  /** Le parrain / la marraine peut encore envoyer une attention aujourd'hui (avant la validation du compagnon). */
+  canSendAttention: boolean;
   todayActions?: {
     action1: RefugeAction;
     action2: RefugeAction;
