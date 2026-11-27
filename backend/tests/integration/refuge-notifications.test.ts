@@ -53,7 +53,7 @@ async function activeSession(tag: string, p: { companion: string; sponsor: strin
 }
 
 const rows = (userId: string) => prisma.notification.findMany({ where: { userId, type: { in: refugeTypes } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
-const refugeTypes = ["REFUGE_ADOPTED", "REFUGE_CHOICE_READY", "REFUGE_RESULT_READY", "REFUGE_DAY_RESULT", "REFUGE_NEW_DAY", "REFUGE_COINS", "REFUGE_REVEAL_PHASE", "REFUGE_REVEALED", "REFUGE_REVEAL_REFUSED", "REFUGE_EXPIRED"] as never[];
+const refugeTypes = ["REFUGE_ADOPTED", "REFUGE_CHOICE_READY", "REFUGE_RESULT_READY", "REFUGE_DAY_RESULT", "REFUGE_NEW_DAY", "REFUGE_COINS", "REFUGE_REVEAL_PHASE", "REFUGE_REVEALED", "REFUGE_ADOPTION_CONFIRMED", "REFUGE_FINAL_REPORT", "REFUGE_REVEAL_REFUSED", "REFUGE_EXPIRED"] as never[];
 /** Types reçus, triés : les notifications d'un même événement sont créées en parallèle (ordre non significatif). */
 const summary = async (userId: string) => (await rows(userId)).map((n) => `${n.type}`).sort();
 async function settle(ms = 400) { await new Promise((r) => setTimeout(r, ms)); }
@@ -88,21 +88,22 @@ describe("Refuge : parcours complet des notifications (base réelle)", () => {
     await settle();
     const adopted = await rows(p.companion);
     expect(adopted.map((n) => [n.type, n.message, n.meta])).toEqual([["REFUGE_ADOPTED", "Tu as été adopté ! Ton aventure de sept jours commence.", { refugeSessionId: proposal.id }]]);
-    expect(await summary(p.sponsor)).toEqual([]);
+    // Le parrain / la marraine reçoit seulement une ligne d'HISTORIQUE (confirmation d'adoption), jamais de push.
+    expect((await rows(p.sponsor)).map((n) => [n.type, n.message])).toEqual([["REFUGE_ADOPTION_CONFIRMED", "Tu as adopté un compagnon. Votre aventure de sept jours commence."]]);
     expect(bodiesSentToExpo().map((m) => [m.to, m.body, m.data])).toEqual([[p.token, "Tu as été adopté ! Ton aventure de sept jours commence.", { type: "REFUGE_ADOPTED", refugeSessionId: proposal.id }]]);
 
     // LE COMPAGNON VALIDE SES 2 ACTIONS : le parrain/la marraine est prévenu, sans action nommée ; pas de push (aucun appareil).
     expo.mockClear();
     await RefugeService.submitDailyChoice(proposal.id, p.companion, 1, { action1: "NOURRIR", action2: "JOUER" });
     await settle();
-    expect((await rows(p.sponsor)).map((n) => [n.type, n.message])).toEqual([["REFUGE_CHOICE_READY", "Ton compagnon attend tes deux actions du jour."]]);
+    expect((await rows(p.sponsor)).filter((n) => n.type !== ("REFUGE_ADOPTION_CONFIRMED" as never)).map((n) => [n.type, n.message])).toEqual([["REFUGE_CHOICE_READY", "Ton compagnon attend tes deux actions du jour."]]);
     expect(await summary(p.companion)).toEqual(["REFUGE_ADOPTED"]);
     expect(expo).not.toHaveBeenCalled(); // le parrain/la marraine n'a pas d'appareil : notification interne seulement
 
     // LE PARRAIN/LA MARRAINE VALIDE : score + pièces pour lui/elle ; « résultat prêt » (sans score) pour le compagnon.
     await RefugeService.submitGuess(proposal.id, p.sponsor, 1, { guessedAction1: "NOURRIR", guessedAction2: "JOUER", foodChoice: "food" } as never);
     await settle();
-    expect(await summary(p.sponsor)).toEqual(["REFUGE_CHOICE_READY", "REFUGE_DAY_RESULT"].sort());
+    expect(await summary(p.sponsor)).toEqual(["REFUGE_ADOPTION_CONFIRMED", "REFUGE_CHOICE_READY", "REFUGE_DAY_RESULT"].sort());
     expect((await rows(p.sponsor)).find((n) => n.type === ("REFUGE_DAY_RESULT" as never))!.message).toBe("Résultat du jour : 2/2, bravo ! +10 pièces.");
     const ready = (await rows(p.companion)).find((n) => n.type === ("REFUGE_RESULT_READY" as never))!;
     expect(ready.type).toBe("REFUGE_RESULT_READY");

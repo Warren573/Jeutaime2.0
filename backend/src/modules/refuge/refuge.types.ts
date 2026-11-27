@@ -1,5 +1,6 @@
 import { RefugeAnimalType, RefugeAnimalCategory, RefugeAnimalSexe, RefugeAcceptedSexe, RefugeAction, RefugeSessionStatus, RefugePreexistingLinkType, RefugeBackground } from "@prisma/client";
 import type { RefugeAnimationSnapshot } from "./refuge.animation";
+import type { FinalReport } from "./refuge.rules";
 
 // ============================================================
 // Résultats métier pour Refuge
@@ -100,6 +101,8 @@ export interface RefugeSessionWithMetadata extends RefugeSessionDTO {
   } | null; // Inclus uniquement pour l'adopté si adopteSubmittedToday=true
   todayResult?: DayResultData | null; // Résultat du jour courant si une tentative a été soumise
   dailyResults: DailyResultEntry[]; // État structuré des 7 jours (source de vérité du frontend)
+  /** Bilan final (règles v2, après règlement des 168 h) : les mêmes sept journées vues par ce participant. Aucune identité. */
+  finalReport?: FinalReport | null;
   reveal?: RevealState; // Phase finale (présent dès que la session a un adoptant)
   otherProfile?: RevealedProfile | null; // Uniquement si status === REVEALED
 }

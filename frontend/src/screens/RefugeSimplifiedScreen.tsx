@@ -13,6 +13,8 @@ import { useRefugeDailyChoices } from '../hooks/useRefugeDailyChoices';
 import { useRefugeSession } from '../hooks/useRefugeSession';
 import { useRefugeAttentionReaction } from '../hooks/useRefugeAttentionReaction';
 import { ATTENTIONS, actionZone } from '../data/refugeAttention';
+import { isEndScreenStatus } from '../data/refugeFinalReport';
+import { RefugeEndScreen } from '../components/RefugeEndScreen';
 import { sessionEndNotice, refugeErrorText } from '../data/refugeSessionState';
 
 import { ANIMAL_FOODS, BOWL_IMAGES, FOOD_LABELS, type RefugeFood } from '../data/refugeBowls';
@@ -83,6 +85,30 @@ export function RefugeSimplifiedScreen({ sessionIdProp }: { sessionIdProp: strin
   };
 
   if (refuge.isLoading) return <SafeAreaView style={styles.loading}><ActivityIndicator /><Text>Chargement du refuge…</Text></SafeAreaView>;
+
+  // Fin de l'aventure (168 h écoulées) : bilan des sept jours, puis dévoilement. Jamais avant l'expiration (serveur et écran).
+  if (isEndScreenStatus(refuge.status)) {
+    return (
+      <RefugeEndScreen
+        report={refuge.finalReport}
+        status={refuge.status}
+        endsAt={refuge.endsAt}
+        serverOffsetMs={refuge.serverOffsetMs}
+        onBack={() => router.replace('/(tabs)/social')}
+        reveal={refuge.reveal ?? { available: false, myDecision: null, otherDecided: false, revealedAt: null }}
+        revealProps={{
+          sessionId: sessionIdProp,
+          currentUserId: userId ?? null,
+          otherProfile: refuge.otherProfile ?? null,
+          isSubmitting,
+          onDecision: async (decision) => { setIsSubmitting(true); try { await refuge.submitRevealConsent(decision); } finally { setIsSubmitting(false); } },
+          onViewProfile: (id) => router.push(`/profile/${id}` as never),
+          onExit: () => router.replace('/(tabs)/social'),
+          animalType: refuge.companion?.animalType,
+        }}
+      />
+    );
+  }
 
   const sponsor = refuge.sponsorRole === 'parrain' ? 'ton parrain' : refuge.sponsorRole === 'marraine' ? 'ta marraine' : null;
   const visitMessage = sponsor

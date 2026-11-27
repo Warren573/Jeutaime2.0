@@ -92,6 +92,8 @@ export const NOTIFICATION_CATEGORIES: Record<NotificationType, NotificationCateg
   REFUGE_REVEAL_REFUSED: { label: 'Refuge', icon: 'refuge' },
   REFUGE_EXPIRED: { label: 'Refuge', icon: 'refuge' },
   REFUGE_ATTENTION: { label: 'Refuge', icon: 'refuge' },
+  REFUGE_ADOPTION_CONFIRMED: { label: 'Refuge', icon: 'refuge' },
+  REFUGE_FINAL_REPORT: { label: 'Refuge', icon: 'refuge' },
   REPORT_PROCESSED: { label: 'Modération', icon: 'shield' },
   ACCOUNT_RESTORED: { label: 'Sécurité', icon: 'shield' },
 };

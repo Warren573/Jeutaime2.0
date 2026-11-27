@@ -155,3 +155,77 @@ export function computeFinalSettlement(rows: readonly FinalDayRow[]): FinalSettl
     sponsorPoints: days.reduce((sum, d) => sum + (d?.adoptantScoreDelta ?? 0), 0),
   };
 }
+
+// ============================================================
+// Bilan final des sept jours (vu par UN participant) — calculé à partir de données déjà persistées
+// ============================================================
+
+export interface FinalReportDay {
+  dayNumber: number;
+  /** Symbole du jour (cœur plein, cœur vide, croix, avertissement…). */
+  symbol: string;
+  status: string;
+  /** Bonnes réponses du jour (0 à 2), null si la journée n'a pas été jouée à deux. */
+  matches: number | null;
+  /** Assiduité reconnue pour CE participant. */
+  assiduous: boolean;
+  /** Pièces gagnées par CE participant ce jour-là (jamais négatif). */
+  coins: number;
+  /** Points de classement de CE participant ce jour-là (0 ou −5). */
+  points: number;
+}
+
+export interface FinalReport {
+  days: FinalReportDay[];
+  /** Journées d'assiduité individuelle (sur 7). */
+  participationDays: number;
+  /** Journées parfaites (2/2) sur 7. */
+  perfectDays: number;
+  /** Actions correctement devinées, sur 14. */
+  correctActions: number;
+  perfectCourse: boolean;
+  /** Pièces des journées + bonus final = total gagné. */
+  dailyCoins: number;
+  finalBonus: number;
+  bonusTier: "perfect" | "assiduity" | null;
+  totalCoins: number;
+  /** Total des points de classement retirés (0 ou négatif). */
+  penaltyPoints: number;
+}
+
+export function buildFinalReport(
+  rows: readonly FinalDayRow[],
+  role: "adopte" | "adoptant",
+  finalBonus: number,
+  symbols: Record<string, string>
+): FinalReport {
+  const settlement = computeFinalSettlement(rows);
+  const byDay = new Map(rows.map((r) => [r.dayNumber, r]));
+  const mine = role === "adopte";
+  const days: FinalReportDay[] = Array.from({ length: REFUGE_DAYS }, (_, i) => {
+    const r = byDay.get(i + 1);
+    const assiduous = !!(mine ? r?.adopteAssiduous : r?.adoptantAssiduous);
+    return {
+      dayNumber: i + 1,
+      symbol: symbols[r?.status ?? "OPEN"] ?? symbols["OPEN"] ?? "",
+      status: r?.status ?? "OPEN",
+      matches: r?.matchCount ?? null,
+      assiduous,
+      coins: assiduous ? DAILY_ASSIDUITY_COINS : 0,
+      points: (mine ? r?.adopteScoreDelta : r?.adoptantScoreDelta) ?? 0,
+    };
+  });
+  const dailyCoins = mine ? settlement.companionDailyCoins : settlement.sponsorDailyCoins;
+  return {
+    days,
+    participationDays: mine ? settlement.companionDays : settlement.sponsorDays,
+    perfectDays: settlement.perfectDays,
+    correctActions: settlement.correctActions,
+    perfectCourse: settlement.perfectCourse,
+    dailyCoins,
+    finalBonus,
+    bonusTier: finalBonus <= 0 ? null : settlement.perfectCourse ? "perfect" : "assiduity",
+    totalCoins: dailyCoins + finalBonus,
+    penaltyPoints: mine ? settlement.companionPoints : settlement.sponsorPoints,
+  };
+}

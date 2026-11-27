@@ -7,6 +7,7 @@ import type { RefugeAnimationData } from "../data/refugeAnimation";
 import { computeClockOffsetMs } from "../data/refugeClock";
 import { refugeEvents } from "../data/refugeEvents";
 import type { AttentionData, AttentionKind } from "../data/refugeAttention";
+import type { FinalReportData } from "../data/refugeFinalReport";
 
 interface RefugeSessionState {
   sessionId: string | null;
@@ -27,6 +28,9 @@ interface RefugeSessionState {
   /** Petite attention du jour (identique pour les deux participants) et possibilité d'en envoyer une. */
   attention: AttentionData | null;
   canSendAttention: boolean;
+  /** Bilan final des sept jours (règles v2) et heure de fin de l'aventure (le dévoilement n'existe pas avant). */
+  finalReport: FinalReportData | null;
+  endsAt: string | null;
   hearts: string[];
   companion: {
     animalType: string;
@@ -97,6 +101,8 @@ export function useRefugeSession(sessionId: string | null) {
     finalConsentAvailable: false,
     attention: null,
     canSendAttention: false,
+    finalReport: null,
+    endsAt: null,
     hearts: ["🤍", "🤍", "🤍", "🤍", "🤍", "🤍", "🤍"],
     companion: null,
     todayActions: null,
@@ -165,6 +171,8 @@ export function useRefugeSession(sessionId: string | null) {
         finalConsentAvailable: data.finalConsentAvailable ?? false,
         attention: data.attention ?? null,
         canSendAttention: data.canSendAttention ?? false,
+        finalReport: data.finalReport ?? null,
+        endsAt: data.endsAt ?? null,
         hearts: data.hearts || prev.hearts,
         companion: {
           animalType: data.animalType,

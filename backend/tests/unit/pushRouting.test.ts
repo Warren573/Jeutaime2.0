@@ -138,6 +138,8 @@ describe("phase 2 : nouveaux événements", () => {
     ["REFUGE_REVEAL_REFUSED", "notifActivities", "/refuge", ["refugeSessionId"]],
     ["REFUGE_EXPIRED", "notifActivities", "/refuge", ["refugeSessionId"]],
     ["REFUGE_ATTENTION", "notifActivities", "/refuge", ["refugeSessionId"]],
+    ["REFUGE_ADOPTION_CONFIRMED", "notifActivities", "/refuge", ["refugeSessionId"]],
+    ["REFUGE_FINAL_REPORT", "notifActivities", "/refuge", ["refugeSessionId"]],
     ["REPORT_PROCESSED", null, "/user-reports", []],
     ["ACCOUNT_RESTORED", null, null, []],
   ];

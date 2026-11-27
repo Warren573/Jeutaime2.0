@@ -56,6 +56,7 @@ import {
   hasConsulted,
   evaluateDayV2,
   computeFinalSettlement,
+  buildFinalReport,
 } from "./refuge.rules";
 
 // Statuts pour lesquels un Adopté est considéré comme ayant déjà un refuge en cours
@@ -298,6 +299,8 @@ export class RefugeService {
       companionId: refugeSession.adopteId,
       sponsorId: adoptantId,
     });
+    // Confirmation dans l'HISTORIQUE du parrain / de la marraine, sans push (la fenêtre locale suffit).
+    void refugeNotifications.recordAdoptionConfirmed({ refugeSessionId, sponsorId: adoptantId });
 
     return this.mapToDTO(updatedRefuge);
   }
@@ -369,7 +372,9 @@ export class RefugeService {
     // Session expirée restée ACTIVE : clôture unique à la lecture, à partir des données déjà chargées
     // (aucune requête supplémentaire si la session est en cours). Aucune pièce, aucune suppression.
     const closure = await this.closeExpiredSession(refugeSession);
-    if (closure) refugeSession.status = closure.status;
+    // La clôture vient de modifier la session (jours soldés, bonus, statut) : relecture UNIQUE pour répondre avec l'état final
+    // (bilan compris). Le second passage ne trouve plus de clôture à faire.
+    if (closure) return this.getRefugeSession(refugeSessionId, userId);
 
     // Présence du parrain / de la marraine.
     //   - v2 : consultation du Refuge enregistrée PAR JOUR (un bit), en une seule écriture atomique par jour ; la
@@ -600,6 +605,15 @@ export class RefugeService {
         refugeSession.attentionDay !== currentDay,
       dailyResults,
       reveal,
+      finalReport:
+        refugeSession.rulesVersion >= RULES_VERSION_V2 && refugeSession.finalizedAt
+          ? buildFinalReport(
+              refugeSession.dayResults,
+              isAdopte ? "adopte" : "adoptant",
+              isAdopte ? refugeSession.adopteFinalBonus : refugeSession.adoptantFinalBonus,
+              DAY_STATUS_SYMBOLS
+            )
+          : null,
       ...(todayActions && { todayActions }),
       ...(todayResult && { todayResult }),
       ...(otherProfile && { otherProfile }),
@@ -1338,7 +1352,9 @@ export class RefugeService {
     if (closedByThisCall && session.adopteId && session.adoptantId) {
       const ids = { refugeSessionId: session.id, companionId: session.adopteId, sponsorId: session.adoptantId };
       if (status === RefugeSessionStatus.ABANDONED) void refugeNotifications.notifyExpired(ids);
-      else void refugeNotifications.notifyRevealPhase(ids); // fin des sept jours : le dévoilement est proposé
+      // Règles v2 : UNE seule notification de fin (bilan puis dévoilement) ; version 1 : notification de dévoilement existante.
+      else if (v2) void refugeNotifications.notifyFinalReport(ids);
+      else void refugeNotifications.notifyRevealPhase(ids);
     }
     return { status, closedByThisCall };
   }

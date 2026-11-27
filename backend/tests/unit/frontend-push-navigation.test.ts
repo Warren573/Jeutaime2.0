@@ -739,7 +739,7 @@ it("annonce de match : application ouverte → aucune bannière ni vibration en 
 describe("Refuge : redirection et présentation des notifications", () => {
   const REFUGE_TYPES = [
     "REFUGE_ADOPTED", "REFUGE_CHOICE_READY", "REFUGE_RESULT_READY", "REFUGE_DAY_RESULT", "REFUGE_NEW_DAY",
-    "REFUGE_COINS", "REFUGE_REVEAL_PHASE", "REFUGE_REVEALED", "REFUGE_REVEAL_REFUSED", "REFUGE_EXPIRED", "REFUGE_ATTENTION",
+    "REFUGE_COINS", "REFUGE_REVEAL_PHASE", "REFUGE_REVEALED", "REFUGE_REVEAL_REFUSED", "REFUGE_EXPIRED", "REFUGE_ATTENTION", "REFUGE_ADOPTION_CONFIRMED", "REFUGE_FINAL_REPORT",
   ];
   const prefs = { sound: true, vibration: true };
   const loc = (pathname: string) => ({ pathname });
