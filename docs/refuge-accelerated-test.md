@@ -6,11 +6,18 @@ Outil de test **manuel**, réservé aux comptes `testuser2` à `testuser11@jeuta
 
 Pour la **seule session ciblée**, le script recule `startedAt` (et `endsAt = startedAt + 7 jours`) ainsi que les horodatages de ses propres choix et réponses du même écart : la session « vit » plus vite. Chaque jour est rejoué avec les vraies fonctions du service, donc les pièces, les points, les bonus et les notifications sont ceux de la production.
 
-## Mise en place (une seule fois)
+## Mise en place (une seule fois, depuis le navigateur, sans terminal)
 
-1. GitHub → Settings → Secrets and variables → Actions → secret **`REFUGE_TEST_DATABASE_URL`** : l'URL de connexion Neon utilisée par Render (`DATABASE_URL`). Elle n'est jamais affichée.
-2. Recommandé : GitHub → Settings → Environments → créer **`refuge-test`** avec un relecteur obligatoire (validation avant chaque exécution).
-3. Lancer : Actions → « Refuge — test accéléré de fin d'aventure » → Run workflow (branche `main`).
+Le dépôt est **public** : les journaux d'Actions sont publics. Le script n'y écrit jamais l'URL de connexion (filtre de toute sortie, erreurs de Prisma comprises), ni pseudo, ni identifiant de compte ; seules les adresses `testuserN@jeutaime.test`, les soldes et l'identifiant de session y figurent.
+
+1. **Créer l'environnement.** Dépôt → *Settings* → *Environments* → *New environment* → nom exact : `refuge-test`.
+2. **Approbation manuelle obligatoire.** Dans `refuge-test` : cocher *Required reviewers*, ajouter ton compte, enregistrer. Cocher aussi *Prevent self-review* seulement si un second relecteur existe ; sinon la laisser décochée.
+3. **Limiter à la branche main.** Dans `refuge-test` → *Deployment branches and tags* → *Selected branches and tags* → *Add deployment branch or tag rule* → `main`.
+4. **Ajouter le secret dans l'environnement (pas dans les secrets du dépôt).** Dans `refuge-test` → *Environment secrets* → *Add environment secret* → nom exact `REFUGE_TEST_DATABASE_URL`, valeur : l'URL de connexion Neon (celle de `DATABASE_URL` sur Render). Ainsi aucune autre branche ni workflow ne peut la lire.
+5. **Vérifier qu'il n'existe pas aussi comme secret de dépôt** : *Settings* → *Secrets and variables* → *Actions* → *Repository secrets* ne doit PAS contenir `REFUGE_TEST_DATABASE_URL`.
+6. **Lancer.** *Actions* → « Refuge — test accéléré de fin d'aventure » → *Run workflow* (branche `main`) → le run attend ton approbation (*Review deployments* → cocher `refuge-test` → *Approve and deploy*).
+
+Chaque exécution (inventaire, simulation ou réelle) se connecte à Neon avec le même identifiant : elle exige donc l'approbation. Une seule exécution à la fois (file d'attente).
 
 ## Gardes
 

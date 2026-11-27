@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../../src/config/prisma";
 import { runStage, type RunOptions } from "../../scripts/refuge-accelerated-test";
-import { SCENARIOS } from "../../src/modules/refuge/refuge.testkit";
+import { SCENARIOS } from "../../scripts/refuge-testkit";
 
 /**
  * Outil de test accéléré (PostgreSQL local, comptes testuserN@jeutaime.test créés ici puis supprimés) :

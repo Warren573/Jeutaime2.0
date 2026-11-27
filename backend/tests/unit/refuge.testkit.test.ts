@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   SCENARIOS, STAGES, accountRefusals, confirmationPhrase, expectedOutcome, preconditionFailures, testAccountNumber, type PreconditionInput,
-} from "../../src/modules/refuge/refuge.testkit";
+} from "../../scripts/refuge-testkit";
 
 const user = (email: string, over: Record<string, unknown> = {}) => ({ email, role: "USER", isBanned: false, ...over });
 

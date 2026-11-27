@@ -14,12 +14,13 @@
  * Il rejoue chaque jour avec les VRAIES fonctions du service (pièces, points, notifications identiques à la production) et
  * « vieillit » la session ciblée en reculant son `startedAt` et ses propres horodatages de choix / réponses.
  */
+import "./redact-output"; // TOUJOURS en premier : filtre toute sortie (URL de connexion jamais dans les journaux)
 import { prisma } from "../src/config/prisma";
 import { RefugeService } from "../src/modules/refuge/refuge.service";
 import {
-  SCENARIOS, STAGES, STAGE_DAYS, SYMBOLS, confirmationPhrase, expectedOutcome, preconditionFailures, testAccountNumber, TEST_ACCOUNT_NUMBERS,
+  SCENARIOS, STAGES, STAGE_DAYS, SYMBOLS, confirmationPhrase, expectedOutcome, preconditionFailures, redactSecrets, testAccountNumber, TEST_ACCOUNT_NUMBERS,
   type AccountFacts, type DayScript, type OpenSessionFact, type Scenario, type Stage,
-} from "../src/modules/refuge/refuge.testkit";
+} from "./refuge-testkit";
 
 const DAY = 86400000, HOUR = 3600000;
 const OPEN_STATUSES = ["CREATION", "WAITING_FOR_ADOPTANT", "ACTIVE", "AWAITING_REVEAL_CONSENT"] as const;
@@ -318,7 +319,7 @@ export async function inventory(log: Log = console.log): Promise<void> {
   const emailOf = new Map(users.map((u) => [u.id, u.email.replace("@jeutaime.test", "")]));
   log("== Comptes de test (testuser2 à testuser11) ==");
   const missing = emails.filter((e) => !users.some((u) => u.email.toLowerCase() === e));
-  for (const u of users) log(`${u.email} · id ${u.id} · rôle ${u.role}${u.isBanned ? " · SUSPENDU" : ""} · pseudo ${u.profile?.pseudo ?? "—"} · pièces ${u.wallet?.coins ?? 0} · points ${u.profile?.discoveryActivityScore ?? 0} · appareils ${u.pushTokens.length}`);
+  for (const u of users) log(`${u.email} · rôle ${u.role}${u.isBanned ? " · SUSPENDU" : ""} · pièces ${u.wallet?.coins ?? 0} · points ${u.profile?.discoveryActivityScore ?? 0} · appareils ${u.pushTokens.length}`);
   if (missing.length) log(`Introuvables : ${missing.join(", ")}`);
   const busy = new Set<string>();
   log("\n== Refuges impliquant ces comptes ==");
@@ -351,8 +352,14 @@ export async function inventory(log: Log = console.log): Promise<void> {
 function list(v: string | undefined): string[] { return (v ?? "").split(",").map((s) => s.trim()).filter(Boolean); }
 
 async function main(): Promise<void> {
+  // Même une erreur imprévue ne doit jamais faire apparaître l'URL de connexion dans un journal public.
+  const crash = (e: unknown) => { console.log(redactSecrets(`Erreur : ${e instanceof Error ? e.message.split("\n").map((l) => l.trim()).find(Boolean) : "inconnue"}`, [process.env["DATABASE_URL"], process.env["DIRECT_URL"]])); process.exit(1); };
+  process.on("uncaughtException", crash);
+  process.on("unhandledRejection", crash);
   const out: string[] = [];
-  const log: Log = (l) => { out.push(l); console.log(l); };
+  // Journaux d'Actions publics (dépôt public) : toute ligne est filtrée, l'URL de connexion n'y apparaît JAMAIS.
+  const urls = [process.env["DATABASE_URL"], process.env["DIRECT_URL"]];
+  const log: Log = (l) => { const safe = redactSecrets(l, urls); out.push(safe); console.log(safe); };
   let failed = false;
   try {
     if (process.env["RT_COMMAND"] === "inventory") await inventory(log);
@@ -377,7 +384,7 @@ async function main(): Promise<void> {
     }
   } catch (err) {
     failed = true;
-    log(`Erreur : ${err instanceof Error ? err.message : String(err)}`);
+    log(`Erreur : ${err instanceof Error ? err.message.split("\n").map((l) => l.trim()).find(Boolean) : "inconnue"}`);
   } finally {
     const summary = process.env["GITHUB_STEP_SUMMARY"];
     if (summary) { const fs = await import("node:fs"); fs.appendFileSync(summary, "```\n" + out.join("\n") + "\n```\n"); }

@@ -13,7 +13,7 @@ import {
   computeFinalSettlement,
   evaluateDayV2,
   type FinalDayRow,
-} from "./refuge.rules";
+} from "../src/modules/refuge/refuge.rules";
 
 // ============================================================
 // Comptes autorisés
@@ -229,3 +229,30 @@ export function confirmationPhrase(scenario: string, stage: string, companionEma
 }
 
 export const GAINS_REMINDER = { daily: DAILY_ASSIDUITY_COINS };
+
+// ============================================================
+// Journaux : jamais l'URL de connexion (ni ses éléments)
+// ============================================================
+/**
+ * Masque, dans un texte destiné aux journaux publics, l'URL de connexion à la base et chacun de ses éléments (utilisateur,
+ * mot de passe, hôte, base), ainsi que toute URL `postgres://…`. GitHub masque déjà la valeur exacte du secret, mais pas
+ * l'hôte seul ni un message d'erreur qui le cite : cette fonction couvre ces cas.
+ */
+export function redactSecrets(text: string, connectionUrls: ReadonlyArray<string | undefined> = []): string {
+  let out = text.replace(/postgres(?:ql)?:\/\/[^\s'"`)]+/gi, "[URL masquée]");
+  const pieces = new Set<string>();
+  for (const raw of connectionUrls) {
+    if (!raw) continue;
+    pieces.add(raw);
+    try {
+      const u = new URL(raw);
+      for (const v of [u.username, decodeURIComponent(u.username), u.password, decodeURIComponent(u.password), u.hostname, u.pathname.replace(/^\//, "")]) {
+        if (v && v.length >= 3) pieces.add(v);
+      }
+    } catch {
+      // URL illisible : seule la valeur brute est masquée.
+    }
+  }
+  for (const p of [...pieces].sort((a, b) => b.length - a.length)) out = out.split(p).join("[masqué]");
+  return out;
+}
