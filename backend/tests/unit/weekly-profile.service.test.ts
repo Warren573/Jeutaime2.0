@@ -171,6 +171,8 @@ describe("getWeeklyProfileState — sélection de duel", () => {
       candidateAId: "a",
       candidateBId: "b",
     });
+    // La paire en attente n'est réutilisée que si ses deux profils sont encore éligibles
+    (prisma.user.findMany as any).mockResolvedValue([eligibleUser("a"), eligibleUser("b")]);
     (prisma.user.findUnique as any).mockImplementation(async ({ where }: any) => ({
       profile: { pseudo: `pseudo-${where.id}`, city: "Lyon", bio: LONG_BIO, birthDate },
     }));
@@ -179,6 +181,36 @@ describe("getWeeklyProfileState — sélection de duel", () => {
 
     expect(state.duel?.duelId).toBe("pending-1");
     expect(prisma.weeklyProfileDuel.create).not.toHaveBeenCalled();
+    expect(prisma.weeklyProfileDuel.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("duel en attente dont un profil n'est plus éligible → expiré, un nouveau duel est généré", async () => {
+    (prisma.weeklyProfileDuel.count as any).mockResolvedValue(0);
+    (prisma.weeklyProfileDuel.updateMany as any).mockResolvedValue({ count: 1 });
+    (prisma.weeklyProfileDuel.findFirst as any).mockResolvedValue({
+      id: "pending-1",
+      candidateAId: "a",
+      candidateBId: "b",
+    });
+    // « b » a vidé sa bio : plus éligible. « c » et « d » le sont.
+    (prisma.user.findMany as any).mockResolvedValue([
+      eligibleUser("a"),
+      eligibleUser("b", { bio: "" }),
+      eligibleUser("c"),
+      eligibleUser("d"),
+    ]);
+
+    const state = await getWeeklyProfileState("voter-1", false);
+
+    // L'ancien duel est expiré (jamais « consommé »), puis un nouveau duel est créé sans « b »
+    expect(prisma.weeklyProfileDuel.updateMany).toHaveBeenCalledWith({
+      where: { id: "pending-1", usedAt: null },
+      data: { expiresAt: expect.any(Date) },
+    });
+    expect(prisma.weeklyProfileDuel.create).toHaveBeenCalledTimes(1);
+    const created = (prisma.weeklyProfileDuel.create as any).mock.calls[0][0].data;
+    expect([created.candidateAId, created.candidateBId]).not.toContain("b");
+    expect(state.duel?.duelId).toBe("new-duel");
   });
 });
 
@@ -197,8 +229,26 @@ describe("voteForDuel", () => {
 
   beforeEach(() => {
     (prisma.weeklyProfileDuel.count as any).mockResolvedValue(0);
-    (prisma.wallet.findUnique as any).mockResolvedValue({ userId: "voter-1", coins: 100 });
+    (prisma.wallet.findUnique as any).mockResolvedValue({ userId: "voter-1" });
     (prisma.weeklyProfileDuel.updateMany as any).mockResolvedValue({ count: 1 });
+    // Le serveur revérifie que les deux candidats sont encore éligibles avant d'accepter un vote
+    (prisma.user.findMany as any).mockResolvedValue([eligibleUser("a"), eligibleUser("b")]);
+  });
+
+  it("candidat devenu inéligible → ConflictError, duel expiré, aucun crédit de pièces", async () => {
+    (prisma.weeklyProfileDuel.findUnique as any).mockResolvedValue(validDuel);
+    (prisma.user.findMany as any).mockResolvedValue([eligibleUser("a"), eligibleUser("b", { bio: "" })]);
+
+    await expect(voteForDuel("voter-1", false, "duel-1", "a")).rejects.toBeInstanceOf(ConflictError);
+
+    // Le duel est expiré (usedAt reste null : il n'est pas consommé) ; ni vote ni pièces
+    expect(prisma.weeklyProfileDuel.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.weeklyProfileDuel.updateMany).toHaveBeenCalledWith({
+      where: { id: "duel-1", usedAt: null },
+      data: { expiresAt: expect.any(Date) },
+    });
+    expect(prisma.wallet.update).not.toHaveBeenCalled();
+    expect(prisma.coinTransaction.create).not.toHaveBeenCalled();
   });
 
   it("duel inexistant → NotFoundError", async () => {
@@ -265,7 +315,8 @@ describe("voteForDuel", () => {
 
   it("vote valide : marque le duel utilisé et crédite +5 pièces dans la même transaction", async () => {
     (prisma.weeklyProfileDuel.findUnique as any).mockResolvedValue(validDuel);
-    (prisma.user.findMany as any).mockResolvedValue([eligibleUser("a"), eligibleUser("b")]);
+    // Le portefeuille renvoie le solde APRÈS incrément atomique (100 + 5)
+    (prisma.wallet.update as any).mockResolvedValue({ coins: 105 });
 
     const result = await voteForDuel("voter-1", false, "duel-1", "a");
 
@@ -273,13 +324,21 @@ describe("voteForDuel", () => {
       where: { id: "duel-1", usedAt: null },
       data: expect.objectContaining({ chosenId: "a" }),
     });
+    // Crédit atomique : +5 par incrément (jamais « solde lu + 5 »), solde relu après mise à jour
     expect(prisma.wallet.update).toHaveBeenCalledWith({
       where: { userId: "voter-1" },
-      data: { coins: 105 },
+      data: { coins: { increment: 5 } },
+      select: { coins: true },
     });
     expect(prisma.coinTransaction.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ amount: 5, balance: 105, type: "WEEKLY_PROFILE_VOTE" }),
+        data: expect.objectContaining({
+          walletId: "voter-1",
+          amount: 5,
+          balance: 105,
+          type: "WEEKLY_PROFILE_VOTE",
+          meta: expect.objectContaining({ duelId: "duel-1", chosenId: "a" }),
+        }),
       }),
     );
     expect(result.duel).not.toBeNull();

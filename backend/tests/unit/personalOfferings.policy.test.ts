@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MatchStatus } from "@prisma/client";
 
-const prismaMock = {
+// vi.mock est hissé avant les imports : le mock doit être créé via vi.hoisted pour exister à ce moment-là.
+const prismaMock = vi.hoisted(() => ({
   match: { findUnique: vi.fn() },
   offeringSent: { findFirst: vi.fn() },
-};
+}));
 vi.mock("../../src/config/prisma", () => ({ prisma: prismaMock }));
 
 import { assertPersonalOfferingAllowed } from "../../src/modules/offerings/personalOfferings.policy";
