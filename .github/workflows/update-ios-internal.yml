@@ -4,7 +4,8 @@ name: Publish JeuTaime iOS OTA (internal-test, iOS only)
 # - Déclenchement manuel uniquement (workflow_dispatch), jamais automatique.
 # - Source obligatoire : la branche main, au commit exact saisi en entrée.
 # - Commande EAS : --platform ios, branche EAS Update internal-test.
-# - Runtime attendu : 2.0.0 (vérifié avant et après publication).
+# - Runtime attendu : 2.1.0 (vérifié avant et après publication). Les builds iOS 2.0.0 déjà installés ne reçoivent plus
+#   d'OTA : seul un build 2.1.0 (ou plus récent) installé les reçoit.
 # - Ne touche pas au workflow Android (update-android-internal.yml).
 
 on:
@@ -27,7 +28,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  EXPECTED_RUNTIME: '2.0.0'
+  EXPECTED_RUNTIME: '2.1.0'
   EAS_UPDATE_BRANCH: internal-test
 
 jobs:
@@ -108,7 +109,7 @@ jobs:
 
       - name: Publish JS and assets to internal-test (iOS only)
         env:
-          EXPO_PUBLIC_OTA_RELEASE_VERSION: 2.0.0-ios-ota.${{ github.run_number }}
+          EXPO_PUBLIC_OTA_RELEASE_VERSION: 2.1.0-ios-ota.${{ github.run_number }}
           SOURCE_SHA: ${{ inputs.expected_sha }}
         run: |
           eas update \
