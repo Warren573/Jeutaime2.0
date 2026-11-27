@@ -88,7 +88,9 @@ describe('terminologie et éléments à ne pas réintroduire', () => {
   });
   test('titres selon le rôle réel : « Ton refuge » (compagnon) / « Ton compagnon » (parrain, marraine)', () => {
     expect(screen.includes("refuge.role === 'adoptant' ? 'Ton compagnon' : 'Ton refuge'")).toBe(true);
-    expect(board.includes("isAnimal ? 'Ton refuge' : 'Ton compagnon'")).toBe(true);
+    // Case de l'accueil : titre dynamique centralisé (data/refugeCardTitle, testé séparément), plus de libellé figé.
+    expect(board.includes('refugeCardTitle(refugeData, userId)')).toBe(true);
+    expect(board.includes("isAnimal ? 'Ton refuge' : 'Ton compagnon'")).toBe(false);
     expect(/Mon refuge/.test(screen + board)).toBe(false);
     expect(/adopté le refuge|adopte le refuge/i.test(screen + board)).toBe(false);
   });
