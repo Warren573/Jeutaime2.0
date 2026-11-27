@@ -131,3 +131,28 @@ describe("Refuge — archivage à la sortie de l'écran de fin", () => {
     expect((await prisma.refugeSession.findUniqueOrThrow({ where: { id: y.sid } })).status).toBe("AWAITING_REVEAL_CONSENT"); // jamais modifiée
   }, 60000);
 });
+
+describe("Refuge — GET /active : rôle du parrain / de la marraine (titre de la case d'accueil)", () => {
+  test("le compagnon reçoit « marraine » ou « parrain » selon le genre ; le parrain / la marraine et une proposition en attente : rien", async () => {
+    const x = await pair("role-f"); // parrain/marraine = FEMME
+    const forCompanion: any = await RefugeService.getActiveRefugeSession(x.c);
+    expect(forCompanion.sponsorRole).toBe("marraine");
+    const forSponsor: any = await RefugeService.getActiveRefugeSession(x.s);
+    expect(forSponsor.sponsorRole).toBeUndefined();
+
+    await prisma.profile.update({ where: { userId: x.s }, data: { gender: "HOMME" } });
+    expect(((await RefugeService.getActiveRefugeSession(x.c)) as any).sponsorRole).toBe("parrain");
+
+    // Fin automatique non archivée : le rôle reste connu ; après archivage : plus de session (retour à « Refuge »).
+    await endAdventure(x);
+    expect(((await RefugeService.getActiveRefugeSession(x.c)) as any).sponsorRole).toBe("parrain");
+    await RefugeService.archiveSession(x.sid, x.c);
+    expect(await RefugeService.getActiveRefugeSession(x.c)).toBeNull();
+
+    // Proposition en attente (personne n'a encore adopté) : aucun rôle.
+    const waiting = await RefugeService.proposeAsAdopte(x.c, { animalType: "CHAT", acceptedSexe: "HOMME_FEMME" } as never);
+    const w: any = await RefugeService.getActiveRefugeSession(x.c);
+    expect(w.id).toBe(waiting.id);
+    expect(w.sponsorRole).toBeUndefined();
+  }, 60000);
+});
