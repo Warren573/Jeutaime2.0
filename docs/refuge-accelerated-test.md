@@ -23,7 +23,7 @@ Chaque exécution (inventaire, simulation ou réelle) se connecte à Neon avec l
 
 - Simulation par défaut : **aucune écriture**. L'exécution réelle exige `mode = apply` ET la phrase exacte `JE CONFIRME <scénario> <étape> <n° compagnon> <n° parrain> [code]` affichée par la simulation (par exemple `JE CONFIRME S1 adopt 5 6`).
 - Comptes : adresses `testuser2` à `testuser11@jeutaime.test` uniquement, rôle `USER`, non suspendus (le compte d'administration `testuser4` est refusé).
-- Adoption en cours préservée : tout compte participant d'un Refuge ouvert est refusé pour `adopt` ; les sessions listées dans `protect_session_ids` sont intouchables ; chaque étape après `adopt` exige le code de la session (6 caractères) et vérifie le couple.
+- Adoption en cours préservée : tout compte participant d'un Refuge ouvert est refusé pour `adopt` ; les sessions listées dans `protect_session_codes` sont intouchables ; chaque étape après `adopt` exige le code de la session (6 caractères) et vérifie le couple.
 - Une étape ne s'exécute qu'une fois et dans l'ordre. Aucune suppression, aucune réinitialisation, aucun autre compte.
 - Le dévoilement n'est proposé qu'après 168 h : l'étape `day-7` vérifie qu'il ne l'est pas, `fast-forward` est la seule étape qui franchit les 168 h.
 
