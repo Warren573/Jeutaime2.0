@@ -161,8 +161,12 @@ export function isViewingDestination(current: CurrentLocation | null | undefined
   if (dest.pathname === '/(tabs)/letters' && dest.route.includes('questionsMatchId=')) {
     return path === dest.pathname && firstParam(current.params?.['questionsMatchId']) === dest.route.split('questionsMatchId=')[1];
   }
+  // Le Refuge s'ouvre aussi sur « /refuge » (carte de l'accueil) : même écran que « /refuge/<session> ».
+  if (isRefugePath(dest.pathname) && isRefugePath(path)) return true;
   return path === dest.pathname;
 }
+
+const isRefugePath = (p: string): boolean => p === '/refuge' || p.startsWith('/refuge/');
 
 /** Faux quand la bannière (et le son) seraient redondants avec l'écran déjà ouvert. */
 /** Notification de test du diagnostic (locale ou envoyée par le serveur). */

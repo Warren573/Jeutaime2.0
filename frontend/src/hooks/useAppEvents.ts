@@ -23,6 +23,10 @@ const notifyBinding = () => listeners.forEach((l) => l());
 export const eventQueue = {
   current: () => queue.current(),
   dismiss: () => queue.dismiss(),
+  /** L'utilisateur arrive sur l'écran concerné : ses fenêtres disparaissent. */
+  dismissViewing: (path: string | null | undefined) => queue.dismissViewing(path),
+  /** L'application quitte le premier plan : aucune fenêtre ne doit survivre. */
+  abandon: () => queue.abandon(),
   /** Abonnement stable : survit au changement de compte (la file est recréée, les abonnés restent). */
   subscribe(listener: () => void) {
     listeners.add(listener);
@@ -91,12 +95,23 @@ export function useAppEvents(): void {
     notifyBinding();
   }, [userId]);
 
+  // Arrivée sur l'écran concerné (Refuge, lettres…) : l'écran s'actualise lui-même, les fenêtres qui le concernent — à l'écran
+  // ou en attente — sont retirées et ne reviendront pas.
+  useEffect(() => {
+    if (!isAuthenticated || !userId) return;
+    queue.dismissViewing(pathname);
+  }, [pathname, isAuthenticated, userId]);
+
   useEffect(() => {
     if (!isAuthenticated || !userId) return;
     void queue.hydrate();
     runtime?.startSession();
     // Retour au premier plan : nouvelle session (ce qui est arrivé pendant l'absence a déjà été montré par un push).
-    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') runtime?.startSession(); });
+    // Départ du premier plan : le système prend le relais (push) ; aucune fenêtre en attente ne doit réapparaître au retour.
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') runtime?.startSession();
+      else queue.abandon();
+    });
     // Hausse du compteur de non lues (sondage existant de 60 s, ou rechargement) : couvre un push non reçu.
     let previous = useStore.getState().unreadNotificationsCount;
     const unsubscribe = useStore.subscribe((state) => {
