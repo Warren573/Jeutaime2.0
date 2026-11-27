@@ -37,6 +37,11 @@ export interface EventPolicy {
   /** Écrans sur lesquels la fenêtre est inutile (l'utilisateur voit déjà l'événement) : le chemin commence par l'un d'eux. */
   suppressOnPathPrefixes?: readonly string[];
   /**
+   * Événement qui se répète à chaque journée (Refuge) : si plusieurs de même type et de même session sont en attente ou si
+   * l'un est déjà à l'écran, seul le plus récent est présenté ; les plus anciens sont marqués « vus » sans fenêtre.
+   */
+  coalesce?: boolean;
+  /**
    * Message PROPRE à la fenêtre, quand il diffère du texte du serveur (historique et push inchangés). Reçoit le rôle du
    * parrain / de la marraine, lu dans la session du Refuge (parrain / marraine selon le genre), ou null s'il est inconnu.
    */
@@ -79,22 +84,22 @@ export const EVENT_POLICIES: Record<NotificationType, EventPolicy> = {
   MAGIE_BROKEN: history(),
   PRIVATE_SALON_INVITE: { mode: 'dialog', priority: 45, title: 'Invitation à un salon privé', cta: 'Voir l’invitation', suppressOnPathPrefixes: ['/private-salons'] },
   // ── Refuge (aucun pseudo, aucune action nommée : voir refuge.notifications.ts côté serveur) ──────────────
-  REFUGE_ADOPTED: { mode: 'dialog', priority: 65, title: 'Tu as été adopté !', cta: 'Aller au refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge/'], dialogMessage: ({ sponsorRole }) => adoptionMessageForCompanion(sponsorRole) },
-  REFUGE_CHOICE_READY: { mode: 'dialog', priority: 50, title: 'Ton compagnon est prêt', cta: 'Aller au Refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
-  REFUGE_RESULT_READY: { mode: 'dialog', priority: 50, title: 'Le résultat du jour', cta: 'Découvrir le résultat', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
+  REFUGE_ADOPTED: { mode: 'dialog', priority: 65, title: 'Tu as été adopté !', cta: 'Aller au refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge'], dialogMessage: ({ sponsorRole }) => adoptionMessageForCompanion(sponsorRole) },
+  REFUGE_CHOICE_READY: { mode: 'dialog', priority: 50, title: 'Ton compagnon est prêt', cta: 'Aller au Refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge'], coalesce: true },
+  REFUGE_RESULT_READY: { mode: 'dialog', priority: 50, title: 'Le résultat du jour', cta: 'Découvrir le résultat', anonymous: true, suppressOnPathPrefixes: ['/refuge'], coalesce: true },
   REFUGE_DAY_RESULT: history(), // le parrain / la marraine voit déjà le score en validant
-  REFUGE_NEW_DAY: { mode: 'dialog', priority: 30, title: 'Le Refuge s’éveille', cta: 'Choisir mes actions', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
+  REFUGE_NEW_DAY: { mode: 'dialog', priority: 30, title: 'Le Refuge s’éveille', cta: 'Choisir mes actions', anonymous: true, suppressOnPathPrefixes: ['/refuge'], coalesce: true },
   // Petite attention du parrain / de la marraine : le texte (geste + genre) vient du serveur, sans aucun pseudo.
-  REFUGE_ATTENTION: { mode: 'dialog', priority: 45, title: 'Ne m’oublie pas !', cta: 'Aller au refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
+  REFUGE_ATTENTION: { mode: 'dialog', priority: 45, title: 'Ne m’oublie pas !', cta: 'Aller au refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge'] },
   // Confirmation d'adoption du parrain / de la marraine : historique seulement (la fenêtre locale existe déjà, aucun doublon).
   REFUGE_ADOPTION_CONFIRMED: history(),
   // Fin de l'aventure (règles v2) : UNE seule fenêtre par participant, qui donne accès au bilan puis au dévoilement.
-  REFUGE_FINAL_REPORT: { mode: 'dialog', priority: 72, title: 'Les sept jours sont écoulés', cta: 'Voir le bilan', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
+  REFUGE_FINAL_REPORT: { mode: 'dialog', priority: 72, title: 'Les sept jours sont écoulés', cta: 'Voir le bilan', anonymous: true, suppressOnPathPrefixes: ['/refuge'] },
   REFUGE_COINS: history(),
-  REFUGE_REVEAL_PHASE: { mode: 'dialog', priority: 70, title: 'Le moment du dévoilement', cta: 'Aller au Refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
-  REFUGE_REVEALED: { mode: 'dialog', priority: 70, title: 'Vous vous dévoilez', cta: 'Aller au Refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
-  REFUGE_REVEAL_REFUSED: { mode: 'dialog', priority: 40, title: 'Une page se tourne', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
-  REFUGE_EXPIRED: { mode: 'dialog', priority: 35, title: 'Refuge terminé', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
+  REFUGE_REVEAL_PHASE: { mode: 'dialog', priority: 70, title: 'Le moment du dévoilement', cta: 'Aller au Refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge'] },
+  REFUGE_REVEALED: { mode: 'dialog', priority: 70, title: 'Vous vous dévoilez', cta: 'Aller au Refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge'] },
+  REFUGE_REVEAL_REFUSED: { mode: 'dialog', priority: 40, title: 'Une page se tourne', anonymous: true, suppressOnPathPrefixes: ['/refuge'] },
+  REFUGE_EXPIRED: { mode: 'dialog', priority: 35, title: 'Refuge terminé', anonymous: true, suppressOnPathPrefixes: ['/refuge'] },
   // ── Compte, sécurité, administration ───────────────────────────────────────
   SECURITY_ALERT: { mode: 'dialog', priority: 100, title: 'Alerte de sécurité', cta: 'Voir mon compte', suppressOnPathPrefixes: ['/security'] },
   ADMIN_MESSAGE: { mode: 'dialog', priority: 90, title: 'Message de l’équipe JeuTaime', cta: 'Lire le message', suppressOnPathPrefixes: ['/admin-messages'] },
@@ -126,11 +131,13 @@ export interface EventDialogModel {
   cta: { label: string; route?: string; action?: () => void } | null;
   priority: number;
   createdAtMs: number;
+  /** Clé de regroupement (type + session) pour les événements quotidiens ; absente sinon. */
+  coalesceKey?: string | null;
 }
 
 /** Fenêtre d'un événement, ou null s'il ne doit pas en avoir (historique seulement, annonce existante, type inconnu). */
 export function buildEventDialog(
-  notification: Pick<NotificationDto, 'id' | 'type' | 'message' | 'createdAt'>,
+  notification: Pick<NotificationDto, 'id' | 'type' | 'message' | 'createdAt'> & { meta?: Record<string, unknown> | null },
   options: { pseudo?: string | null; route?: string | null; sponsorRole?: SponsorRole | null } = {},
 ): EventDialogModel | null {
   const policy = policyFor(notification.type);
@@ -151,7 +158,14 @@ export function buildEventDialog(
     cta: policy.cta && route ? { label: policy.cta, route } : null,
     priority: policy.priority,
     createdAtMs: Number.isFinite(createdAtMs) ? createdAtMs : 0,
+    coalesceKey: policy.coalesce ? coalesceKeyOf(notification.type, notification.meta) : null,
   };
+}
+
+/** Regroupement des événements quotidiens : un type + une session. Sans session identifiable : pas de regroupement. */
+export function coalesceKeyOf(type: unknown, meta: Record<string, unknown> | null | undefined): string | null {
+  const session = meta?.['refugeSessionId'];
+  return typeof type === 'string' && typeof session === 'string' && SAFE_ID.test(session) ? `${type}:${session}` : null;
 }
 
 // ============================================================
@@ -215,6 +229,19 @@ export function normalizePath(path: string | null | undefined): string {
   return (path ?? '').replace(/\/\([^/]+\)/g, '');
 }
 
+/** Correspondance à la frontière d'un segment : « /refuge » couvre « /refuge » ET « /refuge/abc », jamais « /refuge-x ». */
+export function pathMatchesPrefix(path: string, prefix: string): boolean {
+  const p = normalizePath(path).replace(/\/+$/, '') || '/';
+  const f = normalizePath(prefix).replace(/\/+$/, '') || '/';
+  return p === f || p.startsWith(`${f}/`);
+}
+
+/** L'utilisateur est-il déjà sur l'écran que cet événement concerne ? */
+export function isViewingPath(policy: Pick<EventPolicy, 'suppressOnPathPrefixes'> | null | undefined, currentPath: string | null | undefined): boolean {
+  const path = normalizePath(currentPath);
+  return !!path && !!policy?.suppressOnPathPrefixes?.some((prefix) => pathMatchesPrefix(path, prefix));
+}
+
 export type RejectReason = 'not-dialog' | 'read' | 'seen' | 'before-session' | 'viewing' | 'invalid';
 
 export function presentability(
@@ -228,9 +255,10 @@ export function presentability(
   if (ctx.seen.has(notification.id)) return { ok: false, reason: 'seen' };
   const created = Date.parse(String(notification.createdAt));
   if (!Number.isFinite(created)) return { ok: false, reason: 'invalid' };
-  if (created < ctx.windowStartMs - (ctx.skewMs ?? 5000)) return { ok: false, reason: 'before-session' };
-  const path = normalizePath(ctx.currentPath);
-  if (path && policy.suppressOnPathPrefixes?.some((prefix) => path.startsWith(normalizePath(prefix)))) return { ok: false, reason: 'viewing' };
+  // Aucune tolérance par défaut : un événement antérieur à la session au premier plan a déjà été annoncé (push système ou
+  // historique). Mieux vaut manquer une fenêtre que d'en montrer une seconde pour le même événement.
+  if (created < ctx.windowStartMs - (ctx.skewMs ?? 0)) return { ok: false, reason: 'before-session' };
+  if (isViewingPath(policy, ctx.currentPath)) return { ok: false, reason: 'viewing' };
   return { ok: true };
 }
 
@@ -255,6 +283,10 @@ export interface EventQueue {
   current(): EventDialogModel | null;
   /** Ferme la fenêtre courante (vue, quoi qu'il arrive) ; la suivante devient courante. */
   dismiss(): EventDialogModel | null;
+  /** L'utilisateur vient d'arriver sur cet écran : les fenêtres (courante et en attente) qui le concernent disparaissent, vues. */
+  dismissViewing(path: string | null | undefined): number;
+  /** L'application quitte le premier plan : plus aucune fenêtre en attente ni à l'écran (elles ne réapparaîtront jamais). */
+  abandon(): number;
   seenKeys(): ReadonlySet<string>;
   pending(): number;
   subscribe(listener: () => void): () => void;
@@ -300,14 +332,28 @@ export function createEventQueue(store: SeenStore): EventQueue {
     },
     enqueue(models) {
       const known = knownKeys();
+      const superseded: string[] = [];
       let added = 0;
-      for (const model of models) {
+      // Du plus ancien au plus récent : pour un événement quotidien répété, le plus récent remplace les précédents.
+      for (const model of [...models].sort((a, b) => a.createdAtMs - b.createdAtMs)) {
         if (known.has(model.key)) continue;
         known.add(model.key);
+        const group = model.coalesceKey;
+        if (group) {
+          // Déjà à l'écran : cette fenêtre-là a déjà informé (jamais la même fenêtre deux fois de suite).
+          if (shown?.coalesceKey === group) { superseded.push(model.key); continue; }
+          const at = queue.findIndex((q) => q.coalesceKey === group);
+          if (at >= 0) {
+            superseded.push(queue[at]!.key); // l'ancienne n'apparaîtra jamais
+            queue[at] = model;
+            continue;
+          }
+        }
         queue.push(model);
         added++;
       }
-      if (added === 0) return 0;
+      if (superseded.length) remember(superseded);
+      if (added === 0) { if (superseded.length) emit(); return 0; }
       sortQueue();
       if (queue.length > MAX_QUEUED_EVENTS) queue = queue.slice(0, MAX_QUEUED_EVENTS);
       if (!shown) shown = queue.shift() ?? null;
@@ -323,6 +369,29 @@ export function createEventQueue(store: SeenStore): EventQueue {
       shown = queue.shift() ?? null;
       emit();
       return shown;
+    },
+    dismissViewing(path) {
+      // Les annonces LOCALES (match, confirmation d'adoption) sont déclenchées par l'utilisateur lui-même : jamais retirées ici.
+      const concerned = (m: EventDialogModel) => !m.key.startsWith('local:') && isViewingPath(policyFor(m.type), path);
+      const gone = [...(shown && concerned(shown) ? [shown] : []), ...queue.filter(concerned)];
+      if (gone.length === 0) return 0;
+      remember(gone.map((m) => m.key));
+      queue = queue.filter((m) => !concerned(m));
+      if (shown && concerned(shown)) shown = queue.shift() ?? null;
+      emit();
+      return gone.length;
+    },
+    abandon() {
+      // Seules les fenêtres issues de l'historique sont abandonnées (le push système les a remplacées) ; une annonce locale,
+      // déclenchée par l'utilisateur, n'a aucun équivalent système : elle reste.
+      const server = (m: EventDialogModel) => !m.key.startsWith('local:');
+      const gone = [...(shown && server(shown) ? [shown] : []), ...queue.filter(server)];
+      if (gone.length === 0) return 0;
+      remember(gone.map((m) => m.key));
+      queue = queue.filter((m) => !server(m));
+      if (shown && server(shown)) shown = queue.shift() ?? null;
+      emit();
+      return gone.length;
     },
     seenKeys: () => seen,
     pending: () => queue.length,

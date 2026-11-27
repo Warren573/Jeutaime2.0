@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { NotificationType } from "@prisma/client";
 import {
-  EVENT_POLICIES, MAX_QUEUED_EVENTS, MAX_SEEN_EVENTS, adoptionMessageForCompanion, buildEventDialog, buildMatchAnnouncement, buildSponsorAdoptionConfirmation, createEventQueue, policyFor, presentability, selectEventsToPresent,
+  EVENT_POLICIES, MAX_QUEUED_EVENTS, isViewingPath, pathMatchesPrefix, MAX_SEEN_EVENTS, adoptionMessageForCompanion, buildEventDialog, buildMatchAnnouncement, buildSponsorAdoptionConfirmation, createEventQueue, policyFor, presentability, selectEventsToPresent,
   type EventDialogModel,
 } from "../../../frontend/src/data/appEvents";
 import { createEventsRuntime } from "../../../frontend/src/utils/appEventsRuntime";
 import { categoryFor, hasPngIcon } from "../../../frontend/src/utils/notificationsView";
 import { getNotificationTarget } from "../../../frontend/src/utils/notifications";
-import { foregroundPresentation } from "../../../frontend/src/utils/pushNavigation";
+import { foregroundPresentation, isViewingDestination, resolvePushDestination } from "../../../frontend/src/utils/pushNavigation";
 import { buildNotificationMessage } from "../../src/policies/notifications";
 
 /**
@@ -145,9 +145,10 @@ describe("quand une fenêtre est admise", () => {
   ])("refusée : %s", (_label, n, c, reason) => {
     expect(presentability(n, c)).toEqual({ ok: false, reason });
   });
-  it("marge d'horloge de 5 s entre l'appareil et le serveur", () => {
-    expect(presentability(note({ createdAt: new Date(T0 - 4000).toISOString() }), ctx()).ok).toBe(true);
-    expect(presentability(note({ createdAt: new Date(T0 - 6000).toISOString() }), ctx()).ok).toBe(false);
+  it("aucune marge d'horloge par défaut : un événement antérieur à la session n'a JAMAIS de fenêtre (déjà annoncé par le push)", () => {
+    expect(presentability(note({ createdAt: new Date(T0 - 1).toISOString() }), ctx()).ok).toBe(false);
+    expect(presentability(note({ createdAt: new Date(T0).toISOString() }), ctx()).ok).toBe(true);
+    expect(presentability(note({ createdAt: new Date(T0 - 4000).toISOString() }), ctx({ skewMs: 5000 })).ok).toBe(true); // marge explicite possible
   });
   it("sélection d'une page d'historique : fenêtres retenues, écran déjà ouvert et annonce de match marqués « vus » sans fenêtre", () => {
     const items = [
@@ -397,5 +398,113 @@ describe("harmonisation : adoption (compagnon et parrain / marraine) et annonce 
     const rt = createEventsRuntime({ queue, fetchLatest: async () => [it1] as never, pseudoOf: () => null, routeOf: () => "/refuge/s1", sponsorRoleOf: async () => { throw new Error("réseau"); }, currentPath: () => "/", now: () => T0 });
     await rt.run();
     expect(queue.current()?.message).toBe(adoptionMessageForCompanion(null));
+  });
+});
+
+describe("présentation : un seul signal visuel par événement, jamais de pile de fenêtres quotidiennes", () => {
+  const SESSION = "cmrefuge0000000000000001";
+  const day = (n: number, type = "REFUGE_RESULT_READY", over: Record<string, unknown> = {}) =>
+    note({ id: `${type}-${n}`, type, message: "x", meta: { refugeSessionId: SESSION }, createdAt: new Date(T0 + n * 1000).toISOString(), ...over });
+  const routeOf = (n: any) => (n.meta?.refugeSessionId ? `/refuge/${n.meta.refugeSessionId}` : null);
+  const present = (items: any[], path: string | null, queue = createEventQueue(memoryStore())) => {
+    const { models, markSeen } = selectEventsToPresent(items, { windowStartMs: T0, currentPath: path, seen: queue.seenKeys() } as never, { pseudoOf: () => null, routeOf });
+    if (markSeen.length) queue.markSeen(markSeen);
+    if (models.length) queue.enqueue(models);
+    return queue;
+  };
+  const drain = (q: ReturnType<typeof createEventQueue>) => { const out: string[] = []; while (q.current()) { out.push(q.current()!.key); q.dismiss(); } return out; };
+
+  it("CAUSE RACINE : l'écran du Refuge est « /refuge » (carte de l'accueil) comme « /refuge/<session> » : aucune fenêtre sur les deux", () => {
+    for (const type of ["REFUGE_RESULT_READY", "REFUGE_CHOICE_READY", "REFUGE_NEW_DAY", "REFUGE_ATTENTION", "REFUGE_FINAL_REPORT", "REFUGE_REVEALED"]) {
+      for (const path of ["/refuge", "/refuge/", `/refuge/${SESSION}`]) {
+        expect(presentability(day(1, type) as never, ctx({ currentPath: path })), `${type} ${path}`).toEqual({ ok: false, reason: "viewing" });
+      }
+      expect(presentability(day(1, type) as never, ctx({ currentPath: "/(tabs)/home" })).ok, type).toBe(true);
+      expect(presentability(day(1, type) as never, ctx({ currentPath: "/refuge-autre" })).ok, type).toBe(true); // frontière de segment
+    }
+  });
+  it("la bannière système (hors premier plan actif) tient compte du même écran : « /refuge » = le Refuge", () => {
+    const dest = resolvePushDestination({ type: "REFUGE_RESULT_READY", refugeSessionId: SESSION });
+    for (const path of ["/refuge", `/refuge/${SESSION}`]) expect(isViewingDestination({ pathname: path }, dest)).toBe(true);
+    expect(isViewingDestination({ pathname: "/(tabs)/letters" }, dest)).toBe(false);
+    expect(foregroundPresentation({ pathname: "/refuge" }, { type: "REFUGE_RESULT_READY", refugeSessionId: SESSION }, { sound: true, vibration: true }, "inactive")).toMatchObject({ showBanner: false, showList: false, playSound: false });
+  });
+  it("correspondance par segments : aucune prérogative de dossier à barre finale, tous les préfixes sont valides", () => {
+    expect(pathMatchesPrefix("/refuge", "/refuge")).toBe(true);
+    expect(pathMatchesPrefix("/refuge/abc", "/refuge")).toBe(true);
+    expect(pathMatchesPrefix("/refuge-x", "/refuge")).toBe(false);
+    expect(pathMatchesPrefix("/(tabs)/letters", "/(tabs)/letters")).toBe(true);
+    expect(pathMatchesPrefix("/duel/play", "/duel")).toBe(true);
+    for (const [type, policy] of Object.entries(EVENT_POLICIES) as Array<[string, any]>) {
+      for (const prefix of policy.suppressOnPathPrefixes ?? []) {
+        expect(prefix.endsWith("/"), `${type} ${prefix}`).toBe(false);
+        expect(isViewingPath(policy, prefix), `${type} ${prefix}`).toBe(true);
+      }
+    }
+  });
+  it("ACCUMULATION : trois journées terminées d'un coup → UNE seule fenêtre « Le résultat du jour » (la plus récente), jamais trois à la suite", () => {
+    const q = present([day(1), day(2), day(3)], "/(tabs)/home");
+    expect(drain(q)).toEqual(["REFUGE_RESULT_READY-3"]);
+    for (const k of ["REFUGE_RESULT_READY-1", "REFUGE_RESULT_READY-2", "REFUGE_RESULT_READY-3"]) expect(q.seenKeys().has(k) || k.endsWith("-3")).toBe(true); // les anciennes ne reviendront pas
+  });
+  it("types différents, sessions différentes et autres fonctionnalités : jamais regroupés", () => {
+    const q = present([day(1), day(1, "REFUGE_CHOICE_READY"), day(2, "REFUGE_RESULT_READY", { id: "autre", meta: { refugeSessionId: "cmautresession0000000002" } }), note({ id: "l1", type: "LETTER_RECEIVED", createdAt: new Date(T0 + 1).toISOString() }), note({ id: "l2", type: "LETTER_RECEIVED", createdAt: new Date(T0 + 2).toISOString() })], "/(tabs)/home");
+    expect(drain(q).sort()).toEqual(["REFUGE_CHOICE_READY-1", "REFUGE_RESULT_READY-1", "autre", "l1", "l2"].sort());
+  });
+  it("fenêtre déjà à l'écran : la journée suivante n'ajoute pas une seconde fenêtre identique ; une journée ultérieure (après fermeture) est présentée", () => {
+    const q = createEventQueue(memoryStore());
+    present([day(1)], "/(tabs)/home", q);
+    expect(q.current()?.key).toBe("REFUGE_RESULT_READY-1");
+    present([day(2)], "/(tabs)/home", q); // arrive pendant que la fenêtre est affichée
+    expect(q.pending()).toBe(0);
+    q.dismiss();
+    expect(q.current()).toBeNull();
+    present([day(3)], "/(tabs)/home", q); // nouvelle journée, plus tard
+    expect(q.current()?.key).toBe("REFUGE_RESULT_READY-3");
+  });
+  it("utilisateur déjà dans le Refuge : AUCUNE fenêtre (actualisation directe), les événements sont marqués vus ; l'historique n'est pas touché", () => {
+    const q = present([day(1), day(2, "REFUGE_CHOICE_READY"), day(3, "REFUGE_ATTENTION")], "/refuge");
+    expect(q.current()).toBeNull();
+    for (const k of ["REFUGE_RESULT_READY-1", "REFUGE_CHOICE_READY-2", "REFUGE_ATTENTION-3"]) expect(q.seenKeys().has(k), k).toBe(true);
+  });
+  it("arrivée dans le Refuge APRÈS la mise en file : les fenêtres du Refuge (à l'écran et en attente) disparaissent, pas les autres", () => {
+    const q = createEventQueue(memoryStore());
+    present([day(1), note({ id: "l1", type: "LETTER_RECEIVED", createdAt: new Date(T0 + 5).toISOString() })], "/(tabs)/home", q);
+    expect(q.dismissViewing("/refuge")).toBe(1);
+    expect(drain(q)).toEqual(["l1"]); // la lettre (autre écran) reste
+    const q2 = createEventQueue(memoryStore());
+    present([day(1), day(2, "REFUGE_CHOICE_READY")], "/(tabs)/home", q2);
+    expect(q2.dismissViewing("/refuge")).toBe(2);
+    expect(q2.current()).toBeNull();
+    expect(q2.dismissViewing("/refuge")).toBe(0);
+  });
+  it("les annonces locales (match, confirmation d'adoption) ne sont jamais retirées par l'arrivée sur un écran ni par l'abandon", () => {
+    const q = createEventQueue(memoryStore());
+    q.enqueue([buildSponsorAdoptionConfirmation("sess1")!]);
+    expect(q.dismissViewing("/refuge")).toBe(0);
+    expect(q.abandon()).toBe(0);
+    expect(q.current()?.key).toBe("local:refuge-adopted:sess1");
+  });
+  it("l'application quitte le premier plan : plus aucune fenêtre issue de l'historique ne survit (le push système a pris le relais), elles ne reviennent pas", () => {
+    const q = createEventQueue(memoryStore());
+    present([day(1), note({ id: "l1", type: "LETTER_RECEIVED", createdAt: new Date(T0 + 5).toISOString() })], "/(tabs)/home", q);
+    expect(q.abandon()).toBe(2);
+    expect(q.current()).toBeNull();
+    present([day(1), note({ id: "l1", type: "LETTER_RECEIVED", createdAt: new Date(T0 + 5).toISOString() })], "/(tabs)/home", q); // relecture de l'historique
+    expect(q.current()).toBeNull();
+  });
+  it("jamais deux signaux pour un même événement : fenêtre SEULEMENT si l'application est active, bannière SEULEMENT sinon", () => {
+    const data = { type: "REFUGE_RESULT_READY", refugeSessionId: SESSION };
+    const active = foregroundPresentation({ pathname: "/(tabs)/home" }, data, { sound: true, vibration: true }, "active");
+    const inactive = foregroundPresentation({ pathname: "/(tabs)/home" }, data, { sound: true, vibration: true }, "inactive");
+    expect(active.showBanner).toBe(false); // fenêtre événementielle possible
+    expect(inactive.showBanner).toBe(true); // push système ; aucune fenêtre (le signal n'est émis que si l'application est active)
+  });
+  it("autres fonctionnalités : mêmes règles, aucun préfixe défectueux (lettres, duels, offrandes, salons, sécurité, administration)", () => {
+    const cases: Array<[string, string]> = [["LETTER_RECEIVED", "/(tabs)/letters"], ["DUEL_RECEIVED", "/duel/play"], ["DUEL_RESULT", "/duel"], ["OFFERING_RECEIVED", "/offerings"], ["MAGIE_RECEIVED", "/salon/piscine"], ["PRIVATE_SALON_INVITE", "/private-salons"], ["SECURITY_ALERT", "/security"], ["ADMIN_MESSAGE", "/admin-messages"]];
+    for (const [type, path] of cases) {
+      expect(presentability(note({ type }), ctx({ currentPath: path })), type).toEqual({ ok: false, reason: "viewing" });
+      expect(presentability(note({ type }), ctx({ currentPath: "/(tabs)/home" })).ok, type).toBe(true);
+    }
   });
 });
