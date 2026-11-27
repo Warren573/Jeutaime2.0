@@ -40,6 +40,25 @@ describe("workflow : déclenchement, branche, environnement, concurrence", () =>
   });
 });
 
+describe("workflow : étape de garde avant le checkout", () => {
+  const steps = WF.split(/\n      - /).slice(1);
+  const guardIndex = steps.findIndex((st) => st.includes("Garde"));
+  const checkoutIndex = steps.findIndex((st) => st.startsWith("uses: actions/checkout@"));
+  it("la garde s'exécute AVANT le checkout (refus sur une autre branche sans rien récupérer)", () => {
+    expect(guardIndex).toBe(0);
+    expect(checkoutIndex).toBeGreaterThan(guardIndex);
+  });
+  it("régression run #1 : tant que le dépôt n'est pas récupéré, toute étape qui précède le checkout fixe working-directory: . (le dossier backend n'existe pas encore)", () => {
+    expect(WF).toMatch(/defaults:\s+run:\s+working-directory: backend/); // les autres étapes restent dans backend
+    for (const st of steps.slice(0, checkoutIndex)) {
+      expect(st, st.slice(0, 40)).toMatch(/\n\s+working-directory: \.(\n|$)/);
+    }
+  });
+  it("les étapes qui suivent le checkout gardent le dossier backend par défaut", () => {
+    for (const st of steps.slice(checkoutIndex + 1)) expect(/\n\s+working-directory: \.(\n|$)/.test(st), st.slice(0, 40)).toBe(false);
+  });
+});
+
 describe("workflow : actions verrouillées et permissions minimales", () => {
   it("checkout et setup-node sont verrouillés sur un SHA complet (40 caractères), jamais sur une étiquette mobile", () => {
     const uses = [...WF.matchAll(/^\s+- uses: (\S+)/gm)].map((m) => m[1]!);
