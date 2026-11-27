@@ -1,16 +1,31 @@
-name: Submit existing JeuTaime iOS build 7 to TestFlight
+name: Submit an existing JeuTaime iOS build to TestFlight
 
 # Soumission MANUELLE d'un build iOS DÉJÀ COMPILÉ (aucun nouveau build, aucune OTA).
 # - Une seule commande EAS : eas submit --platform ios --id <build> --non-interactive
 # - Contrôles avant soumission : eas.json contient un ascAppId numérique ;
-#   le build EAS est terminé, iOS, version 2.0.0, numéro de build 7.
+#   le build EAS saisi est terminé, iOS, et sa version et son numéro de build sont ceux saisis en entrée.
+# - À utiliser seulement si la soumission automatique du workflow « Build and submit JeuTaime iOS to TestFlight »
+#   n'a pas abouti ; ne crée aucun nouveau build.
 # - Ne touche ni Android, ni Render, ni Neon, ni Vercel.
 
 on:
   workflow_dispatch:
     inputs:
+      eas_build_id:
+        description: "Identifiant EAS du build iOS (UUID, visible dans expo.dev > Builds ou dans le résumé du workflow de build)"
+        required: true
+        type: string
+      expected_app_version:
+        description: 'Version attendue du build'
+        required: true
+        default: '2.1.0'
+        type: string
+      expected_build_number:
+        description: 'Numéro de build attendu (ex. 8)'
+        required: true
+        type: string
       confirm:
-        description: 'Saisir SOUMETTRE_BUILD_7 pour confirmer la soumission à TestFlight'
+        description: 'Saisir SOUMETTRE_TESTFLIGHT pour confirmer la soumission à TestFlight'
         required: true
         type: string
 
@@ -22,9 +37,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  EAS_BUILD_ID: 72e202cc-da1c-456c-a40f-d34fc63c4409
-  EXPECTED_APP_VERSION: '2.0.0'
-  EXPECTED_BUILD_NUMBER: '7'
+  EAS_BUILD_ID: ${{ inputs.eas_build_id }}
+  EXPECTED_APP_VERSION: ${{ inputs.expected_app_version }}
+  EXPECTED_BUILD_NUMBER: ${{ inputs.expected_build_number }}
 
 jobs:
   submit-ios:
@@ -40,8 +55,20 @@ jobs:
         env:
           CONFIRM: ${{ inputs.confirm }}
         run: |
-          if [ "$CONFIRM" != "SOUMETTRE_BUILD_7" ]; then
+          if [ "$CONFIRM" != "SOUMETTRE_TESTFLIGHT" ]; then
             echo "Confirmation absente ou incorrecte. Aucune soumission." >&2
+            exit 1
+          fi
+          if ! printf '%s' "$EAS_BUILD_ID" | grep -Eq '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'; then
+            echo "Identifiant de build EAS invalide (UUID attendu). Aucune soumission." >&2
+            exit 1
+          fi
+          if ! printf '%s' "$EXPECTED_APP_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Version attendue invalide (ex. 2.1.0). Aucune soumission." >&2
+            exit 1
+          fi
+          if ! printf '%s' "$EXPECTED_BUILD_NUMBER" | grep -Eq '^[0-9]+$'; then
+            echo "Numéro de build attendu invalide (entier). Aucune soumission." >&2
             exit 1
           fi
 
@@ -125,7 +152,7 @@ jobs:
           CI: '1'
           EXPO_NO_TELEMETRY: '1'
         run: |
-          eas submit --platform ios --id 72e202cc-da1c-456c-a40f-d34fc63c4409 --non-interactive
+          eas submit --platform ios --id "$EAS_BUILD_ID" --non-interactive
 
       - name: Record result
         if: success()

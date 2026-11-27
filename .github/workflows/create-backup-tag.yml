@@ -1,0 +1,68 @@
+name: Create a GitHub backup tag (restore point)
+
+# Crée un tag Git annoté « point de restauration » sur un commit de main, sans terminal.
+# - Manuel uniquement. Ne modifie aucune branche, ne lance ni build, ni OTA, ni déploiement.
+# - Le commit saisi doit appartenir à l'historique de main ; un tag existant n'est jamais écrasé.
+# - Restaurer plus tard : créer une branche depuis le tag (GitHub > Code > sélecteur de branche > Tags).
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'SHA complet (40 caractères) du commit de main à sauvegarder'
+        required: true
+        type: string
+      tag_name:
+        description: 'Nom du tag (doit commencer par backup/)'
+        required: true
+        default: 'backup/avant-2.1.0-664a53f'
+        type: string
+      confirm:
+        description: 'Saisir CREER_TAG pour confirmer'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate inputs
+        env:
+          SHA: ${{ inputs.sha }}
+          TAG_NAME: ${{ inputs.tag_name }}
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          [ "$CONFIRM" = "CREER_TAG" ] || { echo "Confirmation absente ou incorrecte." >&2; exit 1; }
+          printf '%s' "$SHA" | grep -Eq '^[0-9a-f]{40}$' || { echo "SHA complet de 40 caractères requis." >&2; exit 1; }
+          printf '%s' "$TAG_NAME" | grep -Eq '^backup/[A-Za-z0-9._-]+$' || { echo "Nom invalide : backup/<lettres, chiffres, . _ ->." >&2; exit 1; }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Create and push the annotated tag
+        env:
+          SHA: ${{ inputs.sha }}
+          TAG_NAME: ${{ inputs.tag_name }}
+        run: |
+          git cat-file -e "$SHA^{commit}" || { echo "Commit introuvable." >&2; exit 1; }
+          git merge-base --is-ancestor "$SHA" origin/main || { echo "Ce commit n'appartient pas à l'historique de main." >&2; exit 1; }
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG_NAME" >/dev/null 2>&1; then
+            echo "Le tag $TAG_NAME existe déjà : il n'est jamais écrasé." >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG_NAME" "$SHA" -m "Point de restauration — $SHA (créé depuis GitHub Actions)"
+          git push origin "refs/tags/$TAG_NAME"
+          {
+            echo "### Tag de sauvegarde créé"
+            echo "- Tag : \`$TAG_NAME\`"
+            echo "- Commit : \`$SHA\`"
+            echo "- main actuel : \`$(git rev-parse origin/main)\`"
+          } >> "$GITHUB_STEP_SUMMARY"

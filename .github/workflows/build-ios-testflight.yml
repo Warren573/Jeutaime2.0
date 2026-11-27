@@ -60,24 +60,15 @@ jobs:
           fi
           echo "Source commit: $ACTUAL_SHA" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Check Expo build settings
-        run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const app = JSON.parse(fs.readFileSync('app.json', 'utf8')).expo;
-          const eas = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
-          if (app.version !== '2.0.0' || app.ios?.runtimeVersion !== '2.0.0') throw Error('Unexpected iOS app/runtime version');
-          if (app.ios?.bundleIdentifier !== 'com.jeutaime.app') throw Error('Unexpected bundle identifier');
-          if (eas.build?.production?.channel !== 'internal-test' || eas.build?.production?.autoIncrement !== true) throw Error('Unexpected EAS production build profile');
-          if (eas.cli?.appVersionSource !== 'remote') throw Error('EAS remote version management required');
-          console.log('Expo iOS production configuration verified');
-          NODE
-
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      # Version, runtime, Info.plist, Expo.plist, EAS (build géré à distance, canal des OTA) et workflow d'OTA : tout doit être cohérent.
+      - name: Check iOS 2.1.0 release configuration
+        run: node scripts/check-ios-release-config.js 2.1.0
 
       - uses: expo/expo-github-action@v8
         with:
@@ -93,6 +84,34 @@ jobs:
           EXPO_NO_TELEMETRY: '1'
         run: |
           eas build --platform ios --profile production --auto-submit --non-interactive --wait
+
+      # Récapitulatif informatif : ne fait jamais échouer le job (le build et la soumission sont déjà terminés à ce stade).
+      - name: Record the EAS build (version and build number)
+        if: success()
+        continue-on-error: true
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+        run: |
+          eas build:list --platform ios --limit 1 --json --non-interactive > "$RUNNER_TEMP/last-build.json"
+          node <<'NODE'
+          const fs = require('fs');
+          const raw = fs.readFileSync(process.env.RUNNER_TEMP + '/last-build.json', 'utf8');
+          const start = raw.search(/[\[{]/);
+          const parsed = JSON.parse(raw.slice(start, Math.max(raw.lastIndexOf(']'), raw.lastIndexOf('}')) + 1));
+          const b = Array.isArray(parsed) ? parsed[0] : parsed;
+          const lines = [
+            '### Build iOS compilé',
+            '- Version : `' + b.appVersion + '`',
+            '- Numéro de build : `' + b.appBuildVersion + '`',
+            '- Identifiant EAS : `' + b.id + '`',
+            '- Statut : `' + b.status + '`',
+            '- Commit du build : `' + b.gitCommitHash + '`',
+          ];
+          if (b.appVersion !== '2.1.0') lines.push('- ⚠️ Version inattendue (attendu 2.1.0).');
+          console.log(lines.join('\n'));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          NODE
 
       - name: Record result
         if: success()
