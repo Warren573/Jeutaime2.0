@@ -4,9 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppBackButton } from './AppBackButton';
 import { RefugeRevealPhase } from './RefugeRevealPhase';
-import { dayCoinsLabel, reportLines, revealOffered, type FinalReportData } from '../data/refugeFinalReport';
-import { calendarGlyph, deriveEndView, reportIsAutomatic } from '../data/refugeEndFlow';
-import { serverNow } from '../data/refugeClock';
+import { dayCoinsLabel, reportLines, type FinalReportData } from '../data/refugeFinalReport';
+import { calendarGlyph, deriveEndView, reportIsAutomatic, shouldArchiveOnLeave } from '../data/refugeEndFlow';
 
 const REFUGE_BACKGROUND = require('../../assets/images/refuge/refuge-watercolor-bg.png');
 const parchment = '#EED3AA', ink = '#4A2B1C', burgundy = '#8A2F3C', rule = '#A77548';
@@ -14,26 +13,21 @@ const parchment = '#EED3AA', ink = '#4A2B1C', burgundy = '#8A2F3C', rule = '#A77
 type RevealProps = React.ComponentProps<typeof RefugeRevealPhase>;
 
 /**
- * Fin de l'aventure. La vue affichée est DÉRIVÉE de l'état serveur (voir data/refugeEndFlow) :
- *   avant décision → proposition (le bilan n'est montré automatiquement qu'une seule fois) ;
- *   après ma décision → attente ; double accord → profil dévoilé ; refus → fin ;
- *   le bilan n'est ensuite accessible que volontairement (« Revoir le bilan »).
- * Le dévoilement n'est JAMAIS proposé avant l'expiration des 168 h (le serveur le refuse aussi).
+ * Fin de l'aventure (168 h écoulées). Dévoilement AUTOMATIQUE : bilan (une fois), puis « Une nouvelle histoire commence »
+ * (profils dévoilés, sourires et match déjà créés par le serveur) ; aucun consentement, aucune attente. La vue est dérivée
+ * de l'état serveur (voir data/refugeEndFlow). Le bilan n'est ensuite revu que volontairement (« Revoir le bilan »).
+ * Quitter l'écran d'arrivée archive l'aventure pour cette personne seulement : son Refuge est libéré.
  */
 export function RefugeEndScreen(props: {
   report: FinalReportData | null;
   status: string;
-  endsAt: string | null;
-  serverOffsetMs: number;
   sessionId: string;
   currentUserId: string | null;
-  onBack: () => void;
-  reveal: RevealProps['reveal'];
-  revealProps: Omit<RevealProps, 'reveal' | 'status' | 'view' | 'sessionId' | 'currentUserId' | 'onReviewReport'>;
+  /** `archive` : vrai quand la personne quitte l'écran d'arrivée (libère son Refuge) ; faux depuis le bilan automatique. */
+  onBack: (archive: boolean) => void;
+  revealProps: Omit<RevealProps, 'status' | 'view' | 'sessionId' | 'currentUserId' | 'onReviewReport' | 'reveal' | 'isSubmitting' | 'onDecision'>;
 }) {
-  const { report, status, endsAt, serverOffsetMs, sessionId, currentUserId, onBack, reveal, revealProps } = props;
-  const decided = status === 'REVEALED' || status === 'COMPLETED';
-  const offered = decided || revealOffered({ available: reveal.available, endsAt, serverNowMs: serverNow(serverOffsetMs) });
+  const { report, status, sessionId, currentUserId, onBack, revealProps } = props;
   const [reviewRequested, setReviewRequested] = useState(false);
   // null = lecture du drapeau « bilan déjà vu » en cours.
   const [reportSeen, setReportSeen] = useState<boolean | null>(null);
@@ -52,11 +46,11 @@ export function RefugeEndScreen(props: {
     AsyncStorage.setItem(seenKey, '1').catch(() => {});
   };
 
-  const view = deriveEndView({ status, myDecision: reveal.myDecision, offered, hasReport: !!report, reportSeen, reviewRequested });
+  const view = deriveEndView({ status, hasReport: !!report, reportSeen, reviewRequested });
   const automaticReport = reportIsAutomatic(view, reviewRequested);
 
   // Le bouton retour : depuis un bilan consulté volontairement, il referme le bilan ; sinon il quitte le Refuge.
-  const handleBack = () => (view === 'report' && reviewRequested ? setReviewRequested(false) : onBack());
+  const handleBack = () => (view === 'report' && reviewRequested ? setReviewRequested(false) : onBack(shouldArchiveOnLeave(view)));
 
   const continueFromReport = () => {
     if (reviewRequested) setReviewRequested(false);
@@ -97,13 +91,9 @@ export function RefugeEndScreen(props: {
                     </View>
                   ))}
                 </View>
-                {offered ? (
-                  <TouchableOpacity accessibilityRole="button" style={styles.primary} onPress={continueFromReport}>
-                    <Text style={styles.primaryText}>{reviewRequested ? 'Fermer le bilan' : decided ? 'Voir la suite' : 'Continuer vers le dévoilement'}</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <Text style={styles.note}>Le dévoilement sera proposé à la fin des sept jours.</Text>
-                )}
+                <TouchableOpacity accessibilityRole="button" style={styles.primary} onPress={continueFromReport}>
+                  <Text style={styles.primaryText}>{reviewRequested ? 'Fermer le bilan' : 'Voir la suite'}</Text>
+                </TouchableOpacity>
               </>
             ) : (
               <RefugeRevealPhase
@@ -111,8 +101,7 @@ export function RefugeEndScreen(props: {
                 sessionId={sessionId}
                 currentUserId={currentUserId}
                 status={status}
-                reveal={reveal}
-                view={view === 'report' ? 'pending' : view}
+                view={view === 'revealed' ? 'revealed' : 'ended'}
                 onReviewReport={report ? () => setReviewRequested(true) : undefined}
               />
             )}
@@ -148,5 +137,4 @@ const styles = StyleSheet.create({
   strong: { color: burgundy, fontSize: 15 },
   primary: { alignSelf: 'stretch', marginTop: 16, backgroundColor: burgundy, borderRadius: 8, paddingVertical: 13, alignItems: 'center' },
   primaryText: { color: '#FFFFFF', fontFamily: 'Georgia', fontWeight: '700', fontSize: 14 },
-  note: { fontFamily: 'Georgia', fontSize: 12, lineHeight: 17, color: ink, textAlign: 'center', marginTop: 14 },
 });

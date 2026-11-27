@@ -1,47 +1,51 @@
 import { describe, test, expect } from '../test-support/assert';
-import { calendarGlyph, deriveEndView, questionsRoute, reportIsAutomatic, type EndViewInput } from './refugeEndFlow';
+import { calendarGlyph, deriveEndView, questionsRoute, reportIsAutomatic, shouldArchiveOnLeave, type EndViewInput } from './refugeEndFlow';
 
-const base: EndViewInput = { status: 'AWAITING_REVEAL_CONSENT', myDecision: null, offered: true, hasReport: true, reportSeen: false, reviewRequested: false };
+const base: EndViewInput = { status: 'REVEALED', hasReport: true, reportSeen: false, reviewRequested: false };
 
-describe('fin d’aventure : vue dérivée de l’état serveur', () => {
-  test('avant toute décision, bilan jamais vu : bilan une première fois', () => {
+describe('fin d’aventure automatique : vue dérivée de l’état serveur', () => {
+  test('bilan jamais vu : le bilan d’abord (une seule fois), même si les profils sont déjà dévoilés', () => {
     expect(deriveEndView(base)).toBe('report');
+    expect(deriveEndView({ ...base, status: 'COMPLETED' })).toBe('report');
   });
-  test('bilan déjà vu, pas de décision : proposition de dévoilement (plus le bilan)', () => {
-    expect(deriveEndView({ ...base, reportSeen: true })).toBe('proposal');
+  test('bilan déjà vu : « Une nouvelle histoire commence » (REVEALED), jamais le bilan', () => {
+    expect(deriveEndView({ ...base, reportSeen: true })).toBe('revealed');
   });
-  test('lecture du drapeau en cours : ni bilan ni proposition (pas de clignotement)', () => {
+  test('fin sans dévoilement (blocage, ancien flux en attente) : fin simple après le bilan', () => {
+    for (const status of ['COMPLETED', 'AWAITING_REVEAL_CONSENT']) expect(deriveEndView({ ...base, status, reportSeen: true })).toBe('ended');
+  });
+  test('lecture du drapeau en cours : ni bilan ni écran d’arrivée (pas de clignotement)', () => {
     expect(deriveEndView({ ...base, reportSeen: null })).toBe('loading');
   });
-  test('après ma décision (j’ai accepté) : attente, même si le bilan n’a jamais été vu', () => {
-    expect(deriveEndView({ ...base, myDecision: 'ACCEPT' })).toBe('waiting');
-    expect(deriveEndView({ ...base, myDecision: 'ACCEPT', reportSeen: true })).toBe('waiting');
+  test('aucune vue de consentement : ni proposition, ni attente de l’autre personne', () => {
+    const all = new Set<string>();
+    for (const status of ['REVEALED', 'COMPLETED', 'AWAITING_REVEAL_CONSENT'])
+      for (const hasReport of [true, false])
+        for (const reportSeen of [true, false, null])
+          for (const reviewRequested of [true, false]) all.add(deriveEndView({ status, hasReport, reportSeen, reviewRequested }));
+    expect([...all].sort()).toEqual(['ended', 'loading', 'report', 'revealed']);
   });
-  test('double accord : profil dévoilé, jamais le bilan', () => {
-    expect(deriveEndView({ ...base, status: 'REVEALED', myDecision: 'ACCEPT' })).toBe('revealed');
-    expect(deriveEndView({ ...base, status: 'REVEALED', myDecision: 'ACCEPT', reportSeen: false })).toBe('revealed');
+  test('« Revoir le bilan » : seul moyen de revoir le bilan après la première fois', () => {
+    for (const status of ['REVEALED', 'COMPLETED']) expect(deriveEndView({ ...base, status, reportSeen: true, reviewRequested: true })).toBe('report');
   });
-  test('refus (le mien ou celui de l’autre) : fin du Refuge', () => {
-    expect(deriveEndView({ ...base, status: 'COMPLETED', myDecision: 'ACCEPT' })).toBe('ended');
-    expect(deriveEndView({ ...base, status: 'COMPLETED', myDecision: 'REFUSE' })).toBe('ended');
-    expect(deriveEndView({ ...base, myDecision: 'REFUSE' })).toBe('ended');
-  });
-  test('« Revoir le bilan » : seul moyen de revoir le bilan après la décision', () => {
-    for (const s of ['REVEALED', 'COMPLETED']) expect(deriveEndView({ ...base, status: s, reviewRequested: true })).toBe('report');
-    expect(deriveEndView({ ...base, myDecision: 'ACCEPT', reviewRequested: true })).toBe('report');
-  });
-  test('sans bilan disponible, « revoir » ne change rien', () => {
-    expect(deriveEndView({ ...base, status: 'REVEALED', hasReport: false, reviewRequested: true })).toBe('revealed');
-    expect(deriveEndView({ ...base, hasReport: false })).toBe('proposal');
-  });
-  test('dévoilement non proposable : bilan s’il existe, sinon attente passive', () => {
-    expect(deriveEndView({ ...base, offered: false })).toBe('report');
-    expect(deriveEndView({ ...base, offered: false, hasReport: false })).toBe('pending');
+  test('sans bilan disponible : directement l’écran d’arrivée', () => {
+    expect(deriveEndView({ ...base, hasReport: false, reportSeen: null })).toBe('revealed');
+    expect(deriveEndView({ ...base, hasReport: false, reviewRequested: true })).toBe('revealed');
+    expect(deriveEndView({ ...base, status: 'COMPLETED', hasReport: false })).toBe('ended');
   });
   test('le bilan n’est « automatique » que sans demande volontaire', () => {
     expect(reportIsAutomatic('report', false)).toBe(true);
     expect(reportIsAutomatic('report', true)).toBe(false);
-    expect(reportIsAutomatic('proposal', false)).toBe(false);
+    expect(reportIsAutomatic('revealed', false)).toBe(false);
+  });
+});
+
+describe('sortie de l’écran de fin : archivage', () => {
+  test('on archive en quittant l’écran d’arrivée, jamais depuis le bilan automatique ni pendant le chargement', () => {
+    expect(shouldArchiveOnLeave('revealed')).toBe(true);
+    expect(shouldArchiveOnLeave('ended')).toBe(true);
+    expect(shouldArchiveOnLeave('report')).toBe(false);
+    expect(shouldArchiveOnLeave('loading')).toBe(false);
   });
 });
 

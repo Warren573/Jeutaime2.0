@@ -268,6 +268,12 @@ export const refugeApi = {
     return response?.data;
   },
 
+  // Fin de l'aventure : l'utilisateur quitte l'écran de fin → son Refuge est libéré (l'autre participant n'est pas touché).
+  async archiveSession(sessionId: string): Promise<{ archived: boolean }> {
+    const response = await apiFetch(`/refuge/${sessionId}/archive`, { method: "POST" });
+    return response?.data ?? { archived: true };
+  },
+
   // DEV uniquement — remise à zéro contrôlée d'une session de test
   // mode "reset": repasse en WAITING_FOR_ADOPTANT (choix/tentatives purgés)
   // mode "abandon": clôt définitivement la session de test

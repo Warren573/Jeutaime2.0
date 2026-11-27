@@ -32,12 +32,13 @@ interface RefugeRevealPhaseProps {
   currentUserId: string | null;
   status: string;
   /** Vue à afficher, dérivée de l'état serveur (voir data/refugeEndFlow). */
-  view?: Extract<EndView, "proposal" | "waiting" | "revealed" | "ended" | "pending">;
-  reveal: RevealStateProps;
+  view?: Extract<EndView, "revealed" | "ended">;
+  reveal?: RevealStateProps;
   otherProfile: OtherProfileProps | null;
   revealMatch?: RevealMatchInfo | null;
-  isSubmitting: boolean;
-  onDecision: (decision: "ACCEPT" | "REFUSE") => void;
+  /** Obsolètes (dévoilement automatique) : acceptés pour les anciens écrans non utilisés, jamais affichés. */
+  isSubmitting?: boolean;
+  onDecision?: (decision: "ACCEPT" | "REFUSE") => void;
   onViewProfile: (userId: string) => void;
   /** Ouvre une route interne (jeu des 3 questions, lettres). */
   onNavigate?: (route: string) => void;
@@ -62,20 +63,17 @@ export function RevealedAvatar({ profile, size }: { profile: OtherProfileProps |
 }
 
 /**
- * Phase finale du Refuge (jour 7 terminé). Aucune logique de navigation ici : la vue est fournie par l'écran
- * (état serveur). Règle : si les DEUX acceptent, les sourires réciproques et le match sont créés automatiquement par
- * le serveur ; un refus n'envoie rien. L'utilisateur en est informé AVANT de répondre.
+ * Phase finale du Refuge (168 h écoulées). Dévoilement AUTOMATIQUE : le serveur dévoile les profils et crée les sourires
+ * réciproques et le match (aucun consentement, aucune attente). Aucune logique de navigation ici : la vue est fournie
+ * par l'écran (état serveur).
  */
 export function RefugeRevealPhase({
   sessionId,
   currentUserId,
   status,
   view: viewProp,
-  reveal,
   otherProfile,
   revealMatch,
-  isSubmitting,
-  onDecision,
   onViewProfile,
   onNavigate,
   onExit,
@@ -83,7 +81,7 @@ export function RefugeRevealPhase({
   animalType,
 }: RefugeRevealPhaseProps) {
   // Écrans historiques sans vue fournie : même dérivation que l'écran de fin.
-  const view = viewProp ?? (status === "REVEALED" ? "revealed" : status === "COMPLETED" ? "ended" : reveal.myDecision === "ACCEPT" ? "waiting" : "proposal");
+  const view = viewProp ?? (status === "REVEALED" ? "revealed" : "ended");
   // null = flag pas encore lu (ne rien décider avant), true/false ensuite
   const [revealSeen, setRevealSeen] = useState<boolean | null>(null);
 
@@ -181,57 +179,6 @@ export function RefugeRevealPhase({
       </View>
     );
   }
-
-  if (view === "waiting") {
-    return (
-      <View style={styles.card}>
-        <Text style={styles.headline}>Ta décision est enregistrée.</Text>
-        <Text style={styles.subtitle}>En attente de la décision de l&apos;autre personne.</Text>
-        <Text style={styles.info}>Si vous acceptez tous les deux, vos sourires seront envoyés automatiquement.</Text>
-        <BouncyButton style={styles.secondaryButton} onPress={onExit}>
-          <Text style={styles.secondaryButtonText}>Retour à l’accueil</Text>
-        </BouncyButton>
-        {reviewButton}
-      </View>
-    );
-  }
-
-  if (view === "pending") {
-    return (
-      <View style={styles.card}>
-        <Text style={styles.subtitle}>Le dévoilement sera proposé à la fin des sept jours.</Text>
-      </View>
-    );
-  }
-
-  // proposal
-  return (
-    <View style={styles.card}>
-      <Text style={styles.headline}>Les 7 jours sont terminés.</Text>
-      <Text style={styles.subtitle}>Souhaitez-vous dévoiler vos profils ?</Text>
-      <Text style={styles.info}>
-        Si vous acceptez tous les deux, vos sourires seront envoyés automatiquement et vous deviendrez un match.
-        Si l’un de vous refuse, aucun sourire n’est envoyé.
-      </Text>
-      <View style={styles.buttonsRow}>
-        <BouncyButton
-          style={[styles.decisionButton, styles.acceptButton, isSubmitting && styles.buttonDisabled]}
-          onPress={() => !isSubmitting && onDecision("ACCEPT")}
-          disabled={isSubmitting}
-        >
-          <Text style={styles.acceptButtonText}>Oui, dévoiler</Text>
-        </BouncyButton>
-        <BouncyButton
-          style={[styles.decisionButton, styles.refuseButton, isSubmitting && styles.buttonDisabled]}
-          onPress={() => !isSubmitting && onDecision("REFUSE")}
-          disabled={isSubmitting}
-        >
-          <Text style={styles.refuseButtonText}>Non, terminer ici</Text>
-        </BouncyButton>
-      </View>
-      {reviewButton}
-    </View>
-  );
 }
 
 /**
@@ -382,7 +329,6 @@ const styles = StyleSheet.create({
   card: { alignSelf: "stretch", alignItems: "center" },
   headline: { fontFamily: "Georgia", fontSize: 22, fontWeight: "700", color: burgundy, textAlign: "center", marginBottom: 6 },
   subtitle: { fontFamily: "Georgia", fontSize: 14, color: ink, textAlign: "center", marginBottom: 6 },
-  info: { fontFamily: "Georgia", fontSize: 12, lineHeight: 17, color: "#6E4B32", textAlign: "center", marginTop: 6, marginBottom: 4 },
   profileBlock: { alignItems: "center", marginTop: 10, marginBottom: 10 },
   profilePseudo: { fontFamily: "Georgia", fontSize: 18, fontWeight: "700", color: ink, marginTop: 8, textAlign: "center" },
   profileBio: { fontFamily: "Georgia", fontSize: 12.5, lineHeight: 17, color: "#6E4B32", textAlign: "center", marginTop: 4, paddingHorizontal: 8 },
@@ -395,13 +341,6 @@ const styles = StyleSheet.create({
   secondaryButtonText: { color: burgundy, fontFamily: "Georgia", fontWeight: "700", fontSize: 14 },
   linkButton: { paddingVertical: 9, paddingHorizontal: 16, alignItems: "center", marginTop: 4 },
   linkButtonText: { color: burgundy, fontFamily: "Georgia", fontWeight: "600", fontSize: 13 },
-  buttonsRow: { flexDirection: "row", gap: 10, alignSelf: "stretch", marginTop: 12 },
-  decisionButton: { flex: 1, paddingVertical: 12, paddingHorizontal: 8, borderRadius: 8, alignItems: "center", borderWidth: 1.5 },
-  acceptButton: { backgroundColor: burgundy, borderColor: burgundy },
-  acceptButtonText: { fontFamily: "Georgia", fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
-  refuseButton: { backgroundColor: "transparent", borderColor: beige },
-  refuseButtonText: { fontFamily: "Georgia", fontSize: 13, fontWeight: "600", color: burgundy },
-  buttonDisabled: { opacity: 0.5 },
   revealOverlay: {
     flex: 1,
     backgroundColor: "rgba(20, 12, 4, 0.85)",

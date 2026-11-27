@@ -1,17 +1,14 @@
 /**
- * Fin d'aventure du Refuge : QUELLE vue afficher — logique PURE, entièrement dérivée de l'état serveur.
+ * Fin d'aventure du Refuge : QUELLE vue afficher — logique PURE, dérivée de l'état serveur.
  *
- * Cause de l'ancien défaut (RefugeEndScreen) : l'étape initiale était `report ? 'report' : 'reveal'`, donc l'écran
- * revenait toujours au bilan à chaque réouverture, même après la décision. Désormais la vue vient du serveur ;
- * le bilan n'est affiché automatiquement qu'UNE fois (avant la première décision) puis seulement à la demande.
+ * Dévoilement AUTOMATIQUE à l'issue des 168 h : plus de consentement, donc plus de proposition ni d'attente.
+ * Séquence : bilan (une seule fois, automatiquement) → « Une nouvelle histoire commence » (REVEALED) ou fin simple
+ * (COMPLETED : blocage, compte indisponible ; ancien flux en attente). Le bilan n'est ensuite revu que volontairement.
  */
-export type EndView = 'loading' | 'report' | 'proposal' | 'waiting' | 'revealed' | 'ended' | 'pending';
+export type EndView = 'loading' | 'report' | 'revealed' | 'ended';
 
 export interface EndViewInput {
   status: string;
-  myDecision: 'ACCEPT' | 'REFUSE' | null;
-  /** Dévoilement proposable (serveur + heure de fin). */
-  offered: boolean;
   hasReport: boolean;
   /** Le bilan a-t-il déjà été vu sur cet appareil ? null : lecture en cours. */
   reportSeen: boolean | null;
@@ -21,21 +18,25 @@ export interface EndViewInput {
 
 export function deriveEndView(i: EndViewInput): EndView {
   if (i.reviewRequested && i.hasReport) return 'report';
-  if (i.status === 'REVEALED') return 'revealed';
-  if (i.status === 'COMPLETED') return 'ended';
-  if (i.myDecision === 'REFUSE') return 'ended';
-  if (i.myDecision === 'ACCEPT') return 'waiting';
-  if (!i.offered) return i.hasReport ? 'report' : 'pending';
   if (i.hasReport) {
     if (i.reportSeen === null) return 'loading';
     if (!i.reportSeen) return 'report';
   }
-  return 'proposal';
+  return i.status === 'REVEALED' ? 'revealed' : 'ended';
 }
 
 /** Le bilan est-il la vue « par défaut » (à marquer comme vu quand on continue) ? */
 export function reportIsAutomatic(view: EndView, reviewRequested: boolean): boolean {
   return view === 'report' && !reviewRequested;
+}
+
+/**
+ * Sortie de l'écran : faut-il archiver l'aventure (libérer le Refuge de cette personne) ?
+ * Oui seulement depuis l'écran d'arrivée (nouvelle histoire / fin simple) ; jamais depuis le bilan automatique (la personne
+ * n'a pas encore vu la suite) ni pendant la lecture du drapeau.
+ */
+export function shouldArchiveOnLeave(view: EndView): boolean {
+  return view === 'revealed' || view === 'ended';
 }
 
 /** Symbole de calendrier du bilan : mêmes glyphes que le calendrier du Refuge (♥ plein, ◐ partiel, ♡ vide). */
