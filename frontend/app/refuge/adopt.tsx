@@ -5,7 +5,6 @@ import { useRouter } from 'expo-router';
 import { useStore } from '../../src/store/useStore';
 import { refugeApi, RefugeSession } from '../../src/api/refuge-api';
 import { BouncyButton } from '../../src/components/BouncyButton';
-import { formatAnimalAge } from '../../src/modules/refuge/refugeAgeDisplay';
 import { getAnimalLabel, getAnimalSexeSymbol, isRefugeAnimal } from '../../src/data/refugeAnimals';
 import { buildSponsorAdoptionConfirmation } from '../../src/data/appEvents';
 import { enqueueLocalEvent } from '../../src/hooks/useAppEvents';
@@ -158,12 +157,6 @@ export default function AdoptPage() {
               </View>
 
               <View style={styles.refugeDetails}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Âge:</Text>
-                  <Text style={styles.detailValue}>
-                    {formatAnimalAge(refuge.animalAgeMonths)}
-                  </Text>
-                </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Préférence:</Text>
                   <Text style={styles.detailValue}>
