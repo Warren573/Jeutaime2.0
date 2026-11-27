@@ -8,7 +8,7 @@ Pour la **seule session ciblée**, le script recule `startedAt` (et `endsAt = st
 
 ## Mise en place (une seule fois, depuis le navigateur, sans terminal)
 
-Le dépôt est **public** : les journaux d'Actions sont publics. Le script n'y écrit jamais l'URL de connexion (filtre de toute sortie, erreurs de Prisma comprises), ni pseudo, ni identifiant de compte ; seules les adresses `testuserN@jeutaime.test`, les soldes et l'identifiant de session y figurent.
+Le dépôt est **public** : les journaux d'Actions ET les entrées du workflow sont publics. Le script n'y écrit jamais l'URL de connexion (filtre de toute sortie, erreurs de Prisma comprises), ni adresse de compte (on saisit seulement le **numéro** 2 à 11, affiché « compte n°5 »), ni identifiant complet de session (un **code de 6 caractères**), ni pseudo, solde, point ou montant : seuls des verdicts ✅/❌ et l'état de la session sont publiés. Les montants se vérifient sur l'iPhone ou par SQL en lecture seule (ChatGPT).
 
 1. **Créer l'environnement.** Dépôt → *Settings* → *Environments* → *New environment* → nom exact : `refuge-test`.
 2. **Approbation manuelle obligatoire.** Dans `refuge-test` : cocher *Required reviewers*, ajouter ton compte, enregistrer. Cocher aussi *Prevent self-review* seulement si un second relecteur existe ; sinon la laisser décochée.
@@ -21,9 +21,9 @@ Chaque exécution (inventaire, simulation ou réelle) se connecte à Neon avec l
 
 ## Gardes
 
-- Simulation par défaut : **aucune écriture**. L'exécution réelle exige `mode = apply` ET la phrase exacte `JE CONFIRME <scénario> <étape> <compagnon> <parrain>` affichée par la simulation.
+- Simulation par défaut : **aucune écriture**. L'exécution réelle exige `mode = apply` ET la phrase exacte `JE CONFIRME <scénario> <étape> <n° compagnon> <n° parrain> [code]` affichée par la simulation (par exemple `JE CONFIRME S1 adopt 5 6`).
 - Comptes : adresses `testuser2` à `testuser11@jeutaime.test` uniquement, rôle `USER`, non suspendus (le compte d'administration `testuser4` est refusé).
-- Adoption en cours préservée : tout compte participant d'un Refuge ouvert est refusé pour `adopt` ; les sessions listées dans `protect_session_ids` sont intouchables ; chaque étape après `adopt` exige l'identifiant exact de la session et vérifie le couple.
+- Adoption en cours préservée : tout compte participant d'un Refuge ouvert est refusé pour `adopt` ; les sessions listées dans `protect_session_ids` sont intouchables ; chaque étape après `adopt` exige le code de la session (6 caractères) et vérifie le couple.
 - Une étape ne s'exécute qu'une fois et dans l'ordre. Aucune suppression, aucune réinitialisation, aucun autre compte.
 - Le dévoilement n'est proposé qu'après 168 h : l'étape `day-7` vérifie qu'il ne l'est pas, `fast-forward` est la seule étape qui franchit les 168 h.
 

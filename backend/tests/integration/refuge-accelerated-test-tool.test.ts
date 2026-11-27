@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../../src/config/prisma";
 import { runStage, type RunOptions } from "../../scripts/refuge-accelerated-test";
-import { SCENARIOS } from "../../scripts/refuge-testkit";
+import { SCENARIOS, sessionCode } from "../../scripts/refuge-testkit";
 
 /**
  * Outil de test accéléré (PostgreSQL local, comptes testuserN@jeutaime.test créés ici puis supprimés) :
@@ -15,7 +15,7 @@ let currentAdoption = "";
 const silent = () => undefined;
 
 const opts = (scenario: "S1" | "S2" | "S3", stage: RunOptions["stage"], c: number, s: number, over: Partial<RunOptions> = {}): RunOptions => ({
-  scenario, stage, companionEmail: mail(c), sponsorEmail: mail(s), apply: false, decision: "none", excludeEmails: [], protectSessionIds: [], ...over,
+  scenario, stage, companionEmail: mail(c), sponsorEmail: mail(s), apply: false, decision: "none", excludeEmails: [], protectCodes: [], ...over,
 });
 
 /** Empreinte d'une adoption et des soldes de ses participants : sert à prouver qu'elle n'est pas touchée. */
@@ -86,9 +86,9 @@ describe("outil de test accéléré — gardes (aucune écriture)", () => {
 
   test("la session de l'adoption en cours ne peut être ciblée : protégée, v1/autre couple, et jamais modifiée", async () => {
     const fp = await fingerprint(currentAdoption, [ids.get(2)!, ids.get(3)!]);
-    const r = await runStage(opts("S1", "days-1-3", 2, 3, { sessionId: currentAdoption, protectSessionIds: [currentAdoption], apply: true, confirm: "x" }), silent);
+    const r = await runStage(opts("S1", "days-1-3", 2, 3, { sessionCode: sessionCode(currentAdoption), protectCodes: [sessionCode(currentAdoption)], apply: true, confirm: "x" }), silent);
     expect(r.refused.join()).toMatch(/protégée/);
-    const r2 = await runStage(opts("S1", "days-1-3", 5, 6, { sessionId: currentAdoption, apply: true, confirm: "x" }), silent); // mauvais couple
+    const r2 = await runStage(opts("S1", "days-1-3", 5, 6, { sessionCode: sessionCode(currentAdoption), apply: true, confirm: "x" }), silent); // mauvais couple
     expect(r2.refused.length).toBeGreaterThan(0);
     expect(await fingerprint(currentAdoption, [ids.get(2)!, ids.get(3)!])).toBe(fp);
   });
@@ -99,7 +99,7 @@ describe("outil de test accéléré — gardes (aucune écriture)", () => {
     const sim = await runStage(opts("S1", "adopt", 5, 6), silent);
     expect(sim.refused).toEqual([]);
     expect(sim.applied).toBe(false);
-    expect(sim.confirmation).toBe("JE CONFIRME S1 adopt testuser5@jeutaime.test testuser6@jeutaime.test");
+    expect(sim.confirmation).toBe("JE CONFIRME S1 adopt 5 6");
     const wrong = await runStage(opts("S1", "adopt", 5, 6, { apply: true, confirm: "oui" }), silent);
     expect(wrong.refused.join()).toMatch(/confirmation incorrecte/);
     expect(await dbCounts(all)).toBe(before);
@@ -120,17 +120,18 @@ async function playScenario(id: "S1" | "S2" | "S3", c: number, s: number) {
   };
   const adopt = await run("adopt");
   const sessionId = adopt.sessionId!;
+  const code = sessionCode(sessionId);
   // Rejouer une étape terminée, ou sauter une étape, est refusé.
-  await run("days-1-3", { sessionId });
-  expect((await runStage(opts(id, "days-1-3", c, s, { sessionId, apply: true, confirm: "JE CONFIRME " + id + " days-1-3 " + mail(c) + " " + mail(s) }), silent)).refused.join()).toMatch(/déjà été exécutée/);
-  await run("days-4-6", { sessionId });
+  await run("days-1-3", { sessionCode: code });
+  expect((await runStage(opts(id, "days-1-3", c, s, { sessionCode: code, apply: true, confirm: `JE CONFIRME ${id} days-1-3 ${c} ${s} ${code}` }), silent)).refused.join()).toMatch(/déjà été exécutée/);
+  await run("days-4-6", { sessionCode: code });
   // Avant l'expiration : le dévoilement n'est jamais proposé (le bilan « day-7 » vérifie reveal.available=false).
-  await run("day-7", { sessionId });
+  await run("day-7", { sessionCode: code });
   const early = await prisma.refugeSession.findUniqueOrThrow({ where: { id: sessionId } });
   expect(early.status).toBe("ACTIVE");
   await expect((await import("../../src/modules/refuge/refuge.service")).RefugeService.submitRevealConsent(sessionId, ids.get(c)!, "ACCEPT")).rejects.toMatchObject({ statusCode: 409 });
-  await run("fast-forward", { sessionId });
-  await run("decision", { sessionId, decision: "scenario" });
+  await run("fast-forward", { sessionCode: code });
+  await run("decision", { sessionCode: code, decision: "scenario" });
   // L'adoption en cours n'a pas bougé d'un octet, ni son solde, ni ses notifications.
   expect(await fingerprint(currentAdoption, guarded)).toBe(fp);
   return sessionId;

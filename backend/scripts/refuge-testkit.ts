@@ -38,7 +38,7 @@ export function testAccountNumber(email: string | null | undefined): number | nu
 /** Raisons de refus d'un compte (liste vide = autorisé). Un compte d'administration n'est JAMAIS autorisé, même de test. */
 export function accountRefusals(a: AccountFacts, excludedEmails: readonly string[] = []): string[] {
   const out: string[] = [];
-  if (testAccountNumber(a.email) === null) out.push("n'est pas un compte de test (testuser2 à testuser11@jeutaime.test)");
+  if (testAccountNumber(a.email) === null) out.push("n'est pas un compte de test (seuls les comptes n°2 à n°11 sont autorisés)");
   if (a.role !== "USER") out.push(`rôle ${a.role} : compte d'administration, jamais utilisé`);
   if (a.isBanned) out.push("compte suspendu");
   if (excludedEmails.map((e) => e.trim().toLowerCase()).includes(a.email.trim().toLowerCase())) out.push("exclu explicitement");
@@ -201,12 +201,12 @@ export function preconditionFailures(p: PreconditionInput): string[] {
   const out: string[] = [];
   if (p.companion.email.toLowerCase() === p.sponsor.email.toLowerCase()) out.push("le compagnon et le parrain doivent être deux comptes différents");
   for (const [label, a] of [["compagnon", p.companion], ["parrain/marraine", p.sponsor]] as const) {
-    for (const r of accountRefusals(a, p.excludedEmails)) out.push(`${label} ${a.email} : ${r}`);
+    for (const r of accountRefusals(a, p.excludedEmails)) out.push(`${label} ${accountLabel(a.email)} : ${r}`);
   }
-  if (p.target && p.protectedSessionIds.includes(p.target.id)) out.push(`session ${p.target.id} protégée (adoption en cours à préserver)`);
+  if (p.target && p.protectedSessionIds.includes(p.target.id)) out.push(`session ${sessionCode(p.target.id)} protégée (adoption en cours à préserver)`);
   if (p.stage === "adopt") {
     if (p.pairAlreadyUsed) out.push("ce couple a déjà eu un Refuge (un couple ne peut en avoir qu'un seul) : choisis un autre couple");
-    for (const s of p.openSessions) out.push(`un Refuge est déjà ouvert pour ces comptes (session ${s.id}, ${s.status}) : adoption en cours préservée, compte inutilisable`);
+    for (const s of p.openSessions) out.push(`un Refuge est déjà ouvert pour ces comptes (session ${sessionCode(s.id)}, ${s.status}) : adoption en cours préservée, compte inutilisable`);
     return out;
   }
   if (!p.target) {
@@ -218,14 +218,28 @@ export function preconditionFailures(p: PreconditionInput): string[] {
     out.push("la session ne correspond pas au couple indiqué");
   }
   for (const s of p.openSessions) {
-    if (s.id !== p.target.id) out.push(`un AUTRE Refuge est ouvert pour ces comptes (session ${s.id}) : étape refusée`);
+    if (s.id !== p.target.id) out.push(`un AUTRE Refuge est ouvert pour ces comptes (session ${sessionCode(s.id)}) : étape refusée`);
   }
   return out;
 }
 
-/** Phrase de confirmation à recopier pour une exécution réelle (précise le scénario, l'étape et le couple). */
-export function confirmationPhrase(scenario: string, stage: string, companionEmail: string, sponsorEmail: string): string {
-  return `JE CONFIRME ${scenario} ${stage} ${companionEmail.toLowerCase()} ${sponsorEmail.toLowerCase()}`;
+/** Code public d'une session : ses 6 derniers caractères. L'identifiant complet n'est jamais écrit dans un journal public. */
+export function sessionCode(id: string): string {
+  return id.slice(-6);
+}
+
+/** Libellé public d'un compte : « compte n°5 » (jamais l'adresse). */
+export function accountLabel(email: string | null | undefined): string {
+  const n = testAccountNumber(email);
+  return n === null ? "compte inconnu" : `compte n°${n}`;
+}
+
+/**
+ * Phrase de confirmation à recopier pour une exécution réelle : scénario, étape, numéros des comptes (2 à 11) et, après
+ * l'adoption, code de la session. Aucune adresse ni identifiant complet.
+ */
+export function confirmationPhrase(scenario: string, stage: string, companionNumber: number | null, sponsorNumber: number | null, code?: string): string {
+  return `JE CONFIRME ${scenario} ${stage} ${companionNumber ?? "?"} ${sponsorNumber ?? "?"}${code ? ` ${code}` : ""}`;
 }
 
 export const GAINS_REMINDER = { daily: DAILY_ASSIDUITY_COINS };
@@ -255,4 +269,14 @@ export function redactSecrets(text: string, connectionUrls: ReadonlyArray<string
   }
   for (const p of [...pieces].sort((a, b) => b.length - a.length)) out = out.split(p).join("[masqué]");
   return out;
+}
+
+/**
+ * Dernier filtre de TOUT texte destiné à un journal public : URL de connexion (redactSecrets), adresses des comptes de test
+ * (→ « compte n°5 ») et identifiants longs de la base (→ « … » + 6 derniers caractères).
+ */
+export function maskPublic(text: string, connectionUrls: ReadonlyArray<string | undefined> = []): string {
+  return redactSecrets(text, connectionUrls)
+    .replace(/testuser(\d{1,2})@jeutaime\.test/gi, "compte n°$1")
+    .replace(/\bc[0-9a-z]{24}\b/g, (m) => `…${m.slice(-6)}`);
 }

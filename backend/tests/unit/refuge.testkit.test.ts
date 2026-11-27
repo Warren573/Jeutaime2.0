@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  SCENARIOS, STAGES, accountRefusals, confirmationPhrase, expectedOutcome, preconditionFailures, testAccountNumber, type PreconditionInput,
+  SCENARIOS, STAGES, accountLabel, accountRefusals, confirmationPhrase, expectedOutcome, maskPublic, preconditionFailures, sessionCode, testAccountNumber, type PreconditionInput,
 } from "../../scripts/refuge-testkit";
 
 const user = (email: string, over: Record<string, unknown> = {}) => ({ email, role: "USER", isBanned: false, ...over });
@@ -83,7 +83,23 @@ describe("outillage de test : préconditions", () => {
     expect(preconditionFailures({ ...ok, protectedSessionIds: ["s1"] }).join()).toMatch(/protégée/);
     expect(preconditionFailures({ ...ok, openSessions: [...ok.openSessions, { id: "autre", status: "ACTIVE", companionEmail: C.email, sponsorEmail: "x" }] }).join()).toMatch(/AUTRE Refuge/);
   });
-  it("phrase de confirmation précise (scénario, étape, couple)", () => {
-    expect(confirmationPhrase("S2", "fast-forward", "TestUser5@jeutaime.test", "testuser6@jeutaime.test")).toBe("JE CONFIRME S2 fast-forward testuser5@jeutaime.test testuser6@jeutaime.test");
+  it("phrase de confirmation précise (scénario, étape, numéros de comptes, code de session), sans adresse", () => {
+    expect(confirmationPhrase("S2", "adopt", 5, 6)).toBe("JE CONFIRME S2 adopt 5 6");
+    expect(confirmationPhrase("S2", "fast-forward", 5, 6, "n0y3gr")).toBe("JE CONFIRME S2 fast-forward 5 6 n0y3gr");
+    expect(confirmationPhrase("S2", "adopt", testAccountNumber("TestUser5@jeutaime.test"), null)).not.toMatch(/@/);
+  });
+  it("journaux publics : adresses → « compte n°N », identifiants complets → 6 derniers caractères, code de session", () => {
+    const id = "cmwyvwoli00011236376jgn0y";
+    expect(sessionCode(id)).toBe("6jgn0y");
+    expect(accountLabel("testuser10@jeutaime.test")).toBe("compte n°10");
+    expect(accountLabel("vrai@gmail.com")).toBe("compte inconnu");
+    const masked = maskPublic(`compte testuser5@jeutaime.test, session ${id}, vrai@gmail.com`);
+    expect(masked).toBe("compte compte n°5, session …6jgn0y, vrai@gmail.com");
+    expect(masked).not.toMatch(/testuser5@|cmwyvwoli/);
+  });
+  it("les messages de refus n'affichent ni adresse ni identifiant complet", () => {
+    const f = preconditionFailures({ stage: "adopt", companion: user("testuser5@jeutaime.test"), sponsor: user("testuser4@jeutaime.test", { role: "OWNER" }), excludedEmails: [], protectedSessionIds: [], openSessions: [{ id: "cmwyvwoli00011236376jgn0y", status: "ACTIVE", companionEmail: "testuser5@jeutaime.test", sponsorEmail: null }], target: null, pairAlreadyUsed: false }).join(" | ");
+    expect(f).toMatch(/compte n°4/);
+    expect(f).not.toMatch(/@|cmwyvwoli/);
   });
 });

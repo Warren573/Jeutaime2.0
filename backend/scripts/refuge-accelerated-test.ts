@@ -5,8 +5,9 @@
  * Paramètres par variables d'environnement (jamais interpolés dans un shell) :
  *   RT_COMMAND   inventory | run
  *   RT_SCENARIO  S1 | S2 | S3            RT_STAGE   adopt | days-1-3 | days-4-6 | day-7 | fast-forward | decision | status
- *   RT_COMPANION e-mail du compagnon     RT_SPONSOR e-mail du parrain / de la marraine
- *   RT_SESSION_ID (étapes après adopt)   RT_DECISION none | scenario   RT_EXCLUDE / RT_PROTECT (listes séparées par des virgules)
+ *   RT_COMPANION numéro du compte (2 à 11)  RT_SPONSOR numéro du compte (2 à 11)  — jamais d'adresse e-mail
+ *   RT_SESSION_CODE code à 6 caractères (étapes après adopt)   RT_DECISION none | scenario
+ *   RT_EXCLUDE (numéros) / RT_PROTECT (codes de session), listes séparées par des virgules
  *   RT_MODE      simulate (défaut : AUCUNE écriture) | apply (exige RT_CONFIRM = la phrase exacte affichée par la simulation)
  *
  * Ce que le script NE FAIT JAMAIS : modifier une règle de production, la durée réelle d'un Refuge, l'horloge du serveur,
@@ -18,7 +19,7 @@ import "./redact-output"; // TOUJOURS en premier : filtre toute sortie (URL de c
 import { prisma } from "../src/config/prisma";
 import { RefugeService } from "../src/modules/refuge/refuge.service";
 import {
-  SCENARIOS, STAGES, STAGE_DAYS, SYMBOLS, confirmationPhrase, expectedOutcome, preconditionFailures, redactSecrets, testAccountNumber, TEST_ACCOUNT_NUMBERS,
+  SCENARIOS, STAGES, STAGE_DAYS, SYMBOLS, accountLabel, confirmationPhrase, expectedOutcome, maskPublic, preconditionFailures, sessionCode, testAccountNumber, TEST_ACCOUNT_NUMBERS,
   type AccountFacts, type DayScript, type OpenSessionFact, type Scenario, type Stage,
 } from "./refuge-testkit";
 
@@ -31,12 +32,13 @@ export interface RunOptions {
   stage: Stage;
   companionEmail: string;
   sponsorEmail: string;
-  sessionId?: string;
+  /** Code public de la session (6 derniers caractères), exigé après « adopt ». */
+  sessionCode?: string;
   apply: boolean;
   confirm?: string;
   decision: "none" | "scenario";
   excludeEmails: string[];
-  protectSessionIds: string[];
+  protectCodes: string[];
 }
 
 export interface Check { ok: boolean; label: string; detail?: string }
@@ -127,10 +129,9 @@ async function report(sessionId: string, companionId: string, sponsorId: string,
     const r = s.dayResults.find((x) => x.dayNumber === i + 1);
     return r ? SYMBOLS[String(r.status)] ?? "?" : "🤍";
   });
-  lines.push(`Session ${s.id} · ${s.status} · règles v${s.rulesVersion} · début ${s.startedAt?.toISOString()} · fin ${s.endsAt?.toISOString()}`);
+  // Journaux publics : ni soldes, ni points, ni montants, ni identifiants. Seulement l'état et le nombre de notifications.
+  lines.push(`Session ${sessionCode(s.id)} · ${s.status} · règles v${s.rulesVersion}`);
   lines.push(`Calendrier : ${symbols.join(" ")}`);
-  lines.push(`Compagnon : solde ${c.coins} · points ${c.score} · pièces de la session ${c.ledgerCoins} (${JSON.stringify(c.ledger)})`);
-  lines.push(`Parrain   : solde ${sp.coins} · points ${sp.score} · pièces de la session ${sp.ledgerCoins} (${JSON.stringify(sp.ledger)})`);
   lines.push(`Notifications compagnon : ${JSON.stringify(c.notifications)}`);
   lines.push(`Notifications parrain   : ${JSON.stringify(sp.notifications)}`);
 
@@ -155,7 +156,7 @@ async function report(sessionId: string, companionId: string, sponsorId: string,
       check(!!r && r.totalCoins === e.totalCoins && r.finalBonus === e.bonus && r.participationDays === e.participationDays && r.penaltyPoints === e.points && r.perfectDays === exp.perfectDays && r.correctActions === exp.correctActions,
         `bilan final du ${label} conforme`, r ? `${r.participationDays}/7 jours · ${r.perfectDays} parfaites · ${r.correctActions}/14 · jour +${r.dailyCoins} · bonus ${r.finalBonus} · total ${r.totalCoins} · points ${r.penaltyPoints}` : "bilan absent");
       check(JSON.stringify((r?.days ?? []).map((d: any) => d.symbol)) === JSON.stringify(exp.calendar), `calendrier du ${label} conforme`, (r?.days ?? []).map((d: any) => d.symbol).join(" "));
-      lines.push(`Bilan ${label} : ${r ? `${r.participationDays}/7 · ${r.perfectDays} parfaites · ${r.correctActions}/14 · pièces ${r.dailyCoins}+${r.finalBonus}=${r.totalCoins} · points ${r.penaltyPoints}` : "—"}`);
+      lines.push(`Bilan ${label} : ${r ? "présent (montants vérifiés, non publiés)" : "ABSENT"}`);
     }
     check((c.notifications["REFUGE_FINAL_REPORT"] ?? 0) === 1 && (sp.notifications["REFUGE_FINAL_REPORT"] ?? 0) === 1, "UNE notification de fin par participant");
     check((c.notifications["REFUGE_REVEAL_PHASE"] ?? 0) === 0 && (sp.notifications["REFUGE_REVEAL_PHASE"] ?? 0) === 0 && (c.notifications["REFUGE_EXPIRED"] ?? 0) === 0, "ni dévoilement ni expiration annoncés en plus");
@@ -170,32 +171,37 @@ async function report(sessionId: string, companionId: string, sponsorId: string,
 export async function runStage(o: RunOptions, log: Log = console.log): Promise<RunResult> {
   const scenario = SCENARIOS[o.scenario];
   const checks: Check[] = [];
-  const confirmation = confirmationPhrase(o.scenario, o.stage, o.companionEmail, o.sponsorEmail);
+  const nC = testAccountNumber(o.companionEmail), nS = testAccountNumber(o.sponsorEmail);
+  let confirmation = confirmationPhrase(o.scenario, o.stage, nC, nS, o.sessionCode);
   const refuse = (reasons: string[]): RunResult => ({ checks, refused: reasons, confirmation, applied: false });
 
   const [companion, sponsor] = await Promise.all([loadUser(o.companionEmail), loadUser(o.sponsorEmail)]);
-  if (!companion || !sponsor) return refuse([`compte introuvable : ${!companion ? o.companionEmail : o.sponsorEmail}`]);
+  if (!companion || !sponsor) return refuse([`compte introuvable : ${accountLabel(!companion ? o.companionEmail : o.sponsorEmail)}`]);
   const [openC, openS] = await Promise.all([openSessionsOf(companion.id), openSessionsOf(sponsor.id)]);
   const open = [...new Map([...openC, ...openS].map((s) => [s.id, s])).values()];
   const pairUsed = !!(await prisma.refugeSession.findFirst({ where: { adopteId: companion.id, adoptantId: sponsor.id }, select: { id: true } }));
-  const targetRow = o.sessionId ? await prisma.refugeSession.findUnique({ where: { id: o.sessionId }, select: { id: true, status: true, rulesVersion: true, adopte: { select: { email: true } }, adoptant: { select: { email: true } } } }) : null;
+  // La session ciblée est celle du COUPLE (unique en base) ; son code public à 6 caractères doit correspondre à celui saisi.
+  const pairRow = o.stage === "adopt" ? null : await prisma.refugeSession.findFirst({ where: { adopteId: companion.id, adoptantId: sponsor.id }, select: { id: true, status: true, rulesVersion: true, adopte: { select: { email: true } }, adoptant: { select: { email: true } } } });
+  const codeOk = !!pairRow && !!o.sessionCode && sessionCode(pairRow.id) === o.sessionCode;
+  const targetRow = codeOk ? pairRow : null;
+  if (pairRow && codeOk) confirmation = confirmationPhrase(o.scenario, o.stage, nC, nS, sessionCode(pairRow.id));
   const reasons = preconditionFailures({
     stage: o.stage,
     companion: facts(companion),
     sponsor: facts(sponsor),
     excludedEmails: o.excludeEmails,
-    protectedSessionIds: o.protectSessionIds,
+    protectedSessionIds: targetRow && o.protectCodes.includes(sessionCode(targetRow.id)) ? [targetRow.id] : [],
     openSessions: open,
     pairAlreadyUsed: pairUsed,
     target: targetRow ? { id: targetRow.id, companionEmail: targetRow.adopte.email, sponsorEmail: targetRow.adoptant?.email ?? null, status: String(targetRow.status), rulesVersion: targetRow.rulesVersion } : null,
   });
-  if (o.stage !== "adopt" && !o.sessionId) reasons.push("RT_SESSION_ID obligatoire (copié depuis le résumé de l'étape « adopt »)");
+  if (o.stage !== "adopt" && !codeOk) reasons.push("code de session absent ou incorrect pour ce couple (RT_SESSION_CODE : 6 caractères, affichés par l'étape « adopt »)");
   if (reasons.length) return refuse(reasons);
 
-  const sid = o.sessionId;
+  const sid = targetRow?.id;
   const ok = (cond: boolean, label: string, detail?: string) => checks.push({ ok: cond, label, detail });
   log(`Scénario ${o.scenario} — ${scenario.title}`);
-  log(`Étape ${o.stage} · compagnon ${companion.email} · parrain/marraine ${sponsor.email} · ${o.apply ? "EXÉCUTION RÉELLE" : "SIMULATION (aucune écriture)"}`);
+  log(`Étape ${o.stage} · compagnon ${accountLabel(companion.email)} · parrain/marraine ${accountLabel(sponsor.email)} · ${o.apply ? "EXÉCUTION RÉELLE" : "SIMULATION (aucune écriture)"}`);
 
   // État de la session pour les contrôles d'ordre des étapes.
   const state = sid
@@ -256,7 +262,6 @@ export async function runStage(o: RunOptions, log: Log = console.log): Promise<R
 
   // ---------- Exécution réelle ----------
   const before = await Promise.all([snapshot(companion.id), snapshot(sponsor.id)]);
-  log(`  avant : compagnon solde ${before[0].coins} / points ${before[0].score} · parrain solde ${before[1].coins} / points ${before[1].score}`);
   let sessionId = sid;
   if (o.stage === "adopt") {
     const proposal = await RefugeService.proposeAsAdopte(companion.id, { animalType: "CHAT", acceptedSexe: "HOMME_FEMME" } as never);
@@ -264,7 +269,7 @@ export async function runStage(o: RunOptions, log: Log = console.log): Promise<R
     sessionId = proposal.id;
     const created = await prisma.refugeSession.findUniqueOrThrow({ where: { id: proposal.id }, select: { rulesVersion: true, status: true } });
     ok(created.rulesVersion === 2 && created.status === "ACTIVE", "session créée en règles v2, active", `v${created.rulesVersion} ${created.status}`);
-    log(`  SESSION CRÉÉE : ${proposal.id}  → à recopier dans RT_SESSION_ID pour les étapes suivantes`);
+    log(`  SESSION CRÉÉE : code ${sessionCode(proposal.id)}  → à saisir dans « session_code » pour les étapes suivantes`);
   } else if (days) {
     for (const d of scenario.days.filter((x) => days.includes(x.day))) await playDay(sessionId!, companion.id, sponsor.id, d, log);
     if (o.stage === "day-7") await placeAt(sessionId!, 7, 3);
@@ -297,7 +302,7 @@ export async function runStage(o: RunOptions, log: Log = console.log): Promise<R
     }
   }
   const after = await Promise.all([snapshot(companion.id), snapshot(sponsor.id)]);
-  log(`  après : compagnon solde ${after[0].coins} (${after[0].coins - before[0].coins >= 0 ? "+" : ""}${after[0].coins - before[0].coins}) / points ${after[0].score} (${after[0].score - before[0].score}) · parrain solde ${after[1].coins} (${after[1].coins - before[1].coins >= 0 ? "+" : ""}${after[1].coins - before[1].coins}) / points ${after[1].score} (${after[1].score - before[1].score})`);
+  log(`  effets : soldes et points modifiés (comptes de test uniquement) — valeurs non publiées ; avant : ${before.length} instantanés pris`);
   return { checks, refused: [], sessionId, confirmation, applied: true };
 }
 
@@ -305,61 +310,70 @@ export async function runStage(o: RunOptions, log: Log = console.log): Promise<R
 // Inventaire (lecture seule)
 // ============================================================
 export async function inventory(log: Log = console.log): Promise<void> {
+  // Journaux publics : seulement des numéros de compte, des états et des codes de session à 6 caractères.
+  // Ni adresse, ni pseudo, ni identifiant complet, ni solde, ni point, ni appareil.
   const emails = TEST_ACCOUNT_NUMBERS.map((n) => `testuser${n}@jeutaime.test`);
   const users = await prisma.user.findMany({
     where: { email: { in: emails, mode: "insensitive" } },
-    select: { id: true, email: true, role: true, isBanned: true, wallet: { select: { coins: true } }, profile: { select: { pseudo: true, discoveryActivityScore: true } }, pushTokens: { select: { id: true } } },
+    select: { id: true, email: true, role: true, isBanned: true },
     orderBy: { email: "asc" },
   });
   const sessions = await prisma.refugeSession.findMany({
     where: { OR: [{ adopteId: { in: users.map((u) => u.id) } }, { adoptantId: { in: users.map((u) => u.id) } }] },
-    select: { id: true, status: true, rulesVersion: true, createdAt: true, startedAt: true, endsAt: true, adopteId: true, adoptantId: true },
+    select: { id: true, status: true, rulesVersion: true, adopteId: true, adoptantId: true },
     orderBy: { createdAt: "asc" },
   });
-  const emailOf = new Map(users.map((u) => [u.id, u.email.replace("@jeutaime.test", "")]));
-  log("== Comptes de test (testuser2 à testuser11) ==");
-  const missing = emails.filter((e) => !users.some((u) => u.email.toLowerCase() === e));
-  for (const u of users) log(`${u.email} · rôle ${u.role}${u.isBanned ? " · SUSPENDU" : ""} · pièces ${u.wallet?.coins ?? 0} · points ${u.profile?.discoveryActivityScore ?? 0} · appareils ${u.pushTokens.length}`);
-  if (missing.length) log(`Introuvables : ${missing.join(", ")}`);
+  const numberOf = new Map(users.map((u) => [u.id, testAccountNumber(u.email) ?? 0]));
   const busy = new Set<string>();
+  log("== Comptes de test (numéros 2 à 11) ==");
+  const missing = TEST_ACCOUNT_NUMBERS.filter((n) => !users.some((u) => testAccountNumber(u.email) === n));
+  if (missing.length) log(`Introuvables : n°${missing.join(", n°")}`);
   log("\n== Refuges impliquant ces comptes ==");
   for (const s of sessions) {
     const open = (OPEN_STATUSES as readonly string[]).includes(String(s.status));
     if (open) { busy.add(s.adopteId); if (s.adoptantId) busy.add(s.adoptantId); }
-    log(`${s.id} · ${s.status}${open ? " · EN COURS — À PRÉSERVER" : ""} · v${s.rulesVersion} · compagnon ${emailOf.get(s.adopteId) ?? "?"} → parrain ${s.adoptantId ? emailOf.get(s.adoptantId) ?? "?" : "—"} · créé ${s.createdAt.toISOString()}`);
+    log(`code ${sessionCode(s.id)} · ${s.status}${open ? " · EN COURS — À PRÉSERVER" : ""} · v${s.rulesVersion} · compagnon n°${numberOf.get(s.adopteId) ?? "?"} → parrain n°${s.adoptantId ? numberOf.get(s.adoptantId) ?? "?" : "—"}`);
   }
   const usable = users.filter((u) => String(u.role) === "USER" && !u.isBanned && !busy.has(u.id) && testAccountNumber(u.email) !== null);
-  log("\n== Comptes exclus ==");
+  log("\n== Comptes utilisables / exclus ==");
   for (const u of users) {
-    const why = [String(u.role) !== "USER" ? `rôle ${u.role}` : "", u.isBanned ? "suspendu" : "", busy.has(u.id) ? "Refuge en cours" : ""].filter(Boolean);
-    if (why.length) log(`${u.email} : ${why.join(", ")}`);
+    const why = [String(u.role) !== "USER" ? "compte d'administration" : "", u.isBanned ? "suspendu" : "", busy.has(u.id) ? "Refuge en cours" : ""].filter(Boolean);
+    log(`n°${numberOf.get(u.id)} : ${why.length ? `EXCLU (${why.join(", ")})` : "utilisable"}`);
   }
   const used = new Set(sessions.filter((s) => s.adoptantId).map((s) => `${s.adopteId}>${s.adoptantId}`));
-  const free: Array<[string, string]> = [];
-  for (const a of usable) for (const b of usable) if (a.id !== b.id && !used.has(`${a.id}>${b.id}`)) free.push([a.email, b.email]);
+  const free: Array<[number, number]> = [];
+  for (const a of usable) for (const b of usable) if (a.id !== b.id && !used.has(`${a.id}>${b.id}`)) free.push([numberOf.get(a.id)!, numberOf.get(b.id)!]);
   log(`\n== Couples (compagnon → parrain) libres : ${free.length} ==`);
   // Proposition : trois couples SANS compte en commun, pour que les scénarios restent indépendants.
-  const taken = new Set<string>();
-  const picks: Array<[string, string]> = [];
+  const taken = new Set<number>();
+  const picks: Array<[number, number]> = [];
   for (const [a, b] of free) { if (picks.length < 3 && !taken.has(a) && !taken.has(b)) { picks.push([a, b]); taken.add(a); taken.add(b); } }
-  picks.forEach(([a, b], i) => log(`Proposition S${i + 1} : compagnon ${a} → parrain/marraine ${b}`));
+  picks.forEach(([a, b], i) => log(`Proposition S${i + 1} : compagnon n°${a} → parrain/marraine n°${b}`));
   if (picks.length < 3) log("⚠️ Moins de trois couples indépendants : on peut réutiliser un compte en enchaînant les scénarios (un seul Refuge ouvert par compte).");
 }
 
 // ============================================================
 // Point d'entrée (workflow)
 // ============================================================
+/** « 5 » → adresse du compte de test n°5 (l'adresse n'est jamais saisie ni affichée). Valeur invalide → chaîne qui sera refusée. */
+const o_stage_adopt = (stage: string | undefined) => stage === "adopt";
+
+function emailFor(v: string | undefined): string {
+  const n = Number((v ?? "").trim());
+  return Number.isInteger(n) && (TEST_ACCOUNT_NUMBERS as readonly number[]).includes(n) ? `testuser${n}@jeutaime.test` : "numero-invalide";
+}
+
 function list(v: string | undefined): string[] { return (v ?? "").split(",").map((s) => s.trim()).filter(Boolean); }
 
 async function main(): Promise<void> {
   // Même une erreur imprévue ne doit jamais faire apparaître l'URL de connexion dans un journal public.
-  const crash = (e: unknown) => { console.log(redactSecrets(`Erreur : ${e instanceof Error ? e.message.split("\n").map((l) => l.trim()).find(Boolean) : "inconnue"}`, [process.env["DATABASE_URL"], process.env["DIRECT_URL"]])); process.exit(1); };
+  const crash = (e: unknown) => { console.log(maskPublic(`Erreur : ${e instanceof Error ? e.message.split("\n").map((l) => l.trim()).find(Boolean) : "inconnue"}`, [process.env["DATABASE_URL"], process.env["DIRECT_URL"]])); process.exit(1); };
   process.on("uncaughtException", crash);
   process.on("unhandledRejection", crash);
   const out: string[] = [];
   // Journaux d'Actions publics (dépôt public) : toute ligne est filtrée, l'URL de connexion n'y apparaît JAMAIS.
   const urls = [process.env["DATABASE_URL"], process.env["DIRECT_URL"]];
-  const log: Log = (l) => { const safe = redactSecrets(l, urls); out.push(safe); console.log(safe); };
+  const log: Log = (l) => { const safe = maskPublic(l, urls); out.push(safe); console.log(safe); };
   let failed = false;
   try {
     if (process.env["RT_COMMAND"] === "inventory") await inventory(log);
@@ -369,17 +383,18 @@ async function main(): Promise<void> {
       if (!(scenario in SCENARIOS) || !STAGES.includes(stage)) throw new Error("RT_SCENARIO (S1|S2|S3) et RT_STAGE valides sont obligatoires");
       const res = await runStage({
         scenario, stage,
-        companionEmail: process.env["RT_COMPANION"] ?? "", sponsorEmail: process.env["RT_SPONSOR"] ?? "",
-        sessionId: process.env["RT_SESSION_ID"] || undefined,
+        companionEmail: emailFor(process.env["RT_COMPANION"]), sponsorEmail: emailFor(process.env["RT_SPONSOR"]),
+        sessionCode: (process.env["RT_SESSION_CODE"] ?? "").trim() || undefined,
         apply: process.env["RT_MODE"] === "apply", confirm: process.env["RT_CONFIRM"],
         decision: process.env["RT_DECISION"] === "scenario" ? "scenario" : "none",
-        excludeEmails: list(process.env["RT_EXCLUDE"]), protectSessionIds: list(process.env["RT_PROTECT"]),
+        excludeEmails: list(process.env["RT_EXCLUDE"]).map(emailFor), protectCodes: list(process.env["RT_PROTECT"]),
       }, log);
       if (res.refused.length) { failed = true; log("\n⛔ ÉTAPE REFUSÉE — aucune écriture :"); res.refused.forEach((r) => log(`  - ${r}`)); }
       else {
         log("\nContrôles :");
-        res.checks.forEach((c) => { log(`  ${c.ok ? "✅" : "❌"} ${c.label}${c.detail ? ` — ${c.detail}` : ""}`); if (!c.ok) failed = true; });
-        if (res.applied && res.sessionId) log(`\nSESSION_ID=${res.sessionId}`);
+        // Jamais de valeur (soldes, points, montants) dans un journal public : seulement le verdict.
+        res.checks.forEach((c) => { log(`  ${c.ok ? "✅" : "❌"} ${c.label}${c.ok ? "" : " — écart détecté (valeurs non publiées : vérifier par SQL en lecture seule)"}`); if (!c.ok) failed = true; });
+        if (res.applied && res.sessionId && o_stage_adopt(process.env["RT_STAGE"])) log(`\nCODE_SESSION=${sessionCode(res.sessionId)}`);
       }
     }
   } catch (err) {
