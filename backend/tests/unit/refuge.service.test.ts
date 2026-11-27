@@ -14,6 +14,9 @@ vi.mock("../../src/modules/notifications/notify.service", () => ({
   notifyEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
+// Sourires automatiques du dévoilement mutuel : testés avec le vrai système de match dans refuge-reveal-match.test.ts.
+vi.mock("../../src/modules/reactions/reactions.service", () => ({ sendReaction: vi.fn().mockResolvedValue({ matchCreated: true }) }));
+
 // Mock the Prisma module with factory function to avoid hoisting issues
 vi.mock("../../src/config/prisma", () => {
   const prismaMock: any = {
@@ -57,6 +60,7 @@ vi.mock("../../src/config/prisma", () => {
     },
     match: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
     },
   };
   // Les transactions interactives reçoivent le client mocké lui-même
@@ -70,6 +74,7 @@ vi.mock("../../src/config/prisma", () => {
 import { RefugeService } from "../../src/modules/refuge/refuge.service";
 import { prisma } from "../../src/config/prisma";
 import { notifyEvent } from "../../src/modules/notifications/notify.service";
+import { sendReaction } from "../../src/modules/reactions/reactions.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -923,6 +928,8 @@ describe("RefugeService.submitRevealConsent", () => {
     expect(promoArgs.where.revealedAt).toBeNull();
     expect(promoArgs.data.status).toBe("REVEALED");
     expect(promoArgs.data.revealedAt).toBeInstanceOf(Date);
+    // Règle : sourires réciproques automatiques, UNE fois (seule la requête gagnante de la promotion y arrive), dans les deux sens.
+    expect((sendReaction as any).mock.calls.map((c: any[]) => [c[0], c[1].toId, c[1].type])).toEqual([[adopteId, adoptantId, "SMILE"], [adoptantId, adopteId, "SMILE"]]);
     // Dévoilement mutuel : les DEUX participants sont prévenus, une clé par session.
     await flushNotifications();
     const revealed = sentNotifications().filter((c: any) => c.type === "REFUGE_REVEALED");
@@ -954,6 +961,7 @@ describe("RefugeService.submitRevealConsent", () => {
     expect(writeArgs.data.adoptantRevealDecision).toBe("REFUSE");
     // pas de tentative de promotion après un refus
     expect((prisma.refugeSession.updateMany as any).mock.calls.length).toBe(1);
+    expect(sendReaction).not.toHaveBeenCalled(); // refus : aucun sourire automatique, aucun match
   });
 
   it("is idempotent: re-submitting the same decision returns state without writing", async () => {

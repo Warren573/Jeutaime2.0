@@ -3,6 +3,8 @@ import { emitRefugeRevealed } from "../../events";
 import { purgeRelationNotifications } from "../notifications/notifications.purge";
 import * as refugeNotifications from "./refuge.notifications";
 import { buildPhotoUrl } from "../photos/photos.urls";
+import { sendReaction } from "../reactions/reactions.service";
+import { logger } from "../../config/logger";
 import {
   BadRequestError,
   ConflictError,
@@ -22,7 +24,7 @@ import {
   Prisma,
   type RefugeDailyChoice,
 } from "@prisma/client";
-import type { RefugeSessionDTO, RefugeSessionWithMetadata, RefugeProposalInput, DailyResultEntry } from "./refuge.types";
+import type { RefugeSessionDTO, RefugeSessionWithMetadata, RefugeProposalInput, DailyResultEntry, RevealMatchState } from "./refuge.types";
 import {
   calculateRefugeEndsAt,
   getCurrentDay,
@@ -536,13 +538,14 @@ export class RefugeService {
     // La photo utilise la variante PUBLIQUE du système Photos existant : les
     // règles de déverrouillage restent celles du vrai profil, pas du Refuge.
     let otherProfile = null;
+    let revealMatch: RevealMatchState | null = null;
     if (refugeSession.status === RefugeSessionStatus.REVEALED && refugeSession.adoptantId) {
       const otherUserId = isAdopte ? refugeSession.adoptantId : refugeSession.adopteId;
       const otherUser = await prisma.user.findUnique({
         where: { id: otherUserId },
         select: {
           id: true,
-          profile: { select: { pseudo: true, bio: true, city: true, birthDate: true, interests: true } },
+          profile: { select: { pseudo: true, bio: true, city: true, birthDate: true, interests: true, avatarConfig: true, gender: true } },
           photos: {
             orderBy: [{ isPrimary: "desc" }, { position: "asc" }],
             take: 1,
@@ -563,7 +566,16 @@ export class RefugeService {
           age,
           interests: otherUser.profile?.interests ?? [],
           photoUrl: otherUser.photos[0] ? buildPhotoUrl(otherUser.photos[0].id, "blur") : null,
+          avatarConfig: otherUser.profile?.avatarConfig ?? null,
+          gender: otherUser.profile?.gender ?? null,
         };
+        // Match créé par le dévoilement mutuel (ou antérieur) : une seule lecture, uniquement dans cet état.
+        const [x, y] = [refugeSession.adopteId, refugeSession.adoptantId].sort();
+        const m = await prisma.match.findUnique({
+          where: { userAId_userBId: { userAId: x as string, userBId: y as string } },
+          select: { id: true, status: true, questionsValidated: true, letterCountA: true, letterCountB: true },
+        });
+        revealMatch = m ? { matchId: m.id, status: String(m.status), questionsValidated: m.questionsValidated, discussionOpen: m.letterCountA + m.letterCountB > 0 } : null;
       }
     }
 
@@ -617,6 +629,7 @@ export class RefugeService {
       ...(todayActions && { todayActions }),
       ...(todayResult && { todayResult }),
       ...(otherProfile && { otherProfile }),
+      ...(refugeSession.status === RefugeSessionStatus.REVEALED && { revealMatch }),
     };
   }
 
@@ -1618,6 +1631,10 @@ export class RefugeService {
           adoptantId: refugeSession.adoptantId,
           revealedAt: revealed?.revealedAt ?? new Date(),
         });
+        // Règle : le dévoilement mutuel envoie automatiquement les deux sourires et crée le match, UNE SEULE FOIS : seule la
+        // requête qui gagne la promotion atomique ci-dessus arrive ici. Système de match existant (blocages, limites, match déjà
+        // existant respectés) ; un échec n'invalide jamais le dévoilement.
+        await this.createMutualRevealMatch(refugeSession.adopteId, refugeSession.adoptantId);
         // Dévoilement mutuel : les DEUX participants sont prévenus, une seule fois (promotion atomique ci-dessus).
         void refugeNotifications.notifyRevealed({
           refugeSessionId,
@@ -1628,6 +1645,21 @@ export class RefugeService {
     }
 
     return this.getRefugeSession(refugeSessionId, userId);
+  }
+
+  /**
+   * Sourires réciproques automatiques puis match, via le système existant (sendReaction : blocages, comptes indisponibles,
+   * limite de matchs, match déjà existant — jamais de doublon : réaction unique par couple, match unique par couple).
+   * Annonce du match et notifications : événement `matchCreated` habituel, émis une seule fois par le système de match.
+   */
+  private static async createMutualRevealMatch(companionId: string, sponsorId: string): Promise<void> {
+    try {
+      await sendReaction(companionId, { toId: sponsorId, type: "SMILE" } as never);
+      await sendReaction(sponsorId, { toId: companionId, type: "SMILE" } as never);
+    } catch (err) {
+      // Blocage, limite de matchs, compte indisponible, ou match créé en parallèle : pas de match de plus, jamais d'erreur.
+      logger.warn({ err: err instanceof Error ? err.message : String(err) }, "Refuge : sourires automatiques non appliqués");
+    }
   }
 
   // ============================================================

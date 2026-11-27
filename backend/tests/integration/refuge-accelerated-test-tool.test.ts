@@ -57,6 +57,8 @@ beforeAll(async () => {
   await prisma.refugeDailyChoice.create({ data: { refugeSessionId: currentAdoption, dayNumber: 1, action1: "NOURRIR", action2: "JOUER" } });
 });
 afterAll(async () => {
+  await prisma.match.deleteMany({ where: { OR: [{ userAId: { in: [...ids.values()] } }, { userBId: { in: [...ids.values()] } }] } });
+  await prisma.reaction.deleteMany({ where: { OR: [{ fromId: { in: [...ids.values()] } }, { toId: { in: [...ids.values()] } }] } });
   await prisma.user.deleteMany({ where: { id: { in: [...ids.values()] } } });
   await prisma.$disconnect();
 });

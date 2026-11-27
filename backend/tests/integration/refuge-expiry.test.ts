@@ -51,7 +51,7 @@ const coins = async (ids: string[]) => (await prisma.wallet.findMany({ where: { 
 const movements = (ids: string[]) => prisma.coinTransaction.count({ where: { walletId: { in: ids } } });
 const attempt = async (f: () => Promise<unknown>) => { try { await f(); return "OK"; } catch (e: any) { return `${e.statusCode ?? ""} ${e.message}`; } };
 
-afterAll(async () => { await prisma.user.deleteMany({ where: { id: { in: users } } }); await prisma.$disconnect(); });
+afterAll(async () => { await prisma.match.deleteMany({ where: { OR: [{ userAId: { in: users } }, { userBId: { in: users } }] } }); await prisma.reaction.deleteMany({ where: { OR: [{ fromId: { in: users } }, { toId: { in: users } }] } }); await prisma.user.deleteMany({ where: { id: { in: users } } }); await prisma.$disconnect(); });
 
 describe("Refuge — clôture d'une session expirée (PostgreSQL)", () => {
   test("jour 7 non joué : clôture propre à la lecture, sans pièces, sans suppression, puis fonctionnement normal", async () => {
