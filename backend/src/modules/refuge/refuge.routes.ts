@@ -2,7 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
 import { requireAuth } from "../../core/middleware/auth";
-import { ProposeRefugeSchema, AdoptRefugeSchema, GuessSchema, DailyChoiceSchema, RevealConsentSchema, UpdateBackgroundSchema } from "./refuge.schemas";
+import { ProposeRefugeSchema, AdoptRefugeSchema, GuessSchema, DailyChoiceSchema, AttentionSchema, RevealConsentSchema, UpdateBackgroundSchema } from "./refuge.schemas";
 import { RefugeController } from "./refuge.controller";
 import type { AuthedRequest } from "../../core/types";
 
@@ -27,6 +27,7 @@ router.patch(
 );
 router.post("/daily-choice", validate(DailyChoiceSchema), wrap(RefugeController.submitDailyChoice));
 router.post("/guess", validate(GuessSchema), wrap(RefugeController.submitGuess));
+router.post("/attention", validate(AttentionSchema), wrap(RefugeController.sendAttention));
 router.post(
   "/:sessionId/reveal-consent",
   validate(RevealConsentSchema),

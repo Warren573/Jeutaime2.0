@@ -33,6 +33,7 @@ export type NotificationType =
   | 'REFUGE_COINS'
   | 'REFUGE_REVEAL_REFUSED'
   | 'REFUGE_EXPIRED'
+  | 'REFUGE_ATTENTION'
   | 'REPORT_PROCESSED'
   | 'ACCOUNT_RESTORED';
 

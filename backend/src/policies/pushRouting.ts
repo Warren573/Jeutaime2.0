@@ -77,6 +77,7 @@ export const PUSH_TYPE_CONFIG: Record<PushKind, PushTypeConfig> = {
   REFUGE_COINS: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
   REFUGE_REVEAL_REFUSED: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
   REFUGE_EXPIRED: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
+  REFUGE_ATTENTION: { category: "notifActivities", destination: "/refuge", dataKeys: ["refugeSessionId"] },
   REPORT_PROCESSED: { category: null, destination: "/user-reports", dataKeys: [] },
   ACCOUNT_RESTORED: { category: null, destination: null, dataKeys: [] },
   DAILY_EDITION: { category: "notifNews", destination: "/journal", dataKeys: [] },

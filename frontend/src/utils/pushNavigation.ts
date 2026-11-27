@@ -111,6 +111,7 @@ export function resolvePushDestination(data: unknown): PushDestination {
     case 'REFUGE_COINS':
     case 'REFUGE_REVEAL_REFUSED':
     case 'REFUGE_EXPIRED':
+    case 'REFUGE_ATTENTION':
       return isSafeId(d['refugeSessionId'])
         ? { route: `/refuge/${d['refugeSessionId']}`, pathname: `/refuge/${d['refugeSessionId']}`, kind: 'static' }
         : staticDest('/refuge');

@@ -59,6 +59,10 @@ export interface RefugeSession {
   dayCompleted?: boolean;
   canAdvanceDay?: boolean;
   finalConsentAvailable?: boolean;
+  // Petite attention du jour (jour courant) : visible des deux participants, sans identité
+  attention?: { kind: "GRATTER_TETE" | "CARESSE" | "BONJOUR"; sentAt: string } | null;
+  // Le parrain / la marraine peut encore envoyer une attention aujourd'hui
+  canSendAttention?: boolean;
   // Actions du jour — visibles uniquement par l'Adopté si adopteSubmittedToday=true
   todayActions?: { action1: string; action2: string } | null;
   // Résultat du jour courant si une tentative a été soumise
@@ -212,6 +216,15 @@ export const refugeApi = {
     const response = await apiFetch("/refuge/guess", {
       method: "POST",
       body: JSON.stringify({ sessionId, dayNumber, guessedAction1, guessedAction2, foodChoice }),
+    });
+    return response?.data;
+  },
+
+  // Petite attention du parrain / de la marraine (une par jour, avant la validation du compagnon)
+  async sendAttention(sessionId: string, kind: "GRATTER_TETE" | "CARESSE" | "BONJOUR"): Promise<any> {
+    const response = await apiFetch("/refuge/attention", {
+      method: "POST",
+      body: JSON.stringify({ sessionId, kind }),
     });
     return response?.data;
   },

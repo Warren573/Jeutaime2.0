@@ -167,6 +167,9 @@ enum NotificationType {
   REFUGE_COINS
   REFUGE_REVEAL_REFUSED
   REFUGE_EXPIRED
+
+  // Refuge : petite attention du parrain / de la marraine (« Ne m'oublie pas ! »)
+  REFUGE_ATTENTION
 }
 
 enum ReactionType {
@@ -1144,6 +1147,12 @@ enum RefugeDayStatus {
   NOT_PLAYED // aucun des deux n'a participé
 }
 
+enum RefugeAttentionKind {
+  GRATTER_TETE
+  CARESSE
+  BONJOUR
+}
+
 enum RefugePreexistingLinkType {
   MATCH
   LETTER
@@ -1204,6 +1213,11 @@ model RefugeSession {
   finalizedAt         DateTime?
   adopteFinalBonus    Int       @default(0)
   adoptantFinalBonus  Int       @default(0)
+
+  // Petite attention du jour (une seule par jour, avant la validation du compagnon) : dernier envoi uniquement.
+  attentionDay  Int?
+  attentionKind RefugeAttentionKind?
+  attentionAt   DateTime?
 
   // Relations
   dailyChoices RefugeDailyChoice[]

@@ -84,6 +84,8 @@ export const EVENT_POLICIES: Record<NotificationType, EventPolicy> = {
   REFUGE_RESULT_READY: { mode: 'dialog', priority: 50, title: 'Le résultat du jour', cta: 'Découvrir le résultat', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
   REFUGE_DAY_RESULT: history(), // le parrain / la marraine voit déjà le score en validant
   REFUGE_NEW_DAY: { mode: 'dialog', priority: 30, title: 'Le Refuge s’éveille', cta: 'Choisir mes actions', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
+  // Petite attention du parrain / de la marraine : le texte (geste + genre) vient du serveur, sans aucun pseudo.
+  REFUGE_ATTENTION: { mode: 'dialog', priority: 45, title: 'Ne m’oublie pas !', cta: 'Aller au refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
   REFUGE_COINS: history(),
   REFUGE_REVEAL_PHASE: { mode: 'dialog', priority: 70, title: 'Le moment du dévoilement', cta: 'Aller au Refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },
   REFUGE_REVEALED: { mode: 'dialog', priority: 70, title: 'Vous vous dévoilez', cta: 'Aller au Refuge', anonymous: true, suppressOnPathPrefixes: ['/refuge/'] },

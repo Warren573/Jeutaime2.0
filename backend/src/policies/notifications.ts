@@ -88,7 +88,16 @@ export interface NotificationTextContext {
   refugeScore?: number | null;
   /** Variation de pièces EFFECTIVEMENT appliquée, signée (REFUGE_DAY_RESULT, REFUGE_COINS). */
   coinsDelta?: number | null;
+  /** Petite attention envoyée (REFUGE_ATTENTION) : GRATTER_TETE, CARESSE ou BONJOUR. */
+  attentionKind?: string | null;
 }
+
+/** Fin de phrase de chaque petite attention (« … est passé te gratter la tête »). */
+const ATTENTION_GESTURES: Record<string, string> = {
+  GRATTER_TETE: "te gratter la tête",
+  CARESSE: "te faire une caresse",
+  BONJOUR: "te dire bonjour",
+};
 
 const PSEUDO_MAX_LENGTH = 30;
 
@@ -161,6 +170,14 @@ function buildRefugeMessage(type: NotificationType, ctx?: NotificationTextContex
       const base = score === 2 ? "Résultat du jour : 2/2, bravo !" : `Résultat du jour : ${score}/2.`;
       const coins = validCoins(ctx?.coinsDelta);
       return coins && coins > 0 ? `${base} +${pieces(coins)}.` : base;
+    }
+    case NotificationType.REFUGE_ATTENTION: {
+      const gesture = ATTENTION_GESTURES[String(ctx?.attentionKind ?? "")];
+      if (!gesture) return null;
+      // Aucun pseudo : seulement le rôle (anonymat). « passé » / « passée » selon le genre ; formulation double sinon.
+      if (ctx?.sponsorGender === "HOMME") return `Ton parrain est passé ${gesture}.`;
+      if (ctx?.sponsorGender === "FEMME") return `Ta marraine est passée ${gesture}.`;
+      return `Ton parrain ou ta marraine est passé(e) ${gesture}.`;
     }
     case NotificationType.REFUGE_COINS: {
       const coins = validCoins(ctx?.coinsDelta);
@@ -242,6 +259,8 @@ export function buildNotificationMessage(type: NotificationType, ctx?: Notificat
       return "Votre refuge se termine sans dévoilement. D'autres rencontres vous attendent.";
     case NotificationType.REFUGE_EXPIRED:
       return "Votre refuge est terminé : le temps imparti est écoulé.";
+    case NotificationType.REFUGE_ATTENTION:
+      return "Ton parrain ou ta marraine est passé(e) te rendre visite.";
     case NotificationType.REFUGE_REVEAL_PHASE:
       return "Ton refuge arrive à son terme : choisis de te dévoiler ou non";
     case NotificationType.REFUGE_REVEALED:
@@ -340,6 +359,8 @@ export function buildPushPayload(
       return { title: "JeuTaime · Administration", body: "Tu as reçu un message de l’administration", data };
     case NotificationType.PRIVATE_SALON_INVITE:
       return { title: "JeuTaime · Invitation", body: "Tu as été invité dans un salon privé", data };
+    case NotificationType.REFUGE_ATTENTION:
+      return { title: "Ne m’oublie pas !", body: buildNotificationMessage(type, ctx), data };
     case NotificationType.BOTTLE_REPLY:
     case NotificationType.BOTTLE_REVEAL_REQUEST:
     case NotificationType.BOTTLE_REVEAL_ACCEPTED:

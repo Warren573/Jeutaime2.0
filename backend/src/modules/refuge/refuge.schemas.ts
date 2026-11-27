@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RefugeAnimalType, RefugeAcceptedSexe, RefugeAction, RefugeBackground } from "@prisma/client";
+import { RefugeAnimalType, RefugeAcceptedSexe, RefugeAction, RefugeBackground, RefugeAttentionKind } from "@prisma/client";
 import { REFUGE_FOODS } from "./refuge.foods";
 
 // ============================================================
@@ -42,6 +42,11 @@ export const DailyChoiceSchema = z.object({
   action2: RefugeActionEnum,
 });
 
+export const AttentionSchema = z.object({
+  sessionId: z.string().min(1, "sessionId requis"),
+  kind: z.nativeEnum(RefugeAttentionKind),
+});
+
 export const RevealConsentSchema = z.object({
   decision: z.enum(["ACCEPT", "REFUSE"]),
 });
@@ -60,5 +65,6 @@ export type ProposeRefugeDto = z.infer<typeof ProposeRefugeSchema>;
 export type AdoptRefugeDto = z.infer<typeof AdoptRefugeSchema>;
 export type GuessDto = z.infer<typeof GuessSchema>;
 export type DailyChoiceDto = z.infer<typeof DailyChoiceSchema>;
+export type AttentionDto = z.infer<typeof AttentionSchema>;
 export type RevealConsentDto = z.infer<typeof RevealConsentSchema>;
 export type UpdateBackgroundDto = z.infer<typeof UpdateBackgroundSchema>;

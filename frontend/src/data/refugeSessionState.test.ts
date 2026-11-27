@@ -68,7 +68,8 @@ describe('l’écran du Refuge affiche réellement ces états (garde-fous sur la
     expect(/const disabled = isWaiting \|\| ended \|\|/.test(screen)).toBe(true);
   });
   test('le refus d’une validation n’est pas effacé par le rafraîchissement automatique', () => {
-    expect((hook.match(/submitError: err\?\.message \|\| ""/g) ?? []).length).toBe(2);
+    // Trois soumissions affichent leur refus : la réponse, le choix du compagnon et la petite attention.
+    expect((hook.match(/submitError: err\?\.message \|\| ""/g) ?? []).length).toBe(3);
     expect(hook.includes('clearSubmitError')).toBe(true);
   });
 });
