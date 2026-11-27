@@ -20,6 +20,7 @@ import { refugeEvents } from '../data/refugeEvents';
 import { computeClockOffsetMs } from '../data/refugeClock';
 import { getAnimalImage } from '../data/refugeAnimalImages';
 import { getAnimalLabel } from '../data/refugeAnimals';
+import { refugeCardTitle } from '../data/refugeCardTitle';
 import { refugeApi, type RefugeSession } from '../api/refuge-api';
 import { APP_COLORS, APP_RADIUS, APP_SPACING } from '../theme/appTheme';
 import { CoinIcon } from './CoinIcon';
@@ -167,7 +168,7 @@ export function PersonalBoard() {
         <Image source={WOOD_BG} resizeMode="stretch" style={styles.woodBackground} />
       </View>
       <Paper onPress={() => router.push(`/profile/${currentUser.id}`)} style={{ position: 'absolute', top: y(0.03), left: px(W, 0.065), width: profileW, transform: [{ rotate: '-3deg' }] }}>{currentUser.avatarConfig && <Avatar size={avatarSize} {...currentUser.avatarConfig} />}<Text style={styles.profileName}>{currentUser.name || 'Vous'}</Text></Paper>
-      <Paper onPress={() => router.push('/refuge')} onLayout={(e) => setCompanionBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)} style={{ position: 'absolute', top: y(0.03), right: Math.max(px(W, 0.14), px(W, 0.018) + 50) + px(W, 0.03), width: px(W, 0.38), transform: [{ rotate: '3deg' }] }}><Text style={styles.animalTitle}>{isAnimal ? 'Ton refuge' : 'Ton compagnon'}</Text>{refugeData?.animalType ? <>{animalImage ? <Image source={animalImage} style={styles.animalImage} /> : <Text style={styles.animalIcon}>{getAnimalLabel(refugeData.animalType) || '🐾'}</Text>}<Text style={styles.animalStatus}>{refugeStatus}</Text></> : <><Text style={styles.animalIcon}>🐾</Text>{pet && <Text style={styles.animalName}>{pet.petName}</Text>}</>}</Paper>
+      <Paper onPress={() => router.push('/refuge')} onLayout={(e) => setCompanionBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)} style={{ position: 'absolute', top: y(0.03), right: Math.max(px(W, 0.14), px(W, 0.018) + 50) + px(W, 0.03), width: px(W, 0.38), transform: [{ rotate: '3deg' }] }}><Text style={styles.animalTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{refugeCardTitle(refugeData, userId)}</Text>{refugeData?.animalType ? <>{animalImage ? <Image source={animalImage} style={styles.animalImage} /> : <Text style={styles.animalIcon}>{getAnimalLabel(refugeData.animalType) || '🐾'}</Text>}<Text style={styles.animalStatus}>{refugeStatus}</Text></> : <><Text style={styles.animalIcon}>🐾</Text>{pet && <Text style={styles.animalName}>{pet.petName}</Text>}</>}</Paper>
       <View style={[styles.boardActions, { top: y(0.045), right: px(W, 0.03) }]}>
         <TouchableOpacity onPress={() => router.push('/settings')} activeOpacity={0.65} style={styles.boardAction} accessibilityRole="button" accessibilityLabel="Paramètres"><Ionicons name="options-outline" size={25} color="#FFF8E7" /></TouchableOpacity>
         <NotificationBell style={styles.boardAction} />
