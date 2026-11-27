@@ -22,10 +22,12 @@ C'est pourquoi `Info.plist` et `Expo.plist` sont modifiés avec `app.json`, et c
 
 ## Étapes
 
-1. **Tag de sauvegarde** — Actions > « Create a GitHub backup tag (restore point) » > Run workflow :
-   `sha` = `664a53f1875714172e2fa56d5a44227416fbda32`, `tag_name` = `backup/avant-2.1.0-664a53f`, `confirm` = `CREER_TAG`.
-2. **Contrôle** (lecture seule) — Actions > « iOS release preflight » > Run workflow. Doit être vert.
-3. **Fusionner** la pull request de version dans `main` (CI verte). Relever le SHA complet de `main`.
+1. **Fusionner** la pull request de version dans `main` (CI verte). GitHub n'affiche dans « Run workflow » que les workflows présents sur `main` :
+   les workflows de tag et de contrôle ne sont lançables qu'après cette fusion. Relever ensuite le SHA complet de `main`.
+2. **Tag de sauvegarde** — Actions > « Create a GitHub backup tag (restore point) » > Run workflow :
+   `sha` = `664a53f1875714172e2fa56d5a44227416fbda32` (main avant la version 2.1.0, toujours valable après la fusion),
+   `tag_name` = `backup/avant-2.1.0-664a53f`, `confirm` = `CREER_TAG`.
+3. **Contrôle** (lecture seule) — Actions > « iOS release preflight » > Run workflow. Doit être vert.
 4. **Attendre le déploiement Render** : le SHA affiché par `https://jeutaime-staging.onrender.com/api/health/version` doit être celui de `main`.
 5. **Build + TestFlight** — Actions > « Build and submit JeuTaime iOS to TestFlight » > Run workflow, branche `main` :
    `expected_sha` = SHA complet de `main`, `confirm` = `BUILD_IOS_TESTFLIGHT`.
