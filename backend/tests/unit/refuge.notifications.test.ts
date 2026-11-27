@@ -28,7 +28,7 @@ describe("destinataires, auteurs et clés anti-doublon", () => {
   });
 
   it("réponse du parrain/de la marraine (jours 1 à 6) : score au parrain, « résultat prêt » au compagnon", async () => {
-    await N.notifyGuessSubmitted({ refugeSessionId: S, dayNumber: 2, lastDay: false, companionId: C, sponsorId: P, sponsorGender: "FEMME", score: 1, sponsorCoins: 5 });
+    await N.notifyGuessSubmitted({ refugeSessionId: S, dayNumber: 2, companionId: C, sponsorId: P, sponsorGender: "FEMME", score: 1, sponsorCoins: 5 });
     const calls = sent();
     expect(calls).toHaveLength(2);
     expect(calls.find((c: any) => c.type === "REFUGE_DAY_RESULT")).toEqual({
@@ -42,17 +42,24 @@ describe("destinataires, auteurs et clés anti-doublon", () => {
   });
 
   it("0/2 : score annoncé sans pièces (aucun gain)", async () => {
-    await N.notifyGuessSubmitted({ refugeSessionId: S, dayNumber: 1, lastDay: false, companionId: C, sponsorId: P, sponsorGender: null, score: 0, sponsorCoins: 0 });
+    await N.notifyGuessSubmitted({ refugeSessionId: S, dayNumber: 1, companionId: C, sponsorId: P, sponsorGender: null, score: 0, sponsorCoins: 0 });
     expect(sent().find((c: any) => c.type === "REFUGE_DAY_RESULT").textContext).toEqual({ refugeScore: 0, coinsDelta: null });
   });
 
-  it("jour 7 : fin des sept jours pour les DEUX participants, score au parrain, pas de « résultat prêt » en plus", async () => {
-    await N.notifyGuessSubmitted({ refugeSessionId: S, dayNumber: 7, lastDay: true, companionId: C, sponsorId: P, sponsorGender: "HOMME", score: 2, sponsorCoins: 10 });
+  it("jour 7 : mêmes notifications que les autres jours, JAMAIS de dévoilement avant l'expiration", async () => {
+    await N.notifyGuessSubmitted({ refugeSessionId: S, dayNumber: 7, companionId: C, sponsorId: P, sponsorGender: "HOMME", score: 2, sponsorCoins: 10 });
     const calls = sent();
-    expect(calls.filter((c: any) => c.type === "REFUGE_REVEAL_PHASE").map((c: any) => c.recipientId).sort()).toEqual([C, P].sort());
-    expect(calls.filter((c: any) => c.type === "REFUGE_REVEAL_PHASE").every((c: any) => c.dedupeKey === `refuge-reveal-phase:${S}`)).toBe(true);
-    expect(calls.some((c: any) => c.type === "REFUGE_RESULT_READY")).toBe(false);
+    expect(calls.some((c: any) => c.type === "REFUGE_REVEAL_PHASE")).toBe(false);
+    expect(calls.filter((c: any) => c.type === "REFUGE_RESULT_READY").map((c: any) => c.recipientId)).toEqual([C]);
     expect(calls.filter((c: any) => c.type === "REFUGE_DAY_RESULT").map((c: any) => c.recipientId)).toEqual([P]);
+  });
+
+  it("fin des 168 h : dévoilement proposé aux DEUX participants, une clé par session", async () => {
+    await N.notifyRevealPhase({ refugeSessionId: S, companionId: C, sponsorId: P });
+    const calls = sent();
+    expect(calls.map((c: any) => c.type)).toEqual(["REFUGE_REVEAL_PHASE", "REFUGE_REVEAL_PHASE"]);
+    expect(calls.map((c: any) => c.recipientId).sort()).toEqual([C, P].sort());
+    expect(calls.every((c: any) => c.dedupeKey === `refuge-reveal-phase:${S}`)).toBe(true);
   });
 
   it("nouvelle journée → compagnon uniquement, une clé par jour", async () => {
@@ -84,7 +91,7 @@ describe("destinataires, auteurs et clés anti-doublon", () => {
   it("toute notification du Refuge n'emporte QUE refugeSessionId (redirection vers LE Refuge concerné)", async () => {
     await N.notifyAdopted({ refugeSessionId: S, companionId: C, sponsorId: P });
     await N.notifyChoiceReady({ refugeSessionId: S, dayNumber: 1, companionId: C, sponsorId: P });
-    await N.notifyGuessSubmitted({ refugeSessionId: S, dayNumber: 1, lastDay: false, companionId: C, sponsorId: P, sponsorGender: null, score: 2, sponsorCoins: 10 });
+    await N.notifyGuessSubmitted({ refugeSessionId: S, dayNumber: 1, companionId: C, sponsorId: P, sponsorGender: null, score: 2, sponsorCoins: 10 });
     await N.notifyNewDay({ refugeSessionId: S, dayNumber: 2, companionId: C, sponsorId: P });
     await N.notifyExpired({ refugeSessionId: S, companionId: C, sponsorId: P });
     for (const c of sent()) expect(c.meta).toEqual({ refugeSessionId: S });

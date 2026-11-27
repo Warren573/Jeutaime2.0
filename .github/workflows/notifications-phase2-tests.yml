@@ -96,6 +96,8 @@ jobs:
           tests/unit/bottles-anonymity.test.ts
           tests/unit/refuge.service.test.ts
           tests/unit/refuge.notifications.test.ts
+          tests/unit/refuge.rules.test.ts
+          tests/integration/refuge-rules-v2.test.ts
           tests/integration/refuge-food-choice.test.ts
           tests/integration/refuge-day7.test.ts
           tests/integration/refuge-expiry.test.ts \

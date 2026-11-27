@@ -106,7 +106,21 @@ function activeSession(overrides: Record<string, unknown> = {}) {
   };
 }
 
-// Session ACTIVE arrivée au jour 7, tentative du jour 7 jouée → phase finale atteinte
+// Règle impérative : le dévoilement n'existe qu'APRÈS l'expiration des 168 h. Session v1 dont le jour 7 a été joué et dont les
+// sept jours sont écoulés, déjà passée en attente du dévoilement.
+function expiredAwaitingSession(overrides: Record<string, unknown> = {}) {
+  const startedAt = new Date(Date.now() - 7 * DAY_MS - 2 * 60 * 60 * 1000);
+  return activeSession({
+    startedAt,
+    endsAt: new Date(startedAt.getTime() + 7 * DAY_MS),
+    status: "AWAITING_REVEAL_CONSENT",
+    dailyChoices: [{ dayNumber: 7, action1: "NOURRIR", action2: "JOUER" }],
+    guesses: [{ dayNumber: 7, guessedAction1: "NOURRIR", guessedAction2: "JOUER" }],
+    ...overrides,
+  });
+}
+
+// Session ACTIVE arrivée au jour 7, tentative du jour 7 jouée : le dévoilement n'est PAS encore proposé (168 h non écoulées)
 function day7DoneSession(overrides: Record<string, unknown> = {}) {
   const startedAt = new Date(Date.now() - 6 * DAY_MS - 2 * 60 * 60 * 1000); // jour 7
   return activeSession({
@@ -702,7 +716,7 @@ describe("RefugeService.submitGuess — notifications du jour et fin des sept jo
   const choice = (dayNumber: number) => ({ id: "dc", refugeSessionId: sessionId, dayNumber, action1: "NOURRIR", action2: "JOUER" });
   const guess = (dayNumber: number) => ({ id: "g", refugeSessionId: sessionId, dayNumber, guessedAction1: "NOURRIR", guessedAction2: "JOUER", submittedAt: new Date() });
 
-  it("jour 7 joué : les DEUX participants sont prévenus de la fin des sept jours ; le parrain/la marraine reçoit aussi son score", async () => {
+  it("jour 7 joué : AUCUNE notification de dévoilement (jamais avant 168 h) ; mêmes notifications que les autres jours", async () => {
     const startedAt = new Date(Date.now() - 6 * DAY_MS - 2 * 60 * 60 * 1000);
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(activeSession({ startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY_MS) }));
     (prisma.refugeGuess.findUnique as any).mockResolvedValueOnce(null);
@@ -711,15 +725,9 @@ describe("RefugeService.submitGuess — notifications du jour et fin des sept jo
     (prisma.refugeSession.update as any).mockResolvedValueOnce({});
     await RefugeService.submitGuess(sessionId, adoptantId, 7, guessInput).catch(() => undefined);
     await flushNotifications();
-    const end = sentNotifications().filter((c: any) => c.type === "REFUGE_REVEAL_PHASE");
-    expect(end).toHaveLength(2);
-    const toCompanion = end.find((c: any) => c.recipientId === adopteId);
-    const toSponsor = end.find((c: any) => c.recipientId === adoptantId);
-    expect(toCompanion).toEqual({ recipientId: adopteId, actorId: adoptantId, type: "REFUGE_REVEAL_PHASE", meta: { refugeSessionId: sessionId }, dedupeKey: `refuge-reveal-phase:${sessionId}` });
-    expect(toSponsor).toEqual({ recipientId: adoptantId, counterpartId: adopteId, type: "REFUGE_REVEAL_PHASE", meta: { refugeSessionId: sessionId }, dedupeKey: `refuge-reveal-phase:${sessionId}` });
-    // Le score va au parrain/à la marraine ; le compagnon n'a PAS de « résultat prêt » en plus (la fin le remplace : pas de doublon).
+    expect(sentNotifications().some((c: any) => c.type === "REFUGE_REVEAL_PHASE")).toBe(false);
     expect(sentNotifications().filter((c: any) => c.type === "REFUGE_DAY_RESULT").map((c: any) => c.recipientId)).toEqual([adoptantId]);
-    expect(sentNotifications().some((c: any) => c.type === "REFUGE_RESULT_READY")).toBe(false);
+    expect(sentNotifications().filter((c: any) => c.type === "REFUGE_RESULT_READY").map((c: any) => c.recipientId)).toEqual([adopteId]);
   });
 
   it("jour 1 : score au parrain/à la marraine, « résultat prêt » (sans score) au compagnon, rien sur la fin des sept jours", async () => {
@@ -864,9 +872,9 @@ describe("RefugeService.submitRevealConsent", () => {
 
   it("first ACCEPT stores the decision and moves to AWAITING_REVEAL_CONSENT (no reveal)", async () => {
     (prisma.refugeSession.findUnique as any)
-      .mockResolvedValueOnce(day7DoneSession()) // lecture initiale
+      .mockResolvedValueOnce(expiredAwaitingSession()) // lecture initiale
       .mockResolvedValueOnce(null) // closePastDays (no-op)
-      .mockResolvedValueOnce(day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" })); // relecture getRefugeSession
+      .mockResolvedValueOnce(expiredAwaitingSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" })); // relecture getRefugeSession
     (prisma.refugeSession.updateMany as any)
       .mockResolvedValueOnce({ count: 1 }) // écrit ma décision
       .mockResolvedValueOnce({ count: 0 }); // promotion : l'autre n'a pas accepté
@@ -884,11 +892,11 @@ describe("RefugeService.submitRevealConsent", () => {
 
   it("second ACCEPT promotes atomically to REVEALED and emits once", async () => {
     (prisma.refugeSession.findUnique as any)
-      .mockResolvedValueOnce(day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }))
+      .mockResolvedValueOnce(expiredAwaitingSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }))
       .mockResolvedValueOnce(null) // closePastDays (no-op)
       .mockResolvedValueOnce({ revealedAt: new Date() }) // select post-promotion (événement)
       .mockResolvedValueOnce(
-        day7DoneSession({
+        expiredAwaitingSession({
           adopteRevealDecision: "ACCEPT",
           adoptantRevealDecision: "ACCEPT",
           status: "REVEALED",
@@ -925,10 +933,10 @@ describe("RefugeService.submitRevealConsent", () => {
 
   it("REFUSE ends the session cleanly as COMPLETED without revealing anything", async () => {
     (prisma.refugeSession.findUnique as any)
-      .mockResolvedValueOnce(day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }))
+      .mockResolvedValueOnce(expiredAwaitingSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }))
       .mockResolvedValueOnce(null) // closePastDays (no-op)
       .mockResolvedValueOnce(
-        day7DoneSession({
+        expiredAwaitingSession({
           adopteRevealDecision: "ACCEPT",
           adoptantRevealDecision: "REFUSE",
           status: "COMPLETED",
@@ -950,9 +958,9 @@ describe("RefugeService.submitRevealConsent", () => {
 
   it("is idempotent: re-submitting the same decision returns state without writing", async () => {
     (prisma.refugeSession.findUnique as any)
-      .mockResolvedValueOnce(day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }))
+      .mockResolvedValueOnce(expiredAwaitingSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }))
       .mockResolvedValueOnce(null) // closePastDays (no-op)
-      .mockResolvedValueOnce(day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }));
+      .mockResolvedValueOnce(expiredAwaitingSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }));
 
     const result = await RefugeService.submitRevealConsent(sessionId, adopteId, "ACCEPT");
 
@@ -962,7 +970,7 @@ describe("RefugeService.submitRevealConsent", () => {
 
   it("rejects changing an already recorded decision", async () => {
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
-      day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" })
+      expiredAwaitingSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" })
     );
     await expect(
       RefugeService.submitRevealConsent(sessionId, adopteId, "REFUSE")
@@ -987,7 +995,7 @@ describe("RefugeService.submitRevealConsent", () => {
 describe("RefugeService.getRefugeSession (reveal privacy)", () => {
   it("never exposes the other participant's detailed decision, only a boolean", async () => {
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
-      day7DoneSession({ adoptantRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" })
+      expiredAwaitingSession({ adoptantRevealDecision: "ACCEPT" })
     );
 
     const result = await RefugeService.getRefugeSession(sessionId, adopteId);
@@ -1001,7 +1009,7 @@ describe("RefugeService.getRefugeSession (reveal privacy)", () => {
 
   it("does not expose any profile before mutual agreement", async () => {
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(
-      day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" })
+      expiredAwaitingSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" })
     );
 
     const result = await RefugeService.getRefugeSession(sessionId, adopteId);
@@ -1011,7 +1019,7 @@ describe("RefugeService.getRefugeSession (reveal privacy)", () => {
   });
 
   it("exposes the other participant's public profile once REVEALED, for both sides", async () => {
-    const revealed = day7DoneSession({
+    const revealed = expiredAwaitingSession({
       adopteRevealDecision: "ACCEPT",
       adoptantRevealDecision: "ACCEPT",
       status: "REVEALED",
@@ -1090,7 +1098,7 @@ describe("RefugeService progression partagée", () => {
     expect(result.hearts).toEqual(["🤍", "🤍", "🤍", "🤍", "🤍", "🤍", "🤍"]);
   });
 
-  it("day 7 completed: finalConsentAvailable=true, canAdvanceDay=false", async () => {
+  it("day 7 completed but 168 h NOT elapsed: finalConsentAvailable=false, reveal.available=false (jamais de dévoilement anticipé)", async () => {
     (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(day7DoneSession());
 
     const result = await RefugeService.getRefugeSession(sessionId, adoptantId);
@@ -1098,6 +1106,15 @@ describe("RefugeService progression partagée", () => {
     expect(result.currentDay).toBe(7);
     expect(result.dayCompleted).toBe(true);
     expect(result.canAdvanceDay).toBe(false);
+    expect(result.finalConsentAvailable).toBe(false);
+    expect(result.reveal?.available).toBe(false);
+  });
+
+  it("168 h elapsed (awaiting reveal): finalConsentAvailable=true, reveal.available=true", async () => {
+    (prisma.refugeSession.findUnique as any).mockResolvedValueOnce(expiredAwaitingSession());
+
+    const result = await RefugeService.getRefugeSession(sessionId, adoptantId);
+
     expect(result.finalConsentAvailable).toBe(true);
     expect(result.reveal?.available).toBe(true);
   });
@@ -1598,9 +1615,9 @@ describe("RefugeService — notifications du Refuge", () => {
 
   it("refus du dévoilement : l'AUTRE participant est prévenu une seule fois, seulement si le refus vient d'être enregistré", async () => {
     (prisma.refugeSession.findUnique as any)
-      .mockResolvedValueOnce(day7DoneSession({ adopteRevealDecision: "ACCEPT", status: "AWAITING_REVEAL_CONSENT" }))
+      .mockResolvedValueOnce(expiredAwaitingSession({ adopteRevealDecision: "ACCEPT" }))
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(day7DoneSession({ adoptantRevealDecision: "REFUSE", status: "COMPLETED" }));
+      .mockResolvedValueOnce(expiredAwaitingSession({ adoptantRevealDecision: "REFUSE", status: "COMPLETED" }));
     (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 });
     await RefugeService.submitRevealConsent(sessionId, adoptantId, "REFUSE");
     await flushNotifications();
@@ -1616,9 +1633,9 @@ describe("RefugeService — notifications du Refuge", () => {
 
   it("refus qui n'écrit rien (course perdue, décision déjà enregistrée) : aucune notification", async () => {
     (prisma.refugeSession.findUnique as any)
-      .mockResolvedValueOnce(day7DoneSession({ status: "AWAITING_REVEAL_CONSENT" }))
+      .mockResolvedValueOnce(expiredAwaitingSession())
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(day7DoneSession({ status: "COMPLETED" }));
+      .mockResolvedValueOnce(expiredAwaitingSession({ status: "COMPLETED" }));
     (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 0 });
     await RefugeService.submitRevealConsent(sessionId, adoptantId, "REFUSE");
     await flushNotifications();
@@ -1637,11 +1654,15 @@ describe("RefugeService — notifications du Refuge", () => {
     expect(sent.every((c: any) => !("actorId" in c))).toBe(true); // événement système
   });
 
-  it("expiration avec jour 7 joué (dévoilement) : aucune notification d'expiration (la fin a déjà été notifiée)", async () => {
+  it("expiration avec jour 7 joué (dévoilement) : les DEUX participants reçoivent UNE notification de dévoilement, pas d'expiration", async () => {
     const expired = { id: sessionId, status: "ACTIVE", endsAt: new Date(Date.now() - 1000), adopteId, adoptantId, dailyChoices: [{ dayNumber: 7 }], guesses: [{ dayNumber: 7 }] } as any;
-    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 });
+    (prisma.refugeSession.updateMany as any).mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
     expect((await RefugeService.closeExpiredSession(expired))?.status).toBe("AWAITING_REVEAL_CONSENT");
+    await RefugeService.closeExpiredSession(expired); // requête simultanée perdante : aucune notification de plus
     await flushNotifications();
-    expect(notifyEvent).not.toHaveBeenCalled();
+    expect(sentNotifications().some((c: any) => c.type === "REFUGE_EXPIRED")).toBe(false);
+    const phase = sentNotifications().filter((c: any) => c.type === "REFUGE_REVEAL_PHASE");
+    expect(phase.map((c: any) => c.recipientId).sort()).toEqual([adopteId, adoptantId].sort());
+    expect(new Set(phase.map((c: any) => c.dedupeKey))).toEqual(new Set([`refuge-reveal-phase:${sessionId}`]));
   });
 });

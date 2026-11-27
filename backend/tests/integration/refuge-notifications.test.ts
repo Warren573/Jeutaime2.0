@@ -160,29 +160,41 @@ describe("Refuge : pièces appliquées (règlement), jour 7, dévoilement, expir
     expect((await prisma.wallet.findMany({ where: { userId: { in: [p.companion, p.sponsor] } }, orderBy: { userId: "asc" }, select: { coins: true } })).map((w) => w.coins).sort()).toEqual([0, 105]);
   }, 60000);
 
-  test("jour 7 : fin des sept jours pour les DEUX participants ; refus → l'autre seulement", async () => {
+  test("jour 7 : AUCUN dévoilement avant 168 h ; à l'expiration, les DEUX participants sont prévenus une fois ; refus → l'autre seulement", async () => {
     const p = await pair("end");
     const id = await activeSession("end", p, 6 * DAY + 2 * HOUR);
     await RefugeService.submitDailyChoice(id, p.companion, 7, { action1: "NOURRIR", action2: "JOUER" });
     await RefugeService.submitGuess(id, p.sponsor, 7, { guessedAction1: "NOURRIR", guessedAction2: "JOUER", foodChoice: "food" } as never);
     await settle();
-    expect(await summary(p.companion)).toEqual(["REFUGE_REVEAL_PHASE"]); // pas de « résultat prêt » en plus
+    // Jour 7 terminé mais 168 h non écoulées : résultat du jour seulement, aucune notification de dévoilement.
+    expect(await summary(p.companion)).toEqual(["REFUGE_RESULT_READY"]);
+    expect(await summary(p.sponsor)).toEqual(["REFUGE_CHOICE_READY", "REFUGE_DAY_RESULT"].sort());
+    const early: any = await RefugeService.getRefugeSession(id, p.companion);
+    expect(early.reveal.available).toBe(false);
+    expect(await attempt(() => RefugeService.submitRevealConsent(id, p.companion, "ACCEPT"))).toMatch(/409 Le dévoilement n'est possible qu'à la fin des sept jours/);
+
+    // Les 168 h s'écoulent : la lecture clôture la session et propose le dévoilement.
+    const startedAt = new Date(Date.now() - 7 * DAY - HOUR);
+    await prisma.refugeSession.update({ where: { id }, data: { startedAt, endsAt: new Date(startedAt.getTime() + 7 * DAY) } });
+    await Promise.all(Array.from({ length: 5 }, () => RefugeService.getRefugeSession(id, p.companion)));
+    await settle();
+    expect(await summary(p.companion)).toEqual(["REFUGE_REVEAL_PHASE", "REFUGE_RESULT_READY"].sort());
+    expect((await rows(p.companion)).find((n) => n.type === ("REFUGE_REVEAL_PHASE" as never))!.message).toBe("Ton refuge arrive à son terme : choisis de te dévoiler ou non");
     expect(await summary(p.sponsor)).toEqual(["REFUGE_CHOICE_READY", "REFUGE_DAY_RESULT", "REFUGE_REVEAL_PHASE"].sort());
-    expect((await rows(p.companion))[0]!.message).toBe("Ton refuge arrive à son terme : choisis de te dévoiler ou non");
 
     // Le compagnon accepte, le parrain/la marraine refuse → le compagnon est prévenu, pas l'auteur du refus.
     await RefugeService.submitRevealConsent(id, p.companion, "ACCEPT");
     await RefugeService.submitRevealConsent(id, p.sponsor, "REFUSE");
     await RefugeService.submitRevealConsent(id, p.sponsor, "REFUSE").catch(() => undefined); // rejeu
     await settle();
-    expect(await summary(p.companion)).toEqual(["REFUGE_REVEAL_PHASE", "REFUGE_REVEAL_REFUSED"].sort());
+    expect(await summary(p.companion)).toEqual(["REFUGE_RESULT_READY", "REFUGE_REVEAL_PHASE", "REFUGE_REVEAL_REFUSED"].sort());
     expect((await rows(p.companion)).find((n) => n.type === ("REFUGE_REVEAL_REFUSED" as never))!.message).toBe("Votre refuge se termine sans dévoilement. D'autres rencontres vous attendent.");
     expect(await summary(p.sponsor)).toEqual(["REFUGE_CHOICE_READY", "REFUGE_DAY_RESULT", "REFUGE_REVEAL_PHASE"].sort());
   }, 60000);
 
   test("dévoilement mutuel : les DEUX participants sont prévenus, une seule fois chacun", async () => {
     const p = await pair("reveal");
-    const id = await activeSession("reveal", p, 6 * DAY + 2 * HOUR, [7], [7]);
+    const id = await activeSession("reveal", p, 7 * DAY + 2 * HOUR, [7], [7]); // 168 h écoulées
     await RefugeService.submitRevealConsent(id, p.companion, "ACCEPT");
     await Promise.all([RefugeService.submitRevealConsent(id, p.sponsor, "ACCEPT"), RefugeService.submitRevealConsent(id, p.sponsor, "ACCEPT").catch(() => undefined)]);
     await settle();

@@ -30,13 +30,16 @@ export const closeRefugeDaysJob: Job = {
         status: RefugeSessionStatus.ACTIVE,
         startedAt: { lte: new Date(now.getTime() - dayMs) },
       },
-      select: { id: true },
+      select: { id: true, endsAt: true },
     });
 
     let affected = 0;
     for (const s of sessions) {
       const before = await prisma.refugeDayResult.count({ where: { refugeSessionId: s.id } });
-      await RefugeService.closePastDays(s.id);
+      // Session dont les 168 h sont écoulées : règlement des jours restants PUIS clôture finale (bonus, dévoilement,
+      // notification de fin), même si personne n'ouvre l'application. Sinon : règlement des jours échus seulement.
+      if (s.endsAt && s.endsAt <= now) await RefugeService.closeExpiredSessionById(s.id);
+      else await RefugeService.closePastDays(s.id);
       const after = await prisma.refugeDayResult.count({ where: { refugeSessionId: s.id } });
       affected += after - before;
     }
