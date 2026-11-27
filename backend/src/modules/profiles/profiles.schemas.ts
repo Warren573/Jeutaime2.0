@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isAtLeastYearsOld } from "../../core/utils/dateUtils";
 
 const GenderEnum = z.enum(["HOMME", "FEMME", "AUTRE"]);
 const InterestedInEnum = z.enum(["HOMME", "FEMME", "AUTRE"]);
@@ -12,7 +13,15 @@ export const UpdateProfileSchema = z.object({
     .max(30, "Pseudo : 30 caractères maximum")
     .regex(/^[a-zA-Z0-9_.-]+$/, "Pseudo invalide")
     .optional(),
-  birthDate: z.coerce.date().optional(),
+  // Majorité vérifiée à toute modification (même règle que l'inscription : 18 ans révolus). Format texte AAAA-MM-JJ imposé :
+  // pas de coercition de null / 0 / nombres vers le 1er janvier 1970.
+  birthDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}/, "Date invalide (format: YYYY-MM-DD)")
+    .transform((d) => new Date(d))
+    .refine((d) => !Number.isNaN(d.getTime()), "Date invalide")
+    .refine((d) => isAtLeastYearsOld(d, 18), "Tu dois avoir au moins 18 ans")
+    .optional(),
   bio: z.string().max(500, "Bio : 500 caractères max").optional(),
   city: z.string().min(1).max(100).optional(),
   postalCode: z.string().max(10).optional(),

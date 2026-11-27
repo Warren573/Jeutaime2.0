@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma";
-import { NotFoundError, ForbiddenError, ConflictError } from "../../core/errors";
+import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from "../../core/errors";
+import { isAtLeastYearsOld } from "../../core/utils/dateUtils";
 import { getPhotoUnlockProgress, type PhotoLevel } from "../../policies/photoUnlock";
 import { buildMeta } from "../../core/utils/pagination";
 import { buildPhotoUrl } from "../photos/photos.urls";
@@ -24,6 +25,10 @@ export async function getMyProfile(userId: string) {
 export async function updateMyProfile(userId: string, dto: UpdateProfileDto) {
   const profile = await prisma.profile.findUnique({ where: { userId }, select: { id: true } });
   if (!profile) throw new NotFoundError("Profil");
+  // Seconde barrière (le schéma de la route fait déjà la même vérification) : aucune modification ne peut rendre mineur un profil.
+  if (dto.birthDate !== undefined && !isAtLeastYearsOld(dto.birthDate, 18)) {
+    throw new BadRequestError("Tu dois avoir au moins 18 ans");
+  }
   if (dto.pseudo !== undefined) {
     const pseudoTaken = await prisma.profile.findFirst({
       where: { pseudo: dto.pseudo, userId: { not: userId } },
