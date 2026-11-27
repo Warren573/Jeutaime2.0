@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { NotFoundError, ConflictError } from "../../src/core/errors";
+import { NotFoundError } from "../../src/core/errors";
 
 // Mock the Prisma module with factory function to avoid hoisting issues
 vi.mock("../../src/config/prisma", () => {
@@ -7,6 +7,13 @@ vi.mock("../../src/config/prisma", () => {
     prisma: {
       salon: {
         findUnique: vi.fn(),
+      },
+      user: {
+        findUnique: vi.fn(),
+      },
+      salonMessage: {
+        findFirst: vi.fn(),
+        create: vi.fn(),
       },
       salonSession: {
         findMany: vi.fn(),
@@ -22,6 +29,7 @@ vi.mock("../../src/config/prisma", () => {
         findFirst: vi.fn(),
         findUnique: vi.fn(),
         create: vi.fn(),
+        upsert: vi.fn(),
         update: vi.fn(),
         updateMany: vi.fn(),
         delete: vi.fn(),
@@ -49,6 +57,27 @@ describe("SalonSessions Service", () => {
   const mockSessionId = "session-1";
   const salonKind = "PISCINE";
 
+  const salonRow = { id: "salon-1", kind: salonKind, name: "Piscine" };
+
+  // Suite du flux de jonction : aucun participant existant, upsert, pseudo, message de bienvenue (pas encore créé).
+  function mockNewParticipantFlow() {
+    (prisma.salonSessionParticipant.findUnique as any).mockResolvedValueOnce(null);
+    (prisma.salonSessionParticipant.upsert as any).mockResolvedValueOnce({
+      id: "participant-1",
+      sessionId: mockSessionId,
+      userId: mockUserId,
+      status: "ACTIVE",
+    });
+    (prisma.user.findUnique as any).mockResolvedValueOnce({ profile: { pseudo: "User1" } });
+    (prisma.salonMessage.findFirst as any).mockResolvedValueOnce(null);
+    (prisma.salonMessage.create as any).mockResolvedValueOnce({
+      id: "welcome-1",
+      sessionId: mockSessionId,
+      salonId: salonRow.id,
+      kind: "system",
+    });
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -61,10 +90,7 @@ describe("SalonSessions Service", () => {
     it("should create a new session when none available with capacity", async () => {
       const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      (prisma.salon.findUnique as any).mockResolvedValueOnce({
-        kind: salonKind,
-        name: "Piscine",
-      });
+      (prisma.salon.findUnique as any).mockResolvedValueOnce(salonRow);
       (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce(null);
       (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce(null);
       (prisma.salonSession.findFirst as any).mockResolvedValueOnce(null);
@@ -75,12 +101,7 @@ describe("SalonSessions Service", () => {
         expiresAt: futureDate,
         participants: [],
       });
-      (prisma.salonSessionParticipant.create as any).mockResolvedValueOnce({
-        id: "participant-1",
-        sessionId: mockSessionId,
-        userId: mockUserId,
-        status: "ACTIVE",
-      });
+      mockNewParticipantFlow();
       (prisma.salonSession.findUnique as any).mockResolvedValueOnce({
         id: mockSessionId,
         salonKind,
@@ -104,15 +125,22 @@ describe("SalonSessions Service", () => {
       expect(result.id).toBe(mockSessionId);
       expect(result.participants).toHaveLength(1);
       expect(prisma.salonSession.create).toHaveBeenCalled();
+      // Le participant est rattaché à la nouvelle session (création ou réactivation), actif
+      const upsertArgs = (prisma.salonSessionParticipant.upsert as any).mock.calls[0][0];
+      expect(upsertArgs.where).toEqual({ sessionId_userId: { sessionId: mockSessionId, userId: mockUserId } });
+      expect(upsertArgs.create).toEqual({ sessionId: mockSessionId, userId: mockUserId, status: "ACTIVE" });
+      expect(upsertArgs.update).toEqual({ status: "ACTIVE", leftAt: null });
+      // Une nouvelle arrivée déclenche un unique message système de bienvenue
+      expect(prisma.salonMessage.create).toHaveBeenCalledTimes(1);
+      const welcome = (prisma.salonMessage.create as any).mock.calls[0][0].data;
+      expect(welcome).toMatchObject({ salonId: salonRow.id, sessionId: mockSessionId, userId: mockUserId, kind: "system" });
+      expect(welcome.meta).toEqual({ type: "welcome", joinedUserId: mockUserId, sessionId: mockSessionId });
     });
 
     it("should join existing session with capacity", async () => {
       const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      (prisma.salon.findUnique as any).mockResolvedValueOnce({
-        kind: salonKind,
-        name: "Piscine",
-      });
+      (prisma.salon.findUnique as any).mockResolvedValueOnce(salonRow);
       (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce(null);
       (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce(null);
       (prisma.salonSession.findFirst as any).mockResolvedValueOnce({
@@ -125,9 +153,7 @@ describe("SalonSessions Service", () => {
           { id: "p2" },
         ],
       });
-      (prisma.salonSessionParticipant.create as any).mockResolvedValueOnce({
-        id: "participant-new",
-      });
+      mockNewParticipantFlow();
       (prisma.salonSession.findUnique as any).mockResolvedValueOnce({
         id: mockSessionId,
         salonKind,
@@ -158,16 +184,16 @@ describe("SalonSessions Service", () => {
 
       expect(result.participantCount).toBe(3);
       expect(prisma.salonSession.create).not.toHaveBeenCalled();
+      // L'utilisateur rejoint la session existante (moins de 4 participants actifs), pas une nouvelle
+      const upsertArgs = (prisma.salonSessionParticipant.upsert as any).mock.calls[0][0];
+      expect(upsertArgs.create).toEqual({ sessionId: mockSessionId, userId: mockUserId, status: "ACTIVE" });
     });
 
     it("should return existing session if user already in this salon (idempotent)", async () => {
       const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
       // Mock salon exists
-      (prisma.salon.findUnique as any).mockResolvedValueOnce({
-        kind: salonKind,
-        name: "Piscine",
-      });
+      (prisma.salon.findUnique as any).mockResolvedValueOnce(salonRow);
       // First findFirst call: user is already in this salon
       (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce({
         sessionId: mockSessionId,
@@ -198,27 +224,60 @@ describe("SalonSessions Service", () => {
       expect(result.participantCount).toBe(1);
     });
 
-    it("should throw ConflictError if user already in a different salon", async () => {
-      const otherSalonKind = "CAFE_DE_PARIS";
+    it("auto-quits the previous salon when the user joins another one (never two active salons)", async () => {
+      const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      // Mock salon exists
-      (prisma.salon.findUnique as any).mockResolvedValueOnce({
-        kind: salonKind,
-        name: "Piscine",
-      });
-      // First findFirst call: user is NOT in this salon
+      (prisma.salon.findUnique as any).mockResolvedValueOnce(salonRow);
+      // 1er findFirst : l'utilisateur n'est PAS déjà dans ce salon
       (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce(null);
-      // Second findFirst call: user IS in a different salon
+      // 2e findFirst : il est actif dans un AUTRE salon
       (prisma.salonSessionParticipant.findFirst as any).mockResolvedValueOnce({
         id: "participant-other",
         sessionId: "other-session-id",
         userId: mockUserId,
         status: "ACTIVE",
       });
+      (prisma.salonSessionParticipant.update as any).mockResolvedValueOnce({ id: "participant-other", status: "LEFT" });
+      (prisma.salonSession.findFirst as any).mockResolvedValueOnce(null);
+      (prisma.salonSession.create as any).mockResolvedValueOnce({
+        id: mockSessionId,
+        salonKind,
+        status: "ACTIVE",
+        expiresAt: futureDate,
+        participants: [],
+      });
+      mockNewParticipantFlow();
+      (prisma.salonSession.findUnique as any).mockResolvedValueOnce({
+        id: mockSessionId,
+        salonKind,
+        status: "ACTIVE",
+        startedAt: new Date(),
+        expiresAt: futureDate,
+        participants: [
+          {
+            userId: mockUserId,
+            joinedAt: new Date(),
+            user: { profile: { pseudo: "User1", gender: "HOMME", avatarConfig: null } },
+          },
+        ],
+        salon: { kind: salonKind, name: "Piscine" },
+      });
 
-      await expect(
-        salonSessionsService.joinSession(mockUserId, salonKind),
-      ).rejects.toThrow(ConflictError);
+      // Aucune erreur : le serveur garantit lui-même « un seul salon à la fois » (l'écran des salons empêche déjà le cas).
+      const result = await salonSessionsService.joinSession(mockUserId, salonKind);
+      expect(result.id).toBe(mockSessionId);
+
+      // L'ancienne participation passe à LEFT, et exactement celle-là
+      expect(prisma.salonSessionParticipant.update).toHaveBeenCalledTimes(1);
+      const leaveArgs = (prisma.salonSessionParticipant.update as any).mock.calls[0][0];
+      expect(leaveArgs.where).toEqual({ id: "participant-other" });
+      expect(leaveArgs.data.status).toBe("LEFT");
+      expect(leaveArgs.data.leftAt).toBeInstanceOf(Date);
+
+      // La recherche de l'autre salon exclut bien le salon demandé
+      const differentSalonQuery = (prisma.salonSessionParticipant.findFirst as any).mock.calls[1][0];
+      expect(differentSalonQuery.where.session.NOT).toEqual({ salonKind });
+      expect(differentSalonQuery.where.status).toBe("ACTIVE");
     });
   });
 
