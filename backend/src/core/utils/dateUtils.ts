@@ -26,3 +26,17 @@ export function startOfDayUTC(date: Date): Date {
   d.setUTCHours(0, 0, 0, 0);
   return d;
 }
+
+/**
+ * Vrai si `birthDate` correspond à au moins `years` années pleines à `now` (calendrier exact, UTC).
+ * Une date invalide ou située dans le futur n'est jamais « assez âgée ».
+ */
+export function isAtLeastYearsOld(birthDate: Date, years: number, now: Date = new Date()): boolean {
+  if (Number.isNaN(birthDate.getTime())) return false;
+  const threshold = Date.UTC(
+    birthDate.getUTCFullYear() + years,
+    birthDate.getUTCMonth(),
+    birthDate.getUTCDate()
+  );
+  return threshold <= now.getTime();
+}
