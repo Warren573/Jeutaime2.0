@@ -15,7 +15,6 @@ import { getAnimalLabel, isRefugeAnimal } from "../data/refugeAnimals";
 import { getBackgroundGradientStyle, DEFAULT_REFUGE_BACKGROUND } from "../data/refugeBackgrounds";
 import { useRefugeDailyChoices } from "../hooks/useRefugeDailyChoices";
 import { useRefugeSession } from "../hooks/useRefugeSession";
-import { formatAnimalAge } from "../modules/refuge/refugeAgeDisplay";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -140,7 +139,7 @@ export function RefugeMainScreen({ sessionIdProp }: { sessionIdProp: string }) {
             <Text style={styles.headerEyebrow}>REFUGE TEMPORAIRE</Text>
             <Text style={styles.headerTitle}>Prenez soin l’un de l’autre</Text>
             {refugeSession.companion && (
-              <Text style={styles.headerSubtitle}>{getAnimalLabel(refugeSession.companion.animalType)} · {formatAnimalAge(refugeSession.companion.animalAgeMonths)}</Text>
+              <Text style={styles.headerSubtitle}>{getAnimalLabel(refugeSession.companion.animalType)}</Text>
             )}
           </View>
           <View style={styles.headerSpacer} />
