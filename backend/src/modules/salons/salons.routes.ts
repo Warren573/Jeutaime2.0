@@ -1,7 +1,9 @@
 import { Router, Response } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
-import { requireAuth } from "../../core/middleware/auth";
+import { requireAuth, requireRole } from "../../core/middleware/auth";
+import { Role } from "@prisma/client";
+import { writeAudit } from "../admin/admin.audit";
 import { AuthedRequest } from "../../core/types";
 import * as svc from "./salons.service";
 import {
@@ -19,11 +21,18 @@ const wrap = (
   fn: (req: AuthedRequest, res: Response) => Promise<void>,
 ) => asyncHandler((req, res, next) => fn(req as AuthedRequest, res).catch(next));
 
-// ADMIN: POST /api/admin/clean-test-messages — delete test Glouglou/Miam messages
+// ADMIN: POST /api/salons/admin/clean-test-messages — delete test Glouglou/Miam messages
+// Destructif : réservé à ADMIN (OWNER hérite de l'accès), journalisé dans l'audit.
 router.post(
   "/admin/clean-test-messages",
-  wrap(async (_req, res) => {
+  requireRole(Role.ADMIN) as never,
+  wrap(async (req, res) => {
     const result = await svc.cleanTestMessages();
+    await writeAudit({
+      actorId: req.user.userId,
+      action: "admin.salon.clean_test_messages",
+      meta: { deletedCount: result.deletedCount },
+    });
     res.json({ success: true, deletedCount: result.deletedCount });
   }),
 );
@@ -58,8 +67,8 @@ router.post(
   validate(SendSalonMessageSchema),
   wrap(async (req, res) => {
     const id = req.params["id"] as string;
-    const { content } = req.body as SendSalonMessageDto;
-    const data = await svc.postMessage(id, req.user.userId, content);
+    const { content, sessionId } = req.body as SendSalonMessageDto;
+    const data = await svc.postMessage(id, req.user.userId, content, sessionId);
     res.json({ data });
   }),
 );

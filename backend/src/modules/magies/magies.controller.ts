@@ -19,6 +19,7 @@ export async function handleCast(req: AuthedRequest, res: Response) {
 // GET /api/magies/active/:userId
 export async function handleListActive(req: AuthedRequest, res: Response) {
   const userId = req.params["userId"] as string;
+  await svc.assertCanViewActiveMagies(req.user.userId, userId);
   const data = await svc.listActive(userId);
   res.json({ data });
 }
@@ -37,6 +38,6 @@ export async function handleListSalonMagies(
   res: Response,
 ) {
   const salonId = req.params["salonId"] as string;
-  const data = await svc.listSalonMagies(salonId);
+  const data = await svc.listSalonMagies(salonId, new Date(), req.user.userId);
   res.json({ data });
 }

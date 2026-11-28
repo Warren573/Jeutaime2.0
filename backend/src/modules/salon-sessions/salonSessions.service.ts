@@ -8,6 +8,7 @@ import type {
   GetPreviousEncountersResponse,
 } from "./salonSessions.schemas";
 import { consumeOffering } from "../offerings/offerings.service";
+import { findBlockedAmong, isSessionOpen } from "./salonAccess";
 
 // Helper: Validate salonKind
 function validateSalonKind(salonKind: string): void {
@@ -22,6 +23,7 @@ function validateSalonKind(salonKind: string): void {
 // ============================================================
 export async function getActiveSessionsForSalon(
   salonKind: string,
+  requesterId?: string,
 ): Promise<GetActiveSessionsResponse> {
   validateSalonKind(salonKind);
   const now = new Date();
@@ -62,12 +64,17 @@ export async function getActiveSessionsForSalon(
     sessions: sessions.map((s) => ({
       id: s.id,
       participantCount: s.participants.length,
-      participants: s.participants.map((p) => ({
-        userId: p.userId,
-        pseudo: p.user.profile?.pseudo || "Unknown",
-        gender: p.user.profile?.gender,
-        avatarConfig: p.user.profile?.avatarConfig,
-      })),
+      // Confidentialité : l'identité des participants n'est révélée qu'aux membres actifs
+      // de CE groupe. Les autres ne voient que le nombre de places occupées.
+      participants:
+        requesterId && s.participants.some((p) => p.userId === requesterId)
+          ? s.participants.map((p) => ({
+              userId: p.userId,
+              pseudo: p.user.profile?.pseudo || "Unknown",
+              gender: p.user.profile?.gender,
+              avatarConfig: p.user.profile?.avatarConfig,
+            }))
+          : [],
       isFull: s.participants.length >= 4,
       startedAt: s.startedAt.toISOString(),
       expiresAt: s.expiresAt.toISOString(),
@@ -157,9 +164,17 @@ export async function getSessionDetail(
     throw new NotFoundError("SalonSession");
   }
 
-  if (session.isPrivate && requesterId) {
+  // Appels HTTP (requesterId fourni) : seuls les participants ACTIFS du groupe voient son détail,
+  // qu'il soit public ou privé. Les appels internes (joinSession) n'ont pas de requesterId.
+  if (requesterId) {
     const allowed = session.participants.some((p) => p.userId === requesterId);
-    if (!allowed) throw new ForbiddenError("Ce salon privé est accessible uniquement sur invitation");
+    if (!allowed) {
+      throw new ForbiddenError(
+        session.isPrivate
+          ? "Ce salon privé est accessible uniquement sur invitation"
+          : "Tu dois être membre actif de cette session",
+      );
+    }
   }
 
   return {
@@ -660,6 +675,11 @@ export async function performDrinkAction(
     throw new NotFoundError("Session not found");
   }
 
+  // Une session terminée ou expirée n'autorise plus aucune consommation.
+  if (!isSessionOpen(session)) {
+    throw new ForbiddenError("Cette session de salon est terminée");
+  }
+
   // Get user info for message
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -695,9 +715,11 @@ export async function performDrinkAction(
     });
 
     // Find first consumable BOISSON offering (either SHARED or PRIVATE to this user)
+    const blockedSenders = await findBlockedAmong(userId, offerings.map((o) => o.fromUserId));
     let consumable = null;
     for (const offeringSent of offerings) {
       if (offeringSent.offering.category !== "BOISSON") continue;
+      if (blockedSenders.has(offeringSent.fromUserId)) continue;
 
       // CRITICAL: Only the intended recipient (toUserId) can consume
       if (offeringSent.toUserId !== userId) continue;
@@ -755,6 +777,11 @@ export async function performEatAction(
     throw new NotFoundError("Session not found");
   }
 
+  // Une session terminée ou expirée n'autorise plus aucune consommation.
+  if (!isSessionOpen(session)) {
+    throw new ForbiddenError("Cette session de salon est terminée");
+  }
+
   // Get user info for message
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -790,9 +817,11 @@ export async function performEatAction(
     });
 
     // Find first consumable NOURRITURE offering (either SHARED or PRIVATE to this user)
+    const blockedSenders = await findBlockedAmong(userId, offerings.map((o) => o.fromUserId));
     let consumable = null;
     for (const offeringSent of offerings) {
       if (offeringSent.offering.category !== "NOURRITURE") continue;
+      if (blockedSenders.has(offeringSent.fromUserId)) continue;
 
       // CRITICAL: Only the intended recipient (toUserId) can consume
       if (offeringSent.toUserId !== userId) continue;

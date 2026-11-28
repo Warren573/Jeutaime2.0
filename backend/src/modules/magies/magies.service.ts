@@ -6,6 +6,12 @@ import {
 } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import {
+  assertNotBlocked,
+  findSharedOpenSession,
+  listGroupUserIds,
+  NOT_IN_SESSION_MESSAGE,
+} from "../salon-sessions/salonAccess";
+import {
   BadRequestError,
   ForbiddenError,
   NotFoundError,
@@ -146,9 +152,22 @@ export async function castSpell(
     if (catalog.id === "mag_chat_noir" && salon.kind !== "METAL") {
       throw new ForbiddenError("Le Chat noir démoniaque est réservé au salon Métal");
     }
+
+    // Le lanceur et la cible doivent être participants actifs d'une même session OUVERTE de ce salon.
+    // Vérifié AVANT toute écriture : aucun débit si l'action n'est pas autorisée.
+    const shared = await findSharedOpenSession([actorId, dto.toUserId], salon.kind);
+    if (!shared) {
+      throw new ForbiddenError("Le lanceur et la cible doivent être dans la même session de salon");
+    }
   } else if (catalog.id === "mag_chat_noir") {
     throw new ForbiddenError("Le Chat noir démoniaque est réservé au salon Métal");
+  } else {
+    // Les sorts n'existent que dans un salon : sans salon il n'y a pas de session commune à vérifier.
+    throw new ForbiddenError("Un sort ne peut être lancé que dans un salon");
   }
+
+  // Aucune interaction entre utilisateurs bloqués (dans un sens ou dans l'autre).
+  await assertNotBlocked(actorId, dto.toUserId);
 
   const now = new Date();
   const expiresAt = computeMagieExpiry(now, catalog.durationSec);
@@ -213,6 +232,19 @@ export async function castSpell(
 }
 
 // ============================================================
+// assertCanViewActiveMagies — GET /magies/active/:userId
+// On voit ses propres sorts, ou ceux d'une personne avec qui on partage une session ouverte.
+// ============================================================
+export async function assertCanViewActiveMagies(
+  requesterId: string,
+  targetUserId: string,
+): Promise<void> {
+  if (requesterId === targetUserId) return;
+  const shared = await findSharedOpenSession([requesterId, targetUserId], undefined);
+  if (!shared) throw new ForbiddenError(NOT_IN_SESSION_MESSAGE);
+}
+
+// ============================================================
 // listActive — magies réellement actives ciblées sur un user
 // ============================================================
 export async function listActive(
@@ -262,6 +294,22 @@ export async function breakMagie(
 
   // L'anti-sort doit matcher la condition de rupture du sort
   assertAntiSpellBreaksCondition(cast.magie.breakConditionId, antiSpell.id);
+
+  // Autorisation AVANT tout débit : seuls les participants actifs de la session commune
+  // (le casseur et la personne ensorcelée) peuvent briser un sort, sans blocage entre eux.
+  if (cast.salonId) {
+    const salon = await prisma.salon.findUnique({
+      where: { id: cast.salonId },
+      select: { kind: true },
+    });
+    if (!salon) throw new NotFoundError("Salon");
+    const shared = await findSharedOpenSession([actorId, cast.toUserId], salon.kind);
+    if (!shared) throw new ForbiddenError(NOT_IN_SESSION_MESSAGE);
+  } else if (actorId !== cast.toUserId) {
+    // Sort historique sans salon : seule la personne ensorcelée peut le briser.
+    throw new ForbiddenError(NOT_IN_SESSION_MESSAGE);
+  }
+  await assertNotBlocked(actorId, cast.toUserId);
 
   // 2. Transaction : débit wallet + txn + update magieCast
   const result = await prisma.$transaction(async (tx) => {
@@ -352,18 +400,28 @@ export interface SalonMagieDto {
 export async function listSalonMagies(
   salonId: string,
   now: Date = new Date(),
+  actorId?: string,
 ): Promise<SalonMagieDto[]> {
   const salon = await prisma.salon.findUnique({
     where: { id: salonId },
-    select: { id: true, isActive: true },
+    select: { id: true, isActive: true, kind: true },
   });
   if (!salon || !salon.isActive) throw new NotFoundError("Salon");
+
+  // Isolation des groupes : seuls les membres actifs d'une session ouverte de ce salon
+  // voient les sorts, et uniquement ceux qui touchent les membres de leur propre groupe.
+  let groupIds: string[] | undefined;
+  if (actorId) {
+    groupIds = await listGroupUserIds(actorId, salon.kind, now);
+    if (!groupIds.includes(actorId)) throw new ForbiddenError(NOT_IN_SESSION_MESSAGE);
+  }
 
   const rows = await prisma.magieCast.findMany({
     where: {
       salonId,
       brokenAt: null,
       expiresAt: { gt: now },
+      ...(groupIds ? { toUserId: { in: groupIds }, fromUserId: { in: groupIds } } : {}),
     },
     orderBy: [{ expiresAt: "asc" }, { id: "asc" }],
     include: {

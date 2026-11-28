@@ -1,7 +1,8 @@
 import { Router, Response } from "express";
 import { asyncHandler } from "../../core/utils/asyncHandler";
 import { validate } from "../../core/middleware/validate";
-import { requireAuth } from "../../core/middleware/auth";
+import { requireAuth, requireRole } from "../../core/middleware/auth";
+import { Role } from "@prisma/client";
 import type { AuthedRequest } from "../../core/types";
 import * as controller from "./salonSessions.controller";
 import { JoinSessionBodySchema, LeaveSessionBodySchema } from "./salonSessions.schemas";
@@ -74,17 +75,19 @@ router.get(
   }),
 );
 
-// DEBUG: GET /api/salon-sessions/debug/salons — check all salons in DB
+// DEBUG: GET /api/salon-sessions/debug/salons — check all salons in DB (ADMIN uniquement)
 router.get(
   "/debug/salons",
+  requireRole(Role.ADMIN) as never,
   wrap(async (req, res) => {
     await controller.debugGetAllSalons(req as AuthedRequest, res);
   }),
 );
 
-// DEBUG: POST /api/salon-sessions/debug/reseed — reseed all 7 salons
+// DEBUG: POST /api/salon-sessions/debug/reseed — reseed all 7 salons (ADMIN uniquement : réécrit noms, couleurs, ordre)
 router.post(
   "/debug/reseed",
+  requireRole(Role.ADMIN) as never,
   wrap(async (req, res) => {
     await controller.debugReseedSalons(req as AuthedRequest, res);
   }),

@@ -8,6 +8,14 @@ import {
 } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import {
+  assertNotBlocked,
+  findBlockedAmong,
+  findOpenMembership,
+  findSharedOpenSession,
+  isSessionOpen,
+  NOT_IN_SESSION_MESSAGE,
+} from "../salon-sessions/salonAccess";
+import {
   ForbiddenError,
   NotFoundError,
   BadRequestError,
@@ -19,6 +27,7 @@ import {
   computeOfferingExpiry,
   isOfferingActive,
 } from "../../policies/offerings";
+import { isPersonalOfferingId } from "./personalOfferings.policy";
 import { computeDebitBalance } from "../../policies/wallet";
 import { approvedOfferingCost, approvedOfferingName, isRetiredOfferingId } from "../../policies/economyCatalog";
 import { emitOfferingSent } from "../../events";
@@ -139,7 +148,15 @@ export async function sendOffering(
   // Hors salon, la protection anti-auto-cadeau reste inchangée.
   if (dto.salonId === undefined) {
     assertNotSelfOffering(fromUserId, dto.toUserId);
+    // Seules les offrandes de bureau (desk_*, réservées aux contacts, voir personalOfferings.policy)
+    // existent hors salon : toute autre offrande exige un salon, donc une session commune.
+    if (!isPersonalOfferingId(dto.offeringId)) {
+      throw new ForbiddenError("Cette offrande ne peut être envoyée que dans un salon");
+    }
   }
+
+  // Aucune interaction entre utilisateurs bloqués (dans un sens ou dans l'autre).
+  await assertNotBlocked(fromUserId, dto.toUserId);
 
   // 2. Lectures hors transaction : catalog, target, salon
   console.log('[VALIDATION-2] checking catalog existence');
@@ -194,8 +211,9 @@ export async function sendOffering(
           salonKind: true,
           startedAt: true,
           status: true,
+          expiresAt: true,
           participants: {
-            where: { userId: dto.toUserId, status: "ACTIVE" },
+            where: { status: "ACTIVE", userId: { in: [fromUserId, dto.toUserId] } },
             select: { userId: true },
           },
         },
@@ -203,14 +221,27 @@ export async function sendOffering(
 
       if (
         !activeSession ||
-        activeSession.status !== "ACTIVE" ||
-        activeSession.salonKind !== s.kind ||
-        activeSession.participants.length === 0
+        !isSessionOpen(activeSession) ||
+        activeSession.salonKind !== s.kind
       ) {
+        throw new BadRequestError("La cible n'appartient pas à cette session de salon");
+      }
+      const activeIds = new Set(activeSession.participants.map((p) => p.userId));
+      if (!activeIds.has(fromUserId)) {
+        throw new ForbiddenError(NOT_IN_SESSION_MESSAGE);
+      }
+      if (!activeIds.has(dto.toUserId)) {
         throw new BadRequestError("La cible n'appartient pas à cette session de salon");
       }
 
       salonSessionStart = activeSession.startedAt;
+    } else {
+      // Sans sessionId (anciens clients) : l'expéditeur et le destinataire doivent
+      // partager une même session ouverte de ce salon.
+      const shared = await findSharedOpenSession([fromUserId, dto.toUserId], s.kind);
+      if (!shared) {
+        throw new ForbiddenError("L'expéditeur et le destinataire doivent être dans la même session de salon");
+      }
     }
   }
 
@@ -369,12 +400,21 @@ export async function sendOfferingToSession(
     throw new BadRequestError("User is not an active participant in this session");
   }
 
+  // 3b. Une session terminée ou expirée n'autorise plus de tournée (aucun débit).
+  if (!isSessionOpen(session)) {
+    throw new ForbiddenError("Cette session de salon est terminée");
+  }
+
   // 4. Participants actifs et non bannis.
   // Une tournée générale vise tout le salon, y compris l'expéditeur.
   let recipients = session.participants
     .map(p => p.user)
     .filter(u => !u.isBanned)
     .map(u => u.id);
+
+  // Aucune interaction entre utilisateurs bloqués : ils sont simplement ignorés (et non facturés).
+  const blockedRecipients = await findBlockedAmong(fromUserId, recipients);
+  recipients = recipients.filter((id) => !blockedRecipients.has(id));
 
   if (recipients.length === 0) {
     throw new BadRequestError("Aucun participant disponible pour la tournée générale");
@@ -524,18 +564,64 @@ export async function consumeOffering(
     );
   }
 
-  // Atomic increment via Prisma
-  const updated = await prisma.offeringSent.update({
-    where: { id: offeringId },
+  // Incrément atomique et conditionnel : deux consommations simultanées ne peuvent
+  // jamais dépasser 3 (la condition est évaluée par la base au moment de l'écriture).
+  const claimed = await prisma.offeringSent.updateMany({
+    where: { id: offeringId, consumptionCount: { lt: 3 } },
     data: {
       consumptionCount: { increment: 1 },
       lastConsumedAt: now,
       lastConsumedBy: actorId,
     },
+  });
+  if (claimed.count === 0) {
+    throw new ForbiddenError("Cette offrande a déjà complètement disparue");
+  }
+
+  const updated = await prisma.offeringSent.findUniqueOrThrow({
+    where: { id: offeringId },
     include: { offering: true },
   });
 
   return toSentDto(updated, now);
+}
+
+// ============================================================
+// authorizeOfferingConsumption — qui peut consommer une offrande via l'API HTTP ?
+//  - offrande de salon : l'acteur ET le destinataire doivent être participants actifs
+//    d'une même session OUVERTE de ce salon (jamais un autre groupe), sans blocage ;
+//  - offrande hors salon : seul le destinataire.
+// Appelée AVANT consumeOffering (aucune écriture ici).
+// ============================================================
+export async function authorizeOfferingConsumption(
+  offeringSentId: string,
+  actorId: string,
+): Promise<void> {
+  const sent = await prisma.offeringSent.findUnique({
+    where: { id: offeringSentId },
+    select: { id: true, toUserId: true, fromUserId: true, salonId: true },
+  });
+  if (!sent) throw new NotFoundError("Offrande");
+
+  if (!sent.salonId) {
+    if (actorId !== sent.toUserId) {
+      throw new ForbiddenError("Seul le destinataire peut consommer cette offrande");
+    }
+    return;
+  }
+
+  const salon = await prisma.salon.findUnique({
+    where: { id: sent.salonId },
+    select: { kind: true },
+  });
+  if (!salon) throw new NotFoundError("Salon");
+
+  const shared = await findSharedOpenSession([actorId, sent.toUserId], salon.kind);
+  if (!shared) {
+    throw new ForbiddenError("Cette offrande n'est pas accessible depuis ta session de salon");
+  }
+  await assertNotBlocked(actorId, sent.toUserId);
+  await assertNotBlocked(actorId, sent.fromUserId);
 }
 
 // ============================================================
@@ -618,6 +704,7 @@ export async function listSalonOfferings(
   salonId: string,
   sessionId?: string,
   now: Date = new Date(),
+  actorId?: string,
 ): Promise<SalonOfferingDto[]> {
   const salon = await prisma.salon.findUnique({
     where: { id: salonId },
@@ -626,6 +713,15 @@ export async function listSalonOfferings(
   if (!salon || !salon.isActive) throw new NotFoundError("Salon");
 
   let since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  // Isolation des groupes : l'appelant doit être participant actif d'une session ouverte de ce salon,
+  // et seules les offrandes entre membres de CETTE session sont renvoyées.
+  let memberSessionId: string | undefined;
+  if (actorId) {
+    const membership = await findOpenMembership(actorId, salon.kind, sessionId, now);
+    if (!membership) throw new ForbiddenError(NOT_IN_SESSION_MESSAGE);
+    memberSessionId = membership.sessionId;
+  }
 
   if (sessionId) {
     const session = await prisma.salonSession.findUnique({
@@ -646,6 +742,12 @@ export async function listSalonOfferings(
     where: {
       salonId,
       createdAt: { gte: since },
+      ...(memberSessionId
+        ? {
+            fromUser: { salonSessionParticipants: { some: { sessionId: memberSessionId } } },
+            toUser: { salonSessionParticipants: { some: { sessionId: memberSessionId } } },
+          }
+        : {}),
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: 100,

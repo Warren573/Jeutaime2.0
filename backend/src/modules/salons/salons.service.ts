@@ -1,6 +1,7 @@
 import { Prisma, Salon, SalonKind } from "@prisma/client";
 import { prisma } from "../../config/prisma";
-import { NotFoundError } from "../../core/errors";
+import { ForbiddenError, NotFoundError } from "../../core/errors";
+import { NOT_IN_SESSION_MESSAGE, requireOpenMembership } from "../salon-sessions/salonAccess";
 
 // ============================================================
 // Helpers internes
@@ -109,6 +110,24 @@ export interface SalonMessagePublicDto {
 }
 
 // ============================================================
+// Appartenance (lecture) — participant ACTIF de la session demandée, même expirée ;
+// sans sessionId : session ouverte la plus récemment rejointe.
+// ============================================================
+async function findAnyMembership(
+  userId: string,
+  salonKind: SalonKind,
+  sessionId?: string,
+): Promise<{ sessionId: string }> {
+  if (!sessionId) return requireOpenMembership(userId, salonKind);
+  const row = await prisma.salonSessionParticipant.findFirst({
+    where: { userId, sessionId, status: "ACTIVE", session: { salonKind } },
+    select: { sessionId: true },
+  });
+  if (!row) throw new ForbiddenError(NOT_IN_SESSION_MESSAGE);
+  return row;
+}
+
+// ============================================================
 // listMessages — derniers N messages, ordre chronologique
 // Filtre par sessionId si fourni, sinon tous les messages du salon
 // ============================================================
@@ -120,9 +139,15 @@ export async function listMessages(
 ): Promise<SalonMessagePublicDto[]> {
   const salon = await prisma.salon.findUnique({
     where: { id: salonId },
-    select: { id: true, isActive: true },
+    select: { id: true, isActive: true, kind: true },
   });
   if (!salon || !salon.isActive) throw new NotFoundError("Salon");
+
+  // Isolation des groupes : seuls les participants ACTIFS d'une session de ce salon la lisent.
+  // Sans `sessionId`, on résout la session ouverte de l'utilisateur (jamais « tout le salon »).
+  // Un membre garde l'accès à la lecture de sa propre session même après l'échéance
+  // (l'écriture, elle, est refusée) : le sort des sessions terminées reste à décider.
+  const membership = await findAnyMembership(viewerId, salon.kind, sessionId);
 
   const blocks = await prisma.block.findMany({
     where: {
@@ -140,12 +165,10 @@ export async function listMessages(
   // Build where clause: filter hidden content, current session and blocked users.
   const where: any = {
     salonId,
+    sessionId: membership.sessionId,
     isHidden: false,
     ...(blockedUserIds.length > 0 && { userId: { notIn: blockedUserIds } }),
   };
-  if (sessionId) {
-    where.sessionId = sessionId;
-  }
 
   // DESC pour récupérer les N derniers, puis on inverse pour l'ordre chrono
   const rows = await prisma.salonMessage.findMany({
@@ -182,6 +205,7 @@ export async function postMessage(
   salonId: string,
   userId: string,
   content: string,
+  sessionId?: string,
 ): Promise<SalonMessagePublicDto> {
   const salon = await prisma.salon.findUnique({
     where: { id: salonId },
@@ -189,29 +213,18 @@ export async function postMessage(
   });
   if (!salon || !salon.isActive) throw new NotFoundError("Salon");
 
-  // Find current session for this user in this salon
-  const now = new Date();
-  const currentSession = await prisma.salonSessionParticipant.findFirst({
-    where: {
-      userId,
-      status: "ACTIVE",
-      session: {
-        salonKind: salon.kind as any,
-        status: "ACTIVE",
-        expiresAt: { gt: now },
-      },
-    },
-    select: { sessionId: true },
-  });
+  // Écriture réservée aux participants ACTIFS d'une session OUVERTE de ce salon.
+  // Plus aucun message orphelin (sessionId null) ni écriture dans un autre groupe.
+  const membership = await requireOpenMembership(userId, salon.kind, sessionId);
 
   const [row, profile] = await Promise.all([
     prisma.salonMessage.create({
       data: {
         salonId,
-        sessionId: currentSession?.sessionId || null,
+        sessionId: membership.sessionId,
         userId,
         kind: "message",
-        content
+        content,
       },
     }),
     prisma.profile.findUnique({
