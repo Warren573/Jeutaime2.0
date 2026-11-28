@@ -371,7 +371,8 @@ export async function declineMatch(matchId: string, userId: string) {
 
   return prisma.match.update({
     where: { id: matchId },
-    data: { status: MatchStatus.BROKEN },
+    // Collecte pour le futur système de confiance (aucun effet sur le comportement actuel).
+    data: { status: MatchStatus.BROKEN, brokenById: userId, brokenAt: new Date(), breakKind: "DECLINED" },
     select: matchSelect,
   });
 }
@@ -408,7 +409,8 @@ export async function breakMatch(matchId: string, userId: string) {
     // Conditional update ensures two concurrent requests cannot double-penalize.
     const changed = await tx.match.updateMany({
       where: { id: matchId, status: match.status },
-      data: { status: MatchStatus.BROKEN },
+      // Collecte pour le futur système de confiance : qui, quand, quelle nature de rupture.
+      data: { status: MatchStatus.BROKEN, brokenById: userId, brokenAt: new Date(), breakKind: "USER_BREAK" },
     });
     if (changed.count !== 1) throw new ConflictError("Ce match a déjà changé de statut");
     if (immediate) {
@@ -601,7 +603,8 @@ export async function blockMatch(matchId: string, userId: string) {
     // Marquer le match comme BLOCKED
     const updatedMatch = await tx.match.update({
       where: { id: matchId },
-      data: { status: MatchStatus.BLOCKED },
+      // Blocage = sécurité : tracé comme tel pour ne jamais être pénalisé.
+      data: { status: MatchStatus.BLOCKED, brokenById: userId, brokenAt: new Date(), breakKind: "SAFETY_BLOCK" },
       select: matchSelect,
     });
 

@@ -241,7 +241,8 @@ export async function submitMatchAnswers(
   if (myPassed && otherPassed) {
     await tx.match.update({
       where: { id: matchId },
-      data: { questionsValidated: true },
+      // `questionsValidatedAt` : collecte pour le futur système de confiance (aucun effet actuel).
+      data: { questionsValidated: true, questionsValidatedAt: new Date() },
     });
     return {
       myScore,
@@ -255,7 +256,8 @@ export async function submitMatchAnswers(
   // Au moins un échec → match rompu
   await tx.match.update({
     where: { id: matchId },
-    data: { status: MatchStatus.BROKEN },
+    // Rupture AUTOMATIQUE (aucun auteur) : tracée pour ne jamais être imputée à un membre.
+    data: { status: MatchStatus.BROKEN, brokenAt: new Date(), breakKind: "QUESTIONS_FAILED" },
   });
 
   return {

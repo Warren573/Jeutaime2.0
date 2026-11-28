@@ -37,6 +37,28 @@ enum LookingFor {
   SERIEUX
 }
 
+/// Nature d'une rupture de match (sert à ne jamais confondre incompatibilité, sécurité et manquement).
+enum MatchBreakKind {
+  USER_BREAK // l'un des membres a rompu (POST /matches/:id/break)
+  DECLINED // la demande en attente a été refusée
+  QUESTIONS_FAILED // rupture automatique : échec au jeu des trois questions
+  SAFETY_BLOCK // blocage depuis la correspondance (sécurité : jamais pénalisable)
+}
+
+/// Les trois axes sont strictement séparés. Les pièces (Wallet) n'en font PAS partie.
+enum ReputationAxis {
+  RELIABILITY
+  PARTICIPATION
+  POPULARITY
+}
+
+enum ReputationDisputeStatus {
+  OPEN
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
 enum MatchStatus {
   PENDING // en attente d'acceptation
   ACTIVE // match actif, échanges en cours
@@ -298,6 +320,12 @@ model User {
   refugeAsAdopte   RefugeSession[] @relation("RefugeAdopte")
   refugeAsAdoptant RefugeSession[] @relation("RefugeAdoptant")
 
+  // Fondations du système de confiance (aucun effet tant que le moteur n'est pas branché)
+  reputationState    ReputationState?
+  reputationEvents   ReputationEvent[]
+  reputationDisputes ReputationDispute[]
+  vacationPeriods    VacationPeriod[]
+
   @@index([email])
   @@index([isBanned])
 }
@@ -488,6 +516,14 @@ model Match {
   // Questions de validation (les 2 doivent avoir répondu)
   questionsValidated Boolean @default(false)
   activatedAt DateTime?
+  // Date de validation des trois questions. NULL pour tout l'historique : aucune règle ne doit en déduire de pénalité.
+  questionsValidatedAt DateTime?
+
+  // Dernière rupture (renseignée uniquement à partir de la mise en service ; NULL pour l'historique).
+  // Ne s'interprète qu'avec `status` : une relance (BROKEN → ACTIVE) ne les efface pas.
+  brokenById String?
+  brokenAt   DateTime?
+  breakKind  MatchBreakKind?
 
   // Anti-ghosting : ID de celui qui a utilisé sa relance unique
   ghostRelanceUsedBy String?
@@ -780,6 +816,9 @@ model MessageInABottle {
   lastReadBySenderId   DateTime? // Quand l'envoyeur a lu les messages
   lastReadByAcceptorId DateTime? // Quand l'accepteur a lu les messages
   revealedAt           DateTime? // Quand les deux ont accepté le dévoilement
+  // Dernière rupture (NULL pour l'historique ; ne s'interprète qu'avec `status`).
+  brokenById           String?
+  brokenAt             DateTime?
   matchId              String? // Match créé après dévoilement (liens vers discussion privée)
   match                Match?       @relation(fields: [matchId], references: [id], onDelete: SetNull)
 
@@ -1305,6 +1344,120 @@ model RefugeDayResult {
 // voté ; ils sont posés atomiquement (updateMany usedAt:null en garde) au
 // moment du vote, dans la même transaction que le crédit de pièces.
 // expiresAt borne la durée de vie d'un duel non voté (15 min).
+// ============================================================
+// CONFIANCE / CLASSEMENT — FONDATIONS (aucun barème ici : il vit dans policies/reputation.ts)
+// Trois axes séparés ; les pièces restent dans Wallet / CoinTransaction, sans aucun lien.
+// ============================================================
+
+/// État individuel. Créé à la demande avec une base NEUTRE (tout à 0) : aucun ancien score n'est converti.
+model ReputationState {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  reliability   Int @default(0)
+  participation Int @default(0)
+  popularity    Int @default(0)
+
+  // Période de points courante : incrémentée à chaque remise à zéro (les événements gardent leur époque).
+  epoch       Int @default(0)
+  // Version des règles ayant produit l'état courant (informatif ; jamais de recalcul rétroactif).
+  ruleVersion Int @default(1)
+
+  // Engagements évalués depuis la dernière remise à zéro (alimente « nouveau membre » / « à réévaluer »).
+  evaluatedCommitments Int @default(0)
+
+  // Dernière activité RÉELLE (définition à valider ; NULL = inconnue → jamais de remise à zéro déduite).
+  lastActivityAt          DateTime?
+  lastResetAt             DateTime?
+  resetCount              Int       @default(0)
+  // Vrai après une remise à zéro, jusqu'à ce que la fiabilité soit réévaluée.
+  reliabilityReassessment Boolean   @default(false)
+
+  // Accueils (données seulement, aucune interface)
+  welcomeBackPendingAt DateTime?
+  lastWelcomeDay       String? // date LOCALE du membre, « AAAA-MM-JJ »
+  lastSummaryAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Registre append-only : un fait, une ligne. Jamais modifié ni supprimé (une annulation est un événement compensatoire).
+model ReputationEvent {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  axis        ReputationAxis
+  kind        String
+  delta       Int
+  ruleVersion Int
+  epoch       Int
+
+  // Compte comme un engagement évalué (incrémente ReputationState.evaluatedCommitments).
+  commitment    Boolean @default(false)
+  // Faux si l'événement concerne une époque révolue : enregistré pour l'historique, sans effet sur l'état courant.
+  affectsState  Boolean @default(true)
+  // Pénalité contestable par le membre.
+  contestable   Boolean @default(false)
+  visibleToUser Boolean @default(true)
+
+  sourceType String?
+  sourceId   String?
+  actorId    String? // administrateur à l'origine d'un ajustement / d'une annulation
+  meta       Json?
+
+  // Idempotence : une même clé ne produit jamais deux lignes.
+  dedupeKey String @unique
+
+  // Événement compensatoire : pointe l'événement annulé (un événement ne peut être annulé qu'une fois).
+  reversalOf      String?          @unique
+  reversalOfEvent ReputationEvent? @relation("ReputationReversal", fields: [reversalOf], references: [id])
+  reversedBy      ReputationEvent? @relation("ReputationReversal")
+
+  disputes ReputationDispute[]
+
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([userId, axis, kind, occurredAt])
+  @@index([sourceType, sourceId])
+}
+
+/// Préparation de la contestation (aucune interface, aucune route).
+model ReputationDispute {
+  id      String          @id @default(cuid())
+  eventId String          @unique
+  event   ReputationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  reason     String                  @db.Text
+  status     ReputationDisputeStatus @default(OPEN)
+  resolution String?                 @db.Text
+  resolvedBy String?
+  resolvedAt DateTime?
+  // Événement compensatoire créé si la contestation est acceptée.
+  reversalEventId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+/// Historique des périodes de mode vacances (alimenté à partir de la mise en service ; rien n'est reconstitué).
+model VacationPeriod {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt DateTime
+  endedAt   DateTime? // NULL = période en cours
+
+  @@index([userId, startedAt])
+}
+
 model WeeklyProfileDuel {
   id           String    @id @default(cuid())
   userId       String

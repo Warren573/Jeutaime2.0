@@ -1,0 +1,81 @@
+name: Fondations confiance et classement (tests unitaires + PostgreSQL de test)
+
+# Ne déploie rien et ne touche aucune base distante : PostgreSQL éphémère du runner uniquement
+# (la garde tests/setup/dbGuard.ts refuse de démarrer si la base visée n'est pas locale et « test »).
+# La migration elle-même est rejouée sur l'état de production simulé par le workflow
+# « Notifications phase 2 » (job « Migration — simulation de l'état de production »), déclenché par backend/prisma/**.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/src/modules/reputation/**'
+      - 'backend/src/policies/reputation.ts'
+      - 'backend/src/modules/matches/**'
+      - 'backend/src/modules/bottles/**'
+      - 'backend/src/modules/profiles/**'
+      - 'backend/src/config/env.ts'
+      - 'backend/prisma/**'
+      - 'backend/tests/**'
+      - '.github/workflows/reputation-foundations.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  reputation-foundations:
+    name: Fondations confiance et classement (PostgreSQL)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/jeutaime_test
+      JWT_ACCESS_SECRET: ci_access_secret_0123456789abcdef0123456789
+      JWT_REFRESH_SECRET: ci_refresh_secret_0123456789abcdef012345678
+      PGPASSWORD: postgres
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jeutaime_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Generate Prisma client and create schema
+        working-directory: backend
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate --accept-data-loss
+          # Table créée uniquement par du SQL de migration (lue en SQL brut par requireAuth).
+          psql -h localhost -U postgres -d jeutaime_test -v ON_ERROR_STOP=1 -f prisma/migrations/20260807143000_add_account_deactivation/migration.sql
+      - name: Typecheck backend
+        working-directory: backend
+        run: npm run typecheck
+      - name: Fondations — tests unitaires et d'intégration (fichiers en série, base partagée)
+        working-directory: backend
+        run: >-
+          npx vitest run --no-file-parallelism
+          tests/unit/reputation.policy.test.ts
+          tests/integration/reputation-foundations.test.ts
+          tests/integration/reputation-data-collection.test.ts
+          tests/unit/salonSessions.service.test.ts
+          tests/unit/salon-security.service.test.ts
+          tests/integration/salon-security.http.test.ts
+          tests/integration/mutual-smile-flow.test.ts
+          tests/integration/economy-wallet-integrity.test.ts
