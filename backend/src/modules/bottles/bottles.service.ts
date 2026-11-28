@@ -1172,6 +1172,9 @@ export async function breakBottle(
     where: { id: bottleId },
     data: {
       status: "BROKEN",
+      // Collecte pour le futur système de confiance (auteur et date de la rupture).
+      brokenById: userId,
+      brokenAt: new Date(),
     },
   });
 

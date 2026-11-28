@@ -39,6 +39,9 @@ const envSchema = z.object({
     .default("false")
     .transform((v) => v.toLowerCase() === "true"),
   SCHEDULER_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
+  // Seuil d'inactivité (en jours) de la remise à zéro des points de classement. ABSENT = fonction désactivée.
+  // Le seuil définitif et la définition de l'activité réelle sont à valider avant toute activation.
+  REPUTATION_INACTIVITY_RESET_DAYS: z.preprocess((v) => (v === "" ? undefined : v), z.coerce.number().int().min(1).max(3650).optional()),
   REFRESH_TOKEN_PURGE_GRACE_MS: z.coerce.number().int().min(0).default(3_600_000),
   DAILY_EDITION_PUSH_HOUR: z.coerce.number().int().min(0).max(23).default(19),
   DAILY_EDITION_TIMEZONE: z.string().default("Europe/Paris"),

@@ -89,11 +89,7 @@ export async function updateUserSettings(userId: string, patch: UserSettingsPatc
       : {}),
   };
 
-  return prisma.userSettings.upsert({
-    where: { userId },
-    update: data,
-    create: { userId, ...DEFAULTS, ...data },
-    select: {
+  const select = {
       notifEmail: true,
       notifPush: true,
       notifMeetings: true,
@@ -107,6 +103,35 @@ export async function updateUserSettings(userId: string, patch: UserSettingsPatc
       vacationStartedAt: true,
       showInDiscovery: true,
       locationShared: true,
-    },
+  } as const;
+
+  if (!vacationChanged) {
+    return prisma.userSettings.upsert({
+      where: { userId },
+      update: data,
+      create: { userId, ...DEFAULTS, ...data },
+      select,
+    });
+  }
+
+  // Changement du mode vacances : l'historique des périodes est tenu dans la MÊME transaction (collecte pour le futur
+  // système de confiance ; le comportement du mode vacances, lui, est inchangé).
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "userId" FROM "UserSettings" WHERE "userId" = ${userId} FOR UPDATE`;
+    const before = await tx.userSettings.findUnique({ where: { userId }, select: { vacationMode: true } });
+    const result = await tx.userSettings.upsert({
+      where: { userId },
+      update: data,
+      create: { userId, ...DEFAULTS, ...data },
+      select,
+    });
+    const wasOn = before?.vacationMode === true;
+    const now = new Date();
+    if (patch.vacationMode === true && !wasOn) {
+      await tx.vacationPeriod.create({ data: { userId, startedAt: now } });
+    } else if (patch.vacationMode === false && wasOn) {
+      await tx.vacationPeriod.updateMany({ where: { userId, endedAt: null }, data: { endedAt: now } });
+    }
+    return result;
   });
 }
