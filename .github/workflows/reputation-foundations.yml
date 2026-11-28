@@ -67,7 +67,7 @@ jobs:
       - name: Typecheck backend
         working-directory: backend
         run: npm run typecheck
-      - name: Fondations — tests unitaires et d'intégration (fichiers en série : base partagée)
+      - name: Fondations — tests unitaires et d'intégration (fichiers en série, base partagée)
         working-directory: backend
         run: >-
           npx vitest run --no-file-parallelism
