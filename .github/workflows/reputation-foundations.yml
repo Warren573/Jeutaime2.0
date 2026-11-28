@@ -10,7 +10,7 @@ on:
     branches: [main]
     paths:
       - 'backend/src/modules/reputation/**'
-      - 'backend/src/policies/reputation.ts'
+      - 'backend/src/policies/reputation*.ts'
       - 'backend/src/modules/matches/**'
       - 'backend/src/modules/bottles/**'
       - 'backend/src/modules/profiles/**'
@@ -74,6 +74,10 @@ jobs:
           tests/unit/reputation.policy.test.ts
           tests/integration/reputation-foundations.test.ts
           tests/integration/reputation-data-collection.test.ts
+          tests/unit/reputation.rules.test.ts
+          tests/unit/reputation.diversity.test.ts
+          tests/integration/reputation-rules.test.ts
+          tests/integration/reputation-simulation.test.ts
           tests/unit/salonSessions.service.test.ts
           tests/unit/salon-security.service.test.ts
           tests/integration/salon-security.http.test.ts
