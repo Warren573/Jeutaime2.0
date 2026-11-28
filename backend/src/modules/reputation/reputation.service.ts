@@ -5,6 +5,7 @@ import { env } from "../../config/env";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
 import { isTestMode } from "../../core/testMode";
 import { writeAudit } from "../admin/admin.audit";
+import { isCalendarInactivityResetDue, parseInactivityMonths } from "../../policies/reputationRules";
 import {
   AXIS_FIELD,
   REPUTATION_RULE_VERSION,
@@ -139,7 +140,7 @@ async function insertEvent(
       data: {
         [AXIS_FIELD[input.axis]]: { increment: input.delta },
         ...(input.commitment ? { evaluatedCommitments: { increment: 1 } } : {}),
-        ruleVersion: REPUTATION_RULE_VERSION,
+        ruleVersion: input.ruleVersion ?? REPUTATION_RULE_VERSION,
       },
     });
   }
@@ -356,6 +357,20 @@ export function getConfiguredInactivityThresholdDays(): number | null {
   return parseInactivityThresholdDays(env.REPUTATION_INACTIVITY_RESET_DAYS);
 }
 
+/** Seuil en MOIS CALENDAIRES lu de l'environnement ; absent = désactivé. S'il est défini, il l'emporte sur le seuil en jours. */
+export function getConfiguredInactivityMonths(): number | null {
+  return parseInactivityMonths(env.REPUTATION_INACTIVITY_RESET_MONTHS);
+}
+
+function inactivityDue(
+  state: { lastActivityAt: Date | null; lastResetAt: Date | null },
+  now: Date,
+  days: number | null,
+  months: number | null,
+): boolean {
+  return months !== null ? isCalendarInactivityResetDue(state, now, months) : isInactivityResetDue(state, now, days);
+}
+
 /** Écriture de `lastActivityAt` au plus une fois par heure (limite les écritures sur Neon). */
 const ACTIVITY_WRITE_THROTTLE_MS = 60 * 60 * 1000;
 
@@ -372,12 +387,13 @@ export interface ResetResult {
  */
 export async function applyInactivityResetTx(
   tx: Tx,
-  params: { userId: string; now?: Date; thresholdDays?: number | null },
+  params: { userId: string; now?: Date; thresholdDays?: number | null; thresholdMonths?: number | null },
 ): Promise<ResetResult> {
   const now = params.now ?? new Date();
   const threshold = params.thresholdDays === undefined ? getConfiguredInactivityThresholdDays() : params.thresholdDays;
+  const months = params.thresholdMonths === undefined ? getConfiguredInactivityMonths() : params.thresholdMonths;
   const state = await lockState(tx, params.userId);
-  if (!isInactivityResetDue(state, now, threshold)) return { reset: false, epoch: state.epoch };
+  if (!inactivityDue(state, now, threshold, months)) return { reset: false, epoch: state.epoch };
 
   const nextEpoch = state.epoch + 1;
   // Repère dans le registre (le détail des valeurs précédentes est conservé dans `meta`, rien n'est perdu).
@@ -398,7 +414,8 @@ export async function applyInactivityResetTx(
         dedupeKey: `inactivity-reset:${params.userId}:${nextEpoch}`,
         occurredAt: now,
         meta: {
-          thresholdDays: threshold,
+          thresholdDays: months === null ? threshold : null,
+          thresholdMonths: months,
           lastActivityAt: state.lastActivityAt?.toISOString() ?? null,
           previous: {
             reliability: state.reliability,
@@ -438,12 +455,14 @@ export async function registerParticipationActivity(params: {
   userId: string;
   at?: Date;
   thresholdDays?: number | null;
+  thresholdMonths?: number | null;
 }): Promise<ResetResult> {
   const at = params.at ?? new Date();
   const threshold = params.thresholdDays === undefined ? getConfiguredInactivityThresholdDays() : params.thresholdDays;
+  const months = params.thresholdMonths === undefined ? getConfiguredInactivityMonths() : params.thresholdMonths;
   const state = await prisma.reputationState.findUnique({ where: { userId: params.userId } });
 
-  if (state && !isInactivityResetDue(state, at, threshold)) {
+  if (state && !inactivityDue(state, at, threshold, months)) {
     const fresh = state.lastActivityAt && at.getTime() - state.lastActivityAt.getTime() < ACTIVITY_WRITE_THROTTLE_MS;
     if (!fresh) {
       await prisma.reputationState.updateMany({
@@ -455,7 +474,7 @@ export async function registerParticipationActivity(params: {
   }
 
   return runInTransaction(async (tx) => {
-    const res = await applyInactivityResetTx(tx, { userId: params.userId, now: at, thresholdDays: threshold });
+    const res = await applyInactivityResetTx(tx, { userId: params.userId, now: at, thresholdDays: threshold, thresholdMonths: months });
     await tx.reputationState.updateMany({
       where: { userId: params.userId, OR: [{ lastActivityAt: null }, { lastActivityAt: { lt: at } }] },
       data: { lastActivityAt: at },
@@ -527,3 +546,7 @@ export async function resetReputationForTestAccounts(userIds: string[]): Promise
     return { events: events.count, disputes: disputes.count, states: states.count };
   });
 }
+
+// Primitives réservées à la couche des règles (reputation.rules.service.ts) : même transaction, même verrou de ligne.
+export const lockReputationState = lockState;
+export const insertReputationEvent = insertEvent;
