@@ -6,6 +6,8 @@ import { z } from "zod";
 export const SendSalonMessageSchema = z
   .object({
     content: z.string().min(1).max(2000).trim(),
+    // Optionnel (rétro-compatible) : lève l'ambiguïté si l'utilisateur est dans plusieurs sessions du même salon.
+    sessionId: z.string().min(1).max(64).optional(),
   })
   .strict();
 

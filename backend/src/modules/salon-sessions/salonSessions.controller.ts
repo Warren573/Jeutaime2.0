@@ -16,7 +16,7 @@ export async function getActiveSessions(req: AuthedRequest, res: Response) {
   const salonKind = req.params["salonKind"] as string;
 
   try {
-    const data = await salonSessionsService.getActiveSessionsForSalon(salonKind);
+    const data = await salonSessionsService.getActiveSessionsForSalon(salonKind, req.user.userId);
     const validated = GetActiveSessionsResponseSchema.parse(data);
     res.json({ data: validated });
   } catch (err) {

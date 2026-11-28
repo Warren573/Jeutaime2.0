@@ -5,6 +5,28 @@ import { listCatalog as magicCatalog, castSpell } from "../../src/modules/magies
 
 const test = process.env.TEST_DATABASE_URL ? it : it.skip;
 const ids: string[] = [];
+const sessionIds: string[] = [];
+
+/**
+ * Depuis la phase « sécurité salons », une offrande de salon ou un sort exige un salon ET une session
+ * ouverte commune : on place donc les utilisateurs dans une même session (prix et concurrence inchangés).
+ */
+async function shareSession(userIds: string[]) {
+  const salon = await prisma.salon.upsert({
+    where: { kind: "PISCINE" },
+    update: {},
+    create: { kind: "PISCINE", name: "La Piscine (test)", isActive: true },
+  });
+  const session = await prisma.salonSession.create({
+    data: {
+      salonKind: "PISCINE",
+      expiresAt: new Date(Date.now() + 3_600_000),
+      participants: { create: [...new Set(userIds)].map((userId) => ({ userId, status: "ACTIVE" as const })) },
+    },
+  });
+  sessionIds.push(session.id);
+  return { salonId: salon.id, sessionId: session.id };
+}
 
 async function makeUser(role: string, coins: number) {
   const id = `economy-wallet-${role}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
@@ -19,6 +41,8 @@ afterEach(async () => {
   await prisma.coinTransaction.deleteMany({where:{walletId:{in:ids}}});
   await prisma.wallet.deleteMany({where:{userId:{in:ids}}});
   await prisma.user.deleteMany({where:{id:{in:ids}}});
+  await prisma.salonSession.deleteMany({where:{id:{in:sessionIds}}});
+  sessionIds.length = 0;
   await prisma.offeringCatalog.deleteMany({where:{id:{in:["off_biere","desk_rose"]}}});
   await prisma.magieCatalog.deleteMany({where:{id:"mag_grenouille"}});
   ids.length = 0;
@@ -33,9 +57,10 @@ describe("Canonical economy wallet debits (PostgreSQL)", () => {
     }});
     const listing = await offeringsCatalog();
     expect(listing.find(o=>o.id==="off_biere")?.cost).toBe(5);
+    const room = await shareSession([sender, target]);
     const attempts = await Promise.allSettled([
-      sendOffering(sender,{offeringId:"off_biere",toUserId:target}),
-      sendOffering(sender,{offeringId:"off_biere",toUserId:target}),
+      sendOffering(sender,{offeringId:"off_biere",toUserId:target,...room}),
+      sendOffering(sender,{offeringId:"off_biere",toUserId:target,...room}),
     ]);
     expect(attempts.filter(r=>r.status==="fulfilled")).toHaveLength(1);
     expect((await prisma.wallet.findUniqueOrThrow({where:{userId:sender}})).coins).toBe(0);
@@ -81,7 +106,8 @@ describe("Canonical economy wallet debits (PostgreSQL)", () => {
     }});
     const listing=await magicCatalog();
     expect(listing.spells.find(s=>s.id==="mag_grenouille")?.cost).toBe(20);
-    await castSpell(sender,{magieId:"mag_grenouille",toUserId:sender});
+    const room = await shareSession([sender]);
+    await castSpell(sender,{magieId:"mag_grenouille",toUserId:sender,salonId:room.salonId});
     expect((await prisma.wallet.findUniqueOrThrow({where:{userId:sender}})).coins).toBe(0);
     expect(await prisma.coinTransaction.count({where:{walletId:sender,amount:-20,type:"POWER_USED"}})).toBe(1);
   });

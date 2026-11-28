@@ -104,7 +104,6 @@ export async function getPrivateSession(userId: string, sessionId: string) {
           joinedAt: true,
           user: {
             select: {
-              email: true,
               profile: { select: { pseudo: true, gender: true, avatarConfig: true } },
             },
           },
@@ -113,6 +112,12 @@ export async function getPrivateSession(userId: string, sessionId: string) {
     },
   });
   if (!session || !session.isPrivate) throw new NotFoundError("Salon privé");
+
+  // Invitation acceptée ne suffit pas : il faut encore être participant ACTIF
+  // (un participant parti ou retiré ne doit plus lire la liste des membres).
+  if (!session.participants.some((p) => p.userId === userId)) {
+    throw new ForbiddenError("Tu n'as pas accès à ce salon privé");
+  }
 
   return {
     id: session.id,

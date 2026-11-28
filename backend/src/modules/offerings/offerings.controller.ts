@@ -76,7 +76,7 @@ export async function handleListSalonOfferings(
   const salonId = req.params["salonId"] as string;
   const sessionId =
     typeof req.query["sessionId"] === "string" ? req.query["sessionId"] : undefined;
-  const data = await svc.listSalonOfferings(salonId, sessionId);
+  const data = await svc.listSalonOfferings(salonId, sessionId, new Date(), req.user.userId);
   res.json({ data });
 }
 
@@ -85,6 +85,7 @@ export async function handleConsume(req: AuthedRequest, res: Response) {
   const offeringId = req.params["offeringId"] as string;
   const body = req.body as ConsumeOfferingBodyDto;
   void body;
+  await svc.authorizeOfferingConsumption(offeringId, req.user.userId);
   const data = await svc.consumeOffering(offeringId, req.user.userId);
   res.json({ success: true, data });
 }
